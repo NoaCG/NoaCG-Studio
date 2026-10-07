@@ -80,8 +80,8 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
   const [settings, setSettings] = useState(loadPlayoutSettings);
   const [busy, setBusy] = useState<Verb | null>(null);
   // The verdict, with its success sentence written AT THE PRESS: it is past tense, so it must not be
-  // re-derived from settings typed since (ProductionLinks.tsx, BridgeAirRow, says what that cost
-  // once). WHICH button produced it rides along for the specs.
+  // re-derived from settings typed since (a Load line once named a channel typed after the
+  // press). WHICH button produced it rides along for the specs.
   const [result, setResult] = useState<{ verb: Verb; result: PlayoutResult; ok: string } | null>(null);
   // The servers NoaCG Bridge remembers this studio connecting to, one press each.
   const [servers, setServers] = useState<RememberedServer[]>([]);
@@ -520,7 +520,7 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
           <button
             onClick={() => void run('air')}
             disabled={busy !== null || !configured || !outputUrl}
-            title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${serverAddress(targetOf(settings))}` : 'Start the production first: it has no output URL yet'}
+            title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${serverAddress(targetOf(settings))}` : 'Publish the production first'}
             data-testid="playout-put-on-air"
           >
             {busy === 'air' ? 'Sending…' : 'Put on air'}
@@ -529,8 +529,7 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
       </div>
       {outputUrl === null && (
         <p className="dlg-hint" data-testid="playout-air-unstarted">
-          Put on air needs the production started: press <strong>Start production</strong> in its
-          output links first.
+          Publish the production first.
         </p>
       )}
       {result && (

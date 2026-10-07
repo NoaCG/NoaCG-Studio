@@ -840,29 +840,21 @@ channel pick: it plays inside the production's output page, which is on the grap
 
 ## 7. Publishing and the links live here
 
-If this surface replaces the production dashboard, it carries the dashboard's two jobs:
-**Publish / republish**, and both capability links — the **output URL** (the browser source) and
-the **control page URL** (to operate from another device). They belong in the header's menu, one
-click from the operator, never on a page they have to navigate away to.
+Rebuilt by `docs/work-specs/playout-workflow-simplification` (2026-10-07). **Publish** is the
+header's one action before the first publish, **Publish changes** after it when a change the
+outputs draw is waiting, and **Load on <slot>** when CasparCG is switched on and its slot is
+empty. The action slot keeps its width, so Setup and ■ All out never move.
 
-**▶ Start production is amber only once there is a cue to take** (2026-09-28). With an empty
-rundown it is a plain button whose tooltip says there is nothing to run yet. It still works:
-publishing an empty production mints the links, so the output URL can be set up in OBS or
-CasparCG before the graphics exist. It is just not the page's call to action until then.
+**The Playout panel is about output.** A press on the status opens it: problems first, then each
+renderer with its state and command path ("Check now" checks again without publishing), then
+the browser source (the output URL, Copy, and the Template file for hosts that cannot take a
+link), then CasparCG: its switch, the Bridge (Download and Pair when it is missing) and the slot
+with Load and Unload. Turning CasparCG on never removes the browser source.
 
-**ONE LINE PER CAPABILITY, the explanation behind its own ▸.** The panel grew a paragraph under
-every row and became a page: five explanations between five rows put the CONTROL PAGE — the link
-a class operates from — below an account of an SPX file most of them never download. So each
-row's help collapses (`LinkRow`, ProductionPage.tsx), and the arrow sits in the same column down
-the panel so it is found rather than hunted. Two rules the shape has to keep:
-
-- **The audience row's help opens by default.** Every other explanation describes something
-  PRIVATE; this one says "public", and that is the one omission here that could reach air.
-- **A secondary capability is QUIET, never hidden.** The SPX template file is a smaller, dimmer
-  row directly under the output URL it is a second form of — it belongs to the one playout host
-  that cannot take a link, so it must stay findable without competing with the links copied
-  every show. Same for the readable-name field. Hiding either behind a "more" would trade one
-  crowded panel for a lost control.
+**The other links are in Setup › Links…**: the control page and presenter (private) and the
+audience link with its readable name (public), each marked as such. There is no Unpublish on
+the page: links persist (`control_show_identity`, migration 0040), and a publication costs one
+row.
 
 ## 7b. The ⚡ GRAPHIC ACTIONS block, in the operator's words
 

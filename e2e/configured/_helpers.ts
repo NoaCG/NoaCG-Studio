@@ -31,14 +31,24 @@ export type ReadyWindow = {
 export const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null).catch(() => null);
 
 /**
- * Unpublish the open production through its Playout panel, opening the panel first when it is
- * shut. By test id, never by the button's name: the status control itself can read "Unpublished
- * changes", and a name match then presses the status instead.
+ * Unpublish the open production for a spec's own cleanup. The operator UI has no Unpublish
+ * (docs/work-specs/playout-workflow-simplification AC-8: deleting a production still unpublishes),
+ * so this calls the same model and hosted-control functions the old button did, then reloads the
+ * page so it reads the unpublished record.
  */
-export async function unpublishFromPanel(page: Page): Promise<void> {
-  const panel = page.getByTestId('production-status-panel');
-  if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
-  await panel.getByTestId('production-unpublish').click();
+export async function unpublishForCleanup(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const id = /#\/production\/([^/?#]+)/.exec(location.hash)?.[1];
+    if (!id) throw new Error('unpublishForCleanup: not on a production page');
+    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const S = await import('/src/model/shows.ts');
+    await unpublishControlShow(id);
+    S.setShowHostedSlug(id, undefined);
+    S.setShowOutputSlug(id, undefined);
+    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+  });
+  await page.reload();
+  await page.getByTestId('production-page').waitFor();
 }
 
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';

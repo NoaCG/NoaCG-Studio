@@ -209,6 +209,31 @@ export function stampOf(lines: readonly CheckLine[], target: HeldVersion, now: n
  * after a change: "Checked 14:02 on v12, 1 change since", counting the publishes since and any
  * edit not published yet. With warnings or problems it counts them instead of claiming ready.
  */
+/**
+ * EACH OUTPUT'S COMMAND PATH from a check's lines (`withPing`), in the short words the Playout
+ * panel's output rows have room for (docs/work-specs/playout-workflow-simplification D5): "110 ms",
+ * "Commands reach it", "Commands late", "Checking…", "Cannot check". Keyed by output id.
+ */
+export function commandPathsOf(lines: readonly CheckLine[]): Record<string, { text: string; tone: ReadyTone }> {
+  const paths: Record<string, { text: string; tone: ReadyTone }> = {};
+  for (const line of lines) {
+    if (line.key.indexOf('output-') !== 0) continue;
+    const m = / · (command path (\d+) ms|commands reach it|commands did not reach it in \d+ s|checking the command path|cannot answer the command path check)$/.exec(line.label);
+    if (!m) continue;
+    const text = m[2]
+      ? `${m[2]} ms`
+      : m[1] === 'commands reach it'
+        ? 'Commands reach it'
+        : m[1].startsWith('commands did not')
+          ? 'Commands late'
+          : m[1].startsWith('checking')
+            ? 'Checking…'
+            : 'Cannot check';
+    paths[line.key.slice('output-'.length)] = { text, tone: text === 'Commands late' ? 'warn' : line.tone === 'running' ? 'idle' : line.tone };
+  }
+  return paths;
+}
+
 export function stampWords(stamp: ReadyStamp, published: HeldVersion | null, unpublished: boolean): string {
   const at = clockWords(stamp.at);
   const since = (published && published.h !== stamp.v.h ? Math.max(1, published.n - stamp.v.n) : 0) + (unpublished ? 1 : 0);

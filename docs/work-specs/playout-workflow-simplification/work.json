@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "dd8d3be30cbb243174e6f54db75eebb3e620465b3ba6c048c69dcf4db2f99cd2",
+  "specSha256": "3fb0dd6e8ae57922419d847deaca63d1c7cbecdd1a9904014c6762956283ff45",
   "authority": {
     "status": "agreed",
     "source": "the owner's playout simplification brief and answers of 2026-10-07 (publish once with persistent URLs and no online/offline session; one status with Connected, quiet when nothing has connected, red only on loss or a Take with no output; Publish changes only when needed; a per-production CasparCG switch; publish loads the CasparCG slot; no Unpublish in the UI; no explanatory text; immediate shortcuts with Nordic keys; automatic never-stolen panel ownership; calm cloud state with a 60 s threshold; the rundown not made worse), the owner-confirmed requirements sent with the independent review (native CasparCG operation independent of publication and internet, one persistent graphic never blocking another's update, persistent control links), and the owner's go-ahead to implement what both reviews agree on"

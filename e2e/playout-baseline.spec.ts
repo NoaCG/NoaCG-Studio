@@ -16,7 +16,7 @@
 // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
 // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
 // header door and the Back/Home pair beside it.
-// covers: src/{components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx,control/playoutSystems.ts}
+// covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
 //
 // THE PRODUCTION PAGE AS PICTURES (docs/CLIP_PLAYBACK_PLAN.md §10). The stylesheet is CORE, so a
 // CSS change reaches no covers line and runs the focus set instead; without the baselines here, a

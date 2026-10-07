@@ -58,7 +58,11 @@ exactly the stuck case.
 ## Derived decisions (revertible; each says how)
 
 - **D1. The header holds one playout control and one action slot.**
-  - The control is a "Publish ▾" split button before the first publish, then a status pill.
+  - The control is a status pill in every state, "Not published" before the first publish, with
+    "Publish" in the action slot. The mockup's split "Publish ▾" became the pill (2026-10-08):
+    native CasparCG cues air before any publish, so "Bridge not running" and "CasparCG ready"
+    need the same place before the first publish as after it, and the pill never changes shape.
+    Revert: a split button before the first publish.
   - The action slot shows the most important due action: "Load on 1-20", then "Publish changes".
   - The slot has a reserved width, so Setup and All out never move.
   - The panel lists every due action.
@@ -131,8 +135,9 @@ exactly the stuck case.
 ## Behaviour
 
 ### AC-1: One control, one action slot, stable header
-- Before the first publish the header shows "Publish ▾". After it, a status pill, with at most
-  one action ("Load on 1-20" or "Publish changes") in a reserved slot.
+- The header shows a status pill with at most one action in a reserved slot: "Publish" before
+  the first publish, then "Load on 1-20" or "Publish changes". Before the first publish the pill
+  reads "Not published", or with CasparCG on "CasparCG ready" or the Bridge's fault.
 - The "Browser source" label, the header readiness button and the timer are gone.
 - Setup and All out keep their x position across every state at 1920, 1366 and 1280 px, in team,
   personal and signed-out productions.
@@ -176,8 +181,10 @@ colours, no Unpublish.
 - **Publish:** publishes; with the switch on it loads the renderer on the slot, asking before
   replacing another production; then the renderers report.
 - **A failure** names the step ("Publish failed", "Bridge not running", "CasparCG refused 1-20").
-- **"Publish changes"** appears only when a publish would change what renderers draw. It runs
-  publish, prepare and ping, and the rows then show each renderer's adoption.
+- **"Publish changes"** appears in the header only when a publish would change what renderers
+  draw. The panel offers it for any unpublished change, since cue edits also reach the control and
+  presenter pages. It runs publish, prepare and ping, and the rows then show each renderer's
+  adoption.
 
 ### AC-6: Native CasparCG cues never need publication
 - A production whose rundown holds only server cues, with the switch on and a Bridge paired,

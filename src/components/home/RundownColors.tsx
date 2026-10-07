@@ -1,4 +1,4 @@
-import { accentColor, hasCasparOutput, routeColor } from '../../model/outputSetup';
+import { accentColor, routeColor } from '../../model/outputSetup';
 import { setCueAccentColor, setRundownColor, type Show, type ShowCue } from '../../model/shows';
 import type { PlayoutSettings } from '../../control/playoutLink';
 import { useDeferredEdits } from './useDeferredEdits';
@@ -16,17 +16,18 @@ export function CueAccentControl({ show, cue, setShows, fallback, onPreview }: {
     <button disabled={!custom && !edits.dirty(key)} onClick={() => { edits.flush(); setShows(setCueAccentColor(show.id, cue.id, null)); }}>Reset to default</button>
   </div>;
 }
-export default function RundownColors({ show, settings, setShows }: { show: Show; settings: PlayoutSettings; setShows: (s: Show[]) => void }) {
+/** One swatch per route: the NoaCG output, and each CasparCG channel while CasparCG is on. A route
+ *  with its own colour offers Reset; nothing here needs explaining. */
+export default function RundownColors({ show, settings, casparOn, setShows }: { show: Show; settings: PlayoutSettings; casparOn: boolean; setShows: (s: Show[]) => void }) {
   const edits = useDeferredEdits((key, value) => {
     const [showId, route] = JSON.parse(key) as [string, string];
     setShows(setRundownColor(showId, route, value));
   });
-  const routes = [{ key: 'output', label: 'NoaCG output', channel: undefined }, ...(hasCasparOutput(show.outputSetup) || show.cues?.some(c => c.source === 'playout') ? settings.channels.map(c => ({ key: `channel:${c.channel}`, label: `Channel ${c.channel}`, channel: c.channel })) : [])];
-  return <details className="pd-rundown-colors" data-testid="rundown-colors"><summary>Rundown colors</summary>
+  const routes = [{ key: 'output', label: 'NoaCG output', channel: undefined }, ...(casparOn ? settings.channels.map(c => ({ key: `channel:${c.channel}`, label: `Channel ${c.channel}`, channel: c.channel })) : [])];
+  return <div className="pd-rundown-colors" data-testid="rundown-colors">
     {routes.map(r => <div className="pd-cue-highlight-control" key={r.key}>
       <label>{r.label} <input type="color" aria-label={`${r.label} color`} value={edits.text(JSON.stringify([show.id, r.key]), routeColor(show.rundownColors, r.channel))} onChange={e => edits.type(JSON.stringify([show.id, r.key]), e.target.value)} onBlur={edits.flush} /></label>
-      <button disabled={!show.rundownColors?.[r.key]} onClick={() => { edits.flush(); setShows(setRundownColor(show.id, r.key, null)); }}>Reset</button>
+      {show.rundownColors?.[r.key] && <button onClick={() => { edits.flush(); setShows(setRundownColor(show.id, r.key, null)); }}>Reset</button>}
     </div>)}
-    <p className="hint">These accents identify routes. Custom cue highlights and ON AIR/PVW colors remain independent.</p>
-  </details>;
+  </div>;
 }

@@ -7,9 +7,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { outputSettled, outputChecks, stampOf, stampWords, bridgeChecks, readPrepRequest, preparedOutputs, slotHolds, requestId, PREPARE_WAIT_MS } = await import(
+const { outputSettled, outputChecks, stampOf, stampWords, bridgeChecks, readPrepRequest, preparedOutputs, slotHolds, requestId, commandPathsOf, PREPARE_WAIT_MS } = await import(
   '../src/control/prepareLive.ts'
 );
+
+test('each output row gets its command path from the last check, in short words', () => {
+  const paths = commandPathsOf([
+    { key: 'publish', tone: 'ok', label: 'No unpublished changes' },
+    { key: 'output-a', tone: 'ok', label: 'Desk A: Ready for playout · command path 110 ms' },
+    { key: 'output-b', tone: 'ok', label: 'OBS: Ready for playout · commands reach it' },
+    { key: 'output-c', tone: 'warn', label: 'vMix: Ready for playout · commands did not reach it in 15 s' },
+    { key: 'output-d', tone: 'running', label: 'CasparCG 1-20: Ready for playout · checking the command path' },
+    { key: 'output-e', tone: 'ok', label: 'Old: Ready for playout · cannot answer the command path check' },
+    { key: 'output-f', tone: 'ok', label: 'Plain: Ready for playout' },
+  ]);
+  assert.deepEqual(paths, {
+    a: { text: '110 ms', tone: 'ok' },
+    b: { text: 'Commands reach it', tone: 'ok' },
+    c: { text: 'Commands late', tone: 'warn' },
+    d: { text: 'Checking…', tone: 'idle' },
+    e: { text: 'Cannot check', tone: 'ok' },
+  });
+});
 
 test('readiness checks only the relevant CasparCG connection and graphics slot', () => {
   const base = { configured: true, status: { state: 'ok', detail: '' }, channel: 1, layer: 20, outputSlug: 'ours', items: [], slot: { producer: 'html', file: '/output?production=other' } };

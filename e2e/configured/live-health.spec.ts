@@ -11,7 +11,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -79,7 +79,7 @@ test('an output says who it is and how commands reach it, and both operator page
   await openProductionWithCurrent(page, showName);
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-  const links = page.getByTestId('production-links');
+  const links = page.getByTestId('production-status-panel');
   await expect(links).toBeVisible();
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
@@ -243,7 +243,7 @@ test('an output says who it is and how commands reach it, and both operator page
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await unpublishFromPanel(page);
+  await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);

@@ -25,6 +25,7 @@ export function ProductionSetupMenu({
   team,
   panel,
   onPanel,
+  onLinks,
   onPlayoutSettings,
   onExport,
   offerData,
@@ -36,6 +37,9 @@ export function ProductionSetupMenu({
   team?: { name: string; detail?: string; open: () => void };
   panel: PanelAnswerState;
   onPanel: () => void;
+  /** The control page, presenter and audience links (home/ProductionLinks.tsx). Absent in a build
+   *  that cannot publish, where there are no links to show. */
+  onLinks?: () => void;
   onPlayoutSettings: () => void;
   onExport: () => void;
   /** The Data view is not in the switcher, so the menu is its way in. */
@@ -88,6 +92,11 @@ export function ProductionSetupMenu({
             data-testid="share-with-team"
           >
             <IconUsers /> Share…
+          </button>
+        )}
+        {onLinks && (
+          <button role="menuitem" onClick={pick(onLinks)} data-testid="setup-links">
+            Links…
           </button>
         )}
         <button

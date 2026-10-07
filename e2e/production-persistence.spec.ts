@@ -151,23 +151,28 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
 
   await page.goto(`/app#/production/${id}`);
 
-  // Both capability links render from the stored slugs, and a freshly published record
-  // carries no divergence warning.
+  // Both capability links render from the stored slugs: the output in the Playout panel, the
+  // control page under Setup › Links… (playout-workflow-simplification AC-3, AC-8). A freshly
+  // published record offers no Publish changes, in the header's action slot or in the panel.
   await page.getByTestId('production-status').click();
-  const links = page.getByTestId('production-links');
-  await expect(links).toContainText('/output?production=test-output-slug');
-  await expect(links).toContainText('?control=test-hosted-slug');
-  // The hint lives in the Playout panel's actions, and the status says the same in its words.
-  const hint = page.getByTestId('publish-freshness');
-  await expect(hint).toHaveCount(0);
-  await expect(page.getByTestId('production-status')).not.toContainText('Unpublished changes');
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('output-url')).toContainText('/output?production=test-output-slug');
+  await expect(panel.getByTestId('panel-publish-changes')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('playout-action-slot').getByTestId('production-publish-changes')).toHaveCount(0);
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-links').click();
+  await expect(page.getByTestId('production-links').getByTestId('control-url')).toContainText('?control=test-hosted-slug');
+  await page.getByTestId('production-links-close').click();
 
-  // An edit AFTER publish: the hint must say the renderer runs an older snapshot...
+  // An edit AFTER publish: the outputs run an older snapshot, so Publish changes appears. It is an
+  // action, never a status word (AC-5, D1, D2), and the panel lists it too.
   await page.getByTestId('cue-label').fill('Edited after publish');
   await page.waitForTimeout(600); // the draft flush stamps updatedAt past publishedAt
-  await expect(page.getByTestId('production-status')).toContainText('Unpublished changes');
-  if (!(await page.getByTestId('production-status-panel').isVisible())) await page.getByTestId('production-status').click();
-  await expect(hint).toContainText('The outputs run the published version');
+  await expect(page.getByTestId('playout-action-slot').getByTestId('production-publish-changes')).toHaveText('Publish changes');
+  await expect(page.getByTestId('production-status')).not.toContainText('Unpublished changes');
+  await page.getByTestId('production-status').click();
+  await expect(panel.getByTestId('panel-publish-changes')).toBeVisible();
 
   // ...and the slugs survive the edit (URLs are persistent by contract).
   const after = await page.evaluate(async (showId) => {
@@ -178,7 +183,7 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
   expect(after).toEqual({ hosted: 'test-hosted-slug', output: 'test-output-slug' });
 });
 
-test('Escape closes the links popover before the next toggle reopens it', async ({ page }) => {
+test('Escape closes the playout panel before the next toggle reopens it', async ({ page }) => {
   const id = await seedProduction(page, 'Links Escape Probe');
   await page.evaluate(async (showId) => {
     const { setShowHostedSlug } = await import('/src/model/shows.ts');
@@ -186,10 +191,15 @@ test('Escape closes the links popover before the next toggle reopens it', async 
   }, id);
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${id}`);
+  const panel = page.getByTestId('production-status-panel');
   await page.getByTestId('production-status').click();
+  await expect(panel).toBeVisible();
   await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
   await page.getByTestId('production-status').click();
-  await expect(page.getByTestId('production-unpublish')).toBeVisible();
+  await expect(panel.getByTestId('playout-panel-browser')).toBeVisible();
+  // No Unpublish in the UI: playout-workflow-simplification AC-8.
+  await expect(page.getByTestId('production-unpublish')).toHaveCount(0);
 });
 
 test('the audience and presenter links are offered separately, and only once they exist', async ({ page }) => {
@@ -200,15 +210,27 @@ test('the audience and presenter links are offered separately, and only once the
   const id = await seedProduction(page, 'Link Shapes');
   await page.goto(`/app#/production/${id}`);
 
-  // Before publish there are no links at all: the status reads Offline beside the Start button,
-  // and its panel offers none - there is no audience plane yet, and a URL that would not resolve
-  // is worse than none.
+  // Before publish there are no links at all: the status reads Not published beside Publish, and
+  // Setup › Links… offers no URL - there is no audience plane yet, and a URL that would not resolve
+  // is worse than none. The Playout panel carries no people links at all (AC-3, D7).
   await expect(page.getByTestId('production-publish')).toBeVisible();
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
+  await expect(page.getByTestId('production-status')).toHaveText(/Not published/);
   await page.getByTestId('production-status').click();
   await expect(page.getByTestId('production-status-panel')).toBeVisible();
-  await expect(page.getByTestId('production-links')).toHaveCount(0);
+  await expect(page.getByTestId('production-status-panel').getByTestId('presenter-url')).toHaveCount(0);
+  await expect(page.getByTestId('production-status-panel').getByTestId('join-url')).toHaveCount(0);
   await page.keyboard.press('Escape');
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-links').click();
+  const links = page.getByTestId('production-links');
+  for (const row of ['control-url', 'presenter-url', 'join-url']) {
+    await expect(links.getByTestId(row)).toContainText('Available after publishing');
+  }
+  await expect(links.getByTestId('copy-presenter-url')).toBeDisabled();
+  await expect(links.getByTestId('copy-join-url')).toBeDisabled();
+  await expect(links.getByTestId('join-name')).toHaveCount(0);
+  await links.getByTestId('production-links-close').click();
 
   await page.evaluate(async (showId) => {
     const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
@@ -223,31 +245,32 @@ test('the audience and presenter links are offered separately, and only once the
   // RELOAD, not goto: the page is already on this exact URL, and a same-URL goto does not
   // re-render, so the surface would still be showing the unpublished record it read on arrival.
   await page.reload();
-  await page.getByTestId('production-status').click();
-  const links = page.getByTestId('production-links');
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-links').click();
 
   // Each renders in its own form: the audience one is the readable vanity path an operator
   // reads out, the presenter one its own query capability.
-  await expect(links).toContainText('/join/friday-night-live');
-  await expect(links).toContainText('?pv=pv-test-slug');
-  await expect(page.getByTestId('copy-presenter-url')).toBeVisible();
+  await expect(links.getByTestId('join-url')).toContainText('/join/friday-night-live');
+  await expect(links.getByTestId('presenter-url')).toContainText('?pv=pv-test-slug');
+  await expect(links.getByTestId('copy-presenter-url')).toBeEnabled();
+  await expect(links.getByTestId('copy-join-url')).toBeEnabled();
 
-  // And they are described by WHO THEY ARE FOR, so the public one can never be mistaken for the
-  // presenter's - the whole reason they are two rows rather than one. The audience row says so
-  // WITHOUT being asked: every other explanation on this panel collapses behind its ▸, and
-  // "public" is the one omission here that could reach air.
-  await expect(links).toContainText('This link is public. Share it with the room');
-  await expect(page.getByTestId('presenter-url-help')).toHaveCount(0);
-  await page.getByTestId('presenter-url-help-toggle').click();
-  await expect(page.getByTestId('presenter-url-help')).toContainText('presenter’s own phone or tablet');
+  // And they are marked by WHO THEY ARE FOR, so the public one can never be mistaken for the
+  // presenter's - the whole reason they are two rows rather than one. The mark replaces the
+  // explanation paragraphs and their ▸ toggles (playout-workflow-simplification AC-8, AC-10).
+  await expect(links.getByTestId('join-url')).toContainText('Public');
+  await expect(links.getByTestId('presenter-url')).toContainText('Private');
+  await expect(links.getByTestId('control-url')).toContainText('Private');
+  await expect(page.getByTestId('presenter-url-help-toggle')).toHaveCount(0);
 });
 
-test('the links panel is one line per capability, with the explanations behind their own arrows', async ({ page }) => {
+test('the panel holds the browser source in one row, and Links… holds one row per capability, with no explanations', async ({ page }) => {
   // Owner report 2026-08-18: the panel had grown into a page. Five always-open paragraphs sat
   // between five rows, so the CONTROL PAGE - the link a class actually operates from - was
-  // below an explanation of an SPX file most of them never download. The text is right; being
-  // unable to put it away is not. Every row now collapses, and the SPX file is a QUIET row
-  // rather than a fourth capability.
+  // below an explanation of an SPX file most of them never download. The redesign
+  // (playout-workflow-simplification AC-3, AC-8, AC-10, D6, D7) goes further: the explanations
+  // and their ▸ toggles are gone, the output is one row of the Playout panel with the template
+  // file as a quiet button beside Copy, and the people links moved to Setup › Links….
   const id = await seedProduction(page, 'Link Density');
   await page.goto(`/app#/production/${id}`);
   await page.evaluate(async (showId) => {
@@ -258,31 +281,33 @@ test('the links panel is one line per capability, with the explanations behind t
   await settleDurableWrites(page);
   await page.reload();
   await page.getByTestId('production-status').click();
-  const links = page.getByTestId('production-links');
+  const panel = page.getByTestId('production-status-panel');
 
-  // At rest: every capability is one row, and no explanation is in the way.
-  await expect(links.locator('.prod-link-item')).toHaveCount(3);
-  await expect(links.locator('.prod-link-help')).toHaveCount(0);
-
-  // The arrow is the whole disclosure - it opens ONE row's help, not the panel's.
-  await page.getByTestId('output-url-help-toggle').click();
-  await expect(page.getByTestId('output-url-help')).toContainText('browser source');
-  await expect(links.locator('.prod-link-help')).toHaveCount(1);
-  await page.getByTestId('output-url-help-toggle').click();
-  await expect(links.locator('.prod-link-help')).toHaveCount(0);
-
-  // The template FILE is DEMOTED, not removed: a quiet row, still one click from the file.
-  const spx = links.locator('.prod-link-item', { hasText: 'Template file' });
-  await expect(spx).toHaveClass(/quiet/);
+  // The browser source is one row: the URL, Copy and Template file, and no explanation.
+  const source = panel.getByTestId('playout-panel-browser');
+  await expect(source.getByTestId('output-url')).toContainText('/output?production=test-output-slug');
+  await expect(source.getByTestId('copy-output-url')).toBeEnabled();
+  await expect(source.getByTestId('download-output-embed')).toHaveText('Template file');
+  await expect(page.locator('.prod-link-help, .prod-link-help-toggle')).toHaveCount(0);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByTestId('download-output-embed').click(),
+    source.getByTestId('download-output-embed').click(),
   ]);
   expect(download.suggestedFilename()).toMatch(/\.html$/);
 
   // The panel stays shorter than the window it pops out of - the defect that started this.
-  const height = await links.evaluate((el) => el.getBoundingClientRect().height);
+  if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
+  const height = await panel.evaluate((el) => el.getBoundingClientRect().height);
   expect(height).toBeLessThan(320);
+  await page.keyboard.press('Escape');
+
+  // Links…: every capability one row, and no explanation in the way.
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-links').click();
+  const links = page.getByTestId('production-links');
+  await expect(links.locator('.dlg-row')).toHaveCount(3);
+  await expect(links.getByTestId('output-url')).toHaveCount(0);
+  await expect(links.locator('p')).toHaveCount(0);
 });
 
 test('the readable audience name: the database decides, and this build says so honestly', async ({ page }) => {
@@ -304,16 +329,22 @@ test('the readable audience name: the database decides, and this build says so h
   }, id);
   await settleDurableWrites(page);
   await page.reload();
-  await page.getByTestId('production-status').click();
+  // The audience name lives with the audience link under Setup › Links… (playout-workflow-simplification AC-8).
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-links').click();
 
   const input = page.getByTestId('join-name-input');
   const claim = page.getByTestId('join-name-claim');
   const note = page.getByTestId('join-name-note');
   await expect(input).toBeVisible();
 
-  // Empty is the ONE refusal that needs no server.
-  await claim.click();
-  await expect(note).toHaveText('Type a name first.');
+  // Empty is the ONE refusal that needs no server: "Use this name" stays off until a name is typed
+  // (a disabled button instead of a sentence, AC-10).
+  await expect(claim).toHaveText('Use this name');
+  await expect(claim).toBeDisabled();
+  await input.fill('   ');
+  await expect(claim).toBeDisabled();
+  await expect(note).toHaveCount(0);
 
   // A real name offline says what is actually wrong - it does not claim success, and it does not
   // pretend the name was taken.

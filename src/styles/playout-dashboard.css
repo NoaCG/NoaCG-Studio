@@ -331,6 +331,132 @@ details.pd-panel-section > summary.pd-panel-section-title { cursor: pointer; }
 .pd-panel-check { align-items: center; font-size: 12px; }
 .pd-status-checks { margin-bottom: 0; }
 
+/* THE PLAYOUT PANEL'S SECTIONS (home/PlayoutPanel.tsx, docs/work-specs/playout-workflow-simplification
+   AC-3): one type scale and one button size throughout. A section is a hairline and a row grid; a
+   heading only where a section has a name worth reading (Outputs, Browser source). States wear the
+   status's own dots and colours, so the panel speaks the header's language. */
+.pd-pp-status { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; font-size: 14px; font-weight: 700; }
+.pd-pp-status--ok .pd-pp-dot { color: #4ade80; }
+.pd-pp-status--warn .pd-pp-dot { color: #f59e0b; }
+.pd-pp-status--bad .pd-pp-dot { color: #ef4444; }
+.pd-pp-status--idle .pd-pp-dot { color: var(--text-dim); }
+.pd-pp-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+/* A grid item's minimum is its content, so a long output URL would push Copy out of the panel. */
+.pd-pp-section > * { min-width: 0; }
+.pd-pp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pd-pp-title { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.pd-pp-row { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; flex-wrap: wrap; }
+.pd-pp-dot { flex: none; font-size: 11px; color: var(--text-dim); }
+.pd-pp-dot--ok { color: #4ade80; }
+.pd-pp-dot--warn { color: #f59e0b; }
+.pd-pp-dot--bad { color: #ef4444; }
+.pd-pp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-pp-state { flex: none; font-size: 12px; color: var(--text-dim); }
+.pd-pp-row--ok .pd-pp-state { color: #4ade80; }
+.pd-pp-row--warn .pd-pp-state { color: #f59e0b; }
+.pd-pp-row--bad .pd-pp-state { color: #ef8a8a; }
+.pd-pp-row--quiet { color: var(--text-dim); }
+.pd-pp-head-aside { display: inline-flex; align-items: center; gap: 8px; }
+.pd-pp-path { font-variant-numeric: tabular-nums; }
+.pd-pp-path--warn { color: #f59e0b; }
+.pd-pp-path--bad { color: #ef8a8a; }
+.pd-pp-advice { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+.pd-pp-advice--row { flex-basis: 100%; margin: 0 0 0 19px; }
+.pd-pp-problems { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.pd-pp-problem { display: flex; gap: 8px; align-items: baseline; font-size: 13px; line-height: 1.4; }
+.pd-pp-problem--bad .pd-pp-dot { color: #ef4444; }
+.pd-pp-problem--warn .pd-pp-dot { color: #f59e0b; }
+/* One control height for every button and field in the panel. */
+.pd-ready-panel .pd-pp-section button,
+.pd-ready-panel .pd-pp-button-link { height: 30px; padding: 0 12px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+.pd-pp-button-link { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 6px; text-decoration: none; }
+.pd-ready-panel .pd-pp-section .pd-pp-link,
+.pd-ready-panel .pd-pp-section .pd-pp-icon { height: 24px; padding: 0 6px; border-color: transparent; background: transparent; color: var(--text-dim); font-size: 12px; }
+.pd-pp-link:hover:not(:disabled),
+.pd-pp-icon:hover { color: var(--text); }
+.pd-pp-url-row { display: flex; gap: 8px; align-items: center; }
+.pd-pp-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  line-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input, #0e1014);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pd-pp-switch-row { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: 13px; color: var(--text); cursor: pointer; }
+.pd-pp-switch-label { flex: 1; }
+/* `input.` for the specificity to beat base.css's one-size checkbox: a switch is the one checkbox
+   drawn as a track, so the operator reads on and off from across the desk. */
+input.pd-pp-switch {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 36px;
+  min-width: 36px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--border-strong, #33394a);
+  border-radius: 99px;
+  background: var(--bg-3, #1b2230);
+  cursor: pointer;
+}
+input.pd-pp-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.12s ease;
+}
+input.pd-pp-switch:checked { background: var(--amber); border-color: var(--amber); }
+input.pd-pp-switch:checked::after { transform: translateX(16px); background: #15120a; }
+input.pd-pp-switch:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+input.pd-pp-switch:disabled { opacity: 0.5; cursor: default; }
+.pd-pp-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+  font-size: 13px;
+}
+.pd-pp-confirm > span { flex: 1; }
+.pd-pp-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pd-pp-actions:empty { display: none; }
+.pd-pp-section:has(> .pd-pp-actions:empty) { display: none; }
+/* THE ACTION SLOT beside the status (D1): one due action at most - Publish, Load on 1-20, Publish
+   changes. Its width is RESERVED, so an action that comes and goes never moves what sits right of
+   it, and Setup and ■ All out never move at all. A due action is an amber outline, never a fill:
+   it asks for a press, it is not an alarm. */
+.pd-action-slot { flex: none; display: inline-flex; min-width: 10.5em; }
+.pd-action-due { color: var(--amber); border-color: rgba(246, 166, 35, 0.55); background: transparent; white-space: nowrap; }
+.pd-action-due:hover:not(:disabled) { border-color: var(--amber); }
+/* SETUP › LINKS (home/ProductionLinks.tsx): the shared dialog anatomy; the Private and Public marks
+   are labels, never sentences. */
+.prod-links-dialog { width: min(620px, 94vw); height: auto; max-height: min(90vh, 640px); }
+.prod-links-label { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.prod-links-mark {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
 /* ── Body: the stage column + the cue rail ─────────────────────────────────── */
 /* The body is exactly the height under the header. `min-height: 0` lets it be SMALLER than its
    content, which is the point: what does not fit scrolls inside the control area instead of

@@ -66,7 +66,7 @@ async function publishScorebug(page: Page, showName: string): Promise<{ hosted: 
   await openProductionWithCurrent(page, showName);
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-  const links = page.getByTestId('production-links');
+  const links = page.getByTestId('production-status-panel');
   await expect(links).toBeVisible();
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();

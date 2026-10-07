@@ -1,9 +1,9 @@
 // guards: src/model/outputSetup.ts, src/control/playoutStatus.ts, src/control/prepareLive.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { outputChoice, readOutputSetup, readDestinationId, destinationUrl, accentColor, routeColor } from '../src/model/outputSetup.ts';
+import { outputChoice, readOutputSetup, readDestinationId, destinationUrl, accentColor, routeColor, casparSwitch, withCasparSwitch } from '../src/model/outputSetup.ts';
 import { bridgeChecks, stampOf } from '../src/control/prepareLive.ts';
-import { relevantPlayout, destinationCheck, describePlayoutStatus } from '../src/control/playoutStatus.ts';
+import { describePlayoutStatus } from '../src/control/playoutStatus.ts';
 
 test('choices validate profile combinations and never modify a legacy link', () => {
   for (const p of ['obs','vmix','spx','browser']) for (const caspar of [true,false]) assert.deepEqual(readOutputSetup(outputChoice(p,caspar)),outputChoice(p,caspar));
@@ -18,24 +18,29 @@ test('choices validate profile combinations and never modify a legacy link', () 
   assert.equal(readDestinationId('?destination=%3Cscript%3E'),undefined);
 });
 
-test('Bridge relevance cannot be established by studio settings or SPX renderer names', () => {
-  const f={configured:true,serverCues:false,peers:[{kind:'output',engine:'CasparCG',name:'CasparCG 1-20'}],expected:[],casparActivity:false};
-  assert.deepEqual(relevantPlayout(f),{bridge:false,slot:false});
-  assert.deepEqual(relevantPlayout({...f,outputSetup:outputChoice('spx',false)}),{bridge:false,slot:false});
-  assert.deepEqual(relevantPlayout({...f,outputSetup:outputChoice('obs',false),serverCues:true}),{bridge:true,slot:false});
-  assert.deepEqual(relevantPlayout({...f,configured:false,outputSetup:outputChoice(null,true)}),{bridge:true,slot:false});
-  assert.deepEqual(relevantPlayout({...f,casparActivity:true}),{bridge:true,slot:true});
+test('the CasparCG switch: the operator decides; until then nothing that plays through CasparCG loses it', () => {
+  const base = { setup: { v: 1, destinations: [] }, serverCues: false, legacyActivity: false, accountDefault: null };
+  assert.equal(casparSwitch(base), false, 'a new production with no default is browser only');
+  assert.equal(casparSwitch({ ...base, accountDefault: true }), true, 'the account default sets a new production');
+  assert.equal(casparSwitch({ ...base, setup: outputChoice('obs', true) }), true, 'a CasparCG destination chosen before the switch existed');
+  assert.equal(casparSwitch({ ...base, setup: outputChoice('browser', false), serverCues: true }), true, 'server cues keep their Bridge');
+  assert.equal(casparSwitch({ ...base, setup: outputChoice('browser', false) }), false);
+  assert.equal(casparSwitch({ ...base, setup: undefined, legacyActivity: true }), true, 'a legacy production follows its recorded CasparCG use');
+  assert.equal(casparSwitch({ ...base, setup: undefined }), false);
+  // The operator's own switch wins over everything derived.
+  assert.equal(casparSwitch({ ...base, setup: withCasparSwitch(outputChoice('obs', true), false), serverCues: true }), false);
+  assert.equal(casparSwitch({ ...base, setup: withCasparSwitch(undefined, true) }), true);
 });
 
-test('one output never proves two destinations; untagged outputs are explicitly uncertain', () => {
-  const s=outputChoice('obs',true), peers=[{kind:'output',destinationId:'browser'}];
-  const check=destinationCheck(s,peers);
-  assert.match(check.label,/CasparCG/);
-  const f={started:true,unpublished:false,version:'v1',bridge:null,ready:{tone:'ok',label:'Ready',outputs:1,ready:1}};
-  assert.equal(describePlayoutStatus({...f,destinationCheck:check}).tone,'warn');
-  assert.equal(destinationCheck(s,[...peers,{kind:'output',destinationId:'casparcg'}]),null);
-  assert.match(destinationCheck(s,[{kind:'output'}]).label,/not confirmed/);
-  assert.equal(destinationCheck(undefined,peers),null);
+test('setting the switch keeps the browser output, its legacy profile, and validates', () => {
+  const on = withCasparSwitch(outputChoice('vmix', false), true);
+  assert.deepEqual(on.destinations.map(d => d.profile), ['vmix', 'casparcg']);
+  assert.deepEqual(readOutputSetup(on), on, 'the switch survives a read');
+  const off = withCasparSwitch(on, false);
+  assert.deepEqual(off.destinations.map(d => d.profile), ['vmix']);
+  assert.equal(off.caspar, false);
+  assert.deepEqual(withCasparSwitch(undefined, false).destinations, [{ id: 'browser', profile: 'browser' }]);
+  assert.equal(readOutputSetup({ v: 1, destinations: [], caspar: 'yes' }).caspar, undefined, 'only a real boolean is a switch');
 });
 
 test('cue accents validate independently of the normal route palette', () => {
@@ -49,10 +54,11 @@ test('cue accents validate independently of the normal route palette', () => {
 });
 
 
-test('a ready browser never substitutes for the selected managed server target', () => {
-  const facts={started:true,unpublished:false,version:'v1',managedOutput:true,bridge:{state:'ok',detail:''},ready:{tone:'ok',label:'Ready',outputs:2,ready:2},slot:{holds:'empty',channel:1,where:'1-20'}};
-  assert.equal(describePlayoutStatus(facts).tone,'bad');
-  assert.equal(describePlayoutStatus({...facts,slot:undefined}).tone,'warn');
+test('an empty CasparCG slot shows Load, not a fault, while a browser renderer carries the graphics', () => {
+  const facts={started:true,casparOn:true,bridge:{state:'ok',detail:''},ready:{tone:'ok',label:'Ready',outputs:2,ready:2},slot:{holds:'empty',channel:1,where:'1-20'}};
+  assert.equal(describePlayoutStatus(facts).tone,'ok');
+  assert.equal(describePlayoutStatus(facts).checks.find(c=>c.key==='slot').short,'Not loaded on 1-20');
+  assert.equal(describePlayoutStatus({...facts,slotLost:true}).tone,'bad');
   const bridge={configured:true,outputRequired:true,status:{state:'ok'},outputSlug:'private',channel:1,layer:20,items:[],slot:null};
   const lines=bridgeChecks(bridge);assert.equal(stampOf(lines,{n:1,h:'same'},0).warnings,1);
   assert.equal(stampOf(bridgeChecks({...bridge,slot:undefined}),{n:1,h:'same'},0).warnings,1);

@@ -1,9 +1,10 @@
-// PREPARE FOR LIVE on the production page (Phase 6 Step 3 landing b: docs/work-specs/playout-ready/
-// spec.md AC-8 to AC-11). It shows in the production page's Playout panel (home/
-// PlayoutStatusControl.tsx), under the outputs it waits for. The decisions are control/prepareLive.ts; `usePrepareForLive` runs the
-// flow: publish what changed, ask the outputs to prepare, check the Bridge and CasparCG, ping the
-// command path, and stamp the result. The flow lives in the page, not the panel: the panel closes on any click outside it
-// (a Take, say), and a run goes on to its stamp while it is shut.
+// THE READINESS RUN behind Publish, Publish changes and Check now on the production page (Phase 6
+// Step 3 landing b: docs/work-specs/playout-ready/spec.md AC-8 to AC-11; since
+// playout-workflow-simplification it has no section of its own - its result reads in the panel's
+// output rows). The decisions are control/prepareLive.ts; `usePrepareForLive` runs the flow:
+// publish what changed, ask the outputs to prepare, check the Bridge and CasparCG, ping the command
+// path, and stamp the result. The flow lives in the page, not the panel: the panel closes on any
+// click outside it (a Take, say), and a run goes on to its stamp while it is shut.
 //
 // Optional, and never a gate: editing goes on during and after it, every verb works while it runs,
 // and the button is only ever busy with its own run.
@@ -18,7 +19,6 @@ import {
   preparedOutputs,
   requestId,
   stampOf,
-  stampWords,
   withPing,
   type BridgeFacts,
   type CheckLine,
@@ -26,28 +26,11 @@ import {
   type PrepRequest,
 } from '../../control/prepareLive';
 import type { PingAnswer } from '../../control/hostedControl';
-import { describeReadiness, TONE_DOT, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp } from '../../control/readiness';
+import { describeReadiness, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp } from '../../control/readiness';
 import type { LivePresenceView } from './OutputHealth';
 
 type Phase = 'idle' | 'publishing' | 'preparing' | 'done';
 
-const DOT: Record<CheckLine['tone'], string> = { ...TONE_DOT, running: '…' };
-
-/** One line of a checklist: the tone's dot, the words, and what to do while it is not fine. The
- *  Playout panel's status checks are drawn the same way, so the two lists in it read as one. */
-export function CheckRow({ line, testId }: { line: Pick<CheckLine, 'tone' | 'label' | 'advice'>; testId?: string }) {
-  return (
-    <li className={`pd-prepare-line pd-prepare-line--${line.tone}`} data-tone={line.tone} data-testid={testId}>
-      <span className="pd-ready-dot" aria-hidden="true">
-        {DOT[line.tone]}
-      </span>
-      <span>
-        {line.label}
-        {line.advice && line.tone !== 'ok' && <span className="pd-ready-detail">{line.advice}</span>}
-      </span>
-    </li>
-  );
-}
 
 /** A run as the panel shows it. */
 export interface PrepareFlow {
@@ -261,47 +244,4 @@ export function usePrepareForLive({
           : null;
 
   return { phase, shown, run };
-}
-
-export function PrepareForLive({
-  flow,
-  stamp,
-  published,
-  unpublishedChanges,
-  requiresPreparation = unpublishedChanges,
-}: {
-  flow: PrepareFlow;
-  stamp: ReadyStamp | null;
-  published: HeldVersion | null;
-  unpublishedChanges: boolean;
-  requiresPreparation?: boolean;
-}) {
-  const { phase, shown, run } = flow;
-  const busy = phase === 'publishing' || phase === 'preparing';
-  return (
-    <section className="pd-prepare" data-testid="prepare-for-live">
-      <div className="pd-ready-title">
-        <span>Readiness check</span>
-      </div>
-      {stamp && phase !== 'publishing' && phase !== 'preparing' && (
-        <p className={`pd-prepare-stamp${stamp.problems ? ' is-bad' : stamp.warnings ? ' is-warn' : ' is-ok'}`} data-testid="prepare-stamp">
-          {stampWords(stamp, published, requiresPreparation)}
-        </p>
-      )}
-      {shown && (
-        <ul className="pd-prepare-list" data-testid="prepare-checklist">
-          {shown.map((line) => (
-            <CheckRow key={line.key} line={line} />
-          ))}
-        </ul>
-      )}
-      <details className="pd-prepare-note"><summary>What is checked?</summary><p>
-        Graphics, assets, command delivery and the connections this production uses.
-        Changed assets wait until the output is clear. Checking does not put anything on air.
-      </p></details>
-      <button type="button" className="pd-prepare-button" disabled={busy} onClick={() => void run()} data-testid="prepare-for-live-button">
-        {busy ? 'Checking…' : unpublishedChanges || !published ? 'Publish & check readiness' : 'Check readiness'}
-      </button>
-    </section>
-  );
 }

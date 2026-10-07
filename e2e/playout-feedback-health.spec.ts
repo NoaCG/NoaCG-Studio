@@ -1,7 +1,7 @@
 // Relevant Bridge health and operator words with a locally published fixture. The configured
 // sibling proves real Presence/publishing; this one always runs without backend credentials.
-// covers: src/control/{playoutStatus,prepareLive,prepareBridge}.ts, src/model/readyMemory.ts
-// covers: src/components/home/{ProductionPage,ProductionLinks,PlayoutStatusControl}.tsx, src/components/control/PrepareForLive.tsx
+// covers: src/control/{playoutStatus,prepareLive,prepareBridge,readiness}.ts, src/model/{readyMemory,outputSetup}.ts
+// covers: src/components/home/{ProductionPage,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx, src/components/control/PrepareForLive.tsx
 // covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
 // focus
 
@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { fakeBridge, seedSettings } from './_fakeBridge';
 
-test('browser output history ignores an unused Bridge, while CasparCG activity survives a disconnect and reload', async ({ page, request }) => {
+test('a browser production ignores a paired Bridge and old outputs, while CasparCG switched on survives a disconnect and reload', async ({ page, request }) => {
   test.setTimeout(120_000);
   // Fault-inject the window before React cleans up the old slot effect, and mark when the old
   // reply reaches the guard. Assert its observable memory effect, not timing or repeat counts.
@@ -55,7 +55,8 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
     if (error || !doc) throw new Error(error ?? 'seed failed');
     const show = createShowNamed('Evening News');
-    // This fixture predates output setup and deliberately tests recorded legacy activity.
+    // This fixture predates output setup and has no recorded CasparCG activity, so its CasparCG
+    // switch reads off (model/outputSetup.ts `casparSwitch`); it remembers an OBS from before.
     const legacy = loadShows().find(s => s.id === show.id)!;
     delete legacy.outputSetup;
     upsertShow(legacy);
@@ -78,56 +79,89 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   await expect(page.getByTestId('production-page')).toBeVisible();
   await status.click();
   const panel = page.getByTestId('production-status-panel');
-  await expect(panel.getByTestId('status-check-bridge')).toHaveCount(0);
-  await expect(panel.getByTestId('status-check-slot')).toHaveCount(0);
-  await expect(status).not.toHaveAttribute('data-tone', 'bad');
-  await expect(panel.getByTestId('status-check-production')).toContainText('Published changes are available to outputs');
-  await expect(panel.getByTestId('publish-guarantees')).toContainText('check changed graphics and assets automatically');
-  await expect(panel.getByTestId('prepare-for-live-button')).toHaveText('Check readiness');
-  await panel.getByTestId('prepare-for-live').locator('summary').click();
-  await expect(panel.getByTestId('prepare-for-live')).toContainText('command delivery');
-  await expect(panel.getByTestId('playout-panel-setup')).toHaveAttribute('open');
-  await expect(panel.getByTestId('production-output-setup')).toContainText('Existing setup (unconfirmed)');
+  // A legacy production with no CasparCG activity has CasparCG switched off, so the paired Bridge,
+  // which is not running, is neither shown nor judged (playout-workflow-simplification AC-4).
+  await expect(panel.getByTestId('caspar-switch')).not.toBeChecked();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveCount(0);
+  await expect(panel.getByTestId('caspar-slot')).toHaveCount(0);
+  // The OBS this browser remembers from an earlier session is not expected today (D4): published
+  // with nothing reporting is a quiet grey "Not connected", never red and never "lost" (AC-2).
+  await expect(status).toHaveAttribute('data-tone', 'idle');
+  await expect(status).toHaveText(/Not connected/);
+  await expect(panel.getByTestId('ready-output')).toHaveCount(0);
+  await expect(panel.getByTestId('playout-no-outputs')).toBeVisible();
+  // Readiness lives in the output rows now and "Check now" re-runs prepare and ping; the readiness
+  // checklist, the publish guarantees and the output setup section are gone (AC-3, D5).
+  await expect(panel.getByTestId('playout-check-now')).toHaveText('Check now');
+  for (const gone of ['prepare-for-live', 'prepare-for-live-button', 'publish-guarantees', 'status-check-production', 'playout-panel-setup', 'production-output-setup']) {
+    await expect(page.getByTestId(gone), gone).toHaveCount(0);
+  }
   await page.screenshot({ path: test.info().outputPath('browser-health-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: test.info().outputPath('browser-health-phone.png'), fullPage: true });
   await page.setViewportSize({ width: 1366, height: 768 });
 
+  // CasparCG switched on: the Bridge and the output slot appear, and Load puts this production's
+  // renderer on the slot. The header's one action slot offers the same Load (D1).
   bridge.missing = false;
-  await panel.getByTestId('caspar-put-on-air').click();
-  await expect(panel.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
-  await expect(panel.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
+  if (!(await panel.isVisible())) await status.click();
+  await panel.getByTestId('caspar-switch').click();
+  await expect(panel.getByTestId('caspar-switch')).toBeChecked();
+  const bridgeRow = panel.getByTestId('caspar-bridge');
+  const slot = panel.getByTestId('caspar-slot');
+  await expect(bridgeRow).toHaveAttribute('data-tone', 'ok');
+  await expect(bridgeRow).toContainText('Bridge connected');
+  await expect(slot).toContainText('Output slot 1-20');
+  await expect(slot).toContainText('Empty');
+  await expect(page.getByTestId('playout-action-slot').getByTestId('caspar-load')).toHaveText('Load on 1-20');
+  expect(bridge.actions).toEqual([]);
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(slot.getByTestId('caspar-take-off-air')).toBeVisible();
+  await expect(slot).toContainText(/Loading…|Loaded/);
+  expect(bridge.actions).toHaveLength(1);
+  expect(bridge.actions[0]).toMatchObject({ verb: 'take', item: { kind: 'url', name: expect.stringContaining('/output?production=demo-output') }, slot: { channel: 1, layer: 20 } });
+  await expect(page.getByTestId('playout-action-slot').getByTestId('caspar-load')).toHaveCount(0);
+
+  // The Bridge goes away: red with the reason, on the header and the Bridge row, and still red
+  // after a reload, because the switch is the production's own.
   bridge.missing = true;
-  await panel.getByTestId('prepare-for-live-button').click();
-  await expect(status).toContainText('Bridge not running');
-  await expect(panel.getByTestId('prepare-checklist')).not.toContainText(/\bv\d+\b/);
+  await expect(status).toContainText('Bridge not running', { timeout: 15_000 });
+  await expect(status).toHaveAttribute('data-tone', 'bad');
+  await expect(bridgeRow).toHaveAttribute('data-tone', 'bad');
+  await expect(bridgeRow).toContainText('NoaCG Bridge is not running');
+  await expect(bridgeRow).not.toContainText(/\bv\d+\b/);
   await page.reload();
   await expect(status).toContainText('Bridge not running');
   bridge.missing = false;
   await status.click();
-  await panel.getByTestId('prepare-for-live-button').click();
-  await expect(panel.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
+  await expect(bridgeRow).toHaveAttribute('data-tone', 'ok', { timeout: 15_000 });
+  await expect(slot.getByTestId('caspar-take-off-air')).toBeVisible();
+
+  // A slot read captured before Unload must not answer for after it: Unload on purpose is not a
+  // lost slot, and the older reply must not restore the CasparCG memory.
   let releaseState!: () => void;
   const stateHeld = new Promise<void>((resolve) => { releaseState = resolve; });
   let capturedState = false;
   bridge.stateGate = () => { capturedState = true; return stateHeld; };
-  await panel.getByTestId('prepare-for-live-button').click();
-  await expect.poll(() => capturedState).toBe(true);
+  // The slot is read every 10 s; wait for the next read and hold its reply.
+  await expect.poll(() => capturedState, { timeout: 15_000 }).toBe(true);
   const repliesBefore = await page.evaluate(() => (window as unknown as { __healthSlotReplies?: number }).__healthSlotReplies ?? 0);
-  await panel.getByTestId('caspar-take-off-air').click();
-  await expect(panel.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
+  await slot.getByTestId('caspar-take-off-air').click();
+  await expect.poll(() => bridge.actions.filter((a) => a.verb === 'out').length).toBe(1);
   bridge.stateGate = () => {};
   releaseState();
   await expect.poll(() => page.evaluate(() => (window as unknown as { __healthSlotReplies?: number }).__healthSlotReplies ?? 0)).toBeGreaterThan(repliesBefore);
-  expect(await page.evaluate(async (showId) => (await import('/src/model/readyMemory.ts')).loadReadyMemory(showId).casparOutput, id), 'an older slot reply must not restore intent after Take off').toBeUndefined();
-  await expect(panel.getByTestId('status-check-bridge')).toHaveCount(0);
-  // The settings dialog's existing action proves the same intent, without waiting for /state.
-  // Actual legacy activity makes CasparCG settings relevant without changing this published fixture.
-  await panel.getByTestId('caspar-put-on-air').click();
-  await expect(panel.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
-  if (!(await panel.getByTestId('playout-panel-setup').evaluate(d => (d as HTMLDetailsElement).open))) await panel.getByTestId('playout-panel-setup').locator('summary.pd-panel-section-title').click();
-  await panel.getByTestId('playout-settings-open').click();
+  expect(await page.evaluate(async (showId) => (await import('/src/model/readyMemory.ts')).loadReadyMemory(showId).casparOutput, id), 'an older slot reply must not restore intent after Unload').toBeUndefined();
+  await expect(slot).toContainText('Empty');
+  await expect(slot).toHaveAttribute('data-tone', 'idle');
+  await expect(status).not.toHaveAttribute('data-tone', 'bad');
+  await expect(status).not.toContainText('Not on 1-20');
+
+  // Playout settings' own Put on air proves the same intent, without waiting for the slot poll: the
+  // slot is read again at once and holds this production.
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
   await page.getByTestId('playout-put-on-air').click();
   await expect(page.getByTestId('playout-result')).toHaveAttribute('data-state', 'ok');
   bridge.missing = true;
@@ -136,19 +170,44 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   await expect(status).toContainText('Bridge not running');
   bridge.missing = false;
   await status.click();
-  await panel.getByTestId('prepare-for-live-button').click();
-  await expect(panel.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
-  await panel.getByTestId('caspar-take-off-air').click();
-  await expect(panel.getByTestId('status-check-bridge')).toHaveCount(0);
-  // OBS graphics with server media still require Bridge, but never an unused graphics slot.
-  await page.evaluate(async (showId) => {
-    const { addPlayoutItem } = await import('/src/model/shows.ts');
-    addPlayoutItem(showId, { adapter: 'casparcg', kind: 'media', name: 'OPENER', channel: 2, layer: 10 });
-  }, id);
-  await expect(panel.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
-  await expect(panel.getByTestId('status-check-slot')).toHaveCount(0);
+  await expect(bridgeRow).toHaveAttribute('data-tone', 'ok', { timeout: 15_000 });
+  await expect(slot.getByTestId('caspar-take-off-air')).toBeVisible();
+  await slot.getByTestId('caspar-take-off-air').click();
+  await expect(slot).toContainText('Empty');
+
+  // Unload leaves CasparCG switched on; the switch is what makes the Bridge irrelevant again
+  // (AC-4), and with it off a missing Bridge is not a fault.
+  await panel.getByTestId('caspar-switch').click();
+  await expect(panel.getByTestId('caspar-switch')).not.toBeChecked();
+  await expect(bridgeRow).toHaveCount(0);
+  await expect(slot).toHaveCount(0);
   bridge.missing = true;
-  await panel.getByTestId('prepare-for-live-button').click();
-  await expect(status).toContainText('Bridge not running');
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(status).not.toHaveAttribute('data-tone', 'bad');
+  await expect(status).not.toContainText('Bridge');
+
+  // A server cue does not override the switch the operator set: with CasparCG off it is not
+  // takeable even with the Bridge answering, and the Bridge is still not judged (AC-4). Switching
+  // CasparCG on is what makes it takeable, so the switch is what held it.
+  bridge.missing = false;
+  const sent = bridge.actions.length;
+  const cueId = await page.evaluate(async (showId) => {
+    const { addPlayoutItem } = await import('/src/model/shows.ts');
+    return addPlayoutItem(showId, { adapter: 'casparcg', kind: 'media', name: 'OPENER', channel: 2, layer: 10 }).cueId;
+  }, id);
+  await page.getByTestId(`cue-${cueId}`).getByTestId('select-cue').click();
+  const take = page.getByTestId('verb-take');
+  await expect(take).toBeDisabled();
+  await status.click();
+  await expect(panel.getByTestId('caspar-switch')).not.toBeChecked();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveCount(0);
+  await expect(status).not.toHaveAttribute('data-tone', 'bad');
+  await panel.getByTestId('caspar-switch').click();
+  await expect(take).toBeEnabled({ timeout: 15_000 });
+  await panel.getByTestId('caspar-switch').click();
+  await expect(take).toBeDisabled();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveCount(0);
+  expect(bridge.actions).toHaveLength(sent);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

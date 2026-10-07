@@ -123,15 +123,13 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   await publishProduction(page, 'casparcg');
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', WIRE);
 
-  // ── ONE command puts the production on the channel: the output URL, through the Bridge. ──
-  const links = page.getByTestId('production-links');
-  await expect(links).toBeVisible();
-  await expect(page.getByTestId('caspar-air-target')).toContainText('1-20');
-  await page.getByTestId('caspar-put-on-air').click();
-  await expect(page.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok', WIRE);
-  await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ On 1-20');
+  // ── Publish with CasparCG switched on put the production on the channel: ONE command, the
+  //    output URL, through the Bridge (playout-workflow-simplification AC-5). ──
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByTestId('caspar-slot')).toContainText(/Loaded|Loading/, WIRE);
   await page.getByTestId('production-status').click();
-  await expect(links).toBeHidden();
+  await expect(panel).toBeHidden();
   // The renderer inside CasparCG boots and reports itself to the log; give it a breath.
   await page.waitForTimeout(6000);
   const empty = await frame(page, token, '01-output-url-loaded-nothing-on-air');
@@ -229,7 +227,7 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   await page.waitForTimeout(2500);
   await page.getByTestId('production-status').click();
   await page.getByTestId('caspar-take-off-air').click();
-  await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ Off 1-20', WIRE);
+  await expect(page.getByTestId('caspar-slot')).toContainText('Empty', WIRE);
   await page.waitForTimeout(1500);
   const cleared = await frame(page, token, '11-all-off');
   expect(cleared).toBeLessThan(question);

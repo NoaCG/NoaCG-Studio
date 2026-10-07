@@ -1,7 +1,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { openProductionWithCurrent } from '../_create';
-import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
+import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -31,10 +31,14 @@ test.describe(() => {
     await openProductionWithCurrent(page, productionName);
 
     await publishProduction(page);
-    await expect(page.getByTestId('production-links')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('production-status-panel')).toBeVisible({ timeout: 30_000 });
 
-    // The audience URL is READABLE and derived — not the base64 the column defaults to.
-    const joinUrl = (await page.locator('.prod-link-row', { hasText: 'Audience link' }).locator('code').textContent()) ?? '';
+    // The audience URL is READABLE and derived — not the base64 the column defaults to. It is one of
+    // the people links, under Setup › Links… (playout-workflow-simplification AC-8).
+    await page.keyboard.press('Escape');
+    await page.getByTestId('production-setup').click();
+    await page.getByTestId('setup-links').click();
+    const joinUrl = (await page.getByTestId('join-url').locator('code').textContent()) ?? '';
     const expected = `friday-night-live-${productionName.split(' ').pop()}`;
     expect(joinUrl).toContain(`/join/${expected}`);
 
@@ -50,11 +54,10 @@ test.describe(() => {
     await page.getByTestId('join-name-input').fill(claimed);
     await page.getByTestId('join-name-claim').click();
     await expect(page.getByTestId('join-name-note')).toContainText(claimed);
-    await expect(page.locator('.prod-link-row', { hasText: 'Audience link' }).locator('code')).toContainText(
-      `/join/${claimed}`,
-    );
+    await expect(page.getByTestId('join-url').locator('code')).toContainText(`/join/${claimed}`);
+    await page.getByTestId('production-links-close').click();
 
-    await unpublishFromPanel(page);
+    await unpublishForCleanup(page);
     await expect(page.getByTestId('production-publish')).toBeVisible();
     await wipeMyGraphics(page);
   });
