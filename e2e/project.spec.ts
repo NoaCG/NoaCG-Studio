@@ -189,11 +189,12 @@ test('the wizard mounts the same door: a guarded start-over mid-walk, the inert 
   await expect(door).toHaveAttribute('aria-current', 'page');
   // A real EDIT, not just the flag: the guard asks only when the switch would lose work, and a
   // never-saved document that still equals its creation baseline has none to lose
-  // (store/saveActions.ts hasUnsavedWork, e2e/new-graphic-guard.spec.ts).
+  // (store/saveActions.ts hasUnsavedWork, e2e/new-graphic-guard.spec.ts). `keepGalleryOpen`, as
+  // the wizard's own applies do: a plain apply closes the wizard this test is standing in.
   await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const s = useTemplateStore.getState();
-    s.applyTemplate({ ...s.template, css: `${s.template.css}\n/* an edit */\n` });
+    s.applyTemplate({ ...s.template, css: `${s.template.css}\n/* an edit */\n` }, { keepGalleryOpen: true });
   });
   await door.click();
   await expect(page.getByTestId('confirm-switch')).toBeHidden();
