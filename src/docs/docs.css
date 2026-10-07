@@ -355,7 +355,7 @@ td strong { color: var(--paper); }
   @page { margin: 14mm; }
   body { background: #ffffff; }
   .doc-nav, .cmd-copy { display: none; }
-  a { text-decoration: underline; }
+  a, header.top a, footer.site a { text-decoration: underline; }
   /* The nav is gone from every print, so its grid track has to go with it or the sheet carries a
      230px empty column and a 48px gutter down the left of every page. */
   .wrap { max-width: none; padding: 0; }

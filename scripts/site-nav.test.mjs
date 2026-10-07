@@ -15,19 +15,13 @@ import {
   SITE_FOOTER_MARKER,
   SITE_HEADER_MARKER,
   SITE_NAV,
+  SITE_PAGES,
 } from './site-nav.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PAGES = {
-  'index.html': '/',
-  'ograf.html': '/ograf',
-  'privacy.html': '/privacy',
-  'terms.html': '/terms',
-  'docs.html': '/docs',
-  'downloads.html': '/downloads',
-  'whats-new.html': '/whats-new',
-  'roadmap.html': '/roadmap',
-};
+/** file -> path, for every public page. */
+const PAGES = Object.fromEntries(Object.entries(SITE_PAGES).map(([p, { file }]) => [file, p]));
+const ROOT_PAGES = readdirSync(ROOT).filter((f) => f.endsWith('.html'));
 const read = (file) => readFileSync(path.join(ROOT, file), 'utf8');
 const linksOf = (html) => [...html.matchAll(/<a([^>]*)>([^<]+)<\/a>/g)].map((m) => m[2]);
 const count = (html, needle) => html.split(needle).length - 1;
@@ -38,8 +32,7 @@ test('every public page takes the shared top bar and footer, and links their sty
     assert.equal(count(html, SITE_HEADER_MARKER), 1, `${file}: needs exactly one ${SITE_HEADER_MARKER}`);
     assert.equal(count(html, SITE_FOOTER_MARKER), 1, `${file}: needs exactly one ${SITE_FOOTER_MARKER}`);
     const sheets = [...html.matchAll(/<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1]);
-    assert.equal(sheets[0], '/src/site-chrome.css', `${file}: link /src/site-chrome.css before its own styles`);
-    assert.ok(!html.includes('<style') || html.indexOf('/src/site-chrome.css') < html.indexOf('<style'), `${file}: chrome before its <style>`);
+    assert.equal(sheets[0], '/src/site-chrome.css', `${file}: link /src/site-chrome.css before its own stylesheets`);
   }
 });
 
@@ -48,8 +41,11 @@ test('every public page takes the shared top bar and footer, and links their sty
 // root is checked, so a new public page that copies one in fails here too.
 test('no page writes its own top bar or footer', () => {
   const siteHrefs = new Set([...SITE_NAV, ...SITE_FOOTER].map((l) => l.href).filter((h) => h.startsWith('/')));
-  for (const file of readdirSync(ROOT).filter((f) => f.endsWith('.html'))) {
-    const html = read(file).replace(/<!--[\s\S]*?-->/g, '');
+  for (const file of ROOT_PAGES) {
+    const raw = read(file);
+    const marked = raw.includes(SITE_HEADER_MARKER) || raw.includes(SITE_FOOTER_MARKER);
+    assert.ok(file in PAGES || !marked, `${file}: carries the chrome markers but is not in SITE_PAGES`);
+    const html = raw.replace(/<!--[\s\S]*?-->/g, '');
     assert.ok(!/<footer[\s>]/.test(html), `${file}: writes its own <footer>; use ${SITE_FOOTER_MARKER}`);
     assert.ok(!/class="[^"]*\bwordmark\b/.test(html), `${file}: writes its own wordmark; use ${SITE_HEADER_MARKER}`);
     assert.ok(!/<header[^>]*class="[^"]*\btop\b/.test(html), `${file}: writes its own top bar; use ${SITE_HEADER_MARKER}`);

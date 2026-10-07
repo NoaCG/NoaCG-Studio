@@ -93,7 +93,10 @@
     }
     a { color: inherit; text-decoration: none; }
 
-    /* ── Buttons (the amber one is the site's, src/site-chrome.css) ── */
+    /* ── Buttons (`.btn` and `.btn-amber` are the site's, src/site-chrome.css) ── */
+    .btn:active { transform: translateY(0) scale(0.98); }
+    .btn .arr { display: inline-block; margin-left: 6px; transition: transform 0.18s ease; }
+    .btn:hover .arr { transform: translateX(3px); }
     .btn-ghost { border: 1px solid var(--line); color: var(--paper); }
     .btn-ghost:hover { border-color: rgba(232, 237, 242, 0.25); }
 
@@ -286,8 +289,10 @@
     .bottom h2 { font-size: 30px; }
     .bottom .cta-row { justify-content: center; margin-top: 22px; }
 
-    /* The bottom band above draws the rule, so the footer under it carries none of its own. */
-    footer.site { border-top: 0; padding-top: 34px; }
+    /* The bottom band above draws the rule, so the footer under it carries none of its own. The
+       selector outranks src/site-chrome.css by itself: the build moves linked stylesheets after
+       this inline style, so source order cannot decide it. */
+    .bottom + .wrap > footer.site { border-top: 0; padding-top: 34px; }
 
     @media (max-width: 640px) {
       .hero { padding-top: 40px; }
@@ -317,7 +322,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .way { transition: none; }
+      .btn .arr, .way { transition: none; }
     }
   </style>
 </head>

@@ -36,16 +36,17 @@ export const SITE_FOOTER = [
   { label: 'Source', href: 'https://github.com/NoaCG/NoaCG-Studio', external: true },
 ];
 
-/** The page's name beside "NoaCG Studio" at the start of the footer; the landing says what NoaCG is. */
-const FOOTER_NAME = {
-  '/': 'Broadcast graphics and playout',
-  '/ograf': 'OGraf starters',
-  '/privacy': 'Privacy',
-  '/terms': 'Terms',
-  '/docs': 'Documentation',
-  '/downloads': 'Downloads',
-  '/whats-new': "What's new",
-  '/roadmap': 'Roadmap',
+/** Every public page: its source file, and its name beside "NoaCG Studio" at the start of the
+ *  footer (the landing says what NoaCG is). A page with the chrome markers must be listed here. */
+export const SITE_PAGES = {
+  '/': { file: 'index.html', name: 'Broadcast graphics and playout' },
+  '/ograf': { file: 'ograf.html', name: 'OGraf starters' },
+  '/privacy': { file: 'privacy.html', name: 'Privacy' },
+  '/terms': { file: 'terms.html', name: 'Terms' },
+  '/docs': { file: 'docs.html', name: 'Documentation' },
+  '/downloads': { file: 'downloads.html', name: 'Downloads' },
+  '/whats-new': { file: 'whats-new.html', name: "What's new" },
+  '/roadmap': { file: 'roadmap.html', name: 'Roadmap' },
 };
 
 export const SITE_HEADER_MARKER = '<!--site:header-->';
@@ -84,13 +85,15 @@ export function renderSiteHeader(path) {
 /** The footer for the page at `path`. */
 export function renderSiteFooter(path) {
   const here = pagePath(path);
+  const page = SITE_PAGES[here];
+  if (!page) throw new Error(`site-nav: ${path} carries the site footer but is not in SITE_PAGES`);
   const links = SITE_FOOTER.map((link) => {
     const ext = link.external ? ' target="_blank" rel="noopener noreferrer"' : '';
     return `        <a href="${link.href}"${current(link.href, here)}${ext}>${link.label}</a> &middot;`;
   });
   return [
     '<footer class="site">',
-    `      <span class="fm">NoaCG Studio &middot; ${FOOTER_NAME[here] ?? FOOTER_NAME['/']}</span>`,
+    `      <span class="fm">NoaCG Studio &middot; ${page.name}</span>`,
     '      <span>',
     ...links,
     '        Free, AGPL-3.0',

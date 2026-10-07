@@ -19,8 +19,8 @@ body {
     #090b0f;
 }
 
-a { color: #f6a623; text-underline-offset: 3px; }
-a:hover { color: #ffc462; }
+.legal-card a { color: #f6a623; text-underline-offset: 3px; }
+.legal-card a:hover { color: #ffc462; }
 
 /* The policy column starts under the logo, as the docs' text does, and keeps its reading width. */
 .legal-hero, .legal-card { max-width: 860px; }
