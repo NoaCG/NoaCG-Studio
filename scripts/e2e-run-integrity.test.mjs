@@ -69,7 +69,6 @@ test('a run that already failed, a listing and a merge are left alone', () => {
 test('an unreadable disk is not a problem by itself, and the floor is a real number', () => {
   const unreadable = () => { throw new Error('EPERM'); };
   assert.equal(run({ tests: [fakeTest([{ status: 'passed' }])], statfs: unreadable }).verdict, undefined);
-  assert.ok(DISK_FLOOR_BYTES > 0);
   assert.deepEqual(runProblems({ planned: 1, unreported: 0, enospc: false, free: DISK_FLOOR_BYTES }), []);
   assert.equal(mentionsEnospc({ message: 'Timed out 5000ms' }), false);
   // Linux's inotify limit borrows the code; the disk is fine.

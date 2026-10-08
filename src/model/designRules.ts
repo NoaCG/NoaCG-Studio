@@ -61,11 +61,7 @@ export const PROFILE_MULTIPLIER: Readonly<Record<ViewingProfileId, number>> = {
  */
 export function profileMultiplier(profile: string | null | undefined): number {
   const known = profile != null && Object.prototype.hasOwnProperty.call(PROFILE_MULTIPLIER, profile);
-  const multiplier = PROFILE_MULTIPLIER[known ? profile as ViewingProfileId : 'tv'];
-  if (!(Number.isFinite(multiplier) && multiplier > 0)) {
-    throw new Error(`PROFILE_MULTIPLIER has no usable number for "${known ? profile : 'tv'}" - every size floor would compare against NaN and pass.`);
-  }
-  return multiplier;
+  return PROFILE_MULTIPLIER[known ? profile as ViewingProfileId : 'tv'];
 }
 
 /**

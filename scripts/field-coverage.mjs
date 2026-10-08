@@ -265,7 +265,7 @@ for (let i = 0; i < targets.length; i += 8) {
 await browser.close();
 // Every frame rendering blank without throwing would leave no string unmoved and print PASS, so
 // the gate says how many visible strings it actually compared.
-measured(rows.reduce((n, r) => n + (r.measured || 0), 0), 'visible strings');
+measured(rows.reduce((n, r) => n + r.measured, 0), 'visible strings');
 
 // Classify: the deliberate exceptions vs the real findings.
 const excused = [];

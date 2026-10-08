@@ -224,7 +224,7 @@ for (let i = 0; i < targets.length; i += 12) {
 await browser.close();
 // The SUBJECT guard. Every frame rendering blank without throwing would find no text under the
 // floor and print PASS, so the gate says how many text elements it actually read.
-measured(rows.reduce((n, r) => n + (r.measured || 0), 0), 'rendered text elements');
+measured(rows.reduce((n, r) => n + r.measured, 0), 'rendered text elements');
 
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(rows, null, 1));
 

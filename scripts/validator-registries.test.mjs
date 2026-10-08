@@ -22,11 +22,13 @@ async function load(entry) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
 
-const anim = await load('src/blocks/animData.ts');
-const { emitAnimRegion } = await load('src/templates/shared/animRuntime.ts');
-const { validateTemplate } = await load('src/validation/validateTemplate.ts');
-const { ENGINE_FEATURES, scanEngineSupport } = await load('src/validation/engineSupport.ts');
-const { UNSAFE_JS, unsafeJsConstructs } = await load('src/validation/templateBench.ts');
+const [anim, { emitAnimRegion }, { validateTemplate }, { ENGINE_FEATURES, scanEngineSupport }, { UNSAFE_JS, unsafeJsConstructs }] = await Promise.all([
+  'src/blocks/animData.ts',
+  'src/templates/shared/animRuntime.ts',
+  'src/validation/validateTemplate.ts',
+  'src/validation/engineSupport.ts',
+  'src/validation/templateBench.ts',
+].map(load));
 
 const data = { version: 2, root: '.g', speed: 1, steps: [
   { name: 'In', duration: 1, ease: 'none', layers: { '#gone': { opacity: [{ time: 0, value: 0 }, { time: 1, value: 1 }] } } },

@@ -39,7 +39,7 @@ export function mentionsEnospc(value) {
 }
 
 /** Free bytes on the volume holding `dir`, or null when it cannot be read. */
-export function freeBytes(dir, statfs = statfsSync) {
+function freeBytes(dir, statfs) {
   try {
     const stats = statfs(dir);
     return Number(stats.bavail) * Number(stats.bsize);
@@ -52,12 +52,13 @@ export function freeBytes(dir, statfs = statfsSync) {
  * Why this run is not a verdict, as sentences; empty when it is one.
  * @param {{ planned: number, unreported: number, enospc: boolean, free: number|null, floor?: number }} run
  */
-export function runProblems({ planned, unreported, enospc, free, floor = DISK_FLOOR_BYTES }) {
+export function runProblems({ planned, unreported, enospc, free }) {
   const problems = [];
   if (enospc) problems.push('the disk filled during the run (ENOSPC), so workers, artifacts or results may be missing');
   if (unreported > 0) problems.push(`${unreported} of ${planned} planned test(s) never reported a result, so the run was cut short`);
-  if (free !== null && free < floor) {
-    problems.push(`only ${Math.round(free / 1024 ** 2)} MB is free on the disk the run writes to (floor ${Math.round(floor / 1024 ** 2)} MB)`);
+  if (free !== null && free < DISK_FLOOR_BYTES) {
+    const mb = (bytes) => Math.round(bytes / 1024 ** 2);
+    problems.push(`only ${mb(free)} MB is free on the disk the run writes to (floor ${mb(DISK_FLOOR_BYTES)} MB)`);
   }
   return problems;
 }

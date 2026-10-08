@@ -307,7 +307,7 @@ for (let i = 0; i < plan.length; i += 12) {
 await browser.close();
 // Every frame rendering blank without throwing would paint nothing outside the frame and print
 // PASS - or record an empty baseline - so the gate says how many painted elements it read.
-measured(rows.reduce((n, r) => n + (r.measured || 0), 0), 'painted elements');
+measured(rows.reduce((n, r) => n + r.measured, 0), 'painted elements');
 
 if (jsonOut) {
   writeFileSync(jsonOut, JSON.stringify(rows, null, 1));
