@@ -1,5 +1,5 @@
 // gate: build
-// guards: scripts/resume-dispatch.mjs, .agent-workflows/orchestrator/hosts.md
+// guards: scripts/resume-dispatch.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';

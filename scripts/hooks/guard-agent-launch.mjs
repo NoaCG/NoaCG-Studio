@@ -2,8 +2,7 @@
 // a path that does not exist is refused, with the offending entries quoted back.
 //
 // WHY A HOOK. On 2026-09-01 a row was launched on a plausible path nobody had grepped - the
-// prompt named the images step beside the SVG drop zone - and ran on it ("the row that named the
-// wrong step", .agent-workflows/orchestrator/incidents.md). On 2026-09-05 dictation lost a letter
+// prompt named the images step beside the SVG drop zone - and ran on it. On 2026-09-05 dictation lost a letter
 // and a row's TOUCHES line went to the wrong file (the row that landed as `e6bdabce`; its handoff
 // was drained on 2026-09-08).
 // `scripts/wave-plan-check.mjs` checks the PLAN's table for exactly this and both prompts were
@@ -77,10 +76,8 @@ deny(
     `${named}\n` +
     `Neither the launching checkout (${cwd}) nor origin/main has it. A row launched on a plausible ` +
     'path runs on it: on 2026-09-01 a prompt named the images step beside the SVG drop zone and ' +
-    'nobody had grepped ("the row that named the wrong step", .agent-workflows/orchestrator/' +
-    "incidents.md); on 2026-09-05 dictation lost a letter and sent a row's TOUCHES to the wrong " +
-    "file. `node scripts/wave-plan-check.mjs` checks the plan's table; this is the prompt itself, " +
-    'which is what the session will read.\n' +
+    "nobody had grepped; on 2026-09-05 dictation lost a letter and sent a row's TOUCHES to the " +
+    'wrong file. This checks the prompt itself, which is what the session will read.\n' +
     'Fix the path (grep for the basename - the right name is usually a letter away), or mark the ' +
     'entry `(new)` if the row creates it, then launch again.\n' +
     'Guard: scripts/hooks/guard-agent-launch.mjs.',

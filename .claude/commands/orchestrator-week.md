@@ -1,5 +1,5 @@
 ---
-description: The weekly owner session - the week's plan and the at-most-three questions that need him, then the loop over the orchestration system itself
+description: The weekly owner session - the week's plan and the at-most-three questions that need him
 ---
 
 Read `.agent-workflows/orchestrator-week.md` now and follow it in full - that file is the

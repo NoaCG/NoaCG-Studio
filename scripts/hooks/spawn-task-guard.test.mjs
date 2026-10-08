@@ -57,7 +57,7 @@ test('the refusal names both routes and the escape, for a session that has read 
   assert.match(message, /docs\/backlog\/<slug>\.md/); // or file it
   assert.match(message, /docs\/backlog\/README\.md/); // and where the shape is written down
   assert.match(message, /OWNER-DECISION: <why this start is his call/); // the legal way through
-  assert.match(message, /launch\.md/); // the contract this enforces
+  assert.match(message, /orchestrator\.md/); // the contract this enforces
 });
 
 test('prose about the owner deciding is not the declaration', () => {

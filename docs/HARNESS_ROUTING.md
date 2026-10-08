@@ -1200,7 +1200,7 @@ same auto-deny.** The ticker sweep was retried with all 23 absolute paths named,
 rows. The counting sweep was not retried, because that question genuinely needed traversal.
 
 The routing lesson is the second half. **A null return is a PROMPT defect until proven otherwise**
-(`.agent-workflows/orchestrator/routing.md` carries the rule), and it follows that **the ledger's
+and it follows that **the ledger's
 own numbers UNDERSTATE a pool wherever the failure was the prompt's.** The delegation ledger reads
 0/2 first-pass for `gemini-3.8-flash-high` on comprehension, and **both** of those two are this
 prompt defect rather than the model - the one that was retried then matched a hand-derived answer
@@ -1610,7 +1610,7 @@ Its no-command-grant tasks still need enumerated files. No machine permissions w
 Native Claude background launch from Codex reached the assigned cwd, then reported expired login.
 An earlier successful auth-status lookup was insufficient. Read the worker result before declaring
 that route usable. Native Codex subagent work and targeted local tests succeeded; a complete
-unattended cross-host shift remains unverified. The adapter is `.agent-workflows/orchestrator/hosts.md`.
+unattended cross-host shift remains unverified. The adapter is `.agents/skills/orchestrator/SKILL.md`.
 
 ## The second capability re-probe, 2026-09-30
 

@@ -222,29 +222,31 @@ and `cancel` take a job id.
 
 ## 8. The orchestrator
 
-`/orchestrator` (`.agent-workflows/orchestrator.md`, with its modules in
-`.agent-workflows/orchestrator/`) is a planning session: it plans a wave, launches its rows and
-watches them land, and it never edits product code, merges or pushes.
+`/orchestrator` (`.agent-workflows/orchestrator.md`, one file for both harnesses) runs a wave
+through a time window: it plans, launches its rows, reads their results and reports, and it never
+edits product code, merges or pushes.
 
 It has two authorities and only two: the unsatisfied outcomes marked `(now)` in `docs/GOALS.md`,
 with their done criteria, and the owner's current feedback. Handoffs, backlog items, owner
 receipts, bugs and red CI are inventory; they supply tasks, not priority.
 
-A wave is a table of rows. Each row is one session in its own worktree, with a goal, the files it
-will touch, any scarce shared slot it takes (a migration number, a re-recorded baseline), a worker
-pool, and whether it drives a browser. Rows are planned so they can land in any order, because
-the merge queue decides the order; a row that depends on another starts when that one lands.
-Every row's prompt ends by queueing its branch. In Claude Code a row is launched as one of the
-agent definitions in `.claude/agents/`, which carry the model, the effort and worktree isolation.
-`node scripts/wave-plan-check.mjs` must pass before a wave launches. A night wave then runs a
-watch loop (`scripts/wave-watch.mjs` over `scripts/wave-tick.mjs`) until its rows have landed.
+The work list is the prompt's items first, then the backlog in GOALS rank. Each row is one native
+subagent in its own worktree with a goal, a why, acceptance and the files it expects to touch; two
+items on one file or one user flow become one row. Every row ends by queueing its branch, so the
+merge queue decides the order. In Claude Code a row is one of the agent definitions in
+`.claude/agents/`, which carry the model, the effort and worktree isolation; in Codex it is a
+spawned subagent in a `git worktree add` worktree. A finished row wakes the coordinator, which
+launches the next item while the window still fits one. `node scripts/wave-plan-store.mjs --open`
+refuses a second open wave and a window over 24 hours.
 
-Handoffs in `docs/handoffs/` are continuation records only: a session writes one when it leaves
-work unfinished, and the session that finishes the work deletes it. A running wave asks nothing.
+Leftover work goes into the backlog, linked from the pull request; a session writes a handoff only
+when it is interrupted and the branch, pull request and backlog cannot carry the rest. A running
+wave asks nothing.
 It defers only a decision that materially changes direction, costs significantly or unusually,
 changes an important external, security or privacy boundary, or is hard to reverse
 (`docs/GOALS.md`, "Autonomous work"), records it, and continues with other work.
-`/orchestrator-week` is the weekly session with the owner.
+Each wave ends with a short report and a retro of at most three findings, closed by a fix or by
+an edit to existing text. `/orchestrator-week` is the weekly alignment read with the owner.
 
 ## 9. Measurements
 

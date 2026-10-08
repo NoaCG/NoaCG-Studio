@@ -1,6 +1,6 @@
 # Feature acceptance and evidence
 
-For substantial work only. Procedure: [shared spec module](../../.agent-workflows/orchestrator/specs.md).
+For substantial work only; this file is the procedure.
 Small fixes retain GOAL/WHY/GATE. Existing goals/programmes/rulings retain product authority;
 existing plans, waves, jobs and landings retain execution authority. No retrospective conversion.
 

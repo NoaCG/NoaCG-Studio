@@ -1,6 +1,6 @@
 ---
 paths:
-  - ".agent-workflows/orchestrator/**"
+  - ".agent-workflows/orchestrator.md"
   - "scripts/jobs-store.mjs"
   - "scripts/jobs.mjs"
 ---
