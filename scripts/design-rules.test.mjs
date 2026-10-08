@@ -71,6 +71,17 @@ test('viewing profile multiplies the floor; venue and custom are tv stubs', () =
   }
 });
 
+test('a persisted profile id this build does not know measures as tv, never as NaN', () => {
+  // `px < NaN` is false for every text, so a NaN floor passes every size check unmeasured.
+  const tv = rules.sizeFloorPx('secondary', 'standard', TV, HD.width, HD.height);
+  for (const profile of ['cinema', undefined, 'toString', 'constructor']) {
+    const p = rules.sizeFloorPx('secondary', 'standard', { profile }, HD.width, HD.height);
+    assert.equal(p.hardPx, tv.hardPx, `profile ${String(profile)} gave ${p.hardPx}`);
+  }
+  const block = rules.designRulesPromptBlock({ profile: 'cinema' }, 'safe', HD);
+  assert.doesNotMatch(block, /NaN/);
+});
+
 test('rules scale off the short side: a 9:16 vertical frame keeps the 1080-referenced floors', () => {
   const landscape = rules.sizeFloorPx('primary', 'standard', TV, 1920, 1080);
   const portrait = rules.sizeFloorPx('primary', 'standard', TV, 1080, 1920);

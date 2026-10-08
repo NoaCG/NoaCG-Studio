@@ -61,6 +61,15 @@ test('rejects an internal .html destination while cleanUrls is on', () => {
   assert.deepEqual(validateVercelConfig(mutated), []);
 });
 
+test('refuses a config that no longer says whether cleanUrls is on', () => {
+  // The flag decides whether the .html-destination half checks anything at all, so dropping the
+  // line must not quietly read as "off" and turn that half into a pass.
+  const mutated = clone();
+  delete mutated.cleanUrls;
+  mutated.rewrites = [{ source: '/join/:name', destination: '/join.html' }];
+  assert.match(validateVercelConfig(mutated).join('\n'), /cleanUrls is undefined, not true or false/);
+});
+
 test('/join and every name under it still carry the noindex header', () => {
   // Valid is not the same as correct: the pattern that replaced the broken one has to still cover
   // both shapes the audience page is served under - the bare /join?p=<slug> and the vanity
