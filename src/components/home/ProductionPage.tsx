@@ -173,7 +173,8 @@ import {
 import { withLiveLabels } from '../../blocks/controlLabels';
 import {
   clearAllCueBatches,
-  headsOnAir,
+  headsSay,
+  headsStillOn,
   clearCueItems,
   controlOutputSeenAt,
   controlPageUrl,
@@ -228,7 +229,7 @@ import ProductionExportDialog from './ProductionExportDialog';
 import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows, type CasparFacts } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
-import { allOutTargets } from '../../control/allOut';
+import { ALL_OUT_CONFIRM_MS, allOutTargets } from '../../control/allOut';
 import CueRundown, { nameList } from './CueRundown';
 import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGate';
 import ServerDiagnostics from './ServerDiagnostics';
@@ -317,10 +318,6 @@ const LOG_HISTORY_SPAN = 400;
 
 /** One empty rundown, so a production without cues hands the shortcut hook a stable list. */
 const NO_CUES: readonly ShowCue[] = [];
-
-/** How long All out waits for the server's heads to say each graphic is off before it names the
- *  ones that are not (playout-workflow-simplification AC-13). */
-const ALL_OUT_CONFIRM_MS = 5000;
 
 /** How long a native cue's verb lets the local save run before it sends (AC-14). */
 const LOCAL_SAVE_HEAD_START_MS = 250;
@@ -3173,7 +3170,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // marker went missing, or one a renderer kept across a republish, is cleared too.
     const cleared = allOutTargets({
       local: liveLayers.map((l) => l.graphic),
-      onServer: hostedSlug ? headsOnAir(hostedSlug) : null,
+      heads: hostedSlug ? headsSay(hostedSlug) : null,
       all: show.graphics.map((g) => g.name),
       published: !!hostedSlug,
     });
@@ -3190,13 +3187,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const off = cleared.filter((g) => !leftAlone(sent).includes(g));
       setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
       // Clearing… until the heads say each is off; one still on is named, never assumed gone.
-      if (hostedSlug && headsOnAir(hostedSlug) !== null) {
-        const stillOn = () => (headsOnAir(hostedSlug) ?? []).filter((g) => off.includes(g));
-        const deadline = Date.now() + ALL_OUT_CONFIRM_MS;
-        while (stillOn().length > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
-        const still = stillOn();
-        if (still.length > 0) setNote(`All out did not clear ${nameList(still)}`);
-      }
+      const still = hostedSlug ? await headsStillOn(hostedSlug, off, ALL_OUT_CONFIRM_MS) : [];
+      if (still.length > 0) setNote(`All out did not clear ${nameList(still)}`);
     } finally {
       setClearing(false);
     }
