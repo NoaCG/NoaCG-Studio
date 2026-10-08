@@ -117,14 +117,17 @@ reach users: a package an agent made can be shared, reviewed and installed by an
 - **D9: checks run in two browsers, and the server keeps the gate.** The maker's browser runs them
   for feedback; the admin's browser runs them again on the stored pack, so a forged submission meets
   the same checks before a human. The server enforces every permission: who may submit, that only
-  an admin decides, that only the maker withdraws, that others read only `live` rows. All access
-  goes through `security definer` functions; the table itself grants nothing to clients.
+  an admin decides, that only the maker withdraws, that others read only `live` rows. Submit also
+  refuses an account whose `community.publish` is off (suspension, the instance-wide switch or an
+  admin's per-account switch), as the gallery's publish did. All access goes through
+  `security definer` functions; the table itself grants nothing to clients.
 - **D10: states.** `in_review`, `live`, `not_accepted`, `withdrawn`, `taken_down`, and `replaced`
   (a live version an approved update superseded). The maker reads In review, Live, Not accepted
   (with the reason), Withdrawn, Taken down (with the reason). A refusal by the automatic checks is
   not a state: nothing was sent.
 - **D11: an update is a new version of the same pack.** It is checked and reviewed like a first
   submission; the live version stays until the update is approved, then becomes `replaced`.
+  Only the maker of a pack that is live now may update it, and one update waits at a time.
   Installed copies never change by themselves.
 - **D12: NoaCG first, then everyone.** Until AC-5's lock has landed, the server accepts
   submissions only from moderator accounts and the door shows only to them, so NoaCG seeds the
@@ -261,7 +264,9 @@ appears under the account's Your packs as In review.
    accounts, and the `fromPack` stamp on Install.
 2. **The design lock** (AC-5), a Playout row in `src/control` that reads the `fromPack` stamp, and
    the attribution line "From <pack> by <maker>, CC BY 4.0" on the production.
-3. **Open to every maker, and updates.** The D12 switch, then AC-11.
+3. **Updates, then open to every maker.** AC-11 and the `community.publish` check on submit
+   (migration 0080), for moderator accounts while D12 holds. The D12 switch waits for slice 2:
+   the owner kept that order on 2026-10-08.
 4. **Research, then the agent door.** (a) How users build graphic packs from Home, including
    selecting a folder or graphics there and adding them as a pack, never from Playout. (b) What
    share-on-import looks like for the CLI and the plugins under AC-12's only-when-asked rule; the

@@ -34,8 +34,9 @@ import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
  * The shelf is where packs are got AND given (spec D8): the NoaCG seeds (the built index under
  * public/packs/community/), then the approved shared packs (migration 0079), a Submit a pack
  * door, the maker's own submissions under Your packs, and - for a NoaCG admin - what waits for
- * review. Until the design lock lands, submitting is open to admins only (D12), on the server
- * and here.
+ * review. A live pack of the maker's takes an update, a new version that waits for review while
+ * the live one stays on the shelf (AC-11). Until the design lock lands, submitting is open to
+ * admins only (D12), on the server and here.
  */
 
 /** One shelf entry, as public/packs/community/index.json lists it. */
@@ -70,6 +71,8 @@ interface Props {
 const cardKey = (card: Card) => `card:${card.kind}:${card.id}`;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** A first version says nothing; an update says which version it is. */
+const versionNote = (version: number) => (version > 1 ? ` · version ${version}` : '');
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 /** The seed index, read once per page: switching Browse's answer back and forth remounts this
@@ -205,6 +208,7 @@ function ReviewRow({ pack, busy, onTry, onDecide }: {
         <strong>{pack.name}</strong>
         <span className="hint">
           {pack.description} · {plural(pack.graphics, 'graphic')} · by {pack.author}
+          {versionNote(pack.version)}
         </span>
         {findings === null ? (
           <span className="hint">Checking…</span>
@@ -247,7 +251,8 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   const [busy, setBusy] = useState<string | null>(null);
   // Every action is single-flight (every button disables while one runs), so one note at a time.
   const [note, setNote] = useState<{ id: string; message: string } | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  // The submit sheet: a new pack, or an update of one of the maker's live packs.
+  const [sheet, setSheet] = useState<{ updating?: MyPack } | null>(null);
   const [withdrawing, setWithdrawing] = useState<MyPack | null>(null);
   const [takingDown, setTakingDown] = useState<string | null>(null);
 
@@ -327,7 +332,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
       <div className="wz-community-head">
         <p className="wz-kit-lede">Install one and it opens as a production, rundown included.</p>
         {moderator && (
-          <button type="button" onClick={() => setSubmitting(true)} data-testid="submit-pack-open">
+          <button type="button" onClick={() => setSheet({})} data-testid="submit-pack-open">
             Submit a pack
           </button>
         )}
@@ -341,14 +346,25 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
               <li key={p.id} className="wz-community-row" data-my-pack={p.id}>
                 <div className="wz-community-row-text">
                   <strong>{p.name}</strong>
-                  <span className={`wz-community-state is-${p.state}`}>{PACK_STATE_LABEL[p.state]}</span>
+                  <span className={`wz-community-state is-${p.state}`}>
+                    {PACK_STATE_LABEL[p.state]}
+                    {versionNote(p.version)}
+                  </span>
                   {p.reason && <span className="hint">{p.reason}</span>}
                   {note?.id === `mine:${p.id}` && <span className="wz-community-error" role="alert">{note.message}</span>}
                 </div>
                 {(p.state === 'in_review' || p.state === 'live') && (
-                  <button type="button" disabled={busy !== null} onClick={() => setWithdrawing(p)}>
-                    Withdraw
-                  </button>
+                  <div className="wz-community-row-actions">
+                    {/* One update waits at a time, and the door is the submit door's (D12). */}
+                    {moderator && p.state === 'live' && !mine.some((o) => o.lineage === p.lineage && o.state === 'in_review') && (
+                      <button type="button" disabled={busy !== null} onClick={() => setSheet({ updating: p })}>
+                        Submit an update
+                      </button>
+                    )}
+                    <button type="button" disabled={busy !== null} onClick={() => setWithdrawing(p)}>
+                      Withdraw
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
@@ -432,12 +448,13 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
         ))}
       </ul>
 
-      {submitting && (
+      {sheet && (
         <SubmitPackSheet
           lastAuthor={mine[0]?.author ?? ''}
-          onClose={() => setSubmitting(false)}
+          updating={sheet.updating}
+          onClose={() => setSheet(null)}
           onSent={() => {
-            setSubmitting(false);
+            setSheet(null);
             refresh();
           }}
         />

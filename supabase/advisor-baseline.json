@@ -318,10 +318,10 @@
       "level": "WARN",
       "detail": "Function `public.community_pack_shelf()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_shelf`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "authenticated_security_definer_function_executable_public_community_pack_submit_p_name text, p_description text, p_author text, p_pack jsonb": {
+    "authenticated_security_definer_function_executable_public_community_pack_submit_p_name text, p_description text, p_author text, p_pack jsonb, p_update_of uuid": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.community_pack_submit(p_name text, p_description text, p_author text, p_pack jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      "detail": "Function `public.community_pack_submit(p_name text, p_description text, p_author text, p_pack jsonb, p_update_of uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_submit`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_pack_waiting_": {
       "name": "authenticated_security_definer_function_executable",
