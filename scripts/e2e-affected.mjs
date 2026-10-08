@@ -26,9 +26,11 @@
 // shared core (store, model, preview composer, validation, the shell, the e2e helpers, build
 // config) runs the full suite, because those files feed every flow.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIGURED_TRIGGERS, COVERAGE, FOCUS } from './e2e-lists.mjs';
+import { COPY_PATH_FILE, copyEdit, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
 import {
   budgetMinutes,
@@ -305,18 +307,32 @@ const CATALOG_TRIGGERS = [
  * names in `e2e/` (`specFilesOnDisk()`); the function stays pure because the caller supplies it,
  * and leaving it out keeps the old behaviour for callers that only reason about names.
  *
+ * A FILE WHOSE EDIT IS ONLY COPY is planned by the specs that name what changed
+ * (scripts/e2e-affected-copy.mjs), not by its covers lines or the core escalation. `copyEdits`
+ * maps such a file to its edit, as `copyEdit` classified it from the two versions; a file absent
+ * from it is planned exactly as before, and with no map at all nothing changes. `specTexts` is
+ * every spec's source, which the naming search reads, and `baselined` the specs with screenshot
+ * baselines - kept for a copy edit among the file's normal coverage, since a picture compares
+ * every pixel. The catalog and configured flags are asked first either way.
+ *
  * @param {string[]} changed        repo-relative paths, forward slashes
- * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null }} [opts]
+ * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
+ *           copyEdits?: Map<string, { kind: 'text'|'class', terms: string[] }>,
+ *           specTexts?: Map<string, string>, baselined?: string[] }} [opts]
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
- *             unmapped: string[], focusApplied: boolean }}
+ *             unmapped: string[], focusApplied: boolean, copyOnly: string[] }}
  */
-export function planFor(changed, { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE } = {}) {
+export function planFor(
+  changed,
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [] } = {},
+) {
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
   let full = false;
   let catalog = false;
   let configured = false;
   const unmapped = [];
+  const copyOnly = [];
 
   for (const file of changed) {
     // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` is ignored for the
@@ -335,6 +351,13 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null, cove
     const baselineOf = /^e2e\/([^/]+\.spec\.ts)-snapshots\//.exec(file)?.[1];
     if (baselineOf) {
       if (!onDisk || onDisk.has(baselineOf)) specs.add(baselineOf);
+      continue;
+    }
+    const copy = copyEdits.get(file);
+    if (copy) {
+      copyOnly.push(file);
+      for (const s of specsNaming(copy, specTexts)) specs.add(s);
+      for (const c of coverage) if (baselined.includes(c.spec) && c.test(file)) specs.add(c.spec);
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
@@ -371,7 +394,7 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null, cove
   // reported rather than run (scripts/e2e-lists.mjs). A change that touches ONLY its territory
   // still reports 'none' for this gate, and the printed line is what says otherwise.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
-  return { mode, specs: list, catalog, configured, unmapped, focusApplied };
+  return { mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly };
 }
 
 /**
@@ -675,6 +698,49 @@ export function changedFilesSince(base, cwd = undefined) {
     .split('\n')
     .map((l) => l.replace(/^.{2} /, '').replace(/^.* -> /, '').trim());
   return [...new Set([...committed, ...working])].filter(Boolean).map((f) => f.replace(/\\/g, '/'));
+}
+
+/**
+ * WHAT THE COPY PATH NEEDS FROM THE REPOSITORY: each changed file's edit, read from the file at
+ * the diff's own old side (the merge-base `changedFilesSince` diffs from) and from the working
+ * tree, plus every spec's source and which specs carry screenshot baselines. A file either side
+ * cannot be read for - added, deleted, renamed - gets no entry, which is the normal plan.
+ *
+ * @param {string} base the ref `changedFilesSince` was given
+ * @param {string[]} changed its answer
+ * @param {string} [cwd]
+ */
+export function copyContext(base, changed, cwd = undefined) {
+  const root = cwd ?? gitIn(cwd, 'rev-parse', '--show-toplevel');
+  const old = gitIn(cwd, 'merge-base', base, 'HEAD');
+  const read = (f) => {
+    try {
+      return readFileSync(join(root, f), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  const copyEdits = new Map();
+  for (const file of changed) {
+    if (!COPY_PATH_FILE.test(file)) continue;
+    let before;
+    try {
+      before = execFileSync('git', ['show', `${old}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}) });
+    } catch {
+      continue;
+    }
+    const edit = copyEdit(file, before, read(file));
+    if (edit) copyEdits.set(file, edit);
+  }
+  const specTexts = new Map();
+  const baselined = [];
+  if (copyEdits.size > 0) {
+    for (const name of readdirSync(join(root, 'e2e'))) {
+      if (name.endsWith('.spec.ts')) specTexts.set(name, read(`e2e/${name}`) ?? '');
+      else if (name.endsWith('.spec.ts-snapshots')) baselined.push(name.replace(/-snapshots$/, ''));
+    }
+  }
+  return { copyEdits, specTexts, baselined };
 }
 
 /**
@@ -992,7 +1058,11 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied }, { count, noun, hypothetical }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [] }, { count, noun, hypothetical }) {
+  if (copyOnly.length > 0) {
+    log(`e2e-affected: ${copyOnly.length} file(s) changed only wording or class styling - planned by the specs that name what changed (scripts/e2e-affected-copy.mjs):`);
+    for (const f of copyOnly) log('  -', f);
+  }
   // Printed before mode 'none' returns: a change confined to hosted Pro's wire contract or to
   // e2e/configured/ leaves this gate with nothing to run, and that verdict on its own reads as
   // "covered" when the covering suite is the one that never ran.
@@ -1149,7 +1219,7 @@ function main() {
     return 0;
   }
 
-  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk() });
+  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), ...copyContext(base, changed) });
   const { mode, specs: plan, catalog: catalogAffected } = planResult;
   const full = mode === 'full';
 
