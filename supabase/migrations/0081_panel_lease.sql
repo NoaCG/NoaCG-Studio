@@ -97,6 +97,8 @@ begin
 end $$;
 
 -- ── 3. The calls from 0073 that read "a page answers": a lapsed lease is no page ──────────────
+-- Each is its latest definition (panel_press as 0077 left it, with `trigger-cue`), changed only
+-- where it reads whether a page answers.
 create or replace function public.panel_claim(p_slug text, p_page text, p_where text, p_label text)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
@@ -218,7 +220,7 @@ begin
     return jsonb_build_object('ok', false, 'refused', 'bad-press');
   end if;
   if v_verb is null or v_verb not in ('take', 'retake', 'update', 'next', 'out', 'select-prev', 'select-next',
-       'pause', 'resume', 'pause-toggle', 'all-out', 'select-cue', 'take-cue') then
+       'pause', 'resume', 'pause-toggle', 'all-out', 'select-cue', 'take-cue', 'trigger-cue') then
     return jsonb_build_object('ok', false, 'refused', 'not-a-panel-verb');
   end if;
   -- The burst cap and the last use, in one write of the key's own row.

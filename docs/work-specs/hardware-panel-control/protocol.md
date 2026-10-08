@@ -132,7 +132,9 @@ offer "Use here".
 
 The lease is held by a page id kept for the tab: handed to the next document of the tab on
 `pagehide` and taken out of session storage as it is read, so a reload carries on under the same
-claim and a duplicated tab gets an id of its own. `pagehide` publishes `gone` and keeps the lease
+claim and a duplicated tab gets an id of its own. The answering page hands on its `ver` and
+`rowsVer` the same way, and the reloaded page counts on from them, so no state of it can carry a
+number a state of the page before it had. `pagehide` publishes `gone` and keeps the lease
 (it may be a reload); a closed tab's lease lapses in 15 s. Leaving the production inside the app
 releases it (`panel_release`).
 

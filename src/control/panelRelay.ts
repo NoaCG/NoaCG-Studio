@@ -132,6 +132,38 @@ export function tabPageId(slug: string): string {
   return id;
 }
 
+/** What an answering page hands the next document of its tab: the claim it answered under, and how
+ *  far its state and rows versions had counted. */
+interface HandedOn {
+  claim: number;
+  ver: number;
+  rowsVer: number;
+}
+
+const handKey = (slug: string) => `noacg-panel-counts:${slug}`;
+
+function handOn(slug: string, counts: HandedOn): void {
+  try {
+    window.sessionStorage.setItem(handKey(slug), JSON.stringify(counts));
+  } catch {
+    // no storage: the reloaded page counts from its claim's million, as a new claim does
+  }
+}
+
+/** The counts the document before this one handed on, taken out as they are read (as the page id). */
+function handedOn(slug: string): HandedOn | null {
+  try {
+    const raw = window.sessionStorage.getItem(handKey(slug));
+    window.sessionStorage.removeItem(handKey(slug));
+    const counts = raw ? (JSON.parse(raw) as Partial<HandedOn>) : null;
+    return counts && typeof counts.claim === 'number' && typeof counts.ver === 'number' && typeof counts.rowsVer === 'number'
+      ? { claim: counts.claim, ver: counts.ver, rowsVer: counts.rowsVer }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * ANSWER THE PANEL ON THIS PAGE (docs/work-specs/panel-ownership-lease/spec.md). Takes the
  * production's panel lease, when it is free or already this tab's, or moves it here (`move`, "Use
@@ -268,8 +300,12 @@ export function answerPanel(opts: {
     }
     claim = answer.claim;
     // Versions start at the claim's own million, so a key drawn under an earlier page's claim can
-    // never match one of this page's states by number and be judged against the wrong one.
-    ver = claim * 1_000_000;
+    // never match one of this page's states by number and be judged against the wrong one. A reload
+    // of this tab carries on under the same claim (L4), so it carries on counting from where the
+    // page before it stopped, for the same reason.
+    const before = handedOn(opts.slug);
+    ver = before && before.claim === claim ? Math.max(claim * 1_000_000, before.ver) : claim * 1_000_000;
+    if (before && before.claim === claim) rowsVer = before.rowsVer;
     const ch = sb.channel(answer.press_topic, { config: { private: true } });
     pressChannel = ch;
     ch.on('broadcast', { event: 'press' }, (m: { payload: unknown }) => onPressMessage(m.payload));
@@ -328,7 +364,11 @@ export function answerPanel(opts: {
     void leave(pressChannel);
     void leave(feedChannel);
   };
-  const onHide = () => stop(false);
+  const onHide = () => {
+    // Handed to the next document of this tab, which resumes the lease (L4) and its counts.
+    if (claim) handOn(opts.slug, { claim, ver, rowsVer });
+    stop(false);
+  };
   window.addEventListener('pagehide', onHide);
 
   void start();

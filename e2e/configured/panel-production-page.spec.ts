@@ -37,11 +37,11 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
 
   // PAIRING: a code, typed into the "module", and the panel appears in the list.
   const deck = await pairPanel(op);
-  expect((await deck.hello()).answering).toBe(false);
 
-  // ANSWERING: the production page takes the paired panel by itself (panel lease AC-1), and
-  // publishes what the keys draw from.
+  // ANSWERING: the production page takes the panel by itself as soon as it is paired (panel lease
+  // AC-1), and publishes what the keys draw from.
   await answerPanel(op);
+  expect((await deck.hello()).answering).toBe(true);
   await op.getByTestId('panel-dialog').screenshot({ path: 'test-results/panel-production-dialog-answering.png' });
   await op.getByTestId('panel-close').click();
   await deck.hello();
