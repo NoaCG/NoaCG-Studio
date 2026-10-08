@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuthState } from '../../auth/useAuthState';
 import { useAuthUi } from '../../auth/authUi';
 import { Svg } from '../../icons';
+import { preloadCatalog } from '../../catalogOnDemand';
 import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
@@ -160,7 +161,7 @@ export default function EntryStep({
           first screen that hedges its doors is not understandable at once; the grey is the
           Video card's whole signal. */}
       <div className="wz-entry">
-        <button className="wz-entry-card" onClick={onTemplates} data-entry="template">
+        <button className="wz-entry-card" onClick={onTemplates} onPointerEnter={preloadCatalog} onFocus={preloadCatalog} data-entry="template">
           <span className="wz-entry-head">
             <IconTemplate />
             <strong>Start from a template</strong>

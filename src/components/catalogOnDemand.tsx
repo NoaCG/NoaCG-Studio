@@ -3,8 +3,9 @@
 // `templates/catalog.ts` pulls every design and graphic type, about 650 modules. Home, the
 // wizard's Entry step and the production page need none of it, so nothing on the /app boot path
 // imports it statically: a surface that lists designs asks here, and shows `CatalogLoading`
-// until it arrives. The wizard steps that build on it are `lazy()` for the same reason, and the
-// Entry step starts the load once it has painted, since its next step usually lists designs.
+// until it arrives. The wizard steps that build on it are `lazy()` for the same reason. The
+// Entry step's template card starts the load on hover or focus, so a person who is about to
+// browse rarely sees the wait, and a visit that never browses never pays for it.
 import { useEffect, useSyncExternalStore } from 'react';
 
 export type Catalog = typeof import('../templates/catalog');
@@ -53,19 +54,9 @@ export function useCatalog(active = true): Catalog | null {
   return catalog;
 }
 
-/** Start the load once the page is idle, for a surface whose next step usually lists designs.
- *  After first paint by construction, so it never joins the boot it follows. */
-export function useCatalogPreload(active: boolean): void {
-  useEffect(() => {
-    if (!active) return;
-    const load = () => void loadCatalog().catch(() => undefined);
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(load, { timeout: 2000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const id = window.setTimeout(load, 300);
-    return () => window.clearTimeout(id);
-  }, [active]);
+/** Start the load ahead of a press that will list designs (a hover or focus on its door). */
+export function preloadCatalog(): void {
+  loadCatalog().catch(() => undefined);
 }
 
 export function CatalogLoading() {

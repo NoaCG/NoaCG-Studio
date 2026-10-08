@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
-import { CatalogLoading, useCatalog, useCatalogPreload } from '../catalogOnDemand';
+import { CatalogLoading, useCatalog } from '../catalogOnDemand';
 import {
   armTimerClock,
   brandClearPatch,
@@ -691,8 +691,6 @@ export default function CreationWizard() {
   const listsDesigns = (mode === 'template' && step >= 1) || (mode === 'import' && step >= 2);
   const needsCatalog = listsDesigns || (step > 0 && Boolean(draft.variantId) && !importedVariant);
   const catalog = useCatalog(open && (needsCatalog || Boolean(pendingDesignId)));
-  // Most walks leave Entry for a step that lists designs, so it fetches them once it has painted.
-  useCatalogPreload(open && step === 0);
   useEffect(() => {
     if (!open || !pendingDesignId || !catalog) return;
     const pending = catalog.variantById(pendingDesignId);
