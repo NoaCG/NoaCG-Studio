@@ -38,6 +38,14 @@ outside the repository (`sim-full-registry.mjs`, in the session scratchpad):
   appeared. The full-registry build above runs the same three under a registry where any
   reservation attempt would have failed.
 
+## A real server start reserves its port
+
+Queued job j-3690, `npx playwright test e2e/analytics.spec.ts e2e/canvas-fit.spec.ts`, in this
+worktree with no reservation: Playwright started `npm run dev -- --host 127.0.0.1 --port 5192
+--strictPort`, Vite's `noacg-dev-port` plugin reserved exactly 5192, and the run passed (1 passed,
+2 skipped by the specs' own conditions). `.claude/dev-port.json` afterwards: port 5192, source
+"reservation", ticket `5192.json` - the first ticket this worktree ever held.
+
 ## AC-5: a server start takes back an idle reservation
 
 `scripts/port-registry.test.mjs` ("a full registry") and `scripts/dev-port-readonly.test.mjs`
