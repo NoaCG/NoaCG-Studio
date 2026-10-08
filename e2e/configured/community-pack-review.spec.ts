@@ -7,8 +7,9 @@
 // maker reads the reason. A signed-in account that is not an admin gets no submit door (D12).
 // Then an update (AC-11): the maker sends a new version of a live pack, it waits for review while
 // the live one stays on the shelf, approval replaces it, and Install gives the new version while
-// the old install stays as it was. Last, the server itself refuses a submit from an account that
-// is not an admin and from one whose `community.publish` is switched off.
+// the old install stays as it was; withdrawing the live pack takes a waiting update with it. Last,
+// the server itself refuses a submit from an account that is not an admin and from one whose
+// `community.publish` is switched off.
 // Needs the service_role key to mint the two accounts and grant the admin role.
 
 import { test, expect, type Page } from '@playwright/test';
@@ -16,7 +17,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { mintAccount, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
-const canRun = Boolean(SERVICE_ROLE_KEY && SUPABASE_URL && ANON_KEY);
+const canRun = Boolean(SERVICE_ROLE_KEY && SUPABASE_URL);
 const ADMIN_EMAIL = 'e2e-pack-admin@example.test';
 const MAKER_EMAIL = 'e2e-pack-maker@example.test';
 const PASSWORD = 'e2e-pack-review-pw-1';
@@ -50,6 +51,13 @@ async function productionSizes(page: Page, name: string): Promise<number[]> {
       .map((s) => s.graphics.length)
       .sort((a, b) => a - b);
   }, name);
+}
+
+/** Install the shelf's card of that name and land on its production, one starter cue per graphic. */
+async function install(page: Page, name: string, cues: number): Promise<void> {
+  await page.locator('.wz-community-card', { hasText: name }).getByRole('button', { name: `Install ${name}` }).click();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('select-cue')).toHaveCount(cues);
 }
 
 async function openShelf(page: Page): Promise<void> {
@@ -142,9 +150,7 @@ test.describe('community pack review (configured)', () => {
       await visitor.screenshot({ path: `${SHOTS}/shared-card-phone.png` });
       await visitor.setViewportSize({ width: 1366, height: 768 });
     }
-    await card.getByRole('button', { name: `Install ${PACK}` }).click();
-    await expect(visitor.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
-    await expect(visitor.getByTestId('select-cue')).toHaveCount(2);
+    await install(visitor, PACK, 2);
 
     // An account that is not an admin has no submit door while D12 holds.
     const maker = await browser.newPage();
@@ -208,9 +214,7 @@ test.describe('community pack review (configured)', () => {
     // A visitor installs version 1 before the update exists.
     const visitor = await browser.newPage();
     await openShelf(visitor);
-    await visitor.locator('.wz-community-card', { hasText: SERIES }).getByRole('button', { name: `Install ${SERIES}` }).click();
-    await expect(visitor.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
-    await expect(visitor.getByTestId('select-cue')).toHaveCount(1);
+    await install(visitor, SERIES, 1);
 
     // UPDATE: the same sheet, filled from the live version; both graphics go in this time.
     await mine.getByRole('button', { name: 'Submit an update' }).click();
@@ -259,13 +263,23 @@ test.describe('community pack review (configured)', () => {
     const card = visitor.locator('.wz-community-card', { hasText: SERIES });
     await expect(card).toHaveCount(1);
     await expect(card).toContainText('A series opener and closer');
-    await card.getByRole('button', { name: `Install ${SERIES}` }).click();
-    await expect(visitor.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
-    await expect(visitor.getByTestId('select-cue')).toHaveCount(2);
+    await install(visitor, SERIES, 2);
     expect(await productionSizes(visitor, SERIES)).toEqual([1, 2]);
+
+    // WITHDRAW the live pack while another update waits: both go, and the shelf stops offering it.
+    await mine.getByRole('button', { name: 'Submit an update' }).click();
+    await page.getByTestId('submit-pack-go').click();
+    await expect(mine.filter({ hasText: 'In review' })).toContainText('version 3');
+    await mine.filter({ hasText: 'Live' }).getByRole('button', { name: 'Withdraw' }).click();
+    await expect(page.getByTestId('withdraw-pack')).toContainText('its waiting update is withdrawn with it');
+    await page.getByTestId('withdraw-pack-go').click();
+    await expect(mine.filter({ hasText: 'Withdrawn' })).toHaveCount(2);
+    await expect(live).toHaveCount(0);
+    await expect(page.getByTestId('waiting-packs')).toHaveCount(0);
   });
 
   test('the server refuses a submit from an account that is not an admin, and from one with community.publish off', async () => {
+    test.skip(!ANON_KEY, 'set VITE_SUPABASE_ANON_KEY to sign in as the two accounts');
     const pack = { format: 'noacg-pack', version: 1, name: 'x', graphics: [{ name: 'A' }] };
     const submitAs = async (email: string) => {
       const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });

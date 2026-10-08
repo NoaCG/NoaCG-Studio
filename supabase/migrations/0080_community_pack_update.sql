@@ -4,16 +4,116 @@
 -- An update is a new row in the live pack's lineage, one version up. It waits for review like a
 -- first submission while the live version stays on the shelf; approving it moves the old live row
 -- to `replaced`, which `community_pack_decide` (0079) already does. Only the maker of a pack that
--- is live now may update it, and one update at a time waits.
+-- is live now may update it, and one update at a time waits. A pack that leaves the shelf takes
+-- its waiting update with it: withdrawing the live version withdraws the update, and a takedown
+-- takes the update down with the same reason, so no approval can bring the pack back.
+--
+-- The shelf and the review queue also answer each row's lineage, so Install can stamp one id for
+-- every version of a pack (`fromPack`, spec D7) and the stamp's version means something.
 --
 -- Submit now also refuses an account whose `community.publish` is denied (an admin's per-account
 -- switch, the instance-wide kill switch, or suspension: `feature_denied`, 0022), as the closed
 -- gallery's publish path did. Submitting stays moderator-only until the design lock lands (D12).
 --
--- The function gains an argument, so the old signature is dropped and the new one created with
--- the same grants. `p_update_of` defaults to null, so a first submission calls it as before.
+-- Submit gains an argument and the two readers gain a column, so those three are dropped and
+-- created again with 0079's grants. `p_update_of` defaults to null, so a first submission calls
+-- submit as before.
 set lock_timeout = '2s';
 set statement_timeout = '30s';
+
+drop function if exists public.community_pack_shelf();
+create function public.community_pack_shelf()
+returns table (id uuid, lineage uuid, name text, description text, author_name text, graphics integer, version integer,
+               decided_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select p.id, p.lineage, p.name, p.description, p.author_name, p.graphics, p.version, p.decided_at
+  from public.community_packs p
+  where p.state = 'live'
+  order by p.decided_at desc nulls last, p.submitted_at desc;
+$$;
+revoke all on function public.community_pack_shelf() from public;
+grant execute on function public.community_pack_shelf() to anon, authenticated;
+
+drop function if exists public.community_pack_waiting();
+create function public.community_pack_waiting()
+returns table (id uuid, lineage uuid, name text, description text, author_name text, graphics integer, version integer,
+               submitted_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select p.id, p.lineage, p.name, p.description, p.author_name, p.graphics, p.version, p.submitted_at
+  from public.community_packs p
+  where p.state = 'in_review' and public.is_moderator()
+  order by p.submitted_at;
+$$;
+revoke all on function public.community_pack_waiting() from public, anon;
+grant execute on function public.community_pack_waiting() to authenticated;
+
+-- The maker takes their own pack off the queue or the shelf at once (spec D6). Withdrawing the
+-- live version withdraws the update waiting beside it too; withdrawing the update alone leaves
+-- the live version on the shelf.
+create or replace function public.community_pack_withdraw(p_id uuid)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_row public.community_packs%rowtype;
+begin
+  select * into v_row from public.community_packs p
+   where p.id = p_id and p.author_id = (select auth.uid()) and p.state in ('in_review', 'live')
+     for update;
+  if not found then
+    raise exception 'That pack is not yours to withdraw, or it is no longer offered.';
+  end if;
+  update public.community_packs p
+     set state = 'withdrawn'
+   where p.id = p_id
+      or (v_row.state = 'live' and p.lineage = v_row.lineage and p.state = 'in_review');
+end;
+$$;
+revoke all on function public.community_pack_withdraw(uuid) from public, anon;
+grant execute on function public.community_pack_withdraw(uuid) to authenticated;
+
+-- 0079's decide, with one addition: taking a live pack down takes the update waiting beside it
+-- down with the same reason.
+create or replace function public.community_pack_decide(p_id uuid, p_state text, p_reason text default null)
+returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_uid uuid := (select auth.uid());
+  v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+  v_row public.community_packs%rowtype;
+begin
+  if v_uid is null or not public.is_moderator() then
+    raise exception 'Only a NoaCG admin can decide on a pack.';
+  end if;
+  if p_state not in ('live', 'not_accepted', 'taken_down') then
+    raise exception 'Unknown decision.';
+  end if;
+  if p_state <> 'live' and v_reason is null then
+    raise exception 'Give the maker a reason.';
+  end if;
+  if v_reason is not null and char_length(v_reason) > 300 then
+    raise exception 'Keep the reason under 300 characters.';
+  end if;
+  select * into v_row from public.community_packs c where c.id = p_id for update;
+  if not found then
+    raise exception 'That pack no longer exists.';
+  end if;
+  if (p_state in ('live', 'not_accepted') and v_row.state <> 'in_review')
+     or (p_state = 'taken_down' and v_row.state <> 'live') then
+    raise exception 'That pack is no longer in the state this decision needs.';
+  end if;
+  if p_state = 'live' then
+    update public.community_packs c
+       set state = 'replaced'
+     where c.lineage = v_row.lineage and c.state = 'live' and c.id <> p_id;
+  end if;
+  update public.community_packs c
+     set state = p_state, reason = v_reason, decided_at = now(), decided_by = v_uid
+   where c.id = p_id
+      or (p_state = 'taken_down' and c.lineage = v_row.lineage and c.state = 'in_review');
+end;
+$$;
+revoke all on function public.community_pack_decide(uuid, text, text) from public, anon;
+grant execute on function public.community_pack_decide(uuid, text, text) to authenticated;
 
 drop function if exists public.community_pack_submit(text, text, text, jsonb);
 
@@ -30,6 +130,7 @@ declare
   v_lineage uuid := gen_random_uuid();
   v_version integer := 1;
   v_live public.community_packs%rowtype;
+  v_waiting boolean;
   v_id uuid;
 begin
   if v_uid is null then
@@ -81,11 +182,12 @@ begin
     if not found then
       raise exception 'Only a live pack of yours can be updated.';
     end if;
-    if exists (select 1 from public.community_packs c where c.lineage = v_live.lineage and c.state = 'in_review') then
+    select max(c.version) + 1, coalesce(bool_or(c.state = 'in_review'), false) into v_version, v_waiting
+      from public.community_packs c where c.lineage = v_live.lineage;
+    if v_waiting then
       raise exception 'An update of this pack is already waiting for review.';
     end if;
     v_lineage := v_live.lineage;
-    select max(c.version) + 1 into v_version from public.community_packs c where c.lineage = v_live.lineage;
   end if;
   insert into public.community_packs (lineage, version, author_id, author_name, name, description, graphics, pack)
   values (
@@ -99,29 +201,41 @@ $$;
 revoke all on function public.community_pack_submit(text, text, text, jsonb, uuid) from public, anon;
 grant execute on function public.community_pack_submit(text, text, text, jsonb, uuid) to authenticated;
 
--- Self-check, part one: still closed to anon, still open to a signed-in caller.
+-- One waiting version per pack, held by the table and not only by submit's own check.
+create unique index if not exists community_packs_one_in_review_idx
+  on public.community_packs (lineage) where state = 'in_review';
+
+-- Self-check, part one: the grants 0079 gave, on the functions created again here.
 do $$
 begin
-  if has_function_privilege('anon', 'public.community_pack_submit(text, text, text, jsonb, uuid)', 'execute') then
-    raise exception '0080 self-check: anon may submit';
+  if has_function_privilege('anon', 'public.community_pack_submit(text, text, text, jsonb, uuid)', 'execute')
+     or has_function_privilege('anon', 'public.community_pack_waiting()', 'execute')
+     or has_function_privilege('anon', 'public.community_pack_withdraw(uuid)', 'execute')
+     or has_function_privilege('anon', 'public.community_pack_decide(uuid, text, text)', 'execute') then
+    raise exception '0080 self-check: anon may submit, withdraw, decide or read the review queue';
   end if;
-  if not has_function_privilege('authenticated', 'public.community_pack_submit(text, text, text, jsonb, uuid)', 'execute') then
-    raise exception '0080 self-check: a signed-in caller cannot reach submit';
+  if not has_function_privilege('authenticated', 'public.community_pack_submit(text, text, text, jsonb, uuid)', 'execute')
+     or not has_function_privilege('anon', 'public.community_pack_shelf()', 'execute') then
+    raise exception '0080 self-check: a signed-in caller cannot submit, or the shelf is not readable signed out';
   end if;
 end;
 $$;
 
 -- Self-check, part two: CALL the doors as an existing account made a moderator for the moment.
 -- A live pack takes one update, which waits beside it; a second waits for nothing; approval
--- replaces the old version on the shelf; a denied `community.publish` refuses. Everything happens
--- inside a block that ends by raising, so every row and grant rolls back.
+-- replaces the old version on the shelf; withdrawing or taking down a live pack takes its waiting
+-- update with it; a denied `community.publish` refuses. Everything happens inside a block that
+-- ends by raising, so every row and grant rolls back.
 do $$
 declare
   v_user uuid;
   v_first uuid;
   v_update uuid;
+  v_third uuid;
+  v_other uuid;
+  v_other_update uuid;
   v_pack jsonb := '{"format":"noacg-pack","version":1,"name":"x","graphics":[{"name":"A"}]}'::jsonb;
-  v_refused boolean;
+  v_error text;
 begin
   select u.id into v_user from auth.users u
    where not exists (select 1 from public.user_accounts a where a.user_id = u.id and a.state = 'suspended')
@@ -129,6 +243,8 @@ begin
      -- One active grant per key (0021), so the denying one below needs a free slot.
      and not exists (select 1 from public.user_grants g
                       where g.user_id = u.id and g.key = 'community.publish' and g.revoked_at is null)
+     -- Room under submit's limit of ten waiting packs for the two this check sends at once.
+     and (select count(*) from public.community_packs c where c.author_id = u.id and c.state = 'in_review') <= 8
    limit 1;
   if v_user is null then
     raise notice '0080 behaviour self-check skipped: no account on this instance';
@@ -139,21 +255,20 @@ begin
     insert into public.moderators (user_id, note) values (v_user, '0080 self-check') on conflict (user_id) do nothing;
 
     v_first := public.community_pack_submit('Self-check', 'Self-check pack', 'Self-check', v_pack);
-    v_refused := false;
+    v_error := null;
     begin
       perform public.community_pack_submit('Early', 'd', 'Self-check', v_pack, v_first);
     exception when raise_exception then
-      v_refused := true;
+      v_error := sqlerrm;
     end;
-    if not v_refused then
-      raise exception '0080 self-check failed: a pack in review took an update';
+    if v_error is distinct from 'Only a live pack of yours can be updated.' then
+      raise exception '0080 self-check failed: a pack in review took an update (%)', v_error;
     end if;
 
     perform public.community_pack_decide(v_first, 'live', null);
     v_update := public.community_pack_submit('Self-check v2', 'Self-check pack', 'Self-check', v_pack, v_first);
-    if (select c.version from public.community_packs c where c.id = v_update) is distinct from 2
-       or (select c.lineage from public.community_packs c where c.id = v_update)
-          is distinct from (select c.lineage from public.community_packs c where c.id = v_first) then
+    if not exists (select 1 from public.community_packs u join public.community_packs f on f.lineage = u.lineage
+                    where u.id = v_update and f.id = v_first and u.version = 2) then
       raise exception '0080 self-check failed: an update is not the next version of its pack';
     end if;
     if not exists (select 1 from public.community_pack_shelf() s where s.id = v_first)
@@ -161,14 +276,14 @@ begin
       raise exception '0080 self-check failed: the live version did not stay while its update waits';
     end if;
 
-    v_refused := false;
+    v_error := null;
     begin
       perform public.community_pack_submit('Second', 'd', 'Self-check', v_pack, v_first);
     exception when raise_exception then
-      v_refused := true;
+      v_error := sqlerrm;
     end;
-    if not v_refused then
-      raise exception '0080 self-check failed: a second update was taken while one waits';
+    if v_error is distinct from 'An update of this pack is already waiting for review.' then
+      raise exception '0080 self-check failed: a second update was taken while one waits (%)', v_error;
     end if;
 
     perform public.community_pack_decide(v_update, 'live', null);
@@ -177,16 +292,33 @@ begin
       raise exception '0080 self-check failed: approving an update did not replace the old version';
     end if;
 
+    -- Withdrawing the live version, now version 2, withdraws the update waiting beside it.
+    v_third := public.community_pack_submit('Self-check v3', 'Self-check pack', 'Self-check', v_pack, v_update);
+    perform public.community_pack_withdraw(v_update);
+    if (select c.state from public.community_packs c where c.id = v_third) is distinct from 'withdrawn' then
+      raise exception '0080 self-check failed: an update kept waiting after its pack was withdrawn';
+    end if;
+
+    -- Taking a live pack down takes its waiting update down with the same reason.
+    v_other := public.community_pack_submit('Self-check B', 'Self-check pack', 'Self-check', v_pack);
+    perform public.community_pack_decide(v_other, 'live', null);
+    v_other_update := public.community_pack_submit('Self-check B2', 'Self-check pack', 'Self-check', v_pack, v_other);
+    perform public.community_pack_decide(v_other, 'taken_down', 'Self-check');
+    if (select c.state || ':' || c.reason from public.community_packs c where c.id = v_other_update)
+       is distinct from 'taken_down:Self-check' then
+      raise exception '0080 self-check failed: an update kept waiting after its pack was taken down';
+    end if;
+
     insert into public.user_grants (user_id, kind, key, value, reason)
     values (v_user, 'feature', 'community.publish', '{"value": false}'::jsonb, '0080 self-check');
-    v_refused := false;
+    v_error := null;
     begin
       perform public.community_pack_submit('Denied', 'd', 'Self-check', v_pack);
     exception when raise_exception then
-      v_refused := sqlerrm = 'This account cannot submit packs.';
+      v_error := sqlerrm;
     end;
-    if not v_refused then
-      raise exception '0080 self-check failed: an account with community.publish off could submit';
+    if v_error is distinct from 'This account cannot submit packs.' then
+      raise exception '0080 self-check failed: an account with community.publish off could submit (%)', v_error;
     end if;
 
     raise exception '0080-self-check-passed';

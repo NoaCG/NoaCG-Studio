@@ -19,7 +19,8 @@ export const PACK_STATE_LABEL: Record<PackState, string> = {
   replaced: 'Replaced',
 };
 
-/** A live pack on the shelf. */
+/** A live pack on the shelf, or one waiting for review. Every version of one pack shares its
+ *  `lineage`. */
 export interface SharedPack {
   id: string;
   name: string;
@@ -27,11 +28,11 @@ export interface SharedPack {
   author: string;
   graphics: number;
   version: number;
+  lineage: string;
 }
 
-/** One of the maker's own submissions. Every version of one pack shares its `lineage`. */
+/** One of the maker's own submissions. */
 export interface MyPack extends SharedPack {
-  lineage: string;
   state: PackState;
   reason: string | null;
 }
@@ -55,6 +56,8 @@ const shared = (r: Row): SharedPack => ({
   author: r.author_name,
   graphics: r.graphics,
   version: r.version,
+  // Falls back to the row id while a server without 0080 answers no lineage.
+  lineage: r.lineage ?? r.id,
 });
 
 async function rows(fn: string): Promise<Row[]> {
@@ -74,7 +77,6 @@ export async function listSharedPacks(): Promise<SharedPack[]> {
 export async function listMyPacks(): Promise<MyPack[]> {
   return (await rows('community_pack_mine')).map((r) => ({
     ...shared(r),
-    lineage: r.lineage ?? r.id,
     state: r.state ?? 'in_review',
     reason: r.reason ?? null,
   }));
@@ -130,5 +132,6 @@ export async function decidePack(id: string, state: 'live' | 'not_accepted' | 't
   if (error) throw new Error(error.message);
 }
 
-/** The shelf id a shared pack's installs are stamped with (`fromPack.id`, spec D7). */
-export const sharedPackId = (id: string): string => `community:${id}`;
+/** The shelf id a shared pack's installs are stamped with (`fromPack.id`, spec D7): its lineage,
+ *  one id for every version, beside the stamp's `version`. */
+export const sharedPackId = (lineage: string): string => `community:${lineage}`;

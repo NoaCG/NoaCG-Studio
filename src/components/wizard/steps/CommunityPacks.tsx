@@ -75,6 +75,16 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const versionNote = (version: number) => (version > 1 ? ` · version ${version}` : '');
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+/** What withdrawing a pack does, said in the confirmation. An in-review version above the first is
+ *  an update: the live version stays. A live pack takes its waiting update with it. */
+function withdrawCopy(p: MyPack, updateWaits: boolean): string {
+  if (p.state !== 'live') {
+    return p.version > 1 ? 'It leaves the review queue now. The live version stays on the shelf.' : 'It leaves the review queue now.';
+  }
+  const update = updateWaits ? ' and its waiting update is withdrawn with it' : '';
+  return `It leaves the shelf now${update}. Productions people already installed from it stay theirs.`;
+}
+
 /** The seed index, read once per page: switching Browse's answer back and forth remounts this
  *  component, and the list is static for the life of the deployment. A failed read is not kept,
  *  so the next visit tries again. */
@@ -118,7 +128,7 @@ function readInto<T>(read: () => Promise<T>, set: (value: T) => void): () => voi
 
 async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: FromPack }> {
   if (card.kind === 'shared') {
-    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.id), version: card.version, author: card.author } };
+    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.lineage), version: card.version, author: card.author } };
   }
   const res = await fetch(`${SHELF}${card.file}`);
   if (!res.ok) throw new Error(`The pack could not be downloaded (${res.status}).`);
@@ -326,6 +336,8 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
     });
 
   const offered = (seeds?.length ?? 0) + shared.length;
+  // The maker's packs with a version waiting for review: one waits at a time.
+  const waitingLineages = useMemo(() => new Set(mine.filter((p) => p.state === 'in_review').map((p) => p.lineage)), [mine]);
 
   return (
     <div className="wz-community" data-testid="community-packs">
@@ -355,8 +367,8 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 </div>
                 {(p.state === 'in_review' || p.state === 'live') && (
                   <div className="wz-community-row-actions">
-                    {/* One update waits at a time, and the door is the submit door's (D12). */}
-                    {moderator && p.state === 'live' && !mine.some((o) => o.lineage === p.lineage && o.state === 'in_review') && (
+                    {/* The door is the submit door's (D12). */}
+                    {moderator && p.state === 'live' && !waitingLineages.has(p.lineage) && (
                       <button type="button" disabled={busy !== null} onClick={() => setSheet({ updating: p })}>
                         Submit an update
                       </button>
@@ -461,7 +473,9 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
       )}
       {withdrawing && (
         <WizardConfirm
-          title={`Withdraw “${withdrawing.name}”?`}
+          title={withdrawing.state === 'live' || withdrawing.version === 1
+            ? `Withdraw “${withdrawing.name}”?`
+            : `Withdraw the update of “${withdrawing.name}”?`}
           confirmLabel="Withdraw"
           cancelLabel="Keep it"
           testid="withdraw-pack"
@@ -475,11 +489,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
             });
           }}
         >
-          <p>
-            {withdrawing.state === 'live'
-              ? 'It leaves the shelf now. Productions people already installed from it stay theirs.'
-              : 'It leaves the review queue now.'}
-          </p>
+          <p>{withdrawCopy(withdrawing, waitingLineages.has(withdrawing.lineage))}</p>
         </WizardConfirm>
       )}
     </div>

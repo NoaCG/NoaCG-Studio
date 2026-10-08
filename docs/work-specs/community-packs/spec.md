@@ -107,8 +107,9 @@ reach users: a package an agent made can be shared, reviewed and installed by an
 - **D7: the maker's own graphics only.** The picker offers the maker's Home folders and personal
   productions, listing the graphics in each. Team productions are not offered. A graphic installed
   from the shelf carries a provenance stamp (`fromPack` on the library record: pack id, version,
-  maker), written by Install for seeds and shared packs alike, and the picker leaves it out. That
-  stamp is also what AC-5's lock reads. Graphics installed before the stamp existed are not
+  maker; a shared pack's id is its lineage, the same for every version), written by Install for
+  seeds and shared packs alike, and the picker leaves it out. That stamp is also what AC-5's lock
+  reads. Graphics installed before the stamp existed are not
   detectable; the admin's review is the backstop.
 - **D8: the door and the maker's status live on the shelf.** Submit a pack sits on the shelf's
   lede row; Your packs shows above the cards only when the maker has submissions. Home gains no
@@ -127,8 +128,9 @@ reach users: a package an agent made can be shared, reviewed and installed by an
   not a state: nothing was sent.
 - **D11: an update is a new version of the same pack.** It is checked and reviewed like a first
   submission; the live version stays until the update is approved, then becomes `replaced`.
-  Only the maker of a pack that is live now may update it, and one update waits at a time.
-  Installed copies never change by themselves.
+  Only the maker of a pack that is live now may update it, and one update waits at a time. A
+  withdrawal or a takedown of the live version takes its waiting update with it. Installed copies
+  never change by themselves.
 - **D12: NoaCG first, then everyone.** Until AC-5's lock has landed, the server accepts
   submissions only from moderator accounts and the door shows only to them, so NoaCG seeds the
   shelf through the real path while no outside pack can go live unlocked. When AC-5 lands, one

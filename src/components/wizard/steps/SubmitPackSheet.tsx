@@ -41,8 +41,9 @@ interface Props {
 
 export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent }: Props) {
   const sources = useMemo(() => packSources(), []);
-  // An update starts from the source the pack was most likely made from: the one bearing its name.
-  const first = (updating && sources.find((s) => s.name === updating.name)) || sources[0];
+  // An update starts from the source bearing the pack's name, or from none: a guess at another
+  // folder would send its graphics as the pack's next version.
+  const first = updating ? sources.find((s) => s.name === updating.name) : sources[0];
   const [sourceId, setSourceId] = useState(first?.id ?? '');
   const source = sources.find((s) => s.id === sourceId) ?? null;
   const [off, setOff] = useState<Set<string>>(new Set());
@@ -96,6 +97,7 @@ export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent 
           <label className="wz-submit-field">
             <span>Graphics from</span>
             <select value={sourceId} onChange={(e) => pick(e.target.value)} data-testid="submit-pack-source">
+              {!source && <option value="">Choose…</option>}
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.kind === 'folder' ? 'Folder' : 'Production'}: {s.name}
