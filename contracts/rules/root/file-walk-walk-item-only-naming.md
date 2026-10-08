@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: docs/acceptance/owner-queue/**
+scope: .agent-workflows/walk.md
 kind: rule
 fires: contract
 status: retired

@@ -30,7 +30,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { parseFrontmatter } from './owner-receipts.mjs';
+import { parseFrontmatter } from './frontmatter.mjs';
 
 export const RULES_DIR = 'contracts/rules';
 export const RECORDS_DIR = 'contracts/records';

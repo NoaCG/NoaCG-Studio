@@ -209,8 +209,8 @@ function main() {
     console.error(
       '\nThe local `main` branch stopped moving when landings moved to GitHub\'s merge queue, so it\n' +
         'answers a question about a repository that no longer exists. Import `mainRef` from\n' +
-        '`scripts/main-ref.mjs` and ask it which ref means landed - `jobs.mjs`, `merge-order.mjs`,\n' +
-        '`worktree-activity.mjs` and `owner-receipts.mjs` all do.\n' +
+        '`scripts/main-ref.mjs` and ask it which ref means landed - `jobs.mjs`, `merge-order.mjs`\n' +
+        'and `worktree-activity.mjs` all do.\n' +
         'If the bare ref is genuinely the right question here, add it to ALLOWED with the reason.\n',
     );
     return 1;

@@ -63,18 +63,8 @@ QUEUE  last.
 \`\`\`
 `;
 
-const handoffs = [
-  { name: '2026-09-01-a-thing.md', at: NOW },
-  { name: '2026-09-01-d-thing.md', at: NOW },
-];
-const receipts = [
-  { receipt: true, kind: 'ask', slug: 'agents-md-byte-headroom', state: 'unstarted', ageDays: 1 },
-  // A finding is never something a plan has to account for by name - it is not his requirement.
-  { receipt: true, kind: 'finding', slug: 'a-bug-found-on-the-way', state: 'unstarted', ageDays: 9 },
-];
-
 test('a plan in the contract shape passes', () => {
-  const verdict = checkPlan(GOOD, { exists, handoffs, receipts, now: NOW });
+  const verdict = checkPlan(GOOD, { exists, now: NOW });
   assert.deepEqual(verdict.problems, []);
   assert.equal(verdict.rows, 3);
   assert.deepEqual(verdict.pools, ['opus', 'agy-gemini']);
@@ -83,7 +73,7 @@ test('a plan in the contract shape passes', () => {
 test('a Fable row is refused with the route that replaces it: Opus implements, Fable only consults', () => {
   const plan = GOOD.replace('| C | follow-on | on claude/a-thing landing | scripts/x.mjs | migration 0055 | opus | no |',
     '| C | follow-on | on claude/a-thing landing | scripts/x.mjs | migration 0055 | fable | no |');
-  const { problems } = checkPlan(plan, { exists, handoffs, receipts, now: NOW });
+  const { problems } = checkPlan(plan, { exists, now: NOW });
   assert.equal(problems.length, 1);
   assert.match(problems[0], /^row C: POOL "fable" - Fable does not implement: run the row on opus, and consult `design-consult`/);
 });
@@ -104,7 +94,7 @@ test('a shell comment inside a prompt does not end the block, and "none" mints n
     .replace('GATE   npm run build\nQUEUE  1. /check; 2. handoff; 3. /queue-merge last.', 'GATE   npm run build\n# a comment line in the prompt\nQUEUE  1. /check; 2. handoff; 3. /queue-merge last.')
     .replace('| B | thing two | on slot free | src/b.ts, src/components/wizard/**, docs/NEW_THING.md (new) | - |', '| B | thing two | on slot free | src/b.ts, src/components/wizard/**, docs/NEW_THING.md (new) | none |')
     .replace('| C | follow-on | on claude/a-thing landing | scripts/x.mjs | migration 0055 |', '| C | follow-on | on claude/a-thing landing | scripts/x.mjs | n/a |');
-  const { problems } = checkPlan(plan, { exists, handoffs, receipts, now: NOW });
+  const { problems } = checkPlan(plan, { exists, now: NOW });
   assert.deepEqual(problems, []);
 });
 
@@ -131,10 +121,8 @@ test('each forbidden shape is its own named problem', () => {
       '| B | thing two | on slot free | src/b.ts | - | codex | no |')
     .replace('MODEL  opus medium - the doing is delegated to agy-gemini, fallback opus', 'MODEL  codex high')
     .replace('QUEUE  1. /check; 2. handoff; 3. /queue-merge last.\n```\n\n```\nSESSION C', 'QUEUE  1. /check; 2. handoff.\nGATE   npm run build\n```\n\n```\nSESSION C')
-    .replace('Pools at plan time: Codex weekly 64% (snapshot 07:33), agy pools available, Opus ample.', '')
-    .replace('- spent: 2026-09-01-d-thing.md - traced to c9ff21a5', '')
-    .replace('Owner receipts: agents-md-byte-headroom is held for the next wave (lands alone).', '');
-  const { problems } = checkPlan(broken, { exists, handoffs, receipts, now: NOW });
+    .replace('Pools at plan time: Codex weekly 64% (snapshot 07:33), agy pools available, Opus ample.', '');
+  const { problems } = checkPlan(broken, { exists, now: NOW });
   const expect = (pattern) => assert.ok(problems.some((p) => pattern.test(p)), `missing problem ${pattern}\n${problems.join('\n')}`);
   expect(/row A: START must be/);
   expect(/row A: no POOL/);
@@ -143,13 +131,11 @@ test('each forbidden shape is its own named problem', () => {
   expect(/row B: a non-Claude pool must name its fallback/);
   expect(/row B: the prompt's last keyword line is GATE, not QUEUE/);
   expect(/no "Pools at plan time:" line/);
-  expect(/handoff 2026-09-01-d-thing\.md is not classified/);
-  expect(/standing owner ask agents-md-byte-headroom/);
 });
 
 test('a prompt block without a row, and a row without a block, are both problems', () => {
   const noBlock = GOOD.replace('SESSION C - follow-on', 'SESSION D - stray');
-  const { problems } = checkPlan(noBlock, { exists, handoffs, receipts, now: NOW });
+  const { problems } = checkPlan(noBlock, { exists, now: NOW });
   assert.ok(problems.some((p) => /row C: no prompt block/.test(p)));
   assert.ok(problems.some((p) => /prompt block SESSION D has no wave-table row/.test(p)));
 });
@@ -157,7 +143,7 @@ test('a prompt block without a row, and a row without a block, are both problems
 test('economy notes name Codex headroom left idle, and a Claude percentage that cannot exist', () => {
   const rows = (...pools) => pools.map((pool) => ({ pool, raw: '' }));
   // The GOOD plan: Codex weekly 64% and no codex row - a note, never a problem.
-  const good = checkPlan(GOOD, { exists, handoffs: [], receipts: [], now: NOW });
+  const good = checkPlan(GOOD, { exists, now: NOW });
   assert.equal(good.problems.length, 0);
   assert.equal(good.notes.length, 1);
   assert.match(good.notes[0], /no row names the codex pool/);
@@ -184,13 +170,13 @@ test('economy notes name Codex headroom left idle, and a Claude percentage that 
 
 test('a night plan must carry a Window ends line; a day plan need not', () => {
   // GOOD carries no "Window ends:" line, so it fails only when checked as a night plan.
-  const asNight = checkPlan(GOOD, { exists, handoffs, receipts, now: NOW, night: true });
+  const asNight = checkPlan(GOOD, { exists, now: NOW, night: true });
   assert.ok(asNight.problems.some((problem) => /Window ends/.test(problem)), 'a night plan with no window is refused');
 
-  const asDay = checkPlan(GOOD, { exists, handoffs, receipts, now: NOW, night: false });
+  const asDay = checkPlan(GOOD, { exists, now: NOW, night: false });
   assert.ok(!asDay.problems.some((problem) => /Window ends/.test(problem)), 'a day plan is not asked for a window');
 
-  const withWindow = checkPlan(`${GOOD}\nWindow ends: ${new Date(NOW + 10 * 60 * 60_000).toISOString()}\n`, { exists, handoffs, receipts, now: NOW, night: true });
+  const withWindow = checkPlan(`${GOOD}\nWindow ends: ${new Date(NOW + 10 * 60 * 60_000).toISOString()}\n`, { exists, now: NOW, night: true });
   assert.deepEqual(withWindow.problems, [], 'a night plan with a parseable window passes');
 });
 
@@ -284,18 +270,18 @@ test('a READ block ends at a blank line, an unindented line, a prompt key or a k
 
 test('an answered alignment question the plan never mentions is refused', () => {
   const alignment = [{ id: 'ALIGN-2026-09-15-1', question: 'Still the top of NOW?', answer: 'Yes.' }];
-  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], alignment, now: NOW });
+  const { problems } = checkPlan(GOOD, { exists, alignment, now: NOW });
   assert.ok(problems.some((p) => /alignment answer ALIGN-2026-09-15-1 is not recorded yet/.test(p)));
 
   const mentions = checkPlan(`${GOOD}
 
 Row D records ALIGN-2026-09-15-1.
-`, { exists, handoffs, receipts: [], alignment, now: NOW });
+`, { exists, alignment, now: NOW });
   assert.ok(!mentions.problems.some((p) => /alignment answer/.test(p)), 'naming the id is what clears it');
 });
 
 test('no pending alignment answers means no alignment problem at all', () => {
-  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], now: NOW });
+  const { problems } = checkPlan(GOOD, { exists, now: NOW });
   assert.ok(!problems.some((p) => /alignment answer/.test(p)));
 });
 
@@ -312,7 +298,7 @@ test('tableUnder returns the first table under a matching heading, keyed by colu
 
 test('night windows accept ten hours and the exact ceiling but refuse expired and excessive shifts', () => {
   const windowProblems = (hours) => checkPlan(`${GOOD}\nWindow ends: ${new Date(NOW + hours * 60 * 60_000).toISOString()}\n`,
-    { exists, handoffs, receipts, now: NOW, night: true }).problems;
+    { exists, now: NOW, night: true }).problems;
   assert.deepEqual(windowProblems(10), []);
   assert.deepEqual(windowProblems(24), []);
   assert.ok(windowProblems(72).some((p) => /24-hour/.test(p)));
@@ -324,14 +310,14 @@ test('night windows accept ten hours and the exact ceiling but refuse expired an
 test('rechecking a running shift uses its original start, not another 24 hours from now', () => {
   const start = NOW - 20 * 60 * 60_000;
   const plan = (end) => `${GOOD}\nWindow starts: ${new Date(start).toISOString()}\nWindow ends: ${new Date(end).toISOString()}\n`;
-  const options = { exists, handoffs, receipts, now: NOW, night: true };
+  const options = { exists, now: NOW, night: true };
   assert.deepEqual(checkPlan(plan(start + 24 * 60 * 60_000), options).problems, []);
   assert.ok(checkPlan(plan(NOW + 10 * 60 * 60_000), options).problems.some((p) => /24-hour/.test(p)));
 });
 
 test('night windows reject malformed, reversed and not-yet-started windows', () => {
   const end = new Date(NOW + 10 * 60 * 60_000).toISOString();
-  const options = { exists, handoffs, receipts, now: NOW, night: true };
+  const options = { exists, now: NOW, night: true };
   assert.ok(checkPlan(`${GOOD}\nWindow ends: Infinity`, options).problems.some((p) => /Window ends/.test(p)));
   assert.ok(checkPlan(`${GOOD}\nWindow starts: nonsense\nWindow ends: ${end}`, options).problems.some((p) => /parseable timestamp/.test(p)));
   const reversed = checkPlan(`${GOOD}\nWindow starts: ${end}\nWindow ends: ${end}`, options).problems;
@@ -352,9 +338,9 @@ test('browserWord reads a cell starting with yes or no, ignores markdown, and is
 
 test('a wave-table browser cell that is not a yes or a no is a problem, because the refill instrument reads it', () => {
   const plan = GOOD.replace('| opus | yes |', '| opus | needs it |');
-  const { problems } = checkPlan(plan, { exists, handoffs, receipts: [], now: NOW });
+  const { problems } = checkPlan(plan, { exists, now: NOW });
   assert.ok(problems.some((p) => /row A: browser must start with yes or no - got "needs it"/.test(p)), problems.join('\n'));
-  assert.ok(!checkPlan(GOOD, { exists, handoffs, receipts: [], now: NOW }).problems.some((p) => /browser must/.test(p)));
+  assert.ok(!checkPlan(GOOD, { exists, now: NOW }).problems.some((p) => /browser must/.test(p)));
 });
 
 test('a candidates-table browser cell must be empty, a dash, or start with yes or no', () => {
@@ -369,7 +355,7 @@ test('a candidates-table browser cell must be empty, a dash, or start with yes o
 | O | small | NOW | src/a.ts | e2e/x.spec.ts | no | fine |
 | P | small | NOW | src/a.ts | e2e/x.spec.ts | shared with F | not fine |
 `;
-  const { problems } = checkPlan(plan, { exists, handoffs, receipts: [], now: NOW });
+  const { problems } = checkPlan(plan, { exists, now: NOW });
   const browserProblems = problems.filter((p) => /candidate .*browser must/.test(p));
   assert.deepEqual(browserProblems, ['candidate P: browser must start with yes or no, or be empty - got "shared with F"']);
 });
@@ -382,7 +368,7 @@ const candidates = [
 ];
 
 test('a weekly candidate row the plan says nothing about is refused', () => {
-  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], candidates, now: NOW });
+  const { problems } = checkPlan(GOOD, { exists, candidates, now: NOW });
   assert.deepEqual(problems.filter((p) => /weekly candidate/.test(p)).length, 2);
   assert.ok(problems.some((p) => /WEEK-2026-09-08-1 \("the wave plan outlives its worktree"\) is not classified/.test(p)));
 });
@@ -394,7 +380,7 @@ test('a weekly candidate planned into a row, or turned down with a reason, passe
 
 - planned: WEEK-2026-09-08-1 -> row A
 - rejected: WEEK-2026-09-08-2 - it needs the route grouping first, and that has no slot this wave
-`, { exists, handoffs, receipts: [], candidates, now: NOW });
+`, { exists, candidates, now: NOW });
   assert.deepEqual(answered.problems.filter((p) => /weekly candidate/.test(p)), []);
 });
 
@@ -405,13 +391,13 @@ test('a weekly candidate turned down with no reason, or planned into a row that 
 
 - planned: WEEK-2026-09-08-1 -> row Z
 - rejected: WEEK-2026-09-08-2
-`, { exists, handoffs, receipts: [], candidates, now: NOW });
+`, { exists, candidates, now: NOW });
   assert.ok(problems.some((p) => /planned as row Z, and the wave table has no row Z/.test(p)));
   assert.ok(problems.some((p) => /WEEK-2026-09-08-2 .*rejected with no reason/.test(p)));
 });
 
 test('no weekly candidates in the window means no candidate problem at all', () => {
-  const { problems } = checkPlan(GOOD, { exists, handoffs, receipts: [], now: NOW });
+  const { problems } = checkPlan(GOOD, { exists, now: NOW });
   assert.ok(!problems.some((p) => /weekly candidate/.test(p)));
 });
 
@@ -420,7 +406,7 @@ test('no weekly candidates in the window means no candidate problem at all', () 
 const review = (...lines) => `${GOOD}\n\n## Weekly review\n\n${lines.map((line) => `- ${line}`).join('\n')}\n`;
 const one = [candidates[0]];
 const deferredBy = (count) => Array.from({ length: count }, () => review('deferred: WEEK-2026-09-08-1 - the gate slot is taken'));
-const weeklyProblems = (plan, earlier = []) => checkPlan(plan, { exists, handoffs, receipts: [], candidates, now: NOW, earlier }).problems.filter((p) => /weekly candidate/.test(p));
+const weeklyProblems = (plan, earlier = []) => checkPlan(plan, { exists, candidates, now: NOW, earlier }).problems.filter((p) => /weekly candidate/.test(p));
 
 test('a deferral that hands the work to a routine is refused, and a routine named as evidence is not', () => {
   for (const reason of ['records rulings; next orchestrator-week session', 'left for the weekly owner session', 'deferred to the morning brief', 'the monthly-quality-review will file it']) {

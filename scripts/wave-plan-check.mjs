@@ -23,9 +23,6 @@
 //   - every TOUCHES entry that looks like a path exists (or is marked `(new)`), globs by prefix;
 //   - every letter has a prompt block opening `SESSION <L>` whose last keyword line is QUEUE;
 //   - a `Pools at plan time:` line - the capacity snapshot the routing decision was made on;
-//   - every tracked handoff file classified under `## Handoffs` (scripts/handoff-drain.mjs);
-//   - every STANDING owner ask mentioned by slug somewhere in the plan (scripts/owner-receipts.mjs)
-//     - a plan may hold or defer one, never fail to see it. A FINDING is not one of these.
 //   - every ANSWERED alignment question mentioned by id (scripts/alignment-answers.mjs) - what he
 //     said on Tuesday, still not recorded. Unlike an ask this one is not deferrable:
 //     it is a ruling already given, and it repeats every morning until a branch records it.
@@ -59,11 +56,10 @@ import { fileURLToPath } from 'node:url';
 
 import { alignmentState, mentionsId } from './alignment-answers.mjs';
 import { checkWorkFile } from './work-spec.mjs';
-import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './handoff-drain.mjs';
 import { inStore, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
-import { isStanding, readReceipts } from './owner-receipts.mjs';
 import { parseWindowEnd, parseWindowStart } from './wave-horizon.mjs';
 import { candidateProblems, parseCandidateSection, planDate, summaryLine, weeklyCandidates } from './weekly-candidates.mjs';
+import { newestWavePlan } from './wave-tick.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -377,12 +373,11 @@ export function deferralProblems(owed, classified, earlier = []) {
 
 /**
  * The whole verdict, from the plan text plus injected facts so the pure part is testable.
- * `exists(relativePath)`, `handoffs` (from handoff-drain), `receipts` (from owner-receipts),
- * `alignment` (the pending answers from alignment-answers), `candidates` (the weekly review's rows
+ * `exists(relativePath)`, `alignment` (the pending answers from alignment-answers), `candidates` (the weekly review's rows
  * this plan is inside the window of, from weekly-candidates), `earlier` (the text of every stored
  * plan written before this one, newest first, for the deferral streak).
  */
-export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], candidates = [], earlier = [], now = Date.now(), night = false, workSpec = (file, criteria) => checkWorkFile(file, { criteria }) } = {}) {
+export function checkPlan(text, { exists, alignment = [], candidates = [], earlier = [], now = Date.now(), night = false, workSpec = (file, criteria) => checkWorkFile(file, { criteria }) } = {}) {
   const problems = [];
   const table = parseWaveTable(text);
   problems.push(...table.problems);
@@ -480,18 +475,6 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
     if (hasStart && start === null) problems.push('a night plan Window starts must be a parseable timestamp');
     if (start !== null && start > now) problems.push('a night plan Window starts is in the future - wait until the authorized window starts before launching');
   }
-  const rows = drain(handoffs, parseHandoffSection(text), { now });
-  for (const row of rows.filter((entry) => entry.flag === 'UNCLASSIFIED')) {
-    problems.push(`handoff ${row.name} is not classified under "## Handoffs" (consumed | spent | deferred | owner)`);
-  }
-  // Only the ASKS. A bug he reported while serving one is real work and takes its turn like any
-  // other backlog item; making a plan account for it by name turns it into his requirement, which
-  // is the thing he asked us to stop doing (owner, 2026-09-03).
-  for (const receipt of receipts.filter(isStanding)) {
-    if (!text.includes(receipt.slug)) {
-      problems.push(`standing owner ask ${receipt.slug} (${receipt.ageDays ?? '?'} days) is not mentioned - plan it, hold it or defer it, in writing`);
-    }
-  }
   // An answered alignment question is a ruling he has already given, so the plan may not hold or
   // defer it the way it may an ask - it plans the row that records it where it belongs.
   // Mentioning the id is what passes here; the answer stops being pending when the ruling lands,
@@ -514,7 +497,7 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
 
 export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Date.now() } = {}) {
   const planFlag = argv.indexOf('--plan');
-  const planPath = planFlag >= 0 ? path.resolve(root, argv[planFlag + 1] ?? '') : newestWavePlan(root, now);
+  const planPath = planFlag >= 0 ? path.resolve(root, argv[planFlag + 1] ?? '') : newestWavePlan(now, root);
   if (!planPath || !existsSync(planPath)) {
     console.error(`No fresh wave plan found in the store ${wavePlansDir() ?? '(no git checkout)'} (expected <date>-<day|night>-wave-plan.local.md); pass --plan <path>.`);
     console.error('The path to write is what `node scripts/wave-plan-store.mjs --path <date> <day|night>` prints.');
@@ -534,8 +517,6 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
   const weekly = weeklyCandidates(root, planDate(planPath));
   const verdict = checkPlan(readFileSync(planPath, 'utf8'), {
     exists: (relative) => existsSync(path.join(root, ...relative.split('/'))),
-    handoffs: handoffFiles(root),
-    receipts: readReceipts(root, { now }),
     alignment: alignmentState(root).pending,
     candidates: weekly.owed,
     // The store, never a checkout: a plan in a checkout dies with it. Names sort by date and
@@ -563,7 +544,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     console.error('');
     return 1;
   }
-  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}; every handoff classified, every standing owner ask, alignment answer and weekly candidate row (${weekly.owed.length}) accounted for.`);
+  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}; every alignment answer and weekly candidate row (${weekly.owed.length}) accounted for.`);
   return 0;
 }
 
