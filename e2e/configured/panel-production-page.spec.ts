@@ -120,8 +120,9 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await hosted.getByTestId('panel-open').click();
   await expect(hosted.getByTestId('panel-status')).toHaveText('Production page answers the panel.', { timeout: 15_000 });
   await answerPanel(hosted);
-  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel on Hosted control page', { timeout: 5_000 });
-  await expect(op.getByTestId('panel-header-use-here')).toBeVisible();
+  await expect(op.getByTestId('panel-header-use-here')).toHaveText('Use panel here', { timeout: 5_000 });
+  await expect(op.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Hosted control page answers the Stream Deck panel/);
+  await expect(op.getByTestId('panel-header-status')).toHaveCount(0);
   await op.setViewportSize({ width: 1366, height: 768 });
   await op.screenshot({ path: test.info().outputPath('production-panel-held.png'), clip: { x: 0, y: 0, width: 1366, height: 120 } });
   const doorAfter = await panelDoor(op);

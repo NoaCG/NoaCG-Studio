@@ -5538,22 +5538,27 @@ function ProductionShell({
             production reads its own save, in the same words. */}
         <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
         {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering: "Panel ✓"
-            here, "Panel …" taking it, "Panel on <page>" with Use here. A press opens its dialog, as
-            the Setup menu's item does. */}
-        {panelState !== 'off' && (
+            here and "Panel …" taking it, which open its dialog as the Setup menu's item does; on
+            another page, one quiet "Use panel here" that moves it, naming that page in its tooltip,
+            so a laptop header keeps its room for the production's name. */}
+        {panelState === 'held' ? (
+          <button
+            className="pd-panel-status pd-panel-status--held"
+            onClick={panel.useHere}
+            title={`${panel.holder} answers the Stream Deck panel. Press to answer it here.`}
+            data-testid="panel-header-use-here"
+          >
+            Use panel here
+          </button>
+        ) : panelState !== 'off' && (
           <button
             className={`pd-panel-status pd-panel-status--${panelState}`}
             onClick={onPanel}
-            title={panelState === 'ok' ? 'This page answers the Stream Deck panel' : panelState === 'held' ? `${panel.holder} answers the Stream Deck panel` : 'Connecting to the Stream Deck panel…'}
+            title={panelState === 'ok' ? 'This page answers the Stream Deck panel' : 'Connecting to the Stream Deck panel…'}
             data-testid="panel-header-status"
             data-state={panelState}
           >
-            {panelState === 'held' ? `Panel on ${panel.holder}` : `Panel ${panelState === 'ok' ? '✓' : '…'}`}
-          </button>
-        )}
-        {panelState === 'held' && (
-          <button className="pd-panel-use-here" onClick={panel.useHere} data-testid="panel-header-use-here">
-            Use here
+            Panel {panelState === 'ok' ? '✓' : '…'}
           </button>
         )}
         <ProductionSetupMenu

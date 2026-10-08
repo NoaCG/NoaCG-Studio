@@ -42,8 +42,7 @@ test('a reload keeps the panel, a second production page never takes it, and tak
   const second = await context.newPage();
   await second.goto(first.url());
   await expect(second.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
-  await expect(second.getByTestId('panel-header-status')).toHaveText('Panel on Production page', { timeout: 15_000 });
-  await expect(second.getByTestId('panel-header-use-here')).toBeVisible();
+  await expect(second.getByTestId('panel-header-use-here')).toHaveAttribute('title', /^Production page answers the Stream Deck panel/, { timeout: 15_000 });
   await second.waitForTimeout(6_000);
   expect((await deck.state()).page, 'the first page still answers').toBe(firstPage);
   await expect(first.getByTestId('panel-header-status')).toHaveText('Panel ✓');

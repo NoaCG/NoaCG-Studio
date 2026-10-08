@@ -68,8 +68,11 @@ Derived (revertible; each says how):
   stops answering. No confirm. Revert: a confirm.
 - **L7. Renewal that survives a hidden tab.** Chromium throttles a hidden or covered tab's timers
   (to once a minute after five minutes), so the renewal runs on a dedicated worker's timer.
-- **L8. A quiet indicator.** With a panel paired, the page shows who answers in one short line:
-  "Panel" here, or "Panel on <page>" with "Use here". Nothing shows for a production with no panel.
+- **L8. A quiet indicator.** With a panel paired, the production page's header shows "Panel ✓"
+  when it answers, and one quiet "Use panel here" while another page has it, naming that page in
+  its tooltip, so a 1366 px header keeps its room for the production's name. The Panel dialog, and
+  the hosted page's Panel door, name the page that answers. Nothing shows for a production with no
+  panel. Revert: "Panel on <page>" beside a "Use here".
 - **L9. Pages from before this change** keep their switch, and their claim obeys the lease: it
   takes a free panel and is refused one held by a live page, with the page's existing failure line.
 
@@ -82,8 +85,8 @@ the hosted control page instead takes nothing; it shows "Use here".
 
 ### AC-2: A second page never takes it
 Opening a second page (another laptop, another tab, the phone) while the first answers leaves the
-first answering; the second shows "Panel on <first>" with "Use here". Two production pages opened
-together: exactly one answers.
+first answering; the second says which page has it and offers "Use here". Two production pages
+opened together: exactly one answers.
 
 ### AC-3: A reload keeps it
 Reloading the answering page keeps the panel on it: no other page takes it meanwhile, and the
@@ -95,8 +98,8 @@ another open production page takes it by itself, and the keys follow. With no ot
 page, the keys show "No operator page" and an open phone offers "Use here".
 
 ### AC-5: "Use here" moves it
-Pressing "Use here" moves the panel to that page within 2 s; the previous page shows "Panel on
-<new>" and runs no further press.
+Pressing "Use here" moves the panel to that page within 2 s; the previous page says which page has
+it, offers "Use here", and runs no further press.
 
 ### AC-6: A covered or hidden page keeps it
 An answering page left covered or in a background tab for 30 minutes still answers: presses run
