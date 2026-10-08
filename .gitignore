@@ -252,12 +252,10 @@ pro-typesweep-blind/
 pro-spike-out-*.log
 pro-iterate-out-*.log
 
-# Per-machine notes in the primary checkout: the weekly recap, the night report and the alerts a
-# scheduled task writes, so the owner never has to paste an alert it produced hours earlier. They
-# are deliberately NOT committed: they restate what CI already knows or hold one week's answers,
-# and - the reason this pattern is an ignore rule rather than a convention - an untracked file
-# here would show up in `git status --porcelain` and stop every queued landing while it sits
-# there. An ignored file is invisible to that check.
+# Per-machine notes the scheduled routines wrote until 2026-10-08 (the weekly recap, the night
+# report, the morning alert). Routines write no file now, but old copies may still sit in a primary
+# checkout, and an untracked file there would show up in `git status --porcelain` and stop every
+# queued landing. Delete the old files, and this rule with them.
 docs/handoffs/*.local.md
 
 # The owner's private context: dated events, partners, teaching, demos. The repository is public,

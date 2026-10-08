@@ -2,9 +2,9 @@
 //
 // WHY THIS EXISTS. Some of this repository's state is per-machine rather than per-branch: it is
 // gitignored, it is written once, and every checkout on the machine is supposed to read the same
-// copy. The weekly owner review is the clearest case - `.agent-workflows/orchestrator-week.md`
-// writes `docs/handoffs/<date>-orchestrator-week.local.md` into the primary checkout by absolute
-// path, and `.gitignore` keeps it out of git, so no other working tree ever has a copy.
+// copy - the shared git directory, the port registry, the main checkout's `.env`. Until 2026-10-08
+// the weekly owner review was the clearest case: it wrote its recap into the primary checkout by
+// absolute path, and no other working tree ever had a copy.
 //
 // A script that resolves such a file under its OWN root therefore reads an empty directory in
 // every worktree but one, and reports "nothing here" rather than "I looked in the wrong place".
