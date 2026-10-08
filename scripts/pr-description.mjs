@@ -11,7 +11,10 @@
 // description is built from them rather than from a summary somebody has to remember to type.
 // The one thing commits cannot supply is the why, so `--why` carries a sentence when there is one.
 //
-// Since 2026-10-08 the shape is smaller still: two sentences, a Risk line, details closed.
+// Since 2026-10-08 the shape is smaller still: two sentences, a Risk line, details closed. The
+// Risk line is the queuing session's own sentence (`--risk`); without one it is derived only when
+// the changed paths make it certain, and otherwise left out, because "not assessed" on every pull
+// request was noise.
 //
 // Pure string work, kept out of scripts/jobs.mjs so it can be tested without a repository.
 
@@ -56,24 +59,52 @@ export function firstSentences(text, count = 2) {
   return sentences.slice(0, count).map((s) => s.trim()).join(' ');
 }
 
+/** The one risk the changed paths derive. */
+const DOCS_ONLY = 'low, docs only.';
+
+/**
+ * The Risk line's text: the queuing session's sentence, else one the changed paths make certain,
+ * else '' (no line). A branch that changes only Markdown under docs/ cannot break the product, and
+ * CI still builds it before it lands. Anything else needs a person's judgement.
+ */
+export function riskText(risk = '', paths = []) {
+  const given = risk.replace(/\s+/g, ' ').trim().replace(/^risk:\s*/i, '');
+  if (given !== '') return given;
+  const changed = paths.map((p) => p.trim()).filter(Boolean);
+  if (changed.length > 0 && changed.every((p) => /^docs\/.+\.md$/i.test(p))) return DOCS_ONLY;
+  return '';
+}
+
+/**
+ * The Risk sentence a session gave on an earlier queueing, so queueing again does not drop it. A
+ * derived one is not carried over: the branch may have grown past docs since, so it is derived anew.
+ */
+export function riskFromBody(body = '') {
+  if (!isGeneratedBody(body)) return '';
+  const earlier = /^Risk: (.+)$/m.exec(body ?? '')?.[1].trim() ?? '';
+  return earlier === DOCS_ONLY ? '' : earlier;
+}
+
 /**
  * The description (owner, 2026-10-08: simple and clean): two plain sentences from the main
- * commit's body, one "Risk:" line, and the run details in a closed block. No template sections,
- * and no image unless `image` (a URL) is given, which is for a visual change only.
+ * commit's body, one "Risk:" line (`riskText`), and the run details in a closed block. No
+ * template sections, and no image unless `image` (a URL) is given, which is for a visual change.
  *
  * `subjects` are the branch's non-merge commit subjects, oldest first; the first is the main
  * commit. `message` is that commit's body; with none, its subject stands in. `tested` is the
- * review verdict as the queue records it. `why`, when given, goes in the details.
+ * review verdict as the queue records it. `why`, when given, goes in the details. `paths` are the
+ * files the branch changes, used only to derive a risk nobody gave.
  */
-export function pullRequestBody({ subjects = [], message = '', tested = '', why = '', risk = '', image = '' } = {}) {
+export function pullRequestBody({ subjects = [], message = '', tested = '', why = '', risk = '', paths = [], image = '' } = {}) {
   const changes = subjects.filter((s) => s.trim() !== '');
   let summary = firstSentences(message);
   if (summary === '') {
     summary = changes.length > 0 ? changes[0].trim().replace(/[.!?]*$/, '.') : 'This branch has no commits of its own.';
   }
 
-  const riskText = risk.trim().replace(/^risk:\s*/i, '');
-  const lines = [summary, '', `Risk: ${riskText === '' ? 'not assessed.' : riskText}`];
+  const lines = [summary];
+  const risky = riskText(risk, paths);
+  if (risky !== '') lines.push('', `Risk: ${risky}`);
   if (image.trim() !== '') lines.push('', `![Screenshot](${image.trim()})`);
 
   const details = [];
