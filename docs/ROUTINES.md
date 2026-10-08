@@ -168,9 +168,13 @@ admin login as a property of the query rather than of the printing. Freshness, b
 `docs/STACK_FRESHNESS.md` is time-driven and nothing else mentions it; it reports weekly and nothing
 auto-upgrades.
 
-**It writes no file** and prints only the owner-facing sections in chat. The machine's own review
-of the week is each wave's retro (`.agent-workflows/orchestrator.md`, step 6), so this session is
-the owner's alignment read and nothing else.
+**It also shows him the week** (owner, 2026-10-08): anything serious - red on `main`, a `P1` bug,
+an ask waiting three weeks, a routine missing from the scheduler - and at most three numbers about
+how the week went, each kept only because it suggests something he would do. Token totals and
+session counts usually do not, so they stay out. Fixing the machine itself is each wave's retro.
+
+**It writes no file** and prints only the owner-facing sections in chat, ending with one prompt for
+his next wave: his answers to record and at most three pieces of work the week turned up.
 
 Tuesday and not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday, and
 he reads the weekly percentage off his account page himself, so the routine never computes or asks
