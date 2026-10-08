@@ -281,3 +281,8 @@ export function rebrandKit(plan: KitPlan, brandFields: DraftPatch | null): KitPl
     built: drafts.map((d, i) => buildDraftTemplate(plan.items[i].variant, d)),
   };
 }
+
+/** The graphics ticked when a kit is picked: its starter, about ten. */
+export function defaultSelectionFor(pack: TemplatePack): string[] {
+  return [...pack.starter];
+}

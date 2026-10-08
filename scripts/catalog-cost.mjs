@@ -38,7 +38,7 @@ import { readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, realpathSync } from 'node:fs';
 
 import { measured } from './measured.mjs';
 
@@ -261,4 +261,7 @@ async function main() {
   return 0;
 }
 
-process.exitCode = await main();
+// Only as a CLI: the unit test imports the arithmetic above and must not pay for a prerender.
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
+  process.exitCode = await main();
+}

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
-import { variantById, variantsFor } from '../../templates/catalog';
+import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   armTimerClock,
   brandClearPatch,
@@ -39,24 +39,23 @@ import {
   MapSvgFieldsStep,
 } from './import';
 import TemplateStep from './steps/TemplateStep';
-import BrowseStep, { type BuildMode } from './steps/BrowseStep';
-import { defaultSelectionFor } from './steps/KitPicker';
+import type { BuildMode } from './steps/BrowseStep';
 import KitTray from './KitTray';
 import KitFinishStep from './steps/KitFinishStep';
 import {
   applyStyleToKit,
   buildKit,
   commitKitGraphic,
+  defaultSelectionFor,
   kitKeys,
   rebrandKit,
   reconcileKit,
   type KitPlan,
 } from './kitPlan';
-import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../templates/search';
-import FieldsStep from './steps/FieldsStep';
+import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../templates/browseFilters';
+import { IMPORTED_VARIANTS } from '../../templates/importedDesign/variants';
 import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
-import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
 import FinishStep, {
   aiSummaryRows,
@@ -93,7 +92,12 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
 import type { TemplatePack } from '../../templates/packs';
-import { kitSelection } from '../../templates/kit';
+
+// The steps that list or build on catalog designs load with the catalog, never with the wizard:
+// the Entry step must open without it (components/catalogOnDemand.tsx).
+const BrowseStep = lazyStep(() => import('./steps/BrowseStep'));
+const FieldsStep = lazyStep(() => import('./steps/FieldsStep'));
+const AiStep = lazyStep(() => import('./steps/AiStep'));
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
@@ -679,9 +683,18 @@ export default function CreationWizard() {
   // it runs, so it fires exactly once per deep link and never re-applies after the user has
   // moved on.
   const pendingDesignId = useTemplateStore((s) => s.pendingDesignId);
+  // The catalog loads once a step lists designs, the draft names a catalog design, or a deep
+  // link does (which holds Entry until it resolves, so nothing done there is overwritten). The AI
+  // step (lazy, so it brings its own), the import doors (their own variants resolve without it)
+  // and video never wait for it. Until it arrives the step area shows CatalogLoading.
+  const importedVariant = IMPORTED_VARIANTS.find((v) => v.id === draft.variantId);
+  const listsDesigns = (mode === 'template' && step >= 1) || (mode === 'import' && step >= 2);
+  const needsCatalog =
+    listsDesigns || Boolean(pendingDesignId) || (step > 0 && Boolean(draft.variantId) && !importedVariant);
+  const catalog = useCatalog(open && needsCatalog);
   useEffect(() => {
-    if (!open || !pendingDesignId) return;
-    const pending = variantById(pendingDesignId);
+    if (!open || !pendingDesignId || !catalog) return;
+    const pending = catalog.variantById(pendingDesignId);
     useTemplateStore.setState({ pendingDesignId: null });
     // Imported-design designs create BARE through a dedicated setup flow (mode 'design'),
     // never through the Browse pick path — excluded here for the same reason Browse never
@@ -703,7 +716,7 @@ export default function CreationWizard() {
     });
     setDraft(startDraft.current);
     setStep(2);
-  }, [open, pendingDesignId]);
+  }, [open, pendingDesignId, catalog]);
 
   useEffect(() => {
     if (open || !aiResult?.generationId || acceptedAiGeneration.current === aiResult.generationId) return;
@@ -735,7 +748,7 @@ export default function CreationWizard() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const variant = draft.variantId ? variantById(draft.variantId) : undefined;
+  const variant = importedVariant ?? (draft.variantId && catalog ? catalog.variantById(draft.variantId) : undefined);
 
   // The live preview always renders the draft as real template code. Design mode's preview
   // may additionally carry the stretch-demo line (preview-only; create() builds without it),
@@ -1091,8 +1104,10 @@ export default function CreationWizard() {
    * Kit step → the hub, with the whole set built. The same kit coming back from the Kit step
    * keeps every graphic it still holds exactly as edited (`reconcileKit`); a different kit starts
    * over. The kit's palette leads each graphic it is drawn for, and the footer brand outranks it.
+   * The kit module is already loaded by the Kit step that asks for this, so the await is a tick.
    */
-  const buildKitAndOpenHub = (pack: TemplatePack, keys: string[], target: number = finishStep) => {
+  const buildKitAndOpenHub = async (pack: TemplatePack, keys: string[], target: number = finishStep) => {
+    const { kitSelection } = await import('../../templates/kit');
     const items = kitSelection(pack, keys);
     if (items.length === 0) return;
     let plan: KitPlan;
@@ -1115,7 +1130,7 @@ export default function CreationWizard() {
   const buildFromKitStep = (target: number = finishStep) => {
     if (!kitPack) return;
     if (kit && kit.pack.id !== kitPack.id && kit.edited) setKitSwitchAsk(true);
-    else buildKitAndOpenHub(kitPack, kitSelected, target);
+    else void buildKitAndOpenHub(kitPack, kitSelected, target);
   };
 
   /** "Apply this Style to all", once confirmed: the open graphic's Style reaches every other
@@ -1688,7 +1703,7 @@ export default function CreationWizard() {
 
   // Ordering: imported images put logo-slot designs first; a matched brand puts its
   // style family first (so the package's siblings lead).
-  const orderedVariants = [...variantsFor(draft.category)].sort((a, b) => {
+  const orderedVariants = [...(catalog?.variantsFor(draft.category) ?? [])].sort((a, b) => {
     if (draft.importedImages.length > 0) {
       const logo = Number(b.logo !== 'none') - Number(a.logo !== 'none');
       if (logo !== 0) return logo;
@@ -1874,6 +1889,8 @@ export default function CreationWizard() {
             />
           )}
           <div className="wz-step" ref={stepRef} data-overflow={stepOverflow || undefined}>
+            {/* A step that builds on catalog designs waits for them here (see needsCatalog). */}
+            {needsCatalog && !catalog ? <CatalogLoading /> : <>
             {step === 0 && (
               <EntryStep
                 onTemplates={() => { setMode('template'); setStep(1); }}
@@ -1941,6 +1958,7 @@ export default function CreationWizard() {
                 or the refinement history — none of which is lifted into the draft. */}
             {mode === 'ai' && (step === 1 || step === finishStep) && (
               <div hidden={step === finishStep}>
+                <Suspense fallback={<CatalogLoading />}>
                 <AiStep
                   format={draftFormatSelection(draft)}
                   onFormat={(selection) => patch(formatDraftPatch(selection))}
@@ -1971,6 +1989,7 @@ export default function CreationWizard() {
                     setMode('import');
                   }}
                 />
+                </Suspense>
               </div>
             )}
             {step === 1 && (mode === 'design' || mode === 'svg' || mode === 'file') && (
@@ -2190,6 +2209,7 @@ export default function CreationWizard() {
               />
             )}
             {step === 1 && mode === 'template' && (
+              <Suspense fallback={<CatalogLoading />}>
               <BrowseStep
                 draft={draft}
                 filters={browseFilters}
@@ -2231,6 +2251,7 @@ export default function CreationWizard() {
                   useRouter.getState().navigate({ view: 'production', id: show.id });
                 }}
               />
+              </Suspense>
             )}
             {step === 3 && mode === 'design' && draft.designArt && (
               <PlaceFieldsStep
@@ -2324,7 +2345,7 @@ export default function CreationWizard() {
             {/* The catalog flow's later steps — one index earlier in the Browse flow;
                 design mode has its own step 3/4 above. */}
             {step === (mode === 'template' ? 2 : 3) && (mode === 'template' || mode === 'import') && variant && (
-              <FieldsStep variant={variant} draft={draft} onDraft={patch} />
+              <Suspense fallback={<CatalogLoading />}><FieldsStep variant={variant} draft={draft} onDraft={patch} /></Suspense>
             )}
             {step === (mode === 'template' ? 3 : 4) && (mode === 'template' || mode === 'import') && variant && (
               <StyleStep variant={variant} draft={draft} onDraft={patch} builtCss={previewTemplate?.css ?? null} markWarning={markWarning} />
@@ -2433,6 +2454,7 @@ export default function CreationWizard() {
                 busy={!aiResult.valid}
               />
             )}
+            </>}
             <div className="wz-step-fade" aria-hidden="true" />
           </div>
           {wizardFooter}
@@ -2491,7 +2513,7 @@ export default function CreationWizard() {
           cancelLabel={`Keep ${kit.pack.name}`}
           onConfirm={() => {
             setKitSwitchAsk(false);
-            buildKitAndOpenHub(kitPack, kitSelected);
+            void buildKitAndOpenHub(kitPack, kitSelected);
           }}
           onCancel={() => {
             // Keeping the edited kit puts the picker back on it, as it was built.

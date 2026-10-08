@@ -7,11 +7,6 @@ import type { Palette } from '../../../model/templateVocabulary';
 import { kitPaletteFor } from '../kitPlan';
 import MiniPreview from '../MiniPreview';
 
-/** The graphics ticked when a kit is picked: its starter, about ten. */
-export function defaultSelectionFor(pack: TemplatePack): string[] {
-  return [...pack.starter];
-}
-
 /** The palette a kit builds this design in (`kitPaletteFor`), as the value a preview takes. */
 function kitPalette(pack: TemplatePack, variant: TemplateVariant): Palette | undefined {
   const id = kitPaletteFor(pack, variant);
