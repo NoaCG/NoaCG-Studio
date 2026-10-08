@@ -544,7 +544,11 @@ send.
     status row. The other layers stay up.
   - **All out** — every live layer off, in batches of four layers (`control_send_many` takes
     eight items and Out costs two). With per-layer Out no single verb clears the frame any
-    more, and "get everything off" is the one an operator reaches for under pressure.
+    more, and "get everything off" is the one an operator reaches for under pressure. Published,
+    it clears what the server's heads say is on as well as what this page has up
+    (`control/allOut.ts`; playout-workflow-simplification D11), and every graphic of the
+    production when neither knows of any. It reads Clearing… until the heads say each is off,
+    and names one that is not.
   - **Preview** — no verb on the wire; the local iframe above.
 - **Status** — on the production page, the playout status (§4a), whose panel lists the outputs;
   on the hosted page, the READY line (`components/control/OutputHealth.tsx`, words from

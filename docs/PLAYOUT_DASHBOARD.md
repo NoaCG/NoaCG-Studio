@@ -730,7 +730,9 @@ the exported controller, the output and a pack see the flat rundown they always 
   folder's Take or step still being sent - and whatever plays on a slot this rundown uses that no
   cue here can name: an unidentified item, which after a NoaCG Bridge restart is this page's own
   clip, or what replaced a cue's clip on the server. A layer the rundown does not use is never
-  touched.
+  touched. Published, it is always enabled and also clears every graphic the server's heads say
+  is on, so a graphic with no cue marker on this page cannot stay up; it reads Clearing… until
+  the heads agree (playout-workflow-simplification AC-13).
 
 ## 3. Layout — phone
 

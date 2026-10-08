@@ -173,6 +173,7 @@ import {
 import { withLiveLabels } from '../../blocks/controlLabels';
 import {
   clearAllCueBatches,
+  headsOnAir,
   clearCueItems,
   controlOutputSeenAt,
   controlPageUrl,
@@ -227,6 +228,7 @@ import ProductionExportDialog from './ProductionExportDialog';
 import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows, type CasparFacts } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
+import { allOutTargets } from '../../control/allOut';
 import CueRundown, { nameList } from './CueRundown';
 import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGate';
 import ServerDiagnostics from './ServerDiagnostics';
@@ -319,6 +321,10 @@ const LOG_HISTORY_SPAN = 400;
  * links) that must belong to someone who can take them down again. Everything else on this page
  * works without one, and the dialog's own second line says so.
  */
+/** How long All out waits for the server's heads to say each graphic is off before it names the
+ *  ones that are not (playout-workflow-simplification AC-13). */
+const ALL_OUT_CONFIRM_MS = 5000;
+
 /** How long a native cue's verb lets the local save run before it sends (AC-14). */
 const LOCAL_SAVE_HEAD_START_MS = 250;
 
@@ -460,6 +466,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [busy, setBusy] = useState(false);
   /** A publish is on the wire: the status reads "Publishing…". */
   const [publishing, setPublishing] = useState(false);
+  /** All out is on its way and the server's heads have not yet said each graphic is off (AC-13). */
+  const [clearing, setClearing] = useState(false);
   const [copied, setCopied] = useState<'output' | 'control' | 'join' | 'presenter' | null>(null);
   /** The readable audience name being typed, and what the database said about the last claim. */
   const [nameDraft, setNameDraft] = useState('');
@@ -3131,17 +3139,37 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // The panic control cuts, as it always did, whatever fade out a clip is set to.
     for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out', { cut: true });
     await outUnnamed();
-    if (liveLayers.length === 0) return;
-    const cleared = liveLayers.map((l) => l.graphic);
-    const sent = await sendVerb(clearAllCueBatches(cleared), 'All out', true);
-    if (!sent.ok) {
-      setNote(sent.note);
-      return;
+    // WHAT THE SERVER SAYS IS ON, not only what this page believes (AC-13): a graphic whose cue
+    // marker went missing, or one a renderer kept across a republish, is cleared too.
+    const cleared = allOutTargets({
+      local: liveLayers.map((l) => l.graphic),
+      onServer: hostedSlug ? headsOnAir(hostedSlug) : null,
+      all: show.graphics.map((g) => g.name),
+      published: !!hostedSlug,
+    });
+    if (cleared.length === 0) return;
+    setClearing(true);
+    try {
+      const sent = await sendVerb(clearAllCueBatches(cleared), 'All out', true);
+      if (!sent.ok) {
+        setNote(sent.note);
+        return;
+      }
+      // A graphic this page pressed again while the All out was on its way stays as that later press
+      // left it (the server skipped it, protocol 2), so it is not marked off here.
+      const off = cleared.filter((g) => !leftAlone(sent).includes(g));
+      setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
+      // Clearing… until the heads say each is off; one still on is named, never assumed gone.
+      if (hostedSlug && headsOnAir(hostedSlug) !== null) {
+        const stillOn = () => (headsOnAir(hostedSlug) ?? []).filter((g) => off.includes(g));
+        const deadline = Date.now() + ALL_OUT_CONFIRM_MS;
+        while (stillOn().length > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
+        const still = stillOn();
+        if (still.length > 0) setNote(`All out did not clear ${nameList(still)}`);
+      }
+    } finally {
+      setClearing(false);
     }
-    // A graphic this page pressed again while the All out was on its way stays as that later press
-    // left it (the server skipped it, protocol 2), so it is not marked off here.
-    const off = cleared.filter((g) => !leftAlone(sent).includes(g));
-    setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
   };
   /** What plays on a slot this rundown uses now - an item's, or a Play-through folder's - with no cue
    *  of this page to take it off: an unidentified item, or what replaced a cue's clip. A slot the
@@ -4029,7 +4057,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   // A folder's Take still being sent counts: All out is what stops it before any of it lands.
-  const allOutEnabled = liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || unnamedSlots(serverOwnership).size > 0;
+  // Published, always: the page's own list is not the authority on what is on (AC-13, D11).
+  const allOutEnabled = !clearing && (!!hostedSlug || liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || unnamedSlots(serverOwnership).size > 0);
 
   // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
   // only while the page answers a panel, at each publish and each press.
@@ -4483,6 +4512,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onBack={() => goBack({ view: 'home', section: 'productions' })}
       onAllOut={() => void outAll()}
       allOutEnabled={allOutEnabled}
+      allOutClearing={clearing}
       panel={panel}
       onPanel={() => setPanelOpen(true)}
       panelDialog={panelOpen && <PanelDialog slug={hostedSlug} answer={panel} onClose={() => setPanelOpen(false)} />}
@@ -5266,6 +5296,7 @@ function ProductionShell({
   onBack,
   onAllOut,
   allOutEnabled,
+  allOutClearing = false,
   panel,
   onPanel,
   panelDialog,
@@ -5295,6 +5326,8 @@ function ProductionShell({
   /** Whether anything is up to clear - the graphics on the log, or a server cue through the
    *  Bridge, which `liveLayers` does not count. */
   allOutEnabled?: boolean;
+  /** An All out is on its way and not yet confirmed by the server's heads. */
+  allOutClearing?: boolean;
   /** Whether this page answers a hardware panel (control/PanelControl.tsx), the door to its
    *  dialog, and the dialog while it is open. */
   panel: PanelAnswerState;
@@ -5496,8 +5529,9 @@ function ProductionShell({
           onClick={onAllOut}
           title="Play every live layer off and clear the frame"
           data-testid="verb-out-all"
+          data-clearing={allOutClearing ? 'true' : undefined}
         >
-          ■ All out
+          {allOutClearing ? 'Clearing…' : '■ All out'}
         </button>
       </header>
       {/* A teammate's save changed this production under the operator, or a save failed. Said
