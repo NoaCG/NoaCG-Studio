@@ -36,7 +36,7 @@
 // changes - and that is the one case where measuring everything is the whole point.
 import { readFile, readdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { mkdtempSync } from 'node:fs';
 
@@ -261,4 +261,5 @@ async function main() {
   return 0;
 }
 
-process.exitCode = await main();
+// Only as a CLI: the unit test imports the arithmetic above and must not pay for a prerender.
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) process.exitCode = await main();
