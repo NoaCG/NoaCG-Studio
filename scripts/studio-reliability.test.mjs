@@ -60,6 +60,8 @@ test('cue shortcuts: physical keys with Ctrl, Alt and Shift, Nordic letters, and
     assert.match(press(code, key).refused, /operator key/);
     assert.match(press(code, key.toUpperCase(), { shift: true }).refused, /operator key/);
   }
+  // By position too, whatever this layout prints there.
+  for (const [code, key] of [['KeyH', 'ĥ'], ['Numpad0', 'Insert'], ['ArrowUp', 'ArrowUp'], ['ArrowDown', 'ArrowDown']]) assert.match(press(code, key).refused, /operator key/);
   // Not answers at all: a modifier alone, and the dialog's own Tab, Enter and Escape.
   for (const [code, key] of [['ShiftLeft', 'Shift'], ['ControlLeft', 'Control'], ['Tab', 'Tab'], ['Enter', 'Enter'], ['Escape', 'Escape']]) assert.equal(press(code, key), null);
   // An older build's reading of the new form: no shortcut, never a different key.

@@ -287,6 +287,10 @@ test('the rundown badge reads the layer, with the CasparCG slot only when Caspar
   await setCasparSwitch(page,false);
   await expect(graphic).toHaveText(/^G\d+$/);
   await expect(clip.getByTestId('cue-caspar-off')).toHaveText('CasparCG off');
+  // Its greyed TAKE says the same, rather than nothing.
+  await clip.getByTestId('select-cue').click();
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toHaveAttribute('title','CasparCG is off for this production.');
   expect(bridge.actions).toEqual([]);
   await page.unrouteAll({behavior:'ignoreErrors'});
 });

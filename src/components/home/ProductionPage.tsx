@@ -2800,7 +2800,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // the button and Re-take all come through here, so the check is made once, where it cannot be
     // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it.
     if (verb === 'take') {
-      if (!casparOn) return { ok: false, note: `${label} was not sent: CasparCG is off for this production.`, accepted: [] };
       const blocked = options.direct ? directBlocker(cue) : takeBlockerFor(cue);
       if (blocked) return { ok: false, note: `${label} was not sent: ${blocked}`, accepted: [] };
     }
@@ -3320,6 +3319,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       },
     ];
   };
+  /** A native cue is not taken while the production's CasparCG switch is off (AC-4): the one place
+   *  that says so, read by the TAKE button's title, the cue editor, a One-by-one step and the send.
+   *  An All-together folder still takes its other cues and marks such a member NOT TAKEN. */
+  const casparOffRefusal = (cue: ShowCue): string | null =>
+    cue.source === 'playout' && !casparOn ? 'CasparCG is off for this production.' : null;
   /**
    * WHY A TAKE OF THIS CUE - OR THIS FOLDER - WOULD NOT GO, or null (plan §6.9): a setting nobody here
    * can honour is never dropped on the way to air, a Play next whose clips cannot be found is never
@@ -3329,6 +3333,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => {
     if (!target) return null;
+    const off = 'source' in target ? casparOffRefusal(target) : null;
+    if (off) return off;
     const plans = takePlans(target);
     for (const plan of plans) {
       const onOutput = outputSlotRefusal(plan.slot, playoutSettings);
@@ -3346,6 +3352,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Direct cues use their own route and end action, independently of their folder or neighbours. */
   const directBlocker = (cue: ShowCue): string | null => {
     if (cue.source !== 'playout') return !cueGraphicName(cue) ? `${cue.label} has no graphic.` : null;
+    const off = casparOffRefusal(cue);
+    if (off) return off;
     const item = playoutItemFor(cue);
     if (!item) return `${cue.label} has no media file.`;
     const settings = loadPlayoutSettings();
@@ -3491,7 +3499,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setNote(outcome.note);
         return;
       }
-      const plan = togetherPlan(members, { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => takeBlockerFor(c) });
+      const plan = togetherPlan(members, { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => (casparOffRefusal(c) ? null : takeBlockerFor(c)) });
       if (!plan.ok) {
         setNote(`Take was not sent: ${plan.reason}`);
         return;
@@ -4375,10 +4383,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
+  /** The CasparCG slot is this page's to show and act on: published, switched on, and the Bridge
+   *  paired and answering. The header's Load and the panel's slot row read the same gate. */
+  const slotInPlay = started && casparOn && playoutIsConfigured && bridgeOk;
   /** THE ONE ACTION SLOT (D1): Publish before the first publish, then whichever is due first -
    *  loading this production on its CasparCG slot, then publishing changes that renderers draw. The
    *  panel lists every due action. */
-  const loadDue = started && casparOn && playoutIsConfigured && bridgeOk && !!outputSlot && outputSlot.holds !== 'ours' && outputSlot.holds !== 'unreadable' && outputSlot.holds !== 'failed' && !replaceAsk;
+  const loadDue = slotInPlay && !!outputSlot && outputSlot.holds !== 'ours' && outputSlot.holds !== 'unreadable' && outputSlot.holds !== 'failed' && !replaceAsk;
   const headerAction: { label: string; testId: string; run: () => void; primary?: boolean; title?: string; unavailable?: boolean } | null = !started
     ? {
         label: 'Publish',
@@ -4417,24 +4428,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           host: bridgeCheckLine.tone === 'ok' ? playoutSettings.host : undefined,
         }
       : null,
-    slot:
-      started && casparOn && playoutIsConfigured && bridgeOk
-        ? {
-            where: slotWhere,
-            tone: slotCheckLine?.tone ?? 'idle',
-            text: !outputSlot
-              ? 'Checking…'
-              : {
-                  ours: slotCheckLine?.tone === 'ok' ? 'Loaded' : 'Loading…',
-                  other: 'Another production',
-                  failed: 'Cannot read',
-                  unreadable: slotLoadedHere ? 'Loaded' : 'Unknown',
-                  empty: 'Empty',
-                }[outputSlot.holds],
-            canLoad: !!outputSlot && outputSlot.holds !== 'ours' && !replaceAsk,
-            canUnload: outputSlot?.holds === 'ours' || outputSlot?.holds === 'unreadable',
-          }
-        : null,
+    slot: slotInPlay
+      ? {
+          where: slotWhere,
+          tone: slotCheckLine?.tone ?? 'idle',
+          text: !outputSlot
+            ? 'Checking…'
+            : {
+                ours: slotCheckLine?.tone === 'ok' ? 'Loaded' : 'Loading…',
+                other: 'Another production',
+                failed: 'Cannot read',
+                unreadable: slotLoadedHere ? 'Loaded' : 'Unknown',
+                empty: 'Empty',
+              }[outputSlot.holds],
+          canLoad: !!outputSlot && outputSlot.holds !== 'ours' && !replaceAsk,
+          canUnload: outputSlot?.holds === 'ours' || outputSlot?.holds === 'unreadable',
+        }
+      : null,
     replaceAsk: replaceAsk ? { where: slotWhere } : null,
     busy: busy || flowBusy || slotBusy,
   };
