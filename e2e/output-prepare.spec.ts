@@ -10,7 +10,7 @@
 // Presence entry and never handed to the stage.
 // covers: src/output/prepare.ts, src/output/swap.ts, src/output/swapPlan.ts, src/output/main.ts, src/output/stage.ts
 
-import { test, expect, type Frame, type Page, type Route } from '@playwright/test';
+import { test, expect, type Page, type Route } from '@playwright/test';
 
 const BACKEND = 'https://prepare.supabase.test';
 const CONFIG_MODULE = `
@@ -115,8 +115,7 @@ const mark = (page: Page, key: string) => frameEl(page, key).evaluate((el) => el
 const marked = (page: Page, key: string) => frameEl(page, key).evaluate((el) => el.getAttribute('data-probe'));
 /** What the document of `key`'s frame shows: its body, its field and whether it is up. */
 async function shows(page: Page, key: string): Promise<{ body: string; f0: string; state: string }> {
-  const frame = (await frameEl(page, key).elementHandle())?.contentFrame() as Promise<Frame | null>;
-  const doc = await frame;
+  const doc = await (await frameEl(page, key).elementHandle())?.contentFrame();
   if (!doc) return { body: '', f0: '', state: '' };
   return doc.evaluate(() => ({
     body: document.getElementById('body')?.textContent ?? '',
@@ -125,7 +124,7 @@ async function shows(page: Page, key: string): Promise<{ body: string; f0: strin
   }));
 }
 
-async function boot(page: Page, published: () => unknown, graphics: number) {
+async function boot(page: Page, graphics: number) {
   const documents = documentsOf(page);
   await page.goto('/output?production=prepare-probe');
   await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(graphics);
@@ -135,7 +134,7 @@ async function boot(page: Page, published: () => unknown, graphics: number) {
 test('a change off air swaps in place while another graphic stays on air untouched (AC-1, AC-5)', async ({ page }) => {
   let published: unknown = production(1, [graphic('Scorebug'), graphic('Strap')], { Scorebug: 'a1', Strap: 'b1' });
   await standInBackend(page, () => published);
-  const documents = await boot(page, () => published, 2);
+  const documents = await boot(page, 2);
   await command(page, 'Scorebug', { t: 'update', data: { f0: '3-1' } });
   await command(page, 'Scorebug', { t: 'play' });
   await expect.poll(() => shows(page, 'Scorebug')).toEqual({ body: 'v1', f0: '3-1', state: 'in' });
@@ -165,7 +164,7 @@ test('a change off air swaps in place while another graphic stays on air untouch
 test('a change on air waits, live content keeps reaching it, and it swaps after its Out (AC-2)', async ({ page }) => {
   let published: unknown = production(1, [graphic('Scorebug')], { Scorebug: 'a1' });
   await standInBackend(page, () => published);
-  const documents = await boot(page, () => published, 1);
+  const documents = await boot(page, 1);
   await command(page, 'Scorebug', { t: 'update', data: { f0: '3-1' } });
   await command(page, 'Scorebug', { t: 'play' });
   await expect.poll(() => shows(page, 'Scorebug')).toEqual({ body: 'v1', f0: '3-1', state: 'in' });
@@ -194,7 +193,7 @@ test('a change on air waits, live content keeps reaching it, and it swaps after 
 test('a Take that replaces an on-air graphic airs its waiting change at once (AC-2)', async ({ page }) => {
   let published: unknown = production(1, [graphic('Scorebug')], { Scorebug: 'a1' });
   await standInBackend(page, () => published);
-  const documents = await boot(page, () => published, 1);
+  const documents = await boot(page, 1);
   await command(page, 'Scorebug', { t: 'play' });
   await expect.poll(async () => (await shows(page, 'Scorebug')).state).toBe('in');
   await mark(page, 'Scorebug');
@@ -214,7 +213,7 @@ test('a Take that replaces an on-air graphic airs its waiting change at once (AC
 test('a change that fails keeps its old frame and is named; the other changes still swap (AC-4)', async ({ page }) => {
   let published: unknown = production(1, [graphic('Strap'), graphic('Bug')], { Strap: 'b1', Bug: 'c1' });
   await standInBackend(page, () => published);
-  const documents = await boot(page, () => published, 2);
+  const documents = await boot(page, 2);
   await mark(page, 'Strap');
   await mark(page, 'Bug');
   published = production(2, [graphic('Strap', 'v2', "throw new Error('boom in v2');"), graphic('Bug', 'v2')], { Strap: 'b2', Bug: 'c2' });
@@ -236,7 +235,7 @@ test('a change that fails keeps its old frame and is named; the other changes st
 test('a graphic added mid-show joins at once; a removed one leaves once off air (D4)', async ({ page }) => {
   let published: unknown = production(1, [graphic('Strap'), graphic('Bug')], { Strap: 'b1', Bug: 'c1' });
   await standInBackend(page, () => published);
-  const documents = await boot(page, () => published, 2);
+  const documents = await boot(page, 2);
   await command(page, 'Bug', { t: 'play' });
   await expect.poll(async () => (await shows(page, 'Bug')).state).toBe('in');
   published = production(2, [graphic('Strap'), graphic('Ticker')], { Strap: 'b1', Ticker: 'd1' });
@@ -259,7 +258,7 @@ test('another resolution still reloads the whole output, and only once nothing i
   const HD = { width: 1280, height: 720, label: '720p' };
   let published: unknown = production(1, [graphic('Strap')], { Strap: 'b1' });
   await standInBackend(page, () => published);
-  const documents = await boot(page, () => published, 1);
+  const documents = await boot(page, 1);
   await command(page, 'Strap', { t: 'play' });
   published = production(2, [graphic('Strap', 'v1', RUNTIME, HD)], { Strap: 'b2' }, {}, HD);
   await prepare(page, 'p6', 2);
@@ -282,7 +281,7 @@ test('a renderer build deployed since the output loaded reloads it once nothing 
     const html = (await served.text()).replace('src="/src/output/main.ts"', 'src="/assets/output-NEWBUILD.js"');
     return route.fulfill({ response: served, body: html });
   });
-  const documents = await boot(page, () => published, 1);
+  const documents = await boot(page, 1);
   await command(page, 'Strap', { t: 'play' });
   newBuild = true;
   published = production(2, [graphic('Strap', 'v2')], { Strap: 'b2' });
@@ -298,7 +297,7 @@ test('a renderer build deployed since the output loaded reloads it once nothing 
 test('asked to prepare the version it already holds, the output only checks again', async ({ page }) => {
   const v1 = production(1, [graphic('Strap')], { Strap: 'b1' });
   const backend = await standInBackend(page, () => v1);
-  const documents = await boot(page, () => v1, 1);
+  const documents = await boot(page, 1);
   await prepare(page, 'p8', 1);
   await expect.poll(() => backend.resolves, { timeout: 10_000 }).toBe(2);
   await page.waitForTimeout(1_000);
@@ -314,7 +313,7 @@ test('a ping in the log is answered in the Presence entry and never reaches the 
   await standInBackend(page, () => v1, [{ id: 7, graphic: '', msg: { t: 'ping', id: 'pingoffline01', at }, created_at: new Date(at).toISOString() }]);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  const documents = await boot(page, () => v1, 1);
+  const documents = await boot(page, 1);
   await expect.poll(() => page.evaluate(() => (window as ReadyWindow).__noacgLive!.ack().id), { timeout: 15_000 }).toBe('pingoffline01');
   const ack = await page.evaluate(() => (window as ReadyWindow).__noacgLive!.ack());
   expect(ack.ms === null || (ack.ms >= 0 && ack.ms < 60_000)).toBe(true);

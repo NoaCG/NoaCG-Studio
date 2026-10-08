@@ -137,9 +137,6 @@ export interface OutputStage {
    * frame, but no command reaches it and nothing of it reaches air until `swapIn`.
    */
   prepare(spec: OutputGraphicSpec, options?: { loadSound?: (asset: SoundAssetRef) => Promise<Blob> }): StagedFrame;
-  /** Make a prepared, loaded frame its graphic's frame: `data` is written into it, it shows, and
-   *  the frame it replaces is removed. Its graphic joins `graphics` if the stage did not host it. */
-  swapIn(frame: StagedFrame, data: Record<string, string> | null): void;
   /** Add a graphic the stage did not host, the way a boot builds one: commands queue until its
    *  document loads, and `onLoaded` fires for it. */
   add(spec: OutputGraphicSpec): void;
@@ -150,7 +147,6 @@ export interface OutputStage {
 
 /** A frame `prepare` built: hidden, and not its graphic's frame until `swapIn`. */
 export interface StagedFrame {
-  readonly key: string;
   readonly spec: OutputGraphicSpec;
   /** Resolves once its document has loaded, or has been released on a fallback face. */
   whenLoaded: Promise<void>;
@@ -158,6 +154,9 @@ export interface StagedFrame {
   warm(data: Record<string, string> | null): Promise<PreviewReadyMessage | null>;
   /** The first error its document reported while loading, or null. */
   error(): string | null;
+  /** Make it its graphic's frame, once loaded: `data` is written into it, it shows, and the frame
+   *  it replaces leaves. Its graphic joins `graphics` if the stage did not host it. */
+  swapIn(data: Record<string, string> | null): void;
   /** Remove it without swapping it in. */
   discard(): void;
 }
@@ -182,6 +181,9 @@ export interface OutputStageOptions {
 /** How long a warm pass waits for the document's answer once it has loaded: the document caps its
  *  own wait at FRAME_HOLD_CAP_MS, so this only catches a document that answers nothing at all. */
 export const WARM_ANSWER_MS = FRAME_HOLD_CAP_MS + 5_000;
+/** A document that has not loaded after this long never will, as far as READY is concerned: it is
+ *  not prepared (§5.2 measured 1.4 to 3 s from open to ready). */
+export const FRAME_LOAD_MS = 20_000;
 
 /** The output's debug line for `OutputStage.held`, or null when every document loaded in time. */
 export function heldLine(held: OutputStage['held']): string | null {
@@ -241,8 +243,12 @@ export function createOutputStage(
     key: string;
     spec: OutputGraphicSpec;
     iframe: HTMLIFrameElement;
+    /** The operator's layer it paints at. */
+    layer: number;
     /** Its graphic's frame (as opposed to one prepared beside it). */
     current: boolean;
+    /** Built by the boot and not loaded yet: `whenLoaded` waits for it. */
+    boot: boolean;
     loaded: boolean;
     /** Commands waiting for the document to load. */
     queue: PreviewCmd[];
@@ -250,7 +256,7 @@ export function createOutputStage(
     armOnLoad: (() => void)[];
     /** Warm passes waiting for the document's answer, oldest first. */
     warming: ((answer: PreviewReadyMessage | null) => void)[];
-    /** What a prepared frame reported before it became current (copied over at the swap). */
+    /** What the document reported, mirrored into the per-graphic maps while it is current. */
     error: string | null;
     hold: { fonts: string[]; late: boolean } | null;
     sound: SoundStatus | null;
@@ -268,36 +274,38 @@ export function createOutputStage(
   /** The graphics in LAYER order, furthest back first: one array, kept in place, so a reader
    *  holding `stage.graphics` sees graphics join and leave. */
   const graphics: string[] = [];
-  const layers = new Map<string, number>();
   const states = new Map<string, PreviewMachineState | null>();
   const overflow = new Map<string, string[]>();
   const motion = new Map<string, number>();
   const replies = new Map<string, number>();
   const stateCbs: ((graphic: string, state: PreviewMachineState | null, overflow: string[]) => void)[] = [];
-  // Commands QUEUE until the iframe's document has loaded its command listener — a
-  // postMessage into an unloaded srcdoc is silently lost, which is exactly what ate the boot
-  // recovery burst on a renderer refresh (live commands worked; the restore did not).
   let resolveLoaded: () => void = () => {};
   const allLoaded = new Promise<void>((resolve) => {
     resolveLoaded = resolve;
   });
-  /** The frames the boot built: `whenLoaded` waits for these. */
-  const bootFrames = new Set<Frame>();
-  // A payload with no graphics has nothing to wait for (every `load` below checks the same).
-  if (payload.graphics.length === 0) resolveLoaded();
+  /** Boot frames not loaded yet; a payload with no graphics has nothing to wait for. */
+  let bootPending = payload.graphics.length;
+  if (bootPending === 0) resolveLoaded();
+  const bootSettled = (frame: Frame) => {
+    if (!frame.boot) return;
+    frame.boot = false;
+    if ((bootPending -= 1) === 0) resolveLoaded();
+  };
   const held = new Map<string, { fonts: string[]; late: boolean }>();
   const heldCbs: (() => void)[] = [];
   const errors = new Map<string, string>();
   const errorCbs: ((graphic: string) => void)[] = [];
   const loadedCbs: ((graphic: string) => void)[] = [];
-  /** The document behind each StagedFrame handed out. */
-  const stagedFrames = new WeakMap<StagedFrame, Frame>();
   const encoded = new Map<string, Promise<Blob>>();
   const soundDeadlines = new Set<ReturnType<typeof setTimeout>>();
   const sounds = new Map<string, SoundStatus>(), soundCbs: ((graphic: string) => void)[] = [];
   const budget = options.soundBudget ?? createSoundBudget(), budgetId = ++soundStageId;
   let frameSerial = 0;
   let destroyed = false;
+  /** The whole stage off air (`setVisible(false)`) and its sounds quiet (`setSoundQuiet(true)`):
+   *  a frame that joins later is told the same before it can be seen or heard. */
+  let offAir = false;
+  let quiet = false;
 
   const release = (frame: Frame) => {
     if (frame.loaded) return;
@@ -307,7 +315,7 @@ export function createOutputStage(
     const queue = frame.queue;
     frame.queue = [];
     for (const cmd of queue) postPreviewCmd(frame.iframe.contentWindow, cmd);
-    if (bootFrames.has(frame) && [...bootFrames].every((f) => f.loaded)) resolveLoaded();
+    bootSettled(frame);
     for (const arm of frame.armOnLoad) arm();
     frame.armOnLoad = [];
     frame.onRelease();
@@ -317,6 +325,9 @@ export function createOutputStage(
     if (!frame.loaded) frame.queue.push(cmd);
     else postPreviewCmd(frame.iframe.contentWindow, cmd);
   };
+  // Commands QUEUE until the iframe's document has loaded its command listener — a
+  // postMessage into an unloaded srcdoc is silently lost, which is exactly what ate the boot
+  // recovery burst on a renderer refresh (live commands worked; the restore did not).
   const post = (graphic: string, cmd: PreviewCmd) => {
     const frame = frames.get(graphic);
     if (frame) postTo(frame, cmd);
@@ -330,13 +341,12 @@ export function createOutputStage(
   /** …and for a graphic joining or replacing one later: a replacement without a layer keeps the
    *  place of the frame it replaces, a newcomer goes on top. */
   const laterLayerOf = (spec: OutputGraphicSpec) =>
-    Number.isFinite(spec.layer) ? Number(spec.layer) : (layers.get(spec.key) ?? graphics.length + 1);
+    Number.isFinite(spec.layer) ? Number(spec.layer) : (frames.get(spec.key)?.layer ?? graphics.length + 1);
 
   /** Build a document for `spec` into the stage: last, or right after the frame `after` (moving
    *  an iframe later would load its document again). */
   const makeFrame = (spec: OutputGraphicSpec, layer: number, current: boolean, loadSound?: Frame['loadSound'], after?: HTMLIFrameElement): Frame => {
     const iframe = document.createElement('iframe');
-    frameSerial += 1;
     // The same sandbox posture as every preview surface: published template code must never
     // reach the app origin (no allow-same-origin, ever — see preview/previewProtocol.ts).
     iframe.setAttribute('sandbox', 'allow-scripts');
@@ -375,11 +385,13 @@ export function createOutputStage(
       onRelease = resolve;
     });
     const frame: Frame = {
-      id: frameSerial,
+      id: ++frameSerial,
       key: spec.key,
       spec,
       iframe,
+      layer,
       current,
+      boot: false,
       loaded: false,
       queue: [],
       armOnLoad: [],
@@ -397,7 +409,7 @@ export function createOutputStage(
     // is fully parsed, so the reasons above for hiding it no longer apply.
     iframe.addEventListener('load', () => {
       release(frame);
-      const hold = frame.current ? held.get(frame.key) : frame.hold;
+      const hold = frame.hold;
       if (hold && !hold.late) {
         hold.late = true;
         if (frame.current) for (const cb of heldCbs) cb();
@@ -409,30 +421,32 @@ export function createOutputStage(
     return frame;
   };
 
-  /** The per-graphic answers start over for a frame that has just become its graphic's. The
-   *  machine state is left as the last frame said it, so a new frame's first reply reports only
-   *  if it differs. */
-  const adopt = (frame: Frame, layer: number, append = false) => {
+  /** A frame becomes its graphic's. Its overflow and playhead start over; the machine state is
+   *  left as the last frame said it, so a new frame's first reply reports only if it differs, and
+   *  the reply count keeps counting, so a wait for stillness never reads a reset as an answer. A
+   *  frame joining a stage that is off air or quiet is told so before it can be seen or heard. */
+  const adopt = (frame: Frame, append = false) => {
     frames.set(frame.key, frame);
-    layers.set(frame.key, layer);
     if (graphics.indexOf(frame.key) < 0) {
       // The boot keeps the payload's order; a graphic joining later goes in by its layer, in front
       // of any already on the same layer.
       let at = graphics.length;
-      while (!append && at > 0 && (layers.get(graphics[at - 1]) ?? 0) > layer) at -= 1;
+      while (!append && at > 0 && (frames.get(graphics[at - 1])?.layer ?? 0) > frame.layer) at -= 1;
       graphics.splice(at, 0, frame.key);
     }
     if (!states.has(frame.key)) states.set(frame.key, null);
     overflow.set(frame.key, []);
     motion.set(frame.key, 0);
     if (!replies.has(frame.key)) replies.set(frame.key, 0);
+    if (offAir) postTo(frame, { cmd: 'offair', on: true });
+    if (quiet) postTo(frame, { cmd: 'sound-quiet', on: true });
   };
 
   /** Take a frame off the stage for good: its document, its waits and its sound budget. */
   const dispose = (frame: Frame) => {
     staged.delete(frame);
     // A boot frame that goes before it ever loaded must not hold `whenLoaded` for good.
-    if (bootFrames.delete(frame) && [...bootFrames].every((f) => f.loaded)) resolveLoaded();
+    bootSettled(frame);
     for (const settle of frame.warming.slice()) settle(null);
     frame.budgetKeys.forEach((key) => budget.release(key));
     frame.budgetKeys.clear();
@@ -440,10 +454,9 @@ export function createOutputStage(
   };
 
   payload.graphics.forEach((spec, index) => {
-    const layer = layerOf(spec, index);
-    const frame = makeFrame(spec, layer, true);
-    bootFrames.add(frame);
-    adopt(frame, layer, true);
+    const frame = makeFrame(spec, layerOf(spec, index), true);
+    frame.boot = true;
+    adopt(frame, true);
   });
 
   // A stranger's package never goes through composeDocument: its own frame, its own bridge.
@@ -474,12 +487,9 @@ export function createOutputStage(
     if (type === 'noacg-sound-status' && options.sound === 'program') {
       const frame = senderOf(ev), s = ev.data.status;
       if (frame === null || !s || !Number.isInteger(s.n) || !Number.isInteger(s.of) || !Number.isInteger(s.bytes) || s.n < 0 || s.n > s.of || s.bytes < 0) return;
-      const status = { n: s.n, of: s.of, bytes: s.bytes, error: typeof s.error === 'string' ? s.error : null };
-      if (!frame.current) {
-        frame.sound = status;
-        return;
-      }
-      sounds.set(frame.key, status);
+      frame.sound = { n: s.n, of: s.of, bytes: s.bytes, error: typeof s.error === 'string' ? s.error : null };
+      if (!frame.current) return;
+      sounds.set(frame.key, frame.sound);
       for (const cb of soundCbs) cb(frame.key);
       return;
     }
@@ -521,12 +531,9 @@ export function createOutputStage(
     if (type === PREVIEW_ERROR_TYPE) {
       const frame = senderOf(ev);
       if (frame === null) return;
-      const message = String((ev.data as PreviewErrorMessage).message ?? 'error').slice(0, 200);
-      if (!frame.current) {
-        if (frame.error === null) frame.error = message;
-        return;
-      }
-      if (errors.has(frame.key)) return;
+      if (frame.error !== null) return;
+      const message = (frame.error = String((ev.data as PreviewErrorMessage).message ?? 'error').slice(0, 200));
+      if (!frame.current) return;
       errors.set(frame.key, message);
       console.warn(`output stage: "${frame.key}" reported an error: ${message}`);
       for (const cb of errorCbs) cb(frame.key);
@@ -545,8 +552,8 @@ export function createOutputStage(
       console.warn(
         `output stage: "${frame.key}" released on a fallback face after ${FRAME_HOLD_CAP_MS} ms, still waiting for ${fonts.join(', ') || 'a resource'}`,
       );
-      if (frame.current) held.set(frame.key, { fonts, late: false });
-      else frame.hold = { fonts, late: false };
+      frame.hold = { fonts, late: false };
+      if (frame.current) held.set(frame.key, frame.hold);
       release(frame);
       if (frame.current) for (const cb of heldCbs) cb();
       return;
@@ -633,8 +640,9 @@ export function createOutputStage(
   return {
     sounds,
     onSound: cb=>soundCbs.push(cb),
-    setSoundQuiet: (quiet) => {
-      for (const key of frames.keys()) post(key, { cmd: 'sound-quiet', on: quiet });
+    setSoundQuiet: (on) => {
+      quiet = on;
+      for (const key of frames.keys()) post(key, { cmd: 'sound-quiet', on });
     },
     apply,
     requestState: (graphic) => {
@@ -658,6 +666,7 @@ export function createOutputStage(
     // an operator sees when a browser source loads. Off air from the inside, the frame stays
     // visible to the compositor, keeps its frame rate, and finishes the replay unseen.
     setVisible: (visible) => {
+      offAir = !visible;
       for (const key of frames.keys()) post(key, { cmd: 'offair', on: !visible });
       for (const layer of foreign.values()) layer.setOffAir(!visible);
     },
@@ -677,45 +686,44 @@ export function createOutputStage(
       // Beside the frame it may replace, at the same place in the stack, so a swap moves nothing.
       const frame = makeFrame(spec, laterLayerOf(spec), false, prepOptions.loadSound, frames.get(spec.key)?.iframe);
       staged.add(frame);
-      const handle: StagedFrame = {
-        key: frame.key,
+      return {
         spec,
         whenLoaded: frame.whenLoaded,
         warm: (data) => warmFrame(frame, data),
         error: () => frame.error,
         discard: () => dispose(frame),
+        swapIn: (data) => {
+          if (!staged.has(frame)) return;
+          staged.delete(frame);
+          const old = frames.get(frame.key);
+          frame.current = true;
+          delete frame.iframe.dataset.prepared;
+          adopt(frame);
+          // Its graphic's values reach it before any Take can, and showing it paints nothing: its
+          // document sits in its invisible start state.
+          if (data && Object.keys(data).length > 0) postTo(frame, { cmd: 'update', data: JSON.stringify(data) });
+          // Not before its document has loaded (see `makeFrame`): until then `release` shows it.
+          if (frame.loaded) frame.iframe.style.visibility = 'visible';
+          if (frame.error !== null) errors.set(frame.key, frame.error);
+          else errors.delete(frame.key);
+          if (frame.hold) held.set(frame.key, frame.hold);
+          else held.delete(frame.key);
+          if (frame.sound) sounds.set(frame.key, frame.sound);
+          else sounds.delete(frame.key);
+          postTo(frame, { cmd: 'state' });
+          if (old) {
+            // Out of sight at once; its document goes a moment later, off the path of a Take that
+            // is posting its entrance to the new frame right now.
+            old.iframe.style.visibility = 'hidden';
+            setTimeout(() => dispose(old));
+          }
+          if (Boolean(old && old.hold) !== Boolean(frame.hold)) for (const cb of heldCbs) cb();
+          if (frame.sound) for (const cb of soundCbs) cb(frame.key);
+        },
       };
-      stagedFrames.set(handle, frame);
-      return handle;
-    },
-    swapIn: (handle, data) => {
-      const frame = stagedFrames.get(handle);
-      if (!frame || !staged.has(frame)) return;
-      staged.delete(frame);
-      const old = frames.get(frame.key);
-      frame.current = true;
-      delete frame.iframe.dataset.prepared;
-      adopt(frame, Number(frame.iframe.dataset.layer));
-      // Its graphic's values reach it before any Take can, and showing it paints nothing: its
-      // document sits in its invisible start state.
-      if (data && Object.keys(data).length > 0) postTo(frame, { cmd: 'update', data: JSON.stringify(data) });
-      // Not before its document has loaded (see `makeFrame`): until then `release` shows it.
-      if (frame.loaded) frame.iframe.style.visibility = 'visible';
-      if (frame.error !== null) errors.set(frame.key, frame.error);
-      else errors.delete(frame.key);
-      if (frame.hold) held.set(frame.key, frame.hold);
-      else held.delete(frame.key);
-      if (frame.sound) sounds.set(frame.key, frame.sound);
-      else sounds.delete(frame.key);
-      if (old) dispose(old);
-      postTo(frame, { cmd: 'state' });
-      for (const cb of heldCbs) cb();
-      if (frame.sound) for (const cb of soundCbs) cb(frame.key);
     },
     add: (spec) => {
-      if (frames.has(spec.key)) return;
-      const layer = laterLayerOf(spec);
-      adopt(makeFrame(spec, layer, true), layer);
+      if (!frames.has(spec.key)) adopt(makeFrame(spec, laterLayerOf(spec), true));
     },
     remove: (graphic) => {
       const frame = frames.get(graphic);
@@ -723,13 +731,12 @@ export function createOutputStage(
       frames.delete(graphic);
       const at = graphics.indexOf(graphic);
       if (at >= 0) graphics.splice(at, 1);
-      for (const map of [states, overflow, motion, replies, held, errors, sounds, layers] as Map<string, unknown>[]) map.delete(graphic);
+      for (const map of [states, overflow, motion, replies, held, errors, sounds] as Map<string, unknown>[]) map.delete(graphic);
       dispose(frame);
     },
     destroy: () => {
       destroyed = true; encoded.clear(); soundDeadlines.forEach(clearTimeout); soundDeadlines.clear();
-      for (const frame of frames.values()) frame.budgetKeys.forEach((key) => budget.release(key));
-      for (const frame of staged) frame.budgetKeys.forEach((key) => budget.release(key));
+      for (const frame of [...frames.values(), ...staged]) frame.budgetKeys.forEach((key) => budget.release(key));
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);
       for (const layer of foreign.values()) layer.destroy();

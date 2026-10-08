@@ -14,23 +14,21 @@
 // Old CEF: CasparCG 2.3 runs this in Chromium 71.
 
 import type { OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
-import type { GraphicCheck, ReadyIssue } from '../control/readiness';
+import { warmVerdict, type GraphicCheck, type ReadyIssue } from '../control/readiness';
 import type { SoundAssetRef } from '../model/types';
-import type { OutputStage, StagedFrame } from './stage';
+import { CATCH_UP_TIMING, readGraphic, stoodStill, wait } from './catchUp';
+import { FRAME_LOAD_MS, type OutputStage, type StagedFrame } from './stage';
 import { planPublish, swapsNow } from './swapPlan';
 
-/** A prepared frame that has not loaded after this long is a change that did not prepare. */
-const LOAD_MS = 20_000;
-/** How often a frame that has just gone off air is asked whether its exit has finished. */
-const SETTLE_POLL_MS = 150;
-/** A frame still moving this long after it went off air takes the change anyway: an exit is a
- *  second or two, and an off-air graphic that never stands still is not one anybody can see. */
+/** A frame still moving this long after its Out takes the change anyway: an exit is a second or
+ *  two, and an off-air graphic that never stands still is not one anybody can see. A graphic off
+ *  air for longer than this takes its change at once. */
 const SETTLE_CAP_MS = 10_000;
 
 export interface Swapper {
   /** Build what `payload` changes for this output, one frame at a time, swapping each change in as
-   *  soon as the rule allows. Resolves once every change has been tried. `progress` counts them. */
-  apply(payload: OutputPayload, progress: (n: number, of: number) => void): Promise<void>;
+   *  soon as the rule allows. `progress` counts the builds; resolves with how many there were. */
+  apply(payload: OutputPayload, progress: (n: number, of: number) => void): Promise<number>;
   /** A Take reached `graphic`: a change waiting for it takes over first, so the Take airs it, and
    *  the frame it replaces is cut as a Re-take cuts its own entrance (G1). */
   beforePlay(graphic: string): void;
@@ -42,12 +40,12 @@ export interface Swapper {
   waiting(): string[];
   /** The changes that failed, one issue each. */
   failed(): ReadyIssue[];
-  /** Every graphic holds the version `next` stamps, and nothing is building, waiting or failed. */
+  /** Every graphic holds the version `next` stamps, and nothing waits or failed. */
   holds(next: Readonly<Record<string, string>>, keys: readonly string[]): boolean;
 }
 
 export interface SwapperOptions {
-  stage: Pick<OutputStage, 'prepare' | 'swapIn' | 'add' | 'remove' | 'requestState' | 'motion' | 'replies'>;
+  stage: Pick<OutputStage, 'prepare' | 'add' | 'remove' | 'requestState' | 'motion' | 'replies'>;
   /** Per graphic, the digest of the frame the boot built ('' when the boot payload had no stamp). */
   held: Record<string, string>;
   /** Whether `graphic` is on air on this output now. */
@@ -63,7 +61,7 @@ export interface SwapperOptions {
   /** A graphic joined the stage, from `payload`. */
   onAdded(spec: OutputGraphicSpec, payload: OutputPayload): void;
   onRemoved(graphic: string): void;
-  /** Something `waiting`, `failed` or `holds` answers has changed. */
+  /** A change took over, or a graphic left: what `waiting` and `holds` answer may have moved. */
   changed(): void;
   now?: () => number;
 }
@@ -74,8 +72,6 @@ interface Ready {
   check: GraphicCheck;
 }
 
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
 export function createSwapper(opts: SwapperOptions): Swapper {
   const now = opts.now ?? (() => Date.now());
   const stage = opts.stage;
@@ -84,85 +80,33 @@ export function createSwapper(opts: SwapperOptions): Swapper {
   /** Graphics the published version no longer has: they leave once off air. */
   const gone = new Set<string>();
   const failures = new Map<string, ReadyIssue>();
-  /** Graphics whose frame is being watched to stand still, with how to stop watching. */
-  const settling = new Map<string, () => void>();
-  let building = false;
+  /** When each graphic last went off air here: an exit may still be running for a moment after. */
+  const stoppedAt = new Map<string, number>();
+  /** Graphics whose frame is being watched to stand still, each with its own watch. */
+  const settling = new Map<string, object>();
 
-  /** Load `spec` in a hidden frame and check it: the frame with its check, or what failed. */
-  const build = async (spec: OutputGraphicSpec, payload: OutputPayload): Promise<{ frame: StagedFrame; check: GraphicCheck } | ReadyIssue> => {
-    const key = spec.key;
+  /** Load `spec` in a hidden frame and check it: the frame with its check, or why it failed. */
+  const build = async (spec: OutputGraphicSpec, payload: OutputPayload): Promise<GraphicCheck | ReadyIssue> => {
     const frame = stage.prepare(spec, { loadSound: opts.loadSound?.(payload) });
-    try {
-      const loaded = await Promise.race([frame.whenLoaded.then(() => true), wait(LOAD_MS).then(() => false)]);
-      if (!loaded) throw { k: 'silent', g: key } as ReadyIssue;
-      const answer = await frame.warm(opts.warmData(key, payload));
-      const error = frame.error() ?? (answer ? answer.error : null);
-      if (answer?.sounds?.error && !answer.scriptError && error === answer.sounds.error) throw { k: 'audio', g: key, d: error.slice(0, 120) } as ReadyIssue;
-      if (error !== null && error !== undefined) throw { k: 'script', g: key, d: error.slice(0, 120) } as ReadyIssue;
-      if (!answer) throw { k: 'silent', g: key } as ReadyIssue;
-      return {
-        frame,
-        check: {
-          done: true,
-          error: null,
-          audio: answer.sounds,
-          silent: false,
-          fontsFailed: answer.fonts.failed,
-          fontsLoading: answer.fonts.loading,
-          imagesBroken: answer.images.broken,
-        },
-      };
-    } catch (thrown) {
-      frame.discard();
-      const issue = thrown as Partial<ReadyIssue> | null;
-      return issue && typeof issue.k === 'string'
-        ? (issue as ReadyIssue)
-        : { k: 'script', g: key, d: String((thrown as Error)?.message ?? thrown).slice(0, 120) };
-    }
-  };
-
-  const stopSettling = (graphic: string) => {
-    settling.get(graphic)?.();
-    settling.delete(graphic);
-  };
-
-  /** Watch `graphic`'s frame until two answered asks in a row find it where it was (catchUp.ts
-   *  reads stillness the same way), or the cap, then `done` if it is still off air. */
-  const settle = (graphic: string, done: () => void) => {
-    if (settling.has(graphic)) return;
-    let cancelled = false;
-    settling.set(graphic, () => {
-      cancelled = true;
-    });
-    const deadline = now() + SETTLE_CAP_MS;
-    const read = () => ({ replies: stage.replies.get(graphic) ?? 0, motion: stage.motion.get(graphic) ?? -1 });
-    void (async () => {
-      let previous = read();
-      let still = 0;
-      while (!cancelled) {
-        stage.requestState(graphic);
-        await wait(SETTLE_POLL_MS);
-        if (cancelled) return;
-        if (opts.onAir(graphic)) break;
-        const reading = read();
-        still = reading.replies > previous.replies && reading.motion === previous.motion ? still + 1 : 0;
-        previous = reading;
-        if (still >= 2 || now() >= deadline) {
-          settling.delete(graphic);
-          done();
-          return;
-        }
-      }
-      settling.delete(graphic);
-    })();
+    const verdict = await (async () => {
+      const loaded = await Promise.race([frame.whenLoaded.then(() => true), wait(FRAME_LOAD_MS).then(() => false)]);
+      if (!loaded) return { k: 'silent', g: spec.key } as ReadyIssue;
+      // The document's own error is read AFTER its answer: the message that reports a throw while
+      // loading may land behind the load event.
+      const answer = await frame.warm(opts.warmData(spec.key, payload));
+      return warmVerdict(spec.key, frame.error(), answer);
+    })().catch((e: unknown): ReadyIssue => ({ k: 'script', g: spec.key, d: String((e as Error)?.message ?? e).slice(0, 120) }));
+    if ('done' in verdict) ready.set(spec.key, { digest: payload.ver?.g[spec.key] ?? '', frame, check: verdict });
+    else frame.discard();
+    return verdict;
   };
 
   const swap = (graphic: string) => {
     const entry = ready.get(graphic);
     if (!entry) return;
-    stopSettling(graphic);
+    settling.delete(graphic);
     ready.delete(graphic);
-    stage.swapIn(entry.frame, opts.data(graphic));
+    entry.frame.swapIn(opts.data(graphic));
     held[graphic] = entry.digest;
     opts.onSwapped(graphic, entry.frame.spec, entry.check);
     opts.changed();
@@ -170,6 +114,7 @@ export function createSwapper(opts: SwapperOptions): Swapper {
 
   const leave = (graphic: string) => {
     if (!gone.has(graphic) || opts.onAir(graphic)) return;
+    settling.delete(graphic);
     gone.delete(graphic);
     stage.remove(graphic);
     delete held[graphic];
@@ -177,12 +122,44 @@ export function createSwapper(opts: SwapperOptions): Swapper {
     opts.changed();
   };
 
-  /** Take over every change the rule allows now, and start watching those about to be allowed. */
+  const takeOver = (graphic: string) => (ready.has(graphic) ? swap(graphic) : leave(graphic));
+
+  /** Watch a frame that went off air a moment ago until two answered asks in a row find it where it
+   *  was (catchUp.ts reads stillness the same way), or until the cap after its Out, then take over
+   *  if it is still off air. */
+  const settle = (graphic: string, deadline: number) => {
+    const watch = {};
+    settling.set(graphic, watch);
+    void (async () => {
+      let previous = readGraphic(stage, graphic);
+      let still = 0;
+      while (settling.get(graphic) === watch && !opts.onAir(graphic)) {
+        stage.requestState(graphic);
+        await wait(CATCH_UP_TIMING.pollMs);
+        const reading = readGraphic(stage, graphic);
+        still = stoodStill(previous, reading) ? still + 1 : 0;
+        previous = reading;
+        if (settling.get(graphic) !== watch || opts.onAir(graphic)) break;
+        if (still >= 2 || now() >= deadline) {
+          settling.delete(graphic);
+          takeOver(graphic);
+          return;
+        }
+      }
+      if (settling.get(graphic) === watch) settling.delete(graphic);
+    })();
+  };
+
+  const pending = () => Array.from(ready.keys()).concat(Array.from(gone));
+  /** Take over every pending change that is off air here: at once when it has been off air for
+   *  longer than an exit lasts, else once its frame stands still. */
   const advance = () => {
-    const pending = Array.from(ready.keys()).concat(Array.from(gone)).filter((g) => !settling.has(g));
-    // Stillness is learned by watching (`settle`), so nothing here is still yet.
-    const next = swapsNow(pending, (graphic) => ({ onAir: opts.onAir(graphic), still: false }));
-    for (const graphic of next.settle) settle(graphic, () => (ready.has(graphic) ? swap(graphic) : leave(graphic)));
+    for (const graphic of swapsNow(pending(), opts.onAir).settle) {
+      if (settling.has(graphic)) continue;
+      const deadline = (stoppedAt.get(graphic) ?? -Infinity) + SETTLE_CAP_MS;
+      if (now() >= deadline) takeOver(graphic);
+      else settle(graphic, deadline);
+    }
   };
 
   return {
@@ -195,7 +172,7 @@ export function createSwapper(opts: SwapperOptions): Swapper {
       });
       const plan = planPublish({ held, ready: readyDigests }, next, keys);
       for (const graphic of plan.drop) {
-        stopSettling(graphic);
+        settling.delete(graphic);
         ready.get(graphic)?.frame.discard();
         ready.delete(graphic);
       }
@@ -203,47 +180,42 @@ export function createSwapper(opts: SwapperOptions): Swapper {
       failures.clear();
       for (const graphic of keys) gone.delete(graphic);
       for (const graphic of plan.remove) gone.add(graphic);
+      const specOf = (graphic: string) => payload.graphics.find((g) => g.key === graphic)!;
       for (const graphic of plan.add) {
-        const spec = payload.graphics.filter((g) => g.key === graphic)[0];
-        stage.add(spec);
+        stage.add(specOf(graphic));
         held[graphic] = next[graphic] ?? '';
-        opts.onAdded(spec, payload);
+        opts.onAdded(specOf(graphic), payload);
       }
-      building = plan.build.length > 0;
-      opts.changed();
       // One at a time: a playout box's main thread is the one that must not miss frames.
       for (let i = 0; i < plan.build.length; i += 1) {
         progress(i, plan.build.length);
-        const graphic = plan.build[i];
-        const spec = payload.graphics.filter((g) => g.key === graphic)[0];
-        const result = await build(spec, payload);
-        if ('frame' in result) ready.set(graphic, { digest: next[graphic] ?? '', frame: result.frame, check: result.check });
-        else failures.set(graphic, result);
+        const verdict = await build(specOf(plan.build[i]), payload);
+        if (!('done' in verdict)) failures.set(plan.build[i], verdict);
         advance();
       }
-      building = false;
-      progress(plan.build.length, plan.build.length);
       advance();
-      opts.changed();
+      return plan.build.length;
     },
     beforePlay(graphic) {
       swap(graphic);
     },
     afterStop(graphic) {
-      if (ready.has(graphic) || gone.has(graphic)) advance();
+      stoppedAt.set(graphic, now());
+      advance();
     },
     tick() {
-      if (ready.size > 0 || gone.size > 0) advance();
+      advance();
     },
     waiting() {
-      return Array.from(ready.keys()).concat(Array.from(gone)).filter((g) => opts.onAir(g));
+      return swapsNow(pending(), opts.onAir).wait;
     },
     failed() {
       return Array.from(failures.values());
     },
     holds(next, keys) {
-      if (building || ready.size > 0 || gone.size > 0 || failures.size > 0) return false;
-      return Object.keys(held).length === keys.length && keys.every((key) => held[key] !== undefined && held[key] !== '' && held[key] === next[key]);
+      if (ready.size > 0 || gone.size > 0 || failures.size > 0) return false;
+      const plan = planPublish({ held, ready: {} }, next, keys);
+      return plan.build.length === 0 && plan.add.length === 0 && plan.remove.length === 0;
     },
   };
 }

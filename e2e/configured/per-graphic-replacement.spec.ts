@@ -106,7 +106,10 @@ test('two outputs each swap a changed graphic in place, and hold one on air unti
     await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent(name)}&debug=1`);
     await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
     await expect.poll(() => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence()), { timeout: 30_000 }).not.toBe('joining');
-    test.skip((await air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence())) !== 'joined', 'this server has no live topic (migration 0068): a publish asks outputs over Presence');
+    if ((await air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence())) !== 'joined') {
+      await anon.close();
+      test.skip(true, 'this server has no live topic (migration 0068): a publish asks outputs over Presence');
+    }
     await expect.poll(async () => (await readyOf(air))?.n, { timeout: 60_000 }).toBe(2);
     const entry = { page: air, reloads: 0 };
     air.on('domcontentloaded', () => {

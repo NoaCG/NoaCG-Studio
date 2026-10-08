@@ -29,6 +29,17 @@ test('every category keeps its live values across a renamed, added or removed fi
     return out;
   }, ALL);
   expect(targets.length).toBeGreaterThan(10);
+  // A rename keeps the field's id, so an Update of the renamed field reaches the body on air.
+  const renamed = await page.evaluate(async (id) => {
+    const cat = await import('/src/templates/catalog.ts');
+    const { setFieldTitle } = await import('/src/blocks/edit.ts');
+    const tpl = cat.variantById(id)!.create({});
+    const first = tpl.fields[0];
+    const after = setFieldTitle(tpl, first.field, 'Renamed on air');
+    return { before: tpl.fields.map((f) => f.field), after: after.fields.map((f) => f.field), title: after.fields[0].title };
+  }, targets[0].id);
+  expect(renamed.after).toEqual(renamed.before);
+  expect(renamed.title).toBe('Renamed on air');
 
   const findings: Finding[] = [];
   let checked = 0;
@@ -38,31 +49,25 @@ test('every category keeps its live values across a renamed, added or removed fi
       const cat = await import('/src/templates/catalog.ts');
       const comp = await import('/src/preview/composeDocument.ts');
       const types = await import('/src/model/types.ts');
+      const { sentinelFor } = await import('/src/validation/fieldPaint.ts');
       const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
-      type Field = { field: string; ftype: string; value?: string; items?: { value: string }[] };
-      /** A value nobody would type, tagged so the page text says which field and round it is. */
-      const sentinel = (f: Field, i: number, round: string): string | null => {
+      type Field = Parameters<typeof sentinelFor>[0];
+      /** Round B's text and numbers are round A's index plus this, so the page text says which. */
+      const ROUND_B = 500;
+      /** A value nobody would type ("ZQ3X", or "ZQ503X" in round B), or null for a type the page
+       *  cannot show as text: those are still sent, and must not break the others. */
+      const sentinel = (f: Field, i: number, round: 'A' | 'B'): string | null => {
         switch (f.ftype) {
-          case 'number':
-            return String((round === 'A' ? 900000 : 800000) + i);
           case 'checkbox':
             return f.value === 'true' ? 'false' : 'true';
           case 'color':
             return round === 'A' ? '#ff00ff' : '#00ffff';
-          case 'dropdown': {
-            const other = (f.items ?? []).find((it) => it.value !== f.value);
-            return other ? other.value : null;
-          }
+          case 'dropdown':
+            return (f.items ?? []).find((it) => it.value !== f.value)?.value ?? null;
           case 'filelist':
             return null;
-          default: {
-            const tag = `ZQ${round}${i}X`;
-            const value = String(f.value ?? '');
-            if (value.includes('\n') || value.includes('|')) {
-              return value.split('\n').map((line, li) => line.split('|').map((_, ci) => `${tag}${li}_${ci}`).join(' | ')).join('\n');
-            }
-            return tag;
-          }
+          default:
+            return sentinelFor(f, round === 'A' ? i : i + ROUND_B);
         }
       };
       document.body.innerHTML = '';
@@ -70,6 +75,7 @@ test('every category keeps its live values across a renamed, added or removed fi
         const v = cat.variantById(id)!;
         const frame = document.createElement('iframe');
         frame.style.cssText = 'width:1920px;height:1080px;border:0;position:fixed;left:-5000px;top:0';
+        const loaded = new Promise((r) => frame.addEventListener('load', r));
         let tpl: ReturnType<typeof v.create> | null = null;
         let err: string | null = null;
         try {
@@ -79,9 +85,9 @@ test('every category keeps its live values across a renamed, added or removed fi
           err = String((e as Error)?.message ?? e);
         }
         document.body.appendChild(frame);
-        return { id, frame, tpl, err };
+        return { id, frame, tpl, err, loaded };
       });
-      await pause(900);
+      await Promise.race([Promise.all(docs.map((d) => d.loaded)), pause(5000)]);
       // On air, and past the entrance: a count-up entrance writes its field while it runs.
       for (const { frame } of docs) {
         try {
@@ -93,13 +99,14 @@ test('every category keeps its live values across a renamed, added or removed fi
       await pause(2500);
       const findings: { id: string; problem: string }[] = [];
       let checked = 0;
-      for (const { id, frame, tpl, err } of docs) {
+      // Each document is its own window: they are driven side by side.
+      await Promise.all(docs.map(async ({ id, frame, tpl, err }) => {
         if (err || !tpl) {
           findings.push({ id, problem: `did not build: ${err}` });
-          continue;
+          return;
         }
         const win = frame.contentWindow as (Window & { update?: (d: string) => void }) | null;
-        if (!win || typeof win.update !== 'function') continue;
+        if (!win || typeof win.update !== 'function') return;
         const thrown: string[] = [];
         win.addEventListener('error', (e) => thrown.push(String(e.message)));
         win.addEventListener('unhandledrejection', (e) => thrown.push(String((e as PromiseRejectionEvent).reason)));
@@ -114,18 +121,27 @@ test('every category keeps its live values across a renamed, added or removed fi
           await pause(60);
           return text();
         };
-        const fields = (tpl.fields as Field[]).map((f, i) => ({ f, i })).filter(({ f }) => types.DATA_FTYPES.includes(f.ftype as never));
+        const fields = tpl.fields.map((f, i) => ({ f, i })).filter(({ f }) => types.DATA_FTYPES.includes(f.ftype));
         const base: Record<string, string> = {};
         for (const { f, i } of fields) {
           const s = sentinel(f, i, 'A');
           if (s !== null) base[f.field] = s;
         }
-        const before = await send(base);
+        // Sent twice, as on air (a Take, then Updates that resend the cue's whole value set), and
+        // read once a runtime has repainted what it computes: only a typed value that stays on
+        // screen is one this probe can follow. A debate board's clock fields read a sentinel that
+        // is not a time as a half-typed edit and repaint it on the resend; a real time stays.
+        await send(base);
+        await pause(500);
+        await send(base);
+        await pause(500);
+        const before = text();
         const junkBefore = junk(before);
-        const shows = (s: string, field: string) => {
-          const i = fields.findIndex(({ f }) => f.field === field);
-          return s.includes(`ZQA${i}X`);
+        const tagOf = (field: string, round: 'A' | 'B') => {
+          const i = fields.find(({ f }) => f.field === field)?.i ?? -1;
+          return `ZQ${round === 'A' ? i : i + ROUND_B}X`;
         };
+        const shows = (s: string, field: string) => s.includes(tagOf(field, 'A'));
         const textFields = Object.keys(base).filter((field) => shows(before, field));
         // A field only the published version has: the on-air body is sent it and must not mind.
         const added = await send({ ...base, f999: 'ZQNEWFIELDX' });
@@ -144,13 +160,12 @@ test('every category keeps its live values across a renamed, added or removed fi
           if (junk(after) > junkBefore) findings.push({ id, problem: `without ${removed} it printed undefined/NaN` });
           if (textFields.indexOf(removed) >= 0 && !shows(after, removed)) findings.push({ id, problem: `without ${removed} its on-air value was lost` });
           for (const field of Object.keys(partial)) {
-            const i = fields.findIndex(({ f }) => f.field === field);
-            if (textFields.indexOf(field) >= 0 && !after.includes(`ZQB${i}X`)) findings.push({ id, problem: `without ${removed}, ${field} stopped updating` });
+            if (textFields.indexOf(field) >= 0 && !after.includes(tagOf(field, 'B'))) findings.push({ id, problem: `without ${removed}, ${field} stopped updating` });
           }
         }
         for (const message of thrown) findings.push({ id, problem: `threw: ${message.slice(0, 120)}` });
         checked += 1;
-      }
+      }));
       // Answer from a later task: the frames' timers are still running (e2e/async-whose-last-act-starts-work).
       await pause(0);
       return { findings, checked };

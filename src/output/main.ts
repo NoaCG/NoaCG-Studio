@@ -57,7 +57,7 @@ import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
 import { pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
-import { createOutputStage, heldLine } from './stage';
+import { FRAME_LOAD_MS, createOutputStage, heldLine } from './stage';
 import { createSwapper } from './swap';
 import { createSoundBudget } from '../assets/soundBudget';
 import { publishedSoundLoader } from '../backend/productionAudio';
@@ -70,6 +70,10 @@ const outputSlug = params.get('production');
 const debug = params.get('debug') === '1';
 /** What the operator calls this output on READY (`&name=CasparCG 1-20`), else its engine. */
 const outputName = outputNameParam(window.location.search);
+
+/** The module scripts this page was served with, read before anything else runs: another set at
+ *  its own URL is another build of the renderer (./prepare.ts reloads onto it when air is clear). */
+const SERVED_SCRIPTS = Array.from(document.querySelectorAll('script[type="module"][src]')).map((el) => el.getAttribute('src') ?? '');
 
 const debugEl = debug ? document.createElement('pre') : null;
 const debugState: Record<string, string> = {};
@@ -245,7 +249,8 @@ async function boot(): Promise<void> {
   const readiness = () => outputReadiness({ graphics: stage.graphics, checks, held: stage.held, version: heldVersion, catchingUp, chg });
   // `presence` is joined below; nothing here runs before it exists.
   const readyChanged = () => {
-    dbg('ready', outputStateWords(readiness()));
+    // Worded only where it is shown: a playout box's main thread is the one that must not miss frames.
+    if (debugEl) dbg('ready', outputStateWords(readiness()));
     presence.touch();
   };
   stage.onSound(graphic => {
@@ -256,11 +261,16 @@ async function boot(): Promise<void> {
   });
   /** Graphics whose document has loaded (or been released on a fallback face). */
   const released = new Set<string>();
+  /** Per graphic, how many times a new body has taken over (./swap.ts): a check of the frame it
+   *  replaced that answers afterwards is about a frame that is gone. */
+  const bodies = new Map<string, number>();
   stage.onLoaded((graphic) => {
     released.add(graphic);
+    const body = bodies.get(graphic) ?? 0;
     void recovered.then(async () => {
       const data = touched.has(graphic) ? null : (firstCue.get(graphic) ?? null);
       const answer = await stage.warm(graphic, data);
+      if ((bodies.get(graphic) ?? 0) !== body) return;
       checks.set(graphic, {
         done: true,
         error: stage.errors.get(graphic) ?? answer?.scriptError ?? (answer?.error === answer?.sounds?.error ? null : answer?.error) ?? null,
@@ -278,7 +288,7 @@ async function boot(): Promise<void> {
    *  replaces that. §5.2 measured 1.4 to 3 s from open to ready. Only a document that has not
    *  loaded: one that has is waiting for the recovery or its warm answer, which has its own limit
    *  (stage.ts WARM_ANSWER_MS). */
-  const NEVER_LOADED_MS = 20_000;
+  const NEVER_LOADED_MS = FRAME_LOAD_MS;
   const giveUpOnLoad = (graphics: readonly string[]) =>
     setTimeout(() => {
       let changed = false;
@@ -355,8 +365,9 @@ async function boot(): Promise<void> {
     ready: readiness,
     // The same door the production page's request comes through, for specs.
     prepare: (prep: { id: string; n: number; h: string }) => preparer.request(prep),
-    // …and the one a command comes through on the fast road, for offline specs with no topic.
-    command: (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined),
+    // …and, in a development build only, the one a command comes through on the fast road, for
+    // offline specs with no topic. A playout box's console must not write state the log never saw.
+    command: import.meta.env.DEV ? (graphic: string, msg: ControlEventRow['msg']) => applyCommand(graphic, msg, undefined) : undefined,
     ack: () => ack,
   };
   // ── PREPARE A NEWER VERSION (./prepare.ts; R3): the changes are built beside the running
@@ -373,40 +384,37 @@ async function boot(): Promise<void> {
     headHeard = true;
     for (const graphic of Object.keys(graphics)) headOn.set(graphic, graphics[graphic].on === true);
   };
-  /** Per graphic, on air or not as the last play, snap or stop THIS renderer applied says: the
-   *  renderer's own truth about what it shows, once a command has reached the graphic. */
-  const airByCommand = new Map<string, boolean>();
+  /** Graphics a play, snap or stop has reached since boot: for them `liveGraphics` is this
+   *  renderer's own truth about what it shows. */
+  const commanded = new Set<string>();
   /** Is `graphic` on air here? What this renderer last applied to it; for a graphic no command has
    *  reached since boot, the log's head (protocol 2, once heard), else whether the boot put it up,
    *  which leans towards "on air" (a report's machine state counts), and so towards waiting. */
-  const onAirHere = (graphic: string): boolean => {
-    const applied = airByCommand.get(graphic);
-    if (applied !== undefined) return applied;
-    return seqMode && headHeard ? headOn.get(graphic) === true : liveGraphics.has(graphic);
+  const onAirHere = (graphic: string): boolean =>
+    !commanded.has(graphic) && seqMode && headHeard ? headOn.get(graphic) === true : liveGraphics.has(graphic);
+  const airCount = () => {
+    let n = 0;
+    for (const graphic of stage.graphics) if (onAirHere(graphic)) n += 1;
+    return n;
   };
-  const airCount = () => stage.graphics.filter(onAirHere).length;
-  /** The scripts this page was served with: another set at its own URL is another build. */
-  const scriptsOf = (srcs: string[]) => srcs.sort().join(' ');
-  const servedScripts = scriptsOf(Array.from(document.querySelectorAll('script[src]')).map((el) => el.getAttribute('src') ?? ''));
+  /** Each graphic's first cue values in `cues`, or null. */
+  const firstCueOf = (cues: typeof payload.cues, graphic: string) => cues.find((c) => c.graphic === graphic)?.values ?? null;
+  // Copied out of the boot payload, so no closure that lives as long as this page keeps the payload
+  // itself: after its graphics take newer bodies, its bodies and assets are dead weight.
+  const bootDigests: Record<string, string> = {};
+  for (const key of stage.graphics) bootDigests[key] = payload.ver?.g[key] ?? '';
   // ── PER-GRAPHIC REPLACEMENT (./swap.ts; docs/work-specs/per-graphic-replacement/spec.md): a
   // publish's changes are built beside the running graphics and each takes over its graphic as
   // soon as that graphic is off air here, without a reload and without touching any other. ──
   const swapper = createSwapper({
     stage,
-    held: (() => {
-      const g: Record<string, string> = {};
-      for (const key of stage.graphics) g[key] = payload.ver?.g[key] ?? '';
-      return g;
-    })(),
+    held: bootDigests,
     onAir: onAirHere,
     data: (graphic) => mergedData.get(graphic) ?? null,
-    warmData: (graphic, next) => {
-      if (touched.has(graphic)) return mergedData.get(graphic) ?? null;
-      const cue = next.cues.filter((c) => c.graphic === graphic)[0];
-      return cue ? cue.values : null;
-    },
+    warmData: (graphic, next) => (touched.has(graphic) ? (mergedData.get(graphic) ?? null) : firstCueOf(next.cues, graphic)),
     loadSound: (next) => audio(next).loadSound,
     onSwapped: (graphic, spec, check) => {
+      bodies.set(graphic, (bodies.get(graphic) ?? 0) + 1);
       checks.set(graphic, check);
       released.add(graphic);
       learnClocks(spec);
@@ -414,15 +422,15 @@ async function boot(): Promise<void> {
     },
     onAdded: (spec, next) => {
       // Warmed, once its document loads, with its own first cue (the onLoaded pass above).
-      const cue = next.cues.filter((c) => c.graphic === spec.key)[0];
-      if (cue) firstCue.set(spec.key, cue.values);
+      const cue = firstCueOf(next.cues, spec.key);
+      if (cue) firstCue.set(spec.key, cue);
       learnClocks(spec);
       giveUpOnLoad([spec.key]);
       readyChanged();
     },
     onRemoved: (graphic) => {
-      for (const map of [checks, mergedData, clockSpecs, speakingClocks, airByCommand, lastReported] as Map<string, unknown>[]) map.delete(graphic);
-      for (const set of [released, touched, liveGraphics, forcedReports, changedReports]) set.delete(graphic);
+      for (const map of [checks, mergedData, clockSpecs, speakingClocks, lastReported, bankedAt, sinceBank, firstCue, bodies] as Map<string, unknown>[]) map.delete(graphic);
+      for (const set of [released, touched, liveGraphics, commanded, forcedReports, changedReports]) set.delete(graphic);
       clearTimeout(reportTimers.get(graphic));
       reportTimers.delete(graphic);
       readyChanged();
@@ -434,8 +442,9 @@ async function boot(): Promise<void> {
     held: payload.ver ?? null,
     resolution: payload.resolution,
     swapper,
+    // Only ever handed a payload of this page's own resolution (./prepare.ts reloads for another).
     adopt: next => {
-      if (!next.ver || JSON.stringify(next.resolution) !== JSON.stringify(payload.resolution)) return false;
+      if (!next.ver) return false;
       programAudioVersion = next.ver.h;
       heldVersion = { n: next.ver.n, h: next.ver.h };
       learnCues(next.cues);
@@ -449,13 +458,11 @@ async function boot(): Promise<void> {
     },
     onAir: airCount,
     newBuild: async () => {
+      if (SERVED_SCRIPTS.length === 0) return false;
       const page = await fetch(window.location.href, { cache: 'no-store' });
       if (!page.ok) return false;
       const html = await page.text();
-      const srcs: string[] = [];
-      const tag = /<script\b[^>]*\bsrc="([^"]+)"/g;
-      for (let m = tag.exec(html); m; m = tag.exec(html)) srcs.push(m[1]);
-      return srcs.length > 0 && scriptsOf(srcs) !== servedScripts;
+      return SERVED_SCRIPTS.some((src) => html.indexOf(`src="${src}"`) < 0);
     },
     recheck: async () => {
       for (const graphic of stage.graphics) {
@@ -716,10 +723,10 @@ async function boot(): Promise<void> {
       mergedData.set(row.graphic, { ...mergedData.get(row.graphic), ...msg.payload });
     } else if (msg.t === 'play' || msg.t === 'snap') {
       liveGraphics.add(row.graphic);
-      airByCommand.set(row.graphic, true);
+      commanded.add(row.graphic);
     } else if (msg.t === 'stop') {
       liveGraphics.delete(row.graphic);
-      airByCommand.set(row.graphic, false);
+      commanded.add(row.graphic);
     }
     const clock = clockSpecs.get(row.graphic);
     const speaking = speakingClocks.get(row.graphic);
@@ -864,10 +871,12 @@ async function boot(): Promise<void> {
   // while a picture was on air came back without it (CasparCG 2.3, 2026-10-01). The log's own head
   // says what is on air (protocol 2); such a graphic is played again inside the hidden catch-up
   // below, unless a play of it is among the rows replayed anyway.
+  // The reports alone, not `resolved`: a closure over `resolved` would keep the boot payload alive.
+  const reports = resolved.live;
   const onWithoutPose = stage.graphics.filter(
     (key) =>
       headOn.get(key) === true &&
-      !resolved.live[key]?.state?.groups &&
+      !reports[key]?.state?.groups &&
       !replayed.some((row) => row.graphic === key && (row.msg.t === 'play' || row.msg.t === 'snap')),
   );
   const animates =
@@ -901,7 +910,7 @@ async function boot(): Promise<void> {
   for (const key of onWithoutPose) {
     stage.apply(key, { t: 'play' });
     liveGraphics.add(key);
-    airByCommand.set(key, true);
+    commanded.add(key);
     touched.add(key);
   }
   if (onWithoutPose.length > 0) dbg('catch-up', `on air with no pose, played again: ${onWithoutPose.join(', ')}`);

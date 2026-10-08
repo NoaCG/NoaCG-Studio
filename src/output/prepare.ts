@@ -3,14 +3,14 @@
 // with until a publish or Prepare for Live asks (the request rides the production page's Presence
 // entry); then it loads the published payload and takes it one graphic at a time (./swap.ts):
 //
-//   A graphic changed, off air here       its new frame is built hidden beside it, checked, and
-//                                         takes over: no reload, nothing else touched.
-//   A graphic changed, on air here        it keeps its frame until it is cleared or replaced (G1),
-//                                         and says so: "Waiting for clear: Scorebug".
-//   A change failed                       the graphic keeps the frame it has, and says which.
-//   New and removed graphics              join at once; leave once off air.
-//   The published version is the one it holds   it runs its checks again: pressing again re-runs
-//                                         everything.
+//   A graphic changed, off air here     its new frame is built hidden beside it, checked, and
+//                                       takes over: no reload, nothing else touched.
+//   A graphic changed, on air here      it keeps its frame until it is cleared or replaced (G1),
+//                                       and says so: "Waiting for clear: Scorebug".
+//   A change failed                     the graphic keeps the frame it has, and says which.
+//   New and removed graphics            join at once; leave once off air.
+//   The version it already holds        it runs its checks again: pressing again re-runs
+//                                       everything.
 //
 // THE WHOLE PAGE RELOADS only for what a frame cannot take (D2): another stage resolution, or a new
 // build of this renderer deployed since it loaded, and only when nothing is on air here, through the
@@ -24,17 +24,15 @@
 import type { OutputPayload } from '../control/hostedControl';
 import { changedGraphics, type PayloadVersion } from '../control/payloadVersion';
 import type { PrepRequest } from '../control/prepareLive';
-import type { ChangePrep, ReadyIssue } from '../control/readiness';
+import { MAX_ISSUES, warmVerdict, type ChangePrep, type ReadyIssue } from '../control/readiness';
 import type { Resolution } from '../model/types';
-import { createOutputStage } from './stage';
-import type { OutputStageOptions } from './stage';
+import { wait } from './catchUp';
+import { FRAME_LOAD_MS, createOutputStage, type OutputStageOptions } from './stage';
 import type { Swapper } from './swap';
 import { swapStatus } from './swapPlan';
 
 /** A preparation starts at most this often; a request in between waits for its turn. */
 export const PREPARE_EVERY_MS = 15_000;
-/** A hidden frame that has not loaded after this long is a change that did not prepare. */
-const TEST_LOAD_MS = 20_000;
 /** Prepare requests this page has acted on, kept across its own reload so it never acts twice. */
 const HANDLED_KEY = 'noacg-ready-prep';
 
@@ -67,7 +65,7 @@ export interface Preparer {
 
 /** What one hidden frame found, in a stage of its own (the whole-reload path only). */
 async function testGraphic(payload: OutputPayload, key: string, values: Record<string, string> | null, options: OutputStageOptions): Promise<ReadyIssue | null> {
-  const spec = payload.graphics.filter((g) => g.key === key)[0];
+  const spec = payload.graphics.find((g) => g.key === key);
   if (!spec) return null;
   const box = document.createElement('div');
   // Out of sight and out of the way: nothing here may reach air or take a click.
@@ -75,19 +73,12 @@ async function testGraphic(payload: OutputPayload, key: string, values: Record<s
   document.body.appendChild(box);
   const stage = createOutputStage(box, { ...payload, graphics: [spec] }, { ...options, sound: 'program', soundQuiet: true, fit: () => ({ width: 2, height: 2 }) });
   try {
-    const loaded = await new Promise<boolean>((resolve) => {
-      const timer = setTimeout(() => resolve(false), TEST_LOAD_MS);
-      stage.onLoaded(() => {
-        clearTimeout(timer);
-        resolve(true);
-      });
-    });
+    const loaded = await Promise.race([stage.whenLoaded().then(() => true), wait(FRAME_LOAD_MS).then(() => false)]);
     if (!loaded) return { k: 'silent', g: key };
+    // Its own error is read after its answer: the report of a throw while loading may land late.
     const answer = await stage.warm(key, values);
-    const error = stage.errors.get(key) ?? (answer ? answer.error : null);
-    if (answer?.sounds?.error && !answer.scriptError && error === answer.sounds.error) return { k: 'audio', g: key, d: error.slice(0,120) };
-    if (error !== null && error !== undefined) return { k: 'script', g: key, d: error.slice(0, 120) };
-    return answer ? null : { k: 'silent', g: key };
+    const verdict = warmVerdict(key, stage.errors.get(key), answer);
+    return 'done' in verdict ? null : verdict;
   } finally {
     stage.destroy();
     box.remove();
@@ -114,8 +105,9 @@ export function createPreparer(opts: {
   report: (chg: ChangePrep | undefined) => void;
   /** Reload onto the published version if this page's own URL answers; false when it did not. */
   reload: () => Promise<boolean>;
-  /** Take `payload` as the version this page holds: cue metadata, its label and sounds. */
-  adopt?: (payload: OutputPayload) => boolean;
+  /** Take `payload` as the version this page holds: cue metadata, its label and sounds. Its
+   *  graphics may be left out: what a frame needs, the swapper already has. */
+  adopt: (payload: OutputPayload) => boolean;
   now?: () => number;
 }): Preparer {
   const now = opts.now ?? (() => Date.now());
@@ -126,8 +118,10 @@ export function createPreparer(opts: {
   let timer: ReturnType<typeof setTimeout> | null = null;
   /** A whole-page preparation that waits for air to clear (another resolution). */
   let waiting: PrepRequest | null = null;
-  /** The publish the swapper is taking: what `refresh` reports against. */
-  let taking: { payload: OutputPayload; version: PayloadVersion; of: number; id: string } | null = null;
+  /** The publish the swapper is taking, what `refresh` reports against: its graphics by key, and
+   *  the payload without them (it may stay here for a whole show while a scorebug waits, and the
+   *  graphics' bodies and assets are megabytes the stage already holds). */
+  let taking: { keys: string[]; version: PayloadVersion; adoptable: OutputPayload; of: number; id: string } | null = null;
   /** A new renderer build is served: reload once nothing is on air, no more than every PREPARE_EVERY_MS. */
   let reloadForBuild = false;
   let lastBuildReload = -Infinity;
@@ -138,12 +132,12 @@ export function createPreparer(opts: {
   /** Say where the swapper has the version, and take it as held once every graphic holds it. */
   const refresh = () => {
     if (!taking || running) return;
-    const { payload, version, of, id } = taking;
-    const keys = payload.graphics.map((g) => g.key);
+    const { keys, version, adoptable, of, id } = taking;
     const holds = opts.swapper.holds(version.g, keys);
     const chg = swapStatus({ version: { n: version.n, h: version.h }, of, id, waiting: opts.swapper.waiting(), failed: opts.swapper.failed(), holds });
-    if (holds && opts.adopt?.(payload) !== false) {
-      held = version;
+    if (holds) {
+      // Already taken when the publish was the version held, with only cue metadata moved.
+      if (held === version || opts.adopt(adoptable)) held = version;
       taking = null;
     }
     opts.report(chg);
@@ -156,10 +150,7 @@ export function createPreparer(opts: {
     const changed = changedGraphics(held, next, payload.graphics.map((g) => g.key));
     const chg: ChangePrep = { s: 'preparing', v: version, of: changed.length, n: 0, id: prep.id };
     opts.report(chg);
-    const firstCue = (key: string) => {
-      const cue = payload.cues.filter((c) => c.graphic === key)[0];
-      return cue ? cue.values : null;
-    };
+    const firstCue = (key: string) => payload.cues.find((c) => c.graphic === key)?.values ?? null;
     const failed: ReadyIssue[] = [];
     // One at a time: a playout box's main thread is the one that must not miss frames.
     for (const key of changed) {
@@ -171,7 +162,7 @@ export function createPreparer(opts: {
       opts.report({ ...chg });
     }
     if (failed.length > 0) {
-      opts.report({ s: 'failed', v: version, of: changed.length, n: changed.length, is: failed.slice(0, 6), id: prep.id });
+      opts.report({ s: 'failed', v: version, of: changed.length, n: changed.length, is: failed.slice(0, MAX_ISSUES), id: prep.id });
       return;
     }
     const air = opts.onAir();
@@ -192,33 +183,27 @@ export function createPreparer(opts: {
     lastStart = now();
     markHandled(prep.id);
     try {
-      const payload = await opts.resolve();
+      // Asked beside the payload: a renderer deployed since this page loaded is taken by a reload,
+      // which boots onto the published version anyway, so with nothing on air it goes first.
+      const [payload, newBuild] = await Promise.all([opts.resolve(), reloadForBuild || opts.newBuild().catch(() => false)]);
+      if (newBuild) reloadForBuild = true;
       const next = payload ? payload.ver : undefined;
       if (!payload || !next) return;
+      if (reloadForBuild && opts.onAir() === 0 && (await opts.reload())) return;
       if (!sameResolution(payload)) {
         taking = null;
         await reloadOnto(payload, next, prep);
         return;
       }
-      if (held && held.h === next.h) {
-        if (held.n !== next.n && opts.adopt?.(payload)) held = next;
-        taking = null;
-        // A change an earlier publish left waiting or failed, which this one takes back.
-        if (!opts.swapper.holds(next.g, payload.graphics.map((g) => g.key))) await opts.swapper.apply(payload, () => {});
-        await opts.recheck();
-        opts.report(undefined);
-      } else {
-        const version = { n: next.n, h: next.h };
-        taking = { payload, version: next, of: 0, id: prep.id };
-        const at = taking;
-        await opts.swapper.apply(payload, (n, of) => {
-          at.of = of;
-          opts.report({ s: 'preparing', v: version, of, n, id: prep.id });
-        });
-      }
-      // A renderer deployed since this page loaded: the graphics are taken above either way, and
-      // the page itself follows once nothing is on air here.
-      if (await opts.newBuild().catch(() => false)) reloadForBuild = true;
+      // The version it holds: cue metadata may have moved, and a change an earlier publish left
+      // waiting or failed is taken back below. Its graphics are checked again either way.
+      const same = !!held && held.h === next.h;
+      if (same && held!.n !== next.n && opts.adopt(payload)) held = next;
+      const version = { n: next.n, h: next.h };
+      const record = { keys: payload.graphics.map((g) => g.key), version: same ? held! : next, adoptable: { ...payload, graphics: [] }, of: 0, id: prep.id };
+      taking = record;
+      record.of = await opts.swapper.apply(payload, (n, of) => opts.report({ s: 'preparing', v: version, of, n, id: prep.id }));
+      if (same) await opts.recheck();
     } catch {
       // The server did not answer as expected: this page keeps its version and says nothing new.
       if (!taking) opts.report(undefined);
@@ -252,7 +237,8 @@ export function createPreparer(opts: {
         waiting = null;
         pump();
       }
-      if (reloadForBuild && !running && !taking && opts.onAir() === 0 && now() - lastBuildReload >= PREPARE_EVERY_MS) {
+      // Whatever waits or failed: a reload boots onto the published version and checks it afresh.
+      if (reloadForBuild && !running && opts.onAir() === 0 && now() - lastBuildReload >= PREPARE_EVERY_MS) {
         lastBuildReload = now();
         void opts.reload();
       }

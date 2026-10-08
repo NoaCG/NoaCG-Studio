@@ -474,27 +474,36 @@ test('SVG import strips non-rendering editor payload while keeping artwork and i
   expect(result.notices.join(' ')).toContain('outside the canvas');
 });
 
-test('metadata preparation adopts while on air, and asset changes wait until air is clear', async ({ page }) => {
+test('metadata preparation adopts while on air, and a new stage resolution waits until air is clear', async ({ page }) => {
+  // Graphic changes are the swapper's (per-graphic replacement, e2e/output-prepare.spec.ts); what
+  // the preparer itself decides is metadata, and the whole-page reload a new resolution needs.
   await page.goto('/app#/home');
   const result = await page.evaluate(async () => {
     const { createPreparer } = await import('/src/output/prepare.ts');
-    let onAir = 1, now = 0, adopted = 0, rechecked = 0, reloaded = 0;
-    const held = { n: 1, h: 'old', g: {} };
-    const payload = { v: 2 as const, graphics: [], cues: [], resolution: { width: 1920, height: 1080, label: 'HD' }, ver: { n: 2, h: 'old', g: {} } };
-    const preparer = createPreparer({ held, resolve: async () => payload, onAir: () => onAir, recheck: async () => { rechecked++; }, report: () => {}, reload: async () => { reloaded++; return true; }, adopt: () => { adopted++; return true; }, now: () => now });
-    preparer.request({ id: 'metadata-only', n: 2, h: 'old' });
+    let onAir = 1, now = 0, adopted = 0, rechecked = 0, reloaded = 0, applied = 0;
+    const swapper = { apply: async () => { applied++; return 0; }, beforePlay() {}, afterStop() {}, tick() {}, waiting: () => [], failed: () => [], holds: () => true };
+    const HD = { width: 1920, height: 1080, label: 'HD' };
+    const held = { n: 1, at: '', h: 'old', g: {} };
+    const payload = { v: 2 as const, graphics: [], cues: [], resolution: HD, ver: { n: 2, at: '', h: 'old', g: {} } };
+    const base = {
+      swapper, resolution: HD, newBuild: async () => false, resolve: async () => payload, onAir: () => onAir,
+      recheck: async () => { rechecked++; }, report: () => {}, reload: async () => { reloaded++; return true; },
+      adopt: () => { adopted++; return true; }, now: () => now,
+    };
+    createPreparer({ ...base, held }).request({ id: 'metadata-only', n: 2, h: 'old' });
     await new Promise(resolve => setTimeout(resolve, 0));
-    const metadata = { adopted, rechecked, reloaded };
-    payload.ver = { n: 3, h: 'new', g: {} };
-    const removed = createPreparer({ held: { ...held, g: { removed: 'asset' } }, resolve: async () => payload, onAir: () => onAir, recheck: async () => {}, report: () => {}, reload: async () => { reloaded++; return true; }, now: () => now });
-    removed.request({ id: 'asset-removal', n: 2, h: 'new' });
+    const metadata = { adopted, rechecked, reloaded, applied };
+    payload.ver = { n: 3, at: '', h: 'new', g: {} };
+    payload.resolution = { width: 1280, height: 720, label: '720p' };
+    const resized = createPreparer({ ...base, held });
+    resized.request({ id: 'new-resolution', n: 3, h: 'new' });
     await new Promise(resolve => setTimeout(resolve, 0));
     const beforeClear = reloaded;
-    onAir = 0; now = 16000; removed.tick();
+    onAir = 0; now = 16000; resized.tick();
     await new Promise(resolve => setTimeout(resolve, 0));
     return { metadata, beforeClear, afterClear: reloaded };
   });
-  expect(result).toEqual({ metadata: { adopted: 1, rechecked: 1, reloaded: 0 }, beforeClear: 0, afterClear: 1 });
+  expect(result).toEqual({ metadata: { adopted: 1, rechecked: 1, reloaded: 0, applied: 1 }, beforeClear: 0, afterClear: 1 });
 });
 
 test('cloud acknowledgement covers the current working revision; failed writes stay visibly pending and session loss pauses authoring', async ({ page }) => {

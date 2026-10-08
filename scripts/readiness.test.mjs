@@ -193,10 +193,11 @@ test('a newer version being prepared reads as the plan words it', () => {
   assert.equal(failed.summary.lead, 'Change failed: Frost Quiz (script error)');
   // …and the status reads it red, as a graphic that cannot play (playout-workflow-simplification D5).
   assert.deepEqual(failed.summary.broken, { line: 'Change failed: Frost Quiz (script error)', short: 'Change failed: Frost Quiz' });
-  assert.match(failed.outputs[0].detail.join(' '), /keeps the version on air before v13/);
+  assert.match(failed.outputs[0].detail.join(' '), /Frost Quiz: v13 script error. It keeps playing its previous version here/);
   // An output that reloads whole (built before per-graphic replacement) waits for everything.
   const waiting = read({ published: V13, peers: chg({ s: 'waiting', n: 1, air: 2 }) });
   assert.equal(waiting.summary.label, '▲ Behind: showing v12');
+  assert.equal(waiting.summary.leadShort, 'Waiting for clear');
   assert.match(waiting.outputs[0].detail[0], /2 graphics are on air here/);
 });
 
@@ -204,6 +205,7 @@ test('per-graphic replacement: a change waiting for clear names its graphic, and
   const chg = (c) => [output({ ready: { n: 4, of: 4, v: V12, is: [], chg: { v: V13, of: 2, n: 2, ...c } } })];
   const one = read({ published: V13, peers: chg({ s: 'waiting', air: 1, w: ['Scorebug'] }) });
   assert.equal(one.summary.label, '▲ Waiting for clear: Scorebug');
+  assert.equal(one.summary.leadShort, 'Waiting for clear: Scorebug');
   assert.equal(one.summary.tone, 'warn');
   assert.equal(one.outputs[0].state, 'Waiting for clear: Scorebug');
   assert.match(one.outputs[0].detail[0], /Scorebug takes v13 after its Out or next Take/);

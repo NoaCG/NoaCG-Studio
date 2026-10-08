@@ -13,7 +13,7 @@
 // A graphic that is gone leaves by the same rule. Pure and DOM-free: scripts/swap-plan.test.mjs
 // runs it in Node, and the output renderer loads it in CasparCG 2.3's Chromium 71.
 
-import type { ChangePrep, HeldVersion, ReadyIssue } from '../control/readiness';
+import { MAX_ISSUES, type ChangePrep, type HeldVersion, type ReadyIssue } from '../control/readiness.ts';
 
 /** One output's graphics by version: per graphic, the digest of the frame airing now (`held`) and
  *  of a frame prepared beside it, waiting to take over (`ready`). An empty digest is one nobody
@@ -39,13 +39,15 @@ export interface PublishPlan {
 export function planPublish(holding: Holding, next: Readonly<Record<string, string>>, keys: readonly string[]): PublishPlan {
   const plan: PublishPlan = { build: [], add: [], remove: [], drop: [] };
   for (const key of keys) {
-    const want = next[key] ?? '';
+    const want = next[key];
     const held = holding.held[key];
     const ready = holding.ready[key];
     if (held === undefined) {
       plan.add.push(key);
       continue;
     }
+    // A graphic the stamp names no digest for says nothing about a change (as `rendersDiffer`).
+    if (want === undefined) continue;
     if (held !== '' && held === want) {
       if (ready !== undefined) plan.drop.push(key);
       continue;
@@ -62,31 +64,15 @@ export function planPublish(holding: Holding, next: Readonly<Record<string, stri
   return plan;
 }
 
-/** What one graphic with a change waiting does now. */
-export type SwapMoment =
-  /** Take over now. */
-  | 'swap'
-  /** Off air, but its frame may still be running its exit: take over once it stands still. */
-  | 'settle'
-  /** On air: keep the frame airing until it is cleared or replaced. */
-  | 'wait';
-
-export function swapMoment(graphic: { onAir: boolean; still: boolean }): SwapMoment {
-  if (graphic.onAir) return 'wait';
-  return graphic.still ? 'swap' : 'settle';
-}
-
 /**
- * Which waiting changes take over now and which wait, given what is on air: every prepared frame
- * and every graphic that is gone, each by `swapMoment`. Graphics still settling are in neither
- * list: they take over in a moment, and saying "waiting" for that moment would only flicker.
+ * Which pending changes (prepared frames, and graphics that are gone) take over now and which wait,
+ * given what is on air here. One off air goes to `settle`: its frame may still be running its exit,
+ * so it takes over once that frame stands still, which only watching it can tell. One on air waits
+ * until it is cleared or replaced, and only those are "waiting for clear".
  */
-export function swapsNow(
-  pending: readonly string[],
-  air: (graphic: string) => { onAir: boolean; still: boolean },
-): { swap: string[]; settle: string[]; wait: string[] } {
-  const out = { swap: [] as string[], settle: [] as string[], wait: [] as string[] };
-  for (const graphic of pending) out[swapMoment(air(graphic))].push(graphic);
+export function swapsNow(pending: readonly string[], onAir: (graphic: string) => boolean): { settle: string[]; wait: string[] } {
+  const out = { settle: [] as string[], wait: [] as string[] };
+  for (const graphic of pending) (onAir(graphic) ? out.wait : out.settle).push(graphic);
   return out;
 }
 
@@ -95,8 +81,8 @@ export function swapsNow(
  *  built before it reads `waiting` as "Behind", as it read a whole reload waiting. */
 export function swapStatus(input: { version: HeldVersion; of: number; id?: string; waiting: string[]; failed: ReadyIssue[]; holds: boolean }): ChangePrep | undefined {
   const base = { v: input.version, of: input.of, n: input.of, ...(input.id ? { id: input.id } : {}) };
-  const w = { w: input.waiting.slice(0, 6) };
-  if (input.failed.length > 0) return { s: 'failed', ...base, is: input.failed.slice(0, 6), ...w };
+  const w = { w: input.waiting.slice(0, MAX_ISSUES) };
+  if (input.failed.length > 0) return { s: 'failed', ...base, is: input.failed.slice(0, MAX_ISSUES), ...w };
   if (input.waiting.length > 0) return { s: 'waiting', ...base, air: input.waiting.length, ...w };
   if (input.holds) return undefined;
   // Built, and taking over in a moment (a frame that just went off air finishing its exit).

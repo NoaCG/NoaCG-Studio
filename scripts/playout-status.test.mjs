@@ -82,15 +82,19 @@ test('CasparCG: on its slot and reporting is Connected; the Bridge alone never i
 });
 
 test('amber is attention: waiting for clear, slow commands, an old Bridge', () => {
-  const behind = status({ ready: { tone: 'warn', label: '▲ Behind: showing v2', lead: 'Behind: showing v2', outputs: 1, ready: 0 } });
+  // The header shows READY's own short form of the line (readiness.ts `leadShort`); the panel the line.
+  const behind = status({ ready: { tone: 'warn', label: '▲ Behind: showing v2', lead: 'Behind: showing v2', leadShort: 'Waiting for clear', outputs: 1, ready: 0 } });
   assert.deepEqual(pair(behind), ['warn', 'Waiting for clear']);
   assert.equal(behind.checks[0].label, 'Behind: showing v2', 'the panel keeps READY\'s own line');
   // Per-graphic replacement names what waits, also when the line leads with its output's name.
-  const named = status({ ready: { tone: 'warn', label: '▲ Waiting for clear: Scorebug', lead: 'Waiting for clear: Scorebug', outputs: 1, ready: 0 } });
-  assert.deepEqual(pair(named), ['warn', 'Waiting for clear: Scorebug']);
-  const two = status({ ready: { tone: 'warn', label: '▲ CasparCG 1-20: Waiting for clear: Scorebug +1', lead: 'CasparCG 1-20: Waiting for clear: Scorebug +1', outputs: 2, ready: 1 } });
+  const two = status({ ready: { tone: 'warn', label: '▲ CasparCG 1-20: Waiting for clear: Scorebug +1', lead: 'CasparCG 1-20: Waiting for clear: Scorebug +1', leadShort: 'Waiting for clear: Scorebug +1', outputs: 2, ready: 1 } });
   assert.deepEqual(pair(two), ['warn', 'Waiting for clear: Scorebug +1']);
-  const slow = status({ ready: { tone: 'warn', label: '▲ Commands may arrive up to 30 s late', lead: 'Commands may arrive up to 30 s late', outputs: 1, ready: 0 } });
+  assert.equal(two.checks[0].label, 'CasparCG 1-20: Waiting for clear: Scorebug +1');
+  // A line without a short form is its own short form: never parsed for words an output's or a
+  // graphic's name could also contain ("An image did not load in Behind the Scenes").
+  const image = status({ ready: { tone: 'warn', label: '▲ An image did not load in Behind the Scenes', lead: 'An image did not load in Behind the Scenes', outputs: 1, ready: 0 } });
+  assert.deepEqual(pair(image), ['warn', 'An image did not load in Behind the Scenes']);
+  const slow = status({ ready: { tone: 'warn', label: '▲ Commands may arrive up to 30 s late', lead: 'Commands may arrive up to 30 s late', leadShort: 'Commands slow', outputs: 1, ready: 0 } });
   assert.deepEqual(pair(slow), ['warn', 'Commands slow']);
   assert.deepEqual(pair(caspar({ bridge: { state: 'outdated', detail: '' } })), ['warn', 'Update NoaCG Bridge']);
 });

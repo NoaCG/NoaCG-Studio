@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { planPublish, swapMoment, swapsNow, swapStatus } = await import('../src/output/swapPlan.ts');
+const { planPublish, swapsNow, swapStatus } = await import('../src/output/swapPlan.ts');
 
 const keys = (o) => Object.keys(o);
 
@@ -57,17 +57,18 @@ test('a digest nobody knows (a boot payload without a stamp) is always built aga
 });
 
 test('an off-air change takes over once its frame stands still; an on-air one waits', () => {
-  assert.equal(swapMoment({ onAir: false, still: true }), 'swap');
-  assert.equal(swapMoment({ onAir: false, still: false }), 'settle');
-  assert.equal(swapMoment({ onAir: true, still: true }), 'wait');
-  assert.equal(swapMoment({ onAir: true, still: false }), 'wait');
-  // A scorebug on air and a lower third off air, both changed: the lower third goes, the scorebug waits.
+  // A scorebug on air and a lower third off air, both changed: the lower third is watched until
+  // its frame stands still and then swaps, the scorebug waits for clear.
   const air = { Scorebug: true, Strap: false, Bug: false };
-  const still = { Strap: true, Bug: false };
-  assert.deepEqual(
-    swapsNow(['Scorebug', 'Strap', 'Bug'], (g) => ({ onAir: air[g], still: still[g] ?? false })),
-    { swap: ['Strap'], settle: ['Bug'], wait: ['Scorebug'] },
-  );
+  assert.deepEqual(swapsNow(['Scorebug', 'Strap', 'Bug'], (g) => air[g]), { settle: ['Strap', 'Bug'], wait: ['Scorebug'] });
+  assert.deepEqual(swapsNow([], () => true), { settle: [], wait: [] });
+});
+
+test('a graphic the stamp names no digest for is never counted as changed', () => {
+  // As rendersDiffer reads a stamp: silence about a graphic is not a change of it.
+  assert.deepEqual(planPublish({ held: { Scorebug: 'a1', Strap: 'b1' }, ready: {} }, { Strap: 'b2' }, ['Scorebug', 'Strap']).build, ['Strap']);
+  // …but a graphic this output does not host is still added.
+  assert.deepEqual(planPublish({ held: {}, ready: {} }, {}, ['Ticker']).add, ['Ticker']);
 });
 
 test('the status names what waits and what failed, and says nothing once every graphic holds the version', () => {
