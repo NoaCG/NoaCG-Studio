@@ -107,9 +107,8 @@ saw. `scripts/check-owner-queue.mjs` states the same rule for its own directory,
 reason both gates only ever widen.
 
 **The five optional fields feed the refill loop.** `serves`, `size`, `touches`, `covered-by` and
-`needs-owner` are what a night-wave planner copies into the `## Candidates` table
-(`orchestrator/night.md`), so `candidates.mjs` can decide the next launch mechanically - collision
-against the running rows, fit against the window - rather than the planner re-deriving it in prose.
+`needs-owner` let a wave's coordinator pick the next row without re-deriving them: what it serves,
+how big it is, which files it touches, and whether it waits on the owner.
 They are OPTIONAL and absent from most items; a `needs-owner` other than `none` keeps an item off
 the unattended frontier entirely. Fill them on an item a night wave might refill from.
 

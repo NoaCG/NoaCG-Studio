@@ -1,11 +1,10 @@
 ---
-description: Orchestrate the day's work - turn finished sessions' handoffs and build feedback into ordered, pasteable prompts
-argument-hint: [paste handoff blocks from finished sessions, plus any feedback from testing the newest build]
+description: Run a wave of autonomous work through a time window - the prompt's work, then the backlog in GOALS rank, each row landed through the merge queue, with a short report
+argument-hint: [what to work on, and until when - e.g. "the wizard copy, then the backlog, until 06:00"]
 ---
 
 Argument: $ARGUMENTS
 
 Read `.agent-workflows/orchestrator.md` now and follow it in full - that file is the canonical
 procedure, shared with the Codex skill of the same name. Nothing here overrides it. The argument
-above (if any) is the pasted input the workflow refers to: handoff blocks, owner feedback from
-testing the build, or both.
+above is the owner's prompt and time window.

@@ -86,7 +86,7 @@ decision only he can make. Say which, in the prompt, on a line of its own:
 
   OWNER-DECISION: <why this start is his call and not yours>
 
-and this call goes through. Contract: .agent-workflows/orchestrator/launch.md.
+and this call goes through. Contract: .agent-workflows/orchestrator.md.
 Guard: scripts/hooks/spawn-task-guard.mjs - its header says how to turn it off.`;
 
 const EMPTY_REASON = `OWNER-DECISION: needs a reason you wrote, on the same line - not an empty marker, and not the

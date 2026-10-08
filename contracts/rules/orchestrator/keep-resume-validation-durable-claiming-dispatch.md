@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: .agent-workflows/orchestrator/**, scripts/resume-dispatch*
+scope: scripts/resume-dispatch*
 kind: trap
 fires: contract
 status: active

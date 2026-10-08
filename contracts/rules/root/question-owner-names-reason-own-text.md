@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: scripts/hooks/guard-question.mjs, .agent-workflows/orchestrator.md, .agent-workflows/orchestrator/**, .claude/agents/**
+scope: scripts/hooks/guard-question.mjs, .agent-workflows/orchestrator.md, .claude/agents/**
 kind: invariant
 fires: hook:guard-question
 status: active

@@ -15,10 +15,8 @@ file.
   automate."* No technical or design question ever reaches him. **Alignment is the only gate that
   does, and it is weekly.**
 
-So this session has two halves and they are not equal. **Part A is his five minutes** - the plan
-for the week and the places where the plan and his vision could genuinely differ. Parts B to D are
-the machine reviewing itself, which he never has to read. Part A goes in chat; everything goes in
-the file.
+So this session is **his five minutes**: the plan for the week and the places where the plan and
+his vision could genuinely differ. The machine reviews itself in each wave's retro, not here.
 
 Tuesday, not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday.
 
@@ -42,7 +40,7 @@ script's header; do not restate a number the page does not carry.
 
 **If the waves section says NO WAVE PLAN FOUND, that is not a quiet week.** It names every
 directory it searched and what each held; a page in that state has lost the week's routing and its
-`DECIDED:` record, so section 6 says the evidence is gone rather than reporting zeroes. Say which
+`DECIDED:` record, so the recap says the evidence is gone rather than reporting zeroes. Say which
 directory was empty and whether the store itself is missing - the plans went missing exactly this
 way in the 2026-09-01 window, before the store existed.
 
@@ -56,7 +54,7 @@ checkout's `.env` lost the pair. Never substitute a zero for an error.
 check. It exits non-zero when something has aged; **that is a report, not a failure**. It rides here
 because `docs/STACK_FRESHNESS.md` is time-driven and nothing in CI ever notices that a week passed.
 
-## 2. Part A - the alignment read
+## 2. The alignment read
 
 This is the half the owner attends, so it is written for him and it is short. Read four things:
 
@@ -75,7 +73,7 @@ board with reasons attached. So the shape is fixed rather than described. **One 
 direction, four or five of them, no bold lead-ins, no sub-bullets**, and the last one says what is
 NOT being started this week - that line is the most useful thing on the page, because it is the only
 one that tells him what he is giving up. A direction needing a second sentence to justify itself is a
-task; the justification belongs in section 7, and its absence here is what keeps the page short.
+task, and leaving the justification out is what keeps the page short.
 
 Then read it back cold before printing, against one question: **would this still make sense to
 someone who does not know what the queue is?** Bold headers and a reason under each are the tell -
@@ -83,7 +81,7 @@ that is a board, and a board is what the 2026-09-05 ruling deleted.
 
 ### The two or three questions, and nothing else
 
-End Part A with **at most three questions**, under the ask-test the repo already has
+End the read with **at most three questions**, under the ask-test the repo already has
 (`root/question-owner-names-reason-own-text`): a question is his only when it changes the outcome
 (intent, direction, UX or taste, scope, money), and it carries `needs: decision` on the HEADING
 line of its block, `### ALIGN-<date>-<n> - needs: decision`, which the parser reads and he never
@@ -120,7 +118,7 @@ in NoaCG ever waits on this page.
 ### Write every question down in the shape the machine reads
 
 **A question said only in chat is gone when the session closes**, and so is his answer. So each
-question is written into this session's own file (step 5) under a stable id, and when he answers -
+question is written into this session's own file (step 3) under a stable id, and when he answers -
 in this session, or in a later one that opens the same file - the answer is filled in beside it.
 From that moment the answer is on disk and nobody's memory is load-bearing.
 
@@ -141,45 +139,15 @@ the section's own prose below it rather than quietly adopting that prose as his 
 **His answers are then recorded by a session, not by this routine**, where they belong: direction
 in `docs/GOALS.md`, a rule or a plan in its scoped doc (naming the id), private context in
 `docs/private/` with a `**Recorded in:** <path>` line added under the answer in the weekly file.
-Routines report; sessions write. What makes that happen rather than being hoped for:
-`node scripts/wave-plan-check.mjs` refuses a wave plan that does not mention an answered id no
-tracked doc names yet, so the next `/orchestrator` plans the row that records it, and the refusal
-returns every morning until it has landed. `npm run alignment:pending` prints what is outstanding.
+Routines report; sessions write. The next `/orchestrator` wave takes every answered question no
+tracked doc names yet as its first work (`npm run alignment:pending` prints what is outstanding).
 
-## 3. Part B - the skill's own week
-
-- `git log --since=7.days --format='%h %s' -- .agent-workflows/orchestrator.md .agent-workflows/orchestrator scripts/hooks`
-  and read each commit's diff for one question: did it add a mechanism, or text? A lesson that
-  arrived as prose where a hook, script, test or ledger line was available is the week's first
-  finding (`docs/MISTAKE_TRIGGERS.md`, the four places a lesson can live).
-- `.agent-workflows/orchestrator/incidents.md`: the entries dated this week, read for repeats -
-  the same shape in a new costume is a mechanism that did not fire, never a new incident.
-- The last wave plan's alignment questionnaire (the newest plan the store holds, written by
-  `orchestrator/report.md` item 10 - NOT by the morning brief, which writes no questionnaire):
-  which `DECIDED:` items were the machine's to take, and which asks in the week's handoffs were not.
-- **The routines against the scheduler.** List the scheduled tasks and compare them to the table in
-  `docs/ROUTINES.md`: every row has a registered task, every registered task has a row, and the
-  cadences match on both sides. Say which side is wrong when they disagree - usually the doc, but on
-  2026-09-08 a routine had been running weekly while the doc called it monthly, so check the cron
-  and not just the name. This costs one call and it is here because the table is otherwise a claim
-  nobody verifies; three of its rows had rotted before the owner asked.
-
-## 4. Part C - look outside, briefly
-
-Search for what other orchestrator skills and multi-agent coordinators do now - GitHub first
-(`orchestrator skill`, `multi-agent coordinator playbook`, `SKILL.md orchestrate`, the pstack and
-Claude Code plugin ecosystems), then whatever the search turns up. Read the source, not a
-summary. Bring back at most three ideas, each classified **Already have / Adopt / Experiment /
-Reject** against a measured NoaCG failure from step 1 or 3 - an idea with no failure behind it is
-noted in one line and not proposed. `docs/ORCHESTRATION_REVIEW.md` carries the classifications
-made so far; do not re-argue one it already settled unless the evidence changed.
-
-## 5. Write the recap
+## 3. Write the recap
 
 Write `C:\claude\NoaCG-Studio\docs\handoffs\<date>-orchestrator-week.local.md` - the name MUST end
 in `.local.md`, because `docs/handoffs/` is tracked and an ordinary untracked file in the primary
 checkout stops every landing on the machine (`docs/ROUTINES.md`, the morning brief's rule).
-Overwrite the same date's file if it exists. Seven short sections, numbers from step 1:
+Overwrite the same date's file if it exists. Four short sections, numbers from step 1:
 
 1. **The week's plan** - the five-minute list from step 2, in order.
 2. **What needs you** - the at-most-three questions, each as an `### ALIGN-<date>-<n>` block in the
@@ -191,35 +159,18 @@ Overwrite the same date's file if it exists. Seven short sections, numbers from 
    *open <https://noacg.studio/admin> and read what they wrote* - the count cannot tell you what
    they said, only that they said something. Zero is one line, unpadded.
 4. **Freshness** - only what it flagged. All current is one line.
-5. **Spend** - the by-model table and the three harness lines, then one sentence: was the scarce
-   pool spent on work a proven cheaper pool could have carried, and did any cheap delegation cost
-   more in repair than it saved (the delegation ledger says).
-6. **Decisions and the skill** - decisions taken against asks made, and the two or three asks that
-   should have been decisions, with the shape each took (a measurable question treated as taste; a
-   deviation filed as a ratification; a walk that needed a test account, not his eyes). Then what
-   changed in the skill, one line per commit, marked mechanism or text; the common path now against
-   a week ago; any incident that repeated.
-7. **Improve** - the outside ideas classified, then at most three improvements for the coming week,
-   each as a candidate row in the orchestrator's section-5 shape (GOAL, WHY, TOUCHES, POOL), so the
-   next `/orchestrator` invocation can lift it straight into a wave. A row whose why is "the number
-   went down" is not a row; name the failure it ends. **Each row's `GOAL` line is what identifies
-   it** - `scripts/weekly-candidates.mjs` numbers the file's GOAL lines in order and gives each an
-   id, and for a week afterwards the plan check refuses a wave plan that leaves one unmentioned. So
-   write one GOAL line per row and none anywhere else in the file, and check the round trip before
-   you print: `npm run weekly:candidates` must list every row you just wrote, with its title.
+**Then print the four sections in chat, and nothing else.** Those are his five minutes. The
+machine's review of itself is each wave's retro (`.agent-workflows/orchestrator.md`, step 6), not
+this page.
 
-**Then print sections 1 to 4 in chat, and nothing else.** Those are his five minutes. Sections 5 to
-7 are the machine reviewing itself and they stay in the file, where the next `/orchestrator`
-invocation reads them with the rest of `docs/handoffs/` (`orchestrator/grounding.md`).
-
-Plain English in sections 1 to 4, written for a non-technical reader: no run ids, no SHAs, no
+Plain English throughout, written for a non-technical reader: no run ids, no SHAs, no
 workflow filenames, no praise, no summary paragraph.
 
 ## What this never does
 
 It edits no tracked file, commits nothing, queues nothing, and starts no wave: routines report,
 sessions write (`docs/ROUTINES.md`). An improvement it is sure of is still a row for a session,
-because the session that lands it verifies it and the coherence session reads it cold. It does
+because the session that lands it verifies it. It does
 not compute a Claude percentage - the machine cannot read one, and the owner reads the weekly
 figure off his own account page - and it never sums tokens across harnesses, because the meters
 count different things.

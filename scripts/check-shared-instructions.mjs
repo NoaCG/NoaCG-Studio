@@ -61,114 +61,28 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
-    // The orchestrator assigns work to other sessions and must never start it, so the two
-    // halves that keep it honest are pinned: it grounds the plan in measured repository state
-    // rather than in a handoff's prose, and it says out loud what it would push back on. That
-    // section exists because a day was once planned with four of six sessions serving goals the
-    // roadmap had parked - flagging is the whole value, so it must not be quietly droppable.
+    // The orchestrator runs a whole unattended wave, so its boundaries are pinned: each one is a
+    // line a lean rewrite could drop with a green build, and each guards a failure nobody is awake
+    // to catch. The rest of the file is free to change; its line limit is below.
     'orchestrator',
     [
+      'One orchestrator at a time.',
+      'Only the merge queue writes `main`.',
+      'A gate lands alone.',
+      '24 hours is the ceiling',
+      "Never touch another session's worktree.",
+      'One browser-driving job per machine.',
+      '`docs/private/` stays private.',
+      'node scripts/wave-plan-store.mjs --open',
       'node scripts/worktree-activity.mjs',
-      'node scripts/merge-order.mjs',
-      'What I would push back on',
-      'Every pasted task gets a prompt.',
-      // Quoted from the root AGENTS.md rather than paraphrased, so the two cannot drift apart
-      // with a green build - the earlier lowercase paraphrase pinned only itself.
-      'One browser-driving job per MACHINE, not per worktree',
-      'Never act on a collision.',
-      "Read, don't write.",
-      'Create or update no files',
-      // A wave is planned so that nothing waits to START - the queue already serializes landing,
-      // and a start-order edge is the one that strands work overnight when its predecessor dies.
-      // Both halves are pinned: the rule, and the ban on the line that used to encode the edge.
-      'A wave is ORDER-FREE or it is not a wave',
-      'There is no `WAIT` line, because a wave is order-free',
-      // Landing is serialized, not permissioned. A wave the user has to merge by hand in the
-      // morning is the exact cost this shape removes, so every prompt queues itself - and a
-      // session that stops to ask a human is a session that does nothing all night.
-      'QUEUE is mandatory on every prompt and is the last thing in it',
-      'No prompt ever contains a step for the user, and no session blocks on a question.',
-      // The exceptions to NEVER ACTS are enumerated so none can widen quietly, and none of
-      // them reaches landing. (Third added 2026-08-29: the gitignored wave-state file, so a
-      // night wave's plan survives the planning session. Fourth added 2026-08-30: the permanent
-      // home worktree, the one path outside this checkout the session ever writes to.)
-      'Exactly four exceptions, all bounded',
-      // The home is what makes every later read CURRENT, so it has to run before them and it has
-      // to be a script: prose gets skipped, a script either ran or it did not. A throwaway
-      // worktree reads the commit it was cut from, and the main checkout is rewritten by every
-      // landing - both were paid for before this line existed.
-      'node scripts/orchestrator-home.mjs',
-      'the main checkout belongs to the landing queue',
-      'Never merge, and never push by hand.',
-      'follow-on that was not planned is never launched',
-      // A night wave that plans follow-ons and then goes to sleep has planned nothing: the loop
-      // is the half that fires them. Entering it is automatic, and a quiet tick must stay quiet.
-      'A night wave enters this automatically',
-      'A tick with no landing is a no-op, not a report',
-      // The loop can die silently, so nothing the wave NEEDS may depend on it - every starting
-      // prompt queues itself, and a follow-on only ever carries work the night can afford to lose.
-      'The loop is ADDITIVE, never load-bearing',
-      // The report is read over coffee by the one person who can unblock the night's output, so
-      // their steps come first and complete, and the prompt section never manufactures work.
-      'Needs you, FIRST, and step-by-step.',
-      'A finished session gets no prompt.',
-      // Handoffs are working files, not records - git already keeps the history. Without the
-      // consumed/spent/deferred pass the folder grows monotonically and every plan re-reads it.
-      'Handoffs are continuation records, CONSUMED and deleted, never a queue.',
-      // Literal obedience is the failure mode this pair guards: the why travels so a session can
-      // beat the route, and spare capacity drains a declared backlog instead of invented work.
-      'WHY is a TARGET, not a route.',
-      'never invent work to fill a wave',
-      // Paid-for on 2026-08-26: a build gate landing mid-wave turns every sibling's merge of
-      // main into a moving target, and their reds read as their own fault.
-      'A GATE LANDS ALONE.',
-      // A running wave asks nothing and defers only the decisions docs/GOALS.md names; everything
-      // else is decided and reported. And a why that is not true breaks working software when
-      // executed to the letter.
-      'Defer only a decision that materially changes direction',
-      'THE WHY MUST BE TRUE, and function outranks cosmetics.',
-      'THE WAVE WINDOW is whatever time the user names in the invocation',
-      // Context rot reads as the agents getting dumber - the weekly fresh-eyes session is the
-      // counter, and the cold-read test is its teeth.
-      'A finished session leaves nothing running.',
-      'A continuation prompt printed only in chat does not exist.',
-      'The coherence cadence',
-      // The self-feeding wave is bounded by the report, not by pre-approval - the loop can
-      // extend a wave, never extend itself past the owner's checkpoint.
-      'THE REPORT IS THE CHECKPOINT.',
-      // Learning is continuous and is not adding rules: observations first, a rule last.
-      'Learning, without growing the rules',
-      // Routing is a step of the plan, and three mechanisms make the plan's readiness, the
-      // handoff drain and the owner's asks observable rather than remembered (2026-09-02).
-      'Every row names its POOL',
-      'node scripts/wave-plan-check.mjs',
-      'node scripts/handoff-drain.mjs',
-      'node scripts/owner-receipts.mjs',
-      "Landing authority belongs to GitHub's merge queue",
-      // Keep each assignment bounded while workers choose its implementation.
-      'A starting prompt is a bounded outcome',
-      // The whole workflow rests on this: it assigns work and does none of it, and it never
-      // reaches into another worktree - not to merge, not to check, not to tidy. Printing a merge
-      // order reads like an offer to merge, so the boundary is pinned in both directions. The
-      // second marker is the OTHER half, added 2026-09-08 after the first reading of the bullet it
-      // replaced produced a plan handed to the owner to paste: doing none of the work never meant
-      // making him start the rows.
-      // WRITING A MARKER INTO PROSE DISARMS IT. The search below is over the core CONCATENATED
-      // with its modules, so a marker quoted word-for-word in a narrative module - an incident
-      // write-up describing the very rule - satisfies itself and the rule can then be deleted from
-      // the contract with a green build. That happened to both markers below on the day the second
-      // was added; the write-up now paraphrases. Quote a pinned sentence nowhere but where it binds.
-      'THIS SESSION NEVER ACTS',
-      'This session LAUNCHES its own rows',
-      'Section 3 is a report, not a pick.',
-      // A file-list diff calls every one of these collisions disjoint, so the plan has to hand
-      // out the scarce slots itself.
-      'The plan ALLOCATES these up front',
-      // Cross-host ownership must not regress into treating a sandboxed plugin worker as
-      // every Codex session, or Claude's inventory as proof a Codex branch is abandoned.
-      'Implementation workers never share a working tree.',
-      "Missing from Claude's inventory does not mean dead in Codex.",
-      'Never reset the window or start a second wave.',
+      // A running wave decides and records; the owner's intent, not his wording, is the target.
+      'Once rows run, ask nothing',
+      "The owner's intent binds, his wording does not",
+      // Every row lands itself, so the wave lands with or without anything watching it.
+      'as your last action, /queue-merge',
+      // Learning edits what exists; a lesson that becomes a new file is how the docs grew.
+      'Never write a new doc, record or note for a lesson.',
+      'No handoff file',
     ],
   ],
   [
@@ -466,32 +380,15 @@ function reportChainHeadroom() {
   }
 }
 
-// A MODULAR workflow is one canonical file plus a sibling directory of modules it links to:
-// .agent-workflows/<name>.md is the always-loaded core, .agent-workflows/<name>/*.md are loaded
-// only when the core's routing table sends a session there. The core carries a hard LINE LIMIT,
-// because a budget nothing measures is the failure this shape was built to fix - the orchestrator
-// contract reached 924 lines under a rule that said every wave should improve it and nothing that
-// said what to cut (2026-09-01). Everything below treats the core and its modules as ONE contract:
-// markers and script references may live in either, so neither can be weakened by moving text.
-const MODULAR_WORKFLOW_LINE_LIMITS = new Map([['orchestrator', 200]]);
-// The COMMON PATH: the core plus every module the routing table marks *every plan*, which is what
-// an ordinary invocation actually loads. The 2026-09-01 split reported an 82% cut by counting the
-// core alone while four modules loaded beside it every time; this is the honest number, and it
-// only ratchets DOWN - raise it and say why in the commit.
-const MODULAR_WORKFLOW_PATH_LIMITS = new Map([['orchestrator', 640]]);
-const EVERY_PLAN_MARK = '*every plan*';
+// A workflow named here carries a hard LINE LIMIT, because a budget nothing measures is the failure
+// it exists to fix: the orchestrator contract reached 924 lines under a rule that said every wave
+// should improve it (2026-09-01), then 2,036 lines across fourteen modules that every coordinator
+// read in full before planning anyway (2026-10-07). It is one file now, so a lesson that needs words
+// has to displace words. Raise a limit only with the reason in the commit.
+const WORKFLOW_LINE_LIMITS = new Map([['orchestrator', 170]]);
 
-function workflowModuleFiles(name) {
-  const dir = absolute(`.agent-workflows/${name}`);
-  if (!existsSync(dir) || !statSync(dir).isDirectory()) return [];
-  return readdirSync(dir)
-    .filter((file) => file.endsWith('.md'))
-    .sort()
-    .map((file) => path.join(dir, file));
-}
-
-function checkWorkflowScriptReferences(workflowFile, moduleFiles) {
-  for (const file of [workflowFile, ...moduleFiles]) {
+function checkWorkflowScriptReferences(workflowFile) {
+  for (const file of [workflowFile]) {
     const content = text(file);
     const references = [...content.matchAll(/`(scripts\/[A-Za-z0-9._/-]+)/g)].map(
       (match) => match[1],
@@ -557,9 +454,9 @@ function readAgentDefinitions() {
 // would report each malformed definition fifteen times.
 const AGENT_DEFINITIONS = readAgentDefinitions();
 
-function checkNamedAgents(workflowFile, moduleFiles) {
+function checkNamedAgents(workflowFile) {
   const defined = AGENT_DEFINITIONS;
-  for (const file of [workflowFile, ...moduleFiles]) {
+  for (const file of [workflowFile]) {
     for (const name of new Set([...text(file).matchAll(/`(wave-row[a-z0-9-]*)`/g)].map((match) => match[1]))) {
       if (!defined.has(name)) {
         failures.push(`${rel(file)} names the agent \`${name}\`, which .claude/agents/ does not define`);
@@ -568,27 +465,10 @@ function checkNamedAgents(workflowFile, moduleFiles) {
   }
 }
 
-/** Modules that RECORD rather than BIND. A marker may not resolve here - see below. */
-const NARRATIVE_MODULES = new Set(['incidents.md']);
-
-function checkCriticalWorkflowContract(name, workflowFile, moduleFiles) {
-  const files = [workflowFile, ...moduleFiles];
-  // One contract, however many files it is spread across: a marker satisfied by a module is
-  // satisfied, so splitting the file cannot silently drop a pinned rule - and moving a rule
-  // between modules needs no gate edit.
-  //
-  // EXCEPT a narrative module, which describes rules instead of carrying them. An incident
-  // write-up quotes the rule it is about, and a quote is byte-identical to the thing pinned - so
-  // searching it lets a marker satisfy ITSELF, and the rule can then be deleted from the contract
-  // with a green build. Measured 2026-09-08, on the marker added that day to stop exactly this
-  // class of drift: both markers of that pair resolved in the write-up alone. Excluding these
-  // files is the fix; quoting a pinned sentence in one is then harmless.
-  const searched = files.filter((file) => !NARRATIVE_MODULES.has(path.basename(file)));
-  const normalizedContent = searched
-    .map((file) => text(file))
-    .join('\n')
-    .replace(/\s+/g, ' ');
-  const where = moduleFiles.length > 0 ? `${rel(workflowFile)} (+ its modules)` : rel(workflowFile);
+function checkCriticalWorkflowContract(name, workflowFile) {
+  const files = [workflowFile];
+  const normalizedContent = text(workflowFile).replace(/\s+/g, ' ');
+  const where = rel(workflowFile);
   for (const marker of CRITICAL_WORKFLOW_MARKERS.get(name) ?? []) {
     const normalizedMarker = marker.replace(/\s+/g, ' ');
     if (!normalizedContent.includes(normalizedMarker)) {
@@ -604,77 +484,19 @@ function checkCriticalWorkflowContract(name, workflowFile, moduleFiles) {
   }
 }
 
-// The three ways a modular contract rots back into one file with extra steps: the core grows past
-// its budget, a module nothing links to goes stale unread, and a link points at a module that was
-// renamed or never written. All three are cheap to measure and invisible to a reader.
-function checkWorkflowModules(name, workflowFile, moduleFiles) {
-  const limit = MODULAR_WORKFLOW_LINE_LIMITS.get(name);
+// A workflow is one file. A directory of modules was tried for the orchestrator, and every
+// coordinator read all of it before planning, so the split saved nothing and hid the size.
+function checkWorkflowShape(name, workflowFile) {
+  if (existsSync(absolute(`.agent-workflows/${name}`))) {
+    failures.push(`.agent-workflows/${name}/ exists - a workflow is one file; fold the text into ${rel(workflowFile)} or cut it`);
+  }
+  const limit = WORKFLOW_LINE_LIMITS.get(name);
   if (limit === undefined) return;
-  // The summary below reports "all linked", so it may only be printed once nothing in this
-  // function has complained - a status line that stays reassuring while the gate is failing is
-  // how a reader learns to skip it.
-  const failuresBefore = failures.length;
-  const coreLines = text(workflowFile).split('\n').length;
-  if (coreLines > limit) {
-    failures.push(
-      `${rel(workflowFile)} is ${coreLines} lines, over its always-loaded limit of ${limit} - ` +
-        `move a section into .agent-workflows/${name}/ and link it from the routing table`,
-    );
-  }
-  if (moduleFiles.length === 0) {
-    failures.push(`${rel(workflowFile)} declares a module budget but has no .agent-workflows/${name}/ modules`);
-    return;
-  }
-  const core = text(workflowFile);
-  const linked = new Set(
-    [...core.matchAll(new RegExp(`${name}/([A-Za-z0-9._-]+\\.md)`, 'g'))].map((match) => match[1]),
-  );
-  for (const file of moduleFiles) {
-    if (!linked.has(path.basename(file))) {
-      failures.push(
-        `${rel(file)} is not linked from ${rel(workflowFile)} - an unrouted module is never read`,
-      );
-    }
-  }
-  const present = new Set(moduleFiles.map((file) => path.basename(file)));
-  for (const target of linked) {
-    if (!present.has(target)) {
-      failures.push(`${rel(workflowFile)} routes to .agent-workflows/${name}/${target}, which does not exist`);
-    }
-  }
-  // The common path: every routing-table row carrying the every-plan mark names a module that
-  // loads on every invocation, so its lines are always-loaded context as much as the core's.
-  const everyPlan = new Set(
-    core
-      .split('\n')
-      .filter((line) => line.includes(EVERY_PLAN_MARK))
-      .flatMap((line) => [...line.matchAll(new RegExp(`${name}/([A-Za-z0-9._-]+\\.md)`, 'g'))].map((match) => match[1])),
-  );
-  const commonPath = [...everyPlan]
-    .filter((target) => present.has(target))
-    .reduce((sum, target) => sum + lineCount(path.join(absolute(`.agent-workflows/${name}`), target)), coreLines);
-  const pathLimit = MODULAR_WORKFLOW_PATH_LIMITS.get(name);
-  // A budget over an empty set is a budget over nothing: if the routing table stops carrying the
-  // mark (a reworded row, dropped emphasis), the sum collapses to the core and the gate would keep
-  // printing a clean line while counting none of the modules it was built to count.
-  if (pathLimit !== undefined && everyPlan.size === 0) {
-    failures.push(
-      `${rel(workflowFile)} declares a common-path budget but no routing-table row carries the ` +
-        `"${EVERY_PLAN_MARK}" mark - the modules every invocation loads must be marked, or the budget counts nothing`,
-    );
-  }
-  if (pathLimit !== undefined && commonPath > pathLimit) {
-    failures.push(
-      `${rel(workflowFile)} plus its every-plan modules is ${commonPath} lines, over the common-path ` +
-        `budget of ${pathLimit} - shorten the common path, or move a rule into a module that loads on a branch`,
-    );
-  }
-  if (failures.length === failuresBefore) {
-    console.log(
-      `Modular workflow ${name}: core ${coreLines}/${limit} lines, ` +
-        `${moduleFiles.length} module(s), all linked; common path ${commonPath}` +
-        `${pathLimit === undefined ? '' : `/${pathLimit}`} lines (core + ${everyPlan.size} every-plan module(s)).`,
-    );
+  const lines = lineCount(workflowFile);
+  if (lines > limit) {
+    failures.push(`${rel(workflowFile)} is ${lines} lines, over its limit of ${limit} - replace or cut text rather than add it`);
+  } else {
+    console.log(`Workflow ${name}: ${lines}/${limit} lines.`);
   }
 }
 
@@ -758,16 +580,15 @@ measured(workflowNames.length, 'workflow definitions');
 
 // A TABLE KEYED BY NAME IS A GATE THAT STOPS FIRING WHEN THE NAME MOVES. Each of these four is
 // consulted as `TABLE.get(name)` while walking the workflows below, and a miss is a `?? []` or an
-// early `return` - so renaming `orchestrator.md` would drop its critical markers, its 200-line
-// core limit and its 640-byte common-path budget in one edit, and this check would print OK.
+// early `return` - so renaming `orchestrator.md` would drop its critical markers and its line
+// limit in one edit, and this check would print OK.
 // Counting the workflows does not catch that: the population is intact, it is the lookup that
 // stopped resolving. A key naming no workflow is a stale declaration, exactly like a `guards:`
 // glob that matches no file.
 const declaredWorkflows = new Set(workflowNames);
 for (const [table, keys] of [
   ['CRITICAL_WORKFLOW_MARKERS', CRITICAL_WORKFLOW_MARKERS.keys()],
-  ['MODULAR_WORKFLOW_LINE_LIMITS', MODULAR_WORKFLOW_LINE_LIMITS.keys()],
-  ['MODULAR_WORKFLOW_PATH_LIMITS', MODULAR_WORKFLOW_PATH_LIMITS.keys()],
+  ['WORKFLOW_LINE_LIMITS', WORKFLOW_LINE_LIMITS.keys()],
   ['EXPLICIT_ONLY_WORKFLOWS', EXPLICIT_ONLY_WORKFLOWS.values()],
 ]) {
   for (const key of keys) {
@@ -809,12 +630,10 @@ for (const name of workflowNames) {
   checkRepositoryFile(codexSkill, 'Codex skill adapter');
   checkThinWrapper(codexSkill, canonical, 'Codex skill adapter');
   if (existsSync(codexSkill)) checkSkillMetadata(codexSkill, name, 'Codex skill adapter');
-  const moduleFiles = workflowModuleFiles(name);
-  for (const moduleFile of moduleFiles) checkRepositoryFile(moduleFile, 'workflow module');
-  checkWorkflowScriptReferences(canonicalFile, moduleFiles);
-  checkNamedAgents(canonicalFile, moduleFiles);
-  checkCriticalWorkflowContract(name, canonicalFile, moduleFiles);
-  checkWorkflowModules(name, canonicalFile, moduleFiles);
+  checkWorkflowScriptReferences(canonicalFile);
+  checkNamedAgents(canonicalFile);
+  checkCriticalWorkflowContract(name, canonicalFile);
+  checkWorkflowShape(name, canonicalFile);
 
   if (EXPLICIT_ONLY_WORKFLOWS.has(name)) {
     const claudeAdapter = hasClaudeCommand ? claudeCommand : claudeSkill;

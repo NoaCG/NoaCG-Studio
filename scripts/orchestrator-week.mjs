@@ -57,7 +57,6 @@ export const COMMITS_SHOWN = 25;
 /** The files that are the orchestration system. A commit touching one of them changed the skill. */
 export const SYSTEM_PATHS = Object.freeze([
   '.agent-workflows/orchestrator.md',
-  '.agent-workflows/orchestrator',
   '.agent-workflows/orchestrator-week.md',
   '.claude/agents',
   'scripts/hooks',

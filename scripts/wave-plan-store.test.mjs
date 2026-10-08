@@ -1,12 +1,12 @@
 // The store's guard. What matters here is the LOCATION check: it decides whether a wave launches,
 // so a false "outside the store" stops every wave and a false "inside" loses the week's record.
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { inStore, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
+import { inStore, openWave, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
 
 /** A throwaway job store, so nothing here can touch the machine's real one. */
 function store() {
@@ -69,4 +69,55 @@ test('the directory is created on demand, because the orchestrator writes the fi
   assert.equal(folder, path.join(dir, 'wave-plans'));
   writeFileSync(path.join(folder, wavePlanName('2026-09-09', 'night')), '# plan\n', 'utf8');
   assert.deepEqual(wavePlanFiles(dir), [wavePlanName('2026-09-09', 'night')]);
+});
+
+// OPENING A WAVE is where two of the root boundaries become checks: one orchestrator at a time,
+// and no unattended chain past 24 hours. Both used to be sentences.
+
+/** Pin a file's modification time, so "written to recently" does not depend on today's date. */
+function touch(file, ms) {
+  const at = new Date(ms);
+  utimesSync(file, at, at);
+}
+
+const NOW = Date.parse('2026-10-08T20:00:00Z');
+
+test('opening a wave writes its window and refuses one past the 24-hour ceiling', () => {
+  const opened = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir: store(), now: NOW });
+  assert.ok(opened.file, opened.refusal);
+  const text = readFileSync(opened.file, 'utf8');
+  assert.match(text, /^Window starts: 2026-10-08T20:00:00\.000Z$/m);
+  assert.match(text, /^Window ends: 2026-10-09T06:00:00\+03:00$/m);
+  assert.match(openWave({ date: '2026-10-09', kind: 'day', until: '2026-10-10T21:00:00+03:00', dir: store(), now: NOW }).refusal, /24 hours/);
+  assert.match(openWave({ date: '2026-10-08', kind: 'day', until: '2026-10-08T06:00:00+03:00', dir: store(), now: NOW }).refusal, /passed/);
+  assert.match(openWave({ date: '2026-10-08', kind: 'day', until: '06:00', dir: store(), now: NOW }).refusal, /offset/);
+});
+
+test('a second wave is refused while another has no report, and allowed once it has one', () => {
+  const dir = store();
+  const first = openWave({ date: '2026-10-08', kind: 'day', until: '2026-10-08T23:00:00+03:00', dir, now: NOW - 3_600_000 });
+  touch(first.file, NOW - 3_600_000);
+  const second = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  assert.match(second.refusal, /another wave is open/);
+  writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}\n## Report\n\nAll landed.\n`, 'utf8');
+  touch(first.file, NOW - 600_000);
+  assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
+});
+
+test('reopening the same wave resumes it instead of refusing or overwriting it', () => {
+  const dir = store();
+  const first = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}\n- 23:10 launched A\n`, 'utf8');
+  touch(first.file, NOW);
+  const again = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW + 600_000 });
+  assert.equal(again.file, first.file);
+  assert.match(readFileSync(again.file, 'utf8'), /launched A/);
+});
+
+test('a plan nobody has written to for a day no longer blocks a new wave', () => {
+  const dir = store();
+  const old = path.join(dir, 'wave-plans', wavePlanName('2026-10-01', 'night'));
+  writeFileSync(old, '# plan with no report\n', 'utf8');
+  touch(old, Date.parse('2026-10-02T06:00:00Z'));
+  assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
 });

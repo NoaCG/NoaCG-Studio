@@ -189,27 +189,9 @@ admin login as a property of the query rather than of the printing. Freshness, b
 auto-upgrades.
 
 **It writes one gitignored file**, `docs/handoffs/<date>-orchestrator-week.local.md` in the main
-checkout, and prints only the owner-facing sections in chat. The next `/orchestrator` invocation
-turns its candidate rows into a wave, or says why not.
-
-**That last sentence is now counted rather than trusted.** It was prose here and in
-`orchestrator/grounding.md` and nothing measured it: the 2026-09-08 review emitted three well-formed
-candidate rows, both of that day's wave plans were written afterwards without lifting one or naming
-the file, and nothing recorded the miss. `npm run weekly:candidates` lists the rows with a
-`WEEK-<date>-<n>` id each - reading the main checkout from whatever checkout it runs in, and naming
-the folder it read either way - and for a week after the review `scripts/wave-plan-check.mjs`
-refuses a plan that leaves one unmentioned. Planning it, deferring it and rejecting it pass, with
-two limits on deferring. Silence fails. Nothing is forced into a wave, by the same ruling that keeps
-the owner queue from expiring - the ask is that a skipped row is skipped on purpose and says so.
-
-**Two deferrals are refused.** (1) A deferral whose reason hands the work to a routine ("next
-orchestrator-week session", "for the morning brief"). Routines report and never write, so that
-deferral has no actor: WEEK-2026-09-15-1 was deferred to the weekly session and never landed. A
-routine named as evidence ("the morning brief showed Codex at its cap") still passes; name the wave
-that will carry the row, or reject it with the reason. (2) A third consecutive deferral of one WEEK
-id, counted over the earlier plans in the wave-plan store. Two plans running may defer a row; the
-third plans it as a row or drops it in writing as `rejected: <id> - <why>`. WEEK-2026-09-22-3 was
-deferred four plans running.
+checkout, and prints only the owner-facing sections in chat. The machine's own review of the week
+moved into each wave's retro (`.agent-workflows/orchestrator.md`, step 6), so this session is the
+owner's alignment read and nothing else.
 
 Tuesday and not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday, and
 he reads the weekly percentage off his account page himself, so the routine never computes or asks
@@ -238,10 +220,9 @@ suppressions, oversized modules, duplication, dead code, verification gaps, the 
 with a measured cost, a size, and what would prove it did not break. Every run covers all four
 areas, because the point of a fixed set is that a quiet area proves itself quiet.
 
-**Deliberately NOT the coherence session.** That one (`.agent-workflows/orchestrator/coherence.md`)
-owns the written surface - cold-read test, contract contradictions, the byte ratchet, GOALS drift.
-This one owns code and hands any doc defect over. Two reviews that overlap get read as one, then
-neither.
+**Deliberately code only.** The written surface - stale docs, contradictions, instructions that did
+nothing - is each wave's retro (`.agent-workflows/orchestrator.md`, step 6). This one owns code and
+hands any doc defect over. Two reviews that overlap get read as one, then neither.
 
 It is also deliberately not merged with the competitor review, though both are monthly and both
 produce ranked findings. They keep different write permissions - the competitor review prints a

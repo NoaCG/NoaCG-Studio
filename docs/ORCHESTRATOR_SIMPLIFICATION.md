@@ -157,8 +157,8 @@ git, not in the workflow folder.
 | --- | --- | --- |
 | `orchestrator.md` + 14 modules (2,036 lines) | Replace | One skill of at most 150 lines; reads drop from 1,204 lines to under 150 |
 | Native subagent rows, `wave-row*` definitions | Keep, simplify | Already native; drop the unused Browser and PowerShell tools (48K chars a turn) |
-| Wave-plan store | Keep, simplify | One short plan file per wave; it carries the lock and the 24-hour cap |
-| `wave-plan-check.mjs` (572 lines) | Simplify | Keep the four real checks; drop the citation checks |
+| Wave-plan store | Keep, extend | One short plan file per wave; `--open` refuses a second open wave and a window over 24 hours |
+| `wave-plan-check.mjs` (572 lines) | Replace | The two boundary checks move to `--open`; the launch guard keeps its path parser until the old scripts go |
 | `wave-tick`, `wave-watch`, `ci-watch`, Monitor re-arms | Delete | Row notifications and `wait_agent` wake the coordinator; GitHub quarantines flakes |
 | `wave-launch` ledger, `candidates`, `wave-horizon`, `collision-check`, `wave-recover` | Delete | Refill becomes "next item by rank while the window fits"; median row time is in the wave file |
 | Handoff files and `handoff-drain`, `handoff-trace` | Replace | Leftovers go to the one backlog with a PR link; a checkpoint only for a genuine interruption; `/handoff` for live sessions stays |
@@ -185,9 +185,9 @@ today's row L owns worktree self-cleanup.
 1. This findings file (docs only).
 2. A push-to-`main` refusal in the command guard (contained, independent).
 3. After today's wave ends, as a gate change landing alone: the new skill replaces the contract and
-   modules; adapters and row definitions shrink; `check-shared-instructions` pins the new caps;
-   `wave-plan-check` keeps four checks. The old scripts stay, unreferenced, so one revert restores
-   the old orchestrator.
+   modules; adapters and row definitions shrink; `check-shared-instructions` pins the new limit;
+   `wave-plan-store.mjs --open` enforces one open wave and the 24-hour cap. The old scripts stay,
+   unreferenced, so one revert restores the old orchestrator.
 4. Proof: representative night waves on Claude Code and on Codex, compared with 2026-10-07 on rows
    merged, refusals, share of the window used, lines the owner read, and procedure the coordinator
    read. The old safeguards stay until both pass.

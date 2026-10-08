@@ -4,6 +4,9 @@
 //   node scripts/wave-plan-store.mjs --path 2026-09-09 night   # the path to write, dir created
 //   node scripts/wave-plan-store.mjs --dir                     # just the directory
 //   node scripts/wave-plan-store.mjs --list                    # every plan in the store, newest first
+//   node scripts/wave-plan-store.mjs --open 2026-10-08 night --until 2026-10-09T06:00:00+03:00
+//                                                              # start (or resume) a wave: refuses a
+//                                                              # second open wave and a window over 24 h
 //
 // WHY. The wave plan is the ONLY record of which pools ran, what the routing was, and every
 // `DECIDED:` line the orchestrator wrote when it took a decision on the owner's behalf. It is
@@ -31,7 +34,7 @@
 // and a plan in the legacy `docs/handoffs/` location, which is what lets the weekly review read
 // across the move without a second pattern to keep in step.
 
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -84,9 +87,58 @@ export function wavePlanFiles(dir = jobsDir()) {
   return readdirSync(folder).filter((name) => name.endsWith(PLAN_SUFFIX)).sort().reverse();
 }
 
+/** A wave may run unattended for at most this long (the root boundary). */
+export const MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** A plan written to within this long and holding no report is a wave somebody may still be running. */
+const OPEN_WAVE_MS = 24 * 60 * 60 * 1000;
+
+/** The heading a finished wave's report sits under; older plans used "Morning report". */
+const REPORT_HEADING = /^## (?:Morning )?[Rr]eport\b/m;
+
+/**
+ * Plans in the store that look like a LIVE wave: written to in the last day, with no report yet.
+ * "One orchestrator at a time" is a boundary, and this is what makes it one rather than a sentence.
+ */
+export function openWaves(dir = jobsDir(), now = Date.now(), except = '') {
+  const folder = wavePlansDir(dir);
+  if (!folder) return [];
+  return wavePlanFiles(dir)
+    .filter((name) => name !== except)
+    .map((name) => path.join(folder, name))
+    .filter((file) => now - statSync(file).mtimeMs < OPEN_WAVE_MS)
+    .filter((file) => !REPORT_HEADING.test(readFileSync(file, 'utf8')));
+}
+
+/**
+ * Open a wave: refuse a window past the 24-hour ceiling and a second live wave, then create the
+ * plan with its window lines, or hand back the existing one when this same wave is resumed.
+ * Returns `{ file }` or `{ refusal }`.
+ */
+export function openWave({ date, kind, until, dir = jobsDir(), now = Date.now() }) {
+  const name = wavePlanName(date, kind);
+  const end = Date.parse(until ?? '');
+  if (!/(?:[+-]\d{2}:\d{2}|Z)$/.test(String(until ?? '')) || Number.isNaN(end)) {
+    return { refusal: `--until must be an ISO time with its offset, e.g. 2026-10-09T06:00:00+03:00 (got "${until}")` };
+  }
+  if (end <= now) return { refusal: `the window end ${until} has already passed` };
+  if (end - now > MAX_WINDOW_MS) return { refusal: `a wave runs at most 24 hours, and ${until} is further away than that` };
+  const others = openWaves(dir, now, name);
+  if (others.length > 0) {
+    return { refusal: `another wave is open (no report yet): ${others.join(', ')}. One orchestrator at a time: finish or report that wave first.` };
+  }
+  const file = path.join(ensureWavePlansDir(dir), name);
+  if (!existsSync(file)) {
+    const title = `# ${kind === 'night' ? 'Night' : 'Day'} wave ${date}`;
+    writeFileSync(file, `${title}\n\nWindow starts: ${new Date(now).toISOString()}\nWindow ends: ${until}\n`, 'utf8');
+  }
+  return { file };
+}
+
 const USAGE = `Usage: node scripts/wave-plan-store.mjs --path <YYYY-MM-DD> <day|night>
        node scripts/wave-plan-store.mjs --dir
-       node scripts/wave-plan-store.mjs --list`;
+       node scripts/wave-plan-store.mjs --list
+       node scripts/wave-plan-store.mjs --open <YYYY-MM-DD> <day|night> --until <iso time with offset>`;
 
 export function main(argv = process.argv.slice(2)) {
   const folder = wavePlansDir();
@@ -101,6 +153,22 @@ export function main(argv = process.argv.slice(2)) {
   if (argv[0] === '--list') {
     const names = wavePlanFiles();
     process.stdout.write(names.length ? `${names.map((name) => path.join(folder, name)).join('\n')}\n` : 'no wave plans in the store\n');
+    return 0;
+  }
+  if (argv[0] === '--open') {
+    const at = argv.indexOf('--until');
+    let opened;
+    try {
+      opened = openWave({ date: argv[1], kind: argv[2], until: at === -1 ? undefined : argv[at + 1] });
+    } catch (error) {
+      process.stderr.write(`wave-plan-store: ${error.message}\n\n${USAGE}\n`);
+      return 2;
+    }
+    if (opened.refusal) {
+      process.stderr.write(`wave-plan-store: ${opened.refusal}\n`);
+      return 1;
+    }
+    process.stdout.write(`${opened.file}\n`);
     return 0;
   }
   if (argv[0] === '--path') {
