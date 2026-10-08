@@ -84,6 +84,7 @@ test('the issues the commits close get a Closes line each, outside the closed de
   const messages = 'Fix the clock\n\nCloses #786.\n\nKeep the lint clean\n\nfixes #12, resolves #786; mentions #40 and the closed bug #41';
   assert.deepEqual(closedIssues(messages), [12, 786]);
   assert.deepEqual(closedIssues('Part of #800'), []);
+  assert.deepEqual(closedIssues('Fix the clock\n\nThis does not fix #800 yet.'), []);
   const body = pullRequestBody({ subjects: ['Fix the clock'], closes: [12, 786] });
   assert.match(body, /\n\nCloses #12\nCloses #786\n/);
   assert.ok(body.indexOf('Closes #12') < body.indexOf('<details>'));

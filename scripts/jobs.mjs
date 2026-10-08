@@ -544,7 +544,8 @@ function queueOnGitHub(branch, tip, description, { why = '', risk = '' } = {}) {
     .stdout.split('\x1e')[0] ?? '').trim();
   const message = mainBody(`origin/main..${tip}`) || mainBody(`${tip}~1..${tip}`);
   // Every commit's message, for the issues the branch closes (`Closes #12` in any of them).
-  const closes = closedIssues(spawnSync('git', ['log', '--no-merges', '--format=%B', `origin/main..${tip}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).stdout ?? '');
+  const messages = (range) => spawnSync('git', ['log', '--no-merges', '--format=%B', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).stdout ?? '';
+  const closes = closedIssues(messages(`origin/main..${tip}`) || messages(`${tip}~1..${tip}`));
   // The changed paths only ever derive a risk nobody gave, so an unanswerable diff simply derives none.
   const paths = spawnSync('git', ['diff', '--name-only', `origin/main...${tip}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
     .stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);

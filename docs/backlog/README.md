@@ -7,7 +7,7 @@ priority, then by `docs/GOALS.md` rank.
 
 Genuine unfinished work or a worthwhile follow-up becomes an issue with a priority, an area and
 why it matters, linked from the pull request that left it. Nothing speculative. A pull request
-that finishes an issue says `Closes #<n>` in a commit message.
+that finishes an issue says `Closes #<n>` on its own line in a commit message.
 
 The files that lived in this folder, `docs/handoffs/` and `docs/acceptance/owner-queue/` until
 2026-10-08 are in git history; each issue links the ones it replaced.

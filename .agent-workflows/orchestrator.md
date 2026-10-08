@@ -50,7 +50,7 @@ Most important first, written in the wave file before the first launch:
 1. Everything the prompt asks for, in its order, then any ruling the owner gave that no doc
    records yet (`npm run alignment:pending`).
 2. Then the backlog, which is GitHub Issues: `P1`, then `P2`, then `P3`, and within a priority by
-   `docs/GOALS.md` rank with `owner ask` first (`gh issue list --label P1 --json number,title,labels`).
+   `docs/GOALS.md` rank with `owner ask` first (`gh issue list --label P1 --limit 200 --json number,title,labels`).
    Skip an issue that waits on the owner (`needs owner`, a decision, money, an account, his own
    check), one labelled `later` or speculative, and one whose files a live worktree holds.
 
@@ -99,10 +99,10 @@ Verify in proportion: `npm run build`, and the e2e specs that cover what you cha
 job queue (`node scripts/e2e-affected.mjs --list --files <changed>` finds them; a copy or style
 change runs the specs that assert it, not the affected set). For a visible change, look at before
 and after screenshots yourself; never commit them.
-A row that finishes an issue says `Closes #<n>` in a commit message. Left over: genuine unfinished
-work or a worthwhile follow-up becomes a GitHub issue (`gh issue create`, with a priority, an area
-label and why it matters). Nothing speculative. No handoff file, and no new doc unless the doc is
-the goal.
+A row that finishes an issue puts `Closes #<n>` on its own line in a commit message. Left over:
+genuine unfinished work or a worthwhile follow-up becomes a GitHub issue (`gh issue create`, with a
+priority, an area label and why it matters). Nothing speculative. No handoff file, and no new doc
+unless the doc is the goal.
 Then /check and /queue-merge. Right after queueing, post one comment on the pull request
 (`gh pr comment`): what is not done, with its issue, and for a visible change which page to open
 on the preview deployment. Do not wait for the landing.

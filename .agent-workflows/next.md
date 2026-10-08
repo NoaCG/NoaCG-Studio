@@ -60,7 +60,7 @@ quick scan, not an audit.
   this session touched, plus the nested `AGENTS.md`/`CLAUDE.md` and `docs/` contracts that govern
   them.
 - **The backlog, only if the session's own work is exhausted:** GitHub Issues by priority
-  (`gh issue list --label P1`, then `P2`), `docs/GOALS.md` (unchecked milestones) and
+  (`gh issue list --label P1 --limit 200`, then `P2`), `docs/GOALS.md` (unchecked milestones) and
   `node scripts/alarm-issues.mjs` (what is red on `main`). Do not consult tool-private memory as
   shared project truth.
 - **Verify before you list.** Backlog entries, memory notes, old TODOs, and handoff prompts go

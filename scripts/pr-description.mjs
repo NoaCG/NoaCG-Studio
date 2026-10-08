@@ -89,11 +89,12 @@ export function riskFromBody(body = '') {
  * The issues the branch's commit messages close, by GitHub's own keywords (`Closes #12`,
  * `Fixes #3`, `Resolves #7`), each once and in order. The backlog is GitHub Issues, and a branch
  * that finishes one says so in a commit; the pull request repeats it so GitHub links the two and
- * closes the issue when the queue merges it.
+ * closes the issue when the queue merges it. Only a keyword that STARTS a line counts, so prose
+ * such as "this does not fix #800 yet" never closes an unfinished issue.
  */
 export function closedIssues(messages = '') {
   const found = new Set();
-  for (const match of String(messages).matchAll(/\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gi)) {
+  for (const match of String(messages).matchAll(/^[^\S\r\n]*(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gim)) {
     found.add(Number(match[1]));
   }
   return [...found].sort((a, b) => a - b);

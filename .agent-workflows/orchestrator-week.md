@@ -60,7 +60,7 @@ This is the half the owner attends, so it is written for him and it is short. Re
 
 - the North Star and the outcomes marked `(now)` in `docs/GOALS.md` - what we are building toward;
 - `gh issue list --label "owner ask"` - what he has asked for that is still open;
-- the `P1` and `P2` issues (`gh issue list --label P1`, then `P2`) that serve an outcome marked now.
+- the `P1` and `P2` issues (`gh issue list --label P1 --limit 200`, then `P2`) that serve an outcome marked now.
 
 Then write **the week's plan as something he can read in five minutes**: what the queue will work
 toward this week, in order, in plain words. Not tasks - directions. A line an outsider could not

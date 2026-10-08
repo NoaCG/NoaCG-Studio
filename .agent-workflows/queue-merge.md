@@ -15,10 +15,10 @@ so only the session that owns the branch queues it.
   `add-merge` refuses a tip the stamp does not cover or whose verdict is not a pass, whichever
   agent did the work. Landing without a review is possible only visibly:
   `npm run queue:merge -- --unreviewed "<reason>"`.
-- If the branch finishes a GitHub issue, say `Closes #<n>` in a commit message: queueing copies it
-  into the pull request, and GitHub closes the issue when the branch lands. A branch that only
-  advances an issue says what it did in a comment on the issue. `add-merge` refuses unread relay
-  mail (`node scripts/relay.mjs read --branch <branch>`).
+- If the branch finishes a GitHub issue, put `Closes #<n>` on its own line in a commit message:
+  queueing copies it into the pull request, and GitHub closes the issue when the branch lands. A
+  branch that only advances an issue says what it did in a comment on the issue. `add-merge`
+  refuses unread relay mail (`node scripts/relay.mjs read --branch <branch>`).
 - Queueing pins the branch at its current commit and freezes its worktree until the landing ends.
   The next change goes on a new branch, or withdraw first with `node scripts/jobs.mjs cancel <id>`.
 
@@ -77,7 +77,7 @@ fix needs a product decision or a change well outside the pull request's scope.
 ## From a cloud session (no `gh`)
 
 1. Section 1 still holds. Push the branch and open its pull request against `main`, with the
-   description from `scripts/pr-description.mjs`.
+   description from `scripts/pr-description.mjs` and a `Closes #<n>` line for each issue it finishes.
 2. Right after opening it, dispatch `.github/workflows/cloud-queue-merge.yml` on `main` with
    `branch`, `sha` (the reviewed tip) and `review` (one line: what was checked). It refuses a branch
    that moved past `sha`, posts `noacg/reviewed` and labels the pull request `land`; its log says if
