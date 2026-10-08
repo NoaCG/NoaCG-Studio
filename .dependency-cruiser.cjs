@@ -260,9 +260,12 @@ module.exports = {
       to: { path: '^src/(templates|blocks|model|validation|community|preview|export|packs|control)/' },
     },
     {
-      comment: '§3: community -> backend, validation',
+      comment:
+        '§3: community -> backend, validation, packs. A community pack IS a noacg-pack file ' +
+        '(docs/work-specs/community-packs/spec.md D2), so the shelf builds and re-checks it through ' +
+        'the one pack format rather than a second copy of it.',
       from: { path: '^src/community/' },
-      to: { path: '^src/(backend|validation)/' },
+      to: { path: '^src/(backend|validation|packs)/' },
     },
     {
       comment:

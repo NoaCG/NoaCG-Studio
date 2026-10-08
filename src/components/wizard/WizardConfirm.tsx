@@ -37,6 +37,8 @@ interface Props {
   onCancel: () => void;
   /** `<testid>`, `<testid>-go` and `<testid>-cancel` are the three handles specs use. */
   testid: string;
+  /** The primary stays visible but cannot be pressed (a sheet whose checks have not passed). */
+  confirmDisabled?: boolean;
 }
 
 export default function WizardConfirm({
@@ -47,6 +49,7 @@ export default function WizardConfirm({
   cancelLabel,
   onCancel,
   testid,
+  confirmDisabled = false,
 }: Props) {
   const pressedOnBackdrop = useRef(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -59,9 +62,14 @@ export default function WizardConfirm({
   }, []);
 
   // The primary takes focus, so Enter answers the question the dialog asked and Tab starts
-  // inside it rather than on whatever the wizard had focused underneath.
+  // inside it rather than on whatever the wizard had focused underneath. A primary that opens
+  // disabled (a sheet still to be filled in) cannot hold focus, so the body's first control does.
+  const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    confirmRef.current?.focus();
+    if (!confirmDisabled) confirmRef.current?.focus();
+    else bodyRef.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
+    // On open only: re-focusing whenever the primary enables would pull focus out of a field.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -104,13 +112,13 @@ export default function WizardConfirm({
             ✕
           </button>
         </div>
-        <div className="wz-confirm-body">{children}</div>
+        <div className="wz-confirm-body" ref={bodyRef}>{children}</div>
         <div className="dlg-foot">
           <button onClick={onCancel} data-testid={`${testid}-cancel`}>
             {cancelLabel}
           </button>
           <div className="spacer" />
-          <button className="primary" onClick={onConfirm} data-testid={`${testid}-go`} ref={confirmRef}>
+          <button className="primary" onClick={onConfirm} data-testid={`${testid}-go`} ref={confirmRef} disabled={confirmDisabled}>
             {confirmLabel}
           </button>
         </div>

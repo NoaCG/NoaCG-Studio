@@ -96,7 +96,8 @@ here and not in §6 are wrong - fix the code, not the table.
 - `audience` -> backend (the Supabase provider is eleven slug-keyed RPCs through `getSupabase()`;
   it reaches no other domain, which is what keeps "nothing viewer-written airs without an
   operator" structural - there is nowhere for it to write a command)
-- `community` -> backend, validation
+- `community` -> backend, validation, packs (a community pack IS a `noacg-pack` file, so the shelf's
+  builder and the admin's re-check use the one pack format)
 - `packs` -> validation (a pack installs only through the ONE export gate - the importer refusing
   what export would refuse is the whole safety story of installing a file somebody handed you)
 - `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes

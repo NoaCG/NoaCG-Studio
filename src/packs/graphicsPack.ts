@@ -328,7 +328,12 @@ export function validatePack(pack: GraphicsPack): string | null {
  * Returns the production, THROWS with a user-readable message on any failure. Callers show
  * the message and navigate on the returned show — nothing here touches the editor.
  */
-export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Promise<Show> {
+export async function installPack(
+  pack: GraphicsPack,
+  dest?: ProductionDest,
+  /** Where the pack came from, stamped on every graphic it creates (community shelf, spec D7). */
+  fromPack?: { id: string; version: number; author: string },
+): Promise<Show> {
   const failure = validatePack(pack);
   if (failure) throw new Error(failure);
   for (const a of pack.soundAssets ?? []) {
@@ -343,6 +348,7 @@ export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Pr
     templates,
     pack.name,
     dest ?? { kind: 'new', name: pack.name },
+    fromPack,
   );
 
   // The pack's playout intent, applied over the defaults the pool assign gave. Pool entries
