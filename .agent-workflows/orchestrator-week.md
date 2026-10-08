@@ -14,12 +14,14 @@ Tuesday morning, in a fresh session, read-only on the repository; it writes no f
   automate."* No technical or design question ever reaches him. **Alignment is the only gate that
   does, and it is weekly.**
 
-So this session is **his five minutes**: the plan for the week and the places where the plan and
-his vision could genuinely differ. The machine reviews itself in each wave's retro, not here.
+So this session is **his five minutes**: the plan for the week, the places where the plan and his
+vision could genuinely differ, anything serious he should know about, and how the week went in the
+few numbers that change what he would do. Each wave's retro fixes the machine; this page shows him
+the week.
 
 Tuesday, not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday.
 
-## 1. Measure - three commands, nothing recalled
+## 1. Measure - six commands, nothing recalled
 
 Work from a checkout of current `origin/main` - the scheduled run gets a fresh worktree of its own -
 and never in the primary checkout, which the merge queue relies on. The feedback count reads the
@@ -27,6 +29,9 @@ main checkout's `.env` by itself, the orchestrator home is found from any checko
 plans live in the store (`node scripts/wave-plan-store.mjs --list`), reachable from anywhere.
 
     node scripts/orchestrator-week.mjs
+    npm run night:report -- --hours 168
+    node scripts/alarm-issues.mjs
+    node scripts/wave-plan-store.mjs --list
     npm run feedback:count
     npm run check:freshness
 
@@ -35,7 +40,15 @@ Antigravity calls, the delegation outcomes and which capability observations lap
 their rows by pool, and what the queue landed; the `DECIDED:` count and the issues opened, with how
 many carry `owner ask` or `needs owner`; and the commits that touched the orchestration system,
 with the common-path line count now against the window's start. Every number names its source in the
-script's header; do not restate a number the page does not carry.
+script's header; do not restate a number the page does not carry. **Most of it is raw material, not
+report**: a number reaches him only when it changes something he would do (step 3).
+
+The night report over 168 hours is the queue's week: what landed, what was refused and why, and how
+many landings needed a retry. Its headline line is what matters; the per-branch lists are not for
+him. `alarm-issues.mjs` names what is red on `main` right now. The wave-plan store lists this week's
+waves; read the `## Report` at the end of each one written in the window, because each holds what
+shipped, what was not done and that wave's retro. Last, compare the scheduler's list of tasks with
+the table in `docs/ROUTINES.md`: every enabled routine there, on the cadence it states.
 
 **If the waves section says NO WAVE PLAN FOUND, that is not a quiet week.** It names every
 directory it searched and what each held; a page in that state has lost the week's routing and its
@@ -58,8 +71,10 @@ because `docs/STACK_FRESHNESS.md` is time-driven and nothing in CI ever notices 
 This is the half the owner attends, so it is written for him and it is short. Read four things:
 
 - the North Star and the outcomes marked `(now)` in `docs/GOALS.md` - what we are building toward;
-- `gh issue list --label "owner ask"` - what he has asked for that is still open;
-- the `P1` and `P2` issues (`gh issue list --label P1 --limit 200`, then `P2`) that serve an outcome marked now.
+- `gh issue list --label "owner ask"` - what he has asked for that is still open. An ask's age is the
+  date he said it, quoted in the issue body, not the date the issue was opened;
+- the `P1` and `P2` issues (`gh issue list --label P1 --limit 200`, then `P2`) that serve an outcome marked now;
+- the open `bug` issues at `P1` (`gh issue list --label bug --label P1`) - what is broken for a user.
 
 Then write **the week's plan as something he can read in five minutes**: what the queue will work
 toward this week, in order, in plain words. Not tasks - directions. A line an outsider could not
@@ -112,39 +127,59 @@ could have taken the other way.
 queue keeps working toward it - that is the point of the ruling, not a fallback. Nothing in NoaCG
 ever waits on this page.
 
-### His answers travel in a prompt, never a file
+### Everything worth doing travels in one prompt, never a file
 
-**A question said only in chat is gone when the session closes**, and so is his answer. So when he
-answers, the session ends with ONE fenced block he pastes as the prompt of his next `/orchestrator`
-wave: each question, his answer in his own words (never trimmed to fit), and where the wave records
-it - direction in `docs/GOALS.md`, a rule or a plan in its scoped doc, private context in
-`docs/private/`. Routines report; sessions write, and the wave is the session that writes.
+**A question said only in chat is gone when the session closes**, and so is his answer. So the
+session ends with ONE fenced block he pastes as the prompt of his next `/orchestrator` wave. It holds
+two things, either of which may be empty:
+
+- **His answers**: each question, his answer in his own words (never trimmed to fit), and where the
+  wave records it - direction in `docs/GOALS.md`, a rule or a plan in its scoped doc, private
+  context in `docs/private/`. A question he leaves unanswered stays out; the plan stands.
+- **At most three pieces of work** step 3 turned up - a serious problem, or a fix for where the week
+  lost time - each with its goal, why, and the issue it serves if there is one. A problem already
+  covered by an open issue the wave will pick anyway is not repeated here.
+
+Routines report; sessions write, and the wave is the session that writes. With nothing in either
+half, there is no block.
 
 ```
-Record the owner's answers from the weekly session of <date>, where each belongs:
+From the weekly owner session of <date>:
+Record the owner's answers, where each belongs:
 1. Q: Does the SVG road still deserve the top of NOW, six weeks in?
    A (his words): "..."
    Record in: docs/GOALS.md
+Then do, most important first:
+1. GOAL ... WHY ... (#<issue>)
 ```
-
-A question he leaves unanswered stays out of the block; the plan stands. If he answers nothing,
-there is no block.
 
 ## 3. Report in chat
 
-Four short sections, numbers from step 1, and nothing written to disk:
+Six short sections, numbers from step 1, and nothing written to disk. Each one is a line or a few,
+and a quiet section says so in one line rather than disappearing, so he can tell quiet from missing:
 
 1. **The week's plan** - the five-minute list from step 2, in order.
 2. **What needs you** - the at-most-three questions, each tagged `needs: decision`, or the words
-   "nothing needs you this week". Once he has answered, the prompt block from step 2 closes the
-   session.
-3. **Feedback** - the counts in one or two lines. If anything arrived at all, the one action:
+   "nothing needs you this week".
+3. **Serious** - anything a user could hit or that could stop work: red on `main`
+   (`alarm-issues.mjs`), a `P1` bug, an owner ask that has waited three weeks or more without
+   starting, a routine missing from the scheduler or running on the wrong cadence, a meter near its
+   cap that will change routing (Codex's weekly snapshot, for example). One line each, at most
+   three, with what happens if nobody acts. Nothing is "the queue has it in hand" here; if the queue
+   has it, it is not serious.
+4. **How the week went** - at most three numbers, each with the one thing it suggests: what landed
+   and how much needed a retry or was refused (night report headline); for each wave, how much of
+   its window had rows running and how many pull requests it landed (its `## Report`); and where
+   his own attention went that the machine could have covered. A number that suggests nothing is
+   left out - token totals, the most-used model and session counts usually are.
+5. **Feedback** - the counts in one or two lines. If anything arrived at all, the one action:
    *open <https://noacg.studio/admin> and read what they wrote* - the count cannot tell you what
    they said, only that they said something. Zero is one line, unpadded.
-4. **Freshness** - only what it flagged. All current is one line.
-**Then print the four sections in chat, and nothing else.** Those are his five minutes. The
-machine's review of itself is each wave's retro (`.agent-workflows/orchestrator.md`, step 6), not
-this page.
+6. **Freshness** - only what it flagged. All current is one line.
+
+**Then the prompt block from step 2, and nothing else.** That is his five minutes. Fixing the
+machine itself is each wave's retro (`.agent-workflows/orchestrator.md`, step 6); this page shows
+what a fix should aim at.
 
 Plain English throughout, written for a non-technical reader: no run ids, no SHAs, no
 workflow filenames, no praise, no summary paragraph.
