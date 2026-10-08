@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-10-02
 state: advanced
-note: "claude/bv-community-packs landed the record (docs/work-specs/community-packs/spec.md), the wizard's Community packs shelf, Install and the seeded Pub Quiz (AC-1 to AC-4). Still missing: the design lock (AC-5), sharing (AC-6), the automatic checks (AC-7), admin approval (AC-8) and takedown (AC-9)."
+note: "claude/bv-community-packs landed the shelf, Install and the seeded Pub Quiz (AC-1 to AC-4). claude/k-community-packs-workflow landed the review loop for NoaCG admins: submit a set of graphics from the shelf, the checks, review, approve, take down and withdraw (AC-6 to AC-10, migration 0079). Still missing: the design lock (AC-5, a Playout row), opening submit to every maker, updates (AC-11) and the agent door (AC-12); docs/handoffs/2026-10-08-k-community-packs.md."
 asked: "Paraphrase, owner 2026-10-02: three categories in the template workflow - Templates, Kits, Community packs. A community pack is finished, installed and used at once, never modified. The community makes and shares them; a shared pack is reviewed by automatic checks and then a NoaCG admin before anyone else sees it. NoaCG seeds the shelf first."
 serves: NOW
 size: large

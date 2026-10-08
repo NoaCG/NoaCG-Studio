@@ -86,7 +86,8 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
 - **Current state:** SVG import v1 and text-to-box binding are built and machine-verified. Brands
   have a model, a wizard chooser and a creator on Home; applying one across a production is still
   to build. The catalog has visual quality gates. The Community packs shelf installs finished
-  packages as they are; NoaCG seeded one, and sharing a pack for review is still to build.
+  packages as they are; NoaCG admins can submit, review and publish packs there, and opening
+  that to every maker waits on the design lock.
 - **Done for this phase:** someone unfamiliar imports a layered SVG that is not one of our samples,
   binds its fields, applies a brand and plays it through the standard workflow; text fits its box
   for short and long values; catalog templates pass the visual quality gates.
