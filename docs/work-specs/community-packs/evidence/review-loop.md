@@ -39,6 +39,12 @@ Observed, step by step:
 24 mine after withdraw => ok Mod pack:taken_down,Second:withdrawn
 ```
 
+After the branch's review, the migration's own self-check also CALLS the doors as an existing
+account made a moderator for the moment (submit waits for review, a pack carrying cues is
+refused, approval reaches the shelf with the licence stamped, withdraw takes it off) inside a
+block that rolls itself back; applied to the local stack it passed, the 24-step script above gave
+the same 9 refusals again, and the table and `moderators` were empty afterwards.
+
 The first run of this script found a real defect: the submit function called
 `public.is_suspended(uuid)`, which migration 0020 reshaped to `is_suspended()`. Fixed before the
 migration was committed; the run above is after the fix.
