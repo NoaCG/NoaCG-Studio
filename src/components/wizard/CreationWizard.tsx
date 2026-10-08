@@ -271,7 +271,7 @@ export default function CreationWizard() {
   // ── A WALK LEFT MID-WAY ──
   // Every close the wizard makes ITSELF (a door that made something, ✕ on the front page, a
   // declined walk-back) goes through this wrapper, so a close it did not make is the reader
-  // LEAVING: the Home door (which calls the store's own close on purpose) or browser Back. Such
+  // LEAVING: a Home door (which calls the store's own close on purpose) or browser Back. Such
   // a walk is held, and the guard asks before a door opens the wizard fresh over it
   // (saveActions `heldWalk`).
   const closedByWizard = useRef(false);
@@ -282,8 +282,8 @@ export default function CreationWizard() {
   }, [leaveGallery]);
   /** The draft this walk started from, so "has work" means the reader changed something. */
   const startDraft = useRef<WizardDraft | null>(null);
-  /** The last working step (past the front page) this walk stood on: where Continue returns.
-   *  Not the step at close, which browser Back has already rewound to the front page. */
+  /** The furthest step this walk reached: where Continue returns. Not the step at close, which
+   *  browser Back has already rewound through every step to the front page. */
   const lastStep = useRef(0);
   // Has the created graphic been touched since the door saved it? The app's own answer, so the
   // walk-back warning promises to write over hand edits only when there are some. A door that
@@ -475,8 +475,13 @@ export default function CreationWizard() {
   useEffect(() => {
     if (stepRef.current) stepRef.current.scrollTop = 0;
   }, [step, mode]);
+  // A new mode is a new walk, with other steps; declared first, so a mode pick that also moves
+  // the step resets before the step is counted.
   useEffect(() => {
-    if (open && step > 0) lastStep.current = step;
+    lastStep.current = 0;
+  }, [mode]);
+  useEffect(() => {
+    if (open && step > lastStep.current) lastStep.current = step;
   }, [open, step]);
   useEffect(() => {
     if (!open) return;
@@ -523,14 +528,17 @@ export default function CreationWizard() {
   /** Has the reader done anything in this walk that a fresh open would wipe? The same rule as
    *  the working document's guard (saveActions `hasUnsavedWork`): compared with what the walk
    *  started from. The project format alone is not work - ✕ keeps it over a discarded draft,
-   *  and it is one select to set again. Read through a ref, as `leaveStepRef` is, so the open
-   *  effect below sees the live walk without re-running on every keystroke. */
+   *  and it is one select to set again. */
   const walkHasWork = () => {
-    if (aiResult || importedFile || kit) return true;
+    // A door already made something of it (the export door keeps the wizard open).
+    if (madeThisOpen.current) return false;
+    if (aiResult || importedFile || kit || kitPack) return true;
     const base = startDraft.current ?? initialDraft();
     const { aspectId, resolutionId, fps, formatTouched } = base;
     return JSON.stringify({ ...draft, aspectId, resolutionId, fps, formatTouched }) !== JSON.stringify(base);
   };
+  // Read by the open effect through a ref, as `leaveStepRef` is, so that effect keeps its
+  // `[open]` dependencies rather than re-running on every keystroke.
   const walkHasWorkRef = useRef(walkHasWork);
   walkHasWorkRef.current = walkHasWork;
 
@@ -542,9 +550,9 @@ export default function CreationWizard() {
       // everything is still in state, because a closed wizard renders null rather than
       // unmounting, so only the step it was left on is put back.
       closedByWizard.current = false;
-      const { heldWalk, resumeWalk } = useSaveUi.getState();
+      const { resumeWalk } = useSaveUi.getState();
       useSaveUi.setState({ heldWalk: false, resumeWalk: false });
-      if (resumeWalk && heldWalk) {
+      if (resumeWalk) {
         setStep(lastStep.current);
         return;
       }
@@ -681,19 +689,19 @@ export default function CreationWizard() {
     // URL) leaves the wizard exactly where the reset effect above put it: Entry.
     if (!pending || pending.category === 'imported-design') return;
     setMode('template');
-    setDraft(
-      mergeDraft(initialDraft(), {
-        category: pending.category,
-        variantId: pending.id,
-        lines: pending.suggestedLines.map((l) => ({ ...l })),
-        zone: null,
-        logoEnabled: null,
-        animation: { presetId: null, outPresetId: null },
-        paletteId: null,
-        customPalette: null,
-        fontId: null,
-      }),
-    );
+    // The link chose this design, not the reader in this walk: it is where the walk starts.
+    startDraft.current = mergeDraft(initialDraft(), {
+      category: pending.category,
+      variantId: pending.id,
+      lines: pending.suggestedLines.map((l) => ({ ...l })),
+      zone: null,
+      logoEnabled: null,
+      animation: { presetId: null, outPresetId: null },
+      paletteId: null,
+      customPalette: null,
+      fontId: null,
+    });
+    setDraft(startDraft.current);
     setStep(2);
   }, [open, pendingDesignId]);
 
@@ -872,6 +880,10 @@ export default function CreationWizard() {
     });
     setMode('template');
     setStep(0);
+    // A rewind is a fresh start: what it keeps (the format) is not work, and nor is a brand the
+    // open had pre-applied, which it drops.
+    startDraft.current = null;
+    lastStep.current = 0;
     setBrowseFilters(NO_BROWSE_FILTERS);
     setAiResult(null);
     setAiThread(null);
@@ -1881,7 +1893,7 @@ export default function CreationWizard() {
                   setStep(1);
                 }}
                 onHome={(section = null) => {
-                  closeGallery();
+                  leaveGallery();
                   useRouter.getState().navigate({ view: 'home', section });
                 }}
                 onOpenPlayout={(productionId) => {

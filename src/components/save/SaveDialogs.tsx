@@ -177,16 +177,13 @@ function ConfirmSwitchDialog() {
   // A WIZARD WALK left mid-way is what is at risk (saveActions `heldWalk`): it has no library to
   // be saved into, so the safe answer is going back into it rather than saving. Either answer
   // then meets the working-document guard on its own, since both open the wizard.
+  // The walk is dropped by the fresh open itself, so backing out of a second dialog keeps it held.
   const walk = confirm.resume;
-  const continueWalk = () => {
+  const thenGuard = (next: () => void) => () => {
     settleConfirm();
-    useSaveUi.getState().requestSwitch(walk!, confirm.cancel);
+    useSaveUi.getState().requestSwitch(next, confirm.cancel);
   };
-  const discardWalk = () => {
-    settleConfirm();
-    useSaveUi.setState({ heldWalk: false });
-    useSaveUi.getState().requestSwitch(confirm.proceed, confirm.cancel);
-  };
+  const title = walk ? 'Graphic in progress' : 'Unsaved changes';
 
   return (
     <div
@@ -201,11 +198,11 @@ function ConfirmSwitchDialog() {
         className="wz-modal save-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label={walk ? 'Graphic in progress' : 'Unsaved changes'}
+        aria-label={title}
         data-testid="confirm-switch"
       >
         <div className="wz-header">
-          <h2>{walk ? 'Graphic in progress' : 'Unsaved changes'}</h2>
+          <h2>{title}</h2>
           <button className="gallery-close" onClick={closeConfirm} title="Cancel">✕</button>
         </div>
         <div className="save-dialog-body">
@@ -219,8 +216,8 @@ function ConfirmSwitchDialog() {
             <div className="spacer" />
             {walk ? (
               <>
-                <button onClick={discardWalk} data-testid="switch-discard">Discard and start new</button>
-                <button className="primary" onClick={continueWalk} data-testid="switch-resume">Continue</button>
+                <button onClick={thenGuard(confirm.proceed)} data-testid="switch-discard">Discard and start new</button>
+                <button className="primary" onClick={thenGuard(walk)} data-testid="switch-resume">Continue</button>
               </>
             ) : (
               <>

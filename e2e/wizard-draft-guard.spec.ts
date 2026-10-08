@@ -68,3 +68,19 @@ test('nothing to lose: a walk left before choosing anything opens fresh without 
   await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
 });
+
+test('a walk left by browser Back is held too, and Continue returns to the furthest step', async ({ page }) => {
+  await toBrowse(page);
+  await pickDesign(page, 'Hairline');
+  const where = (await page.getByTestId('wz-stepcount').textContent())!;
+  // Back steps down through the walk's own history entries to the front page, then out to Home.
+  while (/#\/new/.test(page.url())) await page.goBack();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  await page.locator('[data-door="new-graphic"]').click();
+  const guard = page.getByTestId('confirm-switch');
+  await expect(guard).toBeVisible();
+  await guard.getByTestId('switch-resume').click();
+  await expect(page.getByTestId('wz-stepcount')).toHaveText(where);
+  await expect(page.locator('.wz-title-doc')).toContainText('Hairline');
+});
