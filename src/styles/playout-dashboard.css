@@ -2262,6 +2262,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      Export and the wizard door are AUTHORING actions and stand down at this width. */
   .pd-header { height: 46px; padding: 0 8px; gap: 6px; }
   .pd-header h1 { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; }
+  /* The name's icon stands down: squeezed by a due action, the name gave way and left the icon
+     alone in the row. */
+  .pd-header h1 > svg { display: none; }
   .pd-clock,
   .pd-status,
   .pd-back,
@@ -2285,7 +2288,16 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-mode { font-size: 9.5px; padding: 3px 7px; letter-spacing: 0.06em; flex: none; }
   /* The playout status stays, narrower: it is the one way a phone operator learns the screens are
      not hearing them. The production's name is the one that truncates. */
-  .pd-status-control { width: 9.5em; padding: 4px 8px; font-size: 11px; }
+  .pd-status-control { width: 9.5em; max-width: 100%; min-width: 3em; padding: 4px 8px; font-size: 11px; }
+  /* With an action due beside it, the status is what gives way (its text ends in an ellipsis; the
+     panel says it whole), never ■ All out. */
+  .pd-header > .pd-ready-host.pd-status-host { flex: 0 1 auto; min-width: 3em; }
+  /* The action slot reserves its width only where Setup and ■ All out sit right of it; here Setup
+     stands down and the spacer pins All out to the edge, so an empty slot gives its room back. */
+  .pd-action-slot { min-width: 0; }
+  /* The cloud chip keeps its dot and drops its word, which its tooltip and accessible name carry:
+     a late or failed save still shows, in the room of one icon. */
+  .pd-header .sync-status { min-width: 0; min-height: 0; width: 30px; height: 30px; padding: 0; gap: 0; font-size: 0; justify-content: center; }
   /* ...except before the first publish, where "Not published" costs 110px to repeat what Publish
      beside it already says, and the production's NAME was paying for it (0px wide at 390). The
      monitor still reads PROGRAM · NOT PUBLISHED. */

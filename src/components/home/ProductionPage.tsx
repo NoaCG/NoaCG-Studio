@@ -5534,7 +5534,7 @@ function ProductionShell({
             The cloud chip stays visible: an operator must not miss a save that is late or failed. */}
         {/* One chip for both kinds of production (playout-workflow-simplification AC-12): a team
             production reads its own save, in the same words. */}
-        <SyncStatus compact team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
+        <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
         {/* The panel's status, only while it is switched on: "Panel ✓" answering, "Panel …"
             connecting. A press opens its dialog, as the Setup menu's item does. */}
         {panelState !== 'off' && (
