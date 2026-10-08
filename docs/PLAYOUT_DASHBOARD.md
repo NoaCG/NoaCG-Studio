@@ -328,6 +328,14 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   Update `U`, Next `N`, Out `0`, and `↑`/`↓` walk the rundown; a server clip's Pause carries `P`
   (§2h), which toggles it. `■ All out` lives in the header,
   away from the others, because it is the panic control.
+- **A cue can have its own shortcut** (the row's ⋯ › Shortcut; playout-workflow-simplification
+  D13). The key pressed in the dialog is the assignment, saved and working at once, here and on
+  the hosted page. It binds by the key's position with Ctrl, Alt and Shift, so Å, Ä, Ö, Shift+1,
+  Ctrl+K or F2 work, and the rundown shows the layout's own label. Refused, each in one line: the
+  verb keys with or without Shift, Ctrl+Alt (AltGr), F5, F11, F12, Ctrl or Ctrl+Shift with N, T, W
+  or Tab, and the rundown's Ctrl+C, X, V, Z, Y. A key another cue holds offers "Move it here".
+  Shortcuts saved as a letter (`v`, `shift+f`) keep firing. Typing, a dialog, an open menu and the
+  Data and Audience views keep the keys quiet.
 - **A timed cue counts on its row and over PROGRAM** (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, built
   2026-10-03 for unpublished productions). The cue editor's Ends row times a graphic cue: after so
   many seconds ON AIR, Out, Next cue (the next graphic cue in the rundown) or both. The countdown

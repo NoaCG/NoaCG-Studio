@@ -1162,7 +1162,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             keptStates={keptStates}
             onKey={runVerb}
             cues={cues}
-            productionId={slug}
           />
           </div>
 
@@ -1366,7 +1365,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
  */
 function HostedVerbs({
   cues,
-  productionId,
   selectedIsLive,
   spaceNext,
   spaceMode,
@@ -1381,7 +1379,6 @@ function HostedVerbs({
   onKey,
 }: {
   cues: OutputCue[];
-  productionId: string;
   selectedIsLive: boolean;
   /** What SPACE does next - the button's face comes from the same decision the key runs. */
   spaceNext: SpaceAction;
@@ -1401,12 +1398,11 @@ function HostedVerbs({
   keptStates: string;
   onKey: (verb: PlayoutVerb, press?: VerbPress) => void;
 }) {
-  const shortcuts = useCueShortcutSet(cues, productionId);
+  const shortcuts = useCueShortcutSet(cues);
   usePlayoutVerbKeys(onKey, true, shortcuts.bindings);
   const face = takeFace(spaceNext);
   return (
     <div className="pd-verbs" data-testid="hosted-verbs">
-      {shortcuts.changed && <button className="pd-verb pd-verb-secondary" onClick={shortcuts.apply}>Apply cue shortcuts</button>}
       {!!shortcuts.conflicts.length && <span role="status">Duplicate cue shortcuts disabled: {shortcuts.conflicts.join(', ')}</span>}
       {/* No → Preview button here either — parity with the in-app bar, and for the same reason:
           this page's PVW monitor is a local stage that follows the selection on its own. In

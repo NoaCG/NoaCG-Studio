@@ -35,7 +35,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
-import { normalizeCueShortcut } from './cueShortcuts.ts';
+import { cueShortcutIdentity, normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -994,13 +994,20 @@ export function updateShowCueChecked(
   });
 }
 
-export function setCueShortcut(showId: string, cueId: string, value: string | null): { shows: Show[]; error: string | null } {
+/** Set or clear a cue's shortcut (model/cueShortcuts.ts). A key another cue holds is refused,
+ *  unless `move` says to take it from that cue in the same write ("Move it here"). */
+export function setCueShortcut(showId: string, cueId: string, value: string | null, options: { move?: boolean } = {}): { shows: Show[]; error: string | null } {
   return patchShowChecked(showId, show => {
     const cue = show.cues?.find(c => c.id === cueId);
     if (!cue) throw new Error('This cue was removed.');
     const key = value === null ? null : normalizeCueShortcut(value);
-    if (value !== null && !key) throw new Error('Choose a letter or digit, optionally with Shift.');
-    if (key && show.cues?.some(c => c.id !== cueId && normalizeCueShortcut(c.hotkey) === key)) throw new Error('That key is already assigned. Remove its other assignment first.');
+    if (value !== null && !key) throw new Error('That key cannot be a shortcut.');
+    const holders = key ? (show.cues ?? []).filter(c => {
+      const other = c.id !== cueId ? normalizeCueShortcut(c.hotkey) : null;
+      return !!other && cueShortcutIdentity(other) === cueShortcutIdentity(key!);
+    }) : [];
+    if (holders.length && !options.move) throw new Error(`Used by ${holders[0].label}`);
+    for (const holder of holders) delete holder.hotkey;
     if (key) cue.hotkey = key; else delete cue.hotkey;
     return true;
   });

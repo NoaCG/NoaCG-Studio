@@ -5317,7 +5317,7 @@ function ProductionShell({
   // ONLY WHILE PLAYOUT IS THE SURFACE ON SCREEN. This shell renders on Data and Audience too,
   // with the playout column hidden behind them, so bound-while-mounted meant SPACE ran Take
   // from a screen showing neither monitor. The hosted page has no workspaces and passes nothing.
-  const shortcuts = useCueShortcutSet(show.cues ?? [], show.id);
+  const shortcuts = useCueShortcutSet(show.cues ?? []);
   usePlayoutVerbKeys(onKey, sub === null, shortcuts.bindings);
   useRundownEditKeys(onEditKey, sub === null);
   const teamsAvailable = useTeamsAvailable();
@@ -5373,7 +5373,6 @@ function ProductionShell({
             state that changes during a show never moves what is beside it, and the one action
             slot after it (Publish, Load or Publish changes) keeps its own width too. */}
         {status}
-        {shortcuts.changed && <button onClick={shortcuts.apply} data-testid="apply-cue-shortcuts">Apply cue shortcuts</button>}
         {shortcuts.conflicts.length > 0 && <span role="status">Conflicting cue shortcuts disabled: {shortcuts.conflicts.join(', ')}</span>}
         {/* NOT JOINED, AND ONLY THEN. A healthy production says nothing new here: the line
             appears when the log's channel has never joined, which is the state that used to
