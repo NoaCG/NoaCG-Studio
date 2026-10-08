@@ -47,8 +47,7 @@ jobs:
   # cap below with one test left (issue #568). The weights are the last few nightlies' own reports,
   # fetched best effort: a report that cannot be had leaves its files to the durations table. The
   # plan also decides HOW MANY runners: as many as keep every shard planned three minutes under its
-  # 20-minute budget. A fixed eight was outgrown in October 2026 and stopped 80-90 tests short
-  # every night (issue #706).
+  # 20-minute budget (issue #706).
   plan:
     name: Nightly shard plan
     runs-on: ubuntu-latest

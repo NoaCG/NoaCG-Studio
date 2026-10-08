@@ -51,11 +51,12 @@ test('the runner count grows until every shard is planned under the line', () =>
   // 160 minutes of tests, as the suite measured on 2026-10-08: eight runners would plan each at 20.
   const minutes = Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`s${String(i).padStart(2, '0')}.spec.ts`, 2]));
   const suite = Object.keys(minutes);
-  const plan = planNightly({ suite, table: { minutes, overhead: { jobMinutes: 0.4, testFactor: 1.01 } } });
+  const table = { minutes, overhead: { jobMinutes: 0.4, testFactor: 1.01 } };
+  const plan = planNightly({ suite, table });
   assert.ok(plan.shardSpecs.length > 8, `asked for ${plan.shardSpecs.length} runners`);
-  assert.ok(Math.max(...plan.predicted) <= NIGHTLY_PLAN_LINE_MINUTES, `worst shard planned at ${Math.max(...plan.predicted)}`);
+  assert.ok(plan.fits && Math.max(...plan.predicted) <= NIGHTLY_PLAN_LINE_MINUTES, `worst shard planned at ${Math.max(...plan.predicted)}`);
   // And no more than it needs: one runner fewer would put a shard over the line.
-  const fewer = planNightly({ suite, table: { minutes, overhead: { jobMinutes: 0.4, testFactor: 1.01 } }, shards: plan.shardSpecs.length - 1 });
+  const fewer = planNightly({ suite, table, shards: plan.shardSpecs.length - 1 });
   assert.ok(Math.max(...fewer.predicted) > NIGHTLY_PLAN_LINE_MINUTES);
   assert.deepEqual(plan.shardSpecs.flat().sort(), suite);
 });

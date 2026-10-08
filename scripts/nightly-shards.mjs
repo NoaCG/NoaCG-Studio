@@ -16,14 +16,11 @@
 // the triage read the other seven and said "every spec file green". Nothing was hung; the split
 // was lopsided. This packs spec files by their measured minutes with the same packer ci.yml uses.
 //
-// THE RUNNER COUNT FOLLOWS THE SUITE (issue #706). The packing fixed the balance and kept eight
-// runners, and the suite then outgrew them: 122 measured minutes on 2026-10-02, about 160 a week
-// later, as each landing added a spec file of two or three minutes. The plan predicted every shard
-// at 18.5, 20.2 and then 20.5 minutes against a 20-minute budget and said so in a warning, and
-// four nights running three to five shards stopped at `--global-timeout` with 80-90 tests
-// unreached - the alphabetical tail of each shard, never the same specs twice, no test hung or
-// timed out. So the plan now asks for as many runners as the measured minutes need
-// (`nightlyShardCount`), and the warning is left for a suite that outgrows the ceiling.
+// THE RUNNER COUNT FOLLOWS THE SUITE (issue #706). The packing kept a fixed eight runners, the
+// suite outgrew them within a week, and shards stopped at `--global-timeout` with tests unreached
+// while the plan only warned (docs/CI_STABILITY.md has the numbers). So the plan now asks for as
+// many runners as the measured minutes need (`packNightly`), and the warning is left for a suite
+// that outgrows the ceiling.
 //
 // THE WEIGHTS COME FROM EARLIER NIGHTLIES FIRST. They measured this suite on these runners hours
 // ago. The durations table (scripts/e2e-durations.json) is a ci.yml recording that a person must
@@ -93,13 +90,11 @@ export function nightlyMinutes(reports) {
     const unfinished = unfinishedByFile(report);
     const failed = failedFiles(report);
     for (const [file, m] of Object.entries(minutesByFile(report))) {
-      if (unfinished.has(file) || failed.has(file)) continue;
+      if (unfinished.has(file) || failed.has(file) || seen[file]?.length >= NIGHTS_PER_FILE) continue;
       (seen[file] ??= []).push(m);
     }
   }
-  return Object.fromEntries(
-    Object.entries(seen).map(([file, nights]) => [file, Math.max(...nights.slice(0, NIGHTS_PER_FILE))]),
-  );
+  return Object.fromEntries(Object.entries(seen).map(([file, nights]) => [file, Math.max(...nights)]));
 }
 
 /**
@@ -111,22 +106,21 @@ export function nightlyMinutes(reports) {
  * @param {string[]} suite
  * @param {{ minutes: Record<string, number>, overhead?: object }} weights
  * @param {number} [fixed] a set runner count instead, for tests
- * @returns {{ bins: string[][], predicted: number[] }}
+ * @returns {{ bins: string[][], predicted: number[], worst: number }}
  */
 export function packNightly(suite, weights, fixed) {
   const pack = (count) => {
     const bins = packShards(suite, count, weights);
-    return { bins, predicted: bins.map((bin) => predictShardMinutes(minutesFor(bin, weights), weights)) };
+    const predicted = bins.map((bin) => predictShardMinutes(minutesFor(bin, weights), weights));
+    return { bins, predicted, worst: Math.max(...predicted) };
   };
   if (fixed) return pack(fixed);
   const lowerBound = Math.ceil(minutesFor(suite, weights) / budgetMinutes(weights, NIGHTLY_TEST_BUDGET_MINUTES));
-  let count = Math.min(NIGHTLY_MAX_SHARDS, Math.max(1, lowerBound));
-  let plan = pack(count);
-  while (Math.max(...plan.predicted) > NIGHTLY_PLAN_LINE_MINUTES && count < NIGHTLY_MAX_SHARDS && count < suite.length) {
-    const next = pack(count + 1);
-    if (Math.max(...next.predicted) >= Math.max(...plan.predicted)) break;
+  let plan = pack(Math.min(NIGHTLY_MAX_SHARDS, Math.max(1, lowerBound)));
+  while (plan.worst > NIGHTLY_PLAN_LINE_MINUTES && plan.bins.length < NIGHTLY_MAX_SHARDS && plan.bins.length < suite.length) {
+    const next = pack(plan.bins.length + 1);
+    if (next.worst >= plan.worst) break;
     plan = next;
-    count += 1;
   }
   return plan;
 }
@@ -141,14 +135,14 @@ export function packNightly(suite, weights, fixed) {
 export function planNightly({ suite, table, reports = [], shards }) {
   const measured = nightlyMinutes(reports);
   const weights = { ...table, minutes: { ...table.minutes, ...measured } };
-  const { bins: shardSpecs, predicted } = packNightly(suite, weights, shards);
+  const { bins: shardSpecs, predicted, worst } = packNightly(suite, weights, shards);
   const fromNightly = suite.filter((s) => s in measured).length;
   const fromTable = suite.filter((s) => !(s in measured) && s in table.minutes).length;
   return {
     shardSpecs,
     matrix: { shardIndex: shardSpecs.map((_, i) => i + 1), shardTotal: [shardSpecs.length] },
     predicted: predicted.map((m) => Number(m.toFixed(1))),
-    fits: predicted.every((m) => m <= NIGHTLY_PLAN_LINE_MINUTES),
+    fits: worst <= NIGHTLY_PLAN_LINE_MINUTES,
     weights: { nightly: fromNightly, table: fromTable, median: suite.length - fromNightly - fromTable },
   };
 }
