@@ -1027,7 +1027,7 @@ function svgAlignOf(el, panelEl) {
       // A CENTRED LINE HAS NO SIDE MARGINS TO READ.
       //
       // Row P measured this on 2026-09-04 and put it to the owner rather than choosing
-      // (https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-04-a-stated-anchor-is-not-an-opt-out.md, call 2):
+      // (docs/acceptance/owner-queue/2026-09-04-a-stated-anchor-is-not-an-opt-out.md, call 2):
       // "a centred line never FILLS - the first longer value goes straight to wrapping, and if it
       // cannot wrap, to shrinking", named as the likeliest thing still behind *"when I add a
       // longer text it gets smaller"*. He answered it the day before, walking his vote board:
