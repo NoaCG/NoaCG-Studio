@@ -131,6 +131,16 @@ export const ALLOWED = [
     fragment: "'rev-parse', '--verify', '--quiet', 'refs/heads/main^{commit}'",
     why: 'reads the local `main` BRANCH itself because that ref is what step 4 repairs: a stale local main that is not an ancestor of origin/main is moved to origin/main, so tools that still compare against it stop breaking.',
   },
+  {
+    file: 'scripts/worktree-cleanup-lib.mjs',
+    fragment: "'rev-list', '--count', `main..origin/main`",
+    why: 'advanceLocalMain asks how far the local `main` BRANCH lags because fast-forwarding that branch is its whole job - the primary checkout is brought level with origin/main, as the handoff workflow does by hand.',
+  },
+  {
+    file: 'scripts/worktree-cleanup-lib.mjs',
+    fragment: "'merge-base', '--is-ancestor', 'main', 'origin/main'",
+    why: 'advanceLocalMain checks the local `main` BRANCH is strictly behind origin/main before it fast-forwards it; anything else and it leaves the branch alone.',
+  },
 ];
 
 /** Every revision-shaped use of the bare local `main` in one file, with the line and the text. */
