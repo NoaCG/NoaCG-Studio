@@ -2,9 +2,10 @@
 // (scripts/e2e-lists.mjs). Only a real backend relays a press to a page.
 //
 // HARDWARE PANELS ON THE PRODUCTION PAGE (docs/work-specs/hardware-panel-control/spec.md AC-1,
-// AC-3, AC-4, AC-6, AC-7; protocol.md §6): the production page pairs a panel, answers it, runs its
-// presses through its own onVerb, refuses a repeated or stale press, publishes what the keys draw
-// from, and hands the answer over to the hosted control page when that one is switched on last.
+// AC-3, AC-4, AC-7; protocol.md §6; the lease of docs/work-specs/panel-ownership-lease AC-1, AC-4,
+// AC-5): the production page pairs a panel and answers it by itself, runs its presses through its
+// own onVerb, refuses a repeated or stale press, publishes what the keys draw from, hands the panel
+// to the hosted control page by that page's Use here, and takes it back once that page is gone.
 // The same walk as panel-page.spec.ts, on the other operator page. The "module" is an anonymous
 // Supabase client holding only the panel key, as the Companion module is (./_panel.ts). The second
 // test follows the clip clock a panel counts down while a server clip plays, with NoaCG Bridge and
@@ -27,8 +28,7 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   const op = page;
   await shutStatusPanel(op);
 
-  // Nothing panel-related runs until the switch is on: the door in Setup says Off, and the header
-  // shows no panel status.
+  // No panel paired: the door in Setup says Off, and the header shows no panel status.
   await expect(op.getByTestId('panel-header-status')).toHaveCount(0);
   const door = await panelDoor(op);
   await expect(door).toHaveAttribute('data-state', 'off');
@@ -39,7 +39,8 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   const deck = await pairPanel(op);
   expect((await deck.hello()).answering).toBe(false);
 
-  // ANSWERING: the switch claims, and the page publishes what the keys draw from.
+  // ANSWERING: the production page takes the paired panel by itself (panel lease AC-1), and
+  // publishes what the keys draw from.
   await answerPanel(op);
   await op.getByTestId('panel-dialog').screenshot({ path: 'test-results/panel-production-dialog-answering.png' });
   await op.getByTestId('panel-close').click();
@@ -112,26 +113,30 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air after All out');
   await expect(op.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
-  // THE LAST PAGE TO ANSWER WINS: the hosted control page takes the answer; the production page
-  // switches itself off and says who answers now.
+  // USE HERE on the hosted control page moves the panel; the production page stops answering and
+  // says who has it, with its own Use here beside it (panel lease AC-5, L8).
   const hosted = await context.newPage();
   await openHosted(hosted, slug);
   await hosted.getByTestId('panel-open').click();
-  await hosted.getByTestId('panel-answer').locator('input').check();
-  await expect(hosted.getByTestId('panel-status')).toHaveText('This page answers the panel.');
-  await expect(op.getByTestId('panel-header-status')).toHaveCount(0, { timeout: 2_000 });
+  await expect(hosted.getByTestId('panel-status')).toHaveText('Production page answers the panel.', { timeout: 15_000 });
+  await answerPanel(hosted);
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel on Hosted control page', { timeout: 5_000 });
+  await expect(op.getByTestId('panel-header-use-here')).toBeVisible();
   const doorAfter = await panelDoor(op);
-  await expect(doorAfter).toHaveAttribute('data-state', 'off');
+  await expect(doorAfter).toHaveAttribute('data-state', 'held');
   await doorAfter.click();
-  await expect(op.getByTestId('panel-answer').locator('input')).not.toBeChecked();
-  await expect(op.getByTestId('panel-status')).toHaveText('Hosted control page answers the panel now.');
+  await expect(op.getByTestId('panel-status')).toHaveText('Hosted control page answers the panel.');
+  await op.screenshot({ path: test.info().outputPath('production-panel-held.png'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
   const second = await deck.state((s) => s.where === 'control', 'the hosted page answering');
   expect((await deck.press('select-next', '', second.ver as number)).outcome).toBe('ran');
   await deck.state((s) => s.where === 'control' && s.selected === ben, 'Ben selected on the hosted page');
 
-  // CLOSING the answering page lets go: hello then says no page answers.
+  // CLOSING the answering page lets go once its lease lapses, and the production page, still open,
+  // takes the panel back by itself (panel lease AC-4).
   await hosted.close();
-  await expect.poll(async () => (await deck.hello()).answering, { timeout: 10_000 }).toBe(false);
+  await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓', { timeout: 30_000 });
+  await deck.hello();
+  await deck.state((s) => s.where === 'production', 'the production page answering again');
   await deck.close();
 });
 

@@ -56,8 +56,8 @@ Derived (revertible; each says how):
 - **L2. Eligible means published.** A production page with a published production takes a free
   lease. The panel's answer runs at page level, so it keeps running on the Data and Audience views.
   Revert: also require the playout view.
-- **L3. Lease time 15 s, renewed every 5 s.** Three missed renewals let it go, above the module's
-  own 12 s silence, and a reload (2 to 5 s) never loses it. Revert: the two constants.
+- **L3. Lease time 15 s, renewed on the page's 4 s beat.** Three missed renewals let it go, about
+  the module's own 12 s silence, and a reload (2 to 5 s) never loses it. Revert: the two constants.
 - **L4. A reload keeps it.** A page keeps its lease identity for the tab (session storage), so a
   reload renews the same lease at once rather than releasing it. Revert: a fresh identity per load.
 - **L5. Never stolen.** A page that finds the lease held by another live page only says so. A page
@@ -115,10 +115,12 @@ keyboard shortcuts.
 
 ## Verification
 
-- Node tests: the lease rules (take free, refuse live, take expired, transfer, renew by the same
-  page, a lost lease not retaken).
-- Migration test on a local stack: two simultaneous takes, exactly one wins.
-- Configured e2e: two pages and a fake module; open, reload, close, network cut, "Use here".
+- The lease rules, against a local stack (`e2e/configured/panel-relay.spec.ts`): take free,
+  refuse held, keep for the same page, move, renew, a lost lease refused, a lapse, an older page's
+  claim refused, and three simultaneous takes of which exactly one wins.
+- Configured e2e with pages and a fake module (`panel-lease.spec.ts`, `panel-page.spec.ts`,
+  `panel-production-page.spec.ts`): open, reload, a second page, close, "Use here", the phone
+  never taking a free panel by itself.
 - Hidden-tab renewal measured in a real Chromium (Playwright cannot hide a page; a covered window
   on the desktop).
 - `/check`, then `/queue-merge`.

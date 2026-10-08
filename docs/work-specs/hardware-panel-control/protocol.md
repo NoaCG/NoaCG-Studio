@@ -54,7 +54,7 @@ key rotates the token.
 | key id | uuid | the server | both; the page lists and revokes by it |
 | press token `p`, feedback token `f` | 32 lowercase hex | the server, per production | `p`: pages. `f`: pages and paired panels |
 | page id | 16 lowercase letters and digits, random per page load | the page | the page; shown to panels as who answers |
-| claim | bigint, per production, only ever increases | `panel_claim` | the answering page |
+| claim | bigint, per production, only ever increases | `panel_lease` (`panel_claim` from older pages) | the answering page |
 | press id | `<instance>:<n>`, instance 6 to 24 lowercase letters and digits minted per module start, n a counter | the module | reused on the module's own retry of one press |
 
 ## 4. RPCs
@@ -73,8 +73,13 @@ read or write them.
 | `panel_press(p_key, p_press)` | module | validates the press, stamps the claim, sends `press` on `pnp-` | `{ok, claim}`; refusals `unknown-key`, `revoked`, `bad-press`, `not-a-panel-verb`, `no-page`, `slow-down` |
 | `panel_list(p_slug)` | page | | `{ok, press_topic, feedback_topic, claim, answering: {page, where, label, at} or null, panels: [{id, label, created_at, last_used_at}]}` |
 | `panel_revoke(p_slug, p_key_id)` | page | marks the key revoked; replaces `f`; sends `rotated` on `pnp-` | `{ok, feedback_topic}` |
-| `panel_claim(p_slug, p_page, p_where, p_label)` | page, on switching the answer on | claim + 1; records who; sends `claim` on `pnp-` | `{ok, claim, press_topic, feedback_topic}` |
-| `panel_release(p_slug, p_claim)` | page, on switching off or unloading | clears the answering page if `p_claim` is still current; sends `released` | `{ok, released}` |
+| `panel_lease(p_slug, p_page, p_where, p_label, p_move)` | page, taking the panel (by itself, or "Use here" with `p_move`) | free or lapsed, or `p_move`: claim + 1, records who, a lease of 15 s, sends `claim` on `pnp-`; already this page's: a fresh lease, the same claim | `{ok, claim, press_topic, feedback_topic}`; refusal `held` with `answering` |
+| `panel_renew(p_slug, p_page, p_claim)` | the answering page, on every beat | a fresh 15 s lease while `p_claim` is still current | `{ok, claim}`; refusal `lost` with `answering` |
+| `panel_claim(p_slug, p_page, p_where, p_label)` | pages built before the lease | takes a free panel for 12 hours; raises while another live page holds it | `{ok, claim, press_topic, feedback_topic}` |
+| `panel_release(p_slug, p_claim)` | page, on leaving the production | clears the answering page if `p_claim` is still current; sends `released` | `{ok, released}` |
+
+A lease not renewed for 15 s lapses by itself: `panel_press` refuses `no-page`, `panel_hello` and
+`panel_list` say nobody answers, and another page may take it (0081_panel_lease.sql).
 
 **Bounds.** `panel_press` takes at most 20 presses per key in 2 s (`slow-down`). `panel_hello`
 asks the page to republish (`want`) at most 5 times per key in 10 s; past that it answers without
@@ -103,7 +108,7 @@ reaches the page.
 |---|---|---|
 | `press` | `{v: 1, verb, target, seen, press_id, claim, panel: {id, label}}` | `panel_press` |
 | `want` | `{v: 1, panel: {id, label}}` | `panel_hello`: the answering page republishes `state` and `rows` |
-| `claim` | `{v: 1, claim, page, where, label}` | `panel_claim`: every other page with the answer on switches it off |
+| `claim` | `{v: 1, claim, page, where, label}` | `panel_lease` (or `panel_claim`) taking a new claim: a page answering under an older one stops |
 | `released` | `{v: 1, claim}` | `panel_release` |
 | `rotated` | `{v: 1, feedback_topic}` | `panel_revoke`: the answering page moves to the new feedback topic |
 
@@ -116,12 +121,20 @@ Only pages read this topic, and only while the answer is on or the panel section
 
 ### 6.1 Answering
 
-The switch "Answer the panel on this page" sits in the panel section of the production page and of
-the hosted control page. On: `panel_claim`, join `pnp-` and `pfb-`, publish `state` and `rows`.
-Hearing a `claim` with a higher number: switch off, say which page answers now. Off, or
-`pagehide`: publish `gone`, `panel_release` (best effort; a closed laptop is covered by the
-module's 12 s silence, §7.2). The switch is not remembered across reloads: a reloaded page answers
-only when someone switches it on again, so two forgotten tabs can never fight.
+Since the panel ownership lease (docs/work-specs/panel-ownership-lease/spec.md) there is no
+switch. A page with a panel paired reads `panel_list` on every 4 s beat while it does not answer.
+The production page takes a free panel by itself (`panel_lease`); any page takes it with "Use
+here" (`p_move`). Answering: join `pnp-` and `pfb-`, publish `state` and `rows`, and on every beat
+publish `beat` and call `panel_renew`. The beat runs on a dedicated worker's timer, which a hidden
+or covered tab does not starve. Hearing a `claim` with a higher number, or a renewal answered
+`lost`: stop, say which page answers now. Held by another live page: take nothing, say who has it,
+offer "Use here".
+
+The lease is held by a page id kept for the tab: handed to the next document of the tab on
+`pagehide` and taken out of session storage as it is read, so a reload carries on under the same
+claim and a duplicated tab gets an id of its own. `pagehide` publishes `gone` and keeps the lease
+(it may be a reload); a closed tab's lease lapses in 15 s. Leaving the production inside the app
+releases it (`panel_release`).
 
 ### 6.2 Running a press
 

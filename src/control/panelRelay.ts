@@ -9,6 +9,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { loadBackendConfig } from '../backend/config';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
+import { workerInterval } from './workerTicker';
 import {
   PANEL_PROTOCOL,
   PressMemory,
@@ -65,12 +66,16 @@ export async function panelRevoke(slug: string, keyId: string): Promise<void> {
 
 // ── The answering page ─────────────────────────────────────────────────────────────────────────
 
-/** How often the answering page says it is still there; a panel gives up after 12 s of silence. */
+/** How often the answering page says it is still there (a panel gives up after 12 s of silence)
+ *  and renews its lease (which lapses after 15 s: supabase/migrations/0081_panel_lease.sql). */
 export const PANEL_BEAT_MS = 4_000;
 
 export type AnswerStatus =
   | { kind: 'claiming' }
   | { kind: 'answering' }
+  /** Another live page holds the panel; this page took nothing. */
+  | { kind: 'held'; by: string }
+  /** This page held the panel, and another page has it now. */
   | { kind: 'replaced'; by: string }
   | { kind: 'failed'; why: string };
 
@@ -84,25 +89,61 @@ export interface PanelPressReport {
 export interface PanelAnswer {
   /** Call after every render: publishes when what a panel sees changed. */
   changed(): void;
-  /** Switch the answer off: tell the panels, let go of the claim, leave both topics. */
+  /** Stop answering: tell the panels, let go of the lease, leave both topics. */
   stop(): void;
 }
 
-/** Sixteen lowercase letters and digits, the page id panel_claim accepts. */
+/** Sixteen lowercase letters and digits, the page id panel_lease accepts. */
 function pageId(): string {
   let id = '';
   while (id.length < 16) id += mintOid().replace(/[^a-z0-9]/g, '');
   return id.slice(0, 16);
 }
 
+const tabPages = new Map<string, string>();
+
 /**
- * ANSWER THE PANEL ON THIS PAGE. Takes the production's claim (the last page to switch on wins),
- * listens for presses stamped with it, runs each through `run` - the page's own dispatcher - after
- * the page-side checks, and publishes what the keys draw from.
+ * THIS TAB'S PAGE ID for a production (panel lease L4): the lease is held by page id, and a reload
+ * of the tab keeps it, so the reloaded page carries on under the same claim instead of losing the
+ * panel or racing another page for it. It is handed to the next document of the tab only, on
+ * `pagehide`, and taken out of storage as it is read: a tab duplicated from this one (which copies
+ * session storage) gets an id of its own, so two tabs never answer as one page.
+ */
+export function tabPageId(slug: string): string {
+  const known = tabPages.get(slug);
+  if (known) return known;
+  const key = `noacg-panel-page:${slug}`;
+  let id = '';
+  try {
+    id = window.sessionStorage.getItem(key) ?? '';
+    window.sessionStorage.removeItem(key);
+  } catch {
+    // no storage: a reload is a new page, whose lease waits for this one's to lapse
+  }
+  if (!/^[a-z0-9]{16}$/.test(id)) id = pageId();
+  tabPages.set(slug, id);
+  window.addEventListener('pagehide', () => {
+    try {
+      window.sessionStorage.setItem(key, id);
+    } catch {
+      // as above
+    }
+  });
+  return id;
+}
+
+/**
+ * ANSWER THE PANEL ON THIS PAGE (docs/work-specs/panel-ownership-lease/spec.md). Takes the
+ * production's panel lease, when it is free or already this tab's, or moves it here (`move`, "Use
+ * here"); keeps it with a renewal on every beat; listens for presses stamped with its claim, runs
+ * each through `run` - the page's own dispatcher - after the page-side checks, and publishes what
+ * the keys draw from. Held by another live page and not moved, it takes nothing and says who.
  */
 export function answerPanel(opts: {
   slug: string;
   where: 'production' | 'control';
+  /** Move the panel here from whichever page holds it ("Use here"). */
+  move: boolean;
   /** How the panels and the other pages name this page. */
   label: string;
   /** What the page shows now; read at publish and at every press. */
@@ -114,7 +155,7 @@ export function answerPanel(opts: {
   onStatus: (status: AnswerStatus) => void;
   onPress: (report: PanelPressReport) => void;
 }): PanelAnswer {
-  const page = pageId();
+  const page = tabPageId(opts.slug);
   const memory = new PressMemory();
   const ring = new SnapshotRing();
   let claim = 0;
@@ -126,7 +167,8 @@ export function answerPanel(opts: {
   let rowsVer = 0;
   let shown: PanelSnapshot | null = null;
   let shownRows: PanelSnapshot['rows'] | null = null;
-  let beat: ReturnType<typeof setInterval> | null = null;
+  /** Stops the beat and the renewal, which run on a timer a hidden tab cannot starve. */
+  let beat: (() => void) | null = null;
 
   const send = (event: string, payload: object) => {
     if (feedChannel && feedJoined) void feedChannel.send({ type: 'broadcast', event, payload });
@@ -194,7 +236,7 @@ export function answerPanel(opts: {
   const replaced = (by: string) => {
     if (stopped) return;
     stopped = true;
-    if (beat) clearInterval(beat);
+    beat?.();
     void leave(pressChannel);
     void leave(feedChannel);
     opts.onStatus({ kind: 'replaced', by });
@@ -207,11 +249,17 @@ export function answerPanel(opts: {
       opts.onStatus({ kind: 'failed', why: 'No NoaCG backend is configured' });
       return;
     }
-    let answer: { claim: number; press_topic: string; feedback_topic: string };
+    let answer: { ok: boolean; claim: number; press_topic: string; feedback_topic: string; answering?: { label?: string } | null };
     try {
-      answer = await call('panel_claim', { p_slug: opts.slug, p_page: page, p_where: opts.where, p_label: opts.label });
+      answer = await call('panel_lease', { p_slug: opts.slug, p_page: page, p_where: opts.where, p_label: opts.label, p_move: opts.move });
     } catch (err) {
       opts.onStatus({ kind: 'failed', why: (err as Error).message });
+      return;
+    }
+    if (!answer.ok) {
+      // Held by another live page: never taken from it (L5).
+      stopped = true;
+      opts.onStatus({ kind: 'held', by: answer.answering?.label || 'Another page' });
       return;
     }
     if (stopped) {
@@ -240,7 +288,19 @@ export function answerPanel(opts: {
     });
     ch.subscribe();
     await joinFeed(answer.feedback_topic);
-    beat = setInterval(() => send('beat', { v: PANEL_PROTOCOL, page, claim, ver, rowsVer }), PANEL_BEAT_MS);
+    const renew = async () => {
+      try {
+        const kept = await call<{ ok: boolean; answering?: { label?: string } | null }>('panel_renew', { p_slug: opts.slug, p_page: page, p_claim: claim });
+        // The claim moved on: another page took the panel ("Use here" there, or after this lease lapsed).
+        if (!kept.ok) replaced(kept.answering?.label || 'another page');
+      } catch {
+        // Not answered: the next beat renews. A lapsed lease nobody took is still this page's.
+      }
+    };
+    beat = workerInterval(PANEL_BEAT_MS, () => {
+      send('beat', { v: PANEL_PROTOCOL, page, claim, ver, rowsVer });
+      void renew();
+    });
     opts.onStatus({ kind: 'answering' });
   };
 
@@ -256,20 +316,23 @@ export function answerPanel(opts: {
     }).catch(() => {});
   };
 
-  const stop = () => {
+  /** `release`: let go of the lease. A page going away (`pagehide`) keeps it, since that is also a
+   *  reload, and a reload carries on under it (L4); a closed tab's lease lapses in 15 s. */
+  const stop = (release = true) => {
     if (stopped) return;
     send('gone', { v: PANEL_PROTOCOL, page, claim });
     stopped = true;
-    if (beat) clearInterval(beat);
-    window.removeEventListener('pagehide', stop);
-    releaseNow(claim);
+    beat?.();
+    window.removeEventListener('pagehide', onHide);
+    if (release) releaseNow(claim);
     void leave(pressChannel);
     void leave(feedChannel);
   };
-  window.addEventListener('pagehide', stop);
+  const onHide = () => stop(false);
+  window.addEventListener('pagehide', onHide);
 
   void start();
-  return { changed: () => publish(), stop };
+  return { changed: () => publish(), stop: () => stop() };
 }
 
 export type { PanelPress };

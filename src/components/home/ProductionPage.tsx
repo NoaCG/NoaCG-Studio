@@ -2266,7 +2266,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
   // hears that part directly; it publishes only when a key would show a difference.
-  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS });
+  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
   const [panelOpen, setPanelOpen] = useState(false);
   const audienceInbox = useAudienceInbox(show);
   // While answering, the panel also hears the timing part, after the whole fold: a reading moves
@@ -5537,16 +5537,23 @@ function ProductionShell({
         {/* One chip for both kinds of production (playout-workflow-simplification AC-12): a team
             production reads its own save, in the same words. */}
         <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
-        {/* The panel's status, only while it is switched on: "Panel ✓" answering, "Panel …"
-            connecting. A press opens its dialog, as the Setup menu's item does. */}
+        {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering: "Panel ✓"
+            here, "Panel …" taking it, "Panel on <page>" with Use here. A press opens its dialog, as
+            the Setup menu's item does. */}
         {panelState !== 'off' && (
           <button
             className={`pd-panel-status pd-panel-status--${panelState}`}
             onClick={onPanel}
-            title={panelState === 'ok' ? 'This page answers the Stream Deck panel' : 'Connecting to the Stream Deck panel…'}
+            title={panelState === 'ok' ? 'This page answers the Stream Deck panel' : panelState === 'held' ? `${panel.holder} answers the Stream Deck panel` : 'Connecting to the Stream Deck panel…'}
             data-testid="panel-header-status"
+            data-state={panelState}
           >
-            Panel {panelState === 'ok' ? '✓' : '…'}
+            {panelState === 'held' ? `Panel on ${panel.holder}` : `Panel ${panelState === 'ok' ? '✓' : '…'}`}
+          </button>
+        )}
+        {panelState === 'held' && (
+          <button className="pd-panel-use-here" onClick={panel.useHere} data-testid="panel-header-use-here">
+            Use here
           </button>
         )}
         <ProductionSetupMenu

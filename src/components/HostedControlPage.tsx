@@ -505,7 +505,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const payload = resolved?.output ?? null;
   const selectedCue = cues.find((c) => c.id === selectedCueId) ?? cues[0] ?? null;
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it shows.
-  const panel = usePanelAnswer({ slug, where: 'control', label: 'Hosted control page', runs: HOSTED_PANEL_VERBS });
+  const panel = usePanelAnswer({ slug, where: 'control', label: 'Hosted control page', runs: HOSTED_PANEL_VERBS, auto: false });
   const [panelOpen, setPanelOpen] = useState(false);
   /** What PREVIEW shows: the selection in 'take' mode, the staged cue - or nothing - otherwise. */
   const previewedCue =
