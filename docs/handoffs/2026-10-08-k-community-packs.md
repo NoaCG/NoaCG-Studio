@@ -20,6 +20,10 @@ through `SavedGraphic.graphicId`.
   work as for any graphic. Decide there whether the stamp should also travel inside the template
   so the lock survives a pack export and re-import (AC-5 asks that it survive export and reload).
 - Show the attribution once on the production: "From <pack> by <author>, CC BY 4.0".
+- Close the copy routes that drop the stamp today: the editor's Save As (`saveGraphicAs` in
+  `src/store/saveActions.ts`) and Export a package then Import it (`installPack` from a file is
+  unstamped, and `parsePack` ignores the file's `author`). `duplicateGraphic` already keeps it.
+  Until then such a copy can reach the submit picker; the admin's review is the backstop.
 - Scenario: install a pack, find no Edit on its graphics, change a cue value and take it.
 
 ## Slice 3: open to every maker, and updates

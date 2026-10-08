@@ -62,9 +62,14 @@ export default function WizardConfirm({
   }, []);
 
   // The primary takes focus, so Enter answers the question the dialog asked and Tab starts
-  // inside it rather than on whatever the wizard had focused underneath.
+  // inside it rather than on whatever the wizard had focused underneath. A primary that opens
+  // disabled (a sheet still to be filled in) cannot hold focus, so the body's first control does.
+  const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    confirmRef.current?.focus();
+    if (!confirmDisabled) confirmRef.current?.focus();
+    else bodyRef.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
+    // On open only: re-focusing whenever the primary enables would pull focus out of a field.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -107,7 +112,7 @@ export default function WizardConfirm({
             ✕
           </button>
         </div>
-        <div className="wz-confirm-body">{children}</div>
+        <div className="wz-confirm-body" ref={bodyRef}>{children}</div>
         <div className="dlg-foot">
           <button onClick={onCancel} data-testid={`${testid}-cancel`}>
             {cancelLabel}

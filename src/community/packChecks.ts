@@ -10,6 +10,8 @@ import type { SpxTemplate } from '../model/types';
 
 /** The server refuses a pack file above this (migration 0079), so the sheet says it first. */
 export const PACK_LIMIT_BYTES = 8 * 1024 * 1024;
+/** The server's graphic count limit (migration 0079). */
+export const PACK_MAX_GRAPHICS = 50;
 
 export const LICENSE_ID = 'CC-BY-4.0';
 
@@ -49,6 +51,9 @@ export function checkPackMeta(meta: Pick<PackCandidate, 'name' | 'description' |
 export function checkPackGraphics(graphics: PackCandidate['graphics']): PackFinding[] {
   const findings: PackFinding[] = [];
   if (graphics.length === 0) findings.push({ message: 'Choose at least one graphic.' });
+  if (graphics.length > PACK_MAX_GRAPHICS) {
+    findings.push({ message: `A pack holds at most ${PACK_MAX_GRAPHICS} graphics; untick ${graphics.length - PACK_MAX_GRAPHICS}.` });
+  }
 
   const seen = new Set<string>();
   for (const g of graphics) {

@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Show } from '../../../model/shows';
 import { installPack, parsePack, type GraphicsPack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
 import { isBackendConfigured } from '../../../backend/config';
 import { subscribeAuth } from '../../../backend/auth';
-import { commitDurableWrites } from '../../../model/durableStore';
-import { updateGraphic, type GraphicDoc } from '../../../model/library';
+import type { GraphicDoc } from '../../../model/library';
 import { useIsModerator } from '../../../community/useIsModerator';
 import {
   decidePack,
@@ -57,6 +56,8 @@ type Card = ({ kind: 'seed' } & CommunityPackEntry) | ({ kind: 'shared' } & Shar
 
 const SHELF = '/packs/community/';
 
+type FromPack = NonNullable<GraphicDoc['fromPack']>;
+
 interface Props {
   /** The search box above Browse's branch - it filters the shelf by name, description and maker. */
   query: string;
@@ -64,6 +65,10 @@ interface Props {
   /** The production exists: the wizard closes and opens it. */
   onInstalled: (show: Show) => void;
 }
+
+/** What an action is keyed by, so a pack shown in two places (a card, Your packs, a review row)
+ *  reads its own progress and errors in the place it was pressed. */
+const cardKey = (card: Card) => `card:${card.kind}:${card.id}`;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -100,18 +105,16 @@ function readShared(id: string): Promise<GraphicsPack> {
   return read;
 }
 
-/** Install a pack and stamp every graphic it created with where it came from (spec D7): the
- *  submit picker leaves those out, and the design lock (AC-5) reads the same stamp. */
-async function installStamped(pack: GraphicsPack, fromPack: NonNullable<GraphicDoc['fromPack']>): Promise<Show> {
-  const show = await installPack(pack);
-  for (const g of show.graphics) if (g.graphicId) updateGraphic(g.graphicId, { fromPack });
-  const writeError = await commitDurableWrites();
-  if (writeError) throw new Error(writeError);
+/** Install a pack with every graphic it creates stamped with where it came from (spec D7): the
+ *  submit picker leaves those out, and the design lock (AC-5) reads the same stamp. The stamp is
+ *  written as each record is created, so no install lands unstamped. */
+async function installStamped(pack: GraphicsPack, fromPack: FromPack): Promise<Show> {
+  const show = await installPack(pack, undefined, fromPack);
   trackEvent('activation', 'community-pack');
   return show;
 }
 
-async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: NonNullable<GraphicDoc['fromPack']> }> {
+async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: FromPack }> {
   if (card.kind === 'shared') {
     return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.id), version: card.version, author: card.author } };
   }
@@ -125,7 +128,21 @@ async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: NonN
 /** A shared pack's card preview: its first graphic, rendered live and settled (spec D3). */
 function SharedPreview({ id, name }: { id: string; name: string }) {
   const [template, setTemplate] = useState<GraphicsPack['graphics'][number]['template'] | null>(null);
+  // The file is fetched only once the card scrolls into view: a pack can be megabytes, and a
+  // visitor who never reaches the card should not download it.
+  const frame = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(false);
   useEffect(() => {
+    const el = frame.current;
+    if (!el || seen) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setSeen(true);
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [seen]);
+  useEffect(() => {
+    if (!seen) return;
     let live = true;
     readShared(id)
       .then((pack) => live && setTemplate(pack.graphics[0]?.template ?? null))
@@ -133,10 +150,10 @@ function SharedPreview({ id, name }: { id: string; name: string }) {
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, seen]);
   return (
-    <div className="wz-community-preview wz-community-live" role="img" aria-label={`${name} on air`}>
-      {template && <MiniPreview template={template} lazy />}
+    <div ref={frame} className="wz-community-preview wz-community-live" role="img" aria-label={`${name} on air`}>
+      {template && <MiniPreview template={template} />}
     </div>
   );
 }
@@ -290,18 +307,18 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   };
 
   const install = (card: Card) =>
-    run(card.id, async () => {
+    run(cardKey(card), async () => {
       const { pack, fromPack } = await packFor(card);
       onInstalled(await installStamped(pack, fromPack));
     });
 
   const tryOut = (pack: SharedPack) =>
-    run(pack.id, async () => {
+    run(`review:${pack.id}`, async () => {
       onInstalled(await installStamped(await readShared(pack.id), { id: sharedPackId(pack.id), version: pack.version, author: pack.author }));
     });
 
-  const decide = (id: string, state: 'live' | 'not_accepted' | 'taken_down', reason?: string) =>
-    run(id, async () => {
+  const decide = (key: string, id: string, state: 'live' | 'not_accepted' | 'taken_down', reason?: string) =>
+    run(key, async () => {
       await decidePack(id, state, reason);
       setTakingDown(null);
       refresh();
@@ -330,7 +347,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                   <strong>{p.name}</strong>
                   <span className={`wz-community-state is-${p.state}`}>{PACK_STATE_LABEL[p.state]}</span>
                   {p.reason && <span className="hint">{p.reason}</span>}
-                  {note?.id === p.id && <span className="wz-community-error" role="alert">{note.message}</span>}
+                  {note?.id === `mine:${p.id}` && <span className="wz-community-error" role="alert">{note.message}</span>}
                 </div>
                 {(p.state === 'in_review' || p.state === 'live') && (
                   <button type="button" disabled={busy !== null} onClick={() => setWithdrawing(p)}>
@@ -353,11 +370,11 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 pack={p}
                 busy={busy !== null}
                 onTry={() => void tryOut(p)}
-                onDecide={(state, reason) => void decide(p.id, state, reason)}
+                onDecide={(state, reason) => void decide(`review:${p.id}`, p.id, state, reason)}
               />
             ))}
           </ul>
-          {note && waiting.some((p) => p.id === note.id) && <p className="wz-community-error" role="alert">{note.message}</p>}
+          {note && waiting.some((p) => `review:${p.id}` === note.id) && <p className="wz-community-error" role="alert">{note.message}</p>}
         </section>
       )}
 
@@ -395,7 +412,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
               </span>
             </div>
             {takingDown === p.id ? (
-              <ReasonAsk label="Take down" onSend={(reason) => void decide(p.id, 'taken_down', reason)} onCancel={() => setTakingDown(null)} />
+              <ReasonAsk label="Take down" onSend={(reason) => void decide(cardKey(p), p.id, 'taken_down', reason)} onCancel={() => setTakingDown(null)} />
             ) : (
               <div className="wz-community-row-actions">
                 <button
@@ -405,7 +422,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                   onClick={() => void install(p)}
                   aria-label={`Install ${p.name}`}
                 >
-                  {busy === p.id ? 'Installing…' : 'Install'}
+                  {busy === cardKey(p) ? 'Installing…' : 'Install'}
                 </button>
                 {moderator && p.kind === 'shared' && (
                   <button type="button" disabled={busy !== null} onClick={() => setTakingDown(p.id)}>
@@ -414,7 +431,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 )}
               </div>
             )}
-            {note?.id === p.id && <p className="wz-community-error" role="alert">{note.message}</p>}
+            {note?.id === cardKey(p) && <p className="wz-community-error" role="alert">{note.message}</p>}
           </li>
         ))}
       </ul>
@@ -439,7 +456,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
           onConfirm={() => {
             const p = withdrawing;
             setWithdrawing(null);
-            void run(p.id, async () => {
+            void run(`mine:${p.id}`, async () => {
               await withdrawPack(p.id);
               refresh();
             });

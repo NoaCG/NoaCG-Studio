@@ -124,7 +124,15 @@ begin
   if v_count not between 1 and 50 then
     raise exception 'A pack holds between 1 and 50 graphics.';
   end if;
-  if octet_length(p_pack::text) > 8388608 then
+  -- A community pack is a set of graphics with no rundown (spec D2): prepared cue values would
+  -- reach air on every install without passing the graphic checks, so the server refuses them.
+  if p_pack ? 'cues' or p_pack ? 'rundown'
+     or exists (select 1 from jsonb_array_elements(p_pack->'graphics') g where jsonb_typeof(g) <> 'object' or g ? 'cues') then
+    raise exception 'A community pack carries graphics only, with no cues.';
+  end if;
+  -- The sheet holds packs to 8 MB of compact JSON; this text rendering spaces it out, so the
+  -- server's ceiling sits above that rather than refusing what the sheet allowed.
+  if octet_length(p_pack::text) > 10485760 then
     raise exception 'The pack is larger than 8 MB.';
   end if;
   if (select count(*) from public.community_packs c where c.author_id = v_uid and c.state = 'in_review') >= 10 then
@@ -201,8 +209,7 @@ $$;
 revoke all on function public.community_pack_decide(uuid, text, text) from public, anon;
 grant execute on function public.community_pack_decide(uuid, text, text) to authenticated;
 
--- Self-check: the table is closed to clients and every door exists. Behaviour is exercised against
--- a local stack (docs/work-specs/community-packs/evidence/), since a call needs a signed-in caller.
+-- Self-check, part one: the table is closed to clients, and anon cannot submit or decide.
 do $$
 begin
   if has_table_privilege('anon', 'public.community_packs', 'select')
@@ -218,5 +225,67 @@ begin
   if not has_function_privilege('anon', 'public.community_pack_shelf()', 'execute') then
     raise exception '0079 self-check: the shelf is not readable signed out';
   end if;
+end;
+$$;
+
+-- Self-check, part two: CALL the doors (a plpgsql body is only resolved when it runs). As an
+-- existing account made a moderator for the moment: submit waits for review, a pack with cues is
+-- refused, approval reaches the shelf, withdraw takes it off. Everything happens inside an inner
+-- block that ends by raising, so every row, the moderator grant and the caller's claims roll back.
+do $$
+declare
+  v_user uuid;
+  v_id uuid;
+  v_refused boolean := false;
+begin
+  select u.id into v_user from auth.users u
+   where not exists (select 1 from public.user_accounts a where a.user_id = u.id and a.state = 'suspended')
+   limit 1;
+  if v_user is null then
+    raise notice '0079 behaviour self-check skipped: no account on this instance';
+    return;
+  end if;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_user, 'role', 'authenticated')::text, true);
+    insert into public.moderators (user_id, note) values (v_user, '0079 self-check') on conflict (user_id) do nothing;
+
+    v_id := public.community_pack_submit('Self-check', 'Self-check pack', 'Self-check',
+      '{"format":"noacg-pack","version":1,"name":"x","graphics":[{"name":"A"}]}'::jsonb);
+    if (select c.state from public.community_packs c where c.id = v_id) is distinct from 'in_review' then
+      raise exception '0079 self-check failed: a submission did not wait for review';
+    end if;
+    if exists (select 1 from public.community_pack_shelf() s where s.id = v_id) then
+      raise exception '0079 self-check failed: a pack in review reached the shelf';
+    end if;
+
+    begin
+      perform public.community_pack_submit('Self-check cues', 'd', 'Self-check',
+        '{"format":"noacg-pack","graphics":[{"name":"A","cues":[{"label":"x","values":{}}]}]}'::jsonb);
+    exception when raise_exception then
+      v_refused := true;
+    end;
+    if not v_refused then
+      raise exception '0079 self-check failed: a pack carrying cues was accepted';
+    end if;
+
+    perform public.community_pack_decide(v_id, 'live', null);
+    if not exists (select 1 from public.community_pack_shelf() s where s.id = v_id) then
+      raise exception '0079 self-check failed: an approved pack is not on the shelf';
+    end if;
+    if (public.community_pack_file(v_id) ->> 'license') is distinct from 'CC-BY-4.0' then
+      raise exception '0079 self-check failed: the stored pack carries no licence';
+    end if;
+
+    perform public.community_pack_withdraw(v_id);
+    if exists (select 1 from public.community_pack_shelf() s where s.id = v_id) then
+      raise exception '0079 self-check failed: a withdrawn pack is still on the shelf';
+    end if;
+
+    raise exception '0079-self-check-passed';
+  exception when raise_exception then
+    if sqlerrm <> '0079-self-check-passed' then
+      raise;
+    end if;
+  end;
 end;
 $$;

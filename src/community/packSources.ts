@@ -23,6 +23,12 @@ export interface PackSource {
 
 const own = (doc: GraphicDoc | undefined) => !doc?.fromPack;
 
+/** A pool graphic is the maker's own unless it links to a library record that is stamped, or to
+ *  one this library does not hold (a teammate's graphic in a personal copy of a team production,
+ *  or an install whose records were deleted). A copy with no link at all was made here. */
+const ownPooled = (graphicId: string | undefined, byId: Map<string, GraphicDoc>) =>
+  graphicId === undefined || (byId.has(graphicId) && own(byId.get(graphicId)));
+
 /** Every folder and personal production holding at least one graphic the maker may submit. */
 export function packSources(): PackSource[] {
   const library = loadGraphics();
@@ -41,7 +47,7 @@ export function packSources(): PackSource[] {
   for (const show of loadShows()) {
     if (show.teamId) continue;
     const graphics = show.graphics
-      .filter((g) => own(g.graphicId ? byId.get(g.graphicId) : undefined))
+      .filter((g) => ownPooled(g.graphicId, byId))
       .map((g) => ({ key: g.id, name: g.name, template: templateForSavedGraphic(g, library), layer: graphicLayer(g) }));
     if (graphics.length) sources.push({ id: `production:${show.id}`, kind: 'production', name: show.name, graphics });
   }
