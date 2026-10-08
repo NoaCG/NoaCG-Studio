@@ -132,15 +132,23 @@ export function lastWorkplace(transcriptPath, { beforeMs = Date.now() - 60_000 }
  * `{ path, branch, inside }` - `inside` when the session is already sitting in that folder.
  * Null when there is nothing to recover; `{ error }` when git refused.
  */
-export function recoverRemovedWorktree({ sessionCwd, primaryRoot, transcriptPath, landed, refresh = refreshMain, beforeMs }) {
+export function recoverRemovedWorktree({
+  sessionCwd,
+  primaryRoot,
+  transcriptPath,
+  landed,
+  registeredRoots = null,
+  refresh = refreshMain,
+  beforeMs,
+}) {
   if (!primaryRoot) return null;
-  const last = lastWorkplace(transcriptPath, beforeMs === undefined ? {} : { beforeMs });
+  const last = lastWorkplace(transcriptPath, { beforeMs });
   if (!last) return null;
   const home = normalize(join(primaryRoot, '.claude', 'worktrees'));
-  const match = new RegExp(`^${escapeRegExp(home)}/([^/]+)`, 'i').exec(last.cwd);
-  if (!match) return null;
-  const path = normalize(join(home, match[1]));
-  if (worktreeEntries(primaryRoot).some((entry) => samePath(entry.root, path))) return null; // still there
+  if (!last.cwd.toLowerCase().startsWith(`${home.toLowerCase()}/`)) return null;
+  const path = normalize(join(home, last.cwd.slice(home.length + 1).split('/')[0]));
+  const registered = registeredRoots ?? worktreeEntries(primaryRoot).map((entry) => entry.root);
+  if (registered.some((root) => samePath(root, path))) return null; // still there
   if (existsSync(path)) {
     let entries;
     try {
@@ -156,8 +164,4 @@ export function recoverRemovedWorktree({ sessionCwd, primaryRoot, transcriptPath
   const added = git(['worktree', 'add', '--no-track', '-b', branch, path, 'origin/main'], primaryRoot);
   if (!added.ok) return { error: added.stderr || added.stdout || 'git worktree add failed' };
   return { path, branch, inside: samePath(sessionCwd, path) };
-}
-
-function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

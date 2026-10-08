@@ -272,7 +272,7 @@ describe('a full registry', () => {
     assert.equal(answer.port, NO_PORT);
     assert.equal(answer.livePort, NO_PORT);
     assert.equal(answer.exhausted, true);
-    assert.throws(() => allocate(registry, COLLIDING_A, { port: answer.port }), /outside the approved range/);
+    assert.throws(() => allocate(registry, COLLIDING_A, { port: answer.port }), /was given none[\s\S]*reserved by/);
     assert.deepEqual(readdirSync(registry).sort(), before);
   });
 

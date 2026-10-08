@@ -22,7 +22,7 @@ import { join } from 'node:path';
 
 import { jobsDir, NO_VERDICT_EXIT } from './jobs-store.mjs';
 import { REQUIRED_CHECKS } from './landing-ruleset-reader.mjs';
-import { primaryCheckout } from './reattach-main.mjs';
+import { primaryCheckout } from './primary-checkout.mjs';
 import { triggerUnattendedSweep } from './worktree-cleanup-lib.mjs';
 
 const POLL_MS = 30_000;

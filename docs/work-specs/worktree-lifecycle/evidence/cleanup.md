@@ -7,9 +7,12 @@ Recorded 2026-10-08 on the owner's Windows machine, branch `claude/l-worktree-se
 `sim-unattended-cli.mjs` (session scratchpad): a scratch repository with a local bare origin and
 this branch's `scripts/` committed into its primary. A worktree `.claude/worktrees/landed-chat` on
 `claude/landed-chat` (no upstream, as the harness makes them) is committed, landed the way the
-queue lands it (origin/main moved, local main left behind) and named in the landing ledger. Then
-`triggerUnattendedSweep` - what the SessionStart hook and land-watch call - spawned
-`cleanup-worktrees.mjs --unattended` detached. Its `last.json`:
+queue lands it (origin/main moved, local main left behind), named in the landing ledger, and its
+git activity dated two days back with no transcript - a chat that landed and was left alone. Then
+`triggerUnattendedSweep` - what the SessionStart hook and land-watch call - spawned the primary
+checkout's `cleanup-worktrees.mjs --unattended` detached; a second trigger a moment later answered
+"a sweep started 0 minute(s) ago" and started nothing. Its `last.json` (run of 08:31 UTC on the
+final code):
 
     ran=true removed=[".../.claude/worktrees/landed-chat"] deletedBranches=["claude/landed-chat"]
     needsPerson=[] errors=[]

@@ -19,7 +19,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PORT_RANGE, SLOT_COUNT, normalizeRoot, ticketPath } from './port-registry.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MODULES = ['dev-port.mjs', 'port-registry.mjs', 'worktree-cleanup-lib.mjs', 'port-probe.mjs'];
+// dev-port.mjs and everything it loads - the copy must run exactly as the real one would.
+const MODULES = ['dev-port.mjs', 'port-registry.mjs', 'worktree-cleanup-lib.mjs', 'primary-checkout.mjs', 'port-probe.mjs'];
 
 /** The environment a child gets: none of the overrides that would bypass the registry. */
 function cleanEnv() {

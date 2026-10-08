@@ -143,8 +143,10 @@ test('a resumed chat whose worktree was cleaned up gets a fresh one at the same 
   assert.equal(runGit(wt.path, 'rev-parse', 'HEAD'), runGit(repo.primary, 'rev-parse', 'origin/main'));
 
   // Resumed again, nothing more happens: the worktree is there.
-  const again = runHook(repo, { cwd: repo.primary, source: 'resume', transcript_path: transcript, hook_event_name: 'SessionStart' });
-  assert.doesNotMatch(again.stdout, /EnterWorktree/);
+  assert.equal(
+    recoverRemovedWorktree({ sessionCwd: repo.primary, primaryRoot: repo.primary, transcriptPath: transcript, landed: new Set(), refresh: () => {} }),
+    null,
+  );
 });
 
 test('a folder git does not know that still holds files is somebody\'s - it is never reused', (t) => {

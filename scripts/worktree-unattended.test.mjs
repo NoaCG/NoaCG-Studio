@@ -215,7 +215,7 @@ test('a worktree a process is sitting in is left exactly as it is, then goes onc
   // A process whose working directory is inside the worktree - a shell, a dev server, a session.
   const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: wt.path, stdio: 'ignore' });
   t.after(() => holder.kill());
-  await new Promise((done) => setTimeout(done, 500));
+  await new Promise((done) => holder.once('spawn', done));
 
   const held = sweep(repo, { landed: [wt.branch] });
   if (process.platform === 'win32') {
@@ -227,8 +227,10 @@ test('a worktree a process is sitting in is left exactly as it is, then goes onc
     assert.equal(branchExists(repo.primary, wt.branch), true);
   }
 
-  holder.kill();
-  await new Promise((done) => setTimeout(done, 500));
+  await new Promise((done) => {
+    holder.once('exit', done);
+    holder.kill();
+  });
   const freed = sweep(repo, { landed: [wt.branch] });
   assert.equal(existsSync(wt.path), false);
   assert.equal(registered(repo.primary, wt.path), false);

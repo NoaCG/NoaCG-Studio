@@ -105,8 +105,8 @@ import {
   sweepEmptyLeftoverFolders,
 } from './worktree-cleanup-lib.mjs';
 
-// Re-exported: the safety tests and other callers import them from here.
-export { advanceLocalMain, managedBranch };
+// Re-exported: the safety tests import it from here.
+export { managedBranch };
 
 /**
  * Ignored paths that removal may destroy without asking, because the repo can rebuild every one
@@ -161,6 +161,8 @@ function regenerable(entry) {
 
 const MAIN = 'main';
 const REMOTE_MAIN = 'origin/main';
+/** Where a worktree is parked while it is removed: `<git-common-dir>/noacg-cleanup/<this>/<pid>/<name>`. */
+const REMOVING_DIR = 'removing';
 
 /**
  * Worktrees that are INFRASTRUCTURE, named in ONE place so adding the next one is a line here
@@ -274,7 +276,7 @@ export const UNATTENDED_IDLE_MINUTES = Object.freeze({ agent: 2 * 60, session: 2
  */
 export function unattendedRule({ path, branch, primaryRoot, landed }) {
   const home = normalize(join(primaryRoot, '.claude', 'worktrees'));
-  if (normalize(path).toLowerCase().startsWith(`${home.toLowerCase()}/.removing/`)) {
+  if (normalize(path).toLowerCase().includes(`/noacg-cleanup/${REMOVING_DIR}/`)) {
     return { rule: null, why: 'it was left half-way through an interrupted removal', needsPerson: true };
   }
   if (!samePath(dirname(normalize(path)), home)) {
@@ -296,7 +298,7 @@ export function unattendedRule({ path, branch, primaryRoot, landed }) {
  * its rule's idle window. Anything else becomes a skip, never an action; anything that needed a
  * person was already a skip. Branches still checked out in a kept worktree are skipped with it.
  */
-export function unattendedPlan(
+function unattendedPlan(
   plan,
   { landed = new Set(), liveCheckouts = [], liveness = {}, gitActivity = lastGitActivityMs, now = Date.now } = {},
 ) {
@@ -1044,19 +1046,21 @@ export function assess(cwd, { liveness = {} } = {}) {
 }
 
 /**
- * Move a worktree to a path nothing knows - `<parent>/.removing/<pid>/<same name>`, so the archive
- * still labels it by its own name - through git, so its metadata follows. Returns `{ ok, path }`;
- * `{ ok: false, held: true, why }` when Windows refused because a process is in it; or
- * `{ ok: false, why }` for any other refusal, which needs a person rather than another retry.
- * Nothing changes unless it succeeds.
+ * Move a worktree to a path nothing knows and no scanner walks - the sweep's own state directory,
+ * `<git-common-dir>/noacg-cleanup/removing/<pid>/<same name>`, so the archive still labels it by
+ * its own name - through git, so its metadata follows. Returns `{ ok, path, tidy }` (`tidy`
+ * removes the parking folders once they are empty); `{ ok: false, held: true, why }` when Windows
+ * refused because a process is in it; or `{ ok: false, why }` for any other refusal, which needs a
+ * person rather than another retry. Nothing changes unless it succeeds.
  */
 function moveAside(path, primaryRoot) {
-  const parent = join(dirname(path), '.removing', String(process.pid));
+  const parent = join(cleanupStateDir(primaryRoot), REMOVING_DIR, String(process.pid));
   const aside = join(parent, basename(path));
+  const tidy = () => removeEmptyDirs([parent, dirname(parent)]);
   mkdirSync(parent, { recursive: true });
   const moved = git(['worktree', 'move', path, aside], primaryRoot);
-  if (moved.ok && worktreeBranches(primaryRoot).has(normalize(aside))) return { ok: true, path: normalize(aside) };
-  removeEmptyDirs([parent, dirname(parent)]);
+  if (moved.ok && worktreeBranches(primaryRoot).has(normalize(aside))) return { ok: true, path: normalize(aside), tidy };
+  tidy();
   const said = moved.stderr || moved.stdout || 'git worktree move failed';
   return /permission denied|resource busy|being used by another process|access is denied/i.test(said)
     ? { ok: false, held: true, why: `in use by a running process - left in place (${said})` }
@@ -1092,6 +1096,9 @@ function worktreeStillSafeToRemove(worktree, primaryRoot, liveness = {}) {
   resetSessionScanCache();
   const hold = worktree.holdMinutes ? { ...liveness, minIdleMinutes: worktree.holdMinutes } : liveness;
   if (sessionHold(worktree.path, hold).busy) return false;
+  // An unattended removal re-asks the other half of "quiet" too: has its HEAD moved since?
+  const lastGit = worktree.holdMinutes ? lastGitActivityMs(worktree.path) : null;
+  if (lastGit !== null && Date.now() - lastGit < worktree.holdMinutes * 60_000) return false;
   // The same rule the assessment applied, re-asked: a worktree that went detached between the two
   // is infrastructure or an investigation now, whatever it was when the plan was made.
   if (infrastructureReason({ path: worktree.path, primaryRoot, branch: current.branch })) return false;
@@ -1208,10 +1215,9 @@ export function applyPlan(
       done.errors.push(`worktree ${w.path}: ${moved.why} - kept`);
       continue;
     }
-    const asideDirs = [dirname(moved.path), dirname(dirname(moved.path))];
     const putBack = () => {
       const back = git(['worktree', 'move', moved.path, w.path], plan.primaryRoot);
-      removeEmptyDirs(asideDirs);
+      moved.tidy();
       return back.ok ? '' : ` - and it could not be moved back from ${moved.path}: ${back.stderr || back.stdout}`;
     };
 
@@ -1244,7 +1250,7 @@ export function applyPlan(
     // Judge by REGISTRATION, not exit code, exactly as applySelf does.
     if (!worktreeBranches(plan.primaryRoot).has(normalize(moved.path))) {
       done.removedWorktrees.push(w.path);
-      removeEmptyDirs(asideDirs);
+      moved.tidy();
       if (existsSync(moved.path)) {
         done.errors.push(
           `worktree ${w.path}: removed, but its emptied folder ${moved.path} is still on disk - ` +
@@ -1546,7 +1552,7 @@ function report(plan, done) {
 export function runUnattended(
   cwd,
   {
-    stateDir = cleanupStateDir(primaryCheckout(cwd)),
+    stateDir = null,
     refresh = (root) => git(['fetch', 'origin', '--prune'], root),
     landings = () => {
       const dir = jobsDir();
@@ -1564,6 +1570,7 @@ export function runUnattended(
   } = {},
 ) {
   const primaryRoot = primaryCheckout(cwd);
+  stateDir ??= cleanupStateDir(primaryRoot);
   if (!primaryRoot || !stateDir) return { ran: false, why: 'not inside a git checkout' };
   const lock = acquireSweepLock(stateDir);
   if (!lock.ok) return { ran: false, why: lock.why };
@@ -1611,7 +1618,9 @@ export function runUnattended(
     const landed = new Set((landings() ?? []).map((entry) => entry?.branch).filter(Boolean));
     const liveCheckouts = pending(jobs() ?? []).map((job) => job.checkout);
     const narrowed = unattendedPlan(plan, { landed, liveCheckouts, liveness });
-    const done = applyPlan(narrowed, cwd, { liveness, ...applyOptions });
+    // The fetch above is seconds old and well inside the freshness window, so apply reuses it
+    // rather than fetching again.
+    const done = applyPlan(narrowed, cwd, { liveness, refreshRemote: () => fetched, ...applyOptions });
     return record({ ran: true, plan: narrowed, done, risks: assessmentRisks(narrowed) });
   } finally {
     lock.release();
@@ -1720,7 +1729,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       process.exit(2);
     }
   }
-  let done = null;
+  let done;
   try {
     done = doApply ? applyPlan(plan, cwd) : null;
   } finally {

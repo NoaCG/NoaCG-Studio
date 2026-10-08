@@ -12,8 +12,9 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gitCommonDir } from './primary-checkout.mjs';
 
 /** Absolute path with forward slashes, for cross-checkout comparison on Windows. */
 export function normalize(path) {
@@ -110,21 +111,20 @@ export function operationInProgress(worktreePath) {
   // Tested as FILES, not as revisions. `git rev-parse --verify BISECT_LOG` exits 1 - a bisect log
   // is not a ref - so the older rev-parse form silently never fired for the one operation that
   // leaves no other trace, and `rebase-merge/`/`rebase-apply/` are directories that no rev-parse
-  // can see either. `--git-path` resolves each to this worktree's own gitdir.
-  for (const marker of [
-    'MERGE_HEAD',
-    'CHERRY_PICK_HEAD',
-    'REVERT_HEAD',
-    'BISECT_LOG',
-    'rebase-merge',
-    'rebase-apply',
-  ]) {
-    const located = git(['rev-parse', '--git-path', marker], worktreePath);
-    if (!located.ok || !located.stdout) continue;
-    const path = isAbsolute(located.stdout) ? located.stdout : join(worktreePath, located.stdout);
-    if (existsSync(path)) return marker;
-  }
-  return null;
+  // can see either. Every one of them lives in this worktree's OWN gitdir.
+  const gitDir = ownGitDir(worktreePath);
+  if (!gitDir) return null;
+  return (
+    ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'BISECT_LOG', 'rebase-merge', 'rebase-apply'].find((marker) =>
+      existsSync(join(gitDir, marker)),
+    ) ?? null
+  );
+}
+
+/** This worktree's own git directory (per-worktree state: HEAD, its reflog, MERGE_HEAD...), or null. */
+function ownGitDir(worktreePath) {
+  const located = git(['rev-parse', '--absolute-git-dir'], worktreePath);
+  return located.ok && located.stdout ? located.stdout : null;
 }
 
 /**
@@ -152,12 +152,12 @@ export function advanceLocalMain(primaryRoot) {
  * read, because `git status` - which every sweep runs - may rewrite it.
  */
 export function lastGitActivityMs(worktreePath) {
+  const gitDir = ownGitDir(worktreePath);
+  if (!gitDir) return null;
   let newest = null;
   for (const name of ['logs/HEAD', 'HEAD']) {
-    const located = git(['rev-parse', '--git-path', name], worktreePath);
-    if (!located.ok || !located.stdout) continue;
     try {
-      const { mtimeMs } = statSync(isAbsolute(located.stdout) ? located.stdout : join(worktreePath, located.stdout));
+      const { mtimeMs } = statSync(join(gitDir, name));
       if (newest === null || mtimeMs > newest) newest = mtimeMs;
     } catch {
       // not there for this worktree
@@ -265,9 +265,9 @@ const SWEEP_LOCK_MAX_AGE_MS = 2 * 60 * 60_000;
 export function cleanupStateDir(primaryRoot, { env = process.env } = {}) {
   if (env.NOACG_CLEANUP_STATE_DIR) return resolve(env.NOACG_CLEANUP_STATE_DIR);
   if (!primaryRoot) return null;
-  const res = git(['rev-parse', '--git-common-dir'], primaryRoot);
-  if (!res.ok || !res.stdout) return null;
-  return join(resolve(primaryRoot, res.stdout), 'noacg-cleanup');
+  // Read from `.git` rather than asked of git: this runs on every session start.
+  const common = gitCommonDir(primaryRoot);
+  return common ? join(common, 'noacg-cleanup') : null;
 }
 
 /** When the last unattended sweep STARTED, as epoch ms, or null. */
@@ -375,7 +375,7 @@ export function acquireSweepLock(stateDir, { now = Date.now() } = {}) {
       };
       return { ok: true, release, why: null };
     } catch (error) {
-      if (error?.code !== 'EEXIST') return { ok: false, release: () => {}, why: error?.message ?? String(error) };
+      if (error?.code !== 'EEXIST') return refused(error?.message ?? String(error));
     }
     let held = null;
     try {
@@ -385,17 +385,28 @@ export function acquireSweepLock(stateDir, { now = Date.now() } = {}) {
     }
     const age = held?.at ? now - held.at : SWEEP_LOCK_MAX_AGE_MS + 1;
     if (held?.pid && pidAlive(held.pid) && age < SWEEP_LOCK_MAX_AGE_MS) {
-      return { ok: false, release: () => {}, why: `another worktree cleanup is running (pid ${held.pid})` };
+      return refused(`another worktree cleanup is running (pid ${held.pid})`);
+    }
+    // The rename IS the takeover (only one of two racers can win it); deleting the renamed file
+    // afterwards is tidying, and a failure there must not read as having lost the race.
+    const dead = `${path}.${process.pid}.${Date.now()}.dead`;
+    try {
+      renameSync(path, dead);
+    } catch {
+      return refused('another cleanup took over the lock first');
     }
     try {
-      const dead = `${path}.${process.pid}.${Date.now()}.dead`;
-      renameSync(path, dead);
-      rmSync(dead, { force: true });
+      rmSync(dead, { force: true, maxRetries: 10, retryDelay: 10 });
     } catch {
-      return { ok: false, release: () => {}, why: 'another cleanup took over the lock first' };
+      // left behind; nothing reads `*.dead`
     }
   }
-  return { ok: false, release: () => {}, why: 'could not take the cleanup lock' };
+  return refused('could not take the cleanup lock');
+}
+
+/** A lock that was not taken: nothing to release. */
+function refused(why) {
+  return { ok: false, release: () => {}, why };
 }
 
 /**

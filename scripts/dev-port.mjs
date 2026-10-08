@@ -40,6 +40,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   PORT_RANGE_LABEL,
   allocatePort,
+  claimedAtOf,
   listTickets,
   normalizeRoot,
   peekPort,
@@ -356,13 +357,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         const marks = [isActive(t.root) ? 'active' : 'STALE'];
         if (sameRoot(t.root, repoRoot)) marks.push('this checkout');
         if (t.preferred !== t.port) marks.push(`preferred ${t.preferred}`);
-        let claimed = null;
-        try {
-          claimed = Math.round((Date.now() - statSync(ticketPath(dir, t.port)).mtimeMs) / 60_000);
-        } catch {
-          // gone between the listing and the stat
-        }
-        if (claimed !== null) marks.push(`last claimed ${claimed} min ago`);
+        const claimedAt = claimedAtOf(ticketPath(dir, t.port));
+        if (claimedAt !== null) marks.push(`last claimed ${Math.round((Date.now() - claimedAt) / 60_000)} min ago`);
         console.log(`  ${t.port} (live ${t.livePort})  ${t.root}  [${marks.join(', ')}]`);
       }
     }

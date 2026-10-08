@@ -17,7 +17,7 @@ import { readHookInput } from './lib.mjs';
 import { HOME_RELATIVE_PATH } from '../orchestrator-home.mjs';
 import { reattachMainIfSafe } from '../reattach-main.mjs';
 import { formatActivity, formatBranches, scanActivity } from '../worktree-activity.mjs';
-import { cleanupStateDir, sweepEmptyLeftoverFolders, triggerUnattendedSweep } from '../worktree-cleanup-lib.mjs';
+import { cleanupStateDir, sweepEmptyLeftoverFolders, triggerUnattendedSweep, worktreeRoots } from '../worktree-cleanup-lib.mjs';
 
 const input = await readHookInput();
 const sessionCwd = normalize(input?.cwd ?? process.cwd());
@@ -25,11 +25,7 @@ const sessionCwd = normalize(input?.cwd ?? process.cwd());
 // All registered checkouts, primary first (git worktree list order). Run from the session
 // cwd: in an unregistered stub git walks up to the primary checkout, which is exactly the
 // fall-through this hook exists to detect.
-const listRoots = () =>
-  gitLines(['worktree', 'list', '--porcelain'], sessionCwd)
-    .filter((line) => line.startsWith('worktree '))
-    .map((line) => normalize(line.slice('worktree '.length)));
-let roots = listRoots();
+let roots = worktreeRoots(sessionCwd);
 if (roots.length === 0) process.exit(0); // not a git checkout - nothing to check
 
 // Each checkout keeps its own `noacg login`, so one row's logout cannot sign its siblings out.
@@ -78,12 +74,8 @@ try {
 // FINISHED WORK CLEANS ITSELF UP. Start the unattended worktree sweep in the background; it
 // throttles itself to one run per half hour and removes only what has landed (or has no commits
 // of its own) and has been quiet long enough (scripts/cleanup-worktrees.mjs, runUnattended).
-// `NOACG_NO_AUTO_CLEANUP=1` switches it off.
-try {
-  triggerUnattendedSweep({ primaryRoot: roots[0] });
-} catch {
-  // Housekeeping must never block session start.
-}
+// `NOACG_NO_AUTO_CLEANUP=1` switches it off. It never throws.
+triggerUnattendedSweep({ primaryRoot: roots[0] });
 
 // Which branches have landed - the ledger the follow-up handling below and the job-queue summary
 // further down both read. Synced from GitHub once, here.
@@ -107,19 +99,19 @@ try {
 // transcript says this session last worked in a worktree that is gone, make a fresh one at the
 // same path from origin/main, so the follow-up has somewhere to work with nothing to run.
 // Only on a RESUME: a compaction or a cleared conversation is not somebody coming back to it.
-let recovered = null;
 try {
   const { recoverRemovedWorktree } = await import('../worktree-followup.mjs');
-  recovered = input?.source === 'resume'
+  const recovered = input?.source === 'resume'
     ? recoverRemovedWorktree({
         sessionCwd,
         primaryRoot: roots[0],
         transcriptPath: input?.transcript_path,
         landed: landedBranches,
+        registeredRoots: roots,
       })
     : null;
   if (recovered?.path) {
-    roots = listRoots();
+    roots = [...roots, recovered.path];
     console.log(
       recovered.inside
         ? `This chat's earlier worktree has been removed (finished work is cleaned up automatically). A fresh ` +
@@ -199,7 +191,7 @@ try {
   // This checkout's copy resolves the port from its own location - correct per-worktree.
   const devPortModule = join(root, 'scripts', 'dev-port.mjs');
   if (existsSync(devPortModule)) {
-    const { devPorts, pruneStalePorts } = await import(pathToFileURL(devPortModule));
+    const { devPorts, pruneStalePorts, reservesPorts } = await import(pathToFileURL(devPortModule));
     // Reservations outlive the worktrees that took them (a removed worktree cannot give its
     // own port back). Session start is where the registry gets swept, same as the folders.
     const released = pruneStalePorts?.() ?? [];
@@ -216,7 +208,7 @@ try {
       ports = ` - dev port ${record.port}, live e2e port ${record.livePort}`;
       if (record.port === 0) {
         ports = ' - no dev port free right now: every reservation is in use (node scripts/dev-port.mjs --list)';
-      } else if (!record.ticket && record.source !== 'primary checkout' && record.source !== 'DEV_PORT override') {
+      } else if (!record.ticket && reservesPorts?.()) {
         ports += ' (reserved when a server starts)';
       } else if (record.preferred !== record.port) {
         // Say so when the deterministic preference was taken: the number is still stable, but
@@ -482,7 +474,9 @@ try {
       syncLandings(dir);
     }
     const mine = landingForWorktree(readLandings(dir), root);
-    if (mine && (mine.at ?? 0) >= since) {
+    // Only while the branch that landed is the one checked out: a worktree moved to a fresh branch
+    // above (or recreated at this path) has said so already, and has nothing landed on it.
+    if (mine && (mine.at ?? 0) >= since && mine.branch === branch) {
       console.log('');
       console.log(`THIS WORKTREE'S BRANCH HAS LANDED: ${mine.branch} is in main as ${String(mine.sha).slice(0, 8)}.`);
       console.log('  Merged and pushed - nothing here is waiting to merge.');

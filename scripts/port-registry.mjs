@@ -361,6 +361,16 @@ export function allocatePort({
   nowMs = Date.now,
 }) {
   const me = normalizeRoot(root);
+  if (wanted === NO_PORT) {
+    // A suite that asked while nothing was free was told NO_PORT and passed it on: the answer is
+    // the registry's own "no port", with who holds what - not a range complaint about 0.
+    const holders = listTickets(registryDir).map((t) => `  ${t.port} - ${t.corrupt ? 'unreadable reservation' : `reserved by ${t.root}`}`);
+    throw new Error(
+      `No dev-server port was free for ${me} when this server's port was chosen, so it was given none.\n` +
+        `${holders.join('\n')}\nRun \`node scripts/dev-port.mjs --list\` to see who holds what, and start it again ` +
+        'once a reservation is idle.',
+    );
+  }
   const exact = wanted == null ? null : slotPortOf(wanted);
   if (wanted != null && exact === null) {
     throw new Error(
@@ -430,7 +440,7 @@ function allocateUnderClaim({ me, registryDir, isRootActive, isPortBusy, now, ex
 
     // We hold the claim. A listener now means a process outside this registry owns the port.
     // Hand the claim back and keep walking - we never kill what we did not start.
-    if (isPortBusy(port) || isPortBusy(port + 1)) {
+    if (pairBusy(isPortBusy, port)) {
       rmSync(ticketPath(registryDir, port), { force: true });
       blocked.push(`${port} - a process outside this repo is listening on ${port} or ${port + 1}`);
       continue;
@@ -484,11 +494,11 @@ export function peekPort({ root, registryDir, isRootActive, isPortBusy = () => f
       const port = candidatePort(me, k);
       const held = readTicket(registryDir, port);
       if (held && (held.corrupt || isRootActive(held.root))) continue;
-      if (isPortBusy(port) || isPortBusy(port + 1)) continue;
+      if (pairBusy(isPortBusy, port)) continue;
       return answer(port);
     }
     const victim = idleReservations({ registryDir, me, nowMs }).find(
-      (ticket) => !isPortBusy(ticket.port) && !isPortBusy(ticket.port + 1),
+      (ticket) => !pairBusy(isPortBusy, ticket.port),
     );
     if (victim) return answer(victim.port, { reclaims: victim.root });
   } catch {
@@ -497,8 +507,13 @@ export function peekPort({ root, registryDir, isRootActive, isPortBusy = () => f
   return answer(NO_PORT, { livePort: NO_PORT, exhausted: true });
 }
 
+/** Is a dev port, or the live-e2e port beside it, answering? A reservation is always the pair. */
+function pairBusy(isPortBusy, port) {
+  return isPortBusy(port) || isPortBusy(port + 1);
+}
+
 /** When a ticket was last claimed (its mtime), or null when it is not there. */
-function claimedAtOf(path) {
+export function claimedAtOf(path) {
   try {
     return statSync(path).mtimeMs;
   } catch {
@@ -538,7 +553,7 @@ function idleReservations({ registryDir, me, nowMs, only = null }) {
  */
 function takeBack({ registryDir, victim, me, isPortBusy, now, nowMs }) {
   const { port } = victim;
-  if (isPortBusy(port) || isPortBusy(port + 1)) return null;
+  if (pairBusy(isPortBusy, port)) return null;
   const path = ticketPath(registryDir, port);
   const aside = `${path}.${process.pid}.${Date.now()}.reclaimed`;
   try {

@@ -142,12 +142,12 @@ should run in it.
   while it is detached, but a home that is only safe while it stays detached is one reattachment
   away from being swept.
 - **A worktree some process is in is left exactly as it is.** It is moved aside (to
-  `.claude/worktrees/.removing/<pid>/<name>`) before it is archived or removed, and Windows refuses
-  that rename while any process has its working directory or an open file inside; the refusal is
-  reported as "in use", not as a failure, and nothing in it is touched. (A plain
-  `git worktree remove` deletes every file first and fails only on the empty folder.) Any other
-  refusal is an error, and a worktree found under `.removing/` was interrupted mid-removal - both
-  need a person. `--self` is the deliberate exception: it removes the worktree its own session sits
+  `<git-common-dir>/noacg-cleanup/removing/<pid>/<name>`, where no scanner looks) before it is
+  archived or removed, and Windows refuses that rename while any process has its working directory
+  or an open file inside; the refusal is reported as "in use", not as a failure, and nothing in it
+  is touched. (A plain `git worktree remove` deletes every file first and fails only on the empty
+  folder.) Any other refusal is an error, and a worktree found parked there was interrupted
+  mid-removal - both need a person. `--self` is the deliberate exception: it removes the worktree its own session sits
   in.
 - A worktree git reports as **locked** is skipped, never forced - that is how the harness marks
   an agent that is running right now. So is one part-way through a merge, rebase, cherry-pick or
