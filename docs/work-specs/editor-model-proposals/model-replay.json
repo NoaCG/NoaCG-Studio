@@ -1,0 +1,98 @@
+{
+  "boundary": "Offline replay of six already-paid model responses through the actual proposal review UI and shared command/session handlers; no additional model requests.",
+  "receipts": [
+    {
+      "name": "public-default",
+      "applied": true,
+      "readOnlyReview": true,
+      "singleUndo": true,
+      "undoRedoExact": true,
+      "samplesPreserved": true,
+      "effect": null
+    },
+    {
+      "name": "excluded-static",
+      "applied": true,
+      "readOnlyReview": true,
+      "singleUndo": true,
+      "undoRedoExact": true,
+      "samplesPreserved": true,
+      "effect": null
+    },
+    {
+      "name": "base-position",
+      "applied": true,
+      "readOnlyReview": true,
+      "singleUndo": true,
+      "undoRedoExact": true,
+      "samplesPreserved": true,
+      "effect": {
+        "value": {
+          "selector": "#rectangle-1",
+          "target": "#rectangle-1",
+          "mode": "absolute",
+          "offsetPosition": false,
+          "scaleReason": null,
+          "axisResizeReason": null,
+          "rotationReason": null,
+          "scaled": false,
+          "originX": 0,
+          "originY": 0,
+          "anchor": null,
+          "anchorReason": null,
+          "x": 1110,
+          "y": 600,
+          "scaleX": 1,
+          "scaleY": 1,
+          "rotation": 0
+        },
+        "motionPreserved": true
+      }
+    },
+    {
+      "name": "position-keys",
+      "applied": true,
+      "readOnlyReview": true,
+      "singleUndo": true,
+      "undoRedoExact": true,
+      "samplesPreserved": true,
+      "effect": [
+        {
+          "time": 0,
+          "value": 20
+        },
+        {
+          "time": 1,
+          "value": 60
+        }
+      ]
+    },
+    {
+      "name": "next-cue",
+      "applied": true,
+      "readOnlyReview": true,
+      "singleUndo": true,
+      "undoRedoExact": true,
+      "samplesPreserved": true,
+      "effect": [
+        {
+          "start": 0,
+          "out": false
+        },
+        {
+          "start": 0.6,
+          "out": false
+        },
+        {
+          "start": 1.2,
+          "out": true
+        }
+      ]
+    },
+    {
+      "name": "unsupported",
+      "emptyBatch": true,
+      "unchanged": true
+    }
+  ]
+}
