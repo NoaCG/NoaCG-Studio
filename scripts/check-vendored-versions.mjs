@@ -118,11 +118,18 @@ const MANUAL_REVIEW = [
     // The current cycle is already measuring Basic WITH the skip filter, so the per-build cost
     // arrives on its own around 2026-10-07 and the question becomes arithmetic. Read the cycle's
     // actual build spend and build count, divide, and tell him the number.
+    //
+    // Read 2026-10-08 for the 2026-09-08..2026-10-08 cycle (`vercel usage` and the deployments
+    // API): Build CPU Minutes $8.60 effective for 279 builds, all production (1,685 deployments
+    // were skipped by the ignore step: 221 main, 1,464 preview). That is $0.031 a build, above the
+    // $0.028 recorded above, but main took 500 pushes this cycle, not 719: building every one
+    // would have cost about $15.40, plus about $1.10 of other usage, under the $20 credit.
+    // Whether to rebuild on every landing again is his call; nothing was changed.
     id: 'vercel-build-cost',
     what:
       "the closed billing cycle's build spend and build count, to answer whether every-landing builds fit the $20 credit",
     whyNoVersion: 'a billing cycle closes on a date, and nothing in git moves when it does',
-    lastReviewed: '2026-09-07',
+    lastReviewed: '2026-10-08',
     intervalDays: 30,
   },
   {
