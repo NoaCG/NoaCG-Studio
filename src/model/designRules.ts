@@ -54,6 +54,21 @@ export const PROFILE_MULTIPLIER: Readonly<Record<ViewingProfileId, number>> = {
 };
 
 /**
+ * The multiplier a target's profile composes into its floors. `target.profile` is a PERSISTED
+ * field, so a record can carry an id this build does not know; that id measures as tv, like the
+ * venue and custom stubs. Indexing the table with it gave `undefined`, every floor became NaN, and
+ * `px < NaN` is false for every text - an unknown id passed every size check without measuring.
+ */
+export function profileMultiplier(profile: string | null | undefined): number {
+  const known = profile != null && Object.prototype.hasOwnProperty.call(PROFILE_MULTIPLIER, profile);
+  const multiplier = PROFILE_MULTIPLIER[known ? profile as ViewingProfileId : 'tv'];
+  if (!(Number.isFinite(multiplier) && multiplier > 0)) {
+    throw new Error(`PROFILE_MULTIPLIER has no usable number for "${known ? profile : 'tv'}" - every size floor would compare against NaN and pass.`);
+  }
+  return multiplier;
+}
+
+/**
  * THE OWNER SIZE TABLE (ratified 2026-08-18), as fractions of the reference size.
  * A floor composes as `floor(role, mode) * profileMultiplier`.
  *
@@ -184,7 +199,7 @@ export function sizeFloorPx(
   if (role === 'decorative') return null;
   const ref = referenceSize(width, height);
   const spec = SIZE_TABLE[mode][role];
-  const multiplier = PROFILE_MULTIPLIER[target.profile];
+  const multiplier = profileMultiplier(target.profile);
   // WHERE A CATEGORY NAMES ITS OWN NUMBER, THAT NUMBER GOVERNS EVERY INFORMATIONAL ROLE. A corner
   // bug's supporting line at 16px was refused by the universal 19.98% secondary row while
   // `TYPE_FLOOR_PX` said 16 was right for it - the same contradiction the primary row carried, and
@@ -414,7 +429,7 @@ export function designRulesPromptBlock(
   const lines: string[] = [
     `BROADCAST LEGIBILITY RULES (${width}x${height}, viewed on ${target.profile}${target.note ? ` - ${target.note}` : ''}). These constrain failure, never style - within them, design freely:`,
     `- Primary text (names, scores, clocks, headlines) renders at ${px(primary.hardPx)} or larger.`
-      + (mode === 'safe' ? ` Aim for ${px(primary.hardPx)}-${px(SAFE_PRIMARY_TARGET_MAX_RATIO * ref * PROFILE_MULTIPLIER[target.profile])}.` : ''),
+      + (mode === 'safe' ? ` Aim for ${px(primary.hardPx)}-${px(SAFE_PRIMARY_TARGET_MAX_RATIO * ref * profileMultiplier(target.profile))}.` : ''),
     `- Supporting text (titles, captions, context) renders at ${px(secondary.hardPx)} or larger`
       + (secondary.warnPx !== null ? `; prefer ${px(secondary.warnPx)}+` : '')
       + `. Fine print at ${px(fine.hardPx)} or larger - and avoid fine print at all where you can.`,

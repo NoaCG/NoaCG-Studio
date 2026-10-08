@@ -12,7 +12,7 @@
 // an SpxValidator (src/ai/provider.ts), the same seam the video harness uses.
 
 import { composeDocument } from '../preview/composeDocument';
-import { parseAnimData } from '../blocks/animData';
+import { ANIM_DECLARATION, parseAnimData } from '../blocks/animData';
 import { allOperatorArrows, allTimelines, type OperatorArrow } from '../blocks/animMachine';
 import { detectPrefix } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
@@ -738,7 +738,7 @@ function editabilityIssues(template: SpxTemplate): ValidationIssue[] {
       ),
     );
   }
-  if (!template.js.includes('var NOACG_ANIM')) {
+  if (!template.js.includes(ANIM_DECLARATION)) {
     issues.push(
       issue(
         'bench-editability',

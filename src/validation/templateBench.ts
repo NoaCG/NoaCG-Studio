@@ -43,7 +43,7 @@ const MAX_ASSET_BYTES = 12 * 1024 * 1024;
  * they make every importer's graphic phone the author's endpoint and paint the author's data.
  * Each one is marked "edit or delete this whole block", which is exactly what the message says.
  */
-const UNSAFE_JS: { re: RegExp; rule: string; note: string }[] = [
+export const UNSAFE_JS: { re: RegExp; rule: string; note: string }[] = [
   { re: /\bfetch\s*\(/, rule: 'unsafe-js-network', note: 'calls fetch()' },
   { re: /\bXMLHttpRequest\b/, rule: 'unsafe-js-network', note: 'opens an XMLHttpRequest' },
   { re: /\bWebSocket\s*\(/, rule: 'unsafe-js-network', note: 'opens a WebSocket' },

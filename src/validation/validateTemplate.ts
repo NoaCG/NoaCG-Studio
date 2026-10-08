@@ -2,7 +2,7 @@
 // owns SPX compatibility. Returns errors (block export) and warnings (allow but flag).
 
 import { parseDefinition } from '../model/spxDefinition';
-import { animDataFault, animSounds, parseAnimData } from '../blocks/animData';
+import { ANIM_DECLARATION, animDataFault, animSounds, parseAnimData } from '../blocks/animData';
 import { allTimelines, validateMachine } from '../blocks/animMachine';
 import { labelFields } from '../blocks/controlLabels';
 import {
@@ -263,7 +263,7 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
   //     and reveals, plus an honest warning when the block exists but the timeline cannot
   //     read it (the graphic still plays — the interpreter reads whatever is there — but
   //     every visual editing surface will treat it as hand-crafted code).
-  if (template.js.includes('var NOACG_ANIM')) {
+  if (template.js.includes(ANIM_DECLARATION)) {
     const data = parseAnimData(template.js);
     if (!data) {
       // An unreadable block is normally an honest hand-crafted or legacy region, which the
