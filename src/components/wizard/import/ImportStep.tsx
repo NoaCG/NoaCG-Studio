@@ -41,7 +41,6 @@ export default function ImportStep({ images, draft, onDraft, onImages, onContinu
         value={draftFormatSelection(draft)}
         onChange={(selection) => onDraft(formatDraftPatch(selection))}
         idPrefix="legacy-import-format"
-        description="Choose the project canvas before images are placed into a catalog design."
       />
 
       <div
@@ -90,9 +89,6 @@ export default function ImportStep({ images, draft, onDraft, onImages, onContinu
             </option>
           ))}
         </select>
-        <p className="hint" style={{ marginTop: 6 }}>
-          Designs with a logo slot are shown first; your first image is placed automatically.
-        </p>
       </div>
 
       <button className="primary" disabled={images.length === 0} onClick={() => onContinue(category)}>
