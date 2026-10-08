@@ -178,7 +178,7 @@ jobs:
               echo "::notice title=Not on main::${GITHUB_SHA} is not on main yet. This dry run rehearses it; a real publish of it would be refused here."
               exit 0
             fi
-            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first (/queue-merge), then tag the commit on main."
+            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first (/queue-merge); landing a new version publishes it."
             exit 1
           fi
           echo "${GITHUB_SHA} is on main."

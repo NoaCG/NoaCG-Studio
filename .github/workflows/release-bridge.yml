@@ -139,7 +139,7 @@ jobs:
         run: |
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first, then tag the commit on main."
+            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first; landing a version with Bridge notes releases it."
             exit 1
           fi
           echo "${GITHUB_SHA} is on main."
