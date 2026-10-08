@@ -143,8 +143,7 @@ export function cueShortcutReserved(key: string): boolean {
  *  hosted page (playout-workflow-simplification AC-11). The focus, modal, menu and view guards in
  *  `usePlayoutVerbKeys` are what keep a key from firing by accident, not a second press. */
 export function useCueShortcutSet(cues: readonly Pick<ShowCue, 'id' | 'hotkey'>[]) {
-  const signature = JSON.stringify(cueShortcutBindings(cues));
-  return useMemo(() => JSON.parse(signature) as ReturnType<typeof cueShortcutBindings>, [signature]);
+  return useMemo(() => cueShortcutBindings(cues), [cues]);
 }
 
 /**

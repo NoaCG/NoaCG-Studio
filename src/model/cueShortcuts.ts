@@ -44,6 +44,14 @@ export function sameCueShortcut(a: string, b: string): boolean {
   return cueShortcutIdentity(a) === cueShortcutIdentity(b) || cueShortcutAlias(a) === cueShortcutAlias(b);
 }
 
+/** The other cues that already hold `key`: what "Used by" names and what a save refuses. */
+export function cueShortcutHolders<C extends Pick<ShowCue, 'id' | 'hotkey'>>(cues: readonly C[], cueId: string, key: string): C[] {
+  return cues.filter((c) => {
+    const other = c.id !== cueId ? normalizeCueShortcut(c.hotkey) : null;
+    return !!other && sameCueShortcut(other, key);
+  });
+}
+
 export function cueShortcutLabel(key: string): string {
   const m = PHYSICAL.exec(key);
   if (!m) return key.replace('shift+', 'Shift+').toUpperCase();

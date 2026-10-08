@@ -14,45 +14,42 @@ export const NOT_SYNCED_AFTER_MS = 60_000;
 /** What the chip says: green confirmed, grey a save in flight (quiet), amber a save that is late or
  *  failed, grey "Local" for a device-only workspace with no account to sync to. */
 type Tone = 'ok' | 'quiet' | 'warn' | 'local';
-type Reading = { tone: Tone; word: string; summary: string; detail: string; action: 'sync' | 'sign-in' | 'resume' };
+type Reading = { tone: Tone; summary: string; detail: string; action: 'sync' | 'sign-in' | 'resume' };
+
+const synced = (detail: string): Reading => ({ tone: 'ok', summary: 'Synced', detail, action: 'sync' });
+const notSynced = (detail: string, action: Reading['action'] = 'sync'): Reading => ({ tone: 'warn', summary: 'Not synced', detail, action });
+/** A save in flight: quiet, until the oldest unconfirmed change (`since`) is a minute old. */
+const inFlight = (detail: string, since: number | null | undefined, now: number): Reading =>
+  since != null && now - since >= NOT_SYNCED_AFTER_MS ? notSynced(detail) : { tone: 'quiet', summary: 'Syncing', detail, action: 'sync' };
 
 /** The personal library's reading. Failures and an expired session show at once; a save in flight
  *  is quiet until its oldest unconfirmed change is a minute old. Never Synced before confirmation. */
 function describe(state: SyncState, now: number): Reading {
   const owner = !!libraryInUse();
-  const late = state.unconfirmedSince !== undefined && now - state.unconfirmedSince >= NOT_SYNCED_AFTER_MS;
-  const inFlight = (detail: string): Reading =>
-    late
-      ? { tone: 'warn', word: 'Not synced', summary: 'Not synced', detail, action: 'sync' }
-      : { tone: 'quiet', word: 'Syncing', summary: 'Syncing', detail, action: 'sync' };
   switch (state.phase) {
     case 'synced': {
       const at = state.verifiedAt ? ` at ${new Date(state.verifiedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}` : '';
       const conflicts = state.last?.conflicts ? ` ${state.last.conflicts} conflicting edits were kept as copies.` : '';
-      return { tone: 'ok', word: 'Synced', summary: 'Synced', detail: `Confirmed${at}.${conflicts}`, action: 'sync' };
+      return synced(`Confirmed${at}.${conflicts}`);
     }
     case 'syncing':
-      return inFlight(state.detail ?? (owner && state.firstPass ? 'Checking the cloud revision.' : 'Changes on this device are being saved.'));
+      return inFlight(state.detail ?? (owner && state.firstPass ? 'Checking the cloud revision.' : 'Changes on this device are being saved.'), state.unconfirmedSince, now);
     case 'pending':
-      return inFlight(typeof navigator !== 'undefined' && !navigator.onLine ? 'Offline. Changes stay on this device until you reconnect.' : 'Changes on this device are waiting to be saved.');
+      return inFlight(typeof navigator !== 'undefined' && !navigator.onLine ? 'Offline. Changes stay on this device until you reconnect.' : 'Changes on this device are waiting to be saved.', state.unconfirmedSince, now);
     case 'error':
-      return { tone: 'warn', word: 'Not synced', summary: 'Not synced', detail: state.detail ?? 'Cloud save failed. Pending changes stay on this device.', action: 'sync' };
+      return notSynced(state.detail ?? 'Cloud save failed. Pending changes stay on this device.');
     case 'offline':
       return owner
-        ? { tone: 'warn', word: 'Not synced', summary: 'Not synced', detail: 'Sign in to resume. Pending work stays on this device.', action: 'resume' }
-        : { tone: 'local', word: 'Local', summary: 'Saved on this device only', detail: 'Sign in to keep your work in the cloud and on your other devices.', action: 'sign-in' };
+        ? notSynced('Sign in to resume. Pending work stays on this device.', 'resume')
+        : { tone: 'local', summary: 'Saved on this device only', detail: 'Sign in to keep your work in the cloud and on your other devices.', action: 'sign-in' };
   }
 }
 
 /** A team production's own save (backend/teamProductions.ts), in the same words. */
 function describeTeam(team: TeamSave, since: number | null, now: number): Reading {
-  if (team.saving === 'failed') return { tone: 'warn', word: 'Not synced', summary: 'Not synced', detail: team.note ?? 'The save failed.', action: 'sync' };
-  if (team.saving === 'pending') {
-    const late = since !== null && now - since >= NOT_SYNCED_AFTER_MS;
-    const detail = team.note ?? 'Saving to the team.';
-    return late ? { tone: 'warn', word: 'Not synced', summary: 'Not synced', detail, action: 'sync' } : { tone: 'quiet', word: 'Syncing', summary: 'Syncing', detail, action: 'sync' };
-  }
-  return { tone: 'ok', word: 'Synced', summary: 'Synced', detail: 'Saved to the team.', action: 'sync' };
+  if (team.saving === 'failed') return notSynced(team.note ?? 'The save failed.');
+  if (team.saving === 'pending') return inFlight(team.note ?? 'Saving to the team.', since, now);
+  return synced('Saved to the team.');
 }
 
 /** A team production's save state, as the production page holds it. */
@@ -106,7 +103,9 @@ export default function SyncStatus({ team }: { compact?: boolean; team?: TeamSav
 
   // `now` moves at the minute mark (the effect above), which is the only moment the word can change
   // with no new state behind it.
-  const { tone, word, summary, detail, action } = team ? describeTeam(team, teamSince, now) : describe(state, now);
+  const { tone, summary, detail, action } = team ? describeTeam(team, teamSince, now) : describe(state, now);
+  // The chip's one word: the summary, except a device-only workspace, which says Local.
+  const word = tone === 'local' ? 'Local' : summary;
   const act = () => {
     setOpen(false);
     if (action === 'resume') useAuthUi.getState().openSignIn('Sign in to resume account editing. Pending work is preserved.', 'resume');

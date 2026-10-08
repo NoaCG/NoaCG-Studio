@@ -67,6 +67,14 @@ export function outputSetupLabel(value: unknown): string {
   const s = readOutputSetup(value);
   return s?.destinations.length ? s.destinations.map(d => outputProfileLabel(d.profile)).join(' + ') : 'Choose output';
 }
+/** The CasparCG destination's id, which tags the URL the CasparCG renderer is loaded with. */
+export function casparDestinationId(value: unknown): string | undefined {
+  return readOutputSetup(value)?.destinations.find(d => d.profile === 'casparcg')?.id;
+}
+/** The account's "Use CasparCG in new productions", from the setup it is stored as; null for none. */
+export function accountCasparDefault(setup: ProductionOutputSetup | null | undefined): boolean | null {
+  return setup ? hasCasparOutput(setup) : null;
+}
 export function hasCasparOutput(value: unknown): boolean {
   return readOutputSetup(value)?.destinations.some(d => d.profile === 'casparcg') ?? false;
 }

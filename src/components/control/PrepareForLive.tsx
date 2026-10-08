@@ -52,7 +52,6 @@ export function usePrepareForLive({
   onStamp,
   bridge,
   ping,
-  extraChecks,
 }: {
   /** The production: another one starts from nothing. */
   showId: string | null;
@@ -77,7 +76,6 @@ export function usePrepareForLive({
   /** Send one ping through the command path (migration 0072). */
   ping: (id: string) => Promise<PingAnswer>;
   /** Additive destination diagnostics, read at completion so one mirror cannot imply both are ready. */
-  extraChecks?: () => CheckLine[];
 }): PrepareFlow {
   const [phase, setPhase] = useState<Phase>('idle');
   const [publishLine, setPublishLine] = useState<CheckLine | null>(null);
@@ -140,8 +138,8 @@ export function usePrepareForLive({
   // THE END OF A RUN, once. What it stamps is read as it stands at that render.
   const finished = outputsDone && pingDone;
   const peers = presence.peers;
-  const latest = useRef({ publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping, extraChecks });
-  latest.current = { publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping, extraChecks };
+  const latest = useRef({ publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping });
+  latest.current = { publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping };
   useEffect(() => {
     if (!outputsDone) return;
     const at = latest.current;
@@ -167,7 +165,6 @@ export function usePrepareForLive({
       ...(at.publishLine ? [at.publishLine] : []),
       ...withPing(outputChecks(at.lines, at.settled, at.timedOut), at.peers, at.pingSent, at.now),
       ...(at.bridgeLines ?? []),
-      ...(at.extraChecks?.() ?? []),
     ];
     setFinalLines(done);
     setPhase('done');
@@ -237,7 +234,6 @@ export function usePrepareForLive({
             ...(publishLine ? [publishLine] : []),
             ...withPing(outputChecks(lines, settled, false), peers, pingSent, now),
             ...(bridgeLines ?? [{ key: 'bridge', tone: 'running', label: 'Checking NoaCG Bridge and CasparCG' } as CheckLine]),
-            ...(extraChecks?.() ?? []),
           ]
         : phase === 'publishing'
           ? [{ key: 'publish', tone: 'running', label: 'Publishing your changes' }]

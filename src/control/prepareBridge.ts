@@ -7,7 +7,7 @@ import type { Show } from '../model/shows';
 import { listLibrary, playoutConfigured, readState, testConnection, type PlayoutSettings } from './playoutLink';
 import type { BridgeFacts } from './prepareLive';
 
-export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Show, 'cues' | 'playoutItems' | 'outputSlug' | 'outputSetup'>, relevance = { bridge: true, slot: true }): Promise<BridgeFacts> {
+export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Show, 'cues' | 'playoutItems' | 'outputSlug'>, relevance = { bridge: true, slot: true }): Promise<BridgeFacts> {
   const items = (show.cues ?? [])
     .filter((c) => c.source === 'playout')
     .map((c) => (show.playoutItems ?? []).filter((i) => i.id === c.sourceId)[0])

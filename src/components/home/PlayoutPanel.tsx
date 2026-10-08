@@ -11,7 +11,8 @@ import { DOWNLOADS_BRIDGE_URL } from '../../downloads/links';
  * everything is drawn from props and every press calls back.
  */
 
-function Dot({ tone }: { tone: ReadyTone }) {
+/** A state's dot, in its tone's colour: the panel's rows and its status line. */
+export function Dot({ tone }: { tone: ReadyTone }) {
   return (
     <span className={`pd-pp-dot pd-pp-dot--${tone}`} aria-hidden="true">
       {TONE_DOT[tone]}

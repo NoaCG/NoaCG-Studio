@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { setCueShortcut, type Show, type ShowCue } from '../../model/shows';
 import { commitDurableWrites } from '../../model/durableStore';
-import { cueShortcutParts, normalizeCueShortcut, sameCueShortcut, shortcutFromPress } from '../../model/cueShortcuts';
+import { cueShortcutHolders, cueShortcutParts, normalizeCueShortcut, shortcutFromPress } from '../../model/cueShortcuts';
 import { VERB_KEYS } from '../playoutKeys';
 import { useModalGate } from '../spaceKey';
 
@@ -58,10 +58,7 @@ export default function CueShortcutDialog({ show, cue, onClose, setShows }: { sh
       setSaid({ tone: 'bad', text: answer.refused });
       return;
     }
-    const holder = (show.cues ?? []).find((c) => {
-      const other = c.id !== cue.id ? normalizeCueShortcut(c.hotkey) : null;
-      return !!other && sameCueShortcut(other, answer.value);
-    });
+    const [holder] = cueShortcutHolders(show.cues ?? [], cue.id, answer.value);
     if (holder) {
       setKey(answer.value);
       setSaid(null);

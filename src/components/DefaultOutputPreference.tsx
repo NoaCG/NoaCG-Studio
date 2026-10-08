@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { readDefaultOutput, saveDefaultOutput } from '../backend/auth';
-import { outputChoice } from '../model/outputSetup';
+import { accountCasparDefault, outputChoice } from '../model/outputSetup';
 import { useAuthState } from './auth/useAuthState';
 
 /** "Use CasparCG in new productions" (docs/work-specs/playout-workflow-simplification AC-4): the
@@ -21,7 +21,7 @@ export default function DefaultOutputPreference() {
     setBusy(true);
     void readDefaultOutput(user.id).then(r => {
       if (cancelled) return;
-      setOn(!!r.setup?.destinations.some(d => d.profile === 'casparcg'));
+      setOn(accountCasparDefault(r.setup) === true);
       setNote(r.error);
       setBusy(false);
     });

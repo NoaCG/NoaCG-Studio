@@ -291,10 +291,11 @@ test('the panel holds the browser source in one row, and Links… holds one row 
   ]);
   expect(download.suggestedFilename()).toMatch(/\.html$/);
 
-  // The panel stays shorter than the window it pops out of - the defect that started this.
+  // The panel stays well inside the window it pops out of - the defect that started this: under
+  // half its height, with CasparCG off and nothing reporting.
   if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
   const height = await panel.evaluate((el) => el.getBoundingClientRect().height);
-  expect(height).toBeLessThan(320);
+  expect(height).toBeLessThan(page.viewportSize()!.height / 2);
   await page.keyboard.press('Escape');
 
   // Links…: every capability one row, and no explanation in the way.

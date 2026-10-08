@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import LibMenu from './LibMenu';
+import { Dot } from './PlayoutPanel';
 import { TONE_DOT, type ReadySummary } from '../../control/readiness';
 import type { PlayoutStatus } from '../../control/playoutStatus';
 
@@ -64,9 +65,7 @@ export function PlayoutStatusControl({
       </button>
       <LibMenu open={open} onClose={onClose} surface="pd-ready-panel" role="none" testid="production-status-panel">
         <div className={`pd-pp-status pd-pp-status--${status.tone}`} data-testid="production-status-line">
-          <span className="pd-pp-dot" aria-hidden="true">
-            {TONE_DOT[status.tone]}
-          </span>
+          <Dot tone={status.tone} />
           <span>{status.text}</span>
         </div>
         {children}
