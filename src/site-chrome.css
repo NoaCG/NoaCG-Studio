@@ -10,29 +10,16 @@
    rather than inheriting them. Brand system: dark control-room ground, one amber "on-air"
    accent, restrained glow (NoaCG-Brand-Kit/BRAND-MANUAL.md §3). */
 
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("/fonts/space-grotesk.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: "JetBrains Mono";
-  src: url("/fonts/jetbrains-mono.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
+/* The palette, the faces and their stacks are the brand's, shared with the app. Not the app's own
+   tokens (brandTokens.css): the pages name their colours freely and must not inherit those. The
+   tokens below are the site's own; --mono is the name the page stylesheets read. */
+@import "./brandCore.css";
 
 :root {
-  --void: #0a0c10;
-  --panel: #141922;
-  --amber: #f6a623;
-  --glow: #ffc65c;
-  --paper: #e8edf2;
   --dim: #b7bcc4;
   --faint: #7c8798;
-  --line: rgba(232, 237, 242, 0.09);
-  --mono: "JetBrains Mono", Consolas, monospace;
+  --line: color-mix(in srgb, var(--paper) 9%, transparent);
+  --mono: var(--font-mono);
 }
 
 /* One width for every page, so the logo and the header links sit in the same place on all of
@@ -40,7 +27,7 @@
 .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
 header.top, footer.site {
-  font-family: "Space Grotesk", Arial, sans-serif; line-height: 1.55;
+  font-family: var(--font-display); line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -50,9 +37,9 @@ header.top a { text-decoration: none; }
 header.top a:not(.btn) { color: inherit; }
 header.top .mark { display: flex; flex-direction: column; gap: 3px; width: 26px; }
 header.top .mark i { display: block; height: 6px; border-radius: 2px; }
-header.top .mark i:nth-child(1) { width: 100%; background: var(--amber); box-shadow: 0 0 10px rgba(246, 166, 35, 0.6); }
+header.top .mark i:nth-child(1) { width: 100%; background: var(--amber); box-shadow: 0 0 10px color-mix(in srgb, var(--amber) 60%, transparent); }
 header.top .mark i:nth-child(2) { width: 66%; background: var(--paper); }
-header.top .mark i:nth-child(3) { width: 40%; background: rgba(232, 237, 242, 0.3); }
+header.top .mark i:nth-child(3) { width: 40%; background: color-mix(in srgb, var(--paper) 30%, transparent); }
 header.top .wordmark { font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
 header.top .wordmark span { color: var(--amber); }
 header.top .wordmark small {
@@ -85,9 +72,9 @@ header.top nav a[aria-current="page"] { color: var(--paper); }
 }
 .btn-amber {
   background: var(--amber); color: #14100a;
-  box-shadow: 0 0 26px rgba(246, 166, 35, 0.28);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--amber) 28%, transparent);
 }
-.btn-amber:hover { background: var(--glow); transform: translateY(-1px); box-shadow: 0 0 34px rgba(246, 166, 35, 0.4); }
+.btn-amber:hover { background: var(--glow); transform: translateY(-1px); box-shadow: 0 0 34px color-mix(in srgb, var(--amber) 40%, transparent); }
 
 /* ── Footer ── */
 footer.site {
