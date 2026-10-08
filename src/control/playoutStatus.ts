@@ -1,27 +1,26 @@
 // CAN THIS PRODUCTION PLAY? One status for the operator, before Take
-// (docs/work-specs/studio-day-playout AC-7, owner decision 4 of 2026-10-01).
+// (docs/work-specs/playout-workflow-simplification AC-2; it replaced studio-day-playout AC-7's words).
 //
-// The production page used to answer in three places that each knew a part: the mode chip
-// (published or not), the READY line (the outputs' own reports, shown only once one had reported)
-// and the CasparCG dot (the Bridge and the server). On the studio day an operator could read all
-// three and still not know that a Take would not air. This rolls the same facts into ONE status,
-// worst first, with the check that decided it, in the owner's colours:
+// One control, worst first, always words beside the colour:
 //
-//   grey  (idle)  intentionally offline: the production is not started
-//   amber (warn)  attention, not broken: unpublished changes, behind, preparing
-//   green (ok)    live, connected and healthy
-//   red   (bad)   something that should work does not: the Bridge lost, the output not on air
-//                 or not answering, another production on the expected slot, a graphic that
-//                 cannot play
+//   grey  (idle)  nothing is wrong and nothing is reporting yet: not published, not connected,
+//                 publishing, preparing, loading. A page opened before the studio is up is quiet.
+//   green (ok)    something this production airs through answers: "Connected" once published, or
+//                 "CasparCG ready" before the first publish when only native server cues can air.
+//   amber (warn)  attention, not broken: an output waiting for clear before it can update, commands
+//                 arriving slowly, a Bridge that needs an update.
+//   red   (bad)   something seen this session is gone or something that should work does not: a
+//                 renderer lost, a Take that reached no output, the Bridge or CasparCG down (only
+//                 with CasparCG switched on), another production on the slot, a graphic that
+//                 cannot play.
 //
-// It is a status and never permission: nothing here blocks or delays a verb. Pure and DOM-free,
-// so scripts/playout-status.test.mjs runs it in Node; the words are its contract.
+// Unpublished changes are not a state: they are the header's "Publish changes" action. It is a
+// status and never permission: nothing here blocks or delays a verb. Pure and DOM-free, so
+// scripts/playout-status.test.mjs runs it in Node; the words are its contract.
 
 import type { PlayoutSettings, PlayoutState } from './playoutLink';
-import type { LiveEntry } from './livePath';
-import { hasCasparOutput, readOutputSetup, outputProfileLabel, type ProductionOutputSetup } from '../model/outputSetup.ts';
 import { bridgeAnswersLabel } from './prepareLive.ts';
-import { TONE_DOT, type ReadySummary, type ReadyTone } from './readiness.ts';
+import { type ReadySummary, type ReadyTone } from './readiness.ts';
 
 /** READY's four, in the same colours. */
 export type StatusTone = ReadyTone;
@@ -36,7 +35,7 @@ export interface SlotReading {
 
 /** One line of the panel: what was checked, how it stands, and what to do when it is not fine. */
 export interface StatusCheck {
-  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'destinations' | 'files' | 'playback';
+  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'take' | 'files' | 'playback';
   tone: StatusTone;
   label: string;
   /** The words on the header control when this check decides the status. */
@@ -53,24 +52,28 @@ export interface PlayoutStatus {
 }
 
 export interface StatusFacts {
-  managedOutput?: boolean;
-  destinationCheck?: StatusCheck | null;
-  fileCheck?: StatusCheck | null;
-  playbackCheck?: StatusCheck | null;
   /** The production is published: browser graphics use the hosted output. Native server cues
-   *  send through the Bridge independently, including before publishing. */
+   *  send through the Bridge independently, published or not. */
   started: boolean;
-  /** A publish now would change what the outputs get (the record, or what they render). */
-  unpublished: boolean;
-  /** "v12", or '' when the published version is not known. */
-  version: string;
-  /** NoaCG Bridge as the page last heard it; null when no Bridge is set up in this browser. */
+  /** A publish (first or changes) is running now. */
+  publishing?: boolean;
+  /** CasparCG via Bridge is switched on for this production. */
+  casparOn?: boolean;
+  /** NoaCG Bridge as the page last heard it; null when CasparCG is off or nothing is set up. */
   bridge: { state: PlayoutState | 'pending'; detail: string; version?: string } | null;
   /** The output's slot (`SlotReading`), undefined until it has been read. `where` is `1-20`,
-   *  `channel` its channel. */
-  slot?: SlotReading & { where: string; channel: number };
+   *  `channel` its channel. `reporting`: the renderer ON the slot reports (it tags itself with its
+   *  destination); absent for a production whose CasparCG output carries no tag, where any
+   *  reporting renderer has to stand for it. */
+  slot?: SlotReading & { where: string; channel: number; reporting?: boolean };
+  /** This session saw this production on its slot, and the slot no longer holds it. */
+  slotLost?: boolean;
   /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known. */
-  ready: Pick<ReadySummary, 'tone' | 'label' | 'outputs' | 'ready' | 'lead' | 'preparing' | 'broken'> | null;
+  ready: Pick<ReadySummary, 'tone' | 'label' | 'outputs' | 'ready' | 'lead' | 'preparing' | 'broken' | 'lost'> | null;
+  /** A graphic Take was sent while nothing that could air it was reporting. */
+  noOutputTake?: boolean;
+  fileCheck?: StatusCheck | null;
+  playbackCheck?: StatusCheck | null;
 }
 
 const RANK: Record<StatusTone, number> = { bad: 3, warn: 2, ok: 1, idle: 0 };
@@ -80,42 +83,18 @@ export function casparOutputTarget(settings: Pick<PlayoutSettings, 'host' | 'amc
   return JSON.stringify([settings.host.trim(), settings.amcpPort, settings.channel, settings.layer]);
 }
 
-/** Setup is intent; native server cues and recorded managed activity are evidence. Host names
- * and a globally configured studio never establish a legacy production's intent. */
-export function relevantPlayout(input: {
-  configured: boolean;
-  serverCues: boolean;
-  peers: readonly Pick<LiveEntry, 'kind' | 'engine' | 'name'>[];
-  expected: readonly { name: string }[];
-  casparActivity: boolean;
-  outputSetup?: ProductionOutputSetup;
-}): { bridge: boolean; slot: boolean } {
-  const managed = input.outputSetup ? hasCasparOutput(input.outputSetup) : input.casparActivity;
-  return { bridge: input.serverCues || managed, slot: input.configured && managed };
+/** The Bridge and the output slot matter only with CasparCG switched on (owner, 2026-10-07): a
+ *  browser-only production never polls, reads or warns about a Bridge paired in this browser. */
+export function relevantPlayout(input: { configured: boolean; casparOn: boolean }): { bridge: boolean; slot: boolean } {
+  return { bridge: input.casparOn, slot: input.configured && input.casparOn };
 }
 
-/** Diagnostics only. Untagged output instances continue playing, but cannot prove which of two
- * selected destinations is connected. One tagged instance never satisfies both destinations. */
-export function destinationCheck(setup: ProductionOutputSetup | undefined, peers: readonly Pick<LiveEntry, 'kind' | 'destinationId'>[]): StatusCheck | null {
-  if (!setup) return null;
-  const destinations = readOutputSetup(setup)?.destinations ?? [];
-  if (!destinations.length) return { key: 'destinations', tone: 'warn', label: 'Choose a production output under Setup', short: 'Choose output' };
-  const outputs = peers.filter(p => p.kind === 'output');
-  const missing = destinations.filter(d => !outputs.some(p => p.destinationId === d.id));
-  if (!missing.length) return null;
-  const uncertain = outputs.some(p => !p.destinationId);
-  return { key: 'destinations', tone: 'warn',
-    label: `${uncertain ? 'Output reporting; destination not confirmed' : 'Waiting for output'}: ${missing.map(d => outputProfileLabel(d.profile)).join(' + ')}`,
-    short: uncertain ? 'Confirm output destinations' : 'Output missing',
-    advice: 'Use the destination link in Setup. Existing untagged links still play; this check does not block Take.' };
-}
-
-/** READY's deciding words. Step 1's health line underneath READY has no `lead`, so its label is
- *  read without the dot the control draws itself. */
-function leadOf(ready: NonNullable<StatusFacts['ready']>): string {
-  if (ready.lead) return ready.lead;
-  const dot = TONE_DOT[ready.tone];
-  return ready.label.startsWith(dot) ? ready.label.slice(dot.length).trim() : ready.label;
+/** The renderer's own words for an output that is reporting but not quite well, in the short form
+ *  the header has room for. READY keeps its longer line for the panel. */
+function outputShort(lead: string): string {
+  if (lead.startsWith('Behind')) return 'Waiting for clear';
+  if (lead.startsWith('Commands may arrive')) return 'Commands slow';
+  return lead;
 }
 
 function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
@@ -123,7 +102,7 @@ function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
     case 'pending':
       return { key: 'bridge', tone: 'idle', label: 'Checking NoaCG Bridge…', short: 'Checking…' };
     case 'ok':
-      return { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(b.version), short: 'Connected' };
+      return { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(b.version), short: 'CasparCG ready' };
     case 'bridge':
       return { key: 'bridge', tone: 'bad', label: 'NoaCG Bridge is not running', short: 'Bridge not running', advice: b.detail };
     case 'server':
@@ -132,6 +111,8 @@ function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
       return { key: 'bridge', tone: 'warn', label: 'CasparCG answers, but cannot list its files', short: 'Server list unavailable', advice: b.detail };
     case 'outdated':
       return { key: 'bridge', tone: 'warn', label: 'NoaCG Bridge needs an update', short: 'Update NoaCG Bridge', advice: b.detail };
+    case 'config':
+      return { key: 'bridge', tone: 'idle', label: 'Pair NoaCG Bridge', short: 'Pair NoaCG Bridge', advice: b.detail };
     default:
       return { key: 'bridge', tone: 'bad', label: 'This browser cannot use NoaCG Bridge', short: 'Bridge needs attention', advice: b.detail };
   }
@@ -140,127 +121,70 @@ function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
 export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   const checks: StatusCheck[] = [];
   const ready = f.ready?.outputs ? f.ready : null;
-  if (!f.started) {
-    checks.push({
-      key: 'production',
-      tone: 'idle',
-      label: 'Browser graphics not started',
-      short: 'Offline',
-      advice: f.bridge ? 'Browser graphics preview here until you publish. CasparCG server cues use Bridge directly.' : 'Publish and check readiness to use a browser source. Graphics preview here until then.',
-    });
-  } else if (f.unpublished) {
-    checks.push({
-      key: 'production',
-      tone: 'warn',
-      label: `Unpublished changes${f.version ? ` since ${f.version}` : ''}`,
-      short: 'Unpublished changes',
-      advice: ready?.tone === 'ok' && !ready.broken ? 'Current prepared graphics are responding and ready. Continue those cues while their output and connection checks stay green. Publish and check before using new or changed assets.' : 'Current output safety is not confirmed. Check the output and connection details; avoid taking unprepared assets.',
-    });
-  } else {
-    checks.push({ key: 'production', tone: 'ok', label: 'Published changes are available to outputs', short: 'Published' });
-  }
+  if (!f.started) checks.push({ key: 'production', tone: 'idle', label: 'Not published', short: 'Not published' });
+  else if (f.publishing) checks.push({ key: 'production', tone: 'idle', label: 'Publishing…', short: 'Publishing…' });
 
-  const bridge = f.bridge ? bridgeCheck(f.bridge) : null;
+  const bridge = f.casparOn && f.bridge ? bridgeCheck(f.bridge) : null;
   if (bridge) checks.push(bridge);
 
-  // Is something there to air it? The output's slot on CasparCG, read through the Bridge, and the
-  // outputs' own reports. A slot that holds nothing is broken only when nothing else will air the
-  // graphics: a studio may drive clips through the Bridge and run its graphics in OBS.
-  // An output is REPORTING: ready, still loading, or amber about something. One that is only
-  // remembered - gone, or not answering yet - airs nothing (measured on 2.5: Take off left the
-  // CasparCG output "not answering" for 15 s, and the status read Checking meanwhile).
-  const readyAny = !!ready && (ready.ready > 0 || ready.tone === 'warn' || !!ready.preparing);
-  if (f.slot && bridge?.tone === 'ok') {
-    const ch = `Channel ${f.slot.channel}`;
-    if (f.slot.holds === 'ours' && readyAny) {
-      checks.push({ key: 'slot', tone: 'ok', label: `On air on ${f.slot.where}`, short: `on air ${f.slot.where}` });
-    } else if (f.slot.holds === 'ours') {
-      // On the slot, but its page has not reported yet: CasparCG is still loading it (measured on
-      // 2.5: about 9 s to the first report, 28 s to ready). Preparation incomplete is amber.
-      checks.push({
-        key: 'slot',
-        tone: f.started ? 'warn' : 'idle',
-        label: `This production is on ${f.slot.where} and still loading`,
-        short: `Loading on ${f.slot.where}`,
-      });
-    } else if (f.slot.holds === 'unreadable') {
-      checks.push({
-        key: 'slot',
-        tone: f.started && f.managedOutput ? 'warn' : 'idle',
-        label: `This NoaCG Bridge cannot say what ${f.slot.where} shows`,
-        short: 'Connected',
-        advice: 'Update NoaCG Bridge to have this checked.',
-      });
-    } else if (f.slot.holds === 'failed') {
-      // The server answers but will not say what the slot shows: most often a NoaCG output set to
-      // a channel it does not have, where Put on air would fail too. Red unless an output elsewhere
-      // already airs the graphics, as for an empty slot.
-      checks.push({
-        key: 'slot',
-        tone: f.started ? (readyAny && !f.managedOutput ? 'warn' : 'bad') : 'idle',
-        label: `Cannot read what ${f.slot.where} shows`,
-        short: `Cannot read ${f.slot.where}`,
-        advice: `Check under Setup that the server has channel ${f.slot.channel}.${f.slot.detail ? ` ${f.slot.detail}` : ''}`,
-      });
-    } else if (f.slot.holds === 'other') {
-      checks.push({
-        key: 'slot',
-        tone: f.started ? 'bad' : 'idle',
-        label: `${ch} shows another production on ${f.slot.where}`,
-        short: `Another production on ${f.slot.where}`,
-        advice: 'Put on air replaces it with this production.',
-      });
+  // The NoaCG output's slot on CasparCG, read through the Bridge. Only once published: before
+  // that there is no output URL to load, and Publish is what loads it.
+  if (f.started && f.casparOn && f.slot && bridge?.tone === 'ok') {
+    // D3: Connected needs the renderer on the slot itself; another output reporting is not it.
+    const reporting = f.slot.reporting ?? (!!ready && (ready.ready > 0 || ready.tone === 'warn' || !!ready.preparing));
+    const at = f.slot.where;
+    const holds = f.slot.holds;
+    if (holds === 'ours') {
+      checks.push(reporting
+        ? { key: 'slot', tone: 'ok', label: `On air on ${at}`, short: 'Connected' }
+        : { key: 'slot', tone: 'idle', label: `This production is on ${at} and still loading`, short: `Loading on ${at}` });
+    } else if (holds === 'unreadable') {
+      checks.push({ key: 'slot', tone: 'idle', label: `This NoaCG Bridge cannot say what ${at} shows`, short: 'Update NoaCG Bridge', advice: 'Update NoaCG Bridge to have this checked.' });
+    } else if (holds === 'failed') {
+      checks.push({ key: 'slot', tone: 'bad', label: `Cannot read what ${at} shows`, short: `Cannot read ${at}`, advice: `Check under Playout settings that the server has channel ${f.slot.channel}.${f.slot.detail ? ` ${f.slot.detail}` : ''}` });
+    } else if (holds === 'other') {
+      checks.push({ key: 'slot', tone: 'bad', label: `Another production is on ${at}`, short: `Another production on ${at}` });
     } else {
-      checks.push({
-        key: 'slot',
-        tone: f.started && (!readyAny || f.managedOutput) ? 'bad' : 'idle',
-        label: `Nothing on ${f.slot.where}`,
-        short: 'Output not on air',
-        advice: f.started ? 'Press Put on air to load this production on CasparCG.' : 'Start the production, then put it on air.',
-      });
+      checks.push(f.slotLost
+        ? { key: 'slot', tone: 'bad', label: `This production left ${at}`, short: `Not on ${at}` }
+        : { key: 'slot', tone: 'idle', label: `Not loaded on ${at}`, short: `Not loaded on ${at}` });
     }
   }
 
-  if (f.started && f.managedOutput && bridge?.tone === 'ok' && !f.slot) checks.push({ key: 'slot', tone: 'warn', label: 'Checking managed CasparCG output on its configured server and slot', short: 'Checking CasparCG output' });
-  if (ready) {
-    // An output still PREPARING is attention, not health (owner: amber is "preparation
-    // incomplete"): READY draws it in its idle grey because nothing is wrong yet, but a Take now
-    // may find a graphic not loaded. Any other idle reading (an output too old to say) stays grey.
-    // A graphic that cannot play is broken (owner: red when something that should work is
-    // broken), although READY reads it amber because the output's other graphics still air.
+  if (f.started && ready) {
+    // A graphic that cannot play is red here, although READY reads it amber because the output's
+    // other graphics still air. A renderer seen this session and gone is red, by name.
     const broken = ready.tone !== 'bad' ? ready.broken : null;
-    const tone: StatusTone = ready.tone === 'bad' || broken ? 'bad' : ready.preparing ? 'warn' : ready.tone;
-    const lead = leadOf(ready);
-    let short: string;
-    if (broken) short = broken.short;
-    else if (tone === 'bad') short = ready.ready === 0 ? 'Output not responding' : `${ready.ready} of ${ready.outputs} outputs ready`;
-    else if (tone === 'warn') short = lead;
-    else if (tone === 'ok') short = `${ready.outputs} output${ready.outputs === 1 ? '' : 's'}`;
-    else short = 'Connected';
-    checks.push({ key: 'outputs', tone: f.started ? tone : 'idle', label: broken?.line ?? lead, short });
-  } else if (f.started && !f.slot && !(bridge && bridge.tone !== 'ok')) {
-    checks.push({
-      key: 'outputs',
-      tone: bridge ? 'idle' : 'warn',
-      label: bridge ? 'Reading what CasparCG shows…' : 'No output connected',
-      short: bridge ? 'Checking…' : 'No output connected',
-      advice: bridge ? undefined : 'Load the output link in your browser source (OBS, vMix), or put it on air in CasparCG.',
-    });
+    if (ready.lost) checks.push({ key: 'outputs', tone: 'bad', label: ready.lead ?? `${ready.lost} lost`, short: `${ready.lost} lost` });
+    else if (broken) checks.push({ key: 'outputs', tone: 'bad', label: broken.line, short: broken.short });
+    else if (ready.tone === 'bad') checks.push({ key: 'outputs', tone: 'bad', label: ready.lead ?? 'Output not responding', short: ready.ready === 0 ? 'Output not responding' : `${ready.ready} of ${ready.outputs} outputs ready` });
+    else if (ready.tone === 'warn') checks.push({ key: 'outputs', tone: 'warn', label: ready.lead ?? '', short: outputShort(ready.lead ?? '') });
+    else if (ready.preparing) checks.push({ key: 'outputs', tone: 'idle', label: ready.lead ?? 'Preparing', short: ready.lead ?? 'Preparing…' });
+    else if (ready.tone === 'ok') checks.push({ key: 'outputs', tone: 'ok', label: ready.lead ?? 'Ready', short: 'Connected' });
+    else checks.push({ key: 'outputs', tone: 'idle', label: ready.lead ?? 'Not connected', short: 'Not connected' });
   }
 
+  if (f.started && f.noOutputTake) {
+    checks.push({ key: 'take', tone: 'bad', label: 'The last Take reached no output', short: 'No output' });
+  }
   if (f.fileCheck) checks.push(f.fileCheck);
   if (f.playbackCheck) checks.push(f.playbackCheck);
-  if (f.started && f.destinationCheck) checks.push(f.destinationCheck);
+
   const sorted = [...checks].sort((a, b) => RANK[b.tone] - RANK[a.tone]);
-  if (!f.started) return { tone: 'idle', text: 'Offline', checks: sorted };
   const worst = sorted[0];
-  if (worst.tone === 'bad' || worst.tone === 'warn') return { tone: worst.tone, text: worst.short, checks: sorted };
-  // Green needs a positive answer that something will air: the slot holds this production, or an
-  // output reports ready. Without one the status is still being read.
-  const onAir = checks.find((c) => c.key === 'slot' && c.tone === 'ok');
-  const outputs = checks.find((c) => c.key === 'outputs' && c.tone === 'ok');
-  if (onAir || outputs) return { tone: 'ok', text: `Ready · ${onAir ? onAir.short : outputs!.short}`, checks: sorted };
-  // A Bridge too old to say what its slot shows: connected, never claimed ready.
-  if (f.slot?.holds === 'unreadable' && bridge?.tone === 'ok') return { tone: 'idle', text: 'Connected', checks: sorted };
-  return { tone: 'idle', text: 'Checking…', checks: sorted };
+  if (worst && (worst.tone === 'bad' || worst.tone === 'warn')) return { tone: worst.tone, text: worst.short, checks: sorted };
+
+  if (!f.started) {
+    // Native server cues air without a publish: with CasparCG on and answering, this production can
+    // already play them, so the status says so in green.
+    return bridge?.tone === 'ok' ? { tone: 'ok', text: 'CasparCG ready', checks: sorted } : { tone: 'idle', text: bridge?.short && bridge.tone === 'idle' ? bridge.short : 'Not published', checks: sorted };
+  }
+  if (f.publishing) return { tone: 'idle', text: 'Publishing…', checks: sorted };
+  // Green needs a renderer that answers: a browser renderer reporting, or this production's own
+  // renderer on its CasparCG slot reporting. The Bridge answering alone is not Connected.
+  const connected = checks.some((c) => (c.key === 'outputs' || c.key === 'slot') && c.tone === 'ok');
+  if (connected) return { tone: 'ok', text: 'Connected', checks: sorted };
+  const quiet = sorted.find((c) => c.tone === 'idle' && c.key !== 'production');
+  if (quiet) return { tone: 'idle', text: quiet.short, checks: sorted };
+  return { tone: 'idle', text: bridge?.tone === 'ok' ? 'Graphics not connected' : 'Not connected', checks: sorted };
 }

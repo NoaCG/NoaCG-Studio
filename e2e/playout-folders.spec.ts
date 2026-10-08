@@ -487,9 +487,9 @@ test('One by one steps: each SPACE on its header takes the next cue and the grap
   await holdFolder(page, 'Straps');
   const take = page.getByTestId('verb-take');
   await expect(take).toBeEnabled();
-  await expect(take).toHaveAttribute('title', 'Take Strap A. SPACE does the same');
+  await expect(take).toHaveAttribute('title', 'Take Strap A');
   await expect(page.getByTestId('preview-what')).toHaveText('Strap A · next in Straps');
-  await expect(page.getByTestId('folder-mode-hint')).toContainText('one at a time');
+  await expect(page.getByTestId('folder-mode-manual')).toHaveAttribute('title', /one at a time/);
   // A production with no server cue cannot choose Play through, and is told why.
   await expect(page.getByTestId('folder-mode-through')).toBeDisabled();
   await expect(page.getByTestId('folder-mode-through')).toHaveAttribute('title', /no server clip/);
@@ -500,9 +500,9 @@ test('One by one steps: each SPACE on its header takes the next cue and the grap
   await page.keyboard.up(' ');
   await expect(cue(page, 'Strap A').getByTestId('cue-up-here')).toBeVisible();
   await expect(cue(page, 'Strap B').getByTestId('cue-up-here')).toHaveCount(0);
-  await expect(folder(page, 'Straps').getByTestId('folder-air')).toHaveText('1 ON AIR');
+  await expect(folder(page, 'Straps').getByTestId('folder-air')).toHaveText('1 UP');
   await expect(take).toContainText('NEXT');
-  await expect(take).toHaveAttribute('title', 'Take Strap B, and Strap A off. SPACE does the same');
+  await expect(take).toHaveAttribute('title', 'Take Strap B, and Strap A off');
   await expect(page.getByTestId('preview-what')).toHaveText('Strap B · next in Straps');
 
   await page.keyboard.press(' ');
@@ -920,7 +920,7 @@ test('the cursor in a folder that collapses: the header holds it, SPACE takes th
   await page.keyboard.press(' ');
   // The hidden cue went up, and the collapsed header carries its tally.
   await expect(folder(page, 'Folder 1')).toHaveClass(/on-air/);
-  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('1 ON AIR');
+  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('1 UP');
   await page.keyboard.press('ArrowDown');
   await expect(cue(page, 'BRAVO').getByTestId('select-cue')).toHaveAttribute('aria-current', 'true');
 });

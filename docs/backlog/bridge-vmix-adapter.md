@@ -7,7 +7,7 @@ state: unstarted
 found: "vMix accepts no third-party plugins; the nearest real equivalent is a NoaCG Bridge adapter over vMix's HTTP and TCP API, which is also the only way a vMix operator's own Overlay press can play a NoaCG entrance (docs/PLAYOUT_TARGETS_RESEARCH.md)"
 serves: NOW
 size: large
-touches: cli/src/playout/adapters/, cli/src/playout/protocol.ts, src/control/playoutProtocol.ts, src/control/hostedControl.ts, src/control/playoutSystems.ts, src/components/PlayoutSettingsPanel.tsx
+touches: cli/src/playout/adapters/, cli/src/playout/protocol.ts, src/control/playoutProtocol.ts, src/control/hostedControl.ts, src/components/PlayoutSettingsPanel.tsx
 needs-owner: none
 ---
 

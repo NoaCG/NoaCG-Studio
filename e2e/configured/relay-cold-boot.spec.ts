@@ -13,7 +13,7 @@ import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { appliedIn, receiverHost } from '../_receiverHost';
-import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 
 // THE COLD BOOT ON THE RELAY PLANE, against a real control log (docs/CLOUD_PLAYOUT.md §3).
 //
@@ -60,7 +60,7 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
   await openProductionWithCurrent(page, showName);
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-  const links = page.getByTestId('production-links');
+  const links = page.getByTestId('production-status-panel');
   await expect(links).toBeVisible();
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
@@ -192,7 +192,7 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await unpublishFromPanel(page);
+  await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');

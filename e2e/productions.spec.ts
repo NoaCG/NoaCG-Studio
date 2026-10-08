@@ -226,9 +226,9 @@ test('the LAST cue\'s ⋯ menu opens upward, inside the rundown that would other
   await expect(menu).toHaveAttribute('data-placement', 'down');
 });
 
-test('the links panel stays whole on a short screen — it caps and scrolls itself', async ({ page }) => {
+test('the playout panel stays whole on a short screen — it caps and scrolls itself', async ({ page }) => {
   // The other hand-rolled popover on this page. It hangs off a header pinned to the TOP, so the
-  // flip is never the answer here: what fell off the bottom was the panel's own tail (the
+  // flip is never the answer here: what fell off the bottom was the panel's own tail (then the
   // Publish/Unpublish row), because it had no height cap at all — while §1 of the dashboard's
   // layout rules already said this popover scrolls itself when tall.
   // 560px is a 1366×768 laptop once Windows and the browser have taken their share.
@@ -236,9 +236,8 @@ test('the links panel stays whole on a short screen — it caps and scrolls itse
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Short Screen');
 
-  // Publishing is offline here, so seed every slug a real publish mints. ALL of them: the panel
-  // is only over-tall once the audience plane is on it (six rows plus the publish pair), and
-  // seeding just the hosted/output pair measures a panel that always fitted.
+  // Publishing is offline here, so seed every slug a real publish mints, so the panel shows its
+  // published sections (outputs, the browser source with its URL).
   await page.evaluate(async () => {
     const { loadShows, setShowHostedSlug, setShowOutputSlug, setShowAudienceSlugs } = await import(
       '/src/model/shows.ts'
@@ -253,23 +252,28 @@ test('the links panel stays whole on a short screen — it caps and scrolls itse
   await expect(page.getByTestId('production-page')).toBeVisible();
 
   await page.getByTestId('production-status').click();
-  const panel = page.getByTestId('production-links');
+  const panel = page.getByTestId('production-status-panel');
   await expect(panel).toBeVisible();
 
-  // Open every row's ▸ explanation. Collapsed, the panel was never the problem; the tall case is
-  // exactly the one somebody reaches when they do not yet know which link is which.
-  const toggles = page.locator('.prod-link-help-toggle');
-  for (let i = 0; i < (await toggles.count()); i += 1) {
-    const toggle = toggles.nth(i);
-    if ((await toggle.textContent()) === '▸') await toggle.click();
-  }
+  // The tallest panel an operator meets: CasparCG switched on with no Bridge paired, so the
+  // Bridge row offers Download and Pair under the outputs and the browser source. The links and
+  // their ▸ explanations that made the old panel tall are gone (playout-workflow-simplification
+  // AC-3, AC-10).
+  await panel.getByTestId('caspar-switch').click();
+  await expect(panel.getByTestId('bridge-pair')).toBeVisible();
 
-  const box = (await panel.boundingBox())!;
-  expect(box.y).toBeGreaterThanOrEqual(0);
-  expect(box.y + box.height).toBeLessThanOrEqual(560);
-  // Nothing was dropped to achieve that: the tail is inside the panel, one scroll away.
-  await page.getByTestId('prepare-for-live-button').scrollIntoViewIfNeeded();
-  await expect(page.getByTestId('prepare-for-live-button')).toBeVisible();
+  for (const height of [560, 400]) {
+    await page.setViewportSize({ width: 1280, height });
+    const box = (await panel.boundingBox())!;
+    expect(box.y, `${height}px`).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height, `${height}px`).toBeLessThanOrEqual(height);
+    // Nothing was dropped to achieve that: the tail is inside the panel, one scroll away.
+    const tail = panel.locator('button, a, input').last();
+    await tail.scrollIntoViewIfNeeded();
+    await expect(tail).toBeInViewport();
+  }
+  // At 400px the cap is what holds it: the panel is shorter than what it holds, and scrolls.
+  expect(await panel.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
 
   // Escape closes it. Worth pinning HERE because this popover's other closing routes are only
   // reachable against a real backend (the e2e/configured specs dismiss it after a live publish),
@@ -632,8 +636,8 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   // the layer chips are gone (§5).
   const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
   await expect(rowLayers).toHaveCount(2);
-  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G20');
-  await expect(rowLayers.nth(1)).toHaveText('NoaCG · G21');
+  await expect(rowLayers.nth(0)).toHaveText('G20');
+  await expect(rowLayers.nth(1)).toHaveText('G21');
 
   // Typing a number is the whole interaction. Selecting a cue points the editor at its graphic,
   // whose layer sits under Advanced, closed with the number in its summary (plan §6.5).
@@ -643,7 +647,7 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   await page.getByTestId('cue-advanced-toggle').click();
   await page.getByTestId('graphic-layer').fill('30');
   await expect.poll(() => layerOf('Bug')).toBe(30);
-  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G30');
+  await expect(rowLayers.nth(0)).toHaveText('G30');
   // No clash, so no warning colour anywhere in the rundown.
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
@@ -812,10 +816,12 @@ test('a published production reads SHOW; an unpublished one says so and offers n
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Evening News');
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
-  // Not started reads grey "Offline", never red, and the monitor says a Take stays here.
+  // Not started reads grey "Not published", never red and never "Offline" (playout-workflow-
+  // simplification AC-2), and the monitor says a Take stays here.
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-tone', 'idle');
-  await expect(page.getByTestId('production-status')).toContainText('Offline');
-  await expect(page.getByTestId('program-monitor-name')).toHaveText('PREVIEW · NOT LIVE');
+  await expect(page.getByTestId('production-status')).toHaveText(/Not published/);
+  await expect(page.getByTestId('production-status')).not.toContainText('Offline');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · NOT PUBLISHED');
   await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
 
   // Fake a published record (the wire itself is backend-gated and lives on the live checklist).
@@ -830,10 +836,11 @@ test('a published production reads SHOW; an unpublished one says so and offers n
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
   await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
-  // Started with nothing to air it and no Bridge: amber, and it says what to do - never a fault
-  // claimed about a renderer nobody set up (owner walk, 2026-08-29).
-  await expect(page.getByTestId('production-status')).toHaveAttribute('data-tone', 'warn');
-  await expect(page.getByTestId('production-status')).toContainText('No output connected');
+  // Started with nothing to air it and no Bridge: a quiet grey "Not connected" - never a fault
+  // claimed about a renderer nobody set up (owner walk, 2026-08-29). Never-yet-connected is quiet,
+  // not amber (playout-workflow-simplification AC-2, owner decision 2).
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-tone', 'idle');
+  await expect(page.getByTestId('production-status')).toHaveText(/Not connected/);
 
   // Taking the output URL is what makes the heartbeat a real question. Recorded on the show
   // record, so it survives the reload the way the slug does.
@@ -1141,8 +1148,8 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
     });
   expect(await poolCount()).toBe(1);
   const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
-  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G20');
-  await expect(rowLayers.nth(1)).toHaveText('NoaCG · G20');
+  await expect(rowLayers.nth(0)).toHaveText('G20');
+  await expect(rowLayers.nth(1)).toHaveText('G20');
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
   // A third upload joins the SAME graphic rather than minting a second picture layer.

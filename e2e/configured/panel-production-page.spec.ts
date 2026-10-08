@@ -47,7 +47,9 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   const first = await deck.state((s) => Array.isArray(s.live));
   // No Bridge is set up on a runner, so `bridge` is off and no clip clock runs.
   expect(first).toMatchObject({ v: 1, where: 'production', label: 'Production page', live: [], bridge: 'off', clip: null });
-  expect((first.allowed as Json)['all-out']).toBe(false);
+  // All out is pressable whenever the production is published: the server may hold what this page
+  // does not know is on (playout-workflow-simplification D11).
+  expect((first.allowed as Json)['all-out']).toBe(true);
   const rows = await deck.rows();
   expect(rows.map((r) => [r.label, r.kind])).toEqual([
     ['Anna', 'cue'],
@@ -99,11 +101,11 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   expect((await deck.press('take-cue', ben, benUp.ver as number)).outcome).toBe('ran');
   await deck.state((s) => !(s.live as string[]).includes(ben), 'Ben off air');
 
-  // ALL OUT is refused with nothing on air, as the header's button is greyed; with Anna up it
+  // ALL OUT stays pressable with nothing on air here, as the header's button does: the server may
+  // hold what this page does not know is up (playout-workflow-simplification D11). With Anna up it
   // takes everything off. (Anna and Ben share a graphic, so Ben's Take had replaced her.)
   const nothingUp = await deck.state((s) => (s.live as string[]).length === 0, 'nothing on air');
-  expect((nothingUp.allowed as Json)['all-out']).toBe(false);
-  expect((await deck.press('all-out', '', nothingUp.ver as number)).outcome).toBe('not-allowed');
+  expect((nothingUp.allowed as Json)['all-out']).toBe(true);
   expect((await deck.press('take-cue', anna, nothingUp.ver as number)).outcome).toBe('ran');
   const beforeAllOut = await deck.state((s) => (s.live as string[]).includes(anna), 'Anna back on air');
   expect((await deck.press('all-out', '', beforeAllOut.ver as number)).outcome).toBe('ran');
@@ -147,9 +149,13 @@ test('the clip clock a panel counts follows the server clip the production page 
   await evaluateInPage(
     op,
     async (show) => {
-      const { loadShows, addPlayoutItem } = await import('/src/model/shows.ts');
-      const id = loadShows().find((s) => s.name === show)!.id;
-      addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', name: 'OPENER', frames: 375, fps: 25, channel: 2 });
+      const { loadShows, addPlayoutItem, setShowOutputSetup } = await import('/src/model/shows.ts');
+      const { withCasparSwitch } = await import('/src/model/outputSetup.ts');
+      const current = loadShows().find((s) => s.name === show)!;
+      // Published with CasparCG off (the account has no default), so it is switched on first, as
+      // the operator does before CasparCG files… offers a clip (playout-workflow-simplification AC-4).
+      setShowOutputSetup(current.id, withCasparSwitch(current.outputSetup, true));
+      addPlayoutItem(current.id, { adapter: 'casparcg', kind: 'media', name: 'OPENER', frames: 375, fps: 25, channel: 2 });
     },
     name,
   );

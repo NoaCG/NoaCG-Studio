@@ -1,5 +1,5 @@
 // covers: src/backend/auth.ts, src/model/outputSetup.ts, src/components/DefaultOutputPreference.tsx
-// covers: src/components/home/{ProductionPage,OutputSetupDialog}.tsx
+// covers: src/components/home/{ProductionPage,PlayoutPanel}.tsx
 import { test, expect, type Page } from '@playwright/test';
 import { haveCreds, signIn } from './_helpers';
 import { awaitDurableReady, settleDurableWrites } from '../_durable';
@@ -41,7 +41,7 @@ async function savePreference(page: Page, setup: ProductionOutputSetup | null) {
   }, setup);
 }
 
-test('remembered output is stored by Auth, read in another browser, and Ask every time clears it', async ({ page, browser }) => {
+test('the CasparCG default is stored by Auth, starts a new production switched on in another browser, and clearing it leaves existing productions alone', async ({ page, browser }) => {
   test.setTimeout(360_000);
   page.setDefaultTimeout(30_000);
   await signIn(page);
@@ -64,37 +64,59 @@ test('remembered output is stored by Auth, read in another browser, and Ask ever
   const other = await otherContext.newPage();
   other.setDefaultTimeout(30_000);
   const remote: string[] = [];
+  const switchOf = (tab: Page) => tab.getByTestId('production-status-panel').getByTestId('caspar-switch');
+  const openPanel = async (tab: Page) => {
+    await tab.getByTestId('production-status').click();
+    await expect(tab.getByTestId('production-status-panel')).toBeVisible();
+  };
+  const workflowSettings = async (tab: Page) => {
+    await tab.goto('/app#/home');
+    await tab.getByTestId('account-button').click();
+    await tab.getByTestId('menu-settings').click();
+    await tab.getByTestId('settings-nav-workflow').click();
+    return tab.getByTestId('default-caspar');
+  };
   try {
     expect((await savePreference(page, null)).error).toBeNull();
+    // No default: a new production starts with CasparCG off and publishes without asking.
     created.push(await seed(page));
-    await page.getByTestId('production-publish').click();
-    await expect(page.getByTestId('output-profile')).toHaveValue('');
-    await expect(page.getByTestId('remember-output')).not.toBeChecked();
-    await page.getByTestId('output-profile').selectOption('spx');
-    await page.getByTestId('remember-output').check();
-    await page.getByTestId('confirm-output').click();
+    await openPanel(page);
+    await expect(switchOf(page)).not.toBeChecked();
+    await page.keyboard.press('Escape');
+    await publishProduction(page);
     await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-    const chosen: ProductionOutputSetup = { v: 1, destinations: [{ id: 'browser', profile: 'spx' }] };
-    await expect.poll(async () => (await preference(page)).setup, { timeout: 30_000 }).toEqual(chosen);
-    await expect(page.getByTestId('download-output-embed')).toHaveText('Download SPX template');
+    // The account default, set in Settings.
+    const box = await workflowSettings(page);
+    await expect(box).not.toBeChecked();
+    await box.check();
+    await expect(box).toBeEnabled();
+    const casparDefault: ProductionOutputSetup = { v: 1, destinations: [{ id: 'browser', profile: 'browser' }, { id: 'casparcg', profile: 'casparcg' }] };
+    await expect.poll(async () => (await preference(page)).setup, { timeout: 30_000 }).toEqual(casparDefault);
+    await page.getByTestId('settings').getByTitle('Close', { exact: true }).click();
+    // Another browser on the same account: a new production starts with the switch on, and keeps it.
     await signIn(other);
     await other.keyboard.press('Escape');
     remote.push(await seed(other));
+    await openPanel(other);
+    await expect(switchOf(other)).toBeChecked({ timeout: 30_000 });
+    await other.keyboard.press('Escape');
     await publishProduction(other);
-    await expect(other.getByTestId('output-setup-dialog')).toHaveCount(0);
-    expect(await other.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.outputSetup, remote[0])).toEqual(chosen);
-    await other.goto('/app#/home');
-    await other.getByTestId('account-button').click();
-    await other.getByTestId('menu-settings').click();
-    await other.getByTestId('settings-nav-workflow').click();
-    await other.getByLabel('Default production output').selectOption('0');
-    await expect.poll(async () => (await preference(other)).setup, { timeout: 30_000 }).toBeNull();
+    await expect.poll(() => other.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)?.outputSetup?.destinations.some(d => d.profile === 'casparcg'), remote[0])).toBe(true);
+    // Cleared there: the next new production starts off, and the one already made keeps its switch.
+    const otherBox = await workflowSettings(other);
+    await expect(otherBox).toBeChecked();
+    await otherBox.uncheck();
+    await expect(otherBox).toBeEnabled();
+    await expect.poll(async () => (await preference(other)).setup?.destinations.some(d => d.profile === 'casparcg'), { timeout: 30_000 }).toBe(false);
     await other.getByTestId('settings').getByTitle('Close', { exact: true }).click();
     remote.push(await seed(other));
-    await other.getByTestId('production-publish').click();
-    await expect(other.getByTestId('output-profile')).toHaveValue('');
-    await other.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(other.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
+    await openPanel(other);
+    await expect(switchOf(other)).not.toBeChecked();
+    await other.keyboard.press('Escape');
+    await other.goto(`/app#/production/${remote[0]}`);
+    await expect(other.getByTestId('production-page')).toBeVisible();
+    await openPanel(other);
+    await expect(switchOf(other)).toBeChecked();
   } finally {
     try {
       for (const [tab, ids] of [[page, created], [other, remote]] as const) {

@@ -150,8 +150,7 @@ with Playout / Data / Audience tabs.
   not started, so nothing it takes reaches air.
 - The verb row underneath: **TAKE** (with SPACE on it), Re-take, Update, » Next, Out.
 - **Cue rundown** on the right with one row, "Match scorebug", badged **PVW**.
-- The cue editor below, headed "EDITING PREVIEW CUE · 1" with "changes air on ⟳ Take" beside it,
-  and the seven fields F0 to F6.
+- The cue editor below, headed "EDITING PREVIEW CUE · 1", and the seven fields F0 to F6.
 
 Point at the program monitor while the word "nothing" is spoken. It has to be visibly empty here,
 or beat 8 has nothing to land on.
@@ -192,7 +191,7 @@ Scroll back up so the cue editor's heading is under the monitors, then type `Ilv
 
 Four things have to be in the same shot for this beat to work, and the frame shows all four:
 
-- the amber line reading **"1 change not on air yet. Press ✎ Update"**;
+- the amber line reading **"1 change not on PROGRAM yet. Press ✎ Update"**;
 - the **Update** button, now wearing an amber dot;
 - the preview monitor, reading Ilves;
 - the program monitor, still reading HJK.
@@ -207,8 +206,8 @@ teach.
 ### Beat 11 - update
 **Frame:** `step-11-updated.png`
 
-Press **✎ Update**. The program monitor changes to Ilves, the amber warning goes back to its calm
-form, "changes push live on ✎ Update", and the dot leaves the Update button.
+Press **✎ Update**. The program monitor changes to Ilves, the amber warning goes, and the dot
+leaves the Update button.
 
 Hold on the program monitor as it changes. The contrast with beat 10 is the whole lesson.
 

@@ -1,7 +1,9 @@
 // Presentation intent only. Nothing here sends a command or changes physical routing.
 export type OutputProfile = 'obs' | 'vmix' | 'spx' | 'browser' | 'casparcg';
 export interface OutputDestination { id: string; profile: OutputProfile }
-export interface ProductionOutputSetup { v: 1; destinations: OutputDestination[] }
+/** `caspar` is the production's CasparCG switch once the operator has set it
+ *  (docs/work-specs/playout-workflow-simplification AC-4); absent, `casparSwitch` derives it. */
+export interface ProductionOutputSetup { v: 1; destinations: OutputDestination[]; caspar?: boolean }
 export type RundownColors = Record<string, string>;
 export const OUTPUT_PROFILES: readonly { id: OutputProfile; label: string }[] = [
   { id: 'obs', label: 'OBS' }, { id: 'vmix', label: 'vMix' },
@@ -28,7 +30,32 @@ export function readOutputSetup(value: unknown): ProductionOutputSetup | null {
     seen.add(d.id);
     destinations.push({ id: d.id, profile: d.profile });
   }
-  return { v: 1, destinations };
+  return typeof s.caspar === 'boolean' ? { v: 1, destinations, caspar: s.caspar } : { v: 1, destinations };
+}
+
+/**
+ * IS CASPARCG SWITCHED ON for this production? The operator's own switch wins. Until it has been
+ * set, a production that already plays through CasparCG (a CasparCG destination, or server cues in
+ * its rundown) is on, so no existing rundown loses its clips; a new production takes the account's
+ * default; a legacy production with no output setup follows its recorded CasparCG activity.
+ */
+export function casparSwitch(input: { setup: unknown; serverCues: boolean; legacyActivity: boolean; accountDefault: boolean | null }): boolean {
+  const setup = readOutputSetup(input.setup);
+  if (setup && typeof setup.caspar === 'boolean') return setup.caspar;
+  if (setup?.destinations.some(d => d.profile === 'casparcg')) return true;
+  if (input.serverCues) return true;
+  if (!input.setup) return input.legacyActivity;
+  if (!setup?.destinations.length) return input.accountDefault ?? false;
+  return false;
+}
+
+/** The setup after the switch is set: the browser output always stays (keeping a legacy OBS or
+ *  vMix profile as it was), CasparCG joins or leaves. Display metadata only; nothing airs. */
+export function withCasparSwitch(current: unknown, on: boolean): ProductionOutputSetup {
+  const setup = readOutputSetup(current);
+  const browser = setup?.destinations.find(d => d.profile !== 'casparcg') ?? { id: 'browser', profile: 'browser' as const };
+  const caspar = setup?.destinations.find(d => d.profile === 'casparcg') ?? { id: 'casparcg', profile: 'casparcg' as const };
+  return { v: 1, destinations: on ? [browser, caspar] : [browser], caspar: on };
 }
 export function outputChoice(browser: Exclude<OutputProfile, 'casparcg'> | null, caspar: boolean): ProductionOutputSetup {
   return { v: 1, destinations: [
@@ -39,6 +66,14 @@ export function outputChoice(browser: Exclude<OutputProfile, 'casparcg'> | null,
 export function outputSetupLabel(value: unknown): string {
   const s = readOutputSetup(value);
   return s?.destinations.length ? s.destinations.map(d => outputProfileLabel(d.profile)).join(' + ') : 'Choose output';
+}
+/** The CasparCG destination's id, which tags the URL the CasparCG renderer is loaded with. */
+export function casparDestinationId(value: unknown): string | undefined {
+  return readOutputSetup(value)?.destinations.find(d => d.profile === 'casparcg')?.id;
+}
+/** The account's "Use CasparCG in new productions", from the setup it is stored as; null for none. */
+export function accountCasparDefault(setup: ProductionOutputSetup | null | undefined): boolean | null {
+  return setup ? hasCasparOutput(setup) : null;
 }
 export function hasCasparOutput(value: unknown): boolean {
   return readOutputSetup(value)?.destinations.some(d => d.profile === 'casparcg') ?? false;

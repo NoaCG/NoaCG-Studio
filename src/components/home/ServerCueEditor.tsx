@@ -191,20 +191,13 @@ export default function ServerCueEditor({
       <p className="hint pd-server-where" data-testid="playout-cue-where">
         {through ? (
           <>
-            <code>{item.name}</code> plays on the playout server on <code>{through.slot}</code>, the slot of {through.folderName}, through NoaCG Bridge. A
-            Take here plays {through.folderName} from this clip to its end
-            {through.role === 'loop-last' || through.role === 'loop-alone' ? ', and starts it over after its last clip until Out' : ''}.{' '}
+            <code>{item.name}</code> plays on <code>{through.slot}</code>, the slot of {through.folderName}
           </>
         ) : (
           <>
-            <code>{item.name}</code> plays on the playout server, on{' '}
-            <code>{slotAddress(itemSlot(playoutSettings, item))}</code>, through NoaCG
-            Bridge.{' '}
+            <code>{item.name}</code> plays on <code>{slotAddress(itemSlot(playoutSettings, item))}</code>
           </>
         )}
-        {media
-          ? 'The monitors here show its still picture, marked STILL, never the moving video.'
-          : 'It is not shown on the PROGRAM monitor here.'}
       </p>
       {/* Why Take is off: a setting this Bridge or server cannot honour is never dropped on the
           way to air (plan §6.9), so the cue waits, and says what would let it go. */}
@@ -310,7 +303,7 @@ export default function ServerCueEditor({
                 </button>
               ))}
             </span>
-            <span className="muted pd-clip-hint">{live ? 'Applies at the next Take' : 'Fit keeps proportions with black bars'}</span>
+            {live && <span className="muted pd-clip-hint">Applies at the next Take</span>}
           </div>
         )}
         <ClipAdvanced
@@ -415,7 +408,7 @@ function ClipSettings({
         </span>
         {still ? (
           <span className="muted pd-clip-hint" data-testid="clip-end-still">
-            A still has no end: it holds until Out.
+            Holds until Out
           </span>
         ) : folderEnd ? (
           <span className="pd-clip-hint" data-testid="clip-end-folder">

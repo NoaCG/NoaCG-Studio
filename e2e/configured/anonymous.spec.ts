@@ -269,7 +269,7 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card).toHaveCount(0);
     await expect(start).toBeVisible();
     await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
-    await expect(page.getByTestId('production-status')).toContainText('Offline');
+    await expect(page.getByTestId('production-status')).toContainText('Not published');
   });
 
   test('signed out, a control-panel link offers a sign-in that actually opens', async ({ page }) => {

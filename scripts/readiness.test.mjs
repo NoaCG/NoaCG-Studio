@@ -152,6 +152,8 @@ test('an output that should be there and is not is red once it has been gone lon
   assert.equal(dead.summary.label, '✕ CasparCG 1-20 not answering (40 s) · 1 of 2 outputs ready');
   assert.equal(dead.summary.short, '✕ 1/2 ready');
   assert.equal(dead.outputs[0].gone, true);
+  assert.equal(dead.summary.lost, 'CasparCG 1-20', 'the status names the lost output');
+  assert.equal(leaving.summary.lost, undefined, 'a moment away is not lost yet');
   assert.ok(NOT_ANSWERING_MS <= 40_000);
   // With every output gone, the line still speaks (it used to fall back to "no output connected").
   const allGone = read({ peers: [], expected: [{ ...expected[0], seen: NOW - 3 * 60_000 }] });

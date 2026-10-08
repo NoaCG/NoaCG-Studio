@@ -249,7 +249,8 @@ The page:
   every publish: a digest per graphic and one over them all, and a number for the label.
 - **Preparing a newer version** (`src/output/prepare.ts`, Phase 6 Step 3 landing b). An open
   renderer keeps its prepared graphics while a newer version is checked. The production page
-  has one **Publish & check readiness / Check readiness** action; Put on air remains separate.
+  publishes with **Publish** (the first time) and **Publish changes** (after that); the Playout
+  panel's **Check now** checks again without publishing, and CasparCG's **Load** stays separate.
   Cue-only versions adopt their new stamp without rebuilding byte-identical graphics, so cue
   ordering, notes and shortcuts do not invalidate already prepared assets. When the action asks
   (a `prep: {id, n, h}` in
@@ -543,7 +544,11 @@ send.
     status row. The other layers stay up.
   - **All out** — every live layer off, in batches of four layers (`control_send_many` takes
     eight items and Out costs two). With per-layer Out no single verb clears the frame any
-    more, and "get everything off" is the one an operator reaches for under pressure.
+    more, and "get everything off" is the one an operator reaches for under pressure. Published,
+    it clears what the server's heads say is on as well as what this page has up
+    (`control/allOut.ts`; playout-workflow-simplification D11), and every graphic of the
+    production when neither knows of any. It reads Clearing… until the heads say each is off,
+    and names one that is not.
   - **Preview** — no verb on the wire; the local iframe above.
 - **Status** — on the production page, the playout status (§4a), whose panel lists the outputs;
   on the hosted page, the READY line (`components/control/OutputHealth.tsx`, words from
@@ -586,16 +591,22 @@ verb row are the priority content (the preview collapses first).
 ## 4a. Two states, and no Rehearse mode
 
 **A production is either published or it is not, and the header's playout status says which**
-(`PlayoutStatusControl.tsx`, `data-testid="production-status"`, `data-started`). Offline it is
-grey and reads "Offline", with ▶ Start production beside it; started, its colour and short text
-come from `describePlayoutStatus` (`src/control/playoutStatus.ts`): grey while nothing can be
-checked, amber for something to attend to (unpublished changes, an output behind or preparing,
-this production still loading on its slot, no output connected), green when an output is on air
-and has reported ready, red when something that should work is broken (the Bridge or CasparCG not
-answering, the output slot empty, holding another production or unreadable, an output not
-responding, a graphic that cannot play). A press opens the Playout panel, which names the check
-behind the colour, then the outputs, the actions, the setup and the links. The monitor says the
-same thing in its heading: "PROGRAM · ON AIR" when started, "PREVIEW · NOT LIVE" when not, except
+(`PlayoutStatusControl.tsx`, `data-testid="production-status"`, `data-started`;
+`docs/work-specs/playout-workflow-simplification`). Before the first publish it is grey and
+reads "Not published" (or "CasparCG ready" when the CasparCG switch is on and the Bridge
+answers), with **Publish** beside it. A publication is not taken down from the page: its links
+stay valid, and there is no Go offline. Once published, the colour and short text come from
+`describePlayoutStatus` (`src/control/playoutStatus.ts`), always with words: grey "Not connected"
+while no renderer reports (never an alarm before one has), green "Connected" once a graphics
+renderer reports ready, amber for something to attend to (waiting for clear, commands slow),
+red for a renderer seen this session and lost, a Take with no usable output, or a real fault
+(the Bridge or CasparCG not answering, the slot holding another production or unreadable, a
+graphic that cannot play). CasparCG counts only while the production's CasparCG switch is on.
+One action slot beside it holds at most one button: Publish, Load on the CasparCG slot, or
+Publish changes when a change the outputs draw is waiting. A press on the status opens the
+Playout panel: problems, then outputs with their command path, the browser source, CasparCG.
+The links live in Setup › Links…. The monitor says the
+same thing in its heading: "PROGRAM · ON AIR" when started, "PROGRAM · NOT PUBLISHED" when not, except
 while server media this page took is playing: NoaCG Bridge airs that either way, so the monitor is
 on air then too. There
 is no third state and no mode to choose.

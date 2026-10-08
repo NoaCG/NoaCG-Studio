@@ -11,15 +11,17 @@
 // address goes through, and the baselines draw both.
 // covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,playoutSlots,studioSetup}.ts
 //
-// ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is named
-// here rather than left to the `src/components/{home,save}/**` covers line: that rule's set does
-// not include this spec, and the ONE button is the whole browser half of the feature.
-// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer,ProductionLinks}.tsx
+// PlayoutPanel.tsx is where the CasparCG switch, the Bridge row and the slot's Load and Unload live
+// since the playout-workflow-simplification redesign, so it is named here rather than left to the
+// `src/components/{home,save}/**` covers line: that rule's set does not include this spec, and Load
+// is the whole browser half of the feature.
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
+// covers: src/control/playoutStatus.ts
 //
-// PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
-// the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
-// header door and the Back/Home pair beside it.
-// covers: src/{components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx,control/playoutSystems.ts}
+// PLAYOUT SETTINGS from the production header: the dialog and the form it shares with Settings.
+// bridge-connect drives the form through a fake Bridge; playout-nav owns the header door and the
+// Back/Home pair beside it.
+// covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
 //
 // CasparCG Connect is a NICE-TO-HAVE over routes that already air (docs/BRIDGE.md),
 // so it earns a place here for one reason only: it puts a control on the production page and a
@@ -30,6 +32,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { fakeBridge as slotBridge } from './_fakeBridge';
 import type { RememberedServer, StudioSetup } from '../src/control/playoutProtocol';
 
 // NoaCG Bridge (docs/BRIDGE.md). There is no CasparCG on a test machine and there is no Bridge
@@ -512,7 +515,8 @@ test('a second browser paired with the same Bridge opens with the studio setup, 
   await expect(section.getByTestId('caspar-channel-name').nth(1)).toHaveValue('Inserts');
   await expect(section.getByTestId('caspar-layer')).toHaveValue('30');
   await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('2');
-  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('Kept in NoaCG Bridge');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveAttribute('title', 'NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
 });
 
 test('a setup changed in Playout settings is kept in the Bridge for its server, and two servers keep their own', async ({ page }) => {
@@ -529,7 +533,8 @@ test('a setup changed in Playout settings is kept in the Bridge for its server, 
   const keeper = section.getByTestId('playout-studio-keeper');
   // An untouched default is nobody's choice, so opening gives the Bridge nothing (D18).
   await expect(keeper).toHaveAttribute('data-keeper', 'ready');
-  await expect(keeper).toHaveText('Change anything here and NoaCG Bridge keeps it for 192.168.1.20, for every browser paired with it.');
+  await expect(keeper).toHaveText('Kept in NoaCG Bridge');
+  await expect(keeper).toHaveAttribute('title', 'Change anything here and NoaCG Bridge keeps it for 192.168.1.20, for every browser paired with it.');
   expect(bridge.studios).toEqual([]);
 
   await section.getByTestId('caspar-channel-add').click();
@@ -537,7 +542,8 @@ test('a setup changed in Playout settings is kept in the Bridge for its server, 
   await expect
     .poll(() => bridge.servers?.find((s) => s.host === '192.168.1.20')?.studio)
     .toEqual({ channels: [{ channel: 1, name: 'Channel 1' }, { channel: 2, name: 'Inserts' }], output: { channel: 1, layer: 20 }, newMedia: 2 });
-  await expect(keeper).toHaveText('NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
+  await expect(keeper).toHaveText('Kept in NoaCG Bridge');
+  await expect(keeper).toHaveAttribute('title', 'NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
 
   // The other server is one press, and its own setup comes with it.
   const recent = section.getByTestId('caspar-recent');
@@ -582,7 +588,8 @@ test('a change made while the Bridge is not running is given to it the next time
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
   await section.getByTestId('caspar-channel-name').nth(1).fill('Clean feed');
-  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('Kept in this browser. NoaCG Bridge is given it the next time it answers.');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('Kept in this browser');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveAttribute('title', 'Kept in this browser. NoaCG Bridge is given it the next time it answers.');
 
   // The Bridge is started again, still holding the setup from before the change.
   bridge.missing = false;
@@ -601,7 +608,8 @@ test('Playout settings left open on Home give a waiting change to the Bridge as 
   const section = page.getByTestId('settings-playout');
   await section.getByTestId('caspar-channel-name').nth(1).fill('Clean feed');
   const keeper = section.getByTestId('playout-studio-keeper');
-  await expect(keeper).toHaveText('Kept in this browser. NoaCG Bridge is given it the next time it answers.');
+  await expect(keeper).toHaveText('Kept in this browser');
+  await expect(keeper).toHaveAttribute('title', 'Kept in this browser. NoaCG Bridge is given it the next time it answers.');
   // The Bridge is started while the panel is still open. Home has no status poll, and the change
   // used to wait there until the panel was closed and opened again.
   bridge.missing = false;
@@ -628,7 +636,8 @@ test('with a Bridge older than 0.8.0 the setup stays in this browser, and it say
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
   const keeper = section.getByTestId('playout-studio-keeper');
-  await expect(keeper).toHaveText('Kept in this browser. NoaCG Bridge 0.8.0 or newer keeps it for every browser paired with it.');
+  await expect(keeper).toHaveText('Kept in this browser');
+  await expect(keeper).toHaveAttribute('title', 'Kept in this browser. NoaCG Bridge 0.8.0 or newer keeps it for every browser paired with it.');
   await section.getByTestId('caspar-channel-add').click();
   // The change is synced as with a new Bridge (one more reading of the list) and nothing is sent.
   const readings = () => bridge.routes.filter((r) => r === '/servers').length;
@@ -648,19 +657,24 @@ test('a production page opens with the setup the Bridge keeps for its server', a
   // The Bridge's list answers slowly, so the status has answered well before the setup arrives:
   // what the setup then does to the status is seen on its own.
   await fakeBridge(page, { features: WITH_STUDIO, slowServers: 1000, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
-  // Follow the Bridge check itself. Managed-output verification is a separate diagnostic.
+  // Follow the Bridge row itself (the Playout panel's, playout-workflow-simplification AC-3).
   await page.addInitScript(() => {
     const said: string[] = [];
     (window as unknown as { statusSaid: string[] }).statusSaid = said;
     new MutationObserver(() => {
-      const text = document.querySelector('[data-testid="status-check-bridge"]')?.textContent ?? '';
+      const text = document.querySelector('[data-testid="caspar-bridge"]')?.textContent ?? '';
       if (text && said[said.length - 1] !== text) said.push(text);
     }).observe(document, { subtree: true, childList: true, characterData: true });
   });
   await seededPublishedProduction(page);
   await page.getByTestId('production-status').click();
-  await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
-  await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels', { timeout: 10_000 });
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'ok');
+  // The setup summary line is gone with the panel's Setup section; the setup the page took shows
+  // where it is used: the server in the Bridge row, the output slot in its own row, and the
+  // channels in Playout settings.
+  await expect(panel.getByTestId('caspar-bridge')).toContainText('127.0.0.1');
+  await expect(panel.getByTestId('caspar-slot')).toContainText('Output slot 1-30', { timeout: 10_000 });
   // The setup it took names channels and a slot, never where the Bridge and the server are, so the
   // Bridge status poll carries on. Restarting it for the setup cleared the status back to Checking
   // and asked everything keyed on an answering Bridge again.
@@ -669,6 +683,10 @@ test('a production page opens with the setup the Bridge keeps for its server', a
   const answered = said.findIndex((t) => !t.includes('Checking'));
   expect(answered, said.join(' | ')).toBeGreaterThanOrEqual(0);
   expect(said.slice(answered).filter((t) => t.includes('Checking')), said.join(' | ')).toEqual([]);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  await expect(page.getByTestId('playout-settings').getByTestId('caspar-channel-row')).toHaveCount(2);
 });
 
 test('a change made while the Bridge was away reaches it once the production page sees it answer', async ({ page }) => {
@@ -910,8 +928,8 @@ test('the server is configured once, app-wide, and survives a reload', async ({ 
   await section.getByTestId('caspar-channel-number').first().fill('2');
   await section.getByTestId('caspar-layer').fill('30');
   await section.getByTestId('bridge-token').fill(TOKEN);
-  // The hint tracks the numbers, so what CasparCG will be told is visible before it is sent.
-  await expect(section).toContainText('2-30');
+  // The NoaCG output's tooltip tracks the numbers, so where CasparCG will be told is there before it is sent.
+  await expect(section.locator('label[for="caspar-graphics-channel"]')).toHaveAttribute('title', /2-30/);
 
   await page.reload();
   await reopenPlayoutSettings(page);
@@ -1077,7 +1095,8 @@ for (const [features, which] of [
     await expect(verdict(page)).toContainText('Connected');
     if (asks) await expect.poll(reads).toBeGreaterThan(before);
     // Had the page asked the older Bridge, the second row would read "Not on server" by now.
-    await expect(section.getByTestId('caspar-channels-hint')).toContainText('casparcg.config');
+    // A server that does not report its channels gets no count line (playout-workflow-simplification AC-10).
+    await expect(section.getByTestId('caspar-channels-hint')).toHaveCount(0);
     await expect(section.getByTestId('caspar-channel-mode')).toHaveCount(0);
     if (!asks) expect(bridge.routes).not.toContain('/channels');
   });
@@ -1093,10 +1112,11 @@ test('editing a setting drops the last verdict, so a stale tick never speaks for
   await expect(verdict(page)).toHaveCount(0);
 });
 
-// ── The one button ──────────────────────────────────────────────────────────────────────────
+// ── Load and Unload on the output slot (playout-workflow-simplification AC-3, AC-5) ─────────────
 
 /** A production with its published capabilities faked in - publishing is backend-gated and
- *  lives on the live checklist (the same door e2e/productions.spec.ts opens for the SPX file). */
+ *  lives on the live checklist (the same door e2e/productions.spec.ts opens for the SPX file).
+ *  Its CasparCG destination starts its CasparCG switch on (AC-4); the Playout panel is left open. */
 async function publishedProduction(page: Page): Promise<void> {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Evening News');
@@ -1113,78 +1133,171 @@ async function publishedProduction(page: Page): Promise<void> {
   await page.getByTestId('production-status').click();
 }
 
-test('the CasparCG row is absent until a server is configured', async ({ page }) => {
+/** THE WHOLE LIVE LINK is one action: a take of the production's own output URL, on the
+ *  configured slot. Everything after it - every cue, take, update, recovery - travels on the
+ *  durable command log the /output page already follows, which is why there is no per-cue
+ *  traffic here and no second copy of the graphics on the wire. The dev port is per checkout
+ *  (docs/DEV_PORTS.md), so the ORIGIN is not pinned - what is pinned is that the action carries
+ *  this production's own output URL and nothing else, in the protocol's own words - named for
+ *  the layer it lands on, which is what READY calls it (docs/work-specs/playout-ready R5). */
+const LOAD_2_30 = {
+  verb: 'take',
+  item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&destination=casparcg&name=CasparCG%202-30$/) },
+  slot: { adapter: 'casparcg', channel: 2, layer: 30 },
+};
+
+test('the CasparCG slot row is absent until a Bridge is paired, which the panel offers instead', async ({ page }) => {
   await fakeBridge(page);
   await publishedProduction(page);
+  const panel = page.getByTestId('production-status-panel');
   // The output URL row - the manual route that has always worked - is there either way.
-  await expect(page.getByTestId('copy-output-url')).toBeVisible();
-  // A dead control on the busiest surface in the app would be worse than no control.
+  await expect(panel.getByTestId('copy-output-url')).toBeVisible();
+  // A dead control on the busiest surface in the app would be worse than no control: with CasparCG
+  // on and no Bridge paired, the Bridge row offers Download and Pair instead (D8).
+  await expect(panel.getByTestId('caspar-switch')).toBeChecked();
+  await expect(panel.getByTestId('bridge-pair')).toBeVisible();
+  await expect(panel.getByTestId('caspar-slot')).toHaveCount(0);
   await expect(page.getByTestId('caspar-put-on-air')).toHaveCount(0);
+  await expect(page.getByTestId('caspar-load')).toHaveCount(0);
 });
 
 test('one button puts the production on the configured channel, and one takes it off', async ({ page }) => {
+  // The Bridge this fake models by default lists no `state` feature, so the slot cannot be read
+  // (an older Bridge, which must keep working: the spec's preserved behaviour).
   await seedSettings(page, { channel: 2, layer: 30 });
   const bridge = await fakeBridge(page);
   await publishedProduction(page);
+  const slot = page.getByTestId('production-status-panel').getByTestId('caspar-slot');
 
-  // The row states where it will send BEFORE it is pressed - `LinkRow` carries no testid of its
-  // own, so this asserts on the row's own target label.
-  await expect(page.getByTestId('caspar-air-target')).toContainText('2-30');
-  await page.getByTestId('caspar-put-on-air').click();
-  await expect(page.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
-  // THE WORDS, not only the state. Both buttons succeed identically - `{ state: 'ok' }` - so a
-  // message written from the result alone reads "On 2-30" after Take off too. It did, until a
-  // real CasparCG 2.5.0 showed it on 2026-09-10; this spec passed the whole time.
-  await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ On 2-30');
+  // The row states where it will send BEFORE it is pressed.
+  await expect(slot).toContainText('Output slot 2-30');
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect.poll(() => bridge.actions.length).toBe(1);
+  expect(bridge.actions[0]).toMatchObject(LOAD_2_30);
+  await expect(page.getByTestId('production-note').filter({ hasText: 'failed' })).toHaveCount(0);
+  // It cannot read the slot, so it says what it sent, and keeps both buttons.
+  await expect(slot).toContainText('Loaded');
 
-  // THE WHOLE LIVE LINK is this one action: a take of the production's own output URL, on the
-  // configured slot. Everything after it - every cue, take, update, recovery - travels on the
-  // durable command log the /output page already follows, which is why there is no per-cue
-  // traffic here and no second copy of the graphics on the wire. The dev port is per checkout
-  // (docs/DEV_PORTS.md), so the ORIGIN is not pinned - what is pinned is that the action carries
-  // this production's own output URL and nothing else, in the protocol's own words - named for
-  // the layer it lands on, which is what READY calls it (docs/work-specs/playout-ready R5).
-  expect(bridge.actions).toHaveLength(1);
-  expect(bridge.actions[0]).toMatchObject({
-    verb: 'take',
-    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&destination=casparcg&name=CasparCG%202-30$/) },
-    slot: { adapter: 'casparcg', channel: 2, layer: 30 },
-  });
-
-  await page.getByTestId('caspar-take-off-air').click();
-  await expect(page.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
-  await expect(page.getByTestId('caspar-air-result')).toHaveText('✓ Off 2-30');
+  await slot.getByTestId('caspar-take-off-air').click();
+  await expect.poll(() => bridge.actions.length).toBe(2);
   expect(bridge.actions[1]).toMatchObject({ verb: 'out', slot: { adapter: 'casparcg', channel: 2, layer: 30 } });
+  await expect(slot).toContainText('Unknown');
 });
 
-test('a failure to air is reported on the row, and never as a success', async ({ page }) => {
-  await seedSettings(page);
-  await fakeBridge(page, { serverDown: true });
+test('a slot that cannot be read is never loaded over, and a double press loads once', async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await slotBridge(page);
+  bridge.refuseState = true;
   await publishedProduction(page);
-  await page.getByTestId('caspar-put-on-air').click();
-  const result = page.getByTestId('caspar-air-result');
-  await expect(result).toHaveAttribute('data-state', 'server');
-  await expect(result).toContainText('CasparCG did not answer');
-  await expect(result).not.toContainText('On air');
+  const slot = page.getByTestId('production-status-panel').getByTestId('caspar-slot');
+  await expect(slot).toContainText('Cannot read');
+  // The header offers no Load for a slot it cannot read, and the panel's Load sends nothing.
+  await expect(page.getByTestId('playout-action-slot').getByTestId('caspar-load')).toHaveCount(0);
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(page.getByTestId('production-note')).toContainText('Load on 2-30 was not sent: cannot read 2-30');
+  expect(bridge.actions).toEqual([]);
+  // Readable again: two quick presses put the output on the slot once.
+  bridge.refuseState = false;
+  await page.getByTestId('production-status-panel').getByTestId('playout-check-now').click();
+  await expect(slot).toContainText('Empty', { timeout: 20_000 });
+  await slot.getByTestId('caspar-put-on-air').dblclick();
+  await expect(slot).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(1);
 });
 
-// ── The header's playout status and its panel (docs/work-specs/studio-day-playout AC-7, AC-8) ──
+test('with a Bridge that reads the slot, Load and Unload each show in the slot row, in their own words', async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await slotBridge(page);
+  await publishedProduction(page);
+  const slot = page.getByTestId('production-status-panel').getByTestId('caspar-slot');
+  await expect(slot).toContainText('Output slot 2-30');
+  await expect(slot).toContainText('Empty');
+  // Load is due, so the header's one action slot offers it too (D1).
+  await expect(page.getByTestId('playout-action-slot').getByTestId('caspar-load')).toHaveText('Load on 2-30');
+  await slot.getByTestId('caspar-put-on-air').click();
+  // A success shows once the slot is read again and holds this production. No renderer reports
+  // in this offline walk, so it is loading rather than connected.
+  await expect(slot).toContainText('Loading…');
+  await expect(page.getByTestId('production-status')).toContainText('Loading on 2-30');
+  expect(bridge.actions).toHaveLength(1);
+  expect(bridge.actions[0]).toMatchObject(LOAD_2_30);
+  await expect(page.getByTestId('playout-action-slot').getByTestId('caspar-load')).toHaveCount(0);
+  // THE WORDS, not only the state: both presses succeed identically, so a message written from the
+  // result alone once read "On 2-30" after Take off too. The slot row reads the slot instead.
+  await slot.getByTestId('caspar-take-off-air').click();
+  await expect(slot).toContainText('Empty');
+  await expect(slot.getByTestId('caspar-take-off-air')).toHaveCount(0);
+  expect(bridge.actions[1]).toMatchObject({ verb: 'out', slot: { channel: 2, layer: 30 } });
+});
 
-/** A published production seeded through the model and opened from its own URL - no editor on
- *  the way. Publishing is backend-gated, so its capabilities are faked in, as above. */
+test('Load asks before replacing another production on the slot, and Cancel sends nothing', async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await slotBridge(page);
+  bridge.showPage('2-30', 'http://studio.example/output?production=someone-else&name=CasparCG%202-30');
+  await publishedProduction(page);
+  const panel = page.getByTestId('production-status-panel');
+  const slot = panel.getByTestId('caspar-slot');
+  await expect(slot).toContainText('Another production');
+  await expect(slot).toHaveAttribute('data-tone', 'bad');
+  await expect(page.getByTestId('production-status')).toContainText('Another production on 2-30');
+  await slot.getByTestId('caspar-put-on-air').click();
+  const ask = panel.getByTestId('caspar-replace');
+  await expect(ask).toContainText('2-30');
+  expect(bridge.actions).toEqual([]);
+  await ask.getByTestId('caspar-replace-cancel').click();
+  await expect(ask).toHaveCount(0);
+  expect(bridge.actions).toEqual([]);
+  await slot.getByTestId('caspar-put-on-air').click();
+  await panel.getByTestId('caspar-replace-confirm').click();
+  await expect(slot).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(1);
+  expect(bridge.actions[0]).toMatchObject(LOAD_2_30);
+});
+
+test('a failure to air is reported, and never as a success', async ({ page }) => {
+  // CasparCG refuses the take: the note names the step and the reason, and the slot stays empty.
+  await seedSettings(page);
+  const refused = 'CasparCG refused the command: 404 PLAY FAILED. Check the channel and layer.';
+  const bridge = await slotBridge(page, { refuse: (a) => (a.verb === 'take' ? refused : null) });
+  await publishedProduction(page);
+  const slot = page.getByTestId('production-status-panel').getByTestId('caspar-slot');
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(page.getByTestId('production-note')).toContainText(`Load on 1-20 failed: ${refused}`);
+  expect(bridge.actions).toHaveLength(1);
+  await expect(slot).toContainText('Empty');
+  await expect(slot).not.toContainText(/Loaded|Loading/);
+});
+
+test('a CasparCG that does not answer is said on the Bridge row, and Load is not offered', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, { serverDown: true });
+  await publishedProduction(page);
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'bad');
+  await expect(panel.getByTestId('caspar-bridge')).toContainText('CasparCG is not answering');
+  await expect(panel.getByTestId('caspar-bridge')).toContainText('CasparCG did not answer');
+  await expect(page.getByTestId('production-status')).toContainText('CasparCG not answering');
+  await expect(panel.getByTestId('caspar-put-on-air')).toHaveCount(0);
+  expect(bridge.actions).toEqual([]);
+});
+
+// ── The header's playout status and its panel (docs/work-specs/playout-workflow-simplification AC-2, AC-3) ──
+
 /**
- * The Playout settings dialog, from the production page's Playout panel. Its Setup section folds once
- * the Bridge answers (docs/work-specs/studio-day-playout D10), so wait for that answer and unfold it,
- * as an operator does, rather than racing the fold.
+ * The Playout settings dialog, from the production header's Setup menu (the panel's own door went
+ * with its Setup section). Wait for the Bridge to answer first, as the panel's Bridge row says it,
+ * so the dialog opens on a settled connection rather than racing the first poll.
  */
 async function openPlayoutDialog(page: Page): Promise<void> {
   await page.getByTestId('production-status').click();
-  await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
-  const setup = page.getByTestId('playout-panel-setup');
-  if (!(await setup.evaluate((d) => (d as HTMLDetailsElement).open))) await setup.locator('summary.pd-panel-section-title').click();
-  await page.getByTestId('playout-settings-open').click();
+  await expect(page.getByTestId('production-status-panel').getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'ok');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
 }
 
+/** A production seeded through the model and opened from its own URL - no editor on the way.
+ *  Publishing is backend-gated, so its capabilities are faked in, as above. */
 async function seededPublishedProduction(page: Page, published = true): Promise<void> {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
@@ -1214,14 +1327,31 @@ async function seededPublishedProduction(page: Page, published = true): Promise<
 test('the production header says whether CasparCG answers, and its panel holds the output links', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page);
-  await seededPublishedProduction(page);
+  // Before the first publish, a CasparCG production whose Bridge and server answer can already air
+  // its native cues, so the header says so in green, in words (AC-2, AC-6).
+  await seededPublishedProduction(page, false);
+  const status = page.getByTestId('production-status');
+  await expect(status).toHaveAttribute('data-tone', 'ok');
+  await expect(status).toContainText('CasparCG ready');
   // A paired Bridge is asked on this page too, so the operator reads the connection where they
-  // work instead of opening Settings to find out (owner, 2026-09-23). It is one line of the panel
-  // behind the playout status now, and the links an OBS operator copies are further down it.
-  await page.getByTestId('production-status').click();
-  await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
-  await expect(page.getByTestId('status-check-bridge')).toContainText('NoaCG Bridge and CasparCG answer');
-  await expect(page.getByTestId('production-links').getByTestId('copy-output-url')).toBeVisible();
+  // work instead of opening Settings to find out (owner, 2026-09-23). It is the Bridge row of the
+  // panel behind the playout status, and the output an OBS operator copies sits above it.
+  await page.evaluate(async () => {
+    const { loadShows, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const id = loadShows()[0].id;
+    setShowHostedSlug(id, 'demo-slug');
+    setShowOutputSlug(id, 'demo-output');
+  });
+  await settleDurableWrites(page);
+  await page.reload();
+  await status.click();
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('caspar-bridge')).toHaveAttribute('data-tone', 'ok');
+  await expect(panel.getByTestId('caspar-bridge')).toContainText('Bridge connected');
+  await expect(panel.getByTestId('playout-panel-browser').getByTestId('copy-output-url')).toBeEnabled();
+  await expect(panel.getByTestId('output-url')).toContainText('/output?production=demo-output');
+  // The Bridge answering alone is not Connected: that needs a renderer (D3).
+  await expect(status).not.toContainText('Connected');
 });
 
 test('a paired Bridge that is not running turns the header status red, with the reason', async ({ page }) => {
@@ -1259,6 +1389,10 @@ test('a production that is not started cannot be put on air from its Playout dia
   await seededPublishedProduction(page, false);
   await openPlayoutDialog(page);
   await expect(page.getByTestId('playout-put-on-air')).toBeDisabled();
-  await expect(page.getByTestId('playout-air-unstarted')).toContainText('Start production');
+  // It says why, naming the control that exists: there is no "Start production" any more
+  // (playout-workflow-simplification AC-10 fixes those stale texts; Publish is the header's action).
+  const why = page.getByTestId('playout-air-unstarted');
+  await expect(why).toBeVisible();
+  await expect(why).not.toContainText('Start production');
   expect(bridge.actions).toEqual([]);
 });

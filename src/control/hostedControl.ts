@@ -1545,6 +1545,13 @@ const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;
  * single Take does it any more. One batch per four layers, so a production bigger than that
  * clears in log order rather than not at all.
  */
+/** The graphics the server's heads last called on, as this page heard them; null where it follows
+ *  no head (the id road, or not resolved yet). */
+export function headsOnAir(slug: string): string[] | null {
+  const session = seqSessions.get(slug);
+  return session ? [...session.on].filter(([, on]) => on).map(([graphic]) => graphic) : null;
+}
+
 export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] {
   const batches: ControlSendItem[][] = [];
   for (let i = 0; i < liveGraphics.length; i += LAYERS_PER_CLEAR_BATCH) {

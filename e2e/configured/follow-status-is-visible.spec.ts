@@ -1,7 +1,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 
 // A LIVE CONNECTION THAT NEVER JOINS HAS TO SAY SO.
 //
@@ -55,16 +55,13 @@ test('a production whose live connection never joins says so, and a healthy one 
   await expect(line).toBeVisible({ timeout: 60_000 });
   await expect(line).toContainText('not joined');
   // It says SLOW rather than broken, because that is the truth: the durable road still delivers.
-  await expect(line).toHaveAttribute('title', /Commands still arrive/);
+  await expect(line).toHaveAttribute('title', /Commands arrive about every 30 s/);
 
   await blind.unrouteAll({ behavior: 'ignoreErrors' });
   await blind.close();
 
-  // Leave the throwaway account clean. NO links toggle here: the block starts VISIBLE, and the
-  // sibling specs only press the toggle at the end because they hid it earlier. Pressing it once
-  // from a clean start HIDES the block, and Unpublish inside it is then unreachable.
-  await expect(page.getByTestId('production-links')).toBeVisible();
-  await unpublishFromPanel(page);
+  // Leave the throwaway account clean.
+  await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');

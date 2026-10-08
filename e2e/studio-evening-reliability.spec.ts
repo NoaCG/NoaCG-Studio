@@ -74,14 +74,34 @@ async function rehearsal(page: Page) {
   return { bridge, ...seeded };
 }
 
-async function assign(page: Page, label: string, key: string) {
+/** The key pressed in the dialog is the assignment (playout-workflow-simplification AC-11): it is
+ *  saved at once, and the dialog says so. `key` is a Playwright key, or a code and character for a
+ *  key Playwright cannot type (Å, Ä, Ö), sent as the browser would. */
+async function openShortcut(page: Page, label: string) {
   await page.locator('.pd-cue', { hasText: label }).getByTestId('cue-menu').click();
   await page.getByTestId('cue-shortcut').click();
   const dialog = page.getByRole('dialog', { name: 'Cue shortcut' });
   await expect(dialog).toBeVisible();
+  return dialog;
+}
+async function pressKey(page: Page, key: string | { code: string; key: string }, target?: ReturnType<Page['getByRole']>) {
+  if (typeof key === 'string') {
+    if (target) await target.press(key);
+    else await page.keyboard.press(key);
+    return;
+  }
+  const where = target ?? page.locator('body');
+  await where.evaluate((el, k) => {
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: k.key, code: k.code, bubbles: true, cancelable: true }));
+    el.dispatchEvent(new KeyboardEvent('keyup', { key: k.key, code: k.code, bubbles: true, cancelable: true }));
+  }, key);
+}
+async function assign(page: Page, label: string, key: string | { code: string; key: string }) {
+  const dialog = await openShortcut(page, label);
+  await pressKey(page, key, dialog.getByRole('textbox'));
+  await expect(dialog.getByTestId('shortcut-said')).toHaveText('Assigned');
   if (label === 'VICTORY') await dialog.screenshot({ path: 'test-results/studio-shortcut-dialog.png' });
-  await dialog.getByRole('textbox').press(key);
-  await dialog.getByRole('button', { name: 'Assign shortcut' }).click();
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(dialog).toHaveCount(0);
 }
 
@@ -168,7 +188,8 @@ test('V and F directly restart independent effects while selection and video sta
   const { bridge, question } = await rehearsal(page);
   await assign(page, 'VICTORY', 'v');
   await assign(page, 'FAIL', 'f');
-  await page.getByRole('button', { name: 'Apply cue shortcuts' }).click();
+  // No Apply: an assignment works the moment it is saved.
+  await expect(page.getByRole('button', { name: 'Apply cue shortcuts' })).toHaveCount(0);
   await page.locator('.pd-cue', { hasText: 'VT' }).getByTestId('select-cue').click();
   await parkFocusOffControls(page);
   await page.keyboard.press('Space');
@@ -203,28 +224,65 @@ test('V and F directly restart independent effects while selection and video sta
   await page.screenshot({ path: 'test-results/studio-rundown.png', fullPage: true });
 });
 
-test('shortcut assignment rejects duplicates and reserved commands; a removed binding stops firing after explicit application', async ({ page }) => {
+test('a reserved key says why, a taken key offers Move it here, and a removed shortcut stops firing at once', async ({ page }) => {
   const { bridge } = await rehearsal(page);
   await assign(page, 'VICTORY', 'v');
-  await page.locator('.pd-cue', { hasText: 'FAIL' }).getByTestId('cue-menu').click();
-  await page.getByTestId('cue-shortcut').click();
-  const dialog = page.getByRole('dialog', { name: 'Cue shortcut' });
+  const dialog = await openShortcut(page, 'FAIL');
+  // The operator's own keys, the browser's and the rundown's are refused, each in one line.
   await dialog.getByRole('textbox').press('r');
-  await expect(dialog.getByRole('button', { name: 'Assign shortcut' })).toBeDisabled();
+  await expect(dialog.getByRole('alert')).toHaveText('R is an operator key.');
+  await dialog.getByRole('textbox').press('F5');
+  await expect(dialog.getByRole('alert')).toHaveText('F5, F11 and F12 belong to the browser.');
+  await dialog.getByRole('textbox').press('Control+KeyC');
+  await expect(dialog.getByRole('alert')).toHaveText('The rundown uses Ctrl+C, X, V, Z and Y.');
+  // A key VICTORY holds: nothing is saved until Move it here.
   await dialog.getByRole('textbox').press('v');
-  await dialog.getByRole('button', { name: 'Assign shortcut' }).click();
-  await expect(dialog.getByRole('alert')).toContainText(/already|assigned|used/i);
+  await expect(dialog.getByTestId('shortcut-taken')).toContainText('Used by VICTORY');
   expect(bridge.actions).toHaveLength(0);
+  await dialog.getByTestId('shortcut-move').click();
+  await expect(dialog.getByTestId('shortcut-said')).toHaveText('Assigned');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-  await page.getByRole('button', { name: 'Apply cue shortcuts' }).click();
-  await page.locator('.pd-cue', { hasText: 'VICTORY' }).getByTestId('cue-menu').click();
-  await page.getByTestId('cue-shortcut').click();
-  await dialog.getByRole('button', { name: 'Remove shortcut' }).click();
-  await page.getByRole('button', { name: 'Apply cue shortcuts' }).click();
+  await expect(page.locator('.pd-cue', { hasText: 'VICTORY' }).locator('.pd-cue-hotkey')).toHaveCount(0);
+  await expect(page.locator('.pd-cue', { hasText: 'FAIL' }).locator('.pd-cue-hotkey')).toHaveText('V');
+  // Removed: the key is quiet at once.
+  const again = await openShortcut(page, 'FAIL');
+  await again.getByTestId('shortcut-remove').click();
+  await expect(page.locator('.pd-cue', { hasText: 'FAIL' }).locator('.pd-cue-hotkey')).toHaveCount(0);
+  await again.getByRole('button', { name: 'Close', exact: true }).click();
   await parkFocusOffControls(page);
   await page.keyboard.press('v');
   await holdKeyRepeats(page, 2, 'KeyV', 'v');
   expect(bridge.actions).toHaveLength(0);
+});
+
+test('shortcuts bind by position with Ctrl, Alt and Shift, take Å, Ä and Ö, and fire at once', async ({ page }) => {
+  const { bridge } = await rehearsal(page);
+  const takes = () => bridge.actions.filter((a) => a.verb === 'take' && a.slot.layer === 5).length;
+  const cases: { key: string | { code: string; key: string }; label: string }[] = [
+    { key: { code: 'BracketLeft', key: 'å' }, label: 'Å' },
+    { key: { code: 'Quote', key: 'ä' }, label: 'Ä' },
+    { key: { code: 'Semicolon', key: 'ö' }, label: 'Ö' },
+    { key: 'Shift+Digit1', label: 'Shift+1' },
+    { key: 'Control+KeyK', label: 'Ctrl+K' },
+    { key: 'Control+Shift+KeyK', label: 'Ctrl+Shift+K' },
+    { key: 'Alt+KeyK', label: 'Alt+K' },
+    { key: 'F2', label: 'F2' },
+  ];
+  let fired = 0;
+  for (const c of cases) {
+    await assign(page, 'VICTORY', c.key);
+    await expect(page.locator('.pd-cue', { hasText: 'VICTORY' }).locator('.pd-cue-hotkey')).toHaveText(c.label);
+    await parkFocusOffControls(page);
+    await pressKey(page, c.key);
+    fired += 1;
+    await expect.poll(takes, { message: c.label }).toBe(fired);
+  }
+  // Typing keeps its keys: F2 in the cue name is just F2 in a text box.
+  await page.getByTestId('cue-label').focus();
+  await page.keyboard.press('F2');
+  await page.waitForTimeout(300);
+  expect(takes()).toBe(fired);
+  await page.screenshot({ path: 'test-results/studio-shortcut-labels.png' });
 });
 
 test('unidentified producer diagnostics leave rundown geometry fixed and allow explicit clearing without cue ownership', async ({ page }) => {
@@ -477,12 +535,14 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     return respond([]);
   });
   await page.goto('/app#/home');
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Checking cloud revision');
-  await expect(page.locator('.sync-status')).toHaveText('Sync');
-  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'warn');
+  // Checking the cloud revision is a save in flight: quiet, never Synced before it is confirmed
+  // (playout-workflow-simplification AC-12).
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Syncing');
+  await expect(page.locator('.sync-status')).toHaveText('Syncing');
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'quiet');
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   releaseLists();
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Saved to cloud', { timeout: 20000 });
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Synced', { timeout: 20000 });
   await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'ok');
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   // The details open on demand, with the one action that helps.
@@ -499,7 +559,7 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     // Deliberately before the 800 ms autosave. Retry must cover this edit.
     await syncNow();
   });
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Saved to cloud', { timeout: 20000 });
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Synced', { timeout: 20000 });
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
   failWrites = true;
   await page.evaluate(async () => {
@@ -508,7 +568,8 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     useTemplateStore.getState().setCss('/* failed save stays here */');
     await syncNow();
   });
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Not saved to cloud');
+  // A failed write shows at once, without waiting out the minute.
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Not synced');
   await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'warn');
   await expect(page.getByTestId('account-save-notice')).toContainText('Not saved to cloud');
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
@@ -531,4 +592,70 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     return useTemplateStore.getState().template.css;
   })).toBe('/* failed save stays here */');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+
+// playout-workflow-simplification D14, reproduced before it was fixed: two tabs on one library.
+// A change made in tab A is A's to push, so tab B never ran a pass for it and read "Syncing" until
+// its own next pass (never, beside the other tab), turning to Not synced after a minute about work
+// that was saved. A's confirmed pass now reaches B.
+test('a second tab returns to Synced when the tab that made the change confirms it', async ({ context }) => {
+  test.setTimeout(120_000);
+  const owner = '00000000-0000-4000-8000-000000000001';
+  const user = { id: owner, aud: 'authenticated', role: 'authenticated', email: 'rehearsal@example.invalid', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
+  const expires = Math.floor(Date.now() / 1000) + 3600;
+  const token = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: owner, exp: expires, role: 'authenticated' })).toString('base64url')}.test`;
+  const rows = new Map<string, { id: string; kind: string; body: { updatedAt: string }; deleted: boolean }>();
+  await context.route('**/src/backend/config.ts*', route => route.fulfill({ contentType: 'text/javascript', body: `export function loadBackendConfig(){return {url:'https://cloudmock.invalid',anonKey:'test-public-key'}};export function isBackendConfigured(){return true}` }));
+  await context.addInitScript(({ owner, user, token, expires }) => {
+    if (window.top !== window) return;
+    localStorage.setItem('spx-gfx-account', owner);
+    if (!localStorage.getItem('sb-cloudmock-auth-token')) localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
+  }, { owner, user, token, expires });
+  await context.route('https://cloudmock.invalid/**', async route => {
+    const request = route.request(), url = new URL(request.url());
+    const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (url.pathname === '/auth/v1/user') return respond(user);
+    if (url.pathname === '/rest/v1/documents') {
+      if (request.method() === 'GET') {
+        const kind = url.searchParams.get('kind')?.replace('eq.', '');
+        const found = [...rows.values()].filter(row => row.kind === kind);
+        return respond(url.searchParams.get('select')?.includes('body,') ? found : found.map(row => ({ id: row.id, deleted: row.deleted, updatedAt: row.body.updatedAt })));
+      }
+      if (request.method() === 'POST') { const row = request.postDataJSON(); rows.set(row.id, row); return respond({ body: row.body }); }
+      return respond([]);
+    }
+    return respond([]);
+  });
+  const a = await context.newPage();
+  await a.goto('/app#/home');
+  await expect(a.locator('.sync-status')).toHaveText('Synced', { timeout: 20_000 });
+  const b = await context.newPage();
+  await b.goto('/app#/home');
+  await expect(b.locator('.sync-status')).toHaveText('Synced', { timeout: 20_000 });
+  const before = rows.size;
+  await a.evaluate(async () => {
+    const { createLook } = await import('/src/model/packets.ts');
+    createLook('From tab A', { styleTag: 'minimal', palette: { id: 'captured', name: 'Captured', styleTags: ['minimal'], accent: '#22aa66', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(12,14,18,0.92)' }, fontId: null, customFont: null });
+  });
+  // B hears the change, and says it is in flight, quietly.
+  await expect(b.locator('.sync-status')).toHaveText('Syncing');
+  await expect.poll(() => rows.size, { timeout: 20_000 }).toBeGreaterThan(before);
+  await expect(a.locator('.sync-status')).toHaveText('Synced');
+  // A's confirmation reaches B, which ran no pass of its own.
+  await expect(b.locator('.sync-status')).toHaveText('Synced', { timeout: 10_000 });
+  // Regaining focus with nothing unsaved re-checks without announcing it (D14, reproduced as a
+  // Synced, Syncing, Synced flicker on every window switch).
+  const flicker = await a.evaluate(async () => {
+    const chip = document.querySelector('.sync-status')!;
+    const texts: string[] = [];
+    const watch = new MutationObserver(() => texts.push(chip.textContent ?? ''));
+    watch.observe(chip, { childList: true, subtree: true, characterData: true });
+    window.dispatchEvent(new Event('focus'));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    watch.disconnect();
+    return texts;
+  });
+  expect(flicker).not.toContain('Syncing');
+  await expect(a.locator('.sync-status')).toHaveText('Synced');
 });

@@ -407,8 +407,18 @@ try {
   //    run; an unwiped graphic makes the next name-addressed read ambiguous. ──
   try {
     await page.getByTestId('verb-out').click({ timeout: 5_000 }).catch(() => undefined);
-    await page.getByTestId('production-status').click({ timeout: 5_000 }).catch(() => undefined);
-    await page.getByTestId('production-unpublish').click({ timeout: 5_000 }).catch(() => undefined);
+    // No Unpublish in the page (playout-workflow-simplification AC-8): the API does it.
+    await page.evaluate(async () => {
+      const id = /#\/production\/([^/?#]+)/.exec(location.hash)?.[1];
+      if (!id) return;
+      const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+      const S = await import('/src/model/shows.ts');
+      await unpublishControlShow(id);
+      S.setShowHostedSlug(id, undefined);
+      S.setShowOutputSlug(id, undefined);
+      await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+    }).catch(() => undefined);
+    await page.reload().catch(() => undefined);
     await page.locator('[data-testid="production-status"][data-started="false"]').waitFor({ timeout: 20_000 }).catch(() => undefined);
 
     await page.goto(`${origin}/app#/home/productions`, { waitUntil: 'domcontentloaded' });

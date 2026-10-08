@@ -193,7 +193,7 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   const unsent = page.getByTestId('cue-unsent');
   await page.getByTestId('cue-field-f0').fill('Ilves');
-  await expect(unsent).toContainText('not on air yet');
+  await expect(unsent).toContainText('not on PROGRAM yet');
   await expect(program.locator('#f0')).not.toHaveText('Ilves');
   // Scrolled to the unsent note for the pack: it sits at the TOP of the cue editor, and driving
   // the live number buttons has left the editor scrolled past it. The monitors do not scroll, so
@@ -203,7 +203,7 @@ test('imported scoreboard: a numeric layer is a ± stepper that acts on air, and
 
   await page.getByTestId('verb-update').click();
   await expect(program.locator('#f0')).toHaveText('Ilves');
-  await expect(unsent).toContainText('changes push live on');
+  await expect(unsent).not.toContainText('not on PROGRAM yet');
   await tutorialShotAt(page, 'step-11-updated', unsent);
 
   // Out plays the graphic off, and the tally returns to honest silence.

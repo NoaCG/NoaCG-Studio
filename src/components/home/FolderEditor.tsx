@@ -91,10 +91,11 @@ export default function FolderEditor({
   const lastEnd = last && lastItem ? effectiveEnd(last, lastItem) : 'hold';
   const allAudio = members.length > 0 && members.every((c) => itemOf(c)?.mediaKind === 'audio');
   const address = slotAddress(slot);
-  const modeHint =
-    mode === 'manual'
+  // How each mode plays, on its own button's tooltip (playout-workflow-simplification AC-10).
+  const modeHint = (m: typeof mode) =>
+    m === 'manual'
       ? 'SPACE on the folder takes its cues one at a time: each press takes the next cue and the graphic before it off. Clips and audio play on until they end or Out.'
-      : mode === 'through'
+      : m === 'through'
         ? `One Take plays its clips one after another on ${address}, as one sequence NoaCG Bridge runs.`
         : 'One Take starts every cue in it: the server cues one after another, then the graphics.';
   return (
@@ -138,7 +139,7 @@ export default function FolderEditor({
                 m.mode === 'through' && mode !== 'through'
                   ? hasServerCue
                     ? throughOff
-                    : 'Play through plays clips and audio files one after another. This production has no server clip to play.'
+                    : 'This production has no server clip to play.'
                   : null;
               return (
                 <button
@@ -148,7 +149,7 @@ export default function FolderEditor({
                   aria-checked={mode === m.mode}
                   className={mode === m.mode ? 'on' : ''}
                   disabled={!!off}
-                  title={off ?? undefined}
+                  title={off ?? modeHint(m.mode)}
                   onClick={() => setRefusal(onMode(m.mode))}
                   data-testid={`folder-mode-${m.mode}`}
                 >
@@ -157,9 +158,6 @@ export default function FolderEditor({
               );
             })}
           </div>
-          <span className="muted pd-clip-hint" data-testid="folder-mode-hint">
-            {modeHint}
-          </span>
         </div>
         {refusal && (
           <p className="status-bad" data-testid="folder-mode-refused">

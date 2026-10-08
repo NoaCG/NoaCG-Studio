@@ -305,7 +305,7 @@ test('a one-line row keeps its number, its kind in words, its note, its slot, th
   await expect(row(0).getByRole('img', { name: 'Note: after the intro' })).toHaveAttribute('title', 'after the intro');
   await expect(rows.getByTestId('cue-note-mark')).toHaveCount(1);
   // the slot: the layer on a graphic, the server address on a server cue.
-  await expect(row(2).getByTestId('cue-layer')).toHaveText('NoaCG · G22');
+  await expect(row(2).getByTestId('cue-layer')).toHaveText('1-20 · G22');
   await expect(row(3).getByTestId('cue-layer')).toHaveText('2-10');
   // the clip's own facts: its length, and that it loops. No length column on a graphic's row
   // beyond the empty cell that keeps the column straight.
@@ -316,7 +316,7 @@ test('a one-line row keeps its number, its kind in words, its note, its slot, th
   for (const i of [0, 1]) {
     const badge = row(i).getByTestId('cue-layer');
     await expect(badge).toHaveClass(/clash/);
-    await expect(badge).toHaveText('NoaCG · G20');
+    await expect(badge).toHaveText('1-20 · G20');
     await expect(badge).toHaveAttribute('title', new RegExp(`Shares layer 20 with ${i === 0 ? names[1].name : names[0].name}\\. On air they replace each other`));
   }
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(2);

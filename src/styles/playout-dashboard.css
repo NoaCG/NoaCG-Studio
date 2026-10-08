@@ -108,9 +108,9 @@
 .pd-back,
 .pd-home { padding: 4px 9px; white-space: nowrap; flex: none; }
 
-/* THE ONE PLAYOUT STATUS (home/PlayoutStatusControl.tsx, docs/work-specs/studio-day-playout AC-7):
-   a colour AND a short text in the owner's four - grey offline, amber attention, green ready, red
-   broken - beside the production's name. Its WIDTH IS FIXED, so a state that changes during a show
+/* THE ONE PLAYOUT STATUS (home/PlayoutStatusControl.tsx, docs/work-specs/playout-workflow-
+   simplification AC-2): a colour AND a short text - grey quiet, amber attention, green connected,
+   red broken - beside the production's name. Its WIDTH IS FIXED, so a state that changes during a show
    ("Ready · on air 1-20" to "Behind: showing v12") never moves the tabs to its right; a longer
    text ends in an ellipsis, and the tooltip and the panel say it whole. Red is FILLED: it is the
    one state that has to be seen from across the room. */
@@ -172,9 +172,8 @@
    and 1280x720, the school laptops a class runs productions on. Measured 2026-09-27 on "Quiz
    Night" before these tiers: 49 of its 67px at 1366 and 0px at 1280 offline; published with
    Share, the row was 1412px wide at both, so the name was gone AND ■ All out sat past the right
-   edge of the screen. The lower-priority things give way first, in this order: the session
-   clock (`.pd-roomy`; Share and Export have been in Setup since 2026-10-03), then
-   the tabs' and the row's spare padding, then - only under 1366 - the brand's wordmark (the
+   edge of the screen. The lower-priority things give way first, in this order: the tabs' and the
+   row's spare padding, then - only under 1366 - the brand's wordmark (the
    mark stays, as the link to the site root) and a little more padding. Measured after, the
    widest header (published, output taken, Share) fits 1280 with 34px to spare and the name
    whole. The name is still what shrinks if a state this does not foresee overflows (the
@@ -182,7 +181,6 @@
    e2e/productions.spec.ts. */
 @media (max-width: 1440px) {
   .pd-header { gap: 8px; }
-  .pd-header .pd-roomy { display: none; }
   .pd-header .pd-tabs { margin-left: 0; }
   .pd-header .pd-tabs > * { padding: 5px 10px; }
 }
@@ -284,25 +282,13 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
 .pd-ready-row--bad .pd-ready-state { color: #ef4444; }
 .pd-ready-forget { margin-left: auto; flex: none; padding: 2px 9px; font-size: 11.5px; }
 .pd-ready-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); white-space: pre-line; }
-/* PREPARE FOR LIVE (components/control/PrepareForLive.tsx), under the outputs in the same panel:
-   the stamp, the checklist of what it found, one line of what pressing does, and the button.
-   The checklist uses the outputs' own dots and colours, so one panel speaks one language. */
-.pd-prepare { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+/* The readiness stamp (components/control/OutputHealth.tsx), on the hosted page. */
 .pd-prepare-stamp { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
 /* On the hosted page the stamp stands alone under the outputs, with the list's own gap above it. */
 .pd-ready-panel > .pd-prepare-stamp { margin: 12px 0 0; }
 .pd-prepare-stamp.is-ok { color: #4ade80; }
 .pd-prepare-stamp.is-warn { color: #f59e0b; }
 .pd-prepare-stamp.is-bad { color: #ef4444; }
-.pd-prepare-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
-.pd-prepare-line { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; line-height: 1.45; }
-.pd-prepare-line .pd-ready-detail { display: block; }
-.pd-prepare-line--ok .pd-ready-dot { color: #4ade80; }
-.pd-prepare-line--warn .pd-ready-dot { color: #f59e0b; }
-.pd-prepare-line--bad .pd-ready-dot { color: #ef4444; }
-.pd-prepare-line--running { color: var(--text-dim); }
-.pd-prepare-note { margin: 0 0 10px; font-size: 12px; line-height: 1.45; color: var(--text-dim); }
-.pd-prepare-button { width: 100%; }
 /* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
    for Take must never land on it. */
 .pd-allout {
@@ -313,23 +299,129 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
 }
 .pd-allout:disabled { color: var(--text-dim); border-color: var(--border); }
 /* THE PLAYOUT PANEL under the status (the READY panel's surface): anchored at the control's LEFT
-   edge, since the control sits on the header's left, and wide enough for a link row. Its
-   sections - outputs, actions, setup, links - each under a small heading, in the owner's order. */
+   edge, since the control sits on the header's left, and wide enough for the output URL. Its
+   sections are home/PlayoutPanel.tsx's, below. */
 .pd-status-host .pd-ready-panel { right: auto; left: 0; width: min(500px, 94vw); max-height: min(80vh, 680px); }
-.pd-panel-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-.pd-panel-section-title {
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+
+/* THE PLAYOUT PANEL'S SECTIONS (home/PlayoutPanel.tsx, docs/work-specs/playout-workflow-simplification
+   AC-3): one type scale and one button size throughout. A section is a hairline and a row grid; a
+   heading only where a section has a name worth reading (Outputs, Browser source). States wear the
+   status's own dots and colours, so the panel speaks the header's language. */
+.pd-pp-status { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; font-size: 14px; font-weight: 700; }
+.pd-pp-section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); display: grid; gap: 8px; }
+/* A grid item's minimum is its content, so a long output URL would push Copy out of the panel. */
+.pd-pp-section > * { min-width: 0; }
+.pd-pp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pd-pp-title { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.pd-pp-row { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; flex-wrap: wrap; }
+.pd-pp-dot { flex: none; font-size: 11px; color: var(--text-dim); }
+.pd-pp-dot--ok { color: #4ade80; }
+.pd-pp-dot--warn { color: #f59e0b; }
+.pd-pp-dot--bad { color: #ef4444; }
+.pd-pp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-pp-state { flex: none; font-size: 12px; color: var(--text-dim); }
+.pd-pp-row--ok .pd-pp-state { color: #4ade80; }
+.pd-pp-row--warn .pd-pp-state { color: #f59e0b; }
+.pd-pp-row--bad .pd-pp-state { color: #ef8a8a; }
+.pd-pp-row--quiet { color: var(--text-dim); }
+.pd-pp-head-aside { display: inline-flex; align-items: center; gap: 8px; }
+.pd-pp-path { font-variant-numeric: tabular-nums; }
+.pd-pp-path--warn { color: #f59e0b; }
+.pd-pp-path--bad { color: #ef8a8a; }
+.pd-pp-advice { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+.pd-pp-advice--row { flex-basis: 100%; margin: 0 0 0 19px; }
+.pd-pp-problems { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.pd-pp-problem { display: flex; gap: 8px; align-items: baseline; font-size: 13px; line-height: 1.4; }
+/* One control height for every button and field in the panel. */
+.pd-ready-panel .pd-pp-section button,
+.pd-ready-panel .pd-pp-button-link { height: 30px; padding: 0 12px; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+.pd-pp-button-link { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 6px; text-decoration: none; }
+.pd-ready-panel .pd-pp-section .pd-pp-link,
+.pd-ready-panel .pd-pp-section .pd-pp-icon { height: 24px; padding: 0 6px; border-color: transparent; background: transparent; color: var(--text-dim); font-size: 12px; }
+.pd-pp-link:hover:not(:disabled),
+.pd-pp-icon:hover { color: var(--text); }
+.pd-pp-url-row { display: flex; gap: 8px; align-items: center; }
+.pd-pp-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  line-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input, #0e1014);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pd-pp-switch-row { display: flex; align-items: center; gap: 10px; min-height: 28px; font-size: 13px; color: var(--text); cursor: pointer; }
+.pd-pp-switch-label { flex: 1; }
+/* `input.` for the specificity to beat base.css's one-size checkbox: a switch is the one checkbox
+   drawn as a track, so the operator reads on and off from across the desk. */
+input.pd-pp-switch {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 36px;
+  min-width: 36px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--border-strong, #33394a);
+  border-radius: 99px;
+  background: var(--bg-3, #1b2230);
+  cursor: pointer;
+}
+input.pd-pp-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.12s ease;
+}
+input.pd-pp-switch:checked { background: var(--amber); border-color: var(--amber); }
+input.pd-pp-switch:checked::after { transform: translateX(16px); background: #15120a; }
+input.pd-pp-switch:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+input.pd-pp-switch:disabled { opacity: 0.5; cursor: default; }
+.pd-pp-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+  font-size: 13px;
+}
+.pd-pp-confirm > span { flex: 1; }
+.pd-pp-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pd-pp-actions:empty { display: none; }
+.pd-pp-section:has(> .pd-pp-actions:empty) { display: none; }
+/* THE ACTION SLOT beside the status (D1): one due action at most - Publish, Load on 1-20, Publish
+   changes. Its width is RESERVED, so an action that comes and goes never moves what sits right of
+   it, and Setup and ■ All out never move at all. A due action is an amber outline, never a fill:
+   it asks for a press, it is not an alarm. */
+.pd-action-slot { flex: none; display: inline-flex; min-width: 10.5em; }
+.pd-action-due { color: var(--amber); border-color: rgba(246, 166, 35, 0.55); background: transparent; white-space: nowrap; }
+.pd-action-due:hover:not(:disabled) { border-color: var(--amber); }
+/* SETUP › LINKS (home/ProductionLinks.tsx): the shared dialog anatomy; the Private and Public marks
+   are labels, never sentences. */
+.prod-links-dialog { width: min(620px, 94vw); height: auto; max-height: min(90vh, 640px); }
+.prod-links-label { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.prod-links-mark {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 4px;
 }
-details.pd-panel-section > summary.pd-panel-section-title { cursor: pointer; }
-.pd-panel-section .row { gap: 8px; margin-top: 8px; }
-.pd-panel-section .pd-prepare { margin-top: 12px; }
-.pd-panel-check { align-items: center; font-size: 12px; }
-.pd-status-checks { margin-bottom: 0; }
 
 /* ── Body: the stage column + the cue rail ─────────────────────────────────── */
 /* The body is exactly the height under the header. `min-height: 0` lets it be SMALLER than its
@@ -856,8 +948,13 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* The toggle's OFF half. Same button, same key, a different job - so it is deliberately NOT the
    take red: red is "this puts something on air", and a control that looks identical in both
    states would be the very confusion this toggle exists to end. */
-.pd-verb-take.pd-verb-live { background: #2a2a30; border-color: rgba(255, 255, 255, 0.32); color: #f4f4f5; }
-.pd-verb-take.pd-verb-live:hover:not(:disabled) { background: #35353d; }
+.pd-verb-take.pd-verb-live,
+.pd-verb-take.pd-verb-rehearsal { background: #2a2a30; border-color: rgba(255, 255, 255, 0.32); color: #f4f4f5; }
+.pd-verb-take.pd-verb-live:hover:not(:disabled),
+.pd-verb-take.pd-verb-rehearsal:hover:not(:disabled) { background: #35353d; }
+/* Rehearsal (playout-workflow-simplification D12): before the first publish a graphic's Take
+   reaches no air, so TAKE drops the red and keeps its weight. */
+.pd-verb-take.pd-verb-rehearsal kbd { background: transparent; border-color: rgba(255, 255, 255, 0.25); color: var(--text-dim); }
 /* The toggle's PREVIEW face ('preview-then-take' SPACE mode, on a cue not yet on PREVIEW).
    Amber - the preview colour the monitors and the rundown tally already use - and never red,
    because this press airs nothing. Same button, same key, same place; only the face changes,
@@ -917,6 +1014,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 /* Typing into a live cue and typing into a draft must never look the same. */
 .pd-editor.live { border-color: rgba(239, 68, 68, 0.75); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.4); }
+/* Up on this page only, before the first publish (D12): marked, in the UP tag's grey, never air's red. */
+.pd-editor.up { border-color: rgba(255, 255, 255, 0.32); }
 .pd-editor-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
 .pd-editor-kicker {
   font-family: var(--mono, monospace);
@@ -926,6 +1025,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   white-space: nowrap;
 }
 .pd-editor.live .pd-editor-kicker { color: #ef4444; }
+.pd-editor.up .pd-editor-kicker { color: var(--text); }
 .pd-cue-title {
   font: inherit;
   font-size: 14px;
@@ -1792,6 +1892,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-tag.air { color: #fff; background: #ef4444; }
 .pd-tag.pvw { color: #1a1205; background: var(--amber); }
 .pd-tag.up { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-dim); }
+.pd-tag.off { color: var(--text-dim); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); }
 .pd-cue-menu-host { position: relative; flex: none; }
 .pd-cue-more { opacity: 0; }
 .pd-cue:hover .pd-cue-more,
@@ -2185,9 +2286,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   /* The playout status stays, narrower: it is the one way a phone operator learns the screens are
      not hearing them. The production's name is the one that truncates. */
   .pd-status-control { width: 9.5em; padding: 4px 8px; font-size: 11px; }
-  /* ...except offline, where "Offline" costs 110px to repeat what ▶ Start production beside it
-     already says, and the production's NAME was paying for it (0px wide at 390). The monitor
-     still reads PREVIEW · NOT LIVE. */
+  /* ...except before the first publish, where "Not published" costs 110px to repeat what Publish
+     beside it already says, and the production's NAME was paying for it (0px wide at 390). The
+     monitor still reads PROGRAM · NOT PUBLISHED. */
   .pd-status-host--offline { display: none; }
   /* The READY line (the hosted page's header) keeps its SHORT form here ("● Ready 2/2"). */
   .pd-health { flex: none; font-size: 11px; }
@@ -2233,15 +2334,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-editor-update { display: inline-flex; }
 }
 
-.prod-links { margin-bottom: 12px; }
-.prod-link-row { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
-.prod-link-row > .mono { flex: 0 0 92px; font-size: 11px; }
-/* The readable-name row is the one row holding a CONTROL rather than a URL, and it has to sit
-   in the same rhythm as the four around it: the global `input` bottom margin made it 48px
-   against their 31, which reads as a mistake rather than as a different kind of row. `flex: 1`
-   for the same reason the mode selects needed a width - the global `width: 100%` would
-   otherwise take the whole row and push the button out. */
-.prod-link-row > input { flex: 1; min-width: 0; width: auto; margin: 0; }
 .prod-url {
   flex: 1;
   min-width: 0;
@@ -2253,37 +2345,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
-}
-/* ── The links panel's rows: one line each, the explanation behind a small arrow ──────────
-   The ▸ is a 22px square at the END of every row, so the eye finds the same control in the
-   same place down the column - and it stays the same size on a quiet row, because a shrinking
-   hit target is how a control becomes decoration. */
-.prod-link-item + .prod-link-item { margin-top: 2px; }
-.prod-link-help-toggle {
-  flex: none;
-  width: 22px;
-  padding: 0;
-  min-height: 26px;
-  color: var(--text-dim);
-  font-size: 10px;
-  line-height: 1;
-}
-.prod-link-help-toggle:hover:not(:disabled) { color: var(--text); }
-.prod-link-help { margin: 2px 0 8px; }
-/* A QUIET row: the SPX file and the readable name are secondary to the three links an operator
-   copies every show. Dimmed and smaller, never hidden - the download has to stay findable. */
-.prod-link-item.quiet .prod-link-row > .mono { font-size: 10.5px; }
-.prod-link-item.quiet button { font-size: 11px; padding: 4px 8px; min-height: 26px; }
-.prod-link-item.quiet .prod-link-help-toggle { padding: 0; }
-.prod-link-file {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--mono, monospace);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  color: var(--text-dim);
 }
 /* The ACTIVITY LOG. A fixed-width time column and a nowrap graphic name on the right keep the
    TEXT column aligned down the list, which is what makes a feed scannable rather than merely
@@ -2662,9 +2723,6 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
 .pd-output-dialog { max-width: 540px; }
 .pd-output-dialog .dlg-check .hint { display: block; margin-top: 3px; }
 .pd-output-dialog .dlg-foot { display: flex; justify-content: space-between; padding: 16px; border-top: 1px solid var(--border); }
-.pd-output-setup { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.pd-output-setup .hint { flex-basis: 100%; margin: 0; }
-.pd-output-choice { font-size: 11px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pd-upload-help { font-size: 10px; margin: 0; }
 
 /* The phone flattens the control area into an ordered column. Keep this control with its editor. */
@@ -2674,9 +2732,23 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
    The small type line uses the existing label height instead of competing with its name. */
 .pd-rundown .pd-cue-label { position: relative; padding-bottom: 11px; }
 .pd-rundown .pd-cue-type { position: absolute; left: 0; right: 0; bottom: 1px; max-width: none; line-height: 10px; }
-.wz-modal.pd-shortcut-dialog { width: min(560px, 94vw); height: auto; max-height: 90vh; }
-.pd-publish-short { display: none; }
-@media (max-width: 760px) {
-  .pd-publish-full { display: none; }
-  .pd-publish-short { display: inline; }
+.wz-modal.pd-shortcut-dialog { width: min(420px, 94vw); height: auto; max-height: 90vh; }
+/* The key pressed is the assignment: its keycaps, centred, and one line under them. */
+.pd-shortcut-body { display: grid; justify-items: center; gap: 10px; padding: 22px 16px; }
+.pd-shortcut-keys {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 12em;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  cursor: text;
 }
+.pd-shortcut-keys:focus-visible, .pd-shortcut-keys:focus { outline: 2px solid var(--amber); outline-offset: 2px; border-style: solid; }
+.pd-shortcut-keys kbd { padding: 3px 8px; border: 1px solid var(--border); border-radius: 5px; background: rgba(255, 255, 255, 0.04); font-size: 13px; font-weight: 700; }
+.pd-shortcut-plus { margin: 0 6px; color: var(--text-dim); }
+.pd-shortcut-placeholder { color: var(--text-dim); font-size: 13px; }
+.pd-shortcut-line { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13px; }
+

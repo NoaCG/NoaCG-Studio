@@ -203,3 +203,14 @@ test('different graphics do not wait for each other; a payload on two waits for 
   await both;
   assert.deepEqual(started, ['A', 'B', 'AB']);
 });
+
+// playout-workflow-simplification D11: the page keeps what each head says is on, for All out.
+test('a session keeps each graphic\'s on flag with the revision it came with', () => {
+  const s = createSeqSession('E1', { A: { rev: 2, on: true }, B: { rev: 1, on: false } });
+  assert.deepEqual(Object.fromEntries(s.on), { A: true, B: false });
+  learnHead(s, 'E1', { A: { rev: 3, on: false } });
+  learnHead(s, 'E1', { A: { rev: 2, on: true } });
+  assert.equal(s.on.get('A'), false, 'an older frame cannot put a stopped graphic back on');
+  learnHead(s, 'E2', {});
+  assert.equal(s.on.size, 0, 'a republished production is a new log');
+});

@@ -36,7 +36,7 @@ the surface serves it.
 - **ON AIR only when it is** (docs/work-specs/studio-day-playout D16). A production that is not
   started keeps every verb, but a graphic's Take then plays on this page only: its row reads `UP`
   in grey with a dashed border, the line under the verbs says "up, not live", and the program
-  monitor reads PREVIEW · NOT LIVE. A server cue plays through NoaCG Bridge either way and reads
+  monitor reads PROGRAM · NOT PUBLISHED. A server cue plays through NoaCG Bridge either way and reads
   ON AIR in red.
 
 ## 2. Layout — desktop
@@ -328,6 +328,14 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   Update `U`, Next `N`, Out `0`, and `↑`/`↓` walk the rundown; a server clip's Pause carries `P`
   (§2h), which toggles it. `■ All out` lives in the header,
   away from the others, because it is the panic control.
+- **A cue can have its own shortcut** (the row's ⋯ › Shortcut; playout-workflow-simplification
+  D13). The key pressed in the dialog is the assignment, saved and working at once, here and on
+  the hosted page. It binds by the key's position with Ctrl, Alt and Shift, so Å, Ä, Ö, Shift+1,
+  Ctrl+K or F2 work, and the rundown shows the layout's own label. Refused, each in one line: the
+  verb keys with or without Shift, Ctrl+Alt (AltGr), F5, F11, F12, Ctrl or Ctrl+Shift with N, T, W
+  or Tab, and the rundown's Ctrl+C, X, V, Z, Y. A key another cue holds offers "Move it here".
+  Shortcuts saved as a letter (`v`, `shift+f`) keep firing. Typing, a dialog, an open menu and the
+  Data and Audience views keep the keys quiet.
 - **A timed cue counts on its row and over PROGRAM** (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, built
   2026-10-03 for unpublished productions). The cue editor's Ends row times a graphic cue: after so
   many seconds ON AIR, Out, Next cue (the next graphic cue in the rundown) or both. The countdown
@@ -375,8 +383,10 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   instead of taking it off, the exact behaviour §2 says one surface must never wear twice. A new
   key or a changed meaning goes in that module and in the controller's `keydown` block, never in
   a surface.
-- **The editor edits the PREVIEW cue by default** and says so ("changes air on ⟳ Take"). A
-  switch offers the ON-AIR cue instead, where ✎ Update pushes edits live.
+- **The editor edits the PREVIEW cue by default** and its heading says so ("EDITING PREVIEW CUE").
+  A switch offers the ON-AIR cue instead, where ✎ Update pushes edits live. Before the first
+  publish that cue is UP rather than on air, and every word of the editor says so
+  (playout-workflow-simplification D12).
 - **An edit to the ON-AIR cue says it has not been sent.** Data never airs by itself — that is
   the staged-vs-take rule and it does not change — so the surface has to say when what is on
   screen is ahead of what is on air: the fate line names how many changes are waiting and ✎
@@ -720,7 +730,9 @@ the exported controller, the output and a pack see the flat rundown they always 
   folder's Take or step still being sent - and whatever plays on a slot this rundown uses that no
   cue here can name: an unidentified item, which after a NoaCG Bridge restart is this page's own
   clip, or what replaced a cue's clip on the server. A layer the rundown does not use is never
-  touched.
+  touched. Published, it is always enabled and also clears every graphic the server's heads say
+  is on, so a graphic with no cue marker on this page cannot stay up; it reads Clearing… until
+  the heads agree (playout-workflow-simplification AC-13).
 
 ## 3. Layout — phone
 
@@ -840,29 +852,21 @@ channel pick: it plays inside the production's output page, which is on the grap
 
 ## 7. Publishing and the links live here
 
-If this surface replaces the production dashboard, it carries the dashboard's two jobs:
-**Publish / republish**, and both capability links — the **output URL** (the browser source) and
-the **control page URL** (to operate from another device). They belong in the header's menu, one
-click from the operator, never on a page they have to navigate away to.
+Rebuilt by `docs/work-specs/playout-workflow-simplification` (2026-10-07). **Publish** is the
+header's one action before the first publish, **Publish changes** after it when a change the
+outputs draw is waiting, and **Load on <slot>** when CasparCG is switched on and its slot is
+empty. The action slot keeps its width, so Setup and ■ All out never move.
 
-**▶ Start production is amber only once there is a cue to take** (2026-09-28). With an empty
-rundown it is a plain button whose tooltip says there is nothing to run yet. It still works:
-publishing an empty production mints the links, so the output URL can be set up in OBS or
-CasparCG before the graphics exist. It is just not the page's call to action until then.
+**The Playout panel is about output.** A press on the status opens it: problems first, then each
+renderer with its state and command path ("Check now" checks again without publishing), then
+the browser source (the output URL, Copy, and the Template file for hosts that cannot take a
+link), then CasparCG: its switch, the Bridge (Download and Pair when it is missing) and the slot
+with Load and Unload. Turning CasparCG on never removes the browser source.
 
-**ONE LINE PER CAPABILITY, the explanation behind its own ▸.** The panel grew a paragraph under
-every row and became a page: five explanations between five rows put the CONTROL PAGE — the link
-a class operates from — below an account of an SPX file most of them never download. So each
-row's help collapses (`LinkRow`, ProductionPage.tsx), and the arrow sits in the same column down
-the panel so it is found rather than hunted. Two rules the shape has to keep:
-
-- **The audience row's help opens by default.** Every other explanation describes something
-  PRIVATE; this one says "public", and that is the one omission here that could reach air.
-- **A secondary capability is QUIET, never hidden.** The SPX template file is a smaller, dimmer
-  row directly under the output URL it is a second form of — it belongs to the one playout host
-  that cannot take a link, so it must stay findable without competing with the links copied
-  every show. Same for the readable-name field. Hiding either behind a "more" would trade one
-  crowded panel for a lost control.
+**The other links are in Setup › Links…**: the control page and presenter (private) and the
+audience link with its readable name (public), each marked as such. There is no Unpublish on
+the page: links persist (`control_show_identity`, migration 0040), and a publication costs one
+row.
 
 ## 7b. The ⚡ GRAPHIC ACTIONS block, in the operator's words
 

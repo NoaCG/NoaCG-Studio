@@ -157,7 +157,6 @@ test('» Next names its target: the answer board at Question reads Reveal correc
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
   await expect(page.getByTestId('verb-next-target')).toHaveText('Reveal correct');
-  await expect(page.getByTestId('verb-next')).toHaveAttribute('title', /next step: Reveal correct/);
   await page.getByTestId('cue-action-judge').click();
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Reveal');
   await expect(page.getByTestId('verb-next-target')).toHaveText('last step');

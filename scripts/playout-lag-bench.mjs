@@ -872,8 +872,19 @@ for (let r = 0; r < ROUNDS; r++) {
 // build, one stretch of the machine's day, and the only thing that changed is which road
 // `runVerb` takes. It is also the cleanup - unpublish DELETES the `control_shows` row.
 if (fixture.hostedSlug) {
-  await page.getByTestId('production-status').click();
-  await page.getByTestId('production-unpublish').click();
+  // The page has no Unpublish (playout-workflow-simplification AC-8): the API does it, then the
+  // local record forgets its published addresses, as the old button's handler did.
+  await page.evaluate(async () => {
+    const id = /#\/production\/([^/?#]+)/.exec(location.hash)?.[1];
+    if (!id) return;
+    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+    const S = await import('/src/model/shows.ts');
+    await unpublishControlShow(id);
+    S.setShowHostedSlug(id, undefined);
+    S.setShowOutputSlug(id, undefined);
+    await (await import('/src/model/durableStore.ts')).commitDurableWrites();
+  });
+  await page.reload();
   await page.waitForFunction(
     () => document.querySelector('[data-testid="production-status"]')?.getAttribute('data-started') === 'false',
     null,

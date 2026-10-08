@@ -1,22 +1,21 @@
 import { useRef } from 'react';
 import PlayoutSettingsPanel from './PlayoutSettingsPanel';
-import type { PlayoutResult } from '../control/playoutLink';
-import { outputSetupLabel, type ProductionOutputSetup } from '../model/outputSetup';
+import RundownColors from './home/RundownColors';
+import type { Show } from '../model/shows';
+import { loadPlayoutSettings, type PlayoutResult } from '../control/playoutLink';
 import { useModalGate } from './spaceKey';
+import AccountAuthoringGate from './AccountAuthoringGate';
 
-/** Production outputs first; the shared studio server form appears only when used. */
+/** The studio's CasparCG setup while CasparCG is switched on for this production, then the
+ *  rundown's route colours (docs/work-specs/playout-workflow-simplification AC-3, D9). The browser
+ *  source and the CasparCG switch live in the Playout panel, so nothing here repeats them. */
 export default function PlayoutSettingsDialog({
-  onClose, setup, casparRelevant, browserUrl, onChooseOutput, onCopyBrowser,
-  onDownloadTemplate, copied, outputUrl, onOutputOnAir,
+  onClose, show, setShows, casparOn, outputUrl, onOutputOnAir,
 }: {
   onClose: () => void;
-  setup?: ProductionOutputSetup;
-  casparRelevant: boolean;
-  browserUrl: string | null;
-  onChooseOutput: () => void;
-  onCopyBrowser: () => void;
-  onDownloadTemplate: () => void;
-  copied: boolean;
+  show: Show;
+  setShows: (shows: Show[]) => void;
+  casparOn: boolean;
   outputUrl: string | null;
   onOutputOnAir?: (result: PlayoutResult, target: string) => void;
 }) {
@@ -36,26 +35,14 @@ export default function PlayoutSettingsDialog({
         <button className="gallery-close" onClick={onClose} title="Close" data-testid="playout-settings-close">✕</button>
       </div>
       <div className="settings-content">
-        <section>
-          <p className="dlg-caption">This production</p>
-          <div className="pd-output-setup" data-testid="settings-production-output">
-            <strong>{setup ? outputSetupLabel(setup) : 'Existing output setup'}</strong>
-            <button onClick={onChooseOutput} data-testid="settings-change-output">Change output…</button>
-          </div>
-        </section>
-        <section>
-          <p className="dlg-caption">Browser source</p>
-          <p className="hint">OBS, vMix and other HTML sources</p>
-          {browserUrl ? <div className="dlg-pair">
-            <input readOnly value={browserUrl} aria-label="Browser source URL" data-testid="settings-browser-url" />
-            <button onClick={onCopyBrowser}>{copied ? 'Copied' : 'Copy URL'}</button>
-          </div> : <p className="hint">Publish &amp; check readiness to get the URL.</p>}
-          <button disabled={!browserUrl} onClick={onDownloadTemplate} data-testid="settings-spx-template">Download SPX template</button>
-        </section>
-        {casparRelevant && <section>
+        {casparOn && <section>
           <p className="dlg-caption">CasparCG through NoaCG Bridge</p>
           <PlayoutSettingsPanel outputUrl={outputUrl} onOutputOnAir={onOutputOnAir} />
         </section>}
+        <section>
+          <p className="dlg-caption">Rundown colours</p>
+          <AccountAuthoringGate><RundownColors show={show} settings={loadPlayoutSettings()} casparOn={casparOn} setShows={setShows} /></AccountAuthoringGate>
+        </section>
       </div>
     </div>
   </div>;

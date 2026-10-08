@@ -16,7 +16,7 @@
 // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
 // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
 // header door and the Back/Home pair beside it.
-// covers: src/{components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx,control/playoutSystems.ts}
+// covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
 //
 // THE PRODUCTION PAGE AS PICTURES (docs/CLIP_PLAYBACK_PLAN.md §10). The stylesheet is CORE, so a
 // CSS change reaches no covers line and runs the focus set instead; without the baselines here, a
@@ -186,7 +186,7 @@ for (const size of SIZES) {
     // A lower third on air, then the scoreboard selected: PREVIEW, PROGRAM and the long editor.
     await rows.nth(2).getByTestId('select-cue').click();
     await page.getByTestId('verb-take').click();
-    // Not started, so the take plays on the page only: UP, never ON AIR, beside PREVIEW · NOT LIVE.
+    // Not started, so the take plays on the page only: UP, never ON AIR, beside PROGRAM · NOT PUBLISHED.
     await expect(rows.nth(2).getByTestId('cue-up-here')).toHaveText('UP');
     await expect(rows.nth(2)).not.toContainText('ON AIR');
     await rows.nth(0).getByTestId('select-cue').click();

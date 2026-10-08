@@ -9,10 +9,12 @@
 // focus set, like the fixed-panes spec.
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 //
-// PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
-// the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
-// header door and the Back/Home pair beside it.
-// covers: src/{components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx,control/playoutSystems.ts}
+// PLAYOUT SETTINGS from the production header: the dialog and the form it shares with Settings.
+// bridge-connect drives the form through a fake Bridge; playout-nav owns the doors (Setup ›
+// Playout settings…, and the Playout panel's Pair once CasparCG is switched on) and the Back/Home
+// pair beside them.
+// covers: src/components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx
+// covers: src/components/home/{PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
@@ -25,9 +27,9 @@ import { awaitDurableReady, settleDurableWrites } from './_durable';
 // to go back to (src/app/router.ts, in-app history depth). Home always goes to the dashboard.
 // Every road in here starts from Home or a saved production; none of it opens the editor.
 //
-// Playout settings sit on the page itself: one door in the header, with a status dot, opening the
-// SAME form Settings -> Playout shows (PlayoutSettingsPanel) - a second door onto one stored
-// record, never a second copy of it.
+// Playout settings sit on the page itself: a door in the header's Setup menu, opening the SAME
+// form Settings -> Playout shows (PlayoutSettingsPanel) - a second door onto one stored record,
+// never a second copy of it.
 
 /** A production seeded through the model, for the pages that open it by URL. */
 async function seededProduction(page: Page): Promise<string> {
@@ -95,28 +97,36 @@ test('a production opened cold goes Back to the productions list, since there is
   await expect(tab).toHaveURL(/#\/home\/productions$/);
 });
 
-test('the Playout panel opens Playout settings: the same form as Settings, saved to the same place', async ({ page, context }) => {
+test('the production page opens Playout settings: the same form as Settings, saved to the same place', async ({ page, context }) => {
   const id = await seededProduction(page);
   const tab = await context.newPage();
   await tab.goto(`/app#/production/${id}`);
   await expect(tab.getByTestId('production-page')).toBeVisible();
 
-  // Browser productions show their output settings without a disconnected-server form.
+  // A browser production's panel has no disconnected-server form: CasparCG is switched off.
   await tab.getByTestId('production-status').click();
-  await expect(tab.getByTestId('playout-setup-summary')).toHaveCount(0);
-  const door = tab.getByTestId('playout-settings-open');
-  await expect(door).toHaveText('Playout settings…');
-  await door.click();
+  const panel = tab.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('caspar-switch')).not.toBeChecked();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveCount(0);
+  await tab.keyboard.press('Escape');
 
-  const dialog = tab.getByTestId('playout-settings');
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText('OBS, vMix');
-  await expect(dialog.getByTestId('caspar-host')).toHaveCount(0);
-  await dialog.getByTestId('settings-change-output').click();
-  await tab.getByTestId('output-profile').selectOption('casparcg');
-  await tab.getByTestId('confirm-output').click();
+  // Setup › Playout settings… opens the dialog; with CasparCG off it holds no server form.
   await tab.getByTestId('production-setup').click();
   await tab.getByTestId('setup-playout-settings').click();
+  const dialog = tab.getByTestId('playout-settings');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('rundown-colors')).toBeVisible();
+  await expect(dialog.getByTestId('caspar-host')).toHaveCount(0);
+  await dialog.getByTestId('playout-settings-close').click();
+
+  // The per-production switch replaces the output chooser (playout-workflow-simplification AC-4).
+  // On, with no Bridge paired, the panel offers Download and Pair (D8), and Pair opens the same
+  // dialog, now with its CasparCG section.
+  await tab.getByTestId('production-status').click();
+  await panel.getByTestId('caspar-switch').click();
+  await expect(panel.getByTestId('caspar-switch')).toBeChecked();
+  await expect(panel.getByTestId('bridge-download')).toHaveAttribute('href', '/downloads#bridge');
+  await panel.getByTestId('bridge-pair').click();
   await expect(dialog).toContainText('CasparCG through NoaCG Bridge');
   await expect(dialog.getByTestId('bridge-download')).toHaveAttribute('href', '/downloads#bridge');
 

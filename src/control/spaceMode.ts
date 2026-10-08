@@ -57,18 +57,17 @@ export function spaceActionTable(): Record<SpaceMode, [SpaceAction, SpaceAction,
 
 /** The TAKE button's words for each action. The `SPACE` key chip is rendered beside `text`. */
 export const SPACE_FACES: Record<SpaceAction, { text: string; title: string }> = {
-  'take-off': { text: '■ TAKE OFF', title: 'Take this cue OFF air. SPACE does the same' },
+  'take-off': { text: '■ TAKE OFF', title: 'Take this cue off' },
   // Amber on every surface, never red: red means "this puts something on air", and this press
   // does not.
-  preview: { text: '→ PREVIEW', title: 'Show the selected cue on PREVIEW, nothing airs. SPACE again takes it to air' },
-  take: { text: '⟳ TAKE', title: 'Air the previewed cue' },
+  preview: { text: '→ PREVIEW', title: 'Show the selected cue on PREVIEW. SPACE again takes it' },
+  take: { text: '⟳ TAKE', title: 'Take the previewed cue' },
 };
 
 /** The checkbox's tooltip: the two modes as presses, never as their internal names. */
 export const SPACE_MODE_TITLE =
-  'Checked: walking the rundown previews nothing. SPACE puts the selected cue on PREVIEW, ' +
-  'SPACE again airs it, and SPACE on a cue that is on air takes it off and leaves it on PREVIEW. ' +
-  'Unchecked: selecting a cue previews it and SPACE airs it.';
+  'Checked: SPACE puts the selected cue on PREVIEW, and SPACE again takes it. ' +
+  'Unchecked: selecting a cue previews it and SPACE takes it.';
 
 /** What the PREVIEW label reads in 'preview-then-take' mode before SPACE has put anything there. */
 export const PREVIEW_EMPTY_LABEL = 'nothing in preview';

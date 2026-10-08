@@ -356,6 +356,8 @@ export interface ReadySummary {
   preparing?: boolean;
   /** The first output naming a graphic that cannot play: its headline, and the short form. */
   broken?: { line: string; short: string } | null;
+  /** The name of the first expected output gone long enough to count as lost. */
+  lost?: string;
 }
 
 export interface ReadinessView {
@@ -525,7 +527,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
       advice:
         chg && chg.s === 'waiting'
           ? `v${published.n} is prepared, but ${plural(chg.air ?? 1, 'graphic')} ${chg.air === 1 ? 'is' : 'are'} on air here. Preparation resumes automatically after all graphics are off air. Keep running the current prepared cues while output and connection checks stay green.`
-          : `v${published.n} is published. A deferred preparation retries automatically. Check readiness to request a fresh check.`,
+          : `v${published.n} is published. A deferred preparation retries automatically. Check now asks again.`,
     });
   }
   for (const d of degraded) problems.push({ line: d.line, advice: [d.advice] });
@@ -622,6 +624,7 @@ export function describeReadiness(input: {
   const broken = firstBroken
     ? { line: headline(firstBroken), short: total > 1 ? `${firstBroken.name}: ${firstBroken.broken}` : firstBroken.broken! }
     : null;
+  const lost = lines.find((l) => l.gone && l.tone === 'bad')?.name;
   /** The line is the dot, the deciding words (`lead`) and, red, the count. */
   const summary = (tone: ReadyTone, lead: string, short: string, { suffix = '', preparing = false } = {}): ReadinessView => ({
     summary: {
@@ -636,6 +639,7 @@ export function describeReadiness(input: {
       lead,
       preparing,
       broken,
+      lost,
     },
     outputs: lines,
   });

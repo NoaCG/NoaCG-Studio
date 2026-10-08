@@ -219,7 +219,8 @@
 /* Cloud sync control (components/SyncStatus): a fixed-width "Sync" whose DOT carries the state -
    green saved, yellow waiting or a problem, grey device-only - and whose details open on a press.
    The word never changes, so nothing beside it in a bar moves when the state does. */
-.sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; }
+/* Its width fits the longest word ("Not synced"), so a change of state never moves the header. */
+.sync-status { display: inline-flex; align-items: center; gap: 6px; min-width: 7.8em; font-size: 12px; padding: 4px 10px; white-space: nowrap; }
 .sync-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
 .sync-dot[data-tone="ok"] { background: var(--ok); }
 .sync-dot[data-tone="warn"] { background: var(--warn); }

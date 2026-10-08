@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { asSpaceMode, SPACE_FACES, spaceAction, type SpaceAction, type SpaceMode } from '../control/spaceMode';
 import { loadPrefs, savePrefs } from '../model/prefs';
-import { cueShortcutBindings, normalizeCueShortcut } from '../model/cueShortcuts';
+import { cueShortcutBindings, normalizeCueShortcut, pressIdentities } from '../model/cueShortcuts';
 import type { ShowCue } from '../model/shows';
 
 /**
@@ -132,17 +132,18 @@ function textSelected(): boolean {
 /** Verbs a held key fires once, not once per auto-repeat: each press means the opposite of the last. */
 const NO_REPEAT = new Set<PlayoutVerb>(['take', 'retake', 'update', 'next', 'out', 'trigger-cue', 'pause-toggle', 'hold']);
 
+/** The operator's own keys, by character: no cue shortcut may take one, with or without Shift. */
+export const VERB_KEYS: ReadonlySet<string> = new Set(Object.keys(KEY_MAP));
+
 export function cueShortcutReserved(key: string): boolean {
   return !normalizeCueShortcut(key) || !!KEY_MAP[key.replace('shift+', '')];
 }
 
-export function useCueShortcutSet(cues: readonly Pick<ShowCue, 'id' | 'hotkey'>[], productionId: string) {
-  const current = JSON.stringify(cueShortcutBindings(cues));
-  const [held, setHeld] = useState({ productionId, value: current });
-  if (held.productionId !== productionId) setHeld({ productionId, value: current });
-  const value = held.productionId === productionId ? held.value : current;
-  const parsed = JSON.parse(value) as ReturnType<typeof cueShortcutBindings>;
-  return { ...parsed, changed: value !== current, apply: () => setHeld({ productionId, value: current }) };
+/** The rundown's cue shortcuts, live: an assignment works the moment it is saved, here and on the
+ *  hosted page (playout-workflow-simplification AC-11). The focus, modal, menu and view guards in
+ *  `usePlayoutVerbKeys` are what keep a key from firing by accident, not a second press. */
+export function useCueShortcutSet(cues: readonly Pick<ShowCue, 'id' | 'hotkey'>[]) {
+  return useMemo(() => cueShortcutBindings(cues), [cues]);
 }
 
 /**
@@ -169,19 +170,20 @@ export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.isComposing || e.getModifierState('AltGraph') || document.querySelector('[aria-modal="true"]')) return;
       if (typingInto(e.target)) return;
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
-        const verb = MOD_MAP[e.key.toLowerCase()];
-        if (!verb || textSelected()) return;
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && MOD_MAP[e.key.toLowerCase()]) {
+        if (textSelected()) return;
         e.preventDefault();
-        if (!e.repeat) onKey(verb, { repeat: false });
+        if (!e.repeat) onKey(MOD_MAP[e.key.toLowerCase()], { repeat: false });
         return;
       }
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      let verb = KEY_MAP[e.key.toLowerCase()];
+      // The operator's verb keys come first, unmodified; everything else may be a cue shortcut,
+      // matched by the key's position with its Ctrl, Alt and Shift (D13), or by the character for
+      // a shortcut saved before positions were (`v`, `shift+f`).
+      let verb = e.ctrlKey || e.metaKey || e.altKey ? undefined : KEY_MAP[e.key.toLowerCase()];
       if (!verb) {
-        if (document.querySelector('[role="menu"]')) return;
-        const key = `${e.shiftKey ? 'shift+' : ''}${e.key.toLowerCase()}`;
-        const cue = !cueShortcutReserved(key) ? shortcuts[key] : undefined;
+        if (e.metaKey || document.querySelector('[role="menu"]')) return;
+        const ids = pressIdentities({ code: e.code, key: e.key, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey });
+        const cue = ids.filter((id) => id.includes('@') || !cueShortcutReserved(id)).map((id) => shortcuts[id]).find(Boolean);
         if (cue) { e.preventDefault(); if (!e.repeat) onKey('trigger-cue', { repeat: false, cue }); }
         return;
       }

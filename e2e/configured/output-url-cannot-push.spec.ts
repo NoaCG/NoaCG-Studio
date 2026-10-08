@@ -81,7 +81,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
 
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-  const links = page.getByTestId('production-links');
+  const links = page.getByTestId('production-status-panel');
   await expect(links).toBeVisible();
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();

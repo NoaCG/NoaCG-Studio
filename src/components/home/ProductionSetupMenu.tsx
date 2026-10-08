@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import LibMenu from './LibMenu';
 import { routeHash } from '../../app/router';
-import { IconDownload, IconSliders, IconUsers } from '../icons';
+import { IconDownload, IconLink, IconSliders, IconUsers } from '../icons';
 import { panelTone, panelToneWords, type PanelAnswerState } from '../control/PanelControl';
 
 /**
@@ -25,6 +25,7 @@ export function ProductionSetupMenu({
   team,
   panel,
   onPanel,
+  onLinks,
   onPlayoutSettings,
   onExport,
   offerData,
@@ -36,6 +37,9 @@ export function ProductionSetupMenu({
   team?: { name: string; detail?: string; open: () => void };
   panel: PanelAnswerState;
   onPanel: () => void;
+  /** The control page, presenter and audience links (home/ProductionLinks.tsx). Absent in a build
+   *  that cannot publish, where there are no links to show. */
+  onLinks?: () => void;
   onPlayoutSettings: () => void;
   onExport: () => void;
   /** The Data view is not in the switcher, so the menu is its way in. */
@@ -71,7 +75,6 @@ export function ProductionSetupMenu({
         className="pd-setup"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Setup: share, the Stream Deck panel, playout settings, export, data and audience"
         onClick={() => setOpen((o) => !o)}
         data-testid="production-setup"
       >
@@ -83,18 +86,22 @@ export function ProductionSetupMenu({
           <button
             role="menuitem"
             onClick={pick(onShare)}
-            title="Share this production with a team, so everyone works on it from their own account"
+            title="Share with a team"
             aria-label="Share"
             data-testid="share-with-team"
           >
             <IconUsers /> Share…
           </button>
         )}
+        {onLinks && (
+          <button role="menuitem" onClick={pick(onLinks)} data-testid="setup-links">
+            <IconLink /> Links…
+          </button>
+        )}
         <button
           role="menuitem"
           className={`pd-target-${tone}`}
           onClick={pick(onPanel)}
-          title={`Hardware panels (Stream Deck through Companion). ${words}.`}
           aria-label={`Hardware panels (${words})`}
           data-testid="panel-open"
           data-state={tone}
@@ -106,7 +113,6 @@ export function ProductionSetupMenu({
         <button
           role="menuitem"
           onClick={pick(onPlayoutSettings)}
-          title="Production outputs and their settings"
           data-testid="setup-playout-settings"
         >
           <IconSliders /> Playout settings…
@@ -114,7 +120,6 @@ export function ProductionSetupMenu({
         <button
           role="menuitem"
           onClick={pick(onExport)}
-          title="Export this production as a package"
           aria-label="Export…"
           data-testid="export-production"
         >
@@ -122,9 +127,9 @@ export function ProductionSetupMenu({
         </button>
         {(offerData || offerAudience) && <div className="pd-setup-sep" role="separator" />}
         {offerData &&
-          view('data', 'Add data source…', 'setup-data', 'Open Data in a new tab: tables and live values your graphics can read')}
+          view('data', 'Add data source…', 'setup-data', 'Tables and live values your graphics can read')}
         {offerAudience &&
-          view('audience', 'Turn on audience…', 'setup-audience', 'Open Audience in a new tab: questions, votes and the join page')}
+          view('audience', 'Turn on audience…', 'setup-audience', 'Questions, votes and the join page')}
       </LibMenu>
     </span>
   );

@@ -20,7 +20,7 @@ function ServerStill({ thumb, testId }: { thumb: string | null; testId: string }
   return (
     <>
       <img className="pd-frame-still" src={thumb} alt="" data-testid={`${testId}-still`} />
-      <span className="pd-still-tag" title="A still picture of the clip. The server plays the video; this page never shows it moving." data-testid={`${testId}-still-tag`}>
+      <span className="pd-still-tag" title="A still of the clip. The server plays the video." data-testid={`${testId}-still-tag`}>
         STILL
       </span>
     </>
@@ -59,6 +59,7 @@ export default function PlayoutMonitors({
   onReady,
   onOverflow,
   live = false,
+  graphicsAir = live,
   programChip = null,
 }: {
   /** The production's stage: both monitors' shape, never the selected cue's. */
@@ -96,6 +97,8 @@ export default function PlayoutMonitors({
    *  NoaCG Bridge (which plays whether or not it is). Otherwise a Take plays on this monitor only,
    *  and the monitor must not call itself on air. */
   live?: boolean;
+  /** A graphic's Take reaches air: the production is published. Absent, it follows `live`. */
+  graphicsAir?: boolean;
   /** The timed cue's countdown that fires soonest, over PROGRAM (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1). */
   programChip?: ReactNode;
 }) {
@@ -220,7 +223,7 @@ export default function PlayoutMonitors({
               <ServerStill thumb={previewThumb} testId="preview" />
               <p className="hint pd-frame-server-name">{previewServer.name}</p>
               {previewServer.kind === 'media' && lengthText(previewSeconds) && (
-                <span className="pd-frame-length" title="The clip's length" data-testid="preview-length">
+                <span className="pd-frame-length" data-testid="preview-length">
                   {lengthText(previewSeconds)}
                 </span>
               )}
@@ -238,13 +241,14 @@ export default function PlayoutMonitors({
       {/* ON AIR ONLY WHEN IT IS (docs/work-specs/studio-day-playout AC-9; owner, 2026-10-01). A
           production that is not started keeps every verb on this page, so its Takes land here and
           nowhere else; calling the monitor PROGRAM · ON AIR then is how an operator once believed
-          a show was live that was not. Not started, it reads PREVIEW · NOT LIVE in grey - unless
-          a server clip is up, which NoaCG Bridge airs either way, and then it is on air. */}
+          a show was live that was not. Not published, it reads PROGRAM · NOT PUBLISHED in grey
+          (playout-workflow-simplification AC-7) - unless a server clip is up, which NoaCG Bridge
+          airs either way, and then it is on air. */}
       <div className={`pd-monitor pd-pgm${live ? '' : ' pd-pgm--not-live'}`} data-live={live ? 'true' : 'false'} data-testid="program-monitor">
         <h2>
           <span className="pd-dot" aria-hidden="true" />
           <span className="pd-monitor-name" data-testid="program-monitor-name">
-            {live ? 'PROGRAM · ON AIR' : 'PREVIEW · NOT LIVE'}
+            {live ? 'PROGRAM · ON AIR' : 'PROGRAM · NOT PUBLISHED'}
           </span>
           {/* The names can run past the monitor's width and end in an ellipsis, so the title
               carries them whole. The badge names EVERY live layer, in the names' order: with a
@@ -252,7 +256,9 @@ export default function PlayoutMonitors({
           {/* With only server cues up the badge beside it names them; "nothing on air" would not
               be true of a clip playing on the server. */}
           <span className="pd-what" title={liveLayers.map((l) => `${l.label} (layer ${l.layer})`).join(', ')}>
-            {liveLayers.length > 0 ? liveLayers.map((l) => l.label).join(' · ') : serverLayers.length > 0 ? '' : 'nothing on air'}
+            {liveLayers.length > 0
+              ? `${live && !graphicsAir ? 'up here: ' : ''}${liveLayers.map((l) => l.label).join(' · ')}`
+              : serverLayers.length > 0 ? '' : 'nothing on air'}
           </span>
           {liveLayers.length > 0 && (
             <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
@@ -262,7 +268,7 @@ export default function PlayoutMonitors({
           {serverLayers.length > 0 && (
             <span
               className="pd-layer-badge pd-server-badge"
-              title="Playing on the playout server through NoaCG Bridge. A clip shows here as its still picture, never its moving video."
+              title="Playing on the playout server through NoaCG Bridge."
               data-testid="playout-on-air"
             >
               server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}

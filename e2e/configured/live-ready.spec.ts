@@ -12,7 +12,7 @@ import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow, unpublishFromPanel } from './_helpers';
+import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow, unpublishForCleanup } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -94,7 +94,9 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   const panel = page.getByTestId('production-status-panel');
   await expect(panel.getByTestId('ready-output')).toHaveCount(1);
   await expect(panel).toContainText('Desk A');
-  await expect(panel).toContainText('Holds v1');
+  // The row says its state; which version it holds is in its tooltip (playout-workflow-simplification D5).
+  await expect(panel.getByTestId('ready-state')).toHaveText('Ready for playout');
+  await expect(panel.getByTestId('ready-output')).toHaveAttribute('title', /Holds v1/);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.screenshot({ path: shot('desk-1920-panel') });
   await desk.click();
@@ -131,10 +133,8 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   //    says so. (With nothing on air every publish now moves it onto the new version by itself:
   //    docs/work-specs/studio-day-playout AC-10, e2e/configured/playout-status.spec.ts.) ──
   await addCatalogGraphic(page, showId, 'Hairline');
-  await page.getByTestId('production-status').click();
-  await page.getByTestId('prepare-for-live-button').click();
+  await page.getByTestId('production-publish-changes').click();
   await expect.poll(async () => (await stampOf())?.n, { timeout: 30_000 }).toBe(2);
-  await page.getByTestId('production-status').click();
   await expect(desk).toHaveAttribute('data-ready-label', /Behind: showing v1/, { timeout: 30_000 });
   await expect(phoneLine.locator('.pd-health-full')).toContainText('Behind: showing v1', { timeout: 30_000 });
   await page.screenshot({ path: shot('desk-behind'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
@@ -185,7 +185,7 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await page.getByTestId('ready-forget').click();
   await expect(desk).not.toHaveAttribute('data-tone', 'bad', { timeout: 10_000 });
 
-  await unpublishFromPanel(page);
+  await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);

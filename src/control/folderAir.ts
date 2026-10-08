@@ -23,6 +23,8 @@ export interface FolderAir {
   total: number;
   /** Its cues on air now, in rundown order, by the same rule every row's ON AIR follows. */
   onAir: readonly string[];
+  /** Of those, the graphics up on this page only, before the first publish (D12); absent when none. */
+  upHere?: number;
   /** `partial`: All together with only part of it up. A One-by-one or Play-through folder with any of
    *  it up is `on`. */
   lit: 'off' | 'on' | 'partial';
@@ -47,6 +49,9 @@ export interface FolderAirInput {
   /** Which cue is on air on each graphic's layer, by graphic name. */
   liveCue: Readonly<Record<string, string>>;
   graphicName: (cue: ShowCue) => string | null;
+  /** The production is published, so a graphic's Take reaches air. False, a graphic that is up plays
+   *  on this page only and is counted in `upHere`. Absent reads as published. */
+  graphicsAir?: boolean;
 }
 
 /** Whether one cue is on air: a server cue by what this page has up on the server, a graphic by its
@@ -83,7 +88,8 @@ export function folderAir(input: FolderAirInput): Readonly<Record<string, Folder
     const lit = !onAir.length ? 'off' : mode === 'together' && onAir.length < members.length ? 'partial' : 'on';
     const ids = new Set(members.map((c) => c.id));
     const stopped = mode === 'through' && input.ownership.unidentified.some((u) => u.sequenceStopped && !!u.cueId && ids.has(u.cueId));
-    out[folder.id] = { mode, total: members.length, onAir: onAir.map((c) => c.id), lit, following, looping, ...(slot ? { slot } : {}), stopped };
+    const upHere = input.graphicsAir === false ? onAir.filter((c) => c.source !== 'playout').length : 0;
+    out[folder.id] = { mode, total: members.length, onAir: onAir.map((c) => c.id), ...(upHere ? { upHere } : {}), lit, following, looping, ...(slot ? { slot } : {}), stopped };
   }
   return out;
 }
@@ -96,10 +102,26 @@ const cues = (n: number) => `${n} cue${n === 1 ? '' : 's'}`;
  * and `NOT TAKEN` when the last Take of it put nothing up (`missed` of its cues failed), so a
  * collapsed folder never hides a failure.
  */
-export function folderAirWords(air: FolderAir | undefined, missed: number): { tag: string; tone: 'air' | 'part' | 'miss'; title: string } | null {
+export function folderAirWords(air: FolderAir | undefined, missed: number): { tag: string; tone: 'air' | 'part' | 'miss' | 'up'; title: string } | null {
   if (!air) return null;
   const up = air.onAir.length;
   if (!up) return missed ? { tag: 'NOT TAKEN', tone: 'miss', title: 'The last Take of this folder put nothing on air. Each cue says why.' } : null;
+  // Before the first publish a graphic plays on this page only (playout-workflow-simplification
+  // D12). A folder with only such graphics up reads UP, as their rows do. Once anything in it airs
+  // (a server cue does either way) it keeps its usual short ON AIR words, which leave the folder's
+  // name the room it had, and the tooltip says how many are only up here.
+  const local = Math.min(air.upHere ?? 0, up);
+  const here = `${cues(local)} up on this page only: the production is not published.`;
+  if (local === up) {
+    const tag = air.mode === 'together' && up < air.total ? `${up} OF ${air.total} UP` : air.mode === 'manual' ? `${up} UP` : 'UP';
+    return { tag, tone: 'up', title: here };
+  }
+  const words = onAirWords(air, up);
+  return local ? { ...words, title: `${words.title} ${here}` } : words;
+}
+
+/** A folder's words while something of it is on air: `up` of its cues are. */
+function onAirWords(air: FolderAir, up: number): { tag: string; tone: 'air' | 'part'; title: string } {
   if (air.mode === 'through') {
     const where = air.slot ?? 'its slot';
     const title = air.looping

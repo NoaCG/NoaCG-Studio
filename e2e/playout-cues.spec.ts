@@ -326,7 +326,7 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   await expect(cue).not.toContainText('ON AIR');
   await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'out', slot: { adapter: 'casparcg', channel: 1, layer: 10 }, item: { kind: 'media', name: 'GIORNO' } });
   await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
-  await expect(page.getByTestId('program-monitor-name')).toHaveText('PREVIEW · NOT LIVE');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · NOT PUBLISHED');
 });
 
 test('a deep media library is browsed folder by folder, a long name gives way, and Add never leaves the popover', async ({ page }) => {
@@ -558,7 +558,7 @@ test('an audio file plays on its own layer, 5, below the clips, and a still offe
   await addClip(page, 'GIORNO');
   await expect(page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('cue-layer')).toHaveText('1-10');
   await addClip(page, 'LOGO');
-  await expect(page.getByTestId('clip-end-still')).toHaveText('A still has no end: it holds until Out.');
+  await expect(page.getByTestId('clip-end-still')).toHaveText('Holds until Out');
   await expect(page.getByTestId('clip-end')).toHaveCount(0);
 });
 

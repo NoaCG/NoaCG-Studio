@@ -3,12 +3,11 @@
 // and the server's library, only for the kinds the rundown cues. Nothing is played, stopped or
 // changed. The words are prepareLive.ts `bridgeChecks`.
 
-import { hasCasparOutput } from '../model/outputSetup';
 import type { Show } from '../model/shows';
 import { listLibrary, playoutConfigured, readState, testConnection, type PlayoutSettings } from './playoutLink';
 import type { BridgeFacts } from './prepareLive';
 
-export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Show, 'cues' | 'playoutItems' | 'outputSlug' | 'outputSetup'>, relevance = { bridge: true, slot: true }): Promise<BridgeFacts> {
+export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Show, 'cues' | 'playoutItems' | 'outputSlug'>, relevance = { bridge: true, slot: true }): Promise<BridgeFacts> {
   const items = (show.cues ?? [])
     .filter((c) => c.source === 'playout')
     .map((c) => (show.playoutItems ?? []).filter((i) => i.id === c.sourceId)[0])
@@ -16,8 +15,10 @@ export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Sh
     .map((i) => ({ kind: i.kind, name: i.name }));
   const base: BridgeFacts = {
     configured: relevance.bridge && playoutConfigured(settings),
-    required: relevance.bridge && ((show.cues ?? []).some(c => c.source === 'playout') || hasCasparOutput(show.outputSetup)),
-    outputRequired: hasCasparOutput(show.outputSetup),
+    // `relevance.bridge` is the production's CasparCG switch (playout-workflow-simplification AC-4):
+    // switched on, the Bridge is required and Publish loads the output onto its slot.
+    required: relevance.bridge,
+    outputRequired: relevance.bridge,
     missingItems: (show.cues ?? []).some(c => c.source === 'playout' && !(show.playoutItems ?? []).some(i => i.id === c.sourceId)),
     outputExpected: relevance.slot,
     status: null,

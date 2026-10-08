@@ -228,10 +228,12 @@ Phase 1 is built - manual, local, no API.
   table under them (docs/PLAYOUT_DASHBOARD.md §2d, one surface over).
 - **ProductionPage is being SPLIT, read-only pieces first** (docs/backlog/production-page-phases.md
   carries the state map and the phases still to run). Out already: `home/ProductionLinks.tsx`
-  (the Playout panel's links and publish actions, with `LinkRow` and `BridgeAirRow`),
+  (Setup › Links…, the production's private and public addresses),
   `home/PlayoutStatusControl.tsx` (the header's playout status and its panel shell; the words are
-  `control/playoutStatus.ts`, plain and tested in Node), `home/ActionLog.tsx` (the wire-log
-  readout) and `home/CueOverflowNote.tsx` (the too-long line, plus `cueOverflowKeys` - the pure
+  `control/playoutStatus.ts`, plain and tested in Node), `home/PlayoutPanel.tsx` (the panel's
+  sections: problems, outputs, the browser source, CasparCG and its Load/Unload),
+  `home/ActionLog.tsx` (the wire-log readout) and `home/CueOverflowNote.tsx` (the too-long
+  line, plus `cueOverflowKeys` - the pure
   program-or-preview choice the page still needs for the field marks), which are pure READOUTS
   that hold no state and send nothing. Then `home/CueRundown.tsx` (the rail, owning only its menus
   and pickers), `home/PlayoutMonitors.tsx` (PREVIEW's frame and PROGRAM, with `programRef` handed
@@ -241,9 +243,8 @@ Phase 1 is built - manual, local, no API.
   part they never do, so a clock ticking twice a second cannot re-render the page.
   **What may NOT move: `liveCue` and `selectedCueId`.** `liveCue` is a map keyed by graphic name
   and Take airs the selected cue's LAYER out of it, so splitting either across two owners changes
-  what goes on air. That is why the Playout panel's MARKUP moved and its state did not -
-  `unpublish` writes `setLiveCue({})`, so the values read nowhere else on the page still cannot
-  travel with the panel they belong to.
+  what goes on air. That is why the Playout panel's MARKUP moved and its state did not: the
+  panel's Load and Publish run through the page's verbs, so the values stay where Take reads them.
 - **ProductionPage owns the tree**, not the workspace - the one sender (`runVerb`) lives there and
   the Data tab unmounts the playout surface, so an edit made on Data would otherwise have no route
   to air. It holds the state, resolves bindings, diffs against what was last sent, and dispatches

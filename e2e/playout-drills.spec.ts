@@ -160,18 +160,18 @@ test('an edit to the cue that is on air says it has not been sent yet', async ({
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
   await page.getByTestId('verb-take').click();
   const unsent = page.getByTestId('cue-unsent');
-  await expect(unsent).toContainText('changes push live on');
+  await expect(unsent).toBeEmpty();
 
   // Type into the live cue: air is now behind the screen, and the surface says so.
   await page.getByTestId('cue-field-f0').fill('Not sent yet');
-  await expect(unsent).toContainText('not on air yet');
+  await expect(unsent).toContainText('not on PROGRAM yet');
   await expect(page.getByTestId('verb-update')).toHaveClass(/pd-unsent/);
   // …and it is telling the truth — air still shows the previous value.
   await expect(program.locator('#f0')).not.toHaveText('Not sent yet');
 
   await page.getByTestId('verb-update').click();
   await expect(program.locator('#f0')).toHaveText('Not sent yet');
-  await expect(unsent).toContainText('changes push live on');
+  await expect(unsent).toBeEmpty();
   await expect(page.getByTestId('verb-update')).not.toHaveClass(/pd-unsent/);
 });
 
@@ -195,7 +195,7 @@ test('an unsent edit to the on-air cue is still said on its rundown row after an
   await expect(rows.first().getByTestId('cue-unsent-mark')).toBeVisible();
   // Walk off the on-air cue: the editor's line goes with it, the row's mark stays.
   await rows.nth(1).click();
-  await expect(page.getByTestId('cue-editor')).not.toContainText('not on air yet');
+  await expect(page.getByTestId('cue-editor')).not.toContainText('not on PROGRAM yet');
   await expect(rows.first().getByTestId('cue-unsent-mark')).toBeVisible();
 
   // Back on it, ✎ Update sends the edit and the mark comes down.

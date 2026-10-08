@@ -118,7 +118,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await expect(score(page).locator('#f1')).toHaveText('4');
   await expect(score(page).locator('#f2')).toHaveText('0');
   await page.getByTestId('cue-field-f0').fill('Ilves');
-  await expect(page.getByTestId('cue-unsent')).toContainText('not on air yet');
+  await expect(page.getByTestId('cue-unsent')).toContainText('not on PROGRAM yet');
   await page.getByTestId('verb-update').click();
   await expect(score(page).locator('#f0')).toHaveText('Ilves');
   // PREVIEW shows the selected cue as a Take would air it, so it follows every figure too.
@@ -144,7 +144,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await page.getByTestId('action-log').locator('summary').click();
   await expect(page.getByTestId('action-log-row')).toHaveCount(0);
   await expect(page.getByTestId('action-log-empty')).toHaveText(
-    /not published, so the list starts empty each time the page opens/,
+    /Not published, so the list starts empty each time the page opens/,
   );
   await shot(page, '2-after-reload');
   await selectCue(page, 'Team score');
@@ -169,7 +169,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   // ✎ Update is data only, so new words typed over a reveal would air under the old verdict.
   // The note names the state Update keeps and points at Re-take.
   await page.getByTestId('cue-field-f0').fill('Which planet is the largest?');
-  await expect(page.getByTestId('cue-unsent')).toContainText('Update keeps Reveal on air');
+  await expect(page.getByTestId('cue-unsent')).toContainText('Update keeps Reveal up');
   await expect(page.getByTestId('verb-update')).toHaveAttribute('title', 'Sends the values. Stays on Reveal.');
 
   // ── NEXT QUESTION: a copy of the quiz cue, a new key, taken over the revealed one. ──

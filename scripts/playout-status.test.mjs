@@ -1,8 +1,8 @@
 // guards: src/control/playoutStatus.ts, src/model/readyMemory.ts
 //
-// ONE STATUS BEFORE TAKE (docs/work-specs/studio-day-playout AC-7). Every state the header control
-// can show, the colour the owner gave it (grey offline, amber attention, green healthy, red broken),
-// the short text beside the colour, and that the check deciding it comes first in the panel.
+// ONE STATUS BEFORE TAKE (docs/work-specs/playout-workflow-simplification AC-2). Every state the
+// header control can show, its colour (grey quiet, green connected, amber attention, red lost or
+// broken), the short text beside it, and that the check deciding it comes first in the panel.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,135 +34,78 @@ test('CasparCG activity survives readiness-memory writes and only applies to its
   }
 });
 
+
 const OK_BRIDGE = { state: 'ok', detail: '', version: '2.5.0 69e8ad5 Stable' };
 const ours = { where: '1-20', channel: 1, holds: 'ours' };
 // READY's summaries in the shape describeReadiness gives them (scripts/readiness.test.mjs pins
-// `lead`, `preparing` and `broken` there).
+// `lead`, `preparing`, `broken` and `lost` there).
 const readyOne = { tone: 'ok', label: '● Ready for playout · 1 of 1 output', lead: 'Ready for playout · 1 of 1 output', outputs: 1, ready: 1 };
 
-test('unsupported native cue settings override a ready graphics output', () => {
-  const result = describePlayoutStatus({ started: true, unpublished: false, version: 'v1', bridge: null, ready: readyOne,
-    playbackCheck: { key: 'playback', tone: 'bad', label: 'Photo cannot Take', short: 'Cue settings unavailable', advice: 'Update NoaCG Bridge or choose Stretch.' } });
-  assert.equal(result.tone, 'bad');
-  assert.equal(result.text, 'Cue settings unavailable');
-  assert.equal(result.checks[0].key, 'playback');
-});
-
-test('Bridge and output-slot relevance follows actual outputs, server cues and intended CasparCG', () => {
-  const browser = { kind: 'output', engine: 'OBS · Chromium 127', name: 'Main output' };
-  const facts = { configured: true, serverCues: false, peers: [browser], expected: [], casparActivity: false };
-  assert.deepEqual(relevantPlayout(facts), { bridge: false, slot: false }, 'stale paired Bridge is irrelevant to OBS');
-  assert.deepEqual(relevantPlayout({ ...facts, peers: [], expected: [{ name: 'Main output' }] }), { bridge: false, slot: false }, 'a missing browser output keeps its own warning, not a Bridge warning');
-  assert.deepEqual(relevantPlayout({ ...facts, serverCues: true }), { bridge: true, slot: false }, 'OBS graphics with server media does not need a graphics slot');
-  assert.deepEqual(relevantPlayout({ ...facts, casparActivity: true }), { bridge: true, slot: true }, 'disconnection must not erase intended CasparCG');
-  assert.deepEqual(relevantPlayout({ ...facts, peers: [] }), { bridge: false, slot: false }, 'global setup alone is not production intent');
-  assert.deepEqual(relevantPlayout({ ...facts, peers: [browser, { ...browser, engine: 'CasparCG · Chromium 71', name: 'Studio' }] }), { bridge: false, slot: false }, 'renderer names do not establish managed output intent');
-  assert.deepEqual(relevantPlayout({ ...facts, expected: [{ name: 'CasparCG 1-20' }] }), { bridge: false, slot: false });
-  assert.deepEqual(relevantPlayout({ ...facts, configured: false }), { bridge: false, slot: false }, 'manual browser outputs require no Bridge setup');
-  assert.deepEqual(relevantPlayout({ ...facts, configured: false, serverCues: true }), { bridge: true, slot: false }, 'server cues require a Bridge even before pairing');
-});
-
 function status(over = {}) {
-  return describePlayoutStatus({ started: true, unpublished: false, version: 'v3', bridge: OK_BRIDGE, slot: ours, ready: readyOne, ...over });
+  return describePlayoutStatus({ started: true, casparOn: false, bridge: null, ready: readyOne, ...over });
 }
+const caspar = (over = {}) => status({ casparOn: true, bridge: OK_BRIDGE, slot: ours, ...over });
+const pair = (s) => [s.tone, s.text];
 
-test('not started is grey "Offline", whatever else is true, and never red', () => {
-  for (const over of [{}, { bridge: { state: 'bridge', detail: 'Start NoaCG Bridge.' } }, { slot: { ...ours, holds: 'empty' }, ready: null }]) {
-    const s = status({ started: false, ...over });
-    assert.equal(s.tone, 'idle');
-    assert.equal(s.text, 'Offline');
-  }
-  // The panel still says what it found, and why it is grey.
-  const s = status({ started: false, slot: { ...ours, holds: 'other' } });
-  assert.equal(s.checks.find((c) => c.key === 'production').label, 'Browser graphics not started');
-  assert.equal(s.checks.find((c) => c.key === 'slot').tone, 'idle');
+test('the Bridge and the output slot matter only with CasparCG switched on', () => {
+  assert.deepEqual(relevantPlayout({ configured: true, casparOn: false }), { bridge: false, slot: false }, 'a paired Bridge is irrelevant to a browser-only production');
+  assert.deepEqual(relevantPlayout({ configured: false, casparOn: true }), { bridge: true, slot: false }, 'CasparCG on needs the Bridge even before pairing');
+  assert.deepEqual(relevantPlayout({ configured: true, casparOn: true }), { bridge: true, slot: true });
 });
 
-test('healthy is green, says where it airs, and needs a positive answer to be green', () => {
-  assert.deepEqual([status().tone, status().text], ['ok', 'Ready · on air 1-20']);
-  // A browser-output studio: no Bridge, an output reporting ready.
-  const obs = status({ bridge: null, slot: undefined, ready: { ...readyOne, outputs: 2, ready: 2 } });
-  assert.deepEqual([obs.tone, obs.text], ['ok', 'Ready · 2 outputs']);
-  // On the slot but not reporting yet (CasparCG still loading the page): amber, never green.
-  const loading = status({ ready: null });
-  assert.deepEqual([loading.tone, loading.text], ['warn', 'Loading on 1-20']);
-  // The Bridge answers but the slot has not been read yet: not green yet.
-  const reading = status({ slot: undefined, ready: null });
-  assert.deepEqual([reading.tone, reading.text], ['idle', 'Checking…']);
+test('before the first publish: grey "Not published", green "CasparCG ready" when native cues can air', () => {
+  assert.deepEqual(pair(status({ started: false, ready: null })), ['idle', 'Not published']);
+  // A Bridge paired in this browser says nothing about a browser-only production.
+  assert.deepEqual(pair(status({ started: false, bridge: { state: 'bridge', detail: '' }, ready: null })), ['idle', 'Not published']);
+  assert.deepEqual(pair(caspar({ started: false, ready: null })), ['ok', 'CasparCG ready']);
+  assert.deepEqual(pair(caspar({ started: false, bridge: { state: 'bridge', detail: 'Start NoaCG Bridge.' }, ready: null })), ['bad', 'Bridge not running']);
+  assert.deepEqual(pair(caspar({ started: false, bridge: { state: 'config', detail: '' }, ready: null })), ['idle', 'Pair NoaCG Bridge']);
+  // The slot is not read before a publish: there is no output URL to load yet.
+  assert.equal(caspar({ started: false, slot: { ...ours, holds: 'other' }, ready: null }).checks.some((c) => c.key === 'slot'), false);
 });
 
-test('attention is amber: unpublished changes, an output behind', () => {
-  const s = status({ unpublished: true });
-  assert.deepEqual([s.tone, s.text], ['warn', 'Unpublished changes']);
-  assert.equal(s.checks[0].label, 'Unpublished changes since v3');
+test('published: quiet until something reports, green "Connected" once a renderer does', () => {
+  assert.deepEqual(pair(status({ ready: null })), ['idle', 'Not connected'], 'a page opened before the studio is up is not an alarm');
+  assert.deepEqual(pair(status()), ['ok', 'Connected']);
+  assert.deepEqual(pair(status({ publishing: true, ready: null })), ['idle', 'Publishing…']);
+  const preparing = status({ ready: { tone: 'idle', label: '○ Preparing 0 of 4', lead: 'Preparing 0 of 4', preparing: true, outputs: 1, ready: 0 } });
+  assert.deepEqual(pair(preparing), ['idle', 'Preparing 0 of 4']);
+});
+
+test('CasparCG: on its slot and reporting is Connected; the Bridge alone never is', () => {
+  assert.deepEqual(pair(caspar()), ['ok', 'Connected']);
+  assert.deepEqual(pair(caspar({ ready: null })), ['idle', 'Loading on 1-20']);
+  assert.deepEqual(pair(caspar({ slot: { ...ours, holds: 'empty' }, ready: null })), ['idle', 'Not loaded on 1-20'], 'never loaded this session: Load is due, nothing is wrong');
+  assert.deepEqual(pair(caspar({ slot: undefined, ready: null })), ['idle', 'Graphics not connected']);
+  // OBS carries the graphics, the Bridge carries clips: an empty slot is not a fault.
+  assert.deepEqual(pair(caspar({ slot: { ...ours, holds: 'empty' } })), ['ok', 'Connected']);
+});
+
+test('amber is attention: waiting for clear, slow commands, an old Bridge', () => {
   const behind = status({ ready: { tone: 'warn', label: '▲ Behind: showing v2', lead: 'Behind: showing v2', outputs: 1, ready: 0 } });
-  assert.deepEqual([behind.tone, behind.text], ['warn', 'Behind: showing v2']);
-  // Preparation incomplete is amber too, even with the output already on its slot.
-  const preparing = status({ ready: { tone: 'idle', label: '○ Preparing 0 of 1', lead: 'Preparing 0 of 1', preparing: true, outputs: 1, ready: 0 } });
-  assert.deepEqual([preparing.tone, preparing.text], ['warn', 'Preparing 0 of 1']);
+  assert.deepEqual(pair(behind), ['warn', 'Waiting for clear']);
+  assert.equal(behind.checks[0].label, 'Behind: showing v2', 'the panel keeps READY\'s own line');
+  const slow = status({ ready: { tone: 'warn', label: '▲ Commands may arrive up to 30 s late', lead: 'Commands may arrive up to 30 s late', outputs: 1, ready: 0 } });
+  assert.deepEqual(pair(slow), ['warn', 'Commands slow']);
+  assert.deepEqual(pair(caspar({ bridge: { state: 'outdated', detail: '' } })), ['warn', 'Update NoaCG Bridge']);
 });
 
-test('broken is red: the Bridge lost, the server silent, another production, nothing on air, an output gone', () => {
+test('red is for loss and faults, named, and the deciding check comes first', () => {
   const cases = [
-    [{ bridge: { state: 'bridge', detail: 'Start NoaCG Bridge on this computer.' } }, 'Bridge not running'],
-    [{ bridge: { state: 'server', detail: 'CasparCG at 10.0.0.5:5250 does not answer.' } }, 'CasparCG not answering'],
-    [{ slot: { ...ours, holds: 'other' } }, 'Another production on 1-20'],
-    [{ slot: { ...ours, holds: 'empty' }, ready: null }, 'Output not on air'],
-    [
-      { ready: { tone: 'bad', label: '✕ CasparCG 1-20 not answering (40 s) · 0 of 1 output ready', lead: 'CasparCG 1-20 not answering (40 s)', outputs: 1, ready: 0 } },
-      'Output not responding',
-    ],
+    [status({ ready: { tone: 'bad', label: '✕ OBS not answering (40 s)', lead: 'OBS not answering (40 s)', outputs: 1, ready: 0, lost: 'OBS' } }), 'OBS lost'],
+    [status({ ready: null, noOutputTake: true }), 'No output'],
+    [caspar({ bridge: { state: 'bridge', detail: 'Start NoaCG Bridge.' } }), 'Bridge not running'],
+    [caspar({ bridge: { state: 'server', detail: 'CasparCG at 10.0.0.5:5250 does not answer.' } }), 'CasparCG not answering'],
+    [caspar({ slot: { ...ours, holds: 'other' } }), 'Another production on 1-20'],
+    [caspar({ slot: { ...ours, holds: 'empty' }, slotLost: true, ready: null }), 'Not on 1-20'],
+    [caspar({ slot: { ...ours, holds: 'failed', detail: 'CasparCG refused the command: 401 INFO ERROR.' }, ready: null }), 'Cannot read 1-20'],
+    [status({ ready: { tone: 'warn', label: '▲ Not ready: Hairline (script error)', lead: 'Not ready: Hairline (script error)', outputs: 1, ready: 0, broken: { line: 'Not ready: Hairline (script error)', short: 'Not ready: Hairline' } } }), 'Not ready: Hairline'],
+    [status({ playbackCheck: { key: 'playback', tone: 'bad', label: 'Photo cannot Take', short: 'Cue settings unavailable' } }), 'Cue settings unavailable'],
   ];
-  for (const [over, text] of cases) {
-    const s = status(over);
-    assert.deepEqual([s.tone, s.text], ['bad', text], JSON.stringify(over));
-    assert.equal(s.checks[0].tone, 'bad', 'the deciding check comes first');
+  for (const [s, text] of cases) {
+    assert.deepEqual(pair(s), ['bad', text]);
+    assert.equal(s.checks[0].tone, 'bad', `${text}: the deciding check comes first`);
   }
-  // Taken off: the output it held is only remembered now, not answering yet, and airs nothing.
-  const takenOff = status({
-    slot: { ...ours, holds: 'empty' },
-    ready: { tone: 'idle', label: '○ CasparCG 1-20 not answering (2 s)', lead: 'CasparCG 1-20 not answering (2 s)', outputs: 1, ready: 0 },
-  });
-  assert.deepEqual([takenOff.tone, takenOff.text], ['bad', 'Output not on air']);
-  // A slot the server will not read (a channel it does not have) is a fault, never "Checking…".
-  const refused = status({ slot: { ...ours, holds: 'failed', detail: 'CasparCG refused the command: 401 INFO ERROR.' }, ready: null });
-  assert.deepEqual([refused.tone, refused.text], ['bad', 'Cannot read 1-20']);
-  assert.equal(refused.checks[0].advice, 'Check under Setup that the server has channel 1. CasparCG refused the command: 401 INFO ERROR.');
-  // ...and attention only, when an output elsewhere already airs the graphics.
-  assert.equal(status({ slot: { ...ours, holds: 'failed' } }).tone, 'warn');
-  // A graphic that cannot play is red here, named, although READY's own line reads it amber.
-  const broken = status({
-    ready: {
-      tone: 'warn',
-      label: '▲ Not ready: Hairline (script error)',
-      lead: 'Not ready: Hairline (script error)',
-      outputs: 1,
-      ready: 0,
-      broken: { line: 'Not ready: Hairline (script error)', short: 'Not ready: Hairline' },
-    },
-  });
-  assert.deepEqual([broken.tone, broken.text], ['bad', 'Not ready: Hairline']);
-  assert.equal(broken.checks[0].label, 'Not ready: Hairline (script error)');
-  // Red outranks amber: an unpublished change does not hide a lost Bridge.
-  assert.equal(status({ unpublished: true, bridge: { state: 'bridge', detail: '' } }).text, 'Bridge not running');
-});
-
-test('an empty CasparCG slot is not red when another output already airs the graphics', () => {
-  const s = status({ slot: { ...ours, holds: 'empty' } });
-  assert.deepEqual([s.tone, s.text], ['ok', 'Ready · 1 output']);
-  assert.equal(s.checks.find((c) => c.key === 'slot').tone, 'idle');
-});
-
-test('a started production with nothing connected and no Bridge is amber, and says what to do', () => {
-  const s = status({ bridge: null, slot: undefined, ready: null });
-  assert.deepEqual([s.tone, s.text], ['warn', 'No output connected']);
-  assert.match(s.checks[0].advice, /browser source/);
-});
-
-test('a Bridge that cannot say what its slot shows reads grey "Connected", never green on it alone', () => {
-  const s = status({ slot: { ...ours, holds: 'unreadable' }, ready: null });
-  assert.deepEqual([s.tone, s.text], ['idle', 'Connected']);
-  assert.match(s.checks.find((c) => c.key === 'slot').advice, /Update NoaCG Bridge/);
-  // An output reporting ready elsewhere is a positive answer of its own.
-  assert.equal(status({ slot: { ...ours, holds: 'unreadable' } }).tone, 'ok');
+  // A Bridge fault means nothing with CasparCG off.
+  assert.deepEqual(pair(status({ bridge: { state: 'bridge', detail: '' } })), ['ok', 'Connected']);
 });

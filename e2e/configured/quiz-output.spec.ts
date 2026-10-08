@@ -12,7 +12,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishForCleanup } from './_helpers';
 
 // THE PUBLISHED QUIZ PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 3): the hidden-pick
 // sequence driven from the production dashboard, rendered by the REAL /output page over the
@@ -53,7 +53,7 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
   // the page for the rest of the walk. That is what took scorebug-output red on 2026-08-25 —
   // ten seconds of `toBeHidden` watching a popover that had never seen the key. A toggle click
   // is a state flip and cannot miss.
-  const links = page.getByTestId('production-links');
+  const links = page.getByTestId('production-status-panel');
   await expect(links).toBeVisible();
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
@@ -124,7 +124,7 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await unpublishFromPanel(page);
+  await unpublishForCleanup(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');

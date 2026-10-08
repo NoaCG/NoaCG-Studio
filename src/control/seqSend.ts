@@ -30,10 +30,13 @@ export interface SeqSession {
   epoch: string | null;
   /** Per graphic, the highest revision this page has seen in that epoch. */
   revs: Map<string, number>;
+  /** Per graphic, whether the head at that revision says it is on: what All out clears whatever
+   *  this page's own list believes (playout-workflow-simplification D11). */
+  on: Map<string, boolean>;
 }
 
 export function createSeqSession(epoch: string | null, graphics: Record<string, HeadSummary> | null | undefined): SeqSession {
-  const session: SeqSession = { epoch, revs: new Map() };
+  const session: SeqSession = { epoch, revs: new Map(), on: new Map() };
   learnHead(session, epoch, graphics);
   return session;
 }
@@ -50,14 +53,19 @@ export function learnHead(
   if (epoch !== session.epoch) {
     // A head that did not exist yet (null) becoming known is the same log's first number, not a
     // new log: keep what was learned. Anything else is a republish.
-    if (session.epoch !== null) session.revs.clear();
+    if (session.epoch !== null) {
+      session.revs.clear();
+      session.on.clear();
+    }
     session.epoch = epoch;
   }
   for (const [graphic, summary] of Object.entries(graphics ?? {})) {
     const rev = summary?.rev;
-    if (typeof rev === 'number' && Number.isFinite(rev) && rev > (session.revs.get(graphic) ?? 0)) {
-      session.revs.set(graphic, rev);
-    }
+    const known = session.revs.get(graphic) ?? 0;
+    const fresh = typeof rev === 'number' && Number.isFinite(rev) && rev > known;
+    if (fresh) session.revs.set(graphic, rev);
+    // `on` belongs to the revision it came with: an older summary never overwrites a newer one.
+    if (typeof summary?.on === 'boolean' && (fresh || rev === known || rev === undefined)) session.on.set(graphic, summary.on);
   }
 }
 

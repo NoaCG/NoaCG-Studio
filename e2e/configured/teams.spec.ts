@@ -559,7 +559,7 @@ test.describe('teams: the share door', () => {
         expect((await serverRundown(mate, showId))?.datasets).toHaveLength(1);
         // Cloud-confirmed editor metadata is in Setup; the header keeps pending/failed state.
         await expectTeamInSetup(mate, teamName, 'you');
-        await expect(mate.getByTestId('production-team-save')).toHaveCount(0);
+        await expect(mate.getByTestId('sync-status')).toHaveText('Synced');
 
         // A opens the production COLD (a reload - the path a teammate's link takes) and reads
         // B's edit and B's name off the server row.
@@ -674,9 +674,9 @@ test.describe('teams: the share door', () => {
         // Published FROM the team: the row is team-stamped, and the slugs travel in the team's doc.
         await publishProduction(anna);
         await expect(anna.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-        await expect(anna.getByTestId('production-links')).toBeVisible();
+        await expect(anna.getByTestId('production-status-panel')).toBeVisible();
         await anna.getByTestId('production-status').click();
-        await expect(anna.getByTestId('production-links')).toBeHidden();
+        await expect(anna.getByTestId('production-status-panel')).toBeHidden();
         await expect.poll(async () => (await serverRundown(anna, showId))?.outputSlug ?? null, { timeout: 30_000 }).not.toBeNull();
         const published = (await serverRundown(anna, showId))!;
         expect(published.hostedSlug, 'publishing must put the control slug in the team document').toBeTruthy();
@@ -750,10 +750,10 @@ test.describe('teams: the share door', () => {
         // graphics - and the output address is the one A's publish minted.
         await expect(ben.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
         await ben.getByTestId('production-status').click();
-        await ben.getByTestId('prepare-for-live-button').click();
-        await expect(ben.getByTestId('publish-freshness')).toHaveCount(0, { timeout: 30_000 });
+        await ben.getByTestId('panel-publish-changes').click();
+        await expect(ben.getByTestId('panel-publish-changes')).toHaveCount(0, { timeout: 30_000 });
         await ben.getByTestId('production-status').click();
-        await expect(ben.getByTestId('production-links')).toBeHidden();
+        await expect(ben.getByTestId('production-status-panel')).toBeHidden();
         const benHeld = (await heldRundown(ben, showId))!;
         expect(benHeld.outputSlug, 'a member republishing must keep the address the creator published').toBe(published.outputSlug);
         expect(benHeld.hostedSlug).toBe(published.hostedSlug);

@@ -124,7 +124,7 @@ export default function ProductionSounds({ template, config, assets: shared, vis
           finally { if(run === generation.value) setBusy(false); }
         }} />
       </div>}
-      <p className="hint">Shared by every cue of this visual. Publish changes before taking them on air. Audition plays here.</p>
+      <p className="hint" title="Shared by every cue of this graphic. Publish changes before taking them on air. Audition plays here.">Shared by every cue</p>
       {busy && <p role="status">Preparing sound…</p>}{error && <p role="alert">{error}</p>}
     </div>}
   </details>;

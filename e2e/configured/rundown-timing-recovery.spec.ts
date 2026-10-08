@@ -83,7 +83,7 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   const s = await seed(page, name);
   await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-  const links = page.getByTestId('production-links');
+  const links = page.getByTestId('production-status-panel');
   await expect(links).toBeVisible();
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
@@ -107,9 +107,9 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   // The hosted page reads the cue's end off the payload, which a publish writes.
   await page.getByTestId('production-status').click();
   await expect(links).toBeVisible();
-  await expect(page.getByTestId('publish-freshness')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId('prepare-for-live-button').click();
-  await expect(page.getByTestId('publish-freshness')).toBeHidden({ timeout: 60_000 });
+  await expect(links.getByTestId('panel-publish-changes')).toBeVisible({ timeout: 30_000 });
+  await links.getByTestId('panel-publish-changes').click();
+  await expect(links.getByTestId('panel-publish-changes')).toBeHidden({ timeout: 60_000 });
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
 

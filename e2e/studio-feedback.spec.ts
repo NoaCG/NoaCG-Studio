@@ -1,9 +1,11 @@
 // covers: src/components/{AccountSaveNotice,SyncStatus,PlayoutSettingsDialog}.tsx
-// covers: src/components/playoutKeys.ts, src/components/home/{ProductionPage,CueRundown,RundownColors,OutputSetupDialog}.tsx
+// covers: src/components/playoutKeys.ts, src/components/home/{ProductionPage,CueRundown,RundownColors,PlayoutPanel,PlayoutStatusControl,ProductionSetupMenu}.tsx
 // covers: src/model/{shows,outputSetup}.ts
 // covers: src/styles/wizard-and-dialogs.css
+// covers: e2e/_publish.ts
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
+import { setCasparSwitch } from './_publish';
 import { seedSettings } from './_fakeBridge';
 import { parkFocusOffControls } from './_keys';
 
@@ -40,16 +42,29 @@ test('routine anonymous work uses persistent header state without a global notic
   await page.screenshot({ path: 'test-results/studio-feedback-quiet-saving.png' });
 });
 
-test('browser settings name the current output and hide CasparCG controls', async ({ page }) => {
+test('a browser production hides every CasparCG control, and its panel names the browser source', async ({ page }) => {
   await production(page);
+  await page.getByTestId('rundown-add').click();
   await expect(page.getByTestId('add-from-server')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // The output is no longer chosen or named in Playout settings (playout-workflow-simplification
+  // AC-3, AC-4): the dialog holds the rundown colours, and the CasparCG form only with the switch on.
   await page.getByTestId('production-setup').click();
   await page.getByTestId('setup-playout-settings').click();
   const dialog = page.getByTestId('playout-settings');
+  await expect(dialog.getByTestId('rundown-colors')).toBeVisible();
   await expect(dialog.getByTestId('output-profile')).toHaveCount(0);
-  await expect(dialog.getByTestId('settings-production-output')).toContainText('Browser source');
+  await expect(dialog.getByTestId('settings-production-output')).toHaveCount(0);
   await expect(dialog.getByTestId('caspar-host')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/studio-feedback-browser-settings.png' });
+  await dialog.getByTestId('playout-settings-close').click();
+  // The panel names the current output instead: the browser source, with CasparCG switched off.
+  await page.getByTestId('production-status').click();
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('playout-panel-browser')).toContainText('Browser source');
+  await expect(panel.getByTestId('caspar-switch')).not.toBeChecked();
+  await expect(panel.getByTestId('caspar-bridge')).toHaveCount(0);
+  await expect(panel.getByTestId('caspar-slot')).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/studio-feedback-browser-settings-phone.png' });
 });
@@ -108,21 +123,39 @@ test('CasparCG setup can return to browser output without changing sources or li
     return m.loadShows().find(s => s.id === id)!;
   }, id);
   await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.locator('.pd-cue')).toHaveCount(4);
+  // A production already set to a CasparCG destination starts with the switch on (AC-4), and the
+  // browser source stays beside it.
+  await page.getByTestId('production-status').click();
+  const panel = page.getByTestId('production-status-panel');
+  await expect(panel.getByTestId('caspar-switch')).toBeChecked();
+  await expect(panel.getByTestId('output-url')).toContainText('rehearsal-output');
+  await page.keyboard.press('Escape');
+  await page.getByTestId('rundown-add').click();
+  await expect(page.getByTestId('add-from-server')).toHaveCount(1);
+  await page.keyboard.press('Escape');
   await page.getByTestId('production-setup').click();
   await page.getByTestId('setup-playout-settings').click();
-  await expect(page.getByTestId('settings-browser-url')).toHaveValue(/rehearsal-output/);
-  await expect(page.getByTestId('caspar-host')).toBeVisible();
-  await page.getByTestId('settings-change-output').click();
-  await page.getByTestId('output-profile').selectOption('browser');
-  await page.getByTestId('confirm-output').click();
+  await expect(page.getByTestId('playout-settings').getByTestId('caspar-host')).toBeVisible();
+  await page.getByTestId('playout-settings-close').click();
+  // The per-production switch replaces "Change output…" and its chooser (AC-4).
+  await setCasparSwitch(page, false);
+  await page.getByTestId('rundown-add').click();
   await expect(page.getByTestId('add-from-server')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await settleDurableWrites(page);
   const after = await page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, id);
   expect(after.cues).toEqual(before.cues);
   expect(after.graphics).toEqual(before.graphics);
   expect(after.outputSlug).toBe(before.outputSlug);
-  expect(after.outputSetup).toEqual({ v: 1, destinations: [{ id: 'browser', profile: 'browser' }] });
+  expect(after.outputSetup).toEqual({ v: 1, destinations: [{ id: 'browser', profile: 'browser' }], caspar: false });
+  // With CasparCG off the paired Bridge is neither shown nor judged, and the browser source stays.
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-tone', 'idle');
+  await expect(page.getByTestId('production-status')).not.toContainText('Bridge');
   await page.getByTestId('production-status').click();
-  await expect(page.getByTestId('production-status-checks')).not.toContainText('Bridge');
+  await expect(panel.getByTestId('caspar-bridge')).toHaveCount(0);
+  await expect(panel.getByTestId('output-url')).toContainText('rehearsal-output');
 });
 
 test('additive selection, range selection and clipboard act on the intended rows', async ({ page }) => {

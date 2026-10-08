@@ -195,7 +195,7 @@ for (const width of [1600, 390]) {
     const menu = page.getByTestId('rundown-add-menu');
     await expect(menu.getByRole('menuitem', { name: 'Cue on selected graphic' })).toBeDisabled();
     await expect(menu.getByRole('menuitem', { name: 'CasparCG files…' })).toBeDisabled();
-    await expect(menu).toContainText('Set up NoaCG Bridge and CasparCG under Setup');
+    await expect(menu.getByRole('menuitem', { name: 'CasparCG files…' })).toHaveAttribute('title', 'Set up NoaCG Bridge in Playout settings.');
     await capture(page, `add-without-server-${width}`);
     await menu.getByRole('menuitem', { name: 'Graphic from library…' }).click();
     await expect(page.getByTestId('add-graphic-pick')).toBeFocused();

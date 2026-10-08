@@ -258,7 +258,6 @@ export function PanelDialog({
       <div className="wz-modal settings-modal panel-modal" role="dialog" aria-modal="true" aria-label="Hardware panel" data-testid="panel-dialog">
         <div className="wz-header">
           <h2>Hardware panel</h2>
-          <p className="hint wz-header-sub">Run this production from a Stream Deck or any Companion surface.</p>
           <button className="gallery-close" onClick={onClose} title="Close" data-testid="panel-close">
             ✕
           </button>
