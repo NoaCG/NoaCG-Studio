@@ -732,8 +732,10 @@ channel, never shared:
 Each card on the Downloads page shows the version of the file it links to, so a CLI release with
 no new exe simply shows two different numbers. `noacg bridge` still runs the Bridge for a
 developer who has the CLI; that is the one place the shared package shows. A Bridge
-release is `git tag bridge-vX.Y.Z <commit on main> && git push origin bridge-vX.Y.Z`; the
-workflow refuses a commit that is not on main, a tag that disagrees with the package version, a
+release happens when a version with its own section in `cli/BRIDGE_CHANGELOG.md` lands on `main`
+(owner, 2026-10-08): the workflow builds the exe from that commit and creates the Release and its
+`bridge-vX.Y.Z` tag. Pushing that tag by hand re-drives a release; the workflow refuses a commit
+that is not on main, a tag that disagrees with the package version, a
 version already released, and a version with no section in `cli/BRIDGE_CHANGELOG.md`, written
 for the operator deciding whether to download again. The Release page is that section placed
 into `cli/BRIDGE_RELEASE.md` (what it is, what changed, how to install, where the guide is), and

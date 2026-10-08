@@ -25,14 +25,16 @@
 #      that stamps the four plugin manifests (noacg and noacg-mcp, a Claude Code and a Codex
 #      manifest each) and both root marketplace entries. Commit; land on main through
 #      /queue-merge.
-#   2. `git tag cli-v0.3.0 && git push origin cli-v0.3.0`
-#   3. Watch this workflow. It builds from that commit, publishes to npm with provenance, and
-#      then publishes cli/server.json to the official MCP Registry (GitHub OIDC, no secret).
+#   2. That is all. Landing the bump publishes it (owner, 2026-10-08: "When we have an update and
+#      we push it out, it should be published"): this workflow runs on the push to main, sees a
+#      version npm does not have yet, builds from that commit, publishes to npm with provenance and
+#      to the official MCP Registry (GitHub OIDC, no secret), then tags the commit cli-vX.Y.Z.
 #      docs/research/agent-marketplaces-2026-10-02/updates.md says which other directories then
 #      follow on their own and which need a person.
 #
-# The tag is the ONE step a human takes, and it is the step this repository's own rule reserves
-# for a human: a landing can be re-landed, but a published version can never be taken back.
+# The release decision is the version bump, reviewed and gated like every change to main. A push
+# that touches cli/package.json without a new version publishes nothing. Pushing a cli-v* tag or
+# the "Run workflow" button still re-drive a release by hand.
 #
 # NO GITHUB RELEASE IS CREATED HERE. The CLI's home is npm. The repository's Releases page
 # belongs to NoaCG Bridge, the other tool built from this package (release-bridge.yml): to the
@@ -41,9 +43,13 @@
 name: Release CLI to npm
 
 on:
-  # The tag IS the release request. `cli-v*` rather than `v*` because this repository publishes
-  # exactly one package out of a subdirectory; a bare `v*` would read as the studio's version.
+  # A version bump landing on main is the release request; the `decide` job below lets every other
+  # change to cli/package.json pass without publishing. A `cli-v*` tag still re-drives a release by
+  # hand (path filters do not apply to tag pushes). `cli-v*` rather than `v*` because this
+  # repository publishes exactly one package out of a subdirectory.
   push:
+    branches: [main]
+    paths: ['cli/package.json']
     tags: ['cli-v*']
   # The manual door: a dry run by default (prove the whole path without burning a version), and a
   # real publish when a tagged run needs re-driving. GitHub only offers the button once this
@@ -65,10 +71,41 @@ permissions:
   contents: read
 
 jobs:
+  # A push to main publishes only when it carries a version npm does not have yet, and otherwise
+  # says so and stays green. A tag push and a manual run always go on to the publish job, which
+  # keeps every refusal it had.
+  decide:
+    name: Does this push release a version?
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compare cli/package.json with npm
+        id: decide
+        run: |
+          VERSION="$(node -p 'require("./cli/package.json").version')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" != "push" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          FOUND="$(npm view "@noacg/cli@$VERSION" version 2>/dev/null || true)"
+          if [ -n "$FOUND" ]; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Nothing to release::@noacg/cli@$VERSION is already on npm; this push changed cli/package.json without a new version."
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "@noacg/cli@$VERSION is not on npm yet, so this push releases it."
+          fi
+
   publish:
     name: Publish @noacg/cli
-    # Never on a fork, and never on a fork's tag push.
-    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
+    needs: decide
+    # Never on a fork, never on a fork's tag push, and only when `decide` found a version to release.
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.decide.outputs.release == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -281,7 +318,7 @@ jobs:
           FREE: ${{ steps.free.outputs.free }}
         run: |
           if [ "$FREE" = "true" ]; then
-            echo "::notice title=Dry run::@noacg/cli@$VERSION packed cleanly and rehearsed against the registry. Nothing was published. Re-run with dry_run unchecked, or push the tag cli-v$VERSION, to publish for real."
+            echo "::notice title=Dry run::@noacg/cli@$VERSION packed cleanly and rehearsed against the registry. Nothing was published. Landing the bump on main publishes it; re-run with dry_run unchecked to publish this commit by hand."
           else
             echo "::notice title=Dry run::@noacg/cli@$VERSION packed cleanly. Nothing was published, and the registry rehearsal was skipped because that version already exists."
           fi
@@ -293,7 +330,8 @@ jobs:
       # flag would also work; leaving it off keeps the command identical to npm's own documented
       # trusted-publishing example, which is the version these docs are kept in step with.
       #
-      # `inputs.dry_run` is null on a tag push, so `!inputs.dry_run` is true there: a tag publishes.
+      # `inputs.dry_run` is null on a push (tag or main), so `!inputs.dry_run` is true there: a push
+      # that reaches this job publishes.
       #
       # WHY VERBOSE. npm's OIDC exchange is silent by design: every path in npm's own
       # `lib/utils/oidc.js` returns undefined and logs at `verbose`, and the default level is
@@ -354,3 +392,27 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "::notice title=Published::@noacg/cli@$VERSION is on npm and in the MCP Registry - check the provenance badge at https://www.npmjs.com/package/@noacg/cli"
+
+  # A release landed from main is tagged here, so `cli-vX.Y.Z` still marks every published version.
+  # A tag pushed with the workflow's own token starts no new run, so this cannot publish twice.
+  tag:
+    name: Tag the release
+    needs: [decide, publish]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tag the published commit
+        env:
+          VERSION: ${{ needs.decide.outputs.version }}
+        run: |
+          TAG="cli-v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG already exists."
+            exit 0
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+          echo "::notice title=Tagged::$TAG at $GITHUB_SHA"
