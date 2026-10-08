@@ -68,7 +68,7 @@ function selectorFor(template: SpxTemplate, id: string): string {
   return matches[0].selector;
 }
 function operation(template: SpxTemplate, id: CommandId, raw: unknown): EditorOperation {
-  const args = decode<unknown>(schemas[id], raw) as Record<string, unknown>;
+  const args = raw as Record<string, unknown>; // The complete request was decoded by applySchema.
   if (id === 'layer.create') return { kind: id, geometry: args.geometry } as EditorOperation;
   if (id === 'step.add' || id === 'out.set') return { kind: id, time: args.time } as EditorOperation;
   const selector = selectorFor(template, args.targetId as string);
@@ -89,13 +89,15 @@ const capability = (run: () => unknown) => {
 /** Browser-local qualification seam. No transport, UI clicking or independent mutation engine. */
 export interface CommandView { select(selectors: string[]): void; seek(time: number, cue?: number): void; afterWrite(): void }
 export class EditorCommands {
+  // Command bindings end on unmount; the document session may survive navigation.
+  private readonly bindingId = crypto.randomUUID();
   private closed = false;
   close() { this.closed = true; }
   constructor(readonly session: EditorSession, private preview: () => PreviewController | null = () => null, private views?: CommandView) {}
   private snapshot() {
     if (this.closed) throw new Refusal('session_closed', 'This editor command session is closed.');
     const state = this.session.commandState();
-    return { documentId: this.session.documentId, sessionId: this.session.instanceId, revision: state.revision,
+    return { documentId: this.session.documentId, sessionId: this.bindingId, revision: state.revision,
       contextToken: state.contextToken, historyHead: state.historyHead };
   }
   private guard(expected: z.infer<typeof context>) {

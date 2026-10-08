@@ -271,13 +271,13 @@ export class PreviewController {
     const ack = this.acknowledgement, expected = this.expected;
     if (!expected || expected.revision.source !== revision.source || expected.revision.assets !== revision.assets || this.transient) return { state: 'pending' as const };
     if (this.previewError) return { state: 'failed' as const, message: this.previewError };
-    if (!ack || !expected || !this.ready || this.inFlight || this.queued || this.pendingFrame ||
+    if (!ack || !this.ready || this.inFlight || this.queued || this.pendingFrame ||
       ack.kind !== 'pose' || ack.requestId !== expected.requestId || ack.generation !== expected.generation ||
       ack.revision.source !== revision.source || ack.revision.assets !== revision.assets ||
       this.targetTime !== view.time || this.targetCue !== view.cue) return { state: 'pending' as const };
     return { state: 'ready' as const, documentId: ack.documentId, revision: { ...ack.revision },
       generation: ack.generation, requestId: ack.requestId, renderedAt: ack.renderedAt,
-      time: this.targetTime, cue: this.targetCue ?? null };
+      time: this.targetTime, cue: this.targetCue ?? null, drawingSpace: ack.drawingSpace ?? null };
   }
   resetMetrics() {
     this.metrics.samples = []; this.metrics.frameIntervals = []; this.metrics.longTasks = [];

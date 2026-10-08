@@ -32,12 +32,15 @@ No Node-pure, model parity, owner or physical-host acceptance claim.
   selection/playhead/sample context, history head and target capabilities.
   Every apply/history request checks that context and session liveness immediately
   before writing, and refuses while a human gesture is active. No stale undo.
+  Each command binding has a unique lifetime identity across editor remounts;
+  the document session continues to own source and history.
 - Source commit receipts include transaction, revision, patch, identities and history.
   Preview receipts require the existing correlated pose acknowledgement. Pending,
   failed and superseded previews never become visible-success receipts.
 - Deterministic browser calls import the same catalog/session modules. No public
   transport or raw store setters for semantic authoring. UI controls keep calling
-  existing handlers. Test setup may supply rehearsal samples separately.
+  existing handlers. Draft begin/preview/cancel use the existing session lifecycle.
+  Test setup may supply rehearsal samples separately.
 
 ## Observable acceptance
 
@@ -48,7 +51,7 @@ No Node-pure, model parity, owner or physical-host acceptance claim.
    Cancelled drafts leave no source/history entry. History travel matches UI undo.
 3. Run the nested/masked text-and-box SVG through the wizard with one public text
    and one excluded static text. On fresh copies, UI and semantic paths create two
-   shapes/new text, edit public defaults without samples and excluded static wording,
+   shapes/new text, edit public defaults without changing samples and excluded static wording,
    author two position keys, Next and Out. Compare exact patches, IDs and history,
    and rendered poses at matched revision/time/cue.
 4. Save/reopen both results using existing UI, rehearse In/Next/Out, validate and
