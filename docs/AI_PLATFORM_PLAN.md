@@ -6,6 +6,10 @@
 > notice, who-pays-decides-the-route, the wrong-kind blocking ruling), which live code still
 > cites by section number. Nothing here is current strategy.
 
+New-editor assistance is owned by [EDITOR_PLAN.md](EDITOR_PLAN.md) R1.3a/b and the current
+[task registry](AI_TASK_REGISTRY.md). See the [2026-10-03 comparison](research/agent-toolkit-2026-10-03.md)
+for shared authoring and modular-provider evidence; this historical plan is not reopened.
+
 **Status: PLAN RATIFIED (2026-07-28).** Sections 1-3 and 5 are a verified audit of the tree
 at audit time; sections 4-14 are the reviewed design. The owner decisions in section 15 were
 ratified 2026-07-28 and supersede the corresponding proposals earlier in the document (marked

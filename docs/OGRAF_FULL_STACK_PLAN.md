@@ -6,6 +6,11 @@ This plan applies the [OGraf Studio source comparison](OGRAF_STUDIO_RESEARCH.md)
 parked native-renderer programme, replace the modular-monolith domain registry, or assert that
 the proposed Server API and foreign-package production surfaces already exist.
 
+The [2026-10-03 agent toolkit comparison](research/agent-toolkit-2026-10-03.md) updates the
+authoring evidence. An authoring MCP calls shared edit and preview services; the OGraf Server API
+controls catalogs, renderers and instances. They are distinct boundaries and do not share live
+authority by default.
+
 ## 1. Destination and boundaries
 
 The destination remains **NoaCG Editor -> NoaCG Controller -> OGraf Server/API -> Renderer ->

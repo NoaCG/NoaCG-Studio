@@ -4,6 +4,17 @@ Two server-only modules; the browser never sees either. Together they are the ga
 NoaCG-funded model call passes: a task declares what it needs, and a route serves it only if
 the approved-route catalog carries it. The transport itself is `docs/AI_PROVIDER_GATEWAY.md`.
 
+## Editor assistance
+
+[EDITOR_PLAN.md](EDITOR_PLAN.md) R1.3a/b owns grounded help and reviewed edits. The R1.3b
+reviewed proposals (`src/ai/editorProposals.ts`) call the model gateway on the user's configured
+route; no NoaCG-funded editor task is registered here yet. When one is, declare its bounded
+context and images, timeout and cancellation, route and ledger policy here; the editor keeps
+proposal review, revisions and history, and a provider adapter translates transport, never edit
+state. A local signed-in Codex App Server provider is a later qualification spike
+([2026-10-03 research](research/agent-toolkit-2026-10-03.md), section 4), not a replacement for
+the current credential, privacy and budget policy, nor a promise about subscription usage rights.
+
 ## The task registry (`api/_lib/aiTaskRegistry.ts`)
 
 A typed map `taskId -> TaskProfile`. `TaskProfile` is `LiteProfile` generalized

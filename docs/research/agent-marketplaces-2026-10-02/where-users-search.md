@@ -1,5 +1,15 @@
 # Where a Claude Code or Codex user searches, and how to be there
 
+**Superseding discovery and readiness evidence, rechecked 2026-10-09:** Claude Code 2.1.287+
+supports `/plugin directory` according to the
+[official platform support page](https://claude.com/docs/plugins/platform-support). Marketplace
+name resolution in the older binary below is a different path. This repository's archive is
+107.11 MiB against Claude's 50 MiB validation limit; exact launcher pins and installed scenarios
+remain work. The readiness conclusions and channel table below are historical. Use the
+[2026-10-03 research](../agent-toolkit-2026-10-03.md) and
+[issue #842](https://github.com/NoaCG/NoaCG-Studio/issues/842) for submission, surface support
+and packaging; retained version numbers are dated observations.
+
 Read 2026-10-02. Quotes are verbatim from the source named beside them; the full source list is at
 the end. **UNCONFIRMED** marks anything no official source states. "Observed" marks something read
 out of a shipped binary or source file rather than out of documentation: it is true of that version
