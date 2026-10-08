@@ -204,7 +204,10 @@ test('audition cancellation during decode and leaving the controls close audio w
   expect(await page.evaluate(() => (window as unknown as { soundStarts: number }).soundStarts)).toBe(0);
   await controls.getByRole('button', { name: 'Audition sound' }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { soundStarts: number }).soundStarts)).toBe(1);
-  await page.evaluate(async () => (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home', section: 'graphics' }));
+  await page.evaluate(async () => {
+    (await import('/src/app/router.ts')).useRouter.getState().navigate({ view: 'home', section: 'graphics' });
+    await new Promise((resolve) => setTimeout(resolve));
+  });
   await expect.poll(() => page.evaluate(() => (window as unknown as { soundContexts: AudioContext[] }).soundContexts.every(c => c.state === 'closed'))).toBe(true);
 });
 for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) test(`shared controls fit at ${size.width}px`, async ({ page }, testInfo) => {
