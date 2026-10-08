@@ -90,8 +90,12 @@ export function wavePlanFiles(dir = jobsDir()) {
 /** A wave may run unattended for at most this long (the root boundary). */
 export const MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** A plan written to within this long and holding no report is a wave somebody may still be running. */
-const OPEN_WAVE_MS = 24 * 60 * 60 * 1000;
+/**
+ * A plan written to within this long and holding no report is a wave somebody may still be running.
+ * A live coordinator writes a line at every launch and every result, so six quiet hours means it
+ * is gone; a day wave that ended without its report must not stop that night's wave.
+ */
+const OPEN_WAVE_MS = 6 * 60 * 60 * 1000;
 
 /** The heading a finished wave's report sits under; older plans used "Morning report". */
 const REPORT_HEADING = /^## (?:Morning )?[Rr]eport\b/m;
@@ -112,7 +116,8 @@ export function openWaves(dir = jobsDir(), now = Date.now(), except = '') {
 
 /**
  * Open a wave: refuse a window past the 24-hour ceiling and a second live wave, then create the
- * plan with its window lines, or hand back the existing one when this same wave is resumed.
+ * plan with its window lines, or hand back the existing one when this same wave is resumed. A
+ * resumed wave is measured from the start its file records, so a restart cannot stretch it.
  * Returns `{ file }` or `{ refusal }`.
  */
 export function openWave({ date, kind, until, dir = jobsDir(), now = Date.now() }) {
@@ -122,12 +127,19 @@ export function openWave({ date, kind, until, dir = jobsDir(), now = Date.now() 
     return { refusal: `--until must be an ISO time with its offset, e.g. 2026-10-09T06:00:00+03:00 (got "${until}")` };
   }
   if (end <= now) return { refusal: `the window end ${until} has already passed` };
-  if (end - now > MAX_WINDOW_MS) return { refusal: `a wave runs at most 24 hours, and ${until} is further away than that` };
+  const file = path.join(ensureWavePlansDir(dir), name);
+  const recorded = existsSync(file) ? /^Window starts: (\S+)\s*$/m.exec(readFileSync(file, 'utf8'))?.[1] : undefined;
+  const start = recorded && !Number.isNaN(Date.parse(recorded)) ? Date.parse(recorded) : now;
+  if (end - start > MAX_WINDOW_MS) {
+    return { refusal: `a wave runs at most 24 hours from its start (${new Date(start).toISOString()}), and ${until} is later than that` };
+  }
   const others = openWaves(dir, now, name);
   if (others.length > 0) {
-    return { refusal: `another wave is open (no report yet): ${others.join(', ')}. One orchestrator at a time: finish or report that wave first.` };
+    return {
+      refusal: `another wave is open (no report yet): ${others.join(', ')}. One orchestrator at a time: finish or ` +
+        'report that wave first. To resume it after a restart, open it again with its own date and kind.',
+    };
   }
-  const file = path.join(ensureWavePlansDir(dir), name);
   if (!existsSync(file)) {
     const title = `# ${kind === 'night' ? 'Night' : 'Day'} wave ${date}`;
     writeFileSync(file, `${title}\n\nWindow starts: ${new Date(now).toISOString()}\nWindow ends: ${until}\n`, 'utf8');

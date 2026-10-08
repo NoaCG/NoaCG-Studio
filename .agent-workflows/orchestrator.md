@@ -34,10 +34,10 @@ can see becomes a row.
 - **Open the wave**: `node scripts/wave-plan-store.mjs --open <date> <day|night> --until <iso>`.
   It refuses a second open wave and a window over 24 hours, and prints the wave file, which lives
   outside any checkout. The prompt, the work list, one line per launch and result, and the report
-  go there; nobody else has to read it.
+  go there; nobody else has to read it. After a restart, open the same date and kind again.
 - **Read once**: the prompt; `docs/GOALS.md` headings and the `## Outcomes` rank line;
-  `node scripts/worktree-activity.mjs`; `npm run jobs`; free memory; the last wave file's
-  `## Retro` (`node scripts/wave-plan-store.mjs --list`). Read code only to settle a planning
+  `node scripts/worktree-activity.mjs`; `npm run jobs`; free memory; the retro in the last wave
+  file's `## Report` (`node scripts/wave-plan-store.mjs --list`). Read code only to settle a planning
   question; each row does its own research.
 - **If the owner is here** and the prompt leaves a choice of direction, scope or taste open, ask
   it now, one question at a time, with your recommendation. Once rows run, ask nothing: decide,
@@ -97,38 +97,40 @@ If your branch is worktree-agent-*, run `git fetch origin main && git reset --ha
 git branch -m <BRANCH>` before your first commit.
 Verify in proportion: `npm run build`, and the e2e specs that cover what you changed, through the
 job queue (`node scripts/e2e-affected.mjs --list --files <changed>` finds them; a copy or style
-change runs the specs that assert it, not the affected set). A visible change gets a before and
-after screenshot linked in the PR body, never committed.
-Then /check and, as your last action, /queue-merge. Do not wait for the landing.
-Left over: genuine unfinished work or a worthwhile follow-up goes under "Not done" in the PR body
-and into docs/backlog/ (one file, linked from the PR). Nothing speculative. No handoff file, and no
-new doc unless the doc is the goal.
+change runs the specs that assert it, not the affected set). For a visible change, look at before
+and after screenshots yourself; never commit them.
+Left over: genuine unfinished work or a worthwhile follow-up goes into docs/backlog/ (one file, in
+this branch). Nothing speculative. No handoff file, and no new doc unless the doc is the goal.
+Then /check and /queue-merge. Right after queueing, post one comment on the pull request
+(`gh pr comment`): what is not done, with its backlog file, and for a visible change which page to
+open on the preview deployment. Do not wait for the landing.
 Never merge or push main, never touch another worktree, and leave nothing running.
 ```
 
 ## 4. While rows run
 
-Act when a row finishes and at no other time:
+Act when a row finishes or the timer fires, and at no other time:
 
-- Log one line: the PR, what it did, its "Not done" items.
+- Log one line: the PR, what it did, what it left in the backlog.
 - If the window still fits another row (the median row time so far, or 60 minutes before there is
   one, plus 30 minutes to land), launch the next item.
-- A row that ended without a PR, or whose PR went red or conflicted, gets a fresh repair row: the
-  branch, the failing check and its log, the row's GOAL and WHY. Never resume or enter the old
-  worktree. After two failed repairs, stop and report it.
+- A row that ended without a PR, or whose PR went red or conflicted, is sent the failure
+  (Claude Code: SendMessage to the row; Codex: `send_message`) and resumes in its own worktree,
+  which still holds its branch. After two failed repairs, stop and report it.
 - A row past twice the median with no result is reported, never killed; launch beside it only if
   the machine has room.
 
 Do not poll and do not watch CI: GitHub's merge queue, quarantine and alarms keep `main` green. One
 timer covers a row that never reports: in Claude Code a background `sleep 1800`, re-armed when it
-fires while rows run; in Codex a thread heartbeat every 30 minutes.
+fires while rows run; in Codex a thread heartbeat every 30 minutes. End each turn with one line on
+what is running, never a promise to wait.
 
 ## 5. End
 
 Stop launching when the next row would not land inside the window. When no row is running, wait
 for the wave's pull requests to merge or fail (`npm run jobs`, `gh pr view <n>`), confirm `main`'s
 CI is green after the last landing, and look at the changed public surfaces on production. Then
-write the report into the wave file and send it to the owner. A row still running at the window's
+write the report into the wave file under `## Report` and send it to the owner. A row still running at the window's
 end keeps running; the report says so.
 
 **The report**, at most 25 lines, in plain words for a non-technical reader:

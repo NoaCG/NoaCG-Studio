@@ -79,7 +79,7 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       'Once rows run, ask nothing',
       "The owner's intent binds, his wording does not",
       // Every row lands itself, so the wave lands with or without anything watching it.
-      'as your last action, /queue-merge',
+      'Then /check and /queue-merge.',
       // Learning edits what exists; a lesson that becomes a new file is how the docs grew.
       'Never write a new doc, record or note for a lesson.',
       'No handoff file',
@@ -387,24 +387,20 @@ function reportChainHeadroom() {
 // has to displace words. Raise a limit only with the reason in the commit.
 const WORKFLOW_LINE_LIMITS = new Map([['orchestrator', 170]]);
 
-function checkWorkflowScriptReferences(workflowFile) {
-  for (const file of [workflowFile]) {
-    const content = text(file);
-    const references = [...content.matchAll(/`(scripts\/[A-Za-z0-9._/-]+)/g)].map(
-      (match) => match[1],
-    );
-    for (const reference of new Set(references)) {
-      if (!existsSync(absolute(reference))) {
-        failures.push(`${rel(file)} references missing ${reference}`);
-      }
+function checkWorkflowScriptReferences(file) {
+  const content = text(file);
+  const references = [...content.matchAll(/`(scripts\/[A-Za-z0-9._/-]+)/g)].map((match) => match[1]);
+  for (const reference of new Set(references)) {
+    if (!existsSync(absolute(reference))) {
+      failures.push(`${rel(file)} references missing ${reference}`);
     }
-    // An `npm run <script>` a contract names must exist: a stale name is a cached fact that
-    // reads as an instruction (an incident entry named the wrong gate for a day, 2026-09-02).
-    const scripts = [...content.matchAll(/`npm run ([A-Za-z0-9:_-]+)/g)].map((match) => match[1]);
-    for (const script of new Set(scripts)) {
-      if (!PACKAGE_SCRIPTS.has(script)) {
-        failures.push(`${rel(file)} names \`npm run ${script}\`, which package.json does not define`);
-      }
+  }
+  // An `npm run <script>` a contract names must exist: a stale name is a cached fact that
+  // reads as an instruction (an incident entry named the wrong gate for a day, 2026-09-02).
+  const scripts = [...content.matchAll(/`npm run ([A-Za-z0-9:_-]+)/g)].map((match) => match[1]);
+  for (const script of new Set(scripts)) {
+    if (!PACKAGE_SCRIPTS.has(script)) {
+      failures.push(`${rel(file)} names \`npm run ${script}\`, which package.json does not define`);
     }
   }
 }
@@ -454,13 +450,10 @@ function readAgentDefinitions() {
 // would report each malformed definition fifteen times.
 const AGENT_DEFINITIONS = readAgentDefinitions();
 
-function checkNamedAgents(workflowFile) {
-  const defined = AGENT_DEFINITIONS;
-  for (const file of [workflowFile]) {
-    for (const name of new Set([...text(file).matchAll(/`(wave-row[a-z0-9-]*)`/g)].map((match) => match[1]))) {
-      if (!defined.has(name)) {
-        failures.push(`${rel(file)} names the agent \`${name}\`, which .claude/agents/ does not define`);
-      }
+function checkNamedAgents(file) {
+  for (const name of new Set([...text(file).matchAll(/`(wave-row[a-z0-9-]*)`/g)].map((match) => match[1]))) {
+    if (!AGENT_DEFINITIONS.has(name)) {
+      failures.push(`${rel(file)} names the agent \`${name}\`, which .claude/agents/ does not define`);
     }
   }
 }

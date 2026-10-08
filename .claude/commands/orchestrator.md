@@ -1,6 +1,6 @@
 ---
 description: Run a wave of autonomous work through a time window - the prompt's work, then the backlog in GOALS rank, each row landed through the merge queue, with a short report
-argument-hint: [what to work on, and until when - e.g. "the wizard copy, then the backlog, until 06:00"]
+argument-hint: [what to work on, and until when]
 ---
 
 Argument: $ARGUMENTS

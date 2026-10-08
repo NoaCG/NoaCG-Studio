@@ -121,3 +121,22 @@ test('a plan nobody has written to for a day no longer blocks a new wave', () =>
   touch(old, Date.parse('2026-10-02T06:00:00Z'));
   assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
 });
+
+test('a resumed wave is measured from the start its file records, so a restart cannot stretch it', () => {
+  const dir = store();
+  const first = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  // A Windows editor may have rewritten the file with CRLF; the recorded start must still be read.
+  writeFileSync(first.file, readFileSync(first.file, 'utf8').replace(/\n/g, '\r\n'), 'utf8');
+  const later = NOW + 22 * 3_600_000;
+  assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-10T06:00:00+03:00', dir, now: later }).refusal, /24 hours from its start/);
+  assert.equal(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T23:00:00+03:00', dir, now: later }).file, first.file);
+});
+
+test('a wave nobody has written to for six hours stops blocking, and the refusal says how to resume', () => {
+  const dir = store();
+  const day = openWave({ date: '2026-10-08', kind: 'day', until: '2026-10-08T18:00:00+03:00', dir, now: NOW - 8 * 3_600_000 });
+  touch(day.file, NOW - 5 * 3_600_000);
+  assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).refusal, /open it again with its own date and kind/);
+  touch(day.file, NOW - 7 * 3_600_000);
+  assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
+});
