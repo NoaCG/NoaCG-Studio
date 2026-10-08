@@ -108,6 +108,11 @@ exactly the stuck case.
     stop, with no migration.
   - The button is enabled whenever the production is published or anything local is up.
   - It reads "Clearing…" until the heads report clear, and names a failure if they do not.
+  - With nothing known to be on, it clears only graphics the heads have no word on, and a press
+    leaves in waves of at most 40 rows a window apart, so it never meets the server's burst cap
+    (50 command rows in 5 s) or spends the operator's next Takes (2026-10-08).
+  - The hosted control page follows the same rule (owner, 2026-10-08). Revert there: its
+    `liveLayers.length > 0` gate.
   - Revert: the `liveLayers.length === 0` return.
 - **D12. Before the first publish, browser-graphic Takes are rehearsal.**
   - TAKE is neutral, not red, for a browser-graphic cue.

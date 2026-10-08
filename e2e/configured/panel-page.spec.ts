@@ -80,11 +80,12 @@ test('a hosted page pairs a panel, answers it, runs its presses and refuses repe
   expect((await deck.press('take-cue', ben, benUp.ver as number)).outcome).toBe('ran');
   await deck.state((s) => !(s.live as string[]).includes(ben), 'Ben off air');
 
-  // ALL OUT is refused with nothing on air, as the header's button is greyed; with Anna up it
-  // takes everything off. (Anna and Ben share a graphic, so Ben's Take had replaced her.)
+  // ALL OUT is pressable with nothing on air, as the production page's is (playout-workflow-
+  // simplification D11): the page clears what the server's heads say is on, not only its own list.
+  // With Anna up it takes everything off. (Anna and Ben share a graphic, so Ben's Take had replaced her.)
   const nothingUp = await deck.state();
-  expect((nothingUp.allowed as Json)['all-out']).toBe(false);
-  expect((await deck.press('all-out', '', nothingUp.ver as number)).outcome).toBe('not-allowed');
+  expect((nothingUp.allowed as Json)['all-out']).toBe(true);
+  await expect(op.getByTestId('hosted-out-all')).toBeEnabled();
   expect((await deck.press('take-cue', anna, nothingUp.ver as number)).outcome).toBe('ran');
   const beforeAllOut = await deck.state((s) => (s.live as string[]).includes(anna), 'Anna back on air');
   expect((await deck.press('all-out', '', beforeAllOut.ver as number)).outcome).toBe('ran');
