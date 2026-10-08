@@ -53,6 +53,7 @@ import {
   type KitPlan,
 } from './kitPlan';
 import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../templates/browseFilters';
+import { IMPORTED_VARIANTS } from '../../templates/importedDesign/variants';
 import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
 import VideoStep from './steps/VideoStep';
@@ -682,10 +683,14 @@ export default function CreationWizard() {
   // it runs, so it fires exactly once per deep link and never re-applies after the user has
   // moved on.
   const pendingDesignId = useTemplateStore((s) => s.pendingDesignId);
-  // The catalog loads once a step needs a design (or a deep link names one); Entry and the video
-  // flow never do. Until it arrives the step area shows CatalogLoading.
-  const needsCatalog = step > 0 && mode !== 'video';
-  const catalog = useCatalog(open && (needsCatalog || Boolean(pendingDesignId) || Boolean(draft.variantId)));
+  // The catalog loads once a step lists designs or the draft names a catalog design (or a deep
+  // link does). Entry, the AI step (lazy, so it brings its own), the import doors (their own
+  // variants resolve without it) and video never wait for it. Until it arrives the step area
+  // shows CatalogLoading.
+  const importedVariant = IMPORTED_VARIANTS.find((v) => v.id === draft.variantId);
+  const listsDesigns = (mode === 'template' && step >= 1) || (mode === 'import' && step >= 2);
+  const needsCatalog = listsDesigns || (step > 0 && Boolean(draft.variantId) && !importedVariant);
+  const catalog = useCatalog(open && (needsCatalog || Boolean(pendingDesignId)));
   // Most walks leave Entry for a step that lists designs, so it fetches them once it has painted.
   useCatalogPreload(open && step === 0);
   useEffect(() => {
@@ -744,7 +749,7 @@ export default function CreationWizard() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const variant = draft.variantId && catalog ? catalog.variantById(draft.variantId) : undefined;
+  const variant = importedVariant ?? (draft.variantId && catalog ? catalog.variantById(draft.variantId) : undefined);
 
   // The live preview always renders the draft as real template code. Design mode's preview
   // may additionally carry the stretch-demo line (preview-only; create() builds without it),
@@ -1885,7 +1890,7 @@ export default function CreationWizard() {
             />
           )}
           <div className="wz-step" ref={stepRef} data-overflow={stepOverflow || undefined}>
-            {/* Every working step but video's builds on catalog designs; until they load, this. */}
+            {/* A step that builds on catalog designs waits for them here (see needsCatalog). */}
             {needsCatalog && !catalog ? <CatalogLoading /> : <>
             {step === 0 && (
               <EntryStep
