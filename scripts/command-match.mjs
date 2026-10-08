@@ -604,12 +604,19 @@ export function commitCheckouts(text) {
  *
  * Each token loses its quotes and any closing paren. The splitter is not quote-aware, so the last
  * piece of `bash -c "cd x && git push origin main"` or `(cd x && git push)` arrives as `main"` or
- * `push)`, and read as written it named no branch and no subcommand at all.
+ * `push)`, and read as written it named no branch and no subcommand at all. Redirections are the
+ * shell's, not git's, so they are dropped: `2>/dev/null`, the `2>` the splitter leaves of `2>&1`,
+ * and a bare `>` with the file after it. Read as arguments, `git push origin 2>&1` named a branch.
  */
 function parseGit(part) {
   const rest = /^git\s+(.+)$/s.exec(part);
   if (!rest) return null;
-  const tokens = rest[1].trim().split(/\s+/).map((token) => token.replace(/^['"]+|['")]+$/g, ''));
+  const words = rest[1].trim().split(/\s+/);
+  const tokens = [];
+  for (let at = 0; at < words.length; at += 1) {
+    if (/^[\d*&]?>>?$/.test(words[at])) at += 1;
+    else if (!/^[\d*&]?>/.test(words[at])) tokens.push(words[at].replace(/^['"]+|['")]+$/g, ''));
+  }
   let dir = '';
   let at = 0;
   while (at < tokens.length && tokens[at].startsWith('-')) {
@@ -722,17 +729,16 @@ export function mainPushes(text) {
 /** Push options that take the NEXT token as their value, so it is neither a remote nor a refspec. */
 const PUSH_VALUE_OPTIONS = ['-o', '--push-option', '--repo', '--receive-pack', '--exec'];
 
+/** Push options that send every branch, main among them. */
+const PUSH_EVERY_BRANCH = ['--all', '--mirror', '--branches'];
+
 /** 'named', 'current' or null for one push's arguments - see `mainPushes`. */
 function mainPushKind(args) {
   const positional = [];
   for (let at = 0; at < args.length; at += 1) {
-    const arg = args[at];
-    if (['--all', '--mirror', '--branches'].includes(arg)) return 'named';
-    // A bare redirection (`> out.txt`) takes the next token as its target; an attached one
-    // (`2>/dev/null`, or the `2>` the splitter leaves of `2>&1`) is only itself. Neither is a
-    // refspec, and reading `git push origin 2>&1` as one would hide the push it is.
-    if (PUSH_VALUE_OPTIONS.includes(arg) || /^[\d*&]?>>?$/.test(arg)) at += 1;
-    else if (!arg.startsWith('-') && !/^[\d*&]?>/.test(arg)) positional.push(arg);
+    if (PUSH_EVERY_BRANCH.includes(args[at])) return 'named';
+    if (PUSH_VALUE_OPTIONS.includes(args[at])) at += 1;
+    else if (!args[at].startsWith('-')) positional.push(args[at]);
   }
   const refspecs = positional.slice(1); // the first positional is the remote
   const writesMain = (spec) =>

@@ -681,6 +681,7 @@ test('a push that names main is a main push, in every spelling used here', () =>
     // checkout was on when the command was typed.
     'git switch main && git merge --ff-only claude/x && git push',
     'git checkout main; if ($?) { git push origin HEAD }',
+    'git switch main 2>&1; git push',
   ]) {
     assert.deepEqual(mainPushes(cmd), [{ dir: '', how: 'named' }], cmd);
   }
