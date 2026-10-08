@@ -311,20 +311,22 @@ const CATALOG_TRIGGERS = [
  * (scripts/e2e-affected-copy.mjs), not by its covers lines or the core escalation. `copyEdits`
  * maps such a file to its edit, as `copyEdit` classified it from the two versions; a file absent
  * from it is planned exactly as before, and with no map at all nothing changes. `specTexts` is
- * every spec's source, which the naming search reads, and `baselined` the specs with screenshot
- * baselines - kept for a copy edit among the file's normal coverage, since a picture compares
- * every pixel. The catalog and configured flags are asked first either way.
+ * every spec's source with the e2e helpers it imports, which the naming search reads. Of the
+ * file's normal coverage two kinds stay: `baselined`, the specs with screenshot baselines, since a
+ * picture compares every pixel; and, when the wording GREW, `measuring`, the specs that measure
+ * geometry, since longer words are how a fit breaks. The catalog and configured flags are asked
+ * first either way.
  *
  * @param {string[]} changed        repo-relative paths, forward slashes
  * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
- *           copyEdits?: Map<string, { kind: 'text'|'class', terms: string[] }>,
- *           specTexts?: Map<string, string>, baselined?: string[] }} [opts]
+ *           copyEdits?: Map<string, { kind: 'text'|'class', terms: string[], grew?: boolean }>,
+ *           specTexts?: Map<string, string>, baselined?: string[], measuring?: string[] }} [opts]
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
  *             unmapped: string[], focusApplied: boolean, copyOnly: string[] }}
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [] } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [] } = {},
 ) {
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
@@ -357,7 +359,10 @@ export function planFor(
     if (copy) {
       copyOnly.push(file);
       for (const s of specsNaming(copy, specTexts)) specs.add(s);
-      for (const c of coverage) if (baselined.includes(c.spec) && c.test(file)) specs.add(c.spec);
+      for (const c of coverage) {
+        const kept = baselined.includes(c.spec) || (copy.grew && measuring.includes(c.spec));
+        if (kept && c.test(file)) specs.add(c.spec);
+      }
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
@@ -734,14 +739,38 @@ export function copyContext(base, changed, cwd = undefined) {
   }
   const specTexts = new Map();
   const baselined = [];
+  const measuring = [];
   if (copyEdits.size > 0) {
-    for (const name of readdirSync(join(root, 'e2e'))) {
-      if (name.endsWith('.spec.ts')) specTexts.set(name, read(`e2e/${name}`) ?? '');
-      else if (name.endsWith('.spec.ts-snapshots')) baselined.push(name.replace(/-snapshots$/, ''));
+    const names = readdirSync(join(root, 'e2e'));
+    // A spec reads the wording its helpers read: `_video.ts` clicks a button by its name for
+    // every spec that imports it, so the helper's text counts as the spec's own.
+    const helpers = new Map(names.filter((n) => /^_.*\.ts$/.test(n)).map((n) => [n.replace(/\.ts$/, ''), read(`e2e/${n}`) ?? '']));
+    const withHelpers = (text) => {
+      const seen = new Set();
+      const queue = [text];
+      let all = '';
+      while (queue.length) {
+        const t = queue.pop();
+        all += `\n${t}`;
+        for (const m of t.matchAll(/from\s+['"]\.\/(_[\w-]+)(?:\.ts)?['"]/g)) {
+          if (helpers.has(m[1]) && !seen.has(m[1])) { seen.add(m[1]); queue.push(helpers.get(m[1])); }
+        }
+      }
+      return all;
+    };
+    for (const name of names) {
+      if (name.endsWith('.spec.ts')) {
+        const own = read(`e2e/${name}`) ?? '';
+        specTexts.set(name, withHelpers(own));
+        if (MEASURES_GEOMETRY.test(own)) measuring.push(name);
+      } else if (name.endsWith('.spec.ts-snapshots')) baselined.push(name.replace(/-snapshots$/, ''));
     }
   }
-  return { copyEdits, specTexts, baselined };
+  return { copyEdits, specTexts, baselined, measuring };
 }
+
+/** A spec that measures layout - the kind longer wording can break without naming it. */
+const MEASURES_GEOMETRY = /scrollHeight|scrollWidth|clientHeight|clientWidth|offsetHeight|offsetWidth|getBoundingClientRect|boundingBox\(|toBeInViewport/;
 
 /**
  * The main refs this checkout actually has, most local first.

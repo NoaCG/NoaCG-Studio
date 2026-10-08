@@ -15,20 +15,23 @@
 // What counts as wording, exactly:
 //
 //   .tsx / .jsx   JSX text; a prose string literal (`'Saved to this browser.'`) where a value goes
-//                 (`=`, `:`, `?`, `return`, `=>`, `+`, `||`, `??`, `&&`, an array element) and is not
-//                 compared, indexed or called on; a prose JSX attribute (`title`, `aria-label`,
-//                 `placeholder`, or any component prop not named like an id, key, class or path),
-//                 including adding or removing one; and a STATIC text element (`<p className="hint">`,
-//                 `<b>`, `<code>`, `<br />` ... with no handler, test id, key or expression inside),
-//                 only added or only removed, never reshaped. "Prose" means words with a capital or sentence
-//                 punctuation and nothing selector-, path- or markup-shaped, so `'wz-step hint'` or
-//                 `'.wz-step .hint'` is never prose.
-//   .html         text nodes, inline formatting tags (`<b>`, `<em>`, `<br>` ...) and prose `title`,
-//                 `alt`, `aria-label`, `placeholder` and `<meta content>`. Scripts and styles are code.
-//   .css          declarations in rules whose every selector carries a class, provided no changed
-//                 declaration is a custom property or decides what is visible or reachable
-//                 (`display`, `visibility`, `pointer-events`, `position`, `z-index`, `opacity`,
-//                 `overflow`, `transform`, `animation`, ...). Those are behaviour, not appearance.
+//                 (`=`, `:`, `?`, `return`, `=>`, `||`, `??`, `&&`, or an all-prose concatenation
+//                 of those) that is not compared, indexed, called on, an array element, or named
+//                 like an id, key, path or storage key; a prose JSX attribute value (`title`,
+//                 `aria-label`, or any component prop not named like an id, key, class or path),
+//                 adding or removing one only for a text prop (`description`, `hint`, `label` ...)
+//                 since a prop's mere presence can gate behaviour; and a STATIC text element
+//                 (`<p className="hint">`, `<b>`, `<br />` ... with no handler, test id, key or
+//                 expression inside) only added or only removed, never reshaped or moved. Words
+//                 are compared by PLACE, so a label moving to another button is a change. "Prose"
+//                 means words with a capital or sentence punctuation and nothing selector-, path- or
+//                 markup-shaped, so `'wz-step hint'` or `'.wz-step .hint'` is never prose.
+//   .html         text nodes, bare inline formatting tags (`<b>`, `<em>`, `<br>` with no attribute)
+//                 and prose `title`, `alt`, `aria-label`, `placeholder` and `<meta content>`.
+//                 Scripts and styles are code.
+//   .css          PAINT ONLY: colour, background, border colour and radius, shadows, decoration,
+//                 cursor, in rules whose every selector matches by a class. Size, place, spacing,
+//                 type metrics, visibility, stacking, motion, filters and tokens all plan as before.
 //
 // Plain .ts/.js never takes the path: a prose string there is as likely an AI prompt or a matched
 // message as a label. Nor does anything the catalog gate watches (`src/templates`, `src/blocks`,
@@ -37,10 +40,12 @@
 // WHAT A COPY EDIT SELECTS: the specs whose source holds a string or a regex run that meets the old
 // or new wording - equal to it, or one inside the other at word boundaries and case-insensitively,
 // the way Playwright's text matching reads, where the inner one is distinctive (two words, eight
-// letters) - or, for CSS, a class from a changed rule. Plus every spec with
-// screenshot baselines among the file's normal coverage, because a picture compares every pixel.
-// No smoke spec is added: the scanner proved the code is unchanged, and `npm run build` compiles it.
-// The nightly still runs everything.
+// letters) - or, for CSS, a class from a changed rule. A spec's text includes the e2e helpers it
+// imports. Of the file's normal coverage, the specs with screenshot baselines stay (a picture
+// compares every pixel), and when the wording GREW so do the specs that measure geometry, because
+// longer words are how a fit breaks without anyone naming them. No smoke spec is added: the
+// scanner proved the code is unchanged, and `npm run build` compiles it. The nightly still runs
+// everything.
 
 export const COPY_PATH_FILE = /^src\/.+\.(tsx|jsx|css)$|^[^/]+\.html$|^src\/.+\.html$/;
 // Where wording IS the measured product output, never copy.
@@ -76,6 +81,16 @@ const NON_COPY_PROP =
 function attrIsCopy(attr, element) {
   if (!element || !/^[A-Z]/.test(element)) return INTRINSIC_COPY_ATTRS.has(attr);
   return !NON_COPY_PROP.test(attr); // a component prop
+}
+
+/**
+ * A copy attribute whose mere PRESENCE is wording too, so adding or removing it is a copy edit.
+ * Any other prop's value may change as wording, but its presence can gate behaviour
+ * (`confirm="Delete this show?"` raises a dialog), so adding or removing one is not copy.
+ */
+const TEXT_PROPS = /^(description|hint|title|subtitle|label|caption|reason|help|helpText|tooltip|lede|summary|note|placeholder|alt|aria-label|aria-description)$/;
+function presenceIsCopy(attr, element) {
+  return attrIsCopy(attr, element) && (!/^[A-Z]/.test(element ?? '') || TEXT_PROPS.test(attr));
 }
 
 // ── The script scanner (TSX / JSX) ───────────────────────────────────────────
@@ -274,8 +289,7 @@ export function scanScript(src) {
       continue;
     }
     if (c === '"' || c === "'") {
-      const enc = f.depth.length ? f.depth[f.depth.length - 1] : f.closer;
-      emit({ t: 'str', v: readQuoted(c, true), enc });
+      emit({ t: 'str', v: readQuoted(c, true) });
       continue;
     }
     if (c === '`') { emit({ t: 'tplstart' }); frames.push({ type: 'tpl' }); i++; continue; }
@@ -332,18 +346,40 @@ export function scanScript(src) {
   }
 }
 
-const PROSE_PREV = new Set([':', '?', '+', '=', 'return', '=>', '||', '??', '&&']);
+const PROSE_PREV = new Set([':', '?', '=', 'return', '=>', '||', '??', '&&']);
 const NOT_PROSE_NEXT = new Set(['.', '?.', '[', '(', '===', '!==', '==', '!=', 'in', 'instanceof', '<', '>', '<=', '>=']);
+// A name that says its value is an identity, not words: `id:`, `storageKey =`, `const KEY =`.
+const KEYISH = /(KEY|_ID|ID|URL|PATH|TYPE|MODE|NAME)$/;
 const TEXT_TAGS = new Set(['p', 'span', 'strong', 'b', 'em', 'i', 'small', 'br', 'code', 'kbd', 'abbr', 'sup', 'sub', 'mark', 'q', 'cite', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
 
-/** Is the string at `k` a value position a reader sees, rather than a key, a comparison or a call? */
-function proseSlot(toks, k, prevIndex, nextIndex) {
-  const prev = toks[prevIndex];
-  const next = toks[nextIndex];
+/**
+ * Is the string (or template) between `prevIndex` and `nextIndex` a value a reader sees, rather
+ * than a key, a comparison, an index or a call argument? A concatenation counts only as a whole:
+ * every operand prose, the chain starting in a value position and not ending in a comparison.
+ * Array elements are deliberately not value positions - `['Draft.', 'Live.'].includes(s)` is a test.
+ */
+function proseSlot(toks, prevIndex, nextIndex) {
+  let j = nextIndex;
+  while (toks[j]?.t === 'code' && toks[j].v === '+') {
+    const operand = toks[j + 1];
+    if (operand?.t !== 'str' || !isProse(operand.v)) return false;
+    j += 2;
+  }
+  const next = toks[j];
   if (next && next.t === 'code' && NOT_PROSE_NEXT.has(next.v)) return false;
-  if (!prev || prev.t !== 'code') return false;
-  if (PROSE_PREV.has(prev.v)) return true;
-  return (prev.v === ',' || prev.v === '[') && toks[k].enc === '[';
+  let p = prevIndex;
+  while (toks[p]?.t === 'code' && toks[p].v === '+') {
+    const operand = toks[p - 1];
+    if (operand?.t !== 'str' || !isProse(operand.v)) return false;
+    p -= 2;
+  }
+  const prev = toks[p];
+  if (!prev || prev.t !== 'code' || !PROSE_PREV.has(prev.v)) return false;
+  if (prev.v === ':' || prev.v === '=') {
+    const name = toks[p - 1];
+    if (name?.t === 'code' && IDENT.test(name.v[0]) && (NON_COPY_PROP.test(name.v) || KEYISH.test(name.v))) return false;
+  }
+  return true;
 }
 
 /** The index of the matching end of the JSX element opened at `a` (its jsxclose, or its self-closing jsxopenend). */
@@ -431,38 +467,32 @@ const norm = (s) => s.replace(/\s+/g, ' ').trim();
 
 /**
  * The SKELETON of a script - every token that can change behaviour, with wording set aside - and
- * the wording itself. Two versions with equal skeletons differ only in their words.
+ * the wording itself, each word keyed by WHERE in the skeleton it stands. Two versions with equal
+ * skeletons differ only in their words; keying them by place is what makes two labels trading
+ * buttons, or a sentence moving out of the button it named, a change rather than the same words.
  *
- * @returns {{ skeleton: string, words: string[] }}
+ * @returns {{ skeleton: string, shapes: string[], words: { at: number, v: string }[] }}
  */
 export function scriptSkeleton(src) {
   const toks = scanScript(src);
   const drop = new Array(toks.length).fill(false);
+  const ends = new Map();
+  for (const [a, b] of staticElements(toks)) {
+    ends.set(a, b);
+    for (let k = a; k <= b; k++) drop[k] = true;
+  }
   const words = [];
   const skel = [];
-
-  // Each static element leaves the skeleton, but its SHAPE - tags, classes, style - is kept in
-  // order beside it, so a changed class on a hint that stays is still a change (see `sameShapes`).
+  // A sentence split over a concatenation is still one sentence: `'a ' + 'b'` reads as `'a b'`.
+  const push = (s) => {
+    const len = skel.length;
+    if (s === '…' && len >= 2 && skel[len - 1] === '+' && skel[len - 2] === '…') skel.pop();
+    else skel.push(s);
+  };
+  const word = (v) => words.push({ at: skel.length, v });
+  // Each static element leaves the skeleton, but its SHAPE - tags, attributes, classes, style
+  // values - is kept with its place, so a changed class on a hint that stays is still a change.
   const shapes = [];
-  for (const [a, b] of staticElements(toks)) {
-    // The element's text reads as ONE string, the way the page shows it: `You get <b>real</b>,
-    // editable code` is asserted as "real, editable code", never as three pieces.
-    let text = '';
-    const shape = [];
-    for (let k = a; k <= b; k++) {
-      drop[k] = true;
-      const t = toks[k];
-      if (t.t === 'jsxtext') text += t.v;
-      else if (t.t === 'jsxopen') { shape.push(`<${t.name}`); if (t.name === 'br') text += ' '; }
-      else if (t.t === 'jsxclose') shape.push(`</${t.name}>`);
-      else if (t.t === 'jsxattr' && (t.name === 'className' || t.name === 'style')) shape.push(`@${t.name}`);
-      else if (t.t === 'str' && (t.attr === 'className' || t.attr === 'style')) shape.push(JSON.stringify(t.v));
-      else if (t.t === 'str' && isProse(t.v)) words.push(t.v);
-      else if (t.t === 'code') shape.push(t.v);
-    }
-    words.push(text);
-    shapes.push(shape.join(' '));
-  }
 
   const prevKept = (k) => { let j = k - 1; while (j >= 0 && drop[j]) j--; return j; };
   const nextKept = (k) => { let j = k + 1; while (j < toks.length && drop[j]) j++; return j; };
@@ -477,67 +507,94 @@ export function scriptSkeleton(src) {
       else if (t.t === 'chunk') stack[stack.length - 1].chunks.push(k);
       else if (t.t === 'tplend') {
         const { start, chunks } = stack.pop();
-        const prose = isProse(chunks.map((c) => toks[c].v).join(' ')) && proseSlot(toks, start, prevKept(start), nextKept(k));
+        const prose = isProse(chunks.map((c) => toks[c].v).join(' ')) && proseSlot(toks, prevKept(start), nextKept(k));
         for (const c of chunks) chunkIsProse.set(c, prose);
       }
     });
   }
 
   for (let k = 0; k < toks.length; k++) {
-    if (drop[k]) continue;
+    if (ends.has(k)) {
+      // The element's text reads as ONE string, the way the page shows it: `You get <b>real</b>,
+      // editable code` is asserted as "real, editable code", never as three pieces.
+      const end = ends.get(k);
+      let text = '';
+      const shape = [];
+      for (let m = k; m <= end; m++) {
+        const t = toks[m];
+        if (t.t === 'jsxtext') text += t.v;
+        else if (t.t === 'jsxattr' && toks[m + 1]?.t === 'str' && presenceIsCopy(t.name, t.el) && isProse(toks[m + 1].v)) {
+          word(toks[m + 1].v);
+          m++;
+        } else if (t.t === 'jsxopen') {
+          shape.push(`<${t.name}`);
+          if (t.name === 'br') text += ' ';
+        } else if (t.t === 'jsxclose') shape.push(`</${t.name}>`);
+        else if (t.t === 'jsxopenend') shape.push(t.self ? '/>' : '>');
+        else if (t.t === 'jsxattr') shape.push(`@${t.name}`);
+        else if (t.t === 'str') shape.push(JSON.stringify(t.v));
+        else shape.push(t.v);
+      }
+      word(text);
+      shapes.push(`${skel.length}:${shape.join(' ')}`);
+      k = end;
+      continue;
+    }
     const t = toks[k];
     switch (t.t) {
       case 'jsxtext':
-        words.push(t.v);
+        word(t.v);
         break;
       case 'jsxattr': {
         const val = toks[k + 1];
         if (val?.t === 'str' && attrIsCopy(t.name, t.el) && isProse(val.v)) {
-          words.push(val.v);
-          k++; // the attribute and its value leave the skeleton together
+          word(val.v);
+          k++;
+          // A text prop may come and go; any other keeps its place, so its presence still counts.
+          if (!presenceIsCopy(t.name, t.el)) {
+            push(`@${t.name}`);
+            push('…');
+          }
           break;
         }
-        skel.push(`@${t.name}`);
+        push(`@${t.name}`);
         break;
       }
       case 'str':
-        if (t.attr === undefined && isProse(t.v) && proseSlot(toks, k, prevKept(k), nextKept(k))) {
-          words.push(t.v);
-          skel.push('\u2026');
-        } else skel.push(JSON.stringify(t.v));
+        if (t.attr === undefined && isProse(t.v) && proseSlot(toks, prevKept(k), nextKept(k))) {
+          word(t.v);
+          push('…');
+        } else push(JSON.stringify(t.v));
         break;
       case 'tplstart':
       case 'tplend':
-        skel.push('`');
+        push('`');
         break;
       case 'chunk':
         if (chunkIsProse.get(k)) {
-          words.push(t.v);
-          skel.push('\u2026');
-        } else skel.push(JSON.stringify(t.v));
+          word(t.v);
+          push('…');
+        } else push(JSON.stringify(t.v));
         break;
       case 'jsxopen':
-        skel.push(`<${t.name}`);
+        push(`<${t.name}`);
         break;
       case 'jsxopenend':
-        skel.push(t.self ? '/>' : '>');
+        push(t.self ? '/>' : '>');
         break;
       case 'jsxclose':
-        skel.push(`</${t.name}>`);
+        push(`</${t.name}>`);
         break;
       default:
-        skel.push(t.v);
+        push(t.v);
     }
   }
+  return { skeleton: skel.join('\u0001'), shapes, words: placed(words) };
+}
 
-  // A sentence split over a concatenation is still one sentence: `'a ' + 'b'` reads as `'a b'`.
-  const collapsed = [];
-  for (const s of skel) {
-    const len = collapsed.length;
-    if (s === '\u2026' && len >= 2 && collapsed[len - 1] === '+' && collapsed[len - 2] === '\u2026') collapsed.pop();
-    else collapsed.push(s);
-  }
-  return { skeleton: collapsed.join('\u0001'), shapes, words: words.map(norm).filter((w) => /\p{L}/u.test(w)) };
+/** Words normalised as read, whitespace-only ones dropped. */
+function placed(words) {
+  return words.map((w) => ({ at: w.at, v: norm(w.v) })).filter((w) => w.v);
 }
 
 /** `small` in order inside `big`. */
@@ -548,9 +605,9 @@ function isSubsequence(small, big) {
 }
 
 /**
- * Static text elements were only REMOVED, or only ADDED - never reshaped. Removing a hint and
- * adding one are both wording; one hint losing a class while another appears is not something
- * this can tell apart from restyling, so it is not wording.
+ * Static text elements were only REMOVED, or only ADDED - never reshaped or moved (each shape
+ * carries its place). Removing a hint and adding one are both wording; one hint losing a class, or
+ * a label leaving its button, is not something this can tell apart from behaviour, so it is not.
  */
 function sameShapes(before, after) {
   return isSubsequence(after, before) || isSubsequence(before, after);
@@ -561,10 +618,26 @@ function sameShapes(before, after) {
 const HTML_INLINE = new Set(['b', 'strong', 'em', 'i', 'small', 'br', 'code', 'kbd', 'abbr', 'sup', 'sub', 'mark']);
 const HTML_COPY_ATTRS = new Set(['title', 'alt', 'placeholder', 'aria-label', 'aria-description']);
 
-/** The skeleton of an HTML page: tags and attributes verbatim except words, inline formatting and prose labels. */
+/** The index just past the `>` that closes the tag opened at `i`, reading quoted values whole. */
+function tagEnd(src, i) {
+  let quote = null;
+  for (let j = i + 1; j < src.length; j++) {
+    const c = src[j];
+    if (quote) { if (c === quote) quote = null; }
+    else if (c === '"' || c === "'") quote = c;
+    else if (c === '>') return j + 1;
+  }
+  throw new Abort('unterminated tag');
+}
+
+/**
+ * The skeleton of an HTML page: tags and attributes verbatim, except text, prose labels and BARE
+ * inline formatting (`<b>`, `<em>`, `<br>` with no attribute at all), each word keyed by place.
+ */
 export function htmlSkeleton(src) {
   const skel = [];
   const words = [];
+  const word = (v) => words.push({ at: skel.length, v });
   let i = 0;
   const n = src.length;
   while (i < n) {
@@ -575,25 +648,23 @@ export function htmlSkeleton(src) {
       continue;
     }
     if (src[i] === '<' && /[A-Za-z/!]/.test(src[i + 1] ?? '')) {
-      const end = src.indexOf('>', i);
-      if (end < 0) throw new Abort('unterminated tag');
-      const raw = src.slice(i + 1, end);
-      i = end + 1;
+      const end = tagEnd(src, i);
+      const raw = src.slice(i + 1, end - 1);
+      i = end;
       const m = /^(\/?)([A-Za-z][\w-]*)/.exec(raw);
       if (!m) { skel.push(raw); continue; } // a doctype
       const [, closing, tagRaw] = m;
       const tag = tagRaw.toLowerCase();
+      const rest = raw.slice(m[0].length);
       const attrs = [];
-      let allClass = true;
-      for (const a of raw.slice(m[0].length).matchAll(/([^\s=/]+)(?:\s*=\s*("([^"]*)"|'([^']*)'|[^\s>]+))?/g)) {
-        const name = a[1].toLowerCase();
-        const value = a[3] ?? a[4] ?? a[2] ?? null;
-        if (name !== 'class') allClass = false;
+      for (const at of rest.matchAll(/([^\s=/]+)(?:\s*=\s*("([^"]*)"|'([^']*)'|[^\s>]+))?/g)) {
+        const name = at[1].toLowerCase();
+        const value = at[3] ?? at[4] ?? at[2] ?? null;
         const copy = (HTML_COPY_ATTRS.has(name) || (tag === 'meta' && name === 'content')) && value !== null && isProse(value);
-        if (copy) words.push(value);
+        if (copy) word(value);
         else attrs.push(`${name}=${value ?? ''}`);
       }
-      if (HTML_INLINE.has(tag) && allClass) continue; // inline formatting is wording
+      if (HTML_INLINE.has(tag) && !/\S/.test(rest.replace(/\/$/, ''))) continue; // bare formatting is wording
       skel.push(`<${closing}${tag} ${attrs.join(' ')}>`);
       if (!closing && (tag === 'script' || tag === 'style')) {
         const close = src.toLowerCase().indexOf(`</${tag}`, i);
@@ -606,14 +677,17 @@ export function htmlSkeleton(src) {
     const start = i;
     i++;
     while (i < n && !(src[i] === '<' && /[A-Za-z/!]/.test(src[i + 1] ?? ''))) i++;
-    words.push(src.slice(start, i));
+    word(src.slice(start, i));
   }
-  return { skeleton: skel.join('\u0001'), words: words.map(norm).filter((w) => /\p{L}/u.test(w)) };
+  return { skeleton: skel.join('\u0001'), words: placed(words) };
 }
 
 // ── CSS ──────────────────────────────────────────────────────────────────────
 
-const BEHAVIOUR_PROPS = /^(display|visibility|pointer-events|position|z-index|content|content-visibility|opacity|overflow(-x|-y)?|transform|translate|rotate|scale|inset(-.+)?|top|right|bottom|left|float|clip|clip-path|mask(-.+)?|user-select|touch-action|appearance|all|animation(-.+)?|transition(-.+)?|order|contain)$/;
+// PAINT ONLY, as an allowlist: what a declaration may change and still be appearance. Size, place,
+// spacing, type metrics, visibility, stacking, motion and filters can all change what a spec can
+// see, reach or measure, so a stylesheet edit touching any of them plans as before.
+const PAINT_PROPS = /^(color|background|background-color|background-image|border-color|border-(top|right|bottom|left)-color|outline-color|box-shadow|text-shadow|text-decoration(-color|-line|-style)?|fill|stroke|caret-color|accent-color|border-radius|border-(top|bottom)-(left|right)-radius|cursor)$/;
 const GROUP_AT = /^@(media|supports|container|layer)\b/;
 
 /**
@@ -681,22 +755,25 @@ export function cssRules(src) {
   return rules.filter((r) => !GROUP_AT.test(r.chain[r.chain.length - 1]) || r.decls.length > 0);
 }
 
-/** The class names in a selector chain. */
+/** A selector with its negations taken out: `:not(.x)` names what it does NOT match. */
+const positive = (sel) => sel.replace(/:not\([^)]*\)/g, '');
+
+/** The class names a selector chain matches by. */
 function classesOf(chain) {
-  return [...new Set(chain.flatMap((p) => [...p.matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map((m) => m[1])))];
+  return [...new Set(chain.flatMap((p) => [...positive(p).matchAll(/\.(-?[A-Za-z_][\w-]*)/g)].map((m) => m[1])))];
 }
 
-/** Every comma-separated selector of every style prelude carries a class (or nests under one). */
+/** Every comma-separated selector of every style prelude matches by a class (or nests under one). */
 function classAnchored(chain) {
   return chain
     .filter((p) => !GROUP_AT.test(p))
-    .every((p) => p.split(',').every((s) => /\.[A-Za-z_-]/.test(s) || /^\s*&/.test(s)));
+    .every((p) => p.split(',').every((s) => /\.[A-Za-z_-]/.test(positive(s)) || /^\s*&/.test(s)));
 }
 
 /**
- * A stylesheet edit that only restyles classed elements: the class names it touches, or null when
- * the edit could change what is shown or reachable (see BEHAVIOUR_PROPS) or reaches unclassed
- * elements, custom properties, or at-rules.
+ * A stylesheet edit that only REPAINTS classed elements: the class names it touches, or null when
+ * any changed declaration is not paint (see PAINT_PROPS), the declarations of a rule were only
+ * reordered (the later one wins), or the edit reaches unclassed elements, tokens or at-rules.
  */
 export function cssEditClasses(oldSrc, newSrc) {
   const before = cssRules(oldSrc);
@@ -725,14 +802,14 @@ export function cssEditClasses(oldSrc, newSrc) {
     const rb = bMap.get(key);
     const da = ra?.decls ?? [];
     const db = rb?.decls ?? [];
+    if (ra && rb && da.join('\n') === db.join('\n')) continue;
     const changed = [...da.filter((d) => !db.includes(d)), ...db.filter((d) => !da.includes(d))];
-    if (changed.length === 0 && ra && rb) continue;
+    if (changed.length === 0) return null; // reordered: a different declaration now wins
     const rule = ra ?? rb;
     if (rule.atRule || rule.chain[0].startsWith('@stmt')) return null;
     if (!classAnchored(rule.chain)) return null;
     for (const d of changed) {
-      const prop = d.slice(0, d.indexOf(':'));
-      if (prop.startsWith('--') || BEHAVIOUR_PROPS.test(prop)) return null;
+      if (!PAINT_PROPS.test(d.slice(0, d.indexOf(':')))) return null;
     }
     for (const c of classesOf(rule.chain)) classes.add(c);
   }
@@ -741,22 +818,29 @@ export function cssEditClasses(oldSrc, newSrc) {
 
 // ── The classification ───────────────────────────────────────────────────────
 
-function multisetDiff(a, b) {
+/** The words on one side that the other does not have in the same place. */
+function moved(a, b) {
   const count = new Map();
-  for (const w of a) count.set(w, (count.get(w) ?? 0) + 1);
-  for (const w of b) count.set(w, (count.get(w) ?? 0) - 1);
-  return [...count].filter(([, c]) => c !== 0).map(([w]) => w);
+  for (const w of b) count.set(`${w.at}\u0000${w.v}`, (count.get(`${w.at}\u0000${w.v}`) ?? 0) + 1);
+  return a.filter((w) => {
+    const key = `${w.at}\u0000${w.v}`;
+    const left = count.get(key) ?? 0;
+    if (left > 0) { count.set(key, left - 1); return false; }
+    return true;
+  });
 }
 
 /**
- * WHAT ONE FILE'S EDIT IS: `{ kind: 'text', terms }` for wording, `{ kind: 'class', terms }` for a
- * class-only restyle, or `null` - the normal plan - for anything else, including a file that is
- * new, deleted, outside the copy path, or that a scanner could not follow.
+ * WHAT ONE FILE'S EDIT IS: `{ kind: 'text', terms, grew }` for wording, `{ kind: 'class', terms }`
+ * for a repaint of classes, or `null` - the normal plan - for anything else, including a file that
+ * is new, deleted, outside the copy path, or that a scanner could not follow. A wording change
+ * with no letters in it (`+` to `x`) is null too: no spec could be found by naming it. `grew` says
+ * the wording got longer, which is the one way words alone move a layout toward overflow.
  *
  * @param {string} file repo-relative path, forward slashes
  * @param {string|null} oldText the file at the diff base
  * @param {string|null} newText the file now
- * @returns {{ kind: 'text'|'class', terms: string[] } | null}
+ * @returns {{ kind: 'text'|'class', terms: string[], grew?: boolean } | null}
  */
 export function copyEdit(file, oldText, newText) {
   if (oldText === null || newText === null || oldText === newText) return null;
@@ -764,14 +848,19 @@ export function copyEdit(file, oldText, newText) {
   try {
     if (file.endsWith('.css')) {
       const terms = cssEditClasses(oldText, newText);
-      return terms ? { kind: 'class', terms } : null;
+      return terms && terms.length > 0 ? { kind: 'class', terms } : null;
     }
     const read = file.endsWith('.html') ? htmlSkeleton : scriptSkeleton;
     const before = read(oldText);
     const after = read(newText);
     if (before.skeleton !== after.skeleton) return null;
     if (before.shapes && !sameShapes(before.shapes, after.shapes)) return null;
-    return { kind: 'text', terms: multisetDiff(before.words, after.words) };
+    const gone = moved(before.words, after.words);
+    const added = moved(after.words, before.words);
+    const terms = [...new Set([...gone, ...added].map((w) => w.v).filter((v) => /\p{L}/u.test(v)))];
+    if (gone.length + added.length > 0 && terms.length === 0) return null;
+    const length = (ws) => ws.reduce((sum, w) => sum + w.v.length, 0);
+    return { kind: 'text', terms, grew: length(added) > length(gone) };
   } catch (error) {
     if (error instanceof Abort) return null;
     throw error;

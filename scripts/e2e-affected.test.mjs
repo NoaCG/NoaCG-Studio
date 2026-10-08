@@ -1211,7 +1211,7 @@ export default function Step({ cond, onPick }: Props) {
     <div className="wz-step" data-testid="video-step">
       <h3>Describe your video</h3>
 ${body}
-      <Thing reason={reason} feature="Video or animation with AI" onPick={onPick} />
+      <Thing reason={reason} description="Video or animation with AI" onPick={onPick} />
     </div>
   );
 }
@@ -1231,7 +1231,7 @@ test('copy path: removing a static hint paragraph, a prose prop or a sentence is
   // f8f18bade: "Cut the explanatory lines left on the Video step".
   const base = STEP(HINT);
   assert.equal(copyEdit(VIDEO_STEP, base, STEP(''))?.kind, 'text');
-  assert.equal(copyEdit(VIDEO_STEP, base, base.replace(' feature="Video or animation with AI"', ''))?.kind, 'text');
+  assert.equal(copyEdit(VIDEO_STEP, base, base.replace(' description="Video or animation with AI"', ''))?.kind, 'text');
   assert.equal(copyEdit(VIDEO_STEP, base, base.replace('Sign in to use AI - describe any animation.', 'Sign in to use AI.'))?.kind, 'text');
   // A sentence split over a concatenation collapses to one (ViewingControls in cb740d569).
   const before = "const FLOORS = [{ id: 'relaxed', permits:\n  'Permits text below the broadcast sizes. Nothing is hidden, '\n  + 'and the AI is told.' }];";
@@ -1258,11 +1258,50 @@ test('copy path: anything that could change behaviour falls back to the normal p
     'a selector-shaped string': [STEP(HINT, "const sel = '.wz-step .hint';"), STEP(HINT, "const sel = '.wz-step .note';")],
     'a class-list string': [STEP(HINT, "const cls = 'wz-step hint';"), STEP(HINT, "const cls = 'wz-step note';")],
     'an edit the scanner cannot follow': [base, base.replace('</div>', '')],
+    // The review of 2026-10-08 found each of these classified as copy; each one changes behaviour.
+    'a label moving out of its button': [
+      STEP('<button onClick={f}><span>Save show</span></button>'),
+      STEP('<button onClick={f}></button><span>Save show</span>'),
+    ],
+    'a symbol label': [STEP('<button onClick={f}>+</button>'), STEP('<button onClick={f}>×</button>')],
+    'a style value on a static element': [
+      STEP(`<span className="x" style={{ display: 'none' }}>Hi there</span>`),
+      STEP(`<span className="x" style={{ display: 'block' }}>Hi there</span>`),
+    ],
+    'an indexed key': [STEP(HINT, "const c = COLORS['Lower third.'];"), STEP(HINT, "const c = COLORS['Lower thirds.'];")],
+    'an allowlist entry': [
+      STEP(HINT, "const ok = ['Draft mode.', 'Live mode.'].includes(s);"),
+      STEP(HINT, "const ok = ['Draft mode.', 'Live now.'].includes(s);"),
+    ],
+    'a concatenation compared': [
+      STEP(HINT, "const ok = s === P + 'Saved here.';"),
+      STEP(HINT, "const ok = s === P + 'Saved now.';"),
+    ],
+    'a concatenation that ends in a comparison': [
+      STEP(HINT, "const ok = 'Saved ' + 'Here now.' === s;"),
+      STEP(HINT, "const ok = 'Saved ' + 'There now.' === s;"),
+    ],
+    'a storage key': [
+      STEP(HINT, "const KEY = 'NoaCG Studio: last project';"),
+      STEP(HINT, "const KEY = 'NoaCG Studio: last projects';"),
+    ],
+    'an id value': [STEP(HINT, "f({ id: 'Lower Third.' });"), STEP(HINT, "f({ id: 'Lower Thirds.' });")],
+    'a behaviour prop appearing': [base, base.replace('onPick={onPick} />', 'onPick={onPick} confirm="Delete this show?" />')],
   };
   for (const [what, [from, to]] of Object.entries(pairs)) {
     assert.notEqual(from, to, `${what}: the fixture must actually change`);
     assert.equal(copyEdit(VIDEO_STEP, from, to), null, `${what} must fall back`);
   }
+  // Words that trade PLACES are wording too, but every word that moved is a term, so the specs
+  // that click either label run. Compared as a bag of words, this used to plan nothing at all.
+  const swaps = [
+    [
+      STEP('<button onClick={f}>Save show</button><button onClick={g}>Delete show</button>'),
+      STEP('<button onClick={f}>Delete show</button><button onClick={g}>Save show</button>'),
+    ],
+    [STEP('{s && <p>First hint.</p>}{g && <p>Second hint.</p>}'), STEP('{s && <p>Second hint.</p>}{g && <p>First hint.</p>}')],
+  ];
+  for (const [from, to] of swaps) assert.equal(copyEdit(VIDEO_STEP, from, to)?.terms.length, 2);
 });
 
 test('copy path: only UI sources outside the catalog take it, and a new or deleted file never does', () => {
@@ -1279,18 +1318,31 @@ test('copy path: HTML text and labels are wording, scripts and links are not', (
   assert.equal(copyEdit('whats-new.html', page('Create live graphics.'), page('Create <b>live</b> graphics. Run the show.'))?.kind, 'text');
   assert.equal(copyEdit('whats-new.html', page('Hi there.'), page('Hi there.', '/app/new')), null);
   assert.equal(copyEdit('whats-new.html', page('Hi there.'), page('Hi there.', '/app', 'stop()')), null);
+  // A `>` inside a quoted value does not end the tag, so the link after it is still code.
+  const quoted = (href) => `<p><a title="A > B" href="${href}">Go there</a></p>`;
+  assert.equal(copyEdit('whats-new.html', quoted('/old'), quoted('/new')), null);
+  assert.equal(copyEdit('whats-new.html', '<p><i class="icon">now</i></p>', '<p><i class="icon hidden">now</i></p>'), null, 'a class on inline formatting');
 });
 
-test('copy path: a CSS edit restyles classes, unless it reaches visibility, tokens or unclassed elements', () => {
+test('copy path: a CSS edit that only repaints classes is copy; size, place, visibility and tokens are not', () => {
   const css = (decl, sel = '.wz-hero h1, .wz-hero p') =>
-    `:root { --gap: 4px; }\n${sel} { margin: 0; ${decl} }\n@media (max-width: 600px) { .wz-card { padding: 2px; } }\n`;
+    `:root { --gap: 4px; }\n${sel} { margin: 0; ${decl} }\n@media (max-width: 600px) { .wz-card { color: red; } }\n`;
   assert.deepEqual(cssEditClasses(css('color: red;'), css('color: blue;')), ['wz-hero']);
-  assert.deepEqual(cssEditClasses(css(''), css('').replace('padding: 2px', 'padding: 4px')), ['wz-card']);
-  assert.equal(cssEditClasses(css('display: block;'), css('display: none;')), null, 'visibility is behaviour');
+  assert.deepEqual(cssEditClasses(css(''), css('').replace('color: red', 'color: blue')), ['wz-card']);
+  assert.equal(copyEdit('src/styles/home.css', css('color: red;'), css('color: blue;'))?.kind, 'class');
+  const notPaint = {
+    'visibility': ['display: block;', 'display: none;'],
+    'size': ['height: 20px;', 'height: 0;'],
+    'spacing': ['padding: 2px;', 'padding: 4px;'],
+    'a prefixed move': ['-webkit-transform: none;', '-webkit-transform: translateX(-9999px);'],
+    'a filter': ['filter: none;', 'filter: opacity(0);'],
+  };
+  for (const [what, [from, to]] of Object.entries(notPaint)) assert.equal(cssEditClasses(css(from), css(to)), null, what);
   assert.equal(cssEditClasses(css(''), css('').replace('--gap: 4px', '--gap: 8px')), null, 'a token fans out');
   assert.equal(cssEditClasses(css('color: red;', 'h1'), css('color: blue;', 'h1')), null, 'an unclassed element');
+  assert.equal(cssEditClasses(css('color: red;', ':not(.x)'), css('color: blue;', ':not(.x)')), null, 'a negation matches unclassed elements');
   assert.equal(cssEditClasses('.a { color: red; }\n.b { color: red; }', '.b { color: red; }\n.a { color: red; }'), null, 'the cascade is order');
-  assert.equal(copyEdit('src/styles/home.css', css('color: red;'), css('color: blue;'))?.kind, 'class');
+  assert.equal(cssEditClasses('.a { color: red; color: blue; }', '.a { color: blue; color: red; }'), null, 'so is a rule\'s own order');
 });
 
 test('copy path: a spec names wording by a distinctive phrase, and a single word only whole', () => {
@@ -1328,6 +1380,13 @@ test('copy path: a wording edit plans only the specs that name it, while a logic
   const copy = planFor([VIDEO_STEP], { coverage, copyEdits: new Map([[VIDEO_STEP, edit]]), specTexts, baselined: ['shots.spec.ts'] });
   assert.deepEqual(copy.specs, ['names-it.spec.ts', 'shots.spec.ts'], 'the naming spec, plus the screenshot spec that covers the file');
   assert.deepEqual(copy.copyOnly, [VIDEO_STEP]);
+  // Longer wording can break a fit without naming it, so the covering specs that measure stay.
+  const longer = copyEdit(VIDEO_STEP, STEP(''), STEP(HINT));
+  assert.equal(longer.grew, true);
+  assert.equal(edit.grew, false);
+  const opts = { coverage, specTexts, baselined: [], measuring: ['wizard-b.spec.ts'] };
+  assert.deepEqual(planFor([VIDEO_STEP], { ...opts, copyEdits: new Map([[VIDEO_STEP, longer]]) }).specs, ['names-it.spec.ts', 'wizard-b.spec.ts']);
+  assert.deepEqual(planFor([VIDEO_STEP], { ...opts, copyEdits: new Map([[VIDEO_STEP, edit]]) }).specs, ['names-it.spec.ts']);
   const logic = planFor([VIDEO_STEP], { coverage, specTexts, baselined: ['shots.spec.ts'] });
   assert.deepEqual(logic.specs, ['shots.spec.ts', 'wizard-a.spec.ts', 'wizard-b.spec.ts'], 'a file absent from copyEdits plans as before');
   // A class-only restyle of a CORE stylesheet no longer escalates; any other stylesheet edit still does.
@@ -1353,6 +1412,8 @@ test('copy path: a branch reads each edit from its merge-base and its working tr
     write(VIDEO_STEP, STEP(HINT));
     write('src/components/Other.tsx', STEP(HINT));
     write('e2e/names-it.spec.ts', "toContainText('real, editable code')");
+    write('e2e/_helper.ts', "export const go = (p) => p.getByText('Describe your video');");
+    write('e2e/via-helper.spec.ts', "import { go } from './_helper';\nconst r = el.getBoundingClientRect();");
     write('e2e/shots.spec.ts-snapshots/a.png', 'png');
     git('add', '-A');
     git('commit', '-m', 'base');
@@ -1362,11 +1423,15 @@ test('copy path: a branch reads each edit from its merge-base and its working tr
     write('src/components/Other.tsx', STEP(HINT).replace('className="hint"', 'className="note"')); // uncommitted, and logic
     write('src/components/New.tsx', STEP(HINT)); // untracked: no old side
     const changed = [VIDEO_STEP, 'src/components/Other.tsx', 'src/components/New.tsx'];
-    const { copyEdits, specTexts, baselined } = copyContext('main', changed, repo);
+    const { copyEdits, specTexts, baselined, measuring } = copyContext('main', changed, repo);
     assert.deepEqual([...copyEdits.keys()], [VIDEO_STEP]);
-    assert.deepEqual([...specTexts.keys()], ['names-it.spec.ts']);
+    assert.deepEqual([...specTexts.keys()].sort(), ['names-it.spec.ts', 'via-helper.spec.ts']);
     assert.deepEqual(baselined, ['shots.spec.ts']);
+    assert.deepEqual(measuring, ['via-helper.spec.ts']);
+    // The video step's heading is unchanged, so the helper that reads it is not named; the
+    // removed hint is.
     assert.deepEqual(specsNaming(copyEdits.get(VIDEO_STEP), specTexts), ['names-it.spec.ts']);
+    assert.match(specTexts.get('via-helper.spec.ts'), /Describe your video/, 'a helper\'s wording counts as its spec\'s');
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
