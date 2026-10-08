@@ -118,10 +118,10 @@ for the suites and gates.
 ends with `npm run stamp` (`scripts/check-stamp.mjs`), which writes a stamp for the exact tip into
 the shared job store. The verdict is derived from the legs, so a leg that did not run is a fail.
 
-Only what needs human judgment reaches the owner: one file per item under
-`docs/acceptance/owner-queue/`, of kind `decision`, `phone` or `desktop`
-([`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md)). Work an agent can verify never goes there, and a technical
-problem is never the owner's.
+Only what needs human judgment reaches the owner: a look at the change in its pull request
+comment, and a decision or a step only he can take as a GitHub issue labelled `needs owner`
+(`.agent-workflows/verify.md`, step 5). Work an agent can verify never reaches him, and a technical
+problem is never the owner's. The backlog is GitHub Issues (`docs/backlog/README.md`).
 
 ## 5. Landing
 
@@ -132,9 +132,9 @@ session that owns the branch runs it, because queueing declares the work finishe
 2. `git fetch origin && git merge-tree --write-tree origin/main HEAD` shows no conflict, and
    `node scripts/merge-order.mjs --branch <branch>` finds no unlanded branch inside this one.
 3. `npm run queue:merge -- --why "<reason>"` (`scripts/jobs.mjs add-merge`) refuses a tip the
-   stamp does not cover, an unanswered owner receipt or unread relay mail. It then pushes the
-   branch, opens or reuses the pull request, posts the verdict as the `noacg/reviewed` commit
-   status, adds the `land` label and turns auto-merge on.
+   stamp does not cover or unread relay mail. It then pushes the branch, opens or reuses the pull
+   request (carrying each `Closes #n` from the branch's commit messages), posts the verdict as the
+   `noacg/reviewed` commit status, adds the `land` label and turns auto-merge on.
 4. GitHub queues the pull request once its two required checks pass: `CI gate`, and `Reviewed`
    (the `ci.yml` job that reads `noacg/reviewed`). It builds a temporary merge of up to five queued
    pull requests on top of `main`, runs `ci.yml` on that merge group, and merges them when

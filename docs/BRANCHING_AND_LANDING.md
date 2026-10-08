@@ -92,8 +92,8 @@ instruction that still names one.
   `VITE_SUPABASE_URL` names and needs nobody, because the judgement a human was being asked for is
   made on the STATEMENTS - and it fails CLOSED, so a shape it does not recognise stops rather than
   guesses. **A REFUSAL is the only thing that still reaches you**, answered per version
-  (`npm run db:push -- --allow 0052`) and filed under `docs/acceptance/owner-queue/` by the
-  branch's own session; the landing itself succeeds either way. **It also refuses onto a DRIFTED
+  (`npm run db:push -- --allow 0052`) and filed as a `needs owner` issue by the branch's own
+  session; the landing itself succeeds either way. **It also refuses onto a DRIFTED
   ledger** - waiting was never the safe option: the old rule left 0051 unapplied for hours, and a
   ledger out of step stays silent until the next push and then fails partway through, so the
   refusal is what turns that into an error you can see. **Which statements pass, which stop, and

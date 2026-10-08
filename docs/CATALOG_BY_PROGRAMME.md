@@ -603,8 +603,8 @@ converge on. So:
   footprint bucket the design claims does not appear when `card-look-sweep` runs on its
   category, the shape claim failed and the design is not done. Then `taste-frame-review` and
   `docs/VISUAL_TASTE_REVIEW.md` answered in writing, as `/check` already requires for anything
-  that moves a graphic's look. Then the owner-queue file with a route: he sees every one
-  (`docs/acceptance/owner-queue/`, nothing expires).
+  that moves a graphic's look. Then the owner's look, asked for in the pull request comment with
+  a route: he sees every one.
 - **Bookkeeping.** The row updates §5's cell and §6's entry from ABSENT to HAVE with the ids,
   in the same commit as the designs. A gap table nobody updates becomes the next thing to
   re-survey.

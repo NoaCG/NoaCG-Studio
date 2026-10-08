@@ -246,7 +246,7 @@ broadcast product, which is why it appears here as a BAR rather than as a compet
 ## How to use this file
 
 - A **GAP** row is a candidate piece of work, not a commitment. It competes with everything else in
-  the drain order (`docs/backlog/README.md`).
+  the backlog (GitHub Issues, `docs/backlog/README.md`).
 - A **We beat** row is a marketing asset and should be findable in the public copy. If it is true
   and nobody outside can tell, that is its own gap.
 - **UNRESEARCHED is the honest word and it should make you uncomfortable.** Two of the four blocks

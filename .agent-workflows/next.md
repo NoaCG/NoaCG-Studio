@@ -59,10 +59,10 @@ quick scan, not an audit.
 - **Evidence in the work area** - `TODO`/`FIXME`/`HACK` markers and open questions in the files
   this session touched, plus the nested `AGENTS.md`/`CLAUDE.md` and `docs/` contracts that govern
   them.
-- **The backlog, only if the session's own work is exhausted:** `docs/GOALS.md` (unchecked
-  milestones), `node scripts/alarm-issues.mjs` (what is red on `main`) and
-  `node scripts/owner-receipts.mjs` (standing owner asks). Session start no longer prints these
-  outside the orchestrator home. Do not consult tool-private memory as shared project truth.
+- **The backlog, only if the session's own work is exhausted:** GitHub Issues by priority
+  (`gh issue list --label P1`, then `P2`), `docs/GOALS.md` (unchecked milestones) and
+  `node scripts/alarm-issues.mjs` (what is red on `main`). Do not consult tool-private memory as
+  shared project truth.
 - **Verify before you list.** Backlog entries, memory notes, old TODOs, and handoff prompts go
   stale: before offering one, spend the thirty seconds to confirm in the current code/git that
   it is still open and not already done. A completed item offered as work is this workflow's
@@ -96,7 +96,7 @@ phone. Each option 1-2 lines, fragment style:
   banned. Real risk/blocker appended only if one exists; no ritual fields.
 
 Sources rank in this order: session leftover > verification gap > landing the work (the
-queue-merge workflow) > backlog (`docs/GOALS.md`). Prefer product-meaningful work
+queue-merge workflow) > backlog (GitHub Issues, `docs/GOALS.md`). Prefer product-meaningful work
 over easy filler - a test or doc task earns its place only by closing a real risk, not by being
 convenient. Every option must fit the product pillars and the governing nested
 `AGENTS.md`/`CLAUDE.md`/`docs/` contracts.
@@ -204,7 +204,7 @@ genuinely available, recommended one first:
   work finished; never queue unasked, and always run it once picked (section 2c).
 - **The handoff workflow** - write the handoff note and close out.
 - **Stop here** - nothing further, leave the session as is.
-- **Start something new** - open the backlog (`docs/GOALS.md`)
+- **Start something new** - open the backlog (GitHub Issues, `docs/GOALS.md`)
   and plan fresh work outside this session's line.
 
 Two of those is enough to satisfy the minimum; the handoff workflow plus **Stop here** is the

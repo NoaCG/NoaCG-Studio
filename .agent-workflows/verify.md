@@ -37,12 +37,13 @@ three attempts on the same failure, stop and report what you tried; do not chase
 
 For each criterion: pass, fail or not checked, with the command and what it showed (a test line, a
 screenshot path, a log line). Report what you did not check. The check workflow's stamp records
-the verify leg's mode; this evidence goes in the commit, the pull request or the handoff.
+the verify leg's mode; this evidence goes in the commit or the pull request.
 
 ## 5. Ask a person only where judgment adds value
 
-Everything an agent can verify, it verifies. An item goes to `docs/acceptance/owner-queue/` only
-when human judgment genuinely helps, and it names its kind: `decision` (only the owner can decide
-it), `phone` (a quick look he can do on his phone) or `desktop` (a desktop or production check
-where product judgment matters). Agent-verifiable work never enters the queue just because it
-changed the product.
+Everything an agent can verify, it verifies. Something reaches the owner only when human judgment
+genuinely helps. A look at the change (a quick one he can take on his phone, or a desktop or
+production check where product judgment matters) goes in the pull request comment: what to open,
+where, and what to judge. A decision only he can make, or a step only he can take, becomes a GitHub
+issue labelled `needs owner`. No file is written for either, and agent-verifiable work never
+reaches him just because it changed the product.

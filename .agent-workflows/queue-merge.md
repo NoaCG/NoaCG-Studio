@@ -15,10 +15,10 @@ so only the session that owns the branch queues it.
   `add-merge` refuses a tip the stamp does not cover or whose verdict is not a pass, whichever
   agent did the work. Landing without a review is possible only visibly:
   `npm run queue:merge -- --unreviewed "<reason>"`.
-- If the branch serves an owner ask in `docs/backlog/`, answer it here
-  (`node scripts/owner-receipts.mjs --serves <branch>`): delete the file when the ask is served, or
-  update its state and note. `add-merge` refuses unanswered receipts and unread relay mail
-  (`node scripts/relay.mjs read --branch <branch>`).
+- If the branch finishes a GitHub issue, say `Closes #<n>` in a commit message: queueing copies it
+  into the pull request, and GitHub closes the issue when the branch lands. A branch that only
+  advances an issue says what it did in a comment on the issue. `add-merge` refuses unread relay
+  mail (`node scripts/relay.mjs read --branch <branch>`).
 - Queueing pins the branch at its current commit and freezes its worktree until the landing ends.
   The next change goes on a new branch, or withdraw first with `node scripts/jobs.mjs cancel <id>`.
 

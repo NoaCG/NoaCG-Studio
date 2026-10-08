@@ -61,7 +61,7 @@ completed, repo/branch state if it matters, the remaining work **and why each pi
 key constraints or decisions (point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks,
 the best next step. No transcript dump. The block must stand alone - the user pastes it and
 nothing else, so anything the next session needs is inside it. It lives in the reply only: never
-write it to a file under `docs/handoffs/` or queue anything for it.
+write it to a file or queue anything for it.
 
 When work remains, include the exact current branch and short HEAD, whether the working tree is
 clean, and the last known verification command/result tied to that commit. If verification is
@@ -153,8 +153,9 @@ remaining work. If the answer is the boring expected one, say nothing.
 - **Create or update no files** - no handoff file, session summary, timestamped note, project
   document, or tool-specific memory. Deliver all continuation context in the response so the same
   handoff works in Claude Code and Codex. The one exception is a WAVE session that leaves
-  meaningful work UNFINISHED: it writes one handoff file under `docs/handoffs/` (what remains, why
-  it matters, the `docs/GOALS.md` outcome it serves and what done means) before queueing, because
-  that file is how the orchestrator continues it. Completed work writes no file; the pull request
-  and its commits are the record. This workflow's response is then the human-facing copy.
+  meaningful work UNFINISHED: it opens a GitHub issue for it (what remains, why it matters, the
+  `docs/GOALS.md` outcome it serves and what done means, with a priority and an area label) and
+  links it from the pull request, because the orchestrator plans from Issues. Completed work
+  leaves no issue; the pull request and its commits are the record. This workflow's response is
+  then the human-facing copy.
 - **Be fast enough to use after every session.**

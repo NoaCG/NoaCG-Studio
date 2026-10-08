@@ -11,8 +11,7 @@ fails the build when a `docs/*.md` file has no row here, when a row names a file
 there, or when two rows name the same file. So absence from these tables IS evidence that a doc
 does not exist - which is the only reading that makes the map worth consulting. Add the row in
 the same commit as the doc. Subdirectories are exempt on purpose and described at the bottom
-instead: `backlog/` has its own README contract, `handoffs/` is one file per session, and
-`acceptance/owner-queue/` is transient by design.
+instead: `backlog/` holds only a README that points at GitHub Issues.
 
 Layers of documentation, top to bottom:
 
@@ -215,9 +214,9 @@ Layers of documentation, top to bottom:
   graphics as layered Illustrator files, the SVGs Illustrator's Save a Copy writes from them,
   and state previews. Rebuilt by `scripts/illustrator/build-talk-show-set.jsx`.
 
-## The shelf
+## The backlog
 
-- `backlog/` - the shelf: one file per unscheduled idea, a mandatory `## Why`, graduate-into-GOALS-or-die, and the drain order that puts it LAST behind owner feedback, handoffs and the current push. Its own `README.md` is the contract.
+- `backlog/` - only a README: the backlog is GitHub Issues, by priority (`P1`, `P2`, `P3`) and area, with `owner ask`, `needs owner` and `later` labels.
 
 ## Where the roadmap lives
 

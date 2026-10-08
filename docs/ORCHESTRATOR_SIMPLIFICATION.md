@@ -2,7 +2,7 @@
 
 What the orchestrator is for: the owner gives one prompt and a time window, and comes back to
 verified work that is merged and live, plus a short report. Nobody watches over it. It works through
-the whole window, the prompt's work first and then `docs/backlog/` in `docs/GOALS.md` rank, does
+the whole window, the prompt's work first and then the backlog in `docs/GOALS.md` rank, does
 each piece like a clean session of its own, checks finished work, learns from each wave without
 growing its docs, runs on Claude Code and Codex, and stays simple enough for the owner to change.
 
@@ -135,8 +135,8 @@ doc is its goal.
 worthwhile follow-up go into it, linked from the PR; speculative or low-value suggestions do not.
 There are no handoff files per session: a minimal checkpoint is written only when work is genuinely
 interrupted and cannot be resumed from the backlog item, branch, PR and repository. The owner chose
-GitHub Issues as its future home (2026-10-08); until he has reviewed the audit of today's backlog
-files, handoffs and owner asks, nothing is migrated or deleted and `docs/backlog/` stays the source.
+GitHub Issues as its home (2026-10-08); after he reviewed the audit, the approved items became
+issues #756-#811 and the backlog, handoff and owner-queue files were retired.
 
 **The report** is at most 25 lines: what shipped (one line per PR, with how it was verified), what
 needs the owner, what was not checked. The plan stays in the store and nobody has to read it.
@@ -191,8 +191,8 @@ today's row L owns worktree self-cleanup.
 4. Proof: representative night waves on Claude Code and on Codex, compared with 2026-10-07 on rows
    merged, refusals, share of the window used, lines the owner read, and procedure the coordinator
    read. The old safeguards stay until both pass.
-5. The backlog: the owner reviews the audit in a separate session; only then are approved items
-   created as GitHub Issues and the old files retired.
+5. The backlog: the owner reviewed the audit; the approved items are GitHub Issues #756-#811 and
+   the old files are retired (done 2026-10-08).
 6. After the proof: delete the dormant scripts, `incidents.md`, the old review docs and the wave
    handoff machinery; trim `/queue-merge`'s relay and receipt coupling and the job queue's landing
    half once no wave owns them.

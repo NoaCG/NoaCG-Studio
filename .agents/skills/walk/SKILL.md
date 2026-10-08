@@ -1,6 +1,6 @@
 ---
 name: walk
-description: Walk what is built and not yet confirmed by a human - the owner queue, one item at a time
+description: Go through what waits on the owner - the open needs-owner issues, one at a time
 ---
 
 Read `.agent-workflows/walk.md` (relative to the repo root) now and follow it in full - that file

@@ -249,7 +249,7 @@ prove the transforms, timing and source transactions they use; R1.1d broadens th
 
 At each slice exit, provide a runnable route/fixture, a short numbered walkthrough with expected
 results, screenshots or a recording, exact branch/commit, automated evidence and known limits.
-Put product-visible work in its own owner-queue file. Invite review of team-proven usable tasks; record
+Ask for the owner's look at product-visible work in its pull request comment. Invite review of team-proven usable tasks; record
 "engineering verified", "ready for workflow review" and "owner accepted" separately. Feedback is welcome whenever
 the owner is available, but the team must catch ordinary defects without relying on the owner.
 Independent work may continue after implementation authorization; dependent work cannot rely on

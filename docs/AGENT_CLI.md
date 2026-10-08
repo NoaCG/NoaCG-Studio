@@ -868,7 +868,7 @@ be reset before general availability. What reads it: aggregators, VS Code and Gi
 nothing documents Claude Code or Codex reading it. Which directories follow a release on their own,
 and which need a person each time, is in `docs/research/agent-marketplaces-2026-10-02/updates.md`.
 
-**The one thing only the owner can do** (`docs/acceptance/owner-queue/`), done once and needed again
+**The one thing only the owner can do** (a `needs owner` issue), done once and needed again
 after any repository move: on npmjs.com → the package → Settings → **Trusted publishing**, a GitHub
 Actions publisher with organisation **`NoaCG`**, repository `NoaCG-Studio`, workflow filename
 **`release-cli.yml`** (the filename only, not a path), environment left blank, and **allowed actions
