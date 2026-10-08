@@ -45,7 +45,10 @@ jobs:
   # the why and the numbers). Until 2026-09-30 the shards were Playwright's `--shard=i/8`, which
   # splits by test COUNT: the same eight ran from 5 to 25+ minutes, and shard 6 was cancelled by the
   # cap below with one test left (issue #568). The weights are the last few nightlies' own reports,
-  # fetched best effort: a report that cannot be had leaves its files to the durations table.
+  # fetched best effort: a report that cannot be had leaves its files to the durations table. The
+  # plan also decides HOW MANY runners: as many as keep every shard planned three minutes under its
+  # 20-minute budget. A fixed eight was outgrown in October 2026 and stopped 80-90 tests short
+  # every night (issue #706).
   plan:
     name: Nightly shard plan
     runs-on: ubuntu-latest
@@ -353,7 +356,7 @@ jobs:
 
       # The JSON the budget itself reads. The HTML report beside it is for a person; this is the
       # one a script can diff against another night, which is what a "tests got slower" verdict
-      # actually needs - per spec file, not the ten slowest. Merging the eight shard blobs by hand
+      # actually needs - per spec file, not the ten slowest. Merging the shard blobs by hand
       # is the alternative, and it is why the comparison did not get done for a day.
       - name: Upload the merged JSON report
         uses: actions/upload-artifact@v4

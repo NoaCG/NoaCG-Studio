@@ -16,14 +16,24 @@
 // the triage read the other seven and said "every spec file green". Nothing was hung; the split
 // was lopsided. This packs spec files by their measured minutes with the same packer ci.yml uses.
 //
+// THE RUNNER COUNT FOLLOWS THE SUITE (issue #706). The packing fixed the balance and kept eight
+// runners, and the suite then outgrew them: 122 measured minutes on 2026-10-02, about 160 a week
+// later, as each landing added a spec file of two or three minutes. The plan predicted every shard
+// at 18.5, 20.2 and then 20.5 minutes against a 20-minute budget and said so in a warning, and
+// four nights running three to five shards stopped at `--global-timeout` with 80-90 tests
+// unreached - the alphabetical tail of each shard, never the same specs twice, no test hung or
+// timed out. So the plan now asks for as many runners as the measured minutes need
+// (`nightlyShardCount`), and the warning is left for a suite that outgrows the ceiling.
+//
 // THE WEIGHTS COME FROM EARLIER NIGHTLIES FIRST. They measured this suite on these runners hours
 // ago. The durations table (scripts/e2e-durations.json) is a ci.yml recording that a person must
 // re-land by hand, and on 2026-09-30 it had no entry for 21 of 187 spec files, among them
 // playout-folders.spec.ts at 5.1 measured minutes - one of the heaviest files in the suite, which
 // the table would have packed as a 0.5-minute median. Several nights are read, newest first,
 // because one night can miss files: a shard that was cancelled reported nothing, and a file a
-// shard did not finish measured only part of itself. For each file the newest night that FINISHED
-// it wins; then the table; then the median, as for any unmeasured spec.
+// shard did not finish measured only part of itself. Each file weighs the SLOWEST of the newest
+// `NIGHTS_PER_FILE` nights that finished it; then the table; then the median, as for any
+// unmeasured spec.
 //
 // NO QUARANTINE SPLIT. The nightly is the whole suite by definition, quarantined specs included,
 // as it was under `--shard`.
@@ -36,8 +46,12 @@ import { minutesFor, packShards } from './e2e-affected.mjs';
 import { minutesByFile, predictShardMinutes, readTable, SHARD_SAFETY_MINUTES, specFilesOnDisk } from './e2e-durations.mjs';
 import { unfinishedByFile } from './nightly-triage.mjs';
 
-/** Runners the nightly asks for. Eight since the tier began; the packing, not the count, was wrong. */
-export const NIGHTLY_SHARDS = 8;
+/**
+ * The most runners one nightly asks for. The account runs 20 jobs at once and the nightly holds
+ * two more (the catalog jobs) beside its shards; a suite that needs more than this is a suite to
+ * look at, which the plan's warning says.
+ */
+export const NIGHTLY_MAX_SHARDS = 16;
 
 /**
  * How long one shard's Playwright run may take before it stops itself (nightly.yml passes it as
@@ -47,34 +61,75 @@ export const NIGHTLY_SHARDS = 8;
  */
 export const NIGHTLY_TEST_BUDGET_MINUTES = 20;
 
+/** The predicted minutes every shard is planned under: the budget less the variance margin. */
+export const NIGHTLY_PLAN_LINE_MINUTES = NIGHTLY_TEST_BUDGET_MINUTES - SHARD_SAFETY_MINUTES;
+
 /**
- * Per-file minutes from earlier nightly reports, newest first: each file takes the newest report
- * that ran it to the end. A file with a test that did not finish is left to an older report.
+ * How many of the newest nights that finished a file its weight is taken from, slowest wins.
+ *
+ * Measured, not guessed: replaying the four green packed nights of 2026-10-01..04 (32 shards), a
+ * shard ran up to 3.1 minutes past its plan when each file weighed its newest night alone, because
+ * a file's minutes move a minute or more night to night with nothing changed (import-svg-corpus
+ * 5.0-6.7, editor-base-edits 2.3-3.5). The slowest of three nights cut the worst overrun to 1.6
+ * minutes and planned the median shard within 0.2 of what it ran; five nights gained 0.2 more and
+ * hold a spec that got faster at its old cost for longer.
+ */
+export const NIGHTS_PER_FILE = 3;
+
+/**
+ * Per-file minutes from earlier nightly reports, newest first: each file weighs the slowest of the
+ * newest `NIGHTS_PER_FILE` reports that ran it to the end. A report in which a file has a test that
+ * did not finish says nothing about that file.
  *
  * @param {object[]} reports merged Playwright JSON reports, newest first
  * @returns {Record<string, number>} basename -> minutes
  */
 export function nightlyMinutes(reports) {
-  const minutes = {};
+  const seen = {};
   for (const report of reports) {
     const unfinished = unfinishedByFile(report);
     for (const [file, m] of Object.entries(minutesByFile(report))) {
-      if (file in minutes || unfinished.has(file)) continue;
-      minutes[file] = m;
+      if (unfinished.has(file)) continue;
+      (seen[file] ??= []).push(m);
     }
   }
-  return minutes;
+  return Object.fromEntries(
+    Object.entries(seen).map(([file, nights]) => [file, Math.max(...nights.slice(0, NIGHTS_PER_FILE))]),
+  );
 }
 
 /**
- * The plan: the suite packed into `shards` runners, weighted by earlier nightlies over the table.
+ * HOW MANY RUNNERS THE SUITE NEEDS: the fewest whose packed shards are all predicted at or under
+ * `NIGHTLY_PLAN_LINE_MINUTES`, up to `NIGHTLY_MAX_SHARDS`. Starts from the arithmetic lower bound
+ * and adds a runner while the packing leaves a shard over the line, which a heavy file can.
+ *
+ * @param {string[]} suite
+ * @param {{ minutes: Record<string, number>, overhead?: object }} weights
+ */
+export function nightlyShardCount(suite, weights) {
+  // Test minutes one shard holds under the line: `predictShardMinutes` (tests x factor + job
+  // overhead) solved for the tests.
+  const jobMinutes = predictShardMinutes(0, weights);
+  const capacity = Math.max(1, (NIGHTLY_PLAN_LINE_MINUTES - jobMinutes) / (predictShardMinutes(1, weights) - jobMinutes));
+  let shards = Math.min(NIGHTLY_MAX_SHARDS, Math.max(1, Math.ceil(minutesFor(suite, weights) / capacity)));
+  while (shards < NIGHTLY_MAX_SHARDS && shards < suite.length) {
+    const worst = Math.max(...packShards(suite, shards, weights).map((bin) => predictShardMinutes(minutesFor(bin, weights), weights)));
+    if (worst <= NIGHTLY_PLAN_LINE_MINUTES) break;
+    shards += 1;
+  }
+  return shards;
+}
+
+/**
+ * The plan: the suite packed onto as many runners as it needs, weighted by earlier nightlies over
+ * the table. `shards` fixes the count instead, for tests.
  *
  * @param {{ suite: string[], table: { minutes: Record<string, number>, overhead?: object }, reports?: object[], shards?: number }} input
  */
-export function planNightly({ suite, table, reports = [], shards = NIGHTLY_SHARDS }) {
+export function planNightly({ suite, table, reports = [], shards }) {
   const measured = nightlyMinutes(reports);
   const weights = { ...table, minutes: { ...table.minutes, ...measured } };
-  const shardSpecs = packShards(suite, shards, weights);
+  const shardSpecs = packShards(suite, shards ?? nightlyShardCount(suite, weights), weights);
   const predicted = shardSpecs.map((bin) => Number(predictShardMinutes(minutesFor(bin, weights), weights).toFixed(1)));
   const fromNightly = suite.filter((s) => s in measured).length;
   const fromTable = suite.filter((s) => !(s in measured) && s in table.minutes).length;
@@ -113,17 +168,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     appendFileSync(out, `shardspecs=${JSON.stringify(plan.shardSpecs)}\nmatrix=${JSON.stringify(plan.matrix)}\n`);
     // A warning, not a refusal: an over-budget shard still tests more than one that never starts,
     // and its report will name what it did not reach. On stdout only in Actions, which reads
-    // workflow commands there; elsewhere stdout is the JSON alone.
+    // workflow commands there; elsewhere stdout is the JSON alone. The count already grows to fit,
+    // so this fires only when even the ceiling's runners cannot hold the suite.
     //
     // The line sits the variance margin under the budget, as ci.yml's does under its cap. The first
     // packed nightly (run 36771185828, 2026-09-30) planned every shard at 15.2 min and ran them in
     // 12.4-17.2 min of job time, so a plan that only just clears 20 is a shard that stops short.
-    const line = NIGHTLY_TEST_BUDGET_MINUTES - SHARD_SAFETY_MINUTES;
-    if (worst > line) {
+    if (worst > NIGHTLY_PLAN_LINE_MINUTES) {
       console.log(
-        `::warning title=Nightly shard plan::A shard is predicted at ${worst} min, past ${line}: less than the ${SHARD_SAFETY_MINUTES}-minute ` +
-          `variance margin under the ${NIGHTLY_TEST_BUDGET_MINUTES}-minute test budget each shard stops itself at. ` +
-          'Add a runner (NIGHTLY_SHARDS, scripts/nightly-shards.mjs) or find what grew.',
+        `::warning title=Nightly shard plan::A shard is predicted at ${worst} min on ${plan.shardSpecs.length} runners, past ` +
+          `${NIGHTLY_PLAN_LINE_MINUTES}: less than the ${SHARD_SAFETY_MINUTES}-minute variance margin under the ` +
+          `${NIGHTLY_TEST_BUDGET_MINUTES}-minute test budget each shard stops itself at. Find what grew, or raise ` +
+          'NIGHTLY_MAX_SHARDS (scripts/nightly-shards.mjs) within the account\'s 20 concurrent jobs.',
       );
     }
   }
