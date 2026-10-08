@@ -583,7 +583,11 @@ function queueOnGitHub(branch, tip, description, why = '') {
   // what the pull request was titled with before there was a description at all.
   const subjects = commitSubjects(`origin/main..${tip}`);
   if (subjects.length === 0) subjects.push(...commitSubjects(`${tip}~1..${tip}`));
-  const body = pullRequestBody({ subjects, tested: description, why });
+  // The main commit is the first one; its body is where the two plain sentences come from.
+  const mainBody = (range) => (spawnSync('git', ['log', '--no-merges', '--reverse', '--format=%b%x1e', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
+    .stdout.split('\x1e')[0] ?? '').trim();
+  const message = mainBody(`origin/main..${tip}`) || mainBody(`${tip}~1..${tip}`);
+  const body = pullRequestBody({ subjects, message, tested: description, why });
   const prExisted = Boolean(pr);
   if (!pr) {
     const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', pullRequestTitle(subjects, branch), '--body', body]);
