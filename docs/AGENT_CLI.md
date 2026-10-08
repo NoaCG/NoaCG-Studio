@@ -742,8 +742,13 @@ no `--provenance` flag).
    `cli/scripts/release-notes.mjs --check` runs in the build and at the top of the release
    workflow, and refuses a version with no section, a stub, a list of pull requests or a
    username.
-2. Commit, and land it on `main` the normal way (`/queue-merge`).
-3. Then one command, from any checkout:
+2. Commit, and land it on `main` the normal way (`/queue-merge`). **Landing it publishes it**
+   (owner, 2026-10-08): `release-cli.yml` runs on the push to `main`, sees a version npm does not
+   have yet, publishes it with provenance and to the MCP Registry, and tags the commit
+   `cli-vX.Y.Z`. A push that changes `cli/package.json` without a new version publishes nothing.
+   The version bump in a reviewed pull request is the release decision.
+3. Afterwards, prove what was published: `npm run release:cli -- --verify-only`. The full command
+   below stays for re-driving a release whose run failed:
    ```bash
    npm run release:cli
    ```

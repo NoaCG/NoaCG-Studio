@@ -20,9 +20,12 @@
 #      to download again. The version is cli/package.json's, the one number both channels use; the
 #      Bridge may skip versions the CLI used, and the other way round.
 #      Land it on main through /queue-merge.
-#   2. `git tag bridge-v0.4.0 <commit on main> && git push origin bridge-v0.4.0`
-#   3. Watch this workflow. It builds the exe on a Windows runner from that commit, proves it
-#      starts and answers /health, and creates the Release with the exe and its checksum.
+#   2. That is all. Landing it releases it (owner, 2026-10-08): this workflow runs on the push to
+#      main, and when cli/BRIDGE_CHANGELOG.md has a section for a version the Releases page does
+#      not have yet, it builds the exe on a Windows runner from that commit, proves it starts and
+#      answers /health, and creates the Release (and its bridge-vX.Y.Z tag) with the exe and its
+#      checksum. A version with no Bridge section ships on npm only, as before.
+#   Pushing a bridge-v* tag still re-drives a release by hand.
 #
 # The Actions tab's "Run workflow" button is a rehearsal by default: everything runs, and the exe
 # is kept as a workflow artifact instead of a Release. Unticking dry_run publishes from the
@@ -30,7 +33,12 @@
 name: Release NoaCG Bridge
 
 on:
+  # A version with Bridge notes landing on main is the release request; `decide` lets every other
+  # change pass without releasing. A `bridge-v*` tag still re-drives a release by hand (path filters
+  # do not apply to tag pushes).
   push:
+    branches: [main]
+    paths: ['cli/package.json', 'cli/BRIDGE_CHANGELOG.md']
     tags: ['bridge-v*']
   workflow_dispatch:
     inputs:
@@ -48,10 +56,45 @@ permissions:
   contents: read
 
 jobs:
+  # A push to main releases the Bridge only for a version that has its own Bridge notes and is not
+  # on the Releases page yet; otherwise it says so and stays green. A tag push and a manual run
+  # always go on to the release job, which keeps every refusal it had.
+  decide:
+    name: Does this push release the Bridge?
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Compare the version with the Bridge notes and the Releases page
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(node -p 'require("./cli/package.json").version')"
+          if [ "$GITHUB_EVENT_NAME" != "push" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! node cli/scripts/release-notes.mjs --bridge --check >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=No Bridge release::cli/BRIDGE_CHANGELOG.md has no section for $VERSION, so this version ships on npm only."
+            exit 0
+          fi
+          if gh release view "bridge-v${VERSION}" --json tagName >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Nothing to release::NoaCG Bridge $VERSION is already on the Releases page."
+            exit 0
+          fi
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "NoaCG Bridge $VERSION has notes and is not released yet, so this push releases it."
+
   release:
     name: Build and publish the NoaCG Bridge exe
-    # Never on a fork, and never on a fork's tag push.
-    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
+    needs: decide
+    # Never on a fork, never on a fork's tag push, and only when `decide` found a version to release.
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.decide.outputs.release == 'true' }}
     # The exe is a copy of the runner's own node.exe with the bundle injected, so it is built
     # where it will run.
     runs-on: windows-latest
@@ -91,12 +134,20 @@ jobs:
       - name: Refuse a version with no release notes a person can read
         run: node cli/scripts/release-notes.mjs --bridge --check
 
-      # A released Bridge must be a Bridge on main.
+      # A released Bridge must be a Bridge on main. A DRY RUN of a branch is let through with a
+      # notice, as in release-cli.yml: it publishes nothing, and rehearsing a release change before
+      # it lands is the only way to prove it.
       - name: Refuse a commit that is not on main
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first, then tag the commit on main."
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::notice title=Not on main::${GITHUB_SHA} is not on main yet. This dry run rehearses it; a real release of it would be refused here."
+              exit 0
+            fi
+            echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first; landing a version with Bridge notes releases it."
             exit 1
           fi
           echo "${GITHUB_SHA} is on main."
@@ -140,8 +191,8 @@ jobs:
             cli/dist-exe/NoaCG-Bridge-${{ steps.version.outputs.version }}.exe
             cli/dist-exe/NoaCG-Bridge-${{ steps.version.outputs.version }}.exe.sha256
 
-      # `--target` matters on a manual dispatch, where there is no tag yet: gh creates
-      # `bridge-vX.Y.Z` at the commit that was built. On a tag push the tag already exists there.
+      # `--target` matters on a push to main and a manual dispatch, where there is no tag yet: gh
+      # creates `bridge-vX.Y.Z` at the commit that was built. On a tag push the tag already exists.
       # `--latest` marks this release as the repository's latest explicitly, so GitHub's
       # `releases/latest` is the newest Bridge by decision rather than by creation date.
       - name: Create the Release with the exe
