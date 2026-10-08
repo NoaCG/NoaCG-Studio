@@ -146,7 +146,7 @@ if (destroyed.length > 0) {
 // A CANCELLED DISPATCH IS STILL A REAL LOSS, and the notice says the opposite thing about it -
 // which is why the runs are fetched with their `event`. `pushReplacedNotice` owns that split and
 // explains it. The underlying defect, one concurrency group across two event types, is filed as
-// `docs/backlog/ci-concurrency-group-per-event.md`.
+// `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md`.
 //
 // EXACT, so it cannot cry wolf: silent when the earlier run had FINISHED, because then the
 // incremental plan is right by design; silent on a first push, a no-op and a rejection, because

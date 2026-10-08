@@ -132,7 +132,7 @@ export async function mintAccount(admin: SupabaseClient, email: string, password
 
 /** Create a project through the wizard (which opens on load) and land in the OLD editor through
  *  Finish's code-editor door. That door is gone, so `finishIntoEditor` skips the calling test
- *  (docs/backlog/specs-that-still-open-the-old-editor.md) until the callers are rewritten. */
+ *  (https://github.com/NoaCG/NoaCG-Studio/issues/800) until the callers are rewritten. */
 export async function createGraphic(page: Page, category: string, variant: string): Promise<void> {
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();

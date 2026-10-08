@@ -48,7 +48,7 @@ const isEntrypoint =
  * README counts prose mentions and reports the map as far more complete than it is.
  *
  * @param {string} readme  the text of docs/README.md
- * @returns {string[]} paths relative to docs/, e.g. 'OGRAF.md', 'acceptance/OWNER_QUEUE.md'
+ * @returns {string[]} paths relative to docs/, e.g. 'OGRAF.md', 'https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md'
  */
 export function indexedDocs(readme) {
   return [...readme.matchAll(/^\|\s*`([A-Za-z0-9_./-]+\.md)`/gm)].map((m) => m[1]);

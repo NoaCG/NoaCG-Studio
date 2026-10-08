@@ -55,7 +55,7 @@ test('a handoff is the tracked .md files in that one folder, and nothing else', 
   assert.ok(isHandoff('docs\\handoffs\\2026-09-02-d-thing.md'));
   // A `.local.md` is gitignored session state that nobody inherits - deleting one loses nothing.
   assert.ok(!isHandoff('docs/handoffs/2026-09-02-day-wave-plan.local.md'));
-  assert.ok(!isHandoff('docs/backlog/mistake-trigger-hooks.md'));
+  assert.ok(!isHandoff('https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/mistake-trigger-hooks.md'));
   assert.ok(!isHandoff('docs/handoffs/archive/old.md'));
   assert.ok(!isHandoff('src/model/spx.ts'));
 });
@@ -141,13 +141,13 @@ test('what counts as a recorded trace, and what only looks like one', () => {
 test('THE 2026-09-01 CASE: deleting the OGraf handoff on that day fires', () => {
   // Classified `spent` from its headings, with nothing after the colon. This is the deletion that
   // destroyed the only analysis of an unfixed defect.
-  const plan = '## Handoffs\n\n- spent: docs/handoffs/2026-08-30-n-ograf-checker.md\n';
+  const plan = '## Handoffs\n\n- spent: https://github.com/NoaCG/NoaCG-Studio/blob/b0750116f7d3e60be8a70103eff21fc36cee22c1/docs/handoffs/2026-08-30-n-ograf-checker.md\n';
   const { entry } = classificationOf(
     '2026-08-30-n-ograf-checker.md',
     loadPlans(['plan'], parseHandoffSection, () => plan),
   );
   const message = verdict({
-    rel: 'docs/handoffs/2026-08-30-n-ograf-checker.md',
+    rel: 'https://github.com/NoaCG/NoaCG-Studio/blob/b0750116f7d3e60be8a70103eff21fc36cee22c1/docs/handoffs/2026-08-30-n-ograf-checker.md',
     before: OGRAF_HANDOFF,
     after: null,
     entry,
@@ -158,7 +158,7 @@ test('THE 2026-09-01 CASE: deleting the OGraf handoff on that day fires', () => 
   assert.match(message, /with no trace after it/);
 
   // The same file with NO plan line at all - the other half of the same failure.
-  assert.ok(verdict({ rel: 'docs/handoffs/2026-08-30-n-ograf-checker.md', before: OGRAF_HANDOFF, after: null, entry: null }));
+  assert.ok(verdict({ rel: 'https://github.com/NoaCG/NoaCG-Studio/blob/b0750116f7d3e60be8a70103eff21fc36cee22c1/docs/handoffs/2026-08-30-n-ograf-checker.md', before: OGRAF_HANDOFF, after: null, entry: null }));
 });
 
 test('THE CASE THAT MUST NOT FIRE: a classified deletion in a wave row', () => {
@@ -168,10 +168,10 @@ test('THE CASE THAT MUST NOT FIRE: a classified deletion in a wave row', () => {
   const plan = [
     '## Handoffs',
     '',
-    '- consumed: docs/handoffs/2026-08-30-n-ograf-checker.md -> row C (its "ONE REAL THING" section',
-    '  is C\'s why; the other open items are carried in docs/backlog/ograf-checker-83-rules.md)',
-    '- spent: docs/handoffs/2026-09-01-d-prompt-rigor.md - "Nothing outstanding on this branch"',
-    '- owner: docs/handoffs/2026-09-01-f-worktree-preview.md -> the wave-end questionnaire',
+    '- consumed: https://github.com/NoaCG/NoaCG-Studio/blob/b0750116f7d3e60be8a70103eff21fc36cee22c1/docs/handoffs/2026-08-30-n-ograf-checker.md -> row C (its "ONE REAL THING" section',
+    '  is C\'s why; the other open items are carried in https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-checker-83-rules.md)',
+    '- spent: https://github.com/NoaCG/NoaCG-Studio/blob/8c0848c0de782b6de8600f3873021717d25e5547/docs/handoffs/2026-09-01-d-prompt-rigor.md - "Nothing outstanding on this branch"',
+    '- owner: https://github.com/NoaCG/NoaCG-Studio/blob/8c0848c0de782b6de8600f3873021717d25e5547/docs/handoffs/2026-09-01-f-worktree-preview.md -> the wave-end questionnaire',
     '',
     '## Rows',
   ].join('\n');
@@ -193,7 +193,7 @@ test('THE CASE THAT MUST NOT FIRE: a classified deletion in a wave row', () => {
   // The same file, the same day, two different plans: this is the whole point of keying on the
   // record rather than on the document. Reading the headings can only ever give one answer.
   const sloppy = parseHandoffSection('## Handoffs\n- spent: 2026-08-30-n-ograf-checker.md\n');
-  assert.ok(verdict({ rel: 'docs/handoffs/2026-08-30-n-ograf-checker.md', before: OGRAF_HANDOFF, after: null, entry: sloppy.get('2026-08-30-n-ograf-checker.md') }));
+  assert.ok(verdict({ rel: 'https://github.com/NoaCG/NoaCG-Studio/blob/b0750116f7d3e60be8a70103eff21fc36cee22c1/docs/handoffs/2026-08-30-n-ograf-checker.md', before: OGRAF_HANDOFF, after: null, entry: sloppy.get('2026-08-30-n-ograf-checker.md') }));
 });
 
 test('the ordinary things that must stay silent', () => {

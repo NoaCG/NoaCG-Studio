@@ -6,7 +6,7 @@
 //
 //   node scripts/check-owner-queue.mjs        # part of `npm run build`
 //
-// `docs/acceptance/OWNER_QUEUE.md` ("The shape of an item") says every file under
+// `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md` ("The shape of an item") says every file under
 // `docs/acceptance/owner-queue/` opens with front matter carrying `kind:` (one of KINDS below)
 // and `date:`. `.agent-workflows/walk.md` reads those two keys to pick the list an item
 // goes in, sort it newest-first, filter it (`/walk hardware`) and skip `done: true` items. On
@@ -37,9 +37,9 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export const QUEUE_DIR = 'docs/acceptance/owner-queue';
 
 /**
- * The kinds `.agent-workflows/walk.md` and `docs/acceptance/OWNER_QUEUE.md` both know about.
+ * The kinds `.agent-workflows/walk.md` and `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md` both know about.
  * Each value answers ONE question - who can settle this item - so a filing session can pick it
- * without judgement about importance. See OWNER_QUEUE.md, "Which kind does an item get".
+ * without judgement about importance. See https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md, "Which kind does an item get".
  *
  * Widened on 2026-09-02 from `walk` / `owner-action` / `hardware`, by adding `walk-p` (the owner
  * can answer it from his phone) and `agent` (an agent settles it by driving the product). The
@@ -96,7 +96,7 @@ export const SERVES = 'now';
  * - identity - he must speak or sign as himself or as the organisation.
  * - harness  - the agent harness refuses it by design, and the item says which refusal it hit.
  *
- * Full definitions and the ruling: `docs/acceptance/OWNER_QUEUE.md`, "A TECHNICAL problem is
+ * Full definitions and the ruling: `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md`, "A TECHNICAL problem is
  * never his".
  */
 export const NEEDS = Object.freeze(['account', 'money', 'identity', 'harness']);
@@ -126,7 +126,7 @@ export const NEEDS_REQUIRED_FROM = '2026-09-05';
  * default ruling of 2026-09-03 and the technical ruling of 2026-09-04 are the first two - which is
  * the evidence that saying it in prose does not hold.
  *
- * Four reasons, and they are the ones OWNER_QUEUE.md already lists as genuinely his:
+ * Four reasons, and they are the ones https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md already lists as genuinely his:
  *
  * - taste     - whether a shipped thing is any GOOD. No defensible general answer exists; it needs
  *               his eye. Not "which of these two is better designed", which is a design default.
@@ -157,7 +157,7 @@ export const BECAUSE_REQUIRED_FROM = '2026-09-11';
 //
 // A walk used to cost one route per item. On 2026-09-09 the queue held 75 files, 64 of them open,
 // and 28 of those began with the SAME four clicks - open the studio, Import graphic, drop a file.
-// The owner's own account of what this queue costs him is in OWNER_QUEUE.md: "the cost he is
+// The owner's own account of what this queue costs him is in https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md: "the cost he is
 // protecting is not his attention, it is his TIME AT A MACHINE - a sentence costs him nothing, and
 // clicking through menus and drawing SVGs costs him a lot." Twenty-eight walks through the same
 // menu is that cost paid twenty-eight times over.
@@ -405,7 +405,7 @@ export function auditOwnerQueueItem(text) {
     );
   }
   // THE ROUTE. `/walk` groups the queue by the place a route opens, so an item with no route
-  // section is not only unreachable (which OWNER_QUEUE.md has always said), it also cannot join
+  // section is not only unreachable (which https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md has always said), it also cannot join
   // the group that would have carried it. The check is for a route SECTION, never for a route
   // that matches a known place: a genuinely new place is legitimate, and a gate that pushed items
   // into existing buckets would be inventing a fact about where the owner has to go.
@@ -584,7 +584,7 @@ function main() {
   } catch (error) {
     if (error.code === 'ENOENT') {
       // AN EMPTY QUEUE IS A REAL ANSWER; A MISSING DIRECTORY IS NOT. "No open item" is what
-      // OWNER_QUEUE.md says the absence of a FILE means - it says nothing about the absence of
+      // https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md says the absence of a FILE means - it says nothing about the absence of
       // the directory, and treating the two the same is how a rename would leave this gate
       // reporting OK forever over a queue nobody could file into any more.
       console.error(`\ncheck-owner-queue: ${QUEUE_DIR} does not exist, so no queued item could be read.`);
@@ -641,7 +641,7 @@ function main() {
   if (failures.length > 0) {
     console.error(`\ncheck-owner-queue: ${failures.length} problem(s) across ${names.length} file(s):\n`);
     for (const failure of failures) console.error(`  - ${failure}`);
-    console.error('\nAdd the missing key(s), or fix the kind. See docs/acceptance/OWNER_QUEUE.md, "The shape of an item".\n');
+    console.error('\nAdd the missing key(s), or fix the kind. See https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md, "The shape of an item".\n');
     return 1;
   }
 

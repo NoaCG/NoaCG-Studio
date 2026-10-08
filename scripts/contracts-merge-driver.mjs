@@ -29,7 +29,7 @@
 //     check catches it, but only on a clean checkout, which means CI rather than the laptop
 //     that made it: a local `--check` compiles from that same dirty store and agrees.
 //
-// docs/backlog/contracts-merge-driver-regenerates-before-the-store-is-merged.md carries the
+// https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/contracts-merge-driver-regenerates-before-the-store-is-merged.md carries the
 // measurement and what a real fix would take. If regeneration fails outright the driver keeps the
 // file git already wrote and exits 0, because a merge that stops dead on a generated file is
 // worse than one that stops at the build.

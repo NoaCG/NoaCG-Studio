@@ -4,7 +4,7 @@
 infrastructure changed because of this document. Prototypes ran in a session scratchpad, against a
 temporary Supabase preview branch (deleted afterwards) and an isolated Bitfocus Companion. The owner
 answered §11 on 2026-10-01 and chose the suggestion on every question; the build is the design in
-§10, and `docs/backlog/companion-and-stream-deck.md` carries the decision.
+§10, and [issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809) carries the decision.
 
 **The question.** How should an operator run a live NoaCG show from hardware buttons, with feedback on
 the keys (on air, the selected cue, clip time left with the 10 s and 5 s warnings, which verbs are
@@ -83,7 +83,7 @@ from the server. The selected cue, which verbs are allowed, and a server clip's 
 live in the page.
 
 **The feedback a panel needs, and where it lives [code, doc]**
-(`docs/backlog/companion-and-stream-deck.md` has the full table):
+([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809) has the full table):
 
 | Feedback | Where it lives | Without an open page? |
 |---|---|---|
@@ -169,7 +169,7 @@ a panel credential. Two variants:
 
 ### 3d. Companion to NoaCG Bridge's local HTTP, relayed to the open page
 
-The shape `docs/backlog/companion-and-stream-deck.md` sketched on 2026-09-28: the page publishes
+The shape [issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809) sketched on 2026-09-28: the page publishes
 feedback to the Bridge and asks it for pressed commands; Companion posts named verbs to the Bridge.
 
 - The local hop is short (p50 3 ms page-side, §6.4), and server clips keep working if the cloud is
@@ -243,7 +243,7 @@ pictures are the players' own captures (CasparCG's image consumer, OBS's `GetSou
 - **vMix's engine, measured here:** vMix 29.0.0.49's Web Browser input reported Chrome 115, below the
   supported floor of 117, as `docs/PLAYOUT_TARGETS_RESEARCH.md` predicted from vMix's release notes.
   The scorebug rendered correctly. (`docs/PLAYOUT_COMPATIBILITY.md` still lists vMix as never
-  measured; `docs/backlog/playout-engine-facts-and-guide-corrections.md` waits for it.) The health
+  measured; [issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760) waits for it.) The health
   line named the CasparCG and OBS outputs by host but showed the vMix one only as "Chrome 115": the
   output does not recognise vMix as a host.
 - **The owner's setups were left as found.** CasparCG ran from a scratch config written into its
@@ -531,7 +531,7 @@ Read on 2026-09-30 and 2026-10-01.
 **This repository.** `src/components/playoutKeys.ts`; `src/control/commandRoads.ts`;
 `src/control/hostedControl.ts` (`sendSeqBatch`); `src/output/main.ts`;
 `supabase/migrations/0070_seq_topic.sql` and `0071_command_sequence.sql`; `docs/CLOUD_PLAYOUT.md` §2;
-`docs/BRIDGE.md` §1-3; `docs/CONTROL_PANEL_ROAD.md` §4; `docs/backlog/companion-and-stream-deck.md`;
+`docs/BRIDGE.md` §1-3; `docs/CONTROL_PANEL_ROAD.md` §4; [issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809);
 `docs/RUNDOWN_AUTOMATION_PLAN.md` item 7; `docs/LANDSCAPE.md` NEXT item 10;
 `docs/work-specs/playout-runtime-reliability/step-2-design.md` §1.5 and `evidence/publish-held.md`;
 `docs/OBS_ON_A_REAL_HOST.md`; `docs/PLAYOUT_TARGETS_RESEARCH.md`; `docs/PLAYOUT_COMPATIBILITY.md`.

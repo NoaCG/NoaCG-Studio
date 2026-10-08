@@ -7,7 +7,7 @@
 //
 // A vote board is where it went wrong: an empty `bar` role pools EVERY drawing in the file, so the
 // full-bleed plate the board is drawn on was counted as a layer whose name fell short
-// (the walk: docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
+// (the walk: https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
 // What is pinned here is the plate rule that fixes it and the three directions it must not
 // overreach in: a hidden moment is still counted, a lone drawing is not a plate on itself, and a
 // caller that measured nothing still gets the count it always had.

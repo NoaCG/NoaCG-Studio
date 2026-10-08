@@ -31,7 +31,7 @@ function ServerStill({ thumb, testId }: { thumb: string | null; testId: string }
  * THE TWO MONITORS of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2): PREVIEW, which
  * composes the previewed cue's graphic locally and settles its values into it, and PROGRAM, the
  * actual output renderer fed every command that reaches air. Phase 2 of
- * docs/backlog/production-page-phases.md: moved out of ProductionPage with its behaviour
+ * https://github.com/NoaCG/NoaCG-Studio/issues/766: moved out of ProductionPage with its behaviour
  * unchanged.
  *
  * It owns the PREVIEW frame's measurement and its messages. PROGRAM is driven by the PAGE:

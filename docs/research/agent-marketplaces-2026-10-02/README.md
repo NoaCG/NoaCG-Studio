@@ -13,7 +13,7 @@ be called.
 | [`name.md`](name.md) | The recommended name, what users type, clashes with names, packages and marks, and the runner-up. |
 | [`updates.md`](updates.md) | How each directory and registry picks up a new version, what the release feeds, and what still needs a person each time. |
 | [`drafts.md`](drafts.md) | Each listing submission drafted complete for the owner to send, with the manifest fields each one changes. |
-| [`../../acceptance/owner-queue/2026-09-16-list-the-plugin-in-the-official-marketplace.md`](../../acceptance/owner-queue/2026-09-16-list-the-plugin-in-the-official-marketplace.md) | The owner's steps, in order, with what each costs. |
+| [issue #808](https://github.com/NoaCG/NoaCG-Studio/issues/808) | The owner's steps, in order, with what each costs. |
 
 ## The answer in six lines
 

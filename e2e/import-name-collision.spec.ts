@@ -14,7 +14,7 @@ import JSZip from 'jszip';
 import { settleDurableWrites } from './_durable';
 
 // IMPORTING UNDER A NAME THE LIBRARY ALREADY HOLDS
-// (docs/acceptance/owner-queue/2026-09-08-importing-your-artwork-twice-keeps-one-graphic.md).
+// (https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-08-importing-your-artwork-twice-keeps-one-graphic.md).
 //
 // The student sequence this protects: build a production on an imported graphic, iterate on the
 // artwork in Illustrator, import it again under the name you naturally reuse. Before 2026-09-08

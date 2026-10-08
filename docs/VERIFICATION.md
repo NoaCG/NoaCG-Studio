@@ -379,7 +379,7 @@ the ref with no event in the key, so a push cancels an in-flight `gh workflow ru
 branch. A dispatch has no diff base and runs everything; the push run that replaces it plans from
 the merge-base, which is narrower than what you had just bought. Nothing is uncovered - your own
 change is planned honestly - but the override is gone, so ask for it again. The defect itself is
-`docs/backlog/ci-concurrency-group-per-event.md`.
+[`docs/backlog/ci-concurrency-group-per-event.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md).
 
 **So read the job list for what it now tells you, which is the PLAN and not a hole.** A skipped
 shard means the classifier found nothing in the branch's whole diff against `main` that reaches
@@ -464,7 +464,7 @@ sibling worktrees - rather than from the hostname, because the question is not w
 CALLED but whether you are sharing its RAM and its one browser slot. Run it as a row's first step
 whenever the launch asked for anything other than a plain local worktree. As of 2026-09-04 the
 Agent tool's `isolation: "remote"` is accepted, reported successful and runs here anyway; that
-probe is the only thing that says so (`docs/backlog/cloud-sessions-for-stateless-rows.md`).
+probe is the only thing that says so ([`docs/backlog/cloud-sessions-for-stateless-rows.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/cloud-sessions-for-stateless-rows.md)).
 
 ## Every gate here runs a DEV SERVER, so minification is unmeasured
 

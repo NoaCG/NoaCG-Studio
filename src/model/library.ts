@@ -118,7 +118,7 @@ export function graphicNameIndex(): LibraryNameEntry[] {
  * whichever happened to be stored first. It is a tie-break, not a discriminator - if a
  * production pooled the OLDER twin, this picks the newer one and that production keeps airing
  * the old artwork. The tie-break is only ever consulted when twins ALREADY EXIST:
- * docs/backlog/two-doors-still-mint-a-twin-under-a-taken-name.md names the doors that make them.
+ * https://github.com/NoaCG/NoaCG-Studio/issues/779 names the doors that make them.
  */
 function holderIn<T extends { name: string; updatedAt: string }>(list: T[], name: string): T | undefined {
   const wanted = name.trim();

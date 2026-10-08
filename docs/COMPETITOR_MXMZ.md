@@ -202,7 +202,7 @@ So the honest competitive statement has two halves:
   input, and no assembly layer lists us as an engine it can drive. Being absent from that list is
   the one position MXMZ is not in.
 
-The gap analysis, and what it means for the CLI, is `docs/backlog/cli-roadmap.md` - section "What
+The gap analysis, and what it means for the CLI, is [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772) - section "What
 theirs does that ours cannot".
 
 ---

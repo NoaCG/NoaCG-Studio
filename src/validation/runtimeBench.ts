@@ -1085,7 +1085,7 @@ export async function benchTemplateRuntime(
     // already left was dropped by structural guarding, silently, with the bench reporting the
     // pose it was standing in as though it had measured the press. Measured on the proof case:
     // `validate` reported 0 errors and 0 warnings on the totals board having pressed 8 of its 22
-    // arrows (docs/handoffs/2026-09-15-hb-release-and-first-walk.md).
+    // arrows (https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-15-hb-release-and-first-walk.md).
     //
     // So each press snaps first. `noacgSnap` enters a state by replaying its canonical route
     // with callbacks suppressed (docs/STATE_MACHINE_SCHEMA.md §3), which is also why the DATA

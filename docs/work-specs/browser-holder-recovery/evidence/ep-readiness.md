@@ -1,6 +1,6 @@
 # EP readiness evidence - 2026-09-14
 
-Initial context: assigned task; root AGENTS.md; browser-holder-recovery/spec.md and work.json; work-specs/README.md; backlog/e2e-webserver-hang-blocks-the-machine.md; e2e/AGENTS.md; orchestrator/specs.md; check and queue-merge adapters/workflows. Dedicated clean branch codex/ep-browser-readiness at a24bfce0, worktree C:/Users/ahonemi/.codex/worktrees/pilot-ep/NoaCG-Studio. Local npm ci completed before browser execution; allocated port 5242.
+Initial context: assigned task; root AGENTS.md; browser-holder-recovery/spec.md and work.json; work-specs/README.md; [docs/backlog/e2e-webserver-hang-blocks-the-machine.md](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/e2e-webserver-hang-blocks-the-machine.md); e2e/AGENTS.md; orchestrator/specs.md; check and queue-merge adapters/workflows. Dedicated clean branch codex/ep-browser-readiness at a24bfce0, worktree C:/Users/ahonemi/.codex/worktrees/pilot-ep/NoaCG-Studio. Local npm ci completed before browser execution; allocated port 5242.
 
 ## Reproduction before changes
 

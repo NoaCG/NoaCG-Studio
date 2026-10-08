@@ -34,7 +34,7 @@ were not touched.
 `ServerCueEditor`, with nothing to open. At 390 px they do not sit side by side: the
 `@container (max-width: 620px)` rule makes `.pd-cue-meta` one column, and landing 1 recorded "the
 editor stacks note, Channel and Layer full width". Filed:
-`docs/backlog/server-item-channel-and-layer-stack-on-a-narrow-editor.md`.
+[issue #782](https://github.com/NoaCG/NoaCG-Studio/issues/782).
 
 **AC-2 pass.** Landing 1's Settings walk (Channels, NoaCG output, New media, no Graphics or Clips
 label). `git grep -n -i "graphics channel\|clips channel"` over `src` and the public pages finds only
@@ -60,7 +60,7 @@ real server (landing 2). "Undoing the change clears it" holds only for a library
 `usePublishDrift.ts` answers `recordChanged(show) || drift`, where `recordChanged` is
 `updatedAt > publishedAt`, and every write to the record sets `updatedAt` to now, so a cue change or
 an added picture that is changed back still reads unpublished. Read from the code, not walked.
-Filed: `docs/backlog/a-reverted-cue-change-stays-unpublished.md`.
+Filed: [issue #762](https://github.com/NoaCG/NoaCG-Studio/issues/762).
 
 **AC-6 fail.** Export and All out never moved in anything measured. Playout and the status do once
 the header is full. Offline at 1280 with the long name the spacer was 0; a 90 px element inserted
@@ -69,7 +69,7 @@ before the panel door (standing in for a wider right-cluster control such as the
 841 and 596 to 498. At 1920 the spacer was 205 and nothing moved. With a 26-character name at 1280
 the spacer was 42 px before Share, which a signed-in page adds. `teams.spec.ts` measures Share
 against the team door at rest at 1280 only, and never while saving. Filed:
-`docs/backlog/playout-tab-moves-when-the-header-is-full.md`. Two more movers sit left of the tabs at
+[issue #765](https://github.com/NoaCG/NoaCG-Studio/issues/765). Two more movers sit left of the tabs at
 any width, 1920 included, found by the code review of this receipt: ▶ Start production beside the
 status (gone once the production starts) and the "○ server not answering, retrying" / "○ not
 joined, polling" spans before the tabs (`resolveWaiting`, `follow` in `ProductionPage.tsx`). AC-6
@@ -93,7 +93,7 @@ does not answer).
 server-media case is pinned in `playout-cues.spec.ts`. Limitation: AC-9 defines live as started, so
 a started production whose slot holds another production also reads PROGRAM · ON AIR beside a red
 status. That matches the criterion as written; the remaining offline ON AIR words are already filed
-(`docs/backlog/on-air-words-in-an-offline-production.md`).
+([`docs/backlog/on-air-words-in-an-offline-production.md`](https://github.com/NoaCG/NoaCG-Studio/blob/609ad92d3e2c58875837289eb62dd203d97c160d/docs/backlog/on-air-words-in-an-offline-production.md)).
 
 **AC-10 pass.** Landing 2's real walk: after ⟳ Publish changes CasparCG's output moved onto v2
 without a reload; `playout-status.spec.ts` fails with the prepare request removed (mutation) and

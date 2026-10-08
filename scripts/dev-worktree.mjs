@@ -18,7 +18,7 @@
 // route and the sanctioned route served somebody else's tree. That is the "green gate on the
 // wrong tree" shape the root AGENTS.md calls worse than a red one, and it has already been paid
 // for - the 2026-08-29 SVG import sweep measured main's importer rather than the branch's and
-// said so in its own report (docs/backlog/svg-import-sweep-findings.md).
+// said so in its own report (https://github.com/NoaCG/NoaCG-Studio/issues/778).
 //
 // WHAT KEEPS THE REFUSAL HONEST. The guard refuses hand-started servers for a real reason:
 // Playwright runs with `reuseExistingServer: true`, so a stray server on a checkout's port is

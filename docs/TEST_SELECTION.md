@@ -121,7 +121,7 @@ because 71 of the last 120 merge commits would have been planned differently wit
 reporting `mode: none` on a combination nothing had run. And its safety rests entirely on MY side's
 map having no holes, where the union's extra coverage is exactly the belt against such a hole. That
 is a call worth making with its own evidence and its own gate, not as a side effect of a timing fix.
-Filed as `docs/backlog/integration-plans-run-both-sides-of-a-merge.md`.
+Filed as [`docs/backlog/integration-plans-run-both-sides-of-a-merge.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/integration-plans-run-both-sides-of-a-merge.md).
 
 ## The configured tier
 
@@ -200,7 +200,7 @@ catalog chunk (1.7 MB, 93 ids) through `await import(...)` shortly after boot, a
 So the answer to *will more graphics make the site heavier* is: not for the pages a visitor lands
 on, and yes for `/ograf` and `/bridge`, at about 7 KB per design. That is a chunking fault on two
 pages rather than a reason to draw fewer graphics - filed as
-`docs/backlog/ograf-and-bridge-ship-the-whole-catalog.md`. The lesson for the check itself is in
+[issue #793](https://github.com/NoaCG/NoaCG-Studio/issues/793). The lesson for the check itself is in
 its own header: a hardcoded page list answers for the pages somebody remembered.
 
 ## Where the numbers come from

@@ -316,7 +316,7 @@ export function sequenceAction(members: readonly SequenceMember[], slot: Slot, l
 }
 
 /**
- * THE ACTION FOR AN ENDING CHANGED WHILE THE CLIP PLAYS (docs/backlog/looping-clip-end-change-while-playing.md):
+ * THE ACTION FOR AN ENDING CHANGED WHILE THE CLIP PLAYS (https://github.com/NoaCG/NoaCG-Studio/issues/763):
  * the clip on air goes on, never played again, and ends the way its cue now says. `members` is the
  * cue's chain when it now plays next (`sequenceMembers`, the cue first): the files after it go as
  * `then`, each with the playback its own cue sets, exactly as a Take of the chain would send them.

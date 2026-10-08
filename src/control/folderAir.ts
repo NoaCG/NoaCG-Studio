@@ -1,5 +1,5 @@
 // A FOLDER ON AIR (docs/CLIP_PLAYBACK_PLAN.md §6.6, phase 4): every state a folder's header - or a
-// hardware button standing for it (docs/backlog/companion-and-stream-deck.md) - lights, as plain data
+// hardware button standing for it (https://github.com/NoaCG/NoaCG-Studio/issues/809) - lights, as plain data
 // from one function.
 //
 // It reads what the verbs read and nothing that moves with the clock: the store's OWNERSHIP part

@@ -58,7 +58,7 @@ verbatim. The two that would have cost somebody a day:
    would have found the sentence, reordered the array, and watched nothing move. The neighbouring
    claim - both display surfaces reverse the array, so `moveShowGraphic(+1)` means forward - was
    false twice over: neither surface reverses anything, and `moveShowGraphic` is dead code
-   (`docs/backlog/dead-move-show-graphic-and-its-contract.md`).
+   ([`docs/backlog/dead-move-show-graphic-and-its-contract.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/dead-move-show-graphic-and-its-contract.md)).
 2. **"every path that can retarget a typeface calls `ensureFontFace`: `templates/shared/base.ts` at
    build, ..."** `ensureFontFace` has no reference anywhere under `src/templates/`. `base.ts` emits
    the face CSS instead of registering it, which is the whole distinction the rule turns on: the

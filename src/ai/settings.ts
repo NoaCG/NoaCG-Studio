@@ -157,7 +157,7 @@ export const AI_MODELS: AiModelOption[] = [
  *
  *  They stay in the union because `lite` is still the LIVE in-memory route the AI step resolves
  *  to and runs (`profile: 'lite'`), and `pro` is what its frozen branches compare against while
- *  the hosted Pro door is closed - see docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md.
+ *  the hosted Pro door is closed - see https://github.com/NoaCG/NoaCG-Studio/issues/771.
  *  Neither is dead vocabulary, and neither is written to `spx-gfx-ai`. */
 export const AI_TIERS = ['lite', 'pro', 'custom'] as const;
 export type AiTier = (typeof AI_TIERS)[number];
@@ -173,7 +173,7 @@ export type AiTier = (typeof AI_TIERS)[number];
  *
  * The wizard door is closed even when this status endpoint reports availability. The status
  * and pipeline remain in place for the measured comparison recorded in
- * docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md.
+ * https://github.com/NoaCG/NoaCG-Studio/issues/771.
  */
 
 export interface AiSettings {

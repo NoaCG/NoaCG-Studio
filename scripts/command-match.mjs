@@ -416,7 +416,7 @@ export function startableSegments(text) {
  * ordinary `cd <worktree> && npm run queue -- "…"` was not recognised as an enqueue - the first
  * segment is the `cd` - and the guard then refused the one action it exists to recommend, at the
  * one moment queueing is most obviously right: something else is already running (measured
- * 2026-08-29, docs/handoffs/2026-08-29-dd-svg-fitting-two.md).
+ * 2026-08-29, https://github.com/NoaCG/NoaCG-Studio/blob/0eec5a83382bfa79c8593939690fa86de12372db/docs/handoffs/2026-08-29-dd-svg-fitting-two.md).
  *
  * What the first-segment rule was really protecting is that a REAL run does not get a free pass
  * by mentioning the queue after it, and that is stated directly instead: an enqueue exempts the
@@ -658,7 +658,7 @@ function branchCreationIn(git) {
  * cancels the first, and the order two webhooks register in is not stable. Measured four times
  * over 2026-09-04 and 2026-09-05 ("Pushing and dispatching in one breath is a coin flip, and I
  * lost it once" - four handoffs of those two days, all drained since;
- * docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the dispatch loses,
+ * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the dispatch loses,
  * what survives is the push run, which plans only the
  * delta since the previous push - the narrow plan the dispatch was issued to avoid.
  *

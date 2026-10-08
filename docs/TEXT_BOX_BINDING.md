@@ -9,7 +9,7 @@ the checkbox that hands back the nudge. STEP 4 IS BUILT (2026-09-16): growth is 
 the heading row, and how far a box may get taller is a line on the preview the reader drags, which
 cannot reach a value the growth could not keep. What is left of this document is step 5, the fit
 line and the too-long tag.** The owner's brief is the 2026-09-02 walk of his own quiz board;
-the verbatim words are in `docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md` and
+the verbatim words are in [`docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md`](https://github.com/NoaCG/NoaCG-Studio/blob/65758cf1735d2e6df6a080df6693b5207479a25c/docs/acceptance/owner-queue/2026-08-28-student-rehearsal-walk.md) and
 they are the authority here, not this summary of them.
 
 His sentence for the whole thing:
@@ -355,7 +355,7 @@ from the middle) is computed from it rather than seeded.
 
 **Why step 3 was built before step 4, decided 2026-09-08 in this session and revertable by saying
 so.** Ruling 3 above sent CHANGING the alignment to the backlog, and step 4 has an owner receipt
-(`docs/backlog/svg-import-sweep-findings.md`, the sixth growth finding) where step 3 has none. But
+([issue #778](https://github.com/NoaCG/NoaCG-Studio/issues/778), the sixth growth finding) where step 3 has none. But
 that receipt's defect - his board defaulting to growth - was answered by doctrine rule 3
 (`repeatsWithNewContent`), so step 4 now buys "one plate grows while its neighbours stay", which
 no class graphic has asked for. Step 3 buys the correction for the one thing that WILL go wrong on
@@ -513,7 +513,7 @@ short-circuiting on a declared list, on `update()`'s hot path, alongside the end
 already did - bounded, but the two read almost the same nodes and could share one pass. And no
 spec covers a DECLARED `mode: 'grow'` follower end to end, because no UI route can produce one any
 more while `draft.ts` still promises saved templates carrying it keep working
-(`docs/backlog/no-spec-covers-a-declared-grow-follower.md`).
+([`docs/backlog/no-spec-covers-a-declared-grow-follower.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/no-spec-covers-a-declared-grow-follower.md)).
 
 ### The guardrail, said once
 

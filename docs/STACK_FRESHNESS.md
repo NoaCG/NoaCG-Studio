@@ -436,7 +436,7 @@ in `ACCEPTED_CLASSES` now names them. The 22 `unused_index` warnings in the same
 out of the baseline, as on 2026-09-29.
 
 Accepting that reachability is not a claim that the door's own guard is tight, and on this
-occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured
+occasion it is not — [issue #795](https://github.com/NoaCG/NoaCG-Studio/issues/795) measured
 the hole the same day, and migration 0061 is the fix. The two judgements are separate on purpose:
 the advisors ask who can call a function, and a bug inside the function is not answered by
 revoking a grant the product needs.

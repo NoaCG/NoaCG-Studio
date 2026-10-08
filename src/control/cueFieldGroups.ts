@@ -20,7 +20,7 @@
 
 import { hasSideFields } from './cueData';
 
-// A SECOND VOCABULARY ARRIVED WITH THE SCORE TRACKER (docs/backlog/scoreboard-behaviour.md). The
+// A SECOND VOCABULARY ARRIVED WITH THE SCORE TRACKER (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md). The
 // owner's ask was "two or more teams", and a board with four of them titles its fields "Team 1",
 // "Score 1", "Team 2", … - numbers, not the A/B a match uses. Everything below the token is
 // unchanged: the same "does it mirror" test decides, and the same one-unlabelled-group answer is

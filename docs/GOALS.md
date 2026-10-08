@@ -109,7 +109,7 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   agent for a package from a brief nobody has seen before, and receives it where they asked,
   including straight into a production, with valid fields and behaviour; it plays on CasparCG and
   in a browser source; the recurring novel-brief benchmark passes.
-- **Plans:** `AGENT_CLI.md`, `AGENT_SAVE.md`, `backlog/cli-roadmap.md`.
+- **Plans:** `AGENT_CLI.md`, `AGENT_SAVE.md`, [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
 
 ### 3. Editor (now; rank 3)
 

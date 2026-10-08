@@ -1277,7 +1277,7 @@ confused person actually arrives with, which none of the others could: **what pa
 this for?** Category answers what a graphic IS, programme format answers what SHOW it belongs to,
 style family answers what it LOOKS like. Purpose had nowhere to live.
 
-**Where it came from.** Owner receipt `docs/backlog/graphic-use-case-metadata.md`, from the
+**Where it came from.** Owner receipt [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776), from the
 2026-08-28 walk: *"if they're searching for a specific 'thanks for watching', they might not find
 it if we don't mention that... we should look into what kind of metadata we can have in the
 graphics - use cases and stuff like that, so if someone is confused and not really sure what they

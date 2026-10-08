@@ -60,7 +60,7 @@ test('offline / no-backend: the production page grows no auth UI and says why pu
   await expect(page.getByTestId('auth-state')).toHaveCount(0);
 });
 
-// The password-reset ROUTE (docs/backlog/password-reset-link-lands-nowhere.md). It renders
+// The password-reset ROUTE (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md). It renders
 // INSTEAD of the studio in hosted mode, which makes it the surface most likely to break the
 // offline posture: a component that returned an empty card here would hand a self-hoster a black
 // screen, and one that returned its form would grow auth UI on a build with no accounts. So both

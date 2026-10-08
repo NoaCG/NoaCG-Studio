@@ -10,7 +10,7 @@
 // It is shared by the Bridge's own tests (cli/test/ograf.test.mjs) and the Playwright spec
 // (e2e/bridge-ograf.spec.ts), which is why it is plain JavaScript with no dependencies. It
 // stands in for a real server; the real round against SuperFly.tv's ograf-server is a separate,
-// owner-run acceptance step (docs/backlog/bridge-ograf-adapter.md).
+// owner-run acceptance step (https://github.com/NoaCG/NoaCG-Studio/issues/790).
 
 import { createServer } from 'node:http';
 

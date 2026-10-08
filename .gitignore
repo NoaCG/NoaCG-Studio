@@ -124,7 +124,7 @@ shots-*/
 # What scripts/svg-import-sweep.mjs writes when asked for a report (--json) or a picture of
 # every created graphic (--shots). Both are MEASUREMENTS of a moment, regenerated on demand and
 # meaningless once the code moves; the verdicts worth keeping go to
-# docs/backlog/svg-import-sweep-findings.md, and the answers worth keeping become assertions in
+# https://github.com/NoaCG/NoaCG-Studio/issues/778, and the answers worth keeping become assertions in
 # e2e/import-svg-corpus.spec.ts.
 .sweep-shots/
 sweep-*.json

@@ -473,7 +473,7 @@ machine-global permission file, and this session's own harness refused the edit,
 was filed for him and **he made the change the same afternoon** - the working form turned out to be
 simpler than the regex the filing proposed, and it is recorded under "The write grant: the form
 that works, and confinement measured in both directions".
-That owner-queue item is gone, logged in `docs/acceptance/OWNER_QUEUE.md`'s Dropped list as done
+That owner-queue item is gone, logged in [`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md)'s Dropped list as done
 rather than presumed.
 
 `--mode accept-edits` is the documented per-run alternative and was refused by this session's

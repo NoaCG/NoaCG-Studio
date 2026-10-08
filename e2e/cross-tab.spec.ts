@@ -55,7 +55,7 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
 
   // Tab A hears of that write and re-reads it - asynchronously, so a write it makes in the few
   // milliseconds before the re-read lands still puts the old record back (durableStore.ts says
-  // so; closing that window is docs/backlog/a-tab-that-writes-before-it-adopts-loses-the-other-tabs-work.md).
+  // so; closing that window is https://github.com/NoaCG/NoaCG-Studio/issues/796).
   // A spec acting at machine speed hit it on a cold CI runner (run 37118664889) - a person
   // switching tabs does not - so wait for the adoption here. Without the invalidation this
   // wait never ends, so it still guards what the spec is for.

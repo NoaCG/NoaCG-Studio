@@ -174,7 +174,7 @@ port while running the source specs.
 
 ## Exact next task: R1.1a
 
-Start from updated main using the [R1.1a handoff](../../handoffs/2026-09-19-editor-r1.1a.md). On a new bounded branch, implement optional wizard Finish -> Edit,
+Start from updated main using the [R1.1a handoff](https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-19-editor-r1.1a.md). On a new bounded branch, implement optional wizard Finish -> Edit,
 source-backed Position/Layout offset, Text/Rectangle/Ellipse creation and basic scaling.
 Extend the operation registry and transient preview path; each completed gesture is one
 deterministic source patch and one undo step. No key authoring or bar moves yet.
@@ -213,4 +213,4 @@ before this branch was landed. Engineering verified the deployed correction; no 
 owner usability result is recorded. The queue explicitly disclosed that the inherited
 planning archive did not receive a formal whole-branch review verdict. Owner review,
 physical-phone Safari, two-first-time-user walks and receiving-host acceptance stay open.
-The [next-session prompt](../../handoffs/2026-09-19-editor-r1.1a.md) bounds R1.1a.
+The [next-session prompt](https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-19-editor-r1.1a.md) bounds R1.1a.

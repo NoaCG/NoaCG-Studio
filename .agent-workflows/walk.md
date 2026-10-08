@@ -4,7 +4,7 @@ Shared canonical procedure, invoked as `/walk` in Claude Code and `$walk` in Cod
 
 **The question this answers: is there anything the owner should look at or decide?** Items live
 one per file in `docs/acceptance/owner-queue/`, each a `decision`, a `phone` look or a `desktop`
-check. Older items carry old kinds that read as these. `docs/acceptance/OWNER_QUEUE.md` holds the
+check. Older items carry old kinds that read as these. [`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md) holds the
 rules: the kinds, the keys, the order and how an item leaves.
 
 Optional argument: a filter. Either a subject (walk only the items about it), or a kind: `phone`,
@@ -83,7 +83,7 @@ that says what it checked and what it saw.
 ## 4. Filing is not this workflow's job
 
 Whether an item is filed at all is decided in `.agent-workflows/verify.md`, step 5. Its kind and
-shape are in `docs/acceptance/OWNER_QUEUE.md`.
+shape are in [`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md).
 
 ## 5. Finish
 

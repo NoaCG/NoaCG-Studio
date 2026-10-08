@@ -399,7 +399,7 @@ is an hour of text, an hour of writing and a rehearsal.
   an Apple developer account, a Windows code-signing certificate, an update channel, two support
   surfaces, and a second thing that can be stale against the deployed app. It buys the studio
   nothing the browser does not already do, and the repo's own parked sketch
-  (`docs/backlog/noacg-desktop-client.md`, owner-sourced 2026-08-28) reaches the same conclusion: a
+  ([`docs/backlog/noacg-desktop-client.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/noacg-desktop-client.md), owner-sourced 2026-08-28) reaches the same conclusion: a
   desktop client is one more consumer of an existing published contract, exactly like OBS. The real
   gap is packaging, and that is a launcher.
 - **An on-prem services tier.** We already give away the deployment half, which is strictly more

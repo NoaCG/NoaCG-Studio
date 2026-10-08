@@ -120,7 +120,7 @@ the shared job store. The verdict is derived from the legs, so a leg that did no
 
 Only what needs human judgment reaches the owner: one file per item under
 `docs/acceptance/owner-queue/`, of kind `decision`, `phone` or `desktop`
-(`docs/acceptance/OWNER_QUEUE.md`). Work an agent can verify never goes there, and a technical
+([`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md)). Work an agent can verify never goes there, and a technical
 problem is never the owner's.
 
 ## 5. Landing

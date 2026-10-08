@@ -322,7 +322,7 @@ and the evidence for each line. It is short because most of it is already standi
 
 1. **A score that updates, readable as a follow-along.** EXISTS. Two walks cover the road between
    them, and neither covers it alone. Walk 1, in-app, 2026-09-16 (pull request 283,
-   `docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`): both
+   [`docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`](https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md)): both
    graphics of §3a and §3b prompted through the agent road, the combined control composed by hand,
    §3c driven - but nothing published, because a linked worktree carries no backend configuration.
    Walk 2, the same day, in the configured suite: a production carrying the profile published and
@@ -340,7 +340,7 @@ and the evidence for each line. It is short because most of it is already standi
      production's own output URL, so SPX's Play and Stop move the frame while every cue, the
      combined control and the shared data stay with the NoaCG operator. This is the door the day
      wants. **It has never been run against a real SPX server** (the SPX line of
-     `docs/backlog/casparcg-production-acceptance-matrix.md`, and the check needs a machine no
+     [`docs/backlog/casparcg-production-acceptance-matrix.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/casparcg-production-acceptance-matrix.md), and the check needs a machine no
      session here has);
    - the **SPX starter export** (`src/export/targets/spxStarter.ts`) - a self-contained folder that
      is the strictest export gate we have and carries fields plus the default path, but by §6f no
@@ -353,7 +353,7 @@ and the evidence for each line. It is short because most of it is already standi
    and is timed, with one honest hole. The skill teaches the contract (row 1), and the road is
    measured in three separate runs that are never added together: **32.6 s** of tool time for the
    seven authoring verbs and **5.8 s** to import the pack and land on the production page, both on
-   walk 1 (`docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`); and
+   walk 1 ([`docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`](https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md)); and
    **7.4 s** from `noacg save` returning to a readable frame on a public output URL, measured by
    `scripts/save-to-air-bench.mjs` against `noacg.studio`. None of them contains a human
    thinking, and nobody has done the
@@ -596,11 +596,11 @@ four costs above:
    The embed cannot take a cue by design (`outputEmbed.ts:12-17`), so that room gets the starter.
 
 **What stays open.** The real-SPX run of the embed is the SPX line of
-`docs/backlog/casparcg-production-acceptance-matrix.md` (the owner's desktop walk it was folded
+[`docs/backlog/casparcg-production-acceptance-matrix.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/casparcg-production-acceptance-matrix.md) (the owner's desktop walk it was folded
 into was deleted, never walked, with Combined controls on 2026-10-02). The starter
 package now says what it drops and carries the SPX rule for the Shown field
 (`src/export/spxLeftBehind.ts`); what the rule cannot fix, SPX setting Shown itself, and the
-unmeasured CasparCG flavour, are `docs/backlog/the-spx-package-drops-the-profile-without-saying-so.md`.
+unmeasured CasparCG flavour, are [issue #788](https://github.com/NoaCG/NoaCG-Studio/issues/788).
 
 ## 7. The constraints, checked
 

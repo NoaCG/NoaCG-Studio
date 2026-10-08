@@ -95,7 +95,7 @@ shows one clock and no hex text.
 The agent can list the bundled faces with a one-line character each and put one in its package
 with its `@font-face` and licence line written, in one command. Scenario: the gala brief reaches
 a serif in one call, not sixteen scaffolds. (Shape already argued in
-`docs/backlog/a-first-cli-session-as-good-as-working-in-the-repo.md` item 5.)
+[issue #769](https://github.com/NoaCG/NoaCG-Studio/issues/769) item 5.)
 
 ### AC-4: The agent sees every state on the ground it airs on
 

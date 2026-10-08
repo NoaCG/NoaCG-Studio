@@ -142,7 +142,7 @@ test('a design with no setup values shows no setup section', async ({ page }) =>
   await expect(page.getByTestId('wz-setup')).toHaveCount(0);
 });
 
-// ── The Style step's offer (docs/backlog/style-step-palettes-match-graphic.md) ────────────
+// ── The Style step's offer (https://github.com/NoaCG/NoaCG-Studio/issues/776) ────────────
 //
 // The same rule as the setup section above, one step later: what the wizard offers has to be
 // what the wizard can change. The style contract declares all four palette colours whether or

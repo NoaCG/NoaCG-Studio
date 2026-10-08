@@ -23,7 +23,7 @@ export type PlayoutVerb =
   | 'select-prev'
   | 'select-next'
   // A server clip's Pause and Resume. Named verbs through the same dispatcher as the rest, so a
-  // key, a button or a hardware panel reaches them one way (docs/backlog/companion-and-stream-deck.md).
+  // key, a button or a hardware panel reaches them one way (https://github.com/NoaCG/NoaCG-Studio/issues/809).
   // The hosted page has no server cues to pause, and its dispatcher ignores all three.
   | 'pause'
   | 'resume'

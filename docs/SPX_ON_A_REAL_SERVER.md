@@ -136,7 +136,7 @@ isolates it: SPX's `*` reset and its `.ografRenderTarget` sizing change nothing 
 the font-size rule alone moves the scorebug's text from y=113 to y=294. The graphic's own sheet
 does not set a font size on its element, so nothing stops the inheritance.
 
-**The two questions the OGraf round carried** (`docs/backlog/spx-gc-ograf-round.md`):
+**The two questions the OGraf round carried** ([`docs/backlog/spx-gc-ograf-round.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/spx-gc-ograf-round.md)):
 
 1. *Does the graphic restyle the renderer's page?* No. With a package loaded, a fresh element in
    the host page computes the same font, size, colour and box model as before, and none of the
@@ -201,7 +201,7 @@ the template, so a function the template defines is out of its reach.
 So the owner's failed attempt had at least two causes: before PR #550 production refused to be
 framed at all, and today the embed still hides the video behind a dark frame in SPX. What stays
 unproven is a real published production's graphics cued from NoaCG while SPX frames them; that
-check is `docs/acceptance/owner-queue/2026-09-30-r-spx-output-embed.md`.
+check is [`docs/acceptance/owner-queue/2026-09-30-r-spx-output-embed.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-30-r-spx-output-embed.md).
 
 ## 5. Where SPX renders
 
@@ -215,7 +215,7 @@ engines at once: the host's, on air, and the operator's browser, as a monitor. T
 row "SPX renders in the operator's own browser" should say the on-air engine is the host that
 loads the renderer, and that the operator's browser runs a monitor copy. The correction to
 `src/validation/engineSupport.ts` and `docs/PLAYOUT_COMPATIBILITY.md` is tracked in
-`docs/backlog/playout-engine-facts-and-guide-corrections.md`.
+[issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760).
 
 ## 6. How NoaCG should serve SPX users
 
@@ -244,28 +244,28 @@ loads the renderer, and that the operator's browser runs a monitor copy. The cor
 
 **What to build first.**
 
-1. **The embed's colour scheme** (`docs/backlog/spx-output-embed-opaque-frame.md`): a small
+1. **The embed's colour scheme** ([`docs/backlog/spx-output-embed-opaque-frame.md`](https://github.com/NoaCG/NoaCG-Studio/blob/05ddeacb5e81e74164d8048e816aaf796389cead/docs/backlog/spx-output-embed-opaque-frame.md)): a small
    change in one file, measured fix, and it unblocks the route the owner tried.
-2. **SPX-safe layers** (`docs/backlog/spx-layers-collapse-onto-one.md`): every route, every SPX
+2. **SPX-safe layers** ([`docs/backlog/spx-layers-collapse-onto-one.md`](https://github.com/NoaCG/NoaCG-Studio/blob/05ddeacb5e81e74164d8048e816aaf796389cead/docs/backlog/spx-layers-collapse-onto-one.md)): every route, every SPX
    version.
-3. **The OGraf package's layer and type hints** (`docs/backlog/ograf-package-does-not-play-in-spx.md`
-   with `docs/backlog/ograf-manifest-v-spx-hints.md`), then **the inherited font size**
-   (`docs/backlog/ograf-graphic-inherits-host-font-size.md`).
+3. **The OGraf package's layer and type hints** ([`docs/backlog/ograf-package-does-not-play-in-spx.md`](https://github.com/NoaCG/NoaCG-Studio/blob/3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f/docs/backlog/ograf-package-does-not-play-in-spx.md)
+   with [`docs/backlog/ograf-manifest-v-spx-hints.md`](https://github.com/NoaCG/NoaCG-Studio/blob/3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f/docs/backlog/ograf-manifest-v-spx-hints.md)), then **the inherited font size**
+   ([`docs/backlog/ograf-graphic-inherits-host-font-size.md`](https://github.com/NoaCG/NoaCG-Studio/blob/3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f/docs/backlog/ograf-graphic-inherits-host-font-size.md)).
 4. The rundown in the production export, then the smaller items.
 
 ## 7. Defects and gaps filed
 
 | Item | Where | Severity |
 |---|---|---|
-| `docs/backlog/spx-output-embed-opaque-frame.md` | `src/export/outputEmbed.ts` | Blocks the route |
-| `docs/backlog/spx-layers-collapse-onto-one.md` | `src/templates/shared/base.ts`, `src/model/shows.ts`, `src/export/outputEmbed.ts` | Two graphics cannot be on air together without manual setup |
-| `docs/backlog/ograf-package-does-not-play-in-spx.md` | `src/export/targets/ograf.ts` | Blocks the OGraf route as imported |
-| `docs/backlog/ograf-graphic-inherits-host-font-size.md` | `src/export/targets/ograf.ts` | Distorts every OGraf graphic in SPX |
-| `docs/backlog/spx-output-embed-reload-button-dead.md` | `src/export/outputEmbed.ts` | A dead control |
-| `docs/backlog/spx-package-lists-controlpanel-as-template.md` | `src/export/targets/spxStarter.ts` | Operator confusion |
-| `docs/backlog/spx-1-2-continue-past-last-step-strands-graphic.md` | `src/export/targets/spxStarter.ts`, after finding SPX 1.2's message | A stranded graphic on 1.2 |
-| `docs/backlog/spx-1-4-update-does-nothing.md` | SPX upstream; our package wording | Update fails on 1.4 |
-| `docs/backlog/spx-1-4-ograf-custom-actions-dead.md` | SPX upstream; our package wording | Custom actions fail on 1.4.1 |
+| [`docs/backlog/spx-output-embed-opaque-frame.md`](https://github.com/NoaCG/NoaCG-Studio/blob/05ddeacb5e81e74164d8048e816aaf796389cead/docs/backlog/spx-output-embed-opaque-frame.md) | `src/export/outputEmbed.ts` | Blocks the route |
+| [`docs/backlog/spx-layers-collapse-onto-one.md`](https://github.com/NoaCG/NoaCG-Studio/blob/05ddeacb5e81e74164d8048e816aaf796389cead/docs/backlog/spx-layers-collapse-onto-one.md) | `src/templates/shared/base.ts`, `src/model/shows.ts`, `src/export/outputEmbed.ts` | Two graphics cannot be on air together without manual setup |
+| [`docs/backlog/ograf-package-does-not-play-in-spx.md`](https://github.com/NoaCG/NoaCG-Studio/blob/3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f/docs/backlog/ograf-package-does-not-play-in-spx.md) | `src/export/targets/ograf.ts` | Blocks the OGraf route as imported |
+| [`docs/backlog/ograf-graphic-inherits-host-font-size.md`](https://github.com/NoaCG/NoaCG-Studio/blob/3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f/docs/backlog/ograf-graphic-inherits-host-font-size.md) | `src/export/targets/ograf.ts` | Distorts every OGraf graphic in SPX |
+| [`docs/backlog/spx-output-embed-reload-button-dead.md`](https://github.com/NoaCG/NoaCG-Studio/blob/05ddeacb5e81e74164d8048e816aaf796389cead/docs/backlog/spx-output-embed-reload-button-dead.md) | `src/export/outputEmbed.ts` | A dead control |
+| [`docs/backlog/spx-package-lists-controlpanel-as-template.md`](https://github.com/NoaCG/NoaCG-Studio/blob/05ddeacb5e81e74164d8048e816aaf796389cead/docs/backlog/spx-package-lists-controlpanel-as-template.md) | `src/export/targets/spxStarter.ts` | Operator confusion |
+| [`docs/backlog/spx-1-2-continue-past-last-step-strands-graphic.md`](https://github.com/NoaCG/NoaCG-Studio/blob/05ddeacb5e81e74164d8048e816aaf796389cead/docs/backlog/spx-1-2-continue-past-last-step-strands-graphic.md) | `src/export/targets/spxStarter.ts`, after finding SPX 1.2's message | A stranded graphic on 1.2 |
+| [issue #788](https://github.com/NoaCG/NoaCG-Studio/issues/788) | SPX upstream; our package wording | Update fails on 1.4 |
+| [`docs/backlog/spx-1-4-ograf-custom-actions-dead.md`](https://github.com/NoaCG/NoaCG-Studio/blob/3d2fa00ccd986f8528b8ac5bd326c0aa9ae08e5f/docs/backlog/spx-1-4-ograf-custom-actions-dead.md) | SPX upstream; our package wording | Custom actions fail on 1.4.1 |
 
 The two OGraf items above, `ograf-manifest-v-spx-hints.md` beside them and the custom-action
 item were closed by §10; the OGraf package's README also carries the Update line of
@@ -480,7 +480,7 @@ in the package, and each profile template matches the definition in that file.
 into `<br>`, and NoaCG templates show the escaped text. On 1.4.1 `Anna O'Brien & Sons` went on air
 as `Anna O&#039;Brien &amp; Sons`; on both servers the News Strip ticker's items were joined by a
 literal `&lt;br&gt;`. It happens whatever hands SPX the values, the exported rundown or values
-typed in SPX (`docs/backlog/spx-field-values-arrive-html-escaped.md`).
+typed in SPX ([issue #788](https://github.com/NoaCG/NoaCG-Studio/issues/788)).
 
 **Test projects added**, deletable as whole folders, on both servers: the templates
 `ASSETS\templates\noacg_x_show\` and `ASSETS\templates\noacg_x_six\`, and the projects

@@ -261,7 +261,7 @@ test.describe('a declared input-only holder is not a field that failed to paint'
 // authored through the CLI against the shipped skill. The totals board is the one that matters
 // here: eleven controls, each legal from both states of its parallel `flash` group, so TWENTY-TWO
 // arrows - and on 2026-09-15 `validate` reported 0 errors and 0 warnings on it having pressed
-// EIGHT of them (docs/handoffs/2026-09-15-hb-release-and-first-walk.md).
+// EIGHT of them (https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-15-hb-release-and-first-walk.md).
 //
 // HOW A PRESS IS OBSERVED. The bench has no "what did you press" channel, and adding one would be
 // a test-only seam. It does not need one: the phase words ride into every layout finding, so a

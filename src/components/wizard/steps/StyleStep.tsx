@@ -597,7 +597,7 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
       </details>
 
       {/* THE VIEWING TARGET AND THE SIZE FLOORS ARE NOT HERE, and that is deliberate
-          (docs/backlog/size-questionnaire-purpose.md). Measured 2026-09-02 on a catalog design:
+          (https://github.com/NoaCG/NoaCG-Studio/blob/59380da0d370dd6418e84a8bac9f34c776e227cf/docs/backlog/size-questionnaire-purpose.md). Measured 2026-09-02 on a catalog design:
           moving the target from TV to Mobile, or the floor from standard to safe, leaves the
           composed preview document byte-identical. They are a rule about what may SHIP, and the
           warnings they govern are drawn where shipping happens - the editor's export panel and

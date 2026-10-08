@@ -39,7 +39,7 @@
 //   - an ABSENT ref. `git log --format=… -- docs/backlog` with no revision walks HEAD, which on a
 //     feature branch stops at the fork point. `closedReceipts` had exactly that bug and no
 //     scanner can catch it, because there is no token to match. Only a reader finds those, and one
-//     did: `docs/backlog/the-weekly-report-walks-head-not-what-landed.md`.
+//     did: `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/the-weekly-report-walks-head-not-what-landed.md`.
 //   - a ref built at a distance: `const ref = 'main'` twenty lines above the git call.
 //   - `merge`, `rebase`, `checkout`, `switch` and `reset`, deliberately left out of the verb list.
 //     They take a revision, but naming the local branch to them is usually the point - `git merge

@@ -228,7 +228,7 @@ export interface DesignSvgPollRow {
 
 /**
  * The SCORE binding: which text layers are each team's name and figure, and which drawn layer
- * flashes when that team scores (docs/backlog/scoreboard-behaviour.md).
+ * flashes when that team scores (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md).
  *
  * IT IS THE THIRD SHAPE, AND THE FIRST MIXED ONE. A quiz's answers are things an operator TYPES,
  * so they are field INDICES; a poll's layers are things the audience plane WRITES, so they are

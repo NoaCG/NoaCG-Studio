@@ -4,7 +4,7 @@
 // The plugin used to declare `npx -y @noacg/cli mcp`, and npx cannot do that job cheaply. It
 // resolves the package, spawns the real binary with `stdio: 'inherit'`, and then stays alive for
 // the whole session with nothing left to do but forward the child's exit code. Measured on
-// 2026-09-02 (docs/backlog/cli-mcp-startup-weight.md): that launcher process holds ~85 MB of
+// 2026-09-02 (https://github.com/NoaCG/NoaCG-Studio/blob/4e81a1225298f48fd6a80d45d83e3f9f64e26536/docs/backlog/cli-mcp-startup-weight.md): that launcher process holds ~85 MB of
 // private bytes for hours, and npx adds roughly 1.5-4 s to every session start. Pinning the
 // version does not help - the cost is npx's own machinery, not the "what is latest?" lookup.
 // An MCP server declared by a plugin starts in EVERY session that has the plugin installed, so
@@ -20,7 +20,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-// The staleness check (docs/backlog/a-stale-global-cli-wins-over-npx-silently.md): an installed
+// The staleness check (https://github.com/NoaCG/NoaCG-Studio/blob/d5a9a86b2d57970eec0946f8664757b163357c72/docs/backlog/a-stale-global-cli-wins-over-npx-silently.md): an installed
 // copy wins over npx silently, so a machine that ran `npm i -g @noacg/cli` once keeps that version
 // forever with nothing on screen saying so. One cached registry read fixes that. The read itself
 // lives in npm-latest.mjs, which `noacg doctor` runs too - a GENERATED copy of cli/src/npmLatest.mjs
@@ -100,7 +100,7 @@ const cli = resolveCli();
 
 if (cli) {
   // Say what is about to import, so a stale global install is visible instead of silent (the
-  // defect docs/backlog/a-stale-global-cli-wins-over-npx-silently.md describes). Skipped only when
+  // defect https://github.com/NoaCG/NoaCG-Studio/blob/d5a9a86b2d57970eec0946f8664757b163357c72/docs/backlog/a-stale-global-cli-wins-over-npx-silently.md describes). Skipped only when
   // `cli` actually IS the `NOACG_CLI` override (a checkout under active development is expected to
   // differ from npm's latest) - not merely when the env var is set, because a stale or deleted
   // override path falls through to a normal resolve inside `resolveCli`, and the copy that gets

@@ -1064,7 +1064,7 @@ test('the build refuses a spec with no covers, a glob that matches nothing and a
 
 // The same three refusals over the REAL repository: this is the line that makes `npm run build`
 // go red when a spec lands without a covers header, a glob goes stale, or a central rule names a
-// spec that is gone. It closed docs/backlog/unmapped-spec-never-runs-on-its-gate.md.
+// spec that is gone. It closed https://github.com/NoaCG/NoaCG-Studio/blob/c04a559267144447c33564a3b0fac126a32189fa/docs/backlog/unmapped-spec-never-runs-on-its-gate.md.
 test('every spec header in the repository passes the refusals', () => {
   const problems = auditSpecHeaders({
     headers: SPEC_HEADERS,

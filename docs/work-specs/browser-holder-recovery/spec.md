@@ -2,7 +2,7 @@
 
 ## Problem and authority
 
-A live browser-driving run can monopolize machine-wide verification while doing no useful work. The standing owner ask is docs/backlog/e2e-webserver-hang-blocks-the-machine.md (2026-09-03). The 2026-09-14 owner request authorizes a naturally occurring bounded feature pilot through the real Orchestrator, preserving existing scheduling and landing. Reliable verification serves docs/GOALS.md NOW. This spec serves that existing intent without claiming the original 126-minute incident has been reproduced.
+A live browser-driving run can monopolize machine-wide verification while doing no useful work. The standing owner ask is [docs/backlog/e2e-webserver-hang-blocks-the-machine.md](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/e2e-webserver-hang-blocks-the-machine.md) (2026-09-03). The 2026-09-14 owner request authorizes a naturally occurring bounded feature pilot through the real Orchestrator, preserving existing scheduling and landing. Reliable verification serves docs/GOALS.md NOW. This spec serves that existing intent without claiming the original 126-minute incident has been reproduced.
 
 ## Owner requirements
 
@@ -14,7 +14,7 @@ Use explicit IPv4 only for the e2e server/probe contract, preserving developer-s
 
 ## Non-goals
 
-No new scheduler, lock, daemon, automation, job-state system, auto-kill policy, account setup, production migration or deployment architecture change. Do not solve the broader stale instruction corpus in this pilot; docs/backlog/instruction-context-rot-after-spec-pilot.md remains an explicit follow-up. Do not claim real authenticated live sign-in or reproduction of the historical incident from offline fixtures.
+No new scheduler, lock, daemon, automation, job-state system, auto-kill policy, account setup, production migration or deployment architecture change. Do not solve the broader stale instruction corpus in this pilot; [issue #805](https://github.com/NoaCG/NoaCG-Studio/issues/805) remains an explicit follow-up. Do not claim real authenticated live sign-in or reproduction of the historical incident from offline fixtures.
 
 ### AC-1: E2e readiness uses one consistent loopback endpoint
 

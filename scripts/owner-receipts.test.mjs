@@ -47,7 +47,7 @@ test('a quoted ask keeps its hash, a byte order mark is tolerated, and a future 
 });
 
 test('a quoted value runs on to its closing quote instead of losing every continuation line', () => {
-  // Verbatim shape from docs/backlog/playout-lag-when-working-the-queue.md, which is how eleven
+  // Verbatim shape from https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md, which is how eleven
   // other receipts are written too. The old parser kept the opening quote and dropped lines 2-4.
   const parsed = parseFrontmatter([
     '---',

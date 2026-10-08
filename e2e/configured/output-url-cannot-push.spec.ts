@@ -229,7 +229,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   // ── THE CLAIM. Nothing played, and nothing was recorded. ───────────────────────────────────
   //
   // Five seconds is fifty times the fast road's measured 87 ms
-  // (docs/backlog/playout-lag-when-working-the-queue.md), so a forged command that was going to
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md), so a forged command that was going to
   // land has landed by now.
   await air.waitForTimeout(5_000);
   expect(await airPlays(), 'a holder of the output URL made the graphic play').toBe('1');

@@ -123,7 +123,7 @@ sits on: measured the same day, this repo's orchestrator worktree was eight comm
 reported eleven unverified observations that had just been measured, off the same installed builds.
 If that flag is ever rejected as an unknown argument, the checkout predates it and the routine says
 so rather than reporting a number
-(`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
+([`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md)).
 
 **Since 2026-09-30 an unverified observation can be re-probed, and a failed re-probe is printed.**
 `npm run harness:reprobe -- run` re-runs each observation that has a cheap bounded probe, one at a
@@ -208,7 +208,7 @@ switch**. That third section is the point; the first two exist to earn it. It is
 **Its OGraf findings get a written destination, and the routine still does not write.** The
 OGraf-leads bet is decided by OTHER PEOPLE's adoption accumulating over months, so a finding said in
 chat and nowhere else is gone when the session closes - which is what had been happening. The ledger
-is `docs/backlog/ograf-ecosystem-watch.md`, and the routine's job is to end its run by printing the
+is [`docs/backlog/ograf-ecosystem-watch.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-ecosystem-watch.md), and the routine's job is to end its run by printing the
 block to append: a date heading, one bullet per item with a date, what it means for us, and a source
 URL, or the words for a quiet month. The append itself is made by a session working on a branch.
 

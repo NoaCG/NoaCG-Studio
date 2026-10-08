@@ -3,9 +3,9 @@
 //
 // WHAT IT GUARDS. A handoff is the only place some facts live. On 2026-09-01 a planner classified
 // thirteen handoff files as `spent` by reading their headings; four were not spent, and
-// `docs/handoffs/2026-08-30-n-ograf-checker.md` held the only analysis of an unfixed OGraf defect
+// `https://github.com/NoaCG/NoaCG-Studio/blob/b0750116f7d3e60be8a70103eff21fc36cee22c1/docs/handoffs/2026-08-30-n-ograf-checker.md` held the only analysis of an unfixed OGraf defect
 // (a graphic's stylesheet restyling its host page). It was deleted and then restored by hand,
-// which is the only reason the analysis exists today - `docs/backlog/ograf-checker-83-rules.md`
+// which is the only reason the analysis exists today - `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-checker-83-rules.md`
 // X-04 cites it. `scripts/handoff-drain.mjs` made the classification VISIBLE afterwards; this
 // makes the destruction itself say something at the moment it happens.
 //
@@ -251,7 +251,7 @@ export function verdict({ rel, before, after, entry, planPath = null }) {
   return (
     `Heads up: ${opening}\n${sections}\n${said}\n` +
     'On 2026-09-01 thirteen handoffs were classified `spent` by reading their headings; four were ' +
-    'not, and docs/handoffs/2026-08-30-n-ograf-checker.md held the ONLY analysis of an unfixed ' +
+    'not, and https://github.com/NoaCG/NoaCG-Studio/blob/b0750116f7d3e60be8a70103eff21fc36cee22c1/docs/handoffs/2026-08-30-n-ograf-checker.md held the ONLY analysis of an unfixed ' +
     'OGraf defect. It was restored by hand, which is the only reason that analysis exists.\n' +
     (after === null
       ? `If this was not deliberate, take it back with \`git restore ${rel}\` (or \`git checkout HEAD -- ${rel}\` once staged).\n`

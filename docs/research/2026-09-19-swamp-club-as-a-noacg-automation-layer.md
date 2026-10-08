@@ -8,7 +8,7 @@ validate, and make it playable in a Production.
 **Answer: no. Implement the pattern natively.** Not because Swamp is bad, it is a well-built tool,
 but because the thing missing here is not orchestration. Four of the six steps in that test case
 have no NoaCG verb at all, and a workflow engine cannot sequence verbs that do not exist. The work
-that closes the gap is already written down in `docs/backlog/cli-roadmap.md` and it is CLI work.
+that closes the gap is already written down in [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772) and it is CLI work.
 
 ---
 
@@ -103,7 +103,7 @@ This is the finding. Today's authoring verbs are `types`, `scaffold`, `validate`
 Three of six steps have a verb. Swamp would be orchestrating a two-step pipeline with four holes in
 it.
 
-The plan for those holes already exists. `docs/backlog/cli-roadmap.md`, written 2026-08-28 against
+The plan for those holes already exists. [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772), written 2026-08-28 against
 the HighField comparison, names them almost exactly:
 
 1. `noacg find` for selection by need over the type registry and catalog metadata.
@@ -210,7 +210,7 @@ Concretely, in the roadmap's own order and names:
    is where the differentiated value is.
 2. The library read side, so an existing graphic can be fetched and not only pushed. This is the
    hole that makes "take an existing graphic" impossible today.
-3. `noacg find`, once `docs/backlog/graphic-use-case-metadata.md` lands.
+3. `noacg find`, once [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776) lands.
 4. `noacg add --production` behind `productions:attach` as its own consented scope at `noacg login`,
    staged only, never taking to air. That is the mechanism the ruling was waiting for: not a wider
    key, a second key the user grants separately, landing work where a human still has to take it.

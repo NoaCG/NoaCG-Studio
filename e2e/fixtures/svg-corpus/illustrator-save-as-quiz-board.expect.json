@@ -13,7 +13,7 @@
     "a picture embedded as <image style=\"overflow:visible;\"> with a base64 data URI, positioned and scaled by transform alone, closed with an explicit </image>",
     "a multi-line question as one <text> with a <tspan> per line",
     "a hand-kerned answer written as two <tspan> runs on one baseline, with the class on the RUNS and nothing on the <text>",
-    "_x20_ escapes with data-name on every named layer, and four letter tiles with no id at all - one letter each, so they arrive unticked and after the fields (docs/backlog/one-layer-naming-system-for-every-graphic.md)"
+    "_x20_ escapes with data-name on every named layer, and four letter tiles with no id at all - one letter each, so they arrive unticked and after the fields (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md)"
   ],
   "expect": {
     "accepted": true,

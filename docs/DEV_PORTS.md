@@ -109,7 +109,7 @@ still fine and still preferred, because the preview tools own the process and `p
 closes it.
 
 This is the gap that made the 2026-08-29 SVG import sweep measure `main`'s importer rather than
-the branch's (`docs/backlog/svg-import-sweep-findings.md`). Any script that drives a running
+the branch's ([issue #778](https://github.com/NoaCG/NoaCG-Studio/issues/778)). Any script that drives a running
 server takes `--base`; `node scripts/dev-port.mjs --base` prints the URL to hand it, and
 `scripts/svg-import-sweep.mjs` defaults to exactly that and prints which server it drove.
 

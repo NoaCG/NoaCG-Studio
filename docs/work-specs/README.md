@@ -75,4 +75,4 @@ the parent from worker confidence, and it never extends an expired authorized wi
 Parallel workers write distinct evidence/handoff files. One assigned consolidation row updates
 the acceptance ledger after landing; its file is allocated in TOUCHES. Production/owner acceptance
 remain separate evidence rungs. The broader instruction/context audit is tracked explicitly in
-[the post-pilot follow-up](../backlog/instruction-context-rot-after-spec-pilot.md).
+[the post-pilot follow-up](https://github.com/NoaCG/NoaCG-Studio/issues/805).

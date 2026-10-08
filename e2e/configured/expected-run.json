@@ -3,9 +3,9 @@
   "minTests": 73,
   "allowedSkips": {
     "bridge-real-server.spec.ts": "Drives a real NoaCG Bridge and a real CasparCG behind BRIDGE_REAL=1. A runner has neither, so its tests can only skip (issue #371).",
-    "account.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
-    "anonymous.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
-    "moderator.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
-    "signed-in-ux.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted."
+    "account.spec.ts": "Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted.",
+    "anonymous.spec.ts": "Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted.",
+    "moderator.spec.ts": "Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted.",
+    "signed-in-ux.spec.ts": "Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted."
   }
 }

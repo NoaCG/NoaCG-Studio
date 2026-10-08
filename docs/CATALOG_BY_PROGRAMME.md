@@ -4,7 +4,7 @@ Written 2026-09-04, against the catalog at `b7507bbf`: 494 designs as the sweep 
 441 of which are one file each and 53 of which live inside a type or layout file (the audience
 pack, the stream notifications, the editorial and cinematic info systems, the structural frame
 layouts and the transition archetypes). It answers the first two items of
-`docs/backlog/catalog-variety-by-programme-type.md`, a survey of what each kind of show puts on
+[issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776), a survey of what each kind of show puts on
 screen joined to what the catalog has, so a drawing session is handed a NAMED ABSENCE instead of
 "make something different", and it PROPOSES the fourth, the recurring drawing slot (§9). The
 proposal is not registered anywhere that fires; §9 says what would register it.
@@ -58,7 +58,7 @@ Three inputs, joined by hand:
   cannot see were classified here directly.
 - **What the shelf looks like.** `scripts/card-look-sweep.mjs` over every category, reading
   rendered pixels for backdrop, accent hue and footprint. §7 says which numbers were measured
-  tonight and which are quoted from `docs/backlog/template-variety-and-dedup.md`.
+  tonight and which are quoted from [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776).
 
 The six genres are the owner's words: talk show, game show, podcast, sports, news, "film-type
 stuff". Film is read as the four things a film channel or an entertainment desk streams: red
@@ -476,7 +476,7 @@ to hold. **Take them in order; a slot that skips one says why in its handoff.**
     button controls"); sheet row 40. Less a drawing than a behaviour: a podium score strip
     whose contestant count is a field (two to six) and which has a BUZZED state the operator
     fires per contestant. `sb21` `sb22` fix four and move a spotlight by hand. This belongs with
-    `docs/backlog/more-behaviours-than-poll-and-quiz.md` as much as here.
+    [`docs/backlog/more-behaviours-than-poll-and-quiz.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/more-behaviours-than-poll-and-quiz.md) as much as here.
 12. **The gala register.** Film. Not a kind, a LOOK: gold or champagne on black, a serif, slow
     fades, full-frame reveals with pictures. The awards pack's whole shelf is sold this way and
     the catalog has five serif designs and no gold. This is what items 3 and 4 should be drawn
@@ -493,7 +493,7 @@ full-frame over black at `create({})`, read back for backdrop, dominant saturate
 ink's footprint (the path after `--json` is required for the per-design file; without it the
 script prints the summary only). It
 reports; it gates nothing. **Every row was measured tonight** on this branch's dev server; the
-lower-third row is also the number `docs/backlog/template-variety-and-dedup.md` quotes (99 of
+lower-third row is also the number [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776) quotes (99 of
 103 `strap/thin`, 2026-08-21), re-measured here at 101 designs after the six retirements and
 the two new shapes.
 
@@ -670,8 +670,8 @@ newscaststudio.com on CBS Mornings (2024); the gameshows and millionaire fandom 
 Repo: `docs/CATALOG_VARIETY.md`, `docs/CATALOG_WORK_QUEUE.md`, `docs/LOWER_THIRD_SHAPES_BRIEF.md`,
 `docs/PACK_TAXONOMY.md`, `docs/KIT_MATRIX_GAPS.md`, `docs/TEMPLATE_TAXONOMY_PROPOSAL.md`,
 `docs/DESIGN_LANGUAGE.md`, `docs/COMPETITORS.md`, `docs/COMPETITOR_MXMZ.md`,
-`docs/backlog/template-variety-and-dedup.md`, `docs/backlog/unique-first-catalog.md`,
-`docs/backlog/more-behaviours-than-poll-and-quiz.md`.
+[issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776), [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776),
+[`docs/backlog/more-behaviours-than-poll-and-quiz.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/more-behaviours-than-poll-and-quiz.md).
 
 ## 10. Ratified, with two amendments and one precondition (owner, 2026-09-04)
 
@@ -697,7 +697,7 @@ kind of work that §6 does not contain, because §6 only ranks ABSENT silhouette
 
 So variety WITHIN a kind is its own strand, and §7's measurement is the evidence for it: 93% of
 lower thirds are one silhouette. A weekly row that only ever closes a §6 absence never touches
-that. Filed as `docs/backlog/variety-within-a-kind-not-only-absent-ones.md`.
+that. Filed as [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776).
 
 **Amendment 2: drawing is the FILLER, and it yields.** This is a scheduling ruling and it binds the
 orchestrator, not this document:
@@ -734,7 +734,7 @@ graphic costs". At 502 designs:
   `/bridge` are: those two pull the catalog chunks from their own entry scripts, 3.7 MB and 2.3 MB,
   at about 7 KB per design. `/app` reaches its catalog chunk through a dynamic import after boot
   and `/` reaches none. That is a chunking fault on two pages rather than a reason to draw fewer
-  graphics, and it is filed as `docs/backlog/ograf-and-bridge-ship-the-whole-catalog.md`.
+  graphics, and it is filed as [issue #793](https://github.com/NoaCG/NoaCG-Studio/issues/793).
 
 So three or four designs a week is inside the noise for years rather than for a quarter, and the
 cadence is a ceiling for the reasons in §9 alone.

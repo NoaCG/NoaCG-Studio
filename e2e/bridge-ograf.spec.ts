@@ -15,7 +15,7 @@ import { createOgrafAdapter } from '../cli/src/playout/adapters/ograf.ts';
 import { createBridgeServer } from '../cli/src/playout/server.ts';
 import { startFakeOgrafServer } from './fixtures/ograf-server/server.mjs';
 
-// NoaCG Bridge as an OGraf CLIENT (docs/BRIDGE.md §3a, docs/backlog/bridge-ograf-adapter.md).
+// NoaCG Bridge as an OGraf CLIENT (docs/BRIDGE.md §3a, https://github.com/NoaCG/NoaCG-Studio/issues/790).
 // The REAL Bridge - its HTTP surface, its checks and the OGraf adapter - runs in this process,
 // and a FAKE OGraf server (e2e/fixtures/ograf-server/) stands where SuperFly.tv's ograf-server or
 // any other renderer would. Every call comes from a page on the studio's own origin, token in

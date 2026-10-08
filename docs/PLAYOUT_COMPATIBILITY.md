@@ -85,7 +85,7 @@ What is deliberately excluded, and why:
   `scripts/flex-gap-sweep.mjs` measures every design native-against-shimmed, but it runs by hand
   (one browser, about eight minutes) and is not in CI or the nightly, so nothing re-checks the
   shim when a design starts doing something new with flex
-  (`docs/backlog/flex-gap-shim-follow-ups.md`).
+  ([`docs/backlog/flex-gap-shim-follow-ups.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/flex-gap-shim-follow-ups.md)).
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
   its fills there. OBS 31 and 32 are fine (127, measured on 32.2.1); vMix has never been measured
   here. Left as a known, recorded gap rather than a reason to migrate 189 declarations

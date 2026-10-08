@@ -169,7 +169,7 @@ blindness is fixable: granting `command(rg)`, or something narrower, in
 the sweep work that needs searching. The row that hit this refused to take that decision, on the
 grounds that a session may not widen the machine's permission posture on its own argument, and
 filed it instead
-(`docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`). **I agree with
+([`docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md)). **I agree with
 the refusal and I am not overriding it.** What you are weighing is a shell grant to a Google CLI
 on this laptop against the ability to route sweeps to a harness that is free at the point of use.
 Until you say otherwise, sweeps are enumerated by hand and Antigravity reads the list.
@@ -309,7 +309,7 @@ so it is his call and not a change I made.
 - `.claude/commands/rescue.md`: two stale facts corrected - the injected effort default, which is
   `medium` and not `high`, and the claim that `gpt-5.6-sol` is the only model the subscription
   accepts. The first of those sent this document's own first draft down the wrong path.
-- `docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`: the refusal it
+- [`docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/antigravity-cannot-grep-so-sweeps-routed-to-it-return-nothing.md): the refusal it
   proposes must be narrowed to search and not widened to listing, with tonight's listing probe as
   the reason. I had filed a separate item saying the wrapper's warning was stale; that premise was
   wrong once this row's evidence arrived, so the item is gone rather than left standing.
@@ -333,7 +333,7 @@ so it is his call and not a change I made.
   reconciled.
 - **Whether the orchestrator itself produces the same wave plan when run inside Codex.** That is
   the owner's standing ask from 2026-09-05 and it is still untested; see
-  `docs/backlog/orchestrator-runs-the-same-in-codex.md`. **Answered on 2026-09-10** by row CD -
+  [`docs/backlog/orchestrator-runs-the-same-in-codex.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/orchestrator-runs-the-same-in-codex.md). **Answered on 2026-09-10** by row CD -
   the measurement is `docs/metrics/2026-09-10-orchestrator-in-codex.md`, and the receipt is
   `advanced` rather than done because five shared-contract edits came out of it.
 

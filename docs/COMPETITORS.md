@@ -125,7 +125,7 @@ on any such list**, and that absence is the honest AI verdict for this page. **A
 Density announced AI-assisted HTML5 generative templates for IBC2026 (block below). Nobody has seen
 that product, so it moves no verdict yet; it does make this a claim with a date on it rather than a
 standing fact. Full account:
-`docs/COMPETITOR_MXMZ.md` section 8. What it means for the CLI: `docs/backlog/cli-roadmap.md`.
+`docs/COMPETITOR_MXMZ.md` section 8. What it means for the CLI: [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
 
 ## Pixla - a control room in a box, with a designer inside it
 

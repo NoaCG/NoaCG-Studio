@@ -226,7 +226,7 @@ Phase 1 is built - manual, local, no API.
   ("Delete table?"); the column's and the row's swap ✕ for ✓ and carry the meaning in the amber
   and the tooltip, because both sit in tracks sized by that button and a word would widen the
   table under them (docs/PLAYOUT_DASHBOARD.md §2d, one surface over).
-- **ProductionPage is being SPLIT, read-only pieces first** (docs/backlog/production-page-phases.md
+- **ProductionPage is being SPLIT, read-only pieces first** ([issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)
   carries the state map and the phases still to run). Out already: `home/ProductionLinks.tsx`
   (Setup › Links…, the production's private and public addresses),
   `home/PlayoutStatusControl.tsx` (the header's playout status and its panel shell; the words are

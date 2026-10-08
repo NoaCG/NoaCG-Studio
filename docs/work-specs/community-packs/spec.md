@@ -268,7 +268,7 @@ appears under the account's Your packs as In review.
    study's `noacg pack --share --license cc-by-4.0` is the starting sketch. Then AC-12, the
    observed-request refusal (D5), and a Report link on live cards.
 
-Backlog: `docs/backlog/choose-your-own-username.md` (accounts cannot pick a username today).
+Backlog: [issue #798](https://github.com/NoaCG/NoaCG-Studio/issues/798) (accounts cannot pick a username today).
 
 ## The first slice: the review loop, NoaCG first
 

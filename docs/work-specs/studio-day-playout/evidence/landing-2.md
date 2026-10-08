@@ -75,7 +75,7 @@ and `e2e/configured/playout-status.spec.ts`:
   "PREVIEW · NOT LIVE" above a clip that was on air on 2-10. The monitor is now on air whenever
   anything the page sends is (spec D16), pinned in `e2e/playout-cues.spec.ts`. The rundown chip
   and the line under the verbs still say ON AIR for a local take in an offline production; filed
-  as `docs/backlog/on-air-words-in-an-offline-production.md`.
+  as [`docs/backlog/on-air-words-in-an-offline-production.md`](https://github.com/NoaCG/NoaCG-Studio/blob/609ad92d3e2c58875837289eb62dd203d97c160d/docs/backlog/on-air-words-in-an-offline-production.md).
 
 ## Not checked here
 

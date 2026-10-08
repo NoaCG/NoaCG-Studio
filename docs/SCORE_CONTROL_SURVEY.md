@@ -3,8 +3,8 @@
 **Run:** 2026-09-04, before the score behaviour's verbs were chosen
 (`src/templates/importedDesign/scoreBehaviour.ts`). **Why it exists:** the owner's method, twice
 stated. *"We just need to follow how other programs do them"* (2026-09-03,
-`docs/backlog/more-behaviours-than-poll-and-quiz.md`), and the standing rule behind it - a design
-default is NOT a taste question (`docs/acceptance/OWNER_QUEUE.md`). So the verbs on a score board
+[`docs/backlog/more-behaviours-than-poll-and-quiz.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/more-behaviours-than-poll-and-quiz.md)), and the standing rule behind it - a design
+default is NOT a taste question ([`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md)). So the verbs on a score board
 were derived rather than invented, and this page is the derivation, kept so the next behaviour is
 not argued from scratch.
 

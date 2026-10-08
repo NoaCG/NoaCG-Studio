@@ -19,4 +19,4 @@ asked with and the owner's answer. The spec records the answers under "Owner ans
    **Agreed.**
 8. **Whose name is on the card?** Recommended: the account's display name. **Changed:** free text
    the maker picks per pack, never requiring their real name or email; a pre-fill is allowed only
-   if it is neither. Filed `docs/backlog/choose-your-own-username.md`.
+   if it is neither. Filed [issue #798](https://github.com/NoaCG/NoaCG-Studio/issues/798).

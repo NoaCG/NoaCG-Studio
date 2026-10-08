@@ -4,7 +4,7 @@ Drafted 2026-10-02 against the manifests on `main` at version 0.7.0. Nothing her
 submitted, and no manifest has been changed: the name is the owner's decision (`name.md`). Each
 draft names the manifest fields it would change. The order to send them in, and what each costs,
 is in the owner-queue item
-(`docs/acceptance/owner-queue/2026-09-16-list-the-plugin-in-the-official-marketplace.md`).
+([issue #808](https://github.com/NoaCG/NoaCG-Studio/issues/808)).
 
 **Landed, 2026-10-02.** The owner kept `noacg` and chose the display name **NoaCG Broadcast
 Graphics and Playout**. Sections 0 and 4 are now in the repository, and the manifests, the plugin

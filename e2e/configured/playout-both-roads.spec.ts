@@ -36,7 +36,7 @@ import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 // ONE PRESS, ONE ENTRANCE - on every surface, with the verb travelling TWO roads.
 //
-// A published verb goes out twice from a single press (docs/backlog/playout-lag-when-working-the-queue.md
+// A published verb goes out twice from a single press (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md
 // "The fix: send the picture over broadcast, keep the log as the truth"): a Realtime BROADCAST
 // that every following surface applies on arrival, and the `control_send_many` insert that stays
 // the durable, ordered truth. Both roads carry the same command. Every consumer therefore has to

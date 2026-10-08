@@ -17,7 +17,7 @@
 // Both parts are plain data, so everything a hardware panel would light - on air, the clip's
 // remaining time, HOLDING, PAUSED, the 10 and 5 second warnings, NEXT ON SERVER - is read from here
 // through ./serverState's functions, never from inside a component
-// (docs/backlog/companion-and-stream-deck.md).
+// (https://github.com/NoaCG/NoaCG-Studio/issues/809).
 //
 // No React in here: a surface reads a part with `useSyncExternalStore(part.subscribe, part.get)`.
 // Kept plain so a Node test can import it, and one store is made per page, so it lives exactly as

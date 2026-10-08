@@ -374,7 +374,7 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   that makes the whole surface operable from the keys alone — which is
   also what makes a **Stream Deck** work today, since one is a keyboard emulator by default. A
   Companion connection with live button state is filed, not started
-  (`docs/backlog/companion-and-stream-deck.md`): every action it needs is already a named verb in
+  ([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809)): every action it needs is already a named verb in
   the keymap below, and every state it would light is plain data in one store (§2g).
 - **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by both React surfaces
   (the exported controller carries its own copy because it ships without React). Written twice,

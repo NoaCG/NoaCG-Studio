@@ -278,12 +278,12 @@ disagree with each other.
   layers no longer fight over `body` or `--accent` through it. NOT covered yet: a `<style>`
   block inside the MARKUP (an imported SVG carries the artwork's own, with Illustrator's shared
   `.st0` names) is injected as written and stays document-global -
-  `docs/backlog/ograf-markup-inline-styles.md`. The element is authored-size: a block of the
+  [issue #789](https://github.com/NoaCG/NoaCG-Studio/issues/789). The element is authored-size: a block of the
   authored resolution, `position: relative` so px-positioned designs lay out against it as
   against the SPX page (viewport units - `vw`, `vh`, `vmax` - still resolve against the
   renderer's viewport, as they always did), and it is `body` and `documentElement` for the
   template's own code. A renderer must place and scale that box itself; `load()` does not read
-  `renderCharacteristics` yet (`docs/backlog/ograf-render-characteristics-box.md`). Pinned by
+  `renderCharacteristics` yet ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)). Pinned by
   `e2e/ograf-conformance.spec.ts` ("leaves the renderer's page as it was").
 - **One instance of a given DESIGN per document.** Several *different* graphics in one document
   are fine, which is the arrangement a Web Component renderer actually uses: each Graphic runs
@@ -599,7 +599,7 @@ The EBU schema is the gate; the community's de-facto bar for a *complete* packag
 checker at <https://ograf.dev/check>, which goes well past the schema into README/LICENSE/preview
 presence, font licensing, shadow-DOM portability and 14 sandboxed runtime rules. All six `/ograf`
 starters were put through it, plus a post-production package for the two rules gated on
-`supportsNonRealTime`. **The per-rule record is `docs/backlog/ograf-checker-83-rules.md`** - every
+`supportsNonRealTime`. **The per-rule record is [`docs/backlog/ograf-checker-83-rules.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-checker-83-rules.md)** - every
 one of the 83 with a verdict, and an argument for each finding not acted on. It is a hand check:
 the tool is browser-only, so it cannot join CI.
 
