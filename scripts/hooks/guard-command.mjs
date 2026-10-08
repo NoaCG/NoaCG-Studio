@@ -14,6 +14,7 @@
 //  3b. Nobody polls the job queue in the foreground.
 //  3c. A push and a workflow dispatch never share one command - ci.yml's concurrency group makes
 //     the pair a coin flip over which run survives.
+//  3d. Nothing pushes to `main` - only the merge queue writes it.
 //  4. The e2e suites only start when (a) no OTHER checkout of this repo is already running one -
 //     several worktrees are normally live and each config asks for 4 workers, so two overlapping
 //     runs exhaust a 16 GB laptop rather than sharing it - and (b) their port is free, since
@@ -34,6 +35,7 @@ import {
   enqueuesWork,
   invokesE2e,
   invokesSweep,
+  mainPushes,
   pollsQueue,
   pushesAndDispatches,
   startsDevServer,
@@ -257,6 +259,27 @@ if (pushesAndDispatches(command)) {
   );
 }
 
+// --- 3d. Nothing pushes to `main`: only the merge queue writes it ------------------------------
+//
+// `root/land-finished-work-only-reconciles-current`. GitHub enforces the merge queue for everyone
+// except a repository admin, and the agents run as an admin whose ruleset bypass is "always" - so a
+// direct push would land on main unverified, and until this check the boundary was prose only. A
+// person in their own terminal never passes through this hook. A push that NAMES main is refused
+// outright (`mainPushes` in command-match.mjs); one that pushes whatever is checked out is refused
+// only when that checkout is on main, and git that cannot answer fails open, like every git check
+// here.
+const toMain = mainPushes(command).find(({ dir, how }) => how === 'named' || checkedOutBranch(dir) === 'main');
+if (toMain) {
+  deny(
+    'Blocked: this push would write `main`, and only the merge queue writes main ' +
+      '(`root/land-finished-work-only-reconciles-current`). GitHub would not stop it: this account ' +
+      'may bypass the branch rules.\n' +
+      'Land work with `/queue-merge` from a feature branch - it reconciles with current main, ' +
+      'requires the verification and lands through the merge queue.\n' +
+      'A person who truly means to push main can still do it from their own terminal.',
+  );
+}
+
 // --- 4. Heavy browser work: one job per MACHINE ----------------------------------------------
 
 // 4a. Nothing that drives a pile of headless Chromium may start while another such job is
@@ -348,4 +371,10 @@ function gitLines(args) {
 function namedCheckout(dir) {
   if (!dir) return targetRoot();
   return checkoutRoot(isAbsolute(dir) ? dir : join(targetRoot(), dir));
+}
+
+/** The branch checked out where an invocation's `-C <dir>` points, or null when git cannot say. */
+function checkedOutBranch(dir) {
+  const root = namedCheckout(dir);
+  return root ? (gitOutput(root, ['branch', '--show-current'])?.trim() ?? null) : null;
 }

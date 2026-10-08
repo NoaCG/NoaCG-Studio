@@ -16,6 +16,7 @@ import {
   invokesE2e,
   invokesSweep,
   commandSegments,
+  mainPushes,
   pollsQueue,
   pushedUpdates,
   pushesAndDispatches,
@@ -638,6 +639,81 @@ test('a push alone, a dispatch alone, a dry run, and the pair as text are not th
     'git log --oneline -3; gh workflow run ci.yml --ref claude/x',
   ]) {
     assert.ok(!pushesAndDispatches(cmd), cmd);
+  }
+});
+
+test('a push that names main is a main push, in every spelling used here', () => {
+  // The agents run as an admin GitHub lets bypass the merge queue, so nothing downstream refuses
+  // these. The PowerShell block form is this machine's ordinary spelling, since `&&` is a parser
+  // error there.
+  for (const cmd of [
+    'git push origin main',
+    'git push origin HEAD:main',
+    'git push origin claude/x:main',
+    'git push origin +main',
+    'git push --force origin main',
+    'git push origin :main',
+    'git push origin --delete main',
+    'git push origin refs/heads/main',
+    'git push origin HEAD:refs/heads/main',
+    'git push origin "HEAD:main"',
+    "git push origin 'main'",
+    'git push -o ci.skip origin main',
+    'git push origin main 2>&1 | tail -5',
+    'git push origin claude/x main',
+    'git push --all origin',
+    'git push --mirror',
+    'git push --branches origin',
+    'npm run build; if ($?) { git push origin main }',
+    'git fetch origin && git push origin HEAD:main',
+    'bash -c "git push origin main"',
+  ]) {
+    assert.deepEqual(mainPushes(cmd), [{ dir: '', how: 'named' }], cmd);
+  }
+  // `-C` names the checkout, and is reported so the guard judges the tree the push runs in.
+  assert.deepEqual(mainPushes('git -C C:/claude/NoaCG-Studio push origin main'), [
+    { dir: 'C:/claude/NoaCG-Studio', how: 'named' },
+  ]);
+});
+
+test('a push that names no branch, or HEAD, depends on what is checked out', () => {
+  // These push whichever branch the checkout has, so the guard has to ask git which that is.
+  for (const cmd of [
+    'git push',
+    'git push origin',
+    'git push -u origin',
+    'git push origin HEAD',
+    'git push -u origin HEAD',
+    'git push --force-with-lease origin +HEAD',
+    'git push 2>&1',
+    'git push origin 2>&1',
+    'git push origin > push.log',
+    'git push --push-option ci.skip origin',
+    'git add -A; if ($?) { git push }',
+  ]) {
+    assert.deepEqual(mainPushes(cmd), [{ dir: '', how: 'current' }], cmd);
+  }
+  assert.deepEqual(mainPushes('git -C ../wt push'), [{ dir: '../wt', how: 'current' }]);
+});
+
+test('a push to another branch, a dry run, and a push as text are not main pushes', () => {
+  for (const cmd of [
+    'git push -u origin claude/x',
+    'git push origin HEAD:claude/x',
+    'git push origin HEAD:refs/heads/claude/x',
+    'git push origin main:claude/x',
+    'git push origin claude/main-menu',
+    'git push origin --tags',
+    'git push origin tag v1.2.0',
+    'git push --dry-run origin main',
+    'git push -n origin main',
+    'echo "git push origin main"',
+    'grep -rn "push origin main" docs/',
+    'git log --oneline origin/main..HEAD',
+    'git fetch origin main && git reset --hard origin/main',
+    'npm run queue -- "git push origin main"',
+  ]) {
+    assert.deepEqual(mainPushes(cmd), [], cmd);
   }
 });
 

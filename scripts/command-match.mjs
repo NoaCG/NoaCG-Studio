@@ -677,6 +677,53 @@ function isDryRun(git) {
 }
 
 /**
+ * The pushes in this command line that could WRITE `main` on the remote, as `{ dir, how }`.
+ *
+ * Only GitHub's merge queue writes `main` (`root/land-finished-work-only-reconciles-current`), and
+ * GitHub enforces that for everyone except a repository admin - which is what the agents run as,
+ * with the ruleset's bypass set to "always". A direct push would land unreviewed and unverified,
+ * and nothing would say so.
+ *
+ * `how` says how much the command line itself settles:
+ *   - 'named': a refspec's DESTINATION is main (`main`, `HEAD:main`, `+main`, `:main`,
+ *     `refs/heads/main`), or the push sends every branch (`--all`, `--mirror`, `--branches`).
+ *   - 'current': no refspec, or `HEAD`, so it pushes whatever branch `dir`'s checkout has checked
+ *     out. Only git can say which that is, so the caller asks.
+ * `main:claude/x` writes `claude/x` and is not listed; neither is a dry run, which writes nothing.
+ * Positional like every matcher here, so `echo "git push origin main"` is not a push.
+ */
+export function mainPushes(text) {
+  return gitInvocations(text)
+    .filter((git) => git.subcommand === 'push' && !isDryRun(git))
+    .map((git) => ({ dir: git.dir, how: mainPushKind(git.args) }))
+    .filter((push) => push.how !== null);
+}
+
+/** Push options that take the NEXT token as their value, so it is neither a remote nor a refspec. */
+const PUSH_VALUE_OPTIONS = ['-o', '--push-option', '--repo', '--receive-pack', '--exec'];
+
+/** 'named', 'current' or null for one push's arguments - see `mainPushes`. */
+function mainPushKind(args) {
+  const positional = [];
+  for (let at = 0; at < args.length; at += 1) {
+    const arg = args[at].replace(/^(['"])(.*)\1$/s, '$2');
+    if (['--all', '--mirror', '--branches'].includes(arg)) return 'named';
+    // A bare redirection (`> out.txt`) takes the next token as its target; an attached one
+    // (`2>/dev/null`, or the `2>` the splitter leaves of `2>&1`) is only itself. Neither is a
+    // refspec, and reading `git push origin 2>&1` as one would hide the push it is.
+    if (PUSH_VALUE_OPTIONS.includes(arg) || /^[\d*&]?>>?$/.test(arg)) at += 1;
+    else if (!arg.startsWith('-') && !/^[\d*&]?>/.test(arg)) positional.push(arg);
+  }
+  const refspecs = positional.slice(1); // the first positional is the remote
+  if (refspecs.some((spec) => /^(?:refs\/heads\/)?main$/.test(spec.replace(/^\+/, '').split(':').pop()))) {
+    return 'named';
+  }
+  // `--tags` with no refspec pushes the tags alone, not the checked-out branch.
+  if (refspecs.length === 0) return args.includes('--tags') ? null : 'current';
+  return refspecs.some((spec) => /^\+?HEAD$/.test(spec)) ? 'current' : null;
+}
+
+/**
  * The branches a `git push` in this command just UPDATED, read off git's own report of it.
  *
  * Only an UPDATE of a branch the remote already had is listed - `<old>..<new> local -> remote` -
