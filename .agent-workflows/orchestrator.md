@@ -54,13 +54,22 @@ Most important first, written in the wave file before the first launch:
    Skip an issue that waits on the owner (`needs owner`, a decision, money, an account, his own
    check), one labelled `later` or speculative, and one whose files a live worktree holds.
 
-Shape each item into a row one session can finish: split a large item into steps that each land on
-their own; make two items that change the same file or the same user flow one row, or run them one
-after the other. Two rows that each need a new migration number, e2e spec or `package.json` change
-get their numbers in the prompt or run in turn. **The owner's intent binds, his wording does not**:
+**The issue list gets shorter every wave.** Count the open `P1`-`P3` issues when the wave opens and
+when it ends. Before building from the backlog, one row checks the open issues against current
+`main` and closes each one it verifies is already fixed, obsolete or a duplicate, with a one-line
+comment saying what it checked; only a product decision waits on the owner. An issue closes only on
+evidence (the check that proves it, a screenshot in the PR), never on hope. Keep going until no
+open issue fits the window or the list is empty.
+
+Shape each item into a row one session can finish. An issue too big for one row, or a new major
+outcome, is planned first: a planning subagent on Fable (the Agent tool, model `fable`) writes a
+compact spec (`docs/work-specs/README.md`) with acceptance criteria and steps that each land on
+their own, and Opus rows build them, commenting on the issue with what is done and what is left; it
+closes when every criterion is verified. Two items on the same file or user flow are one row, or
+run in turn; so are two rows that each need a new migration number, e2e spec or `package.json`
+change, unless the prompt assigns the numbers. **The owner's intent binds, his wording does not**:
 serve what he wanted, keep the detail where he made it the point (a taste ruling, a figure he
-gave), and report a difference rather than asking about it. A new major outcome gets a compact
-spec first (`docs/work-specs/README.md`).
+gave), and report a difference rather than asking about it.
 
 ## 3. Launch
 
@@ -100,9 +109,9 @@ job queue (`node scripts/e2e-affected.mjs --list --files <changed>` finds them; 
 change runs the specs that assert it, not the affected set). For a visible change, look at before
 and after screenshots yourself; never commit them.
 A row that finishes an issue puts `Closes #<n>` on its own line in a commit message. Left over:
-genuine unfinished work or a worthwhile follow-up becomes a GitHub issue (`gh issue create`, with a
-priority, an area label and why it matters). Nothing speculative. No handoff file, and no new doc
-unless the doc is the goal.
+genuine unfinished work becomes a GitHub issue (`gh issue create`, with a priority, an area label
+and why it matters); a small follow-up is fixed in this row instead, because every new issue counts
+against the wave. Nothing speculative. No handoff file, and no new doc unless the doc is the goal.
 Then /check and /queue-merge. Right after queueing, post one comment on the pull request
 (`gh pr comment`): what is not done, with its issue, and for a visible change which page to open
 on the preview deployment. Do not wait for the landing.
@@ -132,15 +141,17 @@ what is running, never a promise to wait.
 Stop launching when the next row would not land inside the window. When no row is running, wait
 for the wave's pull requests to merge or fail (`npm run jobs`, `gh pr view <n>`), confirm `main`'s
 CI is green after the last landing, and look at the changed public surfaces on production. Then
-write the report into the wave file under `## Report` and send it to the owner. A row still running at the window's
-end keeps running; the report says so.
+write the report into the wave file under `## Report` and send it to the owner. A row still
+running at the window's end keeps running; the report says so.
 
 **The report**, at most 25 lines, in plain words for a non-technical reader:
 
 1. **Needs you**, first, each with the exact step, or "nothing".
-2. **Shipped**: one line per pull request, what changed for a user and how it was verified.
-3. **Not done or not checked**: one line each, with the issue it went to.
-4. **Retro**: at most three findings and what was done about each.
+2. **Issues**: open at the start and at the end; closed as fixed, as already done or obsolete, and
+   as duplicates; opened, each with why it could not be fixed in this wave.
+3. **Shipped**: one line per pull request, what changed for a user and how it was verified.
+4. **Not done or not checked**: one line each, with the issue it went to.
+5. **Retro**: at most three findings and what was done about each.
 
 ## 6. The retro: improve without growing
 
