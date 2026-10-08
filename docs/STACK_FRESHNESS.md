@@ -317,7 +317,13 @@ absence and ran on the apply), so it is deny-all like `control_heads`. `control_
 `control_cue_arms_for`, each reported for `anon` and for `authenticated`, are the same slug doors
 as 0071's, with the same `feature_denied_for` guard; the one that writes touches only that
 production's arm row, its head and its log, under the head lock and the burst cap. The anon
-reason in `ACCEPTED_CLASSES` names them. The last full breakdown was taken at 70 on
+reason in `ACCEPTED_CLASSES` names them. It holds **178** as of 2026-10-08: the 11 new ones are
+all migration 0079's (`0079_community_packs.sql`, community packs), which post-land reported on
+every landing after #745 applied it, and 4 unused-index entries had gone. `community_packs` is
+deny-all (RLS on, no policy, no client grant; 0079's self-check asserts it), its decider foreign
+key is unindexed on a small table, and its seven functions are the only door: the two anon ones
+answer only live packs, which the owner made visible signed out, and the rest check the caller
+inside. The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.
