@@ -403,7 +403,7 @@ export default function BrowseStep({
   // and format; `formatBoost` scores a non-match at zero and keeps it). So switching the sort or
   // picking a programme DOES collapse the depth today, and only the brand chooser does not. That
   // inconsistency is real and unresolved - it is written up in
-  // docs/backlog/browse-rerank-controls-disagree-about-paging.md rather than settled here, since
+  // https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/browse-rerank-controls-disagree-about-paging.md rather than settled here, since
   // the 2026-09-07 ruling covers the brand chooser alone and the rest is the owner's call.
   //
   // This comment used to read "reset by any change to what the result IS", which is the wording

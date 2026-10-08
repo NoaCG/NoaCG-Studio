@@ -432,7 +432,7 @@ test('native 4K capture is not downsampled and a deliberate 1px hairline stays o
 //
 // Everything above pins what happens when a project format is CHOSEN. These two pin what happens
 // when one arrives that nobody could have chosen: the owner screenshotted a graphic at 1920x1880
-// on 2026-08-29 (docs/backlog/editor-canvas-1920x1880.md) and the number reached the header, the
+// on 2026-08-29 (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/editor-canvas-1920x1880.md) and the number reached the header, the
 // canvas chip and a saved record without one word of complaint, because `validateProjectFormat`
 // had no callers anywhere in src/.
 //

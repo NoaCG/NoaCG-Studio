@@ -22,9 +22,8 @@
 //     decisions the master took on the owner's behalf, one `DECIDED:` line each
 //     (`.agent-workflows/orchestrator/report.md` item 10; older plans wrote "taken on the owner's
 //     behalf", counted as legacy).
-//   - every handoff ADDED in the window, read at the commit that added it (consumed handoffs are
-//     deleted, so the working tree cannot answer): does it carry a "Needs the owner" ask?
-//   - every owner-queue item added in the window, by `kind:` - who has to settle it.
+//   - the GitHub issues opened in the window (`gh issue list`), and how many carry `owner ask` or
+//     `needs owner` - what the backlog took in, and what waits on the owner.
 //   - `landed.jsonl` beside the job store: branches the queue landed in the window.
 //   - `git log` over the paths that ARE the orchestration system, and the common-path line count
 //     now against the same count at the window's start (the gate's own arithmetic).
@@ -68,8 +67,6 @@ export const SYSTEM_PATHS = Object.freeze([
   'scripts/harness-usage.mjs',
   'scripts/harness-capabilities.json',
   'scripts/delegation-outcome.mjs',
-  'scripts/owner-receipts.mjs',
-  'scripts/handoff-drain.mjs',
   'scripts/orchestrator-home.mjs',
   'scripts/orchestrator-week.mjs',
   'docs/HARNESS_ROUTING.md',
@@ -108,37 +105,6 @@ export function decisionsIn(text) {
     else if (/taken on the owner'?s behalf/i.test(line)) legacy += 1;
   }
   return { decided, legacy };
-}
-
-/**
- * Does a handoff ask the owner for something? A "Needs the owner" / "Needs you" heading or line
- * whose body does not open with "nothing" or "none". Returns the number of bullet lines under it,
- * or 1 for a bare sentence - a proxy, and the caller says so.
- */
-export function questionsIn(handoffText) {
-  const lines = String(handoffText ?? '').replace(/\r\n/g, '\n').split('\n');
-  const opener = /^(?:[-*]\s+)?(?:#+\s*|\*\*)?needs (?:the owner|you)(?:\*\*)?\s*[:.-]?\s*(.*)$/i;
-  let asks = 0;
-  for (let index = 0; index < lines.length; index += 1) {
-    const match = opener.exec(lines[index].trim());
-    if (!match) continue;
-    const inline = match[1].trim();
-    if (inline) {
-      if (!/^(nothing|none|no\b|-\s*$)/i.test(inline)) asks += 1;
-      continue;
-    }
-    let bullets = 0;
-    let firstBody = null;
-    for (let look = index + 1; look < lines.length; look += 1) {
-      const body = lines[look].trim();
-      if (/^#{1,6}\s/.test(body)) break;
-      if (!body) continue;
-      if (firstBody === null) firstBody = body;
-      if (/^[-*]\s|^\d+\.\s/.test(body)) bullets += 1;
-    }
-    if (firstBody && !/^(?:[-*]\s*)?(nothing|none)\b/i.test(firstBody)) asks += Math.max(bullets, 1);
-  }
-  return asks;
 }
 
 /**
@@ -231,7 +197,7 @@ const pct = (value) => (typeof value === 'number' && Number.isFinite(value) ? `$
 /** The page. `facts` is the object `gather()` returns; pure so the shape is pinned. */
 export function summarise(facts) {
   const lines = [];
-  const { window, usage, waves, handoffs, queueItems, landed, skill } = facts;
+  const { window, usage, waves, issues, landed, skill } = facts;
   lines.push(`# Orchestrator week - ${window.since.slice(0, 10)} .. ${window.until.slice(0, 10)}`, '');
 
   lines.push('## Spend across models (each harness on its own meter, never summed across them)', '');
@@ -280,12 +246,13 @@ export function summarise(facts) {
     const legacy = waves.reduce((sum, wave) => sum + wave.decisions.legacy, 0);
     lines.push(`- Decisions taken on the owner's behalf (DECIDED: lines in the wave plans): ${decided}${legacy ? `, plus ${legacy} in the older inline wording` : ''}.`);
   }
-  const asking = handoffs.filter((file) => file.asks > 0);
-  lines.push(`- Handoffs added: ${handoffs.length}; carrying an ask for the owner: ${asking.length} (${asking.reduce((sum, file) => sum + file.asks, 0)} items)${asking.length ? ` - ${asking.map((file) => path.basename(file.name)).join(', ')}` : ''}.`);
-  const kinds = {};
-  for (const item of queueItems) kinds[item.kind ?? 'unknown'] = (kinds[item.kind ?? 'unknown'] ?? 0) + 1;
-  lines.push(`- Owner-queue items added: ${queueItems.length}; by kind: ${Object.entries(kinds).map(([kind, count]) => `${kind} ${count}`).join(', ') || 'none'} (an item of kind agent needs nobody; walk and walk-p need his eyes; owner-action and hardware need his hands).`);
-  lines.push('- Both counts are proxies: a marker and a heading. The questionnaire in each morning report is where the decisions themselves are read.', '');
+  if (issues === null) {
+    lines.push('- Issues opened: unknown - `gh issue list` did not answer.');
+  } else {
+    const labelled = (name) => issues.filter((issue) => issue.labels.includes(name)).length;
+    lines.push(`- Issues opened: ${issues.length}; owner ask ${labelled('owner ask')}, needs owner ${labelled('needs owner')}.`);
+  }
+  lines.push('- The decision count is a proxy: a marker. The questionnaire in each morning report is where the decisions themselves are read.', '');
 
   lines.push('## The skill this week', '');
   lines.push(`- Commits touching the orchestration system (merges excluded): ${skill.commits.length}.`);
@@ -376,30 +343,17 @@ function wavePlans(dirs, since) {
   };
 }
 
-function addedInWindow(sinceIso, pathspec) {
-  const log = git(['log', `--since=${sinceIso}`, '--diff-filter=A', '--name-only', '--format=%H', '--', pathspec]);
-  if (!log) return [];
-  const added = [];
-  let sha = null;
-  for (const line of log.replace(/\r\n/g, '\n').split('\n')) {
-    if (/^[0-9a-f]{40}$/.test(line)) sha = line;
-    else if (line.trim() && sha) added.push({ sha, name: line.trim() });
-  }
-  return added;
-}
-
-function handoffsAdded(sinceIso) {
-  return addedInWindow(sinceIso, 'docs/handoffs')
-    .filter((entry) => entry.name.endsWith('.md') && !entry.name.endsWith('.local.md'))
-    .map((entry) => ({ ...entry, asks: questionsIn(git(['show', `${entry.sha}:${entry.name}`]) ?? '') }));
-}
-
-function queueItemsAdded(sinceIso) {
-  return addedInWindow(sinceIso, 'docs/acceptance/owner-queue').map((entry) => {
-    const text = git(['show', `${entry.sha}:${entry.name}`]) ?? '';
-    const kind = /^kind:\s*(\S+)/m.exec(text)?.[1] ?? null;
-    return { ...entry, kind };
+/** The issues opened in the window with their label names, or null when `gh` cannot answer. */
+function issuesOpened(sinceIso) {
+  const run = spawnSync('gh', ['issue', 'list', '--state', 'all', '--limit', '500', '--search', `created:>=${sinceIso.slice(0, 10)}`, '--json', 'number,labels'], {
+    cwd: REPO_ROOT, encoding: 'utf8', windowsHide: true,
   });
+  if (run.status !== 0) return null;
+  try {
+    return JSON.parse(run.stdout).map((issue) => ({ number: issue.number, labels: issue.labels.map((label) => label.name) }));
+  } catch {
+    return null;
+  }
 }
 
 function landedInWindow(since) {
@@ -452,8 +406,7 @@ export function gather({ now = Date.now(), days = 7 } = {}) {
     usage: usageJson(days),
     waves: plans.plans,
     planSearch: plans.search,
-    handoffs: handoffsAdded(sinceIso),
-    queueItems: queueItemsAdded(sinceIso),
+    issues: issuesOpened(sinceIso),
     landed: landedInWindow(since),
     skill: {
       commits: improvementsFrom(log),

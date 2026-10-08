@@ -121,7 +121,7 @@ This is obsolete test preparation, not evidence that AppShell executes or causes
 current product failures. `_create.ts` skips when a retired helper is called, which
 can happen after browser work. Moving a skip earlier would also remove incidental
 assertions that still execute before it, so do not mass-edit these tests as a speed
-fix. The existing [migration backlog](../backlog/specs-that-still-open-the-old-editor.md)
+fix. The existing [migration backlog](https://github.com/NoaCG/NoaCG-Studio/issues/800)
 explicitly requires retaining assertions for behaviour still in the product. Port
 the useful cases to current surfaces and delete only assertions for retired features.
 

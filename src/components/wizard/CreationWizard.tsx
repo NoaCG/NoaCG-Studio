@@ -217,8 +217,8 @@ type AiResultState = {
 } | null;
 
 /**
- * THE WALK JUST FINISHED — everything needed to step back INTO it (docs/backlog/
- * back-to-the-wizard.md, entry point 1: "the draft is still in memory; this is undo the last
+ * THE WALK JUST FINISHED — everything needed to step back INTO it (
+ * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md, entry point 1: "the draft is still in memory; this is undo the last
  * screen").
  *
  * The wizard wipes itself on every open ("Fresh wizard every time"), which is right for the
@@ -593,7 +593,7 @@ export default function CreationWizard() {
         setStretchDemo(null);
         resetKit();
         // The step the walk ENDED on, not the one the history entry happens to name: the
-        // reader wants the last screen back (docs/backlog/back-to-the-wizard.md), and leaving
+        // reader wants the last screen back (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md), and leaving
         // the URL on an earlier step would make the rail and the address bar disagree.
         useRouter.getState().replace({
           view: 'new',
@@ -941,7 +941,7 @@ export default function CreationWizard() {
    * The KIT and Pro-PACKAGE endings reach neither applier (`openKitProduction`, `exportKit`,
    * `openAiPackage`, `exportAiPackage` save a SET, not a document), so they still leave the
    * wizard with no way back in. Deliberately out of scope here and recorded in
-   * docs/backlog/back-to-the-wizard.md rather than half-wired.
+   * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md rather than half-wired.
    */
   const rememberWalk = () => {
     finishedWalk.current = {

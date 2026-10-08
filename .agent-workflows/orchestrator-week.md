@@ -33,8 +33,8 @@ plans live in the store (`node scripts/wave-plan-store.mjs --list`), reachable f
 
 The first prints one page: tokens by model and per harness on each meter, the Codex snapshot, the
 Antigravity calls, the delegation outcomes and which capability observations lapsed; the waves and
-their rows by pool, and what the queue landed; the `DECIDED:` count against the asks in the week's
-handoffs and the owner-queue items by kind; and the commits that touched the orchestration system,
+their rows by pool, and what the queue landed; the `DECIDED:` count and the issues opened, with how
+many carry `owner ask` or `needs owner`; and the commits that touched the orchestration system,
 with the common-path line count now against the window's start. Every number names its source in the
 script's header; do not restate a number the page does not carry.
 
@@ -59,8 +59,8 @@ because `docs/STACK_FRESHNESS.md` is time-driven and nothing in CI ever notices 
 This is the half the owner attends, so it is written for him and it is short. Read four things:
 
 - the North Star and the outcomes marked `(now)` in `docs/GOALS.md` - what we are building toward;
-- `node scripts/owner-receipts.mjs` - what he has asked for, what advanced, what is still unstarted;
-- the backlog entries in `docs/backlog/` that serve an outcome marked now, newest first.
+- `gh issue list --label "owner ask"` - what he has asked for that is still open;
+- the `P1` and `P2` issues (`gh issue list --label P1 --limit 200`, then `P2`) that serve an outcome marked now.
 
 Then write **the week's plan as something he can read in five minutes**: what the queue will work
 toward this week, in order, in plain words. Not tasks - directions. A line an outsider could not
@@ -145,7 +145,7 @@ tracked doc names yet as its first work (`npm run alignment:pending` prints what
 ## 3. Write the recap
 
 Write `C:\claude\NoaCG-Studio\docs\handoffs\<date>-orchestrator-week.local.md` - the name MUST end
-in `.local.md`, because `docs/handoffs/` is tracked and an ordinary untracked file in the primary
+in `.local.md`, which `.gitignore` keeps out of git: any other untracked file in the primary
 checkout stops every landing on the machine (`docs/ROUTINES.md`, the morning brief's rule).
 Overwrite the same date's file if it exists. Four short sections, numbers from step 1:
 

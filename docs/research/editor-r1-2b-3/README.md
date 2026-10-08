@@ -141,5 +141,5 @@ Historical R1.1b/c/d captures and reports rewritten by integration checks were
 restored before build and commit. The final build, landing and deployed-version
 verdicts belong to this branch's pull request and session completion receipt.
 Physical playout hosts, phones and owner judgment are not claimed. The
-[desktop review](../../acceptance/owner-queue/2026-10-03-editor-images.md) is
+[desktop review](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-03-editor-images.md) is
 asynchronous product feedback; full B04 remains open.

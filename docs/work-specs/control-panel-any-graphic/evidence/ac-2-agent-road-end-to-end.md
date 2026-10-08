@@ -49,7 +49,7 @@ which every row above pays before the tool starts. Every verb exited 0.
 
 - **The graphics were not re-authored here.** They are HB's authored sources, re-derived through the
   shipped gates by this review rather than re-written. AC-2 is HB's criterion and the authoring is
-  recorded in `docs/handoffs/2026-09-15-hb-release-and-first-walk.md`; what this receipt adds is
+  recorded in [`docs/handoffs/2026-09-15-hb-release-and-first-walk.md`](https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-15-hb-release-and-first-walk.md); what this receipt adds is
   that the same sources still pass the SHIPPED 0.3.2 against the INTEGRATED tree, which is the half
   a later chain can break.
 - **`cli/test/smoke.test.mjs` cannot cover this on a bare machine.** It ran 6 tests, 1 passed and

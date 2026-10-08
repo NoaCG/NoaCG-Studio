@@ -22,7 +22,7 @@ Sources: `src/community/communityData.ts`, `supabase/migrations/0004_community_t
 (line 63), `src/components/CommunityGallery.tsx`, `src/components/home/HomePage.tsx` (PublishSheet),
 `src/components/AppShell.tsx`, `src/components/wizard/steps/CommunityPacks.tsx`,
 `scripts/build-production-pack.mjs`, `packs/community/pub-quiz/`,
-`docs/work-specs/community-packs/spec.md`, `docs/backlog/community-packs-share-review-and-lock.md`.
+`docs/work-specs/community-packs/spec.md`, [issue #797](https://github.com/NoaCG/NoaCG-Studio/issues/797).
 
 **Finding.** The Era 5.5 gallery predates the 2026-10-02 ruling and falls short of it on three points:
 anything a signed-in user publishes is visible to other users with no human review, the importer

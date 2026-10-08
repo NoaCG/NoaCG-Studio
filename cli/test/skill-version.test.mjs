@@ -2,7 +2,7 @@
 //
 // A Claude Code or Codex marketplace never updates itself, so a plugin installed once keeps the
 // skill text it was installed with - on this laptop, for nineteen days, with nothing on screen
-// saying so (docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md). The row
+// saying so (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md). The row
 // `noacg doctor` prints about it is only worth anything if it is never WRONG, so what is covered
 // here is mostly the refusals: an unreadable install, a version that could only be guessed, and a
 // plugin with two versions cached all have to end in silence rather than a confident number.

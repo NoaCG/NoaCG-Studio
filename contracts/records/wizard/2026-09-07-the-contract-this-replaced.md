@@ -130,7 +130,7 @@ three appliers); re-opening onto a `#/new/.../step/<name>` url offers it back be
 naming what re-entering resets, while the plain `#/new` still means a fresh wizard and discards
 it. A second pass saves OVER the record that walk made: `saveBuiltGraphic`, never `saveGraphicAs`
 direct. The KIT and Pro-package doors save a SET, reach no applier, and so still have no way
-back; nor has a graphic opened from HOME (docs/backlog/back-to-the-wizard.md).
+back; nor has a graphic opened from HOME ([docs/backlog/back-to-the-wizard.md](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md)).
 
 **A closed `<details>` needs an author rule here** - the UA's `display: none` on non-summary
 children loses to ANY author `display` (the Style step's disclosures wrap `.row`, a flex),
@@ -518,7 +518,7 @@ tier contract, the price targets and the price-book rule behind each model row a
 src/ai/AGENTS.md's.
 
 **The user's OWN CODING AGENT is the PREFERRED route, said before any tier and any key** (owner
-2026-08-26 + 2026-09-03, `docs/backlog/byo-key-and-create-with-ai-guidance.md`):
+2026-08-26 + 2026-09-03, [`docs/backlog/byo-key-and-create-with-ai-guidance.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/byo-key-and-create-with-ai-guidance.md)):
 `steps/ai/AgentRouteCard.tsx` sits under the section head - one visible line, the install lines
 and the `/docs#agent-install` link behind "Show me", OPEN by itself exactly when the settings
 sheet opens itself - plus a pointer FIRST in the sheet and a clause on the BYO tier's hint. It is

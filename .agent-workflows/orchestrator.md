@@ -49,10 +49,10 @@ Most important first, written in the wave file before the first launch:
 
 1. Everything the prompt asks for, in its order, then any ruling the owner gave that no doc
    records yet (`npm run alignment:pending`).
-2. Then the backlog by `docs/GOALS.md` rank, the owner's asks first within a rank
-   (`node scripts/owner-receipts.mjs` lists them; `docs/backlog/` holds the rest). Skip an item
-   that waits on the owner (a decision, money, an account, his own check), one that is speculative,
-   and one whose files a live worktree holds.
+2. Then the backlog, which is GitHub Issues: `P1`, then `P2`, then `P3`, and within a priority by
+   `docs/GOALS.md` rank with `owner ask` first (`gh issue list --label P1 --limit 200 --json number,title,labels`).
+   Skip an issue that waits on the owner (`needs owner`, a decision, money, an account, his own
+   check), one labelled `later` or speculative, and one whose files a live worktree holds.
 
 Shape each item into a row one session can finish: split a large item into steps that each land on
 their own; make two items that change the same file or the same user flow one row, or run them one
@@ -80,7 +80,7 @@ The prompt, about fifteen lines:
 ```
 ROW <L> - <three-word name>      BRANCH <tool>/<l>-<name>
 GOAL    <what is true when it is done, observable>
-WHY     <the owner's words or the GOALS outcome it serves; the backlog file, if any>
+WHY     <the owner's words or the GOALS outcome it serves; the issue, if any>
 ACCEPT  <the checks or the before and after that show it>
 READ    <pointers; line ranges for big files>
 TOUCHES <forecast; mark a file the row creates (new)>; <row X> owns <Y> in this wave
@@ -99,11 +99,13 @@ Verify in proportion: `npm run build`, and the e2e specs that cover what you cha
 job queue (`node scripts/e2e-affected.mjs --list --files <changed>` finds them; a copy or style
 change runs the specs that assert it, not the affected set). For a visible change, look at before
 and after screenshots yourself; never commit them.
-Left over: genuine unfinished work or a worthwhile follow-up goes into docs/backlog/ (one file, in
-this branch). Nothing speculative. No handoff file, and no new doc unless the doc is the goal.
+A row that finishes an issue puts `Closes #<n>` on its own line in a commit message. Left over:
+genuine unfinished work or a worthwhile follow-up becomes a GitHub issue (`gh issue create`, with a
+priority, an area label and why it matters). Nothing speculative. No handoff file, and no new doc
+unless the doc is the goal.
 Then /check and /queue-merge. Right after queueing, post one comment on the pull request
-(`gh pr comment`): what is not done, with its backlog file, and for a visible change which page to
-open on the preview deployment. Do not wait for the landing.
+(`gh pr comment`): what is not done, with its issue, and for a visible change which page to open
+on the preview deployment. Do not wait for the landing.
 Never merge or push main, never touch another worktree, and leave nothing running.
 ```
 
@@ -111,7 +113,7 @@ Never merge or push main, never touch another worktree, and leave nothing runnin
 
 Act when a row finishes or the timer fires, and at no other time:
 
-- Log one line: the PR, what it did, what it left in the backlog.
+- Log one line: the PR, what it did, what it left as issues.
 - If the window still fits another row (the median row time so far, or 60 minutes before there is
   one, plus 30 minutes to land), launch the next item.
 - A row that ended without a PR, or whose PR went red or conflicted, is sent the failure
@@ -137,7 +139,7 @@ end keeps running; the report says so.
 
 1. **Needs you**, first, each with the exact step, or "nothing".
 2. **Shipped**: one line per pull request, what changed for a user and how it was verified.
-3. **Not done or not checked**: one line each, with the backlog file it went to.
+3. **Not done or not checked**: one line each, with the issue it went to.
 4. **Retro**: at most three findings and what was done about each.
 
 ## 6. The retro: improve without growing
@@ -145,7 +147,7 @@ end keeps running; the report says so.
 Look at what cost time or attention in this wave: waits, refusals, reruns, a row that went wrong,
 anything you or a row read that changed nothing. Close each finding in exactly one way:
 
-- **Fix the cause**: a script, test, hook or default, as a row now or a backlog item.
+- **Fix the cause**: a script, test, hook or default, as a row now or an issue.
 - **Edit this file or the row brief**, by replacing or deleting text. Add a line only when nothing
   can go, and say so in the report.
 - **Drop it** as a one-off.

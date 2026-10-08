@@ -29,11 +29,10 @@ write all end in `.local.md`, which `.gitignore` carries for exactly this reason
 
 **The two exceptions, written here so they cannot widen quietly:**
 
-- The monthly quality review files its findings under `docs/backlog/` on a BRANCH, through the
-  ordinary landing flow, and only when the primary checkout is clean and on `main`. It is an
-  exception because a ranked finding that exists only in a chat log is gone by Tuesday, and because
-  the shelf is how `/orchestrator` picks up spare capacity. It may not write anything outside
-  `docs/backlog/`.
+- The monthly quality review files its findings as GitHub issues, one per finding, each with a
+  priority and an area label. It is an exception because a ranked finding that exists only in a
+  chat log is gone by Tuesday, and because Issues are how `/orchestrator` picks up spare capacity.
+  It writes nothing to the repository.
 - The What's new draft writes one new note under `docs/whats-new/`, in its own worktree on a
   branch, and opens a pull request for the owner. It never queues it, never enables auto-merge and
   never runs `/queue-merge`: he reviews and lands it (owner, 2026-10-02). It is an exception
@@ -123,7 +122,7 @@ sits on: measured the same day, this repo's orchestrator worktree was eight comm
 reported eleven unverified observations that had just been measured, off the same installed builds.
 If that flag is ever rejected as an unknown argument, the checkout predates it and the routine says
 so rather than reporting a number
-(`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
+([`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md)).
 
 **Since 2026-09-30 an unverified observation can be re-probed, and a failed re-probe is printed.**
 `npm run harness:reprobe -- run` re-runs each observation that has a cheap bounded probe, one at a
@@ -207,10 +206,12 @@ switch**. That third section is the point; the first two exist to earn it. It is
 
 **Its OGraf findings get a written destination, and the routine still does not write.** The
 OGraf-leads bet is decided by OTHER PEOPLE's adoption accumulating over months, so a finding said in
-chat and nowhere else is gone when the session closes - which is what had been happening. The ledger
-is `docs/backlog/ograf-ecosystem-watch.md`, and the routine's job is to end its run by printing the
-block to append: a date heading, one bullet per item with a date, what it means for us, and a source
-URL, or the words for a quiet month. The append itself is made by a session working on a branch.
+chat and nowhere else is gone when the session closes - which is what had been happening. The
+routine's job is to end its run by printing the block: a date heading, one bullet per item with a
+date, what it means for us, and a source URL, or the words for a quiet month. A session files each
+finding worth keeping as an issue labelled `ograf`, or as a comment on the one it bears on. The
+ledger it used to append to is
+[`docs/backlog/ograf-ecosystem-watch.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-ecosystem-watch.md) at 745c6f2.
 
 ## Monthly - quality and refactor review
 
@@ -226,7 +227,7 @@ hands any doc defect over. Two reviews that overlap get read as one, then neithe
 
 It is also deliberately not merged with the competitor review, though both are monthly and both
 produce ranked findings. They keep different write permissions - the competitor review prints a
-block for a session to append, this one files to `docs/backlog/` on a branch - and fusing two
+block for a session to file, this one files GitHub issues itself - and fusing two
 permission regimes into one prompt is how a routine quietly gains access it should not have.
 
 ## Twice weekly - the What's new draft

@@ -32,7 +32,7 @@
 // (`ALIGN-<date>-<n>`). The mitigation is that every report and every refusal prints the row's TITLE
 // beside its id, so a moved reason reads as obviously wrong the first time anybody looks.
 //
-// THE SECTION A PLAN WRITES, the same shape as `## Handoffs` (scripts/handoff-drain.mjs):
+// THE SECTION A PLAN WRITES, one classified line per id:
 //
 //   ## Weekly review
 //
@@ -49,7 +49,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { newestWeeklyFile, weeklyDir } from './alignment-answers.mjs';
-import { newestWavePlan } from './handoff-drain.mjs';
+import { newestWavePlan } from './wave-tick.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -180,8 +180,8 @@ export function weeklyCandidates(root = REPO_ROOT, date = null) {
   }
   // Dates only, so a review written LATER on the plan's own day still counts as owed. That is the
   // right way round: a plan being checked after the review landed is a plan still in flight, and
-  // the rows are exactly what it should be reconsidering. Not `daysSince` from owner-receipts.mjs,
-  // which clamps at zero and so cannot say that a review is NEWER than the plan reading it.
+  // the rows are exactly what it should be reconsidering. Not a days-since helper that clamps at
+  // zero, which cannot say that a review is NEWER than the plan reading it.
   state.ageDays = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${state.date}T00:00:00Z`)) / DAY_MS);
   if (state.ageDays < 0) state.reason = `${state.source} was written after this plan`;
   else if (state.ageDays > WINDOW_DAYS) state.reason = `${state.source} is ${state.ageDays} days older than this plan, past the ${WINDOW_DAYS}-day window`;
@@ -257,7 +257,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     console.error('weekly-candidates: --plan needs a path.\n\n  node scripts/weekly-candidates.mjs [--plan <wave plan>] [--json]');
     return 2;
   }
-  const plan = named ? path.resolve(root, named) : newestWavePlan(root, now);
+  const plan = named ? path.resolve(root, named) : newestWavePlan(now, root);
   // A directory would pass `existsSync` and then throw EISDIR out of `readFileSync`, which is a
   // stack trace where a sentence belongs.
   const usable = plan && existsSync(plan) && statSync(plan).isFile() ? plan : null;

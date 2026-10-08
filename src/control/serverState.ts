@@ -4,7 +4,7 @@
 //
 // PLAIN FUNCTIONS OVER PLAIN DATA, like ./serverPlayout.ts beside it and for the same reason: a
 // Node test imports this file without a browser (scripts/server-playout.test.mjs), and a later
-// bridge to a hardware panel (docs/backlog/companion-and-stream-deck.md) reads the same answers the
+// bridge to a hardware panel (https://github.com/NoaCG/NoaCG-Studio/issues/809) reads the same answers the
 // page draws. Nothing here keeps a timer and nothing here sends: a reading only ever changes what
 // the page BELIEVES, never what airs.
 //

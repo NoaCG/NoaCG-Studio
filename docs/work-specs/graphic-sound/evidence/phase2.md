@@ -50,6 +50,6 @@ and measured; other accepted codecs depend on the receiving browser.
 No physical OBS Browser Source, vMix browser input, CasparCG HTML producer or external OGraf
 renderer has proof from this work. Rehearse audio routing/recorded skew and gain, accepted moves,
 countdown pause/reset/All out, and reconnect/source or scene replacement using the
-[receiving-host checklist](../../../acceptance/owner-queue/graphic-sound-host-rehearsal.md).
+[receiving-host checklist](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/graphic-sound-host-rehearsal.md).
 Loops restart from the clip beginning on resume/recovery. Enabled attachments require realtime
 OGraf and supported decoding/permission. Existing independent server audio remains available.

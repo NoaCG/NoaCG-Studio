@@ -21,7 +21,7 @@ read from the published spec, not from memory. Sources sit at the point of use.
 
 The companion research that already existed and still binds: `docs/NATIVE_PLAYOUT_RESEARCH.md`
 (the four native-playout routes and the owner's 2026-08-16 ruling), `docs/OGRAF.md` (the export
-and its external validation), `docs/backlog/ograf-ecosystem-watch.md` (the adoption ledger),
+and its external validation), [`docs/backlog/ograf-ecosystem-watch.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-ecosystem-watch.md) (the adoption ledger),
 `docs/BRIDGE.md` (the shipped AMCP client), `docs/CLOUD_PLAYOUT.md` (the browser-output
 contract).
 
@@ -237,7 +237,7 @@ can replace the other, and neither has to:
   writes; the log keeps ordering, recovery and multi-operator agreement underneath. This is
   structurally identical to what the Production Data API already is (external data as `update`
   rows, `docs/DATA_API.md`) - the pattern is proven in-house. It is also the item
-  `docs/backlog/cli-roadmap.md` calls "the only item that puts NoaCG on the list MXMZ is on."
+  [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772) calls "the only item that puts NoaCG on the list MXMZ is on."
   The standard's own silences help: no auth specified (our capability slugs are the vendor
   answer), no upload endpoint (our library is the vendor answer), render targets vendor-shaped
   (`renderTargetSchema` can describe our production/layer addressing verbatim).
@@ -434,7 +434,7 @@ publish decision stay the priorities the prompt restates.
    lists.
 
 **Then:** the controller speaking the Server API outward to third-party renderers; the desktop
-client sketch (`docs/backlog/noacg-desktop-client.md`) when its time comes.
+client sketch ([`docs/backlog/noacg-desktop-client.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/noacg-desktop-client.md)) when its time comes.
 
 **Research, explicitly parked:** the native renderer (Stage 2+ of the existing research), ST 2110,
 genlock lab work. The park stands on the owner's 2026-08-16 ruling; §10 above is the dossier for

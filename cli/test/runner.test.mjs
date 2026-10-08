@@ -990,7 +990,7 @@ async function fakeClient(port, line) {
   });
 }
 
-// ── AN ENDING CHANGED ON AIR (docs/backlog/looping-clip-end-change-while-playing.md): the operator lets a
+// ── AN ENDING CHANGED ON AIR (https://github.com/NoaCG/NoaCG-Studio/issues/763): the operator lets a
 // clip loop until the host is ready, then sets it to play next, and the clip on air goes on to the next
 // file at the end of the pass it is in - never played again from its start.
 

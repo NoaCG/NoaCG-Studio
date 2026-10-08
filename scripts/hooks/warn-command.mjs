@@ -1,12 +1,7 @@
-// PostToolUse notice for shell commands (the Bash and PowerShell tools). Says three things:
+// PostToolUse notice for shell commands (the Bash and PowerShell tools). Says two things:
 //
 //   A COMMIT LANDED ON A BRANCH WHOSE LANDING JOB IS ALREADY QUEUED, so the pin that job holds
 //   is now stale and it will refuse when its turn comes.
-//
-//   A HANDOFF THAT STILL LISTS OPEN ITEMS WAS DESTROYED and no wave plan records where they went.
-//   The reasoning is in scripts/handoff-trace.mjs; the destroyed-handoff half is checked FIRST
-//   because only one notice can be delivered per call (`warn` exits) and lost content outranks a
-//   pin that refuses loudly on its own.
 //
 //   A PUSH REPLACED A RUN THAT NEVER FINISHED: the branch already had a run for its previous tip
 //   and that run was cancelled or still going. This one is BELT-AND-BRACES since 2026-09-06, when
@@ -39,9 +34,7 @@
 // Measured 2026-09-02 on this laptop, five runs each: 59 ms on an `ls`, against a 47 ms bare
 // `node -e 0` on the same box - so the common case is node starting up and about 12 ms of work.
 // A commit costs 195 ms, which is two git calls and a queue read, on the one command per session
-// where the answer matters. Re-measured after the handoff rule was added: 49 ms on an `ls` and
-// 50 ms on `grep -rn x docs/handoffs/` (the folder is named, but no verb destroys anything), so
-// the common case is unchanged; a command that really can take a handoff away costs about 140 ms.
+// where the answer matters.
 // Re-measured 2026-09-05 after the push rule: 57 ms on an `ls` against 45 ms bare, so still node
 // starting up; the push matcher is pure string work, and the gh call runs only after a real
 // update push, about once per session.
@@ -52,9 +45,6 @@ import { readHookInput, warn, gitOutput } from './lib.mjs';
 // `jobs-store.mjs` each pull in a chain (git plumbing, the port registry, the worktree lister)
 // that is pure overhead on the `ls` this hook mostly sees.
 import { commitCheckouts, pushedUpdates, unfinishedRun, pushReplacedNotice } from '../command-match.mjs';
-// Pure, and imports only node:fs and node:path, so naming the handoff rule's one shared predicate
-// here costs nothing on the `ls` this hook mostly sees.
-import { isHandoff } from '../handoff-trace.mjs';
 import { spawnSync } from 'node:child_process';
 
 const input = await readHookInput();
@@ -65,17 +55,7 @@ const committing = commitCheckouts(command);
 // first push, a no-op and a rejection all read as nothing, before anything is asked of anyone.
 const pushed = pushedUpdates(command, input.tool_response);
 
-// The commands that can take a handoff away: a delete or a move naming the folder. A COMMIT is the
-// other door, because `git rm <file> && git commit` destroys it with the working tree never left
-// holding the deletion - so the two ranges below are read from different places.
-// The gate names the folder as well as a verb, and both halves cost it coverage it cannot afford
-// to buy: `Remove-Item $spent` in a loop, or an `rm` after a separate `cd docs/handoffs`, says
-// neither and is missed. The alternative is a git call before EVERY shell command in every
-// session, at about 90 ms each, to catch a shape nobody has typed yet. `handoffs` rather than
-// `docs/handoffs` is the cheap half of that back.
-const DESTROYS = /(?:^|[\s;|&(])(?:rm|del|erase|unlink|mv|move|Remove-Item|Move-Item|ri|rni)\b/i;
-const touchesHandoffs = /handoffs/i.test(command) && DESTROYS.test(command);
-if (committing.length === 0 && !touchesHandoffs && pushed.length === 0) process.exit(0);
+if (committing.length === 0 && pushed.length === 0) process.exit(0);
 
 const { checkoutRoot, commandCheckout } = await import('../command-target.mjs');
 
@@ -87,45 +67,9 @@ const sessionDir = typeof input?.cwd === 'string' && input.cwd ? input.cwd : pro
 const named = committing.find(Boolean);
 const root = (named ? checkoutRoot(named) : null) ?? commandCheckout(command, sessionDir) ?? sessionDir;
 
-// --- A destroyed handoff that still listed open items ----------------------------------------
-//
-// Read from GIT rather than from the command's own arguments: a wildcard, a loop, a PowerShell
-// cmdlet and a `git rm` all name the file differently, and git says the same thing about all of
-// them.
-//
-// EACH RANGE IS TIED TO THE DOOR IT ANSWERS FOR, which the first cut of this got wrong. A working
-// tree holding an unstaged deletion answers `HEAD` the same way for the rest of the session, so
-// reading that range on any commit reported "this deletes …" for commands that deleted nothing,
-// once per commit, forever. So the working-tree range is read only when the COMMAND itself
-// destroys something, and the commit range only for a commit, which is the only door
-// `git rm <file> && git commit` comes through.
-const deletedNow = touchesHandoffs
-  ? deletedHandoffs(['diff', '--name-only', '--diff-filter=D', 'HEAD', '--', 'docs/handoffs/'])
-  : [];
-// A MERGE COMMIT IS NOT THIS SESSION'S DELETION. `git merge main` that conflicts is finished with
-// `git commit`, and its `HEAD^ HEAD` range carries every handoff `main` drained - so the notice
-// would fire on somebody else's classified work and advise `git restore`, which undoes the merge.
-// Taking `main` in is what every session is told to do regularly, so this is the routine path.
-const deletedInCommit =
-  committing.length > 0 && !git(root, ['rev-parse', '--verify', '--quiet', 'HEAD^2'])
-    ? deletedHandoffs(['diff', '--name-only', '--diff-filter=D', 'HEAD^', 'HEAD', '--', 'docs/handoffs/'])
-    : [];
-
 // BOTH RULES SPEAK, in one message. `warn` exits, so a hook with two things to say and one exit
-// silently drops the second - and one un-restored handoff deletion would have made the stale-pin
-// notice unreachable for the rest of the session, which is the notice this file was written for.
+// silently drops the second.
 const notices = [];
-
-const destroyed = [
-  ...deletedNow.map((rel) => [rel, 'HEAD']),
-  ...deletedInCommit.map((rel) => [rel, 'HEAD^']),
-]
-  .map(([rel, ref]) => ({ rel, before: gitOutput(root, ['show', `${ref}:${rel}`]), after: null }))
-  .filter((item) => item.before);
-if (destroyed.length > 0) {
-  const { handoffNotices } = await import('../handoff-trace.mjs');
-  notices.push(...(await handoffNotices(root, destroyed)));
-}
 
 // --- A push that replaced a run that never finished -------------------------------------------
 //
@@ -146,7 +90,7 @@ if (destroyed.length > 0) {
 // A CANCELLED DISPATCH IS STILL A REAL LOSS, and the notice says the opposite thing about it -
 // which is why the runs are fetched with their `event`. `pushReplacedNotice` owns that split and
 // explains it. The underlying defect, one concurrency group across two event types, is filed as
-// `docs/backlog/ci-concurrency-group-per-event.md`.
+// `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md`.
 //
 // EXACT, so it cannot cry wolf: silent when the earlier run had FINISHED, because then the
 // incremental plan is right by design; silent on a first push, a no-op and a rejection, because
@@ -167,7 +111,7 @@ if (destroyed.length > 0) {
 // checkout pushed that commit, so it has it - and only a tip git cannot resolve falls back to the
 // branch listing with a prefix filter, which `--limit` can truncate. BOUNDED: at most three
 // branches per push, eight seconds each, because the harness ends a hook at sixty seconds and a
-// hook killed mid-way loses every notice it had collected, including the handoff ones above.
+// hook killed mid-way loses every notice it had collected.
 for (const { branch, from, to } of pushed.slice(0, 3)) {
   const earlier = unfinishedRun(ciRuns(root, branch, git(root, ['rev-parse', '--verify', `${from}^{commit}`])), from);
   if (!earlier) continue;
@@ -258,18 +202,4 @@ function ciRuns(cwd, branch, sha) {
   } catch {
     return null;
   }
-}
-
-/**
- * The tracked handoff files this git range reports as deleted. Fails open on an empty answer.
- *
- * Filtered through `isHandoff` rather than by suffix, because the git pathspec `docs/handoffs/`
- * also matches SUBDIRECTORIES - so an archived handoff would have fired here while the Write half
- * next door, which does use `isHandoff`, stayed silent about the same file.
- */
-function deletedHandoffs(args) {
-  return (gitOutput(root, args) ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(isHandoff);
 }

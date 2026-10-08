@@ -307,7 +307,7 @@
   white-space: nowrap;
 }
 
-/* THE LINE UNDER A BOX (docs/backlog/the-mapping-step-should-explain-and-offer-to-do-it.md,
+/* THE LINE UNDER A BOX (https://github.com/NoaCG/NoaCG-Studio/issues/768,
    ask 1). Under an empty picker it is the layer name that would have filled it, read off the
    matcher; after a Fill them in press it is why that layer was chosen. Muted and small because it
    is a whisper beside the control, not a warning: a quiz board with nothing drawn shows twelve of

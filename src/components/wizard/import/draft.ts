@@ -209,7 +209,7 @@ export interface SvgFieldDraft {
  * `draftToOptions`, when the field order is finally known.
  *
  * Four members today: the QUIZ (the 2026-08-22 pilot), the POLL (plan §12), the SCORE tracker
- * (docs/backlog/scoreboard-behaviour.md) and the TIMER (plan §13). The discriminant was already
+ * (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md) and the TIMER (plan §13). The discriminant was already
  * where it belonged, which is the whole reason adding the second, third and fourth ones touched
  * nothing above this type.
  */
@@ -297,7 +297,7 @@ export function emptyPollRow(): SvgPollRowDraft {
 }
 
 /**
- * The SCORE binding, as the mapping step holds it (docs/backlog/scoreboard-behaviour.md): which
+ * The SCORE binding, as the mapping step holds it (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md): which
  * text layers are each team's name and figure, and which drawn layer flashes when they score.
  *
  * TWO OR MORE TEAMS, discovered from the artwork. A row is a name and a score; the count is how

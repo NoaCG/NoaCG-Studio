@@ -1,8 +1,8 @@
 # Graphic audio: current behavior and a small attachment proposal
 
 2026-10-03. Code inspected at `5b91be155`; proposal only, no product changes.
-Serves [sound with graphics](../backlog/sound-with-graphics-and-steps.md) and
-[playout feedback point 3](../backlog/playout-feedback-followups.md).
+Serves [sound with graphics](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/sound-with-graphics-and-steps.md) and
+[playout feedback point 3](https://github.com/NoaCG/NoaCG-Studio/issues/767).
 
 ## Scope and acceptance
 
@@ -139,7 +139,7 @@ silent offline export; never advertise offline audio solely because image seeks 
    recorded picture/sound skew and gain; test reconnect/replay silent one-shots and single loops.
 4. Only then expose the shared Sounds controls on the existing surfaces and record target limits.
 
-Normalization stays in [the later feedback plan](../backlog/playout-feedback-followups.md).
+Normalization stays in [the later feedback plan](https://github.com/NoaCG/NoaCG-Studio/issues/767).
 No normalization target, codec policy, host-audio guarantee or new runtime is chosen by this note.
 
 ## Verification record

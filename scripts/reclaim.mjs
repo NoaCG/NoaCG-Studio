@@ -46,7 +46,7 @@
 // that matched on the name `node` would have killed all eleven and ended four sessions' night.
 // That is the whole reason the never-touch list is checked before anything else.
 //
-// The design note, including what is deliberately NOT done yet, is docs/backlog/ram-reclaimer.md.
+// The design note, including what is deliberately NOT done yet, is https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ram-reclaimer.md.
 
 import { spawnSync } from 'node:child_process';
 import { freemem } from 'node:os';
@@ -324,7 +324,7 @@ const USAGE = `Usage: npm run reclaim [-- --apply] [--include-heavy]
   --help            this text
 
 Safety is a curated allowlist, not detection. What it will and will not close is written out in
-scripts/reclaim.mjs, and docs/backlog/ram-reclaimer.md says why it is built that way.`;
+scripts/reclaim.mjs, and https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ram-reclaimer.md says why it is built that way.`;
 
 /** Run PowerShell without a shell string, so nothing here is ever interpreted twice. */
 function powershell(command) {
@@ -476,7 +476,7 @@ function main(argv) {
   console.log(`Free physical memory went from ${mb(before)} to ${mb(after)}, a change of ${mb(after - before)}.`);
   console.log('That last number moves for every other reason too, so it is what the machine did, not what this tool did.');
   // Exit non-zero when anything the plan named is still running. Nobody reads exit codes today,
-  // but the next step in docs/backlog/ram-reclaimer.md is calling this from the starved job
+  // but the next step in https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ram-reclaimer.md is calling this from the starved job
   // runner, and a partial reclaim reported as a clean one is how a runner learns the wrong thing.
   return failures > 0 ? 1 : 0;
 }

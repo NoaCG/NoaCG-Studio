@@ -500,7 +500,7 @@ const libraryDigestMemo = new Map<string, string>();
  * A graphic that falls back to the snapshot embedded in the production record is left out: that
  * copy changes only with the record, whose own timestamp already says so. In a team production a
  * member without the publisher's library record therefore never reads the publisher's newer design
- * as a change of their own to publish over it (docs/backlog/a-team-productions-output-depends-on-who-publishes.md).
+ * as a change of their own to publish over it (https://github.com/NoaCG/NoaCG-Studio/issues/779).
  */
 export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
@@ -1179,7 +1179,7 @@ const recovering = new Set<string>();
  * The same interleaving ACROSS DEVICES is not fixed by this and cannot be from one sender: an
  * event from one operator and a Take from another, inside one fan-out window, can still land in
  * different orders on different renderers. The durable log remains the record of what was asked
- * for; docs/backlog/playout-lag-when-working-the-queue.md carries it as a known limit.
+ * for; https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md carries it as a known limit.
  */
 const SLOW_AFTER_EVENT_MS = 1200;
 /** Keyed by SHOW and graphic: a graphic key is a per-production layer name and collides freely

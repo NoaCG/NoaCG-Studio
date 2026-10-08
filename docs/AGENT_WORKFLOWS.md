@@ -140,10 +140,8 @@ signal existed. Its header explains what a wait can and cannot tell you; the orc
 loop runs it each tick, and `scripts/session-liveness.mjs` uses the same inventory's POSITIVE
 verdict to stop the cleanup sweep touching a worktree somebody is sitting in.
 
-**Three more read-only reporters are allowlisted since 2026-09-02**, paired Bash + PowerShell like
-the rest: `owner-receipts.mjs` (the owner's asks and their age, from `docs/backlog/` front matter),
-`handoff-drain.mjs` (which handoff files the newest wave plan has classified) and
-`wave-plan-check.mjs` (whether a wave-state file is ready to launch from). Each reads files and
+**One more read-only reporter is allowlisted since 2026-09-02**, paired Bash + PowerShell like the
+rest: `wave-plan-check.mjs` (whether a wave-state file is ready to launch from). It reads files and
 git, and writes nothing.
 
 **A `Stop` and `SubagentStop` hook, `scripts/hooks/stop-wait.mjs`, refuses a turn that ends
@@ -155,7 +153,7 @@ interrupted; the patterns and the decision are in `scripts/stop-wait.mjs` with t
 
 **A `PreToolUse` hook on `mcp__ccd_session__spawn_task`, `scripts/hooks/spawn-task-guard.mjs`,
 refuses a background-task chip** and names the two places the work actually goes: fix it here on
-this branch, or file it as `docs/backlog/<slug>.md`. The tool stays ALLOWLISTED - the barrier is
+this branch, or file it as a GitHub issue. The tool stays ALLOWLISTED - the barrier is
 the hook, not the permission system, so a declared chip does not also collect a prompt the owner
 would have to answer. The declaration is an `OWNER-DECISION: <reason>` line in the prompt, for the
 one case the orchestrator keeps for it: a start that is genuinely his call,
@@ -335,7 +333,7 @@ throughout, so every candidate section binds both in `wizard/` and in `wizard/st
 files are not loose, they are already in `steps/`, where moving them deeper buys nothing. That
 chain had 1470 bytes free on 2026-09-02 with no move left in it. When relocation is exhausted the
 next lever is a DELETION, which is the owner's ruling to make: file the proposed cuts and what
-each loses under `docs/acceptance/owner-queue/` rather than taking them.
+each loses as a `needs owner` issue rather than taking them.
 
 ## Retiring one, and what a workflow actually costs
 

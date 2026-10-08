@@ -317,7 +317,7 @@ await shot('svg-fields', async (page) => {
 // example file in public/docs/examples/, named so the wizard recognises it. Two pictures come
 // from each: `type-<id>.png`, the artwork itself as it renders, and `type-<id>-fields.png`, the
 // Fields step one drop later. The docs draw the file's layer panel in HTML beside them. ONE
-// example per type (docs/backlog/one-layer-naming-system-for-every-graphic.md): a second file
+// example per type (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md): a second file
 // for the same type is a second structure to learn, which is what the owner objected to.
 //
 // The render loads the SVG into a bare page with the app's own font files, because an SVG shown

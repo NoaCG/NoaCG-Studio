@@ -14,7 +14,7 @@ account backend). Frames and packages are in
   per arm, told the skill copy was its installed skill and to ignore the repository; an empty
   folder outside the repo; the user unavailable. Its system context still carried this
   repository's instructions, so it is a near-stranger. The three ran in parallel. One run per arm
-  is a first check, not a benchmark (`docs/backlog/plugin-quality-benchmark-judged-from-frames.md`).
+  is a first check, not a benchmark ([issue #770](https://github.com/NoaCG/NoaCG-Studio/issues/770)).
 - Codex probes: `codex exec --skip-git-repo-check --ephemeral -s read-only` (codex-cli
   0.161.0-alpha.3, logged in) in four empty folders, each holding the plugin's skill copy as a
   project skill under `.agents/skills/noacg-graphic/`. The plugin itself was not installed into

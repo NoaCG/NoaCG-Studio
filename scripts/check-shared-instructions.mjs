@@ -21,7 +21,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { parseFrontmatter as parseFrontmatterText } from './owner-receipts.mjs';
+import { parseFrontmatter as parseFrontmatterText } from './frontmatter.mjs';
 import { GENERATED_MARKER } from './contracts-lib.mjs';
 import { measured } from './measured.mjs';
 import * as rules from './rules.mjs';
@@ -223,7 +223,7 @@ function findFilesNamed(dir, filename, found = []) {
   return found;
 }
 
-/** A file's front matter as a flat object, through the repo's one parser (owner-receipts.mjs). */
+/** A file's front matter as a flat object, through the repo's one parser (frontmatter.mjs). */
 function parseFrontmatter(file) {
   return parseFrontmatterText(text(file))?.data ?? null;
 }

@@ -1245,7 +1245,7 @@ consumer of the command log. The open owner walk should go ahead.
 
 **Where it meets Phase 6.**
 
-- **The production-page split** (`docs/backlog/production-page-phases.md`, phases 3-5, which the
+- **The production-page split** ([issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766), phases 3-5, which the
   owner runs awake) is not a conflict but a dependency: its phase 3, "publish and links state", is
   the seam where the READY summary and Prepare for Live will sit. Doing phase 3 first helps.
 - **Page memory as the truth about what is on air** (the folder step, `liveCue`, `livePlayout`) is
@@ -1276,7 +1276,7 @@ the ones marked *filed* have a backlog item.
    proof case depends on is blocked outside the dev server, and on a CasparCG 2.5 layer the embed
    puts a full-frame grey error page on air (§5.8). A path-scoped exemption plus a test that reads
    `vercel.json`. The most urgent item here: it is the only one measured putting something wrong
-   on air by itself. *Filed:* `docs/backlog/output-embed-blocked-by-frame-headers.md`.
+   on air by itself. *Filed:* [`docs/backlog/output-embed-blocked-by-frame-headers.md`](https://github.com/NoaCG/NoaCG-Studio/blob/7fd2b99f470c65c83081e8df7cbdee2ae14c6ad4/docs/backlog/output-embed-blocked-by-frame-headers.md).
 2. **Tell the operator the truth during an outage.** The hosted page's resolve collapses an error
    into "invalid or unpublished"; use the renderer's `RpcAnswer` pattern and retry. The production
    page's follow gives up silently until reload. *Done 2026-09-30:* `controlShowBySlug` answers
@@ -1319,7 +1319,7 @@ the ones marked *filed* have a backlog item.
    cursor as it stood 60 s earlier, deduped by the ids applied (`src/control/logFollow.ts`,
    `scripts/log-follow.test.mjs`). The renderer's report baseline is unchanged, so a reboot in the
    seconds between a report and a late commit can still miss that row until step 2. The
-   out-of-order half stays filed: `docs/backlog/log-follower-skips-rows-that-commit-late.md`.
+   out-of-order half stays filed: [`docs/backlog/log-follower-skips-rows-that-commit-late.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/log-follower-skips-rows-that-commit-late.md).
 10. **Write down two "never" rules** in `docs/DEPLOYMENT.md`: never enable Vercel's production pause
     without exempting `/output`; never ship a live-path function change without a behaviour
     self-check (already a `supabase/AGENTS.md` rule, not yet tied to a named contract). *Done

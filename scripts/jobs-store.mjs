@@ -200,7 +200,7 @@ export function ensureJobsDir(dir) {
 // IT IS A SIDECAR FILE, NOT AN ENVIRONMENT VARIABLE, and that is the change. `NOACG_JOBS_FREE_MB`
 // works only at runner start: a runner keeps the environment it was spawned with, so today's way
 // to loosen the floor is to stop the runner and start a new one by hand, which is exactly what
-// docs/backlog/ram-floor-by-presence-not-by-guess.md asked to stop needing. A file beside the
+// https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ram-floor-by-presence-not-by-guess.md asked to stop needing. A file beside the
 // jobs is re-read on every scheduling pass, so presence can change under a running runner - which
 // is the only shape that fits a fact that changes when somebody stands up.
 //

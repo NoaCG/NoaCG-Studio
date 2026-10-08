@@ -457,7 +457,7 @@ test('svg import: the static: prefix says a text layer is DRAWING, and its words
   // The opposite of `f:`, and the answer to the numerals trap: a top ten's ranks and a bingo
   // grid's numbers are furniture a student typed, and every one of them used to arrive as a
   // ticked field to untick, two clicks each
-  // (docs/backlog/decorative-numerals-arrive-as-fields.md). The row is still OFFERED - unticked,
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/decorative-numerals-arrive-as-fields.md). The row is still OFFERED - unticked,
   // words kept - because the one numeral that really is a field is then a single click away.
   await dropSvgMarkup(
     page,
@@ -492,7 +492,7 @@ test('svg import: the static: prefix says a text layer is DRAWING, and its words
 test('svg import: a layer named after its own words keeps that name unless the group names it alone', async ({ page }) => {
   // Figma auto-names every text layer after the words in it, so climbing to the group above is
   // right there - and wrong for a designer who deliberately named a slot after its placeholder
-  // (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The evidence is how
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/ea01a688e0102db9051d77f82ac7ceb47150d776/docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The evidence is how
   // many text layers the group holds: exactly one, and the group's name is that layer's name;
   // several, and a group of slots cannot be the name of one of them.
   await dropSvgMarkup(
@@ -3632,7 +3632,7 @@ test('svg import: the too-long mode answers the same however the reader got ther
     // plate had not grown AT ALL under grow-x, because in a fallback face the 140 W's fit after
     // shrinking and nothing ever needed to widen. Green on main and green again on a re-run of the
     // same sha half an hour later, so it read as a regression in whichever branch met it
-    // (docs/backlog/a-panel-growth-check-passes-and-fails-on-identical-code.md). The 2026-09-05
+    // (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-panel-growth-check-passes-and-fails-on-identical-code.md). The 2026-09-05
     // occurrence, with the same two numbers, was treated as a wrapping problem instead.
     //
     // The runtime registers its `.then` at load, so by the time this one resolves `refitSvgText`
@@ -4342,8 +4342,8 @@ test('svg import: grouping never moves a row out of the order the file draws it 
 // ── THE THREE MOMENTS THE GUIDE HAD TO EXPLAIN ──
 //
 // Walking this road cold to write the `#first-graphic` guide on /docs turned up exactly three
-// places where the screen needed a sentence it did not have (docs/backlog/import-walk-
-// hesitations.md, since acted on and deleted). The owner's standard, stated 2026-09-03:
+// places where the screen needed a sentence it did not have (
+// https://github.com/NoaCG/NoaCG-Studio/blob/ffadb42eaac718a2ce84f1ea0b4e23a50ce1681f/docs/backlog/import-walk-hesitations.md, since acted on and deleted). The owner's standard, stated 2026-09-03:
 //
 //   "Of course, it should be so intuitive that you can just use it without reading anything."
 //
@@ -4375,7 +4375,7 @@ test('svg import: the drop says why the walk just got a step shorter', async ({ 
   const note = page.getByTestId('import-svg-rail-note');
   await expect(note).toBeVisible();
   // The note says what happens NEXT, in a student's words, rather than accounting for the step
-  // counter (docs/backlog/import-step-copy-a-kid-can-read.md): the outcome, not the mechanism.
+  // counter (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/import-step-copy-a-kid-can-read.md): the outcome, not the mechanism.
   await expect(note).toContainText('tick the text the operator can change');
   await expect(note).not.toContainText('Five steps');
 });

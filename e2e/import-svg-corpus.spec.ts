@@ -45,7 +45,7 @@ import { LADDER_VALUES, LADDER_MODES } from '../scripts/ladder-values.mjs';
 // The fixtures and their `.expect.json` sidecars are documented in
 // `e2e/fixtures/svg-corpus/README.md`. Files whose answer is still a FINDING stay in the corpus
 // as the repro and are deliberately NOT pinned here - see
-// `docs/backlog/svg-import-sweep-findings.md`.
+// `https://github.com/NoaCG/NoaCG-Studio/issues/778`.
 
 const fixture = (slug: string) =>
   fileURLToPath(new URL(`fixtures/svg-corpus/${slug}.svg`, import.meta.url));
@@ -531,7 +531,7 @@ test('corpus: a percentage is not a size, and a print size on a big drawing does
 //
 // It stops at the mapping step on purpose: the answer is a reading of the ARTWORK, and creating
 // and exporting each file is what the cases above already do.
-// Sweep finding 5 (docs/backlog/svg-import-sweep-findings.md): four files read as banners to the
+// Sweep finding 5 (https://github.com/NoaCG/NoaCG-Studio/issues/778): four files read as banners to the
 // measured default and are not. The owner ruled that growing is the right default where the
 // geometry is unambiguous and the author changes it in one click, so the finding stands open and
 // these four are the repro rather than a pinned answer - the same rule this file's header states.
@@ -713,12 +713,12 @@ async function overgrown(page: Page, slug: string): Promise<string[]> {
 // ── THE FIT LADDER, SWEPT ──────────────────────────────────────────────────────────────────
 // The owner has found the same bug family three times, on three files, each time by typing into
 // one field for a few minutes on a graphic with a green build and a passing corpus gate
-// (docs/acceptance/owner-queue/2026-09-02-text-knows-its-box.md). The gate above walks each file
+// (https://github.com/NoaCG/NoaCG-Studio/blob/5098bd923411f74c6a80ac81f4d4e2cb6e871e0b/docs/acceptance/owner-queue/2026-09-02-text-knows-its-box.md). The gate above walks each file
 // ONCE, at the drawn length, on the default option - and none of what he found is visible there.
 //
 // So this sweeps the small finite space instead: his own board x four ladder options x six value
 // lengths, asserting the ORDER of the ladder rather than a table of expected numbers
-// (docs/backlog/fit-ladder-exhaustive-sweep.md). A case fails when a RUNG WAS SKIPPED, which is
+// (https://github.com/NoaCG/NoaCG-Studio/issues/778). A case fails when a RUNG WAS SKIPPED, which is
 // checkable without taste: the text is inside its box, it wrapped before it shrank, the offer it
 // was given came from the design rather than from whatever value arrived before it, and a panel
 // told to get wider got wider.
@@ -935,7 +935,7 @@ test('corpus: the fit ladder spends its rungs in order, on every option and ever
 // The second rung of the ladder, on the file the owner found it missing on. Walking
 // `effects-gradient-shadow-lower-third.svg` on 2026-09-03 he found the plate widens and the text
 // wraps and then the plate does NOT get taller, so the second line prints over the row beneath
-// it (docs/backlog/growth-rule-geometry-and-purpose.md):
+// it (https://github.com/NoaCG/NoaCG-Studio/issues/778):
 //
 //   > we need to ensure that all our shapes can grow when we want them to grow vertically as well
 //

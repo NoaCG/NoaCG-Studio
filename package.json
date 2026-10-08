@@ -169,8 +169,6 @@
     "landing:latency": "node scripts/landing-latency.mjs",
     "relay": "node scripts/relay.mjs",
     "candidates": "node scripts/candidates.mjs",
-    "check:owner-receipts": "node scripts/owner-receipts.mjs --check",
-    "check:owner-queue": "node scripts/check-owner-queue.mjs",
     "release:cli": "node scripts/release-cli.mjs",
     "learn": "node scripts/learn.mjs",
     "contract:migrate": "node scripts/contract-migrate.mjs",

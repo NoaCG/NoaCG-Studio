@@ -405,7 +405,7 @@ function score(fixture, got) {
 //
 // The owner has now found the same bug family four times, each time by typing into one field for
 // a few minutes on a graphic with a green build and a passing corpus gate. His own ask
-// (`docs/backlog/fit-ladder-exhaustive-sweep.md`, 2026-09-03):
+// (`https://github.com/NoaCG/NoaCG-Studio/issues/778`, 2026-09-03):
 //
 //   "Even though I wish that this could just be automated - the testing - and that it would try
 //    all the combinations until it works as intended."
@@ -756,7 +756,7 @@ function judgeLadder({ mode, name, value, rest, r, restAll, now }) {
       const taller = is.height - was.height;
       // A ROW THAT NAMES SOMETHING AS WIDE AS THE FRAME can never widen, and the reason is worth
       // saying rather than leaving as "it stayed the same": the shape the mapping step defaulted
-      // to is the artwork's own ground, not a panel (docs/backlog/growth-target-defaults-to-the-frame.md).
+      // to is the artwork's own ground, not a panel (https://github.com/NoaCG/NoaCG-Studio/issues/778).
       if (now.frame && was.width >= now.frame.width - 2) {
         out.push(`"${was.el}" is the full frame (${Math.round(was.width)} px), so widening it can do nothing`);
       } else if (wider <= 1) out.push(`"${was.el}" stayed ${Math.round(is.width)} px wide`);
@@ -846,7 +846,7 @@ if (!rows.length) {
 // SAY WHICH BUILD THIS MEASURES, before measuring it. A sweep against the wrong server produces
 // a full, confident, well-formatted report of somebody else's importer, and every row in it looks
 // exactly like a row about yours - which is what happened on 2026-08-29 and was only caught
-// afterwards by reasoning about the harness (docs/backlog/svg-import-sweep-findings.md). One line
+// afterwards by reasoning about the harness (https://github.com/NoaCG/NoaCG-Studio/issues/778). One line
 // of provenance at the top turns that from an inference into something the log records.
 console.log(
   `Driving ${base}${baseFlag ? ' (--base)' : ` (this checkout's reserved port, ${repoRoot})`}`,

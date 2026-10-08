@@ -125,7 +125,7 @@ on any such list**, and that absence is the honest AI verdict for this page. **A
 Density announced AI-assisted HTML5 generative templates for IBC2026 (block below). Nobody has seen
 that product, so it moves no verdict yet; it does make this a claim with a date on it rather than a
 standing fact. Full account:
-`docs/COMPETITOR_MXMZ.md` section 8. What it means for the CLI: `docs/backlog/cli-roadmap.md`.
+`docs/COMPETITOR_MXMZ.md` section 8. What it means for the CLI: [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
 
 ## Pixla - a control room in a box, with a designer inside it
 
@@ -246,7 +246,7 @@ broadcast product, which is why it appears here as a BAR rather than as a compet
 ## How to use this file
 
 - A **GAP** row is a candidate piece of work, not a commitment. It competes with everything else in
-  the drain order (`docs/backlog/README.md`).
+  the backlog (GitHub Issues, `docs/backlog/README.md`).
 - A **We beat** row is a marketing asset and should be findable in the public copy. If it is true
   and nobody outside can tell, that is its own gap.
 - **UNRESEARCHED is the honest word and it should make you uncomfortable.** Two of the four blocks

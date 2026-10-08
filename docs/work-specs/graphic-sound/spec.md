@@ -2,7 +2,7 @@
 
 Owner request: 2026-10-04, implement the attachment proposal for the upcoming production in
 verified phases. Sources: [research](../../research/playout-audio-2026-10-03.md) and
-[owner ask](../../backlog/sound-with-graphics-and-steps.md).
+[owner ask](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/sound-with-graphics-and-steps.md).
 
 Why: sound must accompany the graphic's accepted move without a second operator press.
 Goal: portable packaged sounds, actual execution timing, predictable cleanup and silent recovery.

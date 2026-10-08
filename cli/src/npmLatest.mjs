@@ -27,7 +27,7 @@ export const REGISTRY_TIMEOUT_MS = 1500; // never let a slow network add real ti
 /**
  * Where the cached `latest` lives: one path per machine by default, so every process that asks
  * shares one registry read. An explicit override exists solely so a diagnostic run
- * (docs/acceptance/owner-queue/*-stale-global-cli-warns.md) can plant a fake `latest` without
+ * (https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-16-se-stale-global-cli-warns.md) can plant a fake `latest` without
  * touching the real cache every other session on the box reads. Read per call rather than at
  * module load, so a test can set it around one invocation.
  * @returns {string}

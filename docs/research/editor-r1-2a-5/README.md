@@ -3,7 +3,7 @@
 Base: R1.2a.4 (step authoring) landed through PR #572 as `ea2d63f9` and is live; the Steps-as-buttons
 backlog item landed as `3de997ca`. This worktree branch `claude/editor-r1-2a-5-cross-cue-196874`
 started from fetched `origin/main` `cfaa6019f`, which contains both. The R1.2a.4 owner-queue item
-(`docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md`) has no answer yet.
+([`docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md)) has no answer yet.
 
 Why: an author who has placed Steps needs to move a key or a layer's bar to the other side of a
 flag, and to move Out, without the timeline changing what they did not touch, and without a
@@ -14,7 +14,7 @@ absolute times, exactly, as one undo; Set Out and the Out flag follow the owner'
 decision below, including crossing out of a Next cue. Anything the runtime cannot play exactly
 refuses atomically, with source and history byte-identical and the reason beside the control.
 
-Non-goals: Steps as control buttons (`docs/backlog/steps-as-control-buttons.md`; a Step stays a
+Non-goals: Steps as control buttons ([issue #787](https://github.com/NoaCG/NoaCG-Studio/issues/787); a Step stays a
 cue with a stable name so it stays possible), key copy and paste, magnets for keys, a drawn marker
 for the carried part of Out, loops (R1.2c), machines, calls and dynamics (they keep refusing).
 

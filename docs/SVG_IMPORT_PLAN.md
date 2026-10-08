@@ -91,7 +91,7 @@ machines is about the agent door and the AI tiers, and changes nothing in this p
 One naming system is TAUGHT (`src/templates/behaviours/layer-names.json`, the examples, the
 cheat sheet), and it stays English and strict so a student copying it cannot go wrong. The
 READING is as loose as it can be without guessing, because the file somebody drops is rarely our
-sample (`docs/backlog/more-trigger-words-and-languages.md`). Three layers of tolerance, all in
+sample ([issue #780](https://github.com/NoaCG/NoaCG-Studio/issues/780)). Three layers of tolerance, all in
 `src/templates/behaviours/naming.ts` over the words in `words.json`:
 
 - **Case, spaces, underscores and dashes** were always one separator, and every word is matched

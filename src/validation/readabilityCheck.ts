@@ -143,7 +143,7 @@ interface Backing {
  *  by a lot. That is a PRE-EXISTING property of this walk, it predates pseudo-elements being
  *  read at all, and changing it moves 14 shipped designs across the blocking contrast floor -
  *  so it is written down rather than fixed in passing:
- *  `docs/backlog/a-translucent-panel-is-measured-as-if-it-were-solid.md` carries the
+ *  `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-translucent-panel-is-measured-as-if-it-were-solid.md` carries the
  *  measurement and the severity question it turns on. */
 function paintOf(cs: CSSStyleDeclaration, alphaScale = 1): Backing | null {
   if (cs.backgroundImage && cs.backgroundImage !== 'none') {

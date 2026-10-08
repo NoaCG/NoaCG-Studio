@@ -52,7 +52,7 @@ No new release number or full B02/B04 completion is declared here.
 
 - [Authoritative editor roadmap](../EDITOR_PLAN.md): native visual authoring, interaction contracts, R1.2b, R1.4a/d and R2.1a/b.
 - [Detailed editor contracts](../EDITOR_REBUILD_PLAN.md): linked scale/handles, numeric scrubbing, hierarchy and later animated assets.
-- [Group review and owner response](../acceptance/owner-queue/2026-10-05-editor-groups.md).
+- [Group review and owner response](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-05-editor-groups.md).
 - [R1.2b.6 engineering receipt](editor-r1-2b-6/README.md): scoped verification, supported operations and remaining acceptance boundaries.
 
 This documentation change records and assigns the feedback. It changes no

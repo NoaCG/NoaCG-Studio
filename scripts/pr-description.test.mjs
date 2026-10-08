@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GENERATED_MARKER, firstSentences, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody, riskText } from './pr-description.mjs';
+import { GENERATED_MARKER, closedIssues, firstSentences, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody, riskText } from './pr-description.mjs';
 
 test('the title is the first commit on the branch, because the last one is usually a tail', () => {
   assert.equal(pullRequestTitle(['Add the scoreboard behaviour', 'Fix the review findings'], 'b'), 'Add the scoreboard behaviour');
@@ -78,6 +78,17 @@ test('queueing again keeps the Risk line an earlier queueing wrote', () => {
 test('an image appears only when one is given', () => {
   assert.match(pullRequestBody({ subjects: ['a'], image: 'https://x/y.png' }), /!\[Screenshot\]\(https:\/\/x\/y\.png\)/);
   assert.ok(!pullRequestBody({ subjects: ['a'] }).includes('!['));
+});
+
+test('the issues the commits close get a Closes line each, outside the closed details', () => {
+  const messages = 'Fix the clock\n\nCloses #786.\n\nKeep the lint clean\n\nfixes #12, resolves #786; mentions #40 and the closed bug #41';
+  assert.deepEqual(closedIssues(messages), [12, 786]);
+  assert.deepEqual(closedIssues('Part of #800'), []);
+  assert.deepEqual(closedIssues('Fix the clock\n\nThis does not fix #800 yet.'), []);
+  const body = pullRequestBody({ subjects: ['Fix the clock'], closes: [12, 786] });
+  assert.match(body, /\n\nCloses #12\nCloses #786\n/);
+  assert.ok(body.indexOf('Closes #12') < body.indexOf('<details>'));
+  assert.ok(!pullRequestBody({ subjects: ['a'] }).includes('Closes'));
 });
 
 test('a why goes into the details, and a long branch counts the rest', () => {

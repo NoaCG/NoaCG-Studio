@@ -1,7 +1,7 @@
 // CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
 // (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
 //
-// PASSWORD RECOVERY (docs/backlog/password-reset-link-lands-nowhere.md): the same shape as
+// PASSWORD RECOVERY (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md): the same shape as
 // agent access. Offline the route is INERT by design and e2e/auth.spec.ts can only pin that
 // it stays inert; the expired-link card, the resend door and the pre-route fragment key are
 // only reachable against a real project (e2e/configured/anonymous.spec.ts). A change here
@@ -115,7 +115,7 @@ test.describe('anonymous visitor (open editor)', () => {
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
     // An old-EDITOR subject (the AI panel, the Community button). That editor is closed, so
     // enableAdvancedMode skips this test until it is rewritten
-    // (docs/backlog/specs-that-still-open-the-old-editor.md).
+    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
     await enableAdvancedMode(page);
     await page.goto('/app');
     await dismissWizard(page); // reach the topbar + panels underneath
@@ -192,7 +192,7 @@ test.describe('anonymous visitor (open editor)', () => {
     // The EDITOR's bar, which is the heavy one - it carries the panel toggles, Reset and the
     // beta door that Home does not. Measuring the light Home bar would prove nothing about the
     // width claim below. That editor is closed, so enableAdvancedMode skips this test until it
-    // is rewritten (docs/backlog/specs-that-still-open-the-old-editor.md).
+    // is rewritten (https://github.com/NoaCG/NoaCG-Studio/issues/800).
     await enableAdvancedMode(page);
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto('/app');
@@ -291,7 +291,7 @@ test.describe('anonymous visitor (open editor)', () => {
   });
 
   test('a dead reset link says so, and offers a new one', async ({ page }) => {
-    // docs/backlog/password-reset-link-lands-nowhere.md. Supabase hands a rejected link back in
+    // https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md. Supabase hands a rejected link back in
     // the FRAGMENT (measured 2026-09-04 against the hosted project:
     // `?recovery=1#error=access_denied&error_code=otp_expired&error_description=...`), and until
     // this route existed both an expired link and a wrong destination were the same blank page.

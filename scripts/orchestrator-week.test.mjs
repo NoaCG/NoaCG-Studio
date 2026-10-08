@@ -11,7 +11,6 @@ import {
   noPlansBlock,
   parseArgs,
   poolCounts,
-  questionsIn,
   summarise,
   SYSTEM_PATHS,
 } from './orchestrator-week.mjs';
@@ -33,17 +32,6 @@ test('decisions are DECIDED: lines, with the older inline wording counted apart'
   ].join('\r\n');
   assert.deepEqual(decisionsIn(plan), { decided: 2, legacy: 1 });
   assert.deepEqual(decisionsIn(''), { decided: 0, legacy: 0 });
-});
-
-test('a handoff asks the owner when its needs section has content, and not when it says nothing', () => {
-  assert.equal(questionsIn('## Needs the owner\n\nnothing - every item traced.\n'), 0);
-  assert.equal(questionsIn('Needs the owner: nothing. The upgrade still waits on him.'), 0);
-  assert.equal(questionsIn('**Needs you**: whether the grouped count looks better at speed.'), 1);
-  assert.equal(questionsIn('- **Needs you** - approve the 0.3.0 publish.'), 1, 'the wrap-up bullet shape');
-  assert.equal(questionsIn('- **Needs you** - nothing.'), 0);
-  assert.equal(questionsIn('## Needs the owner\n\n- the vertical alignment, either is fine\n- publish 0.3.0\n\n## Next\n- more'), 2);
-  assert.equal(questionsIn('## Needs the owner\n\nOne bare sentence asking for a walk.\n'), 1);
-  assert.equal(questionsIn('# A handoff with no such section\n\n## What is left\n- things'), 0);
 });
 
 test('rows per pool count a two-pool row once for each pool', () => {
@@ -89,8 +77,7 @@ test('the page prints every section from the facts, with absent meters named rat
       { name: '2026-09-02-night-wave-plan.local.md', rows: [{ pool: 'opus' }, { pool: 'agy-claude-gpt + opus' }], decisions: { decided: 0, legacy: 1 } },
       { name: '2026-09-03-day-wave-plan.local.md', rows: [{ pool: 'codex' }], decisions: { decided: 3, legacy: 0 } },
     ],
-    handoffs: [{ name: 'docs/handoffs/a.md', asks: 2 }, { name: 'docs/handoffs/b.md', asks: 0 }],
-    queueItems: [{ kind: 'walk' }, { kind: 'agent' }, { kind: null }],
+    issues: [{ number: 900, labels: ['P1', 'owner ask'] }, { number: 901, labels: ['P2', 'needs owner'] }, { number: 902, labels: ['P3'] }],
     landed: { count: 18, branches: [] },
     skill: { commits: [{ sha: '9daf5b28', subject: 'Refuse a bad delegation' }], commonPathNow: { core: 198, marked: [], total: 640 }, commonPathThen: { core: 197, marked: [], total: 639 } },
   });
@@ -101,8 +88,7 @@ test('the page prints every section from the facts, with absent meters named rat
   assert.match(page, /Rows planned off Claude .*: 2 of 3/);
   assert.match(page, /Claude tokens per landed branch: 149,947,012/);
   assert.match(page, /DECIDED: lines in the wave plans\): 3, plus 1 in the older inline wording/);
-  assert.match(page, /Handoffs added: 2; carrying an ask for the owner: 1 \(2 items\) - a\.md/);
-  assert.match(page, /by kind: walk 1, agent 1, unknown 1/);
+  assert.match(page, /Issues opened: 3; owner ask 1, needs owner 1\./);
   assert.match(page, /unverified on the installed builds: 1 \(claude-launched-session-gets-no-subagent-notifications\)/);
   assert.match(page, /640 lines now, 639 at the window's start; core 198 lines/);
   assert.match(page, /9daf5b28 Refuse a bad delegation/);
@@ -123,7 +109,7 @@ test('a week with no surviving plan says so loudly instead of printing zeros', (
       ],
       outsideWindow: 0,
     },
-    handoffs: [], queueItems: [], landed: { count: 189, branches: [] },
+    issues: null, landed: { count: 189, branches: [] },
     skill: { commits: [], commonPathNow: { core: 1, marked: [], total: 1 }, commonPathThen: null },
   }).join('\n');
   assert.match(page, /NO WAVE PLAN FOUND\. The rows, pools and decisions below are UNMEASURED, not zero\./);
@@ -161,7 +147,7 @@ test('a busy week lists the first commits and counts the rest', () => {
   const commits = Array.from({ length: COMMITS_SHOWN + 3 }, (_, index) => ({ sha: `s${index}`, subject: `change ${index}` }));
   const page = summarise({
     window: { since: '2026-08-27T00:00:00.000Z', until: '2026-09-03T00:00:00.000Z', days: 7 },
-    usage: null, waves: [], handoffs: [], queueItems: [], landed: { count: 0, branches: [] },
+    usage: null, waves: [], issues: [], landed: { count: 0, branches: [] },
     skill: { commits, commonPathNow: { core: 1, marked: [], total: 1 }, commonPathThen: null },
   }).join('\n');
   assert.match(page, new RegExp(`\\(merges excluded\\): ${COMMITS_SHOWN + 3}`));

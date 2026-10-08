@@ -76,7 +76,7 @@ editor call `skipOldEditor`; `no-old-editor.spec.ts` actively checks that no doo
 loads or briefly displays AppShell, including with an old Advanced preference.
 
 The unfinished migration documented in
-`docs/backlog/specs-that-still-open-the-old-editor.md` is a coverage gap. Deleting
+[issue #800](https://github.com/NoaCG/NoaCG-Studio/issues/800) is a coverage gap. Deleting
 the editor source does not migrate those assertions or fix the incidents above.
 There is no evidence in this sample justifying editor deletion as a CI remedy.
 

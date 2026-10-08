@@ -156,7 +156,7 @@ Its own exit, commit-bound inline review/simplify/verify stamp, actual queue
 entry, merge and deployed revision are recorded in the pull request and final
 session report. The queued branch is frozen throughout landing.
 
-The [desktop owner item](../../acceptance/owner-queue/2026-10-05-editor-arrangement.md)
+The [desktop owner item](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-05-editor-arrangement.md)
 requests workflow comfort after deployment. Full B02/B04, physical hosts and
 owner judgment remain open. Grouping, bins, loops, canvas typing and advanced
 vector work were not implemented.

@@ -41,7 +41,7 @@ in this folder.
 
 ## Limitations
 
-- AC-5 to AC-9 are not built (the next slice: `docs/backlog/community-packs-share-review-and-lock.md`).
+- AC-5 to AC-9 are not built (the next slice: [issue #797](https://github.com/NoaCG/NoaCG-Studio/issues/797)).
 - The rail still lists the one-graphic steps (Fields to Finish, greyed and not reachable) while
   the shelf shows, and the header still counts "Step 2 / 6". The rail's format read-back and the
   live preview pane stand down on the shelf.

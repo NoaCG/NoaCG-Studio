@@ -9,7 +9,7 @@ import { expect, test, type Page } from '@playwright/test';
  * or the new editor, and this reason disappears with the last of them.
  */
 export const OLD_EDITOR_SKIP =
-  'Reaches the old code editor (AppShell), which no route opens any more - docs/backlog/specs-that-still-open-the-old-editor.md';
+  'Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800';
 
 /** Skip the running test for the reason above. Call it from a test body or a beforeEach. */
 export function skipOldEditor(): void {

@@ -95,7 +95,7 @@ import { openWorkspace } from './_workspace';
 //     counted votes since Phase 6 and had nowhere to put them on artwork somebody drew. The walk
 //     is therefore the whole join — drop, bind, open a vote, drive votes through the offline
 //     provider's simulator, stage the counts, take the cue, and read the bars in the renderer.
-//  4. THE SCORE TRACKER is the fourth (docs/backlog/scoreboard-behaviour.md), and it is the other
+//  4. THE SCORE TRACKER is the fourth (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md), and it is the other
 //     half of what 2026-09-12 needs. What is new about it is the OPERATOR'S three verbs rather
 //     than the paint: one press adds a point AND plays the designer's flash, one takes both back,
 //     one starts a new game. So its walk drives all three from the dashboard and reads both the
@@ -1609,7 +1609,7 @@ test('CasparCG package: the standalone panel drives the imported QUIZ board thro
 
 test('the mapping step explains itself: the name under an empty box, the count of what did not match, and one press that fills them with reasons', async ({ page }, testInfo) => {
   // THE OWNER'S ASK, 2026-09-05, straight after his sample board worked end to end
-  // (docs/backlog/the-mapping-step-should-explain-and-offer-to-do-it.md): "it's such a hassle to
+  // (https://github.com/NoaCG/NoaCG-Studio/issues/768): "it's such a hassle to
   // click through 16 boxes". A board whose answers are named but whose moment layers are called
   // "Layer 7" is the exact shape: the quiz is proposed, every drawn box stays empty, and nothing
   // used to say why. Now each empty box says the name that would have filled it - read off the
@@ -1684,7 +1684,7 @@ test('the mapping step explains itself: the name under an empty box, the count o
 
 test('the unmatched count leaves out the plate the board is drawn on', async ({ page }, testInfo) => {
   // A VOTE BOARD IS WHERE THE COUNT WENT WRONG
-  // (docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
   // The vote's `bar` role is a
   // GAUGE, and a gauge is filled from any drawing at all, so while its boxes are empty every
   // rectangle in the file is pooled - the full-bleed plate the board is drawn on included. The
@@ -2054,7 +2054,7 @@ test('bingo caller: one press lights the number and rings it, the readouts follo
   await filled(page, 'map-svg-recipe-tally');
   // The twenty-five numerals, the big number and the count are written by the board, so none of
   // them is a field the operator types - a numeral NAMED for its tile stays the student's drawing
-  // (the unnamed kind arrives as a field to untick: docs/backlog/decorative-numerals-arrive-as-fields.md).
+  // (the unnamed kind arrives as a field to untick: https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/decorative-numerals-arrive-as-fields.md).
   await expect(page.locator('[data-testid^="map-svg-driven-"]')).toHaveCount(27);
   await shot(page, '42-bingo-mapping');
 
@@ -2119,7 +2119,7 @@ test('bingo caller: one press lights the number and rings it, the readouts follo
 test('standings: points move a row into its new place, the position numbers stay with their slots, and a tie shares a place', async ({ page }) => {
   // The owner's own practice file (docs/svg-samples/results-board.svg), the one he walked when he
   // asked for "a ranking that would also reorder the names and the position number just by adding
-  // or subtracting points" (docs/backlog/graphics-need-their-own-logic.md). The `rank` kind orders
+  // or subtracting points" (https://github.com/NoaCG/NoaCG-Studio/issues/787). The `rank` kind orders
   // the rows and a PLACE rule moves each row's name and points into the slot the order gives it;
   // the position numbers are the SLOTS' and are rewritten rather than moved.
   test.slow();
@@ -2329,7 +2329,7 @@ test('an Illustrator SAVE AS quiz: the answers keep their type on air, lock and 
 
   // The field order is the artwork's: the question, the four answers, the key and the pick. The
   // four drawn letter tiles are one letter each, so they start unticked and stay as drawn
-  // (docs/backlog/one-layer-naming-system-for-every-graphic.md) - the same graphic the docs
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md) - the same graphic the docs
   // example gets with its `static:` letters.
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which Finnish city hosted the 1952 Summer Olympics?');
   await expect(page.getByTestId('cue-field-f2')).toHaveValue('Tampere');
@@ -2520,9 +2520,9 @@ test('a slanted polygon plate told to get wider grows by its points and keeps it
 });
 
 // THE EXPORT AS SAFETY NET, AND TWO DEFAULTS OF THE ONE NAMING SYSTEM
-// (docs/backlog/one-layer-naming-system-for-every-graphic.md). A quiz saved with Illustrator's
+// (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md). A quiz saved with Illustrator's
 // Export As arrives with its answers and NONE of its hidden moments (measured on 30.1,
-// docs/backlog/illustrator-export-as-drops-hidden-layers.md); the wizard still picks Quiz, and
+// https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/illustrator-export-as-drops-hidden-layers.md); the wizard still picks Quiz, and
 // used to say nothing. Now the step says, in one place, that Export As leaves hidden layers out.
 // The same file carries the two shapes a student's own drawing has: letters that are one
 // character each and were never named `static:`, which start unticked and are listed last; and

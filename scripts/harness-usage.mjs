@@ -1249,7 +1249,7 @@ export function readCapabilities(text) {
  * about the repository from whatever checkout it happens to run in. `scripts/main-ref.mjs` fixed
  * the ref half and `check-landed-ref.mjs` gates it, but that gate looks for `main` passed as a
  * REVISION, so a tracked data FILE read through the filesystem walks straight past it
- * (`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
+ * (`https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
  *
  * Falls back to the working tree, and says nothing about it, when there is no landed ref to read -
  * a fresh clone, a checkout with no remote. An answer from the tree beats no answer.

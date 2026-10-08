@@ -30,8 +30,7 @@ import { delegationRecords } from './codex-rescue.mjs';
 import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
-import { changedBacklogFiles, receiptsFor, servesVerdict } from './owner-receipts.mjs';
-import { isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody } from './pr-description.mjs';
+import { closedIssues, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody } from './pr-description.mjs';
 import { reviveReviewed } from './cloud-queue.mjs';
 import { spawnRunner } from './queue-pr.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
@@ -417,19 +416,6 @@ async function cmdAddMerge() {
   // cover is queueing unreviewed work, so it is refused - with the one honest way past named:
   // `--unreviewed "<reason>"`, which lands with the reason on the job record where the report and
   // the landing ledger can see it, instead of silently.
-  // OWNER RECEIPTS THIS BRANCH OWNS ARE ANSWERED BEFORE IT LANDS. A receipt in docs/backlog/ that
-  // names this branch is a claim on a piece of work, and the landing is the last moment the session
-  // that knows what happened to it is still here: after that the shelf says a branch owns something
-  // it never touched, and every wave plan after it spends judgement re-deriving what the shelf
-  // should have known. The four ways out are all one line, and the message names them.
-  //
-  // It lived in the retired landing preflight until now, which is why nothing has enforced it since
-  // 2026-09-06. Here it sits with the other two refusals that mean "this branch is not finished
-  // yet" - unread relay mail and a missing /check stamp - because that is the same claim.
-  //
-  // A question git cannot answer is skipped rather than refused: this must never stop a landing
-  // because a diff would not run.
-  refuseUnansweredReceipts(target, named);
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
   const gap = stampGap(stamp, tipForReview);
@@ -504,40 +490,6 @@ async function cmdAddMerge() {
 }
 
 /**
- * Refuse the landing while an owner receipt this branch claims goes unanswered.
- *
- * `receiptsFor` reads the shelf as it stands here PLUS the receipts this branch deleted, recovered
- * from `main` - without that second half a branch that correctly CLOSED its receipt has no file
- * left to read, and its success reads as somebody else's file.
- */
-function refuseUnansweredReceipts(branch, named) {
-  // ONLY THIS WORKTREE'S OWN BRANCH. `receiptsFor` reads the shelf as it stands in this working
-  // tree, which is the branch's shelf only while the branch is the one checked out here. Queueing
-  // somebody else's branch would judge it against a shelf it never carried - refusing it for a
-  // receipt only this tree holds, and missing one only that branch holds. Skipping says so rather
-  // than answering from the wrong tree. `named` is the caller's own answer, so this asks git
-  // nothing: an unnamed target IS this worktree's branch, because that is where it came from.
-  if (named && branch !== currentBranch()) {
-    console.log(`  note: owner receipts were not checked - ${branch} is not this worktree's branch, so its shelf is not the one here.`);
-    return;
-  }
-  let verdict;
-  try {
-    const changed = changedBacklogFiles(branch);
-    if (changed === null) return;
-    verdict = servesVerdict({ branch, receipts: receiptsFor(changed), changed });
-  } catch {
-    console.log('  note: the owner receipts could not be read, so they were not checked.');
-    return;
-  }
-  if (verdict.problems.length === 0) return;
-  console.error(`add-merge refused: ${branch} owns an owner receipt this landing does not answer.`);
-  for (const problem of verdict.problems) console.error(`  ${problem}`);
-  console.error('  Answer it in the same commit, then queue again - it is one line in one file.');
-  process.exit(1);
-}
-
-/**
  * Push, open or reuse the pull request, post the reviewed status, add the label. Every step is
  * idempotent, so queueing twice is harmless. Returns { number, url }.
  */
@@ -591,10 +543,13 @@ function queueOnGitHub(branch, tip, description, { why = '', risk = '' } = {}) {
   const mainBody = (range) => (spawnSync('git', ['log', '--no-merges', '--reverse', '--format=%b%x1e', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
     .stdout.split('\x1e')[0] ?? '').trim();
   const message = mainBody(`origin/main..${tip}`) || mainBody(`${tip}~1..${tip}`);
+  // Every commit's message, for the issues the branch closes (`Closes #12` in any of them).
+  const messages = (range) => spawnSync('git', ['log', '--no-merges', '--format=%B', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).stdout ?? '';
+  const closes = closedIssues(messages(`origin/main..${tip}`) || messages(`${tip}~1..${tip}`));
   // The changed paths only ever derive a risk nobody gave, so an unanswerable diff simply derives none.
   const paths = spawnSync('git', ['diff', '--name-only', `origin/main...${tip}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
     .stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const body = pullRequestBody({ subjects, message, tested: description, why, risk: risk || riskFromBody(pr?.body), paths });
+  const body = pullRequestBody({ subjects, message, tested: description, why, risk: risk || riskFromBody(pr?.body), paths, closes });
   const prExisted = Boolean(pr);
   if (!pr) {
     const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', pullRequestTitle(subjects, branch), '--body', body]);

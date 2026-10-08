@@ -39,7 +39,7 @@
 //   - an ABSENT ref. `git log --format=… -- docs/backlog` with no revision walks HEAD, which on a
 //     feature branch stops at the fork point. `closedReceipts` had exactly that bug and no
 //     scanner can catch it, because there is no token to match. Only a reader finds those, and one
-//     did: `docs/backlog/the-weekly-report-walks-head-not-what-landed.md`.
+//     did: `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/the-weekly-report-walks-head-not-what-landed.md`.
 //   - a ref built at a distance: `const ref = 'main'` twenty lines above the git call.
 //   - `merge`, `rebase`, `checkout`, `switch` and `reset`, deliberately left out of the verb list.
 //     They take a revision, but naming the local branch to them is usually the point - `git merge
@@ -209,8 +209,8 @@ function main() {
     console.error(
       '\nThe local `main` branch stopped moving when landings moved to GitHub\'s merge queue, so it\n' +
         'answers a question about a repository that no longer exists. Import `mainRef` from\n' +
-        '`scripts/main-ref.mjs` and ask it which ref means landed - `jobs.mjs`, `merge-order.mjs`,\n' +
-        '`worktree-activity.mjs` and `owner-receipts.mjs` all do.\n' +
+        '`scripts/main-ref.mjs` and ask it which ref means landed - `jobs.mjs`, `merge-order.mjs`\n' +
+        'and `worktree-activity.mjs` all do.\n' +
         'If the bare ref is genuinely the right question here, add it to ALLOWED with the reason.\n',
     );
     return 1;

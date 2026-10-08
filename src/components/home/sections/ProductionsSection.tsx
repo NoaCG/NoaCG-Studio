@@ -28,7 +28,7 @@ import { editedWhen, teamMeta } from '../../teams/teamLabels';
 import { IconDownload, IconLink, IconTrash, IconTv, IconUpload, IconUsers } from '../../icons';
 
 /**
- * THE PRODUCTION'S SIZE, AND THE DOOR INTO IT (docs/backlog/browse-a-productions-graphics.md).
+ * THE PRODUCTION'S SIZE, AND THE DOOR INTO IT (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/browse-a-productions-graphics.md).
  * The owner could not see which graphics belonged to which production without opening playout
  * and playing them out one at a time, so the size line opens the library narrowed to this one.
  *

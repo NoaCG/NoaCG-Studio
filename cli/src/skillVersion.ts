@@ -1,8 +1,8 @@
 // Which `noacg-graphic` skill this machine actually has installed, and how to update it.
 //
 // Nothing auto-updates a Claude Code or Codex marketplace. A plugin installed once keeps the skill
-// text it was installed with - measured on this laptop 2026-09-16 (docs/backlog/
-// nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md): `claude plugin list` reported
+// text it was installed with - measured on this laptop 2026-09-16 (
+// https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md): `claude plugin list` reported
 // noacg@noacg-studio 0.2.0 while the marketplace shipped 0.3.3, and the SKILL.md a session loaded
 // was eleven lines shorter than the repository's. The plugin reports itself as enabled either way,
 // so a user has no reason to suspect anything. `noacg doctor` is where that becomes visible.

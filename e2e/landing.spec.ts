@@ -279,7 +279,7 @@ test('old root share links redirect into the app with their query intact', async
 });
 
 // A PASSWORD-RESET LINK THAT LANDS HERE IS THE OWNER'S 2026-09-04 BUG
-// (docs/backlog/password-reset-link-lands-nowhere.md): the mail arrived, the link opened this
+// (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md): the mail arrived, the link opened this
 // page, and there was nowhere to set a password - because Supabase falls back to the Site URL
 // when its redirect allow-list does not cover the URL we asked for, and this page runs no
 // Supabase client. The forward makes that failure impossible rather than one config line away,

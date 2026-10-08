@@ -9,7 +9,7 @@
 // act on) is the no-flag form: node scripts/playout-lag-bench.mjs [out-dir]
 //
 // The owner, driving his own quiz on 2026-09-05: "It didn't play out immediately, or it didn't
-// stop immediately." docs/backlog/playout-lag-when-working-the-queue.md carries what was already
+// stop immediately." https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md carries what was already
 // measured - the click handler is 0.3-0.4 ms and the host page records no long task - and the one
 // finding that matched "moving around the queue": every cue selection replaces the preview
 // iframe's 184 KB `srcdoc`. Nobody had measured what that rebuild COSTS, or whether a Take
@@ -57,7 +57,7 @@
 // share, and a long task attributed to a child frame is exactly the one the host's own
 // `longtask` observer missed on 2026-09-05.
 //
-// WHAT IT FOUND on 2026-09-10 is in docs/backlog/playout-lag-when-working-the-queue.md, and the
+// WHAT IT FOUND on 2026-09-10 is in https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md, and the
 // short version is worth carrying here so nobody re-derives the traps: on the BUILT app every
 // gesture paints in about 30 ms - Take, Out, and a Take pressed straight after moving in the
 // rundown - and the page never drops a frame. On the DEV SERVER the same gestures paint in 85-91

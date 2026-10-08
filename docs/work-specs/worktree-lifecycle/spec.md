@@ -24,7 +24,7 @@ never fails on ports.
   app's own worktrees in `~/.codex/worktrees` are capped by the Codex app).
 - Changing the desktop app's or the Codex app's settings from a script.
 - A bigger port range, or a reverse proxy instead of ports.
-- `catalog-cost.mjs` running its measurement at import (`docs/backlog/catalog-cost-test-runs-the-measurement-on-import.md`).
+- `catalog-cost.mjs` running its measurement at import ([issue #802](https://github.com/NoaCG/NoaCG-Studio/issues/802)).
 
 ## Owner answers (2026-10-08)
 

@@ -212,7 +212,7 @@ Cold catalog/SVG openings showed artwork. The reproduced zero-time hot-update de
 retired-session defect are fixed with regressions. The owner's historical blank-stage
 condition is not universally claimed resolved.
 
-**Historical handoff at R1.0 delivery:** R1.0 is merged/live; use the [fresh-session handoff](../handoffs/2026-09-19-editor-r1.1a.md) from updated main for R1.1a only: optional Finish -> Edit, D03
+**Historical handoff at R1.0 delivery:** R1.0 is merged/live; use the [fresh-session handoff](https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-19-editor-r1.1a.md) from updated main for R1.1a only: optional Finish -> Edit, D03
 Position/Layout offset, Text/Rectangle/Ellipse creation and basic scaling, with single
 source transactions, unchanged existing motion/fields, cancel/undo/save/reopen/export
 checks and measured drag feedback. No R1.1b key/bar authoring is included.
@@ -442,7 +442,7 @@ of the frame and always adds a layer. New anchors start centered.
 E06/B04 gain only this bounded engineering evidence. Pen, alignment/distribution,
 grouping, bins, canvas typing, owner workflow and physical receiving-host acceptance
 remain open. No whole row is closed. The desktop product-judgment item is
-[Add a sponsor image and replace a logo](../acceptance/owner-queue/2026-10-03-editor-images.md).
+[Add a sponsor image and replace a logo](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-03-editor-images.md).
 
 ## R1.2b.4 scoped Pen receipt, 2026-10-03
 
@@ -460,7 +460,7 @@ E06/B04 gain this bounded engineering evidence. Unsupported geometry retains
 source with a specific refusal. Alignment/distribution, grouping, bins, canvas
 typing, owner workflow and physical receiving-host acceptance remain open. No
 whole row is closed. The desktop judgment item is
-[Draw a custom badge and adjust its points](../acceptance/owner-queue/2026-10-03-editor-pen.md).
+[Draw a custom badge and adjust its points](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-03-editor-pen.md).
 
 ## R1.2b.5 scoped arrangement and keyboard receipt, 2026-10-05
 
@@ -479,7 +479,7 @@ executes SPX, CasparCG and OGraf exports.
 E07/E17 and the specified portions of B02-B04 gain engineering evidence. Groups,
 bins, canvas typing, owner judgment and physical receiving-host acceptance
 remain open; no whole row is closed. The desktop judgment item is
-[Arrange a badge and two accents](../acceptance/owner-queue/2026-10-05-editor-arrangement.md).
+[Arrange a badge and two accents](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-05-editor-arrangement.md).
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.
@@ -501,7 +501,7 @@ scoped evidence. Unsupported commands explain an exact refusal.
 
 This advances E07 and G08's group portion only. Full B02/B04, folders/bins,
 reusable P-COMP instances, owner judgment and physical receiving-host acceptance
-remain open. [Group a badge and edit its members](../acceptance/owner-queue/2026-10-05-editor-groups.md)
+remain open. [Group a badge and edit its members](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-05-editor-groups.md)
 asks for asynchronous desktop product judgment after the complete task worked.
 
 ## R1.2b.7 scoped folders, bins and navigation receipt, 2026-10-07
@@ -519,5 +519,5 @@ SPX/CasparCG/OGraf appearance have scoped engineering evidence.
 This advances the specified folders/bins portion of B02 and navigation only.
 Full B02/B04, reusable P-COMP instances, owner judgment, actual desktop zoom
 and physical receiving-host acceptance remain open. No whole row is closed.
-[Organize a badge and its assets](../acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
+[Organize a badge and its assets](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
 asks for asynchronous desktop product judgment after the complete task worked.

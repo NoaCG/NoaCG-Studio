@@ -241,7 +241,7 @@ if (pollsQueue(command)) {
 // push's run and the dispatched run cannot both live: the one that registers second cancels the
 // first, and the order two webhooks register in is not stable ("Pushing and dispatching in one
 // breath is a coin flip, and I lost it once" - measured on 2026-09-04 across four handoffs, all
-// drained since; docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the
+// drained since; https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the
 // dispatch loses, the push run survives and
 // plans only the delta since the previous push - the narrow plan the dispatch was issued to avoid -
 // and it reports green. A refusal because the check is exact: no reading of the pair in one

@@ -332,7 +332,7 @@ test('a credit roll is SETTLED in the preview, and Replay is what plays it', asy
 });
 
 
-// ── THE STAGE NEVER GOES BLANK ACROSS A STEP CHANGE (docs/handoffs/2026-09-21-e-demo-rehearsal.md).
+// ── THE STAGE NEVER GOES BLANK ACROSS A STEP CHANGE (https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-21-e-demo-rehearsal.md).
 // Walked as a student on the live site, the wizard preview went dark for three to five seconds
 // after every step change of the SVG import road: the rebuilt document replaced the old one the
 // moment it was committed, and the artwork came back only once the new frame had parsed its

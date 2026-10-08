@@ -1,7 +1,7 @@
 # Running NoaCG without leaving vMix: which route, and why
 
 Desk research, 2026-09-30. vMix was not launched for it; the walk on a real vMix is separate work
-(`docs/backlog/vmix-trial-walk-and-local-docker.md`), and every claim below that only a running
+([issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760)), and every claim below that only a running
 vMix can settle is marked UNVERIFIED and listed in §5 as a check for that walk. Claims about vMix
 link the vMix help page they come from; where the only source is a user forum post, the text says
 so. It builds on `docs/PLAYOUT_TARGETS_RESEARCH.md` §1 and does not repeat it.
@@ -126,7 +126,7 @@ This is the workflow the owner has in mind. Two readings:
   takes a cue. But which one? A production is several layers (bug, lower third, ticker) and many
   cues, and a press on one input carries one bit. Worse, pressing it off makes vMix run the
   channel's transition in reverse and remove the input, so NoaCG's exit is cut off whatever the
-  Bridge does after hearing it. The earlier plan in `docs/backlog/bridge-vmix-adapter.md` had the
+  Bridge does after hearing it. The earlier plan in [issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760) had the
   Bridge send OverlayInputNOut after the exit had "had time to play"; that works for Out pressed in
   NoaCG, not for Out pressed in vMix.
 - **The press lands on a cue input, and the output stays on.** The NoaCG output input sits on one
@@ -259,7 +259,7 @@ Text corrections, steps (Next) and anything unusual stay on the production page 
 
 ### The first build step
 
-Filed in `docs/backlog/bridge-vmix-adapter.md` as slice 1: **the Bridge hears an overlay press on a
+Filed in [issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760) as slice 1: **the Bridge hears an overlay press on a
 NoaCG cue input and takes or outs that cue through the production's control link, proven against a
 fake vMix TCP server.** The Bridge adding the inputs, the page's Set up button, and mirroring
 NoaCG's state back onto vMix's buttons are slices 2 and 3. The walk checks in §5 that decide

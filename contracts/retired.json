@@ -43,6 +43,20 @@
       "since": "2026-09-06",
       "replacement": "a red `main` answers itself: `ci.yml` re-runs the failed specs once, quarantines a flake through the queue and reverts a batch that stays red (`docs/VERIFICATION.md`)",
       "why": "The laptop lander refused every landing while `main` was red, which stranded green branches for hours."
+    },
+    {
+      "name": "the owner receipts, the owner queue and the handoff drain",
+      "pattern": "owner-receipts|check-owner-queue|check:owner-(?:receipts|queue)|handoff-drain|handoff-trace|(?<![0-9a-f]{40}/|\\[|\\[`)docs/acceptance/owner-queue|OWNER_QUEUE\\.md",
+      "since": "2026-10-08",
+      "replacement": "GitHub Issues: `owner ask` marks what he asked for and `needs owner` a decision or step only he can take; a look at shipped work is asked for in the pull request comment (`.agent-workflows/verify.md`, step 5)",
+      "why": "The backlog moved to GitHub Issues and the files these scripts read were deleted. A build cannot read Issues, so the labels carry what the receipts and the queue did."
+    },
+    {
+      "name": "backlog and handoff files",
+      "pattern": "(?<![0-9a-f]{40}/|\\[|\\[`)docs/backlog/(?!README)[A-Za-z0-9<*]|(?<![0-9a-f]{40}/|\\[|\\[`)docs/handoffs/(?![A-Za-z0-9<>*._-]*\\.local\\.md)",
+      "since": "2026-10-08",
+      "replacement": "a GitHub issue with a priority (`P1`, `P2`, `P3`) and an area label, linked from the pull request; a branch that finishes one says `Closes #<n>` in a commit message (`docs/backlog/README.md`)",
+      "why": "One file per idea and one handoff per session grew without bound and needed gates to drain them. Issues are the one prioritized list, and the old files are in git history."
     }
   ]
 }

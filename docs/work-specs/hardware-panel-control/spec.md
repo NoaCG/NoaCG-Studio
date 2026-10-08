@@ -9,7 +9,7 @@ clip down, flashing at 10 s and 5 s, is what lets the operator watch the program
 laptop.
 
 Authority: the owner's decisions of 2026-10-01 on `docs/HARDWARE_CONTROL_RESEARCH.md` §11 (the
-suggestion on every question), recorded in `docs/backlog/companion-and-stream-deck.md`
+suggestion on every question), recorded in [issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809)
 ("Decided"), and the build prompt of 2026-10-02. The research's §10 is the design sketch, §6 the
 measurements this build is held to. `protocol.md` beside this file is the wire protocol.
 

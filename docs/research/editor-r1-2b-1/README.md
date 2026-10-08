@@ -3,13 +3,13 @@
 Base: R1.2a.6 (full transforms) landed through PR #592 as `89bdfd86`; this worktree branch
 `claude/canvas-transform-tools-r1-2b-1-320d04` started from fetched `origin/main` `4abaa4a5`, which
 contains it, and `/version.json` reported `4abaa4a5` live. The owner-queue items for R1.2a.4,
-R1.2a.5 and R1.2a.6 (`docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md`,
+R1.2a.5 and R1.2a.6 ([`docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md),
 `2026-09-30-editor-cross-cue.md`, `2026-10-01-editor-full-transforms.md`) have no answer yet, and
 nothing reorders R1.2b, so the split below follows the plan's order.
 
 ## Owner answer, 2026-10-01: the anchor moves only the pivot
 
-Asked in [the owner-queue item](../../acceptance/owner-queue/2026-10-01-editor-canvas-transforms.md)
+Asked in [the owner-queue item](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-01-editor-canvas-transforms.md)
 whether typing an anchor should move only the pivot, and whether the Anchor tool should keep the
 layer where it is, the owner answered that typing an anchor and moving only the pivot is right, and
 that the Anchor tool must not move Position either: the anchor is only the point rotation, scale

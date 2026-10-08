@@ -157,7 +157,7 @@ the original scanners' claims. Verdicts: **we beat** (nobody credible matches), 
 | Team-wide shared font and asset library | MXMZ, Flowics (metered), Singular (Enterprise) | Yes | 17 bundled faces, per-user bucket, nothing team-scoped (`src/backend/assets.ts` has no team) | gap | days |
 | Version history with restore | MXMZ auto-numbers with restore; Singular ships it on the **free** tier; Ross Project Server | Yes | **Absent.** Undo in-session and saved documents. `durableStore` `previous` is a failed-write rollback, not history | gap | weeks |
 | Re-import when the artwork changes | Every AE and SVG bridge faces it | Yes | **Absent.** A corrected SVG means redoing mapping, fonts and behaviour by hand | gap | weeks |
-| Import After Effects / Lottie as a door | Ferryman (free, GPL-3.0), Loopic 2.3, DJ HTML Creator | Yes | Planned only (`docs/backlog/ograf-lottie-ferryman-conventions.md`). Import accept string has no `.json` | gap | weeks |
+| Import After Effects / Lottie as a door | Ferryman (free, GPL-3.0), Loopic 2.3, DJ HTML Creator | Yes | Planned only ([`docs/backlog/ograf-lottie-ferryman-conventions.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-lottie-ferryman-conventions.md)). Import accept string has no `.json` | gap | weeks |
 | Preserve motion authored elsewhere | Ferryman replays Lottie byte-exact; Rive's .riv is the motion; Figma exports CSS/JSON motion code | Yes | **Absent.** `svgImport.ts:379` strips SMIL by design, for a stated deterministic-playout reason | gap | months |
 | One design adapting to 16:9, 9:16 and 1:1 | Vizrt (Viz Engine 5.4 headline); uno Plus does dual output at ~$2/mo | Yes | Formats are first-class per project (`projectFormat.ts`), nothing re-lays a design out | gap | weeks |
 | Real-time co-editing of one file | Figma, Rive, MXMZ, Canva, Lottie Creator | No | Absent. `src/components/teams/` is sharing, not co-editing. P1 non-claim v1 | gap-wrong | quarters |
@@ -479,7 +479,7 @@ a new subsystem.
    every save, and it is the only capability on this page that two rivals ship, that a production
    tool is incomplete without, and that we have in no form at all.
 4. **Move the Google Sheet binding out of Advanced mode.** Effort: days. The design is already
-   written in `docs/backlog/the-google-sheet-route-is-behind-the-editor-toggle.md` (raised
+   written in [issue #787](https://github.com/NoaCG/NoaCG-Studio/issues/787) (raised
    2026-09-04, unstarted). Unlocks a non-technical operator filling a scoreboard from a sheet, which
    is exactly the 2026-09-12 shape, and it turns a shipped feature into a visible one.
 5. **Export the command log before it is pruned.** Effort: hours to days. One button that writes

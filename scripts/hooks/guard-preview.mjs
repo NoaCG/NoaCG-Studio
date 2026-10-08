@@ -26,7 +26,7 @@
 // the launch config, and a config carrying an absolute, checkout-pinned command might make the
 // harness serve the right tree from anywhere - restoring preview_stop and orphan-free teardown to
 // worktree sessions. Whether the harness reads a linked worktree's own launch.json at all is the
-// unmeasured half; docs/backlog/preview-start-from-a-linked-worktree.md holds the experiment, and
+// unmeasured half; https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/preview-start-from-a-linked-worktree.md holds the experiment, and
 // if it works this guard goes.
 //
 // FAILS OPEN on anything it cannot read: no input, no `name`, a cwd git cannot place, an

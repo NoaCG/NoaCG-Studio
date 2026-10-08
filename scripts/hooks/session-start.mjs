@@ -314,7 +314,7 @@ try {
 // nobody. The landing queue gates on ci.yml alone, so a break in any other tier slows nothing
 // down: issue #56 stood for eight hours and forty-three minutes overnight on 2026-09-05 with
 // three landings stacked on top of it, and it was the owner who noticed. This is the cheapest
-// place that cannot be skipped, for the same reason the receipts line below is here.
+// place that cannot be skipped: it is in context before the first prompt.
 //
 // Answered from a cache shared by every worktree, so the ordinary session start pays nothing and
 // one fetch every ten minutes serves the whole machine. Silent when nothing is open.
@@ -359,60 +359,6 @@ if (isOrchestratorHome) {
     }
   } catch {
     // No run yet, or an unreadable report: nothing to say.
-  }
-}
-
-// --- Owner receipts and the handoff drain ----------------------------------------------------
-//
-// An owner-raised task must be visible from the repository alone, in every session that could
-// plan it (docs/backlog/README.md, "Owner receipts"). One line here is the cheapest place that
-// cannot be skipped: it is in context before the first prompt. The handoff drain is the
-// orchestrator's own bookkeeping, so it prints only in the orchestrator home.
-//
-// Now the receipts print only there too, for the same reason as the alarms above: the
-// orchestrator plans from them and `/next` reads them when it looks for work.
-if (isOrchestratorHome) {
-  try {
-    const { formatReceipts, isStanding, readReceipts, stillOpen } = await import('../owner-receipts.mjs');
-    const receipts = readReceipts(root).filter((receipt) => receipt.receipt && receipt.problems.length === 0);
-    // The asks that stand, which is what he is owed. Findings are real work and reach a session
-    // through the ordinary backlog drain, never under his name.
-    const standing = receipts.filter(isStanding);
-    if (standing.length > 0) {
-      const oldest = Math.max(...standing.map((receipt) => receipt.ageDays ?? 0));
-      console.log('');
-      console.log(
-        `Owner receipts: ${standing.length} standing ask(s) (oldest ${oldest} day(s)) - ` +
-          'node scripts/owner-receipts.mjs lists what the owner asked for and when.',
-      );
-      // The slugs, one line each and capped: this is context every turn will carry, and the full
-      // listing with the asks is one allowlisted command away.
-      const compact = formatReceipts(standing, { compact: true }).slice(1);
-      for (const line of compact.slice(0, 12)) console.log(line);
-      if (compact.length > 12) console.log(`  ... and ${compact.length - 12} more (node scripts/owner-receipts.mjs)`);
-    }
-    // Findings are counted separately and never named here: they are our bugs, not his requirements,
-    // and no plan has to account for one. But a defect he hit himself must not become invisible
-    // just because it stopped being printed as an ask.
-    const findings = receipts.filter((receipt) => stillOpen(receipt) && receipt.kind === 'finding');
-    if (findings.length > 0) {
-      console.log(`  plus ${findings.length} finding(s) raised while serving them - real work, never his requirement.`);
-    }
-    const { drain, handoffFiles, newestWavePlan, parseHandoffSection } = await import('../handoff-drain.mjs');
-    const { readFileSync } = await import('node:fs');
-    const plan = newestWavePlan(root);
-    const classified = plan ? parseHandoffSection(readFileSync(plan, 'utf8')) : new Map();
-    const rows = drain(handoffFiles(root), classified);
-    const unclassified = rows.filter((row) => row.flag === 'UNCLASSIFIED');
-    if (rows.length > 0) {
-      console.log('');
-      console.log(
-        `Handoff drain: ${rows.length} file(s) in docs/handoffs/, ${unclassified.length} unclassified` +
-          `${plan ? ` against ${plan.split(/[\\/]/).pop()}` : ' (no fresh wave plan)'} - node scripts/handoff-drain.mjs lists them.`,
-      );
-    }
-  } catch {
-    // Awareness only - a receipt that cannot be read must never stop a session from starting.
   }
 }
 

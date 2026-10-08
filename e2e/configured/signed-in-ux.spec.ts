@@ -71,7 +71,7 @@ test.describe('signed-in UX walk (configured)', () => {
   test('the topbar holds one row at laptop widths with the account controls in it', async ({ page }) => {
     // The bar this measures is the old code editor's (its Community button and panel toggles),
     // and that editor is closed. It skips until it is rewritten against Home's bar
-    // (docs/backlog/specs-that-still-open-the-old-editor.md).
+    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
     skipOldEditor();
     await page.setViewportSize({ width: 1366, height: 768 });
     await signIn(page);

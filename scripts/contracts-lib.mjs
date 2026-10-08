@@ -30,7 +30,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { parseFrontmatter } from './owner-receipts.mjs';
+import { parseFrontmatter } from './frontmatter.mjs';
 
 export const RULES_DIR = 'contracts/rules';
 export const RECORDS_DIR = 'contracts/records';
@@ -278,7 +278,7 @@ export function validateAgainstTree(rule, root, files = []) {
   // checked. On 2026-09-08 four rules written with `fires: test:<spec>` vanished from the
   // directory contracts and from `.claude/rules/` because their specs pin the behaviour without
   // ever printing the rule; they were found by diffing the store against the compiled contract,
-  // not by any gate (docs/handoffs/2026-09-08-a-model-contract.md). The proof is the call itself.
+  // not by any gate (https://github.com/NoaCG/NoaCG-Studio/blob/b119dbddeeacb62ecbdefe3bb042e24766da1527/docs/handoffs/2026-09-08-a-model-contract.md). The proof is the call itself.
   rule.carried = mechanismExists && readFileSync(mechanismFile, 'utf8').includes(`rules.text('${rule.id}')`);
   if (mechanismExists && !rule.carried) {
     problems.push(

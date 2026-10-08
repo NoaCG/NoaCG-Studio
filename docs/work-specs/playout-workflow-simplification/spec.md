@@ -3,7 +3,7 @@
 Baseline: main `d27c44c03`, 2026-10-07. Design, mockups and the independent review it answers:
 [`docs/research/playout-workflow-2026-10-07/`](../../research/playout-workflow-2026-10-07/README.md).
 Supersedes studio-day-playout AC-7's state words and D16's offline wording for browser graphics,
-publish-rundown-clarity's first-publish output chooser, and `docs/backlog/go-live-one-press.md`.
+publish-rundown-clarity's first-publish output chooser, and [issue #767](https://github.com/NoaCG/NoaCG-Studio/issues/767).
 
 ## Problem
 

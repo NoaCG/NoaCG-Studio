@@ -11,8 +11,7 @@ fails the build when a `docs/*.md` file has no row here, when a row names a file
 there, or when two rows name the same file. So absence from these tables IS evidence that a doc
 does not exist - which is the only reading that makes the map worth consulting. Add the row in
 the same commit as the doc. Subdirectories are exempt on purpose and described at the bottom
-instead: `backlog/` has its own README contract, `handoffs/` is one file per session, and
-`acceptance/owner-queue/` is transient by design.
+instead: `backlog/` holds only a README that points at GitHub Issues.
 
 Layers of documentation, top to bottom:
 
@@ -50,7 +49,7 @@ Layers of documentation, top to bottom:
 | `LOWER_THIRD_SHAPES_BRIEF.md` | The standing drawing brief behind the catalog queue's missing-silhouette item: the measurement (99 of 103 lower thirds are one silhouette), the owner ruling that sameness is a defect rather than a house style, and the six shapes to draw. |
 | `KIT_MATRIX_GAPS.md` | The standing kit gap report: the (type × family) matrix as it resolves, the core six a kit owes a show, and which designs no kit can reach. |
 | `CATALOG_VARIETY.md` | INVESTIGATION, unscheduled (2026-08-09): where the catalog's sameness actually comes from, measured off the emitted code — the style family predicts 3 of 14 visible decisions and the graphic category predicts the rest; the 119 kit-unreachable designs triaged; what is missing entirely; a proposal for design DIRECTIONS scoped to a kit, with a distinctness gate and a cost per direction; and the palette-freedom measurement (148 designs cannot take a light palette). |
-| `CATALOG_BY_PROGRAMME.md` | THE DRAWING QUEUE BY SHOW (2026-09-04): what six kinds of show (news, sports, game show, talk show, podcast, film and entertainment) conventionally put on screen, joined to what the catalog has, as a genre x kind gap table and a ranked list of twelve named absences a drawing session takes in order; the measured look of every category (footprint, backdrop, accent, position); the conventional default palette and entrance per genre; and a PROPOSED weekly drawing slot that feeds on the list, with the mechanisms that would register it named and not built. Answers `backlog/catalog-variety-by-programme-type.md` items 1 and 2. |
+| `CATALOG_BY_PROGRAMME.md` | THE DRAWING QUEUE BY SHOW (2026-09-04): what six kinds of show (news, sports, game show, talk show, podcast, film and entertainment) conventionally put on screen, joined to what the catalog has, as a genre x kind gap table and a ranked list of twelve named absences a drawing session takes in order; the measured look of every category (footprint, backdrop, accent, position); the conventional default palette and entrance per genre; and a PROPOSED weekly drawing slot that feeds on the list, with the mechanisms that would register it named and not built. Answers [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776) items 1 and 2. |
 | `CATALOG_WORK_QUEUE.md` | THE QUEUE (2026-08-21): what the catalog still owes, ordered, with the measurement under each item — the missing lower-third SHAPES (99 of 103 designs are one silhouette), the first-page ordering that is already built, the `ig01` re-file, and the standing debts. Carries the owner's binding position that sameness is a defect, not a house style. Its drawing brief is `LOWER_THIRD_SHAPES_BRIEF.md`. |
 | `LOOKS_AND_PALETTES.md` | NOTE, unscheduled: measured evidence that the catalog reads as one product (four families, four palettes, four faces, almost all dark-panel), what more looks would cost, and the anti-slop rules any new look is held to. **Superseded on the measurement by `CATALOG_VARIETY.md`** — the declared axes are not where the sameness lives. |
 | `PRODUCT_AND_MAP.md` | What NoaCG Studio is in one paragraph, pointers to direction and taste, the commands, and where the code lives. Orientation a reader takes in once - the rules that bind are compiled into `AGENTS.md` files from `contracts/rules/`. |
@@ -215,9 +214,9 @@ Layers of documentation, top to bottom:
   graphics as layered Illustrator files, the SVGs Illustrator's Save a Copy writes from them,
   and state previews. Rebuilt by `scripts/illustrator/build-talk-show-set.jsx`.
 
-## The shelf
+## The backlog
 
-- `backlog/` - the shelf: one file per unscheduled idea, a mandatory `## Why`, graduate-into-GOALS-or-die, and the drain order that puts it LAST behind owner feedback, handoffs and the current push. Its own `README.md` is the contract.
+- `backlog/` - only a README: the backlog is GitHub Issues, by priority (`P1`, `P2`, `P3`) and area, with `owner ask`, `needs owner` and `later` labels.
 
 ## Where the roadmap lives
 

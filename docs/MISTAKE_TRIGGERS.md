@@ -25,7 +25,7 @@ hookable are really one of the others.
 | Contract (`AGENTS.md`, `docs/`, `.agent-workflows/`) | when somebody reads it | judgement, taste, and everything with no mechanical test | the lesson does not fire at all |
 | **Memory** (the per-project store behind `MEMORY.md`) | when a session happens to recall it - **the weakest trigger there is** | the handful of facts NO file in the repo can hold: the owner's taste, money, direction, and what a human has not yet looked at | it constrains today's work with something that stopped being true, and nothing says so |
 
-The gate row is the one that gets forgotten. `wave-plan-check.mjs`, `owner-receipts.mjs --check`
+The gate row is the one that gets forgotten. `wave-plan-check.mjs`, `check-retired-names.mjs`
 and `check-docs-index.mjs` all catch mistakes that no single tool call contains, and each would
 have been a bad hook: the fact they need is the state of the whole tree.
 
@@ -92,11 +92,12 @@ matcher can be right while the hook never reaches it.
    reads stdin at module top level, so importing one to test it hangs.
 4. **Say what it costs.** Measured, on the common case, not the rare one.
 
-The handoff notice is the worked example for the state half. Its "must fire" case is a real
-handoff the current wave plan marks `deferred`, deleted for real in a real checkout; its "must not
-fire" case is the nine-file drain a wave row performs every wave, deleted the same way. Same folder,
-same command shape, opposite verdicts, and what separates them is the record rather than the
-document. `scripts/handoff-trace.mjs` carries the reasoning.
+The handoff notice, retired with the handoff files on 2026-10-08, was the worked example for the
+state half. Its "must fire" case was a real handoff the current wave plan marked `deferred`,
+deleted for real in a real checkout; its "must not fire" case was the nine-file drain a wave row
+performed every wave, deleted the same way. Same folder, same command shape, opposite verdicts, and
+what separated them was the record rather than the document. Its reasoning is in
+`scripts/handoff-trace.mjs` at 745c6f2.
 
 A hook that reaches for a fact outside the repo - the push notice asks GitHub - is verified against
 the real source, bounded, and silent when it cannot answer: `gh` under a ten-second timeout, null on
@@ -120,8 +121,8 @@ commands, not by thinking harder about the regex.
 | `guard-agent-launch.mjs` | PreToolUse `Agent` | deny | a wave prompt whose `TOUCHES` or `READ` line names a path that exists neither in the launching checkout nor on `origin/main` |
 | `spawn-task-guard.mjs` | PreToolUse `mcp__ccd_session__spawn_task` | deny | a background-task chip minted for work the session could have done here or filed under `docs/backlog/` |
 | `guard-question.mjs` | PreToolUse `AskUserQuestion` | deny | a question to the owner that does not name, in its own text, the one reason it is his (`needs: account|money|identity|harness|alignment`) - everything else is a consult, a decision and a record he can revert (ruling 2026-09-05) |
-| `warn-command.mjs` | PostToolUse `Bash`/`PowerShell` | warn | a commit that just staled a queued landing pin; a handoff deleted while it still listed open items no wave plan traces; a follow-up push whose earlier CI run never finished, so the new run plans past a delta nothing covered |
-| `warn-edit.mjs` | PostToolUse `Write` | warn | a new migration whose number is already claimed on another ref; a handoff overwritten so its open items are gone |
+| `warn-command.mjs` | PostToolUse `Bash`/`PowerShell` | warn | a commit that just staled a queued landing pin; a follow-up push whose earlier CI run never finished, so the new run plans past a delta nothing covered |
+| `warn-edit.mjs` | PostToolUse `Write` | warn | a new migration whose number is already claimed on another ref |
 | `lint-file.mjs` | PostToolUse edits | warn | lint findings in the file just written |
 | `stop-wait.mjs` | Stop / SubagentStop | warn | a turn that ends waiting on something that cannot wake the session |
 | `session-start.mjs` | SessionStart | notice | what landed, what is running, what finished while you were away |
@@ -184,8 +185,8 @@ sees nothing wrong.
 - **Whether a verification actually re-derived the result** rather than checking that a worker did
   as it was told. The commands look identical.
 - **Whether a design is right, whether a graphic is any good, whether a message reads as
-  human-written.** The owner queue exists because this is the one fact about shipped work that no
-  file in the repo can hold. The commit-message guard is the useful counter-example and shows the
+  human-written.** The owner's look at shipped work, asked for in its pull request, exists because
+  this is the one fact about shipped work that no file in the repo can hold. The commit-message guard is the useful counter-example and shows the
   edge exactly: it does not judge whether a message is good, it refuses five specific TOKENS that
   are never right, which is a tool shape hiding inside a judgement.
 - **Whether the rule being followed is the right rule for this task.** A hook cannot know the task.

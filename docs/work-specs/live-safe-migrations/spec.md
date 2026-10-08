@@ -1,11 +1,11 @@
 # Live-safe updates: nothing NoaCG ships interrupts a show
 
 Answers the owner's decisions of 2026-10-02 and 2026-10-03 in
-[`backlog/migrations-while-productions-are-live.md`](../../backlog/migrations-while-productions-are-live.md),
+[issue #756](https://github.com/NoaCG/NoaCG-Studio/issues/756),
 and, once built, settles
-[`backlog/live-path-quiet-window-never-comes.md`](../../backlog/live-path-quiet-window-never-comes.md)
+[issue #756](https://github.com/NoaCG/NoaCG-Studio/issues/756)
 and
-[`backlog/vite-assets-without-skew-protection.md`](../../backlog/vite-assets-without-skew-protection.md).
+[issue #758](https://github.com/NoaCG/NoaCG-Studio/issues/758).
 Serves `docs/GOALS.md` outcome 5 (production and playout, rank 1) and its reliability bar. It
 replaces derived decision D7 of
 [`playout-runtime-reliability`](../playout-runtime-reliability/spec.md) (the heartbeat quiet window)
@@ -16,7 +16,7 @@ It began as a spec for database migrations and was widened on 2026-10-03 to ever
 ships: a migration, a web deploy, and a Bridge, CLI or Companion module release. The folder keeps
 its name because migration 0075, `docs/RUNDOWN_AUTOMATION_PLAN.md` and a handoff cite the path. What
 platform behaviour is not settled by a primary source is filed in
-[`backlog/live-safe-updates-open-platform-questions.md`](../../backlog/live-safe-updates-open-platform-questions.md).
+[issue #756](https://github.com/NoaCG/NoaCG-Studio/issues/756).
 
 ## Problem
 
@@ -309,7 +309,7 @@ Sources for each platform claim are listed under "Sources" below, with the date 
   after boot: supabase-js is bundled into its entry, so an open output depends on no deployment
   at all once it runs, however long it stays open. Vercel serves the newest deployment to a
   document navigation, which is what a reload should get. This settles
-  `backlog/vite-assets-without-skew-protection.md`. Revert: unpinned assets.
+  [issue #758](https://github.com/NoaCG/NoaCG-Studio/issues/758). Revert: unpinned assets.
 - **L11. What the newest deploy answers for any build is surface too.** Unhashed paths an older open
   client fetches (`/fonts/*`, `/panel.json`, `/version.json`, the `/output` and `/bridge` pages) and
   the `/api` routes a live page calls during a show (today `/api/events`, `/api/data/state` and
@@ -329,7 +329,7 @@ Sources for each platform claim are listed under "Sources" below, with the date 
   `fetch(location.href)` in `reloadIfServed` (`src/output/main.ts:138-149`) before reloading, so a
   Take that lands during the fetch is cut by the reload. The guard is read again after the fetch,
   immediately before the reload (filed as
-  [`backlog/prepare-for-live-reload-can-cut-a-take.md`](../../backlog/prepare-for-live-reload-can-cut-a-take.md)).
+  [issue #757](https://github.com/NoaCG/NoaCG-Studio/issues/757)).
   A new reload or navigation in the renderer's code is refused by the build unless it is one of
   those two or carries the same on-air guard. Operator pages never reload because of a deploy
   either. An output open across many deploys keeps running the build it loaded (L10) against a

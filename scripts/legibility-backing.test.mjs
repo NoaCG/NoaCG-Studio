@@ -283,7 +283,7 @@ test('a translucent panel still counts as a panel', () => {
   // What is deliberately NOT pinned is the RATIO: both are measured as if the panel were solid,
   // which over-reports the 0.55 case badly. That is a pre-existing property of the backing walk
   // on the element path, it moves 14 shipped designs across a blocking floor to change, and it
-  // is written up in docs/backlog/a-translucent-panel-is-measured-as-if-it-were-solid.md rather
+  // is written up in https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-translucent-panel-is-measured-as-if-it-were-solid.md rather
   // than altered here - a false-positive fix is no place to smuggle in a severity ruling.
   for (const [name, m] of [['0.94 panel', measured.nearSolidSlab], ['0.55 scrim', measured.scrimSlab]]) {
     assert.ok(

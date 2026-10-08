@@ -86,16 +86,33 @@ export function riskFromBody(body = '') {
 }
 
 /**
+ * The issues the branch's commit messages close, by GitHub's own keywords (`Closes #12`,
+ * `Fixes #3`, `Resolves #7`), each once and in order. The backlog is GitHub Issues, and a branch
+ * that finishes one says so in a commit; the pull request repeats it so GitHub links the two and
+ * closes the issue when the queue merges it. Only a keyword that STARTS a line counts, so prose
+ * such as "this does not fix #800 yet" never closes an unfinished issue.
+ */
+export function closedIssues(messages = '') {
+  const found = new Set();
+  for (const match of String(messages).matchAll(/^[^\S\r\n]*(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gim)) {
+    found.add(Number(match[1]));
+  }
+  return [...found].sort((a, b) => a - b);
+}
+
+/**
  * The description (owner, 2026-10-08: simple and clean): two plain sentences from the main
- * commit's body, one "Risk:" line (`riskText`), and the run details in a closed block. No
- * template sections, and no image unless `image` (a URL) is given, which is for a visual change.
+ * commit's body, one "Risk:" line (`riskText`), a `Closes #n` line per issue the commits close,
+ * and the run details in a closed block. No template sections, and no image unless `image` (a
+ * URL) is given, which is for a visual change.
  *
  * `subjects` are the branch's non-merge commit subjects, oldest first; the first is the main
  * commit. `message` is that commit's body; with none, its subject stands in. `tested` is the
  * review verdict as the queue records it. `why`, when given, goes in the details. `paths` are the
- * files the branch changes, used only to derive a risk nobody gave.
+ * files the branch changes, used only to derive a risk nobody gave. `closes` are issue numbers
+ * (`closedIssues`).
  */
-export function pullRequestBody({ subjects = [], message = '', tested = '', why = '', risk = '', paths = [], image = '' } = {}) {
+export function pullRequestBody({ subjects = [], message = '', tested = '', why = '', risk = '', paths = [], image = '', closes = [] } = {}) {
   const changes = subjects.filter((s) => s.trim() !== '');
   let summary = firstSentences(message);
   if (summary === '') {
@@ -105,6 +122,7 @@ export function pullRequestBody({ subjects = [], message = '', tested = '', why 
   const lines = [summary];
   const risky = riskText(risk, paths);
   if (risky !== '') lines.push('', `Risk: ${risky}`);
+  if (closes.length > 0) lines.push('', ...closes.map((number) => `Closes #${number}`));
   if (image.trim() !== '') lines.push('', `![Screenshot](${image.trim()})`);
 
   const details = [];

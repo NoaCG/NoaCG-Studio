@@ -623,7 +623,7 @@ a five-second timer after the lock.
 
 *File > Save a Copy... > SVG*, with *Use Artboards* ticked. Not *Export > Export As*: measured on
 Illustrator 30.1 (2026-09-21), Export As writes no hidden layer at all, so every drawn moment is
-lost on the way in (`docs/backlog/illustrator-export-as-drops-hidden-layers.md`). Save a Copy
+lost on the way in ([`docs/backlog/illustrator-export-as-drops-hidden-layers.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/illustrator-export-as-drops-hidden-layers.md)). Save a Copy
 keeps them as a `display:none` class, which the import reads. In the SVG Options dialog: Fonts
 Type **SVG** with Subsetting **None (Use System Fonts)**, Image Location **Embed**, Preserve
 Illustrator Editing Capabilities **off**, and under More Options, CSS Properties **Style

@@ -54,8 +54,8 @@ test('an ordinary noticed-defect chip is refused', () => {
 test('the refusal names both routes and the escape, for a session that has read nothing', () => {
   const { message } = runHook(chip());
   assert.match(message, /IN SCOPE/); // fix it here
-  assert.match(message, /docs\/backlog\/<slug>\.md/); // or file it
-  assert.match(message, /docs\/backlog\/README\.md/); // and where the shape is written down
+  assert.match(message, /GitHub issue \(gh issue create\)/); // or file it
+  assert.match(message, /docs\/backlog\/README\.md/); // and where the labels are written down
   assert.match(message, /OWNER-DECISION: <why this start is his call/); // the legal way through
   assert.match(message, /orchestrator\.md/); // the contract this enforces
 });

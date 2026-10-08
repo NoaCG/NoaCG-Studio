@@ -45,7 +45,7 @@ The first complete attempt exposed an expired delegation-effort trial; its separ
 [review and correction](2026-09-17-effort-trial-review.md) restored the standing default.
 
 Human usability, collection-wide editing, production installation and animation comparison
-remain outstanding. See the [acceptance route](../acceptance/owner-queue/2026-09-17-brand-creator.md).
+remain outstanding. See the [acceptance route](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-17-brand-creator.md).
 
 ## Review follow-up, 2026-09-17
 

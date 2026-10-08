@@ -47,7 +47,7 @@ cleanup that would ripple into unchanged code stays a report.
 ## 4. Verify
 
 Follow `.agent-workflows/verify.md`: the acceptance criteria, the checks this change needs, the
-loop, the evidence, and the owner queue only where judgment adds value.
+loop, the evidence, and the owner only where judgment adds value.
 
 ## 5. Commit, stamp, report
 

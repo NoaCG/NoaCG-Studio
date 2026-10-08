@@ -92,7 +92,7 @@ interface Aim {
 /**
  * THE CUE RUNDOWN of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2 and §4): the rows, the
  * drag reorder, each row's ⋯ menu, and the rail foot, which is how graphics, pictures and server
- * items get in. Moved out of ProductionPage by phase 1 of docs/backlog/production-page-phases.md.
+ * items get in. Moved out of ProductionPage by phase 1 of https://github.com/NoaCG/NoaCG-Studio/issues/766.
  *
  * It owns only its own menus and pickers, where the list is scrolled, and where a drag is aimed. What
  * it changes goes to the record through `setShows` or through the page's callbacks, and what is ON

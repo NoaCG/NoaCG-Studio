@@ -17,9 +17,8 @@
 // Three rules, and each fails CLOSED - the check names the files and exits non-zero:
 //
 //  1. MISSING - a top-level `docs/*.md` with no row. The map claims completeness, so this is
-//     the rule the map is about. Subdirectories are deliberately exempt: `backlog/` has its own
-//     README contract, `handoffs/` is one file per session and `acceptance/owner-queue/` is
-//     transient by design. They are described as directories in the README instead.
+//     the rule the map is about. Subdirectories are deliberately exempt: `research/`, `work-specs/`
+//     and the rest hold many files each. They are described as directories in the README instead.
 //  2. ORPHANED - a row naming a file that is not there. A rename leaves one behind pointing at
 //     nothing, which is worse than no row: it sends a reader after a file that moved.
 //  3. DUPLICATED - the same file named by two rows. This is the merge hazard specifically:
@@ -48,7 +47,7 @@ const isEntrypoint =
  * README counts prose mentions and reports the map as far more complete than it is.
  *
  * @param {string} readme  the text of docs/README.md
- * @returns {string[]} paths relative to docs/, e.g. 'OGRAF.md', 'acceptance/OWNER_QUEUE.md'
+ * @returns {string[]} paths relative to docs/, e.g. 'OGRAF.md', 'https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md'
  */
 export function indexedDocs(readme) {
   return [...readme.matchAll(/^\|\s*`([A-Za-z0-9_./-]+\.md)`/gm)].map((m) => m[1]);
@@ -151,7 +150,7 @@ function main() {
   // "top-level" is load-bearing, not padding. There are far more .md files under docs/ than
   // there are rows, because the subdirectories are exempt by design - and a success line that
   // claimed all of them would invite exactly the wrong inference this gate exists to prevent:
-  // that a `docs/backlog/*.md` absent from the tables is a doc that does not exist.
+  // that a `docs/research/*.md` absent from the tables is a doc that does not exist.
   console.log(
     `check-docs-index: OK - all ${topLevel.length} top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).`,
   );

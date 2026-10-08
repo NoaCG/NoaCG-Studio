@@ -1,7 +1,7 @@
 # Editor save evaluation collected during preview reload
 
 Investigated 2026-09-20. Covers the B04 failure originally recorded in
-`docs/backlog/b04-save-reopen-races-a-navigation-on-ci-only.md` (closed by this change).
+[`docs/backlog/b04-save-reopen-races-a-navigation-on-ci-only.md`](https://github.com/NoaCG/NoaCG-Studio/blob/6999f0caf439631f8db89b9c77f7758b96241cec/docs/backlog/b04-save-reopen-races-a-navigation-on-ci-only.md) (closed by this change).
 
 ## Reproduction and diagnosis
 
