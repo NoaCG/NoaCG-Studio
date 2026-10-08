@@ -62,8 +62,10 @@ export interface StatusFacts {
   /** NoaCG Bridge as the page last heard it; null when CasparCG is off or nothing is set up. */
   bridge: { state: PlayoutState | 'pending'; detail: string; version?: string } | null;
   /** The output's slot (`SlotReading`), undefined until it has been read. `where` is `1-20`,
-   *  `channel` its channel. */
-  slot?: SlotReading & { where: string; channel: number };
+   *  `channel` its channel. `reporting`: the renderer ON the slot reports (it tags itself with its
+   *  destination); absent for a production whose CasparCG output carries no tag, where any
+   *  reporting renderer has to stand for it. */
+  slot?: SlotReading & { where: string; channel: number; reporting?: boolean };
   /** This session saw this production on its slot, and the slot no longer holds it. */
   slotLost?: boolean;
   /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known. */
@@ -128,7 +130,8 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   // The NoaCG output's slot on CasparCG, read through the Bridge. Only once published: before
   // that there is no output URL to load, and Publish is what loads it.
   if (f.started && f.casparOn && f.slot && bridge?.tone === 'ok') {
-    const reporting = !!ready && (ready.ready > 0 || ready.tone === 'warn' || !!ready.preparing);
+    // D3: Connected needs the renderer on the slot itself; another output reporting is not it.
+    const reporting = f.slot.reporting ?? (!!ready && (ready.ready > 0 || ready.tone === 'warn' || !!ready.preparing));
     const at = f.slot.where;
     const holds = f.slot.holds;
     if (holds === 'ours') {

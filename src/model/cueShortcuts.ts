@@ -14,7 +14,7 @@ import type { ShowCue } from './shows';
  * An older build reads the physical form as no shortcut at all, never as a different key.
  */
 const LOGICAL = /^(?:[a-z0-9]|shift\+[a-z])$/;
-const PHYSICAL = /^((?:ctrl\+)?(?:alt\+)?(?:shift\+)?)@([A-Z][A-Za-z0-9]{0,24}):([^\s:@]{1,8})$/u;
+const PHYSICAL = /^((?:ctrl\+)?(?:alt\+)?(?:shift\+)?)@([A-Z][A-Za-z0-9]{0,24}):([^\s:@]{1,16})$/u;
 
 export function normalizeCueShortcut(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -27,6 +27,21 @@ export function normalizeCueShortcut(value: unknown): string | null {
 export function cueShortcutIdentity(stored: string): string {
   const m = PHYSICAL.exec(stored);
   return m ? `${m[1]}@${m[2]}` : stored;
+}
+
+/** The key a saved-by-character shortcut names: a plain letter or digit (a letter with Shift)
+ *  assigned by position is the same key an old `v` or `shift+f` names on that layout, so the two
+ *  are one shortcut for "Used by" and for conflicts. Anything else is its identity. */
+function cueShortcutAlias(stored: string): string {
+  const m = PHYSICAL.exec(stored);
+  if (!m || m[1].includes('ctrl') || m[1].includes('alt')) return cueShortcutIdentity(stored);
+  const legacy = `${m[1]}${m[3].toLowerCase()}`;
+  return LOGICAL.test(legacy) ? legacy : cueShortcutIdentity(stored);
+}
+
+/** The same press, whichever form either was saved in. */
+export function sameCueShortcut(a: string, b: string): boolean {
+  return cueShortcutIdentity(a) === cueShortcutIdentity(b) || cueShortcutAlias(a) === cueShortcutAlias(b);
 }
 
 export function cueShortcutLabel(key: string): string {
@@ -63,17 +78,20 @@ const MODIFIER_CODES = /^(?:Shift|Control|Alt|Meta|OS|AltGraph|CapsLock|NumLock|
 const BROWSER_F_KEYS = new Set(['F5', 'F11', 'F12']);
 const BROWSER_CTRL = new Set(['KeyN', 'KeyT', 'KeyW', 'Tab']);
 
-/** The label a layout prints on a physical key: a letter or digit by position, else its own character. */
+/** The label a layout prints on a physical key: a digit by position (Shift+1 prints "!"), a letter
+ *  as this layout prints it (AZERTY's A on KeyQ, Å on BracketLeft) or by position where a modifier
+ *  changed the character, else the key's own name. */
 function labelOf(p: ShortcutPress): string {
-  const letter = /^Key([A-Z])$/.exec(p.code);
-  if (letter) return letter[1];
   const digit = /^Digit(\d)$/.exec(p.code);
   if (digit) return digit[1];
   const numpad = /^Numpad(\d)$/.exec(p.code);
-  if (numpad) return `Num ${numpad[1]}`;
+  if (numpad) return `Num${numpad[1]}`;
   if (/^F\d{1,2}$/.test(p.code)) return p.code;
+  if (/^\p{L}$/u.test(p.key)) return p.key.toUpperCase();
+  const letter = /^Key([A-Z])$/.exec(p.code);
+  if (letter) return letter[1];
   if (p.key.length === 1) return p.key.toUpperCase();
-  return p.key.slice(0, 8);
+  return p.key.slice(0, 16);
 }
 
 /**
@@ -91,6 +109,8 @@ export function shortcutFromPress(
   if (BROWSER_F_KEYS.has(p.code)) return { refused: 'F5, F11 and F12 belong to the browser.' };
   if (p.ctrl && BROWSER_CTRL.has(p.code)) return { refused: 'The browser keeps Ctrl+N, T, W and Tab.' };
   if (p.ctrl && (['KeyC', 'KeyX', 'KeyV', 'KeyZ', 'KeyY'].includes(p.code))) return { refused: 'The rundown uses Ctrl+C, X, V, Z and Y.' };
+  // The rundown's own Delete (playoutKeys `useRundownEditKeys`), which a cue would take first.
+  if (!p.ctrl && !p.alt && !p.shift && p.code === 'Delete') return { refused: 'The rundown uses Delete.' };
   if (!p.ctrl && !p.alt && (verbKeys.has(p.key.toLowerCase()) || VERB_CODES.has(p.code))) {
     return { refused: `${labelOf(p) === ' ' || p.code === 'Space' ? 'Space' : labelOf(p)} is an operator key.` };
   }
@@ -102,20 +122,24 @@ export function shortcutFromPress(
 /** The operator keys by position as well as by character, so another layout cannot reach them. */
 const VERB_CODES = new Set(['Space', 'KeyR', 'KeyU', 'KeyN', 'Digit0', 'Numpad0', 'KeyP', 'KeyH', 'ArrowUp', 'ArrowDown']);
 
-/** A concurrent edit may create duplicates. Neither cue gets that key until resolved. Bindings are
+/** A concurrent edit may create duplicates, and an old letter shortcut may name the key a new
+ *  physical one names (`sameCueShortcut`). Neither cue gets that key until resolved. Bindings are
  *  keyed by identity (`cueShortcutIdentity`); conflicts are named by their label. */
 export function cueShortcutBindings(cues: readonly Pick<ShowCue, 'id' | 'hotkey'>[]): { bindings: Record<string, string>; conflicts: string[] } {
-  const keys = new Map<string, { ids: string[]; label: string }>();
+  const keys = new Map<string, { ids: string[]; label: string; alias: string }>();
   for (const cue of cues) {
     const key = normalizeCueShortcut(cue.hotkey);
     if (!key) continue;
     const id = cueShortcutIdentity(key);
     const seen = keys.get(id);
-    keys.set(id, { ids: [...(seen?.ids ?? []), cue.id], label: seen?.label ?? cueShortcutLabel(key) });
+    keys.set(id, { ids: [...(seen?.ids ?? []), cue.id], label: seen?.label ?? cueShortcutLabel(key), alias: cueShortcutAlias(key) });
   }
+  const byAlias = new Map<string, number>();
+  for (const k of keys.values()) byAlias.set(k.alias, (byAlias.get(k.alias) ?? 0) + 1);
+  const clash = (k: { ids: string[]; alias: string }) => k.ids.length > 1 || (byAlias.get(k.alias) ?? 0) > 1;
   return {
-    bindings: Object.fromEntries([...keys].filter(([, k]) => k.ids.length === 1).map(([key, k]) => [key, k.ids[0]])),
-    conflicts: [...keys].filter(([, k]) => k.ids.length > 1).map(([, k]) => k.label),
+    bindings: Object.fromEntries([...keys].filter(([, k]) => !clash(k)).map(([key, k]) => [key, k.ids[0]])),
+    conflicts: [...new Set([...keys.values()].filter(clash).map((k) => k.label))],
   };
 }
 

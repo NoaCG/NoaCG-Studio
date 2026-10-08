@@ -1184,6 +1184,27 @@ test('one button puts the production on the configured channel, and one takes it
   await expect(slot).toContainText('Unknown');
 });
 
+test('a slot that cannot be read is never loaded over, and a double press loads once', async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await slotBridge(page);
+  bridge.refuseState = true;
+  await publishedProduction(page);
+  const slot = page.getByTestId('production-status-panel').getByTestId('caspar-slot');
+  await expect(slot).toContainText('Cannot read');
+  // The header offers no Load for a slot it cannot read, and the panel's Load sends nothing.
+  await expect(page.getByTestId('playout-action-slot').getByTestId('caspar-load')).toHaveCount(0);
+  await slot.getByTestId('caspar-put-on-air').click();
+  await expect(page.getByTestId('production-note')).toContainText('Load on 2-30 was not sent: cannot read 2-30');
+  expect(bridge.actions).toEqual([]);
+  // Readable again: two quick presses put the output on the slot once.
+  bridge.refuseState = false;
+  await page.getByTestId('production-status-panel').getByTestId('playout-check-now').click();
+  await expect(slot).toContainText('Empty', { timeout: 20_000 });
+  await slot.getByTestId('caspar-put-on-air').dblclick();
+  await expect(slot).toContainText('Loading…');
+  expect(bridge.actions).toHaveLength(1);
+});
+
 test('with a Bridge that reads the slot, Load and Unload each show in the slot row, in their own words', async ({ page }) => {
   await seedSettings(page, { channel: 2, layer: 30 });
   const bridge = await slotBridge(page);

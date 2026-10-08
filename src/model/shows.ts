@@ -35,7 +35,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
-import { cueShortcutIdentity, normalizeCueShortcut } from './cueShortcuts.ts';
+import { normalizeCueShortcut, sameCueShortcut } from './cueShortcuts.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -1004,7 +1004,7 @@ export function setCueShortcut(showId: string, cueId: string, value: string | nu
     if (value !== null && !key) throw new Error('That key cannot be a shortcut.');
     const holders = key ? (show.cues ?? []).filter(c => {
       const other = c.id !== cueId ? normalizeCueShortcut(c.hotkey) : null;
-      return !!other && cueShortcutIdentity(other) === cueShortcutIdentity(key!);
+      return !!other && sameCueShortcut(other, key!);
     }) : [];
     if (holders.length && !options.move) throw new Error(`Used by ${holders[0].label}`);
     for (const holder of holders) delete holder.hotkey;

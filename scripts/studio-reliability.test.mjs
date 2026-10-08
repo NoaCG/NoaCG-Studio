@@ -1,7 +1,7 @@
 // guards: src/model/cueShortcuts.ts, src/control/serverState.ts, src/control/panelFeedback.ts, scripts/compare-studio-media.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { directCue, cueShortcutBindings, cueShortcutLabel, normalizeCueShortcut, pressIdentities, shortcutFromPress } from '../src/model/cueShortcuts.ts';
+import { directCue, cueShortcutBindings, cueShortcutLabel, normalizeCueShortcut, pressIdentities, sameCueShortcut, shortcutFromPress } from '../src/model/cueShortcuts.ts';
 import { applyAccepted, applyReading, applyClearedSlot, NO_OWNERSHIP, remainingAt } from '../src/control/serverState.ts';
 import { judgePress } from '../src/control/panelFeedback.ts';
 import { compareClips, packetFacts } from './compare-studio-media.mjs';
@@ -64,6 +64,24 @@ test('cue shortcuts: physical keys with Ctrl, Alt and Shift, Nordic letters, and
   for (const [code, key] of [['ShiftLeft', 'Shift'], ['ControlLeft', 'Control'], ['Tab', 'Tab'], ['Enter', 'Enter'], ['Escape', 'Escape']]) assert.equal(press(code, key), null);
   // An older build's reading of the new form: no shortcut, never a different key.
   assert.equal(normalizeCueShortcut('ctrl+@KeyK'), null);
+  // The rundown's own Delete is never a cue's.
+  assert.match(press('Delete', 'Delete').refused, /rundown uses Delete/);
+  assert.deepEqual(press('Delete', 'Delete', { ctrl: true }), { value: 'ctrl+@Delete:Delete' });
+  // Numpad keys and named keys keep a whole label; a letter reads as the layout prints it.
+  assert.deepEqual(press('Numpad1', '1'), { value: '@Numpad1:Num1' });
+  assert.deepEqual(press('Backspace', 'Backspace'), { value: '@Backspace:Backspace' });
+  assert.deepEqual(press('KeyQ', 'a'), { value: '@KeyQ:A' }, 'AZERTY: the key labelled A');
+  assert.deepEqual(press('KeyK', 'k', { alt: true }), { value: 'alt+@KeyK:K' });
+});
+
+test('an old letter shortcut and a new one on the same key are one shortcut', () => {
+  assert.equal(sameCueShortcut('v', '@KeyV:V'), true);
+  assert.equal(sameCueShortcut('shift+f', 'shift+@KeyF:F'), true);
+  assert.equal(sameCueShortcut('v', 'ctrl+@KeyV:V'), false, 'Ctrl+V is another press');
+  assert.equal(sameCueShortcut('1', 'shift+@Digit1:1'), false);
+  const { bindings, conflicts } = cueShortcutBindings([{ id: 'old', hotkey: 'v' }, { id: 'new', hotkey: '@KeyV:V' }, { id: 'k', hotkey: 'ctrl+@KeyK:K' }]);
+  assert.deepEqual(conflicts, ['V'], 'neither fires until one is moved');
+  assert.deepEqual(bindings, { 'ctrl+@KeyK': 'k' });
 });
 
 const slot = { adapter: 'casparcg', channel: 2, layer: 10 };

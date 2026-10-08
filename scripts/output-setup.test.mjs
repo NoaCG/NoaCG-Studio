@@ -59,6 +59,11 @@ test('an empty CasparCG slot shows Load, not a fault, while a browser renderer c
   assert.equal(describePlayoutStatus(facts).tone,'ok');
   assert.equal(describePlayoutStatus(facts).checks.find(c=>c.key==='slot').short,'Not loaded on 1-20');
   assert.equal(describePlayoutStatus({...facts,slotLost:true}).tone,'bad');
+  // D3: the slot is Connected only when the renderer ON it reports; OBS reporting is not CasparCG.
+  const ours={...facts,slot:{holds:'ours',channel:1,where:'1-20',reporting:false}};
+  assert.equal(describePlayoutStatus(ours).checks.find(c=>c.key==='slot').short,'Loading on 1-20');
+  assert.equal(describePlayoutStatus({...ours,slot:{...ours.slot,reporting:true}}).checks.find(c=>c.key==='slot').short,'Connected');
+  assert.equal(describePlayoutStatus({...ours,slot:{holds:'ours',channel:1,where:'1-20'}}).checks.find(c=>c.key==='slot').short,'Connected','an untagged output: any renderer stands for it');
   const bridge={configured:true,outputRequired:true,status:{state:'ok'},outputSlug:'private',channel:1,layer:20,items:[],slot:null};
   const lines=bridgeChecks(bridge);assert.equal(stampOf(lines,{n:1,h:'same'},0).warnings,1);
   assert.equal(stampOf(bridgeChecks({...bridge,slot:undefined}),{n:1,h:'same'},0).warnings,1);

@@ -315,12 +315,6 @@ interface CueDraft {
  *  ceiling on rows READ, not on rows shown — a busy instance yields fewer of this show's. */
 const LOG_HISTORY_SPAN = 400;
 
-/**
- * What the account gate says, in the dialog's first line. Plain words about what the press does
- * and why it needs an account: publishing creates hosted rows (the output, control and audience
- * links) that must belong to someone who can take them down again. Everything else on this page
- * works without one, and the dialog's own second line says so.
- */
 /** How long All out waits for the server's heads to say each graphic is off before it names the
  *  ones that are not (playout-workflow-simplification AC-13). */
 const ALL_OUT_CONFIRM_MS = 5000;
@@ -328,6 +322,12 @@ const ALL_OUT_CONFIRM_MS = 5000;
 /** How long a native cue's verb lets the local save run before it sends (AC-14). */
 const LOCAL_SAVE_HEAD_START_MS = 250;
 
+/**
+ * What the account gate says, in the dialog's first line. Plain words about what the press does
+ * and why it needs an account: publishing creates hosted rows (the output, control and audience
+ * links) that must belong to someone who can take them down again. Everything else on this page
+ * works without one, and the dialog's own second line says so.
+ */
 const PUBLISH_NEEDS_ACCOUNT =
   'Publishing needs a free account. Sign in and it publishes straight away.';
 const CLAIM_NEEDS_ACCOUNT =
@@ -589,6 +589,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [noOutputTake, setNoOutputTake] = useState(false);
   /** Publish found another production on the slot: Load waits for "Replace". */
   const [replaceAsk, setReplaceAsk] = useState(false);
+  /** A Load or Unload is on its way to the Bridge: a second press waits for it. */
+  const [slotBusy, setSlotBusy] = useState(false);
+  const slotBusyRef = useRef(false);
   /**
    * HOW MANY TIMES THE LIVE MAP HAS MOVED HERE, and the only reason it is counted.
    *
@@ -2538,7 +2541,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * CasparCG switched on, and the panel's Load. The slot is read first, and another production on
    * it is replaced only after "Replace" (`replace`). A failure names the step in the note.
    */
-  const loadOnSlot = async (url: string, replace = false): Promise<void> => {
+  const slotAction = async (work: () => Promise<void>): Promise<void> => {
+    if (slotBusyRef.current) return;
+    slotBusyRef.current = true;
+    setSlotBusy(true);
+    try {
+      await work();
+    } finally {
+      slotBusyRef.current = false;
+      setSlotBusy(false);
+    }
+  };
+  const loadOnSlot = (url: string, replace = false): Promise<void> => slotAction(async () => {
     const settings = loadPlayoutSettings();
     const where = slotAddress(slotOf(settings));
     if (!playoutConfigured(settings)) {
@@ -2547,6 +2561,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     if (!replace) {
       const reading = await readState(settings, settings.channel);
+      // A Bridge that reads slots but could not read this one cannot say whether another
+      // production is there, so nothing is replaced on a guess.
+      if (!reading.reply && slotReadable) {
+        setNote(`Load on ${where} was not sent: cannot read ${where}. ${reading.result.detail}`.trim());
+        return;
+      }
       const slug = new URL(url).searchParams.get('production');
       const holds = reading.reply ? slotHolds(reading.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, slug) : null;
       if (holds === 'other') {
@@ -2560,13 +2580,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const result = await putOutputOnAir(settings, destinationUrl(url, casparId) ?? url);
     onAirChanged('air', result, casparOutputTarget(settings));
     if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
-  };
-  const unloadFromSlot = async (): Promise<void> => {
+  });
+  const unloadFromSlot = (): Promise<void> => slotAction(async () => {
     const settings = loadPlayoutSettings();
     const result = await takeOutputOff(settings);
     onAirChanged('stop', result, casparOutputTarget(settings));
     if (result.state !== 'ok') setNote(`Unload from ${slotAddress(slotOf(settings))} failed: ${result.detail}`);
-  };
+  });
 
   /** Publish; the version it wrote, or null when it did not (the note says why). `forPrepare`:
    *  The readiness flow owns preparation and reports the result in the status panel. */
@@ -2581,11 +2601,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setPublishing(true);
     try {
       let current = loadShows().find((s) => s.id === show.id);
+      let publishCaspar = casparOn;
       // NO CHOOSER (playout-workflow-simplification AC-4): a production that never had its output
       // set takes the CasparCG switch as it reads now, so the published payload and every later
       // page agree on it. Absence stays legacy; nothing is asked.
       if (current?.outputSetup && !readOutputSetup(current.outputSetup)?.destinations.length) {
-        const result = setShowOutputSetup(show.id, withCasparSwitch(current.outputSetup, casparOn));
+        // A press before the account's "Use CasparCG in new productions" has answered asks it here,
+        // rather than freezing the switch off for good.
+        if (accountCaspar === null && user?.id) {
+          const preference = await readDefaultOutput(user.id);
+          publishCaspar = casparSwitch({
+            setup: current.outputSetup,
+            serverCues: (current.cues ?? []).some((c) => c.source === 'playout'),
+            legacyActivity: false,
+            accountDefault: preference.setup ? preference.setup.destinations.some((d) => d.profile === 'casparcg') : null,
+          });
+        }
+        const result = setShowOutputSetup(show.id, withCasparSwitch(current.outputSetup, publishCaspar));
         setShows(result.shows);
         const failure = result.error ?? await commitDurableWrites();
         if (failure) throw new Error(failure);
@@ -2634,7 +2666,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // PUBLISH LOADS THE CASPARCG SLOT (AC-5): the first publish with CasparCG switched on puts
         // this production's renderer on its slot, the step that used to be its own Put on air. It
         // asks before replacing another production, and a failure names the step.
-        if (!wasStarted && casparOn && published.outputSlug) await loadOnSlot(outputPageUrl(published.outputSlug));
+        if (!wasStarted && publishCaspar && published.outputSlug) await loadOnSlot(outputPageUrl(published.outputSlug));
         return published.version ? { n: published.version.n, h: published.version.h } : null;
       }
       setNote('Publishing needs the cloud backend, and this build runs offline.');
@@ -4320,14 +4352,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       : { state: 'config', detail: '' }
     : null;
   const slotWhere = slotAddress(slotOf(playoutSettings));
+  // The renderer on the CasparCG slot, which tags itself with the CasparCG destination it was loaded
+  // with: OBS reporting is not CasparCG drawing (D3). A production whose CasparCG output was never
+  // tagged (from before destinations) has nothing to tell them apart by.
+  const casparDestination = readOutputSetup(show.outputSetup)?.destinations.find((d) => d.profile === 'casparcg')?.id;
+  const casparReporting = casparDestination
+    ? livePresence.peers.some((p) => p.kind === 'output' && p.destinationId === casparDestination && !!p.ready)
+    : undefined;
   /** Lost, not merely empty: this session saw it there (`slotSeenOurs`). */
   const slotLost = slotSeenOurs && !!outputSlot && (outputSlot.holds === 'empty' || outputSlot.holds === 'other');
   const playoutStatus = describePlayoutStatus({
     started,
-    publishing: publishing || prepareFlow.phase === 'publishing',
+    publishing,
     casparOn,
     bridge: bridgeFact,
-    slot: playoutRelevance.slot && outputSlot ? { where: slotWhere, channel: playoutSettings.channel, ...outputSlot } : undefined,
+    slot: playoutRelevance.slot && outputSlot ? { where: slotWhere, channel: playoutSettings.channel, ...outputSlot, reporting: casparReporting } : undefined,
     slotLost,
     ready: readySummary,
     noOutputTake,
@@ -4338,7 +4377,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** THE ONE ACTION SLOT (D1): Publish before the first publish, then whichever is due first -
    *  loading this production on its CasparCG slot, then publishing changes that renderers draw. The
    *  panel lists every due action. */
-  const loadDue = started && casparOn && playoutIsConfigured && bridgeOk && !!outputSlot && outputSlot.holds !== 'ours' && outputSlot.holds !== 'unreadable' && !replaceAsk;
+  const loadDue = started && casparOn && playoutIsConfigured && bridgeOk && !!outputSlot && outputSlot.holds !== 'ours' && outputSlot.holds !== 'unreadable' && outputSlot.holds !== 'failed' && !replaceAsk;
   const headerAction: { label: string; testId: string; run: () => void; primary?: boolean; title?: string } | null = !started
     ? {
         label: 'Publish',
@@ -4398,7 +4437,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           }
         : null,
     replaceAsk: replaceAsk ? { where: slotWhere } : null,
-    busy: busy || flowBusy,
+    busy: busy || flowBusy || slotBusy,
   };
   /** The CasparCG switch (AC-4): display metadata only, nothing airs or stops. */
   const setCaspar = async (on: boolean) => {
@@ -4492,7 +4531,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               <button
                 className={headerAction.primary ? 'primary' : 'pd-action-due'}
                 onClick={headerAction.run}
-                disabled={busy || flowBusy || (headerAction.testId === 'production-publish' && !backendConfigured)}
+                disabled={busy || flowBusy || slotBusy || (headerAction.testId === 'production-publish' && !backendConfigured)}
                 title={headerAction.title}
                 data-testid={headerAction.testId}
               >
@@ -5310,8 +5349,7 @@ function ProductionShell({
   children,
 }: {
   show: Show;
-  /** The one playout status and its panel (home/PlayoutStatusControl.tsx), plus ▶ Start
-   *  production while the production is offline. */
+  /** The one playout status and its panel (home/PlayoutStatusControl.tsx), with its action slot. */
   status: React.ReactNode;
   liveLayers: { layer: number }[];
   follow: ControlFollowStatus | null;
@@ -5494,7 +5532,7 @@ function ProductionShell({
             its state and the cluster is right-aligned, so those two never move (owner,
             2026-10-01: operators build muscle memory).
             Team identity and its door live inside Setup, gated by useTeamsAvailable.
-            Saving… and Not saved stay visible: an operator must not miss either state. */}
+            The cloud chip stays visible: an operator must not miss a save that is late or failed. */}
         {/* One chip for both kinds of production (playout-workflow-simplification AC-12): a team
             production reads its own save, in the same words. */}
         <SyncStatus compact team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
