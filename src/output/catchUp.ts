@@ -42,7 +42,7 @@ export const CATCH_UP_TIMING: CatchUpTiming = { floorMs: 1200, capMs: 6000, poll
 export type CatchUpEnding = 'settled' | 'cap';
 
 /** One graphic's last word: how many times it has answered, and where its animations stood. */
-interface Reading {
+export interface Reading {
   replies: number;
   motion: number;
 }
@@ -52,7 +52,21 @@ interface Reading {
 const UNANSWERED = -1;
 const NEVER_READ: Reading = { replies: -1, motion: UNANSWERED };
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** What one graphic last said: how many times it has answered, and its playhead. */
+export function readGraphic(stage: Pick<SettleableStage, 'replies' | 'motion'>, graphic: string): Reading {
+  return { replies: stage.replies.get(graphic) ?? 0, motion: stage.motion.get(graphic) ?? UNANSWERED };
+}
+
+/**
+ * Did the graphic stand still between two readings? Only when it ANSWERED again with the playhead
+ * it had before: the answers are messages, and a document still working through commands answers
+ * nothing at all, so reading that silence as stillness would wait on the wrong thing.
+ */
+export function stoodStill(before: Reading = NEVER_READ, after: Reading = NEVER_READ): boolean {
+  return after.replies > before.replies && after.motion === before.motion;
+}
 
 /**
  * Wait for the replay to stand still, then put the stage back on air. Resolves with which of the
@@ -72,26 +86,16 @@ export async function airWhenSettled(
   const deadline = now() + timing.capMs;
   await Promise.race([stage.whenLoaded(), wait(Math.max(0, deadline - now()))]);
   const floor = Math.min(now() + timing.floorMs, deadline);
-  /** What one graphic last said: how many times it has answered, and its playhead. */
-  const read = (graphic: string): Reading => ({
-    replies: stage.replies.get(graphic) ?? 0,
-    motion: stage.motion.get(graphic) ?? UNANSWERED,
-  });
+  const read = (graphic: string) => readGraphic(stage, graphic);
   let previous = new Map(stage.graphics.map((g) => [g, read(g)]));
   let stillFor = 0;
   for (;;) {
     await wait(timing.pollMs);
-    // Ask, then read what the PREVIOUS ask brought back: the answers are messages, so they land
-    // between turns of this loop. A graphic counts as still only when it ANSWERED again with the
-    // playhead it had before - a document working through the replay answers nothing at all, and
-    // reading that silence as stillness is how this waited on the wrong thing.
+    // Ask, then read what the PREVIOUS ask brought back: the answers land between turns of this
+    // loop (`stoodStill`).
     stage.graphics.forEach((g) => stage.requestState(g));
     const reading = new Map(stage.graphics.map((g) => [g, read(g)]));
-    const still = stage.graphics.every((g) => {
-      const seen = reading.get(g) ?? NEVER_READ;
-      const before = previous.get(g) ?? NEVER_READ;
-      return seen.replies > before.replies && seen.motion === before.motion;
-    });
+    const still = stage.graphics.every((g) => stoodStill(previous.get(g), reading.get(g)));
     previous = reading;
     stillFor = still ? stillFor + timing.pollMs : 0;
     // Two still readings, because the first one only says the graphics agreed with an ask that

@@ -247,25 +247,28 @@ The page:
   booted with, what fails) and its `&name=` in its Presence entry, and says the same on the
   `&debug=1` line. The version stamp is `output.ver` (`src/control/payloadVersion.ts`), written by
   every publish: a digest per graphic and one over them all, and a number for the label.
-- **Preparing a newer version** (`src/output/prepare.ts`, Phase 6 Step 3 landing b). An open
-  renderer keeps its prepared graphics while a newer version is checked. The production page
-  publishes with **Publish** (the first time) and **Publish changes** (after that); the Playout
-  panel's **Check now** checks again without publishing, and CasparCG's **Load** stays separate.
-  Cue-only versions adopt their new stamp without rebuilding byte-identical graphics, so cue
-  ordering, notes and shortcuts do not invalidate already prepared assets. When the action asks
-  (a `prep: {id, n, h}` in
-  the production page's own Presence entry), it re-reads the published payload, builds only the
-  new and changed graphics in hidden frames beside the ones on air, one at a time, and runs the
-  same checks on them. Every change prepared and nothing on air here: it reloads onto the new
-  version once its own URL answers, through the boot recovery above. A change that failed: it
-  keeps the version it runs ("Ready · 1 change not prepared: Frost Quiz (script error)"). A
-  graphic on air: it keeps its version and says so ("Behind", with how many are on air). The
-  same version as it holds: it only checks again. Each answer names the request it answers, a
-  request is accepted once (session storage keeps the ids across the reload). Deferred asset
-  preparation retries automatically after air clears, re-reading the latest published payload;
-  preparation starts at most every 15 s. Air is checked again immediately before a reload.
-  "On air" is the log's own head summary on the numbered log. Amber guidance distinguishes
-  responding prepared output with changes pending from output whose health is unconfirmed.
+- **Taking a newer version, one graphic at a time** (`src/output/prepare.ts`, `src/output/swap.ts`;
+  docs/work-specs/per-graphic-replacement/spec.md). An open renderer keeps its graphics while a
+  newer version is checked. The production page publishes with **Publish** (the first time) and
+  **Publish changes** (after that); the Playout panel's **Check now** checks again without
+  publishing, and CasparCG's **Load** stays separate. Cue-only versions adopt their new stamp
+  without rebuilding byte-identical graphics. When the action asks (a `prep: {id, n, h}` in the
+  production page's own Presence entry), the renderer re-reads the published payload and compares
+  each graphic's digest with the frame it runs. A changed graphic is built in a hidden frame beside
+  its running one, one at a time, and checked as a boot checks it. One off air here takes over as
+  soon as its old frame stands still; one on air keeps its frame until its Out, All out or a
+  Stop/Clear, or until a Take replaces it, which then airs the new body. Live content (Update,
+  events, data) keeps reaching the frame on air meanwhile, and a frame that takes over is first
+  given the values its graphic holds. A change that fails keeps the old frame ("Change failed:
+  Frost Quiz"). New graphics join at once; removed ones leave once off air. Nothing reloads for a
+  graphic change: the entry says which graphics wait (`chg.w`, "Waiting for clear: Scorebug"), and
+  its version becomes the published one once every graphic holds it. Each output does this on its
+  own, with no command of its own on the log. The page reloads, through the boot recovery above
+  and once its own URL answers, only for another stage resolution or a new renderer build at its
+  URL, and only when nothing is on air here. Each answer names the request it answers, a request
+  is accepted once (session storage keeps the ids across a reload), and preparation starts at most
+  every 15 s. "On air" is what this renderer last applied to the graphic, else the log's own head
+  summary on the numbered log.
 - **The command path ping** (migration 0072, Phase 6 Step 3 landing c). `control_ping_seq` writes
   one row `{t: 'ping', id, at}` with an empty graphic under the next number, with the same locks
   and burst cap as a Take, so it takes a Take's road on both protocols (the per-row `log-`
@@ -554,8 +557,8 @@ send.
   on the hosted page, the READY line (`components/control/OutputHealth.tsx`, words from
   `control/readiness.ts`). Both read the same `useReadinessView`, so on a phone too: each output's
   own READY answer in the plan's words ("Preparing 18 of 24", "Ready for
-  playout", "Not ready: Frost Quiz (script error)", "Behind: showing v12", "Commands may arrive up
-  to 30 s late"), and an output that was connected and is gone as "CasparCG 1-20 not answering
+  playout", "Not ready: Frost Quiz (script error)", "Waiting for clear: Scorebug", "Change failed:
+  Frost Quiz", "Commands may arrive up to 30 s late"), and an output that was connected and is gone as "CasparCG 1-20 not answering
   (40 s)", red after 15 s. It is a button; its panel lists every output and what to do. The
   production page remembers the outputs it has seen per production in the browser and announces
   them, its published version and its stamp in its own Presence entry, so the hosted page counts
