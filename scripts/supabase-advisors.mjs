@@ -111,10 +111,15 @@ const ACCEPTED_CLASSES = {
     'writes the command log; each is bounded (presses per key, wants per key, failed pairings). ' +
     'control_cue_arm and control_cue_arms_for (0075, timed cues) are the same slug door again: the ' +
     'read answers only that production\'s countdowns, and the write moves only its arm row, its head ' +
-    'and its log, under the head lock and the burst cap of control_send_seq.',
+    'and its log, under the head lock and the burst cap of control_send_seq. ' +
+    'community_pack_shelf and community_pack_file (0079, community packs) are a different door with ' +
+    'the same reason to be anon-callable: approved packs are on the wizard shelf for everyone, signed ' +
+    'in or not (owner, 2026-10-08). Signed out, both answer only packs in state live; the table ' +
+    'itself grants clients nothing.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
-    'are what let a policy read a table the caller cannot.',
+    'are what let a policy read a table the caller cannot. The community_pack_* functions (0079) ' +
+    'are the only door to community_packs: each checks auth.uid() or is_moderator() inside.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +
