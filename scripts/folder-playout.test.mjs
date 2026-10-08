@@ -349,7 +349,9 @@ test('one function lights every folder, from what is up and never from the clock
   const rehearsal = folderAir({ folders, cues, items, ownership, liveCue: { 'g-bug': 'bug', 'g-strap': 'strap' }, graphicName: (c) => c.sourceId, graphicsAir: false });
   assert.equal(rehearsal.M.upHere, 1);
   assert.deepEqual(folderAirWords(rehearsal.M, 0), { tag: '1 UP', tone: 'up', title: '1 cue up on this page only: the production is not published.' });
-  assert.equal(folderAirWords(rehearsal.A, 0).tag, '1 ON AIR · 1 UP', 'the bed airs through the Bridge, the strap is up here');
+  const mixed = folderAirWords(rehearsal.A, 0);
+  assert.equal(mixed.tag, 'ON AIR', 'the bed airs through the Bridge, so the folder keeps its short words');
+  assert.match(mixed.title, /1 cue up on this page only/, 'and says the strap is up here');
   assert.equal(rehearsal.T.upHere, undefined, 'clips air either way');
   assert.equal(folderAirWords(rehearsal.T, 0).tag, 'ON AIR');
   // Readings that move only the clock hand the page the same ownership object, so this never runs twice a second.

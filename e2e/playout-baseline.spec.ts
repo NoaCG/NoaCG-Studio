@@ -243,7 +243,7 @@ for (const size of SIZES) {
     await expect(page.getByTestId('verb-take')).toBeEnabled();
     await parkFocusOffControls(page);
     await page.keyboard.press(' ');
-    await expect(header('Opening').getByTestId('folder-air')).toHaveText('1 ON AIR · 1 UP');
+    await expect(header('Opening').getByTestId('folder-air')).toHaveText('ON AIR');
     await header('Opening').getByTestId('folder-toggle').click();
     await header('Block A').getByTestId('select-folder').click();
     await parkFocusOffControls(page);

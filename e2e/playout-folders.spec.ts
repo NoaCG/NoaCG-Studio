@@ -822,7 +822,7 @@ test('All together: one Take starts every cue in it, a refused one is NOT TAKEN 
   await expect(cue(page, 'Hairline').getByTestId('cue-up-here')).toBeVisible();
   await expect(cue(page, 'OPENER')).toContainText('ON AIR');
   await expect(cue(page, 'STING')).toContainText('ON AIR');
-  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('2 ON AIR · 1 UP');
+  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('ON AIR');
   // The server cues first, in rundown order, then the graphics.
   expect(fake.actions.map((a) => `${a.verb} ${a.slot.channel}-${a.slot.layer}`)).toEqual(['take 2-10', 'take 2-5']);
 
@@ -839,7 +839,7 @@ test('All together: one Take starts every cue in it, a refused one is NOT TAKEN 
   await page.keyboard.press(' ');
   await expect(cue(page, 'OPENER')).toContainText('ON AIR');
   await expect(cue(page, 'STING').getByTestId('cue-take-miss')).toHaveText('NOT TAKEN');
-  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('1 ON AIR · 1 UP');
+  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('2 OF 3 ON AIR');
   await expect(page.getByTestId('production-note')).toContainText('STING');
 });
 
@@ -1224,7 +1224,7 @@ test('All together: server cues first, then the graphics; the clock follows the 
   release();
   await expect(cue(page, 'Strap').getByTestId('cue-up-here')).toBeVisible();
   await expect(cue(page, 'BED')).toContainText('ON AIR');
-  await expect(folder(page, 'Opening').getByTestId('folder-air')).toHaveText('2 ON AIR · 1 UP');
+  await expect(folder(page, 'Opening').getByTestId('folder-air')).toHaveText('ON AIR');
   await expect(page.getByTestId('production-note')).toHaveText('✓ Take: Opening, 3 of 3 on air');
   expect(sent(fake)).toEqual(['take 2-10 VT', 'take 2-5 BED']);
   await expect(page.getByTestId('clip-clock')).toHaveAttribute('aria-label', /^VT on 2-10/);

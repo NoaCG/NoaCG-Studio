@@ -107,13 +107,21 @@ export function folderAirWords(air: FolderAir | undefined, missed: number): { ta
   const up = air.onAir.length;
   if (!up) return missed ? { tag: 'NOT TAKEN', tone: 'miss', title: 'The last Take of this folder put nothing on air. Each cue says why.' } : null;
   // Before the first publish a graphic plays on this page only (playout-workflow-simplification
-  // D12): it is UP, as on its row, and only the server cues that air either way say ON AIR.
+  // D12). A folder with only such graphics up reads UP, as their rows do. Once anything in it airs
+  // (a server cue does either way) it keeps its usual short ON AIR words, which leave the folder's
+  // name the room it had, and the tooltip says how many are only up here.
   const local = Math.min(air.upHere ?? 0, up);
-  if (local) {
-    const airs = up - local;
-    const tag = airs ? `${airs} ON AIR · ${local} UP` : air.mode === 'together' && up < air.total ? `${up} OF ${air.total} UP` : air.mode === 'manual' ? `${up} UP` : 'UP';
-    return { tag, tone: airs ? 'part' : 'up', title: `${cues(local)} up on this page only: the production is not published.` };
+  const here = `${cues(local)} up on this page only: the production is not published.`;
+  if (local === up) {
+    const tag = air.mode === 'together' && up < air.total ? `${up} OF ${air.total} UP` : air.mode === 'manual' ? `${up} UP` : 'UP';
+    return { tag, tone: 'up', title: here };
   }
+  const words = onAirWords(air, up);
+  return local ? { ...words, title: `${words.title} ${here}` } : words;
+}
+
+/** A folder's words while something of it is on air: `up` of its cues are. */
+function onAirWords(air: FolderAir, up: number): { tag: string; tone: 'air' | 'part'; title: string } {
   if (air.mode === 'through') {
     const where = air.slot ?? 'its slot';
     const title = air.looping
