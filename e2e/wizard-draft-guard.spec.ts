@@ -1,0 +1,70 @@
+// covers: src/components/NewGraphicButton.tsx, src/store/saveActions.ts, src/components/save/SaveDialogs.tsx
+// covers: src/components/wizard/CreationWizard.tsx, src/components/home/HomePage.tsx
+//
+// + NEW GRAPHIC FROM HOME OVER A WIZARD WALK LEFT MID-WAY. The wizard's Home door closes it with
+// the draft still in memory, and + New graphic used to open it FRESH, wiping that draft without
+// a word. The guard that asks before replacing the working document (e2e/new-graphic-guard.spec.ts)
+// now covers the walk too, under the same rule: it asks only when something the user did would be
+// lost, and its safe answer takes them back into the walk where they left it.
+
+import { test, expect, type Page } from '@playwright/test';
+import { pickDesign } from './_browse';
+
+/** Into the wizard from Home, onto the template walk's Browse step. */
+async function toBrowse(page: Page) {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-door="new-graphic"]').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await expect(page.locator('.wz-browse-search')).toBeVisible();
+}
+
+/** The wizard's own Home door, then Home's + New graphic. */
+async function leaveThenPressNew(page: Page) {
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.locator('[data-door="new-graphic"]').click();
+}
+
+test('a walk with work in it: + New graphic asks, Continue returns to it, Discard starts fresh', async ({ page }) => {
+  await toBrowse(page);
+  await pickDesign(page, 'Hairline');
+  const doc = page.locator('.wz-title-doc');
+  await expect(doc).toContainText('Hairline');
+  const where = (await page.getByTestId('wz-stepcount').textContent())!;
+
+  await leaveThenPressNew(page);
+  const guard = page.getByTestId('confirm-switch');
+  await expect(guard).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+
+  // Cancel stays on Home and keeps the walk: the next press asks again.
+  await guard.getByTestId('switch-cancel').click();
+  await expect(guard).toBeHidden();
+  await page.locator('[data-door="new-graphic"]').click();
+  await expect(guard).toBeVisible();
+
+  // Continue: back on the step the walk was left on, the chosen design still in it.
+  await guard.getByTestId('switch-resume').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.getByTestId('wz-stepcount')).toHaveText(where);
+  await expect(doc).toContainText('Hairline');
+
+  // Discard: the wizard opens fresh on its front page, and asks nothing the time after.
+  await leaveThenPressNew(page);
+  await guard.getByTestId('switch-discard').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  await expect(page.getByTestId('wz-stepcount')).toHaveCount(0);
+  await expect(doc).toHaveCount(0);
+});
+
+test('nothing to lose: a walk left before choosing anything opens fresh without asking', async ({ page }) => {
+  await toBrowse(page);
+  await leaveThenPressNew(page);
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+});

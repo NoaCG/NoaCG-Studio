@@ -78,7 +78,7 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
-import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
+import { saveCurrentGraphic, saveGraphicAs, useSaveUi } from '../../store/saveActions';
 import { graphicById, graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
@@ -268,7 +268,23 @@ export default function CreationWizard() {
   // Mounted for the session, rendering null when closed — so the gate keys on `open`, not on
   // mount, or every editor shortcut in the app would be dead from first paint.
   useModalGate(open);
-  const closeGallery = useTemplateStore((s) => s.closeGallery);
+  // ── A WALK LEFT MID-WAY ──
+  // Every close the wizard makes ITSELF (a door that made something, ✕ on the front page, a
+  // declined walk-back) goes through this wrapper, so a close it did not make is the reader
+  // LEAVING: the Home door (which calls the store's own close on purpose) or browser Back. Such
+  // a walk is held, and the guard asks before a door opens the wizard fresh over it
+  // (saveActions `heldWalk`).
+  const closedByWizard = useRef(false);
+  const leaveGallery = useTemplateStore((s) => s.closeGallery);
+  const closeGallery = useCallback(() => {
+    closedByWizard.current = true;
+    leaveGallery();
+  }, [leaveGallery]);
+  /** The draft this walk started from, so "has work" means the reader changed something. */
+  const startDraft = useRef<WizardDraft | null>(null);
+  /** The last working step (past the front page) this walk stood on: where Continue returns.
+   *  Not the step at close, which browser Back has already rewound to the front page. */
+  const lastStep = useRef(0);
   // Has the created graphic been touched since the door saved it? The app's own answer, so the
   // walk-back warning promises to write over hand edits only when there are some. A door that
   // saved nothing (the editor one) reads dirty from birth, which is the right answer there too.
@@ -460,6 +476,9 @@ export default function CreationWizard() {
     if (stepRef.current) stepRef.current.scrollTop = 0;
   }, [step, mode]);
   useEffect(() => {
+    if (open && step > 0) lastStep.current = step;
+  }, [open, step]);
+  useEffect(() => {
     if (!open) return;
     const el = stepRef.current;
     if (!el) return;
@@ -501,10 +520,34 @@ export default function CreationWizard() {
     finishedWalk.current = null;
   }
 
+  /** Has the reader done anything in this walk that a fresh open would wipe? The same rule as
+   *  the working document's guard (saveActions `hasUnsavedWork`): compared with what the walk
+   *  started from. The project format alone is not work - ✕ keeps it over a discarded draft,
+   *  and it is one select to set again. Read through a ref, as `leaveStepRef` is, so the open
+   *  effect below sees the live walk without re-running on every keystroke. */
+  const walkHasWork = () => {
+    if (aiResult || importedFile || kit) return true;
+    const base = startDraft.current ?? initialDraft();
+    const { aspectId, resolutionId, fps, formatTouched } = base;
+    return JSON.stringify({ ...draft, aspectId, resolutionId, fps, formatTouched }) !== JSON.stringify(base);
+  };
+  const walkHasWorkRef = useRef(walkHasWork);
+  walkHasWorkRef.current = walkHasWork;
+
   // Fresh wizard every time it opens; reload the brand (it may have just been saved).
   useEffect(() => {
     if (open) {
       const opening = useRouter.getState().route;
+      // ── BACK INTO A WALK THE READER LEFT ── The guard's Continue (saveActions `heldWalk`):
+      // everything is still in state, because a closed wizard renders null rather than
+      // unmounting, so only the step it was left on is put back.
+      closedByWizard.current = false;
+      const { heldWalk, resumeWalk } = useSaveUi.getState();
+      useSaveUi.setState({ heldWalk: false, resumeWalk: false });
+      if (resumeWalk && heldWalk) {
+        setStep(lastStep.current);
+        return;
+      }
       // ── BACK INTO THE WALK, NOT A FRESH ONE ──
       // A re-open onto a STEP url with a finished walk still in memory is the reader coming
       // BACK: browser Back off the production page (or the editor) lands on the step entry the
@@ -566,8 +609,9 @@ export default function CreationWizard() {
           ? stepTitlesFor('template', false).findIndex((t) => stepSlug(t) === opening.step)
           : -1;
       setStep(named > 0 ? named : 0);
+      lastStep.current = 0;
       setMode('template');
-      setDraft(initialDraft());
+      let start = initialDraft();
       setBrowseFilters(NO_BROWSE_FILTERS);
       setAiResult(null);
       acceptedAiGeneration.current = null;
@@ -599,10 +643,16 @@ export default function CreationWizard() {
         if (chosen) {
           if (!named) setBrandChoices([chosen, ...saved]);
           setBrandId(chosen.id);
-          setDraft((d) => mergeDraft(d, brandPatch(chosen.brand)));
+          start = mergeDraft(start, brandPatch(chosen.brand));
         }
       }
+      setDraft(start);
+      startDraft.current = start;
     } else {
+      // Left with work in it (see `closedByWizard`)? Then hold it.
+      const left = !closedByWizard.current;
+      closedByWizard.current = false;
+      useSaveUi.setState({ heldWalk: left && walkHasWorkRef.current() });
       // BACK TO STEP 0 ON CLOSE TOO. This component stays mounted and renders null when it is
       // closed, so a closed wizard still holds the step its last walk ended on. The route sync
       // above would read that stale step at the NEXT open and push it into the URL - so "+ New
@@ -1669,7 +1719,7 @@ export default function CreationWizard() {
               data-testid="wz-home"
               title="Home: your graphics, productions, control panels and videos"
               onClick={() => {
-                closeGallery();
+                leaveGallery();
                 useRouter.getState().navigate({ view: 'home', section: null });
               }}
             >

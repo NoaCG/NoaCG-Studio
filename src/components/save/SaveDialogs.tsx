@@ -174,6 +174,20 @@ function ConfirmSwitchDialog() {
     proceed();
   };
 
+  // A WIZARD WALK left mid-way is what is at risk (saveActions `heldWalk`): it has no library to
+  // be saved into, so the safe answer is going back into it rather than saving. Either answer
+  // then meets the working-document guard on its own, since both open the wizard.
+  const walk = confirm.resume;
+  const continueWalk = () => {
+    settleConfirm();
+    useSaveUi.getState().requestSwitch(walk!, confirm.cancel);
+  };
+  const discardWalk = () => {
+    settleConfirm();
+    useSaveUi.setState({ heldWalk: false });
+    useSaveUi.getState().requestSwitch(confirm.proceed, confirm.cancel);
+  };
+
   return (
     <div
       className="gallery-backdrop"
@@ -183,22 +197,39 @@ function ConfirmSwitchDialog() {
         pressedOnBackdrop.current = false;
       }}
     >
-      <div className="wz-modal save-dialog" role="dialog" aria-modal="true" aria-label="Unsaved changes" data-testid="confirm-switch">
+      <div
+        className="wz-modal save-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label={walk ? 'Graphic in progress' : 'Unsaved changes'}
+        data-testid="confirm-switch"
+      >
         <div className="wz-header">
-          <h2>Unsaved changes</h2>
+          <h2>{walk ? 'Graphic in progress' : 'Unsaved changes'}</h2>
           <button className="gallery-close" onClick={closeConfirm} title="Cancel">✕</button>
         </div>
         <div className="save-dialog-body">
           <p>
-            “{name}” has unsaved changes. Save them before continuing?
+            {walk
+              ? 'You left a graphic unfinished in the wizard.'
+              : `“${name}” has unsaved changes. Save them before continuing?`}
           </p>
           <div className="dlg-foot dlg-foot--inline">
             <button onClick={closeConfirm} data-testid="switch-cancel">Cancel</button>
             <div className="spacer" />
-            <button onClick={discard} data-testid="switch-discard">Discard changes</button>
-            <button className="primary" onClick={saveThen} data-testid="switch-save">
-              {graphicId ? 'Save & continue' : 'Save first…'}
-            </button>
+            {walk ? (
+              <>
+                <button onClick={discardWalk} data-testid="switch-discard">Discard and start new</button>
+                <button className="primary" onClick={continueWalk} data-testid="switch-resume">Continue</button>
+              </>
+            ) : (
+              <>
+                <button onClick={discard} data-testid="switch-discard">Discard changes</button>
+                <button className="primary" onClick={saveThen} data-testid="switch-save">
+                  {graphicId ? 'Save & continue' : 'Save first…'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
