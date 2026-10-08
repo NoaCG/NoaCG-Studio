@@ -161,14 +161,19 @@ test.describe('anonymous visitor (open editor)', () => {
 
   test('an expiry notification leaves anonymous creation usable and sign-in stays explicit', async ({ page }) => {
     // Expiry no longer raises a modal over the operator's keys. Cached account authoring is
-    // paused with a recovery notice; an anonymous workspace remains clearly local and usable.
-    // Actual account loss and preserved pending work are covered by studio-evening-reliability.
+    // paused with a recovery notice; an anonymous workspace remains clearly local and usable: the
+    // header's cloud chip says Local, and no recovery notice appears, since there is no account
+    // to recover. Actual account loss and preserved pending work are covered by
+    // studio-evening-reliability.
     await page.goto('/app');
     await expect(page.locator('.wz-modal')).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('spx-session-expired')));
     const card = page.locator('.auth-card');
     await expect(card).toHaveCount(0);
-    await expect(page.getByTestId('account-save-notice')).toContainText('not saved to an account');
+    const chip = page.getByTestId('sync-status');
+    await expect(chip).toHaveText('Local');
+    await expect(chip).toHaveAttribute('data-tone', 'local');
+    await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
     await page.locator('[data-entry="template"]').click();
     await expect(page.getByTestId('wz-browse-type')).toBeEnabled();
     await page.getByTestId('creation-wizard').getByRole('button', { name: 'Sign in', exact: true }).click();
