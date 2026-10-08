@@ -123,8 +123,10 @@ const MANUAL_REVIEW = [
     // API): Build CPU Minutes $8.60 effective for 279 builds, all production (1,685 deployments
     // were skipped by the ignore step: 221 main, 1,464 preview). That is $0.031 a build, above the
     // $0.028 recorded above, but main took 500 pushes this cycle, not 719: building every one
-    // would have cost about $15.40, plus about $1.10 of other usage, under the $20 credit.
-    // Whether to rebuild on every landing again is his call; nothing was changed.
+    // would have cost about $15.40, plus about $1.10 of other usage, under the $20 credit. The
+    // margin is volume: at $0.031 the credit covers about 610 builds a cycle, so the previous
+    // cycle's 719 pushes would not have fit. Whether to rebuild on every landing again is his
+    // call; nothing was changed.
     id: 'vercel-build-cost',
     what:
       "the closed billing cycle's build spend and build count, to answer whether every-landing builds fit the $20 credit",

@@ -115,8 +115,7 @@ Nothing in `src/` imports dompurify directly. **Recheck those three call-site fa
 advisory text, if monaco's sanitizer is ever rewritten** — that is the assumption that would
 break.
 
-**Remove the override when monaco vendors a copy no open advisory covers (3.4.16 or newer
-today)**, or it silently holds a future
+**Remove the override when monaco vendors a copy no open advisory covers**, or it silently holds a future
 dompurify back. Nothing enforces that; it is why it is written here.
 
 **The `path-to-regexp` override (2026-08-13).** `package.json` pins
@@ -159,8 +158,8 @@ The same ordinary kind came back on 2026-10-08: `brace-expansion` 5.0.9 (under `
 `source-map-js` 1.2.1 (under `postcss`), both high, both dev-only, closed by lockfile bumps to
 5.0.12 and 1.2.2 inside their parents' ranges. `render-worker/` and `player-host/` keep their own
 lockfiles, which this job does not audit. They carried the same `source-map-js`, and the worker
-five more high advisories in its bundler toolchain, all closed then by patch or minor bumps in
-those lockfiles.
+four more high and two moderate advisories in its bundler toolchain, all closed then by patch or
+minor bumps in those lockfiles.
 
 Playwright gets no separate check. The actionable signal is the package bump, which `npm
 outdated` already reports; the browser revision follows from it.
