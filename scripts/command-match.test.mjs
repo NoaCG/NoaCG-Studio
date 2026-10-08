@@ -667,6 +667,20 @@ test('a push that names main is a main push, in every spelling used here', () =>
     'npm run build; if ($?) { git push origin main }',
     'git fetch origin && git push origin HEAD:main',
     'bash -c "git push origin main"',
+    // git resolves these to main too: a `heads/` short form, a glob over every branch, and the
+    // matching push `:`, which sends every branch both sides have.
+    'git push origin HEAD:heads/main',
+    "git push origin 'refs/heads/*:refs/heads/*'",
+    'git push origin :',
+    'git push origin +:',
+    // The splitter is not quote-aware, so the push arrives as `main"` or `main)`.
+    "bash -c 'cd /c/repo && git push origin main'",
+    'powershell -NoProfile -Command "git fetch; git push origin main"',
+    '(cd /c/repo && git push origin main)',
+    // Checking main out and then pushing the current branch is pushing main, whatever the
+    // checkout was on when the command was typed.
+    'git switch main && git merge --ff-only claude/x && git push',
+    'git checkout main; if ($?) { git push origin HEAD }',
   ]) {
     assert.deepEqual(mainPushes(cmd), [{ dir: '', how: 'named' }], cmd);
   }
@@ -690,6 +704,13 @@ test('a push that names no branch, or HEAD, depends on what is checked out', () 
     'git push origin > push.log',
     'git push --push-option ci.skip origin',
     'git add -A; if ($?) { git push }',
+    'git push origin @',
+    // A variable could name any branch, the checked-out one included.
+    'git push origin $branch',
+    'git push origin "$(git branch --show-current)"',
+    'bash -c "cd /c/repo && git push"',
+    // Restoring a file from main moves nothing, so the push is still of the current branch.
+    'git checkout main -- package.json && git push',
   ]) {
     assert.deepEqual(mainPushes(cmd), [{ dir: '', how: 'current' }], cmd);
   }
@@ -711,7 +732,7 @@ test('a push to another branch, a dry run, and a push as text are not main pushe
     'grep -rn "push origin main" docs/',
     'git log --oneline origin/main..HEAD',
     'git fetch origin main && git reset --hard origin/main',
-    'npm run queue -- "git push origin main"',
+    'git checkout -b claude/x main && git push -u origin claude/x',
   ]) {
     assert.deepEqual(mainPushes(cmd), [], cmd);
   }

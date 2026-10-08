@@ -25,6 +25,7 @@
 // -m / heredoc / here-string), so it is quoting-style agnostic.
 
 import { isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readHookInput, deny, gitOutput, checkoutKind } from './lib.mjs';
 import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
@@ -266,9 +267,15 @@ if (pushesAndDispatches(command)) {
 // direct push would land on main unverified, and until this check the boundary was prose only. A
 // person in their own terminal never passes through this hook. A push that NAMES main is refused
 // outright (`mainPushes` in command-match.mjs); one that pushes whatever is checked out is refused
-// only when that checkout is on main, and git that cannot answer fails open, like every git check
-// here.
-const toMain = mainPushes(command).find(({ dir, how }) => how === 'named' || checkedOutBranch(dir) === 'main');
+// only when that checkout is on main. Only a checkout of THIS repository counts - a fixture repo in
+// a temp folder has a `main` of its own - and git that cannot answer fails open, like every git
+// check here.
+const toMain = mainPushes(command).find(({ dir, how }) => {
+  const root = namedCheckout(dir);
+  const repo = root && repoOf(root);
+  if (!repo || repo !== repoOf(fileURLToPath(new URL('../..', import.meta.url)))) return false;
+  return how === 'named' || gitOutput(root, ['branch', '--show-current'])?.trim() === 'main';
+});
 if (toMain) {
   deny(
     'Blocked: this push would write `main`, and only the merge queue writes main ' +
@@ -373,8 +380,10 @@ function namedCheckout(dir) {
   return checkoutRoot(isAbsolute(dir) ? dir : join(targetRoot(), dir));
 }
 
-/** The branch checked out where an invocation's `-C <dir>` points, or null when git cannot say. */
-function checkedOutBranch(dir) {
-  const root = namedCheckout(dir);
-  return root ? (gitOutput(root, ['branch', '--show-current'])?.trim() ?? null) : null;
+/**
+ * The repository a checkout belongs to, as its shared git directory - the same for the primary
+ * checkout and every linked worktree of it - or null when git cannot say.
+ */
+function repoOf(dir) {
+  return gitOutput(dir, ['rev-parse', '--path-format=absolute', '--git-common-dir'])?.trim() || null;
 }

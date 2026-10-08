@@ -601,16 +601,20 @@ export function commitCheckouts(text) {
  * holding spaces is deliberately not reassembled: it yields a `-C` value git cannot resolve, and
  * the caller then falls back to the checkout the command line implies, which is the safe way to
  * be wrong.
+ *
+ * Each token loses its quotes and any closing paren. The splitter is not quote-aware, so the last
+ * piece of `bash -c "cd x && git push origin main"` or `(cd x && git push)` arrives as `main"` or
+ * `push)`, and read as written it named no branch and no subcommand at all.
  */
 function parseGit(part) {
   const rest = /^git\s+(.+)$/s.exec(part);
   if (!rest) return null;
-  const tokens = rest[1].trim().split(/\s+/);
+  const tokens = rest[1].trim().split(/\s+/).map((token) => token.replace(/^['"]+|['")]+$/g, ''));
   let dir = '';
   let at = 0;
   while (at < tokens.length && tokens[at].startsWith('-')) {
     if (tokens[at] === '-C' || tokens[at] === '--work-tree') {
-      dir = (tokens[at + 1] ?? '').replace(/^(['"])(.*)\1$/s, '$2');
+      dir = tokens[at + 1] ?? '';
       at += 2;
       continue;
     }
@@ -666,9 +670,14 @@ export function pushesAndDispatches(text) {
   return pushes(text) && invocationParts(text).some((part) => /^gh\s+workflow\s+run\b/.test(part));
 }
 
-/** Does this command line push to a remote for real? Shared by both push rules so they cannot drift. */
+/** Does this command line push to a remote for real? */
 function pushes(text) {
-  return gitInvocations(text).some((git) => git.subcommand === 'push' && !isDryRun(git));
+  return gitInvocations(text).some(isRealPush);
+}
+
+/** A push that writes a remote. Shared by every push rule here so they cannot drift. */
+function isRealPush(git) {
+  return git.subcommand === 'push' && !isDryRun(git);
 }
 
 /** A push that reports what it WOULD do and touches no remote: `--dry-run`, or `-n` in a cluster. */
@@ -686,17 +695,28 @@ function isDryRun(git) {
  *
  * `how` says how much the command line itself settles:
  *   - 'named': a refspec's DESTINATION is main (`main`, `HEAD:main`, `+main`, `:main`,
- *     `refs/heads/main`), or the push sends every branch (`--all`, `--mirror`, `--branches`).
- *   - 'current': no refspec, or `HEAD`, so it pushes whatever branch `dir`'s checkout has checked
- *     out. Only git can say which that is, so the caller asks.
+ *     `refs/heads/main`, `heads/main`, a `refs/heads/*` glob), the push sends every branch
+ *     (`--all`, `--mirror`, `--branches`, or the matching push `:`), or the same line checked
+ *     `main` out before a push of the current branch.
+ *   - 'current': no refspec, `HEAD`/`@`, or a `$variable`, so it pushes whatever branch `dir`'s
+ *     checkout has checked out. Only git can say which that is, so the caller asks.
  * `main:claude/x` writes `claude/x` and is not listed; neither is a dry run, which writes nothing.
  * Positional like every matcher here, so `echo "git push origin main"` is not a push.
+ *
+ * A MIS-TYPING GUARD, like `startableSegments` says of the rest: a push placed after an enqueue on
+ * the same line is read as that enqueue's argument and missed, and so is a push to main inside a
+ * queued payload, which the job runner later runs outside every hook.
  */
 export function mainPushes(text) {
-  return gitInvocations(text)
-    .filter((git) => git.subcommand === 'push' && !isDryRun(git))
-    .map((git) => ({ dir: git.dir, how: mainPushKind(git.args) }))
-    .filter((push) => push.how !== null);
+  const found = [];
+  let onMain = false;
+  for (const git of gitInvocations(text)) {
+    onMain ||= checksOutMain(git);
+    if (!isRealPush(git)) continue;
+    const how = mainPushKind(git.args);
+    if (how) found.push({ dir: git.dir, how: how === 'current' && onMain ? 'named' : how });
+  }
+  return found;
 }
 
 /** Push options that take the NEXT token as their value, so it is neither a remote nor a refspec. */
@@ -706,7 +726,7 @@ const PUSH_VALUE_OPTIONS = ['-o', '--push-option', '--repo', '--receive-pack', '
 function mainPushKind(args) {
   const positional = [];
   for (let at = 0; at < args.length; at += 1) {
-    const arg = args[at].replace(/^(['"])(.*)\1$/s, '$2');
+    const arg = args[at];
     if (['--all', '--mirror', '--branches'].includes(arg)) return 'named';
     // A bare redirection (`> out.txt`) takes the next token as its target; an attached one
     // (`2>/dev/null`, or the `2>` the splitter leaves of `2>&1`) is only itself. Neither is a
@@ -715,12 +735,22 @@ function mainPushKind(args) {
     else if (!arg.startsWith('-') && !/^[\d*&]?>/.test(arg)) positional.push(arg);
   }
   const refspecs = positional.slice(1); // the first positional is the remote
-  if (refspecs.some((spec) => /^(?:refs\/heads\/)?main$/.test(spec.replace(/^\+/, '').split(':').pop()))) {
-    return 'named';
-  }
+  const writesMain = (spec) =>
+    /^\+?:$/.test(spec) || /^(?:(?:refs\/)?heads\/)?(?:main|\*)$/.test(spec.replace(/^\+/, '').split(':').pop());
+  if (refspecs.some(writesMain)) return 'named';
   // `--tags` with no refspec pushes the tags alone, not the checked-out branch.
   if (refspecs.length === 0) return args.includes('--tags') ? null : 'current';
-  return refspecs.some((spec) => /^\+?HEAD$/.test(spec)) ? 'current' : null;
+  return refspecs.some((spec) => /^\+?(?:HEAD|@)$/.test(spec) || spec.includes('$')) ? 'current' : null;
+}
+
+/** Does this invocation leave `main` checked out (`git switch main`, `git checkout -B main …`)? */
+function checksOutMain(git) {
+  if (!BRANCH_CREATE_FLAGS[git.subcommand] || git.args.includes('--detach')) return false;
+  const created = branchCreationIn(git);
+  if (created) return created.branch === 'main';
+  // `git checkout main <path>` and `git checkout main -- <path>` restore files and move nothing.
+  const named = git.args.filter((arg) => !arg.startsWith('-'));
+  return !git.args.includes('--') && named.length === 1 && named[0] === 'main';
 }
 
 /**
