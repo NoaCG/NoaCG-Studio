@@ -3,10 +3,13 @@
 // `templates/catalog.ts` pulls every design and graphic type, about 650 modules. Home, the
 // wizard's Entry step and the production page need none of it, so nothing on the /app boot path
 // imports it statically: a surface that lists designs asks here, and shows `CatalogLoading`
-// until it arrives. The wizard steps that build on it are `lazy()` for the same reason. The
+// until it arrives. The wizard steps that build on it are `lazyStep()` for the same reason. The
 // Entry step's template card starts the load on hover or focus, so a person who is about to
 // browse rarely sees the wait, and a visit that never browses never pays for it.
-import { useEffect, useSyncExternalStore } from 'react';
+//
+// A failed load offers a page reload rather than a retry: browsers may keep a failed module
+// fetch, and after a deploy the old chunk is simply gone.
+import { lazy, useEffect, useSyncExternalStore, type ComponentType } from 'react';
 
 export type Catalog = typeof import('../templates/catalog');
 
@@ -19,23 +22,24 @@ function set(next: typeof state): void {
   for (const listener of listeners) listener();
 }
 
-/** The catalog module, fetched once. A failed fetch is forgotten, so the next ask retries. */
+/** The catalog module, fetched once. */
 export function loadCatalog(): Promise<Catalog> {
-  if (!loading) {
-    if (state.failed) set({ catalog: null, failed: false });
-    loading = import('../templates/catalog').then(
-      (catalog) => {
-        set({ catalog, failed: false });
-        return catalog;
-      },
-      (error: unknown) => {
-        loading = null;
-        set({ catalog: null, failed: true });
-        throw error;
-      },
-    );
-  }
+  loading ??= import('../templates/catalog').then(
+    (catalog) => {
+      set({ catalog, failed: false });
+      return catalog;
+    },
+    (error: unknown) => {
+      set({ catalog: null, failed: true });
+      throw error;
+    },
+  );
   return loading;
+}
+
+/** Start the load without waiting for it, e.g. on hover over a door that will list designs. */
+export function preloadCatalog(): void {
+  loadCatalog().catch(() => undefined);
 }
 
 function subscribe(listener: () => void): () => void {
@@ -49,25 +53,29 @@ const useCatalogState = () => useSyncExternalStore(subscribe, () => state);
 export function useCatalog(active = true): Catalog | null {
   const { catalog } = useCatalogState();
   useEffect(() => {
-    if (active) loadCatalog().catch(() => undefined);
+    if (active) preloadCatalog();
   }, [active]);
   return catalog;
 }
 
-/** Start the load ahead of a press that will list designs (a hover or focus on its door). */
-export function preloadCatalog(): void {
-  loadCatalog().catch(() => undefined);
+function NotLoaded({ what }: { what: string }) {
+  return (
+    <p className="hint catalog-loading" role="status" data-testid="catalog-loading">
+      {what} did not load.{' '}
+      <button className="link-inline" onClick={() => window.location.reload()}>Reload</button>
+    </p>
+  );
 }
 
 export function CatalogLoading() {
   const { failed } = useCatalogState();
-  if (failed) {
-    return (
-      <p className="hint catalog-loading" role="status" data-testid="catalog-loading">
-        The designs did not load.{' '}
-        <button className="link-inline" onClick={() => void loadCatalog().catch(() => undefined)}>Try again</button>
-      </p>
-    );
-  }
+  if (failed) return <NotLoaded what="The designs" />;
   return <p className="hint catalog-loading" role="status" data-testid="catalog-loading">Loading designs…</p>;
+}
+
+/** `lazy()` for a step that loads with the catalog. Nothing above the wizard catches a render
+ *  error, so a chunk that fails to load says so in place instead of blanking the page. */
+export function lazyStep<P extends object>(load: () => Promise<{ default: ComponentType<P> }>) {
+  const failed: ComponentType<P> = () => <NotLoaded what="This step" />;
+  return lazy(() => load().catch(() => ({ default: failed })));
 }

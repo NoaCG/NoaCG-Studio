@@ -1,6 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
-import { CatalogLoading, useCatalog } from '../catalogOnDemand';
+import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   armTimerClock,
   brandClearPatch,
@@ -95,9 +95,9 @@ import type { TemplatePack } from '../../templates/packs';
 
 // The steps that list or build on catalog designs load with the catalog, never with the wizard:
 // the Entry step must open without it (components/catalogOnDemand.tsx).
-const BrowseStep = lazy(() => import('./steps/BrowseStep'));
-const FieldsStep = lazy(() => import('./steps/FieldsStep'));
-const AiStep = lazy(() => import('./steps/AiStep'));
+const BrowseStep = lazyStep(() => import('./steps/BrowseStep'));
+const FieldsStep = lazyStep(() => import('./steps/FieldsStep'));
+const AiStep = lazyStep(() => import('./steps/AiStep'));
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
@@ -683,14 +683,15 @@ export default function CreationWizard() {
   // it runs, so it fires exactly once per deep link and never re-applies after the user has
   // moved on.
   const pendingDesignId = useTemplateStore((s) => s.pendingDesignId);
-  // The catalog loads once a step lists designs or the draft names a catalog design (or a deep
-  // link does). Entry, the AI step (lazy, so it brings its own), the import doors (their own
-  // variants resolve without it) and video never wait for it. Until it arrives the step area
-  // shows CatalogLoading.
+  // The catalog loads once a step lists designs, the draft names a catalog design, or a deep
+  // link does (which holds Entry until it resolves, so nothing done there is overwritten). The AI
+  // step (lazy, so it brings its own), the import doors (their own variants resolve without it)
+  // and video never wait for it. Until it arrives the step area shows CatalogLoading.
   const importedVariant = IMPORTED_VARIANTS.find((v) => v.id === draft.variantId);
   const listsDesigns = (mode === 'template' && step >= 1) || (mode === 'import' && step >= 2);
-  const needsCatalog = listsDesigns || (step > 0 && Boolean(draft.variantId) && !importedVariant);
-  const catalog = useCatalog(open && (needsCatalog || Boolean(pendingDesignId)));
+  const needsCatalog =
+    listsDesigns || Boolean(pendingDesignId) || (step > 0 && Boolean(draft.variantId) && !importedVariant);
+  const catalog = useCatalog(open && needsCatalog);
   useEffect(() => {
     if (!open || !pendingDesignId || !catalog) return;
     const pending = catalog.variantById(pendingDesignId);
