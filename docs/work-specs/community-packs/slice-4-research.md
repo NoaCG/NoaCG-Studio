@@ -7,8 +7,9 @@ on issue #797.
 
 Read for this note, on `main` at 99b55d8a1: `src/community/packs.ts`, `packSources.ts`,
 `packChecks.ts`; `src/components/wizard/steps/CommunityPacks.tsx` and `SubmitPackSheet.tsx`;
-`src/components/home/sections/GraphicsSection.tsx`, `FolderItem.tsx`, `RowMenu.tsx`;
-`supabase/migrations/0079_community_packs.sql`; `cli/src/commands/pack.ts`, `save.ts`,
+`src/components/home/sections/GraphicsSection.tsx`, `src/components/home/FolderItem.tsx` and
+`RowMenu.tsx`; `supabase/migrations/0079_community_packs.sql`, `0020_self_scoped_predicates.sql`,
+`0022_entitlement_absolutes.sql`; `cli/src/commands/pack.ts`, `save.ts`,
 `cli/src/mcp.ts`, `cli/src/bridgeClient.ts`; `api/_lib/me/packages.ts`,
 `src/entitlements/permissions.ts`; `cli/plugin/skills/noacg-graphic/SKILL.md` and
 `references/package.md`; `src/validation/runtimeBench.ts`, `src/control/ografHost.ts`.
@@ -38,7 +39,9 @@ the folder-first recommendation rests on the product's model, not a usage count.
 - **The server keeps one submit gate.** `community_pack_submit` reads `auth.uid()`, admits
   moderators only (D12), refuses suspended accounts, cues, more than 50 graphics, more than
   10 waiting packs, and writes `author` and `license` itself. An agent key is not a session, so
-  that function cannot be called with one as it stands.
+  that function cannot be called with one as it stands. It does not consult the
+  `community.publish` entitlement, the per-account switch an admin turns off for abuse
+  (`src/entitlements/contract.ts`); the closed gallery's publish path did.
 - **The bench can observe requests.** `benchTemplateRuntime` loads each graphic in a hidden
   `srcdoc` iframe and plays it through update, play, Continue and stop. `ografHost.ts` already
   puts a Content-Security-Policy meta first in a hosted graphic's head
@@ -52,17 +55,19 @@ How a maker builds a pack on Home is how they already group graphics: they file 
 (bulk Folder, drag onto a folder, or a new folder from a selection) and keep refining it. No new
 "pack" object, no draft state and no new section. When the set is ready, the maker submits it.
 
-Two entry points, both inside existing overflow menus so no visible control on Home mentions
-sharing (D16), and neither uses the word "Share", which stays the team door's (D8):
+Two entry points, neither with a visible word about sharing on Home (D16), and neither using
+the word "Share", which stays the team door's (D8):
 
 1. **A folder's ⋯ gains "Submit to Community packs…"** after Rename and Remove folder. Because
    `folderMenu` is one list, the item appears on the folder card and in the open folder's
    breadcrumb head alike. A right-click on a folder card opens that same ⋯ menu (the rundown's
    precedent), which is the owner's "right-click" with no second menu to maintain.
-2. **The bulk bar gains a ⋯ with one item, "Submit to Community packs…",** for "some graphics":
-   any selection, including one made across folders during a search. The ⋯ is drawn only when it
-   has an item, as the production card's menu is (`ProductionsSection`), so for everyone the
-   door is closed to, the bulk bar is exactly as today.
+2. **The bulk bar gains an icon-only ⋯ holding "Submit to Community packs…",** for "some
+   graphics": any selection, including one made across folders during a search. It is drawn only
+   for accounts the door admits, so for everyone else the bulk bar is exactly as today. This is
+   the one new control on screen, and its only item is the share verb; that is a real tension
+   with D16, so it is owner question 3. Without it, a selection becomes a pack through the bulk
+   bar's existing Folder › New folder, then the folder's ⋯.
 
 Both open the existing sheet with the source already chosen. The production page and Playout
 gain nothing, and the shelf's own Submit a pack stays as it is.
@@ -87,17 +92,23 @@ stamped `fromPack` gets no item: there is nothing of the maker's to submit.
 
 **Reuse and changes.**
 
-- `src/community/packSources.ts`: export the ownership filter as
-  `ownSource(kind, name, docs: GraphicDoc[]) -> { source, leftOut }`, used by `packSources()` and
-  by the Home door for a folder or a selection, so D7 has one implementation.
+- `src/community/packSources.ts`: export `ownLibrarySource(name, docs: GraphicDoc[]) ->
+  { source, leftOut }` over the existing `own` predicate, used by the folder branch of
+  `packSources()` and by the Home door for a folder or a selection. The production branch keeps
+  `ownPooled`, which filters a show's pooled copies rather than library records. `PackSource.kind`
+  gains `'selection'`.
 - `SubmitPackSheet.tsx` moves to `src/components/community/` (two surfaces now use it) and takes
   an optional `source` prop; with it, the select is not drawn. It fetches `lastAuthor` itself.
-- `GraphicsSection.tsx`: one item in `folderMenu`, one `RowMenu` in the bulk bar, the gate, and
-  the sheet mounted once. `FolderItem.tsx`: `onContextMenu` opens its `RowMenu`.
+- `src/components/home/sections/GraphicsSection.tsx`: one item in `folderMenu`, one `RowMenu` in
+  the bulk bar, the gate, and the sheet mounted once.
+- `src/components/home/RowMenu.tsx` keeps its open state private today, so it gains optional
+  controlled `open` and `onOpenChange` props (as `ProductionPicker` has); `FolderItem.tsx` then
+  opens it from `onContextMenu`. Every other `RowMenu` stays uncontrolled and unchanged.
 - No migration, no server change, no new route, no new persisted field.
 
-**Cost.** One row, about a day: roughly 150 lines of product code, a unit test for `ownSource`,
-and additions to `e2e/configured/community-pack-review.spec.ts` plus an offline absence check.
+**Cost.** One row, about a day: roughly 200 lines of product code, a unit test for
+`ownLibrarySource`, and additions to `e2e/configured/community-pack-review.spec.ts` plus an
+offline absence check.
 It does not depend on slices 2 or 3 and can land before them, visible to moderators only.
 
 **Rejected.**
@@ -134,8 +145,10 @@ the same sheet with those two. As a non-moderator, signed out, and offline, neit
 ### Recommendation: `--share` on `noacg pack`, one server door, one opt-in skill reference
 
 **The command.** `noacg pack` gains `--share`, which sends the pack for review to Community
-packs from the same build it already makes. It works with or without `--save`, so "make it, put
-it on my Home and share it" is one call:
+packs from the same build it already makes. It needs `--save`: the owner's ask is sharing as
+the user imports to their own account, and requiring it reuses the key lookup, normalisation and
+validation that today run only under `--save`. "Make it, put it on my Home and share it" is one
+call:
 
 ```
 noacg pack ./opener ./strap ./scorebug --name "Pub Quiz Night" \
@@ -145,24 +158,29 @@ noacg pack ./opener ./strap ./scorebug --name "Pub Quiz Night" \
 
 - `--license cc-by-4.0` is required with `--share` and refused with any other value, so the
   grant is written in the command a person can read. `--shown-as` (D15) and `--description` are
-  required too; the CLI never fills them from the account. All three are refused before the
-  browser starts, as `--save` without a key is today.
-- A single graphic is shared as a pack of one (`noacg pack ./strap --share …`). `noacg save`
-  gains no flag: one share verb, on the one unit the shelf takes.
-- `--rundown` stays for `--save` and `--out`. The shared copy is built without cues (the server
-  refuses them) and the result says so in one line.
-- Every graphic is validated as `--save` does, plus the community checks (below). One finding
-  refuses the share and names the graphic; a `--save` in the same call still goes through, since
-  the user asked for both and only one was refused.
+  required too; the CLI never fills them from the account. All three, and `--share` without
+  `--save`, are refused before the browser starts, as `--save` without a key is today. `--share`
+  needs the same parsing guard `--save` has, which gives back a package path the flag parser
+  handed to it.
+- A single graphic is shared as a pack of one (`noacg pack ./strap --name … --save --share …`).
+  `noacg save` gains no flag: one share verb, on the one unit the shelf takes.
+- `--rundown` stays for the Home copy and `--out`. The shared copy is built without cues (the
+  server refuses them) and the result says so in one line.
+- The save's validation is unchanged. The community checks (below) run as a second pass over the
+  templates the save already validated, after the save has been sent. A finding there refuses
+  the share and names the graphic, while the Home copy has already landed: the user asked for
+  both, and only one was refused.
 - Success prints: "Sent "<name>" for review under CC BY 4.0, shown as "<name>". It is In review
   under Your packs on the Community packs shelf; you can withdraw it there." `--json` carries
   `share: { id, state: "in_review" }` or `share: { reason, error }`.
 
-**The MCP tool.** The `pack` verb reads four more arguments: `share`, `license`, `shownAs`,
-`description` (the last already exists on the terminal). The tool's own description and the
-verb list are unchanged; only the `share` argument's description says "only when the user asked
-in this conversation to share this pack with the community". An agent scanning the tool sees no
-invitation to share.
+**The MCP tool.** The tool has one flat schema whose argument lines every session loads
+(`inputShape` in `cli/src/mcp.ts`), so each new argument is a standing line in every agent's
+context. The `pack` verb therefore reads ONE more argument, `share: { license, shownAs,
+description }`, described only as "pack: see the skill's references/share.md". The tool's own
+description, the verb list and the `docs` topics are unchanged, and the share reference is a
+skill file rather than a `docs` topic, because the topic list is printed in the schema too. One
+argument name is the whole footprint an agent sees without a request.
 
 **The skill.** The opt-in section of `SKILL.md` gains a third entry, "Share to Community packs
 (`references/share.md`)": ON only when the user asks in this conversation to share, publish or
@@ -181,30 +199,36 @@ plugin copy (`check:skill` fails on drift).
 
 - Migration: the body of `community_pack_submit` moves into
   `community_pack_submit_for(p_uid uuid, p_name, p_description, p_author, p_pack)`, granted to
-  `service_role` only, with the moderator and suspension checks done for `p_uid`. The
-  session RPC becomes a wrapper passing `auth.uid()`. One function holds every refusal, so the
-  D12 switch in slice 3 changes one place for both doors.
+  `service_role` only. Its checks must name `p_uid` explicitly, because `is_moderator()` and
+  `is_suspended()` read `auth.uid()`, which is null under the service role: the moderator check
+  as `exists (select 1 from public.moderators where user_id = p_uid)`, and the account checks
+  through the service-only `feature_denied_for(p_uid, 'community.publish')` (0022), which
+  answers suspension as well as the per-account switch. No callable predicate taking a user id is added back; 0020 removed one
+  on purpose. The session RPC becomes a wrapper passing `auth.uid()`. One function holds every
+  refusal, so the D12 switch in slice 3 changes one place for both doors, and the shelf's door
+  gains the `community.publish` check it lacks today.
 - `POST /api/me/community-packs` (`api/_lib/me/communityPacks.ts`, on the existing
   `api/me/[...path].ts` catch-all, so no new serverless function), in the package door's order:
   `resolvePrincipal`, `permits(principal, 'graphics:create')`, the agent save rate limits,
   `readJson` at 4 MB, the pack shape (no cues), then the store's
   `submitCommunityPack(userId, …)` calling the function above. The answer is
   `201 { id, state: "in_review" }`; a function refusal comes back as `409` with its sentence.
-  CLI-shared packs are capped at 4 MB by the platform's request size, below the sheet's 8 MB;
-  the refusal says so.
+  CLI-shared packs are capped at the door's own 4 MB (`MAX_SAVE_BODY_BYTES`, kept under the
+  platform's request limit), below the sheet's 8 MB; the refusal says so.
 - **Permission: no new scope.** Sharing rides `graphics:create`, as the package door does.
   Recorded as an owner question below, with the reasons.
 
 **The checks.** The CLI runs the studio's own code in its bridge, so the bridge gains
-`communityCheck(candidate)`, returning `checkPackMeta` and `checkPackGraphics` findings, and
-its `validate` gains the network-refusal option (next section) when `--share` is set. That makes
+`communityCheck(candidate)`, returning `checkPackMeta` and `checkPackGraphics` findings plus the
+runtime bench with the network refusal (next section). It is a separate call from `validate`,
+so the save's gate is untouched and a share finding never refuses the Home copy. That makes
 the CLI a third browser running the one pure check (D9); the admin's re-check on the stored pack
 stays the backstop. The bridge is served by the studio, so the studio change deploys before the
 CLI release that calls it, and the CLI reports an older bridge plainly instead of failing late.
 
 **Cost.** One row, two to three days: the migration with its self-check, the door and its test
-(mirroring `packages.test.ts`), the store method, two bridge functions, the CLI flags, MCP
-arguments and tests, the skill reference and its regenerated plugin copy, `docs/AGENT_SAVE.md` (a §8 for the
+(mirroring `packages.test.ts`), the store method, the bridge's `communityCheck`, the CLI flags
+and their parsing guard, the MCP argument, tests, the skill reference and its regenerated plugin copy, `docs/AGENT_SAVE.md` (a §8 for the
 door) and the CLI changelog, then a CLI release. Order: after the unlanded agent-toolkit
 distribution work on `codex/agent-toolkit-distribution` lands, because it edits the same
 `cli/` files. Until slice 3, the server admits moderators only, so the door is usable by NoaCG
@@ -228,7 +252,7 @@ and refuses everyone else with the server's sentence.
 
 `noacg pack ./a ./b --name X --save` and the MCP `pack` without `share` send nothing to the
 community: no `community_packs` row appears and the output never mentions the community. With
-`--share` but without `--license cc-by-4.0`, `--shown-as` or `--description`, the CLI refuses
+`--share` but without `--save`, `--license cc-by-4.0`, `--shown-as` or `--description`, the CLI refuses
 before starting a browser and nothing is sent. As a moderator's key,
 `noacg pack ./a ./b --name X --description D --save --share --license cc-by-4.0 --shown-as K`
 puts X on Home → Productions with its rundown and puts X, without cues, under the account's
@@ -243,14 +267,17 @@ In a conversation where the user never asked to share, the agent never mentions 
 puts a Content-Security-Policy meta first in the composed document's head (`default-src 'none'`,
 inline and eval scripts and styles allowed, `img-src`, `font-src` and `media-src` limited to
 `data:` and `blob:`, `connect-src 'none'`, `worker-src 'none'`, the shape of
-`ografNetworkPolicy` with no package base), listens for `securitypolicyviolation` in the frame
-while it plays every phase, and turns each blocked URL into an error,
+`ografNetworkPolicy` with no package base). Right after the meta it injects an inline listener
+for `securitypolicyviolation` that posts each event to the parent, the way the
+`spx-error-capture` script reports errors. A listener the parent attached after `onload` would
+miss a request made while the template's script first runs. The bench collects the events while
+it plays every phase and turns each blocked URL into an error,
 `runtime-network-request`, naming the URL and what asked for it. Blocking first means nothing
 leaves the machine while it is observed.
 
 **Who turns it on:** the submit sheet on Send (shelf and Home), graphic by graphic with progress
 on the button ("Checking 2 of 5…"), since a bench per tick on every change would be slow; the
-admin's review row, on the stored pack; and the CLI's bridge validate under `--share`. Saving,
+admin's review row, on the stored pack; and the bridge's `communityCheck` under `--share`. Saving,
 exporting, publishing and playing out are unchanged, because the opt-in live blocks are legitimate
 outside the shelf.
 
@@ -267,9 +294,12 @@ only (a regex is evaded by building a URL at runtime); turning the option on for
 
 **Where it goes:** a quiet "Report" text button on every live shared card, after Install, for
 signed-in accounts; absent on seeds, on the maker's own packs and signed out. It opens the
-shelf's existing `ReasonAsk` with a required reason. A table `community_pack_reports` with a
-`security definer` function `community_pack_report(p_id, p_reason)` (signed-in only, reason 1 to
-500 characters, ten a minute per account, the 0004 shape) stores it. The admin's Waiting for
+shelf's existing `ReasonAsk` with a required reason. `ReasonAsk` is written for the maker
+("Reason the maker reads", 300 characters), so it gains a `placeholder` prop and the report
+reads "What is wrong with it"; the reporter must not think the maker reads their words. A table
+`community_pack_reports` with a `security definer` function
+`community_pack_report(p_id, p_reason)` (signed-in only, reason 1 to 300 characters to match the
+field, ten a minute per account, the 0004 shape) stores it. The admin's Waiting for
 review gains "Reported" rows: the live pack, how many reports, the latest reasons, and the
 existing Take down beside them. The reporter sees "Reported. Thank you." on the card and nothing
 after; there is no notification channel (D14).
@@ -284,8 +314,10 @@ path, and an account is one sign-in away).
 
 ## Order
 
-1. The observed-request refusal and the Report link, before or with the slice 3 switch, so the
-   gate is whole before outside makers arrive.
+1. The observed-request refusal, the Report link and the `community.publish` check in
+   `community_pack_submit`, before or with the slice 3 switch, so the gate is whole before
+   outside makers arrive. The last is a few lines in the switch's own migration if (b) has not
+   landed by then.
 2. (a) the Home door: independent, can land any time, moderators only until slice 3.
 3. (b) the agent door (AC-12): after the agent-toolkit distribution work lands in `cli/`.
 
@@ -300,3 +332,8 @@ path, and an account is one sign-in away).
    only when the request did not already give the name and accept the licence; one message and
    the user's yes. The sheet shows the licence sentence before Send for the same reason: the
    grant is the maker's.
+3. **May a selection on Home carry an icon-only ⋯ whose one item is Submit to Community packs?**
+   Recommended: yes. It is what "select some graphics and add them as a pack" needs, it shows
+   only to accounts the door admits, and it reads as an overflow, not a prompt. The stricter
+   reading of D16 drops it: a selection then becomes a pack through Folder › New folder and the
+   folder's ⋯, one extra step and no new control on Home.
