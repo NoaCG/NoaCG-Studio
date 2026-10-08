@@ -18,5 +18,11 @@ Also: `scripts/swap-plan.test.mjs`, `scripts/readiness.test.mjs`, `scripts/playo
 (Node), `npm run build` (exit 0, 2543 Node tests, no dependency violations, job j-3752),
 `npm run test:e2e:affected` (279 passed, 22 skipped, job j-3750).
 
-Not run here: the configured two-output spec `e2e/configured/per-graphic-replacement.spec.ts`
-needs a local Supabase stack (dispatched separately on `configured-suite.yml`).
+Configured suite on a local Supabase stack (`configured-suite.yml` dispatched on the branch, run
+https://github.com/NoaCG/NoaCG-Studio/actions/runs/37811905027): 83 passed, 0 failed, 0 flaky,
+8 skipped (the allowlisted files). It includes `e2e/configured/per-graphic-replacement.spec.ts`
+(two outputs, one publish swaps the lower third on both with the scorebug's frame untouched; a
+change of the scorebug on air reads "Waiting for clear: House Scorebug" on both rows and swaps on
+both after its Out; no reload), and `live-ready.spec.ts` updated to the new rule (an addition
+reaches an output at once while another graphic is on air). The first dispatch (run 37806924105)
+failed on that old READY expectation, which is why it was updated.
