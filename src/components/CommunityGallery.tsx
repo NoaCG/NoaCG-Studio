@@ -25,8 +25,9 @@ interface Props {
 type Filter = 'all' | CommunityKind;
 
 /**
- * The community gallery (Era 5.5): browse the approved templates + looks other signed-in users have
- * published, and import a COPY into your own work. "Use" re-runs the SAME automated gate on the fetched
+ * The community gallery (Era 5.5): browse the approved templates + looks other signed-in users
+ * published before it closed to publishing (migration 0078, read-only since), and import a COPY into
+ * your own work. "Use" re-runs the SAME automated gate on the fetched
  * body before it touches your local project (defence-in-depth), so a bad row can never inject a broken
  * or unsafe template. Only rendered when a backend is configured; the offline app never mounts it.
  */
@@ -180,9 +181,8 @@ export default function CommunityGallery({ onClose, initialSlug }: Props) {
             {loading ? (
               <p className="hint">Loading…</p>
             ) : cards.length === 0 ? (
-              // The route this used to name (📦 Packets ▸ Share to community) went away with the
-              // packet manager — publishing is a saved graphic's own action in Home now.
-              <p className="hint">Nothing here yet. Publish one from Home ▸ Graphics, with the 🌐 button on a saved graphic&apos;s row.</p>
+              // Publishing is closed (migration 0078), so there is no door to point at.
+              <p className="hint">Nothing here yet.</p>
             ) : (
               cards.map((c) => card(c))
             )}

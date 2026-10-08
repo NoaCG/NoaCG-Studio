@@ -1,7 +1,11 @@
 // Community shared-templates data layer (Era 5.5). Thin wrappers over the app's Supabase client for
-// publishing a graphic/look, browsing the approved gallery, importing a copy, and the report/takedown
-// path. All access is gated by the RLS + SECURITY DEFINER RPCs in
+// browsing the approved gallery, importing a copy, an author withdrawing their own row, and the
+// report/takedown path. All access is gated by the RLS + SECURITY DEFINER RPCs in
 // supabase/migrations/0004_community_templates.sql; this file just calls them.
+//
+// Publishing is CLOSED (owner, 2026-10-08): the community shares reviewed packs only, so the
+// publish functions are gone and migration 0078 refuses a publish or an asset upload in the
+// database. Rows already published stay read-only.
 //
 // Offline-invariant: every function opens with `const sb = await getSupabase(); if (!sb) return …;`,
 // so with no backend configured the whole module is inert and the Supabase library stays code-split
@@ -9,16 +13,8 @@
 // granted to `authenticated`), matching the closed-beta posture.
 
 import { getSupabase } from '../backend/supabase';
-import {
-  externalizeAssets,
-  rehydrateAssets,
-  dataUrlToBlob,
-  blobToDataUrl,
-  classifyAssetRefusal,
-} from '../backend/assets';
+import { rehydrateAssets, blobToDataUrl } from '../backend/assets';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { SpxTemplate } from '../model/types';
-import type { ProjectBrand } from '../model/brand';
 
 const BUCKET = 'community-assets';
 
@@ -77,112 +73,17 @@ export interface CommunityReport {
   created_at: string;
 }
 
-/** Per-session upload dedupe (same content hash → same key → upload at most once). */
-const uploaded = new Set<string>();
-
-// ── asset transport (public community bucket) ──────────────────────────────────────────────────────
-async function upload(sb: SupabaseClient, key: string, dataUrl: string): Promise<void> {
-  if (uploaded.has(key)) return;
-  const blob = dataUrlToBlob(dataUrl);
-  // upsert:false so a later writer can NEVER overwrite an existing content-hash object with different
-  // bytes. An "already exists" error means the identical bytes are already there — treat it as success.
-  const { error } = await sb.storage.from(BUCKET).upload(key, blob, { contentType: blob.type, upsert: false });
-  if (error && !/exist|duplicate/i.test(error.message)) {
-    // A capacity ceiling (migration 0039) is not a transport failure: say what was refused and
-    // what to do, rather than surfacing "new row violates row-level security policy" to a user.
-    const refusal = classifyAssetRefusal(error);
-    if (refusal) throw new Error(`This graphic cannot be published: ${refusal.reason}. ${refusal.fix}`);
-    throw new Error(`asset upload failed: ${error.message}`);
-  }
-  uploaded.add(key);
-}
-
+// ── asset transport (public community bucket, read-only) ─────────────────────────────────────────
 async function download(sb: SupabaseClient, key: string): Promise<string | null> {
   const { data, error } = await sb.storage.from(BUCKET).download(key);
   if (error || !data) return null;
   return blobToDataUrl(data);
 }
 
-/** The signed-in user's id — used as the asset key namespace `<uid>/<hash>`, matching the storage
- *  policy that lets an author write only under their own {uid}/ folder. */
+/** The signed-in user's id, to list only their own submissions. */
 async function currentUid(sb: SupabaseClient): Promise<string | null> {
   const { data } = await sb.auth.getUser();
   return data.user?.id ?? null;
-}
-
-/** Display name to attribute a submission to. Prefers the OAuth full name, falls back to the email
- *  local-part — never the full email (that would leak an address to the gallery). */
-async function authorName(sb: SupabaseClient): Promise<string> {
-  const { data } = await sb.auth.getUser();
-  const user = data.user;
-  if (!user) return '';
-  const meta = (user.user_metadata ?? {}) as { full_name?: string; name?: string };
-  const full = (meta.full_name || meta.name || '').trim();
-  if (full) return full;
-  const email = user.email ?? '';
-  return email.includes('@') ? email.split('@')[0] : email;
-}
-
-// ── publish ─────────────────────────────────────────────────────────────────────────────────────
-export async function publishGraphic(
-  template: SpxTemplate,
-  summary: string,
-): Promise<{ slug: string | null; error: string | null }> {
-  const sb = await getSupabase();
-  if (!sb) return { slug: null, error: 'Sign in to publish.' };
-  try {
-    const uid = await currentUid(sb);
-    if (!uid) return { slug: null, error: 'Sign in to publish.' };
-    // Externalize embedded fonts/images into the public bucket under this author's own {uid}/ folder;
-    // the row body keeps only sentinels.
-    const body = await externalizeAssets(template, uid, (key, dataUrl) => upload(sb, key, dataUrl));
-    const { data, error } = await sb
-      .from('community_templates')
-      .insert({
-        kind: 'graphic',
-        name: template.name || 'Untitled',
-        summary: summary.trim(),
-        category: template.type,
-        body,
-        author_name: await authorName(sb),
-      })
-      .select('slug')
-      .single();
-    if (error) return { slug: null, error: error.message };
-    return { slug: (data as { slug: string }).slug, error: null };
-  } catch (e) {
-    return { slug: null, error: e instanceof Error ? e.message : String(e) };
-  }
-}
-
-export async function publishLook(
-  name: string,
-  brand: ProjectBrand,
-  summary: string,
-): Promise<{ slug: string | null; error: string | null }> {
-  const sb = await getSupabase();
-  if (!sb) return { slug: null, error: 'Sign in to publish.' };
-  try {
-    const uid = await currentUid(sb);
-    if (!uid) return { slug: null, error: 'Sign in to publish.' };
-    const body = await externalizeAssets({ name, brand }, uid, (key, dataUrl) => upload(sb, key, dataUrl));
-    const { data, error } = await sb
-      .from('community_templates')
-      .insert({
-        kind: 'look',
-        name: name || 'Untitled look',
-        summary: summary.trim(),
-        category: brand.styleTag,
-        body,
-        author_name: await authorName(sb),
-      })
-      .select('slug')
-      .single();
-    if (error) return { slug: null, error: error.message };
-    return { slug: (data as { slug: string }).slug, error: null };
-  } catch (e) {
-    return { slug: null, error: e instanceof Error ? e.message : String(e) };
-  }
 }
 
 // ── browse ──────────────────────────────────────────────────────────────────────────────────────
