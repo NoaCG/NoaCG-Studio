@@ -59,6 +59,9 @@ export function firstSentences(text, count = 2) {
   return sentences.slice(0, count).map((s) => s.trim()).join(' ');
 }
 
+/** The one risk the changed paths derive. */
+const DOCS_ONLY = 'low, docs only.';
+
 /**
  * The Risk line's text: the queuing session's sentence, else one the changed paths make certain,
  * else '' (no line). A branch that changes only Markdown under docs/ cannot break the product, and
@@ -68,14 +71,18 @@ export function riskText(risk = '', paths = []) {
   const given = risk.replace(/\s+/g, ' ').trim().replace(/^risk:\s*/i, '');
   if (given !== '') return given;
   const changed = paths.map((p) => p.trim()).filter(Boolean);
-  if (changed.length > 0 && changed.every((p) => /^docs\/.+\.md$/i.test(p))) return 'low, docs only.';
+  if (changed.length > 0 && changed.every((p) => /^docs\/.+\.md$/i.test(p))) return DOCS_ONLY;
   return '';
 }
 
-/** The Risk sentence a generated body already carries, so queueing again does not drop it. */
+/**
+ * The Risk sentence a session gave on an earlier queueing, so queueing again does not drop it. A
+ * derived one is not carried over: the branch may have grown past docs since, so it is derived anew.
+ */
 export function riskFromBody(body = '') {
   if (!isGeneratedBody(body)) return '';
-  return /^Risk: (.+)$/m.exec(body ?? '')?.[1].trim() ?? '';
+  const earlier = /^Risk: (.+)$/m.exec(body ?? '')?.[1].trim() ?? '';
+  return earlier === DOCS_ONLY ? '' : earlier;
 }
 
 /**

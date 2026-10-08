@@ -70,6 +70,7 @@ test('queueing again keeps the Risk line an earlier queueing wrote', () => {
   const earlier = pullRequestBody({ subjects: ['a'], risk: 'a failed save could lose an edit.' });
   assert.equal(riskFromBody(earlier), 'a failed save could lose an edit.');
   assert.equal(riskFromBody(pullRequestBody({ subjects: ['a'] })), '');
+  assert.equal(riskFromBody(pullRequestBody({ subjects: ['a'], paths: ['docs/A.md'] })), '', 'a derived line is derived again, never kept');
   assert.equal(riskFromBody('Risk: typed by a person, not ours'), '', 'a typed body is never read as ours');
   assert.equal(riskFromBody(undefined), '');
 });
