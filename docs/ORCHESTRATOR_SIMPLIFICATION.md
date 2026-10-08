@@ -62,10 +62,11 @@ added 77 research docs and 789 non-Markdown research files (74 MB in 30 days), 1
 (66 deleted), 159 work-spec files, 44 rule records and 40 rule files. The instruction surface went
 from 699 files and 17,244 lines to 960 and 19,766 in 30 days. Causes, each with its instruction:
 evidence is committed (`verify.md` §4, 19 e2e specs write into `docs/research/`); surfaced work
-must become a file (`orchestrator.md:59`, `report.md:76-93`, the `spawn-task-guard` hook); plans
-assign new research READMEs (rows F and G on 2026-10-07, K and L today); `npm run learn` writes a
-rule file plus a record file and retired rules are never deleted (86 retired, kept by
-`contracts/README.md`); work-specs, research and records have no retention rule at all.
+must become a file (`orchestrator.md:59`, `report.md:77-94`, the `spawn-task-guard` hook); plans
+assign new research docs (rows F and G on 2026-10-07, row L today) and evidence screenshots get
+committed (row K today); `npm run learn` writes a rule file plus a record file, and retired rules
+are never deleted (86 retired, kept by `contracts/README.md`); work-specs, research and records
+have no retention rule at all.
 
 **F10. Learning adds; nothing subtracts.** The ladder in `coherence.md` says fix the cause first and
 add text last, and the incident log shows it mostly worked: 20 of 31 incidents now have a mechanism
