@@ -332,7 +332,7 @@ const LOCAL_SAVE_HEAD_START_MS = 250;
  * works without one, and the dialog's own second line says so.
  */
 const PUBLISH_NEEDS_ACCOUNT =
-  'Publishing puts the production online, and that needs a free account. Sign in and it publishes straight away.';
+  'Publishing a production puts it online, and that needs a free account. Sign in and it publishes straight away.';
 const CLAIM_NEEDS_ACCOUNT =
   'Changing the audience link needs the account that published this production. Sign in first.';
 

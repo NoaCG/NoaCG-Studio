@@ -92,8 +92,9 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   expect(first.join).toBeTruthy();
   expect(first.presenter).toBeTruthy();
   const firstShown = await shownLinks();
-  expect(firstShown.control).toContain(first.control!);
-  expect(firstShown.presenter).toContain(first.presenter!);
+  // A slug can hold "+", which a URL carries encoded.
+  expect(decodeURIComponent(firstShown.control)).toContain(first.control!);
+  expect(decodeURIComponent(firstShown.presenter)).toContain(first.presenter!);
 
   // Unpublish through the API, the only road left to it.
   await unpublishForCleanup(page);
