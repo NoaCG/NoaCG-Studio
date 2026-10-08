@@ -266,7 +266,8 @@ appears under the account's Your packs as In review.
    selecting a folder or graphics there and adding them as a pack, never from Playout. (b) What
    share-on-import looks like for the CLI and the plugins under AC-12's only-when-asked rule; the
    study's `noacg pack --share --license cc-by-4.0` is the starting sketch. Then AC-12, the
-   observed-request refusal (D5), and a Report link on live cards.
+   observed-request refusal (D5), and a Report link on live cards. The research and its
+   recommended designs: [`slice-4-research.md`](slice-4-research.md).
 
 Backlog: [issue #798](https://github.com/NoaCG/NoaCG-Studio/issues/798) (accounts cannot pick a username today).
 
