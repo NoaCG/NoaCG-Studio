@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "44180e93ccb626aaa685dd940f653dd1b8bfb062181945a4b87bfad83ba69e49",
+  "specSha256": "bd7d8f29ebda71323dad45a4da135d4bc712e434a79d06c0e13ee5bc47aa60c8",
   "authority": {
     "status": "agreed",
-    "source": "owner ruling 2026-10-02 (wave 2026-10-02d row BV): three template categories - Templates, Kits, Community packs; a community pack is finished, installed and used at once and cannot be modified; the community makes and shares them; a shared pack passes automatic checks (validate, bench, no outside network calls) and a NoaCG admin's approval before anyone else sees it; NoaCG seeds the shelf first"
+    "source": "owner ruling 2026-10-02 (wave 2026-10-02d row BV): three template categories - Templates, Kits, Community packs; a community pack is finished, installed and used at once and cannot be modified; the community makes and shares them; a shared pack passes automatic checks (validate, bench, no outside network calls) and a NoaCG admin's approval before anyone else sees it; NoaCG seeds the shelf first. Owner direction 2026-10-08 (wave 2026-10-08 row K): community packs live in the template wizard, and the submit door is in the wizard or Home, not Playout"
   },
   "review": null
 }
