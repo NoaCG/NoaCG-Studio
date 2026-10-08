@@ -128,10 +128,6 @@ function CategorySection({
   const suggested = cat ? suggestedFieldsFor(cat) : [];
   return (
     <>
-      <p className="hint">
-        What kind of broadcast graphic is this? The choice shapes the structure, the operator
-        fields, the state model and the motion, as well as the look.
-      </p>
       <div className="mc-cats" role="listbox" aria-label="Graphic category">
         <button
           type="button"
@@ -190,10 +186,6 @@ function FieldsSection({
   };
   return (
     <>
-      <p className="hint">
-        The editable data fields the graphic carries. Each becomes a real operator field.
-        The first text fields are the visible lines.
-      </p>
       {spec.fields.map((f, i) => (
         <div key={f.id} className="mc-field">
           <div className="row">
@@ -335,12 +327,11 @@ function LookSection({ spec, onSpec, uploads, disabled, allowUploads = true }: P
           <label style={{ marginTop: 10 }}>Pictures attached</label>
           {uploads.length ? (
             <p className="hint" style={{ marginTop: 2 }} data-testid="mc-uploads">
-              {uploadSummary(uploads)}. Change what any of them is for in the drop zone above.
+              {uploadSummary(uploads)}
             </p>
           ) : (
             <p className="hint" style={{ marginTop: 2 }}>
-              None yet. Drop a logo, a design to follow, a mood board or a shot of your real
-              background above, then say what each one is for.
+              None yet.
             </p>
           )}
         </>
@@ -427,11 +418,6 @@ function FontsSection({ spec, onSpec, disabled }: Pick<Props, 'spec' | 'onSpec' 
   const primary = fonts.primary;
   return (
     <>
-      <p className="hint">
-        The primary font is fully wired into the generated template (its file ships embedded).
-        Secondary and numeric typefaces are embedded too and taught to the AI. The house style
-        carries one main face, so they apply where the design genuinely uses them.
-      </p>
       <label>Primary typeface</label>
       <FontPicker
         value={primary?.customFont ? 'custom' : primary?.fontId ?? null}

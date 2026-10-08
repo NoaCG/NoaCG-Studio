@@ -203,7 +203,7 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
       {needsSignIn ? (
         <SignInPrompt
           feature="Video or animation with AI"
-          reason="Sign in to use AI - describe any animation and get a real, editable video composition."
+          reason="Sign in to use AI."
         />
       ) : (
         <>
@@ -211,15 +211,10 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
             value={format}
             onChange={onFormat}
             idPrefix="video-format"
-            description="The composition and generated code are authored for this canvas and frame rate."
           />
 
           <div className="panel-section">
             <h3>Describe your video</h3>
-            <p className="hint">
-              What is it, how should it move, what should it feel like? You get real,
-              editable code - previewed live, refined by chat, rendered to video.
-            </p>
             <div className="wz-engine-row" role="radiogroup" aria-label="Generation engine">
               {VIDEO_ENGINES.map((e) => (
                 <button
@@ -240,10 +235,6 @@ export default function VideoStep({ format, onFormat, onCreate, onOpen }: Props)
             </div>
           </div>
 
-          <p className="hint" style={{ margin: '0 0 6px' }}>
-            Need a starting point? Tap an example to load a ready-made brief and matching
-            settings - then edit the text freely. These are just suggestions.
-          </p>
           <div className="row wrap" style={{ marginBottom: 6, gap: 6 }}>
             {EXAMPLES.map((ex) => (
               <button
