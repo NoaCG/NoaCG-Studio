@@ -1,5 +1,5 @@
 // The site's top bar and footer are one of each, the same on every public page: no page writes its own.
-// guards: index.html, ograf.html, privacy.html, terms.html, docs.html, downloads.html, whats-new.html, roadmap.html, src/site-chrome.css
+// guards: index.html, ograf.html, privacy.html, terms.html, docs.html, downloads.html, whats-new.html, roadmap.html, src/site-chrome.css, src/brandTokens.css
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -96,4 +96,28 @@ test('section links are anchors on the landing and point back to it from every o
   assert.match(renderSiteNav('/docs.html'), /<a href="\/docs" aria-current="page">Docs<\/a>/);
   assert.equal(pagePath('/index.html'), '/');
   assert.equal(pagePath('/whats-new/?x=1'), '/whats-new');
+});
+
+// ONE SOURCE FOR THE BRAND'S VALUES. The chrome imports src/brandTokens.css rather than restating
+// its colours and faces, which is how the two copies drifted before. And because the build moves a
+// page's linked stylesheets after its inline <style>, a page that declares a custom property the
+// brand tokens also declare silently loses it to the app's value in production while winning in
+// development, which is how /ograf's text colour would have changed by accident.
+test('the chrome restates no brand value, and no page redeclares a brand token', () => {
+  const tokens = read('src/brandTokens.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const declared = new Set([...tokens.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  const literals = [...tokens.matchAll(/--[\w-]+\s*:\s*(#[0-9a-fA-F]{3,8})/g)].map((m) => m[1].toLowerCase());
+  const chrome = read('src/site-chrome.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(chrome, /@import "\.\/brandTokens\.css";/, 'src/site-chrome.css: import ./brandTokens.css');
+  for (const hex of literals) assert.ok(!chrome.toLowerCase().includes(hex), `src/site-chrome.css restates ${hex}; read the brand token`);
+  for (const face of ['Space Grotesk', 'JetBrains Mono', 'IBM Plex Sans']) {
+    assert.ok(!chrome.includes(face), `src/site-chrome.css names "${face}"; read the brand font token`);
+  }
+  for (const file of Object.keys(PAGES)) {
+    for (const [, style] of read(file).matchAll(/<style>([\s\S]*?)<\/style>/g)) {
+      for (const [, name] of style.matchAll(/(--[\w-]+)\s*:/g)) {
+        assert.ok(!declared.has(name), `${file}: its inline style redeclares the brand token ${name}`);
+      }
+    }
+  }
 });
