@@ -12,8 +12,11 @@ outside the repository (`sim-full-registry.mjs`, in the session scratchpad):
   `.git/noacg-dev-ports/`, each naming one registered holder.
 - CONTROL, `origin/main`'s code, postinstall's first command `node scripts/dev-port.mjs`: exit 1,
   "No dev-server port is available for ...control-old-code." - the 2026-10-08 failure, reproduced.
-- This branch, fresh worktree: `npm ci` exit 0 and `npm run build` RESULT_BUILD, the registry
-  unchanged after each (every file name and mtime compared).
+- This branch at 9214724b2, fresh worktree: `npm ci` exit 0 (09:09 UTC) and `npm run build` exit 0
+  (09:27 UTC, 185 test files, 2518 tests), the registry unchanged after each (every file name and
+  mtime compared). Afterwards `node scripts/dev-port.mjs --json` answered 5180, "not reserved
+  yet": by then the 60 tickets were 27 minutes old with nothing listening, so a server start would
+  take back the least recently claimed one (AC-5) - and still nothing had been written.
 - A first run, on an earlier commit of this branch, got through `npm ci` (exit 0, registry
   unchanged) and the build's 2511 node tests (0 failures) and then stopped at `eslint` on two
   `no-useless-assignment` errors in this branch's own code - fixed, and the reason the run above
@@ -22,7 +25,10 @@ outside the repository (`sim-full-registry.mjs`, in the session scratchpad):
 ## AC-3: a build or test that starts no server takes no port
 
 - `npm ci` in this worktree, which had no reservation: postinstall printed 5192 and the real
-  registry still held 14 tickets, none naming this worktree.
+  registry still held 14 tickets, none naming this worktree. After two full `npm run build`s here
+  (the last at 936717fa7 plus the landed-ref allowlist: exit 0, 2518 tests) and every test run of
+  this session, the registry held 17 tickets (other rows' servers) and still none naming this
+  worktree.
 - `scripts/dev-port-readonly.test.mjs` (build tier): loads all three Playwright configs and
   resolves the Vite config for `build` and for a middleware-mode server, and asserts the registry
   directory is unchanged (names and mtimes); also runs postinstall and every question from a fresh
