@@ -112,7 +112,8 @@ begin
   select * into v_room from public.panel_rooms r where r.show_id = v_room.show_id for update;
   -- A page built before leases: it may take a free panel, never one another page holds.
   if public.panel_room_live(v_room) and v_room.claim_page is distinct from p_page then
-    raise exception 'The panel answers on % now. Press "Use here" there to move it.', coalesce(nullif(v_room.claim_label, ''), 'another page')
+    -- Said to a page that has no Use here yet: a reload gives it one.
+    raise exception 'The panel answers on % now. Reload this page to move it here with Use here.', coalesce(nullif(v_room.claim_label, ''), 'another page')
       using errcode = '55006';
   end if;
   -- Such a page never renews, so its lease covers a show.

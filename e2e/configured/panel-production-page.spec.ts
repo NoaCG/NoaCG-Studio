@@ -122,11 +122,12 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await answerPanel(hosted);
   await expect(op.getByTestId('panel-header-status')).toHaveText('Panel on Hosted control page', { timeout: 5_000 });
   await expect(op.getByTestId('panel-header-use-here')).toBeVisible();
+  await op.setViewportSize({ width: 1366, height: 768 });
+  await op.screenshot({ path: test.info().outputPath('production-panel-held.png'), clip: { x: 0, y: 0, width: 1366, height: 120 } });
   const doorAfter = await panelDoor(op);
   await expect(doorAfter).toHaveAttribute('data-state', 'held');
   await doorAfter.click();
   await expect(op.getByTestId('panel-status')).toHaveText('Hosted control page answers the panel.');
-  await op.screenshot({ path: test.info().outputPath('production-panel-held.png'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
   const second = await deck.state((s) => s.where === 'control', 'the hosted page answering');
   expect((await deck.press('select-next', '', second.ver as number)).outcome).toBe('ran');
   await deck.state((s) => s.where === 'control' && s.selected === ben, 'Ben selected on the hosted page');
