@@ -57,6 +57,13 @@
       "since": "2026-10-08",
       "replacement": "a GitHub issue with a priority (`P1`, `P2`, `P3`) and an area label, linked from the pull request; a branch that finishes one says `Closes #<n>` in a commit message (`docs/backlog/README.md`)",
       "why": "One file per idea and one handoff per session grew without bound and needed gates to drain them. Issues are the one prioritized list, and the old files are in git history."
+    },
+    {
+      "name": "the weekly answers file and its parsers",
+      "pattern": "alignment-answers|alignment:pending|weekly-candidates|weekly:candidates|orchestrator-week\\.local\\.md|night-report\\.local\\.md|ci-morning-report\\.local\\.md",
+      "since": "2026-10-08",
+      "replacement": "a routine writes no file: it ends with one prompt the owner pastes into his next wave, and the weekly session's prompt carries his answers for that wave to record (`docs/ROUTINES.md`)",
+      "why": "Files a routine wrote stayed on disk after they were acted on, and a script had to parse them. A prompt is acted on at once and leaves nothing behind."
     }
   ]
 }

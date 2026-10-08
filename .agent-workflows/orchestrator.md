@@ -47,8 +47,8 @@ can see becomes a row.
 
 Most important first, written in the wave file before the first launch:
 
-1. Everything the prompt asks for, in its order, then any ruling the owner gave that no doc
-   records yet (`npm run alignment:pending`).
+1. Everything the prompt asks for, in its order. Answers it carries from the owner's weekly session
+   are recorded where they belong first.
 2. Then the backlog, which is GitHub Issues: `P1`, then `P2`, then `P3`, and within a priority by
    `docs/GOALS.md` rank with `owner ask` first (`gh issue list --label P1 --limit 200 --json number,title,labels`).
    Skip an issue that waits on the owner (`needs owner`, a decision, money, an account, his own

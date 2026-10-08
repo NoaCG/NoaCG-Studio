@@ -203,8 +203,8 @@ test('parseArgs defaults to the night and accepts a longer or explicit window', 
   assert.equal(parseArgs([], now).since, now - DEFAULT_WINDOW_HOURS * HOUR);
   assert.equal(parseArgs(['--hours', '24'], now).since, now - 24 * HOUR);
   assert.equal(parseArgs(['--since', '2026-09-04T18:00:00Z'], now).since, Date.parse('2026-09-04T18:00:00Z'));
-  assert.equal(parseArgs(['--json', '--write'], now).json, true);
-  assert.equal(parseArgs(['--json', '--write'], now).write, true);
+  assert.equal(parseArgs(['--json'], now).json, true);
+  assert.throws(() => parseArgs(['--write'], now), /unknown option/);
   assert.throws(() => parseArgs(['--hours', 'soon'], now), /positive number of hours/);
   assert.throws(() => parseArgs(['--since', 'tuesday-ish'], now), /a date this machine can parse/);
   assert.throws(() => parseArgs(['--overnight'], now), /unknown option/);
