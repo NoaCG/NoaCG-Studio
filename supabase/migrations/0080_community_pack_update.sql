@@ -117,7 +117,7 @@ grant execute on function public.community_pack_decide(uuid, text, text) to auth
 
 drop function if exists public.community_pack_submit(text, text, text, jsonb);
 
-create function public.community_pack_submit(p_name text, p_description text, p_author text, p_pack jsonb,
+create or replace function public.community_pack_submit(p_name text, p_description text, p_author text, p_pack jsonb,
                                              p_update_of uuid default null)
 returns uuid
 language plpgsql security definer set search_path = '' as $$
