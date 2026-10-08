@@ -3,7 +3,7 @@
 //
 //   node scripts/e2e-budget.mjs <merged-report.json> [--max-avg-ms N]
 //
-// It reads a Playwright JSON report (the nightly merges its eight shard blobs into one) and
+// It reads a Playwright JSON report (the nightly merges its shard blobs into one) and
 // answers two DIFFERENT questions that a single "total time" number conflates:
 //
 //   ADDING TESTS is healthy. A pack that ships a spec is doing the right thing, and a budget

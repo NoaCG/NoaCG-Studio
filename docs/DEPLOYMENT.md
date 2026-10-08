@@ -56,8 +56,8 @@ The cost and capacity policy for the Pro account is
 
 1. **`nightly` (`.github/workflows/nightly.yml`)** is the **exhaustive tier**, at 02:00 UTC
    (04:00-05:00 Helsinki, so a red result is filed before the day starts): the **whole** E2E
-   suite in eight shards, plus the three catalog-wide gates that nothing else schedules - the
-   calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. It also carries
+   suite on as many shards as keep each inside its 20-minute budget, plus the three catalog-wide
+   gates that nothing else schedules - the calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. It also carries
    the **E2E time budget** (`scripts/e2e-budget.mjs`), because the nightly is the only run whose
    aggregate is comparable night to night - everything else tests a subset. The budget enforces
    the MEAN per test and only reports the total: shipping a spec with a new pack is healthy
