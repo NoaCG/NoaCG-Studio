@@ -37,6 +37,8 @@ interface Props {
   onCancel: () => void;
   /** `<testid>`, `<testid>-go` and `<testid>-cancel` are the three handles specs use. */
   testid: string;
+  /** The primary stays visible but cannot be pressed (a sheet whose checks have not passed). */
+  confirmDisabled?: boolean;
 }
 
 export default function WizardConfirm({
@@ -47,6 +49,7 @@ export default function WizardConfirm({
   cancelLabel,
   onCancel,
   testid,
+  confirmDisabled = false,
 }: Props) {
   const pressedOnBackdrop = useRef(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -110,7 +113,7 @@ export default function WizardConfirm({
             {cancelLabel}
           </button>
           <div className="spacer" />
-          <button className="primary" onClick={onConfirm} data-testid={`${testid}-go`} ref={confirmRef}>
+          <button className="primary" onClick={onConfirm} data-testid={`${testid}-go`} ref={confirmRef} disabled={confirmDisabled}>
             {confirmLabel}
           </button>
         </div>

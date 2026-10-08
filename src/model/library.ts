@@ -234,6 +234,7 @@ export function createGraphic(
     aiSpec?: GenerationSpec | null;
     aiThread?: AiThread | null;
     legibility?: ProjectLegibility | null;
+    fromPack?: GraphicDoc['fromPack'];
   },
 ): { doc: GraphicDoc; error: string | null } {
   // ONE shape, minted by the pure builder every other writer uses (the bridge, the save API).
@@ -250,7 +251,7 @@ export function createGraphic(
 /** Update fields of an existing graphic (the Save path, rename, move, entries…). */
 export function updateGraphic(
   id: string,
-  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread' | 'folder' | 'legibility'>>,
+  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread' | 'folder' | 'legibility' | 'fromPack'>>,
 ): { doc: GraphicDoc | null; error: string | null } {
   const all = rawGraphics();
   const doc = all.find((g) => g.id === id && !g.deleted);
@@ -273,6 +274,8 @@ export function duplicateGraphic(id: string): { doc: GraphicDoc | null; error: s
     baseline: src.baseline,
     entries: src.entries.map((e) => ({ ...e, id: uuid() })),
     activeEntryId: null,
+    // A copy of a graphic installed from the community shelf is still not the maker's own.
+    fromPack: src.fromPack ?? null,
   });
 }
 

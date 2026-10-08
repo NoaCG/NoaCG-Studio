@@ -1171,6 +1171,55 @@
 .wz-community-meta { font-size: 11px; color: var(--text-dim); }
 .wz-community-install { align-self: flex-start; }
 .wz-community-error { margin: 0; font-size: 12px; color: var(--danger); }
+/* A shared pack's preview is a live render, framed like the seed's still. */
+.wz-community-live { overflow: hidden; }
+.wz-community-live .wz-mini { width: 100%; height: 100%; }
+
+/* THE GIVING HALF (docs/work-specs/community-packs/spec.md D8): the door on the lede row, then
+   the maker's own packs and, for an admin, what waits for review - rows, not cards, because they
+   are statuses and decisions rather than things to install. */
+.wz-community-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.wz-community-section h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.wz-community-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.wz-community-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.wz-community-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 240px; }
+.wz-community-row-text strong { font-size: 13px; }
+.wz-community-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.wz-community-state { font-size: 12px; color: var(--text-dim); }
+.wz-community-state.is-live, .wz-community-ok { font-size: 12px; color: var(--ok); }
+.wz-community-state.is-not_accepted, .wz-community-state.is-taken_down { color: var(--danger); }
+.wz-community-reason { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
+.wz-community-reason input { flex: 1 1 180px; min-width: 0; }
+
+/* The submit sheet: one column of labelled fields, the graphics as a ticked list. */
+.wz-submit-field { display: flex; flex-direction: column; gap: 4px; }
+.wz-submit-field > span { font-size: 12px; color: var(--text-dim); }
+.wz-submit-graphics {
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.wz-submit-graphics label { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.wz-confirm-body .wz-submit-graphics { padding-left: 10px; }
+.wz-submit-findings { margin: 0; padding-left: 18px; font-size: 12px; color: var(--danger); }
+.wz-confirm-body .wz-submit-findings { color: var(--danger); }
 
 /* An "add more" card is offered, not shipped, so it reads quieter than the kit's own until
    it is ticked - and a ticked one reads exactly like a pack card, because at that point it
