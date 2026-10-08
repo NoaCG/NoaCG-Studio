@@ -22,6 +22,8 @@ import { join } from 'node:path';
 
 import { jobsDir, NO_VERDICT_EXIT } from './jobs-store.mjs';
 import { REQUIRED_CHECKS } from './landing-ruleset-reader.mjs';
+import { primaryCheckout } from './primary-checkout.mjs';
+import { triggerUnattendedSweep } from './worktree-cleanup-lib.mjs';
 
 const POLL_MS = 30_000;
 const CAP_MS = 60 * 60_000;
@@ -165,7 +167,11 @@ async function main() {
     console.error('Usage: node scripts/land-watch.mjs --pr <number> --branch <name> [--expect-sha <commit>]');
     return 2;
   }
-  return watch({ pr, branch, expectSha });
+  // A landing is the moment finished work exists, so it starts the unattended cleanup sweep
+  // (docs/work-specs/worktree-lifecycle/spec.md). The sweep holds a just-landed worktree for its
+  // idle window, so what it removes now is earlier work; this one goes on a later run.
+  const afterLanding = () => triggerUnattendedSweep({ primaryRoot: primaryCheckout(process.cwd()) });
+  return watch({ pr, branch, expectSha }, { afterLanding });
 }
 
 /**
@@ -173,7 +179,14 @@ async function main() {
  * tick by tick (land-watch.test.mjs). Returns the exit code.
  */
 export async function watch({ pr, branch, expectSha }, io = {}) {
-  const { view: readView = viewPr, checks: readChecks = rollup, wait = sleep, now = Date.now, record = recordLanding } = io;
+  const {
+    view: readView = viewPr,
+    checks: readChecks = rollup,
+    wait = sleep,
+    now = Date.now,
+    record = recordLanding,
+    afterLanding = () => {},
+  } = io;
   const started = now();
   let lastSaid = '';
   let refusedOnce = false;
@@ -186,6 +199,12 @@ export async function watch({ pr, branch, expectSha }, io = {}) {
     if (verdict === 'landed') {
       record({ branch, sha, worktree: process.cwd(), at: now(), pr: Number(pr) });
       console.log(`land-watch: ${branch} landed on main as ${String(sha).slice(0, 8)} (${view.url})`);
+      try {
+        const sweep = afterLanding();
+        if (sweep?.started) console.log('land-watch: started the unattended worktree cleanup in the background.');
+      } catch {
+        // Housekeeping never turns a landing into a failure.
+      }
       return 0;
     }
     // A REFUSAL IS READ TWICE BEFORE IT IS BELIEVED. In the moment the queue merges a pull

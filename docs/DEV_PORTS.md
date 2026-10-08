@@ -30,6 +30,17 @@ in a registry shared by every worktree of the repo).
 Once a checkout holds a ticket, that ticket **is** the assignment: it is reused on every later
 run, so the number stays stable across restarts, reboots and branch switches.
 
+**Only a server start reserves.** Asking for the port - `devPort()`, `devPorts()`, `livePort()`,
+the CLI, postinstall, session start, a Playwright or Vite config being loaded, a build, a test -
+answers with the checkout's ticket, or with the port a server start would take right now
+(`peekPort()`), and writes nothing. The reservation is made by `claimDevPorts()`, which only two
+things call: Vite's `noacg-dev-port` plugin (`vite.config.ts`) when a dev or preview server is
+about to listen - never for `vite build` or a middleware-mode server - and `npm run dev:worktree`.
+The Playwright configs pass the port to Vite explicitly, so the server reserves exactly the number
+the suite waits on or refuses to start. Until 2026-10-08 every question reserved, so every install
+and every build held a port for the worktree's whole life; 71 worktrees held all 60, and a fresh
+worktree could not even install (`docs/work-specs/worktree-lifecycle/spec.md`).
+
 ## Where the port is recorded
 
 - **The reservation (authoritative):** one ticket file per reserved port, in the repo's shared
@@ -44,8 +55,9 @@ run, so the number stays stable across restarts, reboots and branch switches.
   are per checkout, so different worktrees still race for ports at full speed. A lock names the
   process holding it, so one left behind by a killed `dev:worktree` is taken over by the next
   allocation rather than wedging the checkout; you can also just delete it.
-- **The published record (per worktree):** `.claude/dev-port.json`, rewritten from the
-  reservation on every resolution. It is a *mirror* for tools and humans - the ticket decides.
+- **The published record (per worktree):** `.claude/dev-port.json`, rewritten on every
+  resolution. It is a *mirror* for tools and humans - the ticket decides. `ticket: null` means
+  nothing is reserved yet and the number is what a server start would take.
 - **The preview launch config:** `.claude/launch.json`, generated with the same number so
   `preview_start {name: "dev"}` lands on the right server.
 
@@ -140,16 +152,23 @@ A ticket is created with the exclusive `wx` flag. That is the whole concurrency 
 filesystem decides who won when two worktrees start in the same instant, and the loser sees
 `EEXIST` and walks on. No lock files, no timeouts, no cleanup obligation on the fast path.
 
-Two tools inside *one* worktree can also allocate at the same moment (Vite and Playwright, for
-instance). Both reconcile on a rule they compute identically - lowest port wins, the loser
-releases - so the worktree still ends up with exactly one port.
+Two tools inside *one* worktree can also reserve at the same moment (two servers starting, for
+instance). The per-checkout claim lock above serialises them, so the worktree still ends up with
+exactly one port.
 
 ## Ownership rules
 
-- A ticket naming an **active** worktree is untouchable, whether or not its server is running.
-  A worktree owns its port for as long as it exists; that is what makes the number stable.
+- A ticket naming an **active** worktree is honoured whether or not its server is running, so its
+  number stays stable across restarts.
+- ...until every port is held. Then a server start takes back the **least recently claimed**
+  ticket whose port and live port both answer nothing and which nobody has claimed for ten
+  minutes (`RECLAIM_IDLE_MS`). A claim refreshes the ticket's mtime, which is what "least recently
+  claimed" reads. The ticket is renamed away before it is replaced and its mtime read again, so an
+  owner that claims it in the same instant keeps it. The worktree it was taken from gets a number
+  again at its own next server start.
 - A ticket naming a worktree git no longer lists is **stale** and is reclaimed - on the next
-  allocation that lands on it, and by the sweep at session start.
+  allocation that lands on it, by the sweep at session start, and when the cleanup sweep removes
+  the worktree.
 - A ticket that does not parse blocks its slot but is never auto-deleted: a torn read during
   someone else's write must not cost them their port. `--prune` clears those explicitly.
 - A port that answers TCP while **nobody holds a ticket** for it belongs to something outside
@@ -163,11 +182,13 @@ releases - so the worktree still ends up with exactly one port.
 node scripts/dev-port.mjs
 ```
 
-Prints this checkout's port and refreshes the generated files. `--base` prints the server URL on
-its own, which is what a sweep's `--base` flag wants. `--json` prints the full record
-(port, live port, preference, source, ticket path). `--list` shows every reservation in the repo
-with its holder and whether that holder is still active. `--prune` releases reservations whose
-worktree is gone. `--release` gives *this* checkout's reservation back - never anyone else's.
+Prints this checkout's port and refreshes the generated files, reserving nothing and never
+failing (postinstall runs it). `--base` prints the server URL on its own, which is what a sweep's
+`--base` flag wants. `--json` prints the full record (port, live port, preference, source, ticket
+path or `null`). `--claim` reserves this checkout's port now, as a server start would. `--list`
+shows every reservation in the repo with its holder, whether that holder is still active, and when
+it last claimed. `--prune` releases reservations whose worktree is gone. `--release` gives *this*
+checkout's reservation back - never anyone else's.
 
 ## Troubleshooting
 
@@ -191,7 +212,7 @@ node scripts/dev-port.mjs --list
 node scripts/dev-port.mjs --release
 ```
 
-The next resolution allocates a different port, skipping the occupied one automatically.
+The next server start reserves a different port, skipping the occupied one automatically.
 
 **The e2e suite refuses to start ("something is already listening on port ...").**
 That guard is doing its job: Playwright runs with `reuseExistingServer: true`, so it would
@@ -201,17 +222,27 @@ running `npm run dev:worktree`. Servers in *other* worktrees are harmless - they
 ports.
 
 **A worktree's port changed.**
-Expected in exactly two cases: its preference was taken when it first allocated (session start
-says so - "preferred NNNN was taken"), or its reservation was released. It never changes on its
-own while the ticket exists.
+Expected in three cases: its preference was taken when it first reserved (session start says so -
+"preferred NNNN was taken"), its reservation was released, or every port was held while its
+server was stopped and another worktree's server start took it back. Before its first server
+start a worktree has no reservation at all, and session start says "reserved when a server
+starts".
 
-**Nothing is available at all.** `allocatePort` throws with the full list of who holds what.
-Remove finished worktrees with the shared cleanup workflow
-(`/cleanup-worktrees` in Claude Code or `$cleanup-worktrees` in Codex), then run
-`node scripts/dev-port.mjs --prune`.
+**Nothing is available at all.** Only a server start can hit this: every port is held and every
+holder either has a server listening or claimed within the last ten minutes. `allocatePort` throws
+with the full list of who holds what (`node scripts/dev-port.mjs --list`). An install, a build or
+a test never needs a port and never fails this way. Asking in that state answers **0**
+(`NO_PORT`), never the preference: the preference belongs to another live worktree, and a suite
+waiting on it would adopt that worktree's server through `reuseExistingServer`. With 0 the suite
+starts its own server with `--port 0`, which the reservation refuses loudly. Finished worktrees are removed by the
+unattended cleanup sweep (`.agent-workflows/cleanup-worktrees.md`), which releases their tickets.
 
 ## Tests
 
 `npm run test:ports` (`scripts/port-registry.test.mjs`) covers distinct preferences, a real
 hash collision, an occupied preferred port, six processes allocating simultaneously, stale
-reservation recovery, and the whole tool chain reporting one number.
+reservation recovery, asking without reserving, a claim told its port, a full registry taking
+back an idle reservation, and the whole tool chain reporting one number.
+`scripts/dev-port-readonly.test.mjs` (in the build) runs postinstall and every question against a
+FULL registry from a fresh linked worktree, and loads every config that names a port, asserting
+that none of it writes a ticket.

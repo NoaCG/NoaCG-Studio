@@ -12,7 +12,8 @@ user to run - drive the script yourself, read its output, and report conclusions
 
 This workflow deletes branches and worktrees, so it runs when it is **invoked by name** - as a
 command, or as the last step of a session that has finished. Never infer invocation from a
-request to inspect or discuss repository hygiene.
+request to inspect or discuss repository hygiene. The one exception is the **unattended sweep**
+below, which starts itself and acts only on finished work.
 
 The executable safety gates live in `scripts/cleanup-worktrees.mjs` (dry-run by default,
 `--apply` to act). It uses ancestry containment against a freshly fetched `origin/main` for
@@ -58,6 +59,38 @@ catches what a worktree happened to be holding when it died.
 **What still stops and asks:** an unarchivable path, a lone secret, a worktree skipped for
 uncommitted or unique work, a `main` ahead of `origin/main`, a non-empty leftover folder. Those
 are decisions, not permissions.
+
+## The unattended sweep (nobody runs it)
+
+Finished work cleans itself up (owner, 2026-10-08; `docs/work-specs/worktree-lifecycle/`). Session
+start and every landing (`scripts/land-watch.mjs`) start `node scripts/cleanup-worktrees.mjs
+--unattended` in the background, from the primary checkout and with the PRIMARY CHECKOUT'S copy of
+the script (landed code - never a feature branch's), at most once per half hour and never beside
+another sweep (both modes take one lock). Windows only: the in-use guarantee below rests on Windows
+refusing to rename a folder a process is in. It runs the same assessment and apply as `--apply`,
+then acts only on a worktree that ALSO:
+
+- sits under `<primary>/.claude/worktrees/` on a managed branch - never the Codex app's worktrees
+  in `~/.codex/worktrees` (the Codex app caps those itself), never anything else;
+- has LANDED (the landing ledger names its branch) or has no commits of its own;
+- has been quiet long enough - no Claude transcript turn AND no HEAD movement inside the window: a
+  landed `agent-*` worktree 2 hours, any other landed worktree - a desktop chat above all - 24
+  hours, one with no commits of its own 3 days;
+- has no job queued or running for it.
+
+Anything that needs a person is never acted on; it goes to `<git-common-dir>/noacg-cleanup/
+last.json` (full report in `last.txt`), and the orchestrator home's session start says how many.
+Before assessing, the sweep fast-forwards a clean primary `main` to `origin/main`, as a handoff
+does. `NOACG_NO_AUTO_CLEANUP=1` switches it off.
+
+**A chat the owner comes back to.** A resumed session whose worktree was cleaned up gets a fresh
+worktree at the same path, cut from `origin/main` on a new branch, and is told to enter it; a
+session that starts in a worktree whose branch landed is moved to a fresh branch from
+`origin/main` when its tree is clean (`scripts/worktree-followup.mjs`, from the SessionStart hook).
+
+**Keep the desktop app's "Auto-archive after PR merge or close" OFF** (owner, 2026-10-08). The
+app removes a worktree without copying its ignored output out first, which is how paid bench
+rounds were lost; this sweep does the same job with the archive.
 
 ## Why the BULK sweep runs from the primary checkout only
 
@@ -108,6 +141,14 @@ should run in it.
   `scripts/orchestrator-home.mjs` so the two cannot drift: the branchless rule already covers it
   while it is detached, but a home that is only safe while it stays detached is one reattachment
   away from being swept.
+- **A worktree some process is in is left exactly as it is.** It is moved aside (to
+  `<git-common-dir>/noacg-cleanup/removing/<pid>/<name>`, where no scanner looks) before it is
+  archived or removed, and Windows refuses that rename while any process has its working directory
+  or an open file inside; the refusal is reported as "in use", not as a failure, and nothing in it
+  is touched. (A plain `git worktree remove` deletes every file first and fails only on the empty
+  folder.) Any other refusal is an error, and a worktree found parked there was interrupted
+  mid-removal - both need a person. `--self` is the deliberate exception: it removes the worktree its own session sits
+  in.
 - A worktree git reports as **locked** is skipped, never forced - that is how the harness marks
   an agent that is running right now. So is one part-way through a merge, rebase, cherry-pick or
   bisect (a bisect leaves a perfectly clean tree), and one whose Claude Code session wrote a
@@ -120,7 +161,7 @@ should run in it.
   `git branch -d`, never `-D`; git refuses an unmerged branch as a final backstop). `main` and
   the current branch are never touched. Other merged branches are reported, not deleted.
   The namespaces are `claude/*`, `codex/*` and `worktree-agent-*`, listed once in
-  `MANAGED_BRANCH_PREFIXES` (`scripts/cleanup-worktrees.mjs`) - adding the next one is a line
+  `MANAGED_BRANCH_PREFIXES` (`scripts/worktree-cleanup-lib.mjs`) - adding the next one is a line
   there. **The last of those is the ORCHESTRATOR's own litter**, and it is why the list is not
   just the two session prefixes: an agent launched into its own worktree gets
   `.claude/worktrees/agent-<id>` plus a `worktree-agent-<id>` branch alongside whatever `claude/*`

@@ -111,5 +111,9 @@ instruction that still names one.
   folder, so each is classified. Rebuildable output goes; a secret goes **unread**, and only while
   the primary checkout still holds one; **anything unrebuildable is archived outside the repo and
   the copy verified file by file BEFORE anything is deleted**, an unprovable copy refusing with no
-  override. Locked, dirty, mid-operation or with a live session: left alone. Full contract in
+  override. Locked, dirty, mid-operation, in use by any process or with a live session: left
+  alone. **Nobody has to run it** (owner, 2026-10-08): session start and every landing start an
+  unattended sweep that removes landed worktrees under `.claude/worktrees/` once quiet (agent
+  worktrees 2 hours, desktop chats 24 hours, no-commit worktrees 3 days), and GitHub deletes the
+  branch at merge (`delete_branch_on_merge`). Full contract in
   `.agent-workflows/cleanup-worktrees.md`; `scripts/cleanup-worktrees.mjs` is dry-run by default.

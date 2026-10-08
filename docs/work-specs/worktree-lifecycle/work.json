@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "b09e903738841e0bca3adaf0e98055594d299ee155ef72ccbaf56b7d1c1d0857",
+  "authority": {
+    "status": "agreed",
+    "source": "owner answers 2026-10-08 to docs/work-specs/worktree-lifecycle/questions.md, relayed for wave 2026-10-08 row L: remove landed worktrees under .claude/worktrees automatically (desktop and agent ones, never Codex's, never unlanded), never one a live session holds, and make a resumed chat's follow-up work with nothing to run; delete_branch_on_merge turned on by the owner; no-own-commit worktrees after 3 idle days; desktop auto-archive stays off; hold 24 hours for desktop worktrees and 2 hours for agent worktrees"
+  },
+  "review": null
+}

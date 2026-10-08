@@ -103,7 +103,9 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    // The port is passed, not left to vite.config.ts: the server then reserves exactly the number
+    // this config is waiting on, or fails loudly (scripts/dev-port.mjs, "asking never reserves").
+    command: `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,

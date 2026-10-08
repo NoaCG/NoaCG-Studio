@@ -9,10 +9,12 @@
 // still-busy folder stays locked (rmdir throws, we skip it); any non-empty stub is reported,
 // never deleted - that is someone's working tree until proven otherwise.
 
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, rmdirSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gitCommonDir } from './primary-checkout.mjs';
 
 /** Absolute path with forward slashes, for cross-checkout comparison on Windows. */
 export function normalize(path) {
@@ -79,6 +81,89 @@ export function reapDelegationTrees(worktreePath, { run = spawnSync } = {}) {
   } catch (error) {
     return { ok: false, busy: false, output: error?.message ?? 'the reaper could not be run' };
   }
+}
+
+// --- Shared by the sweep, the SessionStart hook and the follow-up handling ----------------------
+
+/**
+ * The branch namespaces this sweep OWNS, and may therefore delete once containment passes.
+ * Anything else that passes containment is REPORTED instead: containment says the commits are
+ * safe, never whose branch it is, and a name outside these namespaces was chosen by a person.
+ *
+ * `worktree-agent-` is the harness's own namespace, not a human's. An agent launched with
+ * worktree isolation mints `.claude/worktrees/agent-<id>` together with a `worktree-agent-<id>`
+ * branch pointing at the same tip as the `claude/*` branch it was shadowing, and never pushes it.
+ * The sweep already removed those worktrees, so leaving the prefix out only stranded the
+ * branches - 48 had accumulated by 2026-09-02, every one contained in `main`, none on `origin`.
+ */
+export const MANAGED_BRANCH_PREFIXES = ['claude/', 'codex/', 'worktree-agent-'];
+
+export function managedBranch(name) {
+  return MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+/**
+ * A merge, rebase, cherry-pick or bisect stopped part-way, named rather than left to surface as
+ * "the tree is dirty" - and a BISECT leaves the tree perfectly clean while its state lives only
+ * in this worktree's own gitdir, so nothing else here would notice it.
+ */
+export function operationInProgress(worktreePath) {
+  // Tested as FILES, not as revisions. `git rev-parse --verify BISECT_LOG` exits 1 - a bisect log
+  // is not a ref - so the older rev-parse form silently never fired for the one operation that
+  // leaves no other trace, and `rebase-merge/`/`rebase-apply/` are directories that no rev-parse
+  // can see either. Every one of them lives in this worktree's OWN gitdir.
+  const gitDir = ownGitDir(worktreePath);
+  if (!gitDir) return null;
+  return (
+    ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'BISECT_LOG', 'rebase-merge', 'rebase-apply'].find((marker) =>
+      existsSync(join(gitDir, marker)),
+    ) ?? null
+  );
+}
+
+/** This worktree's own git directory (per-worktree state: HEAD, its reflog, MERGE_HEAD...), or null. */
+function ownGitDir(worktreePath) {
+  const located = git(['rev-parse', '--absolute-git-dir'], worktreePath);
+  return located.ok && located.stdout ? located.stdout : null;
+}
+
+/**
+ * Fast-forward the primary checkout's `main` to `origin/main`, exactly as the handoff workflow
+ * does by hand (`git pull --ff-only`) and under the same conditions: on `main`, clean, nothing in
+ * progress, and strictly behind. Landings reach origin only, so without this the local ref lags
+ * every landing and the branch rule ("contained in local main AND origin/main") never passes for
+ * the branches this sweep exists to delete. Anything else and it does nothing; returns whether it
+ * moved.
+ */
+export function advanceLocalMain(primaryRoot) {
+  if (git(['symbolic-ref', '-q', '--short', 'HEAD'], primaryRoot).stdout !== 'main') return false;
+  const status = git(['status', '--porcelain'], primaryRoot);
+  if (!status.ok || status.stdout !== '' || operationInProgress(primaryRoot)) return false;
+  const behind = git(['rev-list', '--count', `main..origin/main`], primaryRoot);
+  if (!behind.ok || behind.stdout === '0') return false;
+  if (!git(['merge-base', '--is-ancestor', 'main', 'origin/main'], primaryRoot).ok) return false;
+  return git(['merge', '--ff-only', '--quiet', 'origin/main'], primaryRoot).ok;
+}
+
+/**
+ * When this worktree's HEAD last moved - a commit, a checkout, a reset - as epoch ms, or null.
+ * The idle signal for work no Claude transcript records (a worktree just made, a plain shell, a
+ * Codex session): its reflog and HEAD file change exactly then. The index is deliberately not
+ * read, because `git status` - which every sweep runs - may rewrite it.
+ */
+export function lastGitActivityMs(worktreePath) {
+  const gitDir = ownGitDir(worktreePath);
+  if (!gitDir) return null;
+  let newest = null;
+  for (const name of ['logs/HEAD', 'HEAD']) {
+    try {
+      const { mtimeMs } = statSync(join(gitDir, name));
+      if (newest === null || mtimeMs > newest) newest = mtimeMs;
+    } catch {
+      // not there for this worktree
+    }
+  }
+  return newest;
 }
 
 /** Run git with the given args in `cwd`; return { ok, stdout, stderr } all trimmed. */
@@ -158,6 +243,170 @@ export function inspectLeftoverFolders({ primaryRoot, registeredRoots, protect =
     // Best-effort: a surprise here must never propagate.
   }
   return { empty, nonEmpty, unreadable };
+}
+
+// --- The unattended sweep: where it keeps its state, how it is started, and its lock ----------
+//
+// Finished work cleans itself up (docs/work-specs/worktree-lifecycle/spec.md): session start and
+// every landing START `cleanup-worktrees.mjs --unattended` in the background. These helpers are
+// here rather than in that file because the SessionStart hook calls them, and it must not load
+// the whole sweep to decide that a sweep ran ten minutes ago.
+
+/** How often the unattended sweep may run at most. Its own idle holds are hours long. */
+export const SWEEP_THROTTLE_MS = 30 * 60_000;
+
+/** A lock older than this belongs to a sweep that died; a live one finishes in minutes. */
+const SWEEP_LOCK_MAX_AGE_MS = 2 * 60 * 60_000;
+
+/**
+ * The directory the sweep keeps its lock, its start stamp and its last result in:
+ * `<git-common-dir>/noacg-cleanup`, or `NOACG_CLEANUP_STATE_DIR`. Null outside a checkout.
+ */
+export function cleanupStateDir(primaryRoot, { env = process.env } = {}) {
+  if (env.NOACG_CLEANUP_STATE_DIR) return resolve(env.NOACG_CLEANUP_STATE_DIR);
+  if (!primaryRoot) return null;
+  // Read from `.git` rather than asked of git: this runs on every session start.
+  const common = gitCommonDir(primaryRoot);
+  return common ? join(common, 'noacg-cleanup') : null;
+}
+
+/** When the last unattended sweep STARTED, as epoch ms, or null. */
+export function lastSweepStart(stateDir) {
+  try {
+    return statSync(join(stateDir, 'last-start')).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+/** Mark that a sweep started now - the throttle reads this. */
+export function markSweepStart(stateDir) {
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, 'last-start'), `${new Date().toISOString()}\n`);
+}
+
+/**
+ * Start the unattended sweep in the background, unless one started within SWEEP_THROTTLE_MS or
+ * `NOACG_NO_AUTO_CLEANUP` is set (the off switch, and what tests set). It runs from the PRIMARY
+ * checkout, as every sweep must, and it runs THE PRIMARY CHECKOUT'S COPY of the script - landed
+ * code, fast-forwarded to origin/main first when that is safe - never the copy on whatever branch
+ * the triggering session happens to sit on: a sweep that deletes across every checkout must not
+ * run a feature branch's unreviewed rules. A primary too old to know `--unattended` just runs a
+ * dry assessment.
+ *
+ * Windows only: "a worktree in use is never touched" rests on Windows refusing to rename a folder
+ * a process is in. Elsewhere a rename succeeds under a live shell, so nothing starts there.
+ *
+ * Returns `{ started, why }` and never throws: it is called from a hook and from the landing
+ * watcher, and neither may fail because housekeeping could not start.
+ */
+export function triggerUnattendedSweep({
+  primaryRoot,
+  script = primaryRoot ? join(primaryRoot, 'scripts', 'cleanup-worktrees.mjs') : null,
+  env = process.env,
+  now = Date.now(),
+  start = spawn,
+  platform = process.platform,
+  fastForward = advanceLocalMain,
+} = {}) {
+  try {
+    if (env.NOACG_NO_AUTO_CLEANUP) return { started: false, why: 'NOACG_NO_AUTO_CLEANUP is set' };
+    if (platform !== 'win32') {
+      return { started: false, why: 'the in-use check relies on Windows refusing to rename a folder a process is in' };
+    }
+    if (!primaryRoot) return { started: false, why: 'no primary checkout' };
+    const stateDir = cleanupStateDir(primaryRoot, { env });
+    if (!stateDir) return { started: false, why: 'no git common dir' };
+    // A stamp a little in the future is the file clock rounding ahead of ours; one far in the
+    // future means the clock moved, and must not hold every later sweep off.
+    const last = lastSweepStart(stateDir);
+    const age = last === null ? null : now - last;
+    if (age !== null && age > -60_000 && age < SWEEP_THROTTLE_MS) {
+      return { started: false, why: `a sweep started ${Math.max(0, Math.round(age / 60_000))} minute(s) ago` };
+    }
+    // Stamped HERE, before the child exists, so a second trigger a moment later (two sessions
+    // starting together, a landing during a session start) does not spawn a second sweep that
+    // would only find the lock taken.
+    markSweepStart(stateDir);
+    fastForward(primaryRoot);
+    if (!script || !existsSync(script)) return { started: false, why: 'the primary checkout has no sweep script' };
+    const child = start(process.execPath, [script, '--unattended'], {
+      cwd: primaryRoot,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env,
+    });
+    child?.unref?.();
+    return { started: true, why: null };
+  } catch (error) {
+    return { started: false, why: error?.message ?? String(error) };
+  }
+}
+
+/** Is a process with this pid still running? EPERM means yes, under another user. */
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+/**
+ * Take the sweep lock, shared by `--apply` and `--unattended`, so two sweeps never decide about
+ * the same worktree at once. Returns `{ ok, release, why }`. A lock whose process is gone, or
+ * that is older than any sweep runs, is taken over.
+ */
+export function acquireSweepLock(stateDir, { now = Date.now() } = {}) {
+  mkdirSync(stateDir, { recursive: true });
+  const path = join(stateDir, 'sweep.lock');
+  const mine = { pid: process.pid, at: now, token: randomUUID() };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      writeFileSync(path, JSON.stringify(mine), { flag: 'wx' });
+      const release = () => {
+        try {
+          if (JSON.parse(readFileSync(path, 'utf8')).token === mine.token) rmSync(path, { force: true });
+        } catch {
+          // already gone
+        }
+      };
+      return { ok: true, release, why: null };
+    } catch (error) {
+      if (error?.code !== 'EEXIST') return refused(error?.message ?? String(error));
+    }
+    let held = null;
+    try {
+      held = JSON.parse(readFileSync(path, 'utf8'));
+    } catch {
+      // unreadable: judged by age below
+    }
+    const age = held?.at ? now - held.at : SWEEP_LOCK_MAX_AGE_MS + 1;
+    if (held?.pid && pidAlive(held.pid) && age < SWEEP_LOCK_MAX_AGE_MS) {
+      return refused(`another worktree cleanup is running (pid ${held.pid})`);
+    }
+    // The rename IS the takeover (only one of two racers can win it); deleting the renamed file
+    // afterwards is tidying, and a failure there must not read as having lost the race.
+    const dead = `${path}.${process.pid}.${Date.now()}.dead`;
+    try {
+      renameSync(path, dead);
+    } catch {
+      return refused('another cleanup took over the lock first');
+    }
+    try {
+      rmSync(dead, { force: true, maxRetries: 10, retryDelay: 10 });
+    } catch {
+      // left behind; nothing reads `*.dead`
+    }
+  }
+  return refused('could not take the cleanup lock');
+}
+
+/** A lock that was not taken: nothing to release. */
+function refused(why) {
+  return { ok: false, release: () => {}, why };
 }
 
 /**
