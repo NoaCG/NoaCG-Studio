@@ -34,6 +34,8 @@ const descriptions: Record<CommandId, string> = {
 };
 const commandIds = Object.keys(schemas) as CommandId[];
 const command = z.union(commandIds.map(id => z.strictObject({ id: z.literal(id), args: schemas[id] })));
+export const editorProposalSchema = z.strictObject({ summary: z.string().min(1).max(1000), commands: z.array(command).max(100) });
+export type EditorProposal = z.infer<typeof editorProposalSchema>;
 const applySchema = z.strictObject({ expected: context, transactionId: z.string().min(1).max(200), commands: z.array(command).min(1).max(100) });
 const historySchema = z.strictObject({ expected: context, direction: z.enum(['undo', 'redo']) });
 const viewSchema = z.discriminatedUnion('action', [
@@ -132,6 +134,7 @@ export class EditorCommands {
           for (const p of ['x', 'y'] as const) { if (writeChannel(data, owner, p) !== p) throw new Error('This layer uses percent position. Use its existing UI channel control.'); applyOperations(template, [{ kind: 'animation.key', selector: part.selector, step: 0, time: 0, property: p, value: 0, action: 'set' }], false); } });
         const unstable = { supported: false as const, reason: 'Commit a unique source ID through the existing UI before semantic edits.' };
         return { id, label: part.label, stable: !!stable, text: text ? { default: text.text.slice(0, 10000), fieldId: text.field } : null,
+          position: base.supported ? baseValues(template, part.selector) : null,
           capabilities: { 'text.set': stable ? info : unstable, 'base.set': stable ? base : unstable, 'animation.key': stable ? position : unstable } };
       });
       const global = Object.fromEntries(['rectangle', 'ellipse', 'text'].map(shape => [shape, capability(() => applyOperations(template,
@@ -139,9 +142,23 @@ export class EditorCommands {
       const timeline = capability(() => { const reason = sequenceAuthoringReason(animationSource(template)); if (reason) throw new Error(reason); });
       return { ok: true as const, expected, view: { selectedIds: this.session.port.view().selectedParts.map(s => s.startsWith('#') ? s.slice(1) : null),
         time: this.session.port.view().time, cue: this.session.port.view().cue ?? null }, history: this.session.commandState().history,
+        document: { name: template.name, resolution: template.resolution, fps: template.fps },
         targets, nextOffset: offset + limit < view.parts.length ? offset + limit : null,
         capabilities: { 'layer.create': global, 'step.add': timeline, 'out.set': timeline },
         timeline: { speed: view.data?.speed, segments: view.segments.slice(0, 100), totalSegments: view.segments.length, reason: view.reason }, preview: this.previewReceipt() };
+    } catch (cause) { return outcome(cause); }
+  }
+  /** Validate a reviewable patch without opening a gesture or writing source/history. */
+  prepare(input: unknown) {
+    try {
+      const request = decode(applySchema, input); this.guard(request.expected);
+      const template = this.session.port.read();
+      const operations = request.commands.map(c => operation(template, c.id, c.args));
+      const patch = applyOperations(template, operations, false);
+      this.guard(request.expected);
+      return { ok: true as const, expected: request.expected,
+        changedIds: patch.changedTargets.map(s => s.startsWith('#') ? s.slice(1) : s),
+        files: patch.diff.map(p => p.file) };
     } catch (cause) { return outcome(cause); }
   }
   apply(input: unknown) {

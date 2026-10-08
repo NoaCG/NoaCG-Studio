@@ -21,6 +21,7 @@ import { groupHierarchy } from '../../blocks/editorGroups';
 import { assetBinDirs } from '../../blocks/editorOrganization';
 import { inspectOrganization } from '../../model/editorOrganization';
 import { connectEditorCommands } from './commandAdapter';
+import ProposalPanel from './ProposalPanel';
 import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
@@ -41,6 +42,8 @@ export default function EditorFoundation() {
   const groupPath = groupLocation.document === session.documentId ? groupLocation.path.filter(selector => hierarchy.groups.has(selector)) : [];
   const groupScope = groupPath[groupPath.length - 1] ?? null;
   const [projectOpen, setProjectOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const assistantButton = useRef<HTMLButtonElement>(null);
   const [linked, setLinked] = useState(true);
   const [pathEditing, setPathEditing] = useState<string | null>(null);
   const [appearance, setAppearance] = useState<Record<string, RenderedPart['appearance']>>({});
@@ -153,6 +156,7 @@ export default function EditorFoundation() {
       <NewGraphicButton />
       <span className="ef-document-name">{template.name}</span><span className="ef-spacer" />
       <span className="ef-release">Editor Alpha</span>
+      <button ref={assistantButton} aria-expanded={assistantOpen} onClick={() => setAssistantOpen(!assistantOpen)}>Assistant</button>
       <SaveControls />
       {/* No "Existing editor" door: nothing links to the old code editor (owner, 2026-09-21 and
           2026-09-24). Home, beside the brand, is the way out. */}
@@ -194,7 +198,7 @@ export default function EditorFoundation() {
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
       <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
-      <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />
+      {assistantOpen ? <ProposalPanel key={session.instanceId} close={() => { setAssistantOpen(false); assistantButton.current?.focus(); }} /> : <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />}
     </div>
     <Timeline key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
