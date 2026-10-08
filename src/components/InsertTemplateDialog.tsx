@@ -8,7 +8,7 @@ import { useMemo, useRef, useState } from 'react';
 import { create } from 'zustand';
 import { useTemplateStore } from '../store/templateStore';
 import { CATEGORIES, type TemplateVariant } from '../model/wizard';
-import { variantsFor } from '../templates/catalog';
+import { CatalogLoading, useCatalog } from './catalogOnDemand';
 import { parseAnimData } from '../blocks/animData';
 import { buildDonor, insertBlocker, insertTemplateGraphic, type InsertPlacement } from '../blocks/templateInsert';
 import MiniPreview from './wizard/MiniPreview';
@@ -41,7 +41,8 @@ export default function InsertTemplateDialog() {
   // out of a field must not close and lose the picker state. See save/SaveDialogs.tsx.
   const pressedOnBackdrop = useRef(false);
 
-  const variants = useMemo(() => (open ? variantsFor(catId) : []), [open, catId]);
+  const catalog = useCatalog(open);
+  const variants = useMemo(() => (open && catalog ? catalog.variantsFor(catId) : []), [open, catalog, catId]);
   // What each card's donor would be — code-derived, never a category list. Two facts come
   // out of the ONE build: whether it CAN insert (a template whose motion needs its own
   // runtime is greyed with the reason, never hidden) and whether its design has a
@@ -143,6 +144,7 @@ export default function InsertTemplateDialog() {
             </div>
           </div>
           {error &&<p className="status-bad insert-tpl-error" data-testid="insert-tpl-error">✗ {error}</p>}
+          {!catalog && <CatalogLoading />}
           <div className="insert-tpl-grid">
             {variants.map((v) => {
               const blocked = probes.get(v.id)?.blocked ?? null;
