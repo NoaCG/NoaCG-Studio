@@ -296,7 +296,7 @@ The packing kept eight runners, and the suite grew from 122 measured minutes on 
 shard at 18.5, 20.2 and then 20.5 minutes against the 20-minute budget and only warned; four nights
 running, three to five shards stopped at `--global-timeout` with 80-90 tests unreached. Nothing
 hung: no test timed out, and what went unreached was each shard's alphabetical tail, different
-specs every night. The plan now sizes the runner count so every shard is predicted under 17 minutes
+specs every night. The plan now sizes the runner count so every shard is predicted at or under 17 minutes
 (`nightlyShardCount`, up to 16 runners), and each file weighs the slowest of its newest three
 finished nights, which in a replay of four green nights cut the worst shard's overrun of its plan
 from 3.1 minutes to 1.6.

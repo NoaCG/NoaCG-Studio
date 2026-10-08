@@ -43,13 +43,14 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { minutesFor, packShards } from './e2e-affected.mjs';
-import { minutesByFile, predictShardMinutes, readTable, SHARD_SAFETY_MINUTES, specFilesOnDisk } from './e2e-durations.mjs';
-import { unfinishedByFile } from './nightly-triage.mjs';
+import { budgetMinutes, minutesByFile, predictShardMinutes, readTable, SHARD_SAFETY_MINUTES, specFilesOnDisk } from './e2e-durations.mjs';
+import { failedFiles, unfinishedByFile } from './nightly-triage.mjs';
 
 /**
  * The most runners one nightly asks for. The account runs 20 jobs at once and the nightly holds
  * two more (the catalog jobs) beside its shards; a suite that needs more than this is a suite to
- * look at, which the plan's warning says.
+ * look at, which the plan's warning says. A ci.yml run beside the nightly makes some jobs wait for
+ * a runner, which costs wall clock and no verdict: a job's timeout starts when it does.
  */
 export const NIGHTLY_MAX_SHARDS = 16;
 
@@ -78,8 +79,10 @@ export const NIGHTS_PER_FILE = 3;
 
 /**
  * Per-file minutes from earlier nightly reports, newest first: each file weighs the slowest of the
- * newest `NIGHTS_PER_FILE` reports that ran it to the end. A report in which a file has a test that
- * did not finish says nothing about that file.
+ * newest `NIGHTS_PER_FILE` reports that ran it to the end and passed it. A report in which a file
+ * has a test that did not finish, or failed, says nothing about that file: an unfinished file
+ * measured only part of itself, and a failing one measured a broken night (a test that times out
+ * costs its full minute), which the slowest-wins rule would otherwise carry for three nights.
  *
  * @param {object[]} reports merged Playwright JSON reports, newest first
  * @returns {Record<string, number>} basename -> minutes
@@ -88,8 +91,9 @@ export function nightlyMinutes(reports) {
   const seen = {};
   for (const report of reports) {
     const unfinished = unfinishedByFile(report);
+    const failed = failedFiles(report);
     for (const [file, m] of Object.entries(minutesByFile(report))) {
-      if (unfinished.has(file)) continue;
+      if (unfinished.has(file) || failed.has(file)) continue;
       (seen[file] ??= []).push(m);
     }
   }
@@ -99,44 +103,52 @@ export function nightlyMinutes(reports) {
 }
 
 /**
- * HOW MANY RUNNERS THE SUITE NEEDS: the fewest whose packed shards are all predicted at or under
- * `NIGHTLY_PLAN_LINE_MINUTES`, up to `NIGHTLY_MAX_SHARDS`. Starts from the arithmetic lower bound
- * and adds a runner while the packing leaves a shard over the line, which a heavy file can.
+ * THE SUITE ON AS MANY RUNNERS AS IT NEEDS: the fewest whose packed shards are all predicted at or
+ * under `NIGHTLY_PLAN_LINE_MINUTES`, up to `NIGHTLY_MAX_SHARDS`. Starts from the arithmetic lower
+ * bound and adds a runner while the packing leaves a shard over the line, and stops adding once a
+ * runner no longer helps - a single file heavier than the line is over it on any count.
  *
  * @param {string[]} suite
  * @param {{ minutes: Record<string, number>, overhead?: object }} weights
+ * @param {number} [fixed] a set runner count instead, for tests
+ * @returns {{ bins: string[][], predicted: number[] }}
  */
-export function nightlyShardCount(suite, weights) {
-  // Test minutes one shard holds under the line: `predictShardMinutes` (tests x factor + job
-  // overhead) solved for the tests.
-  const jobMinutes = predictShardMinutes(0, weights);
-  const capacity = Math.max(1, (NIGHTLY_PLAN_LINE_MINUTES - jobMinutes) / (predictShardMinutes(1, weights) - jobMinutes));
-  let shards = Math.min(NIGHTLY_MAX_SHARDS, Math.max(1, Math.ceil(minutesFor(suite, weights) / capacity)));
-  while (shards < NIGHTLY_MAX_SHARDS && shards < suite.length) {
-    const worst = Math.max(...packShards(suite, shards, weights).map((bin) => predictShardMinutes(minutesFor(bin, weights), weights)));
-    if (worst <= NIGHTLY_PLAN_LINE_MINUTES) break;
-    shards += 1;
+export function packNightly(suite, weights, fixed) {
+  const pack = (count) => {
+    const bins = packShards(suite, count, weights);
+    return { bins, predicted: bins.map((bin) => predictShardMinutes(minutesFor(bin, weights), weights)) };
+  };
+  if (fixed) return pack(fixed);
+  const lowerBound = Math.ceil(minutesFor(suite, weights) / budgetMinutes(weights, NIGHTLY_TEST_BUDGET_MINUTES));
+  let count = Math.min(NIGHTLY_MAX_SHARDS, Math.max(1, lowerBound));
+  let plan = pack(count);
+  while (Math.max(...plan.predicted) > NIGHTLY_PLAN_LINE_MINUTES && count < NIGHTLY_MAX_SHARDS && count < suite.length) {
+    const next = pack(count + 1);
+    if (Math.max(...next.predicted) >= Math.max(...plan.predicted)) break;
+    plan = next;
+    count += 1;
   }
-  return shards;
+  return plan;
 }
 
 /**
  * The plan: the suite packed onto as many runners as it needs, weighted by earlier nightlies over
- * the table. `shards` fixes the count instead, for tests.
+ * the table. `shards` fixes the count instead, for tests. `fits` is false when a shard is still
+ * planned over the line, which only a suite past the ceiling or a file heavier than the line does.
  *
  * @param {{ suite: string[], table: { minutes: Record<string, number>, overhead?: object }, reports?: object[], shards?: number }} input
  */
 export function planNightly({ suite, table, reports = [], shards }) {
   const measured = nightlyMinutes(reports);
   const weights = { ...table, minutes: { ...table.minutes, ...measured } };
-  const shardSpecs = packShards(suite, shards ?? nightlyShardCount(suite, weights), weights);
-  const predicted = shardSpecs.map((bin) => Number(predictShardMinutes(minutesFor(bin, weights), weights).toFixed(1)));
+  const { bins: shardSpecs, predicted } = packNightly(suite, weights, shards);
   const fromNightly = suite.filter((s) => s in measured).length;
   const fromTable = suite.filter((s) => !(s in measured) && s in table.minutes).length;
   return {
     shardSpecs,
     matrix: { shardIndex: shardSpecs.map((_, i) => i + 1), shardTotal: [shardSpecs.length] },
-    predicted,
+    predicted: predicted.map((m) => Number(m.toFixed(1))),
+    fits: predicted.every((m) => m <= NIGHTLY_PLAN_LINE_MINUTES),
     weights: { nightly: fromNightly, table: fromTable, median: suite.length - fromNightly - fromTable },
   };
 }
@@ -169,12 +181,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     // A warning, not a refusal: an over-budget shard still tests more than one that never starts,
     // and its report will name what it did not reach. On stdout only in Actions, which reads
     // workflow commands there; elsewhere stdout is the JSON alone. The count already grows to fit,
-    // so this fires only when even the ceiling's runners cannot hold the suite.
+    // so this fires only when even the ceiling's runners cannot hold the suite, or when one file is
+    // heavier than the line on its own.
     //
     // The line sits the variance margin under the budget, as ci.yml's does under its cap. The first
     // packed nightly (run 36771185828, 2026-09-30) planned every shard at 15.2 min and ran them in
     // 12.4-17.2 min of job time, so a plan that only just clears 20 is a shard that stops short.
-    if (worst > NIGHTLY_PLAN_LINE_MINUTES) {
+    if (!plan.fits) {
       console.log(
         `::warning title=Nightly shard plan::A shard is predicted at ${worst} min on ${plan.shardSpecs.length} runners, past ` +
           `${NIGHTLY_PLAN_LINE_MINUTES}: less than the ${SHARD_SAFETY_MINUTES}-minute variance margin under the ` +

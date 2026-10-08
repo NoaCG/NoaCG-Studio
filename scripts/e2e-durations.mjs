@@ -232,11 +232,12 @@ export const SHARD_SAFETY_MINUTES = 3;
  * The inverse of the wall-clock model in `overheadFrom`: `(cap - safety - jobMinutes) /
  * testFactor`. Never returns less than one minute, so a pathological overhead reading cannot
  * make the planner demand an unbounded number of shards - it makes the plan not FIT, which is a
- * warning a person reads, not an arithmetic explosion.
+ * warning a person reads, not an arithmetic explosion. `cap` is ci.yml's job cap unless a caller
+ * plans against another deadline (the nightly's `--global-timeout`, scripts/nightly-shards.mjs).
  */
-export function budgetMinutes(table = readTable()) {
+export function budgetMinutes(table = readTable(), cap = SHARD_CAP_MINUTES) {
   const { jobMinutes, testFactor } = { ...DEFAULT_OVERHEAD, ...table.overhead };
-  return Math.max(1, (SHARD_CAP_MINUTES - SHARD_SAFETY_MINUTES - jobMinutes) / testFactor);
+  return Math.max(1, (cap - SHARD_SAFETY_MINUTES - jobMinutes) / testFactor);
 }
 
 /** Predicted wall clock, in minutes, for a shard carrying `minutes` of measured tests. */

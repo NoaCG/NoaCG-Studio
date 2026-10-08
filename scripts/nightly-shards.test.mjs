@@ -18,7 +18,8 @@ test('a file weighs the slowest of the newest three nights that finished it', ()
     night({ 'a.spec.ts': [min(1)], 'b.spec.ts': [min(1), unreached] }),
     night({ 'a.spec.ts': [min(2)], 'b.spec.ts': [min(3)], 'c.spec.ts': [min(2)] }),
     night({ 'a.spec.ts': [min(1.5)], 'b.spec.ts': [min(2)] }),
-    // A fourth night is past the window for a and c, and the third finished b for it.
+    // The window is per file, over the nights that FINISHED it: the fourth night is past a's three
+    // and inside b's (the first did not finish b) and c's (only two nights measured c).
     night({ 'a.spec.ts': [min(9)], 'b.spec.ts': [min(4)], 'c.spec.ts': [min(9)] }),
   ];
   assert.deepEqual(nightlyMinutes(nights), { 'a.spec.ts': 2, 'b.spec.ts': 4, 'c.spec.ts': 9 });
@@ -57,6 +58,22 @@ test('the runner count grows until every shard is planned under the line', () =>
   const fewer = planNightly({ suite, table: { minutes, overhead: { jobMinutes: 0.4, testFactor: 1.01 } }, shards: plan.shardSpecs.length - 1 });
   assert.ok(Math.max(...fewer.predicted) > NIGHTLY_PLAN_LINE_MINUTES);
   assert.deepEqual(plan.shardSpecs.flat().sort(), suite);
+});
+
+test('a night that failed a file says nothing about it', () => {
+  const failing = { status: 'unexpected', expectedStatus: 'passed', results: [{ duration: 60_000 * 15 }] };
+  const nights = [
+    { suites: [{ file: 'x.spec.ts', specs: [{ ok: false, tests: [failing] }] }] },
+    night({ 'x.spec.ts': [min(2)] }),
+  ];
+  assert.deepEqual(nightlyMinutes(nights), { 'x.spec.ts': 2 });
+});
+
+test('a file heavier than the line does not drive the count to the ceiling', () => {
+  const minutes = { 'huge.spec.ts': 30, 'a.spec.ts': 2, 'b.spec.ts': 2 };
+  const plan = planNightly({ suite: Object.keys(minutes), table: { minutes, overhead: { jobMinutes: 0, testFactor: 1 } } });
+  assert.equal(plan.shardSpecs.length, 2);
+  assert.equal(plan.fits, false);
 });
 
 test('a small suite asks for few runners, and a huge one stops at the ceiling', () => {
