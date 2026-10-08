@@ -92,8 +92,11 @@ export function relevantPlayout(input: { configured: boolean; casparOn: boolean 
 /** The renderer's own words for an output that is reporting but not quite well, in the short form
  *  the header has room for. READY keeps its longer line for the panel. */
 function outputShort(lead: string): string {
-  if (lead.startsWith('Behind')) return 'Waiting for clear';
-  if (lead.startsWith('Commands may arrive')) return 'Commands slow';
+  // A line may lead with its output's name ("CasparCG 1-20: Waiting for clear: Scorebug").
+  const waiting = lead.indexOf('Waiting for clear');
+  if (waiting >= 0) return lead.slice(waiting);
+  if (lead.indexOf('Behind') >= 0) return 'Waiting for clear';
+  if (lead.indexOf('Commands may arrive') >= 0) return 'Commands slow';
   return lead;
 }
 

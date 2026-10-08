@@ -17,9 +17,10 @@
 //   are not, and the stamp of the last Prepare for Live.
 //
 // The words are the plan's (§9.3): "Preparing 18 of 24", "Ready for playout", "Ready · 1 change
-// preparing", "Ready · 1 change not prepared: Frost Quiz (script error)", the Degraded lines, and
-// "CasparCG 1-20 not answering (40 s)". Green is only ever "all of it holds"; amber is degraded,
-// never green; red is an output that should be there and is not.
+// preparing", the Degraded lines, and "CasparCG 1-20 not answering (40 s)"; per-graphic replacement
+// added "Waiting for clear: Scorebug" and "Change failed: Frost Quiz (script error)". Green is only
+// ever "all of it holds"; amber is degraded, never green; red is an output that should be there and
+// is not.
 //
 // Pure, with type-only imports: scripts/readiness.test.mjs runs it in Node, and the output renderer
 // loads it in CasparCG 2.3's Chromium 71 (no `Array.prototype.at`, no `Object.fromEntries`).
@@ -63,6 +64,10 @@ export interface ChangePrep {
   is?: ReadyIssue[];
   /** For `waiting`, how many graphics are on air. */
   air?: number;
+  /** The graphics whose change waits because they are on air here (per-graphic replacement,
+   *  docs/work-specs/per-graphic-replacement/spec.md D3). Present, maybe empty, from every output
+   *  that swaps one graphic at a time; absent from one that reloads whole. */
+  w?: string[];
   /** The Prepare for Live request this answers (prepareLive.ts `PrepRequest.id`), so a run never
    *  takes the last run's answer for its own. */
   id?: string;
@@ -210,6 +215,7 @@ function readChange(value: unknown): ChangePrep | undefined {
     n: c.n,
     ...(c.s === 'failed' ? { is: readIssues(c.is) } : {}),
     ...(typeof c.air === 'number' ? { air: c.air } : {}),
+    ...(Array.isArray(c.w) ? { w: c.w.filter((g): g is string => typeof g === 'string').slice(0, MAX_ISSUES).map((g) => g.slice(0, 80)) } : {}),
     ...(typeof c.id === 'string' ? { id: c.id.slice(0, 40) } : {}),
   };
 }
@@ -226,6 +232,11 @@ function reasonOf(issue: ReadyIssue): string {
   if (issue.k === 'image') return 'image not loaded';
   if (issue.k === 'font') return 'font not loaded';
   return 'not prepared';
+}
+
+/** The graphics a compact line names: "Scorebug", "Scorebug and Clock", "Scorebug +2". */
+export function graphicNames(graphics: readonly string[]): string {
+  return graphics.length <= 2 ? graphics.join(' and ') : `${graphics[0]} +${graphics.length - 1}`;
 }
 
 /** "A", "A and B", "A, B and C". */
@@ -491,15 +502,26 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     brokenShort = `Not ready: ${first.g ?? 'a graphic'}${more}`;
     problems.push({ line: `Not ready: ${first.g ?? 'a graphic'} (${reasonOf(first)})${more}`, advice: broken.map(adviceOf) });
   }
-  // A newer version did not prepare: the running one stays, and says which change failed.
+  // A change of the published version did not prepare: its graphic keeps the frame it has, and
+  // the line says which. The status reads it red, like a graphic that cannot play.
   const chg = ready.chg;
   if (chg && chg.s === 'failed' && published && chg.v.h === published.h) {
     const failed = chg.is ?? [];
-    const first = failed[0];
-    const named = first ? `: ${first.g ?? 'a graphic'} (${reasonOf(first)})` : '';
+    const names = graphicNames(failed.map((i) => i.g ?? 'a graphic'));
+    const changeShort = `Change failed: ${names || 'a graphic'}`;
+    brokenShort = brokenShort ?? changeShort;
     problems.push({
-      line: `Ready · ${plural(failed.length || 1, 'change')} not prepared${named}`,
-      advice: failed.map(adviceOf).concat([`It keeps running v${ready.v?.n ?? '?'} until the change is fixed.`]),
+      line: failed.length === 1 ? `${changeShort} (${reasonOf(failed[0])})` : changeShort,
+      advice: failed.map(adviceOf).concat([`${failed.length === 1 ? 'It keeps' : 'They keep'} the version on air before v${published.n}.`]),
+    });
+  }
+  // A change of the published version waits because its graphic is on air here (G1): named, and
+  // only while it waits.
+  const waitingFor = chg && chg.w && chg.w.length > 0 && published && chg.v.h === published.h ? chg.w : null;
+  if (waitingFor) {
+    problems.push({
+      line: `Waiting for clear: ${graphicNames(waitingFor)}`,
+      advice: [`${listWords(waitingFor)} ${waitingFor.length === 1 ? 'takes' : 'take'} v${published!.n} after ${waitingFor.length === 1 ? 'its' : 'their'} Out or next Take.`],
     });
   }
   // Degraded: reachable, but a guarantee fails.
@@ -520,7 +542,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   // pressing Prepare for Live again would not fix it: no second line for it.
   const failedPublished = !!(chg && chg.s === 'failed' && published && chg.v.h === published.h);
   const behind =
-    !preparingPublished && !failedPublished && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
+    !preparingPublished && !failedPublished && !waitingFor && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
   if (behind) {
     degraded.push({
       line: ready.v ? `Behind: showing v${ready.v.n}` : 'Behind: showing an older version',

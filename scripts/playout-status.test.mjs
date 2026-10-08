@@ -85,6 +85,11 @@ test('amber is attention: waiting for clear, slow commands, an old Bridge', () =
   const behind = status({ ready: { tone: 'warn', label: '▲ Behind: showing v2', lead: 'Behind: showing v2', outputs: 1, ready: 0 } });
   assert.deepEqual(pair(behind), ['warn', 'Waiting for clear']);
   assert.equal(behind.checks[0].label, 'Behind: showing v2', 'the panel keeps READY\'s own line');
+  // Per-graphic replacement names what waits, also when the line leads with its output's name.
+  const named = status({ ready: { tone: 'warn', label: '▲ Waiting for clear: Scorebug', lead: 'Waiting for clear: Scorebug', outputs: 1, ready: 0 } });
+  assert.deepEqual(pair(named), ['warn', 'Waiting for clear: Scorebug']);
+  const two = status({ ready: { tone: 'warn', label: '▲ CasparCG 1-20: Waiting for clear: Scorebug +1', lead: 'CasparCG 1-20: Waiting for clear: Scorebug +1', outputs: 2, ready: 1 } });
+  assert.deepEqual(pair(two), ['warn', 'Waiting for clear: Scorebug +1']);
   const slow = status({ ready: { tone: 'warn', label: '▲ Commands may arrive up to 30 s late', lead: 'Commands may arrive up to 30 s late', outputs: 1, ready: 0 } });
   assert.deepEqual(pair(slow), ['warn', 'Commands slow']);
   assert.deepEqual(pair(caspar({ bridge: { state: 'outdated', detail: '' } })), ['warn', 'Update NoaCG Bridge']);
@@ -100,6 +105,7 @@ test('red is for loss and faults, named, and the deciding check comes first', ()
     [caspar({ slot: { ...ours, holds: 'empty' }, slotLost: true, ready: null }), 'Not on 1-20'],
     [caspar({ slot: { ...ours, holds: 'failed', detail: 'CasparCG refused the command: 401 INFO ERROR.' }, ready: null }), 'Cannot read 1-20'],
     [status({ ready: { tone: 'warn', label: '▲ Not ready: Hairline (script error)', lead: 'Not ready: Hairline (script error)', outputs: 1, ready: 0, broken: { line: 'Not ready: Hairline (script error)', short: 'Not ready: Hairline' } } }), 'Not ready: Hairline'],
+    [status({ ready: { tone: 'warn', label: '▲ Change failed: Lower Third (script error)', lead: 'Change failed: Lower Third (script error)', outputs: 1, ready: 0, broken: { line: 'Change failed: Lower Third (script error)', short: 'Change failed: Lower Third' } } }), 'Change failed: Lower Third'],
     [status({ playbackCheck: { key: 'playback', tone: 'bad', label: 'Photo cannot Take', short: 'Cue settings unavailable' } }), 'Cue settings unavailable'],
   ];
   for (const [s, text] of cases) {
