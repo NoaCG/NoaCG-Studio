@@ -16,17 +16,11 @@
     "src/components/CodeEditor.tsx": {
       "em-dash": 2
     },
-    "src/components/CommunityGallery.tsx": {
-      "em-dash": 2
-    },
     "src/components/ControlPanel.tsx": {
       "em-dash": 12
     },
     "src/components/InsertTemplateDialog.tsx": {
       "em-dash": 5
-    },
-    "src/components/ModerationQueue.tsx": {
-      "em-dash": 2
     },
     "src/components/MotionPresetPicker.tsx": {
       "em-dash": 3

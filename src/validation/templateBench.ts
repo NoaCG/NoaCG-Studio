@@ -1,11 +1,12 @@
-// Publish-safety "bench" checks for the community gallery (Era 5.5). These run IN ADDITION to
-// validateTemplate (which owns SPX-contract correctness) and catch the extra hazards specific to
-// SHARING a template with strangers: assets that can't be serialized, a bloated payload, and JS that
-// is suspicious to run inside an importer's preview/renderer. Pure and offline — the same transform
-// runs at publish time (block a bad submission) and at import time (defence-in-depth on a fetched row).
+// Publish-safety "bench" checks, born with the Era 5.5 community gallery and now run wherever a
+// template leaves its author: a community pack, a hosted production, a production export. These run
+// IN ADDITION to validateTemplate (which owns SPX-contract correctness) and catch the extra hazards
+// specific to SHARING a template with strangers: assets that can't be serialized, a bloated payload,
+// and JS that is suspicious to run inside an importer's preview/renderer. Pure and offline.
 //
-// Split of responsibility with gate.ts: this module reports raw errors/warnings; gate.ts merges them
-// with validateTemplate and decides which warnings become publish-blocking errors.
+// Split of responsibility with publishGate.ts: this module reports raw errors/warnings;
+// publishGate.ts merges them with validateTemplate and decides which warnings become
+// publish-blocking errors.
 
 import { inlineScripts, isAllowedExternal } from './validateTemplate';
 import { SOUND_RUNTIME_JS } from '../assets/graphicSoundRuntime';
@@ -68,7 +69,7 @@ const UNSAFE_JS: { re: RegExp; rule: string; note: string }[] = [
 /** Absolute URLs written into the JS — the exfiltration route the construct list above misses
  *  (`img.src = 'https://…/?' + data` calls nothing suspicious). Same allowlist as the HTML/CSS
  *  scan in validateTemplate, so an opt-in Supabase block reports as `external-dependency`
- *  (which gate.ts promotes for sharing) rather than as two different complaints. */
+ *  (which publishGate.ts promotes for sharing) rather than as two different complaints. */
 const JS_URL = /\bhttps?:\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s'"`)]*/gi;
 
 function bytesOf(s: string): number {
@@ -156,7 +157,7 @@ export function runBench(template: SpxTemplate, production = false): ValidationR
   }
 
   // 4. Absolute URLs in the JS. Reported under the SAME rule as the HTML/CSS scan so the author
-  //    reads one rule about one thing; gate.ts promotes it for sharing.
+  //    reads one rule about one thing; publishGate.ts promotes it for sharing.
   for (const url of js.match(JS_URL) ?? []) {
     if (isAllowedExternal(url)) continue;
     warnings.push({

@@ -16,7 +16,7 @@
 // covers: src/components/save/SaveDialogs.tsx
 
 import { test, expect, type Page } from '@playwright/test';
-import { E2E_EMAIL, createGraphic, createGraphicInEditor, haveCreds, settleSync, shot, signIn, wipeMyGraphics, wipeMySubmissions } from './_helpers';
+import { E2E_EMAIL, createGraphic, createGraphicInEditor, haveCreds, settleSync, shot, signIn, wipeMyGraphics } from './_helpers';
 import { openProductionWithCurrent, skipOldEditor } from '../_create';
 
 // The signed-in UX walk. The 2026-07 review could only read these surfaces from source — the
@@ -69,7 +69,7 @@ test.describe('signed-in UX walk (configured)', () => {
   test.use({ permissions: ['clipboard-write'] });
 
   test('the topbar holds one row at laptop widths with the account controls in it', async ({ page }) => {
-    // The bar this measures is the old code editor's (its Community button and panel toggles),
+    // The bar this measures is the old code editor's (its panel toggles and account cluster),
     // and that editor is closed. It skips until it is rewritten against Home's bar
     // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
     skipOldEditor();
@@ -81,7 +81,6 @@ test.describe('signed-in UX walk (configured)', () => {
     // The sync chip in particular: signing in is what starts the pass that makes it appear.
     await settleSync(page);
     await expect(page.getByTestId('account-button')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Community/ })).toBeVisible();
 
     // WHICH STATE THE ACCOUNT IS IN, said in a word (owner, 2026-09-04: "there's no difference
     // between being logged in or not"). The signed-OUT half is anonymous.spec.ts; this is the
@@ -147,7 +146,7 @@ test.describe('signed-in UX walk (configured)', () => {
     expect(settingsBox.height).toBeLessThan(768 * 0.85);
   });
 
-  test('a published graphic reports its state in the product’s words, not the database’s', async ({ page }) => {
+  test('the save dialog says a signed-in save follows the account', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await signIn(page);
     // The library syncs: start from an empty one so the saved row below is unambiguous by name.
@@ -161,54 +160,7 @@ test.describe('signed-in UX walk (configured)', () => {
     // when we are not").
     await expect(page.getByTestId('save-where')).toContainText('any computer you sign in on');
     await expect(page.getByTestId('save-where')).not.toContainText('this computer only');
-    await page.getByTestId('save-name').fill('Hairline');
-    await page.getByTestId('save-confirm').click();
-    await page.getByTestId('open-home').click();
-    await page.getByTestId('home-nav-graphics').click();
-    const hairlineRow = page.locator('.lib-row', { hasText: 'Hairline' });
-    await hairlineRow.getByTestId('row-menu').click();
-    await hairlineRow.getByTestId('publish-graphic').click();
-    await shot(page, 'publish-sheet');
-    await page.getByPlaceholder(/One-line description/).fill('E2E signed-in walk');
-    await page.getByRole('button', { name: 'Publish', exact: true }).click();
-    await expect(page.getByTestId('publish-sheet')).toHaveCount(0);
-
-    // "My community templates" is an AUTHOR's surface. `approved` / `pending` / `removed` are
-    // the moderation table's words; the moderator queue already translates them, and the author
-    // must read the same sentence.
-    const mine = page.locator('.pk-graphic', { hasText: 'Hairline' }).last();
-    await expect(mine).toContainText('live');
-    await expect(mine).not.toContainText('approved');
-    await shot(page, 'home-my-community-templates');
-
-    // Copying the share link is a clipboard write — invisible unless the button says so. Read
-    // the button's TEXT, not its accessible name: the name comes from an aria-label naming the
-    // graphic, which deliberately does not change when the label flips to "✓ Copied".
-    const copy = mine.getByTitle('Copy a share link');
-    await copy.click();
-    await expect(copy).toContainText('Copied');
-
-    // The gallery opens from the EDITOR topbar; Home has its own chrome.
-    await page.getByTestId('home-continue-editing').click();
-    await page.getByRole('button', { name: /Community/ }).click();
-    await expect(page.locator('.pk-modal')).toBeVisible();
-    await expect(page.locator('.pk-modal .pk-graphic').first()).toBeVisible(); // past "Loading…"
-    await shot(page, 'community-gallery');
-    // Same frame, same rule as Settings: a gallery holding a handful of rows is not a full-height
-    // sheet. This was the shape it loaded in, too — 700px of nothing under one "Loading…" line.
-    const galleryBox = (await page.locator('.pk-modal').boundingBox())!;
-    expect(galleryBox.height).toBeLessThan(768 * 0.85);
-    // The card's one-line metadata stays on one line: the summary claims its OWN line rather than
-    // squeezing the row it shares (see .pk-modal .pk-graphic in styles.css).
-    const metaHeight = await page
-      .locator('.pk-modal .pk-graphic')
-      .first()
-      .locator('.muted')
-      .evaluate((el) => el.getBoundingClientRect().height);
-    expect(metaHeight).toBeLessThanOrEqual(24);
     await page.keyboard.press('Escape');
-
-    await wipeMySubmissions(page);
     await wipeMyGraphics(page);
   });
 

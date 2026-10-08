@@ -7,7 +7,7 @@ import { create } from 'zustand';
  */
 interface AuthUiStore {
   signInOpen: boolean;
-  /** One short sentence shown under the logo, e.g. "Sign in to browse the community gallery." */
+  /** One short sentence shown under the logo, e.g. "Sign in to open this control panel." */
   reason: string | null;
   /**
    * Which half of the dialog the caller asked for. A gate whose answer is "make a free account"

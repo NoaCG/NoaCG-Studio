@@ -252,12 +252,12 @@ module.exports = {
         '§3: the /bridge page entry (docs/AGENT_CLI.md) - the platform\'s headless surface for the ' +
         '`noacg` CLI / MCP server. It composes the studio\'s OWN functions for a driver: the type ' +
         'registry + neutral scaffold (templates), the gate + bench + readiness + engine scan ' +
-        '(validation), the share-safety gate (community/gate), the preview document (preview), the ' +
+        '(validation), the preview document (preview), the ' +
         'dual package + OGraf reader (export), the pack wire entry (packs), and the operator-surface ' +
         'generator + OGraf contract adapter (control). It reads no store, no components, no backend: ' +
         'it holds no account and no key, and answers questions about bytes it is handed.',
       from: { path: '^src/bridge/' },
-      to: { path: '^src/(templates|blocks|model|validation|community|preview|export|packs|control)/' },
+      to: { path: '^src/(templates|blocks|model|validation|preview|export|packs|control)/' },
     },
     {
       comment:

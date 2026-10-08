@@ -1,52 +1,22 @@
-// covers: src/templates/**, src/community/**, src/showchat/**, src/backend/myEntitlement.ts
+// covers: src/templates/**, src/validation/{publishGate,templateBench}.ts, src/showchat/**
 
 import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, skipOldEditor } from './_create';
+import { bootstrapGraphic } from './_create';
 
-// Era 5.5 community sharing. The E2E dev server is pinned OFFLINE (playwright.config webServer.env),
-// so this suite proves two things without a backend:
-//   1. Offline-invariance — the offline app shows NONE of the community UI (no topbar button, no
-//      publish section). This is the non-negotiable pillar.
-//   2. The publish gate — a pure, offline transform — passes a real generated template and blocks an
-//      unsafe one.
-// The authenticated publish / browse / import paths are live-server paths, verified by the maintainer
-// against a real Supabase (supabase/README.md checklist), never from a green build.
+// The publish gate (src/validation/publishGate.ts), a pure offline transform run wherever a
+// template leaves its author: a community pack, a hosted production, a production export. It
+// passes real generated templates and blocks unsafe ones. Born as the Era 5.5 gallery's gate.
 
 async function create(page: Page, categoryName: string, variantName: string) {
   await bootstrapGraphic(page, { category: categoryName, name: variantName });
 }
-
-test('offline: no community affordances anywhere', async ({ page }) => {
-  skipOldEditor();
-  await page.goto('/app');
-  await create(page, 'Lower thirds', 'Hairline');
-
-  // No Community or Moderate buttons in the topbar.
-  await expect(page.getByRole('button', { name: /Community/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Moderate/ })).toHaveCount(0);
-
-  // Home's graphics list (where publishing lives now) grows no publish buttons offline.
-  await page.getByTestId('save-graphic').click();
-  await page.getByTestId('save-name').fill('Hairline');
-  await page.getByTestId('save-confirm').click();
-  await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-graphics').click();
-  const row = page.locator('.lib-row', { hasText: 'Hairline' });
-  await expect(row).toBeVisible();
-  // The publish action lives in the row's ⋯ menu when it exists at all — open it to prove
-  // the offline build genuinely grew no publish entry, not merely a closed menu.
-  await row.getByTestId('row-menu').click();
-  await expect(page.getByTestId('export-graphic')).toBeVisible(); // the menu IS open
-  await expect(page.getByTestId('publish-graphic')).toHaveCount(0);
-  await expect(page.getByTestId('publish-sheet')).toHaveCount(0);
-});
 
 test('the publish gate passes a real template and blocks an unsafe one', async ({ page }) => {
   await page.goto('/app');
   await create(page, 'Lower thirds', 'Hairline');
 
   const result = await page.evaluate(async () => {
-    const { publishGate } = await import('/src/community/gate.ts');
+    const { publishGate } = await import('/src/validation/publishGate.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const tpl = useTemplateStore.getState().template;
 
@@ -78,14 +48,14 @@ test('the publish gate passes a real template and blocks an unsafe one', async (
 });
 
 test('the publish gate blocks JS that talks to the network, reads storage, or leaves its frame', async ({ page }) => {
-  // Publishing goes straight to 'approved' (supabase/migrations/0004), so this gate IS the review.
+  // A hosted production or an export has no reviewer downstream, so there this gate IS the review.
   // It is a screen rather than a sandbox — a determined author can evade a regex — so what these
   // cases pin is that the OBVIOUS routes are refused and that ordinary graphics still pass.
   await page.goto('/app');
   await create(page, 'Tickers', 'News Strip');
 
   const result = await page.evaluate(async () => {
-    const { publishGate } = await import('/src/community/gate.ts');
+    const { publishGate } = await import('/src/validation/publishGate.ts');
     const { variantById } = await import('/src/templates/catalog.ts');
     const { chatGraphicBlock } = await import('/src/showchat/chatGraphicBlock.ts');
     const base = variantById('tk01')!.create({});
@@ -144,7 +114,7 @@ test('the publish gate passes every catalog variant', async ({ page }) => {
   await create(page, 'Lower thirds', 'Hairline');
 
   const refused = await page.evaluate(async () => {
-    const { publishGate } = await import('/src/community/gate.ts');
+    const { publishGate } = await import('/src/validation/publishGate.ts');
     const { CATALOG } = await import('/src/templates/catalog.ts');
     const out: string[] = [];
     for (const key of Object.keys(CATALOG)) {
