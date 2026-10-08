@@ -42,6 +42,8 @@ async function seed(page: Page, editor = false) {
     const failure = await commitDurableWrites(); if (failure) throw Error(failure);
     (window as unknown as { soundGraphicId: string }).soundGraphicId = made.doc.id;
     (await import('/src/app/router.ts')).useRouter.getState().navigate(editor ? { view: 'editor-foundation' } : { view: 'control', id: made.doc.id });
+    // The surface mounts behind `navigate`: answer from a later task (_create.ts openProductionWithCurrent).
+    await new Promise((resolve) => setTimeout(resolve));
     return made.doc.id;
   }, editor);
   if (editor) { await expect(page.getByTestId('editor-foundation')).toBeVisible(); await page.getByRole('button', { name: /^Project/ }).click(); }

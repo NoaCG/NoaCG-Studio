@@ -1,0 +1,7 @@
+# e2e/async-whose-last-act-starts-work
+
+Rule: `e2e/async-whose-last-act-starts-work`. Recorded 2026-10-08 on `claude/playout-workflow-simplification-654777` at ab4710cfc.
+
+playout-cues.spec.ts failed once on main's CI (run 37689764015, shard 8) at e2e/_create.ts:174:25 inside openProductionWithCurrent, whose async evaluate ended with useRouter navigate. The trace showed no document request and the production page already rendered. Injecting a gc() into a microtask queued by the production page's render (Chromium started with --expose-gc) reproduced the failure to line and column; Playwright's rewriteError had replaced the CDP error 'Runtime.callFunctionOn: Promise was collected'. With a setTimeout yield after navigate the same injection passed. The 2026-09-22 import-svg diagnosis (branch claude/q-navigation-race-flake) had the same shape: an async evaluate flipping a pref the wizard re-rendered on, no navigation in the trace; its CDP-forced GC loop could not reach the window because it runs between tasks, not inside a microtask checkpoint.
+
+Why a rule rather than a fix, a mechanism or a check: The cause is in V8's inspector and Playwright's error rewrite, outside this repo, and no static check can tell which evaluated function starts UI work; the four live helpers with the shape are fixed in the same change.
