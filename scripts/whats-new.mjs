@@ -22,6 +22,8 @@
 //
 // AN UPDATE is `docs/whats-new/<YYYY-MM-DD>.md`: nothing but `## <topic>` headings, in the order of
 // TOPICS below, each followed by `- ` bullets (a bullet may wrap onto lines indented two spaces).
+// Each bullet is a short label, a colon and one short sentence: `- Timed cues: Set how long ...`.
+// The pages show the label in bold, so a reader can scan the labels alone.
 // A topic with nothing big is left out, not written empty. The three topics are the parts of NoaCG
 // worked on all the time; a reader scans them top to bottom, on this page and on the landing.
 
@@ -40,9 +42,14 @@ export const NOTES_DIR = path.join(ROOT, 'docs', 'whats-new');
  *  the plugins for coding agents. */
 export const TOPICS = ['Playout and Bridge', 'Editor and templates', 'AI workflows'];
 
-/** Only the biggest changes: a longer list is a changelog, which is the thing this is not. */
-export const MAX_BULLETS_PER_TOPIC = 6;
+/** Only the biggest changes, very short: a longer list is a changelog, which is the thing this is
+ *  not (owner, 2026-10-07). A bullet's label names the change in a few words; the sentence after it
+ *  says what the reader can now do. */
+export const MAX_BULLETS_PER_TOPIC = 5;
 export const MAX_BULLETS_PER_UPDATE = 12;
+export const MAX_LABEL_WORDS = 4;
+export const MAX_WORDS_AFTER_LABEL = 18;
+/** The plain-writing checks' own cap, for text without a label (the roadmap's bullets). */
 export const MAX_WORDS_PER_BULLET = 30;
 
 const UPDATE_FILE = /^(\d{4})-(\d{2})-(\d{2})\.md$/;
@@ -114,6 +121,28 @@ export function bulletProblems(text) {
   return problems;
 }
 
+/** A What's new bullet's label and sentence, or null when it has no `Label: sentence` shape. */
+export function splitLabel(text) {
+  const m = /^([^:]+):\s+(\S.*)$/.exec(text);
+  return m ? { label: m[1].trim(), body: m[2] } : null;
+}
+
+/** Why one What's new bullet is not fit to publish: the plain-writing checks, plus its shape. */
+export function updateBulletProblems(text) {
+  const problems = bulletProblems(text);
+  const parts = splitLabel(text);
+  if (!parts) {
+    problems.push('start with a short label and a colon, e.g. "Timed cues: Set how long a graphic stays on air."');
+    return problems;
+  }
+  const labelWords = words(parts.label).length;
+  if (labelWords > MAX_LABEL_WORDS) problems.push(`its label is ${labelWords} words; keep it to ${MAX_LABEL_WORDS} or fewer`);
+  if (!/^[A-Z0-9]/.test(parts.label)) problems.push('start the label with a capital');
+  const n = words(parts.body).length;
+  if (n > MAX_WORDS_AFTER_LABEL) problems.push(`it is ${n} words after the label; keep it to ${MAX_WORDS_AFTER_LABEL} or fewer`);
+  return problems;
+}
+
 /**
  * Pure: parse one update's text into its topics, and say why it is not fit to publish.
  * `problems` is empty when it is.
@@ -174,7 +203,7 @@ export function parseUpdate(text) {
       problems.push(`"${topic.name}" has ${topic.bullets.length} bullets; keep the ${MAX_BULLETS_PER_TOPIC} biggest`);
     }
     for (const b of topic.bullets) {
-      for (const p of bulletProblems(b.text)) problems.push(`line ${b.line}: ${p}`);
+      for (const p of updateBulletProblems(b.text)) problems.push(`line ${b.line}: ${p}`);
     }
   }
   if (total > MAX_BULLETS_PER_UPDATE) problems.push(`the update has ${total} bullets; keep the ${MAX_BULLETS_PER_UPDATE} biggest`);
@@ -224,18 +253,20 @@ export function longDate(iso) {
 /**
  * The list every update surface shares (What's new, the roadmap and the landing): a heading per
  * topic and its bullets beneath, read top to bottom, never cards. `topics` is
- * [{ name, bullets: [text] }]; `attrs` adds attributes to a topic's block (the roadmap's outcome).
+ * [{ name, bullets: [text | { label, body }] }]; a labelled bullet shows its label in bold. `attrs`
+ * adds attributes to a topic's block (the roadmap's outcome).
  */
 export function renderTopicsHtml(topics, { level = 3, attrs = () => '' } = {}) {
+  const item = (b) => (typeof b === 'string' ? escapeHtml(b) : `<strong>${escapeHtml(b.label)}:</strong> ${escapeHtml(b.body)}`);
   const blocks = topics.map((t) => {
-    const items = t.bullets.map((b) => `            <li>${escapeHtml(b)}</li>`).join('\n');
+    const items = t.bullets.map((b) => `            <li>${item(b)}</li>`).join('\n');
     return `          <div class="up-topic"${attrs(t)}>\n            <h${level}>${escapeHtml(t.name)}</h${level}>\n` +
       `            <ul>\n${items}\n            </ul>\n          </div>`;
   });
   return `        <div class="up-topics">\n${blocks.join('\n')}\n        </div>`;
 }
 
-const topicsOf = (update) => update.topics.map((t) => ({ name: t.name, bullets: t.bullets.map((b) => b.text) }));
+const topicsOf = (update) => update.topics.map((t) => ({ name: t.name, bullets: t.bullets.map((b) => splitLabel(b.text)) }));
 
 function refuseUnfit(updates) {
   const problems = problemsIn(updates);
@@ -363,9 +394,9 @@ function draft(args) {
   out.push(`# Draft input: what landed on ${ref} since ${since} (${changes.length} changes)`);
   out.push('');
   out.push(`Write docs/whats-new/${localDay(new Date())}.md from this. It is raw material, not the note:`);
-  out.push(`- only the biggest changes a user would notice: at most ${MAX_BULLETS_PER_TOPIC} bullets a topic and ${MAX_BULLETS_PER_UPDATE} in all;`);
+  out.push(`- only the biggest changes a user would notice, very short: at most ${MAX_BULLETS_PER_TOPIC} bullets a topic and ${MAX_BULLETS_PER_UPDATE} in all;`);
   out.push(`- topics in this order, and a topic with nothing big left out: ${TOPICS.join(', ')};`);
-  out.push(`- each bullet at most ${MAX_WORDS_PER_BULLET} words, saying what changed for the user, in plain words;`);
+  out.push(`- each bullet a label of at most ${MAX_LABEL_WORDS} words, a colon, then at most ${MAX_WORDS_AFTER_LABEL} words on what the user can now do;`);
   out.push('- no pull request titles or numbers, internal names, file paths, people, customers, shows or dates;');
   out.push('- every claim has to be true today: check it against the current state in docs/GOALS.md;');
   out.push('- then run: node scripts/whats-new.mjs --check');

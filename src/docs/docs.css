@@ -8,39 +8,20 @@
    `--text` (12.5:1 on the ground; the old #b7bcc4 at 15px read as dim), and no prose line is
    wider than `--measure`, about 70 characters. Space Grotesk stays on the header, h1-h3 and
    the wordmark, where it is display type and the landing's own. Pictures, tables and the
-   layer panels keep the full 780px column: they are looked at, not read line by line. */
+   layer panels keep the full 780px column: they are looked at, not read line by line.
 
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("/fonts/space-grotesk.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
+   THE SITE'S CHROME is not here: the brand tokens and faces, the width, the top bar, the buttons
+   and the footer are src/site-chrome.css, which every page using this stylesheet links first. */
+
 @font-face {
   font-family: "IBM Plex Sans";
   src: url("/fonts/ibm-plex-sans.woff2") format("woff2");
   font-weight: 100 700;
   font-display: swap;
 }
-@font-face {
-  font-family: "JetBrains Mono";
-  src: url("/fonts/jetbrains-mono.woff2") format("woff2");
-  font-weight: 400 700;
-  font-display: swap;
-}
-
 :root {
-  --void: #0a0c10;
-  --panel: #141922;
-  --amber: #f6a623;
-  --glow: #ffc65c;
-  --paper: #e8edf2;
   --text: #cdd2d9;
   --caption: #9aa3b1;
-  --dim: #b7bcc4;
-  --faint: #7c8798;
-  --line: rgba(232, 237, 242, 0.09);
-  --mono: "JetBrains Mono", Consolas, monospace;
   --read: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
   --measure: 570px;
   color-scheme: dark;
@@ -57,50 +38,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; text-decoration: none; }
-/* The landing's width, so the logo and the header links sit in the same place on both pages. */
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
-
-/* ── Top bar (the landing's, unchanged) ── */
-header.top {
-  display: flex; align-items: center; gap: 14px;
-  padding: 22px 0;
-  /* The landing body's line height. This page's 1.6 makes the button 1px taller and moves the
-     links 1px, so the header would shift when a reader crosses between the two pages. */
-  line-height: 1.55;
-}
-.mark { display: flex; flex-direction: column; gap: 3px; width: 26px; }
-.mark i { display: block; height: 6px; border-radius: 2px; }
-.mark i:nth-child(1) { width: 100%; background: var(--amber); box-shadow: 0 0 10px rgba(246, 166, 35, 0.6); }
-.mark i:nth-child(2) { width: 66%; background: var(--paper); }
-.mark i:nth-child(3) { width: 40%; background: rgba(232, 237, 242, 0.3); }
-.wordmark { font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
-.wordmark span { color: var(--amber); }
-.wordmark small {
-  display: block; font-family: var(--mono); font-weight: 400; font-size: 9px;
-  letter-spacing: 0.42em; color: var(--dim); text-transform: uppercase; margin-top: 1px;
-}
-header.top nav { margin-left: auto; display: flex; align-items: center; gap: 22px; }
-/* `:not(.btn)` keeps this colour off the button. Without it the rule outranks `.btn-amber` and
-   paints the button label grey on amber. */
-header.top nav a:not(.btn) { font-size: 14px; color: var(--dim); }
-header.top nav a:not(.btn):hover,
-header.top nav a[aria-current="page"] { color: var(--paper); }
-/* The section links leave the header before it would wrap, at the landing's 720px cut. */
-@media (max-width: 720px) {
-  header.top nav a.gh { display: none; }
-}
-
-/* ── Buttons (the landing's) ── */
-.btn {
-  display: inline-block; padding: 12px 26px; border-radius: 8px;
-  font-weight: 600; font-size: 15px; letter-spacing: 0.01em;
-  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
-}
-.btn-amber {
-  background: var(--amber); color: #14100a;
-  box-shadow: 0 0 26px rgba(246, 166, 35, 0.28);
-}
-.btn-amber:hover { background: var(--glow); transform: translateY(-1px); box-shadow: 0 0 34px rgba(246, 166, 35, 0.4); }
 
 /* ── Page head ── */
 .doc-hero { padding: 34px 0 8px; max-width: 760px; }
@@ -394,15 +331,6 @@ td strong { color: var(--paper); }
 /* A layer name is copied as one unit, so it never breaks across lines ("Answer / box A"). */
 .doc-body .doc-cheat code { white-space: nowrap; }
 
-/* Footer */
-footer {
-  display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between;
-  padding: 30px 0 44px; border-top: 1px solid var(--line); color: var(--faint); font-size: 13px;
-}
-footer .fm { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
-footer a { color: var(--dim); }
-footer a:hover { color: var(--paper); }
-
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
@@ -427,7 +355,7 @@ footer a:hover { color: var(--paper); }
   @page { margin: 14mm; }
   body { background: #ffffff; }
   .doc-nav, .cmd-copy { display: none; }
-  a { text-decoration: underline; }
+  a, header.top a, footer.site a { text-decoration: underline; }
   /* The nav is gone from every print, so its grid track has to go with it or the sheet carries a
      230px empty column and a 48px gutter down the left of every page. */
   .wrap { max-width: none; padding: 0; }

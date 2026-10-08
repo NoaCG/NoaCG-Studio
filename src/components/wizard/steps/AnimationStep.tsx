@@ -327,15 +327,19 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
               </button>
             ))}
           </div>
-          <p className="hint" style={{ marginTop: 6 }}>
-            {activeDirection.hint}
-            {mixed && (
-              <>
-                {' '}Now: <strong>In</strong> {phaseName('in')} · <strong>Out</strong>{' '}
-                {phaseName('out')}.
-              </>
-            )}
-          </p>
+          {/* The default "In and out" needs no sentence; a one-sided pick says what it leaves
+              alone, and a split pair reads back what each side holds. */}
+          {(direction !== 'both' || mixed) && (
+            <p className="hint" style={{ marginTop: 6 }}>
+              {direction !== 'both' && activeDirection.hint}
+              {mixed && (
+                <>
+                  {direction !== 'both' && ' '}Now: <strong>In</strong> {phaseName('in')} ·{' '}
+                  <strong>Out</strong> {phaseName('out')}.
+                </>
+              )}
+            </p>
+          )}
         </div>
       )}
 
@@ -486,7 +490,7 @@ export default function AnimationStep({ variant, template, draft, onDraft, onRep
               <span className="dlg-check-title">Reveal in steps</span>
               <span className="dlg-check-desc">
                 ▶ Play shows only the first line; each press of » Next
-                reveals one more. Test it with the » Next button after creating.
+                reveals one more.
               </span>
             </span>
           </label>

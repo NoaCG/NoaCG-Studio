@@ -5,6 +5,21 @@ import { useTeamState } from '../../teams/useTeamState';
 import { useTeamsUi } from '../../teams/teamsUi';
 import { IconUsers } from '../../icons';
 import { teamMeta } from '../../teams/teamLabels';
+import InfoTip from '../InfoTip';
+
+/** A team that holds nothing yet: the fact on the page, the how-to behind the (i). Shared by the
+ *  team cards here and the team bands on the productions list, so both say the same thing. */
+export function NothingSharedYet({ testid }: { testid?: string }) {
+  return (
+    <div className="hint team-empty" data-testid={testid}>
+      Nothing shared yet.
+      <InfoTip label="How to share a production with this team" testid="team-share-info">
+        Share a production from its Playout dashboard: choose <strong>Setup</strong>, then{' '}
+        <strong>Share</strong>. It then appears here for everyone in the team.
+      </InfoTip>
+    </div>
+  );
+}
 
 /**
  * THE TEAMS SECTION - `#/home/teams`, the one place that answers "which teams am I in".
@@ -33,11 +48,6 @@ export default function TeamsSection({
   return (
     <div data-testid="teams-section">
       <h2><IconUsers size={18} /> Teams</h2>
-      <p className="hint">
-        The teams you are in. A team holds PRODUCTIONS, never libraries: everyone in it can edit,
-        publish and operate what it holds, each from their own account. What a team holds is also
-        on your productions list, under the team’s name.
-      </p>
       {!loaded && <p className="hint">Loading your teams…</p>}
       {loadError && (
         <p className="status-bad" data-testid="teams-section-error">
@@ -78,11 +88,7 @@ export default function TeamsSection({
                     {show.name}
                   </button>
                 ))}
-                {held.length === 0 && (
-                  <p className="hint" style={{ margin: 0 }}>
-                    Nothing shared yet. Open one of your productions, choose Share and move it here.
-                  </p>
-                )}
+                {held.length === 0 && <NothingSharedYet />}
               </div>
               <div className="team-card-actions">
                 <button onClick={() => openTeam(team.id)} data-testid="team-card-open">

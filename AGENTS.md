@@ -8,6 +8,7 @@ fully in your starting context. It supplies the remaining folder guidance.
 Code map: `docs/ARCHITECTURE.md`.
 
 - **invariant** `root/land-finished-work-only-reconciles-current`: Land finished work only with `/queue-merge`. It reconciles with current `main`, requires the verification, and lands through the GitHub merge queue; nothing else writes `main`.
+- **rule** `root/read-feedback-underlying-intent-outcome-user`: Read feedback for its underlying intent and the outcome the user wants, not its literal wording. Choose the simplest effective solution and challenge unnecessary complexity. Keep interfaces self-explanatory with minimal visible copy, and never turn an explanation given to you into UI text.
 - **rule** `root/verify-proportion-change-against-spec-acceptance`: Verify in proportion to the change and against the spec's acceptance criteria with `/check`. Only what needs human judgment reaches the owner queue: a decision, a phone check, or a desktop or production check.
 - **rule** `root/work-feature-branch-own-worktree-made`: Work on a feature branch in its own worktree, made before the work starts, and commit each verified phase. Never work or build in the checkout that holds `main`: a build there gates `main` while reporting green for your branch.
 - **taste** `root/product-premium-broadcast-graphics-minimal-friction`: Product: premium broadcast graphics with minimal friction, usable by non-technical users and compatible with multiple playout environments. Current direction, priorities and acceptance goals live in `docs/GOALS.md`.

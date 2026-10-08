@@ -655,6 +655,23 @@ h2 + .lib-row,
 .lib-menu-new { display: flex; gap: 4px; padding: 6px 4px 2px; border-top: 1px solid var(--border); margin-top: 4px; }
 .lib-menu-new input { min-width: 0; flex: 1; }
 
+/* home/InfoTip: a quiet (i) whose panel is running text, not a column of verbs. It opens from
+   the icon's LEFT edge, since the (i) usually ends a line that starts at its container's left. */
+.info-tip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+.info-tip-button:hover,
+.info-tip-button[aria-expanded="true"] { color: var(--text); background: transparent; border-color: transparent; }
+.lib-menu.info-tip-panel { display: block; left: 0; right: auto; width: min(280px, calc(100vw - 32px)); padding: 10px 12px; font-size: 12px; line-height: 1.45; color: var(--text); white-space: normal; }
+
 /* The nav's inline SVG icons sit on the text baseline like glyphs. */
 .home-nav button svg { vertical-align: -3px; margin-right: 2px; }
 .home-content h2 svg { vertical-align: -3px; margin-right: 4px; color: var(--text-dim); }

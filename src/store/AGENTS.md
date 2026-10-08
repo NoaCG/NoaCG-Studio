@@ -45,7 +45,10 @@ document (applies its ACTIVE control entry into sample data) and re-links. Every
 `persistLink()` so the slot's `graphicId`/`dirty` survive a reload even when no template
 change follows. `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
 working document (open another graphic, create new) goes through it; navigating to
-Home/control/video never does (nothing is lost there).
+Home/control/video never does (nothing is lost there). It asks only when the switch would
+lose work: a linked document that drifted (`dirty`), or a never-saved one that differs from
+its creation `baseline`. A never-saved document is `dirty` from birth, so `dirty` alone asked
+over untouched work (e2e/new-graphic-guard.spec.ts).
 
 ## templateStore.ts
 

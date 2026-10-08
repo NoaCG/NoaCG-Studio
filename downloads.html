@@ -48,35 +48,21 @@
   <meta property="og:description" content="NoaCG Bridge connects NoaCG Playout to CasparCG. The NoaCG CLI lets your AI coding agent make NoaCG graphics." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://noacg.studio/downloads" />
-  <!-- The docs stylesheet carries the landing's header, buttons and type, so this page and the
-       docs look like one site; downloads.css adds only the two tool cards. -->
+  <!-- The site's chrome (src/site-chrome.css) and the docs stylesheet's type, so this page and
+       the docs look like one site; downloads.css adds only the two tool cards. -->
+  <link rel="stylesheet" href="/src/site-chrome.css" />
   <link rel="stylesheet" href="/src/docs/docs.css" />
   <link rel="stylesheet" href="/src/downloads/downloads.css" />
 </head>
 <body>
   <div class="wrap">
-    <header class="top">
-      <div class="mark" aria-hidden="true"><i></i><i></i><i></i></div>
-      <a href="/" class="wordmark">Noa<span>CG</span><small>Studio</small></a>
-      <!-- The landing's top bar, word for word (index.html), with Downloads as the current page.
-           Docs joins the section links under 720px here, the way the Downloads link does on the
-           landing: a phone header holds the current page and the button, and no more. -->
-      <nav>
-        <a class="gh" href="/#start">Create</a>
-        <a class="gh" href="/#playout">Play or export</a>
-        <a class="gh" href="/#ograf">OGraf</a>
-        <a class="gh" href="/docs">Docs</a>
-        <a href="/downloads" aria-current="page">Downloads</a>
-        <a class="btn btn-amber" href="/app#/new">Start creating</a>
-      </nav>
-    </header>
+    <!--site:header-->
 
     <div class="doc-hero">
       <p class="kicker">Downloads</p>
       <h1>Two tools you can install</h1>
       <p class="lede">
-        NoaCG runs in your browser. Making graphics and running a show need nothing installed.
-        These two tools are optional: install one only if you need what it does.
+        NoaCG runs in your browser. Install one of these only if you need what it does.
       </p>
     </div>
 
@@ -256,15 +242,12 @@
         <p class="kicker">For your own SVGs</p>
         <h2>SVG examples</h2>
         <p class="dl-what">
-          Seven example graphics made in Illustrator: a title, a lower third, a quiz, a
-          scoreboard, a countdown, a ticker and end credits. Open one to see how its layers are
-          named. The layer names tell NoaCG which text the operator edits and how the graphic
-          behaves.
+          Example graphics made in Illustrator: a title, a lower third, a quiz, a scoreboard, a
+          countdown, a ticker and end credits. Their layer names tell NoaCG which text the
+          operator edits and how the graphic behaves.
         </p>
         <p class="dl-note">
-          Change an example or draw your own the same way, save it as SVG and import it into
-          NoaCG. Each example comes as an Illustrator file and an SVG, with a picture of each
-          state and a README with the steps.
+          Change one or draw your own the same way, save it as SVG and import it into NoaCG.
         </p>
         <p class="dl-meta">NoaCG-SVG-examples.zip &middot; Illustrator (.ai), SVG, PNG and PDF</p>
         <p class="dl-actions">
@@ -279,16 +262,7 @@
       </section>
     </div>
 
-    <footer>
-      <span class="fm">NoaCG Studio &middot; Downloads</span>
-      <span>
-        <a href="/">Home</a> &middot;
-        <a href="/docs">Docs</a> &middot;
-        <a href="/app">Open the studio</a> &middot;
-        <a href="https://github.com/NoaCG/NoaCG-Studio">Source</a> &middot;
-        <a href="mailto:contact.noacg@gmail.com">Contact</a>
-      </span>
-    </footer>
+    <!--site:footer-->
   </div>
 
   <script type="module" src="/src/docs/docs.ts"></script>

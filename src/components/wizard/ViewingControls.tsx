@@ -36,25 +36,19 @@ const FLOOR_CHOICES: ReadonlyArray<{
     id: 'relaxed',
     floors: 'relaxed',
     title: 'Allow denser, smaller type',
-    permits:
-      'Permits text below the broadcast sizes. Nothing is hidden - the findings still appear, '
-      + 'as warnings - and the AI is told the smaller scale was your call.',
+    permits: 'Permits text below the broadcast sizes. Findings still show as warnings.',
   },
   {
     id: 'standard',
     floors: undefined,
     title: 'Broadcast text sizes',
-    permits:
-      'Permits any size at or above what we know reads on air at the distance above. '
-      + 'The default, and what the catalog is drawn to.',
+    permits: 'Permits any size at or above what reads on air at the distance above.',
   },
   {
     id: 'safe',
     floors: 'safe',
     title: 'Guaranteed readable size',
-    permits:
-      'Permits only large type, and the AI designs FOR it from the start - fewer fields, a '
-      + 'simpler composition. It never inflates a small layout to get there.',
+    permits: 'Permits only large type, and the AI designs for it from the start.',
   },
 ];
 
@@ -91,7 +85,7 @@ export default function ViewingControls({ value, onChange }: Props) {
           ))}
         </select>
       </div>
-      <p className="hint" style={{ marginTop: 4 }}>{active.hint}. Text-size recommendations scale to it.</p>
+      <p className="hint" style={{ marginTop: 4 }}>{active.hint}.</p>
       {profile === 'custom' && (
         <input
           className="grow"

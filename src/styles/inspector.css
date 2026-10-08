@@ -216,14 +216,18 @@
 .inspector-pivot-cell:hover { border-color: var(--amber); }
 .inspector-pivot-cell.active { background: var(--amber); border-color: var(--amber); }
 
-/* Cloud sync status pill (Era 5.2) */
+/* Cloud sync control (components/SyncStatus): a fixed-width "Sync" whose DOT carries the state -
+   green saved, yellow waiting or a problem, grey device-only - and whose details open on a press.
+   The word never changes, so nothing beside it in a bar moves when the state does. */
 .sync-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; }
-.sync-status .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); }
-.sync-synced .sync-dot { background: var(--ok); }
-.sync-syncing .sync-dot { background: var(--accent-2); }
-.sync-error .sync-dot { background: var(--danger); }
-.sync-error { color: var(--danger); border-color: var(--danger); }
-.sync-pending { color: var(--amber); border-color: var(--amber); }
+.sync-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+.sync-dot[data-tone="ok"] { background: var(--ok); }
+.sync-dot[data-tone="warn"] { background: var(--warn); }
+.lib-menu.sync-panel { width: min(260px, calc(100vw - 16px)); padding: 10px 12px; gap: 6px; }
+.sync-panel-summary { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.sync-panel .hint { margin: 0; white-space: normal; overflow-wrap: anywhere; }
+.lib-menu.sync-panel .sync-panel-action { align-self: flex-start; background: var(--bg-3); border-color: var(--border); padding: 5px 12px; }
+.lib-menu.sync-panel .sync-panel-action:hover { background: #202836; }
 .account-save-notice { position: fixed; bottom: 8px; left: 8px; right: 8px; z-index: var(--z-notice); display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #35270f; border: 1px solid var(--amber); color: #fff4d7; font-size: 12px; border-radius: 6px; flex-wrap: wrap; }
 .account-save-notice span { flex: 1; }
 @media (max-width: 768px) {

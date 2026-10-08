@@ -1,6 +1,7 @@
 # Editor plan
 
-Owner direction, updated 2026-09-27. R1 implementation is underway; the earlier planning hold is
+Owner direction through 2026-10-06; implementation evidence updated 2026-10-07.
+R1 is underway; the earlier planning hold is
 superseded. See the outcome checkpoints below for what is usable. This is the single authority for
 scope, order and completion; it replaces the earlier delivery/professional-direction documents.
 Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) and the
@@ -8,11 +9,23 @@ Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) a
 Review of d5e8c1db: ready with named corrections, recorded below. Mockups are not product evidence.
 
 Owner review 2026-10-06: [feedback and phase mapping](research/editor-owner-feedback-2026-10-06.md).
-The group journey mostly made sense; root/Composition navigation needs clearer context in
-R1.2b.7. Drawing/transform/layer/property usability and save-state corrections remain named
+The group journey mostly made sense; R1.2b.7 has since landed folders/bins and clearer
+root/Composition navigation ([receipt](work-specs/editor-folders-bins/evidence/landing-and-handoff.md)).
+Drawing/transform/layer/property usability and save-state corrections remain named
 follow-ups in their existing scopes. Lottie and alpha image sequences remain R2.1; native
 visual authoring remains required. This feedback does not expand folders/bins into a general
 editor rewrite or close whole-row acceptance.
+
+Evidence checkpoint 2026-10-07: [Crafting Apps research](research/crafting-apps-editor-2026-10-07/README.md)
+compares pinned source and released artifacts with current NoaCG main. Keep the source-backed
+editor, fields, cue model and output adapters. Next, finish persistent drawing in the existing
+R1.2b usability follow-up; its completion-to-Select behavior is reproduced. At the start of
+R1.3b, qualify shared command discovery/runtime schemas and a deterministic human/agent task
+before model-driven edits, over the existing operation/session handlers. Paired live MCP stays
+R3.2. Reproduce the remaining transform/layer/property feedback as bounded tasks before R1.5;
+save/sync stays with its current ownership. The research does not authorize an engine/UI
+replacement or advanced vector scope. A focused Rust/WASM path kernel remains a later option
+only with an accepted task, source/output compatibility and measured benefit.
 
 ## Destination
 
@@ -255,12 +268,15 @@ New sessions resume these records and the actual branch state.
 | Consolidated scope and revised mockups | Whole-workspace direction accepted; 2026-09-19 workflow refinements recorded for review |
 | R1.0 | Merged and deployed as cfb28e74 (PR #331); local, CI and live checks passed. Owner usability/first-time-user acceptance remains open |
 | R1.1a | Base placement, creation and scaling implemented and locally verified from handoff merge `15b8f3fc`; [walkthrough, screenshots and measurements](research/editor-r1-1a/README.md). Engineering progress only; usable static authoring and owner acceptance remain open. Verified slices land without waiting for owner review. |
-| R1.1b-R1.5 / P-COMP | Not started by this implementation. Later slices and default switch remain separate work; P-COMP follows R1.5 |
+| R1.1b-R1.1d | Key/bar, Out and fidelity/trim engineering portions are implemented on current main; broader user/fidelity acceptance remains open. Use the ordered receipts and acceptance register, not the former R1.1a-only checkpoint. |
+| R1.2a | Animation phases through R1.2a.6 are engineering-verified in the receipts above; whole-row owner/workflow acceptance remains open. |
+| R1.2b | Everyday-tool phases .1-.7 are implemented and engineering-verified; folders/bins are merged/live. October 6 drawing/transform/layer/property feedback remains open; the current-main research reran 58 focused tests. |
+| Further R1.2c-R1.5 / P-COMP | Remain separate planned work; this checkpoint does not close them or the default switch. P-COMP follows R1.5. |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 
-Next: complete the usable static-graphic task in the R1.1a follow-up before key authoring. The [owner feedback](research/editor-r1-1a/README.md#owner-feedback-2026-09-20) and [engineering receipt](research/editor-r1-1a/README.md) record the current tools and missing editing controls. Keep engineering slices bounded; demonstrate cumulative user outcomes before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
+Next: correct persistent drawing-tool completion on fetched main, using the [bounded prompt and acceptance](research/crafting-apps-editor-2026-10-07/README.md#pasteable-next-implementation-prompt). Remaining October 6 usability corrections stay in their existing R1.2b follow-ups before R1.5. At the start of R1.3b, qualify the shared command contract before model-driven edits; retain the ordered trains above. Keep engineering slices bounded; demonstrate cumulative import/create, ordinary editing, editable text, animation, save/reopen and output tasks before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

@@ -45,17 +45,13 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
   if (editing) return <BrandEditor initial={editing === 'new' ? undefined : editing}
     onCancel={() => setEditing(null)} onSaved={(look) => {
       setEditing(null);
-      setNote(`✓ Saved "${look.name}". Choose it when creating a graphic, or apply it to an existing one.`);
+      setNote(`✓ Saved "${look.name}".`);
       onChanged();
     }} />;
 
   return (
     <>
       <h2><IconPalette size={18} /> Brands</h2>
-      <p className="hint">
-        Save your logo, colours and typeface once, then choose your brand for new graphics.
-        Apply it to the open graphic when you want. Editing a saved brand leaves existing graphics unchanged.
-      </p>
       <div className="row" style={{ marginBottom: 16 }}>
         <button className="primary" onClick={() => setEditing('new')}>New brand</button>
       </div>
@@ -120,7 +116,7 @@ export default function LooksSection({ looks, onChanged, onDone }: { looks: Save
               const slot = brandSlotField(next);
               if (slot?.value) setSampleValue(slot.field, slot.value);
               setActiveTab('css'); // land on the retinted :root vars, highlighted like any patch
-              setNote(`✓ Applied "${look.name}" to the open graphic — back in the editor now.`);
+              setNote(`✓ Applied "${look.name}" to the open graphic. Back in the editor now.`);
               onDone();
             }}
             title="Retint the graphic open in the editor"

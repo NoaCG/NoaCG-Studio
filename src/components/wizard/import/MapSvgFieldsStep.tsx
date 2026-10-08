@@ -1067,7 +1067,7 @@ export default function MapSvgFieldsStep({
       <div className="map-svg-lead">
         <h3>Choose what the operator can change</h3>
         {svg.candidates.length > 0 ? (
-          <p className="hint">Tick what can be retyped. Hover a row to see it in the preview.</p>
+          <p className="hint">Hover a row to see it in the preview.</p>
         ) : (
           <p className="hint">
             No text layers in this file. Your artwork still ships exactly as drawn. Two ways
@@ -1567,13 +1567,14 @@ export default function MapSvgFieldsStep({
               things that are true of the graphic rather than of one box: what travels with a
               growing edge, and the guardrail. A graphic where nothing grows says so, which is
               the guardrail stated: a box that stays as drawn moves nothing. */}
-          <p className="hint" data-testid="map-svg-grow-summary">
-            {growingBoxes.length === 0
-              ? 'Every box stays the size you drew, so nothing on this graphic moves.'
-              : growingBoxes.length === 1
+          {/* Where nothing grows, the heading's own line already says so. */}
+          {growingBoxes.length > 0 && (
+            <p className="hint" data-testid="map-svg-grow-summary">
+              {growingBoxes.length === 1
                 ? `${growingBoxes[0].label} ${BOX_GROW_LABEL[growingBoxes[0].mode]}. Every other box stays the size you drew.`
                 : `${growingBoxes.map((g) => g.label).join(', ')} grow. Every other box stays the size you drew.`}
-          </p>
+            </p>
+          )}
           {/* TEXT PAST THE EDGE TRAVELS, AND IS STATED RATHER THAN ASKED ABOUT (owner walk,
               2026-09-01). It still moves - it has to, or the grown panel prints over it - but
               "should this line stretch?" is not a question anyone can answer about a line the

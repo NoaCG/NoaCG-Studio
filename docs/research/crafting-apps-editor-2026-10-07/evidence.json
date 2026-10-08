@@ -1,0 +1,2262 @@
+{
+  "observedDate": "2026-10-07",
+  "noacgMain": "d94cfd701ca1443b203037ffb5035ce13e3c3bb0",
+  "liveCommit": "d94cfd701ca1443b203037ffb5035ce13e3c3bb0",
+  "runtime": "Released binaries, not rebuilt pinned main source",
+  "browser": {
+    "viewport": [
+      1366,
+      768
+    ],
+    "softwareWebGL": true,
+    "serviceWorker": false,
+    "workers": false
+  },
+  "external": {
+    "vectorcraft": {
+      "source": "5cacbe36b33608c8803e03f25a1178354218f9a0",
+      "sourceTime": "2026-10-07T19:42:07Z",
+      "release": "v0.4.0",
+      "releaseCommit": "a26aa5b203c901979eb447d28e34e7357138c789",
+      "artifacts": [
+        {
+          "name": "vectorcraft-0.4.0-windows-x64-portable.zip",
+          "bytes": 75254656,
+          "sha256": "fa8d7dc5590ebf1adb93d040dd7420441a2e55db2971f33c05c0c0e5edde0fec",
+          "matchesPublishedChecksum": true
+        },
+        {
+          "name": "vectorcraft-web-0.4.0.zip",
+          "bytes": 18292615,
+          "sha256": "fa4349aa78ef545a9e4d29e6b9468e419b5231fa4bb5c379dd5f6ad50cdab3de",
+          "matchesPublishedChecksum": true
+        }
+      ],
+      "wasm": [
+        {
+          "name": "vectorcraft-web-e53f7b633918d292_bg.wasm",
+          "bytes": 46605123,
+          "gzip9Bytes": 18337344
+        }
+      ]
+    },
+    "effectcraft": {
+      "source": "3af4649429de70f4b9b0b66bbee7a6129c457e52",
+      "sourceTime": "2026-10-07T19:37:26Z",
+      "release": "v0.4.0",
+      "releaseCommit": "f5ebe5f6c5e887dddda4a2be1fcb47154e959b81",
+      "artifacts": [
+        {
+          "name": "effectcraft-web-0.4.0.zip",
+          "bytes": 17843270,
+          "sha256": "68f781094d119ab6428d0d4d50bd8718b8226916c8274345ac268562848ecccf",
+          "matchesPublishedChecksum": true
+        }
+      ],
+      "wasm": [
+        {
+          "name": "effectcraft_web_bg.wasm",
+          "bytes": 58451474,
+          "gzip9Bytes": 17582575
+        }
+      ]
+    },
+    "filmcraft": {
+      "source": "86f3375775258cd7140c36e5b8e3d21ced9ee711",
+      "sourceTime": "2026-10-07T18:45:32Z",
+      "release": "v0.2.1",
+      "releaseCommit": "61ab6f5c7dfc37097b8a28aac235a3e31a84a6ae",
+      "artifacts": [
+        {
+          "name": "filmcraft-web-0.2.1.zip",
+          "bytes": 11469914,
+          "sha256": "f496c41f65e3f38b32b05b92c27940c5f464b442573b617e69923df0f085005c",
+          "matchesPublishedChecksum": true
+        }
+      ],
+      "wasm": [
+        {
+          "name": "filmcraft_web_bg.wasm",
+          "bytes": 35071117,
+          "gzip9Bytes": 11465849
+        }
+      ]
+    }
+  },
+  "noacgProbe": [
+    {
+      "after": "rectangle completion",
+      "tool": "select"
+    },
+    {
+      "after": "open Pen completion",
+      "tool": "select"
+    },
+    {
+      "after": "Pen draft Escape",
+      "tool": "select",
+      "sourceUnchanged": true
+    }
+  ],
+  "noacgFocused": {
+    "job": "j-3605",
+    "command": "npx playwright test e2e/editor-pen.spec.ts e2e/editor-typography.spec.ts e2e/editor-folders-bins.spec.ts e2e/editor-keys.spec.ts --workers=1",
+    "passed": 58,
+    "failed": 0
+  },
+  "vectorcraft": [
+    {
+      "action": "open_file",
+      "args": {
+        "path": "fidelity-nested.svg"
+      },
+      "isError": false,
+      "result": {
+        "format": "svg",
+        "index": 1,
+        "missingLinks": [],
+        "modifiedLinks": [],
+        "restored": false,
+        "title": "fidelity-nested.svg",
+        "updatedLinks": [],
+        "warnings": []
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "selection",
+      "revision": 1,
+      "history": [],
+      "selection": [],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Evening report"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "select_tool",
+      "args": {
+        "tool": "rectangle"
+      },
+      "isError": false,
+      "result": {
+        "tool": "rectangle"
+      }
+    },
+    {
+      "action": "pointer_gesture",
+      "args": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 40,
+            "y": 30
+          },
+          {
+            "kind": "drag",
+            "x": 120,
+            "y": 85
+          },
+          {
+            "kind": "up",
+            "x": 120,
+            "y": 85
+          }
+        ]
+      },
+      "isError": false,
+      "result": {
+        "requests": [],
+        "selection": [
+          19
+        ],
+        "tool": "rectangle"
+      }
+    },
+    {
+      "action": "pointer_gesture",
+      "args": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 160,
+            "y": 30
+          },
+          {
+            "kind": "drag",
+            "x": 240,
+            "y": 85
+          },
+          {
+            "kind": "up",
+            "x": 240,
+            "y": 85
+          }
+        ]
+      },
+      "isError": false,
+      "result": {
+        "requests": [],
+        "selection": [
+          20
+        ],
+        "tool": "rectangle"
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "rectangle",
+      "revision": 5,
+      "history": [
+        "Rectangle",
+        "Rectangle"
+      ],
+      "selection": [
+        20
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Evening report"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "undo",
+      "args": {},
+      "isError": false,
+      "result": {
+        "undone": "Rectangle"
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "rectangle",
+      "revision": 6,
+      "history": [
+        "Rectangle"
+      ],
+      "selection": [
+        19
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Evening report"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "redo",
+      "args": {},
+      "isError": false,
+      "result": {
+        "redone": "Rectangle"
+      }
+    },
+    {
+      "action": "add_text",
+      "args": {
+        "text": "Guest",
+        "x": 60,
+        "y": 500,
+        "size": 30
+      },
+      "isError": false,
+      "result": {
+        "id": 21
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "rectangle",
+      "revision": 8,
+      "history": [
+        "Rectangle",
+        "Rectangle",
+        "Type"
+      ],
+      "selection": [
+        21
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 21,
+          "kind": "Type",
+          "name": "Guest",
+          "text": "Guest"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Evening report"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "save_file",
+      "args": {
+        "path": "task.vectorcraft"
+      },
+      "isError": false,
+      "result": {
+        "bytes": 58134,
+        "format": "vectorcraft",
+        "warnings": []
+      }
+    },
+    {
+      "action": "export",
+      "args": {
+        "path": "task.svg",
+        "format": "svg"
+      },
+      "isError": false,
+      "result": {
+        "bytes": 3329,
+        "format": "svg",
+        "warnings": []
+      }
+    },
+    {
+      "action": "screenshot",
+      "args": {
+        "path": "vectorcraft-task.png"
+      },
+      "isError": false,
+      "result": {
+        "height": 540,
+        "width": 960
+      }
+    },
+    {
+      "action": "open_file",
+      "args": {
+        "path": "task.vectorcraft"
+      },
+      "isError": false,
+      "result": {
+        "format": "vectorcraft",
+        "index": 2,
+        "missingLinks": [],
+        "modifiedLinks": [],
+        "restored": false,
+        "title": "task.vectorcraft",
+        "updatedLinks": [],
+        "warnings": []
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "rectangle",
+      "revision": 1,
+      "history": [],
+      "selection": [],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 21,
+          "kind": "Type",
+          "name": "Guest",
+          "text": "Guest"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Evening report"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "run_command",
+      "args": {
+        "command": "text.setText",
+        "params": {
+          "id": 9,
+          "text": "Imported headline changed"
+        }
+      },
+      "isError": false,
+      "result": {
+        "ids": [
+          9
+        ]
+      }
+    },
+    {
+      "action": "run_command",
+      "args": {
+        "command": "text.setStyle",
+        "params": {
+          "id": 21,
+          "fill": "#ffffff"
+        }
+      },
+      "isError": false,
+      "result": {
+        "ids": [
+          21
+        ]
+      }
+    },
+    {
+      "action": "run_command",
+      "args": {
+        "command": "shape.rectangle",
+        "params": {
+          "x": 10,
+          "y": 10,
+          "width": 20,
+          "height": 20,
+          "misspelled": true
+        }
+      },
+      "isError": false,
+      "result": {
+        "id": 22
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "rectangle",
+      "revision": 4,
+      "history": [
+        "Typing",
+        "Character",
+        "Rectangle"
+      ],
+      "selection": [
+        22
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 22,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 21,
+          "kind": "Type",
+          "name": "Guest",
+          "text": "Guest"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Imported headline changed"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "run_command",
+      "args": {
+        "command": "command.batch",
+        "params": {
+          "label": "Rollback probe",
+          "commands": [
+            {
+              "command": "text.create",
+              "params": {
+                "x": 10,
+                "y": 100,
+                "text": "Must roll back"
+              }
+            },
+            {
+              "command": "no.such",
+              "params": {}
+            }
+          ]
+        }
+      },
+      "isError": true,
+      "result": "run_command: batch step 1 (`no.such`) failed: unknown command `no.such`"
+    },
+    {
+      "action": "inspect_document",
+      "tool": "rectangle",
+      "revision": 6,
+      "history": [
+        "Typing",
+        "Character",
+        "Rectangle"
+      ],
+      "selection": [
+        22
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 22,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 21,
+          "kind": "Type",
+          "name": "Guest",
+          "text": "Guest"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Imported headline changed"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "select_tool",
+      "args": {
+        "tool": "pen"
+      },
+      "isError": false,
+      "result": {
+        "tool": "pen"
+      }
+    },
+    {
+      "action": "pointer_gesture",
+      "args": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 400,
+            "y": 350
+          },
+          {
+            "kind": "up",
+            "x": 400,
+            "y": 350
+          },
+          {
+            "kind": "down",
+            "x": 480,
+            "y": 350
+          },
+          {
+            "kind": "up",
+            "x": 480,
+            "y": 350
+          },
+          {
+            "kind": "down",
+            "x": 480,
+            "y": 400
+          },
+          {
+            "kind": "up",
+            "x": 480,
+            "y": 400
+          }
+        ]
+      },
+      "isError": false,
+      "result": {
+        "requests": [],
+        "selection": [
+          23
+        ],
+        "tool": "pen"
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "pen",
+      "revision": 12,
+      "history": [
+        "Typing",
+        "Character",
+        "Rectangle",
+        "Pen",
+        "Pen",
+        "Pen"
+      ],
+      "selection": [
+        23
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 23,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 22,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 21,
+          "kind": "Type",
+          "name": "Guest",
+          "text": "Guest"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Imported headline changed"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "press_key",
+      "args": {
+        "key": "Escape"
+      },
+      "isError": false,
+      "result": {
+        "handledBy": "tool",
+        "requests": []
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "pen",
+      "revision": 12,
+      "history": [
+        "Typing",
+        "Character",
+        "Rectangle",
+        "Pen",
+        "Pen",
+        "Pen"
+      ],
+      "selection": [
+        23
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 23,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 22,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 21,
+          "kind": "Type",
+          "name": "Guest",
+          "text": "Guest"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Imported headline changed"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "undo",
+      "args": {},
+      "isError": false,
+      "result": {
+        "undone": "Pen"
+      }
+    },
+    {
+      "action": "inspect_document",
+      "tool": "pen",
+      "revision": 13,
+      "history": [
+        "Typing",
+        "Character",
+        "Rectangle",
+        "Pen",
+        "Pen"
+      ],
+      "selection": [
+        23
+      ],
+      "objects": [
+        {
+          "id": 18,
+          "kind": "Layer",
+          "name": "Sibling"
+        },
+        {
+          "id": 23,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 2,
+          "closed": false
+        },
+        {
+          "id": 22,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 21,
+          "kind": "Type",
+          "name": "Guest",
+          "text": "Guest"
+        },
+        {
+          "id": 20,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 19,
+          "kind": "Rectangle",
+          "name": "<Rectangle>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 17,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 16,
+          "kind": "Layer",
+          "name": "Transformed parent"
+        },
+        {
+          "id": 15,
+          "kind": "Clip Group",
+          "name": "Clipped card"
+        },
+        {
+          "id": 13,
+          "kind": "Group",
+          "name": "Logo"
+        },
+        {
+          "id": 12,
+          "kind": "Image",
+          "name": "<Image>"
+        },
+        {
+          "id": 11,
+          "kind": "Group",
+          "name": "Outlined letters"
+        },
+        {
+          "id": 10,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 10,
+          "closed": true
+        },
+        {
+          "id": 9,
+          "kind": "Type",
+          "name": "Headline",
+          "text": "Imported headline changed"
+        },
+        {
+          "id": 8,
+          "kind": "Group",
+          "name": "<Group>"
+        },
+        {
+          "id": 7,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 3,
+          "closed": false
+        },
+        {
+          "id": 6,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 5,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        },
+        {
+          "id": 14,
+          "kind": "Path",
+          "name": "plate-clip",
+          "anchors": 8,
+          "closed": true
+        },
+        {
+          "id": 3,
+          "kind": "Layer",
+          "name": "Backdrop"
+        },
+        {
+          "id": 2,
+          "kind": "Path",
+          "name": "<Path>",
+          "anchors": 4,
+          "closed": true
+        }
+      ]
+    },
+    {
+      "action": "export",
+      "args": {
+        "path": "task-extended.svg",
+        "format": "svg"
+      },
+      "isError": false,
+      "result": {
+        "bytes": 3534,
+        "format": "svg",
+        "warnings": []
+      }
+    },
+    {
+      "action": "screenshot",
+      "args": {
+        "path": "vectorcraft-extended.png"
+      },
+      "isError": false,
+      "result": {
+        "height": 540,
+        "width": 960
+      }
+    }
+  ],
+  "effectcraft": [
+    {
+      "id": "comp.new",
+      "params": {
+        "name": "NoaCG reference",
+        "width": 960,
+        "height": 540,
+        "frameRate": 30,
+        "duration": 3
+      },
+      "result": {
+        "comp": 1
+      }
+    },
+    {
+      "id": "layer.newText",
+      "params": {
+        "text": "Evening report",
+        "size": 50,
+        "fill": "#ffffff",
+        "position": [
+          100,
+          270
+        ]
+      },
+      "result": {
+        "layer": 2
+      }
+    },
+    {
+      "id": "layer.setText",
+      "params": {
+        "layer": 2,
+        "text": "Guest name"
+      },
+      "result": null
+    },
+    {
+      "id": "prop.addKey",
+      "params": {
+        "layer": 2,
+        "path": "transform/position",
+        "time": 0,
+        "value": [
+          100,
+          270
+        ]
+      },
+      "result": 1
+    },
+    {
+      "id": "prop.addKey",
+      "params": {
+        "layer": 2,
+        "path": "transform/position",
+        "time": 1,
+        "value": [
+          400,
+          270
+        ]
+      },
+      "result": 2
+    },
+    {
+      "id": "prop.get",
+      "params": {
+        "layer": 2,
+        "path": "transform/position",
+        "time": 0.5
+      },
+      "result": {
+        "animated": true,
+        "expression": null,
+        "keys": [
+          {
+            "in": "Linear",
+            "out": "Linear",
+            "time": 0,
+            "value": [
+              100,
+              270,
+              0
+            ]
+          },
+          {
+            "in": "Linear",
+            "out": "Linear",
+            "time": 1,
+            "value": [
+              400,
+              270,
+              0
+            ]
+          }
+        ],
+        "layer": 2,
+        "match": "position",
+        "name": "Position",
+        "time": 0.5,
+        "type": "vec3",
+        "uid": 23,
+        "value": [
+          250,
+          270,
+          0
+        ]
+      }
+    },
+    {
+      "id": "comp.info",
+      "params": {},
+      "result": {
+        "id": 1,
+        "layers": [
+          {
+            "id": 2,
+            "name": "Evening report"
+          }
+        ]
+      }
+    },
+    {
+      "id": "layer.newText",
+      "params": {
+        "text": "Typo probe",
+        "misspelled": true
+      },
+      "error": "invalid parameters for `layer.newText`: unknown parameter(s) `misspelled`; accepted: text, name, position, box, vertical, edit, font, style, size, fill, stroke, applyFill, applyStroke, strokeWidth, tracking, leading, baselineShift, hScale, vScale, tsume, fauxBold, fauxItalic, allCaps, smallCaps, baseline, superscript, subscript, kerning, ligatures, justify, indentLeft, indentRight, indentFirst, spaceBefore, spaceAfter, direction, composer, hangingPunctuation, strokeOverFill (doc: {text?, name? (layer name; default the text), position? [x,y], box? [x,y,w,h] (paragraph text, comp space), vertical?, edit? (start editing), font?, style?, size?, fill?, stroke?, applyFill?, applyStroke?, strokeWidth?, tracking?, leading?, baselineShift?, hScale?, vScale?, tsume?, fauxBold?, fauxItalic?, allCaps?, smallCaps?, baseline?, superscript?, subscript?, kerning?, ligatures?, justify?, indentLeft?, indentRight?, indentFirst?, spaceBefore?, spaceAfter?, direction?, composer?, hangingPunctuation?, strokeOverFill?} (attributes as layer.setText))"
+    },
+    {
+      "id": "comp.info",
+      "params": {},
+      "result": {
+        "id": 1,
+        "layers": [
+          {
+            "id": 2,
+            "name": "Evening report"
+          }
+        ]
+      }
+    },
+    {
+      "id": "engine.batch",
+      "params": {
+        "label": "Atomic probe",
+        "steps": [
+          {
+            "command": "layer.newText",
+            "params": {
+              "text": "Must roll back"
+            }
+          },
+          {
+            "command": "no.such",
+            "params": {}
+          }
+        ]
+      },
+      "error": "step 2 (no.such): unknown command `no.such`; the batch was rolled back (nothing changed)"
+    },
+    {
+      "id": "comp.info",
+      "params": {},
+      "result": {
+        "id": 1,
+        "layers": [
+          {
+            "id": 2,
+            "name": "Evening report"
+          }
+        ]
+      }
+    },
+    {
+      "id": "engine.batch",
+      "params": {
+        "label": "Two layers",
+        "steps": [
+          {
+            "command": "layer.newText",
+            "params": {
+              "text": "Batch A"
+            }
+          },
+          {
+            "command": "layer.newText",
+            "params": {
+              "text": "Batch B"
+            }
+          }
+        ]
+      },
+      "result": {
+        "results": [
+          {
+            "layer": 41
+          },
+          {
+            "layer": 80
+          }
+        ],
+        "steps": 2
+      }
+    },
+    {
+      "id": "edit.undo",
+      "params": {},
+      "result": {
+        "undone": "Two layers"
+      }
+    },
+    {
+      "id": "comp.info",
+      "params": {},
+      "result": {
+        "id": 1,
+        "layers": [
+          {
+            "id": 2,
+            "name": "Evening report"
+          }
+        ]
+      }
+    },
+    {
+      "id": "saveToBrowser",
+      "result": {
+        "bytes": 34537,
+        "path": "/research.ecproj"
+      }
+    },
+    {
+      "id": "file.newProject",
+      "params": {},
+      "result": null
+    },
+    {
+      "id": "file.open",
+      "params": {
+        "path": "/research.ecproj"
+      },
+      "result": {
+        "path": "/research.ecproj",
+        "savedBy": "0.4.0"
+      }
+    },
+    {
+      "id": "comp.info",
+      "params": {},
+      "result": {
+        "id": 1,
+        "layers": [
+          {
+            "id": 2,
+            "name": "Evening report"
+          }
+        ]
+      }
+    },
+    {
+      "id": "prop.get",
+      "params": {
+        "layer": 2,
+        "path": "transform/position",
+        "time": 0.5
+      },
+      "result": {
+        "animated": true,
+        "expression": null,
+        "keys": [
+          {
+            "in": "Linear",
+            "out": "Linear",
+            "time": 0,
+            "value": [
+              100,
+              270,
+              0
+            ]
+          },
+          {
+            "in": "Linear",
+            "out": "Linear",
+            "time": 1,
+            "value": [
+              400,
+              270,
+              0
+            ]
+          }
+        ],
+        "layer": 2,
+        "match": "position",
+        "name": "Position",
+        "time": 0.5,
+        "type": "vec3",
+        "uid": 23,
+        "value": [
+          250,
+          270,
+          0
+        ]
+      }
+    }
+  ],
+  "filmcraft": [
+    {
+      "id": "file.newSequence",
+      "params": {
+        "name": "NoaCG reference",
+        "width": 960,
+        "height": 540,
+        "fps": 30,
+        "video": 1,
+        "audio": 1
+      },
+      "result": {
+        "sequence": 3
+      }
+    },
+    {
+      "id": "graphics.newText",
+      "params": {
+        "text": "Evening report",
+        "position": [
+          100,
+          270
+        ],
+        "size": 50,
+        "seconds": 3
+      },
+      "result": {
+        "clip": 5,
+        "layer": 0
+      }
+    },
+    {
+      "id": "graphics.list",
+      "params": {},
+      "result": {
+        "canvas": [
+          960,
+          540
+        ],
+        "clip": 5,
+        "duration": 762048000000,
+        "graphic": null,
+        "layers": [
+          {
+            "effectIndex": 3,
+            "enabled": true,
+            "kind": "text",
+            "layer": 0,
+            "localBounds": [
+              0,
+              -48.4375,
+              345.947265625,
+              12.060546875
+            ],
+            "name": "Evening report",
+            "pin": null,
+            "position": [
+              100,
+              270
+            ],
+            "quad": [
+              [
+                100,
+                221.5625
+              ],
+              [
+                445.947265625,
+                221.5625
+              ],
+              [
+                445.947265625,
+                282.060546875
+              ],
+              [
+                100,
+                282.060546875
+              ]
+            ],
+            "styles": [],
+            "text": "Evening report",
+            "uid": 0
+          }
+        ],
+        "name": "Evening report",
+        "sourceGraphic": null,
+        "start": 762048000000
+      }
+    },
+    {
+      "id": "graphics.setText",
+      "params": {
+        "text": "Guest name"
+      },
+      "result": null
+    },
+    {
+      "id": "playhead.set",
+      "params": {
+        "seconds": 1
+      },
+      "result": {
+        "time": 254016000000
+      }
+    },
+    {
+      "id": "sequence.inspect",
+      "params": {},
+      "result": {
+        "id": 3,
+        "playhead": 254016000000,
+        "selection": [
+          5
+        ],
+        "clipIds": [
+          5
+        ]
+      }
+    },
+    {
+      "id": "graphics.newText",
+      "params": {
+        "text": "Typo probe",
+        "misspelled": true
+      },
+      "result": {
+        "clip": 7,
+        "layer": 0
+      }
+    },
+    {
+      "id": "sequence.inspect",
+      "params": {},
+      "result": {
+        "id": 3,
+        "playhead": 254016000000,
+        "selection": [
+          7
+        ],
+        "clipIds": [
+          5,
+          7
+        ]
+      }
+    },
+    {
+      "id": "file.saveAs",
+      "params": {
+        "path": "/research.fcproj"
+      },
+      "result": {
+        "backup": null,
+        "bytes": 7797,
+        "ms": 5,
+        "path": "/research.fcproj"
+      }
+    },
+    {
+      "id": "file.newProject",
+      "params": {
+        "name": "empty"
+      },
+      "result": null
+    },
+    {
+      "id": "file.open",
+      "params": {
+        "path": "/research.fcproj"
+      },
+      "result": {
+        "migrated": false,
+        "missingMedia": 0,
+        "path": "/research.fcproj",
+        "schemaVersion": 12
+      }
+    },
+    {
+      "id": "sequence.inspect",
+      "params": {},
+      "result": {
+        "id": 3,
+        "playhead": null,
+        "selection": [],
+        "clipIds": [
+          5,
+          7
+        ]
+      }
+    }
+  ],
+  "notRun": [
+    "Rust source build and upstream Rust suites",
+    "Focused WASM kernel benchmark",
+    "Real Adobe/Studio/user/hardware comparison",
+    "Video/alpha export",
+    "Real model evaluation"
+  ]
+}

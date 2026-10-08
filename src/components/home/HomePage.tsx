@@ -124,7 +124,10 @@ export default function HomePage({ route }: { route: Route }) {
   /* eslint-disable react-hooks/exhaustive-deps */
   const graphics = useMemo(() => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [rev]);
   const looks = useMemo(() => loadLooks(), [rev]);
-  const productions = useMemo(() => loadShows(), [rev]);
+  // NEWEST FIRST, like the graphics: the work you were just on is the upper-left card, and the
+  // dashboard's five are the five most recent rather than the five oldest. Compared as
+  // times, since a team row's stamp can be Postgres-formatted rather than ISO `Z`.
+  const productions = useMemo(() => loadShows().sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0)), [rev]);
   const videos = useMemo(() => listSavedVideoProjects(), [rev]);
   /* eslint-enable react-hooks/exhaustive-deps */
   const personalCount = productions.filter((p) => !p.teamId).length;

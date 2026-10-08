@@ -1,6 +1,6 @@
-/* THE DOWNLOADS PAGE (downloads.html). Everything shared with the docs - the landing's header,
-   the buttons, headings, command blocks and the copy button - comes from src/docs/docs.css; this
-   file adds only the two tool cards. */
+/* THE DOWNLOADS PAGE (downloads.html). The header, footer and buttons are the site's
+   (src/site-chrome.css); the headings, command blocks and copy button are the docs'
+   (src/docs/docs.css); this file adds only the two tool cards. */
 
 /* Two tools side by side, each a card of the same height, so neither reads as the main one:
    they are for different people. One column on a phone or a narrow window. */
@@ -79,10 +79,3 @@
 .dl-pill--no { border-color: rgba(229, 83, 75, 0.5); color: #e5908a; }
 .doc-body .dl-card ul.dl-note { padding-left: 20px; margin: 6px 0 12px; }
 .doc-body .dl-card ul.dl-note li { margin: 4px 0; }
-
-/* A phone header holds the wordmark, the current page and the button; at 390px the button's
-   label wrapped to two lines at the docs' spacing, so the row tightens here instead. */
-@media (max-width: 420px) {
-  header.top nav { gap: 14px; }
-  header.top .btn { padding: 10px 16px; white-space: nowrap; }
-}

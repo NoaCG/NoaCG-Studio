@@ -514,7 +514,7 @@ export default function BrowseStep({
           data-build-mode="community"
         >
           <strong>Community packs</strong>
-          <span className="hint">Finished packages, ready to run. Install and go.</span>
+          <span className="hint">Finished packages, ready to run.</span>
         </button>
       </div>
 
