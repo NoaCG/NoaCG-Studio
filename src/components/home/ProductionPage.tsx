@@ -5462,8 +5462,9 @@ function ProductionShell({
             2026-10-01: operators build muscle memory).
             Team identity and its door live inside Setup, gated by useTeamsAvailable.
             Saving… and Not saved stay visible: an operator must not miss either state. */}
-        {!show.teamId && <SyncStatus compact />}
-        {show.teamId && saving && <span className={`pd-team-save ${saving}`} role="status" data-testid="production-team-save">{saving === 'pending' ? 'Saving…' : 'Not saved'}</span>}
+        {/* One chip for both kinds of production (playout-workflow-simplification AC-12): a team
+            production reads its own save, in the same words. */}
+        <SyncStatus compact team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
         {/* The panel's status, only while it is switched on: "Panel ✓" answering, "Panel …"
             connecting. A press opens its dialog, as the Setup menu's item does. */}
         {panelState !== 'off' && (

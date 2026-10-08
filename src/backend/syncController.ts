@@ -39,6 +39,10 @@ export interface SyncState {
   /** On a first pass, once the cloud has been listed: how much is on its way. */
   incoming?: IncomingCounts;
   verifiedAt?: string;
+  /** While anything is unconfirmed: when the OLDEST unconfirmed change was made (epoch ms). The
+   *  cloud chip stays quiet until it is 60 s old (playout-workflow-simplification D14); a
+   *  confirmed pass clears it, so a run of quick saves never ages into a warning. */
+  unconfirmedSince?: number;
 }
 
 function countIncoming(records: StoredRecord[]): IncomingCounts {
@@ -58,10 +62,15 @@ const remote = new SupabaseProvider({ onlyInto: libraryInUse });
 
 let state: SyncState = { phase: 'offline' };
 const listeners = new Set<(s: SyncState) => void>();
+let unconfirmedSince: number | undefined;
 
 function setState(next: SyncState): void {
-  state = next;
-  listeners.forEach((fn) => fn(next));
+  // The age of what is unconfirmed runs from the first change a confirmation has not covered, and
+  // only a confirmed pass (or a workspace with no account) resets it.
+  if (next.phase === 'synced' || (next.phase === 'offline' && !libraryInUse())) unconfirmedSince = undefined;
+  else if (unconfirmedSince === undefined) unconfirmedSince = Date.now();
+  state = unconfirmedSince === undefined ? next : { ...next, unconfirmedSince };
+  listeners.forEach((fn) => fn(state));
 }
 
 export function getSyncState(): SyncState {
@@ -89,6 +98,9 @@ async function canSync(): Promise<boolean> {
 let running = false;
 let queued = false;
 let revision = 0;
+/** The revision the last confirmed pass covered: a pass that starts from it, with the chip at
+ *  Synced, is a re-check (a window regaining focus) and does not announce itself as Syncing. */
+let confirmedRevision = -1;
 let sessionEpoch = 0;
 let checkedThisPage = false;
 
@@ -161,7 +173,10 @@ export async function syncNow(): Promise<void> {
   const answered = waiting;
   waiting = [];
   const firstPass = !checkedThisPage || !libraryHasArrived();
-  setState({ phase: 'syncing', firstPass });
+  // Nothing unconfirmed: the chip stays Synced while this pass looks (D14, reproduced on focus);
+  // what it finds, a pull or a failure, says itself.
+  const recheck = !firstPass && state.phase === 'synced' && startedRevision === confirmedRevision;
+  if (!recheck) setState({ phase: 'syncing', firstPass });
   try {
     // Manual checks can arrive before autosave. Confirm the working revision first.
     window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
@@ -207,7 +222,12 @@ export async function syncNow(): Promise<void> {
       if (startedRevision !== revision) {
         queued = true;
         setState({ phase: 'pending', last: result, detail: 'The current revision has not been confirmed in the cloud.' });
-      } else setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
+      } else {
+        ownChangePending = false;
+        confirmedRevision = startedRevision;
+        setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
+        confirmedChannel?.postMessage({ account: libraryInUse() });
+      }
     }
   } catch (e) {
     // A pass that throws never moved the bookmark, so a first pass is still owed.
@@ -239,8 +259,10 @@ const DEBOUNCE_MS = 2500;
 let debounce: ReturnType<typeof setTimeout> | null = null;
 function scheduleSync(event?: Event): void {
   revision++;
+  const elsewhere = !!event && changeSyncedElsewhere(event);
+  if (!elsewhere) ownChangePending = true;
   if (libraryInUse()) setState({ phase: 'pending', firstPass: !checkedThisPage, detail: 'Not saved to cloud. Changes on this device are awaiting confirmation.' });
-  if (event && changeSyncedElsewhere(event)) return;
+  if (elsewhere) return;
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => {
     debounce = null;
@@ -273,6 +295,25 @@ function handOverOnClose(): void {
   });
 }
 
+/** THE OTHER TABS' CONFIRMATIONS. A change written in another tab that syncs is that tab's to push
+ *  (`changeSyncedElsewhere`), so this tab never runs a pass for it - and so, before this, never
+ *  learned it had landed: it read "pending" until its own next pass, which in a tab left open
+ *  beside another was never, and after a minute the chip said Not synced about work that was
+ *  saved (playout-workflow-simplification D14, reproduced with two tabs on one library). Each
+ *  confirmed pass is announced; a tab with nothing unsent of its own takes it as its own. */
+let ownChangePending = false;
+let confirmedChannel: BroadcastChannel | null = null;
+function followOtherTabsConfirmations(): void {
+  if (typeof BroadcastChannel === 'undefined') return;
+  confirmedChannel = new BroadcastChannel('noacg-sync-confirmed');
+  confirmedChannel.onmessage = (event: MessageEvent<{ account?: unknown }>) => {
+    if (event.data?.account !== libraryInUse() || ownChangePending || running || debounce) return;
+    if (state.phase !== 'pending' && state.phase !== 'syncing') return;
+    confirmedRevision = revision;
+    setState({ phase: 'synced', last: state.last, verifiedAt: new Date().toISOString() });
+  };
+}
+
 let started = false;
 
 /** Begin auto-sync: a pass whenever a session arrives, then a debounced push after every local
@@ -295,6 +336,7 @@ export function startAutoSync(): void {
   window.addEventListener('spx-account-edit-pending', scheduleSync);
   markOwnWritesSynced();
   handOverOnClose();
+  followOtherTabsConfirmations();
   followLibraryChangesInOtherTabs();
   window.addEventListener('online', () => void syncNow());
   window.addEventListener('offline', () => setState({ phase: 'pending', firstPass: !checkedThisPage, detail: 'Offline. This revision is not confirmed saved to cloud.' }));

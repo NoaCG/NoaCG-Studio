@@ -113,8 +113,12 @@ pass has completed, Home behaves exactly as it did. Pinned by `e2e/configured/li
 
 **Account work has an explicit cloud-confirmation state** (studio evening reliability, 2026-10-05).
 Every account page reconciles a fresh cloud revision before claiming its cache is current.
-Pending keystrokes, offline changes, debounce and failed writes show **Not saved to cloud**;
-only a pass covering the current revision can clear it. Authentication expiry flushes pending
+The cloud chip says **Synced** only once a pass covering the current revision is confirmed. A
+change in flight reads a quiet **Syncing**, and turns amber **Not synced** once the oldest
+unconfirmed change is a minute old; a failed write or an expired session reads Not synced at once
+(playout-workflow-simplification D14). A tab that hears another tab's change returns to Synced
+when that tab's pass confirms it, and a pass that only re-checks (a window regaining focus) does
+not announce itself. A team production's header wears the same chip for its own save. Authentication expiry flushes pending
 authoring work, preserves the account library and pauses account editing. Playout transport
 remains available, with a persistent sign-in notice instead of a modal taking its keyboard.
 Anonymous work stays in its own local namespace; sign-in opens the account library without

@@ -535,12 +535,14 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     return respond([]);
   });
   await page.goto('/app#/home');
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Checking cloud revision');
-  await expect(page.locator('.sync-status')).toHaveText('Sync');
-  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'warn');
+  // Checking the cloud revision is a save in flight: quiet, never Synced before it is confirmed
+  // (playout-workflow-simplification AC-12).
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Syncing');
+  await expect(page.locator('.sync-status')).toHaveText('Syncing');
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'quiet');
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   releaseLists();
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Saved to cloud', { timeout: 20000 });
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Synced', { timeout: 20000 });
   await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'ok');
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   // The details open on demand, with the one action that helps.
@@ -557,7 +559,7 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     // Deliberately before the 800 ms autosave. Retry must cover this edit.
     await syncNow();
   });
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Saved to cloud', { timeout: 20000 });
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Synced', { timeout: 20000 });
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
   failWrites = true;
   await page.evaluate(async () => {
@@ -566,7 +568,8 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     useTemplateStore.getState().setCss('/* failed save stays here */');
     await syncNow();
   });
-  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Not saved to cloud');
+  // A failed write shows at once, without waiting out the minute.
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Not synced');
   await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'warn');
   await expect(page.getByTestId('account-save-notice')).toContainText('Not saved to cloud');
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
@@ -589,4 +592,70 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     return useTemplateStore.getState().template.css;
   })).toBe('/* failed save stays here */');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+
+// playout-workflow-simplification D14, reproduced before it was fixed: two tabs on one library.
+// A change made in tab A is A's to push, so tab B never ran a pass for it and read "Syncing" until
+// its own next pass (never, beside the other tab), turning to Not synced after a minute about work
+// that was saved. A's confirmed pass now reaches B.
+test('a second tab returns to Synced when the tab that made the change confirms it', async ({ context }) => {
+  test.setTimeout(120_000);
+  const owner = '00000000-0000-4000-8000-000000000001';
+  const user = { id: owner, aud: 'authenticated', role: 'authenticated', email: 'rehearsal@example.invalid', app_metadata: {}, user_metadata: {}, created_at: '2026-01-01T00:00:00Z' };
+  const expires = Math.floor(Date.now() / 1000) + 3600;
+  const token = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ sub: owner, exp: expires, role: 'authenticated' })).toString('base64url')}.test`;
+  const rows = new Map<string, { id: string; kind: string; body: { updatedAt: string }; deleted: boolean }>();
+  await context.route('**/src/backend/config.ts*', route => route.fulfill({ contentType: 'text/javascript', body: `export function loadBackendConfig(){return {url:'https://cloudmock.invalid',anonKey:'test-public-key'}};export function isBackendConfigured(){return true}` }));
+  await context.addInitScript(({ owner, user, token, expires }) => {
+    if (window.top !== window) return;
+    localStorage.setItem('spx-gfx-account', owner);
+    if (!localStorage.getItem('sb-cloudmock-auth-token')) localStorage.setItem('sb-cloudmock-auth-token', JSON.stringify({ access_token: token, refresh_token: 'test-refresh', expires_in: 3600, expires_at: expires, token_type: 'bearer', user }));
+  }, { owner, user, token, expires });
+  await context.route('https://cloudmock.invalid/**', async route => {
+    const request = route.request(), url = new URL(request.url());
+    const respond = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (url.pathname === '/auth/v1/user') return respond(user);
+    if (url.pathname === '/rest/v1/documents') {
+      if (request.method() === 'GET') {
+        const kind = url.searchParams.get('kind')?.replace('eq.', '');
+        const found = [...rows.values()].filter(row => row.kind === kind);
+        return respond(url.searchParams.get('select')?.includes('body,') ? found : found.map(row => ({ id: row.id, deleted: row.deleted, updatedAt: row.body.updatedAt })));
+      }
+      if (request.method() === 'POST') { const row = request.postDataJSON(); rows.set(row.id, row); return respond({ body: row.body }); }
+      return respond([]);
+    }
+    return respond([]);
+  });
+  const a = await context.newPage();
+  await a.goto('/app#/home');
+  await expect(a.locator('.sync-status')).toHaveText('Synced', { timeout: 20_000 });
+  const b = await context.newPage();
+  await b.goto('/app#/home');
+  await expect(b.locator('.sync-status')).toHaveText('Synced', { timeout: 20_000 });
+  const before = rows.size;
+  await a.evaluate(async () => {
+    const { createLook } = await import('/src/model/packets.ts');
+    createLook('From tab A', { styleTag: 'minimal', palette: { id: 'captured', name: 'Captured', styleTags: ['minimal'], accent: '#22aa66', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(12,14,18,0.92)' }, fontId: null, customFont: null });
+  });
+  // B hears the change, and says it is in flight, quietly.
+  await expect(b.locator('.sync-status')).toHaveText('Syncing');
+  await expect.poll(() => rows.size, { timeout: 20_000 }).toBeGreaterThan(before);
+  await expect(a.locator('.sync-status')).toHaveText('Synced');
+  // A's confirmation reaches B, which ran no pass of its own.
+  await expect(b.locator('.sync-status')).toHaveText('Synced', { timeout: 10_000 });
+  // Regaining focus with nothing unsaved re-checks without announcing it (D14, reproduced as a
+  // Synced, Syncing, Synced flicker on every window switch).
+  const flicker = await a.evaluate(async () => {
+    const chip = document.querySelector('.sync-status')!;
+    const texts: string[] = [];
+    const watch = new MutationObserver(() => texts.push(chip.textContent ?? ''));
+    watch.observe(chip, { childList: true, subtree: true, characterData: true });
+    window.dispatchEvent(new Event('focus'));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    watch.disconnect();
+    return texts;
+  });
+  expect(flicker).not.toContain('Syncing');
+  await expect(a.locator('.sync-status')).toHaveText('Synced');
 });

@@ -92,7 +92,8 @@ async function key(page: Page, key: string) {
 async function duplicate(page: Page, name = 'Alpha') {
   await row(page, name).getByTestId('cue-menu').click(); await page.getByRole('menuitem', { name: 'Duplicate', exact: true }).click();
   await expect(row(page, `${name} copy`)).toBeVisible(); await settleDurableWrites(page);
-  await expect(page.getByTestId('production-team-save')).toHaveCount(0);
+  // Nothing is left in flight or failed; a build with no backend has no chip at all.
+  await expect(page.locator('[data-testid="sync-status"]:is([data-tone="quiet"], [data-tone="warn"])')).toHaveCount(0);
 }
 async function failNextPut(page: Page) {
   await page.evaluate(() => {
@@ -238,7 +239,7 @@ test('live Take and Out remain independent of a held team authoring acknowledgem
     await expect.poll(() => fake.actions.length, { message: 'Out must reach Bridge while the authoring save remains held' }).toBe(2);
     await key(page, 'Delete');
   } finally { release(); }
-  await expect(page.getByTestId('production-team-save')).toHaveCount(0);
+  await expect(page.getByTestId('sync-status')).toHaveText('Synced');
   await expect(row(page, 'GAMMA'), 'the Delete press must remain queued while the previous save is pending').toHaveCount(0);
   expect(fake.actions).toHaveLength(2);
   await page.unrouteAll({ behavior: 'ignoreErrors' });
@@ -258,7 +259,7 @@ test('timed advancement during typing remains independent of a held team acknowl
     // Allow the documented three-second output-anchor fallback plus the two-second cue timer.
     await expect(row(page, 'Beta'), 'the timed cue must advance before the held authoring save is released').toHaveClass(/up-here/, { timeout: 10000 });
   } finally { release(); }
-  await expect(page.getByTestId('production-team-save')).toHaveCount(0);
+  await expect(page.getByTestId('sync-status')).toHaveText('Synced');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 });
 
@@ -326,4 +327,37 @@ test('retention bounds embedded assets and records actual heap separately from s
   const report = JSON.stringify({ ...retained, baselineHeap: baseline.usedSize, retainedHeap: measured.usedSize });
   console.log('History retention', report);
   await test.info().attach('history-retention.json', { body: report, contentType: 'application/json' });
+});
+
+// playout-workflow-simplification AC-12: a team production wears the same cloud chip. A save in
+// flight is quiet "Syncing"; only one still unconfirmed a minute later turns amber, and a failed
+// one shows at once.
+test('the team production chip is quiet while a save is in flight, amber after a minute, and at once on failure', async ({ page }) => {
+  await page.clock.install();
+  const { state } = await teamBackend(page);
+  const chip = page.getByTestId('sync-status');
+  await expect(chip).toHaveText('Synced');
+  await expect(chip).toHaveAttribute('data-tone', 'ok');
+  let release!: () => void;
+  state.hold = new Promise<void>((resolve) => { release = resolve; });
+  try {
+    await select(page, 'Alpha');
+    await page.getByTestId('cue-label').fill('Held save');
+    await page.getByTestId('cue-label').blur();
+    await expect(chip).toHaveText('Syncing');
+    await expect(chip).toHaveAttribute('data-tone', 'quiet');
+    await page.clock.fastForward(45_000);
+    await expect(chip).toHaveText('Syncing');
+    await page.clock.fastForward(16_000);
+    await expect(chip).toHaveText('Not synced');
+    await expect(chip).toHaveAttribute('data-tone', 'warn');
+  } finally { release(); }
+  await expect(chip).toHaveText('Synced');
+  // A refused save says so without waiting out the minute.
+  state.fail = true;
+  await page.getByTestId('cue-label').fill('Refused save');
+  await page.getByTestId('cue-label').blur();
+  await expect(chip).toHaveText('Not synced');
+  await expect(chip).toHaveAttribute('data-tone', 'warn');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 });

@@ -559,7 +559,7 @@ test.describe('teams: the share door', () => {
         expect((await serverRundown(mate, showId))?.datasets).toHaveLength(1);
         // Cloud-confirmed editor metadata is in Setup; the header keeps pending/failed state.
         await expectTeamInSetup(mate, teamName, 'you');
-        await expect(mate.getByTestId('production-team-save')).toHaveCount(0);
+        await expect(mate.getByTestId('sync-status')).toHaveText('Synced');
 
         // A opens the production COLD (a reload - the path a teammate's link takes) and reads
         // B's edit and B's name off the server row.
