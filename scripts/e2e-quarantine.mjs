@@ -7,7 +7,7 @@
 //   node scripts/e2e-quarantine.mjs enter --from-json '["e2e/x.spec.ts"]' --run <url> --queue
 //   node scripts/e2e-quarantine.mjs release <spec> [--queue]
 //   node scripts/e2e-quarantine.mjs release-due [--queue]     # reads main's status history
-//   node scripts/e2e-quarantine.mjs matrix                    # quarantine.yml's job list, as JSON
+//   node scripts/e2e-quarantine.mjs matrix [--all]            # quarantine.yml's job list, as JSON
 //   node scripts/e2e-quarantine.mjs filter <spec>             # the Playwright filter for one spec
 //   node scripts/e2e-quarantine.mjs status <spec> <outcome> --run <url>   # post one verdict
 //
@@ -26,6 +26,13 @@
 // quarantined spec at once. `release-due` reads those statuses newest first and queues the
 // release after RELEASE_AFTER consecutive passes. A spec stays out of quarantine only by passing,
 // never by somebody forgetting it was there.
+//
+// THE CONFIGURED SUITE KEEPS ITS OWN. A spec under `e2e/configured/` needs the local Supabase stack
+// that only configured-suite.yml brings up, so quarantine.yml cannot run it. That workflow enters
+// its own flakes here (scripts/configured-verdict.mjs `quarantineSplit`), keeps running its
+// quarantined specs on every push to main without reddening on them, and posts the same
+// `noacg/quarantine/<spec>` status. `matrix` leaves those specs out of quarantine.yml's jobs, and
+// `release-due` counts them like any other.
 //
 // Identity is the repo-relative path (`e2e/anim-engine.spec.ts`), the same string the failure set
 // and the annotations use; scripts/e2e-spec-names.mjs converts to the planner's bare name.
@@ -90,6 +97,17 @@ function writeStore(store, file = STORE_PATH) {
 /** The quarantined specs, as repo-relative paths, sorted. */
 export function quarantinedSpecs(store) {
   return Object.keys(store.specs ?? {}).sort();
+}
+
+/** True for a spec configured-suite.yml runs and quarantines, rather than quarantine.yml. */
+export function isConfiguredSpec(spec) {
+  return specPath(spec).startsWith('e2e/configured/');
+}
+
+/** The specs quarantine.yml runs (every one with `all`, which is what decides whether its release job runs). */
+export function matrixOf(store, { all = false } = {}) {
+  const specs = quarantinedSpecs(store);
+  return all ? specs : specs.filter((s) => !isConfiguredSpec(s));
 }
 
 /**
@@ -277,7 +295,7 @@ function main(argv) {
   }
 
   if (command === 'matrix') {
-    process.stdout.write(`${JSON.stringify(quarantinedSpecs(readStore()))}\n`);
+    process.stdout.write(`${JSON.stringify(matrixOf(readStore(), { all: flags.has('--all') }))}\n`);
     return 0;
   }
 
@@ -317,14 +335,15 @@ function main(argv) {
     const date = today();
     const targets = specs.map(specPath);
     const one = targets.length === 1;
+    const configured = targets.every(isConfiguredSpec);
     return applyStoreChange({
       queue,
       branch: `quarantine/enter-${date}-${slugOf(targets)}`,
       title: `Quarantine ${one ? targets[0] : `${targets.length} specs`} after a fail-then-pass on one commit`,
       body: [
-        `${targets.join(', ')} failed in the blocking shards and passed when re-run on the same commit`,
+        `${targets.join(', ')} failed in ${configured ? 'the configured suite' : 'the blocking shards'} and passed when re-run on the same commit`,
         `(${runUrl || 'run url unknown'}), which is the receipt a flake needs. From now on ${one ? 'it runs' : 'they run'}`,
-        `in quarantine.yml on every push to main and ${one ? 'leaves' : 'leave'} after ${RELEASE_AFTER} consecutive passes.`,
+        `${configured ? 'in configured-suite.yml without reddening it' : 'in quarantine.yml'} on every push to main and ${one ? 'leaves' : 'leave'} after ${RELEASE_AFTER} consecutive passes.`,
       ].join('\n'),
       mechanism: `quarantine entry for ${targets.join(', ')}`,
       runUrl,
