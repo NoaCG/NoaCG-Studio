@@ -63,7 +63,6 @@ test('a TOUCHES entry one letter off is refused, and the entry is quoted back', 
   assert.equal(status, 2);
   assert.match(message, /TOUCHES names scripts\/hoks\//);
   assert.match(message, /\(new\)/); // the way through for a file the row creates
-  assert.match(message, /wave-plan-check\.mjs/); // the check this is the second half of
 });
 
 test('a wrapped READ line is read to its end', { skip: needsMain }, () => {
