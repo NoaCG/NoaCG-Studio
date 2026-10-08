@@ -406,6 +406,7 @@ test('B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular
   const stage = (await page.locator('.ef-artboard').boundingBox())!;
   await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
   await page.mouse.click(stage.x + stage.width * .5, stage.y + stage.height * .5); await ready(page);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   const original = await rect(page, '#rectangle-1');
   await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   await numeric(page, 'Scale X %', -150);
@@ -544,6 +545,7 @@ test('B04 point text and canceled creation; base scale agrees with handles at zo
   await page.getByRole('button', { name: 'text tool', exact: true }).click();
   await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2); await ready(page);
   expect((await source(page)).fields.length).toBe(initial.fields.length + 1);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   await numeric(page, 'Scale X %', 150);
   await expect(page.getByRole('textbox', { name: 'Base Scale Y %', exact: true })).toHaveValue('150');
   const scaled = await source(page);

@@ -49,7 +49,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
     if (active) { session.cancel(); preview()?.previewTemplate(template, 'cancel'); }
     current.current = null; setDraft(null);
     // Escape during an anchor drag ends the drag; the Anchor tool stays for the next one.
-    if (!(active && tool === 'anchor')) setTool('select');
+    if (!active && tool === 'anchor') setTool('select');
   };
   const begin = (point: Point, part?: RenderedPart, handle?: Handle, selected?: RenderedPart[]) => {
     setError('');
@@ -174,7 +174,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         session.execute({ documentId: session.documentId, expected: gesture.expected, transactionId: crypto.randomUUID(), operations: gesture.operations });
       } else session.cancel();
     } catch (cause) { preview()?.previewTemplate(template, 'cancel'); session.cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
-    current.current = null; setDraft(null); if (gesture.creation) setTool('select');
+    current.current = null; setDraft(null);
     return gesture.moved;
   };
   return { tool, setTool, draft, error, begin, move, end, cancel, active: () => !!current.current };

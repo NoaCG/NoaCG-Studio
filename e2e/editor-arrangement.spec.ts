@@ -233,6 +233,7 @@ test('template search, UI-created artwork, save/reopen and executed exports at d
   }
   await page.getByRole('button',{name:'pen tool',exact:true}).click();await point(950,550);await point(1070,550);await point(1010,630);await point(950,550);await ready(page);
   ids.push((await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
+  await page.getByRole('button',{name:'select tool',exact:true}).click();
   for(const [i,id] of ids.entries())await page.locator('.ef-track[data-selector="'+id+'"] .ef-layer').click(i?{modifiers:['Control']}:{});
   await page.getByRole('button',{name:'Align left',exact:true}).click();await ready(page);
   await page.getByRole('button',{name:'Distribute vertically',exact:true}).click();await ready(page);

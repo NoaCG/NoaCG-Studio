@@ -34,6 +34,7 @@ async function draw(page: Page, closed = true, curves = false) {
   if (closed) await point(page, 700, 300); else await page.keyboard.press('Enter');
   await expect.poll(async () => (await selection(page))[0]).toMatch(/^#pen-/);
   await ready(page);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   return (await selection(page))[0];
 }
 async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
@@ -162,6 +163,7 @@ test('a horizontal open path can be selected and moved by its visible stroke', a
   await open(page); await page.getByRole('button', { name: 'pen tool', exact: true }).click();
   await point(page, 700, 300); await point(page, 1000, 300); await page.keyboard.press('Enter'); await ready(page);
   const id = (await selection(page))[0], before = await source(page);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   await point(page, 1300, 700); expect(await selection(page)).toEqual([]);
   await point(page, 850, 302); expect(await selection(page)).toEqual([id]);
   await point(page, 850, 302, 40, 30); await ready(page); const moved = await source(page);

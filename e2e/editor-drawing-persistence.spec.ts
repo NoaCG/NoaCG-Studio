@@ -98,3 +98,73 @@ test('pen draft cancellation retains the tool and exact completed source/history
   await history(page); expect(await source(page)).toEqual(before);
   await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
 });
+for (const name of ['rectangle', 'ellipse', 'text']) test(name + ': Escape, pointer loss and explicit tool choice discard only the draft', async ({ page }) => {
+  await open(page); await tool(page, name).click(); await point(page, 600, 300, 120, 70); await ready(page);
+  const completed = await source(page), selected = await selection(page);
+  for (const exit of ['Escape', 'pointercancel', 'lostpointercapture', 'tool']) {
+    const t = await source(page), box = (await page.locator('.ef-artboard').boundingBox())!;
+    const x = box.x + 1100 / t.resolution.width * box.width, y = box.y + 300 / t.resolution.height * box.height;
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y + 40);
+    expect(await source(page)).toEqual(completed);
+    if (exit === 'Escape') await page.keyboard.press('Escape');
+    else if (exit === 'tool') await tool(page, 'select').dispatchEvent('click');
+    else await canvas(page).dispatchEvent(exit);
+    await page.mouse.up(); await retains(page, exit === 'tool' ? 'select' : name);
+    expect(await source(page)).toEqual(completed); expect(await selection(page)).toEqual(selected);
+  }
+  await history(page); await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
+});
+test('point editing cancels a construction draft and Escape returns to whole-layer Select', async ({ page }) => {
+  await open(page); await tool(page, 'pen').click();
+  await point(page, 600, 300, 50, 0); await point(page, 800, 300); await page.keyboard.press('Enter'); await ready(page);
+  const original = await source(page), id = (await selection(page))[0];
+  await point(page, 1100, 700); await point(page, 1300, 800);
+  await page.getByRole('button', { name: 'Edit points', exact: true }).click();
+  await expect(page.locator('[data-pen-point]')).toHaveCount(2);
+  const marker = page.locator('[data-pen-point="1"]'), box = (await marker.boundingBox())!;
+  const x = box.x + box.width / 2, y = box.y + box.height / 2;
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 30, y + 20); await page.keyboard.press('Escape'); await page.mouse.up();
+  await retains(page, 'select'); expect(await source(page)).toEqual(original);
+  await page.getByRole('button', { name: 'Edit points', exact: true }).click();
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 30, y + 20); await page.mouse.up(); await ready(page);
+  expect((await source(page)).html).not.toBe(original.html); expect(await selection(page)).toEqual([id]);
+  await history(page); expect(await source(page)).toEqual(original);
+  await tool(page, 'rectangle').click(); await retains(page, 'rectangle');
+  await expect(page.locator('[data-pen-point]')).toHaveCount(0);
+});
+test('group entry cancels Pen and switches to Select; returning to Composition stays coherent', async ({ page }) => {
+  await open(page); await tool(page, 'rectangle').click();
+  const ids: string[] = [];
+  for (const x of [600, 900]) { await point(page, x, 300, 120, 90); await ready(page); ids.push((await selection(page))[0]); }
+  const group = await page.evaluate(async ids => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const result = s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'group.create', selectors: ids, box: { x: 600, y: 300, width: 420, height: 90 } }] });
+    await new Promise(resolve => setTimeout(resolve)); return result.changedTargets[0];
+  }, ids);
+  await ready(page); const grouped = await source(page);
+  await tool(page, 'pen').click(); await point(page, 1300, 400); await point(page, 1500, 600);
+  await page.locator(`.ef-track[data-selector="${group}"] .ef-enter-group`).click();
+  await retains(page, 'select'); await expect(tool(page, 'pen')).toBeDisabled();
+  expect(await source(page)).toEqual(grouped); await expect(page.locator('[data-pen-point]')).toHaveCount(0);
+  await point(page, 1450, 650); expect(await source(page)).toEqual(grouped);
+  await page.getByRole('button', { name: 'Back to Composition', exact: true }).click();
+  await retains(page, 'select'); await expect(tool(page, 'pen')).toBeEnabled(); expect(await source(page)).toEqual(grouped);
+  await tool(page, 'pen').click(); await point(page, 1300, 400); await point(page, 1500, 600); await page.keyboard.press('Enter'); await ready(page);
+  await history(page); expect(await source(page)).toEqual(grouped);
+});
+for (const change of ['source', 'assets', 'playhead', 'document']) test('Pen draft guard: ' + change + ' creates no orphan source or history', async ({ page }) => {
+  await open(page); const before = await source(page);
+  await tool(page, 'pen').click(); await point(page, 600, 300); await point(page, 800, 500);
+  if (change === 'playhead') { await page.getByTestId('foundation-ruler').focus(); await page.keyboard.press('ArrowLeft'); }
+  else await page.evaluate(async change => {
+    const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(), t = s.template;
+    s.applyTemplate(change === 'assets' ? { ...t, assets: [...t.assets, { path: 'guard.txt', data: new Blob(['guard']) }] } : { ...t, css: t.css + '\n/* external ' + change + ' */' }, { resetSampleData: change === 'document' });
+    await new Promise(resolve => setTimeout(resolve));
+  }, change);
+  const expected = await source(page);
+  await canvas(page).focus(); await page.keyboard.press('Enter');
+  expect(await source(page)).toEqual(expected); await expect(page.locator('[data-pen-point]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
+  await retains(page, change === 'document' ? 'select' : 'pen');
+  if (change === 'playhead') expect(expected).toEqual(before);
+});

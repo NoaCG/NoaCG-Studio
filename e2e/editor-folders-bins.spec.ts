@@ -313,6 +313,7 @@ test('real template task uses folders, groups and bins, reopens and executes eve
     const a = screen(x, y), b = screen(x + 110, y + 70);
     await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 4 }); await page.mouse.up(); await ready(page); ids.push((await selection(page))[0]);
   }
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   await select(page, ids); await page.getByRole('button', { name: 'Group selection', exact: true }).click(); await ready(page);
   const group = (await selection(page))[0];
   await folder(page, [group], 'Brand accents'); await select(page, [group]);

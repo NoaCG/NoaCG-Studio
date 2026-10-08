@@ -119,7 +119,13 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const parkedCue = useRef(cue);
   parkedCue.current = cue;
   parkedTime.current = time;
-  useEffect(() => { if (pathEditing) viewport.current?.focus(); }, [pathEditing]);
+  const previousPathEditing = useRef(pathEditing);
+  useEffect(() => {
+    if (previousPathEditing.current === pathEditing) return;
+    previousPathEditing.current = pathEditing;
+    pen.cancel(); gesture.cancel();
+    if (pathEditing) viewport.current?.focus();
+  }, [pathEditing, pen, gesture]);
 
   useEffect(() => {
     const observer = new ResizeObserver(entries => {
@@ -162,6 +168,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
     if (previousScope.current === groupScope) return;
     previousScope.current = groupScope;
     keyboard.cancel(); pen.cancel(); gesture.cancel();
+    // Creation belongs to Composition. Do not leave a disabled drawing tool active in a group.
+    if (groupScope && gesture.tool !== 'select' && gesture.tool !== 'anchor') gesture.setTool('select');
     marqueeStart.current = null; setMarquee(null); drag.current = null;
     space.current = false; spaceTap.current = false; setEditing(null);
   }, [groupScope, keyboard, pen, gesture]);

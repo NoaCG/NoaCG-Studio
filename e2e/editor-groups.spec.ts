@@ -264,6 +264,7 @@ test('template search, UI-created shapes and Pen, group and member motion, save/
   }
   await page.getByRole('button',{name:'pen tool',exact:true}).click();await point(950,550);await point(1070,550);await point(1010,630);await point(950,550);await page.keyboard.press('Enter');await ready(page);
   ids.push((await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
+  await page.getByRole('button',{name:'select tool',exact:true}).click();
   for(const [i,id] of ids.entries())await page.locator('.ef-track[data-selector="'+id+'"] .ef-layer').click(i?{modifiers:['Control']}:{});
 
   await page.getByRole('button',{name:'Group selection',exact:true}).click();await ready(page);
