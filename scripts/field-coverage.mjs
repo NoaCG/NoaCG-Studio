@@ -236,7 +236,8 @@ await page.evaluate(() => {
 
     // Snapshot AFTER.
     return frames.map(({ id, f }, k) => {
-      const out = { id, err: f.dataset.err || null, drive: drives[k], stuck: [] };
+      // `measured` is the strings read BEFORE the drive: the set each one is judged against.
+      const out = { id, err: f.dataset.err || null, drive: drives[k], stuck: [], measured: (before[k] || []).length };
       try {
         const after = window.__strings(f.contentDocument, f.contentWindow);
         const wasByPath = new Map((before[k] || []).map((r) => [r.path, r.text]));
@@ -262,6 +263,9 @@ for (let i = 0; i < targets.length; i += 8) {
   res.forEach((r, k) => rows.push({ ...slice[k], ...r }));
 }
 await browser.close();
+// Every frame rendering blank without throwing would leave no string unmoved and print PASS, so
+// the gate says how many visible strings it actually compared.
+measured(rows.reduce((n, r) => n + (r.measured || 0), 0), 'visible strings');
 
 // Classify: the deliberate exceptions vs the real findings.
 const excused = [];
