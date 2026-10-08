@@ -1,6 +1,6 @@
 # Panel ownership lease
 
-Status: draft, 2026-10-08. Not agreed; not built. The open owner questions are under "To decide".
+Status: agreed with the owner on 2026-10-08 (P1). Not built yet.
 Parent: `docs/work-specs/playout-workflow-simplification/spec.md` (owner decision 12, non-goal 2).
 It changes `docs/work-specs/hardware-panel-control/spec.md` AC-6 and D2, and `protocol.md` §4
 to §6. Everything else of that spec stands.
@@ -37,57 +37,62 @@ Parent decision 12 (above) and the hardware panel spec's owner requirements, exc
 'Answer the panel on this page' switch ... The last page to switch it on wins", which decision 12
 replaced.
 
-## Proposed decisions (to confirm; see "To decide")
+## Key decisions
+
+Owner decision (2026-10-08, binding):
+
+- **P1. Only the production page takes a free panel by itself.** The hosted control page (the
+  phone) takes it only by "Use here". The deck sits beside the playout laptop, so no other page
+  picks it up silently, for example while the operator's page reloads.
+
+Derived (revertible; each says how):
 
 - **L1. A lease, not a switch.** The server holds, per production, at most one lease: the page
-  holding it, its label, and an expiry. A page renews it every few seconds; a lease not renewed
-  for the lease time expires by itself. Taking a free or expired lease is one atomic call; taking
-  a live one is refused, except through "Use here". This replaces `panel_claim`'s "last one wins".
-- **L2. Who may take it by itself.** A page takes a free lease automatically only when it can run
-  the panel's verbs now: published, its playout surface mounted (not the Data or Audience view),
-  and signed in where the production needs it. Which page types qualify is question Q1.
-- **L3. A reload keeps it.** A page remembers its lease identity for the tab (session storage), so
-  a reload renews the same lease at once rather than releasing it and racing the other pages.
-- **L4. Never stolen.** A page that finds the lease held by another live page does nothing but say
-  so. A page that lost its lease (it expired while the page was cut off) does not take it back
-  from whoever holds it now.
-- **L5. "Use here".** On a page that does not hold the lease, one press moves it there: the server
-  transfers the lease, the previous holder hears it at once and stops answering. No confirm.
-- **L6. A heartbeat that survives a hidden tab.** Chromium throttles timers in a hidden or covered
-  tab (to once a minute after five minutes). The renewal runs where throttling cannot starve it
-  (a dedicated worker's timer), so a covered operator page keeps the lease.
-- **L7. A quiet indicator.** With a panel paired, the page shows who answers in one short line:
-  "Panel" (here) or "Panel on <page>" with "Use here". Nothing shows for a production with no
-  panel paired.
-
-## To decide (owner)
-
-- **Q1. Which pages take a free panel by themselves?** The production page on a laptop, and also
-  the hosted control page on a phone, or the laptop only (the phone takes it only by "Use here")?
-- **Q2. How long may the panel stay with a page that went silent?** Shorter means a crashed page
-  hands over faster; longer means a flaky network flaps less.
-- Further questions, if any, follow from the answers.
+  holding it, where it is (production or control page), its label, the claim number presses are
+  stamped with, and an expiry. The holder renews it; one not renewed for the lease time expires by
+  itself. Taking a free or expired lease is one atomic call, and taking a live one held by another
+  page is refused. "Answer the panel on this page" leaves the UI. Revert: the switch and
+  `panel_claim`'s "last one wins".
+- **L2. Eligible means published.** A production page with a published production takes a free
+  lease. The panel's answer runs at page level, so it keeps running on the Data and Audience views.
+  Revert: also require the playout view.
+- **L3. Lease time 15 s, renewed every 5 s.** Three missed renewals let it go, above the module's
+  own 12 s silence, and a reload (2 to 5 s) never loses it. Revert: the two constants.
+- **L4. A reload keeps it.** A page keeps its lease identity for the tab (session storage), so a
+  reload renews the same lease at once rather than releasing it. Revert: a fresh identity per load.
+- **L5. Never stolen.** A page that finds the lease held by another live page only says so. A page
+  whose lease expired while it was cut off does not take it back from whoever holds it now; it
+  takes it again only if it is free.
+- **L6. "Use here".** On any page that does not hold it, the production page or the phone, one
+  press moves the lease there: the server transfers it, the previous holder hears it at once and
+  stops answering. No confirm. Revert: a confirm.
+- **L7. Renewal that survives a hidden tab.** Chromium throttles a hidden or covered tab's timers
+  (to once a minute after five minutes), so the renewal runs on a dedicated worker's timer.
+- **L8. A quiet indicator.** With a panel paired, the page shows who answers in one short line:
+  "Panel" here, or "Panel on <page>" with "Use here". Nothing shows for a production with no panel.
+- **L9. Pages from before this change** keep their switch, and their claim obeys the lease: it
+  takes a free panel and is refused one held by a live page, with the page's existing failure line.
 
 ## Behaviour
 
 ### AC-1: Opening the show takes a free panel
-With a panel paired and no page answering, opening the production page (published, playout
-surface showing) makes it answer within 2 s, with no switch pressed. The keys leave "No operator
-page" and show the rundown.
+With a panel paired and no page answering, opening the published production page makes it answer
+within 2 s, with no switch pressed. The keys leave "No operator page" and show the rundown. Opening
+the hosted control page instead takes nothing; it shows "Use here".
 
 ### AC-2: A second page never takes it
-Opening a second eligible page (another laptop, another tab, the phone) while the first answers
-leaves the first answering; the second shows "Panel on <first>" with "Use here". Opened together,
-exactly one answers.
+Opening a second page (another laptop, another tab, the phone) while the first answers leaves the
+first answering; the second shows "Panel on <first>" with "Use here". Two production pages opened
+together: exactly one answers.
 
 ### AC-3: A reload keeps it
 Reloading the answering page keeps the panel on it: no other page takes it meanwhile, and the
 keys are back within 2 s of the page showing.
 
 ### AC-4: A dead page lets go, and the next one takes it
-Closing, crashing or cutting the network of the answering page lets the lease expire within the
-lease time; another eligible page that is open takes it by itself, and the keys follow. With no
-other page, the keys show "No operator page".
+Closing, crashing or cutting the network of the answering page lets the lease expire within 15 s;
+another open production page takes it by itself, and the keys follow. With no other production
+page, the keys show "No operator page" and an open phone offers "Use here".
 
 ### AC-5: "Use here" moves it
 Pressing "Use here" moves the panel to that page within 2 s; the previous page shows "Panel on
@@ -99,8 +104,8 @@ and the keys stay live.
 
 ### AC-7: Old modules and pages keep working
 A Companion module from before this change pairs, presses and reads feedback unchanged. A page
-from before this change can still switch the answer on, and the lease rules then apply to it as
-to any page that takes the lease by hand.
+from before this change can still switch the answer on while the panel is free, and is refused
+while another live page holds it (L9).
 
 ## Preserved behaviour
 
