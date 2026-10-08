@@ -876,6 +876,66 @@ test('the base resolvers answer for the repository they are given, before and af
   }
 });
 
+// A STALE LOCAL MAIN. The merge queue moves `origin/main` and nothing moves the local ref, so a
+// branch cut from a fresh `origin/main` in a checkout whose `main` is behind used to diff from the
+// stale ref and be charged with everything that landed in between - on 2026-09-15 a seven-file
+// branch was planned as the whole suite. The two refs have to DISAGREE for a test to see this.
+test('a stale local main plans only the changed specs, whichever main ref is fresh', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'e2e-affected-stale-'));
+  const git = (...args) =>
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const write = (rel, text) => {
+    mkdirSync(dirname(join(repo, rel)), { recursive: true });
+    writeFileSync(join(repo, rel), text);
+  };
+  const plan = () => planFor(changedFilesSince(branchBase(repo), repo));
+
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+    write('README.md', 'base\n');
+    git('add', '-A');
+    git('commit', '-m', 'base');
+    const stale = git('rev-parse', 'HEAD');
+
+    // Another branch lands: a change that alone would escalate to the whole suite.
+    write('package.json', '{}\n');
+    git('add', '-A');
+    git('commit', '-m', 'someone else landed');
+    const fresh = git('rev-parse', 'HEAD');
+
+    // This branch, cut from the fresh tip, changes one spec.
+    git('checkout', '-b', 'feature');
+    write('e2e/wizard-preview.spec.ts', '// changed\n');
+    git('add', '-A');
+    git('commit', '-m', 'one spec');
+
+    // The fixture's precondition: what the old base produced.
+    assert.equal(planFor(changedFilesSince(stale, repo)).mode, 'full');
+
+    // Local `main` stale, `origin/main` fresh: the worktree case the merge queue makes.
+    git('update-ref', 'refs/heads/main', stale);
+    git('update-ref', 'refs/remotes/origin/main', fresh);
+    assert.equal(branchBase(repo), fresh);
+    assert.deepEqual(plan(), { ...plan(), mode: 'subset', specs: ['wizard-preview.spec.ts'] });
+
+    // The other way round: pulled but not fetched.
+    git('update-ref', 'refs/heads/main', fresh);
+    git('update-ref', 'refs/remotes/origin/main', stale);
+    assert.equal(branchBase(repo), fresh);
+    assert.equal(plan().mode, 'subset');
+
+    // And with no local `main` at all, the CI checkout.
+    git('update-ref', '-d', 'refs/heads/main');
+    git('update-ref', 'refs/remotes/origin/main', fresh);
+    assert.equal(branchBase(repo), fresh);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 // THE QUARANTINE SPLIT. What the shards get and what quarantine.yml gets are one input divided;
 // a quarantined spec the plan never selected is nobody's business; and a quarantined spec the
 // change itself edits stays blocking, because that edit is the fix and must not land untested.
