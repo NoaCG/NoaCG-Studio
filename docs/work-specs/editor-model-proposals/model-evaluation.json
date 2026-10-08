@@ -1,0 +1,278 @@
+{
+  "route": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-5"
+  },
+  "price": {
+    "inputPerMillion": 2,
+    "outputPerMillion": 10
+  },
+  "ceilingUsd": 0.5,
+  "maxRequests": 6,
+  "estimatedUsd": 0.180402,
+  "provenance": "Public tracked e2e/fixtures/fidelity-nested.svg plus deterministic original test text/shapes. Gateway payload contains only catalog and bounded inspection, no raw source, assets, credentials, user projects or rehearsal values.",
+  "boundary": "Real normalized gateway adapter calls. Endpoint authentication/production ledger and model UI usability are not evidence from this benchmark.",
+  "cases": [
+    {
+      "name": "public-default",
+      "prompt": "Change the saved public headline default from Morning report to Evening report. Preserve rehearsal samples.",
+      "reservedWorstCaseUsd": 0.332936,
+      "result": {
+        "output": {
+          "summary": "Update the public headline field (f0) default text from \"Morning report\" to \"Evening report\". This targets the public text default only; rehearsal samples and static text are untouched.",
+          "commands": [
+            {
+              "id": "text.set",
+              "args": {
+                "targetId": "f0",
+                "text": "Evening report"
+              }
+            }
+          ]
+        },
+        "usage": {
+          "inputTokens": 14128,
+          "outputTokens": 137,
+          "totalTokens": 14265,
+          "estimatedCost": {
+            "amount": 0.029626,
+            "currency": "USD",
+            "source": "configured"
+          }
+        },
+        "provider": "anthropic",
+        "model": "claude-sonnet-5",
+        "attempts": [
+          {
+            "route": {
+              "provider": "anthropic",
+              "model": "claude-sonnet-5"
+            },
+            "attempts": 1
+          }
+        ]
+      },
+      "estimatedUsd": 0.029626,
+      "semanticIntent": true
+    },
+    {
+      "name": "excluded-static",
+      "prompt": "Change the static News desk wording to Control room. Keep it excluded from operator fields.",
+      "reservedWorstCaseUsd": 0.332904,
+      "result": {
+        "output": {
+          "summary": "Update the static \"News desk\" wording to \"Control room\" on the #static-note layer. This layer has text.set supported and its fieldId is null, so it remains excluded from operator (public) fields as required.",
+          "commands": [
+            {
+              "id": "text.set",
+              "args": {
+                "targetId": "static-note",
+                "text": "Control room"
+              }
+            }
+          ]
+        },
+        "usage": {
+          "inputTokens": 14123,
+          "outputTokens": 148,
+          "totalTokens": 14271,
+          "estimatedCost": {
+            "amount": 0.029726,
+            "currency": "USD",
+            "source": "configured"
+          }
+        },
+        "provider": "anthropic",
+        "model": "claude-sonnet-5",
+        "attempts": [
+          {
+            "route": {
+              "provider": "anthropic",
+              "model": "claude-sonnet-5"
+            },
+            "attempts": 1
+          }
+        ]
+      },
+      "estimatedUsd": 0.029726,
+      "semanticIntent": true
+    },
+    {
+      "name": "base-position",
+      "prompt": "Move layer rectangle-1 to parent position x=1110 y=600, preserving its motion.",
+      "reservedWorstCaseUsd": 0.33273600000000003,
+      "result": {
+        "output": {
+          "summary": "Set base position of rectangle-1 to x=1110, y=600 using base.set, which preserves existing motion/animation keys.",
+          "commands": [
+            {
+              "id": "base.set",
+              "args": {
+                "targetId": "rectangle-1",
+                "values": {
+                  "x": 1110,
+                  "y": 600
+                }
+              }
+            }
+          ]
+        },
+        "usage": {
+          "inputTokens": 14100,
+          "outputTokens": 137,
+          "totalTokens": 14237,
+          "estimatedCost": {
+            "amount": 0.02957,
+            "currency": "USD",
+            "source": "configured"
+          }
+        },
+        "provider": "anthropic",
+        "model": "claude-sonnet-5",
+        "attempts": [
+          {
+            "route": {
+              "provider": "anthropic",
+              "model": "claude-sonnet-5"
+            },
+            "attempts": 1
+          }
+        ]
+      },
+      "estimatedUsd": 0.02957,
+      "semanticIntent": true
+    },
+    {
+      "name": "position-keys",
+      "prompt": "For layer rectangle-1, set Position X runtime offsets in cue 0: value 20 at stored seconds 0, and value 60 at stored seconds 1.",
+      "reservedWorstCaseUsd": 0.332834,
+      "result": {
+        "output": {
+          "commands": [
+            {
+              "id": "animation.key",
+              "args": {
+                "targetId": "rectangle-1",
+                "step": 0,
+                "property": "x",
+                "time": 0,
+                "value": 20,
+                "action": "set"
+              }
+            },
+            {
+              "id": "animation.key",
+              "args": {
+                "targetId": "rectangle-1",
+                "step": 0,
+                "property": "x",
+                "time": 1,
+                "value": 60,
+                "action": "set"
+              }
+            }
+          ],
+          "summary": "Set two runtime Position X keyframes for rectangle-1 in cue 0 (step 0): value 20 at stored time 0s and value 60 at stored time 1s."
+        },
+        "usage": {
+          "inputTokens": 14122,
+          "outputTokens": 217,
+          "totalTokens": 14339,
+          "estimatedCost": {
+            "amount": 0.030414,
+            "currency": "USD",
+            "source": "configured"
+          }
+        },
+        "provider": "anthropic",
+        "model": "claude-sonnet-5",
+        "attempts": [
+          {
+            "route": {
+              "provider": "anthropic",
+              "model": "claude-sonnet-5"
+            },
+            "attempts": 1
+          }
+        ]
+      },
+      "estimatedUsd": 0.030414,
+      "semanticIntent": true
+    },
+    {
+      "name": "next-cue",
+      "prompt": "Add a Next cue at composition seconds 0.6. Preserve absolute motion and existing Out.",
+      "reservedWorstCaseUsd": 0.332758,
+      "result": {
+        "output": {
+          "summary": "Add a Next cue (step.add) at composition time 0.6s. The existing Out is at 1.2s and is left untouched, preserving absolute motion per the tool's built-in behavior.",
+          "commands": [
+            {
+              "id": "step.add",
+              "args": {
+                "time": 0.6
+              }
+            }
+          ]
+        },
+        "usage": {
+          "inputTokens": 14104,
+          "outputTokens": 136,
+          "totalTokens": 14240,
+          "estimatedCost": {
+            "amount": 0.029568,
+            "currency": "USD",
+            "source": "configured"
+          }
+        },
+        "provider": "anthropic",
+        "model": "claude-sonnet-5",
+        "attempts": [
+          {
+            "route": {
+              "provider": "anthropic",
+              "model": "claude-sonnet-5"
+            },
+            "attempts": 1
+          }
+        ]
+      },
+      "estimatedUsd": 0.029568,
+      "semanticIntent": true
+    },
+    {
+      "name": "unsupported",
+      "prompt": "Replace the SVG path geometry and expose the excluded static-note as a new operator field.",
+      "reservedWorstCaseUsd": 0.33290200000000003,
+      "result": {
+        "output": {
+          "summary": "Both parts of this request cannot be fulfilled. No supported command exists for editing raw SVG path geometry (the \"d\" attribute) — this isn't part of the command catalog at all, and the Path layers in the inspection are unstable (no id) with all capabilities unsupported, requiring a unique source ID to be committed via the UI first. Separately, \"static-note\" is not actually excluded — it has a real fieldId-less text default but text.set/base.set/animation.key are all marked supported for it already; however, the request asks to \"expose\" it as a new operator field, which would mean converting it into a new field-backed text layer — there's no command for creating or converting a field on an existing layer (layer.create only makes new root artwork layers, not fields on existing nodes). Since neither requested edit maps to a supported, inspected command, I'm returning no commands.",
+          "commands": []
+        },
+        "usage": {
+          "inputTokens": 14124,
+          "outputTokens": 325,
+          "totalTokens": 14449,
+          "estimatedCost": {
+            "amount": 0.031498,
+            "currency": "USD",
+            "source": "configured"
+          }
+        },
+        "provider": "anthropic",
+        "model": "claude-sonnet-5",
+        "attempts": [
+          {
+            "route": {
+              "provider": "anthropic",
+              "model": "claude-sonnet-5"
+            },
+            "attempts": 1
+          }
+        ]
+      },
+      "estimatedUsd": 0.031498,
+      "semanticIntent": true
+    }
+  ]
+}

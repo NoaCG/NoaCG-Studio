@@ -9,8 +9,6 @@ export interface ReviewedProposal {
   expected: Inspection['expected'];
   transactionId: string;
   changedIds: string[];
-  files: string[];
-  model: Pick<ModelResult, 'provider' | 'model' | 'usage' | 'attempts'>;
 }
 export const proposalOutputSchema = () => z.toJSONSchema(editorProposalSchema);
 export function captureProposalContext(commands: EditorCommands) {
@@ -35,17 +33,16 @@ export function reviewProposal(commands: EditorCommands, inspection: Inspection,
     if (!capability?.supported) throw new Error(capability && 'reason' in capability ? capability.reason : 'The proposal names a target outside the inspected context.');
   }
   const transactionId = crypto.randomUUID();
-  let changedIds: string[] = [], files: string[] = [];
+  let changedIds: string[] = [];
   if (proposal.commands.length) {
     const prepared = commands.prepare({ expected: inspection.expected, transactionId, commands: proposal.commands });
     if (!prepared.ok) throw new Error(prepared.refusal.message);
-    changedIds = prepared.changedIds; files = prepared.files;
+    changedIds = prepared.changedIds;
   } else {
     const current = commands.inspect({ limit: 1 });
     if (!current.ok || JSON.stringify(current.expected) !== JSON.stringify(inspection.expected)) throw new Error('The editor changed while this proposal was loading. Request it again.');
   }
-  return { proposal, expected: inspection.expected, transactionId, changedIds, files,
-    model: { provider: result.provider, model: result.model, usage: result.usage, attempts: result.attempts } };
+  return { proposal, expected: inspection.expected, transactionId, changedIds };
 }
 export async function proposeEditorEdits(commands: EditorCommands, prompt: string) {
   if (!prompt.trim() || prompt.length > 4000) throw new Error('Describe the edit in 1 to 4000 characters.');

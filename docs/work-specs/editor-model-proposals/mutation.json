@@ -1,0 +1,6 @@
+{
+  "removedGuard": "Cancelled generation cannot install a pending proposal",
+  "expectedFailure": "cancelled reply stays quiet while a newer request is still loading",
+  "playwrightExit": 1,
+  "restored": true
+}

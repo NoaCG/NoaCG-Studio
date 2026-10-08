@@ -11,7 +11,8 @@ function describeCommand(command: EditorProposal['commands'][number]) {
   const args = command.args;
   if (command.id === 'layer.create' && 'geometry' in args) {
     const g = args.geometry;
-    return `Create ${g.shape} at (${g.x}, ${g.y}), ${g.width} by ${g.height} pixels${g.box ? ', with text box' : ''}.`;
+    if (g.shape === 'text' && !g.box) return `Create point text at (${g.x}, ${g.y}).`;
+    return `Create ${g.shape === 'text' ? 'text box' : g.shape} at (${g.x}, ${g.y}), ${g.width} by ${g.height} pixels.`;
   }
   if (command.id === 'text.set' && 'text' in args) return `Set ${args.targetId} wording to "${args.text}".`;
   if (command.id === 'base.set' && 'values' in args) return `Position ${args.targetId}: ${Object.entries(args.values).map(([axis, value]) => `${axis} = ${value} pixels`).join(', ')}. Motion is preserved.`;

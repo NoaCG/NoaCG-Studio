@@ -150,3 +150,27 @@ test('unconfigured assistant leaves offline authoring available', async ({ page 
   await page.getByRole('button', { name: 'ellipse tool', exact: true }).click();
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-tool', 'ellipse');
 });
+
+
+test('review describes the dimensions actually used by point text and shapes', async ({ page }) => {
+  const commands = [
+    { id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 20, y: 30, width: 80, height: 60, box: true } } },
+    { id: 'layer.create', args: { geometry: { shape: 'text', x: 120, y: 130, width: 240, height: 700 } } },
+  ];
+  await page.route('**/api/ai/generate', route => route.fulfill({ json: response({ summary: 'Create a shape and point text.', commands }) }));
+  await setup(page); const before = await snapshot(page); await propose(page, 'Create a rectangle and point text');
+  const review = page.getByRole('region', { name: 'Proposed edits' });
+  await expect(review).toContainText('Create rectangle at (20, 30), 80 by 60 pixels.');
+  await expect(review).toContainText('Create point text at (120, 130).');
+  await expect(review).not.toContainText('text box');
+  expect(await snapshot(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Apply edits', exact: true }).click();
+  await expect(page.getByTestId('proposal-commit-status')).toHaveText('Applied. Preview ready.');
+  const after = await snapshot(page);
+  expect(after.source.css).not.toContain('240px');
+  expect(after.source.css).toContain('max-width: none');
+  expect(after.source.css).not.toContain('height: 700px');
+  expect(after.history.undo).toBe(before.history.undo + 1);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  expect((await snapshot(page)).source).toEqual(before.source);
+});

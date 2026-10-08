@@ -21,9 +21,9 @@ Evidence checkpoint 2026-10-07: [Crafting Apps research](research/crafting-apps-
 compares pinned source and released artifacts with current NoaCG main. Keep the source-backed
 editor, fields, cue model and output adapters. The persistent-drawing R1.2b follow-up
 retains chosen tools across completion and cancellation, with whole-path undo and the
-existing creation scope. Next, at the start of R1.3b, qualify shared command
-discovery/runtime schemas and a deterministic human/agent task
-before model-driven edits, over the existing operation/session handlers. Paired live MCP stays
+existing creation scope. R1.3b now has qualified shared command discovery/runtime
+schemas and a deterministic human/agent task. The [reviewed proposal slice](work-specs/editor-model-proposals/README.md)
+adds bounded model edits over the same operation/session handlers. Paired live MCP stays
 R3.2. Reproduce the remaining transform/layer/property feedback as bounded tasks before R1.5;
 save/sync stays with its current ownership. The research does not authorize an engine/UI
 replacement or advanced vector scope. A focused Rust/WASM path kernel remains a later option
@@ -273,13 +273,14 @@ New sessions resume these records and the actual branch state.
 | R1.1b-R1.1d | Key/bar, Out and fidelity/trim engineering portions are implemented on current main; broader user/fidelity acceptance remains open. Use the ordered receipts and acceptance register, not the former R1.1a-only checkpoint. |
 | R1.2a | Animation phases through R1.2a.6 are engineering-verified in the receipts above; whole-row owner/workflow acceptance remains open. |
 | R1.2b | Everyday-tool phases .1-.7 are implemented and engineering-verified; folders/bins are merged/live. Persistent drawing has its [bounded implementation receipt](work-specs/editor-persistent-drawing/README.md). Remaining October 6 transform/layer/property feedback and whole-row owner acceptance stay open. |
+| R1.3b reviewed model proposals | The [bounded review/apply task](work-specs/editor-model-proposals/README.md) adds grounded proposals, atomic validation and context/lifetime guards, with separate paid-model receipts. Full CLI round-trip, funding and broader B17/B18 acceptance remain open. |
 | R1.3b shared command qualification | The [bounded task and receipts](work-specs/editor-command-qualification/README.md) qualify schemas, capability/refusal discovery and deterministic UI/shared-handler source/history/pose parity. Model, CLI, transport and broader release acceptance remain open. |
 | Further R1.2c-R1.5 / P-COMP | Remain separate planned work; this checkpoint does not close them or the default switch. P-COMP follows R1.5. |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 
-The bounded shared-command qualification at the start of R1.3b now has [direct and cumulative browser task evidence](work-specs/editor-command-qualification/README.md), over the existing operation/session handlers. This closes only that qualification task. Next R1.3b work must retain these schemas, capabilities, refusals and source/history/preview receipts while qualifying the planned model-driven editing and source round-trip separately. Paired live MCP remains R3.2; broader R1.3b acceptance stays open. The [persistent-drawing receipt](work-specs/editor-persistent-drawing/README.md) preserves the cumulative authoring task. Remaining October 6 usability corrections stay in their existing R1.2b follow-ups before R1.5; retain the ordered trains above. Keep engineering slices bounded; demonstrate cumulative import/create, ordinary editing, editable text, animation, save/reopen and output tasks before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
+The bounded shared-command qualification at the start of R1.3b now has [direct and cumulative browser task evidence](work-specs/editor-command-qualification/README.md), over the existing operation/session handlers. This closes only that qualification task. The [bounded model-proposal slice](work-specs/editor-model-proposals/README.md) retains these schemas, capabilities, refusals and source/history/preview receipts. Next R1.3b work should qualify the full CLI-generated source round-trip separately; grounded general help and broader real-model tasks remain open. Paired live MCP remains R3.2; broader R1.3b acceptance stays open. The [persistent-drawing receipt](work-specs/editor-persistent-drawing/README.md) preserves the cumulative authoring task. Remaining October 6 usability corrections stay in their existing R1.2b follow-ups before R1.5; retain the ordered trains above. Keep engineering slices bounded; demonstrate cumulative import/create, ordinary editing, editable text, animation, save/reopen and output tasks before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived
