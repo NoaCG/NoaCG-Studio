@@ -251,7 +251,7 @@ export function createGraphic(
 /** Update fields of an existing graphic (the Save path, rename, move, entries…). */
 export function updateGraphic(
   id: string,
-  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread' | 'folder' | 'legibility' | 'fromPack'>>,
+  patch: Partial<Pick<GraphicDoc, 'name' | 'packageId' | 'template' | 'baseline' | 'entries' | 'activeEntryId' | 'aiSpec' | 'aiThread' | 'folder' | 'legibility'>>,
 ): { doc: GraphicDoc | null; error: string | null } {
   const all = rawGraphics();
   const doc = all.find((g) => g.id === id && !g.deleted);

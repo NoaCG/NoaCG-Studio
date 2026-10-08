@@ -7,13 +7,14 @@
 import { publishGate } from '../validation/publishGate';
 import { packGraphicEntry, type GraphicsPack } from '../packs/graphicsPack';
 import type { SpxTemplate } from '../model/types';
+import { formatBytes } from '../model/storageHealth';
 
 /** The server refuses a pack file above this (migration 0079), so the sheet says it first. */
-export const PACK_LIMIT_BYTES = 8 * 1024 * 1024;
+const PACK_LIMIT_BYTES = 8 * 1024 * 1024;
 /** The server's graphic count limit (migration 0079). */
-export const PACK_MAX_GRAPHICS = 50;
+const PACK_MAX_GRAPHICS = 50;
 
-export const LICENSE_ID = 'CC-BY-4.0';
+const LICENSE_ID = 'CC-BY-4.0';
 
 /** What a maker is about to submit, or what an admin is reviewing. */
 export interface PackCandidate {
@@ -73,17 +74,17 @@ export function checkPackGraphics(graphics: PackCandidate['graphics']): PackFind
 
 /** The size refusal for a serialized pack, or null when it fits. */
 export function checkPackSize(json: string): PackFinding | null {
-  const bytes = new Blob([json]).size;
+  const bytes = new TextEncoder().encode(json).length;
   if (bytes <= PACK_LIMIT_BYTES) return null;
-  const mb = (bytes / 1024 / 1024).toFixed(1);
-  return { message: `The pack is ${mb} MB; the limit is 8 MB. Leave out a graphic with large pictures.` };
+  return {
+    message: `The pack is ${formatBytes(bytes)}; the limit is ${formatBytes(PACK_LIMIT_BYTES)}. Leave out a graphic with large pictures.`,
+  };
 }
 
 /** The `noacg-pack` file for a set of graphics (spec D2): no rundown, so Install seeds one
  *  starter cue per graphic. The server writes `author` and `license` again from the submission. */
 export async function buildCommunityPack(pack: PackCandidate): Promise<Record<string, unknown>> {
-  const graphics = [];
-  for (const g of pack.graphics) graphics.push(await packGraphicEntry(g.template, { name: g.name, layer: g.layer }));
+  const graphics = await Promise.all(pack.graphics.map((g) => packGraphicEntry(g.template, { name: g.name, layer: g.layer })));
   return {
     format: 'noacg-pack',
     version: 1,

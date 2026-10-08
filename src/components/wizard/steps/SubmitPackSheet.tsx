@@ -6,7 +6,6 @@ import {
   checkPackGraphics,
   checkPackMeta,
   checkPackSize,
-  type PackCandidate,
   type PackFinding,
 } from '../../../community/packChecks';
 import { submitPack } from '../../../community/packs';
@@ -18,6 +17,17 @@ import { submitPack } from '../../../community/packs';
  * the licence, Send for review. The checks run as the sheet changes; the primary stays off until
  * nothing refuses.
  */
+
+/** What the checks refused, each naming its graphic - the sheet's list and the admin's review row. */
+export function PackFindings({ findings, testid }: { findings: PackFinding[]; testid?: string }) {
+  return (
+    <ul className="wz-submit-findings" data-testid={testid}>
+      {findings.map((f, i) => (
+        <li key={i}>{f.graphic ? <><strong>{f.graphic}:</strong> {f.message}</> : f.message}</li>
+      ))}
+    </ul>
+  );
+}
 
 interface Props {
   /** The name this maker chose on their previous pack - the only pre-fill allowed (D15). */
@@ -41,7 +51,6 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
   // The gate parses every chosen graphic, so it runs when the SET changes, not on every keystroke.
   const graphicFindings = useMemo(() => checkPackGraphics(chosen), [chosen]);
   const findings: PackFinding[] = [...checkPackMeta({ name, description, author }), ...graphicFindings];
-  const candidate: PackCandidate = { name, description, author, graphics: chosen };
 
   const pick = (id: string) => {
     setSourceId(id);
@@ -54,7 +63,7 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
     setBusy(true);
     setFailure(null);
     try {
-      const pack = await buildCommunityPack(candidate);
+      const pack = await buildCommunityPack({ name, description, author, graphics: chosen });
       const tooBig = checkPackSize(JSON.stringify(pack));
       if (tooBig) throw new Error(tooBig.message);
       await submitPack({ name, description, author }, pack);
@@ -69,7 +78,7 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
     <WizardConfirm
       title="Submit a pack"
       confirmLabel={busy ? 'Sending…' : 'Send for review'}
-      confirmDisabled={busy || !source || findings.length > 0}
+      confirmDisabled={busy || findings.length > 0}
       onConfirm={() => void send()}
       cancelLabel="Cancel"
       onCancel={onClose}
@@ -137,11 +146,7 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
           {/* The pack's own words show as empty fields; only what the checks found in the
               graphics needs saying. */}
           {graphicFindings.length > 0 && (
-            <ul className="wz-submit-findings" data-testid="submit-pack-findings">
-              {graphicFindings.map((f, i) => (
-                <li key={i}>{f.graphic ? <><strong>{f.graphic}:</strong> {f.message}</> : f.message}</li>
-              ))}
-            </ul>
+            <PackFindings findings={graphicFindings} testid="submit-pack-findings" />
           )}
           <p className="wz-confirm-warn">
             Submitting publishes this under CC BY 4.0. Anyone may use it in any show, with the name you

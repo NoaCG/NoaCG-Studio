@@ -48,7 +48,7 @@ export async function saveTemplateSetToProduction(
   // saved — a quota failure mid-way never leaves an empty production on Home.
   const docs = [];
   for (const template of templates) {
-    const { doc, error } = createGraphic(template, { name: template.name, packageId: null, ...(fromPack ? { fromPack } : {}) });
+    const { doc, error } = createGraphic(template, { name: template.name, packageId: null, fromPack });
     const failure = error ?? (await commitDurableWrites());
     if (failure || !doc) throw new Error(failure ?? 'The graphic could not be saved.');
     docs.push(doc);

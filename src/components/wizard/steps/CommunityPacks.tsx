@@ -2,9 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Show } from '../../../model/shows';
 import { installPack, parsePack, type GraphicsPack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
-import { isBackendConfigured } from '../../../backend/config';
-import { subscribeAuth } from '../../../backend/auth';
 import type { GraphicDoc } from '../../../model/library';
+import { useAuthState } from '../../auth/useAuthState';
 import { useIsModerator } from '../../../community/useIsModerator';
 import {
   decidePack,
@@ -21,7 +20,7 @@ import {
 import { candidateOf, checkPack, type PackFinding } from '../../../community/packChecks';
 import MiniPreview from '../MiniPreview';
 import WizardConfirm from '../WizardConfirm';
-import SubmitPackSheet from './SubmitPackSheet';
+import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
 
 /**
  * COMMUNITY PACKS - Browse's third answer (docs/work-specs/community-packs/spec.md).
@@ -105,13 +104,13 @@ function readShared(id: string): Promise<GraphicsPack> {
   return read;
 }
 
-/** Install a pack with every graphic it creates stamped with where it came from (spec D7): the
- *  submit picker leaves those out, and the design lock (AC-5) reads the same stamp. The stamp is
- *  written as each record is created, so no install lands unstamped. */
-async function installStamped(pack: GraphicsPack, fromPack: FromPack): Promise<Show> {
-  const show = await installPack(pack, undefined, fromPack);
-  trackEvent('activation', 'community-pack');
-  return show;
+/** Read a list into state once; the returned cleanup drops an answer that arrives too late. */
+function readInto<T>(read: () => Promise<T>, set: (value: T) => void): () => void {
+  let live = true;
+  read().then((value) => live && set(value)).catch(() => {});
+  return () => {
+    live = false;
+  };
 }
 
 async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: FromPack }> {
@@ -135,6 +134,7 @@ function SharedPreview({ id, name }: { id: string; name: string }) {
   useEffect(() => {
     const el = frame.current;
     if (!el || seen) return;
+    if (typeof IntersectionObserver === 'undefined') return setSeen(true);
     const io = new IntersectionObserver((entries) => {
       if (entries.some((e) => e.isIntersecting)) setSeen(true);
     });
@@ -211,11 +211,7 @@ function ReviewRow({ pack, busy, onTry, onDecide }: {
         ) : findings.length === 0 ? (
           <span className="wz-community-ok">Checks passed</span>
         ) : (
-          <ul className="wz-submit-findings">
-            {findings.map((f, i) => (
-              <li key={i}>{f.graphic ? <><strong>{f.graphic}:</strong> {f.message}</> : f.message}</li>
-            ))}
-          </ul>
+          <PackFindings findings={findings} />
         )}
       </div>
       {asking ? (
@@ -239,7 +235,11 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   const [shared, setShared] = useState<SharedPack[]>([]);
   const [mine, setMine] = useState<MyPack[]>([]);
   const [waiting, setWaiting] = useState<SharedPack[]>([]);
-  const [signedIn, setSignedIn] = useState(false);
+  const auth = useAuthState();
+  const backendConfigured = auth.backendConfigured;
+  // Offline `signedIn` is true (nothing is gated); here it means a real account.
+  const signedIn = backendConfigured && auth.signedIn;
+  // True only for a signed-in admin (the hook checks the session itself).
   const moderator = useIsModerator();
   const [rev, setRev] = useState(0);
   const refresh = useCallback(() => setRev((n) => n + 1), []);
@@ -261,25 +261,21 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
     };
   }, []);
 
+  // The shared half, each list on its own trigger so auth resolving does not re-read the shelf.
+  // A failed read leaves the seeds standing: the shelf never goes blank because the backend is
+  // unreachable.
   useEffect(() => {
-    if (!isBackendConfigured()) return;
-    return subscribeAuth((s) => setSignedIn(s.status === 'signed-in' && !!s.user));
-  }, []);
-
-  // The shared half. A failed read leaves the seeds standing: the shelf never goes blank because
-  // the backend is unreachable.
+    if (!backendConfigured) return;
+    return readInto(listSharedPacks, setShared);
+  }, [backendConfigured, rev]);
   useEffect(() => {
-    if (!isBackendConfigured()) return;
-    let live = true;
-    void listSharedPacks().then((list) => live && setShared(list)).catch(() => {});
-    if (signedIn) void listMyPacks().then((list) => live && setMine(list)).catch(() => {});
-    else setMine([]);
-    if (moderator) void listWaitingPacks().then((list) => live && setWaiting(list)).catch(() => {});
-    else setWaiting([]);
-    return () => {
-      live = false;
-    };
-  }, [signedIn, moderator, rev]);
+    if (!signedIn) return setMine([]);
+    return readInto(listMyPacks, setMine);
+  }, [signedIn, rev]);
+  useEffect(() => {
+    if (!moderator) return setWaiting([]);
+    return readInto(listWaitingPacks, setWaiting);
+  }, [moderator, rev]);
 
   const cards = useMemo<Card[]>(() => {
     const all: Card[] = [
@@ -306,15 +302,15 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
     }
   };
 
-  const install = (card: Card) =>
-    run(cardKey(card), async () => {
+  // An admin's Install to try is the ordinary Install, reported on the review row it came from.
+  const install = (card: Card, key = cardKey(card)) =>
+    run(key, async () => {
       const { pack, fromPack } = await packFor(card);
-      onInstalled(await installStamped(pack, fromPack));
-    });
-
-  const tryOut = (pack: SharedPack) =>
-    run(`review:${pack.id}`, async () => {
-      onInstalled(await installStamped(await readShared(pack.id), { id: sharedPackId(pack.id), version: pack.version, author: pack.author }));
+      // Every graphic is stamped as it is created (spec D7): the submit picker leaves it out,
+      // and the design lock (AC-5) reads the same stamp.
+      const show = await installPack(pack, undefined, fromPack);
+      trackEvent('activation', 'community-pack');
+      onInstalled(show);
     });
 
   const decide = (key: string, id: string, state: 'live' | 'not_accepted' | 'taken_down', reason?: string) =>
@@ -330,7 +326,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
     <div className="wz-community" data-testid="community-packs">
       <div className="wz-community-head">
         <p className="wz-kit-lede">Install one and it opens as a production, rundown included.</p>
-        {signedIn && moderator && (
+        {moderator && (
           <button type="button" onClick={() => setSubmitting(true)} data-testid="submit-pack-open">
             Submit a pack
           </button>
@@ -369,7 +365,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 key={p.id}
                 pack={p}
                 busy={busy !== null}
-                onTry={() => void tryOut(p)}
+                onTry={() => void install({ kind: 'shared', ...p }, `review:${p.id}`)}
                 onDecide={(state, reason) => void decide(`review:${p.id}`, p.id, state, reason)}
               />
             ))}
