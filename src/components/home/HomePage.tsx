@@ -9,21 +9,14 @@ import {
   type SavedVideoRecord,
 } from '../../model/videoProject';
 import { useDocKindStore } from '../../store/docKindStore';
-import { isBackendConfigured } from '../../backend/config';
-import { subscribeAuth } from '../../backend/auth';
 import { getSyncState, onSyncState, syncNow, type IncomingCounts, type SyncState } from '../../backend/syncController';
 import {
   listMySubmissions,
-  publishGraphic,
   STATUS_LABEL,
   unpublish,
   type MySubmission,
 } from '../../community/communityData';
-import { publishGate } from '../../community/gate';
-import { checkTemplateLegibility } from '../../validation/designRulesWarnings';
-import type { ProjectLegibility } from '../../model/designRules';
-import type { ValidationIssue, ValidationResult } from '../../validation/validateTemplate';
-import { graphicKindLabel, type SpxTemplate } from '../../model/types';
+import { graphicKindLabel } from '../../model/types';
 import { DOWNLOADS_URL } from '../../downloads/links';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton, { startNewGraphic } from '../NewGraphicButton';
@@ -32,7 +25,6 @@ import { useAuthState } from '../auth/useAuthState';
 import SyncStatus from '../SyncStatus';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import SettingsDialog from '../SettingsDialog';
-import { copyLink } from './copyLink';
 import { nameList } from './CueRundown';
 import { activeValues } from './GraphicRow';
 import GraphicThumb from './GraphicThumb';
@@ -44,7 +36,7 @@ import TeamsSection from './sections/TeamsSection';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { useTeamState } from '../teams/useTeamState';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
-import { IconFilm, IconGrid, IconLink, IconPalette, IconSliders, IconTv, IconUsers } from '../icons';
+import { IconFilm, IconGrid, IconPalette, IconSliders, IconTv, IconUsers } from '../icons';
 
 type Section = 'productions' | 'teams' | 'graphics' | 'videos' | 'looks';
 
@@ -229,17 +221,12 @@ export default function HomePage({ route }: { route: Route }) {
     looks: looks.length,
   };
 
-  // Community publishing: only surfaces with a configured backend AND a signed-in account —
-  // the offline app grows zero community UI.
-  const backendConfigured = isBackendConfigured();
-  const [signedIn, setSignedIn] = useState(false);
-  useEffect(() => subscribeAuth((s) => setSignedIn(s.status === 'signed-in' && !!s.user)), []);
-  const communityOn = backendConfigured && signedIn;
-  const [publish, setPublish] = useState<{ name: string; template: SpxTemplate; gate: ValidationResult; legibility: ProjectLegibility | null } | null>(null);
+  // The Era 5.5 community gallery is closed to publishing (owner, 2026-10-08: the community shares
+  // reviewed packs only; migration 0078 refuses a publish in the database). What an author already
+  // published stays listed here, read-only, so they can still withdraw it. Only surfaces with a
+  // configured backend AND a signed-in account; the offline app grows zero community UI.
+  const communityOn = hasBackend && authStatus === 'signed-in';
   const [mySubs, setMySubs] = useState<MySubmission[]>([]);
-  // Which share link was just copied. A clipboard write is invisible — without this the button
-  // looks broken and gets pressed again.
-  const [copiedSub, setCopiedSub] = useState<string | null>(null);
   useEffect(() => {
     if (communityOn) void listMySubmissions().then(setMySubs).catch(() => {});
     else setMySubs([]);
@@ -267,10 +254,6 @@ export default function HomePage({ route }: { route: Route }) {
     useDocKindStore.getState().setKind('video');
     navigate({ view: 'video' });
   };
-
-  const onPublish = communityOn
-    ? (g: GraphicDoc) => setPublish({ name: g.name, template: g.template, gate: publishGate(g.template), legibility: g.legibility ?? null })
-    : undefined;
 
   const searchRow = (
     <div className="home-search row">
@@ -359,16 +342,6 @@ export default function HomePage({ route }: { route: Route }) {
         </nav>
 
         <main className="home-content">
-          {publish && (
-            <PublishSheet
-              target={publish}
-              onDone={(note) => {
-                setPublish(null);
-                if (note) refresh();
-              }}
-            />
-          )}
-
           {view === 'arrival' && <LibraryArrival failed={sync.phase === 'error'} incoming={sync.incoming} />}
 
           {view === 'dashboard' && (
@@ -473,7 +446,6 @@ export default function HomePage({ route }: { route: Route }) {
                 onProductionFilter={setProductionFilter}
                 onOpen={openGraphic}
                 onChanged={refresh}
-                onPublish={onPublish}
               />
               {/* "Nothing saved yet - create a graphic" is only true of an EMPTY LIBRARY. A
                   filter that happens to match nothing empties this list too, and answering that
@@ -488,20 +460,6 @@ export default function HomePage({ route }: { route: Route }) {
                       <strong>{s.name}</strong>
                       <span className="muted">{s.kind} · {STATUS_LABEL[s.status]}</span>
                       <div className="spacer" />
-                      <button
-                        onClick={() => {
-                          const url = `${window.location.origin}${window.location.pathname}?template=${encodeURIComponent(s.slug)}`;
-                          void copyLink(url).then((ok) => {
-                            if (!ok) return;
-                            setCopiedSub(s.id);
-                            setTimeout(() => setCopiedSub((c) => (c === s.id ? null : c)), 2000);
-                          });
-                        }}
-                        title="Copy a share link"
-                        aria-label={`Copy a share link for ${s.name}`}
-                      >
-                        {copiedSub === s.id ? '✓ Copied' : <IconLink />}
-                      </button>
                       <button onClick={() => { void unpublish(s.id).then(refresh); }} title="Remove from the community">✕</button>
                     </div>
                   ))}
@@ -521,78 +479,6 @@ export default function HomePage({ route }: { route: Route }) {
       {/* The guard, save and sign-in dialogs mount once in App.tsx (they can appear over any
           surface). */}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
-    </div>
-  );
-}
-
-/** The publish sheet (moved from the retired packet manager): the automated gate first,
- *  then a one-line summary, then the share. */
-function PublishSheet({
-  target,
-  onDone,
-}: {
-  target: { name: string; template: SpxTemplate; gate: ValidationResult; legibility: ProjectLegibility | null };
-  onDone: (published: boolean) => void;
-}) {
-  const [summary, setSummary] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // The design-rules legibility warnings (R4, warn-first): measured under the graphic's own
-  // saved viewing settings, shown to the author, never blocking the publish.
-  const [ruleWarnings, setRuleWarnings] = useState<ValidationIssue[]>([]);
-  useEffect(() => {
-    let alive = true;
-    void checkTemplateLegibility(target.template, target.legibility).then((w) => {
-      if (alive) setRuleWarnings(w);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [target]);
-  const confirm = async () => {
-    if (!target.gate.ok) return;
-    setBusy(true);
-    const res = await publishGraphic(target.template, summary);
-    setBusy(false);
-    if (res.error) setError(res.error);
-    else onDone(true);
-  };
-  return (
-    <div className="panel-section" style={{ outline: '2px solid var(--accent)', outlineOffset: 2, marginBottom: 14 }} data-testid="publish-sheet">
-      <h3 style={{ marginTop: 0 }}>Publish “{target.name}”</h3>
-      {!target.gate.ok && (
-        <div className="status-bad">
-          <strong>Fix before sharing:</strong>
-          <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-            {target.gate.errors.map((e, i) => <li key={i}>{e.message}</li>)}
-          </ul>
-        </div>
-      )}
-      {ruleWarnings.length > 0 && (
-        <div className="hint" data-testid="publish-legibility-warnings">
-          <strong>Worth a look (does not block sharing):</strong>
-          <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-            {ruleWarnings.map((w, i) => <li key={i}>{w.message}</li>)}
-          </ul>
-        </div>
-      )}
-      <p className="hint">Shared with other signed-in users; its fonts and images travel with it. Unpublish anytime.</p>
-      <div className="row">
-        <input
-          className="grow"
-          placeholder="One-line description — what it is, when to use it"
-          value={summary}
-          onChange={(e) => setSummary(e.target.value)}
-          maxLength={140}
-        />
-      </div>
-      {error && <p className="status-bad">{error}</p>}
-      <div className="row">
-        <button className="primary" disabled={busy || !target.gate.ok} onClick={() => void confirm()}>
-          {busy ? 'Publishing…' : 'Publish'}
-        </button>
-        <button onClick={() => onDone(false)} disabled={busy}>Cancel</button>
-      </div>
     </div>
   );
 }

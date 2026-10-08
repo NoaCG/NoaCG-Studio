@@ -27,11 +27,17 @@ Sources: `src/community/communityData.ts`, `supabase/migrations/0004_community_t
 **Finding.** The Era 5.5 gallery predates the 2026-10-02 ruling and falls short of it on three points:
 anything a signed-in user publishes is visible to other users with no human review, the importer
 gets an editable copy, and no licence is granted. Two doors also means two vocabularies, two
-formats and two review queues. **Not measured:** how many rows the gallery holds in production.
-This session was refused a production read; the owner or a session allowed to read production
-can run `select kind, status, count(*), count(distinct author_id) from community_templates group
-by 1, 2`. The recommendation below holds either way; the count only decides whether existing rows
-are worth migrating.
+formats and two review queues.
+
+**Measured 2026-10-08** (read-only, production): the gallery holds **0 rows**, so 0 publishers, 0
+by anyone other than the owner, and 0 imports (imports are not logged, but there was nothing to
+import). 0 reports, 0 moderators, and one orphaned 70-byte object in `community-assets` from
+2026-07-07 whose account no longer exists. The same day the gallery was closed to publishing:
+migration `0078_community_gallery_closed.sql` refuses a publish and a community-assets upload in
+the database, and Home lost its publish door. Existing rows, had there been any, stay read-only:
+the database still serves them and lets a moderator take one down, and the author can withdraw one
+from Home. The browse and moderation UI lived in the old code editor, which no route has rendered
+since 2026-09-24. Revert by dropping 0078's three policies.
 
 ## Recommended MVP
 
@@ -130,8 +136,7 @@ records as open.
 
 ## Future priorities, in order
 
-1. **Close the review gap in the Era 5.5 gallery.** Switch its status default to `pending` or hide
-   its publish door. Small, and today it contradicts the ruling.
+1. **Close the review gap in the Era 5.5 gallery.** Done 2026-10-08 (see the count above).
 2. **AC-5, the design lock and the provenance stamp.** Client-only, and already the backlog's
    suggested first row. It must exist before any outside pack can be installed.
 3. **Seed the shelf to about eight NoaCG packs** (Fight Night and Uutishuone as they are, plus
@@ -146,4 +151,5 @@ records as open.
 
 - CC BY 4.0 allows anyone to adapt a pack; the design lock is a product choice, not a rights one.
   Whether a later "remix into an editable template" is welcome is a direction call.
-- Whether to keep or migrate the Era 5.5 gallery's live rows depends on the count above.
+- Keep or migrate the Era 5.5 gallery's live rows: there are none (counted 2026-10-08), so there
+  is nothing to decide.

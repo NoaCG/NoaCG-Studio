@@ -1043,16 +1043,14 @@ THE REAL-SERVER WALK of NoaCG Bridge (docs/BRIDGE.md, milestone 1).
 
 - one rundown airs a server template on channel 1 and a clip on channel 2, moves a cue across, and All out clears both and nothing else
 
-### `e2e/configured/community-authed.spec.ts` - 2 of 2 skipped
-
-Authenticated community flows against the configured Supabase backend.
-
-- community (configured / signed-in) > publish a graphic, then import it back from the gallery
-- community (configured / signed-in) > the publish gate blocks a template that is not self-contained
-
 ### `e2e/configured/moderator.spec.ts` - 1 of 1 skipped
 
 - community moderation (configured / moderator) > a moderator removes a published item from the gallery
+
+The gallery closed to publishing on 2026-10-08 (migration 0078), so this walk cannot publish its
+own item any more; a rewrite seeds the row with the service role instead. The same holds for the
+signed-in-ux test that publishes a graphic and copies its share link: both doors are gone.
+`e2e/configured/community-authed.spec.ts` was rewritten the same day to prove the closure.
 
 ### `e2e/configured/signed-in-ux.spec.ts` - 2 of 3 skipped
 
