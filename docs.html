@@ -153,11 +153,7 @@
             <li><a href="#end-credits">End credits</a> - roles and names.</li>
             <li><a href="#tickers">Ticker</a> - a tag and a story line.</li>
           </ul>
-          <p>
-            Any other graphic needs no special names. Its text layers become fields and that is
-            all. A title, a name tag and the credits each still name their texts one way, listed
-            under <a href="#svg-layers-simple">Layer names</a>.
-          </p>
+          <p>Any other graphic needs no special names. Its text layers become fields.</p>
 
           <section id="first-graphic" class="doc-sub">
             <h3>Import an SVG</h3>
@@ -168,19 +164,18 @@
               <li id="first-format">Set <strong>Project format</strong> first. The default is 16:9,
                 1920&times;1080, 25&nbsp;fps. It locks once your file is in, with the message
                 <em>"Remove the current artwork before changing its authored canvas"</em>.</li>
-              <li>Drop your SVG. NoaCG shows the size, how many text layers it found and which fonts
-                the file uses. If it found fewer text layers than you drew, some text was exported as
-                outlines. To try it before you draw your own, use
-                <a href="/docs/examples/name-tag.svg" download>name-tag.svg</a>.</li>
+              <li>Drop your SVG. NoaCG shows the size, the text layers and the fonts it found. Fewer
+                text layers than you drew means some text was exported as outlines. To try it first,
+                use <a href="/docs/examples/name-tag.svg" download>name-tag.svg</a>.</li>
               <li id="first-fields">Check the <strong>Fields</strong> step. Every ticked layer is a
-                field the operator types into, labelled with your layer name. Rename a label here if
-                you need to. <strong>What it does</strong> shows the type NoaCG found from your layer
-                names. You can change it and pick the layers yourself.</li>
+                field the operator types into, labelled with your layer name. <strong>What it
+                does</strong> shows the type NoaCG found from your layer names. You can change it
+                and pick the layers yourself.</li>
               <li>Choose how the graphic comes on and goes off in <strong>Animation</strong>.</li>
               <li id="first-finish">In <strong>Finish</strong>, name the graphic and choose
                 <strong>Add to the production</strong> or <strong>Export it</strong>. Both save it to
                 your library. <strong>Skip to finish</strong> in the footer of any earlier step
-                brings you straight here, keeping the choices you have not made at their defaults.</li>
+                jumps here and keeps the defaults.</li>
             </ol>
             <figure class="doc-shot">
               <img src="/docs/svg-drop.png" width="1560" height="1290" loading="lazy"
@@ -204,9 +199,8 @@
               in the rundown. Press <strong>Take</strong> to put it on air. Type new text, then press
               <strong>Update</strong> to send it. Until you do, the panel says
               <em>"1 change not on air yet"</em> (before you publish, <em>"not on PROGRAM yet"</em>).
-              <strong>Out</strong> takes the graphic off. To get
-              the picture into OBS, vMix or CasparCG, see <a href="#dashboard">the playout
-              dashboard</a>.
+              <strong>Out</strong> takes the graphic off. For OBS, vMix or CasparCG, see
+              <a href="#dashboard">the playout dashboard</a>.
             </p>
           </section>
 
@@ -264,11 +258,7 @@
 </ul>
 </div>
 <!-- layer-cheat-sheet:end -->
-            <p>
-              Every graphic type uses the same three layers and the same way of naming what is in
-              them. Learn it once and a quiz, a scoreboard and a vote are the same job. The rest of
-              this page is the long version.
-            </p>
+            <p>Every graphic type uses the same three layers and the same naming.</p>
             <!-- The SVG examples: seven Illustrator files drawn to this system, their SVGs, previews
                  and a short README (docs/tutorials/svg-examples, packed by
                  scripts/illustrator/pack-svg-examples.mjs). The same zip is on /downloads#svg-examples. -->
@@ -302,14 +292,6 @@
               <li>Anything else is decoration and can have any name, like <code>Edge</code> or
                 <code>Rule</code>.</li>
             </ul>
-            <h4 id="svg-layers-simple">Titles, name tags and credits</h4>
-            <ul>
-              <li>A title has <code>Title</code> and <code>Subtitle</code>.</li>
-              <li>A name tag has <code>Name</code> and <code>Role</code>. One name tag serves every
-                person on the show: the operator retypes it.</li>
-              <li>Credits have <code>Heading</code> and <code>Credits</code>. <code>Credits</code>
-                is one text holding the whole list, never a text per name.</li>
-            </ul>
             <h4 id="svg-layers-rows">A name is a word and a row</h4>
             <ul>
               <li>The word says what the layer is. The row is one letter or one number, last, after
@@ -333,8 +315,7 @@
                 Finnish, Swedish, German and Spanish: <code>Antwort A</code>,
                 <code>Puntos 1</code>. The three layers can be called <code>Text</code>,
                 <code>Moments</code> and <code>Board</code> in your own language, because NoaCG
-                reads the names inside them. The examples use one spelling so that you can copy
-                it.</li>
+                reads the names inside them.</li>
               <li>In Illustrator, name each text object (double-click its row), or put it alone in
                 a layer with the name: a text inside a layer called <code>Question</code> is
                 Question. Four unnamed texts inside a layer called <code>Answers</code> are all
@@ -390,10 +371,8 @@
                   and <code>Edge</code> is decoration.
                 </p>
                 <p>
-                  Every type page below shows its own tree in the same shape. Open one of the
-                  example files in Illustrator to see the tree in the Layers panel, hidden groups
-                  included, and copy it. Illustrator opens the three as groups inside one layer;
-                  three layers of your own with the same names work the same way.
+                  Illustrator opens the three as groups inside one layer. Three layers of your own
+                  with the same names work the same way.
                 </p>
                 <p id="svg-layers-files">
                   <a href="/docs/examples/quiz.svg" download>quiz.svg</a>,
@@ -519,23 +498,8 @@
             <h4 id="svg-layers-credits">Credits: one pasted list</h4>
             <p>
               End credits are one text layer named <code>Credits</code>, never a layer per name.
-              The operator pastes the whole list into one box.
-            </p>
-            <ul>
-              <li>A line ending in <code>:</code> is a title, and the lines under it are its
-                names. <code>Director: Anna Ahonen</code> on one line is the same thing.</li>
-              <li>A tab from a spreadsheet works in place of the colon.</li>
-              <li>A blank line starts a new section.</li>
-            </ul>
-            <p>
-              What you type into the layer in Illustrator is the sample, and it is how you style
-              the roll. The first line ending in <code>:</code> is what every title will look like.
-              The line under it is what every name will look like.
-            </p>
-            <p>
-              On Take the list rolls from the bottom of the frame to the top, at the Scroll speed
-              the operator sets. At 100 that is about thirty lines in thirty seconds. Draw a plate
-              named <code>Credits box</code> and the roll runs inside it.
+              The operator pastes the whole list into one box. See
+              <a href="#end-credits">End credits</a>.
             </p>
           </section>
 
@@ -590,11 +554,7 @@
                   <li><code>Full time</code>: hidden group. Shows at the end of the game.
                     Optional.</li>
                 </ul>
-                <p>
-                  Up to eight teams: <code>Team 3</code>, <code>Score 3</code> and so on. The
-                  example draws the word GOAL inside each flash, but the layer is called Flash
-                  because a point is not always a goal.
-                </p>
+                <p>Up to eight teams: <code>Team 3</code>, <code>Score 3</code> and so on.</p>
               </div>
             </div>
             <h4 id="scoreboards-goal">Buttons</h4>
@@ -693,16 +653,15 @@
                 <strong>Selected answer</strong>. Press it again with another letter to change the
                 pick.</li>
               <li><strong>Lock it in</strong> makes the pick final.</li>
-              <li><strong>Reveal correct</strong> shows the right answer. It sends the letter in
-                <strong>Correct answer</strong> with it, so a key you fix during the show is the
-                one that lights up, even if you did not press Update.</li>
+              <li><strong>Reveal correct</strong> shows the right answer. It uses the letter in
+                <strong>Correct answer</strong> as it is now, even if you changed it without
+                pressing Update.</li>
             </ol>
             <p>
-              <strong>Reveal choice</strong> stays greyed out on the road above. It is for keeping
-              the pick secret: choose the letter in <strong>Selected answer</strong>, press
-              <strong>Update</strong>, then <strong>Lock it in</strong> without pressing Select
-              answer. The board shows it is locked but not which answer. <strong>Reveal
-              choice</strong> then shows the pick, and Reveal correct works as before.
+              <strong>Reveal choice</strong> keeps the pick secret until you reveal it: choose the
+              letter in <strong>Selected answer</strong>, press <strong>Update</strong>, then
+              <strong>Lock it in</strong> without pressing Select answer. The board shows it is
+              locked but not which answer. <strong>Reveal choice</strong> then shows the pick.
             </p>
             <figure class="doc-shot">
               <img src="/docs/type-quiz-fields.png" width="1680" height="1290" loading="lazy"
@@ -930,7 +889,7 @@
                 <ul>
                   <li><code>Credits</code>: one text object holding the whole list, one line per
                     credit. A line ending in a colon is a title, and the names go under it. Never
-                    one text per name: nobody knows in advance how many names a show has.</li>
+                    one text per name.</li>
                   <li><code>Heading</code>: text. Optional.</li>
                   <li>Style the first title line and the first name line the way every title and
                     every name should look.</li>
@@ -950,15 +909,11 @@
             </figure>
             <h4 id="credits-colon">A scrolling roll</h4>
             <p>
-              The Credits text is one box for the whole roll, however many names a show has. On
-              Take it rolls from the bottom of the frame to the top, at the Scroll speed the
-              operator sets. Draw a plate named <code>Credits box</code> and the roll runs inside it.
+              On Take the list rolls from the bottom of the frame to the top, at the Scroll speed
+              the operator sets. At 100 that is about thirty lines in thirty seconds. Draw a plate
+              named <code>Credits box</code> and the roll runs inside it.
             </p>
-            <p>
-              What you type into the layer in Illustrator is the sample. The first line ending in
-              <code>:</code> is what every title looks like, and the line under it is what every
-              name looks like. The catalog credits designs read the same box, written like this:
-            </p>
+            <p>The catalog credits designs read the same box, written like this:</p>
             <pre><code>Director: Alex Rivera
 
 Camera Operators:
@@ -1010,9 +965,8 @@ Lena Fors</code></pre>
                   <li><code>Kicker</code>: text. The tag, such as <code>SPORT</code>.</li>
                   <li><code>Story</code>: text. The headline.</li>
                 </ul>
-                <p>Neither name is special. Both are fields, and there is no <code>Moments</code>
-                  layer because nothing shows or hides. <code>Panel</code> is the strip, and the
-                  kicker sits on its own plate, <code>Kicker box</code>.</p>
+                <p>Both are ordinary fields. <code>Panel</code> is the strip and
+                  <code>Kicker box</code> is the kicker's plate.</p>
               </div>
             </div>
             <figure class="doc-shot">
@@ -1048,32 +1002,28 @@ Storm warning issued</code></pre>
           <h2>Pictures, logos and Lottie animations</h2>
           <p>
             An SVG is the best thing to bring in, because its text stays text. Other files work
-            too. This section says where each one goes, what NoaCG does to it, what comes out in an
-            export, and what happens when a font is missing.
+            too.
           </p>
           <div class="doc-table"><table>
             <tr><th>File</th><th>What it is good for</th></tr>
             <tr><td>PNG, WebP</td><td>A finished design, or a logo. Both carry transparency, which is what lets video show through.</td></tr>
             <tr><td>JPEG, AVIF, GIF</td><td>Photographs and stills. No transparency in a JPEG, so it covers whatever is behind it.</td></tr>
-            <tr><td>Lottie (<code>.json</code>)</td><td>A vector animation out of After Effects. Stays sharp at any size and weighs almost nothing.</td></tr>
+            <tr><td>Lottie (<code>.json</code>)</td><td>A vector animation from After Effects. Stays sharp at any size.</td></tr>
             <tr><td>A font file (<code>.woff2</code>, <code>.woff</code>, <code>.ttf</code>, <code>.otf</code>)</td><td>A licensed face your design needs. Taken by the SVG import when it lists the families it found.</td></tr>
             <tr><td>Video (<code>.webm</code>, <code>.mp4</code>)</td><td>A short sting inside a graphic. Capped at 3 MB, so it is not the way to play a clip.</td></tr>
           </table></div>
 
-          <h3 id="artwork-in">Three ways in</h3>
+          <h3 id="artwork-in">Ways in</h3>
           <ul>
             <li><strong>As the graphic itself.</strong> <a href="/app#/new">The studio</a> &rarr;
               <strong>New graphic</strong> &rarr; <strong>Import graphic</strong> takes a PNG, a
-              JPEG or a WebP as readily as an SVG. You clean the artwork up, place the text fields
-              yourself and pick how it moves. Nothing is redrawn. A picture has no layers to read,
-              so you place the fields yourself instead of the file naming them.</li>
-            <li><strong>As a logo on a catalog design.</strong> Designs that carry a mark offer a
-              logo slot while you make the graphic, and you upload your file into it. The slot is
-              a real image field, so you can also leave it empty now and fill it at playout.</li>
-            <li><strong>As a file in the graphic.</strong> Not open right now. Extra files, a
-              Lottie animation among them, were added in the old code editor, and that editor is
-              closed. The new editor lists the files a graphic carries but cannot add one yet, so
-              a graphic keeps the files it arrived with.</li>
+              JPEG or a WebP as well as an SVG. A picture has no layers to read, so you place the
+              text fields yourself.</li>
+            <li><strong>As a logo on a catalog design.</strong> Designs with a logo slot let you
+              upload your file while you make the graphic. You can also leave it empty and fill it
+              at playout.</li>
+            <li><strong>As a file in the graphic.</strong> Not available yet. The editor lists the
+              files a graphic carries but cannot add one.</li>
           </ul>
           <p>
             Pictures for a live show are separate. On a production, <strong>Add pictures</strong>
@@ -1081,91 +1031,65 @@ Storm warning issued</code></pre>
             replaces picture one instead of stacking on top of it. A production takes up to twenty.
           </p>
 
-          <h3 id="artwork-embedded">Nothing is linked. Everything is carried</h3>
+          <h3 id="artwork-embedded">Files are copied in</h3>
           <p>
-            A file you bring in is copied into the graphic, and the graphic keeps the bytes. There
-            is no link back to your computer, no folder that has to stay where it was, and nothing
-            is fetched over the network when the graphic plays. That is what lets a package work on
-            a playout machine with no internet.
+            A file you bring in is copied into the graphic. Nothing links back to your computer and
+            nothing is fetched when the graphic plays, so a package works on a playout machine with
+            no internet. A web address is not a substitute for the file: the studio warns about
+            one, and a machine that cannot reach it shows nothing.
           </p>
           <p>
-            So an address on the web is not a substitute for the file. The studio warns about one,
-            and a machine that never reaches it shows nothing at all.
+            A picture larger than the frame is re-encoded at the frame's size, which costs no
+            quality. A PNG stays a PNG and a JPEG stays a JPEG. An SVG is never touched, and a
+            smaller picture is never enlarged.
           </p>
           <p>
-            An imported picture larger than the frame it is drawn in is re-encoded at the frame's
-            own size. Nothing on a 1920 &times; 1080 canvas can use more pixels than that, so this
-            costs no quality.
-          </p>
-          <ul>
-            <li>A PNG stays a PNG and a JPEG stays a JPEG. An SVG is never touched.</li>
-            <li>The result is kept only if it actually came out smaller.</li>
-            <li>Artwork smaller than the canvas stays at its own pixel size. It is never enlarged
-              and softened.</li>
-          </ul>
-          <p>
-            <strong>Transparency is the one thing to get right before you import.</strong> A
-            full-frame picture with no transparent areas covers the whole picture on air. That is
-            right for a title card and wrong for a lower third. The fix is in the program you drew
-            it in: export again as a PNG or a WebP with a transparent background.
+            <strong>Get the transparency right before you import.</strong> A full-frame picture
+            with no transparent areas covers the whole picture on air. That is right for a title
+            card and wrong for a lower third. Export it again as a PNG or a WebP with a transparent
+            background.
           </p>
 
           <h3 id="artwork-export">What comes out in an export</h3>
-          <p>Packages come in two shapes, and your files are handled differently in each:</p>
           <ul>
             <li>A <strong>folder</strong> package (OGraf, or a playout system that loads a whole
-              template folder) writes them out as real files beside the template: your pictures
-              under <code>images/</code>, fonts under <code>fonts/</code>, and the animation engine
-              in a folder of its own. Paths are relative, so the folder can be copied
-              anywhere.</li>
-            <li>A <strong>single-file</strong> package (CasparCG, an OBS or vMix overlay) has
-              nothing to sit beside, so every one of those files is embedded in the one HTML file
-              instead.</li>
+              template folder) writes your files beside the template: pictures under
+              <code>images/</code>, fonts under <code>fonts/</code>. Paths are relative, so the
+              folder can be copied anywhere.</li>
+            <li>A <strong>single-file</strong> package (CasparCG, an OBS or vMix overlay) embeds
+              every file in the one HTML file.</li>
           </ul>
           <p>Either way the package is complete and works from a local disk.</p>
           <p>
             The operator page in the package lets an image field switch between the pictures
             <em>that graphic already carries</em>, plus None. It is not a file browser. If an
-            operator will need another logo on the night, bring it in before you export. Setting
-            the field back to None returns the design's own placeholder.
+            operator will need another logo on the night, bring it in before you export.
           </p>
 
           <h3 id="artwork-lottie">Lottie animations</h3>
           <p>
-            A graphic that already carries a Lottie keeps it. Adding one is not open right now (see
-            <a href="#artwork-in">the ways in</a>).
+            Adding a Lottie is not available yet. A graphic that already carries one keeps it.
           </p>
           <p>
-            A Lottie plays as soon as the graphic loads and it loops. It is not driven by the
-            graphic coming on and off air, so it suits a badge, a spinner or a looping ornament
-            rather than something that has to hit a cue.
-          </p>
-          <p>
-            The player is about 165 kB, and only graphics that use a Lottie carry it. It is
-            bundled, never fetched. The animation travels inside the package too, as a file beside
-            the template or embedded in it, and nothing about it reaches the network.
+            A Lottie plays as soon as the graphic loads and it loops. It does not follow the
+            graphic on and off air, so it suits a badge, a spinner or a looping ornament rather
+            than something that has to hit a cue. It travels inside the package.
           </p>
 
           <h3 id="artwork-fonts">Fonts, and what a missing one does</h3>
           <p>
-            <strong>A missing font is silent.</strong> It is not an error and it does not stop
-            anything. The browser falls back to the next family it has, so the graphic comes up in
-            the wrong typeface at a slightly different width. It looks close enough that nobody
-            notices until it is on air.
+            <strong>A missing font is silent.</strong> The browser uses the next font it has, so
+            the graphic airs in the wrong typeface and nothing warns you.
           </p>
           <p>
-            That is why NoaCG packages fonts instead of naming them. A typeface you picked in the
-            studio is written into the package, and its licence travels with it. A face of your own
-            comes in through the <a href="#svg-fonts">SVG import's font matching</a>, which lists
-            the families your file names and takes a file for each one. It is packaged the same
-            way.
+            So NoaCG puts the fonts in the package, with their licences. A font of your own comes
+            in through the <a href="#svg-fonts">SVG import's font matching</a>.
           </p>
-          <p>When a font file is missing, the two package shapes behave differently:</p>
+          <p>When a font file is missing:</p>
           <ul>
             <li>A folder package still builds, and you can repair it by dropping the file into
               <code>fonts/</code>.</li>
-            <li>A single-file package refuses to build. There is no folder to repair, and the
-              alternative is a graphic that quietly airs in the wrong face.</li>
+            <li>A single-file package refuses to build, because there is no folder to repair.</li>
           </ul>
         </section>
 
@@ -1173,18 +1097,14 @@ Storm warning issued</code></pre>
         <section id="export">
           <h2>Which package do I want</h2>
           <p>
-            Every graphic exports to all six packages below, and you do not pick one while you
-            design. You pick at the end, by what will put the graphic in the picture. Find that
-            system in the table, take its row, and read the guide it points to if there is one.
-          </p>
-          <p>
             <strong>First: are you exporting at all?</strong> If NoaCG is running the show, the
             answer is no. A <a href="#dashboard">production</a> gives you an output URL to add as a
             browser source and an operator page to drive it from, and nothing is downloaded.
           </p>
           <p>
-            Export when you hand the graphic to a system that will own it, or when it has to run on
-            a machine that will not have this page open.
+            Export when another system will own the graphic, or when it has to run without NoaCG.
+            Every graphic exports to every package below. Take the row for the system that will
+            play it.
           </p>
           <div class="doc-table"><table>
             <tr><th>Playing it in</th><th>Take</th><th>What you get</th></tr>
@@ -1197,9 +1117,8 @@ Storm warning issued</code></pre>
             <tr>
               <td><strong>CasparCG</strong></td>
               <td>CasparCG export</td>
-              <td>One <code>.html</code> with everything inlined, plus a shim that reads CasparCG's
-                own data payloads and an operator page for the days there is no playout machine.
-                <a href="#casparcg">The guide</a>.</td>
+              <td>One <code>.html</code> with everything inlined that reads CasparCG's own data
+                payloads, and an operator page. <a href="#casparcg">The guide</a>.</td>
             </tr>
             <tr>
               <td>A playout system that loads a <strong>folder of templates</strong>, such as <strong>SPX</strong></td>
@@ -1228,15 +1147,9 @@ Storm warning issued</code></pre>
             </tr>
           </table></div>
           <p>
-            All six are complete, and none of them needs the internet. Fonts, pictures, the
-            animation engine and your own code travel inside the package, paths are relative, and
-            nothing is fetched while the graphic is on air.
-          </p>
-          <p>
-            They differ only in the shape each host expects, as
-            <a href="#artwork-export">what comes out in an export</a> shows. If you pick the wrong
-            one, export again and take another. You do not have to open the editor for any of
-            this: the last step of making a graphic offers the export directly.
+            None of them needs the internet: everything the graphic uses travels inside the
+            package (<a href="#artwork-export">what comes out in an export</a>). If you pick the
+            wrong one, export again. The last step of making a graphic offers the export.
           </p>
         </section>
 
@@ -1252,11 +1165,10 @@ Storm warning issued</code></pre>
             <li>Copy the URL from the <strong>Playout panel</strong>: press the playout status in
               the production page header.
               It ends <code>&hellip;/output?production=&lt;slug&gt;</code>, where the slug is a
-              random id made when you publish. You never type it.</li>
-            <li>Load it once and leave it up. The operator cues the graphics, so there is no need
-              to reload the source.</li>
+              random id made when you publish.</li>
+            <li>Load it once and leave it up. The operator cues the graphics from NoaCG.</li>
           </ul>
-          <p>Four rules apply to every browser-based playout:</p>
+          <p>For every browser source:</p>
           <ul>
             <li><strong>The page is already transparent.</strong> Do not add a chroma key. If you
               see a black or white box behind the graphic, the host is forcing a background: check
@@ -1268,8 +1180,7 @@ Storm warning issued</code></pre>
               browser source's own Width and Height. Dragging its box in the scene scales the
               finished picture, and the text goes soft again.</li>
             <li><strong>Set the source's FPS to the channel's.</strong> Motion plays at the right
-              speed at any rate, but a 30 fps source in a 50 Hz channel judders. That is easy to
-              mistake for a fault in the graphic.</li>
+              speed at any rate, but a 30 fps source in a 50 Hz channel judders.</li>
           </ul>
 
           <h3 id="obs">OBS Studio</h3>
@@ -1334,8 +1245,8 @@ Storm warning issued</code></pre>
             <li><code>1-20</code> is channel 1, layer 20. Use whatever your rundown expects.</li>
             <li>Put your own production's URL in place of the quoted one. It is in the
               <strong>Playout panel</strong> on the production page.</li>
-            <li>The URL is a <strong>capability</strong>: anyone who has it can show the
-              production, but not operate it. Treat it like a password.</li>
+            <li>Anyone who has the URL can show the production, but not operate it. Treat it like
+              a password.</li>
             <li>Load it <strong>once</strong> at the start and leave it up. Graphics are cued from
               the dashboard, not by adding the layer again.</li>
             <li>While you set up, add <code>&amp;debug=1</code> to see a status readout on screen.
@@ -1347,8 +1258,8 @@ Storm warning issued</code></pre>
           <h3 id="casparcg-versions">Which server version you have matters</h3>
           <div class="doc-table"><table>
             <tr><th>Server</th><th>Engine</th><th>What it means</th></tr>
-            <tr><td><strong>2.3.x</strong> (the common teaching install)</td><td>Chromium 71 (measured on the 2.3.3 LTS download)</td><td>The live output URL works with nothing to do. A graphic's own modern CSS can render differently: see below.</td></tr>
-            <tr><td><strong>2.4.x</strong></td><td>CEF 117</td><td>The oldest version NoaCG designs against. Nothing special to do.</td></tr>
+            <tr><td><strong>2.3.x</strong></td><td>Chromium 71</td><td>The live output URL works with nothing to do. A graphic's own modern CSS can render differently: see below.</td></tr>
+            <tr><td><strong>2.4.x</strong></td><td>CEF 117</td><td>The oldest version NoaCG designs for. Nothing special to do.</td></tr>
             <tr><td><strong>2.5.x</strong></td><td>CEF 142</td><td>Current.</td></tr>
           </table></div>
           <h4 id="casparcg-2-3">On 2.3.x</h4>
@@ -1366,21 +1277,21 @@ Storm warning issued</code></pre>
               layer with a SyntaxError that only the server log shows.</li>
           </ul>
           <p>
-            Every export screen has a <strong>Playout compatibility</strong> section, measured from
-            the graphic's own code. It has one line per system, saying whether the graphic renders
-            as designed there and which CSS declaration needs which version.
+            Every export screen has a <strong>Playout compatibility</strong> section with one line
+            per system: whether the graphic renders as designed there, and which CSS needs which
+            version.
           </p>
 
-          <h3 id="casparcg-connect">Letting NoaCG load the layer for you: NoaCG Bridge</h3>
+          <h3 id="casparcg-connect">Let NoaCG load the layer: NoaCG Bridge</h3>
           <p>
             Instead of typing the command into the CasparCG Client, you can let the production page
-            send it. A browser cannot open the raw TCP connection that AMCP uses, so a small program
-            on the machine you operate from does it for the browser: <strong>NoaCG Bridge</strong>.
+            send it. A browser cannot talk to CasparCG directly, so a small program on the machine
+            you operate from does it: <strong>NoaCG Bridge</strong>.
           </p>
           <ol>
             <li>Download NoaCG Bridge from the
-              <a href="/downloads#bridge">Downloads page</a>. It is the newest Bridge release on
-              GitHub, and <strong>Playout</strong> on a production page links it too.</li>
+              <a href="/downloads#bridge">Downloads page</a>. <strong>Playout</strong> on a
+              production page links it too.</li>
             <li>Double-click it. There is nothing to install: the file is the whole program.
               Windows warns once because it is not signed yet, so choose <strong>More
               info</strong>, then <strong>Run anyway</strong>. Leave its window open while you
@@ -1389,9 +1300,9 @@ Storm warning issued</code></pre>
               Bridge. If that is not the browser you use, copy the link into the one you use
               instead.</li>
             <li>The same page then asks for the IP address of your CasparCG server. Enter it, and
-              the AMCP port if it is not 5250, and press <strong>Connect</strong>. It sends a real
-              AMCP <code>VERSION</code> and shows the version string the server answers with.
-              <strong>This computer</strong> and every server used before are one click each.</li>
+              the AMCP port if it is not 5250, and press <strong>Connect</strong>. It shows the
+              version the server reports. <strong>This computer</strong> and every server used
+              before are one click each.</li>
             <li>Name the server's channels and say where NoaCG's output goes under
               <strong>Playout</strong> settings (the production's Playout panel opens them, and the
               same form is under <strong>Settings &rarr; Playout</strong>). <strong>Test
@@ -1399,22 +1310,20 @@ Storm warning issued</code></pre>
               remembered.</li>
           </ol>
           <p>
-            NoaCG Bridge remembers each server you connect to together with its setup: the
-            channels and their names, the slot NoaCG's output plays on and the channel new media
-            starts on. Every browser paired with the same Bridge, including another account in its
-            own browser profile, connects to the last server by itself and opens with the same
-            setup. A laptop used with two servers keeps each server's setup apart. To pair another
-            browser, copy a pairing link into it: the pairing page and Playout settings each make
-            one, and so does Enter in the NoaCG Bridge window. A link works once, within two
-            minutes. With a Bridge older than 0.8.0 each browser keeps its own setup.
+            NoaCG Bridge remembers each server and its setup: the channels and their names, the
+            slot NoaCG's output plays on and the channel new media starts on. Every browser paired
+            with the same Bridge connects to the last server by itself and opens with the same
+            setup. To pair another browser, copy a pairing link into it: the pairing page,
+            Playout settings and Enter in the NoaCG Bridge window each make one. A link works once,
+            within two minutes. With a Bridge older than 0.8.0 each browser keeps its own setup.
           </p>
           <p>
-            The production page now has a <strong>Put on air</strong> / <strong>Take off</strong>
-            row beside its output URL, and <strong>Put on air</strong> sits beside
+            The production page has a <strong>Put on air</strong> / <strong>Take off</strong> row
+            beside its output URL, and <strong>Put on air</strong> sits beside
             <strong>Connect</strong> in its Playout settings too. Put on air sends the one command
-            above, and only when you press it: pairing and connecting never touch a layer. From then on every
-            cue, reveal and score change travels over the production's own command log into the
-            page CasparCG is showing, and the Bridge sends nothing more.
+            above, and only when you press it: pairing and connecting never touch a layer. After
+            that, every cue reaches the page CasparCG is showing through the production itself,
+            and the Bridge sends nothing more.
           </p>
           <h4 id="casparcg-network">Network and browsers</h4>
           <ul>
@@ -1435,8 +1344,8 @@ Storm warning issued</code></pre>
           <p>
             With the Bridge paired, the foot of the rundown has <strong>&#65291; From the playout
             server&hellip;</strong>. It lists the HTML templates and media in the server's own
-            folders, folder by folder, as the server lists them. Hover a name to see its full
-            path. Pick one to add it as a cue beside the production's graphics.
+            folders, folder by folder. Pick one to add it as a cue beside the production's
+            graphics.
           </p>
           <ul>
             <li>A server template is taken with its field values, updated, stepped with Next and
@@ -1460,10 +1369,8 @@ Storm warning issued</code></pre>
           </p>
           <h4 id="casparcg-channels">Channels and layers</h4>
           <p>
-            A CasparCG channel is whatever your studio makes it: a key channel into a vision
-            mixer, a fill channel, a screen in the set. NoaCG does not decide. List the channels
-            your server has under <strong>Settings &rarr; Playout</strong>, then put each server
-            item where it belongs:
+            List the channels your server has under <strong>Settings &rarr; Playout</strong>, then
+            put each server item where it belongs:
           </p>
           <ul>
             <li><strong>Add channel</strong> adds <code>Channel 2</code>. A name is optional.</li>
@@ -1499,11 +1406,10 @@ Storm warning issued</code></pre>
           <div class="callout truth">
             <span class="lbl">What has been verified</span>
             <p>
-              On a real CasparCG 2.5.0 on the maintainer's machine, with its media scanner
-              running: the Bridge exe paired, and a published quiz and scoreboard went on the
-              channel with one command. They were revealed and scored from the dashboard. A
-              template and a still from the server's own library were cued, taken, updated and
-              taken off.
+              On a real CasparCG 2.5.0 with its media scanner running: the Bridge paired, and a
+              published quiz and scoreboard went on the channel with one command. They were
+              revealed and scored from the dashboard. A template and a still from the server's own
+              library were cued, taken, updated and taken off.
             </p>
             <p>The 2.3.2 install answered the same listing and one template round.</p>
             <p>
@@ -1582,10 +1488,10 @@ CG 1-20 STOP</code></pre>
           <p>
             The program monitor says the same in its heading: <strong>PROGRAM &middot; ON
             AIR</strong> once the production is started, <strong>PREVIEW &middot; NOT LIVE</strong>
-            before. A clip or still from the playout server is on air as soon as you take it, started
-            or not, so while one is playing the monitor reads PROGRAM &middot; ON AIR. To send later changes to the output, press <strong>&#10227; Publish
-            changes</strong> in the Playout panel. Every publish also asks the outputs to load the
-            new version, and the status reads Preparing until they have.
+            before. A clip or still from the playout server is on air as soon as you take it, so
+            while one plays the monitor reads PROGRAM &middot; ON AIR. To send later changes to the
+            output, press <strong>&#10227; Publish changes</strong> in the Playout panel. The
+            status reads Preparing until the outputs have loaded the new version.
           </p>
 
           <h3 id="production-run">Running it</h3>
@@ -1619,9 +1525,9 @@ CG 1-20 STOP</code></pre>
 
           <h3 id="teams-links">Running a show together needs no accounts</h3>
           <p>
-            Publish the production and it makes links that work for whoever holds them. All of
-            them are in the <strong>Playout panel</strong>, which opens from the playout status in
-            the production page header, each with a Copy button.
+            A published production has links that work for whoever holds them. They are in the
+            <strong>Playout panel</strong>, which opens from the playout status in the production
+            page header.
           </p>
           <ul>
             <li>The <strong>control page</strong> drives the show from a second laptop or a phone
@@ -1632,22 +1538,14 @@ CG 1-20 STOP</code></pre>
             <li>The <strong>audience join page</strong> collects votes and messages.</li>
           </ul>
           <p>
-            Three people can run one show this way today, with one account between them and
-            nothing to set up. <a href="#dashboard">The playout dashboard</a> and
-            <a href="#audience">audience join pages</a> cover what each link does.
-          </p>
-          <p>
-            Links do not settle who may <strong>edit the rundown</strong>, who may
-            <strong>republish a changed graphic</strong>, or whose account the show goes away
-            with. That is still the one account that made it. A team is how that changes.
+            Several people can run one show this way with one account and nothing to set up.
+            <a href="#dashboard">The playout dashboard</a> and
+            <a href="#audience">audience join pages</a> cover what each link does. Only the
+            account that made the production can edit its rundown or republish it.
           </p>
 
           <h3 id="teams-make">Make a team</h3>
-          <p>
-            Sign in first. Teams are an account feature. An offline build has no team features at
-            all, and a signed-out visitor sees no mention of a team unless somebody sends them a
-            join link. That link asks them to sign in or make an account.
-          </p>
+          <p>Teams need an account, so sign in first.</p>
           <ol>
             <li>Open a production you own and press <strong>Share</strong> in its header. The
               same dialog is <strong>Share with a team&hellip;</strong> in the
@@ -1674,30 +1572,27 @@ CG 1-20 STOP</code></pre>
           </p>
           <p>
             <strong>Send the link, not the code.</strong> The screen that takes a code opens only
-            from a join link, and nothing else in the app leads to it. So a code read out to a room
-            gets nobody in who does not already hold a link. Paste the link into the class chat, or
-            wherever you already talk. There is no email invitation.
+            from a join link, so a code read out to a room gets nobody in who does not already
+            hold a link. Paste the link into the class chat, or wherever you already talk. There is
+            no email invitation.
           </p>
           <p>
             <strong>A code is still a key.</strong> Anybody who has ever held a join link to any
-            team, including last term's, is one paste away from using a code they overheard.
-            Treat a code like the link it belongs to.
+            team is one paste away from using a code they overheard.
           </p>
           <p>
-            The person who gets the link opens it in their own browser, signs in or makes an
-            account, types the name teammates will see and presses <strong>Join team</strong>.
-            Nothing else is asked. Joining shares nothing from their library, and nothing from
-            yours.
+            The person who gets the link opens it, signs in or makes an account, types the name
+            teammates will see and presses <strong>Join team</strong>. Joining shares nothing from
+            their library, and nothing from yours.
           </p>
           <p>
             Anyone in the team can pass the link on. Only the owner can press <strong>Rotate
-            code</strong>, which makes a new code and retires the old one for joining. Everybody
-            already in the team stays in, so rotate when a link reaches the wrong chat.
+            code</strong>, which makes a new code and retires the old one. Everybody already in
+            the team stays in, so rotate when a link reaches the wrong chat.
           </p>
           <p>
-            Your display name is fixed when you join. The only way to change it is to join again
-            through the team's current link with a different name. A rotation retires the link
-            you were sent, so get the new one from somebody in the team first.
+            Your display name is fixed when you join. To change it, join again through the team's
+            current link with a different name.
           </p>
 
           <h3 id="teams-roles">Who can do what</h3>
@@ -1707,9 +1602,7 @@ CG 1-20 STOP</code></pre>
           </p>
           <p>
             Every Yes below has one condition: <strong>you need a production of your own to
-            open</strong> the team dialog. A member who joined a class team and has made nothing
-            yet cannot see the join code, the member list or the way out. Make a production of your
-            own, even an empty one, and the door is there.
+            open</strong> the team dialog. An empty one is enough.
           </p>
           <div class="doc-table"><table>
             <tr><th></th><th>Owner</th><th>Member</th></tr>
@@ -1732,88 +1625,48 @@ CG 1-20 STOP</code></pre>
           <div class="callout truth">
             <span class="lbl">What has been verified</span>
             <p>
-              Run against the live backend: making a team, handing out its link, joining through
+              Run against the live service: making a team, handing out its link, joining through
               it, reading the member list, rotating the code and deleting the team.
             </p>
             <p>
-              Removing a member and leaving a team are built, and the database refuses them
-              correctly. They have not yet been run with a second person in the team, so treat
-              them as expected rather than proven.
+              Removing a member and leaving a team have not yet been run with a second person in
+              the team, so treat them as expected rather than proven.
             </p>
             <p>
               <strong>Moving a production into a team does not work yet.</strong> The
-              <strong>Move to team</strong> button in that dialog is switched off on purpose,
-              because the list a moved production would appear in has not shipped. So a team you
-              make today is the group, ready for the production that will go into it. To work on a
+              <strong>Move to team</strong> button in that dialog is switched off. To work on a
               show together in the meantime, use the links above.
             </p>
           </div>
-
-          <h3 id="teams-move">What will happen when a production moves in</h3>
-          <p>
-            None of this can be tried yet. It is here so that you know what moving a production
-            will commit you to before the button turns on.
-          </p>
-          <ul>
-            <li><strong>A production has one home.</strong> Moving it into a team takes it out of
-              your personal list and gives it to the team. Only the team owner can move it back or
-              delete it.</li>
-            <li><strong>Every member can edit its rundown, republish its graphics and operate
-              it.</strong> If two people save at once, the second save is refused and says who got
-              there first. Nobody's work is quietly overwritten.</li>
-            <li><strong>Graphics travel as copies</strong>, as they already do when a graphic
-              joins a production. Nobody's library is opened to anybody, and the original stays
-              personal.</li>
-            <li><strong>The links do not move.</strong> Whoever republishes it, the output URL and
-              the control page URL stay the ones you already gave to OBS or CasparCG.</li>
-            <li><strong>Preparing it will need to be online.</strong> A team production lives on
-              the server rather than in the copy your browser keeps, so there is no offline edit.
-              A personal production is unchanged and still works offline.</li>
-          </ul>
-
-          <h3 id="teams-storage">Whose storage it counts against</h3>
-          <p>
-            Nothing is enforced yet. Storage and project counts are recorded but not limited, on
-            personal and team space alike.
-          </p>
-          <p>
-            The rule for when limits arrive is already decided: a team production's bytes count
-            against the <strong>team owner</strong>, the one account that can also delete it.
-            Graphics stay where they have always been, in the library of whoever saved them.
-          </p>
         </section>
 
         <!-- ═══════════════════════ AUDIENCE ═══════════════════════ -->
         <section id="audience">
           <h2>Audience join pages</h2>
           <p>
-            A production can invite its audience in. A public join page at a readable URL,
-            <code>noacg.studio/join/&lt;name&gt;</code>, collects viewer messages and votes from
-            any phone, with no app and no account. It is the kind of address you read out on
-            air.
+            A public join page at <code>noacg.studio/join/&lt;name&gt;</code> collects viewer
+            messages and votes from any phone, with no app and no account.
           </p>
           <p>
             The link is in the same <strong>Playout panel</strong> as the output URL. Its name
             comes from the production's name at the first publish, and the
             <strong>Readable name</strong> row changes it to something you can say out loud. Do
-            that before you give the link out: a new name breaks the old one, and everybody
-            already typing it is left at a dead address.
+            that before you give the link out, because a new name breaks the old one.
           </p>
           <ul>
-            <li><strong>Nothing viewer-written airs on its own.</strong> Send-ins land in a
-              moderation inbox, and an operator picks what goes into the graphic. There is no
-              setting that airs a send-in automatically.</li>
-            <li><strong>Votes tally live</strong> into poll graphics. Open the vote from the
-              audience workspace. The board's own buttons close it, show the result and call the
-              winner when you are ready. The board can be one of ours or
+            <li><strong>Nothing viewers send airs on its own.</strong> Messages land in a
+              moderation inbox, and an operator picks what goes into the graphic.</li>
+            <li><strong>Votes count live</strong> into poll graphics. Open the vote on the
+              Audience tab. The board's own buttons close it, show the result and call the
+              winner. The board can be one of ours or
               <a href="#svg-vote">one you drew yourself</a>.</li>
             <li><strong>A presenter view</strong> (a separate link) shows the host what is coming
               without giving them operator controls.</li>
           </ul>
           <p>
             You do not need a Twitch or YouTube channel for any of this.
-            <a href="#audience-no-chat">An audience with no Twitch and no YouTube</a> walks the
-            whole road on one small show, from publishing to a vote on air.
+            <a href="#audience-no-chat">An audience with no Twitch and no YouTube</a> walks
+            through it on one small show, from publishing to a vote on air.
           </p>
         </section>
 
@@ -1821,38 +1674,28 @@ CG 1-20 STOP</code></pre>
         <section id="behaviour">
           <h2>Graphics with behaviour</h2>
           <p>
-            A lower third plays and stops. A quiz board has to know which answer the contestant
-            locked in, and whether it has been revealed yet. NoaCG graphics can carry that logic
-            themselves, as named states and operator events.
-          </p>
-          <p>
-            The control panel is built from those states, so a move the current state does not
-            allow is greyed out.
+            A lower third plays and stops. A quiz board has to know which answer was locked in, and
+            whether it has been revealed. NoaCG graphics carry that as states and buttons, and a
+            button the current state does not allow is greyed out.
           </p>
           <ul>
-            <li><strong>A quiz</strong> runs Select answer, Lock it in, Reveal. Each one is a
-              button on the dashboard, and each is legal only when the board's state allows
-              it.</li>
+            <li><strong>A quiz</strong> runs Select answer, Lock it in, Reveal, each a button on
+              the dashboard.</li>
             <li><strong>A scoreboard</strong> carries score up/down and clock start/stop as
               events. The numbers are data an operator or a <a href="#data">feed</a> writes.</li>
             <li><strong>A live vote</strong> opens, closes and shows a result. The bars are driven
               by a real audience at your <a href="#audience">join link</a>.</li>
-            <li><strong>Data never causes a state change.</strong> Updating a name or a score
-              redraws those fields and nothing more. A graphic changes state on an operator's
-              press, or on its own timer where the design has one, and never because a value
-              arrived. So a feed can be left running through the whole show.</li>
-            <li><strong>Everything still degrades to plain stepping.</strong> Hand the same
-              graphic to any playout system and it walks its steps in order like an ordinary
-              template. The extra buttons appear when NoaCG drives it.</li>
+            <li><strong>Data never changes the state.</strong> Updating a name or a score redraws
+              those fields and nothing more. A graphic changes state on an operator's press, or
+              on its own timer where the design has one. So a feed can run through the whole
+              show.</li>
+            <li><strong>Other playout systems step through it.</strong> In any other system the
+              graphic walks its steps in order like an ordinary template. The extra buttons appear
+              when NoaCG drives it.</li>
           </ul>
           <p>
-            You can build behaviour without writing code. An imported SVG board is made of layers.
-            Draw each moment you need, hide those layers in the design app, and the import wires
-            them up: for a quiz, answer picked, right, wrong and locked in.
-          </p>
-          <p>
-            See <a href="#svg">the SVG guide</a>, and <a href="#svg-vote">how to draw a live
-            vote</a> for the layer names a vote board wants.
+            You build behaviour without code: draw each moment as a hidden layer in your SVG and
+            the import wires it up. See <a href="#svg-layers">Layer names</a>.
           </p>
         </section>
 
@@ -1860,33 +1703,22 @@ CG 1-20 STOP</code></pre>
         <section id="data">
           <h2>Live data</h2>
           <p>
-            There are three ways to get data in, from no setup to fully automated. One rule holds
-            for all three: a data update changes what a graphic shows, and nothing else. It cannot
-            play a graphic, take it off, or move it to another state.
-          </p>
-          <p>
-            Data updates and operator commands go into the same log, and they apply in the order
-            they arrive. So an operator's change made after a feed update wins.
+            A data update changes what a graphic shows, and nothing else. It cannot play a graphic,
+            take it off, or change its state. Data updates and operator commands apply in the
+            order they arrive, so an operator's change made after a feed update wins.
           </p>
 
           <h3 id="data-typed">Type it on the dashboard</h3>
           <p>
-            Every field is editable live from the production page: edit, stage, take. For most
+            Every field is editable live from the production page: edit, then take. For most
             shows nothing else is needed.
           </p>
 
           <h3 id="data-sheets">A Google Sheet (or any published CSV)</h3>
           <p>
-            A graphic pointed at a published sheet follows the sheet, so anyone with edit access
-            to the sheet can change its fields. In the sheet: <em>File &rarr; Share &rarr; Publish
-            to web &rarr; CSV</em>.
-          </p>
-          <p>
-            Connecting that link to a graphic was done in the old code editor, which is closed, so
-            a new link cannot be connected in the studio right now. A graphic that already follows
-            a sheet keeps following it. The polling code is ordinary, commented JavaScript inside
-            the graphic, with column headers mapped to field titles, and it runs wherever the
-            graphic runs.
+            A graphic that follows a published sheet changes when the sheet does. Connecting a new
+            sheet to a graphic is not available in the studio yet, and a graphic that already
+            follows one keeps following it.
           </p>
           <p>
             To bring a sheet into a show today, import it as a table on the production's
@@ -1896,9 +1728,7 @@ CG 1-20 STOP</code></pre>
           <h3 id="data-api">The Production Data API</h3>
           <p>
             For a timing system, a results service or your own scripts: push values into a
-            published production over plain HTTPS, authenticated by the production's own data key.
-            Writes become rows in the production's command log, so the renderer cannot tell your
-            update from an operator's.
+            published production over HTTPS, with the production's own data key.
           </p>
           <p>
             <strong>Where to find the key.</strong> Publish the production, open its
@@ -1920,14 +1750,12 @@ CG 1-20 STOP</code></pre>
               writes to a data path such as <code>match.home.score</code> instead of to a named
               graphic. Every graphic whose field is bound to that path follows, so the feed does
               not have to know the rundown. The binding is set up in the studio first.</li>
-            <li>A worked example ships in the repository: a weather mini-pack driven by a small
-              Node connector polling Open-Meteo. The full reference, limits and error shapes are in
+            <li>The full reference, limits and errors are in
               <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/DATA_API.md">DATA_API.md</a>.</li>
           </ul>
           <p>
-            None of the three says what any of it is <em>for</em>.
-            <a href="#data-example">One show, worked through</a> is the same machinery with a
-            real rundown around it.
+            <a href="#data-example">One show, worked through</a> puts all of this in a real
+            rundown.
           </p>
         </section>
 
@@ -1946,9 +1774,8 @@ CG 1-20 STOP</code></pre>
         <section id="data-example">
           <h2>One show, worked through</h2>
           <p>
-            Production data, bindings and tables all answer one question: where does the number
-            on screen come from? They are easier to tell apart in a real show, so here is a small
-            one.
+            Production data, bindings and tables decide where the number on screen comes from.
+            They are easier to tell apart in a real show, so here is a small one.
           </p>
           <p>
             <strong>Hall Cup</strong> is a school sports night. It has four graphics, one data
@@ -2044,8 +1871,7 @@ CG 1-20 STOP</code></pre>
             <figcaption>
               <strong>Nine bound, four left alone.</strong> Both scoreboards landed on the same
               four paths, because they ask for the same four things. The right-hand column shows
-              what each field shows right now. A mistyped path shows up here as a blank, not as a
-              surprise on air.
+              what each field shows right now. A mistyped path shows up here as a blank.
             </figcaption>
           </figure>
           <p>
@@ -2054,12 +1880,9 @@ CG 1-20 STOP</code></pre>
             "Ticker items" found <code>tickerItems</code> the same way.
           </p>
           <p>
-            Nothing was guessed. If two paths match one title, the row stays empty and names both.
-            A binding that is right half the time is worse than a box you fill in once.
-          </p>
-          <p>
-            The strap's <strong>Name</strong> and <strong>Title</strong> matched nothing. That is
-            the correct answer, not a gap: a guest's name is not something the whole show shares.
+            If two paths match one title, the row stays empty and names both. The strap's
+            <strong>Name</strong> and <strong>Title</strong> matched nothing, which is right: a
+            guest's name is not something the whole show shares.
           </p>
           <p>
             To bind a row by hand, click its box and pick a path from the list, or type one. To
@@ -2072,8 +1895,8 @@ CG 1-20 STOP</code></pre>
             whichever of them is on air and whichever was cued first.
           </p>
           <p>
-            That is what binding is for. The score belongs to the show, not to one cue. Nobody has
-            to remember to retype it on the half-time card.
+            The score belongs to the show, not to one cue, so nobody retypes it on the half-time
+            card.
           </p>
           <p>
             You can also change it from the Playout tab. A bound field shows there read-only, with
@@ -2084,9 +1907,9 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-cue.png" width="1103" height="1077" loading="lazy"
               alt="The Match Strip cue on the Playout tab: four read-only fields each labelled with the production-data path it follows, and a row of plus and minus buttons for Score A and Score B." />
             <figcaption>
-              <strong>The same values, on the operator's screen.</strong> The chain and the path
-              mean you cannot type in the box. It shows what the tree says. The buttons under it
-              change what is on air at once, and nothing else about the graphic changes.
+              <strong>The same values, on the operator's screen.</strong> A bound box shows what
+              the tree says and cannot be typed in. The buttons under it change the value on air
+              at once.
             </figcaption>
           </figure>
           <p>Where the tree lives depends on one thing, publishing:</p>
@@ -2152,13 +1975,8 @@ CG 1-20 STOP</code></pre>
               <td>The guest list</td></tr>
           </table></div>
           <p>
-            A score belongs in the tree. Two graphics show it, and it changes while one of them is
-            on air. A guest's name belongs in a table. Only one graphic ever shows it, and the
-            operator decides which guest.
-          </p>
-          <p>
-            When both would work, ask one question: does more than one graphic need the same value
-            at the same time? If it does, use the tree.
+            When both would work: if more than one graphic needs the same value at the same time,
+            use the tree.
           </p>
 
           <!-- THE SECOND HALF. Kept in this section rather than in #audience because it is the
@@ -2199,23 +2017,19 @@ CG 1-20 STOP</code></pre>
           </ol>
           <p>
             Hall Cup leaves the mode beside that tick box on <strong>Questions</strong>.
-            <strong>Comments</strong> works the same way and asks for something shorter. In both,
-            the heading on the viewer's page reads "Send us your question", and nothing changes
-            that yet.
+            <strong>Comments</strong> works the same way and asks for something shorter.
           </p>
           <figure class="doc-shot phone">
             <img src="/docs/audience-join.png" width="1140" height="1332" loading="lazy"
               alt="The viewer's page on a phone: the production name, the heading Send us your question, a box for a name, a box for the question, and a Send button." />
             <figcaption>
-              <strong>The whole of what the room gets.</strong> A name they can leave blank, a
-              box, and Send. This is the real page, not a mock-up. The studio shows the same thing
-              under <strong>What viewers see</strong> on the Audience tab, drawn by the same code
-              the phones run.
+              <strong>What the room gets.</strong> A name they can leave blank, a box, and Send.
+              The studio shows the same page under <strong>What viewers see</strong> on the
+              Audience tab.
             </figcaption>
           </figure>
           <p>
-            Nothing a viewer sends can go on air by itself. Every message lands in the inbox on
-            the same tab. From there it takes two steps to reach air:
+            Every message lands in the inbox on the same tab. It takes two steps to reach air:
           </p>
           <ol>
             <li>The operator presses <strong>&rarr; Send to rundown</strong>. That adds an
@@ -2223,8 +2037,8 @@ CG 1-20 STOP</code></pre>
             <li>The operator takes that cue, like any other.</li>
           </ol>
           <p>
-            No setting skips those two steps. Before sending, the operator can edit a broadcast
-            version of the message. What the viewer actually sent is never changed.
+            Before sending, the operator can edit a broadcast version of the message. What the
+            viewer sent is never changed.
           </p>
           <figure class="doc-shot">
             <img src="/docs/audience-inbox.png" width="1662" height="425" loading="lazy"
@@ -2233,18 +2047,14 @@ CG 1-20 STOP</code></pre>
               <strong>The inbox, and the only way out of it.</strong> The two boxes on each row
               are the broadcast version, yours to tidy. Shortlist, Approve and Reject sort the
               pile. Now and Next point the presenter's screen at one message. Only Send to rundown
-              reaches the rundown, and even that does not reach air.
+              reaches the rundown.
             </figcaption>
           </figure>
           <p>
-            <strong>Rehearse before the room exists.</strong> On an unpublished production the bar
-            has <strong>&#10227; Simulate 3 arrivals</strong>. It makes up messages so you can
-            practise the whole moderation round with nobody watching.
-          </p>
-          <p>
-            Each made-up message says "(rehearsal)" in its text, so nobody can mistake it for a
-            real one. A published production has no such button, because a real audience is
-            sending there.
+            <strong>Rehearse first.</strong> On an unpublished production the bar has
+            <strong>&#10227; Simulate 3 arrivals</strong>. It makes up messages marked
+            "(rehearsal)" so you can practise moderating. A published production has no such
+            button.
           </p>
 
           <h4 id="example-vote">Putting a vote to the room</h4>
@@ -2265,13 +2075,12 @@ CG 1-20 STOP</code></pre>
           </figure>
           <p>
             <strong>Stage counts to a graphic</strong> writes the question, the options and the
-            counts into a cue for House Vote. Take puts it on air. Press the button again while
-            voting is still open and the same cue is updated, not copied, so the rundown does
-            not fill up with one row per refresh.
+            counts into a cue for House Vote. Take puts it on air. Pressing it again while voting
+            is open updates the same cue.
           </p>
           <p>
             The figures on air change when the operator shows the result, not while the room is
-            still voting. That keeps a reveal a reveal.
+            still voting.
           </p>
           <p>
             A board you <a href="#svg-vote">drew yourself</a> can have a <strong>Live
@@ -2309,9 +2118,8 @@ CG 1-20 STOP</code></pre>
             <li>It appears in your NoaCG library, ready for a rundown.</li>
           </ol>
           <p>
-            A coding agent can already write HTML, CSS and JavaScript. On its own, that code has
-            no operator controls, no buttons an operator can press, and no promise about how it
-            behaves in a playout system. The <strong>NoaCG CLI</strong> adds what is missing:
+            HTML an agent writes on its own has no operator controls and no promise about how it
+            behaves in a playout system. The <strong>NoaCG CLI</strong> adds them:
           </p>
           <ul>
             <li>It gives the agent the contract a NoaCG graphic has to meet.</li>
@@ -2319,17 +2127,15 @@ CG 1-20 STOP</code></pre>
             <li>It saves the graphic into your library once it passes.</li>
           </ul>
           <p>
-            The result is an ordinary NoaCG graphic. You put it in a
-            <a href="#dashboard">production</a>, operate it with the buttons its
-            <a href="#behaviour">behaviour</a> defines, and feed it <a href="#data">live data</a>
-            from a sheet or an API.
+            The result is an ordinary NoaCG graphic: put it in a
+            <a href="#dashboard">production</a>, operate it with its
+            <a href="#behaviour">buttons</a>, and feed it <a href="#data">live data</a>.
           </p>
 
           <h3 id="agent-install">Paste this to your agent and start building</h3>
           <p>
-            One prompt does the setup. Your agent picks the install it needs, runs it, checks that
-            it worked and asks you what to make. It runs a couple of install commands that you
-            have to approve.
+            Your agent picks the install it needs, runs it, checks that it worked and asks you
+            what to make. It runs a couple of install commands that you have to approve.
           </p>
           <pre class="prompt"><code>Set up NoaCG Studio so you can build broadcast graphics for me, then ask me what to make.
 
@@ -2373,12 +2179,8 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
           </p>
           <p>
             The <code>noacg-graphic</code> skill tells the agent how a NoaCG graphic is built,
-            which tools to use, how to validate it and how to save it. It says nothing about how
-            the graphic should look. That stays the agent's job.
-          </p>
-          <p>
-            The plugin brings the skill from your next session on. Until then,
-            <code>noacg docs</code> prints the same texts.
+            validated and saved. How it looks is up to the agent. The plugin brings the skill from
+            your next session on. Until then, <code>noacg docs</code> prints the same texts.
           </p>
           <p>The agent then works in five steps:</p>
           <ol>
@@ -2389,8 +2191,7 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             <li><strong>Validate.</strong> The studio's own checks run, then a live playout test.
               The agent gets screenshots off air, on air and with doubled text, so it can see what
               it made.</li>
-            <li><strong>Fix.</strong> It works through the findings until there are none. They
-              read like compiler errors.</li>
+            <li><strong>Fix.</strong> It works through the findings until there are none.</li>
             <li><strong>Save.</strong> The graphic goes into your NoaCG library, and the agent
               prints its link.</li>
           </ol>
@@ -2427,23 +2228,18 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
           </p>
           <p>
             <strong>Claude Code.</strong> The plugin brings the <code>noacg-graphic</code> skill
-            and the <code>/noacg:graphic</code> command. Nothing needs installing first. It runs
-            nothing until you make a graphic, because the skill drives the CLI from the terminal.
-            A session about something else pays nothing for it. Type this in a Claude Code session
-            (version 2.1.275 or newer). It adds the NoaCG marketplace, asks you to confirm it, and
-            installs the plugin:
+            and the <code>/noacg:graphic</code> command, and runs nothing until you make a
+            graphic. Type this in a Claude Code session (version 2.1.275 or newer). It adds the
+            NoaCG marketplace, asks you to confirm it, and installs the plugin:
           </p>
           <pre><code>/plugin install noacg --marketplace NoaCG/NoaCG-Studio</code></pre>
-          <p>
-            From a terminal or a setup script, the same install is two commands. This is what the
-            prompt above runs, because an agent works in a terminal:
-          </p>
+          <p>From a terminal or a setup script, the same install is two commands:</p>
           <pre><code>claude plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
           <pre><code>claude plugin install noacg@noacg-studio</code></pre>
           <p>
             An optional second plugin adds an MCP server that is always on. It puts the
-            <code>noacg</code> tool in every session and keeps a browser warm between calls. It
-            costs a process and some context in every session, which is why it is separate.
+            <code>noacg</code> tool in every session and keeps a browser ready between calls, at
+            the cost of a process and some context in every session.
           </p>
           <pre><code>/plugin install noacg-mcp --marketplace NoaCG/NoaCG-Studio</code></pre>
           <p>
@@ -2458,10 +2254,6 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             It brings the tools, and the contract text comes with them as the server's resources.
           </p>
           <pre><code>npx -y @noacg/cli mcp</code></pre>
-          <p>
-            A plugin loads when a session starts, so the session you installed it from does not
-            have it yet. That is why the prompt above uses <code>npx</code> for the first graphic.
-          </p>
           <p>
             <strong>The package.</strong> All three routes install one npm package,
             <a href="https://www.npmjs.com/package/@noacg/cli"><code>@noacg/cli</code></a>. It
@@ -2478,8 +2270,8 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
           <p>
             <code>scaffold</code> creates the <code>--out</code> folder relative to where you
             run it. The folder has to be new or empty. <code>noacg types</code> lists the
-            graphic types the deployment knows, with their fields and operator events. That is where a
-            <code>--type</code> value comes from.
+            graphic types you can pass to <code>--type</code>, with their fields and operator
+            events.
           </p>
           <p>
             <strong>The MCP server without the skill.</strong> This gives Claude Code the tools
@@ -2489,13 +2281,9 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
           <p>To have it in every folder, add <code>--scope user</code> before the name:</p>
           <pre><code>claude mcp add --scope user noacg -- npx -y @noacg/cli mcp</code></pre>
           <p>
-            A server added this way runs in every session of that scope. The <code>noacg</code>
-            plugin runs no server at all: its skill drives the CLI from the terminal.
-          </p>
-          <p>
-            The server has one tool, <code>noacg</code>. Its <code>command</code> is the CLI
-            verb: types, scaffold, validate, inspect, screenshot, docs or save. So an agent can
-            read the contract through <code>docs</code> before it has a deployment or a key.
+            A server added this way runs in every session of that scope. It has one tool,
+            <code>noacg</code>, whose <code>command</code> is the CLI verb: types, scaffold,
+            validate, inspect, screenshot, docs or save.
           </p>
           <p>
             <strong>Which files to edit.</strong> A package holds sources and generated files.
