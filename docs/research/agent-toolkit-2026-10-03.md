@@ -14,14 +14,18 @@ proposed name; it was not adopted, and the capability is still called the agent 
 [#808](https://github.com/NoaCG/NoaCG-Studio/issues/808). Rechecked on main the same day:
 
 - The editor's R1.3b shared commands (`editorFoundation/commands.ts`, schemas, capability and
-  refusal discovery, 2026-10-08) and reviewed model proposals (`proposals.ts`, 2026-10-09) have
-  landed. Where sections 1, 3 and 6 say there is no semantic operation query, no proposal
-  endpoint or no AI review, that now holds for the CLI and MCP only, not for the editor.
+  refusal discovery) and in-browser reviewed model proposals (`proposals.ts`) landed on
+  2026-10-08. So section 9's E1 is done for the editor and E2 is under way, and where sections
+  1, 3 and 4 say the editor has no semantic operation query or AI review, that now holds for the
+  CLI and MCP only. Section 6 still holds: there is no authenticated, revision-checked proposal
+  endpoint for any outside consumer to wrap.
 - The CLI and plugin manifests are 0.9.0. MCP still speaks eight authoring verbs.
 - `git archive --format=zip HEAD` is 112,309,361 bytes (107.11 MiB). The current
   [checklist](https://claude.com/docs/plugins/pre-submission-checklist) stops validation above
-  50 MiB, blocks an unpinned `npx` launcher, and holds a non-shell script run from a repository
-  subfolder for a reviewer. `/plugin directory` in Claude Code 2.1.287+ is confirmed by the
+  50 MiB. An unpinned launcher in an MCP command blocks; `noacg-mcp` runs
+  `node ${CLAUDE_PLUGIN_ROOT}/mcp-server.mjs` and its unpinned `npx` fallback sits inside that
+  script, which, like any non-shell script run from a repository subfolder, is held for a
+  reviewer instead. `/plugin directory` in Claude Code 2.1.287+ is confirmed by the
   [platform support page](https://claude.com/docs/plugins/platform-support).
 - Corrections to the 2026-10-02 marketplace research that its files do not carry: the drafts in
   `agent-marketplaces-2026-10-02/drafts.md` are not ready to send until #842 supplies the

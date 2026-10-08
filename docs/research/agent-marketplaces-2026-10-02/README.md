@@ -3,7 +3,7 @@
 **Correction, rechecked 2026-10-09:** the official
 [platform support page](https://claude.com/docs/plugins/platform-support) documents
 `/plugin directory` in Claude Code **2.1.287+**. The older 2.1.283 marketplace search
-observations below do not describe current directory discovery. This repository's archive
+observations in `where-users-search.md` and `name.md` do not describe current directory discovery. This repository's archive
 (107.11 MiB) exceeds Claude's 50 MiB validation limit, and launcher pins need qualification,
 so the Claude submission waits on [issue #842](https://github.com/NoaCG/NoaCG-Studio/issues/842).
 The [2026-10-03 research](../agent-toolkit-2026-10-03.md#5-claude-distribution-strategy) has the
@@ -21,7 +21,7 @@ be called.
 | [`where-users-search.md`](where-users-search.md) | Every official marketplace, directory and registry each tool searches, what each requires, how it is reviewed, and how comparable tools got listed. |
 | [`name.md`](name.md) | The recommended name, what users type, clashes with names, packages and marks, and the runner-up. |
 | [`updates.md`](updates.md) | How each directory and registry picks up a new version, what the release feeds, and what still needs a person each time. |
-| [`drafts.md`](drafts.md) | Each listing submission drafted complete for the owner to send, with the manifest fields each one changes. |
+| [`drafts.md`](drafts.md) | Each listing submission drafted for the owner, with the manifest fields each one changes. The Claude drafts are not ready to send until issue #842 supplies the repository, path and launcher. |
 | [issue #808](https://github.com/NoaCG/NoaCG-Studio/issues/808) | The owner's steps, in order, with what each costs. |
 
 ## The answer in six lines

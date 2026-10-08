@@ -46,8 +46,9 @@ They do not expose the editor's semantic commands (`editorFoundation/commands.ts
 catalog the reviewed proposals use) or its live session. Agents edit package files; the editor
 interprets supported source. Terminal and MCP dispatch are wired separately, with no gate tying
 the two verb lists ([issue #770](https://github.com/NoaCG/NoaCG-Studio/issues/770)). Bringing
-the editor's commands to the CLI extends `operations.ts`, block transforms and `EditorSession`;
-it does not add a parallel AI scene or edit engine. Independent package authoring stays,
+the editor's commands to the CLI reuses that catalog over `operations.ts`, block transforms and
+`EditorSession` (which today sit under a UI directory, so an import seam is part of the work); it
+does not add a second command catalog, a parallel AI scene or an edit engine. Independent package authoring stays,
 including source the visual controls cannot edit: report the supported regions and preserve the
 rest. Order: [EDITOR_PLAN.md](EDITOR_PLAN.md) R1.3b and R3.2, and
 [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
