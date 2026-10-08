@@ -9,8 +9,9 @@
 // still-busy folder stays locked (rmdir throws, we skip it); any non-empty stub is reported,
 // never deleted - that is someone's working tree until proven otherwise.
 
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, rmdirSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -158,6 +159,144 @@ export function inspectLeftoverFolders({ primaryRoot, registeredRoots, protect =
     // Best-effort: a surprise here must never propagate.
   }
   return { empty, nonEmpty, unreadable };
+}
+
+// --- The unattended sweep: where it keeps its state, how it is started, and its lock ----------
+//
+// Finished work cleans itself up (docs/work-specs/worktree-lifecycle/spec.md): session start and
+// every landing START `cleanup-worktrees.mjs --unattended` in the background. These helpers are
+// here rather than in that file because the SessionStart hook calls them, and it must not load
+// the whole sweep to decide that a sweep ran ten minutes ago.
+
+/** How often the unattended sweep may run at most. Its own idle holds are hours long. */
+export const SWEEP_THROTTLE_MS = 30 * 60_000;
+
+/** A lock older than this belongs to a sweep that died; a live one finishes in minutes. */
+const SWEEP_LOCK_MAX_AGE_MS = 2 * 60 * 60_000;
+
+/**
+ * The directory the sweep keeps its lock, its start stamp and its last result in:
+ * `<git-common-dir>/noacg-cleanup`, or `NOACG_CLEANUP_STATE_DIR`. Null outside a checkout.
+ */
+export function cleanupStateDir(primaryRoot, { env = process.env } = {}) {
+  if (env.NOACG_CLEANUP_STATE_DIR) return resolve(env.NOACG_CLEANUP_STATE_DIR);
+  if (!primaryRoot) return null;
+  const res = git(['rev-parse', '--git-common-dir'], primaryRoot);
+  if (!res.ok || !res.stdout) return null;
+  return join(resolve(primaryRoot, res.stdout), 'noacg-cleanup');
+}
+
+/** When the last unattended sweep STARTED, as epoch ms, or null. */
+export function lastSweepStart(stateDir) {
+  try {
+    return statSync(join(stateDir, 'last-start')).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+/** Mark that a sweep started now - the throttle reads this. */
+export function markSweepStart(stateDir) {
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, 'last-start'), `${new Date().toISOString()}\n`);
+}
+
+/**
+ * Start the unattended sweep in the background, unless one started within SWEEP_THROTTLE_MS or
+ * `NOACG_NO_AUTO_CLEANUP` is set (the off switch, and what tests set). It runs from the PRIMARY
+ * checkout, as every sweep must, with the copy of the script that sits next to this file.
+ * Returns `{ started, why }` and never throws: it is called from a hook and from the landing
+ * watcher, and neither may fail because housekeeping could not start.
+ */
+export function triggerUnattendedSweep({
+  primaryRoot,
+  script = join(dirname(fileURLToPath(import.meta.url)), 'cleanup-worktrees.mjs'),
+  env = process.env,
+  now = Date.now(),
+  start = spawn,
+} = {}) {
+  try {
+    if (env.NOACG_NO_AUTO_CLEANUP) return { started: false, why: 'NOACG_NO_AUTO_CLEANUP is set' };
+    if (!primaryRoot || !existsSync(script)) return { started: false, why: 'no primary checkout or no sweep script' };
+    const stateDir = cleanupStateDir(primaryRoot, { env });
+    if (!stateDir) return { started: false, why: 'no git common dir' };
+    // A stamp a little in the future is the file clock rounding ahead of ours; one far in the
+    // future means the clock moved, and must not hold every later sweep off.
+    const last = lastSweepStart(stateDir);
+    const age = last === null ? null : now - last;
+    if (age !== null && age > -60_000 && age < SWEEP_THROTTLE_MS) {
+      return { started: false, why: `a sweep started ${Math.max(0, Math.round(age / 60_000))} minute(s) ago` };
+    }
+    // Stamped HERE, before the child exists, so a second trigger a moment later (two sessions
+    // starting together, a landing during a session start) does not spawn a second sweep that
+    // would only find the lock taken.
+    markSweepStart(stateDir);
+    const child = start(process.execPath, [script, '--unattended'], {
+      cwd: primaryRoot,
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env,
+    });
+    child?.unref?.();
+    return { started: true, why: null };
+  } catch (error) {
+    return { started: false, why: error?.message ?? String(error) };
+  }
+}
+
+/** Is a process with this pid still running? EPERM means yes, under another user. */
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+/**
+ * Take the sweep lock, shared by `--apply` and `--unattended`, so two sweeps never decide about
+ * the same worktree at once. Returns `{ ok, release, why }`. A lock whose process is gone, or
+ * that is older than any sweep runs, is taken over.
+ */
+export function acquireSweepLock(stateDir, { now = Date.now() } = {}) {
+  mkdirSync(stateDir, { recursive: true });
+  const path = join(stateDir, 'sweep.lock');
+  const mine = { pid: process.pid, at: now, token: randomUUID() };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      writeFileSync(path, JSON.stringify(mine), { flag: 'wx' });
+      const release = () => {
+        try {
+          if (JSON.parse(readFileSync(path, 'utf8')).token === mine.token) rmSync(path, { force: true });
+        } catch {
+          // already gone
+        }
+      };
+      return { ok: true, release, why: null };
+    } catch (error) {
+      if (error?.code !== 'EEXIST') return { ok: false, release: () => {}, why: error?.message ?? String(error) };
+    }
+    let held = null;
+    try {
+      held = JSON.parse(readFileSync(path, 'utf8'));
+    } catch {
+      // unreadable: judged by age below
+    }
+    const age = held?.at ? now - held.at : SWEEP_LOCK_MAX_AGE_MS + 1;
+    if (held?.pid && pidAlive(held.pid) && age < SWEEP_LOCK_MAX_AGE_MS) {
+      return { ok: false, release: () => {}, why: `another worktree cleanup is running (pid ${held.pid})` };
+    }
+    try {
+      const dead = `${path}.${process.pid}.${Date.now()}.dead`;
+      renameSync(path, dead);
+      rmSync(dead, { force: true });
+    } catch {
+      return { ok: false, release: () => {}, why: 'another cleanup took over the lock first' };
+    }
+  }
+  return { ok: false, release: () => {}, why: 'could not take the cleanup lock' };
 }
 
 /**

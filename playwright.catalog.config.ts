@@ -35,7 +35,8 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    // The port is passed so the server reserves exactly the number this config waits on.
+    command: `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,

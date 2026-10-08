@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "3ef259c2da55f264caa669d283929f1eb9b3271bfdf8101200f8007545dc6f45",
+  "specSha256": "9e16387dbc7b6f044cbc7835ae71bb48a4d1d1ab8c151478a444d1a2ab83e7ec",
   "authority": {
-    "status": "draft",
-    "source": "wave 2026-10-08 row L (worktree self-cleanup), phase 1: goal and acceptance from the row; the owner's answers to questions.md are pending"
+    "status": "agreed",
+    "source": "owner answers 2026-10-08 to docs/work-specs/worktree-lifecycle/questions.md, relayed for wave 2026-10-08 row L: remove landed worktrees under .claude/worktrees automatically (desktop and agent ones, never Codex's, never unlanded), never one a live session holds, and make a resumed chat's follow-up work with nothing to run; delete_branch_on_merge turned on by the owner; no-own-commit worktrees after 3 idle days; desktop auto-archive stays off; hold 24 hours for desktop worktrees and 2 hours for agent worktrees"
   },
   "review": null
 }

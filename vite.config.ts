@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { devPort, writeLaunchConfig } from './scripts/dev-port.mjs';
+import { claimDevPorts, writeLaunchConfig } from './scripts/dev-port.mjs';
 import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
@@ -109,6 +109,30 @@ function generatedPages(): Plugin {
 }
 
 /**
+ * RESERVE THIS CHECKOUT'S DEV PORT WHEN, AND ONLY WHEN, A SERVER IS ABOUT TO LISTEN
+ * (scripts/dev-port.mjs). Not for `vite build`, and not for a middleware-mode server - the build's
+ * prerender and several tests load this config through `createServer` and never bind a port. A
+ * port the server was TOLD (`--port`, as the Playwright configs and dev-worktree pass) is the one
+ * reserved, or the start fails loudly; with none, the reservation decides. Until 2026-10-08 this
+ * file asked for the port while building its config object, so every build and every test that
+ * loaded it held a port for the worktree's whole life.
+ */
+function devPortReservation(): Plugin {
+  return {
+    name: 'noacg-dev-port',
+    config(config, { command, isPreview }) {
+      if (command !== 'serve' || config.server?.middlewareMode) return;
+      const asked = isPreview ? config.preview?.port : config.server?.port;
+      const record = claimDevPorts({ port: asked ?? null });
+      // Keep the Claude preview launch config pointing at the port just reserved.
+      writeLaunchConfig();
+      const port = asked ?? record.port;
+      return isPreview ? { preview: { port, strictPort: true } } : { server: { port, strictPort: true } };
+    },
+  };
+}
+
+/**
  * THE BUILD A PAGE REPORTS (src/control/livePath.ts `LIVE_BUILD`): the short commit, so a renderer
  * on air can say which deploy it was loaded from. Vercel hands the commit in the build env; a local
  * build or dev server asks the checkout; neither means `dev`.
@@ -126,9 +150,6 @@ function buildStamp(): string {
 }
 
 export default defineConfig(({ command, mode }) => {
-  // Keep the Claude preview launch config pointing at this checkout's port (worktrees get
-  // their own — see scripts/dev-port.mjs). Serve-time only: builds shouldn't touch files.
-  if (command === 'serve') writeLaunchConfig();
   if (command === 'serve') {
     // The dev server mounts the REAL api/ handlers (aiDevPlugin/renderApiPlugin), and they
     // read server-only configuration from process.env exactly as they do on Vercel — but
@@ -145,6 +166,7 @@ export default defineConfig(({ command, mode }) => {
     // renderApiPlugin mounts the real api/render handlers on the dev server, so the cloud
     // render loop runs fully offline (local Remotion executor) during development.
     plugins: [
+      devPortReservation(),
       react(),
       appCleanUrl(),
       generatedPages(),
@@ -158,9 +180,10 @@ export default defineConfig(({ command, mode }) => {
       panelBackendPlugin(),
     ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
-    // the same number), so failing loudly beats silently drifting onto a neighbour's port.
+    // the same number), so failing loudly beats silently drifting onto a neighbour's port. The
+    // number itself is reserved by devPortReservation() above, at the moment a server starts.
     // open: skipped on CI runners — there is no browser to open, only Playwright's.
-    server: { port: devPort(), strictPort: true, open: !process.env.CI },
+    server: { strictPort: true, open: !process.env.CI },
     build: {
       // es2017, not es2020: CasparCG 2.3.x LTS (the common student/school install) embeds a
       // Chromium 71 CEF (CEF 3.3578 - read off libcef.dll and the output page's own `&debug=1`

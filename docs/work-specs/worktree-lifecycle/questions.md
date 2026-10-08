@@ -1,5 +1,11 @@
 # Worktree lifecycle: questions for the owner
 
+**Answered 2026-10-08** (recorded in `spec.md`, "Owner answers"): Q1 yes, with the condition that a
+session whose work landed must not just disappear - never remove a worktree a live session holds,
+and make a resumed chat's follow-up work with nothing to run. Q2 yes, already turned on by the
+owner. Q3 yes. Q4 keep it off. Q5 neither option as asked: desktop session worktrees wait 24 hours,
+`agent-*` worktrees 2 hours.
+
 Most important first. Each has a recommendation; phase 2 builds the recommendations unless you say
 otherwise. Port handling has no question: it is technical, and a build stops needing a port either
 way (`spec.md`, decisions 1-4).

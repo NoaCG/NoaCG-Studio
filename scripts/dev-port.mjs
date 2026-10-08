@@ -17,10 +17,18 @@
 // DEV_PORT=n still overrides everything, for the rare case where a specific number is needed;
 // it takes no reservation, so it is a local escape hatch, not an assignment.
 //
+// ASKING NEVER RESERVES. `devPorts()` / `devPort()` / `livePort()` answer which port this checkout
+// has, or would get, and write no ticket: config files, tests, hooks, sweeps and postinstall all
+// ask, and none of them starts a server. Only `claimDevPorts()` reserves, and only something about
+// to listen calls it - Vite's `noacg-dev-port` plugin (vite.config.ts) and `dev-worktree.mjs`.
+// Until 2026-10-08 asking allocated, so every install and every `vite build` held a port for the
+// worktree's whole life, and a fresh worktree could not install once 60 had piled up.
+//
 // CLI:
 //   node scripts/dev-port.mjs            print this checkout's port, sync the generated files
 //   node scripts/dev-port.mjs --base     print this checkout's server URL, for a sweep's --base
 //   node scripts/dev-port.mjs --json     print the full record
+//   node scripts/dev-port.mjs --claim    reserve this checkout's port now (a server start does it itself)
 //   node scripts/dev-port.mjs --list     show every reservation in the repo and who holds it
 //   node scripts/dev-port.mjs --prune    drop reservations whose worktree is gone
 //   node scripts/dev-port.mjs --release  give this checkout's reservation back
@@ -34,6 +42,7 @@ import {
   allocatePort,
   listTickets,
   normalizeRoot,
+  peekPort,
   pruneStaleReservations,
   releaseReservation,
   sameRoot,
@@ -75,8 +84,12 @@ export function gitCommonDir() {
   return normalizeRoot(dirname(dirname(resolve(repoRoot, match[1].trim()))));
 }
 
-/** The shared reservation directory, or null outside a git checkout. */
+/**
+ * The shared reservation directory, or null outside a git checkout. `NOACG_DEV_PORT_REGISTRY`
+ * points it somewhere else, so a test or a simulation never writes the real one.
+ */
 export function registryDir() {
+  if (process.env.NOACG_DEV_PORT_REGISTRY) return normalizeRoot(process.env.NOACG_DEV_PORT_REGISTRY);
   const common = gitCommonDir();
   return common ? join(common, 'noacg-dev-ports') : null;
 }
@@ -173,13 +186,13 @@ export async function portsFor(root) {
   }
 }
 
-function resolvePorts() {
+/** The record for a checkout that needs no reservation (override or primary), or null. */
+function fixedPorts() {
   if (process.env.DEV_PORT) {
     const port = Number(process.env.DEV_PORT);
     return { port, livePort: port + 1, preferred: port, source: 'DEV_PORT override', root: normalizeRoot(repoRoot), ticket: null };
   }
-  const dir = registryDir();
-  if (!isWorktree() || !dir) {
+  if (!isWorktree() || !registryDir()) {
     return {
       port: PRIMARY_PORT,
       livePort: PRIMARY_PORT + 1,
@@ -189,25 +202,66 @@ function resolvePorts() {
       ticket: null,
     };
   }
-  const ticket = allocatePort({
-    root: repoRoot,
-    registryDir: dir,
-    isRootActive: makeIsRootActive(),
-    isPortBusy: isPortBusySync,
-  });
+  return null;
+}
+
+/** Read-only: this checkout's reservation, or the port a server start would reserve now. */
+function resolvePorts() {
+  const fixed = fixedPorts();
+  if (fixed) return fixed;
+  const dir = registryDir();
+  const peek = peekPort({ root: repoRoot, registryDir: dir, isRootActive: makeIsRootActive(), isPortBusy: isPortBusySync });
   return {
-    port: ticket.port,
-    livePort: ticket.livePort,
-    preferred: ticket.preferred,
-    source: ticket.reused ? 'reservation' : 'new reservation',
+    port: peek.port,
+    livePort: peek.livePort,
+    preferred: peek.preferred,
+    source: peek.reserved ? 'reservation' : 'not reserved yet - a server start reserves it',
     root: normalizeRoot(repoRoot),
-    ticket: ticketPath(dir, ticket.port),
+    ticket: peek.reserved ? ticketPath(dir, peek.port) : null,
   };
 }
 
 /**
+ * RESERVE this checkout's port, because a server is about to listen on it. `port` is the number
+ * the server was told (`vite --port`), when it was told one: it must be this checkout's, or become
+ * it, so a server never lands somewhere the tests are not looking. The primary checkout and a
+ * `DEV_PORT` override reserve nothing. Throws only when no port can be had at all.
+ */
+export function claimDevPorts({ port = null } = {}) {
+  const fixed = fixedPorts();
+  if (fixed) {
+    resolved = fixed;
+  } else {
+    const dir = registryDir();
+    const ticket = allocatePort({
+      root: repoRoot,
+      registryDir: dir,
+      isRootActive: makeIsRootActive(),
+      isPortBusy: isPortBusySync,
+      port,
+    });
+    resolved = {
+      port: ticket.port,
+      livePort: ticket.livePort,
+      preferred: ticket.preferred,
+      source: ticket.reused
+        ? 'reservation'
+        : ticket.reclaimedFrom
+          ? `new reservation, taken back from idle ${ticket.reclaimedFrom}`
+          : 'new reservation',
+      root: normalizeRoot(repoRoot),
+      ticket: ticketPath(dir, ticket.port),
+    };
+  }
+  writePortRecord(resolved);
+  published = true;
+  return resolved;
+}
+
+/**
  * The dev-server port for this checkout: 5174 in the main checkout, else this worktree's
- * reserved port from the approved 5180-5298 block.
+ * reservation from the approved 5180-5298 block, or the port a server start would reserve.
+ * Never reserves and never throws.
  */
 export function devPort() {
   return devPorts().port;
@@ -293,9 +347,20 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         const marks = [isActive(t.root) ? 'active' : 'STALE'];
         if (sameRoot(t.root, repoRoot)) marks.push('this checkout');
         if (t.preferred !== t.port) marks.push(`preferred ${t.preferred}`);
+        let claimed = null;
+        try {
+          claimed = Math.round((Date.now() - statSync(ticketPath(dir, t.port)).mtimeMs) / 60_000);
+        } catch {
+          // gone between the listing and the stat
+        }
+        if (claimed !== null) marks.push(`last claimed ${claimed} min ago`);
         console.log(`  ${t.port} (live ${t.livePort})  ${t.root}  [${marks.join(', ')}]`);
       }
     }
+  } else if (flag === '--claim') {
+    const record = claimDevPorts();
+    writeLaunchConfig();
+    console.log(record.port);
   } else if (flag === '--prune') {
     const removed = pruneStalePorts({ includeCorrupt: true });
     console.log(removed.length === 0 ? 'No stale reservations.' : `Released ${removed.map((t) => t.port).join(', ')}.`);
@@ -316,8 +381,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     writeLaunchConfig();
     console.log(JSON.stringify(devPorts(), null, 2));
   } else {
-    // Default: sync the generated files and print the port (postinstall, and by hand).
-    writeLaunchConfig();
-    console.log(devPort());
+    // Default: sync the generated files and print the port (postinstall, and by hand). It
+    // reserves nothing, and it never fails an install: a generated preview config is a
+    // convenience, and the 2026-10-08 install that died here was dying for no server at all.
+    try {
+      writeLaunchConfig();
+      console.log(devPort());
+    } catch (error) {
+      console.error(`dev-port: could not write the generated port files (${error?.message ?? error}) - continuing.`);
+    }
   }
 }

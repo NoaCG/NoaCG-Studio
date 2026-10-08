@@ -1,15 +1,15 @@
 # Worktree lifecycle: finished work cleans itself up, builds never need ports
 
-Status: DRAFT for the owner's answers in `questions.md`. Research:
+Status: AGREED - the owner answered `questions.md` on 2026-10-08. Research:
 `docs/research/worktree-lifecycle-2026-10-08.md`.
 
 ## Why
 
 On 2026-10-08 a new worktree could not install and a build failed three node tests, because all 60
-dev ports were reserved by 71 worktrees. Nothing involved was starting a server. A port is reserved
-when a worktree first resolves one (postinstall, session start, any load of the Vite or Playwright
-config) and released only after the worktree is removed. Only `/cleanup-worktrees`, run by someone
-from the primary checkout, removes worktrees. So landed work piles up, and the ports go with it.
+dev ports were reserved by 71 worktrees. Nothing involved was starting a server. A port was reserved
+when a worktree first resolved one (postinstall, session start, any load of the Vite or Playwright
+config) and released only after the worktree was removed. Only `/cleanup-worktrees`, run by someone
+from the primary checkout, removed worktrees. So landed work piled up, and the ports went with it.
 
 ## Goal
 
@@ -24,100 +24,100 @@ never fails on ports.
   app's own worktrees in `~/.codex/worktrees` are capped by the Codex app).
 - Changing the desktop app's or the Codex app's settings from a script.
 - A bigger port range, or a reverse proxy instead of ports.
-- `catalog-cost.mjs` running its measurement at import (found while tracing, a separate item).
+- `catalog-cost.mjs` running its measurement at import (`docs/backlog/catalog-cost-test-runs-the-measurement-on-import.md`).
+
+## Owner answers (2026-10-08)
+
+1. Remove landed worktrees under `.claude/worktrees/` automatically, desktop-app and `agent-*` ones
+   included, never Codex's, never unlanded. A session whose work landed must not "just disappear":
+   never remove a worktree a live session holds, and make a resumed chat's follow-up work with
+   nothing for the owner to run.
+2. `delete_branch_on_merge` is ON (set by the owner). The lease-guarded local delete stays as the
+   fallback; `post-land.yml` is unchanged.
+3. Remove worktrees with no commits of their own after 3 idle days.
+4. Keep the desktop app's "Auto-archive after PR merge or close" OFF (documented in
+   `.agent-workflows/cleanup-worktrees.md`).
+5. Idle hold after landing: desktop session worktrees 24 hours, `agent-*` worktrees 2 hours.
 
 ## Decisions
 
-Owner requirements are the goal and the acceptance in the row. Everything below is derived; the
-choices the owner would notice are in `questions.md` and marked Q1-Q5 here.
-
 ### Ports are reserved by starting a server
 
-1. **Resolving a port never reserves one and never throws.** `devPorts()` answers, in order: the
-   `DEV_PORT` override, 5174 in the primary checkout, this checkout's ticket, or else the port a
-   reservation would take right now (its preference, then the walk, skipping ports held by an
-   active worktree or answering TCP, then decision 3). When even that finds nothing it answers the
-   preferred port. It writes no ticket. Config files, tests, hooks, sweeps and postinstall all use
-   this.
-2. **Only a server start reserves.** Vite reserves in a small plugin `config` hook when it is about
-   to listen (dev server or preview): not for `build`, not in middleware mode. `vite.config.ts`
-   stops calling `devPort()` eagerly. The Playwright `webServer` commands and `dev:worktree` pass
-   the port they resolved explicitly, so Vite reserves exactly that port and fails loudly if another
-   worktree took it in the seconds between, instead of serving where the tests are not looking.
-   A reservation is idempotent: a checkout that holds a ticket gets that ticket back.
-3. **A full registry gives up an idle reservation instead of failing.** When every port is held, a
-   reservation reclaims the least recently claimed ticket whose port and live port both answer
-   nothing and which was claimed more than ten minutes ago. Its worktree takes a new number at its
-   next server start. No process is ever signalled. A ticket records `claimedAt`, refreshed on
-   every claim.
-4. Postinstall keeps writing `.claude/launch.json` from the read-only answer and exits 0 whatever
-   happens. Session start prints the reserved port, or the port a server would get, and reserves
-   nothing.
+1. **Asking never reserves and never throws.** `devPorts()` answers the `DEV_PORT` override, 5174
+   in the primary checkout, this checkout's ticket, or the port a server start would take now
+   (`peekPort`: preference, walk, then decision 3; the preference when even that finds nothing).
+   Config files, tests, hooks, sweeps and postinstall all ask; none writes a ticket.
+2. **Only a server start reserves** (`claimDevPorts`). Vite's `noacg-dev-port` plugin reserves when
+   a dev or preview server is about to listen - not for `build`, not in middleware mode - and
+   `dev:worktree` reserves before it starts Vite. The Playwright configs and `dev:worktree` pass the
+   port explicitly, so Vite reserves exactly that number or refuses to start. A checkout that holds
+   a ticket gets it back.
+3. **A full registry takes back an idle reservation instead of failing.** The least recently
+   claimed ticket whose port and live port answer nothing and which nobody claimed for ten minutes.
+   A claim refreshes the ticket's mtime; the ticket is renamed away and re-checked before it is
+   replaced. No process is ever signalled.
+4. Postinstall writes `.claude/launch.json` from the read-only answer and exits 0 whatever happens.
+   Session start prints the port, marked "reserved when a server starts" until one does.
 
-### An unattended sweep removes landed worktrees
+### An unattended sweep removes finished worktrees
 
-5. **`node scripts/cleanup-worktrees.mjs --unattended`** runs the existing assessment and applies
-   only items that are safe by every current rule AND eligible:
-   - the worktree is under `<primary>/.claude/worktrees/` and its branch is in a managed namespace
-     (`claude/`, `codex/`, `worktree-agent-`);
-   - the branch LANDED: the landing ledger (`landed.jsonl`, kept in sync with GitHub's merged
-     `land` pull requests) names it, and its tip is contained in a freshly fetched `origin/main`
-     (Q1). Optionally (Q3) also a branch whose tip is on `origin/main` with no landing, idle for
-     three days;
-   - its Claude session has been idle for the existing two-hour hold (Q5);
-   - no job is pending or running for that checkout in the job store (a queued job would otherwise
-     run in the runner's own directory).
-   Anything that needs a person is never acted on; it is written to
-   `<git-common-dir>/noacg-cleanup/last.json`, and the orchestrator home's session start prints one
-   line when that list is not empty.
-6. **Triggers, both automatic:** session start (after the primary is reattached to `main`) and
-   `land-watch.mjs` right after it records a landing. Each spawns the sweep detached, from the
-   primary checkout, with its own checkout's copy of the script. The sweep takes a lock and skips if
-   one ran in the last 30 minutes; the manual `/cleanup-worktrees --apply` takes the same lock.
-7. **Remote branches:** GitHub deletes the head branch when the pull request merges (Q2). The
-   sweep keeps its lease-guarded deletion of contained managed branches as the fallback.
-8. **`git branch -d` stays the backstop, measured against `origin/main`.** After its own
-   containment check the sweep sets the branch's upstream to `origin/main` and then runs `-d`.
-   Today `-d` measures harness branches against the primary checkout's local `main`, which lags,
-   and a branch whose remote was deleted falls back to the same `HEAD`.
-9. Removal releases the port ticket and an empty leftover folder is swept later, as today.
+5. **`node scripts/cleanup-worktrees.mjs --unattended`** runs the existing assessment and apply,
+   narrowed by `unattendedPlan`: a removal must also be under `<primary>/.claude/worktrees/` on a
+   managed branch, LANDED (the landing ledger names the branch) or with no commits of its own, quiet
+   for its window (landed `agent-*` 2 h, other landed 24 h, no commits of its own 3 days), and have
+   no queued or running job. Anything that needs a person is written to
+   `<git-common-dir>/noacg-cleanup/last.json` (report in `last.txt`) and never acted on; the
+   orchestrator home's session start prints the count.
+6. **Triggers:** session start and `land-watch.mjs` after a landing spawn it detached from the
+   primary checkout. It runs at most once per 30 minutes and takes a lock that `--apply` also
+   takes. `NOACG_NO_AUTO_CLEANUP=1` is the off switch.
+7. **A worktree in use is never touched.** Every removal (manual or unattended) first moves the
+   worktree aside with `git worktree move`; Windows refuses that rename while any process has its
+   working directory or an open file inside (measured: EBUSY/EPERM). The refusal is a skip ("in
+   use"), not an error, and the worktree and its branch stay exactly as they were. This replaces
+   the old behaviour where `git worktree remove` deleted every file under a live process and failed
+   only on the empty folder.
+8. **Branches.** Before assessing, the sweep fast-forwards a clean primary `main` to `origin/main`
+   (the handoff workflow's own rule), so the documented "contained in local main and origin/main"
+   rule holds for landed branches. `git branch -d` stays the backstop and is pointed at
+   `origin/main` first (its upstream), because harness branches have none and git would otherwise
+   judge them against the primary's `HEAD`. GitHub deletes remote branches at merge; the
+   lease-guarded remote delete stays as the fallback.
+9. **A chat the owner comes back to** (`scripts/worktree-followup.mjs`, from the SessionStart
+   hook): (a) a session that starts in a worktree whose branch landed, with a clean tree and
+   nothing unlanded, is moved to a fresh branch cut from `origin/main`; (b) a resumed session whose
+   transcript says it last worked in a worktree that is now gone gets a fresh worktree at the same
+   path on a new branch from `origin/main`, and is told to enter it with `EnterWorktree`. Both
+   refuse on any doubt and never delete anything.
 
 ### Rejected
 
-- **Ports leased only to a running process (port 0, pid leases):** loses the number that Vite,
-  Playwright, `launch.json` and the sweeps each derive on their own; decisions 2 and 3 keep it
-  stable in the normal case.
+- **Ports leased only to a running process:** loses the stable number Vite, Playwright,
+  `launch.json` and the sweeps each derive.
 - **More ports:** the same failure, later.
 - **The desktop app's auto-archive or Claude Code's `cleanupPeriodDays` sweep as the mechanism:**
-  neither archives ignored output first, the desktop one force-removes, and the CLI one waits 30
-  days and skips agent worktrees with commits.
-- **Cleaning only from `land-watch`:** the landing session spoke minutes earlier, so the idle hold
-  refuses its own worktree and a second trigger is needed anyway.
-- **A `post-land.yml` step deleting the head branch:** the same outcome as the GitHub setting with
-  more code. It is the fallback if Q2 is no.
+  neither archives ignored output first.
 - **A Windows scheduled task:** a standing machine setting for something session starts and
   landings already trigger.
+- **Deleting branches against `origin/main` only, without the fast-forward:** would relax the
+  documented branch rule; the fast-forward keeps it true instead.
 
 ## Acceptance
 
 ### AC-1: a landed branch's worktree, local branch, remote branch and port reservation disappear with nobody running a command
 
-- A branch lands through the queue. GitHub deletes its remote branch at merge. Once its session has
-  been idle for two hours, the next session start or landing removes the worktree, deletes the
-  local branch with `git branch -d` and releases its ticket. `git worktree list`, `git branch`,
-  `git ls-remote --heads origin` and `node scripts/dev-port.mjs --list` no longer show it.
-- Evidence: an end-to-end run in a scratch repository with a local bare remote, plus the real
-  repository's dry run listing this wave's landed worktrees as eligible after the hold.
+- A branch lands through the queue; GitHub deletes its remote branch at merge. Once its session has
+  been quiet for its window, the next session start or landing removes the worktree, deletes the
+  local branch with `git branch -d` and releases its ticket.
+- Evidence: `scripts/worktree-unattended.test.mjs` (real repositories, origin/main moved the way
+  the queue moves it, local main lagging), plus the real repository's unattended dry assessment.
 
-### AC-2: the safety rules of `.agent-workflows/cleanup-worktrees.md` hold when nobody is watching
+### AC-2: the safety rules of `.agent-workflows/cleanup-worktrees.md` hold when nobody is watching, and a worktree in use is never touched
 
-- A landed worktree that is dirty, mid-bisect or mid-rebase, locked, in use by a live session, has
-  a queued job or a running Codex delegation, holds a secret with no other copy, or holds output
-  that cannot be archived: skipped, reported, nothing deleted.
-- A landed worktree holding valuable ignored output: archived and verified before removal.
-- A branch with commits not on `origin/main`, a detached worktree, the primary checkout, the
-  orchestrator home, a worktree outside `.claude/worktrees/`: untouched.
-- No `--force`, no `-D`, no remote delete without an exact-head lease.
+- Dirty, mid-operation, locked, live session, queued job, unarchivable or lone-secret: skipped,
+  recorded, nothing deleted. Unlanded commits, detached, primary, orchestrator home, outside
+  `.claude/worktrees/`: untouched. A worktree a process is in: left exactly as it is, removed on a
+  later run once free. No `--force`, no `-D`, no remote delete without an exact-head lease.
 
 ### AC-3: a build or test that starts no server takes no port
 
@@ -132,23 +132,21 @@ choices the owner would notice are in `questions.md` and marked Q1-Q5 here.
 
 ### AC-5: a server start does not fail on ports while any reservation is idle
 
-- Derived, not asked for by the owner. 60 tickets, nothing listening on one of them: `npm run dev:worktree` in a fresh worktree
-  reclaims that ticket and serves. With all 60 listening it refuses and lists the holders.
+- Derived, not asked for by the owner. 60 tickets, nothing listening on one of them: a server start
+  in a fresh worktree reclaims it. With every one claimed recently it refuses and lists the holders.
+
+### AC-6: a desktop chat whose work landed can take a follow-up with nothing for the owner to run
+
+- A session starting in a landed worktree is moved to a fresh branch from `origin/main`. A resumed
+  session whose worktree was cleaned up gets a fresh worktree at the same path and is told to enter
+  it. Evidence: `scripts/worktree-followup.test.mjs` drives the real SessionStart hook. What the
+  desktop app itself does when it reopens a chat whose folder is gone could not be driven from here
+  (see `evidence/`).
 
 ## Preserved behaviour
 
 - A worktree keeps its port number across restarts while the registry has room.
 - Primary checkout 5174/5175; `DEV_PORT` overrides everything and reserves nothing.
-- Manual `/cleanup-worktrees` and `--self` work as today.
+- Manual `/cleanup-worktrees` and `--self` work as before, except that a worktree in use is now
+  skipped instead of emptied.
 - Nothing ever kills a process it did not start.
-
-## Phase 2 files
-
-`scripts/port-registry.mjs`, `scripts/dev-port.mjs`, and three files not in the row's TOUCHES:
-`vite.config.ts` (the eager `devPort()` is there), `playwright.config.ts` and
-`playwright.catalog.config.ts` (one `--port` each); `scripts/dev-worktree.mjs` if it does not
-already pass the port in every mode; `scripts/cleanup-worktrees.mjs`, `scripts/worktree-cleanup-lib.mjs`,
-`scripts/land-watch.mjs`, `scripts/hooks/session-start.mjs`, their tests, `docs/DEV_PORTS.md`,
-`.agent-workflows/cleanup-worktrees.md`, `docs/BRANCHING_AND_LANDING.md`. `post-land.yml` only if
-Q2 is no. `package.json` only if a script entry is needed. Gate: `npm run build`, the port and
-cleanup unit tests, and the AC-4 simulation.

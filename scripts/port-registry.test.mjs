@@ -11,7 +11,7 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -20,15 +20,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   PORT_RANGE,
+  RECLAIM_IDLE_MS,
   SLOT_COUNT,
   allocatePort,
   candidatePort,
   claimLockPath,
   listTickets,
   normalizeRoot,
+  peekPort,
   preferredPort,
   pruneStaleReservations,
   releaseReservation,
+  slotPortOf,
   ticketPath,
 } from './port-registry.mjs';
 import { isPortBusy } from './port-probe.mjs';
@@ -206,6 +209,106 @@ describe('stale reservations', () => {
     const result = allocate(registry, COLLIDING_A);
     assert.notEqual(result.port, preferred);
     assert.equal(readFileSync(ticketPath(registry, preferred), 'utf8'), '{"port":');
+  });
+});
+
+describe('asking never reserves', () => {
+  it('peekPort answers with the port a claim would take, and writes nothing', () => {
+    const registry = tempRegistry();
+    const answer = peekPort({ root: COLLIDING_A, registryDir: registry, isRootActive: () => true });
+    assert.equal(answer.port, preferredPort(COLLIDING_A));
+    assert.equal(answer.reserved, false);
+    assert.equal(existsSync(registry), false, 'asking created the registry');
+    // ...and the claim then takes exactly that port.
+    assert.equal(allocate(registry, COLLIDING_A).port, answer.port);
+    assert.equal(peekPort({ root: COLLIDING_A, registryDir: registry, isRootActive: () => true }).reserved, true);
+  });
+
+  it('peekPort skips what a claim would skip, so the two agree', () => {
+    const registry = tempRegistry();
+    allocate(registry, COLLIDING_A); // takes the shared preference
+    const busy = (p) => p === candidatePort(COLLIDING_B, 1);
+    const answer = peekPort({ root: COLLIDING_B, registryDir: registry, isRootActive: () => true, isPortBusy: busy });
+    assert.equal(answer.port, allocate(registry, COLLIDING_B, { isPortBusy: busy }).port);
+  });
+
+  it('a claim told a port takes exactly that one, and refuses one that is not its own', () => {
+    const registry = tempRegistry();
+    const told = candidatePort(COLLIDING_A, 3);
+    assert.equal(allocate(registry, COLLIDING_A, { port: told }).port, told);
+    // The live-e2e neighbour belongs to the same reservation.
+    assert.equal(allocate(registry, COLLIDING_A, { port: told + 1 }).port, told);
+    assert.throws(() => allocate(registry, COLLIDING_A, { port: candidatePort(COLLIDING_A, 4) }), /holds dev port/);
+    assert.throws(() => allocate(registry, COLLIDING_B, { port: 4000 }), /outside the approved range/);
+    assert.equal(slotPortOf(5181), 5180);
+    assert.equal(slotPortOf(5299), 5298);
+    assert.equal(slotPortOf(5300), null);
+  });
+});
+
+describe('a full registry', () => {
+  /** Every slot reserved by another, active, worktree; mtimes `ageMs` in the past. */
+  function fillRegistry(ageMs) {
+    const registry = tempRegistry();
+    mkdirSync(registry, { recursive: true });
+    const when = (Date.now() - ageMs) / 1000;
+    for (let k = 0; k < SLOT_COUNT; k++) {
+      const port = PORT_RANGE.first + k * PORT_RANGE.stride;
+      const root = `C:/claude/NoaCG-Studio/.claude/worktrees/holder-${k}`;
+      writeFileSync(ticketPath(registry, port), JSON.stringify({ port, livePort: port + 1, root, preferred: port, createdAt: 'x' }));
+      // Oldest claim on the highest port, so "least recently claimed" is not just "first listed".
+      utimesSync(ticketPath(registry, port), when - (SLOT_COUNT - k), when - (SLOT_COUNT - k));
+    }
+    return registry;
+  }
+
+  it('asking still answers, and writes nothing', () => {
+    const registry = fillRegistry(0);
+    const before = readdirSync(registry).sort();
+    const answer = peekPort({ root: COLLIDING_A, registryDir: registry, isRootActive: () => true });
+    assert.equal(answer.port, preferredPort(COLLIDING_A));
+    assert.equal(answer.exhausted, true);
+    assert.deepEqual(readdirSync(registry).sort(), before);
+  });
+
+  it('a server start refuses while every reservation was claimed recently', () => {
+    const registry = fillRegistry(0);
+    assert.throws(() => allocate(registry, COLLIDING_A), /none is idle/);
+    assert.equal(listTickets(registry).length, SLOT_COUNT);
+  });
+
+  it('a server start takes back the least recently claimed idle reservation', () => {
+    const registry = fillRegistry(RECLAIM_IDLE_MS + 60_000);
+    const oldest = PORT_RANGE.first; // k = 0 carries the oldest mtime
+    const peeked = peekPort({ root: COLLIDING_A, registryDir: registry, isRootActive: () => true });
+    assert.equal(peeked.port, oldest);
+    assert.match(peeked.reclaims, /holder-0$/);
+    const result = allocate(registry, COLLIDING_A);
+    assert.equal(result.port, oldest, 'the claim took what peek promised');
+    assert.match(result.reclaimedFrom, /holder-0$/);
+    assert.equal(readTicketRoot(registry, oldest), normalizeRoot(COLLIDING_A));
+    assert.equal(listTickets(registry).length, SLOT_COUNT, 'one ticket replaced, none added');
+    assert.deepEqual(readdirSync(registry).filter((name) => name.endsWith('.reclaimed')), [], 'nothing left aside');
+  });
+
+  it('never takes back a reservation whose server is listening', () => {
+    const registry = fillRegistry(RECLAIM_IDLE_MS + 60_000);
+    const listening = (p) => p !== PORT_RANGE.first + 2 * PORT_RANGE.stride && p !== PORT_RANGE.first + 2 * PORT_RANGE.stride + 1;
+    const result = allocate(registry, COLLIDING_A, { isPortBusy: listening });
+    assert.equal(result.port, PORT_RANGE.first + 2 * PORT_RANGE.stride);
+  });
+
+  it('a claim refreshes its own reservation, so it does not look idle', () => {
+    const registry = tempRegistry();
+    const mine = allocate(registry, COLLIDING_A);
+    const old = (Date.now() - RECLAIM_IDLE_MS * 3) / 1000;
+    utimesSync(ticketPath(registry, mine.port), old, old);
+    // Every other port answers, so the only way B gets anything is A's reservation.
+    const busyElsewhere = (p) => p !== mine.port && p !== mine.port + 1;
+    const ask = () => peekPort({ root: COLLIDING_B, registryDir: registry, isRootActive: () => true, isPortBusy: busyElsewhere });
+    assert.equal(ask().port, mine.port, 'an idle reservation is offered');
+    assert.equal(allocate(registry, COLLIDING_A).reused, true);
+    assert.equal(ask().reclaims, undefined, 'a just-claimed reservation was offered for reclaim');
   });
 });
 

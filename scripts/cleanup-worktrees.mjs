@@ -43,6 +43,16 @@
 // now) is refused outright rather than forced. Neither signal sees a Codex or plain-shell session,
 // which is stated in that file: liveness protects politeness, containment protects work.
 //
+// IN USE MEANS UNTOUCHED. A worktree is moved aside before it is removed, and Windows refuses that
+// rename while any process has its working directory or an open file inside it. A refusal leaves
+// the worktree exactly as it was and is reported as "in use", never as a failure (moveAside).
+//
+// UNATTENDED (`--unattended`, runUnattended): session start and every landing start this sweep in
+// the background, so finished work goes without anyone running it. It applies only what is safe by
+// every rule here AND covered by an unattended rule (unattendedRule: landed, or no commits of its
+// own; under .claude/worktrees; idle for the rule's window), and acts on nothing that needs a
+// person - that is recorded in <git-common-dir>/noacg-cleanup/last.json instead.
+//
 // Hard rules (never broken, even with --apply):
 //   - never `git branch -D`, never `git worktree remove --force`, never touch main or the
 //     current branch;
@@ -59,11 +69,13 @@
 //     a final backstop.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { primaryCheckout } from './reattach-main.mjs';
 import { pruneStalePorts } from './dev-port.mjs';
+import { jobsDir, pending, readJobs, readLandings } from './jobs-store.mjs';
+import { syncLandings } from './landings.mjs';
 import {
   archiveAndVerify,
   archiveRoot,
@@ -75,8 +87,11 @@ import {
 import { HOME_RELATIVE_PATH as ORCHESTRATOR_HOME_PATH } from './orchestrator-home.mjs';
 import { resetSessionScanCache, sessionHold } from './session-liveness.mjs';
 import {
+  acquireSweepLock,
+  cleanupStateDir,
   git,
   inspectLeftoverFolders,
+  markSweepStart,
   normalize,
   reapDelegationTrees,
   samePath,
@@ -244,6 +259,90 @@ export function managedBranch(name) {
   return MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix));
 }
 
+/**
+ * How long a worktree's session must have been quiet before the UNATTENDED sweep removes it
+ * (owner, 2026-10-08, docs/work-specs/worktree-lifecycle/questions.md):
+ *   - a landed `agent-*` worktree: two hours - an orchestrator row ends at its landing;
+ *   - any other landed worktree, a desktop chat's above all: a day, because the owner often comes
+ *     back to the same chat with a follow-up;
+ *   - a worktree with no commits of its own that never landed: three days.
+ */
+export const UNATTENDED_IDLE_MINUTES = Object.freeze({ agent: 2 * 60, session: 24 * 60, unlanded: 3 * 24 * 60 });
+
+/**
+ * Which unattended rule covers this worktree, as `{ rule, idleMinutes }`, or `{ rule: null, why }`.
+ * Only ever asked about a worktree the assessment already found safe to remove, so "its branch is
+ * on origin/main" is given: what is decided here is whether removing it needs nobody at all.
+ *
+ * Only worktrees under `<primary>/.claude/worktrees/` - the Codex app's own worktrees live in
+ * ~/.codex/worktrees and the Codex app caps them itself - and only managed branches. LANDED means
+ * the landing ledger (`landed.jsonl`, kept in step with GitHub's merged `land` pull requests)
+ * names the branch; a contained branch it does not name has no commits of its own.
+ */
+export function unattendedRule({ path, branch, primaryRoot, landed }) {
+  const home = normalize(join(primaryRoot, '.claude', 'worktrees'));
+  if (!samePath(dirname(normalize(path)), home)) {
+    return { rule: null, why: 'it is not under .claude/worktrees, so it is left to whatever made it' };
+  }
+  if (!branch || !managedBranch(branch)) return { rule: null, why: 'its branch is not in a managed namespace' };
+  if (landed.has(branch)) {
+    return /^agent-/.test(worktreeFolder(path))
+      ? { rule: 'landed agent worktree', idleMinutes: UNATTENDED_IDLE_MINUTES.agent }
+      : { rule: 'landed session worktree', idleMinutes: UNATTENDED_IDLE_MINUTES.session };
+  }
+  return { rule: 'no commits of its own', idleMinutes: UNATTENDED_IDLE_MINUTES.unlanded };
+}
+
+/**
+ * Narrow an assessment to what the UNATTENDED sweep may do on its own. Every removal the
+ * assessment approved must also pass `unattendedRule`, have no job queued or running for that
+ * checkout (the runner would otherwise run the job in its own directory), and have been quiet for
+ * its rule's idle window. Anything else becomes a skip, never an action; anything that needed a
+ * person was already a skip. Branches still checked out in a kept worktree are skipped with it.
+ */
+export function unattendedPlan(plan, { landed = new Set(), liveCheckouts = [], liveness = {} } = {}) {
+  const narrowed = {
+    ...plan,
+    worktrees: plan.worktrees.map((entry) => ({ ...entry })),
+    branches: plan.branches.map((entry) => ({ ...entry })),
+    remoteBranches: plan.remoteBranches.map((entry) => ({ ...entry })),
+  };
+  for (const entry of narrowed.worktrees) {
+    if (entry.action !== 'remove') continue;
+    const skip = (why) => {
+      entry.action = 'skip';
+      entry.why = why;
+      entry.needsPerson = false;
+    };
+    const { rule, idleMinutes, why } = unattendedRule({ path: entry.path, branch: entry.branch, primaryRoot: plan.primaryRoot, landed });
+    if (!rule) {
+      skip(`not removed unattended: ${why}`);
+      continue;
+    }
+    if (liveCheckouts.some((checkout) => checkout && samePath(checkout, entry.path))) {
+      skip(`${rule}: a queued or running job belongs to this checkout`);
+      continue;
+    }
+    const hold = sessionHold(entry.path, { ...liveness, minIdleMinutes: idleMinutes });
+    if (hold.busy) {
+      skip(`${rule}: ${hold.why}`);
+      continue;
+    }
+    entry.holdMinutes = idleMinutes;
+    entry.why = `${rule} - ${entry.why}`;
+  }
+  const kept = new Set(narrowed.worktrees.filter((entry) => entry.action !== 'remove' && entry.branch).map((entry) => entry.branch));
+  for (const list of [narrowed.branches, narrowed.remoteBranches]) {
+    for (const entry of list) {
+      if (entry.action === 'delete' && kept.has(entry.name)) {
+        entry.action = 'skip';
+        entry.why = 'still belongs to a worktree left in place';
+      }
+    }
+  }
+  return narrowed;
+}
+
 function remoteBranchRef(name) {
   return `refs/remotes/origin/${name}`;
 }
@@ -263,6 +362,26 @@ function deleteRemoteBranch(name, expectedHead, cwd) {
     ],
     cwd,
   );
+}
+
+/**
+ * `git branch -d`, judged against `origin/main`. Lowercase `-d` stays the backstop git itself
+ * enforces - it refuses a branch that is not merged - but git measures "merged" against the
+ * branch's upstream, or against HEAD when it has none. Harness branches have no upstream, so that
+ * was the primary checkout's LOCAL main, which lags every landing (they reach origin only); and a
+ * branch whose GitHub copy was deleted at merge falls back to the same HEAD. So the upstream is
+ * pointed at origin/main first - the same ref every containment check here already uses - and put
+ * back if git refuses anyway.
+ */
+function deleteMergedBranch(name, cwd) {
+  const before = git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', `${name}@{upstream}`], cwd);
+  git(['branch', `--set-upstream-to=${REMOTE_MAIN}`, name], cwd);
+  const deleted = git(['branch', '-d', name], cwd);
+  if (!deleted.ok) {
+    if (before.ok && before.stdout) git(['branch', `--set-upstream-to=${before.stdout}`, name], cwd);
+    else git(['branch', '--unset-upstream', name], cwd);
+  }
+  return deleted;
 }
 
 /** True when every commit of `ref` is already reachable from `target`. */
@@ -624,7 +743,7 @@ export function applySelf(
   done.folderRemains = existsSync(plan.path);
 
   // Lowercase -d only, as everywhere else here: it refuses anything not fully merged.
-  const deleted = git(['branch', '-d', plan.branch], plan.primaryRoot);
+  const deleted = deleteMergedBranch(plan.branch, plan.primaryRoot);
   if (deleted.ok) done.deletedBranch = plan.branch;
   else done.errors.push(`worktree removed, but the branch was kept: ${deleted.stderr || deleted.stdout || 'git branch -d refused'}`);
 
@@ -935,6 +1054,18 @@ export function assess(cwd, { liveness = {} } = {}) {
   return plan;
 }
 
+/**
+ * Move a worktree to a sibling path that nothing knows, through git so its metadata follows.
+ * Returns `{ ok, path }`, or `{ ok: false, why }` when the folder could not be moved - on Windows
+ * that is a process holding it - in which case nothing changed.
+ */
+function moveAside(path, primaryRoot) {
+  const aside = join(dirname(path), `.removing-${basename(path)}-${process.pid}`);
+  const moved = git(['worktree', 'move', path, aside], primaryRoot);
+  if (moved.ok && worktreeBranches(primaryRoot).has(normalize(aside))) return { ok: true, path: normalize(aside) };
+  return { ok: false, why: `in use, left in place (${moved.stderr || moved.stdout || 'git worktree move failed'})` };
+}
+
 function currentPrimaryBranch(primaryRoot) {
   return git(['symbolic-ref', '-q', '--short', 'HEAD'], primaryRoot).stdout || null;
 }
@@ -948,9 +1079,11 @@ function worktreeStillSafeToRemove(worktree, primaryRoot, liveness = {}) {
   if (current.locked) return false;
   // A session may have opened the folder since the assessment - which is only true if the scan
   // is redone. The cache is per (root, window), so without this reset the "re-check" would
-  // return the snapshot assess() took, possibly minutes and several archive copies ago.
+  // return the snapshot assess() took, possibly minutes and several archive copies ago. An
+  // unattended removal is re-asked over its own, longer, idle window.
   resetSessionScanCache();
-  if (sessionHold(worktree.path, liveness).busy) return false;
+  const hold = worktree.holdMinutes ? { ...liveness, minIdleMinutes: worktree.holdMinutes } : liveness;
+  if (sessionHold(worktree.path, hold).busy) return false;
   // The same rule the assessment applied, re-asked: a worktree that went detached between the two
   // is infrastructure or an investigation now, whatever it was when the plan was made.
   if (infrastructureReason({ path: worktree.path, primaryRoot, branch: current.branch })) return false;
@@ -1008,6 +1141,7 @@ export function applyPlan(
 ) {
   const done = {
     removedWorktrees: [],
+    held: [], // { path, why } - in use by some process right now: skipped, untouched
     reapedDelegations: [], // { path, said } - each worktree's finished delegations, on the way out
     archived: [], // { path, destination, files, bytes }
     deletedBranches: [],
@@ -1073,27 +1207,49 @@ export function applyPlan(
       continue;
     }
 
-    const res = git(['worktree', 'remove', w.path], plan.primaryRoot); // never --force
-    // Judge by REGISTRATION, not exit code, exactly as applySelf does. On Windows a folder
-    // something holds open is deregistered and emptied, and only the rmdir fails - reporting
-    // that as `[FAILED]` claimed the worktree survived while every file in it was already gone,
-    // and the branch deletions below then ran anyway.
-    if (!worktreeBranches(plan.primaryRoot).has(normalize(w.path))) {
+    // NEVER PULL A FOLDER OUT FROM UNDER A PROCESS. Measured on Windows: `git worktree remove`
+    // on a folder some process sits in deletes every file and fails only on the empty directory -
+    // the files are gone before anything refuses. So the worktree is first MOVED aside, which is
+    // a rename, and a rename is exactly what Windows refuses while any process has its working
+    // directory or an open file anywhere inside (EBUSY/EPERM, measured 2026-10-08). A refusal is
+    // "somebody is in there": skipped, nothing touched. A move that succeeds also means no
+    // session can start in the old path while the removal runs - the desktop app finds the
+    // folder gone and makes a new one.
+    const moved = moveAside(w.path, plan.primaryRoot);
+    if (!moved.ok) {
+      done.held.push({ path: w.path, why: moved.why });
+      continue;
+    }
+    const res = git(['worktree', 'remove', moved.path], plan.primaryRoot); // never --force
+    // Judge by REGISTRATION, not exit code, exactly as applySelf does.
+    if (!worktreeBranches(plan.primaryRoot).has(normalize(moved.path))) {
       done.removedWorktrees.push(w.path);
-      if (existsSync(w.path)) {
+      if (existsSync(moved.path)) {
         done.errors.push(
-          `worktree ${w.path}: removed and emptied, but the now-empty folder is still held open - ` +
+          `worktree ${w.path}: removed, but its emptied folder ${moved.path} is still on disk - ` +
             'it is swept once whatever holds it exits',
         );
       }
     } else {
-      done.errors.push(`worktree remove ${w.path}: ${res.stderr || res.stdout || 'failed (folder may be locked/busy)'}`);
+      // git refused (something appeared that it protects). Put the worktree back where its owner
+      // expects it, and say so.
+      const back = git(['worktree', 'move', moved.path, w.path], plan.primaryRoot);
+      done.errors.push(
+        `worktree remove ${w.path}: ${res.stderr || res.stdout || 'git refused'}` +
+          (back.ok ? '' : ` - and it could not be moved back from ${moved.path}: ${back.stderr || back.stdout}`),
+      );
     }
   }
+
+  // A worktree left in place because something is in it keeps its branch, here and on GitHub.
+  const heldBranches = new Set(
+    plan.worktrees.filter((w) => w.branch && done.held.some((h) => samePath(h.path, w.path))).map((w) => w.branch),
+  );
 
   // Re-derive deletable branches after removals (a just-freed branch is now deletable). Keep
   // the same containment gate; `git branch -d` is the final backstop that refuses unmerged.
   for (const b of plan.branches.filter((x) => x.action === 'delete')) {
+    if (heldBranches.has(b.name)) continue;
     if (
       !managedBranch(b.name) ||
       !b.head ||
@@ -1103,7 +1259,7 @@ export function applyPlan(
       done.errors.push(`branch ${b.name}: identity or backup state changed after assessment - skipped`);
       continue;
     }
-    const res = git(['branch', '-d', b.name], plan.primaryRoot);
+    const res = deleteMergedBranch(b.name, plan.primaryRoot);
     if (res.ok) done.deletedBranches.push(b.name);
     else done.errors.push(`branch -d ${b.name}: ${res.stderr || res.stdout || 'refused'}`);
   }
@@ -1112,6 +1268,7 @@ export function applyPlan(
   // deletion to the exact head assessed after the latest fetch; if somebody pushed meanwhile,
   // Git refuses the delete and the work survives.
   for (const b of plan.remoteBranches.filter((x) => x.action === 'delete')) {
+    if (heldBranches.has(b.name)) continue;
     const localStillExists = git(
       ['show-ref', '--verify', '--quiet', `refs/heads/${b.name}`],
       plan.primaryRoot,
@@ -1218,7 +1375,13 @@ function report(plan, done) {
   L.push('');
   L.push(`## Worktrees to remove (${toRemove.length})`);
   for (const w of toRemove) {
-    const applied = done ? (done.removedWorktrees.some((p) => samePath(p, w.path)) ? ' [removed]' : ' [FAILED]') : '';
+    const applied = !done
+      ? ''
+      : done.removedWorktrees.some((p) => samePath(p, w.path))
+        ? ' [removed]'
+        : (done.held ?? []).some((h) => samePath(h.path, w.path))
+          ? ' [in use - left in place]'
+          : ' [FAILED]';
     L.push(`  - ${w.path} (${w.why})${applied}`);
     for (const line of ignoredSummary(w)) L.push(`      ${line}`);
   }
@@ -1265,6 +1428,7 @@ function report(plan, done) {
 
   const skips = [
     ...wtSkip.map((w) => `worktree ${w.path}: ${w.why}`),
+    ...(done?.held ?? []).map((h) => `worktree ${h.path}: ${h.why}`),
     ...brSkip.map((b) => `branch ${b.name}: ${b.why}`),
     ...remoteSkip.map((b) => `branch origin/${b.name}: ${b.why}`),
   ];
@@ -1350,8 +1514,118 @@ function report(plan, done) {
   return L.join('\n');
 }
 
-// CLI: `node scripts/cleanup-worktrees.mjs [--apply] [--acknowledge-risks]`
+/**
+ * Fast-forward the primary checkout's `main` to `origin/main`, exactly as the handoff workflow
+ * does by hand (`git pull --ff-only`) and under the same conditions: on `main`, clean, nothing in
+ * progress, and strictly behind. Landings reach origin only, so without this the local ref lags
+ * every landing and the branch rule ("contained in local main AND origin/main") never passes for
+ * the branches this sweep exists to delete. Anything else and it does nothing; returns whether it
+ * moved.
+ */
+export function advanceLocalMain(primaryRoot) {
+  if (currentPrimaryBranch(primaryRoot) !== MAIN) return false;
+  const status = git(['status', '--porcelain'], primaryRoot);
+  if (!status.ok || status.stdout !== '' || operationInProgress(primaryRoot)) return false;
+  const behind = git(['rev-list', '--count', `${MAIN}..${REMOTE_MAIN}`], primaryRoot);
+  if (!behind.ok || behind.stdout === '0') return false;
+  if (!git(['merge-base', '--is-ancestor', MAIN, REMOTE_MAIN], primaryRoot).ok) return false;
+  return git(['merge', '--ff-only', '--quiet', REMOTE_MAIN], primaryRoot).ok;
+}
+
+/**
+ * THE UNATTENDED SWEEP - what session start and every landing run in the background
+ * (`triggerUnattendedSweep` in worktree-cleanup-lib.mjs), so finished work goes without anyone
+ * invoking this workflow. The same assessment and the same apply as a person's `--apply`, then
+ * narrowed by `unattendedPlan`: only what is safe AND covered by an unattended rule is acted on,
+ * and anything that needs a person is never touched - it is written to `last.json` for the
+ * orchestrator's session start to report. Takes the sweep lock, so it never runs beside another.
+ *
+ * Every collaborator is injectable; the defaults are the real ones. Returns
+ * `{ ran, why, plan, done, risks }`.
+ */
+export function runUnattended(
+  cwd,
+  {
+    stateDir = cleanupStateDir(primaryCheckout(cwd)),
+    refresh = (root) => git(['fetch', 'origin', '--prune'], root),
+    landings = () => {
+      const dir = jobsDir();
+      if (!dir) return [];
+      syncLandings(dir);
+      return readLandings(dir);
+    },
+    jobs = () => {
+      const dir = jobsDir();
+      return dir ? readJobs(dir) : [];
+    },
+    liveness = {},
+    applyOptions = {},
+    now = () => new Date(),
+  } = {},
+) {
+  const primaryRoot = primaryCheckout(cwd);
+  if (!primaryRoot || !stateDir) return { ran: false, why: 'not inside a git checkout' };
+  const lock = acquireSweepLock(stateDir);
+  if (!lock.ok) return { ran: false, why: lock.why };
+
+  const record = (result) => {
+    try {
+      mkdirSync(stateDir, { recursive: true });
+      const done = result.done;
+      writeFileSync(
+        join(stateDir, 'last.json'),
+        `${JSON.stringify(
+          {
+            at: now().toISOString(),
+            ran: result.ran,
+            why: result.why ?? null,
+            removed: done?.removedWorktrees ?? [],
+            held: done?.held ?? [],
+            archived: done?.archived ?? [],
+            deletedBranches: done?.deletedBranches ?? [],
+            deletedRemoteBranches: done?.deletedRemoteBranches ?? [],
+            releasedPorts: done?.releasedPorts ?? [],
+            needsPerson: result.risks ?? [],
+            errors: done?.errors ?? [],
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      if (result.plan) writeFileSync(join(stateDir, 'last.txt'), `${report(result.plan, done ?? null)}\n`);
+    } catch {
+      // A report that cannot be written must not undo a cleanup that happened.
+    }
+    return result;
+  };
+
+  try {
+    markSweepStart(stateDir);
+    const fetched = refresh(primaryRoot);
+    if (!fetched?.ok) {
+      return record({ ran: false, why: `could not refresh origin: ${fetched?.stderr || fetched?.stdout || 'git fetch failed'}` });
+    }
+    advanceLocalMain(primaryRoot);
+    const plan = assess(cwd, { liveness });
+    if (!plan.ok) return record({ ran: false, why: plan.reason });
+    const landed = new Set((landings() ?? []).map((entry) => entry?.branch).filter(Boolean));
+    const liveCheckouts = pending(jobs() ?? []).map((job) => job.checkout);
+    const narrowed = unattendedPlan(plan, { landed, liveCheckouts, liveness });
+    const done = applyPlan(narrowed, cwd, { liveness, ...applyOptions });
+    return record({ ran: true, plan: narrowed, done, risks: assessmentRisks(plan) });
+  } finally {
+    lock.release();
+  }
+}
+
+// CLI: `node scripts/cleanup-worktrees.mjs [--apply] [--acknowledge-risks] | --unattended | --self [--apply]`
 // Default is a dry run. Risk acknowledgement is valid only after the user approves the safe subset.
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--unattended')) {
+  const result = runUnattended(normalize(process.cwd()));
+  console.log(result.ran ? report(result.plan, result.done) : `Unattended cleanup did not run: ${result.why}`);
+  process.exit(0);
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && process.argv.includes('--self')) {
   // Self mode: the handoff workflow's last action. Dry run by default, like the bulk mode.
   const selfCwd = normalize(process.cwd());
@@ -1437,7 +1711,21 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(2);
   }
 
-  const done = doApply ? applyPlan(plan, cwd) : null;
+  // The same lock the unattended sweep takes: two sweeps must never decide about one worktree.
+  let lock = null;
+  if (doApply) {
+    lock = acquireSweepLock(cleanupStateDir(plan.primaryRoot));
+    if (!lock.ok) {
+      console.log(`Cannot apply now: ${lock.why}. Rerun once it has finished.`);
+      process.exit(2);
+    }
+  }
+  let done = null;
+  try {
+    done = doApply ? applyPlan(plan, cwd) : null;
+  } finally {
+    lock?.release();
+  }
   console.log(report(plan, done));
   process.exit(done?.errors.length ? 1 : 0);
 }
