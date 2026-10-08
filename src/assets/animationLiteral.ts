@@ -3,7 +3,8 @@
  * every reader that decides whether a template HAS a block tests for it - the validator's
  * animation rules and the runtime bench's editability check among them. Separate literals let an
  * emitter change (`const NOACG_ANIM`) disarm those checks silently: they would find no block and
- * report nothing wrong.
+ * report nothing wrong. Saved graphics carry this exact text, so changing the constant itself
+ * needs a migration that also reads the old spelling.
  */
 export const ANIM_DECLARATION = 'var NOACG_ANIM';
 

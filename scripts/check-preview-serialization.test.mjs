@@ -103,6 +103,8 @@ test('module scope survives layout: shapes a line-anchored reading of the text d
     ['const first = 1, second = () => 0;', 'second'],
     ['const { picked } = helpers;', 'picked'],
     ['export default function named() {}', 'named'],
+    // TS-only angle brackets before the declaration: read as TSX they end the statement list.
+    ['const id = <T>(x: T) => x;\nconst v = <HTMLElement>document.body;\nfunction afterCast() {}', 'afterCast'],
   ];
   for (const [declaration, name] of shapes) {
     const file = fixture(`shape-${name}.ts`, [declaration, `const tag = \`\${${name}.toString()}\`;`]);

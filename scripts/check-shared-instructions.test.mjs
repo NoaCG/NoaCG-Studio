@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,6 +60,8 @@ test('shared-instructions gate accepts the repository and refuses instruction dr
   assert.equal(listed.status, 0, listed.output);
   const repoFiles = listed.stdout.split('\0').filter(Boolean);
   for (const file of repoFiles) {
+    // A tracked file deleted but not yet staged is still listed; the gate cannot see it either.
+    if (!existsSync(path.join(ROOT, file))) continue;
     if (/(^|\/)(AGENTS|CLAUDE)\.md$/.test(file)
       || /^(?:\.agent-workflows|\.claude\/(?:commands|skills|agents)|\.agents\/skills|contracts)\//.test(file)
       || ['.codex/config.toml', 'package.json', 'docs/AGENT_WORKFLOWS.md'].includes(file)) {
@@ -94,10 +96,10 @@ test('shared-instructions gate accepts the repository and refuses instruction dr
     assert.ok(result.output.includes('Shared instructions OK:'), result.output);
   }
 
-  // Each refusal has its own clean control and restores its exact bytes, even on assertion failure.
+  // Each refusal restores its exact bytes, even on assertion failure, so the clean runs before the
+  // first refusal and after the last are the control for all of them.
   async function refuses(name, relative, mutate, messages) {
     await t.test(name, () => {
-      checkClean();
       const file = path.join(fixture, relative);
       const original = readFileSync(file);
       let undo;

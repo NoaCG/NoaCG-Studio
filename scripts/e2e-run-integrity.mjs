@@ -14,14 +14,20 @@
 //     verdict may both be partial.
 //
 // Wired into every Playwright config beside the visible reporter, so it covers a run however it is
-// started (`npm run test:e2e`, the affected runner, the job queue, CI). The decision is the pure
-// `runProblems`, tested in scripts/e2e-run-integrity.test.mjs with a stubbed disk.
+// started (`npm run test:e2e`, the affected runner, the job queue, CI) - except a run given its
+// own `--reporter` on the command line, which replaces the config's list. It is the LAST reporter
+// on purpose: the others print their summary first, and the reason a pass is refused comes after.
+// The decision is the pure `runProblems`, tested in scripts/e2e-run-integrity.test.mjs with a
+// stubbed disk.
 import { statfsSync } from 'node:fs';
 
 /** Below this much free space at the end of a run, the run is about the disk, not the product. */
 export const DISK_FLOOR_BYTES = 1024 ** 3;
 
 const ENOSPC = /\bENOSPC\b|no space left on device/i;
+// Linux reports an exhausted inotify watch limit as ENOSPC too, and the dev server's watcher logs
+// it through the reporter. That is not a full disk.
+const WATCH_LIMIT = /file watchers/i;
 
 /** True when an error or output chunk reports the disk filling. */
 export function mentionsEnospc(value) {
@@ -29,7 +35,7 @@ export function mentionsEnospc(value) {
   const text = typeof value === 'string' || Buffer.isBuffer(value)
     ? String(value)
     : [value.message, value.stack, value.value].filter(Boolean).join('\n');
-  return ENOSPC.test(text);
+  return ENOSPC.test(text) && !WATCH_LIMIT.test(text);
 }
 
 /** Free bytes on the volume holding `dir`, or null when it cannot be read. */

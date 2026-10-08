@@ -65,7 +65,7 @@ const IGNORE_MARKER = 'check-preview-serialization: not a function';
  * stayed in the file. The TypeScript parser reads the module's top-level statements the way the
  * bundler does, whatever their layout.
  */
-export function moduleScopeNames(text) {
+export function moduleScopeNames(text, fileName = 'module.ts') {
   const names = new Set();
   const bind = (node) => {
     if (!node) return;
@@ -74,7 +74,10 @@ export function moduleScopeNames(text) {
       for (const element of node.elements) if (!ts.isOmittedExpression(element)) bind(element.name);
     }
   };
-  const source = ts.createSourceFile('module.tsx', text, ts.ScriptTarget.Latest, false, ts.ScriptKind.TSX);
+  // By extension: parsed as TSX, a .ts file's `<T>(x) => x` or `<HTMLElement>el` stops the parser
+  // reading top-level statements, and every name after it would drop out of the table.
+  const kind = fileName.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, false, kind);
   for (const statement of source.statements) {
     if (ts.isImportDeclaration(statement)) {
       const clause = statement.importClause;
@@ -117,7 +120,7 @@ export function findViolations(files, stats = {}) {
     const matches = [...text.matchAll(SERIALIZED)];
     if (matches.length === 0) continue;
     const lines = text.split('\n');
-    const bound = moduleScopeNames(text);
+    const bound = moduleScopeNames(text, file);
     resolved += bound.size;
     for (const match of matches) {
       if (!bound.has(match[1])) continue;

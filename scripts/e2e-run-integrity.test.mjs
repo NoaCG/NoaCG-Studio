@@ -72,6 +72,8 @@ test('an unreadable disk is not a problem by itself, and the floor is a real num
   assert.ok(DISK_FLOOR_BYTES > 0);
   assert.deepEqual(runProblems({ planned: 1, unreported: 0, enospc: false, free: DISK_FLOOR_BYTES }), []);
   assert.equal(mentionsEnospc({ message: 'Timed out 5000ms' }), false);
+  // Linux's inotify limit borrows the code; the disk is fine.
+  assert.equal(mentionsEnospc('Error: ENOSPC: System limit for number of file watchers reached'), false);
 });
 
 test('every Playwright config wires the reporter in', () => {
