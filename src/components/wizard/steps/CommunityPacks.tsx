@@ -34,8 +34,9 @@ import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
  * The shelf is where packs are got AND given (spec D8): the NoaCG seeds (the built index under
  * public/packs/community/), then the approved shared packs (migration 0079), a Submit a pack
  * door, the maker's own submissions under Your packs, and - for a NoaCG admin - what waits for
- * review. Until the design lock lands, submitting is open to admins only (D12), on the server
- * and here.
+ * review. A live pack of the maker's takes an update, a new version that waits for review while
+ * the live one stays on the shelf (AC-11). Until the design lock lands, submitting is open to
+ * admins only (D12), on the server and here.
  */
 
 /** One shelf entry, as public/packs/community/index.json lists it. */
@@ -70,7 +71,19 @@ interface Props {
 const cardKey = (card: Card) => `card:${card.kind}:${card.id}`;
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** A first version says nothing; an update says which version it is. */
+const versionNote = (version: number) => (version > 1 ? ` · version ${version}` : '');
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** What withdrawing a pack does, said in the confirmation. An in-review version above the first is
+ *  an update: the live version stays. A live pack takes its waiting update with it. */
+function withdrawCopy(p: MyPack, updateWaits: boolean): string {
+  if (p.state !== 'live') {
+    return p.version > 1 ? 'It leaves the review queue now. The live version stays on the shelf.' : 'It leaves the review queue now.';
+  }
+  const update = updateWaits ? ' and its waiting update is withdrawn with it' : '';
+  return `It leaves the shelf now${update}. Productions people already installed from it stay theirs.`;
+}
 
 /** The seed index, read once per page: switching Browse's answer back and forth remounts this
  *  component, and the list is static for the life of the deployment. A failed read is not kept,
@@ -115,7 +128,7 @@ function readInto<T>(read: () => Promise<T>, set: (value: T) => void): () => voi
 
 async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: FromPack }> {
   if (card.kind === 'shared') {
-    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.id), version: card.version, author: card.author } };
+    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.lineage), version: card.version, author: card.author } };
   }
   const res = await fetch(`${SHELF}${card.file}`);
   if (!res.ok) throw new Error(`The pack could not be downloaded (${res.status}).`);
@@ -205,6 +218,7 @@ function ReviewRow({ pack, busy, onTry, onDecide }: {
         <strong>{pack.name}</strong>
         <span className="hint">
           {pack.description} · {plural(pack.graphics, 'graphic')} · by {pack.author}
+          {versionNote(pack.version)}
         </span>
         {findings === null ? (
           <span className="hint">Checking…</span>
@@ -247,7 +261,8 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   const [busy, setBusy] = useState<string | null>(null);
   // Every action is single-flight (every button disables while one runs), so one note at a time.
   const [note, setNote] = useState<{ id: string; message: string } | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  // The submit sheet: a new pack, or an update of one of the maker's live packs.
+  const [sheet, setSheet] = useState<{ updating?: MyPack } | null>(null);
   const [withdrawing, setWithdrawing] = useState<MyPack | null>(null);
   const [takingDown, setTakingDown] = useState<string | null>(null);
 
@@ -321,13 +336,15 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
     });
 
   const offered = (seeds?.length ?? 0) + shared.length;
+  // The maker's packs with a version waiting for review: one waits at a time.
+  const waitingLineages = useMemo(() => new Set(mine.filter((p) => p.state === 'in_review').map((p) => p.lineage)), [mine]);
 
   return (
     <div className="wz-community" data-testid="community-packs">
       <div className="wz-community-head">
         <p className="wz-kit-lede">Install one and it opens as a production, rundown included.</p>
         {moderator && (
-          <button type="button" onClick={() => setSubmitting(true)} data-testid="submit-pack-open">
+          <button type="button" onClick={() => setSheet({})} data-testid="submit-pack-open">
             Submit a pack
           </button>
         )}
@@ -341,14 +358,25 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
               <li key={p.id} className="wz-community-row" data-my-pack={p.id}>
                 <div className="wz-community-row-text">
                   <strong>{p.name}</strong>
-                  <span className={`wz-community-state is-${p.state}`}>{PACK_STATE_LABEL[p.state]}</span>
+                  <span className={`wz-community-state is-${p.state}`}>
+                    {PACK_STATE_LABEL[p.state]}
+                    {versionNote(p.version)}
+                  </span>
                   {p.reason && <span className="hint">{p.reason}</span>}
                   {note?.id === `mine:${p.id}` && <span className="wz-community-error" role="alert">{note.message}</span>}
                 </div>
                 {(p.state === 'in_review' || p.state === 'live') && (
-                  <button type="button" disabled={busy !== null} onClick={() => setWithdrawing(p)}>
-                    Withdraw
-                  </button>
+                  <div className="wz-community-row-actions">
+                    {/* The door is the submit door's (D12). */}
+                    {moderator && p.state === 'live' && !waitingLineages.has(p.lineage) && (
+                      <button type="button" disabled={busy !== null} onClick={() => setSheet({ updating: p })}>
+                        Submit an update
+                      </button>
+                    )}
+                    <button type="button" disabled={busy !== null} onClick={() => setWithdrawing(p)}>
+                      Withdraw
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
@@ -432,19 +460,22 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
         ))}
       </ul>
 
-      {submitting && (
+      {sheet && (
         <SubmitPackSheet
           lastAuthor={mine[0]?.author ?? ''}
-          onClose={() => setSubmitting(false)}
+          updating={sheet.updating}
+          onClose={() => setSheet(null)}
           onSent={() => {
-            setSubmitting(false);
+            setSheet(null);
             refresh();
           }}
         />
       )}
       {withdrawing && (
         <WizardConfirm
-          title={`Withdraw “${withdrawing.name}”?`}
+          title={withdrawing.state === 'live' || withdrawing.version === 1
+            ? `Withdraw “${withdrawing.name}”?`
+            : `Withdraw the update of “${withdrawing.name}”?`}
           confirmLabel="Withdraw"
           cancelLabel="Keep it"
           testid="withdraw-pack"
@@ -458,11 +489,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
             });
           }}
         >
-          <p>
-            {withdrawing.state === 'live'
-              ? 'It leaves the shelf now. Productions people already installed from it stay theirs.'
-              : 'It leaves the review queue now.'}
-          </p>
+          <p>{withdrawCopy(withdrawing, waitingLineages.has(withdrawing.lineage))}</p>
         </WizardConfirm>
       )}
     </div>

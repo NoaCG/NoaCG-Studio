@@ -1,16 +1,22 @@
-// covers: src/components/wizard/steps/{CommunityPacks,SubmitPackSheet}.tsx, src/community/{packs,packChecks,packSources}.ts, supabase/migrations/0079_community_packs.sql
+// covers: src/components/wizard/steps/{CommunityPacks,SubmitPackSheet}.tsx, src/community/{packs,packChecks,packSources}.ts, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql
 //
 // THE COMMUNITY PACK REVIEW LOOP (docs/work-specs/community-packs/spec.md, first slice): a NoaCG
 // admin submits a folder of their own graphics from the wizard's shelf, sees it In review,
 // approves it from Waiting for review, and a signed-out visitor then finds it beside the seeds and
 // installs it as a production with one starter cue per graphic; Take down removes it again and the
 // maker reads the reason. A signed-in account that is not an admin gets no submit door (D12).
+// Then an update (AC-11): the maker sends a new version of a live pack, it waits for review while
+// the live one stays on the shelf, approval replaces it, and Install gives the new version while
+// the old install stays as it was; withdrawing the live pack takes a waiting update with it. Last,
+// the server itself refuses a submit from an account that is not an admin and from one whose
+// `community.publish` is switched off.
 // Needs the service_role key to mint the two accounts and grant the admin role.
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { mintAccount, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 
+const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const canRun = Boolean(SERVICE_ROLE_KEY && SUPABASE_URL);
 const ADMIN_EMAIL = 'e2e-pack-admin@example.test';
 const MAKER_EMAIL = 'e2e-pack-maker@example.test';
@@ -18,6 +24,41 @@ const PASSWORD = 'e2e-pack-review-pw-1';
 const PACK = `E2E pack ${Date.now()}`;
 /** Frames for a person to look at, off by default: `NOACG_SHOTS=<dir>` writes them. */
 const SHOTS = process.env.NOACG_SHOTS ?? '';
+
+/** Lower thirds of the given names, made in the library and filed in one Home folder. */
+async function makeFolder(page: Page, folder: string, names: string[]): Promise<void> {
+  await page.evaluate(
+    async ({ folder, names }) => {
+      const { variantsFor } = await import('/src/templates/catalog.ts');
+      const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
+      const variants = variantsFor('lower-third');
+      const made = names.map((name, i) => createGraphic(variants[i % variants.length].create({}), { name, packageId: null }));
+      const failed = made.find((m) => m.error);
+      if (failed) throw new Error(failed.error ?? '');
+      const error = setGraphicsFolder(made.map((m) => m.doc.id), folder);
+      if (error) throw new Error(error);
+    },
+    { folder, names },
+  );
+}
+
+/** How many graphics each of this browser's productions of that name holds, fewest first. */
+async function productionSizes(page: Page, name: string): Promise<number[]> {
+  return page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows()
+      .filter((s) => s.name === name)
+      .map((s) => s.graphics.length)
+      .sort((a, b) => a - b);
+  }, name);
+}
+
+/** Install the shelf's card of that name and land on its production, one starter cue per graphic. */
+async function install(page: Page, name: string, cues: number): Promise<void> {
+  await page.locator('.wz-community-card', { hasText: name }).getByRole('button', { name: `Install ${name}` }).click();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('select-cue')).toHaveCount(cues);
+}
 
 async function openShelf(page: Page): Promise<void> {
   await page.goto('/app#/new');
@@ -52,17 +93,7 @@ test.describe('community pack review (configured)', () => {
 
   test('an admin submits a folder, approves it, a visitor installs it, and Take down removes it', async ({ page, browser }) => {
     await signInOnHome(page, ADMIN_EMAIL, PASSWORD);
-    await page.evaluate(async (folder) => {
-      const { variantsFor } = await import('/src/templates/catalog.ts');
-      const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
-      const made = variantsFor('lower-third')
-        .slice(0, 2)
-        .map((v, i) => createGraphic(v.create({}), { name: `Third ${i + 1}`, packageId: null }));
-      const failed = made.find((m) => m.error);
-      if (failed) throw new Error(failed.error ?? '');
-      const error = setGraphicsFolder(made.map((m) => m.doc.id), folder);
-      if (error) throw new Error(error);
-    }, PACK);
+    await makeFolder(page, PACK, ['Third 1', 'Third 2']);
 
     // SUBMIT: the folder, its two graphics ticked, a description and a chosen name.
     await openShelf(page);
@@ -119,9 +150,7 @@ test.describe('community pack review (configured)', () => {
       await visitor.screenshot({ path: `${SHOTS}/shared-card-phone.png` });
       await visitor.setViewportSize({ width: 1366, height: 768 });
     }
-    await card.getByRole('button', { name: `Install ${PACK}` }).click();
-    await expect(visitor.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
-    await expect(visitor.getByTestId('select-cue')).toHaveCount(2);
+    await install(visitor, PACK, 2);
 
     // An account that is not an admin has no submit door while D12 holds.
     const maker = await browser.newPage();
@@ -159,5 +188,129 @@ test.describe('community pack review (configured)', () => {
     await page.getByTestId('withdraw-pack-go').click();
     await expect(second).toContainText('Withdrawn');
     await expect(page.getByTestId('waiting-packs')).toHaveCount(0);
+  });
+
+  test('a maker updates a live pack: the update waits beside it, approval replaces it, and Install gives the new one', async ({ page, browser }) => {
+    const SERIES = `${PACK} series`;
+    await signInOnHome(page, ADMIN_EMAIL, PASSWORD);
+    await makeFolder(page, SERIES, ['Opener', 'Closer']);
+
+    // Version 1: the folder's first graphic only, approved onto the shelf.
+    await openShelf(page);
+    await page.getByTestId('submit-pack-open').click();
+    const sheet = page.getByTestId('submit-pack');
+    await sheet.getByTestId('submit-pack-source').selectOption(`folder:${SERIES}`);
+    await sheet.getByRole('checkbox').nth(1).uncheck();
+    await sheet.getByTestId('submit-pack-description').fill('A series opener');
+    await sheet.getByTestId('submit-pack-author').fill('Pack Tester');
+    await sheet.getByTestId('submit-pack-go').click();
+    await expect(sheet).toHaveCount(0);
+    const waiting = page.getByTestId('waiting-packs').locator('.wz-community-row', { hasText: SERIES });
+    await waiting.getByRole('button', { name: 'Approve' }).click();
+    const mine = page.getByTestId('your-packs').locator('.wz-community-row', { hasText: SERIES });
+    await expect(mine).toHaveCount(1);
+    await expect(mine).toContainText('Live');
+
+    // A visitor installs version 1 before the update exists.
+    const visitor = await browser.newPage();
+    await openShelf(visitor);
+    await install(visitor, SERIES, 1);
+
+    // UPDATE: the same sheet, filled from the live version; both graphics go in this time.
+    await mine.getByRole('button', { name: 'Submit an update' }).click();
+    const update = page.getByTestId('submit-pack');
+    await expect(update).toContainText(`Update “${SERIES}”`);
+    await expect(update.getByTestId('submit-pack-source')).toHaveValue(`folder:${SERIES}`);
+    await expect(update.getByRole('checkbox')).toHaveCount(2);
+    await expect(update.getByTestId('submit-pack-name')).toHaveValue(SERIES);
+    await expect(update.getByTestId('submit-pack-description')).toHaveValue('A series opener');
+    await expect(update.getByTestId('submit-pack-author')).toHaveValue('Pack Tester');
+    await update.getByTestId('submit-pack-description').fill('A series opener and closer');
+    await update.getByTestId('submit-pack-go').click();
+    await expect(update).toHaveCount(0);
+
+    // The update waits for review while the live version stays on the shelf; one waits at a time.
+    await expect(mine).toHaveCount(2);
+    await expect(mine.filter({ hasText: 'In review' })).toContainText('version 2');
+    await expect(mine.filter({ hasText: 'Live' }).getByRole('button', { name: 'Submit an update' })).toHaveCount(0);
+    const live = page.locator('.wz-community-card', { hasText: SERIES });
+    await expect(live).toHaveCount(1);
+    await expect(live).toContainText('1 graphic');
+    await expect(waiting).toContainText('version 2');
+    await expect(waiting).toContainText('Checks passed');
+    if (SHOTS) {
+      await page.getByTestId('your-packs').scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${SHOTS}/update-waiting-desktop.png` });
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.getByTestId('your-packs').scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${SHOTS}/update-waiting-phone.png` });
+      await page.setViewportSize({ width: 1366, height: 768 });
+    }
+
+    // Approval replaces the old version: one row, one card, the new contents.
+    await waiting.getByRole('button', { name: 'Approve' }).click();
+    await expect(mine).toHaveCount(1);
+    await expect(mine).toContainText('Live · version 2');
+    await expect(live).toHaveCount(1);
+    await expect(live).toContainText('2 graphics');
+    if (SHOTS) {
+      await live.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${SHOTS}/update-approved-desktop.png` });
+    }
+
+    // Install now gives version 2; the production installed from version 1 is as it was.
+    await openShelf(visitor);
+    const card = visitor.locator('.wz-community-card', { hasText: SERIES });
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText('A series opener and closer');
+    await install(visitor, SERIES, 2);
+    expect(await productionSizes(visitor, SERIES)).toEqual([1, 2]);
+
+    // WITHDRAW the live pack while another update waits: both go, and the shelf stops offering it.
+    await mine.getByRole('button', { name: 'Submit an update' }).click();
+    await page.getByTestId('submit-pack-go').click();
+    await expect(mine.filter({ hasText: 'In review' })).toContainText('version 3');
+    await mine.filter({ hasText: 'Live' }).getByRole('button', { name: 'Withdraw' }).click();
+    await expect(page.getByTestId('withdraw-pack')).toContainText('its waiting update is withdrawn with it');
+    await page.getByTestId('withdraw-pack-go').click();
+    await expect(mine.filter({ hasText: 'Withdrawn' })).toHaveCount(2);
+    await expect(live).toHaveCount(0);
+    await expect(page.getByTestId('waiting-packs')).toHaveCount(0);
+  });
+
+  test('the server refuses a submit from an account that is not an admin, and from one with community.publish off', async () => {
+    test.skip(!ANON_KEY, 'set VITE_SUPABASE_ANON_KEY to sign in as the two accounts');
+    const pack = { format: 'noacg-pack', version: 1, name: 'x', graphics: [{ name: 'A' }] };
+    const submitAs = async (email: string) => {
+      const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+      const { error: signInError } = await client.auth.signInWithPassword({ email, password: PASSWORD });
+      if (signInError) throw new Error(signInError.message);
+      const { error } = await client.rpc('community_pack_submit', {
+        p_name: 'Refused',
+        p_description: 'Should not be stored',
+        p_author: 'Nobody',
+        p_pack: pack,
+      });
+      return error?.message ?? null;
+    };
+
+    expect(await submitAs(MAKER_EMAIL)).toBe('Submitting packs is open to NoaCG only for now.');
+
+    // An admin's per-account switch: a permanent override that denies (migration 0022).
+    const { error } = await admin.from('user_grants').insert({
+      user_id: ids[0],
+      kind: 'feature',
+      key: 'community.publish',
+      value: { value: false },
+      reason: 'e2e community packs',
+    });
+    if (error) throw new Error(error.message);
+    try {
+      expect(await submitAs(ADMIN_EMAIL)).toBe('This account cannot submit packs.');
+    } finally {
+      await admin.from('user_grants').delete().eq('user_id', ids[0]).eq('key', 'community.publish');
+    }
+    const { count } = await admin.from('community_packs').select('id', { count: 'exact', head: true }).eq('name', 'Refused');
+    expect(count).toBe(0);
   });
 });

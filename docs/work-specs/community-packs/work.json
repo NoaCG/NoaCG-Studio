@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "c819d350cbbbe578cedaee25ae7449768be1952b3f29a33facc4c59a8677bb08",
+  "specSha256": "a9504a542fbcaca32fa56ddedacdd0a6a4c7f80424d3668ce8e36dc851045ec3",
   "authority": {
     "status": "agreed",
-    "source": "owner ruling 2026-10-02 (wave 2026-10-02d row BV): three template categories - Templates, Kits, Community packs; a community pack is finished, installed and used at once and cannot be modified; the community makes and shares them; a shared pack passes automatic checks (validate, bench, no outside network calls) and a NoaCG admin's approval before anyone else sees it; NoaCG seeds the shelf first. Owner answers 2026-10-08 (wave 2026-10-08 row K): submit and Your packs on the wizard's Community packs shelf, never from Playout; a pack is a set of the maker's own graphics with no rundown required; the maker picks the name shown, never their real name or email; admin review on the shelf; updates never change installs; approved packs visible to everyone; the maker withdraws at once; the decision shows only as a status"
+    "source": "owner ruling 2026-10-02 (wave 2026-10-02d row BV): three template categories - Templates, Kits, Community packs; a community pack is finished, installed and used at once and cannot be modified; the community makes and shares them; a shared pack passes automatic checks (validate, bench, no outside network calls) and a NoaCG admin's approval before anyone else sees it; NoaCG seeds the shelf first. Owner answers 2026-10-08 (wave 2026-10-08 row K): submit and Your packs on the wizard's Community packs shelf, never from Playout; a pack is a set of the maker's own graphics with no rundown required; the maker picks the name shown, never their real name or email; admin review on the shelf; updates never change installs; approved packs visible to everyone; the maker withdraws at once; the decision shows only as a status. Owner 2026-10-08 (wave row D): the D12 order stays, so updates (AC-11) and the community.publish check on submit come before submit opens to every maker"
   },
   "review": null
 }

@@ -8,14 +8,15 @@ import {
   checkPackSize,
   type PackFinding,
 } from '../../../community/packChecks';
-import { submitPack } from '../../../community/packs';
+import { submitPack, type MyPack } from '../../../community/packs';
 
 /**
  * SUBMIT A PACK - the community shelf's giving half (docs/work-specs/community-packs/spec.md
  * AC-6, AC-7). One sheet: pick one of your folders or personal productions, keep the graphics
  * you want, name and describe the pack, choose the name it is shown under, read the checks and
  * the licence, Send for review. The checks run as the sheet changes; the primary stays off until
- * nothing refuses.
+ * nothing refuses. An update of a live pack (AC-11) is the same sheet, filled from the live
+ * version, and sends a new version that waits for review beside it.
  */
 
 /** What the checks refused, each naming its graphic - the sheet's list and the admin's review row. */
@@ -32,18 +33,23 @@ export function PackFindings({ findings, testid }: { findings: PackFinding[]; te
 interface Props {
   /** The name this maker chose on their previous pack - the only pre-fill allowed (D15). */
   lastAuthor: string;
+  /** The live pack this sends a new version of; absent for a new pack. */
+  updating?: MyPack;
   onClose: () => void;
   onSent: () => void;
 }
 
-export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) {
+export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent }: Props) {
   const sources = useMemo(() => packSources(), []);
-  const [sourceId, setSourceId] = useState(sources[0]?.id ?? '');
+  // An update starts from the source bearing the pack's name, or from none: a guess at another
+  // folder would send its graphics as the pack's next version.
+  const first = updating ? sources.find((s) => s.name === updating.name) : sources[0];
+  const [sourceId, setSourceId] = useState(first?.id ?? '');
   const source = sources.find((s) => s.id === sourceId) ?? null;
   const [off, setOff] = useState<Set<string>>(new Set());
-  const [name, setName] = useState(sources[0]?.name ?? '');
-  const [description, setDescription] = useState('');
-  const [author, setAuthor] = useState(lastAuthor);
+  const [name, setName] = useState(updating?.name ?? first?.name ?? '');
+  const [description, setDescription] = useState(updating?.description ?? '');
+  const [author, setAuthor] = useState(updating?.author ?? lastAuthor);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
 
@@ -56,7 +62,7 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
     setSourceId(id);
     setOff(new Set());
     const next = sources.find((s) => s.id === id);
-    if (next) setName(next.name);
+    if (next && !updating) setName(next.name);
   };
 
   const send = async () => {
@@ -66,7 +72,7 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
       const pack = await buildCommunityPack({ name, description, author, graphics: chosen });
       const tooBig = checkPackSize(JSON.stringify(pack));
       if (tooBig) throw new Error(tooBig.message);
-      await submitPack({ name, description, author }, pack);
+      await submitPack({ name, description, author }, pack, updating?.id);
       onSent();
     } catch (error) {
       setFailure(error instanceof Error ? error.message : String(error));
@@ -76,7 +82,7 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
 
   return (
     <WizardConfirm
-      title="Submit a pack"
+      title={updating ? `Update “${updating.name}”` : 'Submit a pack'}
       confirmLabel={busy ? 'Sending…' : 'Send for review'}
       confirmDisabled={busy || findings.length > 0}
       onConfirm={() => void send()}
@@ -91,6 +97,7 @@ export default function SubmitPackSheet({ lastAuthor, onClose, onSent }: Props) 
           <label className="wz-submit-field">
             <span>Graphics from</span>
             <select value={sourceId} onChange={(e) => pick(e.target.value)} data-testid="submit-pack-source">
+              {!source && <option value="">Choose…</option>}
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.kind === 'folder' ? 'Folder' : 'Production'}: {s.name}
