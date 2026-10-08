@@ -31,7 +31,7 @@ import { awaitDurableReady, settleDurableWrites } from '../_durable';
 //      graphic opens on a SECOND computer (a fresh browser context), so it was not only local.
 //
 // Student 1 is the suite's shared test account. Student 2 is minted here through the admin API
-// with the service key, like moderator.spec.ts grants its role, and deleted afterwards (the
+// with the service key, like community-pack-review.spec.ts grants its role, and deleted afterwards (the
 // account's documents go with it, `on delete cascade`).
 
 const canRun = haveCreds && Boolean(SERVICE_ROLE_KEY && SUPABASE_URL);

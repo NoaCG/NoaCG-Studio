@@ -19,7 +19,7 @@ import { parseAnimData } from '../blocks/animData';
 import { spxSteps } from '../blocks/animMachine';
 import { buttonLabel } from '../blocks/controlLabels';
 import { animationBreach } from '../blocks/animationRegion';
-import { publishGate } from '../community/gate';
+import { publishGate } from '../validation/publishGate';
 import { eventButtons, fieldDescriptors, machineStateGroups, type ControlButton } from '../control/controlModel';
 import { ografContract } from '../control/ografContract';
 import { buildGraphicPackage } from '../export/noacgPackage';

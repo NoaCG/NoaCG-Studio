@@ -51,7 +51,7 @@ has no wrapper, because Claude Code loads the same rules from `.claude/rules/` b
 | 2 services | `render/` * | RenderManifest, schedule, tiers, job client | `manifest`, `schedule`, `limits` (the PURE trio), `client` |
 | 2 services | `control/` | ControlMessage protocol, 3 receivers, panel generators | `controlModel`, `receiverScript`, `controlPanelHtml`, `realtimeControl`, `hostedReceiver`, `hostedControl` |
 | 2 services | `video/` | video compile/validate/bridge pipeline | `compile`, `validate`, `playerBridge`, `videoFonts` |
-| 2 services | `community/`, `showchat/` | shared templates, audience send-in | `communityData`, `chatData` |
+| 2 services | `community/`, `showchat/` | community packs, audience send-in | `packs`, `packChecks`, `chatData` |
 | 2 services | `packs/` | the downloadable GRAPHICS PACK format (`.noacgpack.json`): parse/normalize, validate through the export gate, install as a production with layers + cues | `graphicsPack` |
 | 2 services | `audience/` | the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE `AudienceBackend` interface, the in-memory rehearsal provider, the Supabase provider over migration 0035's slug-keyed RPCs, and the framework-free join renderer | `audienceTypes` (the interface + limits), `localAudience`, `audienceData` (`createSupabaseAudience`), `joinSurface` |
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |

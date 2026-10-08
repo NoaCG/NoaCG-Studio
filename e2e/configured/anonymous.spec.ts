@@ -113,7 +113,7 @@ test.describe('anonymous visitor (open editor)', () => {
   });
 
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
-    // An old-EDITOR subject (the AI panel, the Community button). That editor is closed, so
+    // An old-EDITOR subject (the AI panel). That editor is closed, so
     // enableAdvancedMode skips this test until it is rewritten
     // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
     await enableAdvancedMode(page);
@@ -145,16 +145,9 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(page.getByTestId('signin-prompt')).toBeVisible();
     await expect(page.getByTestId('signin-prompt').getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
 
-    // Community opens the sign-in dialog, not an empty gallery. Through a door the door's own
-    // reason leads and the sentence follows it, so a reader who came for the gallery still
-    // learns what the account buys beyond the gallery.
-    await page.getByRole('button', { name: /Community/ }).click();
-    await expect(card).toBeVisible();
-    await expect(card.getByTestId('auth-reason')).toContainText('community');
-    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
-    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
-
     // Esc closes the dialog — signing in is always optional.
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(card).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(card).toHaveCount(0);
   });
