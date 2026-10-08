@@ -17,7 +17,7 @@ import { test, expect, type CDPSession, type ConsoleMessage, type Page, type Fra
 import { fileURLToPath } from 'node:url';
 import { chooseType, pickDesign } from './_browse';
 import { dropSvg } from './_svg-import';
-import { PREVIEW_CMD_TYPE } from '../src/preview/previewProtocol';
+import { PREVIEW_BOX_TYPE, PREVIEW_CMD_TYPE } from '../src/preview/previewProtocol';
 
 // The wizard's live preview must FEEL live: every choice lands in the composed iframe,
 // rapid changes settle on the LAST choice, and the lifecycle demo on the Animation step
@@ -480,23 +480,54 @@ async function noteDemoOuts(page: Page) {
   );
 }
 
+/** The console line the page writes when a preview document reports its first frame, with its clock. */
+const FIRST_FRAME = '[preview-first-box]';
+
+/**
+ * Have the page say when each new preview document reports its FIRST FRAME: the first
+ * `spx-preview-box` it posts, right after its `play()` or settle, which is the very message
+ * WizardPreview drops the afterimage on. Registered before the app's own listener, so the time is
+ * taken before the afterimage goes. Only the live frame counts (the afterimage's sits in a closed
+ * shadow root), and only once per frame.
+ */
+async function noteFirstFrames(page: Page) {
+  await page.addInitScript(
+    ({ type, marker }) => {
+      if (window !== window.parent) return;
+      const seen = new WeakSet<object>();
+      window.addEventListener('message', (ev) => {
+        const msg = ev.data;
+        if (!msg || typeof msg !== 'object' || msg.type !== type || !ev.source) return;
+        const live = document.querySelector<HTMLIFrameElement>('.wz-stage-live iframe');
+        if (ev.source !== live?.contentWindow || seen.has(ev.source)) return;
+        seen.add(ev.source);
+        console.log(`${marker} ${Date.now()}`);
+      });
+    },
+    { type: PREVIEW_BOX_TYPE, marker: FIRST_FRAME },
+  );
+}
+
 /**
  * Run `action` (a step change) throttled, and FILM the page while the rebuilt document lands:
  * the compositor's own screencast, which sends a frame for every paint however busy the page's
  * main thread is. A screenshot loop cannot do this - under the slowdown one screenshot takes
  * longer than the whole entrance, and the samples step straight over the blank.
  *
- * Returns the FIRST blank window in ms (from the first painted frame with no artwork to the next
- * frame with it), how many frames were filmed, and the timeline for the log. The first window
- * is the one the reader sees on a step change: the Animation step's lifecycle demo takes the
- * graphic off air on purpose a little later, and that is not a blank - so a window that BEGINS
- * after a document was sent the demo's Out (see `noteDemoOuts`) is never counted.
+ * Returns the FIRST blank window in ms, how many frames were filmed, and the timeline for the log.
+ * The window runs from the first painted frame with no artwork to the next frame with it, or to
+ * the new document's first frame (see `noteFirstFrames`) if that comes sooner. That is the blank
+ * the afterimage exists to cover. What follows the first frame is the new document's ENTRANCE,
+ * which starts from nothing on purpose, and its pace is the throttled page's: under load one
+ * entrance frame took 403 ms to follow the first, and the gap was charged as a blank. So a window
+ * that begins after the first frame is not counted, nor one that begins after a document was sent
+ * the lifecycle demo's Out (see `noteDemoOuts`), which takes the graphic off air on purpose.
  */
 async function blankAcross(
   page: Page,
   cdp: CDPSession,
   action: () => Promise<void>,
-): Promise<{ blankMs: number; frames: number; timeline: string }> {
+): Promise<{ blankMs: number; firstFrameMs: number; frames: number; timeline: string }> {
   const clip = await stageClip(page);
   if (!clip) throw new Error('no stage to film');
   const revBefore = (await docStamp(page)).rev;
@@ -510,9 +541,11 @@ async function blankAcross(
   };
   cdp.on('Page.screencastFrame', onFrame);
   const outs: number[] = [];
+  const firsts: number[] = [];
   const onConsole = (m: ConsoleMessage) => {
     const text = m.text();
     if (text.startsWith(DEMO_OUT)) outs.push(Number(text.slice(DEMO_OUT.length)));
+    if (text.startsWith(FIRST_FRAME)) firsts.push(Number(text.slice(FIRST_FRAME.length)));
   };
   page.on('console', onConsole);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN });
@@ -540,6 +573,9 @@ async function blankAcross(
   page.off('console', onConsole);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   const demoOut = outs.find((t) => t >= t0) ?? Infinity;
+  // The LAST document's: if the step change committed two, the first one's entrance may be the
+  // picture held while the second loads, and that wait is a blank the afterimage owes.
+  const firstFrame = firsts.filter((t) => t >= t0).at(-1) ?? Infinity;
 
   const shares = await inkShares(
     page,
@@ -550,6 +586,7 @@ async function blankAcross(
       crop: { x: clip.x, y: clip.y, w: clip.width, h: clip.height },
     })),
   );
+  const first = Math.round(firstFrame - t0); // Infinity when the new document never reported
   const lines: string[] = [];
   let blankFrom: number | null = null;
   let blankMs = 0;
@@ -557,19 +594,23 @@ async function blankAcross(
     const at = Math.round(shots[i].t - t0);
     const ink = shares[i] > INK;
     const afterOut = shots[i].t >= demoOut;
+    const afterFirst = shots[i].t >= firstFrame;
+    if (afterFirst && (i === 0 || shots[i - 1].t < firstFrame)) lines.push(`${first}ms first frame of the new document`);
     lines.push(`${at}ms ${(shares[i] * 100).toFixed(1)}% ${ink ? 'ink' : 'BLANK'}${afterOut ? ' (demo out)' : ''}`);
     if (at < 0) continue; // the picture before the step change
-    if (!ink && blankFrom === null && !afterOut) blankFrom = at;
-    if (ink && blankFrom !== null && blankMs === 0) blankMs = Math.max(1, at - blankFrom);
+    if (!ink && blankFrom === null && !afterOut && !afterFirst) blankFrom = at;
+    if ((ink || afterFirst) && blankFrom !== null && blankMs === 0) blankMs = Math.max(1, Math.min(at, first) - blankFrom);
   }
-  if (blankFrom !== null && blankMs === 0) blankMs = stoppedAt - t0 - blankFrom; // never came back
-  return { blankMs, frames: shots.length, timeline: lines.join('\n') };
+  // Never came back: the screencast sends nothing while the picture stands still.
+  if (blankFrom !== null && blankMs === 0) blankMs = Math.min(stoppedAt - t0, first) - blankFrom;
+  return { blankMs, firstFrameMs: first, frames: shots.length, timeline: lines.join('\n') };
 }
 
 test('the preview keeps the artwork on the stage across a step change', async ({ page }) => {
   // The demo laptop's screen, and the road the students walk: the docs' quiz example, imported.
   await page.setViewportSize({ width: 1366, height: 768 });
   await noteDemoOuts(page);
+  await noteFirstFrames(page);
   await page.goto('/app');
   await dropSvg(page, QUIZ_EXAMPLE_SVG);
   await quiet(page);
@@ -599,6 +640,9 @@ test('the preview keeps the artwork on the stage across a step change', async ({
   // Enough painted frames that the fades the film shows were running.
   expect(forward.frames, 'frames filmed across Fields -> Animation').toBeGreaterThan(10);
   expect(back.frames, 'frames filmed across Animation -> Fields').toBeGreaterThan(10);
+  // And the new document's first frame was heard, so each window below ends where it should.
+  expect(forward.firstFrameMs, 'first frame after Fields -> Animation').toBeLessThan(Infinity);
+  expect(back.firstFrameMs, 'first frame after Animation -> Fields').toBeLessThan(Infinity);
   // MEASURED 2026-09-22, 12x slowdown, two runs each. BEFORE the afterimage (the old frame
   // dropped on commit): blank 1519 and 1214 ms after Fields -> Animation, 1151 and 1196 ms after
   // Animation -> Fields, the stage at 0.5% ink (the guide alone) until the new document had
@@ -615,6 +659,13 @@ test('the preview keeps the artwork on the stage across a step change', async ({
   // every one after Fields -> Animation (the only direction with the demo). A window that begins
   // after the demo's Out reached a document is no longer counted; one that began before it still
   // runs to its end, so a real blank is measured whole.
+  //
+  // MEASURED 2026-10-09: under load (the whole file, 6 repeats, 4 workers) the entrance's own
+  // first frame read as blank once in 54 runs, and the next frame came 403 ms later, so the gap
+  // was charged in full. A window is now cut at the new document's first frame (`blankAcross`).
+  // Twice 54 runs since: every first-frame marker landed before the entrance's lowest frame, and
+  // nothing was charged. With the afterimage switched off the same detector read 1426 to 1756 ms,
+  // so the guard against the defect is as strong as it was.
   expect(forward.blankMs, 'blank after Fields -> Animation').toBeLessThan(400);
   expect(back.blankMs, 'blank after Animation -> Fields').toBeLessThan(400);
 });

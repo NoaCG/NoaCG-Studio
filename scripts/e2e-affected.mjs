@@ -773,18 +773,13 @@ export function copyContext(base, changed, cwd = undefined) {
 const MEASURES_GEOMETRY = /scrollHeight|scrollWidth|clientHeight|clientWidth|offsetHeight|offsetWidth|getBoundingClientRect|boundingBox\(|toBeInViewport/;
 
 /**
- * The main refs this checkout actually has, most local first.
+ * The main refs this checkout actually has.
  *
- * A worktree's local `main` is routinely stale here - several are live at once and only one of
- * them pulls - and a CI checkout of a feature branch has NO local `main` at all, because
- * `actions/checkout` creates a branch only for the ref it checked out. Both callers below have to
- * survive each case, so the question is asked once.
- *
- * LOCAL FIRST IS DELIBERATE, AND IS NOT THE BUG `scripts/main-ref.mjs` EXISTS FOR. That module
- * answers "has this LANDED?", where a stale ref invents work that is already done. The question
- * here is a merge-base - a DIFF BASE - and a stale `main` is an ancestor of the fresh one, so it
- * can only push the base EARLIER and the plan WIDER. The failure direction is a slower suite,
- * never a missed test, which is the direction this planner is built to fail in.
+ * A worktree's local `main` is routinely stale here - the merge queue moves `origin/main` and
+ * nothing moves the local ref - while a checkout that was pulled but not fetched has the opposite,
+ * and a CI checkout of a feature branch has NO local `main` at all, because `actions/checkout`
+ * creates a branch only for the ref it checked out. Every caller below has to survive each case,
+ * so the question is asked once, and each caller decides which of the refs to trust.
  */
 function mainRefs(cwd) {
   return ['main', 'origin/main'].filter(
@@ -800,11 +795,19 @@ function mainRefs(cwd) {
  * `cwd` for the same reason `changedFilesSince` takes one: catalog-affected pins every git call
  * to the repository root rather than to wherever it was invoked from, and a base resolved in one
  * repository and diffed in another is not a smaller answer, it is a crash.
+ *
+ * THE NEWEST MERGE-BASE WINS. A stale ref is an ancestor of the fresh one, so its merge-base with
+ * HEAD is older, and diffing from it charges this branch with everything that landed since: a
+ * seven-file branch was planned as the whole suite on 2026-09-15 because its local `main` was
+ * behind `origin/main`. Whichever ref is fresh, its merge-base contains the other's, so that one
+ * is taken. Two merge-bases neither of which contains the other (a HEAD that merged both) take the
+ * first, which can only plan wider.
  */
 export function branchBase(cwd = undefined) {
-  const ref = mainRefs(cwd)[0];
-  if (!ref) throw new Error('neither main nor origin/main exists in this checkout - cannot compute a base');
-  return gitIn(cwd, 'merge-base', 'HEAD', ref);
+  const refs = mainRefs(cwd);
+  if (refs.length === 0) throw new Error('neither main nor origin/main exists in this checkout - cannot compute a base');
+  const bases = refs.map((ref) => gitIn(cwd, 'merge-base', 'HEAD', ref));
+  return bases.find((b) => bases.every((other) => other === b || isAncestor(other, b, cwd))) ?? bases[0];
 }
 
 /**

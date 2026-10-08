@@ -106,6 +106,10 @@ jobs:
     name: Configured E2E (authenticated, local Supabase)
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # For the `quarantine` job: the specs to enter, and each quarantined spec's outcome.
+    outputs:
+      enter: ${{ steps.assert.outputs.enter || '[]' }}
+      outcomes: ${{ steps.assert.outputs.outcomes || '{}' }}
     env:
       # The local stack's identity. Not secrets: the account lives only inside this runner and is
       # destroyed with it, so the values are literals rather than repository secrets. Six chars is
@@ -127,7 +131,11 @@ jobs:
       SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
       SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
     steps:
+      # History enough to diff a landing from its `before` (the verdict's edited-spec refusal); a
+      # landing is a few commits, and an unreachable base only switches that refusal off, loudly.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 50
 
       - uses: actions/setup-node@v5
         with:
@@ -345,12 +353,28 @@ jobs:
       # 2026-08-25; a shared e2e helper drifting between its two callers on the same day is what
       # argued for extracting it. scripts/configured-verdict.test.mjs pins the behaviour, with a
       # fixture for every shape a real run produced - including the all-skipped one that exits 0.
+      #
+      # THE QUARANTINE is the one thing this caller adds (`--quarantine`; hosted-latency.yml keeps
+      # every flake red). The config's `retries: 1` re-runs a failed test once on this commit, so a
+      # fail-then-pass is the same receipt ci.yml's retry job collects for the main suite: the
+      # verdict passes it, and the `quarantine` job below writes the spec into e2e/quarantine.json
+      # through the merge queue. A spec already quarantined runs here as usual, reds nothing, and
+      # posts its outcome as the `noacg/quarantine/<spec>` status that earns its release
+      # (scripts/e2e-quarantine.mjs). A failure that survived its retry stays red, and so does a
+      # flake in a spec the landing itself edits (`--changed`, the push's `before`, read the way
+      # ci.yml's retry reads it); the cron and a dispatch test main as it stands. Main only, like
+      # the writes: off main a flake would pass with nothing written down, so it stays red there.
       - name: Assert the suite actually ran
         id: assert
+        env:
+          CHANGED: ${{ github.event_name == 'push' && github.event.before || '' }}
+          QUARANTINE: ${{ github.ref == 'refs/heads/main' && 'e2e/quarantine.json' || '' }}
         run: >-
           node scripts/configured-verdict.mjs configured-report.json
           --expect e2e/configured/expected-run.json
           --label "Configured suite (local stack)"
+          --quarantine "$QUARANTINE"
+          --changed "$CHANGED"
 
       # Container logs are the difference between "the playout specs are red" and "realtime never
       # came up". Only on failure, and only the stack's own logs.
@@ -381,6 +405,10 @@ jobs:
       # comment is withheld, and GitHub mails on comments rather than on an issue continuing to
       # exist. So a known flake stops arriving in the inbox every morning while remaining just as
       # visible to anyone who looks.
+      #
+      # A spec that failed and then passed no longer reaches this step at all: the verdict passes
+      # it and the quarantine records it (see the assert step). What follows is about the reds
+      # that remain - a flake in a spec the landing edited, or one the quarantine could not name.
       #
       # This is deliberately NOT the same as downgrading flaky to a warning. The distinction that
       # makes it safe is the pair of conditions below: the failure set must be byte-identical to
@@ -454,3 +482,63 @@ jobs:
       - name: Fail the run when the suite was not a clean verdict
         if: ${{ steps.assert.outputs.green != 'true' }}
         run: exit 1
+
+  # THE QUARANTINE'S WRITES, in their own job so the suite's job keeps read-only scopes: the same
+  # two that quarantine.yml and ci.yml's after-gate make for the main suite. Main only, because the
+  # quarantine is main's record and its statuses are what `release-due` reads off main's commits.
+  # Both steps `continue-on-error`: a write that fails (a refused push, the organisation not letting
+  # Actions open pull requests) is a warning, and the next run tries again.
+  quarantine:
+    name: Configured quarantine
+    needs: configured
+    if: ${{ always() && github.ref == 'refs/heads/main' && (needs.configured.outputs.enter != '[]' || needs.configured.outputs.outcomes != '{}') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the quarantine branch
+      pull-requests: write # open it, label it, auto-merge it
+      statuses: write # noacg/quarantine/<spec> on this commit, and the entry's `noacg/reviewed` stamp
+      actions: write # dispatch the entry branch's run when the bot App is not set up
+    env:
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      # THE BOT'S OWN TOKEN, as in quarantine.yml's release job: an App installation token makes the
+      # entry's push start its own CI, which GITHUB_TOKEN never does. Without the App configured the
+      # job falls back to the workflow token.
+      - name: Bot token
+        id: bot
+        if: ${{ vars.NOACG_BOT_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NOACG_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NOACG_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-statuses: write
+
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ steps.bot.outputs.token || github.token }}
+
+      # One status per quarantined configured spec, posted by the same command quarantine.yml uses.
+      - name: Post each quarantined spec's verdict on the commit
+        if: ${{ needs.configured.outputs.outcomes != '{}' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOMES: ${{ needs.configured.outputs.outcomes }}
+        run: |
+          set -euo pipefail
+          jq -r 'to_entries[] | "\(.key) \(.value)"' <<<"$OUTCOMES" | while read -r spec outcome; do
+            node scripts/e2e-quarantine.mjs status "$spec" "$outcome" --run "$RUN_URL"
+          done
+
+      - name: Quarantine the specs that failed and then passed
+        if: ${{ needs.configured.outputs.enter != '[]' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
+          NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}
+          GH_REPO: ${{ github.repository }}
+          SPECS: ${{ needs.configured.outputs.enter }}
+        run: node scripts/e2e-quarantine.mjs enter --from-json "$SPECS" --run "$RUN_URL" --queue

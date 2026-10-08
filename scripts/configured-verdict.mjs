@@ -17,7 +17,10 @@
 //   - AT LEAST minTests ran. Catches what the skip check cannot: a spec file that stops being
 //     collected at all.
 //   - Zero failures and zero FLAKES. A flake is a real signal here; it is the repeat REPORTING
-//     that is suppressed elsewhere, never the verdict.
+//     that is suppressed elsewhere, never the verdict. The one exception is the quarantine, which
+//     only configured-suite.yml asks for (`--quarantine`, see `quarantineSplit`): there a flake is
+//     recorded in e2e/quarantine.json instead of reddening the run, as ci.yml does for the main
+//     suite.
 //
 // It also fingerprints the failure set so the caller can tell "the same known problem again" from
 // "something new" - see the rolling-issue step in either workflow.
@@ -35,6 +38,9 @@
 // the CALLER decides what a non-green verdict costs, because the two workflows differ there.
 import { appendFileSync, readFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
+import { quarantinedSpecs, readStore } from './e2e-quarantine.mjs';
+import { changedSince } from './e2e-retry.mjs';
+import { editedSpecs, specPath } from './e2e-spec-names.mjs';
 
 /** Every spec in the report, at any nesting depth. Playwright nests suites per file and per
  *  describe, so a flat pick of `.specs[]` from every object is the honest way to reach them all. */
@@ -125,7 +131,84 @@ export function readExpectations(text) {
   return { minTests, allowedSkips: Object.keys(allowedSkips).join(' ') };
 }
 
-export function verdict(report, { minTests, allowedSkips, workspace = '' }) {
+/**
+ * THE QUARANTINE, for the one caller that keeps it (configured-suite.yml; hosted-latency.yml passes
+ * none and keeps every flake red). The same rule ci.yml applies to the main suite
+ * (scripts/e2e-quarantine.mjs): a spec file that failed and then passed on one commit is a flake,
+ * not a regression. Here the second run is the config's own `retries: 1`, so the receipt is in this
+ * report already. Decided per spec FILE, because the store's identity is the file:
+ *
+ *   - a file already in the quarantine is excused whatever it did, and its outcome becomes its
+ *     commit status (`success` only when every test of it ran clean; a file that only skipped
+ *     says nothing), which is what earns its release;
+ *   - a file whose every unclean test failed and then passed is a flake, named for entry - but
+ *     only when nothing else in the run is red (ci.yml quarantines only behind a green gate);
+ *   - neither applies to a file the change under test edits (a flake in a spec the change wrote
+ *     is the change's, as ci.yml's retry and the planner's quarantine split both hold) or one
+ *     whose repository path is unknown;
+ *   - anything else that failed stays red, exactly as before.
+ *
+ * @param {object[]} specs every spec in the report
+ * @param {{ quarantined: string[], edited: Set<string>, rootDir?: string, workspace?: string }} opts
+ *   `quarantined` and `edited` are repo-relative paths
+ * @returns {{ held: Set<object>, flakes: Set<object>, enter: string[], outcomes: Record<string, 'success'|'failure'> }}
+ *   `held` and `flakes` are the excusable specs; `enter` names the flakes' files
+ */
+export function quarantineSplit(specs, { quarantined, edited, rootDir, workspace }) {
+  const inStore = new Set(quarantined);
+  const byFile = new Map();
+  for (const s of specs) {
+    const path = repoRelative(s.file, rootDir, workspace);
+    if (!byFile.has(s.file)) byFile.set(s.file, { path, specs: [] });
+    byFile.get(s.file).specs.push(s);
+  }
+  const held = new Set();
+  const flakes = new Set();
+  const enter = [];
+  const outcomes = {};
+  for (const { path, specs: own } of byFile.values()) {
+    if (!path) continue;
+    const unclean = own.filter(reallyFailed);
+    if (inStore.has(path)) {
+      if (unclean.length) outcomes[path] = 'failure';
+      else if (own.some((s) => statuses(s).includes('passed'))) outcomes[path] = 'success';
+      if (!edited.has(path)) own.forEach((s) => held.add(s));
+    } else if (!edited.has(path) && unclean.length && unclean.every((s) => lastStatus(s) === 'passed')) {
+      own.forEach((s) => flakes.add(s));
+      enter.push(path);
+    }
+  }
+  return { held, flakes, enter: enter.sort(), outcomes };
+}
+
+/**
+ * How many tests in `specs` failed, and how many failed and then passed, by each test's own
+ * outcome as Playwright reported it (`unexpected`, `flaky`), so the count agrees with its stats.
+ * A test without one (a hand-built fixture) is read off its results.
+ */
+function counts(specs) {
+  let unexpected = 0;
+  let flaky = 0;
+  for (const s of specs) {
+    for (const t of s.tests ?? []) {
+      const outcome = outcomeOf(t);
+      if (outcome === 'unexpected') unexpected += 1;
+      else if (outcome === 'flaky') flaky += 1;
+    }
+  }
+  return { unexpected, flaky };
+}
+
+function outcomeOf(test) {
+  if (test.status) return test.status;
+  const st = (test.results ?? []).map((r) => r.status);
+  const last = st.at(-1);
+  if (!last || last === 'skipped') return 'skipped';
+  if (last !== 'passed') return 'unexpected';
+  return st.every((x) => x === 'passed') ? 'expected' : 'flaky';
+}
+
+export function verdict(report, { minTests, allowedSkips, workspace = '', quarantined = null, edited = new Set() }) {
   const stats = report?.stats ?? {};
   const expected = stats.expected ?? 0;
   const unexpected = stats.unexpected ?? 0;
@@ -141,7 +224,27 @@ export function verdict(report, { minTests, allowedSkips, workspace = '' }) {
     .filter((file) => !allowed.has(file))
     .sort();
 
-  const unclean = specs.filter(isUnclean);
+  // What is red, after the quarantine has excused what it may. Without one, the stats as they are.
+  // With one, counted over the specs not excused, never by subtraction from the stats: a count
+  // that disagreed with Playwright's by one would otherwise hide a real failure elsewhere.
+  const split = quarantined
+    ? quarantineSplit(specs, { quarantined, edited, rootDir: report?.config?.rootDir, workspace })
+    : { held: new Set(), flakes: new Set(), enter: [], outcomes: {} };
+  const redWithout = (set) => counts(specs.filter((s) => !set.has(s)));
+  const withFlakes = new Set([...split.held, ...split.flakes]);
+  const redWithFlakes = redWithout(withFlakes);
+  // A flake is quarantined only from an otherwise green run, as ci.yml enters one only behind a
+  // green gate: in a red run it is part of what went wrong, and stays in the failure set.
+  const flakesExcused =
+    split.flakes.size > 0 && !redWithFlakes.unexpected && !redWithFlakes.flaky && !unexpectedSkips.length && ran >= minTests;
+  const excused = flakesExcused ? withFlakes : split.held;
+  const enter = flakesExcused ? split.enter : [];
+  const { outcomes } = split;
+  const red = !quarantined ? { unexpected, flaky } : flakesExcused ? redWithFlakes : redWithout(excused);
+  const excusedCounts = counts([...excused]);
+  const excusedTests = excusedCounts.unexpected + excusedCounts.flaky;
+
+  const unclean = specs.filter((s) => isUnclean(s) && !excused.has(s));
   const failSet = unclean
     .map((s) => `${s.file}::${s.title}`)
     .sort();
@@ -179,15 +282,19 @@ export function verdict(report, { minTests, allowedSkips, workspace = '' }) {
       detail: `${ran} test(s) executed, expected at least ${minTests}.`,
     });
   }
-  if (unexpected !== 0 || flaky !== 0) {
-    problems.push({ title: 'Configured suite is red', detail: `${unexpected} failed, ${flaky} flaky.` });
+  if (red.unexpected !== 0 || red.flaky !== 0) {
+    problems.push({ title: 'Configured suite is red', detail: `${red.unexpected} failed, ${red.flaky} flaky.` });
   }
 
   return {
     green: problems.length === 0,
     ran, expected, unexpected, flaky, skipped,
+    // The hard failures that count: the rolling issue keeps its quiet only for a run with none.
+    hardFail: red.unexpected,
     problems, failHash, failSet, failing, specs,
-    summary: `${ran} ran, ${skipped} skipped, ${unexpected} failed, ${flaky} flaky`,
+    enter,
+    outcomes,
+    summary: `${ran} ran, ${skipped} skipped, ${unexpected} failed, ${flaky} flaky${excusedTests ? ` (${excusedTests} of them quarantined)` : ''}`,
   };
 }
 
@@ -201,6 +308,11 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
   };
   const expectFile = valueOf('--expect', '');
   const label = valueOf('--label', 'Configured suite');
+  // The quarantine store, and the base the change under test is diffed from. Both absent for
+  // hosted-latency.yml, which keeps every flake red. The edited specs are read exactly as ci.yml's
+  // retry reads them (`changedSince`, `editedSpecs`), so the two refusals cannot disagree.
+  const quarantineFile = valueOf('--quarantine', '');
+  const edited = new Set([...editedSpecs(changedSince(valueOf('--changed', '')))].map(specPath));
 
   const out = (line) => console.log(line);
   const emit = (name, value) => {
@@ -241,10 +353,27 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
     unjudged('No report', `Could not read ${file} - the run never produced one (${error.message}).`, 'no JSON report - the run never started');
   }
 
+  // A store this build cannot read quarantines nothing: every flake stays red, the direction that
+  // hides nothing.
+  let quarantined = null;
+  if (quarantineFile) {
+    try {
+      quarantined = quarantinedSpecs(readStore(quarantineFile));
+    } catch (error) {
+      out(`::warning title=Quarantine unreadable::${quarantineFile}: ${error.message}. Every flake below counts as red.`);
+    }
+  }
+
   if (report) {
-    const v = verdict(report, { ...expected, workspace: process.env.GITHUB_WORKSPACE ?? '' });
+    const v = verdict(report, { ...expected, workspace: process.env.GITHUB_WORKSPACE ?? '', quarantined, edited });
     out(`Ran ${v.ran} tests (${v.expected} passed, ${v.unexpected} failed, ${v.flaky} flaky), ${v.skipped} skipped.`);
     for (const p of v.problems) out(`::error title=${p.title}::${p.detail}`);
+    for (const spec of v.enter) {
+      out(`::warning file=${spec},title=${label}::${spec} failed and then passed on its retry on this commit - a flake, not a regression. It is being quarantined (e2e/quarantine.json).`);
+    }
+    for (const [spec, outcome] of Object.entries(v.outcomes)) out(`Quarantined: ${spec} ${outcome === 'success' ? 'passed' : 'failed'}.`);
+    emit('enter', JSON.stringify(v.enter));
+    emit('outcomes', JSON.stringify(v.outcomes));
 
     // ONE ANNOTATION PER FAILING SPEC, so the repo can name what broke. GitHub turns an
     // `::error file=…` into a check annotation carrying that path, which is exactly what
@@ -282,7 +411,7 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` || proc
     emit('green', String(v.green));
     emit('summary', v.summary);
     emit('failhash', v.failHash);
-    emit('hardfail', String(v.unexpected));
+    emit('hardfail', String(v.hardFail));
     // WHICH SPECS, not merely how many. The rolling issue carried the summary line alone -
     // "49 ran, 0 skipped, 0 failed, 3 flaky" - so the first question a reader has on opening
     // it, what broke, could only be answered by downloading a job log and reading 900 lines.
