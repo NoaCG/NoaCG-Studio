@@ -53,6 +53,8 @@ async function seed(page: Page, name: string): Promise<{ id: string; a: string; 
     if (failure) throw new Error(failure);
     const { useRouter } = await import('/src/app/router.ts');
     useRouter.getState().navigate({ view: 'production', id: show.id });
+    // The page mounts behind `navigate`: answer from a later task (_create.ts openProductionWithCurrent).
+    await new Promise((resolve) => setTimeout(resolve));
     return { id: show.id, a, b };
   }, name);
   await expect(page.getByTestId('production-page')).toBeVisible();
