@@ -1,0 +1,305 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "exactSourceAndHistoryEqual": true,
+  "phases": [
+    {
+      "hashes": {
+        "html": "7135fdc69a50830cf691e379c3080f59ed93f20462514a844f353d183fe23412",
+        "css": "85ef320f4d21df673a8e8725bce3a3ec10140e1ccb87aa6f2fbf9b40f899c250",
+        "js": "d51a7574456c30da1422728dfc870b3c62ea231e9e0fc0db628ea5432c181c19"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Evening report"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 0,
+        "redo": 0
+      },
+      "changedFiles": []
+    },
+    {
+      "hashes": {
+        "html": "9e95759bab9e9511719451e2b0cefc6f390a42a98c8841576e8a177decd684a6",
+        "css": "3276a9634a39e2bbec74e2c2e9213ffd754a16047f10a241316cf8db50cf5a86",
+        "js": "d51a7574456c30da1422728dfc870b3c62ea231e9e0fc0db628ea5432c181c19"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Evening report"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 1,
+        "redo": 0
+      },
+      "changedFiles": [
+        "html",
+        "css"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "3a186ea185c69883ff2e4d823821357f6b5469a751d6d13278e18a4846fb8a86",
+        "css": "b4ef673e0f04a5c83f7cb9a78cf28152f7b00d61f51f2deaed0a0ca5f61b7969",
+        "js": "d51a7574456c30da1422728dfc870b3c62ea231e9e0fc0db628ea5432c181c19"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Evening report"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 2,
+        "redo": 0
+      },
+      "changedFiles": [
+        "html",
+        "css"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "667b5fde9bfc28f0221cd8cae1d672ce28810c9bf13f8d442476d92aef3ce1e9",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "d51a7574456c30da1422728dfc870b3c62ea231e9e0fc0db628ea5432c181c19"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Evening report"
+        },
+        {
+          "id": "f1",
+          "default": "New text"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 3,
+        "redo": 0
+      },
+      "changedFiles": [
+        "html",
+        "css"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "1c9b8b692bc63ba879b6c87f38591b4f784895e8c41e260066399bb4774a7c1c",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "d51a7574456c30da1422728dfc870b3c62ea231e9e0fc0db628ea5432c181c19"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Evening report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 4,
+        "redo": 0
+      },
+      "changedFiles": [
+        "html"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "e5a2ba56049f9a884a176047acedcca995a3293b6584edb3f0a92e8d3a067da5",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "d51a7574456c30da1422728dfc870b3c62ea231e9e0fc0db628ea5432c181c19"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Morning report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 5,
+        "redo": 0
+      },
+      "changedFiles": [
+        "html"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "6b7eba5fa899afa58b1401011e6d7029eeb953ea9c2af40495bbc0744e363267",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "d51a7574456c30da1422728dfc870b3c62ea231e9e0fc0db628ea5432c181c19"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Morning report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 6,
+        "redo": 0
+      },
+      "changedFiles": [
+        "html"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "6b7eba5fa899afa58b1401011e6d7029eeb953ea9c2af40495bbc0744e363267",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "cde28a6820f33f07c04a2ccbde3b5d1c296dba9e07e1ff5425dda8e8b2070953"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Morning report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 7,
+        "redo": 0
+      },
+      "changedFiles": [
+        "js"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "6b7eba5fa899afa58b1401011e6d7029eeb953ea9c2af40495bbc0744e363267",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "73dafe38a6dcb3883b466d1cb9f9ed234a63bbc29ea3d22dae9a94392ea4ee2e"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Morning report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 8,
+        "redo": 0
+      },
+      "changedFiles": [
+        "js"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "6b7eba5fa899afa58b1401011e6d7029eeb953ea9c2af40495bbc0744e363267",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "d2f756b7e48979ed5a5b23621769faf6ea952f48152a69f339d268b9cb7ed02f"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Morning report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 9,
+        "redo": 0
+      },
+      "changedFiles": [
+        "js"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "6b7eba5fa899afa58b1401011e6d7029eeb953ea9c2af40495bbc0744e363267",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "444ca94bfff4a8d4ba1a65577072b709713e10ef422af6250a1244cf242a58f0"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Morning report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 10,
+        "redo": 0
+      },
+      "changedFiles": [
+        "js"
+      ]
+    },
+    {
+      "hashes": {
+        "html": "8f3407b4dfbfb1f90641023cd911c6128b523a5a04c912281cbd562b69f064c6",
+        "css": "b72c49b9e8b18520f07ab62396c038d43f2d7f1cb9176f8d6f88ec45d2ebc4b2",
+        "js": "35fd2d0501eb027cfcf9f88fe3bcb04c7339d39611ecf3a647d9cacf35b53664"
+      },
+      "fields": [
+        {
+          "id": "f0",
+          "default": "Morning report"
+        },
+        {
+          "id": "f1",
+          "default": "LIVE REPORT"
+        }
+      ],
+      "assets": [],
+      "history": {
+        "undo": 11,
+        "redo": 0
+      },
+      "changedFiles": [
+        "html",
+        "js"
+      ]
+    }
+  ],
+  "pose": {
+    "x": 1140,
+    "y": 559.96875,
+    "width": 220,
+    "height": 90
+  }
+}

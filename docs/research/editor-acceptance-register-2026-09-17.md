@@ -521,3 +521,25 @@ Full B02/B04, reusable P-COMP instances, owner judgment, actual desktop zoom
 and physical receiving-host acceptance remain open. No whole row is closed.
 [Organize a badge and its assets](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
 asks for asynchronous desktop product judgment after the complete task worked.
+
+## R1.3b bounded shared command qualification, 2026-10-08
+
+The [bounded spec and receipts](../work-specs/editor-command-qualification/README.md)
+qualify six existing source handlers with stable command IDs, runtime/discovery
+schemas, source-owned target capabilities and actionable refusals. Guarded
+inspect/apply/history/view calls retain revision, selection/playhead/sample,
+session-liveness and active-gesture ownership. Commit receipts remain separate
+from correlated preview acknowledgements.
+
+A fresh nested/masked SVG task runs through actual UI authoring and deterministic
+browser semantic calls at desktop, laptop and the documented 125% viewport proxy.
+Exact source patches, identities, fields/assets, history and held poses agree;
+public defaults preserve live samples and excluded static text remains excluded.
+Draft cancellation, atomic refusals, history, save/reopen, local rehearsal and
+browser execution of SPX/CasparCG/OGraf packages have scoped engineering evidence.
+Creation replays measured UI parent-space arguments. This is handler parity with
+DOM parsing, not independent coordinate conversion, Node-pure or model parity.
+
+This advances E23 and the shared-handler portion of B17 only. B18 model quality,
+CLI round-trip, WebMCP, physical receiving-host, owner workflow and broader R1.3b
+acceptance stay open. Paired live MCP remains R3.2. No whole acceptance row closes.

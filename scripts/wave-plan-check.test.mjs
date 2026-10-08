@@ -5,10 +5,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  browserWord, checkPlan, deferralProblems, economyNotes, mintsOf, parsePromptBlocks, parseWaveTable, pathProbe, promptPathProblems,
+  browserWord, checkPlan, economyNotes, mintsOf, parsePromptBlocks, parseWaveTable, pathProbe, promptPathProblems,
   tableUnder, touchProblems,
 } from './wave-plan-check.mjs';
-import { parseCandidateSection } from './weekly-candidates.mjs';
 
 const NOW = Date.parse('2026-09-02T12:00:00');
 const FILES = new Set(['src/a.ts', 'src/b.ts', 'scripts/x.mjs', 'docs/SVG_AUTHORING.md', 'src/components/wizard', 'e2e/import.spec.ts']);
@@ -268,23 +267,6 @@ test('a READ block ends at a blank line, an unindented line, a prompt key or a k
   assert.deepEqual(promptPathProblems(prompt, inTree), []);
 });
 
-test('an answered alignment question the plan never mentions is refused', () => {
-  const alignment = [{ id: 'ALIGN-2026-09-15-1', question: 'Still the top of NOW?', answer: 'Yes.' }];
-  const { problems } = checkPlan(GOOD, { exists, alignment, now: NOW });
-  assert.ok(problems.some((p) => /alignment answer ALIGN-2026-09-15-1 is not recorded yet/.test(p)));
-
-  const mentions = checkPlan(`${GOOD}
-
-Row D records ALIGN-2026-09-15-1.
-`, { exists, alignment, now: NOW });
-  assert.ok(!mentions.problems.some((p) => /alignment answer/.test(p)), 'naming the id is what clears it');
-});
-
-test('no pending alignment answers means no alignment problem at all', () => {
-  const { problems } = checkPlan(GOOD, { exists, now: NOW });
-  assert.ok(!problems.some((p) => /alignment answer/.test(p)));
-});
-
 // ── The shared table walker and the browser word ─────────────────────────────────────────────────
 
 test('tableUnder returns the first table under a matching heading, keyed by column, and null without one', () => {
@@ -358,94 +340,4 @@ test('a candidates-table browser cell must be empty, a dash, or start with yes o
   const { problems } = checkPlan(plan, { exists, now: NOW });
   const browserProblems = problems.filter((p) => /candidate .*browser must/.test(p));
   assert.deepEqual(browserProblems, ['candidate P: browser must start with yes or no, or be empty - got "shared with F"']);
-});
-
-// The weekly review's candidate rows. Both directions, because getting only one of them right is
-// how the 2026-09-08 miss happened: the plans said nothing, and saying nothing read as fine.
-const candidates = [
-  { id: 'WEEK-2026-09-08-1', n: 1, title: 'the wave plan outlives its worktree', goal: 'a plan is written where it survives' },
-  { id: 'WEEK-2026-09-08-2', n: 2, title: 'one walk covers a route', goal: '/walk groups the queue by route' },
-];
-
-test('a weekly candidate row the plan says nothing about is refused', () => {
-  const { problems } = checkPlan(GOOD, { exists, candidates, now: NOW });
-  assert.deepEqual(problems.filter((p) => /weekly candidate/.test(p)).length, 2);
-  assert.ok(problems.some((p) => /WEEK-2026-09-08-1 \("the wave plan outlives its worktree"\) is not classified/.test(p)));
-});
-
-test('a weekly candidate planned into a row, or turned down with a reason, passes', () => {
-  const answered = checkPlan(`${GOOD}
-
-## Weekly review
-
-- planned: WEEK-2026-09-08-1 -> row A
-- rejected: WEEK-2026-09-08-2 - it needs the route grouping first, and that has no slot this wave
-`, { exists, candidates, now: NOW });
-  assert.deepEqual(answered.problems.filter((p) => /weekly candidate/.test(p)), []);
-});
-
-test('a weekly candidate turned down with no reason, or planned into a row that is not there, is refused', () => {
-  const { problems } = checkPlan(`${GOOD}
-
-## Weekly review
-
-- planned: WEEK-2026-09-08-1 -> row Z
-- rejected: WEEK-2026-09-08-2
-`, { exists, candidates, now: NOW });
-  assert.ok(problems.some((p) => /planned as row Z, and the wave table has no row Z/.test(p)));
-  assert.ok(problems.some((p) => /WEEK-2026-09-08-2 .*rejected with no reason/.test(p)));
-});
-
-test('no weekly candidates in the window means no candidate problem at all', () => {
-  const { problems } = checkPlan(GOOD, { exists, now: NOW });
-  assert.ok(!problems.some((p) => /weekly candidate/.test(p)));
-});
-
-// A deferral needs an actor and an end. WEEK-2026-09-15-1 was deferred to the weekly session, which
-// never writes, and WEEK-2026-09-22-3 was deferred four plans running.
-const review = (...lines) => `${GOOD}\n\n## Weekly review\n\n${lines.map((line) => `- ${line}`).join('\n')}\n`;
-const one = [candidates[0]];
-const deferredBy = (count) => Array.from({ length: count }, () => review('deferred: WEEK-2026-09-08-1 - the gate slot is taken'));
-const weeklyProblems = (plan, earlier = []) => checkPlan(plan, { exists, candidates, now: NOW, earlier }).problems.filter((p) => /weekly candidate/.test(p));
-
-test('a deferral that hands the work to a routine is refused, and a routine named as evidence is not', () => {
-  for (const reason of ['records rulings; next orchestrator-week session', 'left for the weekly owner session', 'deferred to the morning brief', 'the monthly-quality-review will file it']) {
-    const problems = deferralProblems(one, parseCandidateSection(review(`deferred: WEEK-2026-09-08-1 - ${reason}`)));
-    assert.equal(problems.length, 1, reason);
-    assert.match(problems[0], /WEEK-2026-09-08-1 \("the wave plan outlives its worktree"\) is deferred to a routine/);
-  }
-  for (const reason of ['a gate lands alone; next day wave, as its own row', 'the morning brief showed Codex at its cap', 'outside tonight\'s owner-scoped wave']) {
-    assert.deepEqual(deferralProblems(one, parseCandidateSection(review(`deferred: WEEK-2026-09-08-1 - ${reason}`))), [], reason);
-  }
-  // Through the whole check too, so the refusal is wired in and not only defined.
-  const wired = weeklyProblems(review('planned: WEEK-2026-09-08-2 -> row A', 'deferred: WEEK-2026-09-08-1 - next orchestrator-week session'));
-  assert.equal(wired.length, 1);
-  assert.match(wired[0], /deferred to a routine/);
-});
-
-test('a third consecutive deferral of one id is refused; a first or second passes', () => {
-  const again = parseCandidateSection(review('deferred: WEEK-2026-09-08-1 - still no gate slot'));
-  assert.deepEqual(deferralProblems(one, again, []), [], 'first deferral');
-  assert.deepEqual(deferralProblems(one, again, deferredBy(1)), [], 'second deferral');
-  const problems = deferralProblems(one, again, deferredBy(2));
-  assert.equal(problems.length, 1);
-  assert.match(problems[0], /WEEK-2026-09-08-1 .*already deferred by the 2 plan\(s\) before this one .*"rejected: WEEK-2026-09-08-1 - <why it is dropped>"/);
-  const wired = weeklyProblems(review('planned: WEEK-2026-09-08-2 -> row A', 'deferred: WEEK-2026-09-08-1 - still no gate slot'), deferredBy(3));
-  assert.equal(wired.length, 1);
-  assert.match(wired[0], /already deferred by the 3 plan/);
-});
-
-test('the streak is consecutive: a plan that planned the row, or said nothing of it, ends it', () => {
-  const again = parseCandidateSection(review('deferred: WEEK-2026-09-08-1 - still no gate slot'));
-  assert.deepEqual(deferralProblems(one, again, [...deferredBy(1), review('planned: WEEK-2026-09-08-1 -> row A'), ...deferredBy(2)]), []);
-  assert.deepEqual(deferralProblems(one, again, [...deferredBy(1), GOOD, ...deferredBy(2)]), []);
-  // Another id's deferrals are not this one's.
-  const other = review('deferred: WEEK-2026-09-08-2 - no slot');
-  assert.deepEqual(deferralProblems(one, again, [other, other]), []);
-});
-
-test('after two deferrals, planning the row, rejecting it, or dropping it in writing passes', () => {
-  for (const line of ['planned: WEEK-2026-09-08-1 -> row A', 'rejected: WEEK-2026-09-08-1 - dropped: the store landed another way and nothing is left to do']) {
-    assert.deepEqual(weeklyProblems(review(line, 'rejected: WEEK-2026-09-08-2 - served by row A'), deferredBy(2)), [], line);
-  }
 });

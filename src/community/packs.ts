@@ -1,6 +1,6 @@
 // The shared half of the Community packs shelf (docs/work-specs/community-packs/spec.md): thin
-// calls over the security definer functions of migration 0079. Every rule - who may submit, who
-// decides, what others may read - is the server's; this file only asks.
+// calls over the security definer functions of migrations 0079 and 0080. Every rule - who may
+// submit, who decides, what others may read - is the server's; this file only asks.
 //
 // Offline-invariant, like communityData.ts: with no backend configured `getSupabase()` resolves
 // null and every reader answers empty, so the seeded shelf works exactly as it did.
@@ -19,7 +19,8 @@ export const PACK_STATE_LABEL: Record<PackState, string> = {
   replaced: 'Replaced',
 };
 
-/** A live pack on the shelf. */
+/** A live pack on the shelf, or one waiting for review. Every version of one pack shares its
+ *  `lineage`. */
 export interface SharedPack {
   id: string;
   name: string;
@@ -27,6 +28,7 @@ export interface SharedPack {
   author: string;
   graphics: number;
   version: number;
+  lineage: string;
 }
 
 /** One of the maker's own submissions. */
@@ -42,6 +44,7 @@ interface Row {
   author_name: string;
   graphics: number;
   version: number;
+  lineage?: string;
   state?: PackState;
   reason?: string | null;
 }
@@ -53,6 +56,8 @@ const shared = (r: Row): SharedPack => ({
   author: r.author_name,
   graphics: r.graphics,
   version: r.version,
+  // Falls back to the row id while a server without 0080 answers no lineage.
+  lineage: r.lineage ?? r.id,
 });
 
 async function rows(fn: string): Promise<Row[]> {
@@ -70,7 +75,11 @@ export async function listSharedPacks(): Promise<SharedPack[]> {
 
 /** The signed-in maker's own submissions. */
 export async function listMyPacks(): Promise<MyPack[]> {
-  return (await rows('community_pack_mine')).map((r) => ({ ...shared(r), state: r.state ?? 'in_review', reason: r.reason ?? null }));
+  return (await rows('community_pack_mine')).map((r) => ({
+    ...shared(r),
+    state: r.state ?? 'in_review',
+    reason: r.reason ?? null,
+  }));
 }
 
 /** What waits for review. Empty for anyone but a moderator. */
@@ -88,8 +97,13 @@ export async function sharedPackText(id: string): Promise<string> {
   return JSON.stringify(data);
 }
 
-/** Send a pack for review. Returns the new submission's id. */
-export async function submitPack(meta: { name: string; description: string; author: string }, pack: Record<string, unknown>): Promise<string> {
+/** Send a pack for review, or with `updateOf` (a live pack of the maker's) a new version of it
+ *  (spec D11). Returns the new submission's id. */
+export async function submitPack(
+  meta: { name: string; description: string; author: string },
+  pack: Record<string, unknown>,
+  updateOf?: string,
+): Promise<string> {
   const sb = await getSupabase();
   if (!sb) throw new Error('Submitting needs a connection.');
   const { data, error } = await sb.rpc('community_pack_submit', {
@@ -97,6 +111,7 @@ export async function submitPack(meta: { name: string; description: string; auth
     p_description: meta.description,
     p_author: meta.author,
     p_pack: pack,
+    ...(updateOf ? { p_update_of: updateOf } : {}),
   });
   if (error) throw new Error(error.message);
   return String(data);
@@ -117,5 +132,6 @@ export async function decidePack(id: string, state: 'live' | 'not_accepted' | 't
   if (error) throw new Error(error.message);
 }
 
-/** The shelf id a shared pack's installs are stamped with (`fromPack.id`, spec D7). */
-export const sharedPackId = (id: string): string => `community:${id}`;
+/** The shelf id a shared pack's installs are stamped with (`fromPack.id`, spec D7): its lineage,
+ *  one id for every version, beside the stamp's `version`. */
+export const sharedPackId = (lineage: string): string => `community:${lineage}`;

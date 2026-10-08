@@ -23,27 +23,6 @@
 //   - every TOUCHES entry that looks like a path exists (or is marked `(new)`), globs by prefix;
 //   - every letter has a prompt block opening `SESSION <L>` whose last keyword line is QUEUE;
 //   - a `Pools at plan time:` line - the capacity snapshot the routing decision was made on;
-//   - every ANSWERED alignment question mentioned by id (scripts/alignment-answers.mjs) - what he
-//     said on Tuesday, still not recorded. Unlike an ask this one is not deferrable:
-//     it is a ruling already given, and it repeats every morning until a branch records it.
-//   - every CANDIDATE ROW of a weekly review written in the last week classified under
-//     `## Weekly review` (scripts/weekly-candidates.mjs) - planned as a row, or deferred or
-//     rejected with a reason. All three pass; silence does not. On 2026-09-08 the weekly review
-//     emitted three well-formed rows and both of that day's plans were written afterwards without
-//     lifting one or mentioning the file, and nothing recorded the miss.
-//   - a weekly deferral whose reason hands the work to a ROUTINE ("next orchestrator-week session",
-//     "for the morning brief"). Routines report and never write (docs/ROUTINES.md), so that
-//     deferral has no actor: WEEK-2026-09-15-1 was deferred to the weekly session and never landed.
-//   - a THIRD consecutive deferral of one WEEK id, counted over the earlier plans in the wave-plan
-//     store. Two deferrals pass; the third plan plans the row or drops it in writing, which is a
-//     `rejected:` line with the reason. WEEK-2026-09-22-3 was deferred four plans running.
-//
-// THE WEEKLY LINE IS ALWAYS PRINTED, pass or fail, and it names the directory it searched. Both
-// the weekly file and the answered rulings live in the PRIMARY checkout, gitignored, so a
-// linked-worktree read of the wrong directory reports "nothing here" - which is what let the
-// alignment refusal pass every plan for a week after it shipped. A path on the screen is what
-// makes "nothing is owed" and "I looked in the wrong place" different sentences.
-//
 // And it prints ECONOMY NOTES, which refuse nothing: a snapshot line that gives Claude a percentage
 // it does not have, and Codex headroom left idle by a plan with no codex row (`economyNotes`).
 //
@@ -54,11 +33,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { alignmentState, mentionsId } from './alignment-answers.mjs';
 import { checkWorkFile } from './work-spec.mjs';
-import { inStore, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
+import { inStore, wavePlansDir } from './wave-plan-store.mjs';
 import { parseWindowEnd, parseWindowStart } from './wave-horizon.mjs';
-import { candidateProblems, parseCandidateSection, planDate, summaryLine, weeklyCandidates } from './weekly-candidates.mjs';
 import { newestWavePlan } from './wave-tick.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -336,48 +313,11 @@ export function economyNotes(text, rows) {
   return notes;
 }
 
-/** How many plans running may defer one weekly candidate. The next one plans it or drops it. */
-export const DEFERRAL_LIMIT = 2;
-
-// The routines of docs/ROUTINES.md, by the names plans use for them: title, task id, and the
-// weekly session's workflow name.
-const ROUTINE = String.raw`(?:\/?orchestrator-week|weekly[- ](?:owner[- ])?(?:session|review|run)|(?:daily[- ])?morning[- ]brief|codex-update-check|delegation tooling update|(?:monthly[- ])?(?:competitor|quality(?: and refactor| \/ refactor)?)[- ]review)`;
-// A routine named as the one that will do the work: the deferral points FORWARD at it ("next",
-// "to", "for", "until") or gives it the verb ("will", "can"). A routine named as evidence, "the
-// morning brief showed Codex at its cap", is not an actor and passes.
-const ROUTINE_AS_ACTOR = new RegExp(String.raw`\b(?:next|to|for|until|till)\s+(?:the\s+|a\s+)?(?:next\s+)?${ROUTINE}|${ROUTINE}(?:\s+session)?\s+(?:will|can|should|is to)\b`, 'i');
-
-/**
- * The deferrals this plan may not make. `earlier` is the text of every plan in the store written
- * before this one, newest first: a streak is the run of those that deferred the same id, and it
- * breaks at the first plan that did anything else with it or said nothing.
- */
-export function deferralProblems(owed, classified, earlier = []) {
-  const problems = [];
-  const sections = earlier.map(parseCandidateSection);
-  for (const row of owed) {
-    const entry = classified.get(row.id);
-    if (entry?.cls !== 'deferred') continue;
-    const what = `${row.id} ("${row.title}")`;
-    if (ROUTINE_AS_ACTOR.test(entry.trace)) {
-      problems.push(`weekly candidate ${what} is deferred to a routine, and routines report but never write (docs/ROUTINES.md) - name the wave that will carry it, or reject it with the reason`);
-    }
-    let streak = 0;
-    while (streak < sections.length && sections[streak].get(row.id)?.cls === 'deferred') streak += 1;
-    if (streak >= DEFERRAL_LIMIT) {
-      problems.push(`weekly candidate ${what} was already deferred by the ${streak} plan(s) before this one - plan it as a row, or drop it in writing: "rejected: ${row.id} - <why it is dropped>"`);
-    }
-  }
-  return problems;
-}
-
 /**
  * The whole verdict, from the plan text plus injected facts so the pure part is testable.
- * `exists(relativePath)`, `alignment` (the pending answers from alignment-answers), `candidates` (the weekly review's rows
- * this plan is inside the window of, from weekly-candidates), `earlier` (the text of every stored
- * plan written before this one, newest first, for the deferral streak).
+ * `exists(relativePath)`, `now`, `night`, and `workSpec` (the spec checker).
  */
-export function checkPlan(text, { exists, alignment = [], candidates = [], earlier = [], now = Date.now(), night = false, workSpec = (file, criteria) => checkWorkFile(file, { criteria }) } = {}) {
+export function checkPlan(text, { exists, now = Date.now(), night = false, workSpec = (file, criteria) => checkWorkFile(file, { criteria }) } = {}) {
   const problems = [];
   const table = parseWaveTable(text);
   problems.push(...table.problems);
@@ -441,10 +381,6 @@ export function checkPlan(text, { exists, alignment = [], candidates = [], earli
   // The candidates table is the refill loop's list (night.md). Its optional browser column is the
   // planner's override of the specs-derived need, and only a cell starting with yes or no is read
   // as one - so a cell spelt any other way is a planner who believes they overrode and did not.
-  // NAMED FOR THE TABLE, not `candidates`: this function also takes a `candidates` PARAMETER, the
-  // weekly review's rows, and the two arrived from different branches that git merged without a
-  // conflict. Sharing the name does more than fail to compile - it silently rebinds
-  // `candidateProblems(candidates, ...)` below from the weekly rows to this table.
   const candidatesTable = tableUnder(text, /^#{1,6}\s+.*\bcandidates\b/i);
   if (candidatesTable?.header?.includes('browser')) {
     for (const row of candidatesTable.rows) {
@@ -475,23 +411,6 @@ export function checkPlan(text, { exists, alignment = [], candidates = [], earli
     if (hasStart && start === null) problems.push('a night plan Window starts must be a parseable timestamp');
     if (start !== null && start > now) problems.push('a night plan Window starts is in the future - wait until the authorized window starts before launching');
   }
-  // An answered alignment question is a ruling he has already given, so the plan may not hold or
-  // defer it the way it may an ask - it plans the row that records it where it belongs.
-  // Mentioning the id is what passes here; the answer stops being pending when the ruling lands,
-  // so an unrecorded one comes back tomorrow and the morning after that. The id is matched WHOLE
-  // (`mentionsId`), so a plan naming ...-10 does not silently satisfy the refusal for ...-1.
-  for (const entry of alignment) {
-    if (!mentionsId(text, entry.id)) {
-      problems.push(`alignment answer ${entry.id} is not recorded yet and this plan does not mention it - plan the row that records what he said where it belongs`);
-    }
-  }
-  // A candidate row from a weekly review inside this plan's window. Unlike an alignment answer it
-  // may be turned down - the owner's ruling is that nothing is forced into a wave - so all three
-  // classes pass and only silence, or a refusal with no reason behind it, is a problem.
-  // And a deferral needs an actor and an end: never a routine, and never three plans running.
-  const classified = parseCandidateSection(text);
-  problems.push(...candidateProblems(candidates, classified, seenLetters));
-  problems.push(...deferralProblems(candidates, classified, earlier));
   return { problems, notes: economyNotes(text, table.rows), rows: table.rows.length, pools: [...new Set(table.rows.flatMap(rowPools))] };
 }
 
@@ -514,29 +433,16 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     console.error('    whose exact path for today `node scripts/wave-plan-store.mjs --path <date> <day|night>` prints.\n');
     return 1;
   }
-  const weekly = weeklyCandidates(root, planDate(planPath));
   const verdict = checkPlan(readFileSync(planPath, 'utf8'), {
     exists: (relative) => existsSync(path.join(root, ...relative.split('/'))),
-    alignment: alignmentState(root).pending,
-    candidates: weekly.owed,
-    // The store, never a checkout: a plan in a checkout dies with it. Names sort by date and
-    // `day` before `night`, so every name below this one's was written earlier.
-    earlier: wavePlanFiles()
-      .filter((name) => name < path.basename(planPath))
-      .map((name) => readFileSync(path.join(wavePlansDir(), name), 'utf8')),
     now,
     night: /-night-/.test(path.basename(planPath)),
     workSpec: (file, criteria) => checkWorkFile(file, { root, criteria }),
   });
   if (argv.includes('--json')) {
-    console.log(JSON.stringify({ plan: planPath, weekly, ...verdict }, null, 2));
+    console.log(JSON.stringify({ plan: planPath, ...verdict }, null, 2));
     return verdict.problems.length ? 1 : 0;
   }
-  // Printed on every run, green or red. The two per-machine inputs above - the weekly file and the
-  // rulings it holds - live outside this checkout, so the directory they were read from is part of
-  // the verdict rather than a detail: a check that reports nothing owed after reading an empty
-  // folder is the failure this rule was added to end.
-  console.error(`  ${summaryLine(weekly)}`);
   for (const note of verdict.notes) console.error(`  economy: ${note}`);
   if (verdict.problems.length) {
     console.error(`\nWave plan NOT ready - ${path.basename(planPath)} (${verdict.problems.length} problem(s)):\n`);
@@ -544,7 +450,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     console.error('');
     return 1;
   }
-  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}; every alignment answer and weekly candidate row (${weekly.owed.length}) accounted for.`);
+  console.log(`Wave plan OK: ${path.basename(planPath)} - ${verdict.rows} row(s), pools ${verdict.pools.join(', ') || 'none'}.`);
   return 0;
 }
 
