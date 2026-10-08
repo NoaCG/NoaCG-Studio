@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GENERATED_MARKER, firstSentences, isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
+import { GENERATED_MARKER, firstSentences, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody, riskText } from './pr-description.mjs';
 
 test('the title is the first commit on the branch, because the last one is usually a tail', () => {
   assert.equal(pullRequestTitle(['Add the scoreboard behaviour', 'Fix the review findings'], 'b'), 'Add the scoreboard behaviour');
@@ -47,8 +47,31 @@ test('a body longer than two sentences is cut to two', () => {
 });
 
 test('an empty body falls back to the main commit subject as a sentence', () => {
-  assert.ok(pullRequestBody({ subjects: ['Add the scoreboard'], message: '  \n' }).startsWith('Add the scoreboard.\n\nRisk: not assessed.'));
+  assert.ok(pullRequestBody({ subjects: ['Add the scoreboard'], message: '  \n' }).startsWith('Add the scoreboard.\n\n<details>'));
   assert.ok(pullRequestBody({ subjects: ['', ' '] }).startsWith('This branch has no commits of its own.'));
+});
+
+test('the Risk line is the session\'s sentence, else certain from the paths, else absent', () => {
+  assert.equal(riskText('  Risk:  a failed save could\n lose an edit. '), 'a failed save could lose an edit.');
+  assert.equal(riskText('', ['docs/GOALS.md', 'docs/whats-new/2026-10-08.md']), 'low, docs only.');
+  assert.equal(riskText('medium, the save path', ['docs/A.md']), 'medium, the save path', 'a given sentence wins');
+  assert.equal(riskText('', ['docs/A.md', 'scripts/jobs.mjs']), '', 'code is never guessed at');
+  assert.equal(riskText('', ['AGENTS.md']), '', 'Markdown outside docs/ steers agents, so it is not docs');
+  assert.equal(riskText('', ['docs/shot.png']), '');
+  assert.equal(riskText('', []), '', 'no diff derives nothing');
+
+  const derived = pullRequestBody({ subjects: ['Tidy the goals'], paths: ['docs/GOALS.md'] });
+  assert.ok(derived.startsWith('Tidy the goals.\n\nRisk: low, docs only.\n\n<details>'));
+  const none = pullRequestBody({ subjects: ['Fix the save'], paths: ['src/save.ts'] });
+  assert.ok(!none.includes('Risk:'), 'no line rather than "not assessed"');
+});
+
+test('queueing again keeps the Risk line an earlier queueing wrote', () => {
+  const earlier = pullRequestBody({ subjects: ['a'], risk: 'a failed save could lose an edit.' });
+  assert.equal(riskFromBody(earlier), 'a failed save could lose an edit.');
+  assert.equal(riskFromBody(pullRequestBody({ subjects: ['a'] })), '');
+  assert.equal(riskFromBody('Risk: typed by a person, not ours'), '', 'a typed body is never read as ours');
+  assert.equal(riskFromBody(undefined), '');
 });
 
 test('an image appears only when one is given', () => {

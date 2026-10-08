@@ -31,7 +31,7 @@ import { requiresRunningDevServer } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
 import { changedBacklogFiles, receiptsFor, servesVerdict } from './owner-receipts.mjs';
-import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
+import { isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody } from './pr-description.mjs';
 import { reviveReviewed } from './cloud-queue.mjs';
 import { spawnRunner } from './queue-pr.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
@@ -394,7 +394,7 @@ async function cmdAddMerge() {
   const named = Boolean(args[1] && !args[1].startsWith('-'));
   const target = named ? args[1] : currentBranch();
   if (!target || target === 'main' || target === 'HEAD') {
-    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--why "<reason>"] [--unreviewed "<reason>"]');
+    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--risk "<what could break>"] [--why "<reason>"] [--unreviewed "<reason>"]');
     console.error('  With no branch it queues this worktree\'s. It refuses main and a detached HEAD.');
     process.exit(1);
   }
@@ -474,7 +474,11 @@ async function cmdAddMerge() {
   // Optional on purpose - a description that names what changed and how it was checked is already
   // worth reading, and a required field nobody fills gets filled with noise.
   const why = sentenceFlag('--why', 'the old field could not hold two scores');
-  const queued = queueOnGitHub(target, tipForReview, description, why ?? '');
+  // `--risk` is the pull request's one Risk line, in the queuing session's words: what could break.
+  // Optional for the same reason; without it the line is kept from an earlier queueing, derived
+  // when the changed paths make it certain, or left out (scripts/pr-description.mjs `riskText`).
+  const risk = sentenceFlag('--risk', 'low, copy only');
+  const queued = queueOnGitHub(target, tipForReview, description, { why: why ?? '', risk: risk ?? '' });
   // The local shadow: a merge job whose command only WATCHES the pull request (scripts/land-watch.mjs),
   // so the branch is frozen while it is queued, the tick reports QUEUED and LANDED, and the ledger
   // gets the landing with this checkout as its session - every local reader keeps its one shape.
@@ -537,7 +541,7 @@ function refuseUnansweredReceipts(branch, named) {
  * Push, open or reuse the pull request, post the reviewed status, add the label. Every step is
  * idempotent, so queueing twice is harmless. Returns { number, url }.
  */
-function queueOnGitHub(branch, tip, description, why = '') {
+function queueOnGitHub(branch, tip, description, { why = '', risk = '' } = {}) {
   const ghRun = (ghArgs) => {
     const result = spawnSync('gh', ghArgs, { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
     if (result.status !== 0) {
@@ -587,7 +591,10 @@ function queueOnGitHub(branch, tip, description, why = '') {
   const mainBody = (range) => (spawnSync('git', ['log', '--no-merges', '--reverse', '--format=%b%x1e', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
     .stdout.split('\x1e')[0] ?? '').trim();
   const message = mainBody(`origin/main..${tip}`) || mainBody(`${tip}~1..${tip}`);
-  const body = pullRequestBody({ subjects, message, tested: description, why });
+  // The changed paths only ever derive a risk nobody gave, so an unanswerable diff simply derives none.
+  const paths = spawnSync('git', ['diff', '--name-only', `origin/main...${tip}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
+    .stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const body = pullRequestBody({ subjects, message, tested: description, why, risk: risk || riskFromBody(pr?.body), paths });
   const prExisted = Boolean(pr);
   if (!pr) {
     const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', pullRequestTitle(subjects, branch), '--body', body]);
