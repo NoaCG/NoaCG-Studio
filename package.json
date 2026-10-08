@@ -190,7 +190,7 @@
     "test:editor-organization:mutations": "node scripts/editor-organization-mutation-bench.mjs"
   },
   "overrides": {
-    "dompurify": "3.4.13",
+    "dompurify": "3.4.16",
     "path-to-regexp": "6.3.0"
   },
   "dependencies": {

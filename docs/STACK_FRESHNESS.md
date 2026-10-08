@@ -89,11 +89,14 @@ worth more than the fix: **the audit does not gate the merge queue, which reads 
 so a red weekly survives every landing until a person reads it.
 
 **The `dompurify` override, and what it does NOT do (2026-08-04).** `package.json` pins
-`overrides: { "dompurify": "3.4.13" }`. Upgrading `monaco-editor` could never have closed those
+`overrides: { "dompurify": "3.4.16" }`. Upgrading `monaco-editor` could never have closed those
 advisories — monaco pins dompurify exactly, so its version moves only when monaco's does (0.55.1
 carried 3.2.7, 0.56.0 carries 3.4.8, the advisory covers `<=3.4.11`, the fix landed in 3.4.12,
 and `npm audit fix --force` "solves" it by DOWNGRADING monaco to 0.53.0). The override was taken
-deliberately, for audit hygiene rather than for a live exposure.
+deliberately, for audit hygiene rather than for a live exposure. It was raised from 3.4.13 to
+3.4.16 on 2026-10-08 for two low advisories in the `IN_PLACE` mode (GHSA-p98j-92pf-mc4p,
+GHSA-6688-9rhm-gjv2, `<=3.4.15`). Monaco's sanitizer passes a string and never sets `IN_PLACE`,
+so neither reaches it, and monaco 0.57.0 carries 3.4.15, so no monaco release closes them yet.
 
 Be precise about its effect, because it is easy to overstate: **it changes the dependency graph
 npm audits, not the code we ship.** `monaco-editor`'s ESM build — the one Vite bundles — imports
@@ -112,7 +115,7 @@ Nothing in `src/` imports dompurify directly. **Recheck those three call-site fa
 advisory text, if monaco's sanitizer is ever rewritten** — that is the assumption that would
 break.
 
-**Remove the override when monaco vendors 3.4.12 or newer**, or it silently holds a future
+**Remove the override when monaco vendors a copy no open advisory covers**, or it silently holds a future
 dompurify back. Nothing enforces that; it is why it is written here.
 
 **The `path-to-regexp` override (2026-08-13).** `package.json` pins
@@ -151,6 +154,13 @@ unnoticed behind two moderates, which means the blocking gate was genuinely fail
 merely reporting accepted noise. Both copies were fixable inside the ranges their parents already
 declared.
 
+The same ordinary kind came back on 2026-10-08: `brace-expansion` 5.0.9 (under `minimatch`) and
+`source-map-js` 1.2.1 (under `postcss`), both high, both dev-only, closed by lockfile bumps to
+5.0.12 and 1.2.2 inside their parents' ranges. `render-worker/` and `player-host/` keep their own
+lockfiles, which this job does not audit. They carried the same `source-map-js`, and the worker
+four more high and two moderate advisories in its bundler toolchain, all closed then by patch or
+minor bumps in those lockfiles.
+
 Playwright gets no separate check. The actionable signal is the package bump, which `npm
 outdated` already reports; the browser revision follows from it.
 
@@ -180,7 +190,7 @@ too: `esm/vs/base/browser/dompurify/dompurify.js`, currently 3.4.8, imported by 
 from `domSanitize.js`. It is the sanitizer that actually runs in the editor — hover tooltips and
 suggest documentation — and **no tool here has an opinion about it.** `npm audit` reads the
 declared dependency graph, where the `dompurify` entry is a different artefact that monaco's ESM
-never imports; since 2026-08-04 an override pins that entry to 3.4.13, so audit reports zero
+never imports; since 2026-08-04 an override pins that entry (3.4.16 since 2026-10-08), so audit reports zero
 while the vendored 3.4.8 keeps running (Group 1 above says why that was accepted).
 
 `scripts/check-vendored-versions.mjs` reads it, as a third entry beside GSAP and Lottie — same
@@ -199,11 +209,11 @@ two in three ways, each written into the entry:
 Advisory does NOT mean unmonitored: a file that is present but whose banner no longer matches
 is a hard finding, because that means the upstream layout moved and the row has silently
 stopped measuring anything. Today it reports
-`fyi dompurify vendored 3.4.8 latest 3.4.13`.
+`fyi dompurify vendored 3.4.8 latest 3.4.16`.
 
 What it still cannot do is decide for you. On the next monaco upgrade, read that row and the
 advisories against the version it names rather than trusting a green `npm audit` — and drop the
-`dompurify` override once the vendored copy reaches 3.4.12 or newer.
+`dompurify` override once the vendored copy reaches a version no open advisory covers.
 
 ### Pinned model ids — `scripts/check-model-ids.mjs`
 
