@@ -573,7 +573,9 @@ async function blankAcross(
   page.off('console', onConsole);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
   const demoOut = outs.find((t) => t >= t0) ?? Infinity;
-  const firstFrame = firsts.find((t) => t >= t0) ?? Infinity;
+  // The LAST document's: if the step change committed two, the first one's entrance may be the
+  // picture held while the second loads, and that wait is a blank the afterimage owes.
+  const firstFrame = firsts.filter((t) => t >= t0).at(-1) ?? Infinity;
 
   const shares = await inkShares(
     page,

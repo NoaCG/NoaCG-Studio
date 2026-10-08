@@ -919,7 +919,9 @@ test('a stale local main plans only the changed specs, whichever main ref is fre
     git('update-ref', 'refs/heads/main', stale);
     git('update-ref', 'refs/remotes/origin/main', fresh);
     assert.equal(branchBase(repo), fresh);
-    assert.deepEqual(plan(), { ...plan(), mode: 'subset', specs: ['wizard-preview.spec.ts'] });
+    const planned = plan();
+    assert.equal(planned.mode, 'subset');
+    assert.deepEqual(planned.specs, ['wizard-preview.spec.ts']);
 
     // The other way round: pulled but not fetched.
     git('update-ref', 'refs/heads/main', fresh);

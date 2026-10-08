@@ -61,8 +61,8 @@ export function statusContext(spec) {
 
 const COMMENT =
   'Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). ' +
-  'They run in quarantine.yml on every push to main and leave after RELEASE_AFTER consecutive passes. ' +
-  'Entries are written by ci.yml through the merge queue; edit by hand only to release early.';
+  'They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. ' +
+  'Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.';
 
 export function emptyStore() {
   return { $comment: COMMENT, version: STORE_VERSION, specs: {}, released: {} };
@@ -100,7 +100,7 @@ export function quarantinedSpecs(store) {
 }
 
 /** True for a spec configured-suite.yml runs and quarantines, rather than quarantine.yml. */
-export function isConfiguredSpec(spec) {
+function isConfiguredSpec(spec) {
   return specPath(spec).startsWith('e2e/configured/');
 }
 

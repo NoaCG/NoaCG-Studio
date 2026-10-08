@@ -264,4 +264,30 @@ test('a quarantined spec reds nothing, and its outcome is the status that earns 
   );
   assert.equal(beside.green, false);
   assert.deepEqual(beside.failing.map((f) => f.path), ['e2e/configured/other.spec.ts']);
+  assert.equal(beside.hardFail, 1, 'the excused failure is not a hard failure the rolling issue counts');
+});
+
+test('a flake in a run that is red for another reason is not quarantined, and stays in the failure set', () => {
+  const specs = [spec('teams.spec.ts', 'joins', 'failed', 'passed'), spec('other.spec.ts', 'o', 'failed', 'failed')];
+  const v = verdict(withRoot(report({ expected: 0, unexpected: 1, flaky: 1, skipped: 0 }, specs)), quarantine());
+  assert.equal(v.green, false);
+  assert.deepEqual(v.enter, []);
+  assert.deepEqual(v.failing.map((f) => f.path).sort(), ['e2e/configured/other.spec.ts', 'e2e/configured/teams.spec.ts']);
+});
+
+test('a quarantined spec the change edits is judged like any other, as the planner keeps it blocking', () => {
+  const held = 'e2e/configured/teams.spec.ts';
+  const v = verdict(withRoot(report({ expected: 0, unexpected: 1, flaky: 0, skipped: 0 }, [spec('teams.spec.ts', 't', 'failed', 'failed')])), quarantine({ quarantined: [held], edited: new Set([held]) }));
+  assert.equal(v.green, false);
+  assert.deepEqual(v.outcomes, { [held]: 'failure' }, 'its status is still posted');
+});
+
+test("red is counted by each test's own outcome, so an excused spec cannot hide another's failure", () => {
+  // An interrupted test is not in Playwright's `unexpected` count. Subtracting the excused spec's
+  // tests from the stats would have taken the other spec's real failure off the count.
+  const interrupted = { file: 'teams.spec.ts', title: 't', tests: [{ status: 'skipped', results: [{ status: 'interrupted' }] }] };
+  const real = { file: 'other.spec.ts', title: 'o', tests: [{ status: 'unexpected', results: [{ status: 'failed' }, { status: 'failed' }] }] };
+  const v = verdict(withRoot(report({ expected: 0, unexpected: 1, flaky: 0, skipped: 1 }, [interrupted, real])), quarantine({ quarantined: ['e2e/configured/teams.spec.ts'] }));
+  assert.equal(v.green, false);
+  assert.match(v.problems.map((p) => p.detail).join(' '), /1 failed/);
 });
