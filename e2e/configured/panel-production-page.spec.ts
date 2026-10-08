@@ -47,7 +47,9 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   const first = await deck.state((s) => Array.isArray(s.live));
   // No Bridge is set up on a runner, so `bridge` is off and no clip clock runs.
   expect(first).toMatchObject({ v: 1, where: 'production', label: 'Production page', live: [], bridge: 'off', clip: null });
-  expect((first.allowed as Json)['all-out']).toBe(false);
+  // All out is pressable whenever the production is published: the server may hold what this page
+  // does not know is on (playout-workflow-simplification D11).
+  expect((first.allowed as Json)['all-out']).toBe(true);
   const rows = await deck.rows();
   expect(rows.map((r) => [r.label, r.kind])).toEqual([
     ['Anna', 'cue'],
@@ -147,9 +149,13 @@ test('the clip clock a panel counts follows the server clip the production page 
   await evaluateInPage(
     op,
     async (show) => {
-      const { loadShows, addPlayoutItem } = await import('/src/model/shows.ts');
-      const id = loadShows().find((s) => s.name === show)!.id;
-      addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', name: 'OPENER', frames: 375, fps: 25, channel: 2 });
+      const { loadShows, addPlayoutItem, setShowOutputSetup } = await import('/src/model/shows.ts');
+      const { withCasparSwitch } = await import('/src/model/outputSetup.ts');
+      const current = loadShows().find((s) => s.name === show)!;
+      // Published with CasparCG off (the account has no default), so it is switched on first, as
+      // the operator does before CasparCG files… offers a clip (playout-workflow-simplification AC-4).
+      setShowOutputSetup(current.id, withCasparSwitch(current.outputSetup, true));
+      addPlayoutItem(current.id, { adapter: 'casparcg', kind: 'media', name: 'OPENER', frames: 375, fps: 25, channel: 2 });
     },
     name,
   );

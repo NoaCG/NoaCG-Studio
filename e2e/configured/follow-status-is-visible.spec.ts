@@ -55,7 +55,7 @@ test('a production whose live connection never joins says so, and a healthy one 
   await expect(line).toBeVisible({ timeout: 60_000 });
   await expect(line).toContainText('not joined');
   // It says SLOW rather than broken, because that is the truth: the durable road still delivers.
-  await expect(line).toHaveAttribute('title', /Commands still arrive/);
+  await expect(line).toHaveAttribute('title', /Commands arrive about every 30 s/);
 
   await blind.unrouteAll({ behavior: 'ignoreErrors' });
   await blind.close();

@@ -94,7 +94,9 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   const panel = page.getByTestId('production-status-panel');
   await expect(panel.getByTestId('ready-output')).toHaveCount(1);
   await expect(panel).toContainText('Desk A');
-  await expect(panel).toContainText('Holds v1');
+  // The row says its state; which version it holds is in its tooltip (playout-workflow-simplification D5).
+  await expect(panel.getByTestId('ready-state')).toHaveText('Ready for playout');
+  await expect(panel.getByTestId('ready-output')).toHaveAttribute('title', /Holds v1/);
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.screenshot({ path: shot('desk-1920-panel') });
   await desk.click();

@@ -130,7 +130,7 @@ test('an operator page waits out a database outage instead of calling the produc
   const line = desk.getByTestId('production-follow');
   await expect(line).toBeVisible({ timeout: 30_000 });
   await expect(line).toContainText('server not answering, retrying');
-  await expect(line).toHaveAttribute('title', /keeps asking/);
+  await expect(line).toHaveAttribute('title', /Retrying/);
   await expect.poll(() => deskOutage.refused, { timeout: 30_000 }).toBeGreaterThanOrEqual(3);
   await expect(line).toContainText('server not answering');
 

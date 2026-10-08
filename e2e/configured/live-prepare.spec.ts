@@ -111,7 +111,12 @@ test('the readiness run publishes what changed, checks every output and ends in 
   await teamA.blur();
   await expect(page.getByTestId('production-publish-changes')).toHaveCount(0);
   await openPanel(page, 'production-status');
-  await expect(panel.getByTestId('playout-check-now')).toHaveCount(0);
+  // Check now stays: it checks the version already published and publishes nothing (D5).
+  const checkedBefore = (await stampOf())?.at ?? 0;
+  await panel.getByTestId('playout-check-now').click();
+  await expect.poll(async () => (await stampOf())?.at ?? 0, { timeout: 90_000 }).toBeGreaterThan(checkedBefore);
+  expect((await stampOf())?.v.n, 'Check now must not publish the edit').toBe(1);
+  await expect(panel.getByTestId('panel-publish-changes')).toBeVisible();
   await panel.getByTestId('panel-publish-changes').click();
   // The panel shuts on any click outside it (a Take, say), here while the run is still publishing;
   // the run goes on to its stamp regardless.

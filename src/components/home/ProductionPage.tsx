@@ -332,7 +332,7 @@ const LOCAL_SAVE_HEAD_START_MS = 250;
  * works without one, and the dialog's own second line says so.
  */
 const PUBLISH_NEEDS_ACCOUNT =
-  'Publishing needs a free account. Sign in and it publishes straight away.';
+  'Publishing puts the production online, and that needs a free account. Sign in and it publishes straight away.';
 const CLAIM_NEEDS_ACCOUNT =
   'Changing the audience link needs the account that published this production. Sign in first.';
 
@@ -4385,7 +4385,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         testId: 'production-publish',
         run: () => void publish(),
         primary: cues.length > 0,
-        title: backendConfigured ? undefined : 'Publishing needs the cloud backend, and this build runs offline',
+        title: !backendConfigured ? 'Publishing needs the cloud backend, and this build runs offline' : needsSignIn ? 'Needs a free account.' : undefined,
         unavailable: !backendConfigured,
       }
     : loadDue
@@ -4486,7 +4486,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               <RendererRows
                 outputs={readiness.outputs}
                 onDismiss={forgetOutput}
-                onCheck={!unpublishedChanges ? () => void publish() : undefined}
+                onCheck={() => void prepareFlow.run({ publish: false })}
                 checking={flowBusy}
                 checked={readiness.newestStamp ? `Checked ${clockWords(readiness.newestStamp.at)}` : undefined}
                 paths={commandPathsOf(prepareFlow.shown ?? [])}

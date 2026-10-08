@@ -37,7 +37,9 @@ export interface PrepareFlow {
   phase: Phase;
   /** The checklist while running and after, or null before the first run. */
   shown: CheckLine[] | null;
-  run: () => Promise<void>;
+  /** Publish what changed, then check. `publish: false` is Check now: it checks the version
+   *  already published and never publishes (playout-workflow-simplification D5). */
+  run: (opts?: { publish?: boolean }) => Promise<void>;
 }
 
 export function usePrepareForLive({
@@ -173,7 +175,7 @@ export function usePrepareForLive({
     at.onStamp(stampOf(done, at.target, at.now));
   }, [finished]);
 
-  const run = async () => {
+  const run = async ({ publish: mayPublish = true }: { publish?: boolean } = {}) => {
     if (busyRun.current) return;
     busyRun.current = true;
     const stillCurrent = () => currentShow.current === showId;
@@ -185,9 +187,9 @@ export function usePrepareForLive({
     const factsPending = bridge().catch(() => null);
     let version = published;
     try {
-      const changed = unpublishedChanges || (await recheckChanges());
+      const changed = mayPublish && (unpublishedChanges || (await recheckChanges()));
       if (!stillCurrent()) return;
-      if (changed || !published) {
+      if (mayPublish && (changed || !published)) {
         const written = await publish();
         if (!stillCurrent()) return;
         if (!written) {
@@ -202,7 +204,7 @@ export function usePrepareForLive({
         }
         version = written;
         setPublishLine({ key: 'publish', tone: 'ok', label: 'Published your changes' });
-      } else {
+      } else if (mayPublish) {
         setPublishLine({ key: 'publish', tone: 'ok', label: 'No unpublished changes' });
       }
       if (!version) { busyRun.current = false; setPhase('idle'); return; }
