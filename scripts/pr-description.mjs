@@ -11,6 +11,8 @@
 // description is built from them rather than from a summary somebody has to remember to type.
 // The one thing commits cannot supply is the why, so `--why` carries a sentence when there is one.
 //
+// Since 2026-10-08 the shape is smaller still: two sentences, a Risk line, details closed.
+//
 // Pure string work, kept out of scripts/jobs.mjs so it can be tested without a repository.
 
 /** How many commit lines a description lists before it starts counting the rest. */
@@ -46,28 +48,42 @@ export function pullRequestTitle(subjects, branch) {
   return (first ?? branch).slice(0, 120);
 }
 
+/** Cut `text` to its first `count` sentences, whitespace collapsed. */
+export function firstSentences(text, count = 2) {
+  const flat = (text ?? '').replace(/\s+/g, ' ').trim();
+  if (flat === '') return '';
+  const sentences = flat.match(/(?:[^.!?]|[.!?]+(?!\s|$))+(?:[.!?]+(?=\s|$)|$)/g) ?? [flat];
+  return sentences.slice(0, count).map((s) => s.trim()).join(' ');
+}
+
 /**
- * The description.
+ * The description (owner, 2026-10-08: simple and clean): two plain sentences from the main
+ * commit's body, one "Risk:" line, and the run details in a closed block. No template sections,
+ * and no image unless `image` (a URL) is given, which is for a visual change only.
  *
- * `subjects` are the branch's non-merge commit subjects, oldest first. `tested` is the review
- * verdict as the queue records it. `why` is optional and is printed as given.
+ * `subjects` are the branch's non-merge commit subjects, oldest first; the first is the main
+ * commit. `message` is that commit's body; with none, its subject stands in. `tested` is the
+ * review verdict as the queue records it. `why`, when given, goes in the details.
  */
-export function pullRequestBody({ subjects = [], tested = '', why = '' } = {}) {
+export function pullRequestBody({ subjects = [], message = '', tested = '', why = '', risk = '', image = '' } = {}) {
   const changes = subjects.filter((s) => s.trim() !== '');
+  let summary = firstSentences(message);
+  if (summary === '') {
+    summary = changes.length > 0 ? changes[0].trim().replace(/[.!?]*$/, '.') : 'This branch has no commits of its own.';
+  }
+
+  const riskText = risk.trim().replace(/^risk:\s*/i, '');
+  const lines = [summary, '', `Risk: ${riskText === '' ? 'not assessed.' : riskText}`];
+  if (image.trim() !== '') lines.push('', `![Screenshot](${image.trim()})`);
+
+  const details = [];
+  if (why.trim() !== '') details.push(`Why: ${why.trim()}`);
+  if (tested.trim() !== '') details.push(`Tested: ${tested.trim()}`);
+  details.push('GitHub runs the build and every test this change can affect before the queue merges it.', '');
   const shown = changes.slice(0, MAX_LINES);
-  const rest = changes.length - shown.length;
+  details.push(...shown.map((subject) => `- ${subject}`));
+  if (changes.length > shown.length) details.push(`- and ${changes.length - shown.length} more`);
 
-  const lines = ['## What changed', ''];
-  if (shown.length === 0) lines.push('- Nothing this description can name: the branch has no commits of its own.');
-  else for (const subject of shown) lines.push(`- ${subject}`);
-  if (rest > 0) lines.push(`- and ${rest} more commit${rest === 1 ? '' : 's'}`);
-
-  if (why.trim() !== '') lines.push('', '## Why', '', why.trim());
-
-  lines.push('', '## How it was tested', '');
-  if (tested.trim() !== '') lines.push(`- ${tested.trim()}`);
-  lines.push('- GitHub runs the build and every test this change can affect before the queue merges it.');
-  lines.push('', GENERATED_MARKER, 'Written from this branch\'s commits when it was queued. Type your own description here and it is kept.');
-
+  lines.push('', '<details>', '<summary>Details</summary>', '', ...details, '', '</details>', '', GENERATED_MARKER);
   return lines.join('\n');
 }
