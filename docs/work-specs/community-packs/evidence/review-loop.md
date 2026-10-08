@@ -81,6 +81,18 @@ placeholder text, two graphics sharing a name and an empty description; a clean 
 passes, builds with `license: CC-BY-4.0` and the chosen author and no rundown, and installs as a
 production with one starter cue per graphic.
 
+## Which tip each run covers
+
+The configured walk passed at `1761b084d`. The review fixes (stamping at creation, the cues
+refusal, the scroll-gated preview fetch, per-place busy keys, dialog focus) and the
+simplification after it (the shared auth hook, one list per effect, Install to try through
+Install) came later, and the walk was NOT re-run on the final tip: Docker Desktop had been stopped
+on the machine by then. On the final code: `npm run build` exit 0; the affected offline run (job
+j-3670, 2112 tests, 6 workers on a machine with about 2 GB free) passed all three
+`community-packs.spec.ts` tests and `pack-import.spec.ts`, with scattered failures in unrelated
+areas under that load; re-run at 2 workers, `library-bulk`, `library-productions`,
+`production-pack`, `community-packs` and `auth` passed and `pack-import` passed alone.
+
 ## Not covered here
 
 AC-5 (the design lock) and the attribution line are a Playout row's. Withdraw of a LIVE pack is

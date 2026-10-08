@@ -44,6 +44,12 @@ only-when-the-user-asks rule (D16, AC-12). Then the observed-request refusal (D5
 
 ## Notes
 
+- Re-run `e2e/configured/community-pack-review.spec.ts` against a local stack first: it passed
+  before the branch's review fixes and simplification, and Docker Desktop was down when the final
+  tip was ready, so the signed-in walk was not repeated on it (the receipt says which tip each run
+  covers). The shelf's previews also download each shared pack's whole file once its card is
+  seen; a first-graphic-only read or a stored preview is the cheaper shape once packs are many.
+
 - `e2e/configured/community-pack-review.spec.ts` is new; `e2e/configured/expected-run.json`'s
   `minTests` was not raised because another row was editing that file the same day. Raise it by
   one in the next change that touches it.
