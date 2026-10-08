@@ -48,7 +48,10 @@ working document (open another graphic, create new) goes through it; navigating 
 Home/control/video never does (nothing is lost there). It asks only when the switch would
 lose work: a linked document that drifted (`dirty`), or a never-saved one that differs from
 its creation `baseline`. A never-saved document is `dirty` from birth, so `dirty` alone asked
-over untouched work (e2e/new-graphic-guard.spec.ts).
+over untouched work (e2e/new-graphic-guard.spec.ts). A door that opens the wizard fresh also
+passes `resume`: a walk the reader LEFT mid-way with work in it (`heldWalk`, set by the wizard
+as it closes) is asked about first, and Continue reopens the wizard into it
+(e2e/wizard-draft-guard.spec.ts).
 
 ## templateStore.ts
 

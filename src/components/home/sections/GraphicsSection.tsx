@@ -73,7 +73,6 @@ export default function GraphicsSection({
   onProductionFilter,
   onOpen,
   onChanged,
-  onPublish,
 }: {
   /** Already search-filtered by HomePage — this section applies type, folder and sort on top. */
   graphics: GraphicDoc[];
@@ -93,7 +92,6 @@ export default function GraphicsSection({
   onProductionFilter: (next: string | null) => void;
   onOpen: (g: GraphicDoc) => void;
   onChanged: () => void;
-  onPublish?: (g: GraphicDoc) => void;
 }) {
   const navigate = useRouter((s) => s.navigate);
   // Cards or table. Device-level and remembered (model/prefs.ts) — which one is right
@@ -668,7 +666,6 @@ export default function GraphicsSection({
             }}
             onOpen={onOpen}
             onChanged={onChanged}
-            onPublish={onPublish}
             selected={selected.has(g.id)}
             onToggleSelect={(shiftKey) => toggle(i, shiftKey)}
           />

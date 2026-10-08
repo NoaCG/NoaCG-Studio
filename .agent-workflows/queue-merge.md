@@ -32,7 +32,12 @@ rebase onto `origin/main` or wait for that branch, because queueing would land i
 
 ## 3. Queue
 
-    npm run queue:merge -- --why "<the reason the change exists, if the commits do not say it>"
+    npm run queue:merge -- --risk "<what could break>" --why "<the reason, if the commits do not say it>"
+
+`--risk` is the pull request's Risk line: one plain sentence naming what could break for a user if
+this change is wrong, or `low, copy only` when nothing can. Write it from the diff you just checked.
+Without it, a branch that changes only `docs/**/*.md` reads `Risk: low, docs only.` and any other
+branch shows no Risk line.
 
 It pushes the branch, opens or reuses its pull request, posts the review verdict as the
 `noacg/reviewed` status, adds the `land` label and turns auto-merge on. GitHub queues the pull

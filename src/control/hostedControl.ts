@@ -28,6 +28,7 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
 import { noteSend, withSender } from './livePath';
 import { graphicDigest, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
@@ -1358,10 +1359,27 @@ export async function sendControlVerbs(
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
   const sent: VerbSent = { skipped: [], superseded: [] };
+  // ALL OUT IS PACED to the server's burst cap: a press clearing more graphics than one window's
+  // share leaves in waves a window apart, rather than being refused halfway with the rest of the
+  // allowance spent. Numbered at the press, a later wave still skips what this page pressed since
+  // (the server does), and it leaves out what another screen pressed since (here: the head moved
+  // past the press's base), which the panic control was pressed before.
+  const waves = one.allOut ? allOutWaves(batches.map((batch) => batch.length)) : [];
+  let waveLanded = 0;
   let landed = 0;
   try {
     for (const [index, batch] of batches.entries()) {
-      const each = await sendControlVerb({ ...one, items: batch, sender: senders[index] });
+      let items = batch;
+      if (waves[index] > 0) {
+        if (waves[index] !== waves[index - 1]) {
+          await new Promise((resolve) => setTimeout(resolve, Math.max(0, waveLanded + BURST_WINDOW_MS - Date.now())));
+        }
+        const base = senders[index]?.base;
+        if (session && base) items = batch.filter((item) => (session.revs.get(item.graphic) ?? 0) <= (base[item.graphic] ?? 0));
+        sent.skipped.push(...new Set(batch.filter((item) => !items.includes(item)).map((item) => item.graphic)));
+      }
+      const each = items.length ? await sendControlVerb({ ...one, items, sender: senders[index] }) : { skipped: [], superseded: [] };
+      waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
       sent.superseded.push(...each.superseded);
       landed += 1;
@@ -1545,11 +1563,20 @@ const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;
  * single Take does it any more. One batch per four layers, so a production bigger than that
  * clears in log order rather than not at all.
  */
-/** The graphics the server's heads last called on, as this page heard them; null where it follows
- *  no head (the id road, or not resolved yet). */
-export function headsOnAir(slug: string): string[] | null {
+/** Per graphic, whether the server's heads last called it on, as this page heard them; null where
+ *  it follows no head (the id road, or not resolved yet). */
+export function headsSay(slug: string): ReadonlyMap<string, boolean> | null {
   const session = seqSessions.get(slug);
-  return session ? [...session.on].filter(([, on]) => on).map(([graphic]) => graphic) : null;
+  return session ? new Map(session.on) : null;
+}
+
+/** All out's confirmation: wait until the heads say none of `graphics` is on, or `ms` passes, and
+ *  answer which still are. A page that follows no head has nothing to wait for. */
+export async function headsStillOn(slug: string, graphics: readonly string[], ms: number): Promise<string[]> {
+  const stillOn = () => graphics.filter((graphic) => headsSay(slug)?.get(graphic) === true);
+  const deadline = Date.now() + ms;
+  while (stillOn().length > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
+  return stillOn();
 }
 
 export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] {

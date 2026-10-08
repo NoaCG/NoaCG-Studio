@@ -14,7 +14,11 @@ import { useTemplateStore } from '../store/templateStore';
  * through the unsaved-changes guard.
  *
  * Always routed (`#/new`) and always guarded: a create REPLACES the working document, and
- * requestSwitch is a no-op on a clean one, so the guard costs the common case nothing.
+ * requestSwitch is a no-op on a clean one, so the guard costs the common case nothing. The same
+ * guard covers a wizard walk the reader LEFT mid-way: the wizard opens fresh, which would wipe
+ * it, so a walk with work in it is asked about first and can be continued instead
+ * (e2e/wizard-draft-guard.spec.ts). `startNewGraphic` is the press itself, for the other
+ * "+ New graphic" buttons that are not this door (Home's empty library).
  *
  * `productionId` is the production this open is FOR (the dashboard's own door): the wizard
  * pre-applies that production's look and preselects it on Finish. Standing inside a production,
@@ -32,6 +36,24 @@ import { useTemplateStore } from '../store/templateStore';
  * the guard runs: proceeding would change nothing, so even a dirty document must not raise the
  * unsaved-changes dialog for it.
  */
+export function startNewGraphic(productionId?: string) {
+  const { route, navigate } = useRouter.getState();
+  if (route.view === 'new' && !route.step) return;
+  useSaveUi.getState().requestSwitch(
+    () => {
+      if (productionId) useTemplateStore.setState({ pendingProductionId: productionId });
+      navigate({ view: 'new' });
+    },
+    undefined,
+    // A walk left mid-way is gone the moment the wizard opens fresh, so the guard asks about it
+    // first; its Continue opens the wizard back into that walk (CreationWizard reads the flag).
+    () => {
+      useSaveUi.setState({ resumeWalk: true });
+      navigate({ view: 'new' });
+    },
+  );
+}
+
 export default function NewGraphicButton({
   className,
   testid,
@@ -45,7 +67,6 @@ export default function NewGraphicButton({
   title?: string;
   current?: boolean;
 }) {
-  const navigate = useRouter((s) => s.navigate);
   if (current) {
     return (
       <span className={className} data-testid={testid ?? 'new-graphic'} data-door="new-graphic" aria-current="page">
@@ -67,14 +88,7 @@ export default function NewGraphicButton({
           ? 'Create a new graphic for this production - the wizard uses its look and adds it here'
           : 'Start a new graphic - opens the creation wizard')
       }
-      onClick={() => {
-        const route = useRouter.getState().route;
-        if (route.view === 'new' && !route.step) return;
-        useSaveUi.getState().requestSwitch(() => {
-          if (productionId) useTemplateStore.setState({ pendingProductionId: productionId });
-          navigate({ view: 'new' });
-        });
-      }}
+      onClick={() => startNewGraphic(productionId)}
     >
       + New graphic
     </button>

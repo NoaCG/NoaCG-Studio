@@ -59,7 +59,10 @@ import {
   followControlLog,
   hostedControlRange,
   hostedControlTail,
+  headsSay,
+  headsStillOn,
   hostedCueValues,
+  leftAlone,
   sendControlVerb,
   sendControlVerbs,
   staleSentence,
@@ -76,6 +79,7 @@ import {
   type OutputCue,
   type PanelGraphicSpec,
   type ResolvedControlShow,
+  type VerbSent,
 } from '../control/hostedControl';
 import { alreadyInSnapshot, planOutputRecovery } from '../control/outputRecovery';
 import { isBackendConfigured } from '../backend/config';
@@ -84,6 +88,8 @@ import { detectPrefix } from '../model/structure';
 import { graphicKindLabel } from '../model/types';
 import { FieldControl } from './fields/FieldControl';
 import PayloadStage, { type PayloadStageHandle } from './home/PayloadStage';
+import { nameList } from './home/CueRundown';
+import { ALL_OUT_CONFIRM_MS, allOutTargets } from '../control/allOut';
 import {
   revealCue,
   spaceAction,
@@ -164,6 +170,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  outage). Only an answer decides between the production and "not found". */
   const [serverWaiting, setServerWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** All out is on its way or waiting for the heads to say each graphic is off. */
+  const [clearing, setClearing] = useState(false);
   const [liveCue, setLiveCue] = useState<LiveCueMap>({});
   /**
    * TIMED CUES' COUNTDOWNS, one per graphic layer (control/cueAuto.ts), kept by the database and run
@@ -748,8 +756,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   };
 
   /** A press that leaves as several batches (All out over more than four layers): numbered and based together at the press, sent in order, stopping at the first that
-   *  fails (hostedControl.ts `sendControlVerbs`). Owed, on a failure: the batch that failed. */
-  const sendVerbs = (batches: ControlSendItem[][], allOut = false): Promise<boolean> => {
+   *  fails (hostedControl.ts `sendControlVerbs`). Owed, on a failure: the batch that failed. What
+   *  the send came to when it landed, or null when it did not. */
+  const sendVerbs = (batches: ControlSendItem[][], allOut = false): Promise<VerbSent | null> => {
     flushTyping.current();
     return sendControlVerbs({
       slug,
@@ -759,15 +768,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
       allOut,
     }).then(
-      () => {
+      (sent) => {
         setError(sendDebts.current.landed(batches.flat()));
-        return true;
+        return sent;
       },
       (e: Error) => {
         const landed = verbsLanded(e);
         if (landed > 0) sendDebts.current.landed(batches.slice(0, landed).flat());
         surfaceSendError(batches[landed] ?? [], e);
-        return false;
+        return null;
       },
     );
   };
@@ -943,12 +952,31 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       { graphic: selectedGraphic, msg: { t: 'update', data: cueValues(selectedCue) } },
     ]);
   };
-  const outAll = () => {
-    // `control_send_many` takes at most 8 items, so a clear of more than four layers is more than
-    // one verb - and each batch is its own press as far as the two roads are concerned. It STOPS
-    // at the first refusal: the likeliest refusal is the command-rate cap, and pressing on past it
-    // spends the rest of the allowance on batches that will be refused too.
-    void sendVerbs(clearAllCueBatches(liveLayers.map((l) => l.graphic)), true);
+  /** Clear the screen as the production page does (playout-workflow-simplification D11): what this
+   *  page has up, what the server's heads say is on, and on a quiet production every graphic they
+   *  have no word on, so a graphic whose cue marker went missing is not left up. Clearing… until
+   *  the heads say each is off; one still on is named, never assumed gone. */
+  const outAll = async () => {
+    const cleared = allOutTargets({
+      local: liveLayers.map((l) => l.graphic),
+      heads: headsSay(slug),
+      all: (payload?.graphics ?? []).map((g) => g.key),
+      published: true,
+    });
+    if (cleared.length === 0) return;
+    setClearing(true);
+    try {
+      // `control_send_many` takes at most 8 items, so a clear of more than four layers is more than
+      // one batch, all numbered at this press. It STOPS at the first refusal: pressing on past one
+      // spends the rest of the allowance on batches that will be refused too.
+      const sent = await sendVerbs(clearAllCueBatches(cleared), true);
+      if (!sent) return;
+      // A graphic this page pressed again meanwhile stays as that press left it (protocol 2).
+      const still = await headsStillOn(slug, cleared.filter((g) => !leftAlone(sent).includes(g)), ALL_OUT_CONFIRM_MS);
+      if (still.length > 0) setError(`All out did not clear ${nameList(still)}`);
+    } finally {
+      setClearing(false);
+    }
   };
 
   // Selecting moves the cursor and nothing else here: `previewedCue` derives what PREVIEW shows
@@ -973,7 +1001,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   const runVerb = (verb: PlayoutVerb, press?: VerbPress) => {
     // The header's ■ All out, as the named verb a hardware panel presses (no key, on purpose).
-    if (verb === 'all-out') outAll();
+    if (verb === 'all-out' && !clearing) void outAll();
     // H: hold the countdown that fires soonest, or resume the one held last - never the selected
     // cue's, which has usually moved on to the next cue by then.
     if (verb === 'hold' && chipGraphic) armWire.current?.toggleHold(chipGraphic);
@@ -1026,7 +1054,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       allowed: {
         take: !!selectedCue, retake: selectedIsLive, update: selectedIsLive, next: !!selectedLayerCueId && nextMoves,
         out: !!selectedLayerCueId, 'select-prev': cues.length > 0, 'select-next': cues.length > 0,
-        pause: false, resume: false, 'pause-toggle': false, 'all-out': liveLayers.length > 0,
+        pause: false, resume: false, 'pause-toggle': false, 'all-out': !clearing,
       },
       blocked: [],
       clip: null,
@@ -1067,12 +1095,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         {panelOpen && <PanelDialog slug={slug} answer={panel} onClose={() => setPanelOpen(false)} />}
         <button
           className="pd-allout"
-          disabled={liveLayers.length === 0}
-          onClick={outAll}
+          disabled={clearing}
+          onClick={() => void outAll()}
           title="Play every live layer off and clear the frame"
           data-testid="hosted-out-all"
+          data-clearing={clearing ? 'true' : undefined}
         >
-          ■ All out
+          {clearing ? 'Clearing…' : '■ All out'}
         </button>
       </header>
 

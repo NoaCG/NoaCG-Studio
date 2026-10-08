@@ -176,8 +176,18 @@ export interface SaveUiState {
    *  successful save (the guard's "Save first, then continue" continuation). */
   saveDialog: { mode: 'first' | 'save-as'; then?: () => void } | null;
   /** The unsaved-changes guard: `proceed` performs the destructive switch when confirmed;
-   *  `cancel` runs when the user backs out (e.g. a route-driven open rewinds the URL). */
-  confirmSwitch: { proceed: () => void; cancel?: () => void } | null;
+   *  `cancel` runs when the user backs out (e.g. a route-driven open rewinds the URL). With
+   *  `resume`, what is at risk is a wizard walk left mid-way (`heldWalk`), not the working
+   *  document, and `resume` is the way back into it. */
+  confirmSwitch: { proceed: () => void; cancel?: () => void; resume?: () => void } | null;
+  /**
+   * The wizard was LEFT mid-walk (its Home door, or browser Back) with work in it. It keeps the
+   * walk in memory, but every open wipes it for a fresh one, so a door that opens the wizard
+   * would discard that work. The wizard sets this as it closes and clears it as it opens.
+   */
+  heldWalk: boolean;
+  /** One-shot for the wizard's next open: go back into the held walk instead of starting fresh. */
+  resumeWalk: boolean;
   openSaveDialog: (mode: 'first' | 'save-as', then?: () => void) => void;
   closeSaveDialog: () => void;
   /** Dismiss the guard without proceeding (runs its `cancel`, if any). */
@@ -187,13 +197,17 @@ export interface SaveUiState {
   /**
    * Run `proceed` (an action that REPLACES the working document) behind the guard: a document
    * with work the switch would lose asks first (`hasUnsavedWork`), any other switches at once.
+   * A door that opens the wizard FRESH passes `resume` as well, so a held walk is asked about
+   * first, under the same rule: the wizard holds it only when it has work in it.
    */
-  requestSwitch: (proceed: () => void, cancel?: () => void) => void;
+  requestSwitch: (proceed: () => void, cancel?: () => void, resume?: () => void) => void;
 }
 
 export const useSaveUi = create<SaveUiState>((set, get) => ({
   saveDialog: null,
   confirmSwitch: null,
+  heldWalk: false,
+  resumeWalk: false,
   openSaveDialog: (mode, then) => set({ saveDialog: { mode, then } }),
   closeSaveDialog: () => set({ saveDialog: null }),
   closeConfirm: () => {
@@ -202,8 +216,9 @@ export const useSaveUi = create<SaveUiState>((set, get) => ({
     cancel?.();
   },
   settleConfirm: () => set({ confirmSwitch: null }),
-  requestSwitch: (proceed, cancel) => {
-    if (hasUnsavedWork()) set({ confirmSwitch: { proceed, cancel } });
+  requestSwitch: (proceed, cancel, resume) => {
+    if (resume && get().heldWalk) set({ confirmSwitch: { proceed, cancel, resume } });
+    else if (hasUnsavedWork()) set({ confirmSwitch: { proceed, cancel } });
     else proceed();
   },
 }));
