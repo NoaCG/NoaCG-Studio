@@ -23,7 +23,7 @@ export default defineConfig({
   // work it can take, and its load is not shared with anyone trying to use the machine.
   workers: process.env.CI ? 4 : localWorkers(),
   retries: 0,
-  reporter: [['list']],
+  reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
   // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than
   // sharing it, and this one overlapping anything else is the worst case of that.
   globalSetup: './e2e/_offline-guard.ts',
