@@ -26,7 +26,7 @@ import type { ValidationIssue, ValidationResult } from '../../validation/validat
 import { graphicKindLabel, type SpxTemplate } from '../../model/types';
 import { DOWNLOADS_URL } from '../../downloads/links';
 import BrandLogo from '../BrandLogo';
-import NewGraphicButton from '../NewGraphicButton';
+import NewGraphicButton, { startNewGraphic } from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
 import { useAuthState } from '../auth/useAuthState';
 import SyncStatus from '../SyncStatus';
@@ -409,7 +409,7 @@ export default function HomePage({ route }: { route: Route }) {
               {/* An EMPTY LIBRARY, not an empty search result: see the same gate in the Graphics
                   section below. */}
               {graphics.length === 0 && videos.length === 0 && productions.length === 0 && (
-                <EmptyHint onNew={() => navigate({ view: 'new' })} />
+                <EmptyHint onNew={() => startNewGraphic()} />
               )}
               <div className="home-shelf">
                 {searchFiltered.slice(0, 6).map((g) => (
@@ -479,7 +479,7 @@ export default function HomePage({ route }: { route: Route }) {
                   filter that happens to match nothing empties this list too, and answering that
                   with the first-run hint tells a user with forty graphics that they have none.
                   The section says why its own list is short; the hint is for having no work. */}
-              {graphics.length === 0 && <EmptyHint onNew={() => navigate({ view: 'new' })} />}
+              {graphics.length === 0 && <EmptyHint onNew={() => startNewGraphic()} />}
               {communityOn && mySubs.length > 0 && (
                 <div className="panel-section" style={{ marginTop: 14 }}>
                   <h3>My community templates</h3>
