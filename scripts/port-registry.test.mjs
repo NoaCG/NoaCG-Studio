@@ -19,6 +19,7 @@ import { after, describe, it } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
+  NO_PORT,
   PORT_RANGE,
   RECLAIM_IDLE_MS,
   SLOT_COUNT,
@@ -262,12 +263,16 @@ describe('a full registry', () => {
     return registry;
   }
 
-  it('asking still answers, and writes nothing', () => {
+  it('asking still answers - with no port, never another worktree\'s - and writes nothing', () => {
     const registry = fillRegistry(0);
     const before = readdirSync(registry).sort();
     const answer = peekPort({ root: COLLIDING_A, registryDir: registry, isRootActive: () => true });
-    assert.equal(answer.port, preferredPort(COLLIDING_A));
+    // Not the preference: another live worktree holds it, and a suite waiting there would adopt
+    // that worktree's server. 0 makes a server start fail loudly instead.
+    assert.equal(answer.port, NO_PORT);
+    assert.equal(answer.livePort, NO_PORT);
     assert.equal(answer.exhausted, true);
+    assert.throws(() => allocate(registry, COLLIDING_A, { port: answer.port }), /outside the approved range/);
     assert.deepEqual(readdirSync(registry).sort(), before);
   });
 

@@ -231,7 +231,10 @@ starts".
 **Nothing is available at all.** Only a server start can hit this: every port is held and every
 holder either has a server listening or claimed within the last ten minutes. `allocatePort` throws
 with the full list of who holds what (`node scripts/dev-port.mjs --list`). An install, a build or
-a test never needs a port and never fails this way. Finished worktrees are removed by the
+a test never needs a port and never fails this way. Asking in that state answers **0**
+(`NO_PORT`), never the preference: the preference belongs to another live worktree, and a suite
+waiting on it would adopt that worktree's server through `reuseExistingServer`. With 0 the suite
+starts its own server with `--port 0`, which the reservation refuses loudly. Finished worktrees are removed by the
 unattended cleanup sweep (`.agent-workflows/cleanup-worktrees.md`), which releases their tickets.
 
 ## Tests

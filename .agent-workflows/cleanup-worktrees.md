@@ -64,15 +64,18 @@ are decisions, not permissions.
 
 Finished work cleans itself up (owner, 2026-10-08; `docs/work-specs/worktree-lifecycle/`). Session
 start and every landing (`scripts/land-watch.mjs`) start `node scripts/cleanup-worktrees.mjs
---unattended` in the background, from the primary checkout, at most once per half hour and never
-beside another sweep (both modes take one lock). It runs the same assessment and apply as
-`--apply`, then acts only on a worktree that ALSO:
+--unattended` in the background, from the primary checkout and with the PRIMARY CHECKOUT'S copy of
+the script (landed code - never a feature branch's), at most once per half hour and never beside
+another sweep (both modes take one lock). Windows only: the in-use guarantee below rests on Windows
+refusing to rename a folder a process is in. It runs the same assessment and apply as `--apply`,
+then acts only on a worktree that ALSO:
 
 - sits under `<primary>/.claude/worktrees/` on a managed branch - never the Codex app's worktrees
   in `~/.codex/worktrees` (the Codex app caps those itself), never anything else;
 - has LANDED (the landing ledger names its branch) or has no commits of its own;
-- has been quiet long enough: a landed `agent-*` worktree 2 hours, any other landed worktree - a
-  desktop chat above all - 24 hours, one with no commits of its own 3 days;
+- has been quiet long enough - no Claude transcript turn AND no HEAD movement inside the window: a
+  landed `agent-*` worktree 2 hours, any other landed worktree - a desktop chat above all - 24
+  hours, one with no commits of its own 3 days;
 - has no job queued or running for it.
 
 Anything that needs a person is never acted on; it goes to `<git-common-dir>/noacg-cleanup/
@@ -138,10 +141,14 @@ should run in it.
   `scripts/orchestrator-home.mjs` so the two cannot drift: the branchless rule already covers it
   while it is detached, but a home that is only safe while it stays detached is one reattachment
   away from being swept.
-- **A worktree some process is in is left exactly as it is.** It is moved aside before removal,
-  and Windows refuses that rename while any process has its working directory or an open file
-  inside; the refusal is reported as "in use", not as a failure, and nothing in it is touched.
-  (A plain `git worktree remove` deletes every file first and fails only on the empty folder.)
+- **A worktree some process is in is left exactly as it is.** It is moved aside (to
+  `.claude/worktrees/.removing/<pid>/<name>`) before it is archived or removed, and Windows refuses
+  that rename while any process has its working directory or an open file inside; the refusal is
+  reported as "in use", not as a failure, and nothing in it is touched. (A plain
+  `git worktree remove` deletes every file first and fails only on the empty folder.) Any other
+  refusal is an error, and a worktree found under `.removing/` was interrupted mid-removal - both
+  need a person. `--self` is the deliberate exception: it removes the worktree its own session sits
+  in.
 - A worktree git reports as **locked** is skipped, never forced - that is how the harness marks
   an agent that is running right now. So is one part-way through a merge, rebase, cherry-pick or
   bisect (a bisect leaves a perfectly clean tree), and one whose Claude Code session wrote a
@@ -154,7 +161,7 @@ should run in it.
   `git branch -d`, never `-D`; git refuses an unmerged branch as a final backstop). `main` and
   the current branch are never touched. Other merged branches are reported, not deleted.
   The namespaces are `claude/*`, `codex/*` and `worktree-agent-*`, listed once in
-  `MANAGED_BRANCH_PREFIXES` (`scripts/cleanup-worktrees.mjs`) - adding the next one is a line
+  `MANAGED_BRANCH_PREFIXES` (`scripts/worktree-cleanup-lib.mjs`) - adding the next one is a line
   there. **The last of those is the ORCHESTRATOR's own litter**, and it is why the list is not
   just the two session prefixes: an agent launched into its own worktree gets
   `.claude/worktrees/agent-<id>` plus a `worktree-agent-<id>` branch alongside whatever `claude/*`

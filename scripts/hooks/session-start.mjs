@@ -106,26 +106,30 @@ try {
 // worktree after a day of quiet, and the owner often comes back to the same chat. When the
 // transcript says this session last worked in a worktree that is gone, make a fresh one at the
 // same path from origin/main, so the follow-up has somewhere to work with nothing to run.
+// Only on a RESUME: a compaction or a cleared conversation is not somebody coming back to it.
 let recovered = null;
 try {
   const { recoverRemovedWorktree } = await import('../worktree-followup.mjs');
-  recovered = recoverRemovedWorktree({
-    sessionCwd,
-    primaryRoot: roots[0],
-    transcriptPath: input?.transcript_path,
-    landed: landedBranches,
-  });
+  recovered = input?.source === 'resume'
+    ? recoverRemovedWorktree({
+        sessionCwd,
+        primaryRoot: roots[0],
+        transcriptPath: input?.transcript_path,
+        landed: landedBranches,
+      })
+    : null;
   if (recovered?.path) {
     roots = listRoots();
     console.log(
       recovered.inside
-        ? `This chat's earlier worktree was cleaned up after its work landed. A fresh worktree was made here ` +
-            `(${recovered.path}) on branch ${recovered.branch}, cut from origin/main. Dependencies are not ` +
-            'installed yet: run `npm ci` before building or testing.'
-        : `This chat last worked in ${recovered.path}, which was cleaned up after its work landed. A fresh ` +
-            `worktree is ready at that path on branch ${recovered.branch}, cut from origin/main. Before doing ` +
-            `anything else, switch into it with the EnterWorktree tool (path: ${recovered.path}) - it is under ` +
-            '.claude/worktrees, so no approval is needed - then run `npm ci` before building or testing.',
+        ? `This chat's earlier worktree has been removed (finished work is cleaned up automatically). A fresh ` +
+            `worktree was made here (${recovered.path}) on branch ${recovered.branch}, cut from origin/main. ` +
+            'Dependencies are not installed yet: run `npm ci` before building or testing.'
+        : `This chat last worked in ${recovered.path}, which has since been removed (finished work is cleaned ` +
+            `up automatically). A fresh worktree is ready at that path on branch ${recovered.branch}, cut from ` +
+            `origin/main. Before doing anything else, switch into it with the EnterWorktree tool (path: ` +
+            `${recovered.path}) - it is under .claude/worktrees, so no approval is needed - then run \`npm ci\` ` +
+            'before building or testing.',
     );
   } else if (recovered?.error) {
     console.log(`Note: this chat's earlier worktree is gone and a fresh one could not be made: ${recovered.error}`);
@@ -210,7 +214,9 @@ try {
       // Asking reserves nothing: a server start does (scripts/dev-port.mjs).
       const record = devPorts();
       ports = ` - dev port ${record.port}, live e2e port ${record.livePort}`;
-      if (!record.ticket && record.source !== 'primary checkout' && record.source !== 'DEV_PORT override') {
+      if (record.port === 0) {
+        ports = ' - no dev port free right now: every reservation is in use (node scripts/dev-port.mjs --list)';
+      } else if (!record.ticket && record.source !== 'primary checkout' && record.source !== 'DEV_PORT override') {
         ports += ' (reserved when a server starts)';
       } else if (record.preferred !== record.port) {
         // Say so when the deterministic preference was taken: the number is still stable, but
@@ -349,7 +355,10 @@ if (isOrchestratorHome) {
     const stateDir = cleanupStateDir(roots[0]);
     const last = stateDir ? JSON.parse(readFileSync(join(stateDir, 'last.json'), 'utf8')) : null;
     const asks = [...(last?.needsPerson ?? []), ...(last?.errors ?? [])];
-    if (asks.length > 0) {
+    if (last && last.ran === false) {
+      console.log('');
+      console.log(`Worktree cleanup: the last unattended run (${last.at}) did not run - ${last.why}.`);
+    } else if (asks.length > 0) {
       console.log('');
       console.log(
         `Worktree cleanup (last unattended run ${last.at}): ${asks.length} item(s) need a person - ` +

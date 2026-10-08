@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { claimDevPorts, writeLaunchConfig } from './scripts/dev-port.mjs';
+import { claimDevPorts, reservesPorts, writeLaunchConfig } from './scripts/dev-port.mjs';
 import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
@@ -123,6 +123,10 @@ function devPortReservation(): Plugin {
     config(config, { command, isPreview }) {
       if (command !== 'serve' || config.server?.middlewareMode) return;
       const asked = isPreview ? config.preview?.port : config.server?.port;
+      // A preview with no port named keeps Vite's own default where no reservation is involved
+      // (the primary checkout, a DEV_PORT override), so `npm run preview` beside `npm run dev`
+      // still works there.
+      if (isPreview && asked == null && !reservesPorts()) return;
       const record = claimDevPorts({ port: asked ?? null });
       // Keep the Claude preview launch config pointing at the port just reserved.
       writeLaunchConfig();

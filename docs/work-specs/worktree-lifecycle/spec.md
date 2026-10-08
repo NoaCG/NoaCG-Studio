@@ -45,8 +45,10 @@ never fails on ports.
 
 1. **Asking never reserves and never throws.** `devPorts()` answers the `DEV_PORT` override, 5174
    in the primary checkout, this checkout's ticket, or the port a server start would take now
-   (`peekPort`: preference, walk, then decision 3; the preference when even that finds nothing).
-   Config files, tests, hooks, sweeps and postinstall all ask; none writes a ticket.
+   (`peekPort`: preference, walk, then decision 3). When even that finds nothing it answers 0,
+   never the preference: that belongs to another live worktree, and a suite waiting there would
+   adopt its server. Config files, tests, hooks, sweeps and postinstall all ask; none writes a
+   ticket.
 2. **Only a server start reserves** (`claimDevPorts`). Vite's `noacg-dev-port` plugin reserves when
    a dev or preview server is about to listen - not for `build`, not in middleware mode - and
    `dev:worktree` reserves before it starts Vite. The Playwright configs and `dev:worktree` pass the
@@ -64,19 +66,24 @@ never fails on ports.
 5. **`node scripts/cleanup-worktrees.mjs --unattended`** runs the existing assessment and apply,
    narrowed by `unattendedPlan`: a removal must also be under `<primary>/.claude/worktrees/` on a
    managed branch, LANDED (the landing ledger names the branch) or with no commits of its own, quiet
-   for its window (landed `agent-*` 2 h, other landed 24 h, no commits of its own 3 days), and have
-   no queued or running job. Anything that needs a person is written to
+   for its window (landed `agent-*` 2 h, other landed 24 h, no commits of its own 3 days) by its
+   Claude transcripts AND by its HEAD's last movement (no transcript is not proof of quiet: a
+   worktree made a minute ago has none), and have no queued or running job. Anything that needs a
+   person is written to
    `<git-common-dir>/noacg-cleanup/last.json` (report in `last.txt`) and never acted on; the
    orchestrator home's session start prints the count.
 6. **Triggers:** session start and `land-watch.mjs` after a landing spawn it detached from the
-   primary checkout. It runs at most once per 30 minutes and takes a lock that `--apply` also
-   takes. `NOACG_NO_AUTO_CLEANUP=1` is the off switch.
-7. **A worktree in use is never touched.** Every removal (manual or unattended) first moves the
-   worktree aside with `git worktree move`; Windows refuses that rename while any process has its
-   working directory or an open file inside (measured: EBUSY/EPERM). The refusal is a skip ("in
-   use"), not an error, and the worktree and its branch stay exactly as they were. This replaces
-   the old behaviour where `git worktree remove` deleted every file under a live process and failed
-   only on the empty folder.
+   primary checkout, running the PRIMARY CHECKOUT'S copy of the script (fast-forwarded first when
+   safe), so a destructive sweep only ever runs landed code, never a feature branch's. It runs at
+   most once per 30 minutes, takes a lock that `--apply` also takes, and starts only on Windows
+   (decision 7 depends on it). `NOACG_NO_AUTO_CLEANUP=1` is the off switch.
+7. **A worktree in use is never touched.** Every sweep removal (manual or unattended) first moves
+   the worktree aside with `git worktree move` - before archiving anything - and Windows refuses
+   that rename while any process has its working directory or an open file inside (measured:
+   EBUSY/EPERM). That refusal is a skip ("in use"), not an error; any other refusal is an error.
+   This replaces the old behaviour where `git worktree remove` deleted every file under a live
+   process and failed only on the empty folder. `--self` keeps removing its own session's
+   worktree, which is its purpose.
 8. **Branches.** Before assessing, the sweep fast-forwards a clean primary `main` to `origin/main`
    (the handoff workflow's own rule), so the documented "contained in local main and origin/main"
    rule holds for landed branches. `git branch -d` stays the backstop and is pointed at
@@ -85,10 +92,10 @@ never fails on ports.
    lease-guarded remote delete stays as the fallback.
 9. **A chat the owner comes back to** (`scripts/worktree-followup.mjs`, from the SessionStart
    hook): (a) a session that starts in a worktree whose branch landed, with a clean tree and
-   nothing unlanded, is moved to a fresh branch cut from `origin/main`; (b) a resumed session whose
-   transcript says it last worked in a worktree that is now gone gets a fresh worktree at the same
-   path on a new branch from `origin/main`, and is told to enter it with `EnterWorktree`. Both
-   refuse on any doubt and never delete anything.
+   nothing unlanded, is moved to a fresh branch cut from `origin/main` (not on a compaction);
+   (b) a RESUMED session whose transcript says it last worked in a worktree that is now gone gets a
+   fresh worktree at the same path on a new branch from `origin/main`, and is told to enter it
+   with `EnterWorktree`. Both refuse on any doubt and never delete anything.
 
 ### Rejected
 

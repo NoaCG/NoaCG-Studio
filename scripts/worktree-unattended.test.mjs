@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import test from 'node:test';
 
 import { runUnattended, unattendedRule, UNATTENDED_IDLE_MINUTES } from './cleanup-worktrees.mjs';
@@ -96,6 +96,17 @@ function sessionLastActive(projects, path, minutesAgo) {
   utimesSync(file, when, when);
 }
 
+/** Its session AND its git activity last happened `minutesAgo` minutes ago. */
+function quiet(repo, path, minutesAgo) {
+  sessionLastActive(repo.projects, path, minutesAgo);
+  const when = (Date.now() - minutesAgo * 60_000) / 1000;
+  for (const name of ['logs/HEAD', 'HEAD']) {
+    const located = runGit(path, 'rev-parse', '--git-path', name);
+    const file = isAbsolute(located) ? located : join(path, located);
+    if (existsSync(file)) utimesSync(file, when, when);
+  }
+}
+
 function sweep(repo, { landed = [], jobs = [] } = {}) {
   resetSessionScanCache();
   return runUnattended(repo.primary, {
@@ -117,13 +128,13 @@ test('a landed session worktree goes - worktree, branch and port - once it has b
   land(repo.primary, wt);
   assert.notEqual(runGit(repo.primary, 'rev-parse', 'main'), runGit(repo.primary, 'rev-parse', 'origin/main'), 'local main must lag, as it does');
 
-  sessionLastActive(repo.projects, wt.path, 3 * HOUR);
+  quiet(repo, wt.path, 3 * HOUR);
   const early = sweep(repo, { landed: [wt.branch] });
   assert.equal(early.ran, true);
   assert.deepEqual(early.done.removedWorktrees, [], 'a desktop chat quiet for 3 hours was removed');
   assert.ok(existsSync(join(wt.path, 'README.md')));
 
-  sessionLastActive(repo.projects, wt.path, 25 * HOUR);
+  quiet(repo, wt.path, 25 * HOUR);
   const result = sweep(repo, { landed: [wt.branch] });
   assert.deepEqual(result.done.removedWorktrees.map(normalize), [normalize(wt.path)]);
   assert.equal(existsSync(wt.path), false);
@@ -144,9 +155,9 @@ test('a landed agent worktree goes after two quiet hours', (t) => {
   const repo = makeRepo(t);
   const wt = addWorktree(repo.primary, 'agent-a1b2c3', 'claude/row-x');
   land(repo.primary, wt);
-  sessionLastActive(repo.projects, wt.path, 1 * HOUR);
+  quiet(repo, wt.path, 1 * HOUR);
   assert.deepEqual(sweep(repo, { landed: [wt.branch] }).done.removedWorktrees, []);
-  sessionLastActive(repo.projects, wt.path, 3 * HOUR);
+  quiet(repo, wt.path, 3 * HOUR);
   assert.deepEqual(sweep(repo, { landed: [wt.branch] }).done.removedWorktrees.map(normalize), [normalize(wt.path)]);
   assert.equal(branchExists(repo.primary, wt.branch), false);
 });
@@ -154,10 +165,21 @@ test('a landed agent worktree goes after two quiet hours', (t) => {
 test('a worktree with no commits of its own goes after three quiet days, not before', (t) => {
   const repo = makeRepo(t);
   const wt = addWorktree(repo.primary, 'never-committed');
-  sessionLastActive(repo.projects, wt.path, 2 * 24 * HOUR);
+  quiet(repo, wt.path, 2 * 24 * HOUR);
   assert.deepEqual(sweep(repo).done.removedWorktrees, []);
-  sessionLastActive(repo.projects, wt.path, 4 * 24 * HOUR);
+  quiet(repo, wt.path, 4 * 24 * HOUR);
   assert.deepEqual(sweep(repo).done.removedWorktrees.map(normalize), [normalize(wt.path)]);
+});
+
+test('no transcript is not the same as quiet: a worktree made a minute ago stays', (t) => {
+  // Made with `git worktree add`, or worked in from a plain shell or Codex: no Claude transcript
+  // exists for it at all, so only its git activity can say it is new.
+  const repo = makeRepo(t);
+  const wt = addWorktree(repo.primary, 'just-made');
+  const result = sweep(repo);
+  assert.deepEqual(result.done.removedWorktrees, []);
+  const entry = result.plan.worktrees.find((w) => normalize(w.path) === normalize(wt.path));
+  assert.match(entry.why, /HEAD last moved \d+ minute\(s\) ago/);
 });
 
 test('unlanded work, a worktree outside .claude/worktrees and a queued job are never touched', (t) => {
@@ -170,7 +192,7 @@ test('unlanded work, a worktree outside .claude/worktrees and a queued job are n
   land(repo.primary, outside);
   const queued = addWorktree(repo.primary, 'queued');
   land(repo.primary, queued);
-  for (const wt of [unlanded, outside, queued]) sessionLastActive(repo.projects, wt.path, 10 * 24 * HOUR);
+  for (const wt of [unlanded, outside, queued]) quiet(repo, wt.path, 10 * 24 * HOUR);
 
   const result = sweep(repo, {
     landed: [outside.branch, queued.branch],
@@ -188,7 +210,7 @@ test('a worktree a process is sitting in is left exactly as it is, then goes onc
   const repo = makeRepo(t);
   const wt = addWorktree(repo.primary, 'held-open');
   land(repo.primary, wt);
-  sessionLastActive(repo.projects, wt.path, 30 * HOUR);
+  quiet(repo, wt.path, 30 * HOUR);
 
   // A process whose working directory is inside the worktree - a shell, a dev server, a session.
   const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: wt.path, stdio: 'ignore' });
@@ -218,7 +240,7 @@ test('anything that needs a person is written down, never acted on', (t) => {
   const wt = addWorktree(repo.primary, 'landed-but-dirty');
   land(repo.primary, wt);
   writeFileSync(join(wt.path, 'half-done.txt'), 'uncommitted\n');
-  sessionLastActive(repo.projects, wt.path, 30 * HOUR);
+  quiet(repo, wt.path, 30 * HOUR);
 
   const result = sweep(repo, { landed: [wt.branch] });
   assert.deepEqual(result.done.removedWorktrees, []);
@@ -242,16 +264,26 @@ test('two sweeps never run at once, and the trigger throttles itself', (t) => {
     started.push(args);
     return { unref() {} };
   };
+  // The primary checkout's own copy is what runs - landed code, never the triggering branch's.
+  const script = join(repo.primary, 'scripts', 'cleanup-worktrees.mjs');
+  mkdirSync(join(repo.primary, 'scripts'), { recursive: true });
+  writeFileSync(script, '// stand-in\n');
   const env = { NOACG_CLEANUP_STATE_DIR: repo.stateDir };
+  const common = { primaryRoot: repo.primary, env, start, platform: 'win32', fastForward: () => false };
   markSweepStart(repo.stateDir);
-  assert.equal(triggerUnattendedSweep({ primaryRoot: repo.primary, env, start }).started, false, 'not again within the half hour');
+  assert.equal(triggerUnattendedSweep(common).started, false, 'not again within the half hour');
   const later = lastSweepStart(repo.stateDir) + SWEEP_THROTTLE_MS + 1000;
-  assert.equal(triggerUnattendedSweep({ primaryRoot: repo.primary, env, start, now: later }).started, true);
-  assert.deepEqual(started.at(-1)[1].slice(-1), ['--unattended']);
+  assert.equal(triggerUnattendedSweep({ ...common, now: later }).started, true);
+  assert.deepEqual(started.at(-1)[1], [script, '--unattended']);
   assert.equal(started.at(-1)[2].cwd, repo.primary, 'a sweep runs from the primary checkout');
+  const stamped = lastSweepStart(repo.stateDir);
+  assert.equal(triggerUnattendedSweep({ ...common, now: stamped + 1000 }).started, false, 'the trigger stamps the start itself');
+  const muchLater = later + 2 * SWEEP_THROTTLE_MS;
+  assert.equal(triggerUnattendedSweep({ ...common, env: { ...env, NOACG_NO_AUTO_CLEANUP: '1' }, now: muchLater }).started, false);
   assert.equal(
-    triggerUnattendedSweep({ primaryRoot: repo.primary, env: { ...env, NOACG_NO_AUTO_CLEANUP: '1' }, start, now: later }).started,
+    triggerUnattendedSweep({ ...common, platform: 'linux', now: muchLater }).started,
     false,
+    'without Windows refusing to rename a folder in use, nothing may start unattended',
   );
 });
 

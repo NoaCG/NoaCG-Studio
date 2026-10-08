@@ -205,6 +205,11 @@ function fixedPorts() {
   return null;
 }
 
+/** Does this checkout reserve its port in the registry - a linked worktree with no DEV_PORT? */
+export function reservesPorts() {
+  return fixedPorts() === null;
+}
+
 /** Read-only: this checkout's reservation, or the port a server start would reserve now. */
 function resolvePorts() {
   const fixed = fixedPorts();
@@ -215,7 +220,11 @@ function resolvePorts() {
     port: peek.port,
     livePort: peek.livePort,
     preferred: peek.preferred,
-    source: peek.reserved ? 'reservation' : 'not reserved yet - a server start reserves it',
+    source: peek.reserved
+      ? 'reservation'
+      : peek.exhausted
+        ? 'no port free - every reservation is in use (node scripts/dev-port.mjs --list)'
+        : 'not reserved yet - a server start reserves it',
     root: normalizeRoot(repoRoot),
     ticket: peek.reserved ? ticketPath(dir, peek.port) : null,
   };

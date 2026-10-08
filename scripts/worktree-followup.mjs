@@ -23,12 +23,9 @@
 
 import { spawnSync } from 'node:child_process';
 import { closeSync, existsSync, openSync, readdirSync, readSync, statSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, join } from 'node:path';
 
-import { git, normalize, samePath, worktreeEntries } from './worktree-cleanup-lib.mjs';
-
-/** Branch namespaces a session works on - the same list the cleanup owns. */
-const SESSION_BRANCH = /^(claude\/|codex\/|worktree-agent-)/;
+import { git, managedBranch, normalize, operationInProgress, samePath, worktreeEntries } from './worktree-cleanup-lib.mjs';
 
 /**
  * The next free name after `branch`: `claude/x` -> `claude/x-2`, `claude/x-2` -> `claude/x-3`.
@@ -54,16 +51,6 @@ function nameTaken(name, cwd, landed) {
   );
 }
 
-/** A merge, rebase, cherry-pick, revert or bisect stopped part-way in `root`. */
-function operationInProgress(root) {
-  for (const marker of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'BISECT_LOG', 'rebase-merge', 'rebase-apply']) {
-    const located = git(['rev-parse', '--git-path', marker], root);
-    if (!located.ok || !located.stdout) continue;
-    if (existsSync(resolve(root, located.stdout))) return marker;
-  }
-  return null;
-}
-
 /**
  * Bring origin/main up to date, best effort and bounded - this runs inside a hook, and a stale ref
  * only makes the checks here stricter (origin/main never moves backwards).
@@ -83,7 +70,7 @@ function refreshMain(cwd) {
  * or null when there was nothing to decide.
  */
 export function moveOffLandedBranch({ root, branch, landed, refresh = refreshMain }) {
-  if (!branch || !SESSION_BRANCH.test(branch) || !landed.has(branch)) return null;
+  if (!branch || !managedBranch(branch) || !landed.has(branch)) return null;
   const status = git(['status', '--porcelain'], root);
   if (!status.ok) return { kept: true, why: 'could not read the working tree' };
   if (status.stdout !== '') return { kept: true, why: 'it has uncommitted changes' };
@@ -164,7 +151,7 @@ export function recoverRemovedWorktree({ sessionCwd, primaryRoot, transcriptPath
     if (entries.length > 0) return null; // a folder with files git does not know is somebody's
   }
   refresh(primaryRoot);
-  const base = last.branch && SESSION_BRANCH.test(last.branch) ? last.branch : `claude/${basename(path)}`;
+  const base = last.branch && managedBranch(last.branch) ? last.branch : `claude/${basename(path)}`;
   const branch = freshBranchName(base, (name) => nameTaken(name, primaryRoot, landed));
   const added = git(['worktree', 'add', '--no-track', '-b', branch, path, 'origin/main'], primaryRoot);
   if (!added.ok) return { error: added.stderr || added.stdout || 'git worktree add failed' };

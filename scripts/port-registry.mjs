@@ -458,12 +458,20 @@ function allocateUnderClaim({ me, registryDir, isRootActive, isPortBusy, now, ex
 }
 
 /**
+ * The answer when no port can be had: 0. It is never anybody's server, so a suite that would
+ * otherwise wait on it starts its own server with `--port 0`, which the claim refuses loudly -
+ * where answering the preference would hand over a port another live worktree holds, and
+ * Playwright's `reuseExistingServer` would test that worktree's build instead.
+ */
+export const NO_PORT = 0;
+
+/**
  * Which port `root` HAS, or WOULD GET if a server started there now - without writing anything
  * and without throwing. This is what every config file, test, hook and sweep asks.
  *
  * Returns `{ port, livePort, root, preferred, reserved, reclaims?, exhausted? }`: `reserved` says
  * whether a ticket backs the number, `reclaims` names the idle worktree a claim would take it
- * from, and `exhausted` means even that found nothing, so the answer is just the preference.
+ * from, and `exhausted` means even that found nothing, so the answer is NO_PORT.
  */
 export function peekPort({ root, registryDir, isRootActive, isPortBusy = () => false, nowMs = Date.now }) {
   const me = normalizeRoot(root);
@@ -484,9 +492,9 @@ export function peekPort({ root, registryDir, isRootActive, isPortBusy = () => f
     );
     if (victim) return answer(victim.port, { reclaims: victim.root });
   } catch {
-    // A registry we cannot read answers with the preference: a question must never fail.
+    // A registry we cannot read answers like a full one: a question must never fail.
   }
-  return answer(preferred, { exhausted: true });
+  return answer(NO_PORT, { livePort: NO_PORT, exhausted: true });
 }
 
 /** When a ticket was last claimed (its mtime), or null when it is not there. */

@@ -98,8 +98,11 @@ test('with every port reserved, postinstall still succeeds and asking reserves n
   assert.equal(asked.status, 0, asked.stderr);
   const record = JSON.parse(asked.stdout);
   assert.equal(record.ticket, null);
-  assert.equal(record.live, record.port + 1);
-  assert.match(record.source, /not reserved/);
+  // Every port is held by another live worktree, so the honest answer is "none" - never one of
+  // theirs, which a waiting suite would adopt.
+  assert.equal(record.port, 0);
+  assert.equal(record.live, 0);
+  assert.match(record.source, /no port free/);
 
   assert.deepEqual(snapshot(registry), before, 'asking wrote to the registry');
 });

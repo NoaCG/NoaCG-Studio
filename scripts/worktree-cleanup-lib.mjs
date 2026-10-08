@@ -12,7 +12,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Absolute path with forward slashes, for cross-checkout comparison on Windows. */
@@ -80,6 +80,90 @@ export function reapDelegationTrees(worktreePath, { run = spawnSync } = {}) {
   } catch (error) {
     return { ok: false, busy: false, output: error?.message ?? 'the reaper could not be run' };
   }
+}
+
+// --- Shared by the sweep, the SessionStart hook and the follow-up handling ----------------------
+
+/**
+ * The branch namespaces this sweep OWNS, and may therefore delete once containment passes.
+ * Anything else that passes containment is REPORTED instead: containment says the commits are
+ * safe, never whose branch it is, and a name outside these namespaces was chosen by a person.
+ *
+ * `worktree-agent-` is the harness's own namespace, not a human's. An agent launched with
+ * worktree isolation mints `.claude/worktrees/agent-<id>` together with a `worktree-agent-<id>`
+ * branch pointing at the same tip as the `claude/*` branch it was shadowing, and never pushes it.
+ * The sweep already removed those worktrees, so leaving the prefix out only stranded the
+ * branches - 48 had accumulated by 2026-09-02, every one contained in `main`, none on `origin`.
+ */
+export const MANAGED_BRANCH_PREFIXES = ['claude/', 'codex/', 'worktree-agent-'];
+
+export function managedBranch(name) {
+  return MANAGED_BRANCH_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
+
+/**
+ * A merge, rebase, cherry-pick or bisect stopped part-way, named rather than left to surface as
+ * "the tree is dirty" - and a BISECT leaves the tree perfectly clean while its state lives only
+ * in this worktree's own gitdir, so nothing else here would notice it.
+ */
+export function operationInProgress(worktreePath) {
+  // Tested as FILES, not as revisions. `git rev-parse --verify BISECT_LOG` exits 1 - a bisect log
+  // is not a ref - so the older rev-parse form silently never fired for the one operation that
+  // leaves no other trace, and `rebase-merge/`/`rebase-apply/` are directories that no rev-parse
+  // can see either. `--git-path` resolves each to this worktree's own gitdir.
+  for (const marker of [
+    'MERGE_HEAD',
+    'CHERRY_PICK_HEAD',
+    'REVERT_HEAD',
+    'BISECT_LOG',
+    'rebase-merge',
+    'rebase-apply',
+  ]) {
+    const located = git(['rev-parse', '--git-path', marker], worktreePath);
+    if (!located.ok || !located.stdout) continue;
+    const path = isAbsolute(located.stdout) ? located.stdout : join(worktreePath, located.stdout);
+    if (existsSync(path)) return marker;
+  }
+  return null;
+}
+
+/**
+ * Fast-forward the primary checkout's `main` to `origin/main`, exactly as the handoff workflow
+ * does by hand (`git pull --ff-only`) and under the same conditions: on `main`, clean, nothing in
+ * progress, and strictly behind. Landings reach origin only, so without this the local ref lags
+ * every landing and the branch rule ("contained in local main AND origin/main") never passes for
+ * the branches this sweep exists to delete. Anything else and it does nothing; returns whether it
+ * moved.
+ */
+export function advanceLocalMain(primaryRoot) {
+  if (git(['symbolic-ref', '-q', '--short', 'HEAD'], primaryRoot).stdout !== 'main') return false;
+  const status = git(['status', '--porcelain'], primaryRoot);
+  if (!status.ok || status.stdout !== '' || operationInProgress(primaryRoot)) return false;
+  const behind = git(['rev-list', '--count', `main..origin/main`], primaryRoot);
+  if (!behind.ok || behind.stdout === '0') return false;
+  if (!git(['merge-base', '--is-ancestor', 'main', 'origin/main'], primaryRoot).ok) return false;
+  return git(['merge', '--ff-only', '--quiet', 'origin/main'], primaryRoot).ok;
+}
+
+/**
+ * When this worktree's HEAD last moved - a commit, a checkout, a reset - as epoch ms, or null.
+ * The idle signal for work no Claude transcript records (a worktree just made, a plain shell, a
+ * Codex session): its reflog and HEAD file change exactly then. The index is deliberately not
+ * read, because `git status` - which every sweep runs - may rewrite it.
+ */
+export function lastGitActivityMs(worktreePath) {
+  let newest = null;
+  for (const name of ['logs/HEAD', 'HEAD']) {
+    const located = git(['rev-parse', '--git-path', name], worktreePath);
+    if (!located.ok || !located.stdout) continue;
+    try {
+      const { mtimeMs } = statSync(isAbsolute(located.stdout) ? located.stdout : join(worktreePath, located.stdout));
+      if (newest === null || mtimeMs > newest) newest = mtimeMs;
+    } catch {
+      // not there for this worktree
+    }
+  }
+  return newest;
 }
 
 /** Run git with the given args in `cwd`; return { ok, stdout, stderr } all trimmed. */
@@ -204,20 +288,33 @@ export function markSweepStart(stateDir) {
 /**
  * Start the unattended sweep in the background, unless one started within SWEEP_THROTTLE_MS or
  * `NOACG_NO_AUTO_CLEANUP` is set (the off switch, and what tests set). It runs from the PRIMARY
- * checkout, as every sweep must, with the copy of the script that sits next to this file.
+ * checkout, as every sweep must, and it runs THE PRIMARY CHECKOUT'S COPY of the script - landed
+ * code, fast-forwarded to origin/main first when that is safe - never the copy on whatever branch
+ * the triggering session happens to sit on: a sweep that deletes across every checkout must not
+ * run a feature branch's unreviewed rules. A primary too old to know `--unattended` just runs a
+ * dry assessment.
+ *
+ * Windows only: "a worktree in use is never touched" rests on Windows refusing to rename a folder
+ * a process is in. Elsewhere a rename succeeds under a live shell, so nothing starts there.
+ *
  * Returns `{ started, why }` and never throws: it is called from a hook and from the landing
  * watcher, and neither may fail because housekeeping could not start.
  */
 export function triggerUnattendedSweep({
   primaryRoot,
-  script = join(dirname(fileURLToPath(import.meta.url)), 'cleanup-worktrees.mjs'),
+  script = primaryRoot ? join(primaryRoot, 'scripts', 'cleanup-worktrees.mjs') : null,
   env = process.env,
   now = Date.now(),
   start = spawn,
+  platform = process.platform,
+  fastForward = advanceLocalMain,
 } = {}) {
   try {
     if (env.NOACG_NO_AUTO_CLEANUP) return { started: false, why: 'NOACG_NO_AUTO_CLEANUP is set' };
-    if (!primaryRoot || !existsSync(script)) return { started: false, why: 'no primary checkout or no sweep script' };
+    if (platform !== 'win32') {
+      return { started: false, why: 'the in-use check relies on Windows refusing to rename a folder a process is in' };
+    }
+    if (!primaryRoot) return { started: false, why: 'no primary checkout' };
     const stateDir = cleanupStateDir(primaryRoot, { env });
     if (!stateDir) return { started: false, why: 'no git common dir' };
     // A stamp a little in the future is the file clock rounding ahead of ours; one far in the
@@ -231,6 +328,8 @@ export function triggerUnattendedSweep({
     // starting together, a landing during a session start) does not spawn a second sweep that
     // would only find the lock taken.
     markSweepStart(stateDir);
+    fastForward(primaryRoot);
+    if (!script || !existsSync(script)) return { started: false, why: 'the primary checkout has no sweep script' };
     const child = start(process.execPath, [script, '--unattended'], {
       cwd: primaryRoot,
       detached: true,
