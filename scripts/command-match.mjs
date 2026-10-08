@@ -601,16 +601,27 @@ export function commitCheckouts(text) {
  * holding spaces is deliberately not reassembled: it yields a `-C` value git cannot resolve, and
  * the caller then falls back to the checkout the command line implies, which is the safe way to
  * be wrong.
+ *
+ * Each token loses its quotes and any closing paren. The splitter is not quote-aware, so the last
+ * piece of `bash -c "cd x && git push origin main"` or `(cd x && git push)` arrives as `main"` or
+ * `push)`, and read as written it named no branch and no subcommand at all. Redirections are the
+ * shell's, not git's, so they are dropped: `2>/dev/null`, the `2>` the splitter leaves of `2>&1`,
+ * and a bare `>` with the file after it. Read as arguments, `git push origin 2>&1` named a branch.
  */
 function parseGit(part) {
   const rest = /^git\s+(.+)$/s.exec(part);
   if (!rest) return null;
-  const tokens = rest[1].trim().split(/\s+/);
+  const words = rest[1].trim().split(/\s+/);
+  const tokens = [];
+  for (let at = 0; at < words.length; at += 1) {
+    if (/^[\d*&]?>>?$/.test(words[at])) at += 1;
+    else if (!/^[\d*&]?>/.test(words[at])) tokens.push(words[at].replace(/^['"]+|['")]+$/g, ''));
+  }
   let dir = '';
   let at = 0;
   while (at < tokens.length && tokens[at].startsWith('-')) {
     if (tokens[at] === '-C' || tokens[at] === '--work-tree') {
-      dir = (tokens[at + 1] ?? '').replace(/^(['"])(.*)\1$/s, '$2');
+      dir = tokens[at + 1] ?? '';
       at += 2;
       continue;
     }
@@ -666,14 +677,86 @@ export function pushesAndDispatches(text) {
   return pushes(text) && invocationParts(text).some((part) => /^gh\s+workflow\s+run\b/.test(part));
 }
 
-/** Does this command line push to a remote for real? Shared by both push rules so they cannot drift. */
+/** Does this command line push to a remote for real? */
 function pushes(text) {
-  return gitInvocations(text).some((git) => git.subcommand === 'push' && !isDryRun(git));
+  return gitInvocations(text).some(isRealPush);
+}
+
+/** A push that writes a remote. Shared by every push rule here so they cannot drift. */
+function isRealPush(git) {
+  return git.subcommand === 'push' && !isDryRun(git);
 }
 
 /** A push that reports what it WOULD do and touches no remote: `--dry-run`, or `-n` in a cluster. */
 function isDryRun(git) {
   return git.args.includes('--dry-run') || git.args.some((arg) => /^-[a-zA-Z]*n[a-zA-Z]*$/.test(arg));
+}
+
+/**
+ * The pushes in this command line that could WRITE `main` on the remote, as `{ dir, how }`.
+ *
+ * Only GitHub's merge queue writes `main` (`root/land-finished-work-only-reconciles-current`), and
+ * GitHub enforces that for everyone except a repository admin - which is what the agents run as,
+ * with the ruleset's bypass set to "always". A direct push would land unreviewed and unverified,
+ * and nothing would say so.
+ *
+ * `how` says how much the command line itself settles:
+ *   - 'named': a refspec's DESTINATION is main (`main`, `HEAD:main`, `+main`, `:main`,
+ *     `refs/heads/main`, `heads/main`, a `refs/heads/*` glob), the push sends every branch
+ *     (`--all`, `--mirror`, `--branches`, or the matching push `:`), or the same line checked
+ *     `main` out before a push of the current branch.
+ *   - 'current': no refspec, `HEAD`/`@`, or a `$variable`, so it pushes whatever branch `dir`'s
+ *     checkout has checked out. Only git can say which that is, so the caller asks.
+ * `main:claude/x` writes `claude/x` and is not listed; neither is a dry run, which writes nothing.
+ * Positional like every matcher here, so `echo "git push origin main"` is not a push.
+ *
+ * A MIS-TYPING GUARD, like `startableSegments` says of the rest: a push placed after an enqueue on
+ * the same line is read as that enqueue's argument and missed, and so is a push to main inside a
+ * queued payload, which the job runner later runs outside every hook.
+ */
+export function mainPushes(text) {
+  const found = [];
+  let onMain = false;
+  for (const git of gitInvocations(text)) {
+    onMain ||= checksOutMain(git);
+    if (!isRealPush(git)) continue;
+    const how = mainPushKind(git.args);
+    if (how) found.push({ dir: git.dir, how: how === 'current' && onMain ? 'named' : how });
+  }
+  return found;
+}
+
+/** Push options that take the NEXT token as their value, so it is neither a remote nor a refspec. */
+const PUSH_VALUE_OPTIONS = ['-o', '--push-option', '--repo', '--receive-pack', '--exec'];
+
+/** Push options that send every branch, main among them. */
+const PUSH_EVERY_BRANCH = ['--all', '--mirror', '--branches'];
+
+/** 'named', 'current' or null for one push's arguments - see `mainPushes`. */
+function mainPushKind(args) {
+  const positional = [];
+  for (let at = 0; at < args.length; at += 1) {
+    if (PUSH_EVERY_BRANCH.includes(args[at])) return 'named';
+    if (PUSH_VALUE_OPTIONS.includes(args[at])) at += 1;
+    else if (!args[at].startsWith('-')) positional.push(args[at]);
+  }
+  const refspecs = positional.slice(1); // the first positional is the remote
+  const writesMain = (spec) =>
+    /^\+?:$/.test(spec) || /^(?:(?:refs\/)?heads\/)?(?:main|\*)$/.test(spec.replace(/^\+/, '').split(':').pop());
+  if (refspecs.some(writesMain)) return 'named';
+  // `--tags` with no refspec pushes the tags alone, not the checked-out branch.
+  if (refspecs.length === 0) return args.includes('--tags') ? null : 'current';
+  return refspecs.some((spec) => /^\+?(?:HEAD|@)$/.test(spec) || spec.includes('$')) ? 'current' : null;
+}
+
+/** Does this invocation leave `main` checked out (`git switch main`, `git checkout -B main …`)? */
+function checksOutMain(git) {
+  if (!BRANCH_CREATE_FLAGS[git.subcommand] || git.args.includes('--detach')) return false;
+  const created = branchCreationIn(git);
+  if (created) return created.branch === 'main';
+  // `git checkout main <path>` and `git checkout main -- <path>` restore files and move nothing.
+  const named = git.args.filter((arg) => !arg.startsWith('-'));
+  return !git.args.includes('--') && named.length === 1 && named[0] === 'main';
 }
 
 /**
