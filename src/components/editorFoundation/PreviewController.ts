@@ -36,6 +36,9 @@ export class PreviewController {
   private timeline: ReturnType<typeof readTimeline> | null = null;
   private inputStamps = new Map<string, number>();
   private ready = false;
+  private acknowledgement: PreviewReply | null = null;
+  private previewError: string | null = null;
+  private transient = false;
   private targetTime = 0;
   private targetCue: number | undefined;
   private exitMode: 'start' | 'running' | null = null;
@@ -93,6 +96,7 @@ export class PreviewController {
       this.metrics.rejected++;
       return;
     }
+    this.acknowledgement = message; this.previewError = message.kind === 'error' ? message.message ?? 'Preview failed.' : null;
     if (message.kind === 'error') { clearTimeout(this.timeout); this.inFlight = false; this.queued = false; this.ready = false; this.report(message, false); return; }
     if (message.kind !== 'ready' && message.kind !== 'pose') return;
     clearTimeout(this.timeout);
@@ -120,10 +124,12 @@ export class PreviewController {
     this.timeout = setTimeout(() => {
       if (this.expected) this.report({ ...this.expected, kind: 'error',
         message: 'Preview did not answer. Reload the preview or return to the existing editor.' }, false);
+      this.previewError = 'Preview did not answer.';
       this.ready = false;
     }, 10000);
   }
   async load(template: SpxTemplate, revision: Revision, sampleData: Record<string, string>, time: number, cue?: number) {
+    this.previewError = null; this.transient = false;
     this.exitMode = null;
     this.targetCue = cue;
     cancelAnimationFrame(this.pendingFrame);
@@ -202,10 +208,12 @@ export class PreviewController {
   noteInput(kind: string) { this.inputStamps.set(kind, performance.timeOrigin + performance.now()); }
   /** A transient stylesheet never becomes the document or a history entry. */
   previewCss(css: string, kind = 'drag') {
+    this.transient = css !== this.template?.css;
     this.pendingCss = inlineAssetRefs(css, this.resolvedAssets);
     this.seek(this.targetTime, kind, this.targetCue);
   }
   previewTemplate(template: SpxTemplate, kind = 'drag') {
+    this.transient = template.html !== this.template?.html || template.css !== this.template?.css || template.js !== this.template?.js;
     if (!this.draftMotion && template.js === this.template?.js && template.html === this.template?.html) { this.previewCss(template.css, kind); return; }
     this.draftMotion = template.js !== this.template?.js || template.html !== this.template?.html;
     this.pendingTemplate = template;
@@ -257,6 +265,19 @@ export class PreviewController {
     }) : [];
     this.iframe.contentWindow?.postMessage({ ...this.expected, kind: exitKind ?? (draft ? 'preview-template' : css === null ? 'seek' : 'preview-css'),
       css: draft ? inlineAssetRefs(draft.css, this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry } : {}), ...position }, '*');
+  }
+  /** Source acceptance and correlated rendered-pose acknowledgement are separate receipts. */
+  receipt(revision: Revision, view: { time: number; cue?: number }) {
+    const ack = this.acknowledgement, expected = this.expected;
+    if (!expected || expected.revision.source !== revision.source || expected.revision.assets !== revision.assets || this.transient) return { state: 'pending' as const };
+    if (this.previewError) return { state: 'failed' as const, message: this.previewError };
+    if (!ack || !expected || !this.ready || this.inFlight || this.queued || this.pendingFrame ||
+      ack.kind !== 'pose' || ack.requestId !== expected.requestId || ack.generation !== expected.generation ||
+      ack.revision.source !== revision.source || ack.revision.assets !== revision.assets ||
+      this.targetTime !== view.time || this.targetCue !== view.cue) return { state: 'pending' as const };
+    return { state: 'ready' as const, documentId: ack.documentId, revision: { ...ack.revision },
+      generation: ack.generation, requestId: ack.requestId, renderedAt: ack.renderedAt,
+      time: this.targetTime, cue: this.targetCue ?? null };
   }
   resetMetrics() {
     this.metrics.samples = []; this.metrics.frameIntervals = []; this.metrics.longTasks = [];

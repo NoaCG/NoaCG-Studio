@@ -39,6 +39,9 @@ export class EditorSession {
   private transactions = new Map<string, string>();
   private gesture: Gesture | null = null;
   private disconnect: () => void;
+  private historyHead = 0;
+  private contextSequence = 0;
+  private viewFingerprint = '';
   constructor(readonly documentId: string, readonly port: DocumentPort) {
     this.current = port.read();
     this.disconnect = port.subscribe(() => this.sync());
@@ -48,15 +51,29 @@ export class EditorSession {
   private sync() {
     if (this.disposed) throw new Error('This document session is closed.');
     const next = this.port.read();
+    this.observeView();
     if (next === this.current) return;
     const assetChanged = !assetEqual(this.current, next);
     this.current = next;
     this.revision = { source: this.revision.source + 1, assets: this.revision.assets + Number(assetChanged) };
     if (!this.ownWrite) {
+      this.historyHead++;
       this.gesture = null;
       this.past = [];
       this.future = [];
     }
+  }
+  /** Observe even view-only notifications, including away-and-back selection changes. */
+  observeView() {
+    if (this.disposed) throw new Error('This document session is closed.');
+    const fingerprint = JSON.stringify(this.port.view());
+    if (fingerprint !== this.viewFingerprint) { this.viewFingerprint = fingerprint; this.contextSequence++; }
+  }
+  commandState() {
+    const revision = this.version();
+    return { revision, contextToken: this.instanceId + ':' + this.contextSequence,
+      historyHead: this.historyHead, gestureActive: !!this.gesture,
+      history: { undo: this.past.length, redo: this.future.length } };
   }
   private check(documentId: string, expected: Revision) {
     if (documentId !== this.documentId || !sameRevision(expected, this.version())) {
@@ -107,6 +124,7 @@ export class EditorSession {
     } finally { this.ownWrite = false; }
     this.past = [...this.past, { before, after: this.current, beforeView, afterView: structuredClone(this.port.view()) }].slice(-30);
     this.future = [];
+    this.historyHead++;
     this.gesture = null;
     this.transactions.set(request.transactionId, identity);
     return { ...patch, revision: this.version() };
@@ -127,6 +145,7 @@ export class EditorSession {
       this.sync();
       this.port.restore(structuredClone(forward ? receipt.afterView : receipt.beforeView));
     } finally { this.ownWrite = false; }
+    this.historyHead++;
     from.pop();
     (forward ? this.past : this.future).push(receipt);
   }

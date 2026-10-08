@@ -20,6 +20,7 @@ import type { SpxTemplate } from '../../model/types';
 import { groupHierarchy } from '../../blocks/editorGroups';
 import { assetBinDirs } from '../../blocks/editorOrganization';
 import { inspectOrganization } from '../../model/editorOrganization';
+import { connectEditorCommands } from './commandAdapter';
 import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
@@ -44,6 +45,7 @@ export default function EditorFoundation() {
   const [pathEditing, setPathEditing] = useState<string | null>(null);
   const [appearance, setAppearance] = useState<Record<string, RenderedPart['appearance']>>({});
   const preview = useRef<PreviewController | null>(null);
+
   const connectPreview = useCallback((controller: PreviewController | null) => { preview.current = controller; }, []);
   const previewCss = useCallback((css: string) => { preview.current?.previewCss(css, 'appearance'); }, []);
   const previewTemplate = useCallback((template: SpxTemplate) => { preview.current?.previewTemplate(template, 'appearance'); }, []);
@@ -123,6 +125,17 @@ export default function EditorFoundation() {
     setSelection(selector ? [] : groupScope ? [groupScope] : []);
   };
   const history = (redo: boolean) => { pause(); preview.current?.stopExit(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time, session.port.view().cue); };
+  const commandView = useRef<import('./commands').CommandView>(null!);
+  commandView.current = {
+    select: selectors => { pause(); setPathEditing(null); setSelection(selectors); },
+    seek: (to, cue) => { pause(); preview.current?.stopExit(); seek(to, cue); },
+    afterWrite: () => { pause(); preview.current?.stopExit(); seek(session.port.view().time, session.port.view().cue); },
+  };
+  useEffect(() => connectEditorCommands(session, () => preview.current, {
+    select: selectors => commandView.current.select(selectors),
+    seek: (to, cue) => commandView.current.seek(to, cue),
+    afterWrite: () => commandView.current.afterWrite(),
+  }), [session]);
   return <main className={'ef-shell' + (projectOpen ? ' ef-project-open' : '') + (groupScope ? ' ef-group-open' : '')} data-testid="editor-foundation"
     onKeyDown={event => {
       const historyKey = (event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase());
