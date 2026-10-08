@@ -187,14 +187,44 @@ test('a newer version being prepared reads as the plan words it', () => {
   assert.equal(preparing.summary.tone, 'ok');
   // Preparing a version that is no longer the published one is just behind.
   assert.equal(read({ published: { n: 14, h: 'cccc' }, peers: chg({ s: 'preparing' }) }).summary.label, '▲ Behind: showing v12');
+  // A change that failed names its graphic, from any output: the graphic keeps the frame it has.
   const failed = read({ published: V13, peers: chg({ s: 'failed', is: [{ k: 'script', g: 'Frost Quiz' }] }) });
-  assert.equal(failed.summary.label, '▲ Ready · 1 change not prepared: Frost Quiz (script error)');
-  // The whole sentence is the lead: cut at its first " · " it would read just "Ready", in amber.
-  assert.equal(failed.summary.lead, 'Ready · 1 change not prepared: Frost Quiz (script error)');
-  assert.match(failed.outputs[0].detail.join(' '), /keeps running v12/);
+  assert.equal(failed.summary.label, '▲ Change failed: Frost Quiz (script error)');
+  assert.equal(failed.summary.lead, 'Change failed: Frost Quiz (script error)');
+  // …and the status reads it red, as a graphic that cannot play (playout-workflow-simplification D5).
+  assert.deepEqual(failed.summary.broken, { line: 'Change failed: Frost Quiz (script error)', short: 'Change failed: Frost Quiz' });
+  assert.match(failed.outputs[0].detail.join(' '), /Frost Quiz: v13 script error. It keeps playing its previous version here/);
+  // An output that reloads whole (built before per-graphic replacement) waits for everything.
   const waiting = read({ published: V13, peers: chg({ s: 'waiting', n: 1, air: 2 }) });
   assert.equal(waiting.summary.label, '▲ Behind: showing v12');
+  assert.equal(waiting.summary.leadShort, 'Waiting for clear');
   assert.match(waiting.outputs[0].detail[0], /2 graphics are on air here/);
+});
+
+test('per-graphic replacement: a change waiting for clear names its graphic, and only while it waits', () => {
+  const chg = (c) => [output({ ready: { n: 4, of: 4, v: V12, is: [], chg: { v: V13, of: 2, n: 2, ...c } } })];
+  const one = read({ published: V13, peers: chg({ s: 'waiting', air: 1, w: ['Scorebug'] }) });
+  assert.equal(one.summary.label, '▲ Waiting for clear: Scorebug');
+  assert.equal(one.summary.leadShort, 'Waiting for clear: Scorebug');
+  assert.equal(one.summary.tone, 'warn');
+  assert.equal(one.outputs[0].state, 'Waiting for clear: Scorebug');
+  assert.match(one.outputs[0].detail[0], /Scorebug takes v13 after its Out or next Take/);
+  assert.equal(one.summary.broken, null);
+  const three = read({ published: V13, peers: chg({ s: 'waiting', air: 3, w: ['Scorebug', 'Clock', 'Bug'] }) });
+  assert.equal(three.outputs[0].state, 'Waiting for clear: Scorebug +2');
+  assert.equal(read({ published: V13, peers: chg({ s: 'waiting', air: 2, w: ['Scorebug', 'Clock'] }) }).outputs[0].state, 'Waiting for clear: Scorebug and Clock');
+  // A failure and a wait at once: the failure leads, the wait follows it.
+  const both = read({ published: V13, peers: chg({ s: 'failed', is: [{ k: 'silent', g: 'Quiz' }], w: ['Scorebug'] }) });
+  assert.equal(both.outputs[0].state, 'Change failed: Quiz (did not answer)');
+  assert.match(both.outputs[0].detail.join(' '), /Also: Waiting for clear: Scorebug/);
+  // The wait is for the published version only: a publish since makes it plain behind.
+  assert.equal(read({ published: { n: 14, h: 'cccc' }, peers: chg({ s: 'waiting', air: 1, w: ['Scorebug'] }) }).summary.label, '▲ Behind: showing v12');
+  // Every graphic holds the published version: nothing waits and the line says nothing of it.
+  assert.equal(read({ published: V13, peers: [output({ ready: { n: 4, of: 4, v: V13, is: [] } })] }).summary.label, '● Ready for playout · 1 of 1 output');
+  // `w` survives the wire, capped and trimmed, and an older entry without it reads as before.
+  const wire = readOutputReady({ n: 1, of: 1, v: V12, is: [], chg: { s: 'waiting', v: V13, of: 1, n: 1, air: 1, w: ['Scorebug', 7, 'x'.repeat(100)] } });
+  assert.deepEqual(wire.chg.w, ['Scorebug', 'x'.repeat(80)]);
+  assert.equal(readOutputReady({ n: 1, of: 1, v: V12, is: [], chg: { s: 'waiting', v: V13, of: 1, n: 1, air: 1 } }).chg.w, undefined);
 });
 
 test('without Presence, or with only outputs from before READY, Step 1’s line stands', () => {
