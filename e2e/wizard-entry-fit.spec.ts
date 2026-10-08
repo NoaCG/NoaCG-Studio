@@ -14,10 +14,32 @@ import { evaluateInPage } from './_evaluate';
 // The wizard auto-opens only on a first-ever visit (no autosaved project). Every test gets a
 // fresh context, so a plain `goto('/app')` lands on the Entry step.
 
+/**
+ * Every navigation here is a COLD APP BOOT, and a boot is not a UI reaction: wait for main.tsx to
+ * hand the app to React (`__noacgBootStage`, app.html) on a boot's own budget, then assert the UI
+ * on the ordinary 7 s one.
+ *
+ * Measured 2026-10-08 under the dev server: a boot fetches about 1,200 modules (650 of them the
+ * catalog's templates) and shows the wizard in 2.1 s alone, but in 7.1 s at the median (7.7 s
+ * max) when six start together - which is exactly how this file starts, because its first tests
+ * are picked up at once by workers freed together (wizard-brand's tests skip instantly). The page
+ * is blank, not stuck: it mounts at 13 s with four busy cores and at 34 s with ten. Waiting only
+ * the 7 s `expect` default turned that into "creation-wizard not found" on the 2026-10-07 waves.
+ */
+const COLD_BOOT_MS = 30_000;
+async function awaitBoot(page: Page) {
+  await page.waitForFunction(
+    () => (window as { __noacgBootStage?: string }).__noacgBootStage === 'mounted',
+    undefined,
+    { timeout: COLD_BOOT_MS },
+  );
+}
+
 /** Open /app at a fixed window size and wait for the Entry step to be laid out. */
 async function entryStepAt(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
   await page.goto('/app');
+  await awaitBoot(page);
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await expect(page.locator('[data-entry="video"]')).toBeVisible();
 }
@@ -295,6 +317,7 @@ function resolveToken(page: Page, property: string, value: string) {
 async function entryWithSavedWork(page: Page) {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto('/app');
+  await awaitBoot(page);
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await expect(page.getByTestId('wz-continue')).toHaveCount(0);
   await page.evaluate(async () => {
@@ -305,6 +328,7 @@ async function entryWithSavedWork(page: Page) {
     await commitDurableWrites();
   });
   await page.goto('/app');
+  await awaitBoot(page);
   await expect(page.getByTestId('wz-continue')).toBeVisible();
 }
 
@@ -454,6 +478,7 @@ test('Run the show is a card you press, on the Home row chassis, and still fits 
     await commitDurableWrites();
   });
   await page.goto('/app');
+  await awaitBoot(page);
   await expect(page.locator('[data-entry="open-playout"]')).toContainText('your latest production');
   expect(await stepOverflowPx(page)).toBe(0);
 
@@ -606,6 +631,7 @@ test('New production from a fresh profile opens an empty production, ready to ad
   // It SURVIVES A RELOAD. The door waits for the durable write like every other create path,
   // so the production the page just opened is still there, and still this one, after a reload.
   await page.reload();
+  await awaitBoot(page);
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByText('No cues yet.')).toBeVisible();
   const afterReload = await page.evaluate(async () => {
@@ -638,6 +664,7 @@ test('Run the show opens the productions list with none, and names and opens the
     return older.id;
   });
   await page.goto('/app#/new');
+  await awaitBoot(page);
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   // The card NAMES what the press opens, so it is not a guess.
   await expect(card).toContainText('Open “Older show”, your latest production');

@@ -1,5 +1,5 @@
 // The site's top bar and footer are one of each, the same on every public page: no page writes its own.
-// guards: index.html, ograf.html, privacy.html, terms.html, docs.html, downloads.html, whats-new.html, roadmap.html, src/site-chrome.css
+// guards: index.html, ograf.html, privacy.html, terms.html, docs.html, downloads.html, whats-new.html, roadmap.html, src/site-chrome.css, src/brandCore.css
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -96,4 +96,36 @@ test('section links are anchors on the landing and point back to it from every o
   assert.match(renderSiteNav('/docs.html'), /<a href="\/docs" aria-current="page">Docs<\/a>/);
   assert.equal(pagePath('/index.html'), '/');
   assert.equal(pagePath('/whats-new/?x=1'), '/whats-new');
+});
+
+// ONE SOURCE FOR THE BRAND'S VALUES. The chrome imports src/brandCore.css, which the app's
+// brandTokens.css imports too, rather than restating its colours and faces: that is how the two
+// copies drifted before. Never the app's tokens: the pages use names like --text and --border for
+// their own colours. And no page's inline <style> may declare a brand name, because the build
+// moves linked stylesheets after inline styles: the page's value would win in development and the
+// brand's silently win in production.
+const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+test('the chrome restates no brand value, and no page redeclares one', () => {
+  const brand = stripComments(read('src/brandCore.css'));
+  const declared = new Set([...brand.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  const hexes = [...brand.matchAll(/--[\w-]+\s*:\s*#([0-9a-fA-F]{6})/g)].map((m) => m[1].toLowerCase());
+  const chrome = stripComments(read('src/site-chrome.css')).toLowerCase();
+  assert.match(chrome, /@import "\.\/brandcore\.css";/, 'src/site-chrome.css: import ./brandCore.css');
+  assert.ok(!chrome.includes('brandtokens.css'), 'src/site-chrome.css: the app tokens stay off the public pages');
+  for (const hex of hexes) {
+    const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',\\s*');
+    assert.ok(!chrome.includes(`#${hex}`), `src/site-chrome.css restates #${hex}; read the brand token`);
+    assert.ok(!new RegExp(`rgba?\\(\\s*${rgb}\\b`).test(chrome), `src/site-chrome.css restates #${hex} as rgb(); mix the brand token`);
+  }
+  for (const face of ['space grotesk', 'jetbrains mono', 'ibm plex sans']) {
+    assert.ok(!chrome.includes(face), `src/site-chrome.css names "${face}"; read the brand font token`);
+  }
+  for (const file of Object.keys(PAGES)) {
+    for (const [, style] of read(file).matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
+      for (const [, name] of stripComments(style).matchAll(/(--[\w-]+)\s*:/g)) {
+        assert.ok(!declared.has(name), `${file}: its inline style redeclares the brand token ${name}`);
+      }
+    }
+  }
 });

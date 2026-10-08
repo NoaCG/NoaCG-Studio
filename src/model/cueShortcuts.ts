@@ -119,7 +119,7 @@ export function shortcutFromPress(
   if (p.ctrl && (['KeyC', 'KeyX', 'KeyV', 'KeyZ', 'KeyY'].includes(p.code))) return { refused: 'The rundown uses Ctrl+C, X, V, Z and Y.' };
   // The rundown's own Delete (playoutKeys `useRundownEditKeys`), which a cue would take first.
   if (!p.ctrl && !p.alt && !p.shift && p.code === 'Delete') return { refused: 'The rundown uses Delete.' };
-  if (!p.ctrl && !p.alt && (verbKeys.has(p.key.toLowerCase()) || VERB_CODES.has(p.code))) {
+  if (!p.ctrl && !p.alt && (verbKeys.has(p.key.toLowerCase()) || [...verbKeys].some((key) => codesOf(key).includes(p.code)))) {
     return { refused: `${labelOf(p) === ' ' || p.code === 'Space' ? 'Space' : labelOf(p)} is an operator key.` };
   }
   const label = labelOf(p);
@@ -127,8 +127,14 @@ export function shortcutFromPress(
   return { value: `${p.ctrl ? 'ctrl+' : ''}${p.alt ? 'alt+' : ''}${p.shift ? 'shift+' : ''}@${p.code}:${label}` };
 }
 
-/** The operator keys by position as well as by character, so another layout cannot reach them. */
-const VERB_CODES = new Set(['Space', 'KeyR', 'KeyU', 'KeyN', 'Digit0', 'Numpad0', 'KeyP', 'KeyH', 'ArrowUp', 'ArrowDown']);
+/** Where an operator key sits, so another layout cannot reach it by position: `r` is KeyR, `0`
+ *  Digit0 and Numpad0, `arrowup` ArrowUp. */
+function codesOf(key: string): string[] {
+  if (key === ' ') return ['Space'];
+  if (/^[a-z]$/.test(key)) return [`Key${key.toUpperCase()}`];
+  if (/^\d$/.test(key)) return [`Digit${key}`, `Numpad${key}`];
+  return [key.replace(/^arrow(\w)/, (_, c: string) => `Arrow${c.toUpperCase()}`).replace(/^\w/, (c) => c.toUpperCase())];
+}
 
 /** A concurrent edit may create duplicates, and an old letter shortcut may name the key a new
  *  physical one names (`sameCueShortcut`). Neither cue gets that key until resolved. Bindings are

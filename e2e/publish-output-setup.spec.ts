@@ -162,14 +162,20 @@ test('Setup › Links… holds the people links, marked private or public; the p
 test('Setup and All out keep their place while the status and its action change',async({page})=>{
   const b=backend();await account(page,b);const id=await seed(page);
   const places=async()=>page.evaluate(()=>['production-setup','verb-out-all'].map(t=>Math.round(document.querySelector(`[data-testid="${t}"]`)!.getBoundingClientRect().x)));
-  for(const [pass,width] of [1920,1366,1280].entries()){
+  // The header clips rather than scrolls, so a page-width check cannot see All out pushed off the edge.
+  const allOutOnScreen=async(width:number,state:string)=>expect(await page.evaluate(()=>Math.round(document.querySelector('[data-testid="verb-out-all"]')!.getBoundingClientRect().right)),`${width}: All out off screen ${state}`).toBeLessThanOrEqual(width);
+  // 390 is the phone, where Setup stands down and the sync chip is a dot.
+  for(const [pass,width] of [1920,1366,1280,390].entries()){
     await page.setViewportSize({width,height:800});
     const unpublished=await places();
+    await allOutOnScreen(width,'before the first publish');
     await publishProduction(page);
     expect(await places(),`${width}: publishing moved Setup or All out`).toEqual(unpublished);
+    await allOutOnScreen(width,'once published');
     await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const {variantsFor}=await import('/src/templates/catalog.ts');S.addGraphicToShow(key.id,variantsFor('lower-third')[key.pass+1].create({}));await (await import('/src/model/durableStore.ts')).commitDurableWrites();},{id,pass});
     await expect(page.getByTestId('production-publish-changes')).toBeVisible();
     expect(await places(),`${width}: Publish changes moved Setup or All out`).toEqual(unpublished);
+    await allOutOnScreen(width,'with Publish changes due');
     await page.getByTestId('production-publish-changes').click();
     await expect(page.getByTestId('production-publish-changes')).toHaveCount(0,{timeout:30_000});
     // Back to a never-published copy for the next width.
@@ -287,6 +293,10 @@ test('the rundown badge reads the layer, with the CasparCG slot only when Caspar
   await setCasparSwitch(page,false);
   await expect(graphic).toHaveText(/^G\d+$/);
   await expect(clip.getByTestId('cue-caspar-off')).toHaveText('CasparCG off');
+  // Its greyed TAKE says the same, rather than nothing.
+  await clip.getByTestId('select-cue').click();
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toHaveAttribute('title','CasparCG is off for this production.');
   expect(bridge.actions).toEqual([]);
   await page.unrouteAll({behavior:'ignoreErrors'});
 });

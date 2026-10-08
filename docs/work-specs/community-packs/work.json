@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "44180e93ccb626aaa685dd940f653dd1b8bfb062181945a4b87bfad83ba69e49",
+  "specSha256": "33b4144b75b1d3cba3695ef470420bdd009c099f44164cae66e1f7c3b67d025d",
   "authority": {
     "status": "agreed",
-    "source": "owner ruling 2026-10-02 (wave 2026-10-02d row BV): three template categories - Templates, Kits, Community packs; a community pack is finished, installed and used at once and cannot be modified; the community makes and shares them; a shared pack passes automatic checks (validate, bench, no outside network calls) and a NoaCG admin's approval before anyone else sees it; NoaCG seeds the shelf first"
+    "source": "owner ruling 2026-10-02 (wave 2026-10-02d row BV): three template categories - Templates, Kits, Community packs; a community pack is finished, installed and used at once and cannot be modified; the community makes and shares them; a shared pack passes automatic checks (validate, bench, no outside network calls) and a NoaCG admin's approval before anyone else sees it; NoaCG seeds the shelf first. Owner answers 2026-10-08 (wave 2026-10-08 row K): submit and Your packs on the wizard's Community packs shelf, never from Playout; a pack is a set of the maker's own graphics with no rundown required; the maker picks the name shown, never their real name or email; admin review on the shelf; updates never change installs; approved packs visible to everyone; the maker withdraws at once; the decision shows only as a status"
   },
   "review": null
 }

@@ -78,6 +78,13 @@ export interface GraphicDocBase<TSpec = unknown, TThread = unknown, TLegibility 
    * (rule 6), absent on every record the app itself creates.
    */
   origin?: { tool: string; version?: string } | null;
+  /**
+   * The COMMUNITY PACK this graphic was installed from (docs/work-specs/community-packs/spec.md
+   * D7): the shelf's pack id (a seed's slug, or `community:<row id>`), its version and the name
+   * it was published under. Install writes it; the submit picker leaves a stamped graphic out,
+   * and the design lock (AC-5) reads it. Additive optional (rule 6), absent on everything else.
+   */
+  fromPack?: { id: string; version: number; author: string } | null;
 }
 
 /** What `newGraphicDoc` needs beyond the template. Every field optional; the defaults are
@@ -99,6 +106,7 @@ export interface NewGraphicDocOptions<TSpec = unknown, TThread = unknown, TLegib
   legibility?: TLegibility | null;
   folder?: string;
   origin?: { tool: string; version?: string } | null;
+  fromPack?: { id: string; version: number; author: string } | null;
 }
 
 /**
@@ -127,6 +135,7 @@ export function newGraphicDoc<TSpec = unknown, TThread = unknown, TLegibility = 
     ...(opts.legibility ? { legibility: opts.legibility } : {}),
     ...(opts.folder ? { folder: opts.folder } : {}),
     ...(opts.origin ? { origin: opts.origin } : {}),
+    ...(opts.fromPack ? { fromPack: opts.fromPack } : {}),
     createdAt: now,
     updatedAt: now,
   };

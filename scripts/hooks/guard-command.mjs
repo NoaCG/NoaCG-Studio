@@ -14,6 +14,7 @@
 //  3b. Nobody polls the job queue in the foreground.
 //  3c. A push and a workflow dispatch never share one command - ci.yml's concurrency group makes
 //     the pair a coin flip over which run survives.
+//  3d. Nothing pushes to `main` - only the merge queue writes it.
 //  4. The e2e suites only start when (a) no OTHER checkout of this repo is already running one -
 //     several worktrees are normally live and each config asks for 4 workers, so two overlapping
 //     runs exhaust a 16 GB laptop rather than sharing it - and (b) their port is free, since
@@ -24,9 +25,12 @@
 // -m / heredoc / here-string), so it is quoting-style agnostic.
 
 import { isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readHookInput, deny, gitOutput, checkoutKind } from './lib.mjs';
 import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
+import { sameRoot } from '../port-registry.mjs';
+import { gitCommonDir } from '../primary-checkout.mjs';
 import { isPortBusy } from '../port-probe.mjs';
 import { activeRuns, describeRuns } from '../e2e-runs.mjs';
 import {
@@ -34,6 +38,7 @@ import {
   enqueuesWork,
   invokesE2e,
   invokesSweep,
+  mainPushes,
   pollsQueue,
   pushesAndDispatches,
   startsDevServer,
@@ -254,6 +259,32 @@ if (pushesAndDispatches(command)) {
       '  gh workflow run ci.yml --ref <branch>   once `gh run list --branch <branch> --limit 1` lists ' +
       "the push's run; the dispatch then cancels that run and the full suite runs in its place.\n" +
       'A push on its own is fine; so is a dispatch on its own.',
+  );
+}
+
+// --- 3d. Nothing pushes to `main`: only the merge queue writes it ------------------------------
+//
+// `root/land-finished-work-only-reconciles-current`. GitHub would not stop such a push, because the
+// agents run as an admin it lets bypass the queue (see `mainPushes` in command-match.mjs); a person
+// in their own terminal never passes through this hook. Only a checkout of THIS repository counts -
+// a fixture repo in a temp folder has a `main` of its own - and git that cannot answer fails open,
+// like every git check here.
+const pushesToMain = mainPushes(command);
+const thisRepo = pushesToMain.length > 0 ? gitCommonDir(fileURLToPath(new URL('../..', import.meta.url))) : null;
+const toMain = pushesToMain.find(({ dir, how }) => {
+  const root = namedCheckout(dir);
+  const repo = root && gitCommonDir(root);
+  if (!repo || !thisRepo || !sameRoot(repo, thisRepo)) return false;
+  return how === 'named' || gitOutput(root, ['branch', '--show-current'])?.trim() === 'main';
+});
+if (toMain) {
+  deny(
+    'Blocked: this push would write `main`, and only the merge queue writes main ' +
+      '(`root/land-finished-work-only-reconciles-current`). GitHub would not stop it: this account ' +
+      'may bypass the branch rules.\n' +
+      'Land work with `/queue-merge` from a feature branch - it reconciles with current main, ' +
+      'requires the verification and lands through the merge queue.\n' +
+      'A person who truly means to push main can still do it from their own terminal.',
   );
 }
 
