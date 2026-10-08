@@ -10,10 +10,10 @@
    rather than inheriting them. Brand system: dark control-room ground, one amber "on-air"
    accent, restrained glow (NoaCG-Brand-Kit/BRAND-MANUAL.md §3). */
 
-/* The palette, the faces and their stacks are the brand's one source, shared with the app. The
-   colours below are the site's own: a lighter dim and faint than the app's, for reading on the
-   marketing pages. */
-@import "./brandTokens.css";
+/* The palette, the faces and their stacks are the brand's, shared with the app. Not the app's own
+   tokens (brandTokens.css): the pages name their colours freely and must not inherit those. The
+   tokens below are the site's own; --mono is the name the page stylesheets read. */
+@import "./brandCore.css";
 
 :root {
   --dim: #b7bcc4;

@@ -5,7 +5,7 @@
 
    READING COMFORT (owner, 2026-09-28: "I get tired after a few paragraphs"). The prose is set
    in IBM Plex Sans, the brand's reading face (BRAND-MANUAL.md §4), at 17px on 1.65, in
-   `--prose` (12.5:1 on the ground; the old #b7bcc4 at 15px read as dim), and no prose line is
+   `--text` (12.5:1 on the ground; the old #b7bcc4 at 15px read as dim), and no prose line is
    wider than `--measure`, about 70 characters. Space Grotesk stays on the header, h1-h3 and
    the wordmark, where it is display type and the landing's own. Pictures, tables and the
    layer panels keep the full 780px column: they are looked at, not read line by line.
@@ -14,9 +14,9 @@
    and the footer are src/site-chrome.css, which every page using this stylesheet links first. */
 
 :root {
-  --prose: #cdd2d9;
+  --text: #cdd2d9;
   --caption: #9aa3b1;
-  --read: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --read: var(--font-ui);
   --measure: 570px;
   color-scheme: dark;
 }
@@ -40,7 +40,7 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.28em; text-transform: uppercase; color: var(--amber);
 }
 h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; letter-spacing: -0.02em; margin: 12px 0 14px; }
-.lede { font-family: var(--read); font-size: 19px; line-height: 1.6; color: var(--prose); max-width: var(--measure); }
+.lede { font-family: var(--read); font-size: 19px; line-height: 1.6; color: var(--text); max-width: var(--measure); }
 .lede a, .doc-body p a, .doc-body li a, .doc-body td a { color: var(--amber); }
 .lede a:hover, .doc-body p a:hover, .doc-body li a:hover, .doc-body td a:hover { color: var(--glow); }
 
@@ -96,7 +96,7 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 }
 
 /* ── Content ── */
-.doc-body { max-width: 780px; min-width: 0; font-family: var(--read); font-size: 17px; line-height: 1.65; color: var(--prose); }
+.doc-body { max-width: 780px; min-width: 0; font-family: var(--read); font-size: 17px; line-height: 1.65; color: var(--text); }
 .doc-body section { padding: 40px 0 8px; }
 .doc-body section + section { border-top: 1px solid var(--line); margin-top: 40px; }
 /* Space Grotesk from 21px up only: below that it is a display face doing a text face's job. */
@@ -187,7 +187,7 @@ th {
   font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--faint); background: rgba(20, 25, 34, 0.6);
 }
-td { color: var(--prose); }
+td { color: var(--text); }
 td strong { color: var(--paper); }
 
 /* The table of every layer name (generated into #svg-layers by scripts/behaviour-docs.mjs). A
@@ -232,7 +232,7 @@ td strong { color: var(--paper); }
 .doc-shot figcaption {
   margin-top: 10px; font-size: 14px; color: var(--caption); line-height: 1.55;
 }
-.doc-shot figcaption strong { color: var(--prose); }
+.doc-shot figcaption strong { color: var(--text); }
 .doc-shot figcaption a { color: var(--amber); }
 .doc-shot figcaption a:hover { color: var(--glow); }
 
@@ -307,7 +307,7 @@ td strong { color: var(--paper); }
 .callout {
   margin: 16px 0; padding: 13px 17px; border: 1px solid var(--line); border-left: 3px solid var(--amber);
   border-radius: 0 8px 8px 0; background: rgba(20, 25, 34, 0.55); font-size: 16px; line-height: 1.6;
-  color: var(--prose);
+  color: var(--text);
 }
 .callout > :last-child { margin-bottom: 0; }
 .callout strong { color: var(--paper); }
@@ -338,7 +338,7 @@ td strong { color: var(--paper); }
     --void: #ffffff;
     --panel: #ffffff;
     --paper: #000000;
-    --prose: #16181c;
+    --text: #16181c;
     --dim: #16181c;
     --caption: #55606e;
     --faint: #55606e;

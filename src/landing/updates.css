@@ -33,7 +33,7 @@
   font-family: "Space Grotesk", Arial, sans-serif; font-size: 19px; font-weight: 600;
   line-height: 1.3; color: var(--paper); margin: 0 0 6px;
 }
-.up-topic ul { margin: 0 0 0 22px; padding: 0; font-size: 16.5px; line-height: 1.6; color: var(--prose, var(--dim)); }
+.up-topic ul { margin: 0 0 0 22px; padding: 0; font-size: 16.5px; line-height: 1.6; color: var(--text, var(--dim)); }
 .up-topic li { margin: 6px 0; }
 .up-topic li::marker { color: var(--faint); }
 
@@ -41,7 +41,7 @@
 .up-more { display: flex; flex-wrap: wrap; gap: 10px 24px; }
 
 /* ── The two pages ── */
-.wn-list, .rm-list { padding: 18px 0 72px; font-family: var(--read); color: var(--prose); }
+.wn-list, .rm-list { padding: 18px 0 72px; font-family: var(--read); color: var(--text); }
 /* The heading, then one quiet link to the other page: no introduction, the list says what it is. */
 .up-hero h1 { margin-bottom: 8px; }
 .up-also { font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
