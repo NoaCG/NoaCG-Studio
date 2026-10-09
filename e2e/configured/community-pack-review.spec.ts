@@ -240,7 +240,8 @@ test.describe('community pack review (configured)', () => {
     });
     await page.getByTestId('submit-pack-open').click();
     const early = page.getByTestId('submit-pack');
-    await early.getByTestId('submit-pack-author').click();
+    const earlyAuthor = early.getByTestId('submit-pack-author');
+    await earlyAuthor.click();
     await expect.poll(() => answered.length).toBeGreaterThan(0);
     answer();
     await Promise.all(answered);
@@ -248,8 +249,8 @@ test.describe('community pack review (configured)', () => {
     // to apply the answer (the dev server's StrictMode sends a second request, awaited after it).
     await page.waitForTimeout(500);
     await Promise.all(answered);
-    await early.getByTestId('submit-pack-author').pressSequentially('Someone New');
-    await expect(early.getByTestId('submit-pack-author')).toHaveValue('Someone New');
+    await earlyAuthor.pressSequentially('Someone New');
+    await expect(earlyAuthor).toHaveValue('Someone New');
     await page.unroute('**/rest/v1/rpc/community_pack_mine*');
     await early.getByRole('button', { name: 'Cancel' }).click();
     await expect(early).toHaveCount(0);
