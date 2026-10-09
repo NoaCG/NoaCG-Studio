@@ -574,16 +574,14 @@ export function capacity({
 
 const WEEKDAYS = Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
 
-/** Weekday (0 is Sunday), hour and minute of `now` in `timeZone`, plus a label like `Fri 15:59`. */
+/** Weekday (0 is Sunday) and hour of `now` in `timeZone`, plus a label like `Fri 15:59`. */
 export function clockIn(now, timeZone) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
       .formatToParts(new Date(now))
       .map((p) => [p.type, p.value]),
   );
-  const hour = Number(parts.hour);
-  const minute = Number(parts.minute);
-  return { weekday: WEEKDAYS.indexOf(parts.weekday), hour, minute, label: `${parts.weekday} ${parts.hour}:${parts.minute}` };
+  return { weekday: WEEKDAYS.indexOf(parts.weekday), hour: Number(parts.hour), label: `${parts.weekday} ${parts.hour}:${parts.minute}` };
 }
 
 /**
@@ -600,7 +598,7 @@ export function budgetMode({ now = Date.now(), alone = false, policy = POLICY } 
     && clock.hour >= policy.modestFrom && clock.hour < policy.modestTo;
   const at = `${clock.label} ${policy.timeZone.split('/').pop()}`;
   if (!working) return { mode: 'full', slots: policy.byFull, why: `${at} is outside ${window}` };
-  if (alone) return { mode: 'full', slots: policy.byFull, why: `${at} is in ${window}, but no other agent session is live`, alone: true };
+  if (alone) return { mode: 'full', slots: policy.byFull, why: `${at} is in ${window}, but no other agent session is live` };
   return { mode: 'modest', slots: policy.byModest, why: `${at} is in ${window}` };
 }
 
@@ -642,7 +640,7 @@ export function agentSessions({
   }
   const active = (row) => row.status === 'busy' || now - (lastActiveMs(row) ?? -Infinity) < SESSION_ACTIVE_MS;
   const claudeLive = rows.filter((row) => !queuePids.has(Number(row.pid)) && active(row)).length;
-  const live = claudeLive + Math.max(0, Number(codexActive) || 0);
+  const live = claudeLive + codexActive;
   return {
     known: true,
     live,
@@ -671,15 +669,20 @@ export function drivesBrowser(job) {
 }
 
 /**
- * Commands we KNOW are cheap: CPU and a little RAM, no dev server, no browser.
+ * Commands we KNOW, with what they cost: no dev server and no browser, so less than a page. The
+ * build is measured (see `COST`); the rest are CPU and a little RAM. First match wins.
  *
  * The list is deliberately short and explicit, and the two failure directions are not symmetric:
  * charging a cheap job too much costs wall clock at night, while charging an expensive one too
  * little puts two dev servers and eight browser workers on a 16 GB laptop at once.
  */
-const CHEAP = [/\bnode\s+--test\b/, /\bnpm\s+run\s+lint\b/, /\btsc\b/, /\bnpm\s+run\s+check:/];
-/** The full build: no browser, but `COST.build` of the machine (measured, see `COST`). */
-const BUILD = /\bnpm\s+run\s+build\b/;
+const KNOWN_PRICES = [
+  [/\bnpm\s+run\s+build\b/, COST.build],
+  [/\bnode\s+--test\b/, COST.other],
+  [/\bnpm\s+run\s+lint\b/, COST.other],
+  [/\btsc\b/, COST.other],
+  [/\bnpm\s+run\s+check:/, COST.other],
+];
 
 /**
  * What one job costs, in suite-equivalents.
@@ -717,9 +720,7 @@ export function costOf(job) {
   // kind. Without this an unlisted battery queued honestly as a sweep still read as a walk.
   // `drivesBrowser` reads both, so the price and the browser slot cannot disagree.
   if (drivesBrowser(job)) return COST.browser;
-  const command = job.command ?? '';
-  if (BUILD.test(command)) return COST.build;
-  return CHEAP.some((p) => p.test(command)) ? COST.other : COST.walk;
+  return KNOWN_PRICES.find(([pattern]) => pattern.test(job.command ?? ''))?.[1] ?? COST.walk;
 }
 
 /**

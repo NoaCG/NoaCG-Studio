@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { activeRuns, allProcesses, descendantsOf, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
 import { readInventory } from './claude-agents.mjs';
-import { projectDirName, transcriptsRoot } from './session-liveness.mjs';
+import { sessionLastActiveMs } from './session-liveness.mjs';
 import { requiresRunningDevServer, runsWholeSuite, WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
@@ -680,8 +680,8 @@ async function cmdList() {
   // WHICH BUDGET AND WHY, in one line and on every read, because it now moves with the clock and
   // with the other sessions on the machine - a wait reading "budget 1/1 used" means nothing to a
   // reader who cannot see that it is a weekday morning with three sessions live.
-  // `sessions` is null outside the modest hours, where nobody's sessions change the budget.
-  const sessionNote = !sessions || budget.alone ? ''
+  // Only a modest budget is explained by the sessions: a full one already says why in `budget.why`.
+  const sessionNote = !sessions || budget.mode === 'full' ? ''
     : sessions.known ? `, ${sessions.why}` : `, agent sessions unknown (${sessions.why})`;
   console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`
     + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state})`);
@@ -1444,36 +1444,15 @@ function machineSessions(jobs, now = Date.now()) {
   const queuePids = claude.rows.length > 0 && running.length > 0
     ? new Set(descendantsOf(running, allProcesses()).map((p) => p.pid))
     : new Set();
-  const projects = transcriptsRoot();
   const value = agentSessions({
     claude,
-    lastActiveMs: (row) => (row.sessionId && row.cwd ? transcriptMovedMs(join(projects, projectDirName(row.cwd)), row.sessionId) : null),
+    lastActiveMs: (row) => (row.sessionId && row.cwd ? sessionLastActiveMs(row.cwd, row.sessionId) : null),
     codexActive: codexSessionsActive(now),
     queuePids,
     now,
   });
   sessionsRead = { at: now, value };
   return value;
-}
-
-/** Newest write to a session's transcript or to any of its subagents' - a wave's rows are its turns. */
-function transcriptMovedMs(dir, sessionId) {
-  const mtime = (file) => {
-    try {
-      return statSync(file).mtimeMs;
-    } catch {
-      return null;
-    }
-  };
-  const subagents = join(dir, sessionId, 'subagents');
-  let names = [];
-  try {
-    names = readdirSync(subagents).filter((n) => n.endsWith('.jsonl'));
-  } catch {
-    // no subagents
-  }
-  const times = [mtime(join(dir, `${sessionId}.jsonl`)), ...names.map((n) => mtime(join(subagents, n)))].filter((t) => t !== null);
-  return times.length > 0 ? Math.max(...times) : null;
 }
 
 /**
