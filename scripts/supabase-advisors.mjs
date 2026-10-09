@@ -92,11 +92,9 @@ const ACCEPTED_CLASSES = {
     'rather than the append-only log: it patches control_shows.data. Accepted on the same ' +
     'reachability ground - operating a production needs no account, and the slug is what says you ' +
     'may - with the unrestricted apply beneath it, control_data_apply, kept to service_role. ' +
-    'ACCEPTING THE REACHABILITY IS NOT A CLAIM THAT ITS GUARD IS TIGHT: measured on staging ' +
-    '2026-09-16, that guard reads the path and never the value, so `{"drivers":[]}` still deletes ' +
-    'a whole bound branch through the array carve-out. That is tracked as its own work in ' +
-    'https://github.com/NoaCG/NoaCG-Studio/issues/795 and the fix is migration ' +
-    '0061; it is a bug in the guard, not a reason to revoke a grant the product needs. ' +
+    'Its guard (0088, issue #795) checks the value as well as the path: a bound path takes only a ' +
+    'field value, and an array over an indexed binding moves only the bound leaves of the stored ' +
+    'array, so a hand-made patch cannot delete, truncate or blank the authored tree. ' +
     'The numbered-log RPCs of 0071 (control_send_seq, control_output_report_seq, ' +
     'control_show_resolve, control_output_resolve, control_tail_seq, control_output_tail_seq) are ' +
     'the same slug doors with the same guards: the send and the report write only the log and the ' +
