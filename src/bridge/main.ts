@@ -4,6 +4,8 @@
 // (the `noacg` CLI / MCP server, docs/AGENT_CLI.md) waits for `window.__noacgBridgeReady`, calls
 // `hello()` to check the protocol version, then drives the functions through `page.evaluate`.
 // The page is `noindex` and out of the sitemap: it is a tool surface, not a destination.
+// Ready means callable: the type registry loads on the first `types()` or `scaffold()` call
+// (bridgeApi.ts), so a driver that only validates or screenshots never downloads it.
 
 import { bridgeApi, BRIDGE_V, type BridgeApi } from './bridgeApi';
 
@@ -18,4 +20,4 @@ window.noacgBridge = bridgeApi;
 window.__noacgBridgeReady = true;
 
 const status = document.getElementById('status');
-if (status) status.textContent = `Bridge v${BRIDGE_V} ready - ${bridgeApi.types().length} graphic types registered.`;
+if (status) status.textContent = `Bridge v${BRIDGE_V} ready.`;

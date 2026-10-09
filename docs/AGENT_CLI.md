@@ -205,7 +205,9 @@ The CLI opens `${NOACG_URL}/bridge` in its own headless browser, waits for
 (`src/bridge/bridgeApi.ts`, `BRIDGE_V`). The CLI declares the `v` range it speaks; a deployment
 speaking a newer `v` is refused with *"this NoaCG speaks bridge v2 - update noacg"*, an older one
 with the reverse - the pack format's refuse-with-upgrade idiom, because a human can act on it.
-Additive fields on any result never bump `v`; a breaking change does.
+Additive fields on any result never bump `v`; a breaking change does. Ready means callable, not
+loaded: `types()` and `scaffold()` load the type registry on their first call and answer through a
+promise, which `page.evaluate` awaits.
 
 ### Containment (the bench executes the agent's code)
 

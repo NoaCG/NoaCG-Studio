@@ -36,7 +36,6 @@ import { ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
 import { convertToDataRegion } from '../templates/shared/standard';
 import { typeFieldsToSpx, variantFromType, variantsFromType, type GraphicType } from '../templates/types/graphicType';
 import { hasNeutralDesign, neutralDesignFor, neutralSpineFor, type NeutralFieldSpec } from '../templates/types/neutralDesign';
-import { TYPES, typeById } from '../templates/types/registry';
 import { engineHeadline, engineReports, scanEngineSupport, type EngineReport } from '../validation/engineSupport';
 import { readinessRows, unclaimedFindings, type ReadinessRow } from '../validation/readiness';
 import { benchTemplateRuntime, mergeResults } from '../validation/runtimeBench';
@@ -150,7 +149,16 @@ function summarize(type: GraphicType): BridgeTypeSummary {
   };
 }
 
-export function types(): BridgeTypeSummary[] {
+/**
+ * The type registry, loaded on the first call that needs it. It imports every registered type
+ * and with it every one of their designs - megabytes the page would otherwise download before
+ * it could say it is ready, for a driver that may only validate or screenshot. Over
+ * `page.evaluate` an async function answers exactly as a synchronous one did.
+ */
+const registry = () => import('../templates/types/registry');
+
+export async function types(): Promise<BridgeTypeSummary[]> {
+  const { TYPES } = await registry();
   return TYPES.map(summarize);
 }
 
@@ -205,7 +213,7 @@ function styleOptions(style: ScaffoldStyle | undefined): WizardOptions {
   return o;
 }
 
-export function scaffold(req: ScaffoldRequest): ScaffoldResult {
+export async function scaffold(req: ScaffoldRequest): Promise<ScaffoldResult> {
   if ('fields' in req) {
     const template = neutralSpineFor(req.fields, { ...styleOptions(req.style), name: req.name });
     return {
@@ -216,6 +224,7 @@ export function scaffold(req: ScaffoldRequest): ScaffoldResult {
       ],
     };
   }
+  const { TYPES, typeById } = await registry();
   const type = typeById(req.type);
   if (!type) {
     throw new Error(`Unknown graphic type "${req.type}". Known types: ${TYPES.map((t) => t.id).join(', ')}.`);
