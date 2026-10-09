@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type Request } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { finishIntoEditor, finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
@@ -215,6 +215,39 @@ export async function clearPublishedShows(page: Page): Promise<void> {
  * "was it RECORDED?", which is a different question from what is on screen, and the two together
  * are what tell a forged command apart from a real one.
  */
+/**
+ * WATCH A HOSTED OPERATOR PAGE'S READS OF THE LOG, so a press can wait until the page is level.
+ *
+ * While the page reads the numbered log's tail (on joining, and on each poll) its own presses take
+ * the durable road and leave its monitor alone (hostedControl.ts `recovering`): the chip does not
+ * say "on air" and Out stays disabled until the server answers the Take. A spec that holds that
+ * answer and presses as the page comes up can land inside the join's read. Against a local stack
+ * the read takes a millisecond and never caught a press; against hosted staging it takes about
+ * 200 ms and caught two (issue #902).
+ *
+ * Call before the page's `goto`; await the returned function before a press that needs the page's
+ * own monitor to move at once.
+ */
+export function watchLogReads(page: Page): () => Promise<void> {
+  let read = 0;
+  let open = 0;
+  const isTail = (r: Request) => /\/rpc\/control_tail_seq\b/.test(r.url());
+  const done = (r: Request) => {
+    if (!isTail(r)) return;
+    open -= 1;
+    read += 1;
+  };
+  page.on('request', (r) => {
+    if (isTail(r)) open += 1;
+  });
+  page.on('requestfinished', done);
+  page.on('requestfailed', done);
+  return () =>
+    expect
+      .poll(() => read > 0 && open === 0, { message: 'the operator page has read the log and is not reading it now', timeout: 30_000 })
+      .toBe(true);
+}
+
 export async function lastAppliedRow(air: Page): Promise<number> {
   const text = await air.locator('pre').textContent();
   const m = /last row: (\d+)/.exec(text ?? '');
