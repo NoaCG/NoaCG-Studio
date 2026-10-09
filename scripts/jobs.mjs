@@ -194,10 +194,10 @@ async function cmdAdd() {
   const command = args[1];
   if (!command || command.startsWith('-')) {
     console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>] [--cost <suite-equivalents>]');
-    console.error('  --cost says what this job weighs when you know better than the classifier: 1 is a');
-    console.error('  Playwright suite or a catalog battery, 0.75 a build, 0.5 one browser page, and 0.15');
-    console.error('  - a landing - is the least anything may claim. It sets both the budget share and');
-    console.error('  the free RAM the job demands before it may start.');
+    console.error('  --cost says what this job weighs when you know better than the classifier: 1 is');
+    console.error('  anything that opens a browser, and browser work is never priced lower; 0.75 a build,');
+    console.error('  0.4 tests or lint, and 0.15 - a landing - is the least anything may claim. It sets');
+    console.error('  both the budget share and the free RAM the job demands before it may start.');
     process.exit(1);
   }
   // THE WHOLE SUITE RUNS ON GITHUB ACTIONS. Every pull request and every merge group runs it there,
@@ -255,6 +255,9 @@ async function cmdAdd() {
   console.log(`${job.id} queued: ${job.command}`);
   if (job.caughtBrowser) {
     console.log(`  as browser work${declaredCost === undefined ? '' : ', not at the declared --cost'}: ${job.caughtBrowser.job} ran this command and launched a browser on ${new Date(job.caughtBrowser.at).toISOString().slice(0, 10)} (--kind gate says it no longer does)`);
+  }
+  if (typeof job.cost === 'number' && costOf(job) > job.cost) {
+    console.log(`  priced ${costOf(job)}, not the declared --cost ${job.cost}: browser work is never priced below one browser run`);
   }
   // A prediction for the line below, not a decision, so it skips the session inventory: a wave
   // queues dozens of jobs, and a spawn each to word one line is not worth it.

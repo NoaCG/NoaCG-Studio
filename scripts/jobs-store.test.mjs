@@ -24,6 +24,7 @@ import {
   adoptOrphanedLandings,
   agentSessions,
   budgetMode,
+  budgetShareOf,
   drivesBrowser,
   cancelVerdict,
   capacity,
@@ -300,6 +301,33 @@ test('a wrapper that launches a browser is priced light by its text and caught b
 test('a declared cost does not keep a job that launched a browser below the browser price', () => {
   const declared = job('j-0001', { command: 'node scripts/before-after.mjs', state: 'running', pid: 100, cost: 0.4 });
   assert.equal(costOf(repricedAsBrowser(declared)), COST.browser);
+});
+
+test('a job holding the browser slot is priced at least one browser run, whatever it declared (#931)', () => {
+  // 2026-10-10: browser work declared at 0.5 was admitted at 1.8 GB free, a one-worker Playwright
+  // run took 1.8 GB, and free memory fell to 588 MB.
+  const awayFloor = freeMemFloorFor('away');
+  const atHalf = awayFloor * 0.5 + 100;
+  for (const over of [
+    { command: 'npm run test:e2e:queued -- e2e/a.spec.ts', cost: 0.5 },
+    { command: 'node test-results/oo/sweep.mjs --all', kind: 'sweep', cost: 0.5 },
+    { command: 'node scripts/l3-sweep.mjs shots', cost: 0.15 },
+  ]) {
+    const declared = job('j-0001', over);
+    assert.equal(drivesBrowser(declared), true, over.command);
+    assert.equal(costOf(declared), COST.browser, over.command);
+    assert.equal(budgetShareOf(declared), COST.browser, over.command);
+    const held = schedule([declared], { now: NIGHT, freeMemMb: atHalf, presence: 'away' });
+    assert.deepEqual(held.start, [], `${over.command} started on ${atHalf} MB`);
+    assert.match(held.waiting[0].reason, new RegExp(`RAM free, needs ${(awayFloor / 1024).toFixed(1)}`));
+    assert.equal(schedule([declared], { now: NIGHT, freeMemMb: awayFloor, presence: 'away' }).start.length, 1);
+  }
+  // Light work keeps what it declared: a gate job, a script, a landing.
+  assert.equal(costOf(job('j-0002', { command: 'npm run build', cost: 0.5 })), 0.5);
+  assert.equal(costOf(job('j-0003', { command: 'node scripts/report.mjs', cost: 0.3 })), 0.3);
+  assert.equal(costOf(merge('j-0004', { cost: 0.2 })), 0.2);
+  const script = job('j-0005', { command: 'node scripts/report.mjs', cost: 0.3 });
+  assert.equal(schedule([script], { now: NIGHT, freeMemMb: atHalf, presence: 'away' }).start.length, 1);
 });
 
 test('a command caught launching a browser is queued as browser work from the start next time (#904)', (t) => {
