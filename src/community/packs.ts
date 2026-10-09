@@ -1,5 +1,5 @@
 // The shared half of the Community packs shelf (docs/work-specs/community-packs/spec.md): thin
-// calls over the security definer functions of migrations 0079, 0080 and 0083. Every rule - who may
+// calls over the security definer functions of migrations 0079, 0080 and 0086. Every rule - who may
 // submit, who decides, what others may read - is the server's; this file only asks.
 //
 // Offline-invariant, like communityData.ts: with no backend configured `getSupabase()` resolves

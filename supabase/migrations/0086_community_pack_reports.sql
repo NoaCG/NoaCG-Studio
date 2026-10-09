@@ -119,14 +119,14 @@ begin
   if has_function_privilege('anon', 'public.community_pack_report(uuid, text)', 'execute')
      or has_function_privilege('anon', 'public.community_pack_reported()', 'execute')
      or has_function_privilege('anon', 'public.community_pack_reports_dismiss(uuid, timestamptz)', 'execute') then
-    raise exception '0083 self-check: anon may reach a report function';
+    raise exception '0086 self-check: anon may reach a report function';
   end if;
   if not has_function_privilege('authenticated', 'public.community_pack_report(uuid, text)', 'execute') then
-    raise exception '0083 self-check: a signed-in caller cannot report';
+    raise exception '0086 self-check: a signed-in caller cannot report';
   end if;
   if has_table_privilege('authenticated', 'public.community_pack_reports', 'select')
      or has_table_privilege('anon', 'public.community_pack_reports', 'select') then
-    raise exception '0083 self-check: a client can read the reports table';
+    raise exception '0086 self-check: a client can read the reports table';
   end if;
 end;
 $$;
@@ -151,7 +151,7 @@ begin
      and not exists (select 1 from public.moderators m where m.user_id = u.id)
    limit 1;
   if v_admin is null or v_maker is null or v_reporter is null then
-    raise notice '0083 behaviour self-check skipped: needs a moderator and two other accounts on this instance';
+    raise notice '0086 behaviour self-check skipped: needs a moderator and two other accounts on this instance';
     return;
   end if;
   begin
@@ -162,10 +162,10 @@ begin
     perform set_config('request.jwt.claims', json_build_object('sub', v_reporter, 'role', 'authenticated')::text, true);
     perform public.community_pack_report(v_pack, '  Uses a logo it has no right to  ');
     if (select r.reason from public.community_pack_reports r where r.pack_id = v_pack) is distinct from 'Uses a logo it has no right to' then
-      raise exception '0083 self-check failed: the report was not stored as given';
+      raise exception '0086 self-check failed: the report was not stored as given';
     end if;
     if exists (select 1 from public.community_pack_reported()) then
-      raise exception '0083 self-check failed: a reporter can read the Reported list';
+      raise exception '0086 self-check failed: a reporter can read the Reported list';
     end if;
     v_error := null;
     begin
@@ -174,7 +174,7 @@ begin
       v_error := sqlerrm;
     end;
     if v_error is distinct from 'You have reported this pack already.' then
-      raise exception '0083 self-check failed: one account reported a pack twice (%)', v_error;
+      raise exception '0086 self-check failed: one account reported a pack twice (%)', v_error;
     end if;
     v_error := null;
     begin
@@ -183,7 +183,7 @@ begin
       v_error := sqlerrm;
     end;
     if v_error is distinct from 'Only a NoaCG admin can dismiss reports.' then
-      raise exception '0083 self-check failed: a reporter could dismiss (%)', v_error;
+      raise exception '0086 self-check failed: a reporter could dismiss (%)', v_error;
     end if;
 
     perform set_config('request.jwt.claims', json_build_object('sub', v_maker, 'role', 'authenticated')::text, true);
@@ -194,27 +194,27 @@ begin
       v_error := sqlerrm;
     end;
     if v_error is distinct from 'This pack is yours. Withdraw it under Your packs instead.' then
-      raise exception '0083 self-check failed: a maker could report their own pack (%)', v_error;
+      raise exception '0086 self-check failed: a maker could report their own pack (%)', v_error;
     end if;
 
     perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
     select r.reports into v_count from public.community_pack_reported() r where r.id = v_pack;
     if v_count is distinct from 1 then
-      raise exception '0083 self-check failed: the admin sees % reports, not 1', v_count;
+      raise exception '0086 self-check failed: the admin sees % reports, not 1', v_count;
     end if;
     -- A dismissal up to a moment before the report leaves it waiting; up to now clears it.
     perform public.community_pack_reports_dismiss(v_pack, now() - interval '1 second');
     if not exists (select 1 from public.community_pack_reported() r where r.id = v_pack) then
-      raise exception '0083 self-check failed: a dismissal cleared a report filed after its moment';
+      raise exception '0086 self-check failed: a dismissal cleared a report filed after its moment';
     end if;
     perform public.community_pack_reports_dismiss(v_pack, now());
     if exists (select 1 from public.community_pack_reported() r where r.id = v_pack) then
-      raise exception '0083 self-check failed: a dismissed pack is still listed';
+      raise exception '0086 self-check failed: a dismissed pack is still listed';
     end if;
 
-    raise exception '0083-self-check-passed';
+    raise exception '0086-self-check-passed';
   exception when raise_exception then
-    if sqlerrm <> '0083-self-check-passed' then
+    if sqlerrm <> '0086-self-check-passed' then
       raise;
     end if;
   end;

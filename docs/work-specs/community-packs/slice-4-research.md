@@ -300,7 +300,7 @@ only (a regex is evaded by building a URL at runtime); turning the option on for
 ## The Report link
 
 **As built (2026-10-09):** as below, plus one report per account while it waits, Reported
-counting accounts, and a Dismiss beside Take down for a pack the admin keeps (migration 0083).
+counting accounts, and a Dismiss beside Take down for a pack the admin keeps (migration 0086).
 
 **Where it goes:** a quiet "Report" text button on every live shared card, after Install, for
 signed-in accounts; absent on seeds, on the maker's own packs and signed out. It opens the

@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/CommunityPacks.tsx, src/components/community/SubmitPackSheet.tsx, src/components/home/sections/GraphicsSection.tsx, src/community/{packs,packChecks,packSources,librarySource}.ts, src/validation/networkBench.ts, supabase/migrations/0083_community_pack_reports.sql, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql, supabase/migrations/0082_community_pack_submit_open.sql
+// covers: src/components/wizard/steps/CommunityPacks.tsx, src/components/community/SubmitPackSheet.tsx, src/components/home/sections/GraphicsSection.tsx, src/community/{packs,packChecks,packSources,librarySource}.ts, src/validation/networkBench.ts, supabase/migrations/0086_community_pack_reports.sql, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql, supabase/migrations/0082_community_pack_submit_open.sql
 //
 // THE COMMUNITY PACK REVIEW LOOP (docs/work-specs/community-packs/spec.md, first slice): a NoaCG
 // admin submits a folder of their own graphics from the wizard's shelf, sees it In review,

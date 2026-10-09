@@ -69,7 +69,7 @@ export function networkGuardTags(fontBase: string, timeScale: number): string {
   window.addEventListener('securitypolicyviolation', function (e) {
     report(String(e.blockedURI || ''), String(e.effectiveDirective || e.violatedDirective || ''));
   }, true);
-  window.addEventListener('pagehide', function () { report('another page', 'navigation'); }, true);
+  window.addEventListener('beforeunload', function () { report('another page', 'navigation'); }, true);
   window.addEventListener('load', function () {
     try { host.postMessage({ type: ${JSON.stringify(NETWORK_READY_TYPE)} }, '*'); } catch (x) {}
   });

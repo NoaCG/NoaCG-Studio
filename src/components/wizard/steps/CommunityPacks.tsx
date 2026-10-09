@@ -41,7 +41,7 @@ import SubmitPackSheet, { PackFindings } from '../../community/SubmitPackSheet';
  * review. A live pack of the maker's takes an update, a new version that waits for review while
  * the live one stays on the shelf (AC-11). Every signed-in account may submit (D12, migration 0082)
  * now that the design lock (AC-5) keeps an installed pack's design as its maker made it. A signed-in
- * visitor may Report a shared pack that is not theirs (migration 0083); the admin reads the reports
+ * visitor may Report a shared pack that is not theirs (migration 0086); the admin reads the reports
  * under Reported and takes the pack down or dismisses them.
  */
 
