@@ -18,7 +18,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, watchLogReads, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -89,11 +89,15 @@ async function openAir(page: Page, output: string): Promise<Page> {
   return air;
 }
 
+/** An operator page, level with the log: a press made while it still reads the tail would leave its
+ *  monitor alone, and Out would stay disabled behind a held Take (`watchLogReads`). */
 async function openOperator(page: Page, hosted: string): Promise<Page> {
   const op = await page.context().newPage();
+  const level = watchLogReads(op);
   await op.goto(`/app?control=${encodeURIComponent(hosted)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   await op.getByTestId('hosted-cues').locator('.pd-cue').first().getByTestId('hosted-select-cue').click();
+  await level();
   return op;
 }
 
