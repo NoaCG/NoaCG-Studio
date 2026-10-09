@@ -16,7 +16,9 @@ const baseEdits = process.argv.includes('--base-edits') || artwork;
 const captureFinish = process.argv.includes('--capture-finish');
 const fixtures = resolve(root, 'docs/research/editor-r1-foundation');
 const outputArg = process.argv.indexOf('--output');
-const output = outputArg >= 0 ? resolve(root, process.argv[outputArg + 1]) : artwork ? resolve(root, 'docs/research/editor-artwork-basics') : baseEdits ? resolve(root, 'docs/research/editor-r1-1a') : fixtures;
+// Output defaults to an ignored folder (bench-*/), so a run never rewrites the committed research.
+// Refreshing that evidence is a deliberate act: name the folder with --output docs/research/...
+const output = outputArg >= 0 ? resolve(root, process.argv[outputArg + 1]) : resolve(root, 'bench-editor-foundation', artwork ? 'artwork' : baseEdits ? 'base-edits' : 'foundation');
 mkdirSync(output, { recursive: true });
 async function settleFrame(frame) {
   const style = await frame.addStyleTag({ content: '*{will-change:auto !important}' });

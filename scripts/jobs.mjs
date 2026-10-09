@@ -40,6 +40,7 @@ import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mj
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
+  BROWSER_MEMORY_MS,
   COST,
   FOREGROUND_WAIT_CAP_MS,
   MAX_LANDING_RETRIES,
@@ -81,6 +82,7 @@ import {
   readLandings,
   reapDead,
   refusalGuidance,
+  rememberBrowserCommand,
   repricedAsBrowser,
   requeueDecision,
   schedule,
@@ -243,7 +245,7 @@ async function cmdAdd() {
     command,
     checkout: process.cwd(),
     branch: valueOf('--branch') ?? currentBranch(),
-    kind: valueOf('--kind') ?? 'gate',
+    kind: valueOf('--kind'),
     after: (valueOf('--after') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     capMinutes: Number(valueOf('--cap') ?? POLICY.capMinutes),
     cost: declaredCost === undefined ? null : Number(declaredCost),
@@ -251,6 +253,9 @@ async function cmdAdd() {
   });
   await ensureRunner();
   console.log(`${job.id} queued: ${job.command}`);
+  if (job.caughtBrowser) {
+    console.log(`  as browser work${declaredCost === undefined ? '' : ', not at the declared --cost'}: ${job.caughtBrowser.job} ran this command and launched a browser on ${new Date(job.caughtBrowser.at).toISOString().slice(0, 10)} (--kind gate says it no longer does)`);
+  }
   // A prediction for the line below, not a decision, so it skips the session inventory: a wave
   // queues dozens of jobs, and a spawn each to word one line is not worth it.
   const { waiting } = snapshot({ readSessions: false });
@@ -1094,7 +1099,15 @@ async function runner() {
           continue;
         }
         writeJob(dir, repricedAsBrowser(job));
-        const said = `${caught} - stopped, re-queued as browser work (queue it with --kind sweep to start it as one)`;
+        // And for next time: the same command queued again starts as browser work (#904).
+        let remembered = `queued again within ${BROWSER_MEMORY_MS / 86_400_000} days, the same command starts as browser work`;
+        try {
+          rememberBrowserCommand(dir, { command: job.command, job: job.id, now });
+        } catch (error) {
+          // Without the note the next run is caught again, as before; the runner goes on.
+          remembered = `could not remember the command (${error.message}), so its next run is priced light again`;
+        }
+        const said = `${caught} - stopped and re-queued as browser work; ${remembered}`;
         try {
           appendFileSync(job.logPath, `\n--- ${said}\n`);
         } catch {
