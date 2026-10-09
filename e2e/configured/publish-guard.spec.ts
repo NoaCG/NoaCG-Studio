@@ -121,10 +121,19 @@ async function published(page: Page, showId: string, graphic: string): Promise<P
   );
 }
 
+/** Press the Playout panel's Publish changes, there whenever the production changed since its
+ *  publish (the header's only when outputs need preparing, which a cue edit does not). */
+async function pressPublishChanges(page: Page): Promise<void> {
+  const panel = page.getByTestId('production-status-panel');
+  if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
+  await expect(panel.getByTestId('panel-publish-changes')).toBeVisible({ timeout: 20_000 });
+  await panel.getByTestId('panel-publish-changes').click();
+  await page.keyboard.press('Escape');
+}
+
 /** Press Publish changes and wait until the row moves past `after`. */
 async function publishChanges(page: Page, showId: string, after: number): Promise<Published> {
-  await expect(page.getByTestId('production-publish-changes')).toBeVisible({ timeout: 20_000 });
-  await page.getByTestId('production-publish-changes').click();
+  await pressPublishChanges(page);
   await expect.poll(async () => (await published(page, showId, STRAP))?.n ?? 0, { timeout: 60_000 }).toBeGreaterThan(after);
   await expect(page.getByTestId('production-note').filter({ hasText: 'Publish failed' })).toHaveCount(0);
   return (await published(page, showId, STRAP))!;
@@ -290,7 +299,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
   // write conditioned on there being no stamp.
   await forge({ strip: true });
   await typeCue(page, showId, 'over an unstamped payload');
-  await page.getByTestId('production-publish-changes').click();
+  await pressPublishChanges(page);
   await expect.poll(async () => (await published(page, showId, STRAP))?.values ?? [], { timeout: 60_000 }).toContain('over an unstamped payload');
   expect((await published(page, showId, STRAP))!.n, 'a payload without a stamp is followed by v1').toBe(1);
   await expect(page.getByTestId('production-note').filter({ hasText: 'Publish failed' })).toHaveCount(0);
@@ -300,7 +309,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
   const stamped = (await published(page, showId, STRAP))!;
   await forge({ later: true });
   await typeCue(page, showId, 'stale page');
-  await page.getByTestId('production-publish-changes').click();
+  await pressPublishChanges(page);
   await expect(page.getByTestId('production-note')).toContainText(`${STRAP} on air is newer than this page's copy. Reload this page to get it.`, { timeout: 30_000 });
   const refused = (await published(page, showId, STRAP))!;
   expect(refused.n, 'nothing was written').toBe(stamped.n);
@@ -324,7 +333,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
     if (writes === 1) landed = await forge({ bump: 5 });
     return route.continue();
   });
-  await page.getByTestId('production-publish-changes').click();
+  await pressPublishChanges(page);
   await expect.poll(async () => (await published(page, showId, STRAP))?.values ?? [], { timeout: 60_000 }).toContain('raced');
   const after = (await published(page, showId, STRAP))!;
   expect(writes, 'the first write missed, and the page published once more').toBe(2);
