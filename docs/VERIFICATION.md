@@ -61,15 +61,18 @@ every laptop are all good reasons. What is not fine is a gate outside the build 
 because that gate protects nothing while looking exactly like one that does.
 
 There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
-Verify product changes with `npm run build` plus in-browser checks; never mark work done on a green
-build alone if the behaviour is observable.
+Verify product changes with targeted checks plus in-browser checks (`.agent-workflows/verify.md`);
+the full build and the browser suites run on GitHub Actions. Never mark work done on green checks
+alone if the behaviour is observable.
 
 ## E2E is TIERED
 
 `npm run test:e2e:affected` maps changed files to covering specs (`scripts/e2e-affected.mjs`) and
 is both the inner loop AND what CI runs per change - except on **`main`, which always runs the FULL
 suite** (a spec no change maps to is never selected, so it can sit red through green run after
-green run - measured, eight of them), and NIGHTLY.
+green run - measured, eight of them), and NIGHTLY. Off CI it refuses a whole-suite plan (a full or
+focus escalation, or `--all`) and leaves the catalog gate to CI; the job queue refuses
+`npm run test:e2e` with no spec named. Locally, name the one or two specs that cover the change.
 
 **During the student-release sprint, `npm run test:e2e:focus` is THE student-critical suite
 command** (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs
@@ -253,7 +256,8 @@ forces the plain branch-only diff.
 
 It stays cheap: a wide diff escalates, and under sprint focus an escalation is the focus set, not
 all 128 spec files. The order is **update from main -> verify the combined state -> fix -> push**,
-and CI remains the final authority.
+and CI remains the final authority: it plans from the fork point on every pull request and merge
+group, and off CI a whole-suite plan is refused, so locally name the specs the merge touches.
 
 **CI asks the same question, since 2026-08-19.** It used to pass `github.event.before` as the base,
 which switched integration off - so a merge commit's run diffed the pre-merge branch tip against the

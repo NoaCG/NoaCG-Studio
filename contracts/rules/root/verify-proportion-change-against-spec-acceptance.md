@@ -3,7 +3,7 @@ v: 1
 scope: **
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-26
 supersedes: root/green-gate-human-seeing-work-observable, root/run-after-changes-keep-tree-lint
 record: contracts/records/root/2026-09-26-verify-proportion-change-against-spec-acceptance.md

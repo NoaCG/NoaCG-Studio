@@ -104,10 +104,10 @@ verify, land. Decide design defaults yourself and say what and why in the PR. As
 owner decision blocks part of it, finish the rest and say so.
 If your branch is worktree-agent-*, run `git fetch origin main && git reset --hard origin/main &&
 git branch -m <BRANCH>` before your first commit.
-Verify in proportion: `npm run build`, and the e2e specs that cover what you changed, through the
-job queue (`node scripts/e2e-affected.mjs --list --files <changed>` finds them; a copy or style
-change runs the specs that assert it, not the affected set). For a visible change, look at before
-and after screenshots yourself; never commit them.
+Verify with targeted checks only; CI runs the full build and suites. Locally: `npm run gates -- run
+--changed origin/main`, lint and type checks on what changed, and for a visible change the one or
+two specs covering it, through the job queue. Look at before and after screenshots yourself; never
+commit them.
 A row that finishes an issue puts `Closes #<n>` on its own line in a commit message. Left over:
 genuine unfinished work becomes a GitHub issue (`gh issue create`, with a priority, an area label
 and why it matters); a small follow-up is fixed in this row instead, because every new issue counts
@@ -125,9 +125,9 @@ Act when a row finishes or the timer fires, and at no other time:
 - Log one line: the PR, what it did, what it left as issues.
 - If the window still fits another row (the median row time so far, or 60 minutes before there is
   one, plus 30 minutes to land), launch the next item.
-- A row that ended without a PR, or whose PR went red or conflicted, is sent the failure
-  (Claude Code: SendMessage to the row; Codex: `send_message`) and resumes in its own worktree,
-  which still holds its branch. After two failed repairs, stop and report it.
+- Read `npm run jobs -- failed`: each queued pull request whose landing failed, with its CI log.
+  That row, or one that ended without a PR, is sent the failure (Claude Code: SendMessage to the
+  row; Codex: `send_message`) and resumes in its own worktree. After two failed repairs, report it.
 - A row past twice the median with no result is reported, never killed; launch beside it only if
   the machine has room.
 

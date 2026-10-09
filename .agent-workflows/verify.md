@@ -15,18 +15,22 @@ cannot observe is not a criterion yet.
 
 ## 2. Pick the checks the change needs, no more
 
-| The change touches | Run |
+Locally the checks are targeted. The full build, every gate and the browser suites run on GitHub
+Actions, on the pull request and again on the merge group, and nothing reaches `main` without
+them; local runs only catch mistakes early, and the machine has to stay responsive for the agents
+sharing it. The job queue and the affected planner refuse a whole-suite run.
+
+| The change touches | Run on this machine |
 |---|---|
-| anything | `npm run build`, reading its own exit code (`npm run build > log 2>&1; echo $?`) |
-| a script or tool | the tests that guard it (`// guards:` headers; `npm run gates -- list --changed origin/main`), `node --test <file>` |
-| product code | `npm run queue -- "npm run test:e2e:affected"`; after taking `main` in, `test:e2e:integration` |
-| something visible in the product | run it: `npm run dev:worktree` on this checkout's port, walk the flow in the browser, read the console and network, take a screenshot, and compare with each criterion |
+| anything | the gates that reach the change: `npm run gates -- run --changed origin/main` (the tests guarding each touched script, and the cheap checks) |
+| TypeScript | `npx eslint <changed files>` and `npx tsc --noEmit -p <tsconfig.json or tsconfig.api.json>` |
+| something visible in the product | the one or two specs covering exactly that change, `npm run queue -- "npm run test:e2e -- e2e/<name>.spec.ts"` (`node scripts/e2e-affected.mjs --list --files <changed>` names candidates); then run it: `npm run dev:worktree` on this checkout's port, walk the flow in the browser, read the console and network, take a screenshot, and compare with each criterion |
 | what a graphic looks like | `npm run queue -- "node scripts/taste-frame-review.mjs --affected"`, open every frame, answer `docs/VISUAL_TASTE_REVIEW.md` |
 | catalog designs or shared template machinery | the battery `node scripts/catalog-affected.mjs` prints |
 | how instructions load | `node scripts/instruction-load-probe.mjs run <files>` for Claude, a fresh root and nested Codex run for Codex |
-| docs only | the build (its doc gates cover links and budgets) |
 
-Browser-driving work goes through `npm run queue`: one browser job runs per machine.
+A risky change, or a CI failure to reproduce, may run a larger named set of specs, never the
+whole suite. Browser-driving work goes through `npm run queue`: one browser job runs per machine.
 
 ## 3. Loop until it holds
 
