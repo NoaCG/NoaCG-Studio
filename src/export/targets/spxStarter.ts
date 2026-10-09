@@ -177,9 +177,8 @@ export async function buildStarterInto(
   opts?: {
     entries?: ControlEntry[];
     fileName?: string;
-    /** An SPX package: the operator page is SPX_PANEL_FILE and a stepped graphic carries the
-     *  Continue guard. The dual graphic package leaves it off and keeps `controlpanel.html`,
-     *  the name its CLI and skill document. */
+    /** An SPX package: the operator page is SPX_PANEL_FILE. The dual graphic package keeps
+     *  `controlpanel.html`, the name its CLI and skill document. */
     forSpx?: boolean;
   },
 ): Promise<void> {
@@ -193,10 +192,11 @@ export async function buildStarterInto(
     injectProjectFormatMeta(ensureFlexGapShimRef(ensureExternalRefs(template.html)), template),
     template,
   );
+  // Every package of this layout plays in SPX, the dual one included (issue #900): a stepped
+  // graphic gets the Continue guard, and the text script writes each value SPX hands over
+  // HTML-escaped as typed (spxText.ts).
   const steps = Number(template.settings.steps);
-  if (opts?.forSpx && steps >= 2) html = appendToBody(html, spxStepGuardScript(steps));
-  // Every package of this layout plays in SPX, the dual one included, and SPX hands each value
-  // over HTML-escaped: the text script writes it as typed (spxText.ts).
+  if (steps >= 2) html = appendToBody(html, spxStepGuardScript(steps));
   html = appendToBody(html, spxTextScript(template));
   root.file(fileName, html);
   // SPX plays it on CasparCG, which on 2.3 is Chromium 71: no `inset` (assets/cssCompat.ts).

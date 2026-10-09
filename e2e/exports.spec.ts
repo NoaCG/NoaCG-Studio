@@ -86,7 +86,7 @@ test('h2r: GDD fields embedded, and the play() toggle drives entrance then exit'
   // The GDD block H2R parses into editable inputs — property keys match the element ids.
   // The script tag MUST carry name="graphics-data-definition": without it H2R never finds
   // the block and shows no editable fields (the bug the real-app test surfaced).
-  const gddMatch = html.match(/<script name="graphics-data-definition" type="application\/json\+gdd">\s*([\s\S]*?)\s*<\/script>/);
+  const gddMatch = html.match(/<script name="graphics-data-definition" type="application\/json\+gdd"[^>]*>\s*([\s\S]*?)\s*<\/script>/);
   expect(gddMatch).toBeTruthy();
   const gdd = JSON.parse(gddMatch![1]);
   expect(gdd.properties.f0.label).toBe('Name');
@@ -109,6 +109,52 @@ test('h2r: GDD fields embedded, and the play() toggle drives entrance then exit'
   await expect
     .poll(async () => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('0');
+  await view.close();
+});
+
+test('a single file imported and exported again carries its target scripts once', async ({ page }) => {
+  // Issue #901: the composer put each target's scripts in the template's own block, the import
+  // door moved that block into the JS pane, and every round trip added one more copy. Two H2R
+  // toggles cancel out: the second take after a round trip ran the exit.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const files = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
+    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { h2rTarget } = await import('/src/export/targets/h2r.ts');
+    const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+    const graphicFile = async (zip: Awaited<ReturnType<typeof casparTarget.build>>) =>
+      zip.file('hairline/hairline.html')!.async('string');
+    const out: Record<string, { imported: string; again: string }> = {};
+    for (const target of [casparTarget, h2rTarget, htmlOverlayTarget]) {
+      const first = await graphicFile(await target.build(variantById('lt01')!.create({})));
+      const { template } = importHtmlTemplate('hairline.html', first);
+      const again = await graphicFile(await target.build(template));
+      out[target.id] = { imported: `${template.html}\n${template.js}`, again };
+    }
+    return out;
+  });
+  const marks = {
+    casparcg: ['CasparCG data shim'],
+    h2r: ['H2R on/off toggle'],
+    'html-overlay': ['LOCAL RELAY (NoaCG)', 'Autoplay for browser sources'],
+  } as const;
+  for (const [id, texts] of Object.entries(marks)) {
+    for (const text of texts) {
+      expect(files[id].imported, `${id}: ${text} in the imported graphic`).not.toContain(text);
+      expect(files[id].again.split(text).length - 1, `${id}: ${text} after a round trip`).toBe(1);
+    }
+  }
+
+  // The round-tripped H2R file still toggles: on, off, and on again.
+  const view = await page.context().newPage();
+  await view.setContent(files.h2r.again, { waitUntil: 'load' });
+  const opacity = () => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
+  for (const shown of ['1', '0', '1']) {
+    await view.evaluate(() => (window as unknown as { play(): void }).play());
+    await expect.poll(opacity).toBe(shown);
+  }
   await view.close();
 });
 

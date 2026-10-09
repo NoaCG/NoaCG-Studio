@@ -149,57 +149,78 @@ test('SPX\'s template browser finds only graphics in the single and the producti
 test('one Continue past the last step takes the graphic out, as SPX\'s rundown shows it', async ({ page, context }) => {
   // SPX 1.2.1 answers the Continue after the last step with one more `next` and shows the item as
   // stopped; the quiz stayed on air with no Stop offered for it. SPX 1.4 sends `stop` instead.
+  // The dual NoaCG package is the same SPX layout and its README gives the same SPX rules, so it
+  // carries the guard too (issue #900); its files are under `dual/` here.
   const files = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
     const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
     const out: Record<string, string> = {};
     for (const id of ['qz04', 'lt01']) {
-      const zip = await spxTarget.build(variantById(id)!.create({}));
-      for (const n of Object.keys(zip.files)) {
-        if (!zip.files[n].dir && /\.(html|js|css)$/.test(n)) out[n] = await zip.file(n)!.async('string');
+      const template = variantById(id)!.create({});
+      const zips = [['', await spxTarget.build(template)], ['dual/', await buildGraphicPackage(template)]] as const;
+      for (const [prefix, zip] of zips) {
+        for (const n of Object.keys(zip.files)) {
+          if (!zip.files[n].dir && /\.(html|js|css)$/.test(n)) out[prefix + n] = await zip.file(n)!.async('string');
+        }
       }
     }
     return out;
   });
-  expect(files['clean_quiz/clean_quiz.html']).toContain('id="noacg-spx-steps"');
-  // A graphic without steps has no Continue in SPX and carries no guard.
-  expect(files['hairline/hairline.html']).not.toContain('noacg-spx-steps');
+  for (const at of ['', 'dual/']) {
+    expect(files[`${at}clean_quiz/clean_quiz.html`]).toContain('id="noacg-spx-steps"');
+    // A graphic without steps has no Continue in SPX and carries no guard.
+    expect(files[`${at}hairline/hairline.html`]).not.toContain('noacg-spx-steps');
+  }
+  // The dual package keeps the panel name its CLI documents.
+  expect(Object.keys(files)).toContain('dual/clean_quiz/controlpanel.html');
 
   const air = await context.newPage();
   await serveFiles(air, 'http://spx-steps.local', files);
-  await air.goto('http://spx-steps.local/clean_quiz/clean_quiz.html', { waitUntil: 'load' });
-  const calls = await air.evaluate(() => {
-    const w = window as unknown as { play(): void; stop(): void; next(): unknown; stops: number; spyOn: boolean };
-    // Count what reaches the template's stop(), the way SPX's own Stop reaches it.
-    const stop = w.stop;
-    w.stops = 0;
-    w.stop = function () { w.stops += 1; return stop.apply(this); };
-    const seen: number[] = [];
-    w.play();
-    w.next(); // the reveal - the one Continue the quiz has
-    seen.push(w.stops);
-    w.next(); // one too many: SPX 1.2.1's controller now shows the item as stopped
-    seen.push(w.stops);
-    // A fresh Play starts the count again.
-    w.play();
-    w.next();
-    seen.push(w.stops);
-    return seen;
-  });
-  expect(calls).toEqual([0, 1, 1]);
+  for (const at of ['', 'dual/']) {
+    await air.goto(`http://spx-steps.local/${at}clean_quiz/clean_quiz.html`, { waitUntil: 'load' });
+    const calls = await air.evaluate(() => {
+      const w = window as unknown as { play(): void; stop(): void; next(): unknown; stops: number; spyOn: boolean };
+      // Count what reaches the template's stop(), the way SPX's own Stop reaches it.
+      const stop = w.stop;
+      w.stops = 0;
+      w.stop = function () { w.stops += 1; return stop.apply(this); };
+      const seen: number[] = [];
+      w.play();
+      w.next(); // the reveal - the one Continue the quiz has
+      seen.push(w.stops);
+      w.next(); // one too many: SPX 1.2.1's controller now shows the item as stopped
+      seen.push(w.stops);
+      // A fresh Play starts the count again.
+      w.play();
+      w.next();
+      seen.push(w.stops);
+      return seen;
+    });
+    expect(calls, `${at || 'spx/'} package`).toEqual([0, 1, 1]);
+  }
   await air.close();
 
-  // The guard is packaging, not the graphic: importing the package back leaves it out.
+  // The guard is packaging, not the graphic: importing either package back leaves it out. The
+  // dual package hashes its sources as written, guard included, so its OGraf half reads fresh.
   const imported = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
     const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
     const { importZipTemplate } = await import('/src/model/importTemplate.ts');
-    const zip = await spxTarget.build(variantById('qz04')!.create({}));
-    const result = await importZipTemplate('clean_quiz.zip', await zip.generateAsync({ type: 'arraybuffer' }));
-    return `${result.template.html}\n${result.template.js}`;
+    const template = variantById('qz04')!.create({});
+    const out: { code: string; stale?: boolean }[] = [];
+    for (const zip of [await spxTarget.build(template), await buildGraphicPackage(template)]) {
+      const result = await importZipTemplate('clean_quiz.zip', await zip.generateAsync({ type: 'arraybuffer' }));
+      out.push({ code: `${result.template.html}\n${result.template.js}`, stale: result.noacg?.stale });
+    }
+    return out;
   });
-  expect(imported).not.toContain('noacg-spx-steps');
-  expect(imported).not.toContain('continues >= steps');
+  for (const { code } of imported) {
+    expect(code).not.toContain('noacg-spx-steps');
+    expect(code).not.toContain('continues >= steps');
+  }
+  expect(imported[1].stale).toBe(false);
 });
 
 test('a value SPX hands over HTML-escaped goes on air as typed', async ({ page, context }) => {
@@ -327,10 +348,16 @@ test('a Picture and a CasparCG single file played from SPX show what was picked 
   expect(again.imported).not.toContain('noacg-spx-text');
   expect(again.imported).not.toContain('asTyped');
   expect(again.html.match(/id="noacg-spx-text"/g)).toHaveLength(1);
+  // The CasparCG data shim is packaging too, so it comes back once as well (issue #901).
+  expect(again.imported).not.toContain('CasparCG data shim');
+  expect(again.html.match(/CasparCG data shim/g)).toHaveLength(1);
   const reair = await context.newPage();
   await serveFiles(reair, 'http://spx-again.local', { 'hairline.html': again.html });
   await reair.goto('http://spx-again.local/hairline.html', { waitUntil: 'load' });
   await update(reair, JSON.stringify({ f0: 'AT&amp;amp;T' }));
   expect(await reair.locator('#f0').textContent()).toBe('AT&amp;T');
+  // And a CasparCG client's XML still reaches the re-exported template.
+  await update(reair, '<templateData><componentData id="f0"><data id="text" value="Second take"/></componentData></templateData>');
+  expect(await reair.locator('#f0').textContent()).toBe('Second take');
   await reair.close();
 });
