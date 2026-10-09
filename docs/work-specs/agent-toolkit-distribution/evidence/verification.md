@@ -25,7 +25,7 @@ the branch dry run (archive 403,667 bytes), and the gates for the changed files.
 
 Rehearsal, from the artifact generated at the commit in the receipt: isolated Claude Code
 (`CLAUDE_CONFIG_DIR`) and Codex (`CODEX_HOME`, twice: the marketplace and the upload ZIP)
-profiles under ignored `cli/dist/toolkit-profiles`, an empty npm cache and an empty key store.
+profiles in a scratch folder (removed afterwards), an empty npm cache and an empty key store.
 Both hosts installed both plugins; Claude reported the server connected, Codex started it and
 showed the skill to its model. The installed launcher then served an unfamiliar brief (a curling
 scoreboard with ends and the hammer): scaffold, edit, validate with frames, inspect, a screenshot

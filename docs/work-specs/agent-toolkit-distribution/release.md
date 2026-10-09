@@ -7,7 +7,8 @@ npm run toolkit:dist
 ```
 
 No dependency installation or editor/application build is required. Output is in
-`cli/dist/toolkit/<source-commit>/`. Repeating the command at that commit verifies the same
+the system temporary folder, `noacg-toolkit/<source-commit>/` (never under `cli/`, whose `dist/`
+ships in the npm package). Repeating the command at that commit verifies the same
 output. A changed output is refused; choose a fresh directory with
 `npm run toolkit:dist -- <empty-directory>`. The output is ignored, never a maintained source.
 

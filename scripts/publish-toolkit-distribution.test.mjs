@@ -51,7 +51,7 @@ test('distribution branch has only generated history, preserves parents and refu
   git(second.repository,'push',remote,`${second.commit}:refs/heads/agent-toolkit-dist`);
   assert.equal(prepare(remote).unchanged,true);
   git(source,'checkout','--detach',firstSource);
-  assert.throws(()=>prepare(remote),/Command failed/);
+  assert.throws(()=>prepare(remote),/does not contain/);
   writeFileSync(path.join(source,'dirty.md'),'uncommitted');
   assert.throws(()=>prepareDistribution({source}),/clean source/);
 });

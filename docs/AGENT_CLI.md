@@ -697,6 +697,13 @@ the CLI executing it is BEHIND `latest` - `isBehind`, not `!==`, so a checkout b
 published version says nothing. The launcher's own text, cache, timeout and its skip on the
 `NOACG_CLI` override are untouched.
 
+**Superseded 2026-10-09 for the launcher (#842).** A plugin in Claude's directory must run an
+exact, reviewed CLI version, so `mcp-server.mjs` no longer asks npm anything and the generated
+`npm-latest.mjs` copy is gone. The launcher imports an installed CLI only at exactly its plugin's
+version; a stale or newer one is named on stderr and skipped for `npx -y @noacg/cli@<that
+version>`. `doctor` keeps the `latest` check above
+(`docs/work-specs/agent-toolkit-distribution/spec.md`).
+
 `doctor` still does not separately name what `resolveCli()` would pick; that half of the file's
 proposal is still undecided, not done. What it DOES now name is the skill - below.
 

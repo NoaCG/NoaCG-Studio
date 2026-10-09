@@ -253,7 +253,7 @@ jobs:
         run: npm --prefix cli test
 
       - name: Generate and validate independent directory packages
-        run: npm run toolkit:dist -- cli/dist/toolkit-release
+        run: npm run toolkit:dist -- "$RUNNER_TEMP/toolkit-release"
 
       # Upload the actual reproducible ZIPs, rather than relying on artifact service ZIP layout.
       - name: Keep directory packages and measurements as a run artifact
@@ -261,8 +261,8 @@ jobs:
         with:
           name: noacg-agent-toolkit-${{ steps.version.outputs.version }}
           path: |
-            cli/dist/toolkit-release/*.zip
-            cli/dist/toolkit-release/measurements.json
+            ${{ runner.temp }}/toolkit-release/*.zip
+            ${{ runner.temp }}/toolkit-release/measurements.json
           if-no-files-found: error
 
       # Build the exact tarball a publish would upload, and print its contents. `prepack` re-runs

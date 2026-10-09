@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { crc32, deflateRawSync } from 'node:zlib';
 
@@ -79,7 +80,8 @@ export function validatePaths(files) {
       requireThat(!seen.has(key) || seen.get(key) === prefix, `case collision: ${name}`);
       seen.set(key, prefix);
     }
-    requireThat(!/(^|\/)(\.DS_Store|Thumbs.db|desktop.ini|__MACOSX|\.npmrc|\.gitmodules|\.gitattributes)$/i.test(name), `forbidden distribution file: ${name}`);
+    requireThat(!/(^|\/)(\.DS_Store|Thumbs\.db|desktop\.ini|\.npmrc|\.gitmodules|\.gitattributes)$/i.test(name)
+      && !/(^|\/)(__MACOSX\/|\._)/.test(name), `forbidden distribution file: ${name}`);
     requireThat(/\.(md|json|mjs|png)$/.test(name) || /(^|\/)(LICENSE|NOTICE)$/.test(name), `unexpected distribution file: ${name}`);
   }
   return seen.size; // files AND directory entries, including hidden directories
@@ -142,6 +144,13 @@ export function validatePackage(files, { host, name, version }) {
   const prose = files.get('README.md').toString().replace(/(?:```|~~~)[\s\S]*?(?:```|~~~)/g, '');
   requireThat(prose.trim().split(/\s+/).length >= 40, 'README must contain 40 prose words');
   validateManifest(files, host, name, version);
+  // Every command in shipped text that would fetch or install the CLI names the exact version.
+  for (const [file, bytes] of files) {
+    if (!file.endsWith('.md')) continue;
+    for (const m of bytes.toString().matchAll(/(?:npx(?: -y)?|npm (?:i|install|exec)(?: -g)?|pnpm dlx|yarn dlx|bunx) @noacg\/cli([^\s`<]*)/g)) {
+      requireThat(m[1] === `@${version}`, `unpinned or stale CLI command in ${file}: ${m[0]}`);
+    }
+  }
   if (name === 'noacg') {
     requireThat(!files.has('.mcp.json'), 'main plugin must remain lazy');
     const skill = files.get('skills/noacg-graphic/SKILL.md')?.toString();
@@ -149,9 +158,6 @@ export function validatePackage(files, { host, name, version }) {
     for (const ref of skill.matchAll(/references\/([\w-]+\.md)/g)) requireThat(files.has(`skills/noacg-graphic/references/${ref[1]}`), `missing skill reference ${ref[1]}`);
     const setup = files.get('skills/noacg-graphic/references/setup.md')?.toString();
     requireThat(setup?.includes(`@noacg/cli@${version}`), 'setup CLI pin drift');
-    for (const text of [skill, setup, files.get('README.md').toString()]) {
-      for (const m of text.matchAll(/(?:npx -y|npm i -g) @noacg\/cli([^\s`<]*)/g)) requireThat(m[1] === `@${version}`, `unpinned or stale CLI command: ${m[0]}`);
-    }
   } else {
     // Claude expands ${CLAUDE_PLUGIN_ROOT} in .mcp.json. Codex (0.163) does not: it starts the
     // server from its manifest's mcpServers file, resolving `cwd` against the plugin root.
@@ -268,11 +274,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     requireThat(execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: ROOT, encoding: 'utf8', windowsHide: true }).trim() === '', 'commit changes first: distribution provenance requires a clean checkout');
     const result = assemble();
-    const out = process.argv[2] ?? path.join(ROOT, 'cli/dist/toolkit', result.report.sourceCommit);
-    requireThat(!out.startsWith('-'), 'usage: npm run toolkit:dist -- [empty-output-directory]');
-    writeDistribution(path.resolve(out), result);
+    const out = path.resolve(process.argv[2] ?? path.join(os.tmpdir(), 'noacg-toolkit', result.report.sourceCommit));
+    requireThat(!process.argv[2]?.startsWith('-'), 'usage: npm run toolkit:dist -- [empty-output-directory]');
+    // cli/ is the npm package, and its dist/ ships: output there would be published inside it.
+    requireThat(path.relative(path.join(ROOT, 'cli'), out).startsWith('..'), `output inside cli/ would ship in the npm package: ${out}`);
+    writeDistribution(out, result);
     console.log(JSON.stringify(result.report, null, 2));
-    console.log(`Distribution: ${path.resolve(out)}`);
+    console.log(`Distribution: ${out}`);
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

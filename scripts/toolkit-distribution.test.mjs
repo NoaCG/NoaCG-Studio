@@ -68,8 +68,10 @@ for (const [title, mutate, error] of [
   ['missing licence', (f) => f.delete('LICENSE'), /required file missing/],
   ['wrong licence', (f) => f.set('LICENSE', Buffer.from('MIT')), /Apache licence/],
   ['missing reference', (f) => f.delete('skills/noacg-graphic/references/contract.md'), /missing skill reference/],
-  ['stale setup pin', (f) => f.set('skills/noacg-graphic/references/setup.md', Buffer.from('npx -y @noacg/cli@0.0.1')), /setup CLI pin drift/],
+  ['stale setup pin', (f) => f.set('skills/noacg-graphic/references/setup.md', Buffer.from('npx -y @noacg/cli@0.0.1')), /stale CLI command in skills\/noacg-graphic\/references\/setup\.md/],
+  ['setup without the pin', (f) => f.set('skills/noacg-graphic/references/setup.md', Buffer.from('Install the CLI.')), /setup CLI pin drift/],
   ['floating skill launcher', (f) => f.set('skills/noacg-graphic/SKILL.md', Buffer.from(f.get('skills/noacg-graphic/SKILL.md').toString() + '\nnpx -y @noacg/cli validate')), /unpinned or stale/],
+  ['floating install in a reference', (f) => f.set('skills/noacg-graphic/references/package.md', Buffer.from(f.get('skills/noacg-graphic/references/package.md').toString() + '\nnpm install -g @noacg/cli@latest')), /unpinned or stale CLI command in skills/],
   ['text limit', (f) => f.set('README.md', Buffer.alloc(256 * 1024 + 1, 65)), /text exceeds/],
   ['file limit', (f) => f.set('assets/large.png', Buffer.alloc(5 * 1024 * 1024)), /exceeds 5 MiB/],
   ['binary/LFS pointer', (f) => f.set('extra.md', Buffer.from('version https://git-lfs.github.com/spec/v1')), /binary\/LFS/],
@@ -97,7 +99,7 @@ test('reject plugin file count and malformed Codex metadata independently', () =
 });
 
 test('reject traversal, Windows devices, attributes, system files and case collisions in parents', () => {
-  for (const name of ['../escape.md', 'con.md', 'foo./x.md', '/root.md', 'a:b.md', '.gitattributes', '.npmrc', 'Thumbs.db']) {
+  for (const name of ['../escape.md', 'con.md', 'foo./x.md', '/root.md', 'a:b.md', '.gitattributes', '.npmrc', 'Thumbs.db', '__MACOSX/x.md', 'references/._setup.md']) {
     assert.throws(() => validatePaths(new Map([[name, Buffer.from('')]])), /path|forbidden/);
   }
   assert.throws(() => validatePaths(new Map([['A/x.md', Buffer.from('')], ['a/y.md', Buffer.from('')]])), /case collision/);

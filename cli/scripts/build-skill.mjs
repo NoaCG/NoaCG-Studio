@@ -21,10 +21,9 @@
 //      `name` is not stamped but CHECKED against cli/package.json `mcpName`: the registry refuses
 //      a publish whose npm package does not carry the same name, and it only says so after npm
 //      already holds the version
-//   4. cli/plugin-mcp/npm-latest.mjs - a byte-identical copy of cli/src/npmLatest.mjs, the "is
-//      this copy behind npm's latest?" check that `noacg doctor` and the MCP launcher both run.
-//      The launcher gets a copy rather than importing it from the CLI it resolves, because the
-//      copy it resolves may be too old to carry the check at all (that file's header says why)
+//   4. the exact CLI version in every `npx -y` / `npm i -g @noacg/cli` command of the skill source
+//      and the plugin READMEs, and both plugins' LICENSE and NOTICE, copied from cli/ (the
+//      directory listings require them in each plugin folder)
 // cli/LICENSE used to be generated here too - the repository LICENSE copied in, on the assumption
 // that the repo keeps one licence text. That assumption ended on 2026-08-25: this package is
 // Apache-2.0 and the rest of the repository is AGPL-3.0-only (docs/AGENT_CLI.md explains why).
@@ -105,7 +104,7 @@ if (!existsSync(SOURCE)) {
 }
 function pinCommands(bytes) {
   return Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n')
-    .replace(/((?:npx -y|npm i -g) @noacg\/cli)(?:@\d+\.\d+\.\d+)?/g, `$1@${version}`)
+    .replace(/((?:npx -y|npm i -g) @noacg\/cli)(?:@[^\s`<]+)?/g, `$1@${version}`)
     .replace(/@noacg\/cli@\d+\.\d+\.\d+/g, `@noacg/cli@${version}`)
     .replace(/(match |match\s+)(\d+\.\d+\.\d+)( for this package)/g, `$1${version}$3`));
 }

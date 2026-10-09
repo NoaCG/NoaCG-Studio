@@ -16,10 +16,11 @@ export function prepareDistribution({ source = ROOT, out, remote, push = false }
   // Use a dedicated temporary output so no previous artifact is mutated by git metadata.
   writeDistribution(path.join(dir, 'artifact'), result);
   const repo = path.join(dir, 'artifact/repository');
+  const sourceDate = gitSource('show', '-s', '--format=%cI', 'HEAD');
   const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
     env: { ...process.env, GIT_AUTHOR_NAME: 'NoaCG Studio', GIT_AUTHOR_EMAIL: 'noreply@noacg.studio',
       GIT_COMMITTER_NAME: 'NoaCG Studio', GIT_COMMITTER_EMAIL: 'noreply@noacg.studio',
-      GIT_AUTHOR_DATE: gitSource('show', '-s', '--format=%cI', 'HEAD'), GIT_COMMITTER_DATE: gitSource('show', '-s', '--format=%cI', 'HEAD') } }).trim();
+      GIT_AUTHOR_DATE: sourceDate, GIT_COMMITTER_DATE: sourceDate } }).trim();
   git('init', '--initial-branch=agent-toolkit-dist');
   let previous = '';
   if (remote) {
@@ -28,7 +29,11 @@ export function prepareDistribution({ source = ROOT, out, remote, push = false }
       git('fetch', '--no-tags', remote, 'refs/heads/agent-toolkit-dist');
       const old = JSON.parse(git('show', 'FETCH_HEAD:PROVENANCE.json'));
       // Refuse delayed old releases replacing a newer source snapshot.
-      execFileSync('git', ['merge-base', '--is-ancestor', old.sourceCommit, result.report.sourceCommit], { cwd: source, stdio: 'pipe', windowsHide: true });
+      try {
+        execFileSync('git', ['merge-base', '--is-ancestor', old.sourceCommit, result.report.sourceCommit], { cwd: source, stdio: 'pipe', windowsHide: true });
+      } catch {
+        throw new Error(`agent-toolkit-dist already holds ${old.sourceCommit}, which ${result.report.sourceCommit} does not contain: a newer or unrelated snapshot is published, so this one is not`);
+      }
       if (old.sourceCommit === result.report.sourceCommit) return { sourceCommit: old.sourceCommit, commit: previous, unchanged: true, repository: repo };
     }
   }
