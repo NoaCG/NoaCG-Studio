@@ -5,3 +5,5 @@ Rule: `root/question-owner-names-reason-own-text`. Recorded 2026-09-07 on `claud
 Ruling 2026-09-05, docs/OWNER_RULINGS.md. In Claude Code scripts/hooks/guard-question.mjs refuses an untagged question; in Codex the rule itself is the guard.
 
 2026-09-25: rewritten for owner-decisions-2026-09-25 (docs/OWNER_RULINGS.md). Three kinds of question: operational ones are decided, owner-level outcome decisions get one Grill-Me question at a time with a recommendation, and waves ask nothing. The hook now carries the rule, so it left the root contract.
+
+2026-10-09: owner ruling, day wave 2026-10-09. An orchestrator asks the owner while he is present, one question at a time with a recommendation, for choices that change behaviour; a wave row and an unattended wave still ask nothing. The hook already refused only wave-row agents, so only the text changed.

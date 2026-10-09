@@ -1,13 +1,11 @@
 # orchestrator - run a wave of autonomous work
 
 Shared procedure: `/orchestrator` (alias `/o`) in Claude Code, `$orchestrator` (alias `$o`) in
-Codex; translate `/check` and `/queue-merge` the same way. Input: the owner's prompt and a time
-window. Output: verified work merged through the merge queue, and a short report. Nobody has to
-watch the wave, merge anything by hand or read the plan.
+Codex; translate `/check` and `/queue-merge` the same way. It drives day and night waves alike.
+Input: the owner's prompt and a time window. Output: verified work merged through the merge queue,
+and a short report. The boundaries hold whatever the prompt says; the rest guides your judgement.
 
 ## Boundaries
-
-These hold whatever the prompt says.
 
 - **One orchestrator at a time.** Opening a wave (step 1) refuses while another wave has no report.
 - **Only the merge queue writes `main`.** Rows land themselves with `/queue-merge`. You never merge
@@ -17,8 +15,9 @@ These hold whatever the prompt says.
 - **24 hours is the ceiling** of any unattended wave; opening a wave refuses a longer window.
 - **Never touch another session's worktree.** Read it through `node scripts/worktree-activity.mjs`
   and plan around it: never open, change, clean or adopt it.
-- **One browser-driving job per machine.** The job queue starts one at a time, whatever its budget;
-  rows run e2e and screenshots through it (`:queued` scripts), never the shared browser pane.
+- **One browser-driving job per machine.** Two collide, so the job queue starts one at a time,
+  whatever its budget; rows run e2e and screenshots through it (`:queued` scripts), never the
+  shared browser pane.
 - **`docs/private/` stays private.** Plan with it; never copy it or cite a date from it in a prompt,
   PR, commit or report.
 
@@ -35,13 +34,12 @@ can see becomes a row.
   It refuses a second open wave and a window over 24 hours, and prints the wave file, which lives
   outside any checkout. The prompt, the work list, one line per launch and result, and the report
   go there; nobody else has to read it. After a restart, open the same date and kind again.
-- **Read once**: the prompt; `docs/GOALS.md` headings and the `## Outcomes` rank line;
-  `node scripts/worktree-activity.mjs`; `npm run jobs`; free memory; the retro in the last wave
-  file's `## Report` (`node scripts/wave-plan-store.mjs --list`). Read code only to settle a planning
-  question; each row does its own research.
-- **If the owner is here** and the prompt leaves a choice of direction, scope or taste open, ask
-  it now, one question at a time, with your recommendation. Once rows run, ask nothing: decide,
-  record the decision in the wave file and the report, and keep going.
+- **Read once**: the prompt; `docs/GOALS.md` headings and the `## Outcomes` rank line; the last
+  retro (`## Report` in the last wave file, `node scripts/wave-plan-store.mjs --list`); the machine
+  (step 3). Read code only to settle a planning question; each row does its own research.
+- **Asking**: while the owner is here, ask him straight away, one question at a time with your
+  recommendation, and only for a choice that changes behaviour. Otherwise decide, record it in the
+  pull request and the wave file, and go on. An unattended wave asks nothing.
 
 ## 2. The work list
 
@@ -54,29 +52,32 @@ Most important first, written in the wave file before the first launch:
    Skip an issue that waits on the owner (`needs owner`, a decision, money, an account, his own
    check), one labelled `later` or speculative, and one whose files a live worktree holds.
 
-**The issue list gets shorter every wave.** Count the open `P1`-`P3` issues when the wave opens and
-when it ends. Before building from the backlog, one row checks the open issues against current
-`main` and closes each one it verifies is already fixed, obsolete or a duplicate, with a one-line
-comment saying what it checked; only a product decision waits on the owner. An issue closes only on
-evidence (the check that proves it, a screenshot in the PR), never on hope. Keep going until no
-open issue fits the window or the list is empty.
+**Solve at least as many problems as the wave creates**, so the open list does not grow. A few
+issues fixed well make a good wave; there is no target and no rush. Count the open `P1`-`P3` issues
+at the wave's start and end; before building, one row checks them against current `main`. An issue
+verified fixed (its covering check passed, a screenshot in the PR for a visible change), or found
+already fixed, obsolete or a duplicate, is closed by the agent with a short note of what it checked,
+without the owner's review; he reopens it if the problem returns. Never close one that is not really
+solved, nor rush a fix to shorten the list.
 
-Shape each item into a row one session can finish. An issue too big for one row, or a new major
-outcome, is planned first: a planning subagent on Fable (the Agent tool, model `fable`) writes a
-compact spec (`docs/work-specs/README.md`) with acceptance criteria and steps that each land on
-their own, and Opus rows build them, commenting on the issue with what is done and what is left; it
-closes when every criterion is verified. Two items on the same file or user flow are one row, or
-run in turn; so are two rows that each need a new migration number, e2e spec or `package.json`
-change, unless the prompt assigns the numbers. **The owner's intent binds, his wording does not**:
-serve what he wanted, keep the detail where he made it the point (a taste ruling, a figure he
-gave), and report a difference rather than asking about it.
+An item too big for one session, or a new major outcome, is planned first: a planning subagent on
+Fable (the Agent tool, model `fable`) writes a compact spec (`docs/work-specs/README.md`) with
+acceptance criteria and steps that each land on their own, and Opus rows build them, commenting on
+the issue with what is done and what is left; it closes when every criterion is verified. Two items
+on the same file or user flow are one row, or run in turn; so are two rows that each need a new
+migration number, e2e spec or `package.json` change, unless the prompt assigns the numbers. **The
+owner's intent binds, his wording does not**: serve what he wanted, keep the detail where he made it
+the point (a taste ruling, a figure he gave), and report a difference rather than asking about it.
 
 ## 3. Launch
 
-At most four rows at once; a docs-only row counts half; fewer when free memory is under 4 GB. Each
-row runs in its own worktree on `claude/<letter>-<name>` or `codex/<letter>-<name>`. Letters run
-A, B, C and never repeat within a wave. Log each launch in the wave file: letter, branch, goal,
-time.
+How many rows run at once follows the machine, not the wave's kind, so the laptop keeps enough
+memory to work and browser jobs do not collide. At the start and as each row finishes, read
+`node scripts/worktree-activity.mjs`, the `Schedule:` line of `npm run jobs` (live sessions, budget)
+and free memory. Alone, run more rows (about four; docs-only counts half); beside busy sessions,
+stay modest; when they finish, add rows. Under about 4 GB free, launch no more. Rows run in their
+own worktrees on `<tool>/<letter>-<name>`, letters A, B, C never repeating in a wave; log each
+launch in the wave file: letter, branch, goal, time.
 
 - **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row` (`wave-row-deciding`
   for one expensive judgement with the evidence in hand, `wave-row-mechanical` for a written
@@ -108,10 +109,10 @@ Verify with targeted checks only; CI runs the full build and suites. Locally: `n
 --changed origin/main`, lint and type checks on what changed, and for a visible change the one or
 two specs covering it, through the job queue. Look at before and after screenshots yourself; never
 commit them.
-A row that finishes an issue puts `Closes #<n>` on its own line in a commit message. Left over:
-genuine unfinished work becomes a GitHub issue (`gh issue create`, with a priority, an area label
-and why it matters); a small follow-up is fixed in this row instead, because every new issue counts
-against the wave. Nothing speculative. No handoff file, and no new doc unless the doc is the goal.
+A row that fixes an issue puts `Closes #<n>` on its own line in a commit message and says in the PR
+what it checked. Left over: fix a follow-up yourself only when it is small and in the area you are
+already changing; anything else becomes a GitHub issue (`gh issue create`, with a priority, an area
+label and why it matters). Nothing speculative. No handoff file, no new doc unless it is the goal.
 Then /check and /queue-merge. Right after queueing, post one comment on the pull request
 (`gh pr comment`): what is not done, with its issue, and for a visible change which page to open
 on the preview deployment. Do not wait for the landing.
@@ -123,18 +124,18 @@ Never merge or push main, never touch another worktree, and leave nothing runnin
 Act when a row finishes or the timer fires, and at no other time:
 
 - Log one line: the PR, what it did, what it left as issues.
-- If the window still fits another row (the median row time so far, or 60 minutes before there is
-  one, plus 30 minutes to land), launch the next item.
+- Read the machine again (step 3). If the window still fits another row (the median row time so
+  far, or 60 minutes before there is one, plus 30 minutes to land), launch the next item. Never rush
+  or cut a row short to fit one more: one finished, well-verified row beats two hurried ones.
 - Read `npm run jobs -- failed`: each queued pull request whose landing failed, with its CI log.
   That row, or one that ended without a PR, is sent the failure (Claude Code: SendMessage to the
   row; Codex: `send_message`) and resumes in its own worktree. After two failed repairs, report it.
 - A row past twice the median with no result is reported, never killed; launch beside it only if
   the machine has room.
 
-Do not poll and do not watch CI: GitHub's merge queue, quarantine and alarms keep `main` green. One
-timer covers a row that never reports: in Claude Code a background `sleep 1800`, re-armed when it
-fires while rows run; in Codex a thread heartbeat every 30 minutes. End each turn with one line on
-what is running, never a promise to wait.
+Do not poll or watch CI: the merge queue, quarantine and alarms keep `main` green. A timer covers a
+row that never reports: a background `sleep 1800` in Claude Code, re-armed while rows run; a
+30-minute heartbeat in Codex. End each turn with one line on what runs, never a promise to wait.
 
 ## 5. End
 
@@ -147,8 +148,7 @@ running at the window's end keeps running; the report says so.
 **The report**, at most 25 lines, in plain words for a non-technical reader:
 
 1. **Needs you**, first, each with the exact step, or "nothing".
-2. **Issues**: open at the start and at the end; closed as fixed, as already done or obsolete, and
-   as duplicates; opened, each with why it could not be fixed in this wave.
+2. **Issues**: opened and closed in the wave, and open at its start and end; why each new one waits.
 3. **Shipped**: one line per pull request, what changed for a user and how it was verified.
 4. **Not done or not checked**: one line each, with the issue it went to.
 5. **Retro**: at most three findings and what was done about each.

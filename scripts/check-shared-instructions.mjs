@@ -75,8 +75,8 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
       '`docs/private/` stays private.',
       'node scripts/wave-plan-store.mjs --open',
       'node scripts/worktree-activity.mjs',
-      // A running wave decides and records; the owner's intent, not his wording, is the target.
-      'Once rows run, ask nothing',
+      // An unattended wave decides and records; the owner's intent, not his wording, is the target.
+      'An unattended wave asks nothing.',
       "The owner's intent binds, his wording does not",
       // Every row lands itself, so the wave lands with or without anything watching it.
       'Then /check and /queue-merge.',

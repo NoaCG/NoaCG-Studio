@@ -241,8 +241,8 @@ launches the next item while the window still fits one. `node scripts/wave-plan-
 refuses a second open wave and a window over 24 hours.
 
 Leftover work goes into the backlog, linked from the pull request; a session writes a handoff only
-when it is interrupted and the branch, pull request and backlog cannot carry the rest. A running
-wave asks nothing.
+when it is interrupted and the branch, pull request and backlog cannot carry the rest. A row and an
+unattended wave ask nothing; with the owner present, the orchestrator may ask him.
 It defers only a decision that materially changes direction, costs significantly or unusually,
 changes an important external, security or privacy boundary, or is hard to reverse
 (`docs/GOALS.md`, "Autonomous work"), records it, and continues with other work.
