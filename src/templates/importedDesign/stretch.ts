@@ -51,10 +51,12 @@ function stretchDesignWidth() {
 
   // The frame-edge cap. Which way the design grows depends on how its root is anchored (a
   // right-zone design grows LEFTWARD), so probe it: widen by a hair and see whether the left
-  // edge moved. offsetLeft sums are transform-free — an entrance never skews this.
+  // edge moved. offsetLeft sums are transform-free — an entrance never skews this. The walk
+  // stops at the canvas (body), the frame the cap below is measured in: inside an OGraf
+  // renderer the body is the graphic's own element, and the page past it is the renderer's.
   function edgeLeft() {
     var x = 0;
-    for (var el = box; el; el = el.offsetParent) x += el.offsetLeft;
+    for (var el = box; el && el !== document.body; el = el.offsetParent) x += el.offsetLeft;
     return x;
   }
   var restLeft = edgeLeft();
