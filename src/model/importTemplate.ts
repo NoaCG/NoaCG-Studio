@@ -171,6 +171,8 @@ export function importHtmlTemplate(
     if (/noacg-flex-gap/.test(attrs)) return '';
     // And the SPX package's Continue guard (export/targets/spxStarter.ts spxStepGuardScript).
     if (/noacg-spx-steps/.test(attrs)) return '';
+    // And its text script (export/spxText.ts).
+    if (/noacg-spx-text/.test(attrs)) return '';
     const trimmed = body.trim();
     if (!trimmed) return '';
     if (trimmed.length > 12000 && /gsap|GreenSock/i.test(trimmed.slice(0, 400))) return '';
