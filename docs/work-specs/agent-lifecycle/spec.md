@@ -1,4 +1,4 @@
-# Agent lifecycle: finished work closes itself, decisions are asked at once, long plans run phase by phase
+# Agent lifecycle: finished work closes itself, decisions come at once, plans run phase by phase
 
 ## Problem and authority
 
@@ -66,8 +66,8 @@ agent to remember anything.
 4. **Abandoned processes are closed after one hour.** A process a Claude Code or Codex session
    started is closed when that session and its worktree have both shown no activity for an hour.
    A working agent is never quiet, so this only catches what was left behind. If an agent does come
-   back to a closed dev server, it starts it again. The sweep already runs at session start (at
-   most every 30 minutes) and at each wave tick; this adds a step to it.
+   back to a closed dev server, it starts it again. The sweep already runs at session start and
+   after each landing (`scripts/land-watch.mjs`), at most every 30 minutes; this adds a step to it.
 5. **The exemptions are a short written list**: the merge queue and job queue runners, a running
    orchestrator or plan run and the rows it launched, each live session's own process and its MCP
    servers, and the owner's own applications. Adding to the list is a reviewed code change.
@@ -86,8 +86,9 @@ agent to remember anything.
    owner in its own session and sends a phone notification. An answer there lets the item resume.
 9. **The rule changes at its source.** The root rule that routes a decision to a `needs owner`
    issue (`contracts/rules/root/verify-proportion-change-against-spec-acceptance.md`) is changed
-   with `npm run learn`, and so are the workflows that open such issues for decisions (the
-   handoff, the orchestrator, the wave rows). Existing open issues stay where they are, for `/walk`.
+   with `npm run learn`, and so is the verify workflow (`.agent-workflows/verify.md`), the one
+   workflow that opens such issues. The orchestrator and the weekly session only read them, and
+   existing open issues stay where they are, for `/walk`.
 
 ### Handoff
 
@@ -179,8 +180,8 @@ inspect and try the reference editors, and tells the checker to compare against 
 
 ### AC-5: Decisions are asked at once, never filed
 
-Scenario: the root rule and the handoff, orchestrator and wave-row workflows no longer route a
-decision to a `needs owner` issue. An attended session asks the question in the session; an
+Scenario: the root rule and the verify workflow no longer route a decision to a `needs owner`
+issue. An attended session asks the question in the session; an
 unattended one decides and records it in its pull request, or, for a reserved decision, stops that
 item while the coordinator asks in its session with a phone notification.
 
