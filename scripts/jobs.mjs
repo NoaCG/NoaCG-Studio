@@ -759,7 +759,8 @@ function printOutstanding(jobs) {
   try {
     const result = JSON.parse(res.stdout);
     ranked = result.order ?? [];
-    notReady = result.notReady ?? [];
+    // A stale branch is local and has a worktree; without this it would read as remote-only below.
+    notReady = [...(result.notReady ?? []), ...(result.stale ?? [])];
   } catch {
     // merge-order could not answer - list everything unranked rather than listing nothing.
   }
