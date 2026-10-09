@@ -130,11 +130,24 @@ async function publishChanges(page: Page, showId: string, after: number): Promis
   return (await published(page, showId, STRAP))!;
 }
 
-/** Type the strap cue's text on the production page. */
-async function typeCue(page: Page, text: string): Promise<void> {
-  await page.getByTestId('select-cue').filter({ hasText: STRAP }).first().click();
-  await page.getByTestId('cue-field-f0').fill(text);
-  await page.getByTestId('cue-field-f0').blur();
+/** Change the strap cue's text in the production record, as a saved cue edit does. (Typing in the
+ *  cue editor holds a draft, which is not yet a change to publish.) */
+async function typeCue(page: Page, showId: string, text: string): Promise<void> {
+  const failure = await page.evaluate(
+    async ([id, name, value]) => {
+      const { loadShows, updateShowCueChecked } = await import('/src/model/shows.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const show = loadShows().find((s) => s.id === id)!;
+      const graphic = show.graphics.find((g) => g.name === name)!;
+      const cue = (show.cues ?? []).find((c) => c.sourceId === graphic.id)!;
+      const { error } = updateShowCueChecked(id, cue.id, { values: { ...cue.values, f0: value } });
+      const answer = error ?? (await commitDurableWrites());
+      await new Promise((r) => setTimeout(r));
+      return answer;
+    },
+    [showId, STRAP, text] as [string, string, string],
+  );
+  expect(failure, 'the cue edit was saved').toBeFalsy();
 }
 
 test.describe('two members', () => {
@@ -198,7 +211,7 @@ test.describe('two members', () => {
 
       // AC-1: Ben changes a cue and publishes. Air keeps Anna's design, unchanged to the digest,
       // and gets Ben's cue.
-      await typeCue(ben, 'Ben was here');
+      await typeCue(ben, showId, 'Ben was here');
       const bens = await publishChanges(ben, showId, annas.n);
       expect(bens.css, "Ben's publish keeps Anna's newer design").toContain('anna design 2');
       expect(bens.digest, 'the outputs rebuild nothing for it').toBe(annas.digest);
@@ -276,7 +289,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
   // AC-6: a payload published before stamps (the row has none). The republish lands over it, the
   // write conditioned on there being no stamp.
   await forge({ strip: true });
-  await typeCue(page, 'over an unstamped payload');
+  await typeCue(page, showId, 'over an unstamped payload');
   await page.getByTestId('production-publish-changes').click();
   await expect.poll(async () => (await published(page, showId, STRAP))?.values ?? [], { timeout: 60_000 }).toContain('over an unstamped payload');
   expect((await published(page, showId, STRAP))!.n, 'a payload without a stamp is followed by v1').toBe(1);
@@ -286,7 +299,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
   // writes nothing, after pulling once more in case the newer copy had reached the record.
   const stamped = (await published(page, showId, STRAP))!;
   await forge({ later: true });
-  await typeCue(page, 'stale page');
+  await typeCue(page, showId, 'stale page');
   await page.getByTestId('production-publish-changes').click();
   await expect(page.getByTestId('production-note')).toContainText(`${STRAP} on air is newer than this page's copy. Reload this page to get it.`, { timeout: 30_000 });
   const refused = (await published(page, showId, STRAP))!;
@@ -300,7 +313,7 @@ test('a newer design on air stops the publish, and a publish landing in between 
 
   // G4: another publish lands between this page's read and its write. The write misses, the page
   // reads again and publishes over it once, by itself.
-  await typeCue(page, 'raced');
+  await typeCue(page, showId, 'raced');
   // Only a PUBLISH write carries the panel; the forged one below writes the payload alone.
   let writes = 0;
   let landed = 0;
