@@ -1,0 +1,455 @@
+{
+  "base": "<worktree dev server>",
+  "packages": [
+    {
+      "folder": ".noacg/community-strap",
+      "validate": {
+        "kind": "noacg",
+        "ok": true,
+        "validation": {
+          "ok": true,
+          "gate": {
+            "ok": true,
+            "errors": [],
+            "warnings": []
+          },
+          "bench": {
+            "ok": true,
+            "errors": [],
+            "warnings": []
+          },
+          "benchSkipped": null,
+          "merged": {
+            "ok": true,
+            "errors": [],
+            "warnings": []
+          },
+          "readiness": [
+            {
+              "id": "fields",
+              "label": "Operator fields reach the graphic",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "lifecycle",
+              "label": "Plays, comes off air, and replays cleanly",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "layout",
+              "label": "Nothing collides or escapes the frame",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "legibility",
+              "label": "Reads where it will be watched",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "stress",
+              "label": "Survives text twice as long",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "editable",
+              "label": "Motion is editable on the timeline",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "export",
+              "label": "Exports plug-and-play",
+              "state": "pass",
+              "messages": []
+            }
+          ],
+          "unclaimed": [],
+          "engines": [
+            {
+              "engine": {
+                "id": "casparcg-23",
+                "label": "CasparCG 2.3.x",
+                "chromium": 71,
+                "note": "measured 2026-09-10 on the 2.3.3 LTS download, below the supported floor"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "obs-30",
+                "label": "OBS Studio 30.x",
+                "chromium": 103,
+                "note": "an OBS not updated since 2023 — below the floor"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "vmix",
+                "label": "vMix 27+",
+                "chromium": 103,
+                "note": "changelog only, never measured here"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "casparcg-24",
+                "label": "CasparCG 2.4.x",
+                "chromium": 117,
+                "note": "THE SUPPORTED FLOOR"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "obs",
+                "label": "OBS Studio 31.x and 32.x",
+                "chromium": 127,
+                "note": "measured 2026-09-30 on 32.2.1"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "casparcg-25",
+                "label": "CasparCG 2.5.x",
+                "chromium": 142,
+                "note": "measured 2026-08-07"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "browser",
+                "label": "A current browser",
+                "chromium": null,
+                "note": "the studio preview, and SPX’s monitor copy in the operator’s browser (SPX on air runs in its host)"
+              },
+              "verdict": "fine",
+              "missing": []
+            }
+          ],
+          "engineHeadline": "Renders on every supported playout engine.",
+          "text": ""
+        },
+        "normalize": {
+          "converted": false,
+          "dataRegion": true,
+          "note": "The ANIMATION region is already NoaCG keyframe data (timeline-editable)."
+        },
+        "stale": false,
+        "regenerated": true,
+        "sourceChanges": []
+      },
+      "inspect": {
+        "ok": true,
+        "kind": "noacg",
+        "inspection": {
+          "descriptors": [
+            {
+              "key": "f0",
+              "label": "Name",
+              "kind": "text",
+              "defaultValue": "Amira Solano"
+            },
+            {
+              "key": "f1",
+              "label": "Role",
+              "kind": "text",
+              "defaultValue": "Festival director"
+            }
+          ],
+          "buttons": [],
+          "stateGroups": [],
+          "steps": {
+            "count": 1,
+            "stepped": false
+          },
+          "notes": [
+            "Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders."
+          ]
+        }
+      }
+    },
+    {
+      "folder": ".noacg/harbor-cup",
+      "validate": {
+        "kind": "noacg",
+        "ok": true,
+        "validation": {
+          "ok": true,
+          "gate": {
+            "ok": true,
+            "errors": [],
+            "warnings": []
+          },
+          "bench": {
+            "ok": true,
+            "errors": [],
+            "warnings": []
+          },
+          "benchSkipped": null,
+          "merged": {
+            "ok": true,
+            "errors": [],
+            "warnings": []
+          },
+          "readiness": [
+            {
+              "id": "fields",
+              "label": "Operator fields reach the graphic",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "lifecycle",
+              "label": "Plays, comes off air, and replays cleanly",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "layout",
+              "label": "Nothing collides or escapes the frame",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "legibility",
+              "label": "Reads where it will be watched",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "stress",
+              "label": "Survives text twice as long",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "editable",
+              "label": "Motion is editable on the timeline",
+              "state": "pass",
+              "messages": []
+            },
+            {
+              "id": "export",
+              "label": "Exports plug-and-play",
+              "state": "pass",
+              "messages": []
+            }
+          ],
+          "unclaimed": [],
+          "engines": [
+            {
+              "engine": {
+                "id": "casparcg-23",
+                "label": "CasparCG 2.3.x",
+                "chromium": 71,
+                "note": "measured 2026-09-10 on the 2.3.3 LTS download, below the supported floor"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "obs-30",
+                "label": "OBS Studio 30.x",
+                "chromium": 103,
+                "note": "an OBS not updated since 2023 — below the floor"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "vmix",
+                "label": "vMix 27+",
+                "chromium": 103,
+                "note": "changelog only, never measured here"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "casparcg-24",
+                "label": "CasparCG 2.4.x",
+                "chromium": 117,
+                "note": "THE SUPPORTED FLOOR"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "obs",
+                "label": "OBS Studio 31.x and 32.x",
+                "chromium": 127,
+                "note": "measured 2026-09-30 on 32.2.1"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "casparcg-25",
+                "label": "CasparCG 2.5.x",
+                "chromium": 142,
+                "note": "measured 2026-08-07"
+              },
+              "verdict": "fine",
+              "missing": []
+            },
+            {
+              "engine": {
+                "id": "browser",
+                "label": "A current browser",
+                "chromium": null,
+                "note": "the studio preview, and SPX’s monitor copy in the operator’s browser (SPX on air runs in its host)"
+              },
+              "verdict": "fine",
+              "missing": []
+            }
+          ],
+          "engineHeadline": "Renders on every supported playout engine.",
+          "text": ""
+        },
+        "normalize": {
+          "converted": false,
+          "dataRegion": true,
+          "note": "The ANIMATION region is already NoaCG keyframe data (timeline-editable)."
+        },
+        "stale": false,
+        "regenerated": true,
+        "sourceChanges": []
+      },
+      "inspect": {
+        "ok": true,
+        "kind": "noacg",
+        "inspection": {
+          "descriptors": [
+            {
+              "key": "f0",
+              "label": "Team A",
+              "kind": "text",
+              "defaultValue": "HOME"
+            },
+            {
+              "key": "f1",
+              "label": "Score A",
+              "kind": "number",
+              "defaultValue": "0"
+            },
+            {
+              "key": "f2",
+              "label": "Team B",
+              "kind": "text",
+              "defaultValue": "AWAY"
+            },
+            {
+              "key": "f3",
+              "label": "Score B",
+              "kind": "number",
+              "defaultValue": "0"
+            }
+          ],
+          "buttons": [
+            {
+              "event": "goalA",
+              "label": "Goal A",
+              "labelTemplate": "Goal {f0|A}",
+              "section": "Goal",
+              "adjust": {
+                "f1": 1
+              }
+            },
+            {
+              "event": "goalB",
+              "label": "Goal B",
+              "labelTemplate": "Goal {f2|B}",
+              "section": "Goal",
+              "adjust": {
+                "f3": 1
+              }
+            },
+            {
+              "event": "clearFlag",
+              "label": "Clear flag",
+              "section": "Goal"
+            },
+            {
+              "event": "final",
+              "label": "Full time",
+              "section": "Result"
+            }
+          ],
+          "stateGroups": [
+            {
+              "id": "main",
+              "states": [
+                {
+                  "id": "off",
+                  "name": "Off"
+                },
+                {
+                  "id": "enter",
+                  "name": "Enter"
+                },
+                {
+                  "id": "out",
+                  "name": "Out"
+                }
+              ]
+            },
+            {
+              "id": "flag",
+              "states": [
+                {
+                  "id": "none",
+                  "name": "No flag"
+                },
+                {
+                  "id": "shown",
+                  "name": "Flag"
+                }
+              ]
+            },
+            {
+              "id": "result",
+              "states": [
+                {
+                  "id": "live",
+                  "name": "Live"
+                },
+                {
+                  "id": "final",
+                  "name": "Final"
+                }
+              ]
+            }
+          ],
+          "steps": {
+            "count": 1,
+            "stepped": false
+          },
+          "notes": [
+            "Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders."
+          ]
+        }
+      }
+    }
+  ],
+  "ografMetadataPresent": true
+}

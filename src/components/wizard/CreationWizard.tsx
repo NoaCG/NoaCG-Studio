@@ -1498,6 +1498,14 @@ export default function CreationWizard() {
     return useTemplateStore.getState().template;
   };
 
+  const createFromFileAndEditArtwork = () => {
+    const template = applyImportedFile();
+    if (!template) return;
+    noteMade(template.name, null, { view: 'editor-foundation' });
+    openNewEditor({ replace: true });
+    closeGallery();
+  };
+
   const createFromFileAndExport = () => {
     if (!applyImportedFile()) return;
     void (async () => {
@@ -2390,6 +2398,7 @@ export default function CreationWizard() {
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={createFromFileAndAddToProduction}
+                onEditArtwork={createFromFileAndEditArtwork}
                 onExport={createFromFileAndExport}
                 busy={false}
               />

@@ -1,3 +1,4 @@
+import { scriptKind } from '../../model/scriptKind';
 import { prepareOutRuntime } from '../../blocks/animMigration';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that
@@ -402,11 +403,15 @@ export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafO
 
 // ── The Web Component entry point ────────────────────────────────────────────
 
-/** The template's visible markup: everything inside <body> (scripts stripped). */
+/** Visible markup plus inert data blocks, scoped to this graphic rather than the host head. */
 function bodyContent(html: string): string {
   const m = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(html);
   const body = m ? m[1] : html;
-  return body.replace(/<script\b[\s\S]*?<\/script>/gi, '').trim();
+  const scripts = /<script\b([^>]*)>[\s\S]*?<\/script>/gi;
+  const head = m ? /<head[^>]*>([\s\S]*?)<\/head>/i.exec(html)?.[1] ?? '' : '';
+  const data = [...head.matchAll(scripts)].filter(tag => scriptKind(tag[1]) === 'data').map(tag => tag[0]);
+  const markup = body.replace(scripts, (tag, attrs: string) => scriptKind(attrs) === 'data' ? tag : '');
+  return [...data, markup.trim()].join('\n');
 }
 
 /** The markup embedded in graphic.mjs is injected into the HOST page, whose base URL is

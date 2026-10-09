@@ -7,6 +7,7 @@
 // import is just the normal Export tab.
 
 import JSZip from 'jszip';
+import { scriptKind } from './scriptKind';
 import { ensureExternalRefs } from './externalRefs';
 import { parseDefinition } from './spxDefinition';
 import { sourceHash } from './contentHash';
@@ -180,8 +181,7 @@ export function importHtmlTemplate(
     // parse as a module, so moving the body into the classic JS pane manufactures a syntax error
     // (real SPX packs ship <script type="module"> templates - the HKO lineage in the reference
     // corpus). And data (somebody's own H2R GDD, JSON), which would not parse there either.
-    const type = /\btype\s*=\s*["']([^"']*)["']/i.exec(attrs)?.[1].trim().toLowerCase();
-    if (type && !/^(text|application)\/(x-)?(java|ecma)script$/.test(type)) return full;
+    if (scriptKind(attrs) !== 'classic') return full;
     const trimmed = body.trim();
     if (!trimmed) return '';
     if (trimmed.length > 12000 && /gsap|GreenSock/i.test(trimmed.slice(0, 400))) return '';

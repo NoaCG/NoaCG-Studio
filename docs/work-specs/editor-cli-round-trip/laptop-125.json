@@ -1,0 +1,86 @@
+{
+  "viewport": {
+    "width": 1093,
+    "height": 614
+  },
+  "fields": [
+    {
+      "field": "f0",
+      "ftype": "textfield",
+      "title": "Name",
+      "value": "Elena Marquez"
+    },
+    {
+      "field": "f1",
+      "ftype": "textfield",
+      "title": "Role",
+      "value": "Festival director"
+    }
+  ],
+  "assets": [
+    {
+      "path": "fonts/inter.woff2",
+      "sha256": "417c1d6868a08823c2b058259b240513c4d7caf8335682248c98d8c31c0ef198"
+    },
+    {
+      "path": "images/festival-mark.svg",
+      "sha256": "41216f49d3db879370ef991a977edd60a2a39161eadc7c4e765de3deed2b1ef4"
+    },
+    {
+      "path": "thumbnail.png",
+      "sha256": "5354b5887daa2b272cbe12a3fecb52792882ceef32d614894ebd86fec63e8fb0"
+    }
+  ],
+  "source": {
+    "html": "55d9d2f33f2d5bf21b398a8948cdc0649c5c13cab4a549bc9425d9f965a93561",
+    "css": "cafc41c0f7c51ce36414b361e311c02fb879f7df5a9ecbbd4828d8634aadf811",
+    "js": "208df14233e949b1538885feffccb899b7a720ad628e744a3fa437b49cbaf702"
+  },
+  "history": {
+    "undo": 3,
+    "redo": 0
+  },
+  "refusals": [
+    {
+      "ok": false,
+      "refusal": {
+        "code": "stale_context",
+        "message": "The document, session, selection, playhead, samples or history changed. Inspect again before editing.",
+        "recovery": "Inspect current capabilities and correct the request before submitting a new transaction."
+      }
+    },
+    {
+      "ok": false,
+      "refusal": {
+        "code": "unsupported_target",
+        "message": "Use a unique source-owned layer ID from inspection. Edit an unnamed layer through the UI first to commit its identity.",
+        "recovery": "Inspect current capabilities and correct the request before submitting a new transaction."
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "target": "spx",
+      "pose": {
+        "opacity": "1",
+        "transform": "none"
+      }
+    },
+    {
+      "target": "casparcg",
+      "pose": {
+        "opacity": "1",
+        "transform": "none"
+      }
+    },
+    {
+      "target": "ograf",
+      "pose": {
+        "opacity": "1",
+        "transform": "none"
+      }
+    }
+  ],
+  "errors": [],
+  "network": []
+}
