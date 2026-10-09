@@ -145,6 +145,29 @@ test('caspar is not a verb: it drives live playout hardware, which is not an aut
   }
 });
 
+/** The terminal commands the tool deliberately does not speak, each with its reason. A new
+ *  terminal verb has to land in the tool or here, so neither list can grow without the other. */
+const TERMINAL_ONLY = {
+  doctor: 'checks the machine the terminal runs on',
+  mcp: 'is the server itself',
+  login: 'stores a key: a person does that once, in a terminal',
+  logout: 'removes that key',
+  whoami: 'reports that key',
+  caspar: 'drives live playout hardware',
+  bridge: 'drives a playout server',
+};
+
+test('every verb is a terminal command, and every terminal command is a verb or named terminal-only', async () => {
+  // The terminal's table is read from source: cli/src/index.ts runs the CLI when imported.
+  const source = await fs.readFile(path.join(here, '..', 'src', 'index.ts'), 'utf8');
+  const table = /const COMMANDS: Record<string, Command> = \{([^}]+)\}/.exec(source);
+  assert.ok(table, 'the COMMANDS table moved - point this test at it');
+  const terminal = [...table[1].matchAll(/^\s*(\w+):/gm)].map((m) => m[1]);
+  const verbs = tools[0].inputSchema.properties.command.enum;
+  assert.deepEqual(verbs.filter((v) => !terminal.includes(v)), [], 'a verb the terminal does not have');
+  assert.deepEqual(terminal.filter((c) => !verbs.includes(c)).sort(), Object.keys(TERMINAL_ONLY).sort());
+});
+
 test('the tool states what it is, takes the arguments the docs promise, and says which verb reads each', () => {
   const [tool] = tools;
   assert.ok(tool.title && tool.title.length > 0, 'the tool has no title');

@@ -17,6 +17,8 @@
 //     glass band or a full list of other warnings does not hide an off-centre ticker;
 //   - the eight-row cap keeps a row for each kind of problem present, so one brand-mark row is
 //     never hidden behind repeated size rows (#894);
+//   - text on a glass panel is protected, while text on bare video or on the same faint tint
+//     without the blur is not (#912);
 //   - across the whole catalog, in the pose the export panel measures, no shipped design reads
 //     as "not checked" and none trips the mark rule - the false positives that would teach
 //     people to ignore the warnings;
@@ -83,6 +85,13 @@ const MEASURE_CATALOG = async ({ onlyType = null, css = '' } = {}) => {
 
 const TEXT_FIELD = [{ field: 'f0', ftype: 'textfield', title: 'Name', value: 'Ana Example' }];
 const PANEL = 'position:absolute;left:200px;top:800px;padding:20px 40px;background:#101418;font-size:48px;';
+
+/** A bold white line on a panel painted `look`, for the protection rule. */
+const onPanel = (look) => ({
+  type: 'lower-third', fields: TEXT_FIELD,
+  css: `.p{position:absolute;left:200px;top:800px;padding:20px 40px;font-size:48px;font-weight:700;${look}}`,
+  body: '<div class="p"><span id="f0">Ana Example</span></div>',
+});
 
 const measured = await withBundledPage(SPECS, async (page) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -159,6 +168,12 @@ const measured = await withBundledPage(SPECS, async (page) => {
       body: `<div class="p"><span id="f0">Ana Example</span>${'<span>tiny</span>'.repeat(12)}</div>`
         + `<img id="f1" src="${MARK}">`,
     }),
+    // Text on a glass panel (#912): a faint tint over a blurred backdrop, the shipped glass
+    // family's construction. Beside it the same text on bare video, and on the same faint tint
+    // with nothing frosting the picture behind it.
+    onGlass: await fixture(onPanel('background:rgba(255,255,255,.04);backdrop-filter:blur(12px)')),
+    onVideo: await fixture(onPanel('')),
+    onTint: await fixture(onPanel('background:rgba(0,0,0,.3)')),
     catalog: await page.evaluate(MEASURE_CATALOG, {}),
     // Each ticker moved right, so a full-bleed or centred band sits off-centre.
     tickersShifted: await page.evaluate(MEASURE_CATALOG, {
@@ -202,6 +217,18 @@ test('a single warning of another kind keeps a row beside many repeated ones', (
   const crowded = measured.crowdedWithMark;
   assert.equal(crowded.length, 8, JSON.stringify(crowded));
   assert.equal(crowded.filter((w) => w.message.startsWith('The brand mark')).length, 1, JSON.stringify(crowded));
+});
+
+test('text on a glass panel is protected, and its contrast is not invented (#912)', () => {
+  const protection = (name) => rules(measured[name]).includes('legibility-protection');
+  assert.equal(protection('onGlass'), false, JSON.stringify(measured.onGlass));
+  // The twins that keep the rule honest: bare video warns, and so does a faint flat tint, which
+  // lets the footage through detail and all - the blur is what does the protecting.
+  assert.equal(protection('onVideo'), true, JSON.stringify(measured.onVideo));
+  assert.equal(protection('onTint'), true, JSON.stringify(measured.onTint));
+  // A blur moves no luminance, so glass gives the contrast rule no colour to measure against:
+  // no ratio, rather than one guessed from an assumed picture.
+  assert.ok(!rules(measured.onGlass).includes('legibility-contrast'), JSON.stringify(measured.onGlass));
 });
 
 test('no catalog design reads as "not checked" or trips the mark rule', () => {

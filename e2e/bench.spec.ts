@@ -223,6 +223,73 @@ test.describe('runtime bench detection fixtures', () => {
     expect(rules(warnings)).not.toContain('bench-unbacked-text');
   });
 
+  // A REVEAL MASK squeezed below its line (#770). A flex row shrinks an overflow-hidden mask,
+  // which has no minimum width, so the line's end is cut off at rest. The bench used to skip
+  // the mask and then describe the cut-off part as text past its panel.
+  const maskFixture = (panel: string, span: string, value: string) => `(async () => { ${HELPERS}
+      const tpl = fixture({
+        html: doc('<div class="fx">' +
+          '<div style="position:absolute;left:200px;top:700px;padding:12px 20px;background:#123;${panel}">' +
+          '<div class="fx-mask" style="overflow:hidden"><span id="f0" style="display:inline-block;font-size:40px;color:#fff;white-space:nowrap;${span}">${value}</span></div>' +
+          '</div></div>'),
+        js: FIXTURE_JS,
+        fields: [{ field: 'f0', ftype: 'textfield', title: 'Name', value: '${value}' }],
+      });
+      const res = await bench(tpl, { houseContract: false });
+      return { errors: res.errors, warnings: res.warnings };
+    })()`;
+
+  test('a mask that cuts its line off is reported as the cut, not as text past the panel', async ({ page }) => {
+    await toApp(page);
+    const res = await page.evaluate(maskFixture('display:flex;width:300px;', '', 'Elena Marsh, Senior Correspondent'));
+    const { warnings } = res as { warnings: { rule: string; message: string }[] };
+    expect(warnings.some((w) => w.rule === 'bench-overflow' && w.message.includes('cut off by its mask .fx-mask'))).toBe(true);
+    expect(rules(warnings)).not.toContain('bench-unbacked-text');
+  });
+
+  test('a block line whose words overflow its own box is cut too; one parked outside the mask is not', async ({ page }) => {
+    await toApp(page);
+    const cutAtRest = (res: unknown) => (res as { warnings: { message: string }[] }).warnings
+      .some((w) => w.message.includes('cut off by its mask') && w.message.includes('default field values'));
+    // The block is as wide as the squeezed mask, so only its words show the cut.
+    expect(cutAtRest(await page.evaluate(maskFixture('display:flex;width:300px;', 'display:block;', 'Elena Marsh, Senior Correspondent')))).toBe(true);
+    // Wholly outside its mask, waiting for an entrance: nothing of it shows, so nothing is cut.
+    expect(cutAtRest(await page.evaluate(maskFixture('', 'transform:translateX(-120%);', 'Elena Marsh')))).toBe(false);
+    // An ellipsis is a truncation the design chose and shows.
+    expect(cutAtRest(await page.evaluate(maskFixture('display:flex;width:300px;',
+      'display:block;overflow:hidden;text-overflow:ellipsis;', 'Elena Marsh, Senior Correspondent')))).toBe(false);
+  });
+
+  test('tracked caps hanging their last letter-spacing past the mask are not a cut', async ({ page }) => {
+    await toApp(page);
+    // Centred tracked caps pull the last letter's spacing back with a negative margin, so the
+    // line's box hangs exactly that far past its mask with no ink in it (lt33).
+    const res = await page.evaluate(maskFixture('', 'letter-spacing:12px;margin-right:-12px;', 'ALEXANDRA RIVA'));
+    const { warnings } = res as { warnings: { rule: string; message: string }[] };
+    // At its own value; the 60-character stress name is wider than the frame and is cut there.
+    expect(warnings.filter((w) => w.message.includes('cut off by its mask') && w.message.includes('default field values'))).toEqual([]);
+  });
+
+  test('no untouched neutral scaffold is told its text runs past its panel (#770)', async ({ page }) => {
+    // Six scaffolds said "extends past ... the nearest thing painted behind it" under the stress
+    // values about text their own mask had cut off - text nowhere in the picture.
+    await toApp(page);
+    const told = await page.evaluate(async () => {
+      const bridge = await import('/src/bridge/bridgeApi.ts');
+      const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+      const out: string[] = [];
+      for (const type of ['scoreboard', 'station-bug', 'sponsor-bug', 'match-board']) {
+        const { template } = await bridge.scaffold({ type, design: 'neutral' });
+        const res = await benchTemplateRuntime(template, { fieldPaints: true });
+        for (const w of [...res.errors, ...res.warnings]) {
+          if (w.message.includes('the nearest thing painted behind it')) out.push(`${type}: ${w.message}`);
+        }
+      }
+      return out;
+    });
+    expect(told).toEqual([]);
+  });
+
   test('a clip-path the text fits inside does not trip bench-overflow', async ({ page }) => {
     await toApp(page);
     // Same 240px clip, a 232px name - a near miss, so the detector must not fire.
