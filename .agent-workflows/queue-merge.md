@@ -67,8 +67,10 @@ Right after queueing, turn on the one fixer your tool has; never two on one pull
 closes: one comment on the pull request (`gh pr comment <n>`), repeated at the end of your final
 message. It says what is not done, each with its issue; for a visible change, which preview page to
 open; and last, the line `Nothing left.` or one code block a fresh session can be given alone (the
-goal, where things stand, the issue and pull request links, what to do first). Plain and short: no
-chat language, nothing from `docs/private/`, no secrets.
+goal, where things stand, the issue and pull request links, what to do first, and one closing line:
+the suggested model and effort, and whether it can run beside the live sessions, with why, from
+`node scripts/worktree-activity.mjs`). Plain and short: no chat language, nothing from
+`docs/private/`, no secrets.
 
 **On a CI failure, repair it yourself, within the pull request's scope.** Read the failed job's
 whole log (`gh run view <run> --log-failed`; the failing step's summary is often not where the
