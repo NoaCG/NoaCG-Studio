@@ -37,7 +37,6 @@ import {
 import { projectFormatReadme, spxReadme } from './common';
 import { slug } from '../model/slug';
 import { onAirGuideMd } from './onAirGuide';
-import { spxReportedFieldRulesMd } from './spxLeftBehind';
 
 export interface GraphicPackageOptions {
   /** A preview raster for the manifest's `thumbnails` - the bridge's bench shot. */
@@ -83,15 +82,11 @@ export async function buildGraphicPackage(template: SpxTemplate, opts: GraphicPa
   return zip;
 }
 
-/** The README: the SPX half's text, the SPX rule for a hidden field Continue writes (the votes
- *  board's Shown - this folder plays in SPX like the SPX package, which says the same), then the
- *  OGraf door and the editing rule. */
+/** The README: the SPX half's text plus the OGraf door and the editing rule. */
 export function graphicPackageReadme(template: SpxTemplate): string {
   const s = slug(template.name);
-  const rules = spxReportedFieldRulesMd([template]);
   return (
     spxReadme(template) +
-    (rules ? `\n${rules}` : '') +
     `
 ## Also an OGraf v1 Graphic
 This folder is a complete EBU OGraf v1 package as well: load \`${s}.ograf.json\` in any OGraf

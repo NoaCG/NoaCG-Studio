@@ -9,15 +9,16 @@
 // The script wraps update() and decodes each string value once before the template sees it, so
 // every reader of the payload gets the typed text: the field writer, and the runtimes that keep a
 // copy (an infographic's count-up target, a scoreboard's changed-value test, the match clocks).
-// It acts only in a template that has the contract's `setFieldValue` writer: the NoaCG contract
-// writes field values as text and escapes anything it builds with innerHTML, so a decoded value
-// still goes in as text. A template without that writer (the blank starter, an imported SPX
-// template) sets values as HTML the way SPX expects, and is left exactly as it was. The one
-// exception is the Picture graphic (templates/picture.ts): its only value is an image path it sets
-// as the src attribute without `setFieldValue`, so a picked `Q&A.jpg` arrived as `Q&amp;A.jpg` and
-// the picture was blank (issue #888). The exporter knows the graphic's type and opens the gate for
-// a Picture, which also covers every Picture already saved in a production: its runtime is stored
-// with it and never regenerated.
+// It decodes every value in a template that has the contract's `setFieldValue` writer: the NoaCG
+// contract writes field values as text and escapes anything it builds with innerHTML, so a decoded
+// value still goes in as text. A template without that writer (the blank starter, an imported SPX
+// template) sets values as HTML the way SPX expects, and its text values are left exactly as they
+// were. A filelist value is decoded in every template: it is a file's path, never markup, and SPX
+// escapes it all the same. The Picture graphic (templates/picture.ts) sets its path as the src
+// attribute without that writer, so a picked `Q&A.jpg` arrived as `Q&amp;A.jpg` and the picture
+// was blank on air (issue #888). The exporter names the filelist fields from the template's
+// definition, so a Picture saved in a production, which keeps the runtime it was made with, is
+// covered too.
 //
 // Decoding reverses SPX's escaping exactly once, so text that arrives through SPX comes out as
 // typed, even text that itself looked like an entity. A value that did NOT come through SPX (the
@@ -36,14 +37,17 @@ import type { SpxTemplate } from '../model/types';
 
 export const SPX_TEXT_SCRIPT_ID = 'noacg-spx-text';
 
-/** The runtime, as the body of a classic script. `anyTemplate` opens the gate for a template that
- *  sets its values as text or a path without the contract's writer (the Picture graphic). */
-export function spxTextJs(anyTemplate = false): string {
+/** The runtime, as the body of a classic script. `fileFields` are the ids of the template's
+ *  filelist fields, whose paths are decoded whatever writer the template has. */
+export function spxTextJs(fileFields: string[] = []): string {
+  // JSON inside a script element: no field id may close the tag.
+  const files = JSON.stringify(fileFields).replace(/</g, '\\u003c');
   return `/* SPX sends field values HTML-escaped, with a line break as <br>: hand them over as typed. */
 (function () {
   var update = window.update;
-  if (typeof update !== 'function') return;
-  if (!${anyTemplate} && typeof window.setFieldValue !== 'function') return;
+  var asText = typeof window.setFieldValue === 'function';
+  var FILES = ${files};
+  if (typeof update !== 'function' || (!asText && !FILES.length)) return;
   var CHARS = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&#92;': '\\\\' };
   function asTyped(value) {
     if (typeof value !== 'string') return value;
@@ -59,17 +63,19 @@ export function spxTextJs(anyTemplate = false): string {
     if (!fields || typeof fields !== 'object') return update.apply(this, arguments);
     var typed = {};
     for (var key in fields) {
-      if (Object.prototype.hasOwnProperty.call(fields, key)) typed[key] = asTyped(fields[key]);
+      if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
+      typed[key] = asText || FILES.indexOf(key) !== -1 ? asTyped(fields[key]) : fields[key];
     }
     return update.call(this, typeof data === 'string' ? JSON.stringify(typed) : typed);
   };
 })();`;
 }
 
-/** The runtime a template with the contract's writer gets. */
+/** The runtime for a template without filelist fields. */
 export const SPX_TEXT_JS = spxTextJs();
 
 /** The script tag a package appends to the end of the template's body, after the template's JS. */
-export function spxTextScript(template: Pick<SpxTemplate, 'type'>): string {
-  return `<script id="${SPX_TEXT_SCRIPT_ID}">\n${spxTextJs(template.type === 'picture')}\n</script>`;
+export function spxTextScript(template: Pick<SpxTemplate, 'fields'>): string {
+  const files = template.fields.filter((f) => f.ftype === 'filelist').map((f) => f.field);
+  return `<script id="${SPX_TEXT_SCRIPT_ID}">\n${spxTextJs(files)}\n</script>`;
 }

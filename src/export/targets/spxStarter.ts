@@ -26,7 +26,6 @@ import { replaceDefinitionInHtml } from '../../model/spxDefinition';
 import type { SpxTemplate, TemplateType } from '../../model/types';
 import { expandInset } from '../../assets/cssCompat';
 import { spxTextScript } from '../spxText';
-import { spxReportedFieldRulesMd } from '../spxLeftBehind';
 
 /**
  * The operator page's file name in an SPX package. SPX's template browser lists every `.htm` and
@@ -203,10 +202,7 @@ export async function buildStarterInto(
   // SPX plays it on CasparCG, which on 2.3 is Chromium 71: no `inset` (assets/cssCompat.ts).
   root.file('css/template.css', cssForSubfolder(expandInset(template.css)));
   root.file('js/template.js', template.js);
-  // The SPX rule for a hidden field Continue writes (the votes board's Shown) belongs to the
-  // graphic, so its own README carries it, alone or inside a production (spxLeftBehind.ts).
-  const rules = opts?.forSpx ? spxReportedFieldRulesMd([template]) : '';
-  root.file('README.md', spxReadme(template, fileName, panelFile) + (rules ? `\n${rules}` : ''));
+  root.file('README.md', spxReadme(template, fileName, panelFile));
   // The field/ID table, its own file: an operator at a CasparCG client reads ids, and nothing
   // on that screen says which id is the title (docs: src/export/fieldReference.ts).
   root.file(

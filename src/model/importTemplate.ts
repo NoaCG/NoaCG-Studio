@@ -171,8 +171,7 @@ export function importHtmlTemplate(
     if (/noacg-flex-gap/.test(attrs)) return '';
     // And the SPX package's Continue guard (export/targets/spxStarter.ts spxStepGuardScript).
     if (/noacg-spx-steps/.test(attrs)) return '';
-    // And its text script (export/spxText.ts), which the CasparCG single file carries too: a
-    // second copy after the next export would decode SPX's escaping twice.
+    // And its text script (export/spxText.ts), which the CasparCG single file carries too.
     if (/noacg-spx-text/.test(attrs)) return '';
     const trimmed = body.trim();
     if (!trimmed) return '';
