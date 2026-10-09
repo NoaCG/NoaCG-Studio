@@ -351,3 +351,49 @@ test('the panel opens Playout settings with CasparCG off and on',async({page})=>
   await panel.getByTestId('panel-playout-settings').click();
   await expect(dialog.getByTestId('settings-playout')).toBeVisible();
 });
+
+// THE OFFLINE CLEAR (docs/work-specs/offline-clear/spec.md AC-1, AC-3, AC-4): All out that cannot
+// clear NoaCG graphics through the cloud takes this production's renderer off CasparCG through the
+// Bridge, and only then. AC-2 (the outputs still saying a graphic is on) is not driven here: it needs
+// a live sequence head, and it shares the one unload call with AC-1.
+test('All out unloads the NoaCG renderer from CasparCG through the Bridge when the cloud does not answer',async({page})=>{
+  test.setTimeout(90_000);
+  const b=backend();b.defaults[A]=choice('browser',true);await account(page,b);await seedSettings(page);const bridge=await fakeBridge(page);await seed(page);
+  // The fake backend takes every send until the cloud is cut; then no send gets an answer.
+  let cloud=true;
+  await page.route('https://noacg-test.supabase.co/rest/v1/rpc/control_send*',r=>cloud?r.fallback():r.abort('failed'));
+  await publishProduction(page);
+  // Publish loaded the renderer on 1-20, and the Bridge reads it there. The first publish opened
+  // the panel; a press on the status would close it again.
+  const panel=page.getByTestId('production-status-panel');
+  if(!(await panel.isVisible()))await page.getByTestId('production-status').click();
+  await expect(panel.getByTestId('caspar-take-off-air')).toBeVisible({timeout:20_000});
+  await expect(panel.getByTestId('caspar-put-on-air')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  const unloads=()=>bridge.actions.filter(a=>a.verb==='out'&&a.slot.channel===1&&a.slot.layer===20).length;
+  const allOut=page.getByTestId('verb-out-all');
+  const note=page.getByTestId('production-note');
+
+  // AC-3: the cloud clears it, so the renderer stays where it is.
+  await allOut.click();
+  await expect(allOut).not.toHaveAttribute('data-clearing','true',{timeout:20_000});
+  expect(unloads(),'All out that reached the outputs unloaded nothing').toBe(0);
+  await expect(note.filter({hasText:'Unloaded'})).toHaveCount(0);
+
+  // AC-1: the cloud stops answering. All out fails, and unloads the renderer through the Bridge.
+  cloud=false;
+  await allOut.click();
+  await expect(note).toContainText('Unloaded NoaCG graphics from 1-20. When the connection is back, press All out, then Load in Playout.',{timeout:20_000});
+  expect(unloads()).toBe(1);
+  expect(bridge.runs['1-20'],'the slot is empty').toBeUndefined();
+  await page.screenshot({path:test.info().outputPath('offline-clear-note.png')});
+
+  // AC-4: nothing of this production is on the slot now, so a second All out touches no slot.
+  if(!(await panel.isVisible()))await page.getByTestId('production-status').click();
+  await expect(panel.getByTestId('caspar-put-on-air')).toBeVisible({timeout:20_000});
+  await page.keyboard.press('Escape');
+  await allOut.click();
+  await expect(allOut).not.toHaveAttribute('data-clearing','true',{timeout:20_000});
+  await expect(note).not.toContainText('Unloaded',{timeout:20_000});
+  expect(unloads(),'All out left the empty slot alone').toBe(1);
+});

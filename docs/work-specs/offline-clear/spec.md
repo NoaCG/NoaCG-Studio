@@ -38,16 +38,18 @@ Derived (revertible; each says how):
 - **C2. How.** The same call as Playout › Unload, so the renderer stops at once (no out
   animation) and the slot reads empty. Server cues are cleared by All out through the Bridge as
   today.
-- **C3. Said once.** The page's existing note line says what happened, and how to undo it:
-  "All out could not reach the outputs. Unloaded NoaCG graphics from <slot>; Load in Playout puts
-  them back." A failed unload says that instead. Revert: the old note alone.
+- **C3. Said once.** The page's existing note line keeps All out's own failure and adds: "Unloaded
+  NoaCG graphics from <slot>. When the connection is back, press All out, then Load in Playout." A
+  renderer loaded again boots into what the cloud still says is on air, and the All out never
+  reached the cloud, so All out comes first. A failed unload says that instead. Revert: the old
+  note alone.
 
 ## Behaviour
 
 ### AC-1: All out clears CasparCG without the cloud
 With the production's renderer loaded on CasparCG and the cloud not answering, ■ All out takes the
 renderer off the slot within the send's own failure window plus the Bridge call, and the note says
-so and how to bring it back.
+so and what to press once the connection is back.
 
 ### AC-2: All out clears CasparCG when the outputs do not confirm
 With the cloud answering but the outputs still reporting a graphic on after the confirm window,
