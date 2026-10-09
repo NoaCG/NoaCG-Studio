@@ -114,9 +114,8 @@ A row that fixes an issue puts `Closes #<n>` on its own line in a commit message
 what it checked. Left over: fix a follow-up yourself only when it is small and in the area you are
 already changing; anything else becomes a GitHub issue (`gh issue create`, with a priority, an area
 label and why it matters). Nothing speculative. No handoff file, no new doc unless it is the goal.
-Then /check and /queue-merge. Right after queueing, post one comment on the pull request
-(`gh pr comment`): what is not done, with its issue, and for a visible change which page to open
-on the preview deployment. Do not wait for the landing.
+Then /check and /queue-merge. End your report with the link to its next-session comment, not the
+comment's text. Do not wait for the landing.
 Never merge or push main, never touch another worktree, and leave nothing running.
 ```
 
@@ -152,7 +151,7 @@ running at the window's end keeps running; the report says so.
 1. **Needs you**, first, each with the exact step, or "nothing".
 2. **Issues**: opened and closed in the wave, and open at its start and end; why each new one waits.
 3. **Shipped**: one line per pull request, what changed for a user and how it was verified.
-4. **Not done or not checked**: one line each, with the issue it went to.
+4. **Not done or not checked**: one line each, with its issue and its row's next-session link.
 5. **Retro**: at most three findings and what was done about each.
 
 ## 6. The retro: improve without growing

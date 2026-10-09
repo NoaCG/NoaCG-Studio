@@ -597,6 +597,39 @@ test('cleanup removes only a clean, remotely backed-up managed worktree and bran
   );
 });
 
+test('self cleanup and the sweep keep a worktree in use the same way: held, a delegation or a blind list an error', (t) => {
+  const inUse = () => ({ ok: false, supported: true, closed: [], kept: [{ pid: 7, name: 'pwsh.exe' }], failed: [], why: 'in use by pwsh.exe (pid 7)' });
+  const blind = () => ({ ok: false, supported: true, closed: [], kept: [], failed: [], why: 'could not list processes: timed out' });
+  const busy = () => ({ status: 3, stdout: 'a delegation is still running', stderr: '' });
+  const cases = [
+    { name: 'in use', reap: noDelegations, processes: inUse, held: /in use by pwsh/, error: null },
+    { name: 'blind', reap: noDelegations, processes: blind, held: null, error: /timed out - kept$/ },
+    { name: 'busy', reap: busy, processes: () => assert.fail('listed while a delegation runs'), held: null, error: /Codex delegation is still running there - kept/ },
+  ];
+  // One landed worktree serves every case: none of them may touch it.
+  const { primary } = makeRepo(t);
+  const worktree = addWorktree(primary, 'kept');
+  commitInWorktree(worktree.path);
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
+  runGit(primary, 'merge', '--ff-only', worktree.branch);
+  runGit(primary, 'push', 'origin', 'main');
+  for (const c of cases) {
+    const deps = { prunePorts: () => [], refreshRemote: () => ({ ok: true }), reap: c.reap, processes: c.processes };
+    const self = applySelf(assessSelf(worktree.path), deps);
+    const sweep = applyPlan(assess(primary), primary, deps);
+    for (const done of [self, sweep]) {
+      assert.equal(done.held.length, c.held ? 1 : 0, `${c.name}: ${JSON.stringify(done.held)}`);
+      if (c.held) assert.match(done.held[0].why, c.held);
+      assert.equal(done.errors.length, c.error ? 1 : 0, `${c.name}: ${JSON.stringify(done.errors)}`);
+      if (c.error) assert.match(done.errors[0], c.error);
+      assert.equal(done.reapedDelegations.length, 1);
+    }
+    assert.equal(self.removedWorktree, false);
+    assert.deepEqual(sweep.removedWorktrees, []);
+    assert.ok(existsSync(join(worktree.path, 'feature.txt')), `${c.name}: nothing may be deleted`);
+  }
+});
+
 test('cleanup never deletes an unmerged GitHub branch', (t) => {
   const { primary } = makeRepo(t);
   const worktree = addWorktree(primary, 'remote-unmerged');

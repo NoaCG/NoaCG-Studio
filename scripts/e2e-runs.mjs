@@ -38,6 +38,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SWEEP_SCRIPTS } from './command-match.mjs';
+import { listProcesses } from './windows-processes.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -133,47 +134,24 @@ function posixNodeProcesses() {
 }
 
 /**
- * EVERY process on this machine, as `{ pid, ppid, name, command }` - not only node ones.
+ * EVERY process on this machine, as `{ pid, ppid, name, command, createdMs, cpuSeconds, ... }` -
+ * not only node ones. The shared `listProcesses` (windows-processes.mjs), failing OPEN: a list
+ * that could not be read is an empty table, which every caller here reads as "unknown".
  *
  * `nodeProcesses` is enough to find runs, because a run IS a node process. Finding whether a dev
  * server still has an OWNER is not: its chain runs through `cmd.exe` shims, so a node-only table
- * shows a broken chain for a perfectly healthy server. Only the orphan check needs this, and it
- * is a rare manual command, so the heavier query costs nothing that matters.
+ * shows a broken chain for a perfectly healthy server. The orphan check, the holder diagnostics and
+ * the Codex reaper (`codex-rescue.mjs`, before every delegation launch) read it, so keep it cheap.
  *
  * Windows only, like `browserShells` - and for the same reason. On POSIX an orphaned process is
  * REPARENTED to init rather than left with a dead parent, so "the chain ended in a dead parent"
  * never fires there and would quietly report nothing. Returning an empty table says that
  * honestly instead of guessing.
  */
-export function allProcesses() {
-  if (process.platform !== 'win32') return [];
-  const script =
-    '@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,KernelModeTime,UserModeTime) | ' +
-    'ConvertTo-Json -Depth 3 -Compress';
-  const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    encoding: 'utf8',
-    windowsHide: true,
-    maxBuffer: 64 * 1024 * 1024,
-    timeout: 10_000, // A diagnostic must return unknown if the OS query stalls.
-  });
-  if (res.status !== 0 || res.stderr?.trim() || !res.stdout?.trim()) return [];
-  try {
-    const rows = JSON.parse(res.stdout);
-    return (Array.isArray(rows) ? rows : [rows]).map((r) => ({
-      pid: Number(r.ProcessId),
-      ppid: Number(r.ParentProcessId),
-      name: String(r.Name ?? ''),
-      command: typeof r.CommandLine === 'string' ? r.CommandLine : '',
-      // WHEN it started, which is half of a process's IDENTITY on a system that reuses pids.
-      // `orphanedCodexTrees` refuses to kill a pid whose start time is not the one that was
-      // recorded, so this field is what makes a recorded kill safe hours after the recording.
-      createdMs: msFromCimDate(r.CreationDate),
-      cpuSeconds: r.KernelModeTime != null && r.UserModeTime != null
-        ? (Number(r.KernelModeTime) + Number(r.UserModeTime)) / 10_000_000 : null,
-    }));
-  } catch {
-    return [];
-  }
+export function allProcesses({ list = listProcesses } = {}) {
+  // 10 s: a diagnostic must answer unknown if the OS query stalls.
+  const listed = list({ timeoutMs: 10_000, cwd: false });
+  return listed.ok ? listed.processes : [];
 }
 
 /** The top-level Playwright test CLI - one process per run, whatever config it was handed. */

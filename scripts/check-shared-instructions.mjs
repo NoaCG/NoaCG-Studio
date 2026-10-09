@@ -100,6 +100,12 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
+    // Sessions are archived when their pull request closes, so the next session's prompt has to be
+    // on the pull request before that (owner, 2026-10-09). The heading and the empty case are pinned.
+    'queue-merge',
+    ['**Then leave the next session its prompt**', 'the line `Nothing left.`'],
+  ],
+  [
     'handoff',
     [
       'git rev-parse --short HEAD',

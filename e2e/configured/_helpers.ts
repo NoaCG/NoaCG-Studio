@@ -117,17 +117,22 @@ export async function signInOnHome(page: Page, email: string, password: string, 
  *  died before its cleanup is deleted first, so every run starts the account with an empty cloud.
  *  Deleting the account later takes its documents with it (`on delete cascade`). */
 export async function mintAccount(admin: SupabaseClient, email: string, password: string): Promise<string> {
-  // One page large enough for any test project; the default page of 50 could hide the user.
-  const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  if (listError) throw new Error(`could not list users: ${listError.message}`);
-  const leftover = list.users.find((u) => u.email === email);
-  if (leftover) {
-    const { error } = await admin.auth.admin.deleteUser(leftover.id);
-    if (error) throw new Error(`could not delete a leftover ${email}: ${error.message}`);
-  }
+  await deleteAccountByEmail(admin, email);
   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (error) throw new Error(`could not create ${email}: ${error.message}`);
   return data.user.id;
+}
+
+/** Delete the account with this address, if there is one. Throws when it cannot, so a leftover
+ *  is reported where it happened rather than as a later sign-up's "already registered". */
+export async function deleteAccountByEmail(admin: SupabaseClient, email: string): Promise<void> {
+  // One page large enough for any test project; the default page of 50 could hide the user.
+  const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (listError) throw new Error(`could not list users: ${listError.message}`);
+  const account = list.users.find((u) => u.email === email);
+  if (!account) return;
+  const { error } = await admin.auth.admin.deleteUser(account.id);
+  if (error) throw new Error(`could not delete ${email}: ${error.message}`);
 }
 
 /** Create a project through the wizard (which opens on load) and land in the OLD editor through
