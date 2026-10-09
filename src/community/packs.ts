@@ -1,5 +1,5 @@
 // The shared half of the Community packs shelf (docs/work-specs/community-packs/spec.md): thin
-// calls over the security definer functions of migrations 0079 and 0080. Every rule - who may
+// calls over the security definer functions of migrations 0079, 0080 and 0083. Every rule - who may
 // submit, who decides, what others may read - is the server's; this file only asks.
 //
 // Offline-invariant, like communityData.ts: with no backend configured `getSupabase()` resolves
@@ -31,6 +31,12 @@ export interface SharedPack {
   lineage: string;
 }
 
+/** A live pack with reports an admin has not dismissed: how many, and the latest reasons. */
+export interface ReportedPack extends SharedPack {
+  reports: number;
+  reasons: string[];
+}
+
 /** One of the maker's own submissions. */
 export interface MyPack extends SharedPack {
   state: PackState;
@@ -47,6 +53,8 @@ interface Row {
   lineage?: string;
   state?: PackState;
   reason?: string | null;
+  reports?: number;
+  reasons?: string[] | null;
 }
 
 const shared = (r: Row): SharedPack => ({
@@ -85,6 +93,27 @@ export async function listMyPacks(): Promise<MyPack[]> {
 /** What waits for review. Empty for anyone but a moderator. */
 export async function listWaitingPacks(): Promise<SharedPack[]> {
   return (await rows('community_pack_waiting')).map(shared);
+}
+
+/** Live packs with reports waiting, most recently reported first. Empty for anyone but a moderator. */
+export async function listReportedPacks(): Promise<ReportedPack[]> {
+  return (await rows('community_pack_reported')).map((r) => ({ ...shared(r), reports: r.reports ?? 0, reasons: r.reasons ?? [] }));
+}
+
+/** Report a live pack that is not the caller's own, with what is wrong with it. */
+export async function reportPack(id: string, reason: string): Promise<void> {
+  const sb = await getSupabase();
+  if (!sb) throw new Error('Reporting needs a connection.');
+  const { error } = await sb.rpc('community_pack_report', { p_id: id, p_reason: reason });
+  if (error) throw new Error(error.message);
+}
+
+/** A moderator keeps a reported pack: its reports leave the Reported list. */
+export async function dismissReports(id: string): Promise<void> {
+  const sb = await getSupabase();
+  if (!sb) return;
+  const { error } = await sb.rpc('community_pack_reports_dismiss', { p_id: id });
+  if (error) throw new Error(error.message);
 }
 
 /** A pack file as JSON text, ready for `parsePack`. */

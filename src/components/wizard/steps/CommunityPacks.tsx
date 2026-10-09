@@ -7,16 +7,20 @@ import { useAuthState } from '../../auth/useAuthState';
 import { useIsModerator } from '../../../community/useIsModerator';
 import {
   decidePack,
+  dismissReports,
   listMyPacks,
+  listReportedPacks,
   listSharedPacks,
   listWaitingPacks,
   PACK_STATE_LABEL,
+  reportPack,
   sharedPackText,
   withdrawPack,
   type MyPack,
+  type ReportedPack,
   type SharedPack,
 } from '../../../community/packs';
-import { candidateOf, checkPack, type PackFinding } from '../../../community/packChecks';
+import { candidateOf, checkPack, checkPackRequests, type PackFinding } from '../../../community/packChecks';
 import { sharedPackId } from '../../../community/packStamp';
 import MiniPreview from '../MiniPreview';
 import WizardConfirm from '../WizardConfirm';
@@ -36,7 +40,9 @@ import SubmitPackSheet, { PackFindings } from '../../community/SubmitPackSheet';
  * door, the maker's own submissions under Your packs, and - for a NoaCG admin - what waits for
  * review. A live pack of the maker's takes an update, a new version that waits for review while
  * the live one stays on the shelf (AC-11). Every signed-in account may submit (D12, migration 0082)
- * now that the design lock (AC-5) keeps an installed pack's design as its maker made it.
+ * now that the design lock (AC-5) keeps an installed pack's design as its maker made it. A signed-in
+ * visitor may Report a shared pack that is not theirs (migration 0083); the admin reads the reports
+ * under Reported and takes the pack down or dismisses them.
  */
 
 /** One shelf entry, as public/packs/community/index.json lists it. */
@@ -169,17 +175,23 @@ function SharedPreview({ id, name }: { id: string; name: string }) {
   );
 }
 
-/** A reason the maker will read, asked inline under the button that needs it. */
-function ReasonAsk({ label, onSend, onCancel }: { label: string; onSend: (reason: string) => void; onCancel: () => void }) {
+/** A reason asked inline under the button that needs it: by default one the maker will read; a
+ *  report asks what is wrong instead, because the maker never reads a reporter's words. */
+function ReasonAsk({ label, placeholder = 'Reason the maker reads', onSend, onCancel }: {
+  label: string;
+  placeholder?: string;
+  onSend: (reason: string) => void;
+  onCancel: () => void;
+}) {
   const [reason, setReason] = useState('');
   return (
     <div className="wz-community-reason">
       <input
         value={reason}
         maxLength={300}
-        placeholder="Reason the maker reads"
+        placeholder={placeholder}
         onChange={(e) => setReason(e.target.value)}
-        aria-label="Reason the maker reads"
+        aria-label={placeholder}
         autoFocus
       />
       <button type="button" disabled={!reason.trim()} onClick={() => onSend(reason.trim())}>
@@ -192,7 +204,8 @@ function ReasonAsk({ label, onSend, onCancel }: { label: string; onSend: (reason
   );
 }
 
-/** One submission waiting for an admin: the checks run again here, on the stored pack (D9). */
+/** One submission waiting for an admin: the checks run again here, on the stored pack (D9), and
+ *  once they pass, each graphic is played with outside requests refused (D5). */
 function ReviewRow({ pack, busy, onTry, onDecide }: {
   pack: SharedPack;
   busy: boolean;
@@ -204,7 +217,12 @@ function ReviewRow({ pack, busy, onTry, onDecide }: {
   useEffect(() => {
     let live = true;
     readShared(pack.id)
-      .then((parsed) => live && setFindings(checkPack(candidateOf(parsed, pack.author))))
+      .then(async (parsed) => {
+        const candidate = candidateOf(parsed, pack.author);
+        const found = checkPack(candidate);
+        return found.length ? found : checkPackRequests(candidate.graphics);
+      })
+      .then((found) => live && setFindings(found))
       .catch((error: unknown) => live && setFindings([{ message: message(error) }]));
     return () => {
       live = false;
@@ -247,6 +265,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   const [shared, setShared] = useState<SharedPack[]>([]);
   const [mine, setMine] = useState<MyPack[]>([]);
   const [waiting, setWaiting] = useState<SharedPack[]>([]);
+  const [reportedPacks, setReportedPacks] = useState<ReportedPack[]>([]);
   const auth = useAuthState();
   const backendConfigured = auth.backendConfigured;
   // Offline `signedIn` is true (nothing is gated); here it means a real account.
@@ -263,6 +282,9 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   const [sheet, setSheet] = useState<{ updating?: MyPack } | null>(null);
   const [withdrawing, setWithdrawing] = useState<MyPack | null>(null);
   const [takingDown, setTakingDown] = useState<string | null>(null);
+  const [reporting, setReporting] = useState<string | null>(null);
+  /** Cards this visitor reported on this visit: each says thank you and offers nothing more. */
+  const [reported, setReported] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let live = true;
@@ -288,6 +310,10 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   useEffect(() => {
     if (!moderator) return setWaiting([]);
     return readInto(listWaitingPacks, setWaiting);
+  }, [moderator, rev]);
+  useEffect(() => {
+    if (!moderator) return setReportedPacks([]);
+    return readInto(listReportedPacks, setReportedPacks);
   }, [moderator, rev]);
 
   const cards = useMemo<Card[]>(() => {
@@ -333,9 +359,19 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
       refresh();
     });
 
+  const report = (card: Card, reason: string) =>
+    run(cardKey(card), async () => {
+      await reportPack(card.id, reason);
+      setReporting(null);
+      setReported((prev) => new Set(prev).add(card.id));
+    });
+
   const offered = (seeds?.length ?? 0) + shared.length;
   // The maker's packs with a version waiting for review: one waits at a time.
   const waitingLineages = useMemo(() => new Set(mine.filter((p) => p.state === 'in_review').map((p) => p.lineage)), [mine]);
+  // A maker's own pack offers no Report; Withdraw is theirs under Your packs.
+  const mineLineages = useMemo(() => new Set(mine.map((p) => p.lineage)), [mine]);
+  const canReport = (card: Card) => signedIn && !moderator && card.kind === 'shared' && !mineLineages.has(card.lineage);
 
   return (
     <div className="wz-community" data-testid="community-packs">
@@ -400,6 +436,52 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
         </section>
       )}
 
+      {moderator && reportedPacks.length > 0 && (
+        <section className="wz-community-section" aria-label="Reported" data-testid="reported-packs">
+          <h3>Reported</h3>
+          <ul className="wz-community-list">
+            {reportedPacks.map((p) => (
+              <li key={p.id} className="wz-community-row" data-reported-pack={p.id}>
+                <div className="wz-community-row-text">
+                  <strong>{p.name}</strong>
+                  <span className="hint">
+                    {plural(p.reports, 'report')} · by {p.author}
+                    {versionNote(p.version)}
+                  </span>
+                  {p.reasons.map((reason, i) => (
+                    <span key={i} className="hint">“{reason}”</span>
+                  ))}
+                  {note?.id === `reported:${p.id}` && <span className="wz-community-error" role="alert">{note.message}</span>}
+                </div>
+                {takingDown === `reported:${p.id}` ? (
+                  <ReasonAsk
+                    label="Take down"
+                    onSend={(reason) => void decide(`reported:${p.id}`, p.id, 'taken_down', reason)}
+                    onCancel={() => setTakingDown(null)}
+                  />
+                ) : (
+                  <div className="wz-community-row-actions">
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => void run(`reported:${p.id}`, async () => {
+                        await dismissReports(p.id);
+                        refresh();
+                      })}
+                    >
+                      Dismiss
+                    </button>
+                    <button type="button" disabled={busy !== null} onClick={() => setTakingDown(`reported:${p.id}`)}>
+                      Take down
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {loadError && <p className="wz-community-error" role="alert">{loadError}</p>}
       {!seeds && !loadError && <p className="hint">Loading the shelf…</p>}
       {seeds && offered === 0 && <p className="hint">No packs on the shelf yet.</p>}
@@ -435,6 +517,8 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
             </div>
             {takingDown === p.id ? (
               <ReasonAsk label="Take down" onSend={(reason) => void decide(cardKey(p), p.id, 'taken_down', reason)} onCancel={() => setTakingDown(null)} />
+            ) : reporting === p.id ? (
+              <ReasonAsk label="Report" placeholder="What is wrong with it" onSend={(reason) => void report(p, reason)} onCancel={() => setReporting(null)} />
             ) : (
               <div className="wz-community-row-actions">
                 <button
@@ -451,6 +535,12 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                     Take down
                   </button>
                 )}
+                {canReport(p) && !reported.has(p.id) && (
+                  <button type="button" className="link-inline wz-community-report" disabled={busy !== null} onClick={() => setReporting(p.id)}>
+                    Report
+                  </button>
+                )}
+                {reported.has(p.id) && <span className="hint wz-community-reported" role="status">Reported. Thank you.</span>}
               </div>
             )}
             {note?.id === cardKey(p) && <p className="wz-community-error" role="alert">{note.message}</p>}

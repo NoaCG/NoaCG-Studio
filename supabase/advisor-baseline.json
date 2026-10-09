@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-10-08",
-  "count": 178,
+  "count": 182,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -313,6 +313,21 @@
       "level": "WARN",
       "detail": "Function `public.community_pack_mine()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_mine`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_community_pack_report_p_id uuid, p_reason text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.community_pack_report(p_id uuid, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_report`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_community_pack_reported_": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.community_pack_reported()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reported`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_community_pack_reports_dismiss_p_id uuid": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.community_pack_reports_dismiss(p_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reports_dismiss`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_community_pack_shelf_": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -602,6 +617,11 @@
       "name": "rls_enabled_no_policy",
       "level": "INFO",
       "detail": "Table \\`public.chat_blocklist\\` has RLS enabled, but no policies exist"
+    },
+    "rls_enabled_no_policy_public_community_pack_reports": {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "detail": "Table \\`public.community_pack_reports\\` has RLS enabled, but no policies exist"
     },
     "rls_enabled_no_policy_public_community_packs": {
       "name": "rls_enabled_no_policy",

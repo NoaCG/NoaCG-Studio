@@ -8,6 +8,7 @@ import { publishGate } from '../validation/publishGate';
 import { packGraphicEntry, type GraphicsPack } from '../packs/graphicsPack';
 import type { SpxTemplate } from '../model/types';
 import { formatBytes } from '../model/storageHealth';
+import { requestMessage } from '../validation/networkGuard';
 
 /** The server refuses a pack file above this (migration 0079), so the sheet says it first. */
 const PACK_LIMIT_BYTES = 8 * 1024 * 1024;
@@ -68,6 +69,27 @@ export function checkPackGraphics(graphics: PackCandidate['graphics']): PackFind
     const t = g.template;
     const text = `${t.html}\n${t.css}\n${t.js}\n${JSON.stringify(t.fields ?? [])}`;
     if (PLACEHOLDER.test(text)) findings.push({ graphic: g.name, message: 'It still holds placeholder text (lorem ipsum).' });
+  }
+  return findings;
+}
+
+/** The observed-request refusal (spec D5): each graphic played through the network bench, one at
+ *  a time, and every request it made that leaves the pack named. Asynchronous and slow (about two
+ *  seconds a graphic), so it runs on Send and on the admin's review row, never as the sheet
+ *  changes. `onProgress` hears which graphic is being checked. Browser-only. */
+export async function checkPackRequests(
+  graphics: PackCandidate['graphics'],
+  onProgress?: (index: number, total: number) => void,
+): Promise<PackFinding[]> {
+  const { observeRequests } = await import('../validation/networkBench');
+  const findings: PackFinding[] = [];
+  for (const [index, g] of graphics.entries()) {
+    onProgress?.(index, graphics.length);
+    try {
+      for (const r of await observeRequests(g.template)) findings.push({ graphic: g.name, message: requestMessage(r) });
+    } catch (error) {
+      findings.push({ graphic: g.name, message: error instanceof Error ? error.message : String(error) });
+    }
   }
   return findings;
 }
