@@ -143,9 +143,9 @@ const ACCEPTED_CLASSES = {
     'Indexes for features production has not exercised yet. "Never used" here means no traffic, ' +
     'not a bad index.',
   multiple_permissive_policies:
-    'community_templates deliberately grants owner and moderator access through separate ' +
-    'policies; merging them would obscure two different reasons for access. 0085 drops the table ' +
-    'with the retired gallery, so once it has applied this class has no members.',
+    'No members since 0085 dropped community_templates (2026-10-09), whose owner and moderator ' +
+    'policies were kept apart as two different reasons for access. A new member is accepted only ' +
+    'for that kind of reason; otherwise merge the policies.',
 };
 
 /**
@@ -161,6 +161,28 @@ const ACCEPTED_CLASSES = {
  * signal for this alarm. Every other class keeps failing on a new member.
  */
 export const WARN_ONLY_CLASSES = new Set(['unused_index']);
+
+/**
+ * A finding key with Postgres's own spelling of each argument type. The advisors key a function
+ * by `pg_get_function_identity_arguments`, which writes `timestamp with time zone`; a baseline
+ * entry written by hand before its migration applied is likely to say `timestamptz`, as the one
+ * for 0086's community_pack_reports_dismiss did, and then the live finding reads as new and the
+ * hand-written one as gone. Only an alias that stands as a whole argument type is rewritten.
+ */
+const TYPE_ALIASES = {
+  timestamptz: 'timestamp with time zone',
+  timetz: 'time with time zone',
+  int: 'integer',
+  int4: 'integer',
+  int8: 'bigint',
+  int2: 'smallint',
+  bool: 'boolean',
+  varchar: 'character varying',
+  float8: 'double precision',
+  float4: 'real',
+};
+const ALIAS_PATTERN = new RegExp(`(?<= )(${Object.keys(TYPE_ALIASES).join('|')})(?=\\[|,|$)`, 'g');
+export const canonicalKey = (key) => key.replace(ALIAS_PATTERN, (alias) => TYPE_ALIASES[alias]);
 
 /**
  * Compare a live report against the baseline. Pure, so the rule that decides the exit code is
@@ -311,7 +333,7 @@ const compareWithBaseline = (seen) => {
   if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
     throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
   }
-  const accepted = new Set(Object.keys(baseline.entries));
+  const accepted = new Set(Object.keys(baseline.entries).map(canonicalKey));
   measured.optional(
     accepted.size,
     'accepted baseline findings',

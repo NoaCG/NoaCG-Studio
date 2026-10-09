@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { WARN_ONLY_CLASSES, judge } from './supabase-advisors.mjs';
+import { WARN_ONLY_CLASSES, canonicalKey, judge } from './supabase-advisors.mjs';
 
 const finding = (name, level = 'WARN') => ({ name, level, detail: `${name} detail` });
 const report = (entries) => new Map(Object.entries(entries));
@@ -82,4 +82,13 @@ test('an empty baseline is honest: new findings still decide the exit code', () 
 
 test('unused_index is the only class that never fails', () => {
   assert.deepEqual([...WARN_ONLY_CLASSES], ['unused_index']);
+});
+
+test("a hand-written key with a type alias matches the advisors' own spelling", () => {
+  const live = 'authenticated_security_definer_function_executable_public_f_p_id uuid, p_until timestamp with time zone';
+  assert.equal(canonicalKey('authenticated_security_definer_function_executable_public_f_p_id uuid, p_until timestamptz'), live);
+  assert.equal(canonicalKey('x_public_g_p_n int, p_ids int8[], p_on bool'), 'x_public_g_p_n integer, p_ids bigint[], p_on boolean');
+  // Only a whole argument type: names that contain an alias stay as they are.
+  assert.equal(canonicalKey('unused_index_public_int_idx'), 'unused_index_public_int_idx');
+  assert.equal(canonicalKey('x_public_h_p_int text, p_bool_flag text'), 'x_public_h_p_int text, p_bool_flag text');
 });
