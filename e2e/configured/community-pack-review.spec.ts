@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{CommunityPacks,SubmitPackSheet}.tsx, src/community/{packs,packChecks,packSources}.ts, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql, supabase/migrations/0082_community_pack_submit_open.sql
+// covers: src/components/wizard/steps/CommunityPacks.tsx, src/components/community/SubmitPackSheet.tsx, src/components/home/sections/GraphicsSection.tsx, src/community/{packs,packChecks,packSources,librarySource}.ts, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql, supabase/migrations/0082_community_pack_submit_open.sql
 //
 // THE COMMUNITY PACK REVIEW LOOP (docs/work-specs/community-packs/spec.md, first slice): a NoaCG
 // admin submits a folder of their own graphics from the wizard's shelf, sees it In review,
@@ -10,11 +10,15 @@
 // the old install stays as it was; withdrawing the live pack takes a waiting update with it. Last,
 // the server takes a submit from an account that is not an admin, which waits for review and
 // which that account cannot approve, and refuses one whose `community.publish` is switched off.
+// And from Home (slice 4 (a)): a folder's ⋯, opened by right-click, and a selection's ⋯ open the
+// same sheet with that source chosen, leaving out what was installed from the shelf; signed out,
+// Home offers neither.
 // Needs the service_role key to mint the two accounts and grant the admin role.
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { mintAccount, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { settleDurableWrites } from '../_durable';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const canRun = Boolean(SERVICE_ROLE_KEY && SUPABASE_URL);
@@ -25,21 +29,45 @@ const PACK = `E2E pack ${Date.now()}`;
 /** Frames for a person to look at, off by default: `NOACG_SHOTS=<dir>` writes them. */
 const SHOTS = process.env.NOACG_SHOTS ?? '';
 
-/** Lower thirds of the given names, made in the library and filed in one Home folder. */
-async function makeFolder(page: Page, folder: string, names: string[]): Promise<void> {
+/** Lower thirds of the given names, made in the library and filed in one Home folder. The
+ *  `installed` ones carry the stamp an install from the shelf gives. */
+async function makeFolder(page: Page, folder: string, names: string[], installed: string[] = []): Promise<void> {
   await page.evaluate(
-    async ({ folder, names }) => {
+    async ({ folder, names, installed }) => {
       const { variantsFor } = await import('/src/templates/catalog.ts');
       const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
       const variants = variantsFor('lower-third');
-      const made = names.map((name, i) => createGraphic(variants[i % variants.length].create({}), { name, packageId: null }));
+      const fromPack = { id: 'community:e2e', version: 1, author: 'Someone else', name: 'Elsewhere' };
+      const made = [...names, ...installed].map((name, i) =>
+        createGraphic(variants[i % variants.length].create({}), {
+          name,
+          packageId: null,
+          ...(installed.includes(name) ? { fromPack } : {}),
+        }),
+      );
       const failed = made.find((m) => m.error);
       if (failed) throw new Error(failed.error ?? '');
       const error = setGraphicsFolder(made.map((m) => m.doc.id), folder);
       if (error) throw new Error(error);
     },
-    { folder, names },
+    { folder, names, installed },
   );
+}
+
+/** Home's Graphics section, re-read after graphics were made in the page. */
+async function openHomeGraphics(page: Page): Promise<void> {
+  await settleDurableWrites(page);
+  await page.goto('/app#/home/graphics');
+  await page.reload();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await declineConsent(page);
+}
+
+/** The optional-analytics banner sits over the lower cards and the bulk bar; decline it so it
+ *  covers nothing. */
+async function declineConsent(page: Page): Promise<void> {
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible()) await consent.getByRole('button', { name: 'No thanks' }).click();
 }
 
 /** How many graphics each of this browser's productions of that name holds, fewest first. */
@@ -65,9 +93,7 @@ async function openShelf(page: Page): Promise<void> {
   await page.locator('[data-entry="template"]').click();
   await page.getByTestId('wz-buildmode').locator('[data-build-mode="community"]').click();
   await expect(page.getByTestId('community-packs')).toBeVisible();
-  // The optional-analytics banner sits over the lower cards; decline it so it covers nothing.
-  const consent = page.getByTestId('analytics-consent');
-  if (await consent.isVisible()) await consent.getByRole('button', { name: 'No thanks' }).click();
+  await declineConsent(page);
 }
 
 test.describe('community pack review (configured)', () => {
@@ -278,6 +304,69 @@ test.describe('community pack review (configured)', () => {
     await expect(mine.filter({ hasText: 'Withdrawn' })).toHaveCount(2);
     await expect(live).toHaveCount(0);
     await expect(page.getByTestId('waiting-packs')).toHaveCount(0);
+  });
+
+  test('Home: a folder and a selection open the submit sheet with their own graphics chosen', async ({ page, browser }) => {
+    const QUIZ = `${PACK} quiz`;
+    const OTHER = `${PACK} other`;
+    await signInOnHome(page, MAKER_EMAIL, PASSWORD);
+    await makeFolder(page, QUIZ, ['Home Question', 'Home Answer', 'Home Score'], ['Home Installed']);
+    await makeFolder(page, OTHER, ['Home Opener']);
+    await openHomeGraphics(page);
+
+    // THE FOLDER: its ⋯, reached by right-click, offers the submit; the sheet has no source to
+    // choose, ticks the three graphics this account made and says the installed one is left out.
+    const folder = page.getByTestId(`folder-item-${QUIZ}`);
+    await folder.click({ button: 'right' });
+    await folder.getByTestId('submit-to-community').click();
+    const sheet = page.getByTestId('submit-pack');
+    await expect(sheet.getByTestId('submit-pack-source')).toHaveCount(0);
+    await expect(sheet.getByRole('checkbox')).toHaveCount(3);
+    await expect(sheet.getByTestId('submit-pack-left-out')).toHaveText('1 installed from Community packs is left out.');
+    await expect(sheet.getByTestId('submit-pack-name')).toHaveValue(QUIZ);
+    await sheet.getByTestId('submit-pack-description').fill('A quiz made on Home');
+    await sheet.getByTestId('submit-pack-author').fill('Home Maker');
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/home-submit-folder-desktop.png` });
+    await sheet.getByTestId('submit-pack-go').click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByTestId('bulk-note')).toContainText(`Sent "${QUIZ}" for review`);
+
+    // THE SELECTION: two graphics from two folders, found by a search; the bar's ⋯ opens the same
+    // sheet with those two, no name (they share no folder) and the last pack's Shown as (D15).
+    await page.getByTestId('home-search').fill('Home');
+    for (const name of ['Home Answer', 'Home Opener']) {
+      await page.locator('.lib-row', { hasText: name }).getByTestId('select-graphic').click();
+    }
+    await expect(page.getByTestId('bulk-bar')).toContainText('2 selected');
+    await page.getByTestId('bulk-more').click();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/home-submit-selection-menu-desktop.png` });
+    await page.getByTestId('bulk-bar').getByTestId('submit-to-community').click();
+    await expect(sheet.getByRole('checkbox')).toHaveCount(2);
+    await expect(sheet.getByTestId('submit-pack-left-out')).toHaveCount(0);
+    await expect(sheet.getByTestId('submit-pack-name')).toHaveValue('');
+    await expect(sheet.getByTestId('submit-pack-author')).toHaveValue('Home Maker');
+    await sheet.getByTestId('submit-pack-name').fill(`${PACK} picked`);
+    await sheet.getByTestId('submit-pack-description').fill('Two picked on Home');
+    await sheet.getByTestId('submit-pack-go').click();
+    await expect(sheet).toHaveCount(0);
+
+    // Both wait for review under the maker's Your packs, with the graphics chosen on Home.
+    await openShelf(page);
+    const mine = page.getByTestId('your-packs');
+    await expect(mine.locator('.wz-community-row', { hasText: QUIZ })).toContainText('In review');
+    await expect(mine.locator('.wz-community-row', { hasText: `${PACK} picked` })).toContainText('In review');
+    const { data: stored } = await admin.from('community_packs').select('name, graphics').in('name', [QUIZ, `${PACK} picked`]);
+    expect(Object.fromEntries((stored ?? []).map((r) => [r.name, r.graphics]))).toEqual({ [QUIZ]: 3, [`${PACK} picked`]: 2 });
+
+    // SIGNED OUT, Home offers neither door: absent, never disabled.
+    const visitor = await browser.newPage();
+    await visitor.goto('/app#/home/graphics');
+    await makeFolder(visitor, QUIZ, ['Visitor graphic']);
+    await openHomeGraphics(visitor);
+    const theirs = visitor.getByTestId(`folder-item-${QUIZ}`);
+    await theirs.click({ button: 'right' });
+    await expect(theirs.getByTestId('rename-folder')).toBeVisible();
+    await expect(visitor.getByTestId('submit-to-community')).toHaveCount(0);
   });
 
   test('the server takes a submit from an account that is not an admin for review only, and refuses one with community.publish off', async () => {

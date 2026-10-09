@@ -11,7 +11,7 @@
 //     and `root/work-feature-branch-own-worktree-made`): no Co-Authored-By trailers, no
 //     AI/agent/chat-session language, no internal plan codenames.
 //  3. Commits never include dist/ or the generated .claude/launch.json.
-//  3b. Nobody polls the job queue in the foreground.
+//  3b. Nobody polls the job queue in the foreground, and no polling loop runs without a time limit.
 //  3c. A push and a workflow dispatch never share one command - ci.yml's concurrency group makes
 //     the pair a coin flip over which run survives.
 //  3d. Nothing pushes to `main` - only the merge queue writes it.
@@ -35,6 +35,8 @@ import { isPortBusy } from '../port-probe.mjs';
 import { activeRuns, describeRuns } from '../e2e-runs.mjs';
 import {
   branchCreations,
+  endlessWait,
+  endlessWaitRefusal,
   enqueuesWork,
   invokesE2e,
   invokesSweep,
@@ -236,6 +238,16 @@ if (pollsQueue(command)) {
       'SessionStart reports what landed while you were away.',
   );
 }
+
+// --- 3b'. Every wait has a time limit ----------------------------------------------------------
+//
+// docs/work-specs/agent-lifecycle/spec.md point 1. A polling loop with no end never tells anyone it
+// failed: on 2026-10-09 one polled `docker info` for 14 hours, and kept its session from being
+// archived. With a limit, running out is a failure the agent is told about, in the foreground and
+// in the background alike, and it can find the cause, fix it and wait again.
+// Codex runs the same rule through its own hook (codex-guard-command.mjs), with the same words.
+const wait = endlessWait(command);
+if (wait) deny(endlessWaitRefusal(wait));
 
 // --- 3c. A push and a workflow dispatch never share one command --------------------------------
 //

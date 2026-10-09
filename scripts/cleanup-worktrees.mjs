@@ -46,6 +46,9 @@
 // IN USE MEANS UNTOUCHED. A worktree is moved aside before it is removed, and Windows refuses that
 // rename while any process has its working directory or an open file inside it. A refusal leaves
 // the worktree exactly as it was and is reported as "in use", never as a failure (moveAside).
+// Before that move, what AGENTS left running from the worktree - a dev server, a test browser, a
+// shell loop - is closed, because landed work takes its processes with it; anything else running
+// there (a session, the owner's own terminal) keeps the worktree in place (agent-processes.mjs).
 //
 // UNATTENDED (`--unattended`, runUnattended): session start and every landing start this sweep in
 // the background, so finished work goes without anyone running it. It applies only what is safe by
@@ -72,6 +75,7 @@
 import { existsSync, mkdirSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { closeAbandonedProcesses, worktreeCloser } from './agent-processes.mjs';
 import { primaryCheckout } from './reattach-main.mjs';
 import { pruneStalePorts } from './dev-port.mjs';
 import { jobsDir, pending, readJobs, readLandings } from './jobs-store.mjs';
@@ -664,6 +668,8 @@ export function applySelf(
     // delegations to collect, and spawning the reaper to prove it costs a full enumeration of the
     // machine's processes per removal. Left undefined, reapDelegationTrees runs the real reaper.
     reap,
+    // The same, for closing what agents left running from the worktree (agent-processes.mjs).
+    processes = worktreeCloser(plan.primaryRoot),
   } = {},
 ) {
   const done = {
@@ -674,6 +680,7 @@ export function applySelf(
     archived: null,
     releasedPorts: [],
     reapedDelegations: [], // { path, said } - this worktree's delegations, on the way out
+    closedProcesses: [], // what agents left running from it, closed on the way out
     errors: [],
   };
 
@@ -719,6 +726,15 @@ export function applySelf(
         + 'it, so nothing was removed. Let it finish, or cancel it with '
         + '`node scripts/codex-rescue.mjs cancel`, and clean up again.',
     );
+    return done;
+  }
+
+  // What this session and its agents left running here goes with it; the session's own line of
+  // processes is never judged. Anything else running here keeps the worktree.
+  const closing = processes(plan.path);
+  done.closedProcesses = closing.closed ?? [];
+  if (!closing.ok) {
+    done.errors.push(`not removed: ${closing.why}`);
     return done;
   }
 
@@ -1151,12 +1167,14 @@ export function applyPlan(
     // See `applySelf`: injectable so the safety suite does not enumerate the machine's processes
     // once per removed worktree.
     reap,
+    processes = worktreeCloser(plan.primaryRoot),
   } = {},
 ) {
   const done = {
     removedWorktrees: [],
     held: [], // { path, why } - in use by some process right now: skipped, untouched
     reapedDelegations: [], // { path, said } - each worktree's finished delegations, on the way out
+    closedProcesses: [], // { pid, name, command, home } - what agents left running there
     archived: [], // { path, destination, files, bytes }
     deletedBranches: [],
     deletedRemoteBranches: [],
@@ -1194,6 +1212,18 @@ export function applyPlan(
     done.reapedDelegations.push({ path: w.path, said: reaped.output });
     if (reaped.busy) {
       done.errors.push(`worktree ${w.path}: a Codex delegation is still running there - kept`);
+      continue;
+    }
+
+    // LANDED WORK TAKES ITS PROCESSES WITH IT: what agents left running from the worktree is closed
+    // before the move below, which would otherwise find it holding the folder. A process that is
+    // not an agent's keeps the worktree in place, and a process list that could not be read is an
+    // error, never "nothing running".
+    const closing = processes(w.path);
+    done.closedProcesses.push(...(closing.closed ?? []));
+    if (!closing.ok) {
+      if ((closing.kept ?? []).length > 0) done.held.push({ path: w.path, why: closing.why });
+      else done.errors.push(`worktree ${w.path}: ${closing.why} - kept`);
       continue;
     }
 
@@ -1491,6 +1521,12 @@ function report(plan, done) {
     L.push('  (released only under --apply)');
   }
 
+  if (done?.closedProcesses?.length > 0) {
+    L.push('');
+    L.push('## Processes closed with their worktree');
+    for (const p of done.closedProcesses) L.push(`  - ${p.name} (pid ${p.pid}): ${String(p.command ?? '').replaceAll('\n', ' ').slice(0, 160)}`);
+  }
+
   if (done?.reapedDelegations?.length > 0) {
     L.push('');
     L.push('## Codex delegation processes closed with their worktree');
@@ -1565,6 +1601,8 @@ export function runUnattended(
     },
     liveness = {},
     applyOptions = {},
+    // What agents abandoned, across every checkout (agent-processes.mjs). Injectable like the rest.
+    abandoned = (root) => closeAbandonedProcesses({ primaryRoot: root, liveness }),
     now = () => new Date(),
   } = {},
 ) {
@@ -1586,6 +1624,8 @@ export function runUnattended(
             ran: result.ran,
             why: result.why ?? null,
             removed: done?.removedWorktrees ?? [],
+            closedProcesses: [...(closedAbandoned?.closed ?? []), ...(done?.closedProcesses ?? [])].map(brief),
+            processesNotClosed: closedAbandoned?.ok === false ? closedAbandoned.why : null,
             held: done?.held ?? [],
             archived: done?.archived ?? [],
             deletedBranches: done?.deletedBranches ?? [],
@@ -1605,8 +1645,12 @@ export function runUnattended(
     return result;
   };
 
+  let closedAbandoned = null;
   try {
     markSweepStart(stateDir);
+    // First, and whatever git says below: processes an agent left behind in a checkout nobody has
+    // touched for an hour. Needs no fetch, so a network failure does not keep a 14-hour loop alive.
+    closedAbandoned = abandoned(primaryRoot);
     const fetched = refresh(primaryRoot);
     if (!fetched?.ok) {
       return record({ ran: false, why: `could not refresh origin: ${fetched?.stderr || fetched?.stdout || 'git fetch failed'}` });
@@ -1624,6 +1668,11 @@ export function runUnattended(
   } finally {
     lock.release();
   }
+}
+
+/** What last.json keeps about a closed process: enough to recognise it, never its whole command. */
+function brief(p) {
+  return { pid: p.pid, name: p.name, home: p.home ?? null, command: String(p.command ?? '').slice(0, 160) };
 }
 
 // CLI: `node scripts/cleanup-worktrees.mjs [--apply] [--acknowledge-risks] | --unattended | --self [--apply]`
@@ -1676,6 +1725,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
     console.log(`Archived ${done.archived.files} file(s), ${formatBytes(done.archived.bytes)} -> ${done.archived.destination}`);
   }
   for (const { said } of done.reapedDelegations) console.log(`Delegation processes: ${said}`);
+  for (const p of done.closedProcesses) console.log(`Closed ${p.name} (pid ${p.pid}), left running from this worktree`);
   if (done.removedWorktree) console.log(`Removed worktree ${plan.path}`);
   if (done.deletedBranch) console.log(`Deleted branch ${done.deletedBranch}`);
   if (done.deletedRemoteBranch) console.log(`Deleted GitHub branch origin/${done.deletedRemoteBranch}`);
