@@ -6,7 +6,7 @@
 //   2. OWNER-LEVEL - intent, product direction, UX or taste, scope, money: his choice changes the
 //      result. Asked BEFORE building, Grill-Me style: one question per call, a recommended answer,
 //      and a better alternative when there is one.
-//   3. Anything inside an orchestrator or night wave. Never asked: nobody is there to answer.
+//   3. Anything inside a wave row or an unattended wave. Never asked: nobody is there to answer.
 //
 // A hook cannot tell kind 1 from kind 2 by reading the words, so the question declares its kind
 // with one tag, `needs: decision`: the agent has classified it as something only the owner
