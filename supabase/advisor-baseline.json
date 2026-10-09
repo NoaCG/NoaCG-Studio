@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-10-08",
-  "count": 182,
+  "recordedAt": "2026-10-09",
+  "count": 186,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -183,6 +183,11 @@
       "level": "WARN",
       "detail": "Function `public.panel_hello(p_key text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_hello`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "anon_security_definer_function_executable_public_panel_lease_p_slug text, p_page text, p_where text, p_label text, p_move boolean": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.panel_lease(p_slug text, p_page text, p_where text, p_label text, p_move boolean)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_lease`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "anon_security_definer_function_executable_public_panel_list_p_slug text": {
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
@@ -207,6 +212,11 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.panel_release(p_slug text, p_claim bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_release`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_panel_renew_p_slug text, p_page text, p_claim bigint": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.panel_renew(p_slug text, p_page text, p_claim bigint)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_renew`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_panel_revoke_p_slug text, p_key_id uuid": {
       "name": "anon_security_definer_function_executable",
@@ -483,6 +493,11 @@
       "level": "WARN",
       "detail": "Function `public.panel_hello(p_key text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_hello`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
+    "authenticated_security_definer_function_executable_public_panel_lease_p_slug text, p_page text, p_where text, p_label text, p_move boolean": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.panel_lease(p_slug text, p_page text, p_where text, p_label text, p_move boolean)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_lease`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
     "authenticated_security_definer_function_executable_public_panel_list_p_slug text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -507,6 +522,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.panel_release(p_slug text, p_claim bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_release`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_panel_renew_p_slug text, p_page text, p_claim bigint": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.panel_renew(p_slug text, p_page text, p_claim bigint)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/panel_renew`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_panel_revoke_p_slug text, p_key_id uuid": {
       "name": "authenticated_security_definer_function_executable",
