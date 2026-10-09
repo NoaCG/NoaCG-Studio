@@ -56,6 +56,8 @@ export interface ReadabilityReading {
   /** WCAG contrast ratio against the resolved backing, when one resolves. */
   contrast: number | null;
   el: string;
+  /** Inside an operator field (`f0`, `f1`…) rather than static design text. */
+  fieldBound: boolean;
 }
 
 export interface ReadabilityFinding {
@@ -506,6 +508,7 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
       role,
       contrast: contrast === null ? null : Math.round(contrast * 100) / 100,
       el: describe(c.el),
+      fieldBound: c.fieldBound,
     });
 
     if (role === 'decorative') {

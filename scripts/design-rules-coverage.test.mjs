@@ -10,12 +10,13 @@
 // passed, and the ticker-margin rule was reachable only through declared animation data.
 //
 // Pinned here, in a real engine because every rule reads computed style and layout:
-//   - a frame whose text is all faded out says "not checked" instead of nothing, and a frame with
-//     visible text or with no text fields at all does not;
+//   - a frame whose field text is all faded out says "not checked" instead of nothing, even beside
+//     visible static text, and a frame with visible field text or with no text fields does not;
 //   - the mark rule fires for a mark outside the safe area and not for a cropped picture well;
 //   - a ticker with no animation block is held to the margin rule, a lower third is not;
 //   - across the whole catalog, in the pose the export panel measures, no shipped design reads
-//     as "not checked" - the false positive that would teach people to ignore the warning.
+//     as "not checked", and none trips the two newly reachable rules - the false positives that
+//     would teach people to ignore the warnings.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
@@ -62,7 +63,7 @@ const MEASURE_CATALOG = async () => {
     await Promise.all(ids.slice(i, i + BATCH).map(async (id) => {
       const template = window.NOACG_CATALOG.variantById(id).create({});
       const warnings = await window.NOACG_RULES.checkTemplateLegibility(template, null);
-      out[id] = warnings.map((w) => w.rule);
+      out[id] = warnings.map((w) => (w.message.startsWith('The brand mark') ? 'mark-safe-area' : w.rule));
     }));
   }
   return out;
@@ -82,6 +83,10 @@ const measured = await withBundledPage(SPECS, async (page) => {
     faded: await fixture({
       type: 'lower-third', fields: TEXT_FIELD, css: `.p{${PANEL}} #f0{opacity:0}`,
       body: '<div class="p"><span id="f0">Ana Example</span></div>',
+    }),
+    fadedBesideStatic: await fixture({
+      type: 'lower-third', fields: TEXT_FIELD, css: `.p{${PANEL}} #f0{opacity:0}`,
+      body: '<div class="p"><b class="tag">LIVE</b> <span id="f0">Ana Example</span></div>',
     }),
     noTextFields: await fixture({
       type: 'corner-bug', fields: [], css: '.b{position:absolute;right:120px;top:80px;width:120px;height:60px;background:#e33}',
@@ -119,6 +124,7 @@ const rules = (warnings) => warnings.map((w) => w.rule);
 
 test('a frame whose text is all faded out reports that legibility was not checked', () => {
   assert.ok(rules(measured.faded).includes('legibility-unmeasured'), JSON.stringify(measured.faded));
+  assert.ok(rules(measured.fadedBesideStatic).includes('legibility-unmeasured'), JSON.stringify(measured.fadedBesideStatic));
   assert.ok(!rules(measured.visible).includes('legibility-unmeasured'), JSON.stringify(measured.visible));
 });
 
@@ -137,9 +143,11 @@ test('a ticker with no animation block is held to the margin rule, a lower third
   assert.ok(!rules(measured.strapUneven).includes('legibility-ticker-margins'), JSON.stringify(measured.strapUneven));
 });
 
-test('no catalog design reads as "not checked" in the pose the export panel measures', () => {
+test('no catalog design reads as "not checked" or trips the newly reachable rules', () => {
   const ids = Object.keys(measured.catalog);
   assert.ok(ids.length > 100, `measured ${ids.length} catalog designs`);
-  const unmeasured = ids.filter((id) => measured.catalog[id].includes('legibility-unmeasured'));
-  assert.deepEqual(unmeasured, [], `${unmeasured.length} of ${ids.length} designs were not measured`);
+  for (const rule of ['legibility-unmeasured', 'mark-safe-area', 'legibility-ticker-margins']) {
+    const hit = ids.filter((id) => measured.catalog[id].includes(rule));
+    assert.deepEqual(hit, [], `${hit.length} of ${ids.length} designs report ${rule}`);
+  }
 });

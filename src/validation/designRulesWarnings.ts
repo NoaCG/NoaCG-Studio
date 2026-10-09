@@ -37,8 +37,8 @@ const px = (n: number) => `${Math.round(n)}px`;
 /**
  * THE DISHONEST ZERO, reported instead of returned (#840). An empty warning list is what a clean
  * graphic gets, so it must only ever mean "measured, nothing wrong". When the frame could not be
- * read, or held text the readability rules read none of (every field hidden or faded at the
- * measured pose), this rule says so. It is one warning like the rest of this module, so the
+ * read, or held field text the readability rules read none of (every field hidden or faded at
+ * the measured pose), this rule says so. It is one warning like the rest of this module, so the
  * readiness report's legibility row and the export panel say "not checked" instead of nothing.
  */
 export const LEGIBILITY_UNMEASURED = 'legibility-unmeasured';
@@ -59,15 +59,18 @@ function fieldsWithText(doc: Document, template: SpxTemplate): number {
     && (doc.getElementById(f.field)?.textContent?.trim().length ?? 0) >= 2).length;
 }
 
-/** The brand mark's field: a file field shown as an `<img>` that is a mark rather than a cropped
- *  picture well, by the same test the mark-legibility check uses. */
+/** The brand mark's field: a file field shown as a loaded `<img>` that is a mark rather than a
+ *  cropped picture well, by the same test the mark-legibility check uses. An empty slot has no
+ *  mark to hold to the safe area. */
 function markFieldOf(doc: Document, template: SpxTemplate): string | null {
   const win = doc.defaultView;
   if (!win) return null;
   for (const f of template.fields) {
     if (f.ftype !== 'filelist') continue;
     const el = doc.getElementById(f.field);
-    if (el?.tagName === 'IMG' && isMarkImage(el as HTMLImageElement, win)) return f.field;
+    if (el?.tagName !== 'IMG') continue;
+    const img = el as HTMLImageElement;
+    if (img.complete && img.naturalWidth > 0 && isMarkImage(img, win)) return f.field;
   }
   return null;
 }
@@ -189,7 +192,9 @@ export function designRulesWarnings(
     markFieldId: markFieldOf(doc, template),
   });
   const issues: ValidationIssue[] = [];
-  if (report.readings.length === 0 && fieldsWithText(doc, template) > 0) {
+  // Static design text (a LIVE tag, a label) can be read while every operator field is faded
+  // out, so the question is whether any FIELD text was read.
+  if (!report.readings.some((r) => r.fieldBound) && fieldsWithText(doc, template) > 0) {
     issues.push(unmeasured('none of its text was visible when it was measured'));
   }
   for (const finding of report.findings) {
@@ -215,16 +220,15 @@ export function designRulesWarnings(
 
 /** True when the template declares measured motion (a NOACG_ANIM dynamics segment) whose
  *  target intersects a band spanning at least half the frame - the crawl signature. A ticker
- *  whose block is absent or unreadable (hand-written motion, an import) has no declared motion
- *  to find, so its TYPE stands in: without that the rule could never reach it (#840). */
+ *  that declares no measured motion (hand-written or CSS motion, an import, an unreadable block)
+ *  has none to find, so its TYPE stands in: without that the rule could never reach it (#840). */
 function hasCrawlBand(doc: Document, template: SpxTemplate): boolean {
-  const data = parseAnimData(template.js);
-  if (!data) return template.type === 'ticker';
   const selectors = new Set<string>();
-  for (const step of allTimelines(data)) {
+  const data = parseAnimData(template.js);
+  for (const step of data ? allTimelines(data) : []) {
     for (const d of step.dynamics ?? []) if (d.target) selectors.add(d.target);
   }
-  if (selectors.size === 0) return false;
+  if (selectors.size === 0) return template.type === 'ticker';
   const frameWidth = doc.documentElement.clientWidth || template.resolution.width;
   for (const sel of selectors) {
     try {

@@ -2317,10 +2317,10 @@ missing was anything that measured the other end.
 
 **Two instruments, because there are two situations.**
 
-`src/validation/plateLegibility.ts` measures an ARBITRARY rendered graphic: it composites every
-painted ancestor over each of three plates - a night exterior, a mid-tone shot, a blown-out sky -
-and reports text that misses its WCAG floor. It has to infer the surface from the DOM, and it
-under-detects: a panel drawn as a positioned SIBLING is invisible to an ancestor walk, which is
+`src/validation/plateLegibility.ts` (removed 2026-10-09, see the end of this section) measured
+an ARBITRARY rendered graphic: it composited every painted ancestor over each of three plates - a
+night exterior, a mid-tone shot, a blown-out sky - and reported text that missed its WCAG floor.
+It had to infer the surface from the DOM, and it under-detected: a panel drawn as a positioned SIBLING is invisible to an ancestor walk, which is
 why `lt49` reads as surface-less when its frame plainly is not. **Its numbers are an upper bound
 on findings, and it reports rather than gates.**
 
