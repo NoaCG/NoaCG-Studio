@@ -18,6 +18,7 @@ import {
   judgeProcesses,
   listProcesses,
   recentCodexSessions,
+  worktreeCloser,
   worktreeProcesses,
   worktreeQuiet,
 } from './agent-processes.mjs';
@@ -237,6 +238,47 @@ test('the removal step closes, and keeps the worktree when something is kept or 
   assert.equal(failing.ok, false);
   assert.match(failing.why, /could not close/);
   assert.deepEqual(closeProcesses([{ pid: 5, name: 'x' }], { platform: 'win32' }).failed.map((e) => e.pid), [5], 'no start time, no kill');
+});
+
+test('a sweep judges each worktree after its own reap, listing again only when the old table would keep it (#896)', () => {
+  // The sweep lists the machine on its first removal. OTHER's delegation is reaped after that,
+  // just before OTHER is judged, so the first table still shows its process - one that reads as
+  // somebody's (a live parent that is not an agent's) and would keep OTHER for a sweep.
+  const delegation = proc(5001, 1400, 'codex.exe', { cwd: OTHER, command: 'codex.exe exec' });
+  const free = machine().filter((p) => p.cwd !== W && p.cwd !== OTHER);
+  const tables = [[...free, delegation], free];
+  const lists = [];
+  const list = () => {
+    lists.push(tables.length);
+    return { ok: true, supported: true, processes: tables.shift() ?? free };
+  };
+  const close = (entries) => ({ closed: entries, failed: [] });
+  const sweep = worktreeCloser(PRIMARY, { roots: ROOTS, self: SWEEP, list, close });
+  assert.equal(sweep(W).ok, true, 'the first worktree is judged on the table listed for it');
+  const other = sweep(OTHER);
+  assert.equal(other.ok, true, other.why);
+  assert.equal(lists.length, 2, 'listed again because the old table kept it');
+  assert.equal(sweep(W).ok, true);
+  assert.equal(lists.length, 2, 'a worktree the table frees costs no listing');
+
+  // Still in use on the fresh table: held, as before.
+  const busy = worktreeCloser(PRIMARY, { roots: ROOTS, self: SWEEP, list: () => ({ ok: true, supported: true, processes: [...free, delegation] }), close });
+  busy(W);
+  assert.match(busy(OTHER).why, /^in use by codex\.exe/);
+
+  // The fresh listing fails: an error that keeps the worktree, never "nothing running".
+  let calls = 0;
+  const failing = worktreeCloser(PRIMARY, {
+    roots: ROOTS,
+    self: SWEEP,
+    list: () => (calls++ === 0 ? { ok: true, supported: true, processes: [...free, delegation] } : { ok: false, supported: true, processes: [], why: 'could not list processes: timed out' }),
+    close,
+  });
+  failing(W);
+  const blind = failing(OTHER);
+  assert.equal(blind.ok, false);
+  assert.deepEqual(blind.kept, [], 'an error, not a hold');
+  assert.match(blind.why, /timed out/);
 });
 
 test('a Codex session working in a worktree keeps it from being quiet', (t) => {

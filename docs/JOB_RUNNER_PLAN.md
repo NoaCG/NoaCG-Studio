@@ -119,7 +119,11 @@ browser work, read by the guard hook and the process detector too, so a script t
 is heavy everywhere rather than in a second opinion that can drift. Command text cannot see
 through a wrapper, so on Windows the runner also reads each running light job's process tree
 every 15 s: a job with a browser or a Playwright test run below it is stopped and re-queued as
-`--kind sweep`, keeping its place, so the browser slot and the full floor apply.
+`--kind sweep`, keeping its place, so the browser slot and the full floor apply. Its command is
+remembered in `browser-commands.json` beside the jobs (the newest 50, each for 7 days), and the
+same command queued again without a `--kind` starts as browser work; once its entry runs out it is
+light and watched again, so a script that stopped opening a browser is not held to the slot for
+ever, and `--kind gate` says so sooner.
 
 **The asymmetry decides the default, and it cuts both ways.** Charging an expensive job too little
 puts two dev servers and eight browser workers on a 16 GB laptop. Charging a cheap one too much
