@@ -712,8 +712,10 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
     });
   }
 
-  const code = (f: ReadabilityFinding) => f.code;
-  const block = capKeepingEachKind(findings.filter((f) => f.severity === 'block'), 10, code);
-  const advise = capKeepingEachKind(findings.filter((f) => f.severity === 'advise'), 8, code);
+  // A finding's kind is its code and, for a size finding, the role it was held to: a primary
+  // name under its floor is a different problem from ten small labels under theirs.
+  const kind = (f: ReadabilityFinding) => (f.role ? `${f.code} ${f.role}` : f.code);
+  const block = capKeepingEachKind(findings.filter((f) => f.severity === 'block'), 10, kind);
+  const advise = capKeepingEachKind(findings.filter((f) => f.severity === 'advise'), 8, kind);
   return { findings: [...block, ...advise], readings };
 }

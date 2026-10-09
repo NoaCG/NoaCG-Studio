@@ -196,8 +196,10 @@ export function designRulesWarnings(
     category: template.type ?? null,
     markFieldId: markFieldOf(doc, template),
   });
-  // Each row with its kind: the rule and, under it, the finding, so a brand-mark row is not the
-  // same kind as the field-text rows that share its safe-area rule.
+  // Each row with its kind: its rule, except that the brand mark is its own kind beside the
+  // field text that shares its safe-area rule. That makes eight kinds at most - not measured,
+  // primary size, supporting size, contrast, protection, field safe area, mark safe area and
+  // ticker margins - so every kind present always fits under the cap.
   const rows: { issue: ValidationIssue; kind: string }[] = [];
   // Static design text (a LIVE tag, a label) can be read while every operator field is faded
   // out, so the question is whether any FIELD text was read.
@@ -206,7 +208,7 @@ export function designRulesWarnings(
   }
   for (const finding of report.findings) {
     const msg = productMessage(finding, legibility);
-    if (msg) rows.push({ issue: msg, kind: `${msg.rule} ${finding.code}` });
+    if (msg) rows.push({ issue: msg, kind: finding.code === 'mark-outside-safe-area' ? finding.code : msg.rule });
   }
   // The ticker-margin rule holds tickers only, and the template says what it is - the same
   // ruling as the lead-line target above. Inferring a crawl from declared motion held counters

@@ -24,6 +24,7 @@
 // world (the same plate was praised on two briefs and called broken on a third), and a gate
 // that fails a deliberate full-bleed composition would be teaching designs to be timid.
 
+import { paintsSurface } from '../../validation/surface';
 import { paints } from './brand';
 
 /** A painted child closer to its panel edge than this many TYPE SIZES reads as cramped.
@@ -163,16 +164,6 @@ function hasOwnText(el: Element): boolean {
   return false;
 }
 
-function opaqueBackground(style: CSSStyleDeclaration): boolean {
-  const bg = style.backgroundColor;
-  if (!bg || bg === 'transparent') return Boolean(style.backgroundImage && style.backgroundImage !== 'none');
-  if (/rgba\([^)]*,\s*0(\.\d+)?\)/.test(bg)) {
-    const alpha = parseFloat(bg.match(/,\s*([\d.]+)\s*\)$/)?.[1] ?? '1');
-    return alpha > 0.15;
-  }
-  return true;
-}
-
 /**
  * The rect a viewer actually SEES: the element's own box, cut down by every ancestor that
  * clips.
@@ -224,7 +215,7 @@ export function collectPainted(doc: Document): Painted[] {
       rect,
       fontSizePx: parseFloat(style.fontSize) || 0,
       isText: hasOwnText(el) && el.tagName !== 'IMG',
-      hasSurface: opaqueBackground(style),
+      hasSurface: paintsSurface(style),
     });
   }
   return out;
