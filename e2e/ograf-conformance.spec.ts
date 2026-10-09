@@ -70,7 +70,7 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
   // mix, step count or state machine can produce a manifest a renderer would reject.
   const report = await page.evaluate(async () => {
     const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { buildOgrafManifest, scopeCssToGraphic, scopeMarkupStyles, graphicSelfSelector, assertScopedCss } = await import('/src/export/targets/ograf.ts');
+    const { buildOgrafManifest, scopeCssToGraphic, graphicMarkup, graphicSelfSelector, assertScopedCss } = await import('/src/export/targets/ograf.ts');
     const { validateOgrafManifest } = await import('/src/export/targets/ografSchema.ts');
     const failures: string[] = [];
     let checked = 0;
@@ -90,8 +90,9 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
       const self = graphicSelfSelector(template);
       try {
         assertScopedCss(template.css, scopeCssToGraphic(template.css, self), self);
-        // A <style> block in the markup goes through the same rewrite and gate (issue #789).
-        scopeMarkupStyles(template.html, self);
+        // The markup as the package injects it: its <style> blocks through the same rewrite and
+        // gate, its referenced ids made the design's own (issue #789).
+        graphicMarkup(template);
         scopedSheets += 1;
       } catch (err) {
         failures.push(`${template.name} (stylesheet): ${(err as Error).message}`);

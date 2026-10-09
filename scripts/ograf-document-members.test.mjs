@@ -46,8 +46,22 @@ const PASS_THROUGH = {
 };
 
 /** Roads to the renderer's page around the scoped `document`: any of them is a decision as well. */
-const ESCAPES = /\b(?:window|globalThis|self)\.(document|top|parent|frameElement|innerWidth|innerHeight|outerWidth|outerHeight|devicePixelRatio|visualViewport|screen|scrollX|scrollY|pageXOffset|pageYOffset|matchMedia)\b/g;
+const ESCAPES = new RegExp(
+  [
+    // Through the window object (the scoped window passes these through to the renderer's).
+    /\b(?:window|globalThis|self)\.(?:document|top|parent|frameElement|innerWidth|innerHeight|outerWidth|outerHeight|devicePixelRatio|visualViewport|screen|scrollX|scrollY|pageXOffset|pageYOffset|matchMedia)\b/.source,
+    // As bare globals, which no parameter of initTemplate shadows. (`top`, `parent` and `screen`
+    // are left out bare: they are ordinary words in the CSS and prose these sources carry.)
+    /(?<![\w$.])(?:innerWidth|innerHeight|outerWidth|outerHeight|devicePixelRatio|visualViewport|matchMedia|frameElement)\b/.source,
+    // A member the scan below cannot name.
+    /(?<![\w$.])document(?:\?\.|\s*\[)/.source,
+  ].join('|'),
+  'g',
+);
 const MEMBER = /(?<![\w$.])document\.([A-Za-z_$][\w$]*)/g;
+/** The events a runtime listens for on the document, which PASS_THROUGH.addEventListener's reason covers. */
+const DOCUMENT_EVENT = /(?<![\w$.])document\.addEventListener\(\s*(['"])([\w-]+)\1/g;
+const DECIDED_EVENTS = ['DOMContentLoaded'];
 
 /** The members `scopedDocument` answers for the graphic, read off the generated module's source. */
 function scopedMembers() {
@@ -65,16 +79,18 @@ function readMembers() {
   measured(files.length, 'template runtime source files');
   const members = new Map();
   const escapes = new Map();
+  const events = new Map();
   for (const file of files) {
     const text = readFileSync(path.join(ROOT, file), 'utf8');
     for (const m of text.matchAll(MEMBER)) if (!members.has(m[1])) members.set(m[1], file);
     for (const m of text.matchAll(ESCAPES)) if (!escapes.has(m[0])) escapes.set(m[0], file);
+    for (const m of text.matchAll(DOCUMENT_EVENT)) if (!events.has(m[2])) events.set(m[2], file);
   }
-  return { members, escapes };
+  return { members, escapes, events };
 }
 
 const scoped = scopedMembers();
-const { members, escapes } = readMembers();
+const { members, escapes, events } = readMembers();
 measured(members.size, 'document members the template runtimes read');
 
 test('scopedDocument scopes the lookups and the canvas', () => {
@@ -97,6 +113,14 @@ test('no template runtime reaches the renderer page around the scoped document',
     [...escapes].map(([read, file]) => `${read} (${file})`),
     [],
     'a template runtime reads the real page through window - under OGraf that is the renderer, not the canvas',
+  );
+});
+
+test('a runtime listens on the document only for the events its pass-through reason covers', () => {
+  assert.deepEqual(
+    [...events].filter(([event]) => !DECIDED_EVENTS.includes(event)).map(([event, file]) => `${event} (${file})`),
+    [],
+    "document.addEventListener reaches the renderer's page - a document-level event there is the renderer's, not the graphic's",
   );
 });
 

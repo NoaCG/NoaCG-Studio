@@ -784,61 +784,91 @@ export function assertScopedCss(original: string, scoped: string, self: string):
 
 // ── The markup's own document-wide carriers ─────────────────────────────────────────────────
 
-/** A `<style>` element in the markup: its open tag, its sheet and its close tag. */
-const MARKUP_STYLE = /(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi;
+/** A reference to an id inside CSS or an attribute value: `url(#x)`. */
+const URL_REF = /(url\(\s*['"]?#)([^'")\s]+)/gi;
 
-/**
- * The `<style>` blocks inside the MARKUP, re-addressed to the graphic's element exactly as the
- * template's own stylesheet is (`scopeCssToGraphic`, then the same fail-closed gate).
- *
- * An imported SVG carries the artwork's own sheet inside the inline `<svg>`, with Illustrator's
- * shared class names (`.st0`, `.cls-1`), and a hand-written template may carry a `<style>` in its
- * body. In a renderer's light DOM every such sheet is document-wide wherever it sits, so two
- * imported designs on two layers recoloured or hid each other's shapes (issue #789). A sheet
- * wrapped in `<![CDATA[ ]]>` (foreign content keeps it as text) or holding `<!--`/`-->` (no-ops to
- * CSS) is scoped inside them, so neither reaches the rewrite as a selector.
- */
-export function scopeMarkupStyles(html: string, self: string): string {
-  return html.replace(MARKUP_STYLE, (_whole, open: string, sheet: string, close: string) => {
-    const cdata = /^(\s*<!\[CDATA\[)([\s\S]*?)(\]\]>\s*)$/.exec(sheet);
-    const [lead, css, trail] = cdata ? [cdata[1], cdata[2], cdata[3]] : ['', sheet, ''];
-    const plain = css.replace(/<!--|-->/g, '');
-    return open + lead + assertScopedCss(plain, scopeCssToGraphic(plain, self), self) + trail + close;
-  });
+/** `url(#id)` references in a piece of CSS or an attribute, each renamed id swapped for its new one. */
+function renameUrlRefs(text: string, renames: Map<string, string>): string {
+  if (!renames.size) return text;
+  return text.replace(URL_REF, (whole, lead: string, id: string) => (renames.has(id) ? lead + renames.get(id) : whole));
 }
 
-/** An `id="..."` attribute in markup. */
-const ID_ATTR = /(\sid\s*=\s*)(["'])([^"']+)\2/gi;
-/** A reference to an id inside the markup: `url(#x)` in a sheet or a presentation attribute, `href="#x"`. */
-const URL_REF = /(url\(\s*(['"]?)#)([^'")\s]+)(\2\s*\))/gi;
-const HREF_REF = /(\b(?:xlink:)?href\s*=\s*(["'])#)([^"']+)(\2)/gi;
+/** A whole-token test for `word` in a text: not part of a longer identifier or id. */
+function namesToken(text: string, word: string): boolean {
+  return new RegExp(`(?<![\\w-])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`).test(text);
+}
 
 /**
  * The ids the markup REFERENCES - a gradient, a clip path, a mask, a pattern or a `<use>` target -
- * renamed to this design's own (`SVGID_1_` becomes `SVGID_1_--noacg-quiz-board`), references with
- * them.
+ * renamed to this design's own (`SVGID_1_` becomes `SVGID_1_--noacg-quiz-board`), references
+ * with them. The map of what was renamed comes back for the stylesheet's own references.
  *
- * Every Illustrator file names its first gradient `SVGID_1_`, and a reference resolves to the FIRST
- * element with that id in the document, so with two imported designs in one renderer the second
- * painted with the first one's gradient and lost it altogether when the first was taken off air
- * (issue #789). Only ids the markup itself references are renamed, and only where neither the
- * template's code nor a selector in its stylesheets names them: a field's `fN`, a behaviour's
- * layer and anything the code looks up keep their ids exactly as authored.
+ * Every Illustrator file names its first gradient `SVGID_1_`, and a reference resolves to the
+ * FIRST element with that id in the document, so with two imported designs in one renderer the
+ * second painted with the first one's gradient and lost it when the first was taken off air
+ * (issue #789). An id is left as authored when anything else may look it up: a field's id, an id
+ * the template's code names, or an id a selector names.
  */
-export function isolateMarkupIds(html: string, code: { js: string; css: string }, suffix: string): string {
-  const defined = new Set([...html.matchAll(ID_ATTR)].map((m) => m[3]));
-  const referenced = new Set([...html.matchAll(URL_REF), ...html.matchAll(HREF_REF)].map((m) => m[3]));
-  // Every selector text the design has, with the url() references taken out.
-  const selectors = [code.css, ...[...html.matchAll(MARKUP_STYLE)].map((m) => m[2])].join('\n').replace(/url\([^)]*\)/gi, '');
-  const named = (id: string) =>
-    code.js.includes(id) || new RegExp(`#${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`).test(selectors);
-  const renamed = new Set([...referenced].filter((id) => defined.has(id) && !named(id)));
-  if (!renamed.size) return html;
-  const own = (id: string) => (renamed.has(id) ? `${id}--${suffix}` : id);
-  return html
-    .replace(ID_ATTR, (_w, lead: string, q: string, id: string) => `${lead}${q}${own(id)}${q}`)
-    .replace(URL_REF, (_w, lead: string, _q: string, id: string, tail: string) => `${lead}${own(id)}${tail}`)
-    .replace(HREF_REF, (_w, lead: string, _q: string, id: string, tail: string) => `${lead}${own(id)}${tail}`);
+function isolateMarkupIds(root: DocumentFragment, template: SpxTemplate, suffix: string): Map<string, string> {
+  const fields = new Set(template.fields.map((f) => f.field));
+  const sheets = [template.css, ...Array.from(root.querySelectorAll('style'), (s) => s.textContent ?? '')];
+  const parsed = new CSSStyleSheet();
+  parsed.replaceSync(sheets.join('\n'));
+  const selectors = styleRuleSelectors(parsed.cssRules).join('\n');
+  const named = (id: string) => fields.has(id) || namesToken(template.js, id) || namesToken(selectors, `#${id}`);
+  const isHref = (attr: Attr) => /^(?:xlink:)?href$/i.test(attr.name) && attr.value.startsWith('#');
+  const elements = Array.from(root.querySelectorAll('*'));
+  const referenced = new Set<string>();
+  for (const el of elements) {
+    for (const attr of Array.from(el.attributes)) {
+      if (isHref(attr)) referenced.add(attr.value.slice(1));
+      for (const m of attr.value.matchAll(URL_REF)) referenced.add(m[2]);
+    }
+  }
+  for (const sheet of sheets.slice(1)) for (const m of sheet.matchAll(URL_REF)) referenced.add(m[2]);
+  const renames = new Map<string, string>();
+  for (const el of elements) {
+    if (el.id && referenced.has(el.id) && !named(el.id)) renames.set(el.id, `${el.id}--${suffix}`);
+  }
+  if (!renames.size) return renames;
+  for (const el of elements) {
+    if (renames.has(el.id)) el.id = renames.get(el.id)!;
+    for (const attr of Array.from(el.attributes)) {
+      if (isHref(attr)) attr.value = `#${renames.get(attr.value.slice(1)) ?? attr.value.slice(1)}`;
+      else attr.value = renameUrlRefs(attr.value, renames);
+    }
+    if (el.localName === 'style') el.textContent = renameUrlRefs(el.textContent ?? '', renames);
+  }
+  return renames;
+}
+
+/**
+ * The design's markup as graphic.mjs injects it, with its own document-wide carriers kept to
+ * the graphic's element, and the ids it renamed (which the stylesheet's references follow).
+ *
+ * An imported SVG carries the artwork's own `<style>` inside the inline `<svg>`, with
+ * Illustrator's shared class names (`.st0`, `.cls-1`) and ids, and a hand-written template may
+ * carry a `<style>` in its body. In a renderer's light DOM every such sheet and id is
+ * document-wide wherever it sits, so two imported designs on two layers recoloured or hid each
+ * other's shapes (issue #789). So the referenced ids become this design's own
+ * (`isolateMarkupIds`), and every `<style>` is re-addressed to the element and checked exactly as
+ * the template's stylesheet is. The markup is PARSED for this, the way the renderer parses it,
+ * so a sheet's entities, CDATA and comments and a self-closing `<style/>` in SVG mean what they
+ * mean on air. Markup with neither a style nor a renamed id comes back byte for byte.
+ */
+export function graphicMarkup(template: SpxTemplate): { html: string; renames: Map<string, string> } {
+  const html = bodyContent(templateHtmlForModule(template));
+  const holder = document.createElement('template');
+  holder.innerHTML = html;
+  const renames = isolateMarkupIds(holder.content, template, ografGraphicId(template.name));
+  const styles = Array.from(holder.content.querySelectorAll('style'));
+  if (!styles.length && !renames.size) return { html, renames };
+  const self = graphicSelfSelector(template);
+  for (const style of styles) {
+    const css = style.textContent ?? '';
+    style.textContent = assertScopedCss(css, scopeCssToGraphic(css, self), self);
+  }
+  return { html: holder.innerHTML, renames };
 }
 
 /**
@@ -922,13 +952,11 @@ function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB):
   const self = graphicSelfSelector(template);
   // Re-addressed to the element, then checked by the browser's parser - the export refuses
   // rather than ship a rule that would reach the renderer's page.
-  const scopedCss = assertScopedCss(template.css, scopeCssToGraphic(template.css, self), self);
-  // The markup's own carriers get the same treatment: its referenced ids become this design's,
-  // and its <style> blocks are scoped and checked like the stylesheet.
-  const markup = scopeMarkupStyles(
-    isolateMarkupIds(bodyContent(templateHtmlForModule(template)), template, graphicId),
-    self,
-  );
+  // The markup's own carriers get the same treatment: its referenced ids become this design's
+  // (the stylesheet's references follow them), and its <style> blocks are scoped and checked.
+  const markup = graphicMarkup(template);
+  const css = renameUrlRefs(template.css, markup.renames);
+  const scopedCss = assertScopedCss(css, scopeCssToGraphic(css, self), self);
   const usesLottie = templateUsesLottie(template);
   const ensureLottieFn = usesLottie
     ? `
@@ -984,7 +1012,7 @@ function ensureFlexGap() {
   });
 }${ensureLottieFn}
 
-const TEMPLATE_HTML = ${JSON.stringify(markup)};
+const TEMPLATE_HTML = ${JSON.stringify(markup.html)};
 
 // This design's manifest id, stamped on the element at load() as data-noacg-graphic. Every
 // rule in TEMPLATE_CSS is scoped under that attribute (the studio's \`html, body\` and \`:root\`
@@ -1174,6 +1202,12 @@ function scopedWindow(names) {
  * (docs/SPX_ON_A_REAL_SERVER.md §10). So a string target given to GSAP's own target-taking
  * calls is resolved inside this Graphic (the element itself included, being the template's
  * \`html\` and \`body\`); element targets and everything else are GSAP itself.
+ *
+ * A TIMELINE resolves its own string targets the same document-wide way, and the animation
+ * interpreter and the catalog's presets build every entrance and exit as \`tl.set('.x', ...)\`,
+ * \`tl.fromTo('.x-box', ...)\`. Two imported designs share their class names (\`imported-design\`),
+ * so the second one's entrance also drove the first one's root (issue #789). So a timeline this
+ * gsap makes resolves its string targets inside this Graphic too.
  */
 function scopedGsap(root) {
   const real = window.gsap;
@@ -1186,6 +1220,14 @@ function scopedGsap(root) {
   for (const name of ['to', 'from', 'fromTo', 'set', 'killTweensOf', 'getTweensOf', 'isTweening', 'quickSetter', 'quickTo']) {
     scoped[name] = (targets, ...rest) => real[name](own(targets), ...rest);
   }
+  scoped.timeline = (...args) => {
+    const tl = real.timeline(...args);
+    for (const name of ['to', 'from', 'fromTo', 'set']) {
+      const method = tl[name];
+      tl[name] = function (targets, ...rest) { return method.call(this, own(targets), ...rest); };
+    }
+    return tl;
+  };
   // getProperty reads ONE element; given a string it takes the first match, given a list it fails.
   scoped.getProperty = (target, ...rest) => {
     if (typeof target !== 'string') return real.getProperty(target, ...rest);

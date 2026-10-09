@@ -196,10 +196,11 @@ export-time reflow, stretching, or cropping.
   with the element for the same reason - the studio's `--scale` reads and `body.clientWidth`
   measure the canvas, not the host page. Pinned by `e2e/ograf-conformance.spec.ts` (host page
   untouched, frame pixel-identical to the studio document, every catalog sheet scoped).
-  The MARKUP's own carriers are re-addressed at export too (issue #789): its `<style>` blocks
-  through the same rewrite and gate (`scopeMarkupStyles`), and the ids it references
-  (Illustrator's `SVGID_1_`) renamed to the design's own unless code or a selector names them
-  (`isolateMarkupIds`). `load()` makes the markup the element's own children after its one
+  The MARKUP's own carriers are re-addressed at export too (`graphicMarkup`, issue #789): it is
+  parsed as a renderer parses it, its `<style>` blocks go through the same rewrite and gate, and
+  the ids it references (Illustrator's `SVGID_1_`) are renamed to the design's own, references in
+  `template.css` with them, unless a field, the code or a selector names them. `load()` makes the
+  markup the element's own children after its one
   stylesheet, with no wrapper, so `body > .x` matches. Pinned by `e2e/ograf-isolation.spec.ts`.
   Which `document` members `scopedDocument` answers is not hand-kept:
   `scripts/ograf-document-members.test.mjs` fails on a member a template runtime reads that is
@@ -274,7 +275,8 @@ export-time reflow, stretching, or cropping.
   ships none). Beside it sits `v_spx`, SPX's own vendor keys (root layer and out mode, each
   property's SPX field type), and the `ograf` target adds `spx-custom-actions.js` to a graphic
   with custom actions, the controller function SPX 1.4.1 lacks. The Graphic also hands its
-  template a `gsap` that resolves selector strings inside itself (`scopedGsap`) and starts its
+  template a `gsap` that resolves selector strings inside itself, in the timelines it makes too
+  (`scopedGsap`), and starts its
   element from initial values against the host's styles. Why, measured: docs/SPX_ON_A_REAL_SERVER.md §10.
 - **targets/ografImport.ts** - the READER: `readOgrafPackage(files)` finds the shallowest
   manifest, validates manifest + package, reads `v_noacg` (`readNoacgVendorBlock`), compares the

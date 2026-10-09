@@ -282,8 +282,10 @@ disagree with each other.
   `<style>` block inside it (an imported SVG carries the artwork's own, with Illustrator's shared
   `.st0` names) is re-addressed and checked the same way, and the ids the markup references -
   Illustrator's `SVGID_1_` gradients, clip paths, patterns, `<use>` targets - are renamed to the
-  design's own unless its code or a selector names them. So two imported designs on two layers no
-  longer recolour or hide each other (`e2e/ograf-isolation.spec.ts`). The markup becomes the
+  design's own unless a field, its code or a selector names them. Every imported design shares
+  the same class names, so the timelines a Graphic's `gsap` makes resolve their string targets
+  inside it as well. So two imported designs on two layers no longer recolour, hide or animate
+  each other (`e2e/ograf-isolation.spec.ts`). The markup becomes the
   element's own children after ONE stylesheet, which is the element's first child: a `body > .x`
   rule reaches the design's top-level elements, and `document.body.children` lists the stylesheet
   and then the design. The element is authored-size: a block of the
@@ -302,8 +304,9 @@ disagree with each other.
   are fine, which is the arrangement a Web Component renderer actually uses: each Graphic runs
   against a `document` scoped to itself, so its `getElementById('fN')` lookups cannot reach a
   neighbour's identically-named field, and disposing one leaves the others running. Two instances
-  of the *same* design still collide, because the design's motion is keyed on its own class names
-  and those are shared by both copies. Give the second copy its own document or frame.
+  of the *same* design still collide: the copies share one manifest id, which a renderer that
+  registers the element by id cannot define twice, and the ids their artwork references. Give the
+  second copy its own document or frame.
 - **In SPX 1.4.1** the package plays as imported, on the layer its `v_spx` names, with SPX's own
   controls. Custom actions fire only once the project loads `spx-custom-actions.js` as its
   function library, because SPX's controller calls a `customActionHandler` it never defines; the
