@@ -35,6 +35,8 @@ function describe(el: Element): string {
 
 function paintsSurface(style: CSSStyleDeclaration): boolean {
   if (style.backgroundImage && style.backgroundImage !== 'none') return true;
+  // A glass panel: a faint tint over a blurred backdrop still reads as the band.
+  if (style.backdropFilter && style.backdropFilter !== 'none') return true;
   const bg = style.backgroundColor;
   if (!bg || bg === 'transparent') return false;
   const alpha = bg.match(/rgba\([^)]*,\s*([\d.]+)\s*\)/)?.[1];
