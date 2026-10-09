@@ -50,7 +50,8 @@ means launch nothing and run `next` again.
   `answered <answer>`, then run `next` again.
 - **done** or **time-limit**: write the report.
 
-Sessions, each in its own worktree on `<tool>/plan-<plan>-p<phase>-<build|check|repair>`:
+Sessions, each in its own worktree on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on
+a second check):
 
 - **Claude Code:** the Agent tool with `run_in_background`, agent `wave-row`. Each finished session
   wakes you; while you wait on a landing, a background `sleep 1800` is the fallback wake.
