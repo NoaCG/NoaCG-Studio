@@ -37,7 +37,7 @@
 // and a plan in the legacy `docs/handoffs/` location, which is what lets the weekly review read
 // across the move without a second pattern to keep in step.
 
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -132,8 +132,9 @@ export function openWaves(dir = jobsDir(), now = Date.now(), except = '') {
 
 /**
  * The open NIGHT wave whose window has not ended, or null: while it runs, nobody is there to
- * answer its sessions' questions (scripts/hooks/guard-question.mjs). A day wave and a plan run run with the
- * owner near, and a night wave past its `Window ends:` line is over even if its report is missing.
+ * answer its sessions' questions (scripts/hooks/guard-question.mjs). A day wave and a plan run
+ * run with the owner near, and a night wave past its `Window ends:` line is over even if its
+ * report is missing.
  * A night wave with no readable window end counts as running.
  */
 export function openNightWave(dir = jobsDir(), now = Date.now()) {
@@ -148,8 +149,9 @@ export function openNightWave(dir = jobsDir(), now = Date.now()) {
  * Open a wave: refuse a window past the 24-hour ceiling and a second live wave, then create the
  * plan with its window lines, or hand back the existing one when this same wave is resumed. A
  * resumed wave is measured from the start its file records, so a restart cannot stretch it.
- * `session` (the opener's `CLAUDE_CODE_SESSION_ID`) is added as a `Session:` line, once per
- * session, so a resume after a restart records the new one too. Returns `{ file }` or `{ refusal }`.
+ * `session` (the opener's `CLAUDE_CODE_SESSION_ID`) is added as a `Session:` line under the window
+ * lines, once per session, so a resume after a restart records the new one too.
+ * Returns `{ file }` or `{ refusal }`.
  */
 export function openWave({ date, kind, until, session, dir = jobsDir(), now = Date.now() }) {
   const name = wavePlanName(date, kind);
@@ -174,17 +176,31 @@ export function openWave({ date, kind, until, session, dir = jobsDir(), now = Da
   if (!existsSync(file)) {
     writeFileSync(file, `${waveTitle(date, kind)}\n\nWindow starts: ${new Date(now).toISOString()}\nWindow ends: ${until}\n`, 'utf8');
   }
-  if (session && !waveSessions(file).includes(session)) appendFileSync(file, `Session: ${session}\n`, 'utf8');
+  if (session && !waveSessions(file).includes(session)) {
+    const text = readFileSync(file, 'utf8');
+    const block = SESSION_BLOCK.exec(text);
+    if (block) {
+      const at = block.index + block[0].length;
+      writeFileSync(file, `${text.slice(0, at)}Session: ${session}\n${text.slice(at)}`, 'utf8');
+    }
+  }
   return { file };
 }
 
 /**
- * The Claude Code sessions that opened or resumed this wave, from its `Session:` lines. A row the
- * orchestrator launches with the Agent tool runs under the orchestrator's session id, so these
- * name the wave's own sessions, rows included, and nobody else's (scripts/hooks/guard-question.mjs).
+ * The `Window ends:` line and the `Session:` lines directly under it. Sessions are written there and
+ * read only there, so a `Session:` in the prompt, the log or the report can never name one.
+ */
+const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
+
+/**
+ * The Claude Code sessions that opened or resumed this wave. A row the orchestrator launches with
+ * the Agent tool runs under the orchestrator's session id, so these name the wave's own sessions,
+ * rows included, and nobody else's (scripts/hooks/guard-question.mjs).
  */
 export function waveSessions(file) {
-  return [...readFileSync(file, 'utf8').matchAll(/^Session: (\S+)/gm)].map((match) => match[1]);
+  const block = SESSION_BLOCK.exec(readFileSync(file, 'utf8'))?.[0] ?? '';
+  return [...block.matchAll(/^Session: (\S+)/gm)].map((match) => match[1]);
 }
 
 const USAGE = `Usage: node scripts/wave-plan-store.mjs --path <YYYY-MM-DD> <day|night|plan-<plan>>
@@ -211,7 +227,8 @@ export function main(argv = process.argv.slice(2)) {
     const at = argv.indexOf('--until');
     let opened;
     try {
-      opened = openWave({ date: argv[1], kind: argv[2], until: at === -1 ? undefined : argv[at + 1], session: process.env.CLAUDE_CODE_SESSION_ID || undefined });
+      const until = at === -1 ? undefined : argv[at + 1];
+      opened = openWave({ date: argv[1], kind: argv[2], until, session: process.env.CLAUDE_CODE_SESSION_ID || undefined });
     } catch (error) {
       process.stderr.write(`wave-plan-store: ${error.message}\n\n${USAGE}\n`);
       return 2;
@@ -219,6 +236,10 @@ export function main(argv = process.argv.slice(2)) {
     if (opened.refusal) {
       process.stderr.write(`wave-plan-store: ${opened.refusal}\n`);
       return 1;
+    }
+    if (!process.env.CLAUDE_CODE_SESSION_ID) {
+      process.stderr.write('wave-plan-store: no CLAUDE_CODE_SESSION_ID here, so no session is recorded and the question ' +
+        'guard cannot tell this wave\'s own sessions.\n');
     }
     process.stdout.write(`${opened.file}\n`);
     return 0;

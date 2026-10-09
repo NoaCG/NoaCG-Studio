@@ -3,7 +3,8 @@
 // question is refused with the three-kinds rule; a tagged question with a recommended option
 // passes; a tagged question without a recommendation is refused; more than one question per call
 // is refused; a wave-row subagent may not ask at all; an open night wave's own sessions (its
-// orchestrator and its rows) may not ask, while every other session and a day wave may; other tools and malformed input pass through; and the hook is wired.
+// orchestrator and its rows) may not ask, while every other session and a day wave may; other
+// tools and malformed input pass through; and the hook is wired.
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

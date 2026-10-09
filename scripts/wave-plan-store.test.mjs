@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { inStore, openNightWave, openWave, waveSessions, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
+import { inStore, main, openNightWave, openWave, waveSessions, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
 
 /** A throwaway job store, so nothing here can touch the machine's real one. */
 function store() {
@@ -176,12 +176,36 @@ test('opening a wave records the opening session once, and a resume after a rest
   assert.deepEqual(waveSessions(first.file), ['orch-1']);
   openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-1', dir, now: NOW + 60_000 });
   assert.deepEqual(waveSessions(first.file), ['orch-1'], 'the same session is not written twice');
-  writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}- 23:10 launched A\n`, 'utf8');
+  // The log after the header may end without a newline, use CRLF, or quote a `Session:` line.
+  const logged = `${readFileSync(first.file, 'utf8')}\nPrompt: Session: owner-9 asked about X\nSession: stray\n- 23:10 launched A`;
+  writeFileSync(first.file, logged.replace(/\n/g, '\r\n'), 'utf8');
+  assert.deepEqual(waveSessions(first.file), ['orch-1'], 'only the lines under the window count');
   openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-2', dir, now: NOW + 120_000 });
   assert.deepEqual(waveSessions(first.file), ['orch-1', 'orch-2']);
-  assert.match(readFileSync(first.file, 'utf8'), /launched A/);
+  assert.match(readFileSync(first.file, 'utf8'), /launched A$/);
   const anonymous = openWave({ date: '2026-10-08', kind: 'day', until, dir: store(), now: NOW });
   assert.deepEqual(waveSessions(anonymous.file), [], 'no session, no line');
+});
+
+test('the command line records the session it runs in', () => {
+  const dir = store();
+  const saved = { jobs: process.env.NOACG_JOBS_DIR, session: process.env.CLAUDE_CODE_SESSION_ID };
+  const out = process.stdout.write;
+  let printed = '';
+  try {
+    process.env.NOACG_JOBS_DIR = dir;
+    process.env.CLAUDE_CODE_SESSION_ID = 'orch-cli';
+    process.stdout.write = (chunk) => { printed += chunk; return true; };
+    const until = new Date(Date.now() + 3_600_000).toISOString();
+    assert.equal(main(['--open', until.slice(0, 10), 'night', '--until', until]), 0);
+  } finally {
+    process.stdout.write = out;
+    for (const [key, value] of [['NOACG_JOBS_DIR', saved.jobs], ['CLAUDE_CODE_SESSION_ID', saved.session]]) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+  assert.deepEqual(waveSessions(printed.trim()), ['orch-cli']);
 });
 
 // A PLAN RUN opens through the same store, so it and a wave exclude each other with one check.
