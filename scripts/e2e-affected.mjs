@@ -42,6 +42,7 @@ import {
 } from './e2e-durations.mjs';
 import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
 import { editedSpecs, planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
+import { WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
 
 /**
  * THE QUARANTINE, applied to a plan. A spec in e2e/quarantine.json failed and then passed on one
@@ -667,6 +668,27 @@ export function runPlan(plan, runOne) {
   return { status, runs };
 }
 
+/**
+ * WHAT A RUN MAY DO ON THIS MACHINE. The whole suite runs on GitHub Actions: CI plans every pull
+ * request and every merge group from this same file and runs the plan there, sharded. So off CI a
+ * plan that is the whole suite (`full`, `--all`) or its stand-in (the sprint focus set an
+ * escalation collapses to) is refused, and the catalog gate, a whole-catalog run, is left to CI.
+ * A mapped subset runs as before, whatever its size: it is targeted, and a risky change or a CI
+ * failure to reproduce may need a large one.
+ *
+ * @param {{ mode: 'none'|'subset'|'full', focusApplied?: boolean, catalog?: boolean }} plan
+ * @param {{ ci?: boolean }} where  `ci` is true on GitHub Actions
+ * @returns {{ refusal: string|null, catalog: boolean }} the refusal to print, or null, and whether
+ *   the catalog gate runs here
+ */
+export function localRunPolicy({ mode, focusApplied = false, catalog = false }, { ci = false } = {}) {
+  if (ci) return { refusal: null, catalog };
+  return { refusal: mode === 'full' || focusApplied ? WHOLE_SUITE_ON_GITHUB : null, catalog: false };
+}
+
+/** True on GitHub Actions, the one place the whole suite runs. Not `CI`: local tools set that too. */
+const onCi = () => process.env.GITHUB_ACTIONS === 'true';
+
 /** The one-line verdict, naming each run - so a red overall status says WHICH run went red. */
 export function summariseRuns(runs, status) {
   const parts = runs.map((r) => `${r.name} ${r.status === 0 ? 'passed' : `FAILED (exit ${r.status})`}`);
@@ -679,7 +701,7 @@ export function summariseRuns(runs, status) {
  * git call there rather than to wherever the process was started.
  */
 function gitIn(cwd, ...cmd) {
-  return execFileSync('git', cmd, { encoding: 'utf8', ...(cwd ? { cwd } : {}) }).trim();
+  return execFileSync('git', cmd, { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true }).trim();
 }
 
 /**
@@ -697,7 +719,7 @@ function gitIn(cwd, ...cmd) {
  * @returns {string[]} repo-relative paths, forward slashes, deduplicated
  */
 export function changedFilesSince(base, cwd = undefined) {
-  const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}) };
+  const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true };
   const committed = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], opts).trim().split('\n');
   const working = execFileSync('git', ['status', '--porcelain'], opts)
     .split('\n')
@@ -730,7 +752,7 @@ export function copyContext(base, changed, cwd = undefined) {
     if (!COPY_PATH_FILE.test(file)) continue;
     let before;
     try {
-      before = execFileSync('git', ['show', `${old}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}) });
+      before = execFileSync('git', ['show', `${old}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}), windowsHide: true });
     } catch {
       continue;
     }
@@ -784,7 +806,7 @@ const MEASURES_GEOMETRY = /scrollHeight|scrollWidth|clientHeight|clientWidth|off
 function mainRefs(cwd) {
   return ['main', 'origin/main'].filter(
     (ref) =>
-      spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore', cwd }).status === 0,
+      spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore', cwd, windowsHide: true }).status === 0,
   );
 }
 
@@ -821,7 +843,7 @@ export function headIsMainMerge(cwd = undefined) {
 
 /** True when `maybeAncestor` is contained in `ref`. Exit status, so no output to parse. */
 function isAncestor(maybeAncestor, ref, cwd) {
-  return spawnSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], { stdio: 'ignore', cwd }).status === 0;
+  return spawnSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], { stdio: 'ignore', cwd, windowsHide: true }).status === 0;
 }
 
 /**
@@ -1090,7 +1112,7 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [] }, { count, noun, hypothetical }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [] }, { count, noun, hypothetical, catalogHere = true }) {
   if (copyOnly.length > 0) {
     log(`e2e-affected: ${copyOnly.length} file(s) changed only wording or class styling - planned by the specs that name what changed (scripts/e2e-affected-copy.mjs):`);
     for (const f of copyOnly) log('  -', f);
@@ -1106,13 +1128,13 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
     for (const f of unmapped) log('  -', f);
   }
   if (focusApplied) {
-    log(`e2e-affected: SPRINT FOCUS - a core/unmapped ${hypothetical ? 'path' : 'change'} would run the full suite (${specFilesOnDisk().length} files); running the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
+    log(`e2e-affected: SPRINT FOCUS - a core/unmapped ${hypothetical ? 'path' : 'change'} would run the full suite (${specFilesOnDisk().length} files); the plan is the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
   }
   if (mode === 'full') {
     log(
       hypothetical
         ? `e2e-affected: core/unmapped path(s) detected - the FULL suite would run (${count} path(s)).`
-        : `e2e-affected: core/unmapped change detected - running the FULL suite (${count} changed files).`,
+        : `e2e-affected: core/unmapped change detected - the plan is the FULL suite (${count} changed files).`,
     );
   } else if (mode === 'none') {
     log(
@@ -1125,11 +1147,10 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
     for (const s of plan) log('  -', s);
   }
   if (catalogAffected) {
-    log(
-      hypothetical
-        ? 'e2e-affected: catalog/bench-affecting path detected - would also run npm run test:e2e:catalog.'
-        : 'e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.',
-    );
+    let catalogLine = 'e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.';
+    if (hypothetical) catalogLine = 'e2e-affected: catalog/bench-affecting path detected - would also run npm run test:e2e:catalog.';
+    else if (!catalogHere) catalogLine = 'e2e-affected: catalog/bench-affecting change detected - the catalog gate runs on GitHub Actions; here, run the battery `node scripts/catalog-affected.mjs` prints.';
+    log(catalogLine);
   }
 }
 
@@ -1206,10 +1227,14 @@ function main() {
       emitJson({ mode: 'full', specs: [], catalog: true, base: null, changedFiles: null });
       return 0;
     }
-    log('e2e-affected: --all - running the FULL suite and the catalog gate, with no diff.');
+    log('e2e-affected: --all - the FULL suite and the catalog gate, with no diff.');
     if (listOnly) return 0;
+    if (!onCi()) {
+      console.error(WHOLE_SUITE_ON_GITHUB);
+      return 2;
+    }
     const { status, runs } = runPlan({ mode: 'full', specs: [], catalog: true }, ({ args: a }) =>
-      spawnSync('npx', a, { stdio: 'inherit', shell: true }).status,
+      spawnSync('npx', a, { stdio: 'inherit', shell: true, windowsHide: true }).status,
     );
     log(summariseRuns(runs, status));
     return status;
@@ -1264,7 +1289,8 @@ function main() {
     emitJson({ mode: 'none', specs: [], catalog: false, base, changedFiles: changed });
     return 0;
   }
-  narratePlan(log, planResult, { count: changed.length, noun: 'changed files', hypothetical: false });
+  const here = localRunPolicy(planResult, { ci: onCi() });
+  narratePlan(log, planResult, { count: changed.length, noun: 'changed files', hypothetical: false, catalogHere: here.catalog });
   if (mode === 'none') return 0;
 
   if (asJson) {
@@ -1287,10 +1313,14 @@ function main() {
     log(`e2e-affected: skipping ${plan.length - local.specs.length} quarantined spec(s) (e2e/quarantine.json): ${plan.filter((s) => !local.specs.includes(s)).join(', ')}`);
   }
   if (listOnly) return 0;
+  if (here.refusal) {
+    console.error(here.refusal);
+    return 2;
+  }
 
   const { status, runs } = runPlan(
-    { ...local, catalog: catalogAffected },
-    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true }).status,
+    { ...local, catalog: here.catalog },
+    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true, windowsHide: true }).status,
   );
   if (runs.length > 1 || status !== 0) log(summariseRuns(runs, status));
   return status;

@@ -31,7 +31,7 @@ const noDelegations = () => ({ status: 0, stdout: 'No stale Codex jobs found.', 
 const HOUR = 60;
 
 function runGit(cwd, ...args) {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   assert.equal(res.status, 0, `git ${args.join(' ')} failed:\n${res.stderr || res.stdout}`);
   return res.stdout.trim();
 }
@@ -119,7 +119,7 @@ function sweep(repo, { landed = [], jobs = [] } = {}) {
 }
 
 const branchExists = (primary, branch) =>
-  spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`], { cwd: primary }).status === 0;
+  spawnSync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`], { cwd: primary, windowsHide: true }).status === 0;
 const registered = (primary, path) => runGit(primary, 'worktree', 'list', '--porcelain').includes(normalize(path));
 
 test('a landed session worktree goes - worktree, branch and port - once it has been quiet a day', (t) => {
@@ -213,7 +213,7 @@ test('a worktree a process is sitting in is left exactly as it is, then goes onc
   quiet(repo, wt.path, 30 * HOUR);
 
   // A process whose working directory is inside the worktree - a shell, a dev server, a session.
-  const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: wt.path, stdio: 'ignore' });
+  const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: wt.path, stdio: 'ignore', windowsHide: true });
   t.after(() => holder.kill());
   await new Promise((done) => holder.once('spawn', done));
 

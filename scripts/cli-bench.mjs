@@ -33,9 +33,9 @@ for (let waited = 0, runs = activeRuns({ excludePids: mine }); runs.length > 0; 
 }
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const build = spawnSync(npm, ['run', 'build'], { cwd: cli, stdio: 'inherit', shell: process.platform === 'win32' });
+const build = spawnSync(npm, ['run', 'build'], { cwd: cli, stdio: 'inherit', shell: process.platform === 'win32', windowsHide: true });
 if (build.status !== 0) process.exit(build.status ?? 1);
 
 console.log(`[cli-bench] NOACG_URL=${url}`);
-const test = spawnSync(process.execPath, ['--test', 'test/smoke.test.mjs'], { cwd: cli, stdio: 'inherit', env: { ...process.env, NOACG_URL: url } });
+const test = spawnSync(process.execPath, ['--test', 'test/smoke.test.mjs'], { cwd: cli, stdio: 'inherit', env: { ...process.env, NOACG_URL: url }, windowsHide: true });
 process.exit(test.status ?? 1);

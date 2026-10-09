@@ -58,7 +58,7 @@ let files = changedFiles(previous, sha);
 if (files === null) {
   // Shallow clone: pull down enough history for the diff, then ask once more.
   try {
-    execFileSync('git', ['fetch', '--deepen=100'], { stdio: 'ignore' });
+    execFileSync('git', ['fetch', '--deepen=100'], { stdio: 'ignore', windowsHide: true });
   } catch {
     // Nothing to do - the retry below decides.
   }

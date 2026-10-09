@@ -46,8 +46,9 @@ cleanup that would ripple into unchanged code stays a report.
 
 ## 4. Verify
 
-Follow `.agent-workflows/verify.md`: the acceptance criteria, the checks this change needs, the
-loop, the evidence, and the owner only where judgment adds value.
+Follow `.agent-workflows/verify.md`: the acceptance criteria, the targeted checks this change
+needs, the loop, the evidence, and the owner only where judgment adds value. A passing verify leg
+needs no local build or suite run: the pull request's CI runs those before anything lands.
 
 ## 5. Commit, stamp, report
 

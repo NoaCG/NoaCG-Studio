@@ -12,7 +12,7 @@ import { outDir } from './out-dir.mjs';
 
 const out = outDir(process.argv[2], 'acceptance-out', 'Usage: node scripts/acceptance-shots.mjs [out-dir]');
 mkdirSync(out, { recursive: true });
-const port = execSync('node scripts/dev-port.mjs').toString().trim();
+const port = execSync('node scripts/dev-port.mjs', { windowsHide: true }).toString().trim();
 const base = `http://localhost:${port}`;
 
 const browser = await chromium.launch();

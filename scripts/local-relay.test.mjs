@@ -24,7 +24,7 @@ const relayDir = path.join(here, '..', 'src', 'export', 'local-relay');
 
 function hasCommand(cmd, args = ['--version']) {
   try {
-    const r = spawnSync(cmd, args, { stdio: 'ignore', timeout: 8000 });
+    const r = spawnSync(cmd, args, { stdio: 'ignore', timeout: 8000, windowsHide: true });
     return r.error === undefined && r.status === 0;
   } catch {
     return false;
@@ -61,9 +61,10 @@ function startRelay(kind, dir, port) {
   if (kind === 'ps1') {
     return spawn(powershell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(dir, 'relay.ps1'), '-Port', String(port)], {
       stdio: 'ignore',
+      windowsHide: true,
     });
   }
-  return spawn(python, [path.join(dir, 'relay.py'), String(port)], { stdio: 'ignore' });
+  return spawn(python, [path.join(dir, 'relay.py'), String(port)], { stdio: 'ignore', windowsHide: true });
 }
 
 async function runConformance(kind, basePort) {

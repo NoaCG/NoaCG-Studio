@@ -26,6 +26,7 @@ import {
   copyContext,
   headIsMainMerge,
   integrationBase,
+  localRunPolicy,
   packShards,
   parseArgs,
   planFor,
@@ -380,14 +381,14 @@ test('a merge commit plans from the fork point, so the catalog gate is not skipp
   // stderr is swallowed on purpose: git narrates every checkout and every CRLF conversion, and
   // this test's output should be its assertions, not a second git log.
   const git = (...args) =>
-    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
   const write = (rel, body) => {
     mkdirSync(dirname(join(repo, rel)), { recursive: true });
     writeFileSync(join(repo, rel), body);
   };
   const cli = fileURLToPath(new URL('./e2e-affected.mjs', import.meta.url));
   const plan = (...args) =>
-    JSON.parse(execFileSync(process.execPath, [cli, ...args], { cwd: repo, encoding: 'utf8' }));
+    JSON.parse(execFileSync(process.execPath, [cli, ...args], { cwd: repo, encoding: 'utf8', windowsHide: true }));
 
   try {
     git('init', '-b', 'main');
@@ -827,7 +828,7 @@ test('the base resolvers answer for the repository they are given, before and af
   // stderr swallowed on purpose: git narrates every checkout, and this test's output should be
   // its assertions rather than a second git log.
   const git = (...args) =>
-    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
   const write = (rel, text) => {
     mkdirSync(dirname(join(repo, rel)), { recursive: true });
     writeFileSync(join(repo, rel), text);
@@ -883,7 +884,7 @@ test('the base resolvers answer for the repository they are given, before and af
 test('a stale local main plans only the changed specs, whichever main ref is fresh', () => {
   const repo = mkdtempSync(join(tmpdir(), 'e2e-affected-stale-'));
   const git = (...args) =>
-    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
   const write = (rel, text) => {
     mkdirSync(dirname(join(repo, rel)), { recursive: true });
     writeFileSync(join(repo, rel), text);
@@ -1218,6 +1219,7 @@ test('--files maps a covered path through the same index a ref diff would use', 
     execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', 'src/legal.css'], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
+      windowsHide: true,
     }),
   );
   const direct = planFor(['src/legal.css']);
@@ -1235,6 +1237,7 @@ test('--files reports an unmapped path exactly like the ref mode does', () => {
     execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', unknown], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
+      windowsHide: true,
     }),
   );
   assert.equal(out.mode, 'full');
@@ -1252,6 +1255,7 @@ test('--files prints the CONFIGURED-deployment notice, exactly like the ref mode
   const out = execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--list', '--files', file], {
     encoding: 'utf8',
     cwd: REPO_ROOT,
+    windowsHide: true,
   });
   assert.match(out, /CONFIGURED deployment/);
   assert.match(out, /test:e2e:live:queued/);
@@ -1461,7 +1465,7 @@ test('copy path: a wording edit plans only the specs that name it, while a logic
 test('copy path: a branch reads each edit from its merge-base and its working tree', () => {
   const repo = mkdtempSync(join(tmpdir(), 'e2e-affected-copy-'));
   const git = (...args) =>
-    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
   const write = (rel, text) => {
     mkdirSync(dirname(join(repo, rel)), { recursive: true });
     writeFileSync(join(repo, rel), text);
@@ -1547,4 +1551,22 @@ test('copy path: the scanner reads every .tsx in src exactly as the TypeScript p
     }
     assert.deepEqual(got.sort(), want.sort(), file);
   }
+});
+
+test('off CI a whole-suite plan is refused, and a one- or two-spec plan runs', () => {
+  const two = { mode: 'subset', specs: ['project.spec.ts', 'wizard.spec.ts'], catalog: false };
+  for (const plan of [{ ...two, specs: ['project.spec.ts'] }, two]) {
+    const here = localRunPolicy(plan);
+    assert.equal(here.refusal, null);
+    assert.deepEqual(runsFor({ ...plan, catalog: here.catalog }), [
+      { name: 'suite', args: ['playwright', 'test', ...plan.specs] },
+    ]);
+  }
+  // The whole suite, and the focus set an escalation collapses to, go to GitHub Actions.
+  for (const plan of [{ mode: 'full', specs: [], catalog: true }, { mode: 'subset', specs: ['a.spec.ts'], focusApplied: true }]) {
+    assert.match(localRunPolicy(plan).refusal, /runs on GitHub Actions/);
+  }
+  // The catalog gate is a whole-catalog run: left to CI here, kept on CI.
+  assert.equal(localRunPolicy({ ...two, catalog: true }).catalog, false);
+  assert.deepEqual(localRunPolicy({ mode: 'full', specs: [], catalog: true }, { ci: true }), { refusal: null, catalog: true });
 });

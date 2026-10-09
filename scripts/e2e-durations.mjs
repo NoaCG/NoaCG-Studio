@@ -520,7 +520,7 @@ function writeTable(minutes, source, overhead) {
 }
 
 function run(cmd, cmdArgs, opts = {}) {
-  return execFileSync(cmd, cmdArgs, { encoding: 'utf8', shell: process.platform === 'win32', ...opts });
+  return execFileSync(cmd, cmdArgs, { encoding: 'utf8', shell: process.platform === 'win32', ...opts, windowsHide: true });
 }
 
 /**

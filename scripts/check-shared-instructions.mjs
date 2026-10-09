@@ -248,7 +248,7 @@ function repoFiles() {
   const result = spawnSync(
     'git',
     ['ls-files', '--cached', '--others', '--exclude-standard'],
-    { cwd: ROOT, encoding: 'utf8' },
+    { cwd: ROOT, encoding: 'utf8', windowsHide: true },
   );
   if (result.status !== 0) {
     failures.push(`could not enumerate repository files: ${result.stderr.trim()}`);

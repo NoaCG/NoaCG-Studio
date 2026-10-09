@@ -36,5 +36,6 @@ const child = spawn(process.execPath, [join(repoRoot, 'scripts', 'ai-lite-eval.m
   cwd: repoRoot,
   env,
   stdio: 'inherit',
+  windowsHide: true,
 });
 child.on('exit', (code, signal) => process.exit(signal ? 1 : code ?? 1));

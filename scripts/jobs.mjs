@@ -8,6 +8,7 @@
 //   node scripts/jobs.mjs wait j-0007                       # bounded: gives up after 30 min
 //   node scripts/jobs.mjs log j-0007                        # that job's output
 //   node scripts/jobs.mjs cancel j-0007
+//   node scripts/jobs.mjs failed                            # landings that failed in the last 24 h
 //   node scripts/jobs.mjs --runner                          # the drain loop (started for you)
 //
 // WHY (docs/JOB_RUNNER_PLAN.md carries the measurements): a foreground `--wait` outlives the
@@ -27,7 +28,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { activeRuns, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
-import { requiresRunningDevServer } from './command-match.mjs';
+import { requiresRunningDevServer, runsWholeSuite, WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
 import { closedIssues, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody } from './pr-description.mjs';
@@ -168,6 +169,7 @@ async function main() {
   else if (args[0] === 'log') cmdLog();
   else if (args[0] === 'cancel') cmdCancel();
   else if (args[0] === 'presence') cmdPresence();
+  else if (args[0] === 'failed') await cmdFailed();
   else await cmdList();
 }
 
@@ -181,6 +183,13 @@ async function cmdAdd() {
     console.error('  Playwright suite or a catalog battery, 0.5 one browser page, 0.4 a build, and 0.15');
     console.error('  - a landing - is the least anything may claim. It sets both the budget share and');
     console.error('  the free RAM the job demands before it may start.');
+    process.exit(1);
+  }
+  // THE WHOLE SUITE RUNS ON GITHUB ACTIONS. Every pull request and every merge group runs it there,
+  // and here it took free memory to 0.6 GB beside other sessions. CI never enqueues, so this only
+  // ever refuses a laptop. The affected planner refuses its own whole-suite plans when it runs.
+  if (runsWholeSuite(command)) {
+    console.error(WHOLE_SUITE_ON_GITHUB);
     process.exit(1);
   }
   ensureJobsDir(dir);
@@ -319,19 +328,8 @@ function rememberRefusal(job) {
  * the queue treats specially" - and the safe one, since every null keeps the old behaviour exactly.
  */
 function readRefusal(job) {
-  const WINDOW = 8192;
-  let fd = null;
-  try {
-    fd = openSync(job.logPath, 'r');
-    const size = fstatSync(fd).size;
-    const buffer = Buffer.alloc(Math.min(size, WINDOW));
-    readSync(fd, buffer, 0, buffer.length, Math.max(0, size - WINDOW));
-    return classifyRefusal(buffer.toString('utf8'), { attemptMark: `${LOG_ATTEMPT_MARK} ${job.id} ` });
-  } catch {
-    return null;
-  } finally {
-    if (fd !== null) try { closeSync(fd); } catch { /* already gone */ }
-  }
+  const tail = tailOf(job.logPath);
+  return tail ? classifyRefusal(tail, { attemptMark: `${LOG_ATTEMPT_MARK} ${job.id} ` }) : null;
 }
 
 /**
@@ -876,6 +874,41 @@ function cmdLog() {
   process.stdout.write(readFileSync(job.logPath, 'utf8'));
 }
 
+/**
+ * The queued pull requests whose landing failed in the last 24 hours, and where to read why: the
+ * one read an orchestrator makes when a row finishes, to send that row its CI failure. Reads the
+ * queue's own files, so it costs no `gh` call; the CI link is what the watcher wrote as it refused.
+ */
+async function cmdFailed() {
+  const { FAILED_WINDOW_HOURS, failedLandings } = await import('./land-watch.mjs');
+  const failed = failedLandings(readJobs(dir), { logOf: (job) => tailOf(job.logPath), git: gitFacts() });
+  if (failed.length === 0) {
+    console.log(`No landing failed in the last ${FAILED_WINDOW_HOURS} h.`);
+    return;
+  }
+  console.log(`Failed landings, last ${FAILED_WINDOW_HOURS} h (${failed.length}):`);
+  for (const f of failed) {
+    console.log(`  ${f.pr ? `#${f.pr}` : '(no PR)'}  ${f.branch}  ${f.reason}`);
+    console.log(`        ${f.ciLog ? `CI log: ${f.ciLog}   ·   ` : ''}watcher log: node scripts/jobs.mjs log ${f.id}`);
+  }
+}
+
+/** The last 8 KB of a log, where a landing's outcome is; '' when it cannot be read. */
+function tailOf(path, bytes = 8192) {
+  let fd = null;
+  try {
+    fd = openSync(path, 'r');
+    const size = fstatSync(fd).size;
+    const buffer = Buffer.alloc(Math.min(size, bytes));
+    readSync(fd, buffer, 0, buffer.length, Math.max(0, size - bytes));
+    return buffer.toString('utf8');
+  } catch {
+    return '';
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch { /* already gone */ }
+  }
+}
+
 function cmdCancel() {
   const job = readJobs(dir).find((j) => j.id === args[1]);
   if (!job) {
@@ -1093,6 +1126,7 @@ function spawnJob(job) {
     shell: true,
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
   });
   // `{ end: false }`, and the stream is closed once below. Two sources piping into one destination
   // otherwise means the FIRST of them to finish calls `out.end()`, and whatever the other writes

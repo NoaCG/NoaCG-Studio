@@ -46,7 +46,7 @@ test('historical UTC deadline remains open in three local time zones', () => {
   for (const TZ of ['UTC', 'Europe/Kyiv', 'America/Los_Angeles']) {
     const result = spawnSync(process.execPath, ['--input-type=module', '-e',
       `import { validateResume } from ${JSON.stringify(module)}; console.log(validateResume(${JSON.stringify(state())}, ${NOW}));`,
-    ], { env: { ...process.env, TZ }, encoding: 'utf8' });
+    ], { env: { ...process.env, TZ }, encoding: 'utf8', windowsHide: true });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(Number(result.stdout), Date.parse('2026-09-12T06:04:37Z'));
   }
@@ -114,8 +114,9 @@ test('one local child sees its durable claim, preserves deadlines and cannot be 
     launch: (command, args, options) => {
       assert.equal(JSON.parse(readFileSync(f.file)).refill.launchCount, 1);
       assert.equal(options.shell, false);
+      assert.equal(options.windowsHide, true);
       duplicate = assert.rejects(resumeDispatch(f.file, command, args, { now: () => NOW }), /EEXIST/);
-      return spawn(command, args, options);
+      return spawn(command, args, { ...options, windowsHide: true });
     },
   });
   await duplicate;

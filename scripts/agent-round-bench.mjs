@@ -155,7 +155,7 @@ function readLedger(file) {
 
 // ── the record pipeline (the harness's OWN measurement of whatever is in ./graphic) ───────────
 function cli(args, cwd) {
-  const r = spawnSync(process.execPath, [CLI_ENTRY, ...args], { cwd, encoding: 'utf8', env: { ...process.env, NOACG_URL: url }, maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(process.execPath, [CLI_ENTRY, ...args], { cwd, encoding: 'utf8', env: { ...process.env, NOACG_URL: url }, maxBuffer: 64 * 1024 * 1024, windowsHide: true });
   let json = null;
   try { json = JSON.parse(r.stdout); } catch { /* not json */ }
   return { code: r.status, json, stderr: (r.stderr || '').slice(-4000) };
@@ -239,7 +239,7 @@ function controlAnswer(cellDir, brief, arm, binDir) {
   const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, NOACG_URL: url };
   // Through the shim's ledger script directly - never a shell: a field list like `Active:select=A|B`
   // is a PIPE to cmd.exe, and the control run measured exactly that (the typeless scaffold "failed").
-  const run = (args) => spawnSync(process.execPath, [path.join(binDir, 'noacg-ledger.mjs'), ...args], { cwd: cellDir, env, stdio: 'pipe' });
+  const run = (args) => spawnSync(process.execPath, [path.join(binDir, 'noacg-ledger.mjs'), ...args], { cwd: cellDir, env, stdio: 'pipe', windowsHide: true });
   if (brief.kind === 'ograf') {
     rmSync(graphic, { recursive: true, force: true });
     copyDir(OGRAF_FIXTURE, graphic);
@@ -270,7 +270,7 @@ function copyDir(from, to) {
 
 /** One fresh `claude -p` session for the cell. */
 function claudeExecutable() {
-  const r = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['claude'], { encoding: 'utf8' });
+  const r = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['claude'], { encoding: 'utf8', windowsHide: true });
   const first = (r.stdout || '').split(/\r?\n/).map((s) => s.trim()).find(Boolean);
   if (r.status !== 0 || !first) fail('`claude` is not on PATH - the round drives Claude Code headless');
   return first;
@@ -292,7 +292,8 @@ function runClaude(cellDir, prompt, arm, binDir) {
   if (model) args.push('--model', model);
   const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, NOACG_URL: url };
   const started = Date.now();
-  const r = spawnSync(claudeExecutable(), args, { cwd: cellDir, env, input: prompt, encoding: 'utf8', timeout: maxMinutes * 60_000, maxBuffer: 64 * 1024 * 1024 });
+  // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+  const r = spawnSync(claudeExecutable(), args, { cwd: cellDir, env, input: prompt, encoding: 'utf8', timeout: maxMinutes * 60_000, maxBuffer: 64 * 1024 * 1024, windowsHide: false });
   writeFileSync(path.join(cellDir, 'claude.stdout.txt'), r.stdout || '');
   writeFileSync(path.join(cellDir, 'claude.stderr.txt'), r.stderr || '');
   let json = null;
@@ -357,14 +358,14 @@ function ensureCli() {
   if (!existsSync(CLI_ENTRY)) {
     console.log('agent-round-bench: building the CLI (cli/dist missing)');
     const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const b = spawnSync(npm, ['run', 'build'], { cwd: path.join(ROOT, 'cli'), stdio: 'inherit', shell: process.platform === 'win32' });
+    const b = spawnSync(npm, ['run', 'build'], { cwd: path.join(ROOT, 'cli'), stdio: 'inherit', shell: process.platform === 'win32', windowsHide: true });
     if (b.status !== 0) fail('the CLI did not build');
   }
 }
 
 function ensureBridge() {
   try {
-    execFileSync(process.execPath, [CLI_ENTRY, 'doctor', '--json'], { env: { ...process.env, NOACG_URL: url }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync(process.execPath, [CLI_ENTRY, 'doctor', '--json'], { env: { ...process.env, NOACG_URL: url }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
   } catch (e) {
     fail(`no NoaCG bridge at ${url} - start this checkout's dev server (npm run dev) or set NOACG_URL\n${(e.stderr || e.message || '').toString().slice(-600)}`);
   }
@@ -407,7 +408,7 @@ if (paid) {
   // The CLI's OWN login, not the desktop app's: a `claude -p` child authenticates from the CLI's
   // stored OAuth session, and with none every cell returns "Failed to authenticate" in 300 ms -
   // which the first paid attempt burned five cells discovering (2026-08-22). Refuse up front.
-  const auth = spawnSync(exe, ['auth', 'status'], { encoding: 'utf8' });
+  const auth = spawnSync(exe, ['auth', 'status'], { encoding: 'utf8', windowsHide: true });
   let status = null;
   try { status = JSON.parse(auth.stdout); } catch { /* older CLI */ }
   if (status && status.loggedIn === false) fail('the claude CLI is not logged in (`claude auth status`) - run `claude login` in a terminal first; the round cannot sign in for you');

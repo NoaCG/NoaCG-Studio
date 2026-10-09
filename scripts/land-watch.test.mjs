@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { watch, watchVerdict } from './land-watch.mjs';
+import { ciLogLink, failedLandings, watch, watchVerdict } from './land-watch.mjs';
 
 const open = (over = {}) => ({ state: 'OPEN', mergedAt: null, mergeCommit: null, headRefOid: 'abc', autoMergeRequest: { enabledAt: 'x' }, ...over });
 
@@ -133,7 +133,7 @@ test('#609 replayed through the watcher: refused on the first confirmed tick, wi
   try {
     code = await watch(
       { pr: '609', branch: 'claude/editor-r1-2b-anchor-typography-bf62be', expectSha: PR_609.headRefOid },
-      { view: () => PR_609, checks: () => NIGHT_609, wait: async (ms) => { waits.push(ms); clock += ms; }, now: () => clock },
+      { view: () => PR_609, checks: () => NIGHT_609, mergeGroupRuns: () => [], wait: async (ms) => { waits.push(ms); clock += ms; }, now: () => clock },
     );
   } finally {
     console.error = said;
@@ -171,4 +171,54 @@ test('a branch pushed after it was declared finished is refused, and a merge sti
     watchVerdict(open({ state: 'MERGED', mergedAt: 'x', headRefOid: 'def' }), [], { expectSha: 'abc' }).verdict,
     'landed',
   );
+});
+
+test('a refusal names where its CI log is: the red job on the pull request, else the failed merge-group run', () => {
+  const job = (name, conclusion, url, workflowName = 'CI') => ({ name, workflowName, status: 'COMPLETED', conclusion, detailsUrl: url });
+  const checks = [job('CI gate', 'FAILURE', 'https://x/runs/1/job/9'), job('E2E 3/4 (subset)', 'FAILURE', 'https://x/runs/1/job/3'), job('Build', 'SUCCESS', 'https://x/runs/1/job/1')];
+  let asked = 0;
+  const runs = () => { asked += 1; return []; };
+  assert.equal(ciLogLink(checks, 850, runs), 'https://x/runs/1/job/3', 'the leg that went red, not the aggregate');
+  assert.equal(ciLogLink([checks[0]], 850, runs), 'https://x/runs/1/job/9');
+  assert.equal(ciLogLink([job('E2E 1/4 (subset)', 'CANCELLED', 'https://x/runs/1/job/2'), ...checks], 850, runs), 'https://x/runs/1/job/3', 'the shard that failed, not one fail-fast cancelled');
+  assert.equal(asked, 0, 'no gh call while the pull request names its own failure');
+  // Dropped from the queue: the pull request's checks are green and the merge group's run is red.
+  const group = [
+    { headBranch: 'gh-readonly-queue/main/pr-8500-aaa', conclusion: 'failure', url: 'https://x/runs/7' },
+    { headBranch: 'gh-readonly-queue/main/pr-850-bbb', conclusion: 'success', url: 'https://x/runs/5' },
+    { headBranch: 'gh-readonly-queue/main/pr-850-ddd', conclusion: 'cancelled', url: 'https://x/runs/6' },
+    { headBranch: 'gh-readonly-queue/main/pr-850-ccc', conclusion: 'failure', url: 'https://x/runs/4' },
+  ];
+  assert.equal(ciLogLink([checks[2]], 850, () => group), 'https://x/runs/4');
+  assert.equal(ciLogLink([], 851, () => group), null);
+});
+
+test('a refused landing writes its CI log line, and `jobs failed` reads it back', async () => {
+  const lines = [];
+  const said = console.error;
+  console.error = (line) => lines.push(line);
+  try {
+    await watch(
+      { pr: '609', branch: 'claude/x', expectSha: PR_609.headRefOid },
+      { view: () => PR_609, checks: () => NIGHT_609.map((c) => ({ ...c, detailsUrl: `https://x/${encodeURIComponent(c.name)}` })), mergeGroupRuns: () => [], wait: async () => {}, now: () => 0 },
+    );
+  } finally {
+    console.error = said;
+  }
+  const log = ['=== j-2 node scripts/land-watch.mjs --pr 609 --branch claude/x', ...lines, ''].join('\n');
+  const now = 10 * 60_000;
+  const record = (over) => ({ kind: 'merge', branch: 'claude/x', state: 'failed', exitCode: 1, enqueuedAt: 2, finishedAt: now - 60_000, command: 'node scripts/land-watch.mjs --pr 609 --branch claude/x', ...over });
+  const jobs = [record({ id: 'j-1', enqueuedAt: 1, finishedAt: now - 120_000, state: 'done', exitCode: 0 }), record({ id: 'j-2' })];
+  assert.deepEqual(failedLandings(jobs, { now, logOf: () => log }), [{
+    id: 'j-2',
+    branch: 'claude/x',
+    pr: '609',
+    reason: 'CI gate failed on the pull request (also red: E2E 3/4 (subset)), so the queue never took it',
+    ciLog: 'https://x/E2E%203%2F4%20(subset)',
+  }]);
+  // A later landing of the same branch replaces the failure; so does a log that says it landed,
+  // whatever the record says; and a day-old failure has been dealt with or reported already.
+  assert.deepEqual(failedLandings([...jobs, record({ id: 'j-3', enqueuedAt: 3, state: 'running' })], { now, logOf: () => log }), []);
+  assert.deepEqual(failedLandings(jobs, { now, logOf: () => '=== j-2 x\nland-watch: claude/x landed on main as 1234abcd (u)\n' }), []);
+  assert.deepEqual(failedLandings(jobs, { now: now + 25 * 60 * 60_000, logOf: () => log }), []);
 });

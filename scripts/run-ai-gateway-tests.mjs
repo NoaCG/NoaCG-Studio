@@ -77,6 +77,7 @@ try {
     cwd: projectRoot,
     env: isolatedTestEnvironment(),
     stdio: 'inherit',
+    windowsHide: true,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exitCode = result.status ?? 1;

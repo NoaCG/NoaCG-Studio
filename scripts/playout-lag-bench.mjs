@@ -156,7 +156,7 @@ const SHOW_NAME = 'Lag Bench';
 
 const out = outDir(positional[0], 'playout-lag-out', 'Usage: node scripts/playout-lag-bench.mjs [out-dir] [--seed|--measure] [--headless] [--rounds N]');
 mkdirSync(out, { recursive: true });
-const port = execSync('node scripts/dev-port.mjs').toString().trim();
+const port = execSync('node scripts/dev-port.mjs', { windowsHide: true }).toString().trim();
 const base = `http://localhost:${port}`;
 
 /** Bytes as gigabytes, two decimals - a number, not a string, because it goes into JSON. */

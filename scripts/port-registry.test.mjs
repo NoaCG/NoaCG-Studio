@@ -457,8 +457,8 @@ describe('tooling reads the allocated port', () => {
 
   it('makes dev-port.mjs, its CLI, launch.json and dev-port.json report one number', () => {
     // The real checkout this test runs in - the end-to-end contract every consumer relies on.
-    const cli = Number(execFileSync(process.execPath, [join(repoRoot, 'scripts', 'dev-port.mjs')], { encoding: 'utf8' }).trim());
-    const json = JSON.parse(execFileSync(process.execPath, [join(repoRoot, 'scripts', 'dev-port.mjs'), '--json'], { encoding: 'utf8' }));
+    const cli = Number(execFileSync(process.execPath, [join(repoRoot, 'scripts', 'dev-port.mjs')], { encoding: 'utf8', windowsHide: true }).trim());
+    const json = JSON.parse(execFileSync(process.execPath, [join(repoRoot, 'scripts', 'dev-port.mjs'), '--json'], { encoding: 'utf8', windowsHide: true }));
     const launch = JSON.parse(readFileSync(join(repoRoot, '.claude', 'launch.json'), 'utf8'));
     const record = JSON.parse(readFileSync(join(repoRoot, '.claude', 'dev-port.json'), 'utf8'));
 
@@ -510,7 +510,7 @@ function allocateInChild({ registry, root, startAt = 0 }) {
   writeFileSync(scriptPath, source);
 
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(process.execPath, [scriptPath, registry, root, String(startAt)]);
+    const child = spawn(process.execPath, [scriptPath, registry, root, String(startAt)], { windowsHide: true });
     let out = '';
     let err = '';
     child.stdout.setEncoding('utf8');

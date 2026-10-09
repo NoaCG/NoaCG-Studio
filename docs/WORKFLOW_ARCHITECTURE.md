@@ -153,8 +153,8 @@ and forbids deleting or rewriting the branch; the repository admin is the only b
 
 **A refusal goes back to the owning session.** A red check is fixed on the branch. A conflict with
 `main` is reconciled in the branch's own worktree: merge `origin/main`, regenerate generated files
-with their generators (the contracts and `package.json` have merge drivers), build, run
-`npm run test:e2e:integration`, `/check`, and queue again. A landing that reached no verdict is
+with their generators (the contracts and `package.json` have merge drivers), `/check` with
+targeted checks, and queue again; CI plans the e2e run from the fork point. A landing that reached no verdict is
 retried once automatically; one that reached a verdict never is. Another session, usually the
 orchestrator, may queue a branch only when no live session holds it. A cloud session without `gh`
 queues through `.github/workflows/cloud-queue-merge.yml`, as `queue-merge.md` describes.

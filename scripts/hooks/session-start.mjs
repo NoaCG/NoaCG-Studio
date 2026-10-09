@@ -502,7 +502,7 @@ process.exit(0);
 
 /** Run git with the given args in `cwd` and return stdout as trimmed lines. */
 function gitLines(args, cwd) {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   if (res.status !== 0 || typeof res.stdout !== 'string') return [];
   return res.stdout.split('\n').map((l) => l.trim()).filter(Boolean);
 }

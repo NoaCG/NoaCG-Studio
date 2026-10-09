@@ -124,9 +124,9 @@ commands for the user to run.
 - **What's outstanding** - `git status --porcelain=v1 --branch`, untracked files worth keeping
   (`git ls-files --others --exclude-standard`), `git stash list`, any mid-merge/rebase state, and
   whether the work actually reached `main`/`origin/main` when the session's story says it did.
-- **Validation** - reuse existing evidence: a `npm run build` already run, the landing job's CI
-  gate, any `e2e/` or in-browser check already done. `npm run build` (tsc + eslint +
-  vite) is the gate; focused script tests may also apply. Do not re-run verification that is
+- **Validation** - reuse existing evidence: the targeted checks already run, the pull request's CI
+  gate, any `e2e/` or in-browser check already done. CI's build and suites are the gate; locally
+  the targeted checks in `.agent-workflows/verify.md` apply. Do not re-run verification that is
   already current. If code changed after the last check, including through a fix made here, run
   it rather than recording it as somebody else's next action.
 

@@ -271,7 +271,7 @@ export function summarise(facts) {
 // ── Shell ────────────────────────────────────────────────────────────────────────────────────────
 
 function git(args, cwd = REPO_ROOT) {
-  const run = spawnSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  const run = spawnSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, windowsHide: true });
   return run.status === 0 ? String(run.stdout ?? '') : null;
 }
 
@@ -291,7 +291,7 @@ function readText(file) {
 
 function usageJson(days) {
   const run = spawnSync(process.execPath, [path.join(HERE, 'harness-usage.mjs'), '--hours', String(days * 24), '--json'], {
-    cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+    cwd: REPO_ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true,
   });
   if (run.status !== 0) return null;
   try {

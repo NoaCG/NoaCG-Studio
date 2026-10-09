@@ -614,7 +614,7 @@ async function uncommittedPaths(cwd) {
  */
 async function git(args, cwd, { raw = false } = {}) {
   try {
-    const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 32 * 1024 * 1024 });
+    const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 32 * 1024 * 1024, windowsHide: true });
     return { ok: true, stdout: raw ? stdout : stdout.trim() };
   } catch (error) {
     return { ok: false, stdout: typeof error?.stdout === 'string' ? (raw ? error.stdout : error.stdout.trim()) : '' };

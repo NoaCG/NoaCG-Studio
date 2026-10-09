@@ -13,7 +13,7 @@ import test from 'node:test';
 import { AGING_HOURS, assessMergeOrder, formatOrder, rank, verdictFor } from './merge-order.mjs';
 
 function runGit(cwd, ...args) {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   assert.equal(result.status, 0, `git ${args.join(' ')} failed:\n${result.stderr || result.stdout}`);
   return result.stdout.trim();
 }

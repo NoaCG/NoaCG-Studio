@@ -123,7 +123,7 @@ const minutes = Number.isFinite(minutesArg) && minutesArg >= 0 ? minutesArg : 30
 
 /** The repo this checkout belongs to, so every worktree under it counts as "ours". */
 const repoRoot = (() => {
-  const res = spawnSync('git', ['rev-parse', '--git-common-dir'], { encoding: 'utf8' });
+  const res = spawnSync('git', ['rev-parse', '--git-common-dir'], { encoding: 'utf8', windowsHide: true });
   const dir = res.status === 0 ? resolve(res.stdout.trim(), '..') : process.cwd();
   // Normalised the same way `cwd` is below - an unnormalised fallback would make the
   // repo filter match nothing and print a false all-clear, which is the one thing a
@@ -276,6 +276,7 @@ function branchOf(dir) {
   if (!dir) return '';
   const res = spawnSync('git', ['-C', dir, 'rev-parse', '--abbrev-ref', 'HEAD'], {
     encoding: 'utf8',
+    windowsHide: true,
   });
   return res.status === 0 ? res.stdout.trim() : '';
 }

@@ -781,7 +781,7 @@ export function holdAlarms(held, since, now = Date.now()) {
 /** When a migration file reached this branch: the first-parent commit that added it. null in a
  *  shallow checkout (whose one commit "adds" every file) or for a file git does not know. */
 function landedAt(file) {
-  const git = (args) => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+  const git = (args) => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   if ((git(['rev-parse', '--is-shallow-repository']).stdout ?? '').trim() !== 'false') return null;
   const out = git(['log', '--first-parent', '--no-renames', '--diff-filter=A', '--format=%cI', '--', `supabase/migrations/${file}`]).stdout ?? '';
   return out.trim().split('\n').filter(Boolean).pop() || null;
@@ -926,8 +926,8 @@ function runSupabase(args, token, { capture = false, cwd = ROOT } = {}) {
   const spawn = (command, commandArgs, options = {}) =>
     (process.platform === 'win32'
       ? spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', [command, ...commandArgs].join(' ')],
-        { cwd, env, encoding: 'utf8', windowsVerbatimArguments: true, ...options })
-      : spawnSync(command, commandArgs, { cwd, env, encoding: 'utf8', ...options }));
+        { cwd, env, encoding: 'utf8', windowsVerbatimArguments: true, ...options, windowsHide: true })
+      : spawnSync(command, commandArgs, { cwd, env, encoding: 'utf8', ...options, windowsHide: true }));
 
   // Decide ONCE, with a probe, which command to use - never by retrying a failed run through the
   // other one. A `db push` that exits non-zero must not be attempted a second time just because
@@ -1318,7 +1318,7 @@ async function push({ ref, token, dryRun, asJson, decision, apply, cwd, producti
  */
 function askAdvisorsAfterHandApply(asJson) {
   (asJson ? console.error : console.log)('\nAsking the Supabase advisors about what was just applied (scripts/supabase-advisors.mjs)…');
-  const r = spawnSync(process.execPath, [join(ROOT, 'scripts/supabase-advisors.mjs')], { stdio: ['ignore', asJson ? 2 : 1, 2], env: process.env });
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts/supabase-advisors.mjs')], { stdio: ['ignore', asJson ? 2 : 1, 2], env: process.env, windowsHide: true });
   if (r.status === 1) {
     console.error(
       '\nNEW ADVISOR FINDINGS since supabase/advisor-baseline.json (above). The next landing\'s post-land run ' +
