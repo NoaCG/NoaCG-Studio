@@ -164,10 +164,12 @@
 .pd-setup-menu .pd-target-dot { margin: 0 4px; }
 .pd-setup-note { margin-left: auto; padding-left: 14px; font-size: 12px; color: var(--text-dim); }
 .pd-setup-sep { height: 1px; margin: 4px 6px; background: var(--border); }
-/* A panel this page answers, said without opening Setup: green answering, amber connecting. */
+/* Who answers the panel, said without opening Setup: green this page, amber taking it, and a quiet
+   "Use panel here" while another page has it. */
 .pd-panel-status { font-size: 12px; font-weight: 700; padding: 4px 9px; white-space: nowrap; }
 .pd-panel-status--ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.45); }
 .pd-panel-status--idle { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
+.pd-panel-status--held { color: var(--text-dim); font-weight: 600; }
 /* THE LAPTOP TIERS: the production's NAME must fit a two-word name ("Quiz Night") at 1366x768
    and 1280x720, the school laptops a class runs productions on. Measured 2026-09-27 on "Quiz
    Night" before these tiers: 49 of its 67px at 1366 and 0px at 1280 offline; published with
