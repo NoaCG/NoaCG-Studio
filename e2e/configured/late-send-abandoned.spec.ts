@@ -14,7 +14,7 @@
 // covers: src/control/failedSends.ts
 
 import { publishProduction } from '../_publish';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Request } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, lastAppliedRow, signIn, wipeMyGraphics } from './_helpers';
 
@@ -58,6 +58,26 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   expect(await airPlays()).toBe('0');
 
   const op = await context.newPage();
+  // EVERY PRESS BELOW WAITS FOR THE PAGE'S FOLLOWER TO BE LEVEL. While it reads the log's tail (on
+  // joining, and on each poll) the page's own presses take the durable road and leave its monitor
+  // alone (hostedControl.ts `recovering`), so the chip cannot say "on air" before the held send
+  // answers. Against a hosted backend that read takes about 200 ms, and a Take pressed as the page
+  // came up landed inside it (issue #902); against a local stack it never did.
+  let tailsRead = 0;
+  let tailsOpen = 0;
+  const isTail = (r: Request) => /\/rpc\/control_tail_seq\b/.test(r.url());
+  const tailDone = (r: Request) => {
+    if (!isTail(r)) return;
+    tailsOpen -= 1;
+    tailsRead += 1;
+  };
+  op.on('request', (r) => {
+    if (isTail(r)) tailsOpen += 1;
+  });
+  op.on('requestfinished', tailDone);
+  op.on('requestfailed', tailDone);
+  const followerLevel = () =>
+    expect.poll(() => tailsRead > 0 && tailsOpen === 0, { message: 'the operator page has read the log and is not reading it now', timeout: 30_000 }).toBe(true);
   await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   const chip = op.getByTestId('hosted-live-chip');
@@ -91,6 +111,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // A Take held with no Out behind it: both attempts inside the window are abandoned, and within
   // the window (not at a statement timeout, 3 s to 8 s per attempt before) the page says that the
   // graphic on its monitor is on no other screen.
+  await followerLevel();
   const takenAt = Date.now();
   await op.getByTestId('hosted-take-cue').click();
   await expect(chip).toContainText('on air:');
@@ -108,6 +129,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // ── The late Take of §5.6. ──────────────────────────────────────────────────────────────────
   held.length = 0;
   abandoned.length = 0;
+  await followerLevel();
   await op.getByTestId('hosted-take-cue').click();
   await expect(chip).toContainText('on air:');
   // The scenario's interval, not a wait for a state: the Out is pressed while the Take is held.
