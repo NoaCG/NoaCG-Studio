@@ -27,7 +27,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gitCommonDir } from './dev-port.mjs';
-import { invokesE2e, invokesSweep, requiresRunningDevServer } from './command-match.mjs';
+import { commandSegments, invokesE2e, invokesSweep, requiresRunningDevServer } from './command-match.mjs';
 
 /** Job lifecycle. `waiting` and `running` are live; the rest are terminal. */
 export const LIVE_STATES = Object.freeze(['waiting', 'running']);
@@ -746,6 +746,18 @@ function browserMemory(dir, now) {
   );
 }
 
+/**
+ * Was this shell command caught launching a browser (#920)? The guard hook asks, so a remembered
+ * wrapper typed straight into a shell meets the same one-browser-run rule as a listed script.
+ * Each segment is looked up too: a typed command carries the `cd <worktree> &&` a queued one does
+ * not. False with no queue directory, and a missing or torn file is no memory.
+ */
+export function rememberedAsBrowser(dir, command, now = Date.now()) {
+  if (!dir || typeof command !== 'string') return false;
+  const memory = browserMemory(dir, now);
+  return [command, ...commandSegments(command)].some((typed) => Object.hasOwn(memory, commandKey(typed)));
+}
+
 /** Remember that `command` (job `job`) launched a browser while priced light. The runner's only write. */
 export function rememberBrowserCommand(dir, { command, job, now = Date.now() }) {
   const commands = { ...browserMemory(dir, now), [commandKey(command)]: { at: now, job } };
@@ -778,7 +790,8 @@ const KNOWN_PRICES = [
  *
  * A job that DECLARED a cost when it was queued keeps that number for its whole life - it is on
  * the record, so the listing, the budget and the RAM floor all read the same figure and a retry
- * inherits it. Everything below is the default for a job that declared nothing.
+ * inherits it, except that browser work is never priced below `COST.browser` (below).
+ * Everything else is the default for a job that declared nothing.
  *
  * THE DEFAULT FOR AN UNRECOGNISED COMMAND IS ONE BROWSER, NOT A SUITE. Suite-sized work in this
  * repo is enumerated - the Playwright suites `invokesE2e` matches, and the catalog batteries and
@@ -803,13 +816,19 @@ const KNOWN_PRICES = [
  * runs (`watchedForBrowser`).
  */
 export function costOf(job) {
-  if (typeof job.cost === 'number') return job.cost;
-  if (job.kind === 'merge') return COST.merge;
+  const declared = typeof job.cost === 'number' ? job.cost : null;
   // `sweep` on the record is a DECLARATION - the session queueing it said this is battery work -
   // and a declaration beats a guess made from the command text, which is the whole point of the
   // kind. Without this an unlisted battery queued honestly as a sweep still read as a walk.
   // `drivesBrowser` reads both, so the price and the browser slot cannot disagree.
-  if (drivesBrowser(job)) return COST.browser;
+  //
+  // A JOB HOLDING THE BROWSER SLOT IS NEVER PRICED BELOW ONE BROWSER RUN, whatever `--cost` says
+  // (#931). The price is also its RAM floor, and 2026-10-10 measured why: browser work declared
+  // at 0.5 was admitted at 1.8 GB free, a one-worker Playwright run takes 1.8 GB, and free memory
+  // fell to 588 MB, where Windows pages. A declared cost still prices everything else.
+  if (drivesBrowser(job)) return Math.max(declared ?? 0, COST.browser);
+  if (declared !== null) return declared;
+  if (job.kind === 'merge') return COST.merge;
   return KNOWN_PRICES.find(([pattern]) => pattern.test(job.command ?? ''))?.[1] ?? COST.walk;
 }
 

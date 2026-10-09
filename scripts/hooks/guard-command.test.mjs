@@ -3,6 +3,9 @@
 // into the real hook (test-lib.mjs); the hook only answers, so nothing here starts a browser.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import { runHook } from './test-lib.mjs';
@@ -49,5 +52,15 @@ test('the same wait under a limit runs, and fails when the limit runs out', { sk
 test('naming specs or enqueueing is not refused as a whole-suite run', () => {
   for (const command of ['npm run test:e2e:queued -- e2e/project.spec.ts e2e/wizard.spec.ts', 'npm run queue -- "npm run test:e2e"']) {
     assert.doesNotMatch(runHook(GUARD, bash(command)).message, /whole browser suite/, command);
+  }
+});
+
+test('the browser memory the guard reads (#920) never stops an ordinary command, even torn', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'noacg-jobs-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  writeFileSync(join(dir, 'browser-commands.json'), '{"commands": [');
+  for (const env of [{ NOACG_JOBS_DIR: dir }, { NOACG_JOBS_DIR: join(dir, 'missing') }]) {
+    const run = runHook(GUARD, bash('node scripts/before-after.mjs'), env);
+    assert.equal(run.status, 0, run.message);
   }
 });

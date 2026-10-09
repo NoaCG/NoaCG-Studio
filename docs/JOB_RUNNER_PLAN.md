@@ -109,7 +109,8 @@ Jobs are weighted in **suite-equivalents**, because counting them was the crude 
 | a landing (`auto-merge`) | **0.15** | almost entirely `gh run watch`, waiting on GitHub's network |
 
 A job may also declare its own cost - `npm run queue -- "<command>" --cost 0.5` - anywhere between
-a landing's 0.15 and a whole suite. The number is written onto the job record, so the listing, the
+a landing's 0.15 and a whole suite, except that a job holding the browser slot is never priced
+below 1.0 (#931). The number is written onto the job record, so the listing, the
 budget and the RAM floor all read the same figure and a retry inherits it. It is the only way to
 price work the classifier has no way to recognise, and the floor of 0.15 is there because the same
 number is the RAM admission threshold: left open, a job could waive that check on itself.
@@ -121,7 +122,8 @@ through a wrapper, so on Windows the runner also reads each running light job's 
 every 15 s: a job with a browser or a Playwright test run below it is stopped and re-queued as
 `--kind sweep`, keeping its place, so the browser slot and the full floor apply. Its command is
 remembered in `browser-commands.json` beside the jobs (the newest 50, each for 7 days), and the
-same command queued again without a `--kind` starts as browser work; once its entry runs out it is
+same command queued again without a `--kind` starts as browser work, and the guard hook treats it
+as browser work typed into a shell too; once its entry runs out it is
 light and watched again, so a script that stopped opening a browser is not held to the slot for
 ever, and `--kind gate` says so sooner.
 

@@ -45,6 +45,7 @@ import {
   WHOLE_SUITE_ON_GITHUB,
 } from '../command-match.mjs';
 import { checkoutRoot, commandCheckout, devPortOverride } from '../command-target.mjs';
+import { jobsDir, rememberedAsBrowser } from '../jobs-store.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
@@ -283,7 +284,10 @@ if (toMain) {
 //     session can see it from inside its own checkout.
 //     Serialising costs nothing: two jobs sharing one box do not finish sooner than two run
 //     back to back, they only make everything else unusable while they do it.
-if (invokesE2e(command) || invokesSweep(command)) {
+//     A command the job runner caught launching a browser is browser work here too (#920): its
+//     text says nothing, but the queue already knows (`rememberedAsBrowser` in jobs-store.mjs).
+const namedBrowserWork = invokesE2e(command) || invokesSweep(command);
+if (namedBrowserWork || rememberedAsBrowser(jobsDir(), command)) {
   //   The whole default suite runs on GitHub Actions, never here: the job queue refuses it as a
   //   job, and this refuses it typed straight into the shell.
   if (runsWholeSuite(command)) deny(WHOLE_SUITE_ON_GITHUB);
@@ -300,6 +304,10 @@ if (invokesE2e(command) || invokesSweep(command)) {
   if (others.length > 0 && !/NOACG_ALLOW_PARALLEL_E2E\s*=\s*1/.test(command)) {
     deny(
       `Blocked: browser-driving work is already running on this machine:\n${describeRuns(others)}\n` +
+        (namedBrowserWork
+          ? ''
+          : 'The job queue caught this command opening a browser, so it counts as browser work; ' +
+            '`npm run queue -- "<this command>"` runs it after.\n') +
         'A suite, a catalog sweep and a bench all cost the same memory, and two at once exhaust it ' +
         'rather than sharing it (see `root/enqueue-browser-driving-work-rather-than`).\n' +
         'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +

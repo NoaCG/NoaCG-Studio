@@ -24,6 +24,7 @@ import {
   adoptOrphanedLandings,
   agentSessions,
   budgetMode,
+  budgetShareOf,
   drivesBrowser,
   cancelVerdict,
   capacity,
@@ -56,6 +57,7 @@ import {
   writeJob,
   readReviewStamp,
   rememberBrowserCommand,
+  rememberedAsBrowser,
   repricedAsBrowser,
   stampGap,
   watchedForBrowser,
@@ -302,6 +304,33 @@ test('a declared cost does not keep a job that launched a browser below the brow
   assert.equal(costOf(repricedAsBrowser(declared)), COST.browser);
 });
 
+test('a job holding the browser slot is priced at least one browser run, whatever it declared (#931)', () => {
+  // 2026-10-10: browser work declared at 0.5 was admitted at 1.8 GB free, a one-worker Playwright
+  // run took 1.8 GB, and free memory fell to 588 MB.
+  const awayFloor = freeMemFloorFor('away');
+  const atHalf = awayFloor * 0.5 + 100;
+  for (const over of [
+    { command: 'npm run test:e2e:queued -- e2e/a.spec.ts', cost: 0.5 },
+    { command: 'node test-results/oo/sweep.mjs --all', kind: 'sweep', cost: 0.5 },
+    { command: 'node scripts/l3-sweep.mjs shots', cost: 0.15 },
+  ]) {
+    const declared = job('j-0001', over);
+    assert.equal(drivesBrowser(declared), true, over.command);
+    assert.equal(costOf(declared), COST.browser, over.command);
+    assert.equal(budgetShareOf(declared), COST.browser, over.command);
+    const held = schedule([declared], { now: NIGHT, freeMemMb: atHalf, presence: 'away' });
+    assert.deepEqual(held.start, [], `${over.command} started on ${atHalf} MB`);
+    assert.match(held.waiting[0].reason, new RegExp(`RAM free, needs ${(awayFloor / 1024).toFixed(1)}`));
+    assert.equal(schedule([declared], { now: NIGHT, freeMemMb: awayFloor, presence: 'away' }).start.length, 1);
+  }
+  // Light work keeps what it declared: a gate job, a script, a landing.
+  assert.equal(costOf(job('j-0002', { command: 'npm run build', cost: 0.5 })), 0.5);
+  assert.equal(costOf(job('j-0003', { command: 'node scripts/report.mjs', cost: 0.3 })), 0.3);
+  assert.equal(costOf(merge('j-0004', { cost: 0.2 })), 0.2);
+  const script = job('j-0005', { command: 'node scripts/report.mjs', cost: 0.3 });
+  assert.equal(schedule([script], { now: NIGHT, freeMemMb: atHalf, presence: 'away' }).start.length, 1);
+});
+
 test('a command caught launching a browser is queued as browser work from the start next time (#904)', (t) => {
   const dir = tempQueue();
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -328,6 +357,22 @@ test('a command caught launching a browser is queued as browser work from the st
   assert.equal(sayGate.caughtBrowser, undefined);
   // The memory sits beside the jobs and is never read as one.
   assert.ok(readJobs(dir).every((j) => typeof j.id === 'string' && j.id.startsWith('j-')));
+});
+
+test('the guard reads the same memory: a caught command is browser work typed into a shell too (#920)', (t) => {
+  const dir = tempQueue();
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const command = 'node scripts/before-after.mjs';
+  assert.equal(rememberedAsBrowser(dir, command, NIGHT), false, 'nothing caught yet');
+  rememberBrowserCommand(dir, { command, job: 'j-0001', now: NIGHT });
+  for (const typed of [command, ` node  scripts/before-after.mjs`, `cd /wt/a && ${command}`, `FOO=1 ${command}`]) {
+    assert.equal(rememberedAsBrowser(dir, typed, NIGHT + 1), true, typed);
+  }
+  // Only that command, only in its window, and no queue or no memory is no answer.
+  assert.equal(rememberedAsBrowser(dir, `${command} --dry-run`, NIGHT + 1), false);
+  assert.equal(rememberedAsBrowser(dir, command, NIGHT + BROWSER_MEMORY_MS), false);
+  assert.equal(rememberedAsBrowser(null, command, NIGHT + 1), false);
+  assert.equal(rememberedAsBrowser(join(dir, 'missing'), command, NIGHT + 1), false);
 });
 
 test('a remembered browser command expires and the memory is capped, so no script stays heavy for ever', (t) => {
