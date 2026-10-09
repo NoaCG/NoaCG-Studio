@@ -133,15 +133,13 @@ function contrastRatio(a: { r: number; g: number; b: number }, b: { r: number; g
 
 interface Backing {
   color: { r: number; g: number; b: number } | null;
-  /** A gradient anywhere on the way up counts as a protective scrim. */
-  gradient: boolean;
   /** The backing hides the footage enough to read against: a solid-enough fill, a gradient
    *  scrim, or a frosted glass panel. The protection rule's question. */
   shields: boolean;
 }
 
 /** Nothing behind the text hides the footage: it reads straight against the video. */
-const BARE: Backing = { color: null, gradient: false, shields: false };
+const BARE: Backing = { color: null, shields: false };
 
 /**
  * A FROSTED GLASS PANEL: a backdrop blur under a tint too faint to measure as a colour. The
@@ -162,7 +160,7 @@ const BARE: Backing = { color: null, gradient: false, shields: false };
  * scripts/legibility-backing.test.mjs pins a 20% slab as no backing. The walk goes on past glass,
  * so a solid surface further out is still the colour to measure against.
  */
-const GLASS: Backing = { color: null, gradient: false, shields: true };
+const GLASS: Backing = { color: null, shields: true };
 
 /** What an element's (or pseudo-element's) own paint contributes, or null for "see through
  *  me, keep walking". A url() IMAGE makes the backing unknowable (the image wins the paint);
@@ -180,11 +178,10 @@ const GLASS: Backing = { color: null, gradient: false, shields: true };
  *  measurement and the severity question it turns on. */
 function paintOf(cs: CSSStyleDeclaration, alphaScale = 1): Backing | null {
   if (cs.backgroundImage && cs.backgroundImage !== 'none') {
-    const gradient = /gradient\(/.test(cs.backgroundImage);
-    return { color: null, gradient, shields: gradient };
+    return { color: null, shields: /gradient\(/.test(cs.backgroundImage) };
   }
   const bg = parseColor(cs.backgroundColor);
-  if (bg && bg.a * alphaScale >= 0.5) return { color: bg, gradient: false, shields: true };
+  if (bg && bg.a * alphaScale >= 0.5) return { color: bg, shields: true };
   return frostsBackdrop(cs) ? GLASS : null;
 }
 

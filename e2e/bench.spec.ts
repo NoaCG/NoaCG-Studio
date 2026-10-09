@@ -247,6 +247,19 @@ test.describe('runtime bench detection fixtures', () => {
     expect(rules(warnings)).not.toContain('bench-unbacked-text');
   });
 
+  test('a block line whose words overflow its own box is cut too; one parked outside the mask is not', async ({ page }) => {
+    await toApp(page);
+    const cutAtRest = (res: unknown) => (res as { warnings: { message: string }[] }).warnings
+      .some((w) => w.message.includes('cut off by its mask') && w.message.includes('default field values'));
+    // The block is as wide as the squeezed mask, so only its words show the cut.
+    expect(cutAtRest(await page.evaluate(maskFixture('display:flex;width:300px;', 'display:block;', 'Elena Marsh, Senior Correspondent')))).toBe(true);
+    // Wholly outside its mask, waiting for an entrance: nothing of it shows, so nothing is cut.
+    expect(cutAtRest(await page.evaluate(maskFixture('', 'transform:translateX(-120%);', 'Elena Marsh')))).toBe(false);
+    // An ellipsis is a truncation the design chose and shows.
+    expect(cutAtRest(await page.evaluate(maskFixture('display:flex;width:300px;',
+      'display:block;overflow:hidden;text-overflow:ellipsis;', 'Elena Marsh, Senior Correspondent')))).toBe(false);
+  });
+
   test('tracked caps hanging their last letter-spacing past the mask are not a cut', async ({ page }) => {
     await toApp(page);
     // Centred tracked caps pull the last letter's spacing back with a negative margin, so the

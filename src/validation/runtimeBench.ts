@@ -282,14 +282,16 @@ function layoutRecorder(errors: ValidationIssue[], warnings: ValidationIssue[]) 
         const sentence = one.message.split(phase).join(SLOT);
         const key = `${severity} ${named} ${sentence}`;
         const prior = seen.get(key);
-        if (prior) {
-          if (!prior.phases.includes(phase)) prior.phases.push(phase);
-          prior.issue.message = prior.sentence.split(SLOT).join(prior.phases.join(', '));
+        const issue = { rule: named, message: one.message };
+        if (!prior) seen.set(key, { issue, sentence, phases: [phase] });
+        if (!prior || prior.phases.includes(phase)) {
+          // A twin in the SAME frame is a second element pair that reads alike (two rows named by
+          // one class), not a repeat, so it keeps its own row as it always did.
+          list.push(issue);
           continue;
         }
-        const issue = { rule: named, message: one.message };
-        seen.set(key, { issue, sentence, phases: [phase] });
-        list.push(issue);
+        prior.phases.push(phase);
+        prior.issue.message = prior.sentence.split(SLOT).join(prior.phases.join(', '));
       }
     }
   };
@@ -608,49 +610,79 @@ function paintedAncestor(el: Element, win: Window): Element | null {
   return null;
 }
 
-/** Whether a box establishes the containing block of an absolutely positioned descendant. */
-function holdsAbsolute(el: Element, win: Window): boolean {
-  const cs = win.getComputedStyle(el);
-  return cs.position !== 'static' || cs.transform !== 'none';
+/** Whether a box is the containing block of a FIXED descendant: a transform, filter or
+ *  perspective, the will-change that promises one, or paint/layout containment. */
+function holdsFixed(cs: CSSStyleDeclaration): boolean {
+  return cs.transform !== 'none' || cs.filter !== 'none' || cs.perspective !== 'none'
+    || /transform|perspective|filter/.test(cs.willChange) || /paint|layout|strict|content/.test(cs.contain);
+}
+
+/** Whether a box is the containing block of an ABSOLUTE descendant: positioned, or one that
+ *  holds fixed ones too. */
+function holdsAbsolute(cs: CSSStyleDeclaration): boolean {
+  return cs.position !== 'static' || holdsFixed(cs);
 }
 
 /**
  * Whether `anc`'s overflow clip reaches `el`. An ancestor's overflow clips its descendants only
- * through their containing blocks: a fixed box, or an absolute one whose containing block lies
- * above `anc`, paints wherever it is placed, however small `anc` is. A pill pinned out of an
- * empty, zero-width mask (ls41's "STREAMING NOW") is not cut by it.
+ * through their containing blocks: an absolute or fixed box whose containing block lies above
+ * `anc` paints wherever it is placed, however small `anc` is. A pill pinned out of an empty,
+ * zero-width mask (ls41's "STREAMING NOW") is not cut by it.
  */
 function clipReaches(anc: Element, el: Element, win: Window): boolean {
   let node: Element | null = el;
   while (node && node !== anc) {
     const position = win.getComputedStyle(node).position;
-    if (position === 'fixed') return false;
+    const holds = position === 'fixed' ? holdsFixed : position === 'absolute' ? holdsAbsolute : null;
     let up: Element | null = node.parentElement;
-    if (position === 'absolute') {
-      while (up && up !== anc && !holdsAbsolute(up, win)) up = up.parentElement;
-      if (up === anc && !holdsAbsolute(anc, win)) return false;
+    if (holds) {
+      while (up && up !== anc && !holds(win.getComputedStyle(up))) up = up.parentElement;
+      if (up === anc && !holds(win.getComputedStyle(anc))) return false;
     }
     node = up;
   }
   return node === anc;
 }
 
-/** The part of `rect` (the box of `el`) that its overflow-clipping ancestors below `surface` let
- *  paint, each on the axes it hides; null when they hide all of it. */
+/** An overflow value that clips. */
+const clips = (overflow: string) => overflow !== 'visible';
+
+/** Whether `el` or a box between it and `anc` is moved by a transform: a line parked off its
+ *  mask for an entrance, rather than laid out there. The identity matrix an entrance leaves
+ *  behind moves nothing. */
+function movedWithin(el: Element, anc: Element, win: Window): boolean {
+  for (let node: Element | null = el; node && node !== anc; node = node.parentElement) {
+    const t = win.getComputedStyle(node).transform;
+    if (t !== 'none' && t !== 'matrix(1, 0, 0, 1, 0, 0)') return true;
+  }
+  return false;
+}
+
+/** Whether the line is truncated with an ellipsis between it and `anc`, inclusive. */
+function ellipsized(el: Element, anc: Element, win: Window): boolean {
+  for (let node: Element | null = el; node; node = node.parentElement) {
+    if (win.getComputedStyle(node).textOverflow === 'ellipsis') return true;
+    if (node === anc) break;
+  }
+  return false;
+}
+
+/** The part of `rect` (the box of `el`) that the ancestors below `surface` let paint: each one's
+ *  overflow on the axes it clips, and its clip-path. Null when they hide all of it. */
 function paintedPart(el: Element, rect: DOMRect, surface: Element, win: Window): DOMRect | null {
   let { left, top, right, bottom } = rect;
+  const keep = (box: { left: number; top: number; right: number; bottom: number }, x: boolean, y: boolean) => {
+    if (x) { left = Math.max(left, box.left); right = Math.min(right, box.right); }
+    if (y) { top = Math.max(top, box.top); bottom = Math.min(bottom, box.bottom); }
+  };
   for (let anc = el.parentElement; anc && anc !== surface; anc = anc.parentElement) {
-    if (!clipReaches(anc, el, win)) continue;
     const cs = win.getComputedStyle(anc);
-    const ar = anc.getBoundingClientRect();
-    if (cs.overflowX === 'hidden' || cs.overflowX === 'clip') {
-      left = Math.max(left, ar.left);
-      right = Math.min(right, ar.right);
-    }
-    if (cs.overflowY === 'hidden' || cs.overflowY === 'clip') {
-      top = Math.max(top, ar.top);
-      bottom = Math.min(bottom, ar.bottom);
-    }
+    // A clip-path cuts everything the element paints, its descendants however positioned.
+    const clip = clipBoxFor(anc, cs, rect);
+    if (clip) keep(clip, true, true);
+    const x = clips(cs.overflowX);
+    const y = clips(cs.overflowY);
+    if ((x || y) && clipReaches(anc, el, win)) keep(anc.getBoundingClientRect(), x, y);
   }
   return right > left && bottom > top ? new DOMRect(left, top, right - left, bottom - top) : null;
 }
@@ -696,11 +728,22 @@ function overflowIssues(
         // it hugs a line box its glyphs routinely overhang. A tracked line's last letter carries
         // its letter-spacing as empty advance past the ink, and centred tracked caps hang exactly
         // that much past their mask (lt33), so that much is not a cut. A WARNING until the
-        // catalog has been calibrated against it, like (a2).
+        // catalog has been calibrated against it, like (a2). The line is measured by its TEXT, so
+        // a block whose nowrap words overflow its own box counts. Two shapes are not a cut: a
+        // line moved wholly outside its mask is parked for an entrance, and an ellipsis is a
+        // truncation the design chose and shows. A line squeezed out of sight by a mask the
+        // layout shrank to nothing (ls07's role lines) is the worst cut of all and still counts.
+        if (anc === el || maskCut || !clips(win.getComputedStyle(anc).overflowX)) continue;
         const ar = anc.getBoundingClientRect();
+        const words = el.ownerDocument.createRange();
+        words.selectNodeContents(el);
+        const ink = words.getBoundingClientRect();
+        const lineLeft = ink.width ? Math.min(rect.left, ink.left) : rect.left;
+        const lineRight = ink.width ? Math.max(rect.right, ink.right) : rect.right;
         const tracking = Math.max(0, parseFloat(win.getComputedStyle(el).letterSpacing) || 0);
-        const cut = rect.left < ar.left - 2 || rect.right - tracking > ar.right + 2;
-        if (anc !== el && !maskCut && cut && clipReaches(anc, el, win)) {
+        const cut = lineLeft < ar.left - 2 || lineRight - tracking > ar.right + 2;
+        const parked = (lineRight <= ar.left || lineLeft >= ar.right) && movedWithin(el, anc, win);
+        if (cut && !parked && !ellipsized(el, anc, win) && clipReaches(anc, el, win)) {
           maskCut = true;
           warnings.push(
             issue(
