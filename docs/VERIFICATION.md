@@ -384,6 +384,10 @@ count from an upper bound into an answer.
 ref and a pull request run on `refs/pull/<n>/merge`, so `gh workflow run ci.yml --ref <branch>`
 keeps running beside the pull request's run. Until 2026-10-09 the branch push run shared the
 dispatch's group and cancelled it ([`docs/backlog/ci-concurrency-group-per-event.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md)).
+This is accepted (#884). Dispatches are rare, a second dispatch on the same branch still cancels
+the first, and cancelling from the pull request run would give every pull request run `actions:
+write`. A full-suite dispatch holds about 11 runners, so if you dispatched and then pushed, cancel
+the old run yourself: `gh run cancel <id>`.
 
 **So read the job list for what it now tells you, which is the PLAN and not a hole.** A skipped
 shard means the classifier found nothing in the branch's whole diff against `main` that reaches
