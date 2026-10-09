@@ -250,11 +250,12 @@ the plugins as well as from the studio's shelf, and only when the user asks for 
 ```
  noacg pack ./a ./b --name "Show" --description "One line" --save \
    --share --license cc-by-4.0 --shown-as "Quizmaster K"
-   §7 first: validate, packEntry, POST /api/me/packages -> the Home copy waits for Install
+   §7's gate first: validate, packEntry
    bridge.communityCheck: the shelf's own checks (words, share gate per graphic, then each
-     graphic played with outside requests refused) over the templates the save validated
+     graphic played with outside requests refused) over the templates the gate validated
    -> POST /api/me/community-packs (Bearer key) { name, description, author, license, pack }
    -> community_pack_submit_for(user, ...) -> 201 { id, state: "in_review" }
+   then §7's POST /api/me/packages -> the Home copy waits for Install
  studio: the pack is In review under Your packs; a NoaCG admin reviews it like any other
 ```
 
@@ -277,9 +278,14 @@ the plugins as well as from the studio's shelf, and only when the user asks for 
   The door refuses a body without the licence.
 - **Never offered.** The skill section is OFF unless the user asks to share; the MCP schema's
   only trace is the `share` argument pointing at that reference.
-- **The Home copy comes first.** `--share` needs `--save`, and the community checks run after
-  the Home copy is sent, so a finding refuses the share and the Home copy stays. The shared copy
-  carries no cues; a `--rundown` stays on the Home copy.
+- **The share comes first (#876).** `--share` needs `--save`, and the community checks and the
+  share door run before the Home copy is sent, so a refused share sends nothing and the retry
+  after a fix adds no second package to Home. With the Home copy first, as it was at first, each
+  refused attempt left one more package on Home. The cost of this order is a share with no Home
+  copy when the package door refuses after the share went through (the 25-package waiting cap,
+  a rate limit); the CLI says so and says to pack it again without sharing, because a retry with
+  the share would put a duplicate in the review queue. The shared copy carries no cues; a
+  `--rundown` stays on the Home copy.
 
 The door's checks are the package door's (§7) in the same order, then the shape (the three words,
 the licence, a `noacg-pack` with no cues; the code inside is never run on the server), then the

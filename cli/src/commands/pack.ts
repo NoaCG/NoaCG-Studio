@@ -10,8 +10,8 @@
 //   --share  ALSO send it for review to Community packs (docs/AGENT_SAVE.md §8), only when the
 //            user asked to share it. It needs --save, the licence written out (--license
 //            cc-by-4.0), the name it is shown under (--shown-as) and --description. The shared
-//            copy carries no cues. The studio's community checks run after the Home copy is sent,
-//            so a finding refuses the share while the Home copy stays.
+//            copy carries no cues. The studio's community checks and the share go before the
+//            Home copy, so a refused share sends nothing and a retry adds no second Home copy.
 //
 // A package that is SENT is validated first, graphic by graphic, exactly as `noacg save` does
 // (the static gate + the runtime bench): one graphic with an error refuses the whole package
@@ -184,6 +184,8 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
     ...(opts.rundown?.length ? { cues: opts.rundown } : {}),
   };
 
+  // The local file first: it sends nothing, and a write that fails then stops the run before
+  // anything leaves the machine.
   const outcome: PackOutcome = { ...base, ok: true };
   if (opts.outFile) {
     const file = path.resolve(opts.outFile);
@@ -191,6 +193,16 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
     await fs.writeFile(file, `${JSON.stringify(pack, null, 2)}\n`);
     outcome.file = file;
   }
+  // A share goes before the Home copy (#876). A refused share then sends nothing at all, so the
+  // user fixes the graphic and runs the same command again without a second copy piling up on
+  // Home. The other order would leave a duplicate share in an admin's review queue instead,
+  // whenever the Home door refused after a share went through; that case is said below with how
+  // to send the Home copy alone.
+  const share = opts.save && key && opts.share
+    ? await shareToCommunity(opts, opts.share, graphics, templates, bridge, origin, key.key, log)
+    : undefined;
+  if (share) outcome.share = share;
+  if (share && !('id' in share)) return { ...outcome, ok: false, reason: 'refused', error: share.error };
   if (opts.save && key) {
     try {
       const sent = await savePackageToHome(origin, key.key, pack);
@@ -198,20 +210,17 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
       outcome.url = sent.url;
     } catch (e) {
       const message = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
-      return { ...outcome, ok: false, reason: 'refused', error: `Not sent: ${message}` };
-    }
-    if (opts.share) {
-      const share = await shareToCommunity(opts, opts.share, graphics, templates, bridge, origin, key.key, log);
-      outcome.share = share;
-      // The user asked for both: a refused share is a failed run, with the Home copy kept.
-      if (!('id' in share)) outcome.ok = false;
+      const error = share
+        ? `Not sent to your Home: ${message.replace(/[.\s]*$/, '.')} It is shared, so pack it again without sharing to put it on your Home.`
+        : `Not sent: ${message}`;
+      return { ...outcome, ok: false, reason: 'refused', error };
     }
   }
   return outcome;
 }
 
-/** The second pass of a share: the studio's own community checks over the templates the save
- *  already validated, then the share door. Never throws; what went wrong is the outcome. */
+/** A share, before the Home copy: the studio's own community checks over the templates the save's
+ *  gate already validated, then the share door. Never throws; what went wrong is the outcome. */
 async function shareToCommunity(
   opts: PackOptions,
   share: ShareOptions,
@@ -234,10 +243,10 @@ async function shareToCommunity(
       graphics: templates.map((template, i) => ({ name: String(graphics[i].name), template })),
     });
   } catch (e) {
-    return { reason: 'bridge', error: `Not shared: ${e instanceof Error ? e.message : String(e)}` };
+    return { reason: 'bridge', error: `Not sent: ${e instanceof Error ? e.message : String(e)}` };
   }
   if (findings.length) {
-    return { reason: 'checks', findings, error: 'Not shared: Community packs refuses what is listed above. Fix it and share again.' };
+    return { reason: 'checks', findings, error: 'Not sent: Community packs refuses what is listed above. Fix it and try again.' };
   }
   // A community pack is graphics only (spec D2): the server refuses cues, so none are sent.
   const pack = { format: 'noacg-pack', version: 1, name: opts.name, description, graphics };
@@ -257,7 +266,7 @@ async function shareToCommunity(
           ? e.failure.message
           : explainFailure(e.failure);
     }
-    return { reason: 'refused', error: `Not shared: ${message}` };
+    return { reason: 'refused', error: `Not sent: ${message}` };
   }
 }
 
@@ -279,7 +288,8 @@ export function describePack(outcome: PackOutcome): string {
     lines.push(
       `Sent "${outcome.name}" for review under CC BY 4.0, shown as "${share.shownAs}". It is In review under Your packs on the Community packs shelf; you can withdraw it there.`,
     );
-    if (share.withoutCues) lines.push('The shared copy carries no cues; the rundown stays on your Home copy.');
+    if (share.withoutCues && outcome.url) lines.push('The shared copy carries no cues; the rundown stays on your Home copy.');
+    if (!outcome.ok && outcome.error) lines.push(outcome.error); // shared, but Home refused
   } else if (share) {
     for (const f of share.findings ?? []) lines.push(f.graphic ? `- ${f.graphic}: ${f.message}` : `- ${f.message}`);
     lines.push(share.error);

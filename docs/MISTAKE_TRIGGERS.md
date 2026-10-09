@@ -99,10 +99,10 @@ performed every wave, deleted the same way. Same folder, same command shape, opp
 what separated them was the record rather than the document. Its reasoning is in
 `scripts/handoff-trace.mjs` at 745c6f2.
 
-A hook that reaches for a fact outside the repo - the push notice asks GitHub - is verified against
-the real source, bounded, and silent when it cannot answer: `gh` under a ten-second timeout, null on
-any failure, and the must-fire case is a real cancelled run found with `gh run list --status
-cancelled`, not a fixture.
+A hook that reaches for a fact outside the repo is verified against the real source, bounded, and
+silent when it cannot answer. The push notice (retired 2026-10-09, #884) was the worked example:
+`gh` under a timeout, null on any failure, and a must-fire case that was a real cancelled run found
+with `gh run list --status cancelled`, not a fixture.
 
 The 2026-09-02 widening is the worked example for the matcher half. With an inert stand-in on the
 process table,
@@ -115,13 +115,13 @@ commands, not by thinking harder about the regex.
 
 | Hook | Event | Verdict | The mistake |
 |---|---|---|---|
-| `guard-command.mjs` | PreToolUse `Bash`/`PowerShell` | deny | a hand-started dev server on a checkout's port; a branch created in the primary checkout; a commit message carrying agent language, an em dash or a `Co-Authored-By` trailer; a commit sweeping in `dist/`; a foreground poll of the job queue; browser work started while another browser job is live anywhere on the machine; a `git push` and a `gh workflow run` in one command, which is a coin flip over which run survives; a commit on a branch whose landing is queued or running (the branch is FROZEN until the job is terminal) |
+| `guard-command.mjs` | PreToolUse `Bash`/`PowerShell` | deny | a hand-started dev server on a checkout's port; a branch created in the primary checkout; a commit message carrying agent language, an em dash or a `Co-Authored-By` trailer; a commit sweeping in `dist/`; a foreground poll of the job queue; browser work started while another browser job is live anywhere on the machine; a commit on a branch whose landing is queued or running (the branch is FROZEN until the job is terminal) |
 | `guard-edit.mjs` | PreToolUse `Edit`/`Write` | deny | editing a generated or vendored file by hand; any edit in a checkout whose branch has a queued or running landing (`frozen-branch.mjs` - a dirty tree when the gate looks is a dead landing) |
 | `guard-preview.mjs` | PreToolUse `mcp__Claude_Browser__preview_start` | deny | the dev-server door opened from a LINKED worktree, which serves a sibling checkout's page as this branch's work |
 | `guard-agent-launch.mjs` | PreToolUse `Agent` | deny | a wave prompt whose `TOUCHES` or `READ` line names a path that exists neither in the launching checkout nor on `origin/main` |
 | `spawn-task-guard.mjs` | PreToolUse `mcp__ccd_session__spawn_task` | deny | a background-task chip minted for work the session could have done here or filed under `docs/backlog/` |
-| `guard-question.mjs` | PreToolUse `AskUserQuestion` | deny | a question to the owner that does not name, in its own text, the one reason it is his (`needs: account|money|identity|harness|alignment`) - everything else is a consult, a decision and a record he can revert (ruling 2026-09-05) |
-| `warn-command.mjs` | PostToolUse `Bash`/`PowerShell` | warn | a commit that just staled a queued landing pin; a follow-up push whose earlier CI run never finished, so the new run plans past a delta nothing covered |
+| `guard-question.mjs` | PreToolUse `AskUserQuestion` | deny | a question not tagged `needs: decision`, more than one per call, or one without a recommended answer; any question from a wave row, or from an open night wave's own session, its orchestrator and rows (nobody is there to answer) |
+| `warn-command.mjs` | PostToolUse `Bash`/`PowerShell` | warn | a commit that just staled a queued landing pin |
 | `warn-edit.mjs` | PostToolUse `Write` | warn | a new migration whose number is already claimed on another ref |
 | `lint-file.mjs` | PostToolUse edits | warn | lint findings in the file just written |
 | `stop-wait.mjs` | Stop / SubagentStop | warn | a turn that ends waiting on something that cannot wake the session |

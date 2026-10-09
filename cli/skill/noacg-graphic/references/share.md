@@ -46,6 +46,8 @@ In the MCP tool: `pack` with `paths`, `name`, and
   shelf's own: placeholder text, an outside font, two graphics with one name, and any request a
   graphic makes outside itself while it plays (an image from a CDN, a fetch, a web font). A
   community pack carries everything it shows: put the file in the graphic, or remove the
-  request, then share again. The Home copy has already landed.
+  request, then run the same command again. Nothing was sent, not even the Home copy.
 - **Refused by the server**: its sentence says why (for example ten packs already waiting for
-  review, or an account that cannot submit packs). Report it as it is.
+  review, or an account that cannot submit packs). Report it as it is. Nothing was sent.
+- **Shared, but not sent to Home**: the share went through and the Home door refused. Do not
+  share again; pack it again without sharing to put it on the user's Home.

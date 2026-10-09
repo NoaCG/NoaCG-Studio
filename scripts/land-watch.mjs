@@ -100,8 +100,9 @@ const touched = (c) => [c.startedAt, c.completedAt].filter(Boolean).sort().at(-1
  * and `Reviewed`, not the gate alone) on which GitHub has already refused the pull request, or
  * none.
  *
- * A push run and a pull_request run of ci.yml both report under each name, and GitHub reads the
- * most recently updated run of a name. So: nothing in a workflow that reports a required check may
+ * More than one run of ci.yml can report under each name - a re-run, a dispatch beside the pull
+ * request's run, and until 2026-10-09 (#851) a branch push run - and GitHub reads the most
+ * recently updated run of a name. So: nothing in a workflow that reports a required check may
  * still be going - a pending or re-running check is not a verdict, and neither is one run's red
  * gate while the other run's shards are still working towards a gate that does not exist yet -
  * and then a required check whose newest run is red is one. Until 2026-10-02 this asked for EVERY run of the gate

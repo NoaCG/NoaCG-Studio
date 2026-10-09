@@ -1,4 +1,5 @@
-// Which `noacg-graphic` skill this machine actually has installed, and how to update it.
+// Which NoaCG plugins this machine actually has installed - the `noacg` plugin carrying the
+// `noacg-graphic` skill, and the `noacg-mcp` launcher - at which version, and how to update them.
 //
 // Nothing auto-updates a Claude Code or Codex marketplace. A plugin installed once keeps the skill
 // text it was installed with - measured on this laptop 2026-09-16 (
@@ -17,8 +18,9 @@
 // manifest works on the installs that exist today, including the stale one.
 //
 // WHAT IT REFUSES TO DO. Never print a version it guessed. A version comes from a manifest lying
-// beside a real SKILL.md, never from a cache directory's name, never from the harness's index
-// alone. Anything unreadable, ambiguous or absent is silence.
+// beside a real SKILL.md (or, for the launcher, a `noacg-mcp` folder holding `mcp-server.mjs`),
+// never from a cache directory's name, never from the harness's index alone. Anything unreadable,
+// ambiguous or absent is silence.
 //
 // The reads are synchronous, unlike the rest of `src/` - a handful of local stats and two small
 // JSON files, where async would buy nothing and cost every caller an await.
@@ -27,15 +29,18 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-/** One installed copy of the skill, with the exact command that updates it. */
-export interface InstalledSkill {
+/** One installed NoaCG plugin, with the exact command that updates it. */
+export interface InstalledPlugin {
+  /** `skill` for the plugin carrying the `noacg-graphic` skill, `mcp` for the `noacg-mcp` launcher,
+   *  which runs only the CLI version on its own manifest (cli/plugin-mcp/mcp-server.mjs). */
+  kind: 'skill' | 'mcp';
   /** The agent harness holding it, as a person would name it. */
   harness: string;
   /** The plugin id, `name@marketplace`, as the harness's own commands spell it. */
   plugin: string;
-  /** The version on the manifest beside the skill. */
+  /** The version on the plugin's own manifest. */
   version: string;
-  /** The plugin root on disk - the folder holding `skills/noacg-graphic/`. */
+  /** The plugin root on disk. */
   path: string;
   /** What to run to bring it current. */
   update: string;
@@ -67,8 +72,13 @@ const HARNESSES: Harness[] = [
   },
 ];
 
-/** The skill folder a plugin must carry for any of this to be about the skill at all. */
-const SKILL_FILE = path.join('skills', 'noacg-graphic', 'SKILL.md');
+/** Which NoaCG plugin a root is, or null for any other. The skill folder is specific enough on its
+ *  own; `mcp-server.mjs` is a common name, so the launcher also has to be called `noacg-mcp`. */
+function kindOf(root: string, name: string): InstalledPlugin['kind'] | null {
+  if (existsSync(path.join(root, 'skills', 'noacg-graphic', 'SKILL.md'))) return 'skill';
+  if (name === 'noacg-mcp' && existsSync(path.join(root, 'mcp-server.mjs'))) return 'mcp';
+  return null;
+}
 
 /**
  * Where a plugin keeps its manifest. One plugin folder ships both (`cli/plugin/`), and which one
@@ -104,22 +114,36 @@ function manifestVersion(root: string): string | null {
   return null;
 }
 
+/** One NoaCG plugin root, with its id split the way the harness's commands spell it. */
+interface PluginRoot {
+  root: string;
+  kind: InstalledPlugin['kind'];
+  /** `name@marketplace`. */
+  plugin: string;
+  marketplace: string;
+}
+
 /**
- * Plugin roots that carry the skill, as `{ root, plugin }` where `plugin` is `name@marketplace`.
+ * The NoaCG plugin roots under one harness home.
  *
  * Preferred source is the harness's own install record, which names the ACTIVE install path. The
  * cache-directory scan is the fallback for a harness that keeps no such file (Codex, today), and
  * it refuses to choose when a plugin has several versions cached: the newest directory is not
  * necessarily the one a session loaded, and a guess here is exactly what this command must not do.
  */
-function pluginRoots(home: string): { root: string; plugin: string }[] {
+function pluginRoots(home: string): PluginRoot[] {
   const plugins = path.join(home, 'plugins');
-  const carriesSkill = (root: string) => existsSync(path.join(root, SKILL_FILE));
+  const found: PluginRoot[] = [];
+  const add = (root: string, name: string, plugin: string, marketplace: string) => {
+    const kind = kindOf(root, name);
+    if (kind) found.push({ root, kind, plugin, marketplace });
+  };
 
   const index = readJson(path.join(plugins, 'installed_plugins.json'))?.plugins;
-  const found: { root: string; plugin: string }[] = [];
   if (index && typeof index === 'object') {
     for (const [plugin, records] of Object.entries(index as Record<string, unknown>)) {
+      const at = plugin.lastIndexOf('@');
+      const [name, marketplace] = at > 0 ? [plugin.slice(0, at), plugin.slice(at + 1)] : [plugin, plugin];
       // The records are an ARRAY because one plugin can be recorded once per scope (user and
       // project), and those records share one cache directory. Same folder, same manifest, same
       // version - so keep the first and drop the rest, or `doctor` prints one identical stale
@@ -129,11 +153,13 @@ function pluginRoots(home: string): { root: string; plugin: string }[] {
         const installPath = (record as { installPath?: unknown })?.installPath;
         if (typeof installPath !== 'string' || seen.has(installPath)) continue;
         seen.add(installPath);
-        if (carriesSkill(installPath)) found.push({ root: installPath, plugin });
+        add(installPath, name, plugin, marketplace);
       }
     }
+    // A harness that keeps the record is believed, absence included: a plugin it does not list
+    // is uninstalled, even when its old cache directory is still on disk.
+    return found;
   }
-  if (found.length) return found;
 
   // `plugins/cache/<marketplace>/<plugin>/<version>/`, the layout both harnesses use.
   const cache = path.join(plugins, 'cache');
@@ -141,25 +167,25 @@ function pluginRoots(home: string): { root: string; plugin: string }[] {
     for (const name of dirNames(path.join(cache, marketplace))) {
       const versions = dirNames(path.join(cache, marketplace, name))
         .map((v) => path.join(cache, marketplace, name, v))
-        .filter(carriesSkill);
-      if (versions.length === 1) found.push({ root: versions[0], plugin: `${name}@${marketplace}` });
+        .filter((root) => kindOf(root, name));
+      if (versions.length === 1) add(versions[0], name, `${name}@${marketplace}`, marketplace);
     }
   }
   return found;
 }
 
 /**
- * Every installed copy of the skill this machine can be shown to have, one per harness that has
- * one. An empty list is the normal answer for a terminal user who never installed a plugin, and
- * also the answer whenever anything about an install is unreadable.
+ * Every installed NoaCG plugin this machine can be shown to have, per harness and kind. An empty
+ * list is the normal answer for a terminal user who never installed a plugin, and also the answer
+ * whenever anything about an install is unreadable.
  *
  * It reports what is INSTALLED rather than trying to work out which harness invoked it. A
  * subprocess cannot tell that reliably - this laptop's own sessions carry both `CLAUDECODE` and
  * `CODEX_*` in the same environment - and a wrong attribution would print the wrong update
  * command. Naming the harness on the line costs one word and is always true.
  */
-export function installedSkills(): InstalledSkill[] {
-  const out: InstalledSkill[] = [];
+export function installedPlugins(): InstalledPlugin[] {
+  const out: InstalledPlugin[] = [];
   for (const harness of HARNESSES) {
     let home: string;
     try {
@@ -167,11 +193,10 @@ export function installedSkills(): InstalledSkill[] {
     } catch {
       continue; // no home directory to speak of (a service account) - not an error worth a word
     }
-    for (const { root, plugin } of pluginRoots(home)) {
+    for (const { root, kind, plugin, marketplace } of pluginRoots(home)) {
       const version = manifestVersion(root);
       if (!version) continue; // no manifest, no claim - a hand-copied skill folder has no version
-      const marketplace = plugin.includes('@') ? plugin.slice(plugin.lastIndexOf('@') + 1) : plugin;
-      out.push({ harness: harness.name, plugin, version, path: root, update: harness.update(plugin, marketplace) });
+      out.push({ kind, harness: harness.name, plugin, version, path: root, update: harness.update(plugin, marketplace) });
     }
   }
   return out;

@@ -1,16 +1,12 @@
-// PostToolUse notice for shell commands (the Bash and PowerShell tools). Says two things:
+// PostToolUse notice for shell commands (the Bash and PowerShell tools): A COMMIT LANDED ON A
+// BRANCH WHOSE LANDING JOB IS ALREADY QUEUED, so the pin that job holds is now stale and it will
+// refuse when its turn comes.
 //
-//   A COMMIT LANDED ON A BRANCH WHOSE LANDING JOB IS ALREADY QUEUED, so the pin that job holds
-//   is now stale and it will refuse when its turn comes.
-//
-//   A PUSH REPLACED A RUN THAT NEVER FINISHED: the branch already had a run for its previous tip
-//   and that run was cancelled or still going. This one is BELT-AND-BRACES since 2026-09-06, when
-//   ci.yml started measuring every branch push from the merge-base with main: the replacement run
-//   now covers the cancelled one's delta by construction, so the plan is no longer narrowed and
-//   the notice no longer points at a hole. What it still says is true and worth saying - the run
-//   you were watching is gone, here is its replacement, and the house rule is to read WHICH JOBS
-//   RAN rather than the colour. The reasoning sits with the rule below; it costs one
-//   `gh run list`, only on a push that updated a remote branch.
+// It used to say a second thing: that a push had replaced a CI run that never finished. That
+// notice was retired on 2026-10-09 (#884). Since #851 a branch is gated only by its pull request's
+// run, which plans the branch's whole change from main, so a cancelled run leaves no hole, and the
+// notice cost a `gh run list` after every update push to say so. Its reasoning and the real run
+// sets it was pinned on are in git history (scripts/command-match.mjs at 716a1e59f).
 //
 // WHY THIS IS A NOTICE AND NOT A REFUSAL. Queueing pins the branch at its current commit, because
 // queueing IS the declaration that the work is finished (`.agent-workflows/queue-merge.md` §1).
@@ -35,27 +31,19 @@
 // `node -e 0` on the same box - so the common case is node starting up and about 12 ms of work.
 // A commit costs 195 ms, which is two git calls and a queue read, on the one command per session
 // where the answer matters.
-// Re-measured 2026-09-05 after the push rule: 57 ms on an `ls` against 45 ms bare, so still node
-// starting up; the push matcher is pure string work, and the gh call runs only after a real
-// update push, about once per session.
 
 import { readHookInput, warn, gitOutput } from './lib.mjs';
 // `command-match.mjs` is pure and imports nothing, so the gate below costs only itself. The two
 // modules that answer the rest are loaded LAZILY, after it passes: `command-target.mjs` and
 // `jobs-store.mjs` each pull in a chain (git plumbing, the port registry, the worktree lister)
 // that is pure overhead on the `ls` this hook mostly sees.
-import { commitCheckouts, pushedUpdates, unfinishedRun, pushReplacedNotice } from '../command-match.mjs';
-import { spawnSync } from 'node:child_process';
+import { commitCheckouts } from '../command-match.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
 if (typeof command !== 'string' || command.length === 0) process.exit(0);
 const committing = commitCheckouts(command);
-// The branches this command just pushed an update to, off git's own report in the response - so a
-// first push, a no-op and a rejection all read as nothing, before anything is asked of anyone.
-const pushed = pushedUpdates(command, input.tool_response);
-
-if (committing.length === 0 && pushed.length === 0) process.exit(0);
+if (committing.length === 0) process.exit(0);
 
 const { checkoutRoot, commandCheckout } = await import('../command-target.mjs');
 
@@ -67,70 +55,16 @@ const sessionDir = typeof input?.cwd === 'string' && input.cwd ? input.cwd : pro
 const named = committing.find(Boolean);
 const root = (named ? checkoutRoot(named) : null) ?? commandCheckout(command, sessionDir) ?? sessionDir;
 
-// BOTH RULES SPEAK, in one message. `warn` exits, so a hook with two things to say and one exit
-// silently drops the second.
-const notices = [];
-
-// --- A push that replaced a run that never finished -------------------------------------------
-//
-// `ci.yml`'s concurrency group cancels the run still going for a branch's previous tip whenever a
-// follow-up push arrives. That USED TO leave the earlier delta covered by nothing, because the
-// plan was measured from `github.event.before`: sixteen handoffs between 2026-09-01 and
-// 2026-09-05 carry a run that reported green having skipped every shard the cancelled one owed.
-//
-// THE HOLE IS CLOSED IN THE WORKFLOW. Since 2026-09-06 ci.yml measures every branch push from
-// `git merge-base origin/main HEAD`, which is an ancestor of the cancelled tip whatever it was,
-// so the replacement run plans the branch's whole work and cannot plan less than the PUSH run it
-// cancelled. Re-measured 2026-09-16 over 158 branch push runs: 12 green-after-cancelled, 4 of
-// them shard-free, all 4 planning `mode: none` off the merge-base over paths that cannot reach
-// the E2E surface. So this notice is belt-and-braces for a cancelled PUSH run, and it is kept for
-// two reasons that survive the fix: it is the one place a session is told the run it was watching
-// is gone and which run replaced it, and it would speak again if the workflow ever regressed.
-//
-// A CANCELLED DISPATCH IS STILL A REAL LOSS, and the notice says the opposite thing about it -
-// which is why the runs are fetched with their `event`. `pushReplacedNotice` owns that split and
-// explains it. The underlying defect, one concurrency group across two event types, is filed as
-// `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md`.
-//
-// EXACT, so it cannot cry wolf: silent when the earlier run had FINISHED, because then the
-// incremental plan is right by design; silent on a first push, a no-op and a rejection, because
-// nothing was in flight (`pushedUpdates`); silent when gh cannot answer, because a hook that
-// cannot tell must not speak. The cancellation may not be recorded yet in the seconds after the
-// push, so a run still `in_progress` or `queued` for the old tip counts the same as one already
-// `cancelled` - it is about to be.
-//
-// The decision and the message both live in command-match.mjs, pure and pinned in its tests.
-// `unfinishedRun` carries the two real run sets it was measured on: the first real event this was
-// fed (sha 43c9d60b, one cancelled push run beside one green dispatch) must stay silent, and the
-// real 2026-09-04 follow-up push (sha a8ce0d1b, one cancelled run and nothing else) must speak.
-// `pushReplacedNotice` is there for the same reason this hook cannot be imported - it reads stdin
-// at module top level - and because the claim that went wrong here was prose nothing checked.
-//
-// THE OLD TIP IS LOOKED UP EXACTLY. Git's report abbreviates it, and an abbreviated sha given to
-// `gh run list --commit` returns [] with exit 0, so it is resolved to the full sha first - this
-// checkout pushed that commit, so it has it - and only a tip git cannot resolve falls back to the
-// branch listing with a prefix filter, which `--limit` can truncate. BOUNDED: at most three
-// branches per push, eight seconds each, because the harness ends a hook at sixty seconds and a
-// hook killed mid-way loses every notice it had collected.
-for (const { branch, from, to } of pushed.slice(0, 3)) {
-  const earlier = unfinishedRun(ciRuns(root, branch, git(root, ['rev-parse', '--verify', `${from}^{commit}`])), from);
-  if (!earlier) continue;
-  notices.push(pushReplacedNotice({ branch, from, to, run: earlier }));
-}
-
-// --- A commit that staled a queued landing pin ------------------------------------------------
-
-if (committing.length === 0) say();
 const { jobsDir, readJobs, landingStateFor } = await import('../jobs-store.mjs');
 
 const branch = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']);
 // A detached HEAD has no branch to have queued, and `main` is never queued for landing.
-if (!branch || branch === 'HEAD' || branch === 'main') say();
+if (!branch || branch === 'HEAD' || branch === 'main') process.exit(0);
 
 const dir = jobsDir();
-if (!dir) say();
+if (!dir) process.exit(0);
 const landing = landingStateFor(branch, readJobs(dir));
-if (landing.state !== 'queued') say();
+if (landing.state !== 'queued') process.exit(0);
 
 // WHAT THE JOB PINNED, in the job's own words. `jobs.mjs add-merge` records the tip as
 // `--expect-sha <sha>` in the queued command, and both `land-watch.mjs` and `requeue` compare it
@@ -139,10 +73,10 @@ if (landing.state !== 'queued') say();
 // has nothing to go stale.
 const pinned = /--expect-sha\s+([0-9a-f]{7,40})\b/.exec(landing.job.command)?.[1];
 const tip = git(root, ['rev-parse', branch]);
-if (!pinned || !tip || pinned === tip) say();
+if (!pinned || !tip || pinned === tip) process.exit(0);
 
 const running = landing.job.state === 'running';
-notices.push(
+warn(
   `Heads up: landing job ${landing.job.id} is already ${landing.job.state} for ${branch}, pinned at ` +
     `${pinned.slice(0, 8)}, and this commit moved the branch to ${tip.slice(0, 8)}. That job will refuse ` +
     `("${branch} has moved since it was queued") rather than land anything.\n` +
@@ -158,48 +92,8 @@ notices.push(
         '  npm run queue:merge'),
 );
 
-say();
-
-/**
- * The ONE exit. Everything collected goes out together, because `warn` exits the process and a
- * hook with two rules and two exits delivers whichever fired first and silently drops the other.
- */
-function say() {
-  if (notices.length > 0) warn(notices.join('\n\n'));
-  process.exit(0);
-}
-
 /** One git answer from the checkout the command acts on, trimmed, or null when git cannot say. */
 function git(cwd, args) {
   return gitOutput(cwd, args)?.trim() || null;
 }
 
-/**
- * The `ci.yml` runs for one commit when its full sha is known, else the branch's recent runs,
- * newest first - or null when gh cannot answer: not installed, not logged in, offline, or slow.
- * Bounded, because this runs inside a hook: a `gh` that hung would hold the session's shell tool
- * with it. Run in the checkout so gh resolves the repository the way the push did.
- *
- * This is one more private copy of "spawn `gh run list --json`, parse, fail to null" - review
- * counted five others in scripts/ when it was written, three of which went with the laptop lander.
- * A shared `listCiRuns` beside ci-failure-set.mjs is still the right home; it is filed, not
- * smuggled in here.
- */
-function ciRuns(cwd, branch, sha) {
-  const scope = sha ? ['--commit', sha] : ['--branch', branch, '--limit', '10'];
-  const res = spawnSync(
-    'gh',
-    // `event` is fetched because a cancelled DISPATCH and a cancelled PUSH owe opposite advice:
-    // the push run that replaced them covers the first and is deliberately narrower than the
-    // second. The notice below branches on it.
-    ['run', 'list', ...scope, '--workflow', 'ci.yml', '--json', 'databaseId,status,conclusion,headSha,event'],
-    { cwd, encoding: 'utf8', windowsHide: true, timeout: 8_000 },
-  );
-  if (res.status !== 0 || typeof res.stdout !== 'string') return null;
-  try {
-    const runs = JSON.parse(res.stdout);
-    return Array.isArray(runs) ? runs : null;
-  } catch {
-    return null;
-  }
-}

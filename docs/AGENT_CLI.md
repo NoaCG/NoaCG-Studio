@@ -703,8 +703,10 @@ published version says nothing. The launcher's own text, cache, timeout and its 
 exact, reviewed CLI version, so `mcp-server.mjs` no longer asks npm anything and the generated
 `npm-latest.mjs` copy is gone. The launcher imports an installed CLI only at exactly its plugin's
 version; a stale or newer one is named on stderr and skipped for `npx -y @noacg/cli@<that
-version>`. `doctor` keeps the `latest` check above
-(`docs/work-specs/agent-toolkit-distribution/spec.md`).
+version>` (`docs/work-specs/agent-toolkit-distribution/spec.md`). So `doctor` (#863) tells a
+user with a `noacg` or `noacg-mcp` plugin installed to run `npm i -g @noacg/cli@<the plugin's
+version>`, the launcher's when both are installed, and names a newer plugin on its own line. The
+`latest` advice above is kept only for a machine with no plugin.
 
 `doctor` still does not separately name what `resolveCli()` would pick; that half of the file's
 proposal is still undecided, not done. What it DOES now name is the skill - below.

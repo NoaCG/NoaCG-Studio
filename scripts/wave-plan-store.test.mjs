@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { inStore, openWave, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
+import { inStore, main, openNightWave, openWave, waveSessions, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
 
 /** A throwaway job store, so nothing here can touch the machine's real one. */
 function store() {
@@ -141,6 +141,71 @@ test('a wave nobody has written to for six hours stops blocking, and the refusal
   assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).refusal, /open it again with its own date and kind/);
   touch(day.file, NOW - 7 * 3_600_000);
   assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
+});
+
+test('only an open night wave inside its window counts as unattended', () => {
+  const dir = store();
+  assert.equal(openNightWave(dir, NOW), null, 'no wave');
+  const day = openWave({ date: '2026-10-08', kind: 'day', until: '2026-10-09T01:00:00+03:00', dir, now: NOW });
+  touch(day.file, NOW);
+  assert.equal(openNightWave(dir, NOW), null, 'a day wave has the owner near');
+  writeFileSync(day.file, `${readFileSync(day.file, 'utf8')}\n## Report\n\nDone.\n`, 'utf8');
+  touch(day.file, NOW);
+
+  const night = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  touch(night.file, NOW);
+  assert.equal(openNightWave(dir, NOW), night.file);
+  // Written to at the very end, so only the window line can close it, not six quiet hours.
+  const end = Date.parse('2026-10-09T06:00:00+03:00');
+  touch(night.file, end);
+  assert.equal(openNightWave(dir, end - 60_000), night.file, 'the last minute of the window');
+  assert.equal(openNightWave(dir, end), null, 'the window has ended');
+  touch(night.file, NOW);
+  writeFileSync(night.file, `${readFileSync(night.file, 'utf8')}\n## Report\n\nDone.\n`, 'utf8');
+  touch(night.file, NOW);
+  assert.equal(openNightWave(dir, NOW), null, 'a reported wave is over');
+  writeFileSync(night.file, '# Night wave 2026-10-08\n', 'utf8');
+  touch(night.file, NOW);
+  assert.equal(openNightWave(dir, NOW), night.file, 'no window line still counts as running');
+});
+
+test('opening a wave records the opening session once, and a resume after a restart adds the new one', () => {
+  const dir = store();
+  const until = '2026-10-09T06:00:00+03:00';
+  const first = openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-1', dir, now: NOW });
+  assert.deepEqual(waveSessions(first.file), ['orch-1']);
+  openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-1', dir, now: NOW + 60_000 });
+  assert.deepEqual(waveSessions(first.file), ['orch-1'], 'the same session is not written twice');
+  // The log after the header may end without a newline, use CRLF, or quote a `Session:` line.
+  const logged = `${readFileSync(first.file, 'utf8')}\nPrompt: Session: owner-9 asked about X\nSession: stray\n- 23:10 launched A`;
+  writeFileSync(first.file, logged.replace(/\n/g, '\r\n'), 'utf8');
+  assert.deepEqual(waveSessions(first.file), ['orch-1'], 'only the lines under the window count');
+  openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-2', dir, now: NOW + 120_000 });
+  assert.deepEqual(waveSessions(first.file), ['orch-1', 'orch-2']);
+  assert.match(readFileSync(first.file, 'utf8'), /launched A$/);
+  const anonymous = openWave({ date: '2026-10-08', kind: 'day', until, dir: store(), now: NOW });
+  assert.deepEqual(waveSessions(anonymous.file), [], 'no session, no line');
+});
+
+test('the command line records the session it runs in', () => {
+  const dir = store();
+  const saved = { jobs: process.env.NOACG_JOBS_DIR, session: process.env.CLAUDE_CODE_SESSION_ID };
+  const out = process.stdout.write;
+  let printed = '';
+  try {
+    process.env.NOACG_JOBS_DIR = dir;
+    process.env.CLAUDE_CODE_SESSION_ID = 'orch-cli';
+    process.stdout.write = (chunk) => { printed += chunk; return true; };
+    const until = new Date(Date.now() + 3_600_000).toISOString();
+    assert.equal(main(['--open', until.slice(0, 10), 'night', '--until', until]), 0);
+  } finally {
+    process.stdout.write = out;
+    for (const [key, value] of [['NOACG_JOBS_DIR', saved.jobs], ['CLAUDE_CODE_SESSION_ID', saved.session]]) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+  assert.deepEqual(waveSessions(printed.trim()), ['orch-cli']);
 });
 
 // A PLAN RUN opens through the same store, so it and a wave exclude each other with one check.
