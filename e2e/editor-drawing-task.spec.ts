@@ -1,10 +1,11 @@
 // covers: src/components/editorFoundation/**
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dropSvg, untickTextRow, rowLabelled } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 
-const evidence = 'docs/work-specs/editor-persistent-drawing';
+// This run's pictures go to the test's own output folder (ignored), never into docs/.
+const evidence = (name: string) => test.info().outputPath(name);
 const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
 const selection = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
 async function frame(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
@@ -132,10 +133,9 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   for (const id of [...shapes, ...paths]) await expect((await frame(page)).locator(id)).toBeVisible();
   expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(150);
   await expect(page.getByTestId('foundation-timeline')).toBeInViewport();
-  mkdirSync(evidence, { recursive: true });
   const settle = () => page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
   const style = await page.addStyleTag({ content: '*{will-change:auto !important}' }); await settle(); await style.evaluate(el => el.remove()); await settle();
-  await page.screenshot({ path: evidence + '/' + label + '.png' });
+  await page.screenshot({ path: evidence(label + '.png') });
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
       const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;

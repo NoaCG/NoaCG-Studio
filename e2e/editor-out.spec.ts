@@ -6,7 +6,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
-import { mkdirSync } from 'node:fs';
 import { dropSvg } from './_svg-import';
 import { fileURLToPath } from 'node:url';
 
@@ -100,8 +99,7 @@ for (const width of [1920, 1366, 1093]) test('Set Out reverse, cancel, history, 
   expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width);
   expect(Math.abs(box.y + box.height - anchor.y)).toBeLessThan(16);
   expect(await page.getByTestId('foundation-canvas').boundingBox()).toEqual(canvas);
-  mkdirSync('docs/research/editor-r1-1c/built', { recursive: true });
-  await page.screenshot({ path: `docs/research/editor-r1-1c/built/choice-${width}.png` });
+  await page.screenshot({ path: test.info().outputPath(`choice-${width}.png`) });
   await page.keyboard.press('Escape'); await expect(prompt).not.toBeVisible(); await expect(button).toBeFocused();
   const moved = await source(page); expect((await data(page)).steps).toHaveLength(2); expect((await data(page)).steps[0].duration).toBe(1);
   expect((await data(page)).steps[1].layers).toEqual({});
@@ -121,8 +119,7 @@ for (const width of [1920, 1366, 1093]) test('Set Out reverse, cancel, history, 
   await expect(frame.locator('.fixture')).toHaveCSS('opacity', '1');
   await frame.evaluate(() => new Promise<void>(resolve => { let n = 0; const tick = () => ++n < 30 ? requestAnimationFrame(tick) : resolve(); requestAnimationFrame(tick); }));
   await expect(page.getByTestId('foundation-clock')).toHaveText('1.00 s');
-  mkdirSync('docs/research/editor-r1-1c/built', { recursive: true });
-  await page.screenshot({ path: `docs/research/editor-r1-1c/built/out-${width}.png` });
+  await page.screenshot({ path: test.info().outputPath(`out-${width}.png`) });
   await page.getByRole('button', { name: 'Out', exact: true }).click();
   await expect(frame.locator('.fixture')).toHaveCSS('opacity', '0');
   expect((await source(page)).js).toBe(reversed.js);
@@ -468,8 +465,7 @@ for (const manual of [false, true]) test('wizard text-and-box through ' + (manua
   await page.getByRole('button', { name: 'Play', exact: true }).click(); await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible(); await ready(page);
   const root = (await data(page)).root;
   await expect((await preview(page)).locator(root)).toHaveCSS('opacity', '1');
-  mkdirSync('docs/research/editor-r1-1c/built', { recursive: true });
-  await page.screenshot({ path: `docs/research/editor-r1-1c/built/wizard-${manual ? 'manual' : 'reverse'}.png` });
+  await page.screenshot({ path: test.info().outputPath(`wizard-${manual ? 'manual' : 'reverse'}.png`) });
   const held = await (await preview(page)).evaluate(selectors => selectors.map(s => { const el = document.querySelector(s)!; return [el.getBoundingClientRect().x, Number(getComputedStyle(el).opacity)]; }), selectors);
   const html = await page.evaluate(async () => {
     const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;

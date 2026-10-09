@@ -1,11 +1,12 @@
 // covers: src/components/editorFoundation/**
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dropSvg, untickTextRow, rowLabelled } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 
-const evidence = 'docs/work-specs/editor-model-proposals';
+// This run's pictures, parity records and captured requests go to the test's own output folder (ignored), never into docs/.
+const evidence = (name: string) => test.info().outputPath(name);
 let semantic = false;
 async function inspect(page: Page) { return page.evaluate(async () => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return i; }); }
 async function reviewed(page: Page, id: string, args: unknown, commit = true) {
@@ -13,7 +14,7 @@ async function reviewed(page: Page, id: string, args: unknown, commit = true) {
   await page.evaluate(async () => {
     (await import('/src/ai/settings.ts')).saveAiSettings({ provider: 'openai', model: 'deterministic-task', configuredProviders: ['openai'] });
   });
-  const handler = async (route: import('@playwright/test').Route) => { mkdirSync('bench-editor-proposals/requests', { recursive: true }); writeFileSync('bench-editor-proposals/requests/' + id + '.json', JSON.stringify({ body: route.request().postDataJSON(), source: await source(page), expected: { id, args } }, null, 2)); return route.fulfill({ json: { output: { summary: 'Review ' + id, commands: [{ id, args }] }, provider: 'openai', model: 'deterministic-task', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, attempts: [] } }); };
+  const handler = async (route: import('@playwright/test').Route) => { writeFileSync(evidence('request-' + id + '.json'), JSON.stringify({ body: route.request().postDataJSON(), source: await source(page), expected: { id, args } }, null, 2)); return route.fulfill({ json: { output: { summary: 'Review ' + id, commands: [{ id, args }] }, provider: 'openai', model: 'deterministic-task', usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 }, attempts: [] } }); };
   await page.route('**/api/ai/generate', handler);
   await page.getByRole('button', { name: 'Assistant', exact: true }).click();
   await page.getByRole('textbox', { name: 'Describe an edit', exact: true }).fill('Apply the qualified ' + id + ' task edit');
@@ -210,14 +211,13 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   for (const id of shapes) await expect((await frame(page)).locator(id)).toBeVisible();
   expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(150);
   await expect(page.getByTestId('foundation-timeline')).toBeInViewport();
-  mkdirSync(evidence, { recursive: true });
   const settle = () => page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
   const style = await page.addStyleTag({ content: '*{will-change:auto !important}' }); await settle(); await style.evaluate(el => el.remove()); await settle();
   const poses = await (await frame(page)).locator(shapes[0]).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
   compared.push({ phases, saved, poses });
   if (semantic) await reviewed(page, 'text.set', { targetId: publicId.slice(1), text: 'Evening report' }, false);
   if (semantic) { await page.getByRole('button', { name: 'Apply edits', exact: true }).scrollIntoViewIfNeeded(); await settle(); }
-  await page.screenshot({ path: evidence + '/' + label + '-' + mode + '.png' });
+  await page.screenshot({ path: evidence(label + '-' + mode + '.png') });
   if (semantic) { await page.getByRole('button', { name: 'Cancel', exact: true }).click(); await page.getByRole('button', { name: 'Close assistant', exact: true }).click(); }
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
@@ -258,7 +258,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   }
   expect(compared[1]).toEqual(compared[0]);
   const result = compared[0] as { phases: { source: { html: string; css: string; js: string; fields: { field: string; value: unknown }[]; assets: { path: string }[] }; history: unknown; patches: { file: string }[] }[]; poses: unknown };
-  writeFileSync(evidence + '/' + label + '-parity.json', JSON.stringify({ viewport: { width, height }, exactSourceAndHistoryEqual: true,
+  writeFileSync(evidence(label + '-parity.json'), JSON.stringify({ viewport: { width, height }, exactSourceAndHistoryEqual: true,
     phases: result.phases.map(p => ({ hashes: Object.fromEntries((['html', 'css', 'js'] as const).map(file => [file, createHash('sha256').update(p.source[file]).digest('hex')])),
       fields: p.source.fields.map(f => ({ id: f.field, default: f.value })), assets: p.source.assets.map(a => a.path), history: p.history, changedFiles: p.patches.map(p => p.file) })), pose: result.poses }, null, 2));
 });

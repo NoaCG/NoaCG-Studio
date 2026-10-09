@@ -1,11 +1,12 @@
 // covers: src/components/editorFoundation/**
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dropSvg, untickTextRow, rowLabelled } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 
-const evidence = 'docs/work-specs/editor-command-qualification';
+// This run's pictures and parity records go to the test's own output folder (ignored), never into docs/.
+const evidence = (name: string) => test.info().outputPath(name);
 let semantic = false;
 async function inspect(page: Page) { return page.evaluate(async () => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); return i; }); }
 async function apply(page: Page, id: string, args: unknown) { const r = await page.evaluate(async ({ id, args }) => { const c = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands(); const i = c.inspect(); if (!i.ok) throw new Error(i.refusal.message); const r = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id, args }] }); await new Promise(r => setTimeout(r)); return r; }, { id, args }); expect(r.ok, JSON.stringify(r)).toBe(true); await ready(page); return r; }
@@ -185,12 +186,11 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   for (const id of shapes) await expect((await frame(page)).locator(id)).toBeVisible();
   expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(150);
   await expect(page.getByTestId('foundation-timeline')).toBeInViewport();
-  mkdirSync(evidence, { recursive: true });
   const settle = () => page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
   const style = await page.addStyleTag({ content: '*{will-change:auto !important}' }); await settle(); await style.evaluate(el => el.remove()); await settle();
   const poses = await (await frame(page)).locator(shapes[0]).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
   compared.push({ phases, saved, poses });
-  await page.screenshot({ path: evidence + '/' + label + '-' + mode + '.png' });
+  await page.screenshot({ path: evidence(label + '-' + mode + '.png') });
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
       const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
@@ -230,7 +230,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   }
   expect(compared[1]).toEqual(compared[0]);
   const result = compared[0] as { phases: { source: { html: string; css: string; js: string; fields: { field: string; value: unknown }[]; assets: { path: string }[] }; history: unknown; patches: { file: string }[] }[]; poses: unknown };
-  writeFileSync(evidence + '/' + label + '-parity.json', JSON.stringify({ viewport: { width, height }, exactSourceAndHistoryEqual: true,
+  writeFileSync(evidence(label + '-parity.json'), JSON.stringify({ viewport: { width, height }, exactSourceAndHistoryEqual: true,
     phases: result.phases.map(p => ({ hashes: Object.fromEntries((['html', 'css', 'js'] as const).map(file => [file, createHash('sha256').update(p.source[file]).digest('hex')])),
       fields: p.source.fields.map(f => ({ id: f.field, default: f.value })), assets: p.source.assets.map(a => a.path), history: p.history, changedFiles: p.patches.map(p => p.file) })), pose: result.poses }, null, 2));
 });

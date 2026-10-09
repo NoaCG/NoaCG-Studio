@@ -239,11 +239,11 @@ test('template search, UI-created artwork, save/reopen and executed exports at d
   await page.getByRole('button',{name:'Distribute vertically',exact:true}).click();await ready(page);
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Shift+ArrowRight');await ready(page);
   const beforeSave=await source(page);
-  await page.screenshot({path:'docs/research/editor-r1-2b-5/desktop.png',fullPage:true});
+  await page.screenshot({path: test.info().outputPath('desktop.png'),fullPage:true});
   for(const [width,height,label] of [[1366,768,'laptop'],[1093,614,'laptop-125']] as const){
     await page.setViewportSize({width,height});await expect(page.getByRole('button',{name:'Distribute vertically',exact:true})).toBeVisible();
     expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(100);
-    await page.screenshot({path:'docs/research/editor-r1-2b-5/'+label+'.png',fullPage:true});
+    await page.screenshot({path: test.info().outputPath(label + '.png'),fullPage:true});
   }
   await page.setViewportSize({width:1920,height:1080});
   await page.getByTestId('save-graphic').click();await page.getByTestId('save-name').fill('Arranged Hairline');await page.getByTestId('save-confirm').click();
