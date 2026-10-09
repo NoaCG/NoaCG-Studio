@@ -574,6 +574,21 @@ export function pollsQueue(text) {
 /** The longest one wait may be given. An agent that needs longer starts a new wait. */
 export const WAIT_LIMIT_MAX_SECONDS = 60 * 60;
 
+/** What the agent is told when `endlessWait` finds `wait`: why, and how to add a limit. */
+export function endlessWaitRefusal(wait) {
+  return (wait.why === 'too-long'
+    ? `Blocked: this polling loop is given ${Math.round(wait.seconds / 60)} minutes. One wait gets at most an hour; ` +
+      'when it runs out, find out why, then start a new one.\n'
+    : 'Blocked: this is a polling loop with no time limit (an `until`/`while` around a sleep, with no ' +
+      '`timeout` and no deadline). A wait that cannot end never tells anyone it failed: on 2026-10-09 ' +
+      '`until docker info; do sleep 5; done` polled for 14 hours because Docker was not running.\n') +
+    'Give it a limit of up to an hour, so that running out ends it with a failure you are told about:\n' +
+    "  timeout 600 bash -c 'until docker info >/dev/null 2>&1; do sleep 5; done'   (exits 124 when the time runs out)\n" +
+    '  PowerShell: $deadline = (Get-Date).AddMinutes(10); while (-not (<check>)) { if ((Get-Date) -gt $deadline) ' +
+    "{ throw 'timed out' }; Start-Sleep 5 }\n" +
+    'When it runs out, find out why, fix the cause and start a new wait, or change course.';
+}
+
 /**
  * Is this command a POLLING LOOP THAT CANNOT END - an `until`/`while` (or PowerShell `while (…)` /
  * `do { } until`, or `for (;;)`) around a sleep, with no `timeout` and no deadline or counter?
@@ -582,7 +597,8 @@ export const WAIT_LIMIT_MAX_SECONDS = 60 * 60;
  * an end fails when it runs out, and that failure is what tells its agent it is stuck.
  *
  * Returns null, `{ why: 'unbounded' }`, or `{ why: 'too-long', seconds }` for a `timeout` over
- * WAIT_LIMIT_MAX_SECONDS. Pure, so any harness can ask it; the Claude Code command guard does.
+ * WAIT_LIMIT_MAX_SECONDS. Pure, so any harness can ask it: the Claude Code command guard and the
+ * Codex one (`hooks/codex-guard-command.mjs`) both do, and refuse with `endlessWaitRefusal`.
  *
  * Each loop is judged on its own text, from its keyword to its `done` (or the end of the command):
  * the sleep, the counter or the clock has to be IN it, and a `timeout` counts only when the loop

@@ -6,7 +6,7 @@
     "source": "owner conversation 2026-10-09: strict cleanup with a short exemption list, shorter than three hours acceptable; a session never stops because a task did not end, it notices, fixes and restarts; waits get renewable time limits; decisions are asked in the session at once, never filed as needs-owner notes; loose ends are fixed, phase notes reach the next phase without the owner; /plan-run names a plan and runs phase by phase in fresh sessions with a separate checker until its time limit, at most 24 hours; plan run and wave are two skills, one or the other per night; build order cleanup first, then the editor plan reference check; build it in the day wave of 2026-10-09; owner 2026-10-09 later: the plan run must work in Codex too, since both harnesses are used"
   },
   "review": {
-    "revision": "4a1dd494d269c22cc4d4670cb850fa8574389a96",
+    "revision": "497869ef969dcdb2b5242a0dd72be1817687145a",
     "specSha256": "3a2ad20a787fbdd517bfaf92ae4973d7b8b623a97f37e8dd77e5710f91c9b660",
     "evidence": [
       {
@@ -20,6 +20,30 @@
       {
         "path": "docs/work-specs/agent-lifecycle/evidence/ac-3-abandoned-processes.md",
         "sha256": "981da906552d97433148081fdbd2bfbc7cd3ac6dad82fc62160df0f20373976a"
+      },
+      {
+        "path": "docs/work-specs/agent-lifecycle/evidence/ac-8-plan-run-phase-by-phase.md",
+        "sha256": "7c075260f19018eb101b36626537869e485298c167da245465cdde7c10db2fb7"
+      },
+      {
+        "path": "docs/work-specs/agent-lifecycle/evidence/ac-9-failed-check-stops.md",
+        "sha256": "7fb820a2016d00a6a983da76eaf7736302618041656e2bf8f5ab6161a7707232"
+      },
+      {
+        "path": "docs/work-specs/agent-lifecycle/evidence/ac-10-plan-run-excludes-wave.md",
+        "sha256": "674c6b8a3e2059930a86b49dd0b5c6f6f2477733e338659f60873a592c21ab78"
+      },
+      {
+        "path": "docs/work-specs/agent-lifecycle/evidence/ac-11-plan-run-restart.md",
+        "sha256": "d395d43c8d1d8bd74a85aef2540a84e5fbfd1c08c7eb8ba554c465c2aa33e88a"
+      },
+      {
+        "path": "docs/work-specs/agent-lifecycle/evidence/ac-13-codex-open.md",
+        "sha256": "ca814703756ae746e5f5d8a2d1997c149140c18853f5d8c1f9d273466bbc17d8"
+      },
+      {
+        "path": "docs/work-specs/agent-lifecycle/evidence/not-reviewed-by-plan-run-row.md",
+        "sha256": "d58b1980bb4cc25fd4102e43a7942438fa335bc99fc551645f128e079dd511a1"
       }
     ],
     "criteria": [
@@ -58,8 +82,8 @@
         "status": "unverified",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/not-reviewed-by-plan-run-row.md",
+            "sha256": "d58b1980bb4cc25fd4102e43a7942438fa335bc99fc551645f128e079dd511a1"
           }
         ]
       },
@@ -68,8 +92,8 @@
         "status": "unverified",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/not-reviewed-by-plan-run-row.md",
+            "sha256": "d58b1980bb4cc25fd4102e43a7942438fa335bc99fc551645f128e079dd511a1"
           }
         ]
       },
@@ -78,8 +102,8 @@
         "status": "unverified",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/not-reviewed-by-plan-run-row.md",
+            "sha256": "d58b1980bb4cc25fd4102e43a7942438fa335bc99fc551645f128e079dd511a1"
           }
         ]
       },
@@ -88,48 +112,48 @@
         "status": "unverified",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/not-reviewed-by-plan-run-row.md",
+            "sha256": "d58b1980bb4cc25fd4102e43a7942438fa335bc99fc551645f128e079dd511a1"
           }
         ]
       },
       {
         "id": "AC-8",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/ac-8-plan-run-phase-by-phase.md",
+            "sha256": "7c075260f19018eb101b36626537869e485298c167da245465cdde7c10db2fb7"
           }
         ]
       },
       {
         "id": "AC-9",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/ac-9-failed-check-stops.md",
+            "sha256": "7fb820a2016d00a6a983da76eaf7736302618041656e2bf8f5ab6161a7707232"
           }
         ]
       },
       {
         "id": "AC-10",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/ac-10-plan-run-excludes-wave.md",
+            "sha256": "674c6b8a3e2059930a86b49dd0b5c6f6f2477733e338659f60873a592c21ab78"
           }
         ]
       },
       {
         "id": "AC-11",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/ac-11-plan-run-restart.md",
+            "sha256": "d395d43c8d1d8bd74a85aef2540a84e5fbfd1c08c7eb8ba554c465c2aa33e88a"
           }
         ]
       },
@@ -138,8 +162,8 @@
         "status": "unverified",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/not-reviewed-by-plan-run-row.md",
+            "sha256": "d58b1980bb4cc25fd4102e43a7942438fa335bc99fc551645f128e079dd511a1"
           }
         ]
       },
@@ -148,8 +172,8 @@
         "status": "unverified",
         "evidence": [
           {
-            "path": "docs/work-specs/agent-lifecycle/evidence/open-criteria.md",
-            "sha256": "fb65478d3b0374a4e10e5b3845fbaeeab565fd0f44e38d4ac037f779f642ea5d"
+            "path": "docs/work-specs/agent-lifecycle/evidence/ac-13-codex-open.md",
+            "sha256": "ca814703756ae746e5f5d8a2d1997c149140c18853f5d8c1f9d273466bbc17d8"
           }
         ]
       }

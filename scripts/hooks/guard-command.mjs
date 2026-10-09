@@ -36,6 +36,7 @@ import { activeRuns, describeRuns } from '../e2e-runs.mjs';
 import {
   branchCreations,
   endlessWait,
+  endlessWaitRefusal,
   enqueuesWork,
   invokesE2e,
   invokesSweep,
@@ -244,22 +245,9 @@ if (pollsQueue(command)) {
 // failed: on 2026-10-09 one polled `docker info` for 14 hours, and kept its session from being
 // archived. With a limit, running out is a failure the agent is told about, in the foreground and
 // in the background alike, and it can find the cause, fix it and wait again.
+// Codex runs the same rule through its own hook (codex-guard-command.mjs), with the same words.
 const wait = endlessWait(command);
-if (wait) {
-  deny(
-    (wait.why === 'too-long'
-      ? `Blocked: this polling loop is given ${Math.round(wait.seconds / 60)} minutes. One wait gets at most an hour; ` +
-        'when it runs out, find out why, then start a new one.\n'
-      : 'Blocked: this is a polling loop with no time limit (an `until`/`while` around a sleep, with no ' +
-        '`timeout` and no deadline). A wait that cannot end never tells anyone it failed: on 2026-10-09 ' +
-        '`until docker info; do sleep 5; done` polled for 14 hours because Docker was not running.\n') +
-      'Give it a limit of up to an hour, so that running out ends it with a failure you are told about:\n' +
-      "  timeout 600 bash -c 'until docker info >/dev/null 2>&1; do sleep 5; done'   (exits 124 when the time runs out)\n" +
-      '  PowerShell: $deadline = (Get-Date).AddMinutes(10); while (-not (<check>)) { if ((Get-Date) -gt $deadline) ' +
-      "{ throw 'timed out' }; Start-Sleep 5 }\n" +
-      'When it runs out, find out why, fix the cause and start a new wait, or change course.',
-  );
-}
+if (wait) deny(endlessWaitRefusal(wait));
 
 // --- 3c. A push and a workflow dispatch never share one command --------------------------------
 //
