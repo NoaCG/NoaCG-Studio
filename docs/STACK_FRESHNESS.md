@@ -341,7 +341,15 @@ the panel ownership lease), reported by every post-land run from 37901349091 (th
 which applied 0081) on, and so by each landing after it that did not cause them. `panel_lease` and
 `panel_renew`, each for `anon` and `authenticated`, take the control slug through the same
 `panel_room_for_slug` guard as 0073's `panel_claim` and write only that production's `panel_rooms`
-row; the operator page calls them signed out as well as signed in. The last full breakdown was taken at 70 on
+row; the operator page calls them signed out as well as signed in. It holds **180** as of
+2026-10-09, re-recorded once 0085 to 0087 had applied: 0085 retired the old gallery, taking 9
+entries with it (`community_templates`' two overlapping policies, three unused indexes and an
+unindexed foreign key, `community_reports`' unindexed foreign key, `community_list` and
+`community_get`). 0086's three new indexes read as unused, a class that never fails. 0086's
+`community_pack_reports_dismiss` had been recorded by hand as `timestamptz`, while the advisors
+write `timestamp with time zone`, so it read as new and post-land stayed red. The script now
+compares both sides in Postgres's spelling (`canonicalKey`), so a hand-recorded entry matches.
+The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.

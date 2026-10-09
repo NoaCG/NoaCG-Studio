@@ -143,9 +143,9 @@ const ACCEPTED_CLASSES = {
     'Indexes for features production has not exercised yet. "Never used" here means no traffic, ' +
     'not a bad index.',
   multiple_permissive_policies:
-    'community_templates deliberately grants owner and moderator access through separate ' +
-    'policies; merging them would obscure two different reasons for access. 0085 drops the table ' +
-    'with the retired gallery, so once it has applied this class has no members.',
+    'No members since 0085 dropped community_templates (2026-10-09), whose owner and moderator ' +
+    'policies were kept apart as two different reasons for access. A new member is accepted only ' +
+    'for that kind of reason; otherwise merge the policies.',
 };
 
 /**
@@ -163,13 +163,45 @@ const ACCEPTED_CLASSES = {
 export const WARN_ONLY_CLASSES = new Set(['unused_index']);
 
 /**
+ * A finding key with Postgres's own spelling of each argument type. The advisors key a function
+ * by `pg_get_function_identity_arguments`, which writes `timestamp with time zone`; a baseline
+ * entry written by hand before its migration applied is likely to say `timestamptz`, as the one
+ * for 0086's community_pack_reports_dismiss did, and then the live finding reads as new and the
+ * hand-written one as gone. Only an alias that stands as a whole argument type is rewritten, and
+ * a length or precision after a type is dropped, as the identity arguments drop it. Both sides of
+ * the comparison go through this, so it cannot create a mismatch the advisors did not.
+ */
+const TYPE_ALIASES = {
+  timestamptz: 'timestamp with time zone',
+  timetz: 'time with time zone',
+  timestamp: 'timestamp without time zone',
+  time: 'time without time zone',
+  decimal: 'numeric',
+  int: 'integer',
+  int4: 'integer',
+  int8: 'bigint',
+  int2: 'smallint',
+  bool: 'boolean',
+  varchar: 'character varying',
+  float8: 'double precision',
+  float4: 'real',
+};
+const ALIAS_PATTERN = new RegExp(
+  `(?<= )(${Object.keys(TYPE_ALIASES).join('|')}|character varying|numeric)(?:\\(\\d+(?:, ?\\d+)?\\))?(?=\\[|,|$)`,
+  'g',
+);
+export const canonicalKey = (key) => key.replace(ALIAS_PATTERN, (_, type) => TYPE_ALIASES[type] ?? type);
+
+/**
  * Compare a live report against the baseline. Pure, so the rule that decides the exit code is
  * tested without the Management API (scripts/supabase-advisors.test.mjs).
  *
  * `seen` maps each finding's `cache_key` to `{ name, level, detail }`; `accepted` is the set of
- * baseline keys. Returns the sorted key lists and the exit code the header's table defines.
+ * baseline keys, compared in `canonicalKey` spelling. Returns the sorted key lists and the exit
+ * code the header's table defines.
  */
-export function judge(seen, accepted) {
+export function judge(seen, acceptedKeys) {
+  const accepted = new Set([...acceptedKeys].map(canonicalKey));
   const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
   const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
   const warnings = added.filter((k) => WARN_ONLY_CLASSES.has(seen.get(k).name));
@@ -383,7 +415,7 @@ const main = async () => {
     // `cache_key` is the advisors' own stable identity for a finding - it survives rewording of
     // the human-facing detail, which a hash of the message would not.
     const seen = new Map();
-    for (const l of lints) seen.set(l.cache_key, { name: l.name, level: l.level, detail: l.detail });
+    for (const l of lints) seen.set(canonicalKey(l.cache_key), { name: l.name, level: l.level, detail: l.detail });
     measured.optional(
       seen.size,
       'advisor findings',

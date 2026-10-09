@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { WARN_ONLY_CLASSES, judge } from './supabase-advisors.mjs';
+import { WARN_ONLY_CLASSES, canonicalKey, judge } from './supabase-advisors.mjs';
 
 const finding = (name, level = 'WARN') => ({ name, level, detail: `${name} detail` });
 const report = (entries) => new Map(Object.entries(entries));
@@ -82,4 +82,24 @@ test('an empty baseline is honest: new findings still decide the exit code', () 
 
 test('unused_index is the only class that never fails', () => {
   assert.deepEqual([...WARN_ONLY_CLASSES], ['unused_index']);
+});
+
+test("a hand-written key with a type alias matches the advisors' own spelling", () => {
+  const live = 'authenticated_security_definer_function_executable_public_f_p_id uuid, p_until timestamp with time zone';
+  assert.equal(canonicalKey('authenticated_security_definer_function_executable_public_f_p_id uuid, p_until timestamptz'), live);
+  assert.equal(canonicalKey('x_public_g_p_n int, p_ids int8[], p_on bool'), 'x_public_g_p_n integer, p_ids bigint[], p_on boolean');
+  // Only a whole argument type: names that contain an alias stay as they are.
+  assert.equal(canonicalKey('unused_index_public_int_idx'), 'unused_index_public_int_idx');
+  assert.equal(canonicalKey('x_public_h_p_int text, p_bool_flag text'), 'x_public_h_p_int text, p_bool_flag text');
+  // A length or precision goes, as the identity arguments drop it; the advisors' spelling is kept.
+  assert.equal(canonicalKey('x_public_k_p_a varchar(20), p_b numeric(10,2), p_c timestamp'),
+    'x_public_k_p_a character varying, p_b numeric, p_c timestamp without time zone');
+  for (const canonical of [live, 'x_public_m_p_a time with time zone, p_b time without time zone, p_c character varying']) {
+    assert.equal(canonicalKey(canonical), canonical);
+  }
+  // And judge compares in that spelling, so the 0086 hand entry would not have read as new.
+  const seen = new Map([[live, finding('authenticated_security_definer_function_executable')]]);
+  const verdict = judge(seen, new Set([live.replace('timestamp with time zone', 'timestamptz')]));
+  assert.equal(verdict.exitCode, 0);
+  assert.deepEqual(verdict.cleared, []);
 });

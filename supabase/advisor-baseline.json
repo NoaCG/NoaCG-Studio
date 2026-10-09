@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
   "recordedAt": "2026-10-09",
-  "count": 186,
+  "count": 180,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -298,16 +298,6 @@
       "level": "WARN",
       "detail": "Function `public.audience_vote(p_join_slug text, p_device text, p_round uuid, p_option integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/audience_vote`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "authenticated_security_definer_function_executable_public_community_get_p_slug text": {
-      "name": "authenticated_security_definer_function_executable",
-      "level": "WARN",
-      "detail": "Function `public.community_get(p_slug text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_get`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
-    },
-    "authenticated_security_definer_function_executable_public_community_list_p_kind text, p_category text, p_limit integer, p_offset integer": {
-      "name": "authenticated_security_definer_function_executable",
-      "level": "WARN",
-      "detail": "Function `public.community_list(p_kind text, p_category text, p_limit integer, p_offset integer)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_list`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
-    },
     "authenticated_security_definer_function_executable_public_community_pack_decide_p_id uuid, p_state text, p_reason text": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
@@ -333,10 +323,10 @@
       "level": "WARN",
       "detail": "Function `public.community_pack_reported()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reported`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "authenticated_security_definer_function_executable_public_community_pack_reports_dismiss_p_id uuid, p_until timestamptz": {
+    "authenticated_security_definer_function_executable_public_community_pack_reports_dismiss_p_id uuid, p_until timestamp with time zone": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.community_pack_reports_dismiss(p_id uuid, p_until timestamptz)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reports_dismiss`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      "detail": "Function `public.community_pack_reports_dismiss(p_id uuid, p_until timestamp with time zone)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reports_dismiss`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_pack_shelf_": {
       "name": "authenticated_security_definer_function_executable",
@@ -568,16 +558,6 @@
       "level": "WARN",
       "detail": "Function `public.team_rotate_code(p_team uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/team_rotate_code`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "multiple_permissive_policies_public_community_templates_authenticated_SELECT": {
-      "name": "multiple_permissive_policies",
-      "level": "WARN",
-      "detail": "Table \\`public.community_templates\\` has multiple permissive policies for role \\`authenticated\\` for action \\`SELECT\\`. Policies include \\`{community_moderator_read,community_owner_all}\\`"
-    },
-    "multiple_permissive_policies_public_community_templates_authenticated_UPDATE": {
-      "name": "multiple_permissive_policies",
-      "level": "WARN",
-      "detail": "Table \\`public.community_templates\\` has multiple permissive policies for role \\`authenticated\\` for action \\`UPDATE\\`. Policies include \\`{community_moderate,community_owner_all}\\`"
-    },
     "rls_enabled_no_policy_public_admin_audit_log": {
       "name": "rls_enabled_no_policy",
       "level": "INFO",
@@ -753,16 +733,6 @@
       "level": "INFO",
       "detail": "Table \\`public.community_packs\\` has a foreign key \\`community_packs_decided_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
-    "unindexed_foreign_keys_public_community_reports_community_reports_reporter_id_fkey": {
-      "name": "unindexed_foreign_keys",
-      "level": "INFO",
-      "detail": "Table \\`public.community_reports\\` has a foreign key \\`community_reports_reporter_id_fkey\\` without a covering index. This can lead to suboptimal query performance."
-    },
-    "unindexed_foreign_keys_public_community_templates_community_templates_reviewed_by_fkey": {
-      "name": "unindexed_foreign_keys",
-      "level": "INFO",
-      "detail": "Table \\`public.community_templates\\` has a foreign key \\`community_templates_reviewed_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
-    },
     "unindexed_foreign_keys_public_plan_email_domains_plan_email_domains_plan_id_fkey": {
       "name": "unindexed_foreign_keys",
       "level": "INFO",
@@ -848,20 +818,20 @@
       "level": "INFO",
       "detail": "Index \\`chat_show_status_idx\\` on table \\`public.chat_submissions\\` has not been used"
     },
-    "unused_index_public_community_templates_community_author_idx": {
+    "unused_index_public_community_pack_reports_community_pack_reports_dismissed_by_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index \\`community_author_idx\\` on table \\`public.community_templates\\` has not been used"
+      "detail": "Index \\`community_pack_reports_dismissed_by_idx\\` on table \\`public.community_pack_reports\\` has not been used"
     },
-    "unused_index_public_community_templates_community_kind_status_idx": {
+    "unused_index_public_community_pack_reports_community_pack_reports_pack_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index \\`community_kind_status_idx\\` on table \\`public.community_templates\\` has not been used"
+      "detail": "Index \\`community_pack_reports_pack_idx\\` on table \\`public.community_pack_reports\\` has not been used"
     },
-    "unused_index_public_community_templates_community_status_created_idx": {
+    "unused_index_public_community_pack_reports_community_pack_reports_reporter_idx": {
       "name": "unused_index",
       "level": "INFO",
-      "detail": "Index \\`community_status_created_idx\\` on table \\`public.community_templates\\` has not been used"
+      "detail": "Index \\`community_pack_reports_reporter_idx\\` on table \\`public.community_pack_reports\\` has not been used"
     },
     "unused_index_public_control_show_identity_control_show_identity_owner_idx": {
       "name": "unused_index",
