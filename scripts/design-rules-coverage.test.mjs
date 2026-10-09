@@ -1,5 +1,5 @@
 // needs: browser
-// guards: src/validation/designRulesWarnings.ts, src/validation/readabilityCheck.ts, src/validation/tickerCheck.ts, src/validation/markLegibility.ts
+// guards: src/validation/designRulesWarnings.ts, src/validation/readabilityCheck.ts, src/validation/tickerCheck.ts, src/validation/markLegibility.ts, src/validation/surface.ts
 //
 // WHAT THE DESIGN RULES MEASURED, not only what they found (issue #840).
 //
