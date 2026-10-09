@@ -24,14 +24,28 @@ test('every starter card resolves against the catalog and mounts its live previe
   const cards = page.locator('[data-starter]');
   await expect(cards).toHaveCount(6);
 
-  // Name resolution, through the same module the page uses.
+  // Name resolution against the catalog, and the page's own six imports (src/ograf/starters.ts,
+  // which skips the catalog) building the same graphic as the catalog design of that name.
   const named = await cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-starter') ?? ''));
-  const missing = await page.evaluate(async (names: string[]) => {
+  const drift = await page.evaluate(async (names: string[]) => {
+    type Variant = { id: string; name: string; create(): unknown };
     const { CATALOG } = await import('/src/templates/catalog.ts');
-    const all = (Object.values(CATALOG) as { name: string }[][]).flat();
-    return names.filter((n) => !all.some((v) => v.name === n));
+    const { STARTERS } = (await import('/src/ograf/starters.ts')) as { STARTERS: Map<string, Variant | undefined> };
+    const all = (Object.values(CATALOG) as Variant[][]).flat();
+    const out: string[] = [];
+    for (const name of names) {
+      const catalog = all.find((v) => v.name === name);
+      const starter = STARTERS.get(name);
+      if (!catalog) out.push(`${name}: not in the catalog`);
+      else if (!starter) out.push(`${name}: not in src/ograf/starters.ts`);
+      else if (starter.id !== catalog.id) out.push(`${name}: starter ${starter.id}, catalog ${catalog.id}`);
+      else if (JSON.stringify(starter.create()) !== JSON.stringify(catalog.create())) {
+        out.push(`${name}: builds differently from the catalog design`);
+      }
+    }
+    return out;
   }, named);
-  expect(missing, `starter cards naming designs the catalog no longer has: ${missing.join(', ')}`).toEqual([]);
+  expect(drift, `starter cards out of step with the catalog: ${drift.join('; ')}`).toEqual([]);
 
   // Enhancement landed: previews mounted, downloads armed, customize links deep-link the wizard.
   await expect(page.locator('[data-preview] iframe')).toHaveCount(6);

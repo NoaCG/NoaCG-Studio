@@ -7,26 +7,19 @@
 // same EBU-schema gate (`addOgrafPackage`) on its way out. The one addition over an ordinary
 // export is GUIDE.md (./guide.ts), the modification walkthrough the starters exist for.
 //
-// The card names a design by its CATALOG NAME (data-starter). A catalog rename would strand a
+// The card names a design by its CATALOG NAME (data-starter), resolved through ./starters.ts,
+// which imports those six designs and not the whole catalog. A catalog rename would strand a
 // card, so an unresolved name shows an honest note instead of a dead button — and
-// e2e/ograf-starters.spec.ts fails the build when it happens.
+// e2e/ograf-starters.spec.ts fails the build when a card and the catalog disagree. The exporter
+// and its package code load on the first download click, not with the page.
 
-import { CATALOG } from '../templates/catalog';
 import type { TemplateVariant } from '../model/wizard';
 import type { SpxTemplate } from '../model/types';
 import { composeDocument } from '../preview/composeDocument';
 import { frameGraphic, framingTransform, type GraphicBox } from '../preview/frameGraphic';
-import { ografTarget } from '../export/targets/ograf';
 import { slug } from '../model/slug';
 import { starterGuideMd } from './guide';
-
-function findVariant(name: string): TemplateVariant | null {
-  for (const list of Object.values(CATALOG)) {
-    const hit = list.find((v) => v.name === name);
-    if (hit) return hit;
-  }
-  return null;
-}
+import { STARTERS } from './starters';
 
 /** The preview's settle data: the graphic's own field defaults — the GraphicThumb recipe,
  *  without the store around it. */
@@ -71,8 +64,18 @@ function mountPreview(host: HTMLElement, template: SpxTemplate): void {
   new ResizeObserver(fit).observe(host);
 }
 
+/** The exporter, fetched when a visitor reaches for a download rather than with the page. */
+const loadExporter = () => import('../export/targets/ograf');
+
 async function downloadStarter(variant: TemplateVariant, note: HTMLElement): Promise<void> {
   note.textContent = 'Building and validating the package…';
+  const exporter = await loadExporter().catch(() => null);
+  if (!exporter) {
+    // After a deploy the chunk this page was built with is gone.
+    note.textContent = 'This page is out of date. Reload it to download.';
+    return;
+  }
+  const { ografTarget } = exporter;
   try {
     const template = variant.create();
     // Live intent: every starter must download, and the post-production gate rightly refuses
@@ -100,15 +103,18 @@ function enhanceCard(card: HTMLElement): void {
   const button = card.querySelector<HTMLButtonElement>('[data-download]');
   const customize = card.querySelector<HTMLAnchorElement>('[data-customize]');
   const preview = card.querySelector<HTMLElement>('[data-preview]');
-  const variant = findVariant(name);
+  const variant = STARTERS.get(name);
   if (!variant) {
-    if (note) note.textContent = `“${name}” is not in the current catalog — this card is out of date.`;
+    if (note) note.textContent = `“${name}” is not available — this card is out of date.`;
     return;
   }
   if (customize) customize.href = `/app#/new/${encodeURIComponent(variant.id)}`;
   if (preview) mountPreview(preview, variant.create());
   if (button) {
     button.disabled = false;
+    const warm = () => void loadExporter().catch(() => {});
+    button.addEventListener('pointerenter', warm, { once: true });
+    button.addEventListener('focus', warm, { once: true });
     button.addEventListener('click', () => {
       button.disabled = true;
       void downloadStarter(variant, note ?? document.createElement('p')).finally(() => {

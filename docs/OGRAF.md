@@ -24,9 +24,11 @@ schema gate below on its way out. The one addition over an ordinary export is **
 (`src/ograf/guide.ts`): the modification walkthrough - how to load it, drive its data, restyle
 the `:root` contract, and edit the `NOACG_ANIM` motion - generated from the template itself.
 The starters are exported with LIVE intent (the post-production gate rightly refuses
-content-driven motion such as the ticker's crawl). Pinned by `e2e/ograf-starters.spec.ts`,
-including that every named card still resolves against the catalog - a design rename must
-break that spec, not the page.
+content-driven motion such as the ticker's crawl). The page imports its six designs one by one
+(`src/ograf/starters.ts`), not the whole catalog, and loads the exporter on the first download.
+Pinned by `e2e/ograf-starters.spec.ts`, including that every named card still resolves against
+the catalog and builds the same graphic as the catalog design of that name - a design rename
+must break that spec, not the page.
 
 - Specification: <https://ograf.ebu.io/v1/specification/docs/Specification.html>
 - Manifest schema: <https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json>
