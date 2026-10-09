@@ -1009,14 +1009,16 @@ test('the default skill names no house look: no palette, face, size or timing ru
   assert.doesNotMatch(frame, /\d(\.\d+)?\s?-\s?\d(\.\d+)?\s?s\b/, 'the contract states a motion duration range again');
 });
 
-test('the two opt-in tools exist, are off by default, and are reachable in both hosts', async () => {
+test('the opt-in tools exist, are off by default, and are reachable in both hosts', async () => {
   const skill = await shippedSkill();
   const optIn = [...sectionsOf(skill)].find(([title]) => /opt-in/i.test(title))?.[1];
   assert.ok(optIn, 'SKILL.md lost its opt-in section');
-  assert.match(optIn, /OFF unless the user asks/, 'the opt-in section no longer says both tools are off by default');
-  assert.match(optIn, /When neither is on, do not open either file/, 'the default no longer keeps the opt-in files closed');
+  assert.match(optIn, /OFF unless the user asks/, 'the opt-in section no longer says the tools are off by default');
+  assert.match(optIn, /When none is on, do not open their files/, 'the default no longer keeps the opt-in files closed');
+  // Sharing is never offered: only the user's own request switches it on (docs/AGENT_SAVE.md §8).
+  assert.match(optIn, /Never offer it, mention it, suggest it or ask\s+about it otherwise/, 'the share tool may be offered');
 
-  for (const [file, word] of [['critique.md', 'critique'], ['design-notes.md', 'guidelines']]) {
+  for (const [file, word] of [['critique.md', 'critique'], ['design-notes.md', 'guidelines'], ['share.md', 'share']]) {
     const text = (await fs.readFile(path.join(skillDir(), 'references', file), 'utf8')).replace(/\r\n/g, '\n');
     assert.match(text.split('\n')[0], /OPT-IN/, `references/${file} no longer says on its first line that it is opt-in`);
     assert.ok(optIn.includes(`references/${file}`), `the opt-in section no longer points at references/${file} (${word})`);

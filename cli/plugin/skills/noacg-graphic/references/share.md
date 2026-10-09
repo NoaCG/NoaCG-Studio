@@ -1,4 +1,4 @@
-# Share to Community packs (opt-in)
+# Share to Community packs (OPT-IN - only when the user asks to share)
 
 Read this only when the user asked, in this conversation, to share, publish or submit a package
 for others. Sharing sends it for review to NoaCG's public Community packs shelf. A NoaCG admin
