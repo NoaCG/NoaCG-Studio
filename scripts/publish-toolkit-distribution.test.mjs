@@ -64,6 +64,6 @@ test('the release workflow pushes the distribution in the step that holds the to
   const steps = workflow.split(/\n(?=      - )/);
   const push = steps.filter((step) => step.includes('publish-toolkit-distribution.mjs --push'));
   assert.equal(push.length, 1);
-  assert.match(push[0], /GH_TOKEN: \$\{\{ github\.token \}\}/);
-  assert.match(push[0], /gh auth setup-git --hostname github\.com/);
+  assert.match(push[0], /^ +GH_TOKEN: \$\{\{ github\.token \}\}$/m);
+  assert.match(push[0], /^ +gh auth setup-git --hostname github\.com$/m);
 });

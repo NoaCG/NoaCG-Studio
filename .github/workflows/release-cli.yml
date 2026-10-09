@@ -428,20 +428,21 @@ jobs:
   # commit and no application history, each snapshot naming its source commit in PROVENANCE.json.
   # It writes only that branch, never main, and a dry run never pushes it.
   #
-  # The "distribution_only" dispatch re-drives just this job for a version already on npm, from
-  # that version's tag, without the publish job. That is how a release whose npm publish went
-  # through and whose branch update failed (CLI 0.10.1) gets its branch without a new version.
+  # The "distribution_only" dispatch re-drives just this job, without the publish job, for the
+  # version on the dispatched ref, from the commit npm says that version was published from. That
+  # is how a release whose npm publish went through and whose branch update failed (CLI 0.10.1)
+  # gets its branch without a new version.
   distribution:
     name: Update the generated toolkit distribution branch
-    needs: publish
+    needs: [decide, publish]
     # `!cancelled()` lets the distribution-only dispatch run although it skipped `publish`.
-    if: ${{ !cancelled() && github.repository == 'NoaCG/NoaCG-Studio' && (inputs.distribution_only || (needs.publish.result == 'success' && !inputs.dry_run)) }}
+    if: ${{ !cancelled() && github.repository == 'NoaCG/NoaCG-Studio' && needs.decide.result == 'success' && (inputs.distribution_only || (needs.publish.result == 'success' && !inputs.dry_run)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
     steps:
-      # History for the newer-snapshot ancestry check, file contents only for this commit.
+      # History for the newer-snapshot ancestry check, file contents only where read.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -449,31 +450,37 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      # The snapshot is the released commit, never a later main that may carry unreleased plugin
-      # changes under the same version number. The tag is written only after a publish succeeds.
-      - name: Check out the released commit (distribution only)
+      # The snapshot is the published commit (npm's gitHead), never a later main that may carry
+      # unreleased plugin changes under the same version number.
+      - name: Check out the published commit (distribution only)
         if: ${{ inputs.distribution_only }}
+        env:
+          VERSION: ${{ needs.decide.outputs.version }}
         run: |
-          TAG="cli-v$(node -p 'require("./cli/package.json").version')"
-          git fetch --no-tags origin "refs/tags/$TAG:refs/tags/$TAG" main
-          if ! git merge-base --is-ancestor "$TAG" origin/main; then
-            echo "::error title=Not on main::$TAG is not on main, so it is not a released commit."
+          SOURCE="$(npm view "@noacg/cli@$VERSION" gitHead 2>/dev/null || true)"
+          if [ -z "$SOURCE" ]; then
+            echo "::error title=Not published::npm has no @noacg/cli@$VERSION with a source commit, so there is no release to distribute. Dispatch from a ref whose cli/package.json names a published version."
             exit 1
           fi
-          git checkout --detach "$TAG"
-          echo "Building the distribution from $TAG ($(git rev-parse HEAD))."
+          if ! git merge-base --is-ancestor "$SOURCE" origin/main; then
+            echo "::error title=Not on main::@noacg/cli@$VERSION was published from $SOURCE, which is not on main."
+            exit 1
+          fi
+          git checkout --detach "$SOURCE"
+          echo "Building the distribution of @noacg/cli@$VERSION from $SOURCE."
       # The script commits and pushes from a fresh repository in a temporary folder, so the
       # checkout's own credential does not reach it. `gh auth setup-git` makes git ask gh, and gh
       # answers with GH_TOKEN, which must therefore be set for the push itself, not only for the
       # setup (CLI 0.10.1 failed with "could not read Username" when it was set only there).
       - name: Replace the distribution tree from the published source commit
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
-          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           gh auth setup-git --hostname github.com
-          if [ "$DRY_RUN" = "true" ]; then
-            node cli/scripts/publish-toolkit-distribution.mjs
-          else
-            node cli/scripts/publish-toolkit-distribution.mjs --push
-          fi
+          node cli/scripts/publish-toolkit-distribution.mjs --push
+      - name: Prepare the distribution tree without pushing (dry run)
+        if: ${{ inputs.dry_run }}
+        run: |
+          node cli/scripts/publish-toolkit-distribution.mjs
+          echo "::notice title=Dry run::The distribution branch was prepared and not pushed. Re-run with dry run unchecked to push it."
