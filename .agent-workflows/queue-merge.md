@@ -3,11 +3,10 @@
 Shared canonical procedure, invoked as `/queue-merge` in Claude Code and `$queue-merge` in Codex.
 It is the one way NoaCG work reaches `main`. Optional argument: another branch name (see the end).
 
-**What it protects:** finished work reconciles safely with current `main`, passes the required
-verification, lands without duplicate or stale work, and leaves `main` green. The mechanism is
-GitHub's merge queue; choose the safest way to get the branch into it, resolve problems yourself,
-and never ask the owner about merge order or Git mechanics. Queueing declares the work finished,
-so only the session that owns the branch queues it.
+**What it protects:** finished work reconciles with current `main`, passes the required
+verification, lands without duplicate or stale work, and leaves `main` green, through GitHub's merge
+queue. Resolve problems yourself; never ask the owner about merge order or Git mechanics. Queueing
+declares the work finished, so only the session that owns the branch queues it.
 
 ## 1. Be finished
 
@@ -35,24 +34,22 @@ rebase onto `origin/main` or wait for that branch, because queueing would land i
 
     npm run queue:merge -- --risk "<what could break>" --why "<the reason, if the commits do not say it>"
 
-`--risk` is the pull request's Risk line: one plain sentence naming what could break for a user if
-this change is wrong, or `low, copy only` when nothing can. Write it from the diff you just checked.
-Without it, a branch that changes only `docs/**/*.md` reads `Risk: low, docs only.` and any other
-branch shows no Risk line.
+`--risk` is the pull request's Risk line, written from the diff you just checked: one plain sentence
+naming what could break for a user if this change is wrong, or `low, copy only`. Without it, a
+branch that changes only `docs/**/*.md` reads `Risk: low, docs only.` and any other shows none.
 
 It pushes the branch, opens or reuses its pull request, posts the review verdict as the
-`noacg/reviewed` status, adds the `land` label and turns auto-merge on. GitHub queues the pull
-request once `CI gate` and `Reviewed` pass, runs CI on the merge group and merges it as one merge
-commit. Do not sit and watch: `node scripts/jobs.mjs wait <id>` is bounded if the verdict is needed
-now. A migration on the branch is applied by the landing itself (`post-land.yml`).
+`noacg/reviewed` status, adds the `land` label and turns auto-merge on. GitHub queues it once
+`CI gate` and `Reviewed` pass and merges it as one merge commit after CI on the merge group. Do not
+sit and watch: `node scripts/jobs.mjs wait <id>` is bounded if the verdict is needed now. A
+migration on the branch is applied by the landing itself (`post-land.yml`).
 
 **Auto-fix is on for every pull request, without asking** (the owner's standing instruction).
 Right after queueing, turn on the one fixer your tool has; never two on one pull request:
 
 - **Claude Code session with the app's pull request tools** (`ccd_pr`): bind the pull request if the
   app has not (`bind_pr`), then `set_monitor` with `auto_fix` and `address_comments` true. The app
-  wakes this session on a CI failure, a merge conflict or a review comment. It is no merge
-  permission: landing stays the queue's.
+  wakes this session on a CI failure, a conflict or a review comment; landing stays the queue's.
 - **Codex app chat**: schedule a task in this chat with `automation_update`: `mode: "create"`,
   `kind: "heartbeat"`, `destination: "thread"`, `targetThreadId` from `$env:CODEX_THREAD_ID`,
   `rrule: "FREQ=MINUTELY;INTERVAL=10"`, `status: "ACTIVE"`, `name: "Repair PR <n>"`, and this
@@ -66,15 +63,21 @@ Right after queueing, turn on the one fixer your tool has; never two on one pull
   on. A row's orchestrator owns the repair (`npm run jobs -- failed`); anyone else says in the
   report that nothing watches the pull request.
 
+**Then leave the next session its prompt**, because the chat is archived when the pull request
+closes: one comment on the pull request (`gh pr comment <n>`), repeated at the end of your final
+message. It says what is not done, each with its issue; for a visible change, which preview page to
+open; and last, the line `Nothing left.` or one code block a fresh session can be given alone (the
+goal, where things stand, the issue and pull request links, what to do first). Plain and short: no
+chat language, nothing from `docs/private/`, no secrets.
+
 **On a CI failure, repair it yourself, within the pull request's scope.** Read the failed job's
 whole log (`gh run view <run> --log-failed`; the failing step's summary is often not where the
 error is), reproduce it with the failing check or specs (never the whole suite), fix the cause,
-`/check`, and queue again. At most three
-repair attempts per failure; then stop and report what failed, what was tried and why it did not
-hold. Never disable a check, skip or weaken a test, raise a limit, or re-record a baseline only to
-make a run green: a re-record is for a change of look or finding that was meant. A spec this branch
-does not touch that fails, then passes when the failed jobs re-run on the same commit
-(`gh run rerun <run> --failed`), is a flake: quarantine it
+`/check`, and queue again. At most three repair attempts per failure; then stop and report what
+failed, what was tried and why it did not hold. Never disable a check, skip or weaken a test, raise
+a limit, or re-record a baseline only to make a run green: a re-record is for a change of look or
+finding that was meant. A spec this branch does not touch that fails, then passes when the failed
+jobs re-run on the same commit (`gh run rerun <run> --failed`), is a flake: quarantine it
 (`node scripts/e2e-quarantine.mjs enter <spec> --run <url> --queue`). Ask the owner only when the
 fix needs a product decision or a change well outside the pull request's scope.
 
@@ -85,8 +88,7 @@ fix needs a product decision or a change well outside the pull request's scope.
   every generated file with its generator rather than trusting the merged text (for example
   `npm run contracts:compile`). Resolve mechanical conflicts yourself; hand a conflict about
   meaning to a fresh agent session with both sides' intent. Then `/check` with targeted checks and
-  queue again: the pull request's CI run tests the merge with `main` and the merge group tests it
-  again, so both sides are covered.
+  queue again: the pull request's CI and the merge group both test the merge with `main`.
 - A landing that reached no verdict (killed at its cap, the runner gone, CI with no result) is
   retried once automatically; a verdict the queue reached is never retried behind anyone's back.
 - `npm run jobs` shows each branch's state (`QUEUED`, `LANDED`, `LANDING FAILED` with the refusal).
@@ -99,8 +101,8 @@ fix needs a product decision or a change well outside the pull request's scope.
    `branch`, `sha` (the reviewed tip) and `review` (one line: what was checked). It refuses a branch
    that moved past `sha`, posts `noacg/reviewed` and labels the pull request `land`; its log says if
    the `Reviewed` job needs a re-run.
-3. Turn auto-merge on from the session itself (a workflow token's auto-merge never reaches the
-   queue), after the workflow run is green.
+3. Once that run is green, turn auto-merge on from the session itself (set by a workflow token, it
+   never reaches the queue), then leave the next session its prompt (section 3).
 4. Confirm `added_to_merge_queue` then `merged` on the timeline. Green checks without a queue entry:
    toggle auto-merge off and on from the session, or re-run a red or cancelled `CI gate` or
    `Reviewed`.

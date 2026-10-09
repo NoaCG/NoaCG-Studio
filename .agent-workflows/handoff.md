@@ -60,17 +60,16 @@ is not a next step; drop it rather than dressing it up.
 Prefer the honest small why to the grand one. "The export door is untested on real hardware and
 the class runs on it" is useful. "Improves quality" is not a why.
 
-If nothing is left, the whole handoff is the verdict in "Bottom line": no list, no prompt, no
-summary. Don't invent work.
+If nothing is left, the whole handoff is `Nothing left.` and the verdict in "Bottom line": no list,
+no prompt, no summary. Don't invent work.
 
 ### 2. Pasteable prompt - only if work remains
 
-A single self-contained code block for a fresh Claude Code or Codex session: what was
-completed, repo/branch state if it matters, the remaining work **and why each piece matters**,
-key constraints or decisions (point at the right nested `AGENTS.md`/`CLAUDE.md`), known risks,
-the best next step. No transcript dump. The block must stand alone - the user pastes it and
-nothing else, so anything the next session needs is inside it. It lives in the reply only: never
-write it to a file or queue anything for it.
+One code block a fresh Claude Code or Codex session can be given alone, in the shape of the
+queue-merge workflow's next-session prompt (the goal, where things stand, the issue and pull request
+links, what to do first), with **why each remaining piece matters** and known risks. If the pull
+request already carries that prompt and nothing has changed since, repeat it. No transcript dump.
+It lives in the reply only: never write it to a file or queue anything for it.
 
 When work remains, include the exact current branch and short HEAD, whether the working tree is
 clean, and the last known verification command/result tied to that commit. If verification is
