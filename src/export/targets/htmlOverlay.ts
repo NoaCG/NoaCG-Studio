@@ -218,8 +218,8 @@ export const htmlOverlayTarget: ExportTarget = {
     root.file(
       `${name}.html`,
       await composeSelfContainedHtml(withReceiver, [
-        localReceiverJs(template.name),
-        autoplayScript(ctx?.sampleData ?? {}, outMs),
+        { id: 'noacg-local-receiver', js: localReceiverJs(template.name) },
+        { id: 'noacg-overlay-autoplay', js: autoplayScript(ctx?.sampleData ?? {}, outMs) },
       ]),
     );
     // This package is ONE graphic file: there is no images/ folder beside the panel, so its

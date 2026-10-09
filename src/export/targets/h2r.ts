@@ -43,9 +43,10 @@ export function gddScript(template: SpxTemplate): string {
   // The script tag MUST carry name="graphics-data-definition": that is how H2R (and the
   // SuperflyTV GDD tooling) discovers the block. Without the name attribute H2R silently
   // shows no editable fields — verified against H2R's own Loopic-exported sample.
-  return `  <!-- GDD (Graphics Data Definition): H2R Graphics reads this into editable inputs.
-       Each property key matches the element id the value is written into (f0, f1, …). -->
-  <script name="graphics-data-definition" type="application/json+gdd">
+  // The id is how the import door leaves it out (model/importTemplate.ts): this export writes it
+  // again from the fields, and kept, its JSON landed in the JS pane, where it does not parse.
+  // No HTML comment beside it, since a comment would come back with every round trip.
+  return `  <script name="graphics-data-definition" type="application/json+gdd" id="noacg-h2r-gdd">
 ${JSON.stringify(gdd, null, 2)}
   </script>
 `;
@@ -111,7 +112,7 @@ export const h2rTarget: ExportTarget = {
         ? template.html.replace(/<\/head>/i, `${gddScript(template)}</head>`)
         : gddScript(template) + template.html,
     };
-    root.file(`${name}.html`, await composeSelfContainedHtml(withGdd, [H2R_TOGGLE_SHIM]));
+    root.file(`${name}.html`, await composeSelfContainedHtml(withGdd, [{ id: 'noacg-h2r-toggle', js: H2R_TOGGLE_SHIM }]));
     root.file('README.md', h2rReadme(template));
     root.file(
       'FIELDS.md',
