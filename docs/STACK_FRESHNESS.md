@@ -348,7 +348,8 @@ unindexed foreign key, `community_reports`' unindexed foreign key, `community_li
 `community_get`). 0086's three new indexes read as unused, a class that never fails. 0086's
 `community_pack_reports_dismiss` had been recorded by hand as `timestamptz`, while the advisors
 write `timestamp with time zone`, so it read as new and post-land stayed red. The script now
-rewrites such aliases in baseline keys (`canonicalKey`), so a hand-recorded entry matches. The last full breakdown was taken at 70 on
+compares both sides in Postgres's spelling (`canonicalKey`), so a hand-recorded entry matches.
+The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.

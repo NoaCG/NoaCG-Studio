@@ -167,11 +167,16 @@ export const WARN_ONLY_CLASSES = new Set(['unused_index']);
  * by `pg_get_function_identity_arguments`, which writes `timestamp with time zone`; a baseline
  * entry written by hand before its migration applied is likely to say `timestamptz`, as the one
  * for 0086's community_pack_reports_dismiss did, and then the live finding reads as new and the
- * hand-written one as gone. Only an alias that stands as a whole argument type is rewritten.
+ * hand-written one as gone. Only an alias that stands as a whole argument type is rewritten, and
+ * a length or precision after a type is dropped, as the identity arguments drop it. Both sides of
+ * the comparison go through this, so it cannot create a mismatch the advisors did not.
  */
 const TYPE_ALIASES = {
   timestamptz: 'timestamp with time zone',
   timetz: 'time with time zone',
+  timestamp: 'timestamp without time zone',
+  time: 'time without time zone',
+  decimal: 'numeric',
   int: 'integer',
   int4: 'integer',
   int8: 'bigint',
@@ -181,17 +186,22 @@ const TYPE_ALIASES = {
   float8: 'double precision',
   float4: 'real',
 };
-const ALIAS_PATTERN = new RegExp(`(?<= )(${Object.keys(TYPE_ALIASES).join('|')})(?=\\[|,|$)`, 'g');
-export const canonicalKey = (key) => key.replace(ALIAS_PATTERN, (alias) => TYPE_ALIASES[alias]);
+const ALIAS_PATTERN = new RegExp(
+  `(?<= )(${Object.keys(TYPE_ALIASES).join('|')}|character varying|numeric)(?:\\(\\d+(?:, ?\\d+)?\\))?(?=\\[|,|$)`,
+  'g',
+);
+export const canonicalKey = (key) => key.replace(ALIAS_PATTERN, (_, type) => TYPE_ALIASES[type] ?? type);
 
 /**
  * Compare a live report against the baseline. Pure, so the rule that decides the exit code is
  * tested without the Management API (scripts/supabase-advisors.test.mjs).
  *
  * `seen` maps each finding's `cache_key` to `{ name, level, detail }`; `accepted` is the set of
- * baseline keys. Returns the sorted key lists and the exit code the header's table defines.
+ * baseline keys, compared in `canonicalKey` spelling. Returns the sorted key lists and the exit
+ * code the header's table defines.
  */
-export function judge(seen, accepted) {
+export function judge(seen, acceptedKeys) {
+  const accepted = new Set([...acceptedKeys].map(canonicalKey));
   const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
   const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
   const warnings = added.filter((k) => WARN_ONLY_CLASSES.has(seen.get(k).name));
@@ -333,7 +343,7 @@ const compareWithBaseline = (seen) => {
   if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
     throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
   }
-  const accepted = new Set(Object.keys(baseline.entries).map(canonicalKey));
+  const accepted = new Set(Object.keys(baseline.entries));
   measured.optional(
     accepted.size,
     'accepted baseline findings',
@@ -405,7 +415,7 @@ const main = async () => {
     // `cache_key` is the advisors' own stable identity for a finding - it survives rewording of
     // the human-facing detail, which a hash of the message would not.
     const seen = new Map();
-    for (const l of lints) seen.set(l.cache_key, { name: l.name, level: l.level, detail: l.detail });
+    for (const l of lints) seen.set(canonicalKey(l.cache_key), { name: l.name, level: l.level, detail: l.detail });
     measured.optional(
       seen.size,
       'advisor findings',

@@ -91,4 +91,15 @@ test("a hand-written key with a type alias matches the advisors' own spelling", 
   // Only a whole argument type: names that contain an alias stay as they are.
   assert.equal(canonicalKey('unused_index_public_int_idx'), 'unused_index_public_int_idx');
   assert.equal(canonicalKey('x_public_h_p_int text, p_bool_flag text'), 'x_public_h_p_int text, p_bool_flag text');
+  // A length or precision goes, as the identity arguments drop it; the advisors' spelling is kept.
+  assert.equal(canonicalKey('x_public_k_p_a varchar(20), p_b numeric(10,2), p_c timestamp'),
+    'x_public_k_p_a character varying, p_b numeric, p_c timestamp without time zone');
+  for (const canonical of [live, 'x_public_m_p_a time with time zone, p_b time without time zone, p_c character varying']) {
+    assert.equal(canonicalKey(canonical), canonical);
+  }
+  // And judge compares in that spelling, so the 0086 hand entry would not have read as new.
+  const seen = new Map([[live, finding('authenticated_security_definer_function_executable')]]);
+  const verdict = judge(seen, new Set([live.replace('timestamp with time zone', 'timestamptz')]));
+  assert.equal(verdict.exitCode, 0);
+  assert.deepEqual(verdict.cleared, []);
 });
