@@ -3,8 +3,8 @@
 // SPX HANDS EVERY VALUE OVER HTML-ESCAPED (issue #788, docs/SPX_ON_A_REAL_SERVER.md §11): its
 // `cleanUpString` turns a line break into <br> and then & > < " ' \ into entities, and NoaCG
 // templates write values as text, so the codes went on air. These run the text script the SPX
-// package appends, in a page of its own, against a template's update() written the way the NoaCG
-// contract writes it, and feed it values the way SPX delivers them.
+// package appends, in a context of its own, against a template's update() written the way the
+// NoaCG contract writes it, and feed it values the way SPX delivers them.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -95,6 +95,30 @@ test('an image path is decoded like text, and a value that is not a string passe
   assert.equal(logo.src, 'images/rock&roll.png');
   context.update({ f1: 3 });
   assert.equal(score.textContent, '3');
+});
+
+test('a runtime that keeps its own copy of the payload gets the typed text too', () => {
+  // The infographics keep each value in data-target for their count-up, which restores it on air.
+  const templateJs = `function setFieldValue(el, value) { el.textContent = String(value); }
+  function update(data) {
+    var fields = (typeof data === 'string') ? JSON.parse(data) : data;
+    for (var key in fields) {
+      var el = document.getElementById(key);
+      if (el) { setFieldValue(el, fields[key]); el.target = fields[key]; }
+    }
+  }`;
+  const { el, spxUpdate } = page({ templateJs });
+  const stat = el('f0');
+  spxUpdate({ f0: "40% & rising, 5 o'clock" });
+  assert.equal(stat.textContent, "40% & rising, 5 o'clock");
+  assert.equal(stat.target, "40% & rising, 5 o'clock");
+});
+
+test('a payload that is not JSON reaches the template untouched', () => {
+  const templateJs = `function setFieldValue() {} var seen; function update(data) { seen = data; }`;
+  const { context } = page({ templateJs });
+  context.update('<templateData/>');
+  assert.equal(context.seen, '<templateData/>');
 });
 
 test('a template without the contract\'s text writer is left as it was', () => {

@@ -52,7 +52,7 @@ bundled fonts and GSAP, no internet needed to render.
 2. Add the template to a rundown — the operator fields come from the template's own definition.
 3. **Play** airs it, **Continue** walks its steps, **Stop** plays it out.
 4. On SPX 1.4, **Update** changes nothing on air (an SPX bug). To change a graphic on air, Save,
-   then **Stop** and **Play**. SPX 1.2 updates it in place.
+   then **Stop**, **Play** and **Continue** back to its step. SPX 1.2 updates it in place.
 ${spxNotes}
 ## CasparCG
 

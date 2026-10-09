@@ -74,7 +74,7 @@ interface ReportedField {
   graphic: string;
   id: string;
   name: string;
-  /** The value the host stores and sends again: the field's default. */
+  /** The value the host stores and sends again: the field's default, '' when it has none. */
   stored: string;
   /** The value Continue moves it to, and the control that does. */
   value: string;
@@ -96,7 +96,7 @@ function reportedFields(templates: SpxTemplate[]): ReportedField[] {
           graphic: template.name,
           id,
           name: field.title || id,
-          stored: field.value || '(empty)',
+          stored: field.value,
           value,
           control: button.label,
         });
@@ -106,21 +106,20 @@ function reportedFields(templates: SpxTemplate[]): ReportedField[] {
   return found;
 }
 
-/** The SPX rule for every hidden field a Continue writes: SPX never learns the new value and
- *  sends its stored one with each Update. Empty when no packaged graphic has one. */
+/** The SPX rule for every hidden field a Continue writes: SPX's Continue fires the control without
+ *  the value, SPX cannot set a hidden field, and it sends the stored one with each Update. Empty
+ *  when no packaged graphic has one. */
 export function spxReportedFieldRulesMd(templates: SpxTemplate[]): string {
-  const rules = reportedFields(templates).map(
-    (r) =>
-      `### ${r.name} on ${r.graphic}\n\n` +
-      `${r.graphic}'s hidden **${r.name}** field (\`${r.id}\`) tells the graphic what it is showing.\n` +
-      `**Continue** (${r.control}) shows the change but leaves the field at \`${r.stored}\`: SPX cannot\n` +
-      `set a hidden field, and the rundown item sends \`${r.stored}\` with every **Update**. The graphic\n` +
+  return rulesSection(
+    'Update after Continue, in SPX',
+    templates,
+    (r, stored) =>
+      `**Continue** (${r.control}) shows the change but leaves the field at \`${stored}\`: SPX cannot\n` +
+      `set a hidden field, and the rundown item sends \`${stored}\` with every **Update**. The graphic\n` +
       `repaints from the field, so an Update after Continue clears what Continue showed.\n\n` +
       `- Finish every field on ${r.graphic} before **Continue**.\n` +
       `- If an Update after Continue cleared it, recover with **Stop**, **Play**, **Continue**.`,
   );
-  if (!rules.length) return '';
-  return `## Update after Continue, in SPX\n\n${rules.join('\n\n')}\n`;
 }
 
 /** The same trap in a CasparCG client. A plain Next fires the control without the value its
@@ -128,16 +127,30 @@ export function spxReportedFieldRulesMd(templates: SpxTemplate[]): string {
  *  it, whether or not the update sends the field. Unlike SPX, a client's data grid can send any
  *  key, so the operator can set the field by hand. */
 export function casparReportedFieldRulesMd(templates: SpxTemplate[]): string {
+  return rulesSection(
+    'Update after Next, in CasparCG',
+    templates,
+    (r, stored) =>
+      `**Next** (${r.control}) shows the change but leaves the field at \`${stored}\`, and the graphic\n` +
+      `repaints from the field on every **Update**, so an Update after Next clears what Next showed.\n\n` +
+      `- To update after Next, first set \`${r.id}\` to \`${r.value}\` in the item's data, and\n` +
+      `  ${r.stored ? `set it back to \`${r.stored}\`` : 'clear it'} before the next **Play**.\n` +
+      `- If an Update after Next cleared it, recover with **Stop**, **Play**, **Next**.`,
+  );
+}
+
+/** One host's section: a heading per reported field, the shared opening line, then the host's
+ *  own words (handed the stored value as it reads, `(empty)` for none). '' when there is none. */
+function rulesSection(
+  title: string,
+  templates: SpxTemplate[],
+  hostLines: (r: ReportedField, stored: string) => string,
+): string {
   const rules = reportedFields(templates).map(
     (r) =>
       `### ${r.name} on ${r.graphic}\n\n` +
       `${r.graphic}'s hidden **${r.name}** field (\`${r.id}\`) tells the graphic what it is showing.\n` +
-      `**Next** (${r.control}) shows the change but leaves the field at \`${r.stored}\`, and the graphic\n` +
-      `repaints from the field on every **Update**, so an Update after Next clears what Next showed.\n\n` +
-      `- To update after Next, first set \`${r.id}\` to \`${r.value}\` in the item's data, and back to\n` +
-      `  \`${r.stored}\` before the next **Play**.\n` +
-      `- If an Update after Next cleared it, recover with **Stop**, **Play**, **Next**.`,
+      hostLines(r, r.stored || '(empty)'),
   );
-  if (!rules.length) return '';
-  return `## Update after Next, in CasparCG\n\n${rules.join('\n\n')}\n`;
+  return rules.length ? `## ${title}\n\n${rules.join('\n\n')}\n` : '';
 }
