@@ -4,11 +4,12 @@
 // THE PUBLISH GUARD (docs/work-specs/publish-guard/spec.md). Two members: Anna edits a graphic in
 // her library and publishes; Ben, whose page built its copy when the graphic was added, changes a
 // cue and then a layer and publishes each time. Air keeps Anna's design, with Ben's cue and layer
-// (AC-1, AC-3). One member, two faults forced on the server row: a newer design on air than the
-// page holds stops the publish with nothing written (AC-4, G3), and a publish landing between the
-// page's read and its write is pulled in and published over once (AC-2 at the same moment, G4).
+// (AC-1, AC-3). One member, three states forced on the server row: a payload from before stamps is
+// published over (AC-6), a newer design on air than the page holds stops the publish with nothing
+// written (AC-4, G3), and a publish landing between the page's read and its write is pulled in and
+// published over once (AC-2 at the same moment, G4).
 // The Node half is scripts/readiness.test.mjs.
-// covers: src/control/payloadVersion.ts, src/model/shows.ts, src/components/home/ProductionPage.tsx
+// covers: src/control/payloadVersion.ts, src/control/hostedControl.ts, src/model/shows.ts, src/components/home/ProductionPage.tsx
 
 import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
@@ -146,13 +147,14 @@ test.describe('two members', () => {
     const anna = await annaContext.newPage();
     const ben = await benContext.newPage();
     let teamId = '';
+    let showId = '';
     try {
       await signIn(anna);
       await anna.keyboard.press('Escape');
       await clearPublishedShows(anna);
       await wipeMyGraphics(anna);
       await libraryGraphic(anna, STRAP);
-      const showId = await productionWith(anna, `Publish guard ${Date.now()}`, STRAP);
+      showId = await productionWith(anna, `Publish guard ${Date.now()}`, STRAP);
       // `E2E team ` prefix, so teams.spec.ts's sweep deletes it if this run dies mid-way.
       const team = await anna.evaluate(async (id) => {
         const { createTeam } = await import('/src/backend/teams.ts');
@@ -219,11 +221,16 @@ test.describe('two members', () => {
       expect(relayered.css).toContain('anna design 2');
     } finally {
       await anna
-        .evaluate(async (id) => {
-          if (!id) return;
-          const { deleteTeam } = await import('/src/backend/teams.ts');
-          await deleteTeam(id);
-        }, teamId)
+        .evaluate(
+          async ([id, show]) => {
+            const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
+            if (show) await unpublishControlShow(show).catch(() => undefined);
+            if (!id) return;
+            const { deleteTeam } = await import('/src/backend/teams.ts');
+            await deleteTeam(id);
+          },
+          [teamId, showId] as [string, string],
+        )
         .catch(() => undefined);
       await annaContext.close();
       await benContext.close();
@@ -243,34 +250,47 @@ test('a newer design on air stops the publish, and a publish landing in between 
   const first = (await published(page, showId, STRAP))!;
   expect(first.edited, 'the stamp names when the design was edited').not.toBeNull();
 
-  /** Rewrite the published stamp as another page's publish would have left it. */
-  const forge = (change: { later?: boolean; bump?: number }) =>
+  /** Rewrite the published stamp as another page's publish would have left it, or as a publish
+   *  from before stamps did (`strip`: no stamp at all). */
+  const forge = (change: { later?: boolean; bump?: number; strip?: boolean }) =>
     page.evaluate(
-      async ([id, name, later, bump]) => {
+      async ([id, name, later, bump, strip]) => {
         const { getSupabase } = await import('/src/backend/supabase.ts');
         const sb = (await getSupabase())!;
         const { data } = await sb.from('control_shows').select('output').eq('id', id).single();
-        const output = (data as { output: { ver: { n: number; g: Record<string, string>; t: Record<string, string> } } }).output;
+        const output = (data as { output: { ver?: { n: number; g: Record<string, string>; t: Record<string, string> } } }).output;
+        const ver = output.ver!;
         if (later) {
-          output.ver.g[name] = 'ffffffffffffffff';
-          output.ver.t[name] = new Date(Date.now() + 3_600_000).toISOString();
+          ver.g[name] = 'ffffffffffffffff';
+          ver.t[name] = new Date(Date.now() + 3_600_000).toISOString();
         }
-        output.ver.n += bump;
+        ver.n += bump;
+        if (strip) delete output.ver;
         const { error } = await sb.from('control_shows').update({ output }).eq('id', id);
         if (error) throw new Error(error.message);
-        return output.ver.n;
+        return ver.n;
       },
-      [showId, STRAP, !!change.later, change.bump ?? 0] as [string, string, boolean, number],
+      [showId, STRAP, !!change.later, change.bump ?? 0, !!change.strip] as [string, string, boolean, number, boolean],
     );
 
+  // AC-6: a payload published before stamps (the row has none). The republish lands over it, the
+  // write conditioned on there being no stamp.
+  await forge({ strip: true });
+  await typeCue(page, 'over an unstamped payload');
+  await page.getByTestId('production-publish-changes').click();
+  await expect.poll(async () => (await published(page, showId, STRAP))?.values ?? [], { timeout: 60_000 }).toContain('over an unstamped payload');
+  expect((await published(page, showId, STRAP))!.n, 'a payload without a stamp is followed by v1').toBe(1);
+  await expect(page.getByTestId('production-note').filter({ hasText: 'Publish failed' })).toHaveCount(0);
+
   // AC-4: a newer design of Strap is on air than this page holds. The publish stops, names it, and
-  // writes nothing.
+  // writes nothing, after pulling once more in case the newer copy had reached the record.
+  const stamped = (await published(page, showId, STRAP))!;
   await forge({ later: true });
   await typeCue(page, 'stale page');
   await page.getByTestId('production-publish-changes').click();
   await expect(page.getByTestId('production-note')).toContainText(`${STRAP} on air is newer than this page's copy. Reload this page to get it.`, { timeout: 30_000 });
   const refused = (await published(page, showId, STRAP))!;
-  expect(refused.n, 'nothing was written').toBe(first.n);
+  expect(refused.n, 'nothing was written').toBe(stamped.n);
   expect(refused.values).not.toContain('stale page');
 
   // Put this page's design back on air (the forged edit time goes with a real republish).
@@ -281,18 +301,20 @@ test('a newer design on air stops the publish, and a publish landing in between 
   // G4: another publish lands between this page's read and its write. The write misses, the page
   // reads again and publishes over it once, by itself.
   await typeCue(page, 'raced');
-  let patches = 0;
+  // Only a PUBLISH write carries the panel; the forged one below writes the payload alone.
+  let writes = 0;
   let landed = 0;
   await page.route('**/rest/v1/control_shows?**', async (route) => {
-    if (route.request().method() !== 'PATCH') return route.continue();
-    patches += 1;
-    // The forged publish's own PATCH comes through here too, as the second one.
-    if (patches === 1) landed = await forge({ bump: 5 });
+    const request = route.request();
+    if (request.method() !== 'PATCH' || !(request.postData() ?? '').includes('"panel"')) return route.continue();
+    writes += 1;
+    if (writes === 1) landed = await forge({ bump: 5 });
     return route.continue();
   });
   await page.getByTestId('production-publish-changes').click();
   await expect.poll(async () => (await published(page, showId, STRAP))?.values ?? [], { timeout: 60_000 }).toContain('raced');
   const after = (await published(page, showId, STRAP))!;
+  expect(writes, 'the first write missed, and the page published once more').toBe(2);
   expect(landed).toBe(base.n + 5);
   expect(after.n, 'published over the version that landed in between').toBe(landed + 1);
   await expect(page.getByTestId('production-note').filter({ hasText: 'Publish failed' })).toHaveCount(0);

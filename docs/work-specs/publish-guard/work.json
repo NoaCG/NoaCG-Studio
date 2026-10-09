@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "3897f8c652cf87809a1326267fc2d698a4ae7a30bad5699e37732f92818dd9b1",
+  "specSha256": "dc2d9ed1d66117f4eb947dfcd945446ff1f54f45ae541727e368b445450de1b0",
   "authority": {
     "status": "agreed",
     "source": "the owner's answers of 2026-10-09 to the publish guard grill: merge per graphic, keeping the rest of the newer published version; then the newest saved edit of each graphic wins everywhere rather than the last page to publish, playout settings including sounds are preserved, editing never changes air by itself, Take stays fast, existing sync and publish mechanisms are reused, and no conflict dialogs or new sync layers are added"

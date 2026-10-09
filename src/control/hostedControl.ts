@@ -552,7 +552,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   const older = olderDesigns(version, held);
   if (older.length) {
     const one = older.length === 1;
-    throw new Error(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this page's copy. Reload this page to get ${one ? 'it' : 'them'}.`);
+    throw new PublishBehind(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this page's copy. Reload this page to get ${one ? 'it' : 'them'}.`);
   }
   const expected: ExpectedVersion = { exists: !!previous.data, n: held?.n ?? null };
   const output: OutputPayload = { ...built, ver: version };
@@ -601,11 +601,11 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // already follows, stated there as "publishing a production must not start failing because an
   // instance has not run the latest migration", and the retry is the cheapest way to hold it: one
   // extra round trip, only on the instances that need it, and only until they are migrated.
-  if (error === 'moved') throw new PublishRaced();
+  if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
     const { profile: _dropped, ...withoutProfile } = published;
     const retry = await writeControlShow(sb, withoutProfile, expected);
-    if (retry === 'moved') throw new PublishRaced();
+    if (retry === 'moved') throw new PublishBehind(RACED);
     // The retry failing means the error was never about this column — report the ORIGINAL, which
     // is the one that describes what is actually wrong.
     if (retry) throw new Error(error.message);
@@ -663,14 +663,13 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   };
 }
 
-/** Another page published between this publish's read of the version and its write
- *  (docs/work-specs/publish-guard/spec.md G4). Nothing was written; the caller pulls the latest
- *  record and publishes again. */
-export class PublishRaced extends Error {
-  constructor() {
-    super('Another page published at the same moment. Publish again.');
-  }
-}
+/** The published version is ahead of what this page built from: another page published between
+ *  this publish's read and its write (G4), or holds a newer design than this page's copy (G3).
+ *  Nothing was written. The caller pulls the latest record and publishes once more, which settles
+ *  both when the newer copy has reached the record; the message is for when it has not. */
+export class PublishBehind extends Error {}
+
+const RACED = 'Another page published at the same moment. Publish again.';
 
 /** The published version a write may land on: no row yet, or the row as read, by its stamp's
  *  number (null: published before stamps). */

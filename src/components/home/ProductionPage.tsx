@@ -188,7 +188,7 @@ import {
   controlPingSeq,
   outputPageUrl,
   publishControlShow,
-  PublishRaced,
+  PublishBehind,
   sendControlVerbs,
   staleSentence,
   takeCueItems,
@@ -2634,7 +2634,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const wasStarted = !!current?.hostedSlug;
       // THE PUBLISH GUARD (docs/work-specs/publish-guard/spec.md): a team production is pulled to
       // its latest record, this page's newer designs are copied into the record and saved, and the
-      // payload is built from that. A teammate who published in between is pulled in once more.
+      // payload is built from that. A published version ahead of it (a teammate who published in
+      // between, or a newer design than this page's copy) is pulled in once more.
       const publishLatest = async () => {
         for (let attempt = 0; ; attempt += 1) {
           const team = !!loadShows().find((s) => s.id === show.id)?.teamId;
@@ -2654,7 +2655,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           try {
             return await publishControlShow(latest);
           } catch (e) {
-            if (!(e instanceof PublishRaced) || attempt > 0) throw e;
+            if (!(e instanceof PublishBehind) || attempt > 0) throw e;
           }
         }
       };

@@ -45,9 +45,10 @@ Derived (revertible; each says how):
   latest record and saves this page's pending edits (`refreshTeams`, `flushTeamProduction`). A
   save that fails does not stop the publish; G3 still holds. Revert: build from what the page has.
 - **G3. Never an older design.** Each published graphic carries when its design was last edited.
-  A publish that would replace a graphic with an older design stops before writing, on the page's
-  existing failure line: "<Graphic> on air is newer than this page's copy. Reload this page to get
-  it." Revert: drop the check.
+  A publish that would replace a graphic with an older design pulls the record once more, in case
+  the newer copy has just reached it, and otherwise stops before writing, on the page's existing
+  failure line: "<Graphic> on air is newer than this page's copy. Reload this page to get it."
+  Revert: drop the check.
 - **G4. One write at a time.** The write lands only on the published version it read. If another
   page published in between, this page pulls again and publishes once more by itself; a second
   miss stops on the failure line. No migration: the condition is a filter on the version stamp
