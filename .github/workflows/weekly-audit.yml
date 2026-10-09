@@ -120,8 +120,20 @@ jobs:
       # commit, and most of what it flags lives in tooling that never reaches a user), so it is
       # the step most likely to be red for a reason nobody needs to act on this week. Anything
       # that can block the signal must therefore come after it.
+      #
+      # All three lockfiles, each audited even when an earlier one is red, so one package's
+      # advisory never hides another's. `render-worker/` and `player-host/` are not installed:
+      # `npm audit` reads the lockfile. Until 2026-10-09 only the root was audited, and on
+      # 2026-10-08 both siblings carried high advisories nothing had reported (#819).
       - name: Dependency audit
-        run: npm audit --audit-level=high
+        run: |
+          status=0
+          for pkg in . render-worker player-host; do
+            echo "::group::npm audit $pkg"
+            npm --prefix "$pkg" audit --audit-level=high || { status=1; echo "::error::high or critical advisory in $pkg"; }
+            echo "::endgroup::"
+          done
+          exit $status
 
       # Fail-loud: one rolling tracking issue, updated per red run.
       #

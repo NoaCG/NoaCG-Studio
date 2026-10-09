@@ -59,7 +59,8 @@ verification attached.
 |---|---|---|
 | Root dependencies, advisories | `npm audit --audit-level=high` | yes |
 | Root dependencies, staleness | `npm outdated` | no — a new release is news, not a fault |
-| `render-worker/`, `player-host/` | `npm --prefix … outdated` | no |
+| `render-worker/`, `player-host/`, advisories | `npm --prefix … audit --audit-level=high` (reads the lockfile, no install) | yes |
+| `render-worker/`, `player-host/`, staleness | `npm --prefix … outdated` | no |
 | Playwright browser binaries | follows the `@playwright/test` bump | n/a |
 
 The audit threshold is `high` on purpose. Low and moderate advisories that have been read and
@@ -157,9 +158,10 @@ declared.
 The same ordinary kind came back on 2026-10-08: `brace-expansion` 5.0.9 (under `minimatch`) and
 `source-map-js` 1.2.1 (under `postcss`), both high, both dev-only, closed by lockfile bumps to
 5.0.12 and 1.2.2 inside their parents' ranges. `render-worker/` and `player-host/` keep their own
-lockfiles, which this job does not audit. They carried the same `source-map-js`, and the worker
+lockfiles, which this job did not audit then. They carried the same `source-map-js`, and the worker
 four more high and two moderate advisories in its bundler toolchain, all closed then by patch or
-minor bumps in those lockfiles.
+minor bumps in those lockfiles. Since 2026-10-09 the audit step reads all three lockfiles, each
+one even when an earlier one is red.
 
 Playwright gets no separate check. The actionable signal is the package bump, which `npm
 outdated` already reports; the browser revision follows from it.
