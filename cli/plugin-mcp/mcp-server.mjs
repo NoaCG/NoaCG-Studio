@@ -108,14 +108,15 @@ let cli = resolveCli();
 
 // An installed CLI of another version is never run: the plugin runs exactly the version it was
 // reviewed with, so a different one goes the same pinned way as a missing one.
-if (cli && cli !== process.env.NOACG_CLI) {
+// (`resolveCli` exits on a bad override, so a set NOACG_CLI is the path it returned.)
+if (process.env.NOACG_CLI) {
+  process.stderr.write(`[noacg] explicit NOACG_CLI development override: ${cli}; reviewed version ${REVIEWED} is bypassed.\n`);
+} else if (cli) {
   const ownVersion = readOwnVersion(cli);
   if (ownVersion !== REVIEWED) {
     process.stderr.write(`[noacg] the installed @noacg/cli is ${ownVersion ?? 'of unknown version'}, not ${REVIEWED}, so it is not used.\n`);
     cli = null;
   }
-} else if (cli) {
-  process.stderr.write(`[noacg] explicit NOACG_CLI development override: ${cli}; reviewed version ${REVIEWED} is bypassed.\n`);
 }
 
 if (cli) {

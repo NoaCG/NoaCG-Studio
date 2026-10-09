@@ -1,21 +1,24 @@
 // Prepare a generated branch commit. Only --push updates the canonical remote distribution branch.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assemble, ROOT, writeDistribution } from './toolkit-distribution.mjs';
+import { assemble, ROOT } from './toolkit-distribution.mjs';
 
-export function prepareDistribution({ source = ROOT, out, remote, push = false }) {
+export function prepareDistribution({ source = ROOT, remote, push = false }) {
   const gitSource = (...args) => execFileSync('git', args, { cwd: source, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true }).trim();
   if (gitSource('status', '--porcelain', '--untracked-files=normal')) throw new Error('distribution requires clean source');
   if (push && !/^https:\/\/github\.com\/NoaCG\/NoaCG-Studio(?:\.git)?$/.test(remote)) throw new Error('only canonical HTTPS remote may receive distribution');
   const result = assemble(source);
-  if (out) writeDistribution(out, result);
+  // Only the repository tree becomes the branch, written into a fresh temporary folder so git
+  // metadata never lands in a kept artifact.
   const dir = mkdtempSync(path.join(os.tmpdir(), 'noacg-dist-branch-'));
-  // Use a dedicated temporary output so no previous artifact is mutated by git metadata.
-  writeDistribution(path.join(dir, 'artifact'), result);
   const repo = path.join(dir, 'artifact/repository');
+  for (const [file, bytes] of result.packages.repository) {
+    mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+    writeFileSync(path.join(repo, file), bytes);
+  }
   const sourceDate = gitSource('show', '-s', '--format=%cI', 'HEAD');
   const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
     env: { ...process.env, GIT_AUTHOR_NAME: 'NoaCG Studio', GIT_AUTHOR_EMAIL: 'noreply@noacg.studio',
@@ -47,17 +50,15 @@ export function prepareDistribution({ source = ROOT, out, remote, push = false }
   const githubArchiveBytes = readFileSync(archive).length;
   if (githubArchiveBytes >= 50 * 1024 * 1024) throw new Error('Git repository archive exceeds Claude limit');
   if (push) git('push', `--force-with-lease=refs/heads/agent-toolkit-dist:${previous}`, remote, `${commit}:refs/heads/agent-toolkit-dist`);
-  const receipt = { sourceCommit: result.report.sourceCommit, commit, parent: previous || null, githubArchiveBytes, pushed: push, repository: repo };
-  writeFileSync(path.join(dir, 'receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`);
-  return receipt;
+  return { sourceCommit: result.report.sourceCommit, commit, parent: previous || null, githubArchiveBytes, pushed: push, repository: repo };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   try {
-    if (args.some((a) => !['--push'].includes(a))) throw new Error('usage: node cli/scripts/publish-toolkit-distribution.mjs [--push]');
-    if (!existsSync(path.join(ROOT, 'cli/package.json'))) throw new Error('source repository missing');
-    console.log(JSON.stringify(prepareDistribution({ push: args.includes('--push'), remote: args.includes('--push') ? 'https://github.com/NoaCG/NoaCG-Studio.git' : undefined }), null, 2));
+    if (args.some((a) => a !== '--push')) throw new Error('usage: node cli/scripts/publish-toolkit-distribution.mjs [--push]');
+    const push = args.includes('--push');
+    console.log(JSON.stringify(prepareDistribution({ push, remote: push ? 'https://github.com/NoaCG/NoaCG-Studio.git' : undefined }), null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

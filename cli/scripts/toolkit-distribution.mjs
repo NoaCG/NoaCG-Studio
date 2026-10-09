@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { crc32, deflateRawSync } from 'node:zlib';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const json = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 const parse = (files, name) => JSON.parse(files.get(name)?.toString() ?? 'null');
 const requireThat = (ok, message) => { if (!ok) throw new Error(message); };
@@ -18,7 +18,7 @@ export function validateArchiveLimits({ compressedBytes, unpackedBytes, entries 
   requireThat(compressedBytes < 50 * MiB && unpackedBytes < 256 * MiB && entries < 10000, 'repository archive limits exceeded');
 }
 
-export function pathsIn(dir, base = dir) {
+function pathsIn(dir, base = dir) {
   return readdirSync(dir).sort().flatMap((name) => {
     const full = path.join(dir, name);
     const stat = lstatSync(full);
@@ -177,7 +177,7 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
   const sourceHashes = {};
   const read = (relative) => {
     const stat = lstatSync(path.join(root, relative));
-    requireThat(stat.isFile() && !stat.isSymbolicLink(), `nonregular source: ${relative}`);
+    requireThat(stat.isFile(), `nonregular source: ${relative}`);
     let bytes = readFileSync(path.join(root, relative));
     if (!relative.endsWith('.png')) bytes = Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n'));
     sourceHashes[relative] = sha256(bytes);
@@ -222,9 +222,8 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
   const claude = new Map([...main].filter(([p]) => !p.startsWith('.codex-plugin/')));
   const codex = new Map([...main].filter(([p]) => !p.startsWith('.claude-plugin/') && !p.startsWith('commands/')));
   const claudeMcp = new Map([...mcp].filter(([p]) => !p.startsWith('.codex-plugin/') && p !== 'codex-mcp.json'));
-  const codexMcp = new Map([...mcp].filter(([p]) => !p.startsWith('.claude-plugin/') && p !== '.mcp.json'));
-  // The launcher uses the Claude manifest as its version authority even for local Codex installs.
-  codexMcp.set('.claude-plugin/plugin.json', mcp.get('.claude-plugin/plugin.json'));
+  // Codex keeps the Claude manifest too: the launcher reads its version authority from it.
+  const codexMcp = new Map([...mcp].filter(([p]) => p !== '.mcp.json'));
   const packages = { claude, codex, 'claude-mcp': claudeMcp, 'codex-mcp-local': codexMcp };
   for (const [kind, files] of Object.entries(packages)) validatePackage(files, { host: kind.startsWith('claude') ? 'claude' : 'codex', name: kind.includes('mcp') ? 'noacg-mcp' : 'noacg', version: pkg.version });
   const repository = new Map([
