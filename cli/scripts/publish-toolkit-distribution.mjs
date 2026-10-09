@@ -1,6 +1,6 @@
 // Prepare a generated branch commit. Only --push updates the canonical remote distribution branch.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,15 @@ export function prepareDistribution({ source = ROOT, remote, push = false }) {
   // Only the repository tree becomes the branch, written into a fresh temporary folder so git
   // metadata never lands in a kept artifact.
   const dir = mkdtempSync(path.join(os.tmpdir(), 'noacg-dist-branch-'));
+  try {
+    return commitDistribution({ source, remote, push, result, dir, gitSource });
+  } catch (error) {
+    rmSync(dir, { recursive: true, force: true }); // a refused snapshot leaves nothing to inspect
+    throw error;
+  }
+}
+
+function commitDistribution({ source, remote, push, result, dir, gitSource }) {
   const repo = path.join(dir, 'artifact/repository');
   for (const [file, bytes] of result.packages.repository) {
     mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
