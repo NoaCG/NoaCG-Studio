@@ -345,6 +345,7 @@ test('AC-3: an abandoned shell loop closes after a quiet hour, and an exempt pro
   const marker = basename(repo.root);
   closeLeftovers(repo, marker);
   const wt = addWorktree(repo.primary, 'agent-left-a-loop');
+  mkdirSync(repo.projects, { recursive: true }); // transcripts that can be read, and say nothing
   const [loop, runner] = startOrphans([
     { file: process.execPath, args: ['-e', `setInterval(() => {}, 1000); // loop ${marker}`], cwd: wt.path },
     // Stands in for the job queue runner: exempt by its command line, wherever it runs.

@@ -38,6 +38,7 @@ import { closeSync, openSync, readdirSync, readSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { believableParent, withinRoot as within } from './e2e-runs.mjs';
 import { sessionHold } from './session-liveness.mjs';
 import { lastGitActivityMs, worktreeRoots } from './worktree-cleanup-lib.mjs';
 
@@ -46,15 +47,9 @@ export const ABANDONED_AFTER_MINUTES = 60;
 
 const NO_INVENTORY = Object.freeze({ available: false, rows: [] });
 
-/** Lower-case path with forward slashes and no trailing slash, for prefix comparison. */
+/** Lower-case path with forward slashes and no trailing slash, for comparison. */
 function key(path) {
   return resolve(path).replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase();
-}
-
-function within(path, root) {
-  const at = key(path);
-  const here = key(root);
-  return at === here || at.startsWith(`${here}/`);
 }
 
 const base = (p) => String(p?.name ?? '').toLowerCase();
@@ -71,8 +66,10 @@ const SHELLS = new Set(['bash', 'bash.exe', 'sh', 'sh.exe', 'zsh', 'zsh.exe', 'd
  */
 function persistentShell(p) {
   if (!SHELLS.has(base(p))) return false;
-  const args = String(p.command ?? '').replace(/^\s*("[^"]*"|\S+)/, '');
-  return !/(?:^|\s)-(?:c|command|file|encodedcommand|ec)\b/i.test(args);
+  // Persistent means nothing to run: no argument but the flags of an interactive shell. `bash -lc`,
+  // `pwsh -enc …` and `powershell -File x` all run something and end.
+  const args = String(p.command ?? '').replace(/^\s*("[^"]*"|\S+)/, '').trim().split(/\s+/).filter(Boolean);
+  return args.every((arg) => /^-(?:nologo|noprofile|noexit|noninteractive|i|l|-login|login)$/i.test(arg));
 }
 
 /** The desktop apps the owner works in. They host sessions, but they are applications, not agents. */
@@ -145,13 +142,6 @@ function exemption(p) {
   return EXEMPT.find((entry) => entry.match(p))?.why ?? null;
 }
 
-/** A real parent is older than its child; a younger "parent" holds a dead parent's reused pid. */
-function believableParent(parent, child) {
-  if (!parent || !child || parent.pid === child.pid) return false;
-  if (!Number.isFinite(parent.createdMs) || !Number.isFinite(child.createdMs)) return true;
-  return parent.createdMs <= child.createdMs;
-}
-
 // --- The judgement (pure) -----------------------------------------------------------------------
 
 /**
@@ -170,8 +160,17 @@ export function judgeProcesses(processes, { roots = [], self = process.pid } = {
     const parent = byPid.get(p.ppid);
     return believableParent(parent, p) ? parent : null;
   };
+  // The sweep's own line: itself up to the session it runs in, never above that session. Above it
+  // are the desktop app, a terminal, explorer - shared with the owner's own work.
+  // Those ancestors themselves (the terminal the session runs in) are never judged either.
   const selfLine = new Set();
-  for (let at = byPid.get(self); at && !selfLine.has(at.pid); at = parentOf(at)) selfLine.add(at.pid);
+  const ancestors = new Set();
+  let below = true;
+  for (let at = byPid.get(self); at && !ancestors.has(at.pid); at = parentOf(at)) {
+    ancestors.add(at.pid);
+    if (below) selfLine.add(at.pid);
+    if (isAgentSession(at)) below = false;
+  }
   const ordered = [...roots].sort((a, b) => key(b).length - key(a).length);
   const rootOf = (path) => (path ? ordered.find((root) => within(path, root)) ?? null : null);
   const namedRoot = (command) => {
@@ -194,8 +193,8 @@ export function judgeProcesses(processes, { roots = [], self = process.pid } = {
   const judged = new Map();
   for (const p of processes) {
     const home = homeOf(p);
-    const out = (verdict, why = null, root = null) => judged.set(p.pid, { p, home, verdict, why, root });
-    if (selfLine.has(p.pid)) {
+    const out = (verdict, why = null, root = null, session = null) => judged.set(p.pid, { p, home, verdict, why, root, session });
+    if (ancestors.has(p.pid)) {
       out('self', 'the sweep itself');
       continue;
     }
@@ -211,11 +210,14 @@ export function judgeProcesses(processes, { roots = [], self = process.pid } = {
       }
       if (isAgentSession(at)) {
         const shell = line.at(-2);
+        // What the session the sweep runs in keeps for itself is the sweep's own line too: a self
+        // cleanup must not be refused by its own MCP servers.
+        const own = (why) => out(selfLine.has(at.pid) ? 'self' : 'keep', why);
         if (at === p) out('keep', 'a Claude Code or Codex session itself');
-        else if (!SHELLS.has(base(shell))) out('keep', 'what a session runs for itself, such as its MCP servers');
-        else if (!persistentShell(shell)) out('agent', null, shell);
-        else if (shell === p) out('keep', "a session's own shell");
-        else out('agent', null, line.at(-3));
+        else if (!SHELLS.has(base(shell))) own('what a session runs for itself, such as its MCP servers');
+        else if (!persistentShell(shell)) out('agent', null, shell, at);
+        else if (shell === p) own("a session's own shell");
+        else out('agent', null, line.at(-3), at);
         decided = true;
         break;
       }
@@ -311,6 +313,10 @@ export function abandonedProcesses(
     const started = root?.createdMs;
     if (!Number.isFinite(started) || now - started < minutes * 60_000) continue;
     if (!isQuiet(home)) continue;
+    // The session that started it must be quiet too, wherever it works from: an orchestrator in
+    // the primary checkout that started a server in a worktree is still using it.
+    const sessionHome = judgement.session ? judged.get(judgement.session.pid)?.home : null;
+    if (sessionHome && !isQuiet(sessionHome)) continue;
     close.push(entry(judgement, { ageMinutes: Math.floor((now - started) / 60_000) }));
   }
   return rootsFirst(close, judged);
@@ -351,23 +357,25 @@ export function recentCodexSessions({ root = codexSessionsRoot(), now = Date.now
         continue;
       }
       if (now - mtimeMs > windowMs) continue;
-      const cwd = firstLineCwd(path);
-      if (cwd) found.push({ cwd, mtimeMs });
+      // A recent session whose directory cannot be read is reported as one in an unknown place,
+      // which keeps every checkout from reading as quiet.
+      found.push({ cwd: firstLineCwd(path), mtimeMs });
     }
   };
   walk(root, 0);
   return found;
 }
 
+/** The `cwd` of a session log's first line. That line carries the instructions, so it is long. */
 function firstLineCwd(file) {
   let fd;
   try {
     fd = openSync(file, 'r');
-    const buffer = Buffer.alloc(16_384);
+    const buffer = Buffer.alloc(1024 * 1024);
     const read = readSync(fd, buffer, 0, buffer.length, 0);
     const line = buffer.toString('utf8', 0, read).split('\n')[0];
-    const meta = JSON.parse(line);
-    const cwd = meta?.payload?.cwd ?? meta?.cwd;
+    const found = /"cwd"\s*:\s*("(?:[^"\\]|\\.)*")/.exec(line);
+    const cwd = found ? JSON.parse(found[1]) : null;
     return typeof cwd === 'string' && cwd ? cwd : null;
   } catch {
     return null;
@@ -386,14 +394,17 @@ export function worktreeQuiet(
   path,
   { now = Date.now(), minutes = ABANDONED_AFTER_MINUTES, liveness = {}, codexSessions = null, gitActivity = lastGitActivityMs } = {},
 ) {
+  // Every signal that could not be read answers "not quiet": a check that failed is never silence.
   const hold = sessionHold(path, { ...liveness, inventory: NO_INVENTORY, minIdleMinutes: minutes, now });
   if (hold.busy) return { quiet: false, why: hold.why };
+  if (hold.activity?.available === false) return { quiet: false, why: 'the session transcripts could not be read' };
   const codex = (codexSessions ?? recentCodexSessions({ now, windowMs: minutes * 60_000 })).find(
-    (session) => within(session.cwd, path) && now - session.mtimeMs < minutes * 60_000,
+    (session) => (session.cwd === null || within(session.cwd, path)) && now - session.mtimeMs < minutes * 60_000,
   );
-  if (codex) return { quiet: false, why: 'a Codex session was active here within the hour' };
+  if (codex) return { quiet: false, why: codex.cwd ? 'a Codex session was active here within the hour' : 'a recent Codex session could not be read' };
   const lastGit = gitActivity(path);
-  if (lastGit !== null && now - lastGit < minutes * 60_000) {
+  if (lastGit === null) return { quiet: false, why: 'its git activity could not be read' };
+  if (now - lastGit < minutes * 60_000) {
     return { quiet: false, why: `its HEAD moved ${Math.floor((now - lastGit) / 60_000)} minute(s) ago` };
   }
   return { quiet: true, why: null };
@@ -552,13 +563,26 @@ export function closeWorktreeProcesses(
       : { ok: false, supported: true, closed: [], kept: [], failed: [], why: listed.why };
   }
   const { close: toClose, keep } = worktreeProcesses(listed.processes, worktree, { roots, self });
+  // Somebody still in it keeps the worktree, and with it everything running there: what they
+  // started may be what they are using. Abandonment (an hour of quiet) is the other step's call.
+  if (keep.length > 0) return { ok: false, supported: true, closed: [], kept: keep, failed: [], why: `in use by ${describe(keep)}` };
   const { closed, failed } = toClose.length > 0 ? close(toClose) : { closed: [], failed: [] };
-  const why = keep.length > 0
-    ? `in use by ${describe(keep)}`
-    : failed.length > 0
-      ? `could not close ${describe(failed)}`
-      : null;
-  return { ok: why === null, supported: true, closed, kept: keep, failed, why };
+  const why = failed.length > 0 ? `could not close ${describe(failed)}` : null;
+  return { ok: why === null, supported: true, closed, kept: [], failed, why };
+}
+
+/**
+ * `closeWorktreeProcesses` for a sweep that removes several worktrees: the machine is listed once,
+ * on the first removal. A process started after that is not judged, and the removal's own
+ * in-use check (Windows refusing the rename) still keeps its worktree.
+ */
+export function worktreeCloser(primaryRoot, { list = listProcesses } = {}) {
+  let listed = null;
+  let roots = null;
+  return (path) => {
+    roots ??= worktreeRoots(primaryRoot);
+    return closeWorktreeProcesses(path, { roots, list: () => (listed ??= list()) });
+  };
 }
 
 /**

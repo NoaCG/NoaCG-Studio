@@ -576,7 +576,7 @@ export const WAIT_LIMIT_MAX_SECONDS = 60 * 60;
 
 /**
  * Is this command a POLLING LOOP THAT CANNOT END - an `until`/`while` (or PowerShell `while (…)` /
- * `do { } until`) around a sleep, with no `timeout` and no deadline or counter?
+ * `do { } until`, or `for (;;)`) around a sleep, with no `timeout` and no deadline or counter?
  * docs/work-specs/agent-lifecycle/spec.md point 1: on 2026-10-09 `until docker info; do sleep 5;
  * done` polled for 14 hours because Docker was not running, and nothing ever said so. A loop with
  * an end fails when it runs out, and that failure is what tells its agent it is stuck.
@@ -584,31 +584,74 @@ export const WAIT_LIMIT_MAX_SECONDS = 60 * 60;
  * Returns null, `{ why: 'unbounded' }`, or `{ why: 'too-long', seconds }` for a `timeout` over
  * WAIT_LIMIT_MAX_SECONDS. Pure, so any harness can ask it; the Claude Code command guard does.
  *
- * The loop keyword must stand where a command starts - at the start, after a separator, or as
- * the payload of `bash -c` / `-Command` - so `grep "while true; do sleep" notes.md` is not a loop.
- * A counter or a clock in the loop counts as a deadline, as does any `timeout <duration>`.
+ * Each loop is judged on its own text, from its keyword to its `done` (or the end of the command):
+ * the sleep, the counter or the clock has to be IN it, and a `timeout` counts only when the loop
+ * runs inside that timeout's command. Quoted text is data unless it is a shell's `-c` / `-Command`
+ * payload, so a commit message or a grep pattern that mentions a loop is not one. A `while read`
+ * loop ends with its input.
  */
 export function endlessWait(text) {
   const body = stripHeredocBodies(String(text ?? ''));
-  const head = /(?:^|[;&|\n({]|(?:\s-c|\s-Command)\s+['"]?)\s*(?:while|until)\b/i;
-  const powershellDo = /(?:^|[;&|\n({])\s*do\s*\{[\s\S]*\}\s*(?:while|until)\s*\(/i;
-  const forever = /\bfor\s*\(\(?\s*;\s*;\s*\)?\)/;
-  if (!head.test(body) && !powershellDo.test(body) && !forever.test(body)) return null;
-  if (!/(?:^|[^\w$-])(?:sleep|Start-Sleep)\b|\btimeout\s+\/t\b/i.test(body)) return null;
+  const code = maskQuotedData(body);
+  const heads = [
+    ...code.matchAll(/(?:^|[;&|\n({'"])\s*((?:while|until)\b)/gi),
+    ...code.matchAll(/(?:^|[;&|\n({'"])\s*(do\s*\{)/gi),
+    ...code.matchAll(/(?:^|[;&|\n({'"])\s*(for\s*\(\(?\s*;\s*;)/g),
+  ];
+  for (const match of heads) {
+    const at = match.index + match[0].length - match[1].length;
+    const rest = code.slice(at);
+    if (/^(?:while|until)\s+(?:IFS=\S*\s+)?read\b/i.test(rest)) continue;
+    const done = /\bdone\b/.exec(rest);
+    const loop = done ? rest.slice(0, done.index) : rest;
+    if (!/(?:^|[^\w$-])(?:sleep|Start-Sleep)\b|\btimeout\s+\/t\b/i.test(loop)) continue;
+    if (CLOCK.test(loop) || COUNTER.test(loop)) continue;
+    const limit = timeoutSeconds(code.slice(commandStart(body, at), at));
+    if (limit === null) return { why: 'unbounded' };
+    if (limit > WAIT_LIMIT_MAX_SECONDS) return { why: 'too-long', seconds: limit };
+  }
+  return null;
+}
 
-  const limit = timeoutSeconds(body);
-  if (limit !== null) return limit > WAIT_LIMIT_MAX_SECONDS ? { why: 'too-long', seconds: limit } : null;
-  const clockOrCounter =
-    /\$SECONDS\b|\bSECONDS\b|\bdate\s+\+%s|Get-Date|\[datetime\]|Stopwatch|\bdeadline\b|\bElapsed\b|\+\+|\+=\s*1\b|\$\(\(\s*\w+\s*\+\s*1\s*\)\)|\blet\s+\w+|\bseq\b/i;
-  return clockOrCounter.test(body) ? null : { why: 'unbounded' };
+/** A clock in a loop is a deadline: `$SECONDS`, `date +%s`, `Get-Date`, a stopwatch. */
+const CLOCK = /\$SECONDS\b|\bdate\s+\+%s|Get-Date|\[datetime\]|Stopwatch|\$deadline\b|\.Elapsed\b/;
+
+/** A counter that moves in a loop bounds it: `i++`, `n=$((n-1))`, `i+=5`, `$i = $i + 1`, `seq`. */
+const COUNTER =
+  /\+\+|[a-z_]\w*--(?![\w-])|[-+]=\s*\d|\$\(\(\s*[a-z_]\w*\s*[-+]\s*\d+\s*\)\)|\(\(\s*[a-z_]\w*\s*[-+]=|\blet\s+\w+|\bseq\b|\$[a-z_]\w*\s*=\s*\$[a-z_]\w*\s*[-+]\s*\d/i;
+
+/**
+ * The text with every quoted string blanked out (same length, so indexes still line up), except a
+ * string handed to a shell to run - the payload of `-c`, `-lc`, `-Command`.
+ */
+function maskQuotedData(text) {
+  return text.replace(/("(?:[^"\\]|\\.)*"|'[^']*')/g, (quoted, _q, offset) =>
+    /(?:^|\s)-(?:[a-z]*c|Command)\s+$/i.test(text.slice(Math.max(0, offset - 16), offset))
+      ? quoted
+      : quoted[0] + ' '.repeat(quoted.length - 2) + quoted.at(-1),
+  );
+}
+
+/** Where the command containing `index` starts: just after the last separator outside quotes. */
+function commandStart(text, index) {
+  let start = 0;
+  let quote = null;
+  for (let i = 0; i < index; i += 1) {
+    const c = text[i];
+    if (quote) {
+      if (c === quote && text[i - 1] !== '\\') quote = null;
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === ';' || c === '&' || c === '|' || c === '\n') start = i + 1;
+  }
+  return start;
 }
 
 /**
  * The duration a coreutils `timeout` in the command is given, in seconds, or null when there is
  * none. Its options come first (`-k 5`, `--signal=KILL`, `-s TERM`), then the duration.
  */
-function timeoutSeconds(body) {
-  for (const match of body.matchAll(/(?:^|[\s;&|({'"])timeout\s+([^\n;&|]*)/g)) {
+function timeoutSeconds(command) {
+  for (const match of command.matchAll(/(?:^|[\s({'"])timeout\s+([^\n;&|]*)/g)) {
     const tokens = match[1].trim().split(/\s+/);
     for (let i = 0; i < tokens.length; i += 1) {
       const token = tokens[i];

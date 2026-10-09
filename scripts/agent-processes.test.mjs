@@ -119,9 +119,51 @@ test('AC-3: a worktree that is not quiet, or a tree younger than an hour, keeps 
 });
 
 test('AC-3: in the shared primary checkout an agent\'s process can go, an orphan cannot', () => {
-  const closed = pids(abandonedProcesses(machine(), { roots: ROOTS, self: SWEEP, now: T0 + 2 * HOUR, quiet: (home) => ({ quiet: home === PRIMARY }) }));
+  const closed = pids(abandonedProcesses(machine(), { roots: ROOTS, self: SWEEP, now: T0 + 2 * HOUR, quiet: () => ({ quiet: true }) }));
   assert.ok(closed.includes(1700));
   assert.ok(!closed.includes(1710));
+});
+
+test('AC-3: a process stays while the session that started it is still working elsewhere', () => {
+  // The session works from W; its `sleep 1800` runs in the quiet primary checkout.
+  const closed = pids(abandonedProcesses(machine(), { roots: ROOTS, self: SWEEP, now: T0 + 2 * HOUR, quiet: (home) => ({ quiet: home === PRIMARY }) }));
+  assert.ok(!closed.includes(1700));
+});
+
+test('a Codex `bash -lc` loop is a command, not a session\'s own shell, and is aged as one', () => {
+  const codex = proc(3000, 1000, 'codex.exe', { cwd: W, createdMs: T0 - HOUR });
+  const loop = proc(3001, 3000, 'bash.exe', { cwd: W, command: 'bash -lc "until docker info; do sleep 5; done"' });
+  const sleep = proc(3002, 3001, 'sleep.exe', { cwd: W, createdMs: T0 + 2 * HOUR - 1000 });
+  const judged = judgeProcesses([...machine(), codex, loop, sleep], { roots: ROOTS, self: SWEEP });
+  assert.equal(judged.get(3001).verdict, 'agent');
+  assert.equal(judged.get(3002).root.pid, 3001);
+  const closed = pids(abandonedProcesses([...machine(), codex, loop, sleep], { roots: ROOTS, self: SWEEP, now: T0 + 2 * HOUR, quiet: () => ({ quiet: true }) }));
+  assert.ok(closed.includes(3001) && closed.includes(3002));
+});
+
+test('the owner\'s terminal beside the session the sweep runs in is not the sweep\'s own line', () => {
+  // The owner runs the session in one terminal tab and a dev server in another, both in W.
+  const table = [
+    proc(1000, 999, 'explorer.exe', { createdMs: T0 - 10 * HOUR }),
+    proc(4000, 1000, 'WindowsTerminal.exe', { createdMs: T0 - 9 * HOUR }),
+    proc(4001, 4000, 'powershell.exe', { cwd: W, command: 'powershell.exe' }),
+    proc(4002, 4001, 'node.exe', { cwd: W, command: 'node cli.js', exe: 'C:\\nodejs\\node.exe' }),
+    { ...proc(4003, 4002, 'node.exe', { cwd: W }), command: 'node C:\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js' },
+    proc(4004, 4003, 'bash.exe', { cwd: W, command: 'bash -c "node scripts/cleanup-worktrees.mjs --self --apply"' }),
+    proc(4005, 4004, 'node.exe', { cwd: W, command: 'node scripts/cleanup-worktrees.mjs --self --apply' }),
+    proc(4006, 4003, 'node.exe', { cwd: W, command: 'node mcp-server.js' }),
+    proc(4007, 4003, 'bash.exe', { cwd: W, command: 'bash -c "npm run dev:worktree"' }),
+    proc(4010, 4000, 'powershell.exe', { cwd: W, command: 'powershell.exe' }),
+    proc(4011, 4010, 'node.exe', { cwd: W, command: 'node vite' }),
+  ];
+  const judged = judgeProcesses(table, { roots: ROOTS, self: 4005 });
+  assert.equal(judged.get(4010).verdict, 'keep');
+  assert.equal(judged.get(4011).verdict, 'keep');
+  assert.equal(judged.get(4006).verdict, 'self', 'its own MCP server does not refuse a self cleanup');
+  assert.equal(judged.get(4007).verdict, 'agent', 'what it started still goes');
+  const { close, keep } = worktreeProcesses(table, W, { roots: ROOTS, self: 4005 });
+  assert.deepEqual(pids(close), [4007]);
+  assert.deepEqual(pids(keep), [4010, 4011]);
 });
 
 test('a reused parent pid is not followed, and the sweep never judges its own line', () => {
@@ -182,7 +224,10 @@ test('the removal step closes, and keeps the worktree when something is kept or 
   const kept = closeWorktreeProcesses(W, { roots: ROOTS, self: SWEEP, list, close });
   assert.equal(kept.ok, false);
   assert.match(kept.why, /^in use by /);
-  assert.deepEqual(asked.sort((a, b) => a - b), [1210, 1211, 1230, 1231, 1240, 1600], 'the agent processes still go');
+  assert.deepEqual(asked, [], 'while somebody is in it, nothing of theirs is closed');
+  const free = closeWorktreeProcesses(W, { roots: ROOTS, self: SWEEP, list: () => ({ ok: true, processes: machine().filter((p) => p.cwd !== W || [1210, 1230, 1600].includes(p.pid)) }), close });
+  assert.equal(free.ok, true, free.why);
+  assert.deepEqual(asked, [1210, 1230, 1600]);
   const failing = closeWorktreeProcesses(OTHER, {
     roots: ROOTS,
     self: SWEEP,
@@ -199,12 +244,15 @@ test('a Codex session working in a worktree keeps it from being quiet', (t) => {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const day = join(root, 'sessions', '2026', '10', '09');
   mkdirSync(day, { recursive: true });
+  mkdirSync(join(root, 'projects'));
   const file = join(day, 'rollout-1.jsonl');
-  writeFileSync(file, `${JSON.stringify({ type: 'session_meta', payload: { cwd: W.replaceAll('/', '\\') } })}\n{"type":"x"}\n`);
+  // The first line carries the session's instructions, so it is long: 23 KB measured here.
+  const instructions = 'x'.repeat(40_000);
+  writeFileSync(file, `${JSON.stringify({ type: 'session_meta', payload: { instructions, cwd: W.replaceAll('/', '\\') } })}\n{"type":"x"}\n`);
   const now = Date.now();
   const sessions = recentCodexSessions({ root: join(root, 'sessions'), now });
   assert.deepEqual(sessions.map((s) => s.cwd), [W.replaceAll('/', '\\')]);
-  const options = { now, liveness: { root: join(root, 'projects') }, gitActivity: () => null };
+  const options = { now, liveness: { root: join(root, 'projects') }, gitActivity: () => now - 2 * HOUR };
   assert.equal(worktreeQuiet(W, { ...options, codexSessions: sessions }).quiet, false);
   assert.equal(worktreeQuiet(OTHER, { ...options, codexSessions: sessions }).quiet, true);
 
@@ -212,6 +260,13 @@ test('a Codex session working in a worktree keeps it from being quiet', (t) => {
   utimesSync(file, old, old);
   assert.deepEqual(recentCodexSessions({ root: join(root, 'sessions'), now }), []);
   assert.equal(worktreeQuiet(W, { ...options, gitActivity: () => now - 10 * 60_000, codexSessions: [] }).quiet, false, 'a HEAD that moved holds it');
+
+  // Every signal that cannot be read answers "not quiet".
+  const quietGit = { ...options, gitActivity: () => now - 2 * HOUR, codexSessions: [] };
+  assert.equal(worktreeQuiet(W, quietGit).quiet, true);
+  assert.equal(worktreeQuiet(W, { ...quietGit, gitActivity: () => null }).quiet, false, 'unreadable git activity');
+  assert.equal(worktreeQuiet(W, { ...quietGit, liveness: { root: join(root, 'missing') } }).quiet, false, 'no transcripts to read');
+  assert.equal(worktreeQuiet(W, { ...quietGit, codexSessions: [{ cwd: null, mtimeMs: now }] }).quiet, false, 'a recent Codex log with no readable cwd');
 });
 
 test('on Windows the list carries each process\'s working directory', { skip: process.platform !== 'win32' && 'Windows only' }, () => {
