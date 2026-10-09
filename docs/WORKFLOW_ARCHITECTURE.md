@@ -168,7 +168,7 @@ Each tier answers a different question. All of them live in `.github/workflows/`
 
 | When | Workflow | What runs |
 |---|---|---|
-| Every branch push and pull request | `ci.yml` | `npm run build` (the gates `scripts/gates.mjs` discovers from file headers, typecheck, lint, dependency rules, the bundle) and the CLI package; the factory-tier gates, which need a browser or servers; the E2E specs this change can affect, planned by `scripts/e2e-affected.mjs` from the merge-base with `main` and sharded by measured duration; the catalog calibration gate when the plan flags it; `Reviewed` on pull requests |
+| Every pull request, once per commit (a branch push alone runs nothing) | `ci.yml` | `npm run build` (the gates `scripts/gates.mjs` discovers from file headers, typecheck, lint, dependency rules, the bundle) and the CLI package; the factory-tier gates, which need a browser or servers; the E2E specs this change can affect, planned by `scripts/e2e-affected.mjs` from the pull request's base on `main` and sharded by measured duration; the catalog calibration gate when the plan flags it; `Reviewed` on pull requests |
 | The merge group | `ci.yml` | the same, planned from the group's base; its `CI gate` is what lets the group merge |
 | Every push to `main` | `ci.yml` | the full E2E suite (a run whose commit `main` has already moved past cancels itself), a check that Vercel accepted the commit, and the red-main answers below |
 | Every push to `main` | `post-land.yml`, `quarantine.yml`, `configured-suite.yml` | migrations for production and staging, then the Supabase advisors; each quarantined spec in its own job, reported as a commit status; the suite that needs a real backend, against a local Supabase stack |
@@ -181,7 +181,7 @@ base plans the full suite. `docs/VERIFICATION.md`, "E2E is TIERED", has the deta
 focus set that stands in for a full escalation on branches during the current sprint.
 
 **A red main answers itself first.** When E2E shards fail on `main` or in the merge group, the
-`E2E retry` job runs exactly the failed spec files once more on the same commit (branch pushes get
+`E2E retry` job runs exactly the failed spec files once more on the same commit (pull requests get
 no second run). Fail then pass is a flake: the gate passes, and the `after-gate` job writes the
 specs into `e2e/quarantine.json` through the merge queue (`scripts/e2e-quarantine.mjs`). A
 quarantined spec leaves the blocking shards and is released after twenty consecutive passes. A

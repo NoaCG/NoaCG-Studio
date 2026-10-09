@@ -13,24 +13,28 @@
 # authenticated flows remain maintainer-only.
 name: CI
 
-# Every branch, not only main. The gate here is STRICTER than anything a laptop runs before a
-# merge (build + the sharded affected suite + the factory gates + the catalog tripwire, on a
-# clean checkout) and it costs nothing: this repo is public, so Actions minutes are free and
-# unmetered. Before this, a branch push triggered nothing at all, so the entire verification
-# burden fell on the developer's machine - measured at 59 concurrent browser shells and 35 MB
-# of free RAM on a 16 GB laptop, for an answer GitHub produces in six to nine minutes on
-# hardware nobody is trying to work on.
+# Every change is gated here, not only main. The gate is STRICTER than anything a laptop runs
+# before a merge (build + the sharded affected suite + the factory gates + the catalog tripwire,
+# on a clean checkout), and it runs on GitHub's hardware rather than the developer's machine -
+# measured at 59 concurrent browser shells and 35 MB of free RAM on a 16 GB laptop, for an answer
+# GitHub produces in six to nine minutes.
 #
-# `'**'` is branches only, never tags. A same-repo pull request therefore gets two runs (one for
-# the branch push, one for the PR); that is accepted rather than worked around, because the
-# alternatives all mean per-job `if:` conditions that make the gate harder to read than a
-# duplicate run is to ignore. `pull_request` stays because a FORK's branch never pushes here.
+# ONE RUN PER COMMIT OF A PULL REQUEST. A branch is gated by its pull request's run, then by the
+# merge group's; `push` is main only. Until 2026-10-09 every branch push ran too, so a same-repo
+# pull request ran the whole plan twice per commit (the push and the pull_request event) before
+# the merge group ran it a third time. Minutes are free here, but runner SLOTS are not: about 20
+# jobs run at once, a product change plans about 11 E2E shards, and parallel pull requests' shards
+# waited 6 to 12 minutes for a runner (#851). Both required checks, `CI gate` and `Reviewed`,
+# already came from the pull_request run (`Reviewed` never ran on a push), so the ruleset reads
+# exactly what it read before. What a branch gives up is a run before its pull request exists;
+# `gh workflow run ci.yml --ref <branch>` still asks for one (a full suite, see the input below).
+# A pull request with a merge conflict gets no run either, as GitHub cannot build its merge
+# commit; /queue-merge reconciles with main before it opens one.
 on:
+  # main only: what landed is tested again in full (the plan below), and post-land work keys on it.
+  # The merge queue's temporary `gh-readonly-queue/**` branches get their run from `merge_group`.
   push:
-    # The merge queue's temporary branches are pushed by GitHub and get their run from the
-    # `merge_group` event below; a push run on the same ref shared its concurrency group with
-    # that run and cancelled it within seconds, which the queue read as a failed check.
-    branches: ['**', '!gh-readonly-queue/**']
+    branches: [main]
   pull_request:
   # The merge queue (docs/WORKFLOW_ARCHITECTURE.md §5): GitHub builds a temporary merge of the
   # queued pull requests on top of main and runs this workflow on it; `CI gate` on that commit is
@@ -61,7 +65,7 @@ on:
         description: 'Plan from this commit instead of running everything. Empty (the default) runs the full suite.'
         required: false
         default: ''
-      # A branch pushed with the workflow's own token gets no push run (GitHub's rule for
+      # A pull request pushed with the workflow's own token gets no run (GitHub's rule for
       # GITHUB_TOKEN), so the mechanical landings - a quarantine entry, a revert - ask for theirs
       # by dispatch (scripts/queue-pr.mjs). Their pull request needs `Reviewed` on its tip to
       # enter the queue, and that job runs only on pull requests and merge groups; this input
@@ -326,7 +330,7 @@ jobs:
           # escalation below, unchanged: this
           # can only ever make a dispatch narrower ON PURPOSE, never by accident.
           #
-          # It carries the same `origin/main` condition as the fork-point recovery below, and for
+          # It carries the same `origin/main` condition as the fork-point base below, and for
           # the same reason: `--integration` asks whether this commit merged something main does
           # not have, and without a main ref that question answers "no merge here" and quietly
           # hands back a narrow base. A run that has already given up on finding main runs
@@ -337,57 +341,11 @@ jobs:
             echo "::notice title=E2E plan::Dispatched with diff_base ${DISPATCH_BASE} - planning what changed since it rather than running everything."
             BASE="$DISPATCH_BASE"
           fi
-          # RECOVER A BASE INSTEAD OF ESCALATING - but only for an ordinary branch PUSH.
-          # `github.event.before` is all zeros on the FIRST push of a branch, so a brand-new
-          # branch had no diff base and ran the FULL suite whatever it contained. That is not a
-          # rare corner here: the rhythm is a fresh worktree and a new branch per task, and
-          # safe-merge Phase 3 pushes that branch to get its verdict - so EVERY safe-merge paid
-          # for a full suite before anything else happened. Measured 2026-08-25 on
-          # `claude/vercel-team-rename`: two files, both already in the planner's IGNORE list
-          # (`docs/` and `.github/`), classifier verdict `mode: none` - and 9 shards ran.
+          # A PULL REQUEST measures from its base, today's main, and the commit under test is
+          # GitHub's merge of the branch onto it - so every run plans the branch's whole change
+          # against main, never only the delta since the previous push. Branch pushes used to
+          # recover a fork-point base here; since 2026-10-09 a branch has no push run (#851).
           #
-          # The fork point answers the same question honestly. It is an ancestor of HEAD, so its
-          # diff covers this branch's own work PLUS anything main did since the fork: it can only
-          # ever plan MORE than the truth, never less. That is the same argument `--integration`
-          # below already rests on.
-          #
-          # Deliberately NOT applied to `workflow_dispatch`. A dispatched run has no base either,
-          # and that is exactly how `gh workflow run ci.yml --ref <branch>` forces a full suite -
-          # the documented way to answer a preflight that refuses a skipped-shard run. Recovering
-          # a base there would quietly remove the one manual door for demanding everything.
-          # `main` is untouched too: it runs everything by the block below, on purpose.
-          #
-          # Since 2026-09-06 the fork point is the base of EVERY branch push, not only a first
-          # one. `github.event.before` is the previous push, and a plan measured from it covers
-          # only the delta since then; when a follow-up push cancelled the run in flight, the new
-          # run planned past a delta nothing had covered and reported green having skipped every
-          # shard (the class of failure `warn-command.mjs`'s push notice exists to point at, 16
-          # handoffs deep). The fork point is an ancestor of HEAD whatever came before, so the
-          # plan is the same honest answer every time: this branch's whole work, plus what main
-          # brought in since the fork. It can only plan MORE than `before`, never less.
-          #
-          # IT STAYS UNCONDITIONAL, re-measured 2026-09-16. The proposal was to apply the fork
-          # point only when no finished run exists for `before`, and to ask `gh run list` which.
-          # That condition can do exactly one thing: hand the base back to `before` in the case it
-          # judges safe - which plans LESS than the fork point - and it buys that with an API call
-          # on the critical path of every branch push. There is nothing for it to win, because the
-          # fork point is already the honest answer when the earlier run DID finish.
-          # The measurement behind the re-read: of 158 branch push runs in the week to 2026-09-16,
-          # 12 were green straight after a cancelled run on the same branch, and 4 of those ran no
-          # E2E shard. All 4 measured from here and planned `mode: none` over docs, handoffs,
-          # `.gitignore` and scripts the app never loads. No false green among them. Run
-          # 34574967445, filed as proof this was still broken, is this block working: base
-          # dbcc88b9, two markdown files in the whole branch diff, `mode: none`.
-          if [ "$EVENT" = "push" ] && [ "$REF" != "refs/heads/main" ] \
-            && git rev-parse --verify --quiet origin/main >/dev/null; then
-            FORK="$(git merge-base origin/main HEAD 2>/dev/null || true)"
-            if [ -n "$FORK" ] && git cat-file -e "${FORK}^{commit}" 2>/dev/null; then
-              # On a branch that has merged main this is the merged-in main sha, and `--integration`
-              # below walks it back to the true fork point; the two agree on what to plan.
-              echo "::notice title=E2E plan::Measuring from the merge-base with main, ${FORK} (the base of every branch push)."
-              BASE="$FORK"
-            fi
-          fi
           # MAIN RUNS EVERYTHING. Every other run tests what THIS change can affect, which is
           # the right economics for a branch and the wrong one for the branch production ships
           # from: a spec no change maps to is never selected, so it can break and stay green
@@ -407,9 +365,8 @@ jobs:
             PLAN="$(node scripts/e2e-affected.mjs --json --all)"
           # An absent, all-zero or garbage-collected base means we cannot know what changed.
           # Then we do not guess: the fallback is the whole suite, because the one thing a
-          # fallback must never do is run LESS than the truth. Since the fork-point recovery
-          # above, this is the LAST resort rather than the first push of every branch - it is
-          # what a dispatched run, or a branch with no reachable `origin/main`, still lands on.
+          # fallback must never do is run LESS than the truth. It is the LAST resort - what a
+          # dispatched run, or a run with no reachable `origin/main`, lands on.
           elif [ -z "$BASE" ] \
             || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
@@ -637,7 +594,7 @@ jobs:
   # (runs 37096120413, 37118148332) one shard at the cap beside one flaky spec left main red with
   # nothing re-run at all.
   #
-  # Branch pushes and pull requests get no second run: a flake there costs one push, and the
+  # Pull requests get no second run: a flake there costs one push, and the
   # quarantine is main's record, not a branch's. The merge group does get one, because a flake
   # there bounces a finished landing out of the queue.
   e2e-retry:
