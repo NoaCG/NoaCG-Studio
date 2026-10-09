@@ -467,7 +467,7 @@ function powershell(script, { run = spawnSync, timeoutMs = 60_000 } = {}) {
  * Every process on the machine with its working directory: `{ ok, supported, processes, why }`.
  * `ok: false` is the only way a failure is reported; an empty list is never the answer to one.
  */
-export function listProcesses({ platform = process.platform, run = spawnSync } = {}) {
+export function listProcesses({ platform = process.platform, run } = {}) {
   if (platform !== 'win32') return { ok: false, supported: false, processes: [], why: 'process listing is only implemented on Windows' };
   const script = [
     '$rows = foreach ($p in Get-CimInstance Win32_Process) {',
@@ -506,7 +506,7 @@ export function listProcesses({ platform = process.platform, run = spawnSync } =
  * Close `entries` (from `worktreeProcesses` / `abandonedProcesses`), in order, each only if it is
  * still the process that was judged. Returns `{ closed, failed }`; `gone` counts as closed.
  */
-export function closeProcesses(entries, { platform = process.platform, run = spawnSync } = {}) {
+export function closeProcesses(entries, { platform = process.platform, run } = {}) {
   const pinned = [];
   const unpinned = [];
   for (const e of entries) {
