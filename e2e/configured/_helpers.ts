@@ -208,14 +208,6 @@ export async function clearPublishedShows(page: Page): Promise<void> {
 }
 
 /**
- * The output renderer's own count of the DURABLE rows it has applied, off its `&debug=1` overlay.
- *
- * The overlay is the only thing that page ever says out loud, and `last row` is written from the
- * durable row's own id - a broadcast carries no id and never touches it. So this number answers
- * "was it RECORDED?", which is a different question from what is on screen, and the two together
- * are what tell a forged command apart from a real one.
- */
-/**
  * WATCH A HOSTED OPERATOR PAGE'S READS OF THE LOG, so a press can wait until the page is level.
  *
  * While the page reads the numbered log's tail (on joining, and on each poll) its own presses take
@@ -225,29 +217,47 @@ export async function clearPublishedShows(page: Page): Promise<void> {
  * the read takes a millisecond and never caught a press; against hosted staging it takes about
  * 200 ms and caught two (issue #902).
  *
+ * Level means: one read answered, none open, and none for LEVEL_QUIET_MS, because a walk that
+ * pages or is asked again starts its next read right after the last answer. It watches the
+ * numbered log only, so the page must be on protocol 2 (migration 0071).
+ *
  * Call before the page's `goto`; await the returned function before a press that needs the page's
  * own monitor to move at once.
  */
 export function watchLogReads(page: Page): () => Promise<void> {
-  let read = 0;
+  const LEVEL_QUIET_MS = 300;
+  let answered = 0;
   let open = 0;
+  let lastClosed = 0;
   const isTail = (r: Request) => /\/rpc\/control_tail_seq\b/.test(r.url());
-  const done = (r: Request) => {
+  const closed = (r: Request, ok: boolean) => {
     if (!isTail(r)) return;
     open -= 1;
-    read += 1;
+    lastClosed = Date.now();
+    if (ok) answered += 1;
   };
   page.on('request', (r) => {
     if (isTail(r)) open += 1;
   });
-  page.on('requestfinished', done);
-  page.on('requestfailed', done);
+  page.on('requestfinished', (r) => closed(r, true));
+  page.on('requestfailed', (r) => closed(r, false));
   return () =>
     expect
-      .poll(() => read > 0 && open === 0, { message: 'the operator page has read the log and is not reading it now', timeout: 30_000 })
+      .poll(() => answered > 0 && open === 0 && Date.now() - lastClosed >= LEVEL_QUIET_MS, {
+        message: 'the operator page has read the log and is not reading it now',
+        timeout: 30_000,
+      })
       .toBe(true);
 }
 
+/**
+ * The output renderer's own count of the DURABLE rows it has applied, off its `&debug=1` overlay.
+ *
+ * The overlay is the only thing that page ever says out loud, and `last row` is written from the
+ * durable row's own id - a broadcast carries no id and never touches it. So this number answers
+ * "was it RECORDED?", which is a different question from what is on screen, and the two together
+ * are what tell a forged command apart from a real one.
+ */
 export async function lastAppliedRow(air: Page): Promise<number> {
   const text = await air.locator('pre').textContent();
   const m = /last row: (\d+)/.exec(text ?? '');
