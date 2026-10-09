@@ -422,16 +422,27 @@ export function closeWorktreeProcesses(
 }
 
 /**
- * `closeWorktreeProcesses` for a sweep that removes several worktrees: the machine is listed once,
- * on the first removal. A process started after that is not judged, and the removal's own
- * in-use check (Windows refusing the rename) still keeps its worktree.
+ * `closeWorktreeProcesses` for a sweep that removes several worktrees: the machine is listed on
+ * the first removal, and that table is reused while it frees each worktree. A process started
+ * after it is not judged, and the removal's own in-use check (Windows refusing the rename) still
+ * keeps its worktree.
+ *
+ * A TABLE THAT WOULD KEEP A WORKTREE IS READ AGAIN FIRST. Each worktree's delegations are reaped
+ * just before it is judged (`releaseWorktree` in cleanup-worktrees.mjs), so an older table can
+ * still show a `codex.exe` that reap has just closed, and it reads as somebody's (#896). Only a
+ * hold is re-checked: a close the old table asks for is identity-pinned and answers "gone", and a
+ * listing per worktree costs about a second each. A failed re-read is an error, never a free pass.
  */
-export function worktreeCloser(primaryRoot, { list = listProcesses } = {}) {
+export function worktreeCloser(primaryRoot, { list = listProcesses, close = closeProcesses, roots = null, self = process.pid } = {}) {
   let listed = null;
-  let roots = null;
   return (path) => {
     roots ??= worktreeRoots(primaryRoot);
-    return closeWorktreeProcesses(path, { roots, list: () => (listed ??= list()) });
+    const judge = () => closeWorktreeProcesses(path, { roots, self, close, list: () => (listed ??= list()) });
+    const fresh = listed === null;
+    const closing = judge();
+    if (fresh || closing.kept.length === 0) return closing;
+    listed = null;
+    return judge();
   };
 }
 
