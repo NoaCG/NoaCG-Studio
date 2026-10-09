@@ -196,6 +196,14 @@ export-time reflow, stretching, or cropping.
   with the element for the same reason - the studio's `--scale` reads and `body.clientWidth`
   measure the canvas, not the host page. Pinned by `e2e/ograf-conformance.spec.ts` (host page
   untouched, frame pixel-identical to the studio document, every catalog sheet scoped).
+  The MARKUP's own carriers are re-addressed at export too (issue #789): its `<style>` blocks
+  through the same rewrite and gate (`scopeMarkupStyles`), and the ids it references
+  (Illustrator's `SVGID_1_`) renamed to the design's own unless code or a selector names them
+  (`isolateMarkupIds`). `load()` makes the markup the element's own children after its one
+  stylesheet, with no wrapper, so `body > .x` matches. Pinned by `e2e/ograf-isolation.spec.ts`.
+  Which `document` members `scopedDocument` answers is not hand-kept:
+  `scripts/ograf-document-members.test.mjs` fails on a member a template runtime reads that is
+  neither scoped nor a decided pass-through.
   The broadcaster-facing summary is `docs/OGRAF.md` - keep it in agreement with this target.
   Non-real-time seeks rebuild an isolated document and replay the OGraf action schedule through
   `render/runtimeScript.ts`'s virtual clock, so timestamp order cannot leak state. The target's

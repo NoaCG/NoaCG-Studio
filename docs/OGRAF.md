@@ -277,16 +277,27 @@ disagree with each other.
   become the element, `*` its subtree, every other rule is nested under it at zero specificity -
   and the export refuses (browser-parsed, fail-closed) if any rule would still address the
   document. So a graphic's stylesheet never restyles the renderer's page, and two designs on two
-  layers no longer fight over `body` or `--accent` through it. NOT covered yet: a `<style>`
-  block inside the MARKUP (an imported SVG carries the artwork's own, with Illustrator's shared
-  `.st0` names) is injected as written and stays document-global -
-  [issue #789](https://github.com/NoaCG/NoaCG-Studio/issues/789). The element is authored-size: a block of the
+  layers no longer fight over `body` or `--accent` through it. The MARKUP's own carriers get the
+  same treatment ([issue #789](https://github.com/NoaCG/NoaCG-Studio/issues/789)): every
+  `<style>` block inside it (an imported SVG carries the artwork's own, with Illustrator's shared
+  `.st0` names) is re-addressed and checked the same way, and the ids the markup references -
+  Illustrator's `SVGID_1_` gradients, clip paths, patterns, `<use>` targets - are renamed to the
+  design's own unless its code or a selector names them. So two imported designs on two layers no
+  longer recolour or hide each other (`e2e/ograf-isolation.spec.ts`). The markup becomes the
+  element's own children after ONE stylesheet, which is the element's first child: a `body > .x`
+  rule reaches the design's top-level elements, and `document.body.children` lists the stylesheet
+  and then the design. The element is authored-size: a block of the
   authored resolution, `position: relative` so px-positioned designs lay out against it as
   against the SPX page (viewport units - `vw`, `vh`, `vmax` - still resolve against the
   renderer's viewport, as they always did), and it is `body` and `documentElement` for the
-  template's own code. A renderer must place and scale that box itself; `load()` does not read
+  template's own code, so a measurement that walks up to the body stops at the canvas wherever
+  the renderer puts its stage. Which `document` members answer for the graphic is decided in
+  `scripts/ograf-document-members.test.mjs`, which fails on a member a template runtime reads
+  that nobody decided. A renderer must place and scale that box itself; `load()` does not read
   `renderCharacteristics` yet ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)). Pinned by
-  `e2e/ograf-conformance.spec.ts` ("leaves the renderer's page as it was").
+  `e2e/ograf-conformance.spec.ts` ("leaves the renderer's page as it was"). A shadow root per
+  graphic would also close the inbound direction and the one-instance limit below; what it
+  would cost is measured in [issue #922](https://github.com/NoaCG/NoaCG-Studio/issues/922), an open decision.
 - **One instance of a given DESIGN per document.** Several *different* graphics in one document
   are fine, which is the arrangement a Web Component renderer actually uses: each Graphic runs
   against a `document` scoped to itself, so its `getElementById('fN')` lookups cannot reach a
