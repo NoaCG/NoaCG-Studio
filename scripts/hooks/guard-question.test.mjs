@@ -2,8 +2,8 @@
 // into the REAL hook file, reading the exit code and the message. What is pinned: an untagged
 // question is refused with the three-kinds rule; a tagged question with a recommended option
 // passes; a tagged question without a recommendation is refused; more than one question per call
-// is refused; a wave-row subagent may not ask at all; nobody asks while a night wave is open,
-// and a day wave may; other tools and malformed input pass through; and the hook is wired.
+// is refused; a wave-row subagent may not ask at all; an open night wave's own sessions (its
+// orchestrator and its rows) may not ask, while every other session and a day wave may; other tools and malformed input pass through; and the hook is wired.
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -23,7 +23,8 @@ function store(plans = {}) {
 }
 const EMPTY = store();
 const run = (event, dir = EMPTY) => runHook(HOOK, event, { NOACG_JOBS_DIR: dir });
-const plan = (kind, ends) => `# ${kind} wave\n\nWindow starts: ${new Date().toISOString()}\nWindow ends: ${new Date(ends).toISOString()}\n`;
+const plan = (kind, ends, sessions = []) =>
+  `# ${kind} wave\n\nWindow starts: ${new Date().toISOString()}\nWindow ends: ${new Date(ends).toISOString()}\n${sessions.map((id) => `Session: ${id}\n`).join('')}`;
 
 const ask = (questions, extra = {}) => ({ hook_event_name: 'PreToolUse', tool_name: 'AskUserQuestion', cwd: process.cwd(), tool_input: { questions }, ...extra });
 const q = (question, header = 'Choice', first = 'a (Recommended)') => ({ question, header, options: [{ label: first, description: 'a' }, { label: 'b', description: 'b' }], multiSelect: false });
@@ -72,19 +73,34 @@ test('a wave-row subagent may not ask at all', () => {
   assert.match(message, /a wave row asks nothing/);
 });
 
-test('nobody asks while a night wave is open, not even a tagged question from the orchestrator', () => {
-  const tagged = ask([q('needs: decision - renew the domain?')]);
-  const night = store({ '2026-10-09-night-wave-plan.local.md': plan('Night', Date.now() + 3_600_000) });
-  const { status, message } = run(tagged, night);
-  assert.equal(status, 2);
-  assert.match(message, /a night wave is running/);
-  assert.match(message, /DECIDED:/);
-  assert.match(message, /2026-10-09-night-wave-plan\.local\.md/);
+const NIGHT = '2026-10-09-night-wave-plan.local.md';
+const tagged = (extra) => ask([q('needs: decision - renew the domain?')], extra);
 
-  const over = store({ '2026-10-09-night-wave-plan.local.md': plan('Night', Date.now() - 60_000) });
-  assert.equal(run(tagged, over).status, 0, 'a night wave past its window is over');
-  const reported = store({ '2026-10-09-night-wave-plan.local.md': `${plan('Night', Date.now() + 3_600_000)}\n## Report\n\nDone.\n` });
-  assert.equal(run(tagged, reported).status, 0, 'a reported night wave is over');
+test('a night wave refuses its own sessions, the orchestrator and its rows, even a tagged question', () => {
+  const night = store({ [NIGHT]: plan('Night', Date.now() + 3_600_000, ['orch-1']) });
+  const orchestrator = run(tagged({ session_id: 'orch-1' }), night);
+  assert.equal(orchestrator.status, 2);
+  assert.match(orchestrator.message, /this session runs a night wave/);
+  assert.match(orchestrator.message, /DECIDED:/);
+  assert.match(orchestrator.message, /2026-10-09-night-wave-plan\.local\.md/);
+  // A row the orchestrator launched runs under its session id, whatever agent type it was given.
+  assert.equal(run(tagged({ session_id: 'orch-1', agent_id: 'a1', agent_type: 'general-purpose' }), night).status, 2, 'a row');
+
+  const resumed = store({ [NIGHT]: plan('Night', Date.now() + 3_600_000, ['orch-1', 'orch-2']) });
+  assert.equal(run(tagged({ session_id: 'orch-2' }), resumed).status, 2, 'the session that resumed it after a restart');
+
+  const over = store({ [NIGHT]: plan('Night', Date.now() - 60_000, ['orch-1']) });
+  assert.equal(run(tagged({ session_id: 'orch-1' }), over).status, 0, 'a night wave past its window is over');
+  const reported = store({ [NIGHT]: `${plan('Night', Date.now() + 3_600_000, ['orch-1'])}\n## Report\n\nDone.\n` });
+  assert.equal(run(tagged({ session_id: 'orch-1' }), reported).status, 0, 'a reported night wave is over');
+});
+
+test('every other session still asks the owner while a night wave runs', () => {
+  const night = store({ [NIGHT]: plan('Night', Date.now() + 3_600_000, ['orch-1']) });
+  assert.equal(run(tagged({ session_id: 'owner-2' }), night).status, 0, 'an unrelated session');
+  assert.equal(run(tagged({}), night).status, 0, 'an event without a session id');
+  const unrecorded = store({ [NIGHT]: plan('Night', Date.now() + 3_600_000) });
+  assert.equal(run(tagged({ session_id: 'orch-1' }), unrecorded).status, 0, 'a wave that recorded no session refuses nobody');
 });
 
 test('a day wave may ask the owner a tagged question', () => {

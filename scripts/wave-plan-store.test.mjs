@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { inStore, openNightWave, openWave, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
+import { inStore, openNightWave, openWave, waveSessions, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
 
 /** A throwaway job store, so nothing here can touch the machine's real one. */
 function store() {
@@ -167,6 +167,21 @@ test('only an open night wave inside its window counts as unattended', () => {
   writeFileSync(night.file, '# Night wave 2026-10-08\n', 'utf8');
   touch(night.file, NOW);
   assert.equal(openNightWave(dir, NOW), night.file, 'no window line still counts as running');
+});
+
+test('opening a wave records the opening session once, and a resume after a restart adds the new one', () => {
+  const dir = store();
+  const until = '2026-10-09T06:00:00+03:00';
+  const first = openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-1', dir, now: NOW });
+  assert.deepEqual(waveSessions(first.file), ['orch-1']);
+  openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-1', dir, now: NOW + 60_000 });
+  assert.deepEqual(waveSessions(first.file), ['orch-1'], 'the same session is not written twice');
+  writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}- 23:10 launched A\n`, 'utf8');
+  openWave({ date: '2026-10-08', kind: 'night', until, session: 'orch-2', dir, now: NOW + 120_000 });
+  assert.deepEqual(waveSessions(first.file), ['orch-1', 'orch-2']);
+  assert.match(readFileSync(first.file, 'utf8'), /launched A/);
+  const anonymous = openWave({ date: '2026-10-08', kind: 'day', until, dir: store(), now: NOW });
+  assert.deepEqual(waveSessions(anonymous.file), [], 'no session, no line');
 });
 
 // A PLAN RUN opens through the same store, so it and a wave exclude each other with one check.
