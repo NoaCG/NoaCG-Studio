@@ -433,21 +433,16 @@ export function addJob(dir, {
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
   retryReason = null, ciDispatched = false, review = null, cost = null, now,
 }) {
-  let kind = declaredKind ?? 'gate';
-  if (!KINDS.includes(kind)) throw new Error(`unknown job kind: ${kind}`);
+  if (!KINDS.includes(declaredKind ?? 'gate')) throw new Error(`unknown job kind: ${declaredKind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
   const badCost = costProblem(cost);
   if (badCost) throw new Error(badCost);
   ensureJobsDir(dir);
-  // A command the runner caught launching a browser starts as browser work, as its re-queued
-  // record did (`repricedAsBrowser`, which also drops a declared light cost). Only when no kind
-  // was declared: a landing is never held, and `--kind gate` is how a session that knows its
-  // command no longer opens a browser says so before the entry runs out.
-  const caughtBrowser = (declaredKind ?? null) === null ? browserMemory(dir, now ?? Date.now())[commandKey(command)] ?? null : null;
-  if (caughtBrowser) {
-    kind = 'sweep';
-    cost = null;
-  }
+  // A caught command starts as browser work, priced as `repricedAsBrowser` prices it. A declared
+  // kind is left alone: a landing is never held, and `--kind gate` overrides the memory.
+  const caughtBrowser = declaredKind == null ? browserMemory(dir, now ?? Date.now())[commandKey(command)] : undefined;
+  const kind = caughtBrowser ? 'sweep' : declaredKind ?? 'gate';
+  if (caughtBrowser) cost = null;
 
   const taken = new Set(readdirSync(dir).filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5)));
   // Ids continue from the highest one still on disk rather than restarting at the first free

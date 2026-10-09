@@ -438,9 +438,9 @@ export function worktreeCloser(primaryRoot, { list = listProcesses, close = clos
   return (path) => {
     roots ??= worktreeRoots(primaryRoot);
     const judge = () => closeWorktreeProcesses(path, { roots, self, close, list: () => (listed ??= list()) });
-    const fresh = listed === null;
+    const had = listed;
     const closing = judge();
-    if (fresh || closing.kept.length === 0) return closing;
+    if (!had || closing.kept.length === 0) return closing;
     listed = null;
     return judge();
   };
