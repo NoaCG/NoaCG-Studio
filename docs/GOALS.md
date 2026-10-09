@@ -101,10 +101,10 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   by the shortest path the user wants, straight into a production with its rundown ready or into
   the library -> on air. Through the CLI, the plugin and MCP. Built-in creation (simple template
   and brand automation, and a more capable generator) is a separate, later track, and free.
-- **Current state:** CLI 0.7.1 is on npm and the MCP Registry. Agents make graphics, render each
+- **Current state:** CLI 0.9.0 is on npm and the MCP Registry. Agents make graphics, render each
   state and save to the library; `noacg pack --save` sends a package and rundown to Home, where one
   Install press opens the production. The agent designs the look and NoaCG owns everything around
-  it; critique and design guide are opt-in (owner, 2026-10-02). Listings need the owner's accounts.
+  it; critique and design guide are opt-in (owner, 2026-10-02). Listings need the owner's accounts; Claude's waits on [#842](https://github.com/NoaCG/NoaCG-Studio/issues/842).
 - **Done for this phase:** on a fresh machine, a user installs the published CLI or plugin, asks an
   agent for a package from a brief nobody has seen before, and receives it where they asked,
   including straight into a production, with valid fields and behaviour; it plays on CasparCG and

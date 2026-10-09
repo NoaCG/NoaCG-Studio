@@ -28,7 +28,7 @@ surface read as four products. There is one of each, and everything else is pack
 | **the `noacg-graphic` skill** | the CONTRACT TEXT the door teaches: what a graphic must expose, and the loop. Every entrance carries the same copy, generated from one source. | not an entrance of its own, and not design guidance |
 
 So: "install the NoaCG CLI" (or the plugin, which brings it), "the MCP server exposes one tool
-with seven verbs", "the skill teaches the contract", "the agent door works" - and never "the CLI
+with eight verbs", "the skill teaches the contract", "the agent door works" - and never "the CLI
 and the MCP server" as though they were two things to choose between.
 
 **The plugin runs nothing until a graphic is being made** (since 2026-09-02). It is the skill and
@@ -38,6 +38,28 @@ is enabled and cannot be made to start later - the measurements, the design and 
 open are in "What a session pays" below.
 
 ## The shape
+
+### The editing boundary
+
+The CLI and MCP reuse command helpers and the deployment's validators, preview and exporters.
+They do not expose the editor's semantic commands (`editorFoundation/commands.ts`, the R1.3b
+catalog the reviewed proposals use) or its live session. Agents edit package files; the editor
+interprets supported source. Terminal and MCP dispatch are wired separately, with no gate tying
+the two verb lists ([issue #770](https://github.com/NoaCG/NoaCG-Studio/issues/770)). Bringing
+the editor's commands to the CLI reuses that catalog over `operations.ts`, block transforms and
+`EditorSession` (which today sit under a UI directory, so an import seam is part of the work); it
+does not add a second command catalog, a parallel AI scene or an edit engine. Independent package authoring stays,
+including source the visual controls cannot edit: report the supported regions and preserve the
+rest. Order: [EDITOR_PLAN.md](EDITOR_PLAN.md) R1.3b and R3.2, and
+[issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
+
+The [2026-10-03 research](research/agent-toolkit-2026-10-03.md) compares this with OGraf Studio
+and the Claude and Codex directories. A directory listing needs packaging first
+([issue #842](https://github.com/NoaCG/NoaCG-Studio/issues/842)). Installing the skill in
+ordinary Claude chat does not make the local CLI reachable there; that route needs a hosted,
+authenticated authoring MCP ([issue #843](https://github.com/NoaCG/NoaCG-Studio/issues/843)).
+
+### Topology
 
 ```
  user's machine                                            the NoaCG deployment (NOACG_URL)
@@ -229,7 +251,7 @@ everything about it lived in `smoke.test.mjs`, which skips itself whenever no br
 the surface an installed plugin actually talks to could change shape and every green run in this
 repository would have said nothing. It drives a real MCP client against `noacg mcp` over stdio,
 with `NOACG_URL` pointed at a closed port, and asserts: the server exposes one tool, `noacg`,
-whose `command` enum is exactly the seven authoring verbs; **`caspar` is not among them**, which
+whose `command` enum is exactly the eight authoring verbs; **`caspar` is not among them**, which
 was a rule stated only in prose; the tool's title, description and argument list, and a
 character ceiling on the rendered schema (since 2026-09-02, when the seven tools became one to
 cut what every session pays); the server's own name and version; that a verb missing its

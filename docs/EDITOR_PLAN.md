@@ -60,6 +60,7 @@ Embedded help and bounded edits use the same revision-checked operations as visu
 Offer a budgeted free basic helper and existing BYO-key routes; ground models in current docs,
 tools and selected artwork. Keep independent CLI/MCP authoring and editable round-trips; add
 paired live-document MCP later. No AI draft edit silently changes on-air output. Monaco is optional.
+Shared-authoring evidence against OGraf Studio: [2026-10-03 comparison](research/agent-toolkit-2026-10-03.md).
 
 ### Portable production
 A saved graphic reopens exactly as it was and can reach every supported target from one saved
