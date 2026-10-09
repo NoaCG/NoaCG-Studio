@@ -28,20 +28,19 @@ test('every starter card resolves against the catalog and mounts its live previe
   // which skips the catalog) building the same graphic as the catalog design of that name.
   const named = await cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-starter') ?? ''));
   const drift = await page.evaluate(async (names: string[]) => {
-    type Variant = { id: string; name: string; create(): { html: string; css: string; js: string } };
+    type Variant = { id: string; name: string; create(): unknown };
     const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { STARTERS } = (await import('/src/ograf/starters.ts')) as { STARTERS: Record<string, Variant | undefined> };
+    const { STARTERS } = (await import('/src/ograf/starters.ts')) as { STARTERS: Map<string, Variant | undefined> };
     const all = (Object.values(CATALOG) as Variant[][]).flat();
     const out: string[] = [];
     for (const name of names) {
       const catalog = all.find((v) => v.name === name);
-      const starter = STARTERS[name];
+      const starter = STARTERS.get(name);
       if (!catalog) out.push(`${name}: not in the catalog`);
       else if (!starter) out.push(`${name}: not in src/ograf/starters.ts`);
       else if (starter.id !== catalog.id) out.push(`${name}: starter ${starter.id}, catalog ${catalog.id}`);
-      else {
-        const [a, b] = [starter.create(), catalog.create()];
-        if (a.html !== b.html || a.css !== b.css || a.js !== b.js) out.push(`${name}: builds differently from the catalog design`);
+      else if (JSON.stringify(starter.create()) !== JSON.stringify(catalog.create())) {
+        out.push(`${name}: builds differently from the catalog design`);
       }
     }
     return out;

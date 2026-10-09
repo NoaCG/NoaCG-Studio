@@ -282,7 +282,7 @@ test('a template the share-safety screen refuses is never benched', async ({ pag
 
 test('the stress frame cuts a doubled line at a word and shows every answer row', async ({ page }) => {
   await toBridge(page);
-  const stress = await page.evaluate(() => {
+  const stress = await page.evaluate(async () => {
     const b = window.noacgBridge;
     const { template } = await b.scaffold({ type: 'quiz-show', design: 'qz13' });
     const idOf = (title: string) => (template.fields as { title: string; field: string }[]).find((f) => f.title === title)!.field;
@@ -299,7 +299,7 @@ test('the stress frame cuts a doubled line at a word and shows every answer row'
 
 test('the operator surface of a scaffold is derived from its fields and machine', async ({ page }) => {
   await toBridge(page);
-  const result = await page.evaluate(() => {
+  const result = await page.evaluate(async () => {
     const b = window.noacgBridge;
     const { template } = await b.scaffold({ type: 'scoreboard', design: 'neutral' });
     const i = b.inspect({ template }) as { descriptors: { key: string; kind: string }[]; buttons: { event: string }[] };

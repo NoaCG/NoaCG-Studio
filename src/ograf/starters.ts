@@ -10,21 +10,22 @@ import type { TemplateVariant } from '../model/wizard';
 import { lt01 } from '../templates/lowerThirds/lt01';
 import { tk01 } from '../templates/tickers/tk01';
 import { ig01 } from '../templates/infographics/ig01';
-import { variantsFromType, type GraphicType } from '../templates/types/graphicType';
+import { variantFromType, type GraphicType } from '../templates/types/graphicType';
 import { sponsorBugType } from '../templates/types/bugs';
 import { scoreboardType } from '../templates/types/scoreboard';
 import { holdingScreenType } from '../templates/types/clocks';
 
 function promoted(type: GraphicType, id: string): TemplateVariant | undefined {
-  return variantsFromType(type).find((v) => v.id === id);
+  const design = type.designs.find((d) => d.id === id);
+  return design && variantFromType(type, design);
 }
 
 /** Keyed by the catalog name each card carries in its data-starter attribute. */
-export const STARTERS: Record<string, TemplateVariant | undefined> = {
-  Hairline: lt01,
-  'Glass Mark': promoted(sponsorBugType, 'bug01'),
-  'News Strip': tk01,
-  'Match Strip': promoted(scoreboardType, 'sb01'),
-  'Big Stat': ig01,
-  'House Hold': promoted(holdingScreenType, 'ss04'),
-};
+export const STARTERS = new Map<string, TemplateVariant | undefined>([
+  ['Hairline', lt01],
+  ['Glass Mark', promoted(sponsorBugType, 'bug01')],
+  ['News Strip', tk01],
+  ['Match Strip', promoted(scoreboardType, 'sb01')],
+  ['Big Stat', ig01],
+  ['House Hold', promoted(holdingScreenType, 'ss04')],
+]);

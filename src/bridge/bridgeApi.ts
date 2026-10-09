@@ -150,15 +150,16 @@ function summarize(type: GraphicType): BridgeTypeSummary {
 }
 
 /**
- * The type registry, loaded on the first call that needs it. It imports every registered type
- * and with it every one of their designs - megabytes the page would otherwise download before
- * it could say it is ready, for a driver that may only validate or screenshot. Over
- * `page.evaluate` an async function answers exactly as a synchronous one did.
+ * The type registry, kept out of the page's first payload. It imports every registered type and
+ * with it every one of their designs - megabytes the page used to download before it could say
+ * it was ready. main.ts starts this load right after ready, so a scaffold rarely waits for it
+ * and a page kept warm across a deploy already holds it. Over `page.evaluate` an async function
+ * answers exactly as a synchronous one did.
  */
-const registry = () => import('../templates/types/registry');
+export const loadTypeRegistry = () => import('../templates/types/registry');
 
 export async function types(): Promise<BridgeTypeSummary[]> {
-  const { TYPES } = await registry();
+  const { TYPES } = await loadTypeRegistry();
   return TYPES.map(summarize);
 }
 
@@ -224,7 +225,7 @@ export async function scaffold(req: ScaffoldRequest): Promise<ScaffoldResult> {
       ],
     };
   }
-  const { TYPES, typeById } = await registry();
+  const { TYPES, typeById } = await loadTypeRegistry();
   const type = typeById(req.type);
   if (!type) {
     throw new Error(`Unknown graphic type "${req.type}". Known types: ${TYPES.map((t) => t.id).join(', ')}.`);

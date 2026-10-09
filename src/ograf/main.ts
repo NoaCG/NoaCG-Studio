@@ -66,8 +66,15 @@ function mountPreview(host: HTMLElement, template: SpxTemplate): void {
 
 async function downloadStarter(variant: TemplateVariant, note: HTMLElement): Promise<void> {
   note.textContent = 'Building and validating the package…';
+  let ografTarget: typeof import('../export/targets/ograf').ografTarget;
   try {
-    const { ografTarget } = await import('../export/targets/ograf');
+    ({ ografTarget } = await import('../export/targets/ograf'));
+  } catch {
+    // The exporter is fetched on this click; after a deploy the page's copy of it is gone.
+    note.textContent = 'This page is out of date. Reload it to download.';
+    return;
+  }
+  try {
     const template = variant.create();
     // Live intent: every starter must download, and the post-production gate rightly refuses
     // content-driven motion (the ticker). A user who wants the non-real-time flavour exports
@@ -94,9 +101,9 @@ function enhanceCard(card: HTMLElement): void {
   const button = card.querySelector<HTMLButtonElement>('[data-download]');
   const customize = card.querySelector<HTMLAnchorElement>('[data-customize]');
   const preview = card.querySelector<HTMLElement>('[data-preview]');
-  const variant = STARTERS[name];
+  const variant = STARTERS.get(name);
   if (!variant) {
-    if (note) note.textContent = `“${name}” is not in the current catalog — this card is out of date.`;
+    if (note) note.textContent = `“${name}” is not available — this card is out of date.`;
     return;
   }
   if (customize) customize.href = `/app#/new/${encodeURIComponent(variant.id)}`;
