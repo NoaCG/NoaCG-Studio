@@ -1,0 +1,49 @@
+{
+  "startedAt": "2026-10-09T22:55:52.701Z",
+  "finishedAt": "2026-10-09T22:56:08.445Z",
+  "mode": "production",
+  "checkedMain": "2e164047f30ac1594144e82a55dcc91a6e727bda",
+  "url": "https://noacg.studio/app?editor=foundation#/editor-foundation",
+  "input": {
+    "path": "e2e/fixtures/cli-round-trip/riverlight.zip",
+    "sha256": "f03ed74c585cad7e0b46ba1fec16e314d73b986d2e969d688aa35ba7f0fb4311"
+  },
+  "task": "Import CLI package; change both public text defaults; edit panel fill and 64px typography; typography undo/redo; draft cancellation; UI save/reopen; rehearsal In/Out",
+  "captures": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "label": "desktop"
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "label": "laptop"
+    },
+    {
+      "width": 1093,
+      "height": 614,
+      "label": "zoom-proxy"
+    }
+  ],
+  "held": {
+    "opacity": "1",
+    "transform": "none",
+    "panelOpacity": "1",
+    "nameOpacity": "1",
+    "roleOpacity": "1"
+  },
+  "typography": {
+    "imported": "48px",
+    "edited": "64px",
+    "history": [
+      "undo typography",
+      "redo typography",
+      "cancel 90px draft"
+    ]
+  },
+  "preservation": null,
+  "outputs": [],
+  "errors": [],
+  "consoleErrors": []
+}
