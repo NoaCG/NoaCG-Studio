@@ -38,6 +38,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SWEEP_SCRIPTS } from './command-match.mjs';
+import { listProcesses } from './windows-processes.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -133,7 +134,9 @@ function posixNodeProcesses() {
 }
 
 /**
- * EVERY process on this machine, as `{ pid, ppid, name, command }` - not only node ones.
+ * EVERY process on this machine, as `{ pid, ppid, name, command, createdMs, cpuSeconds, ... }` -
+ * not only node ones. The shared `listProcesses` (windows-processes.mjs), failing OPEN: a list
+ * that could not be read is an empty table, which every caller here reads as "unknown".
  *
  * `nodeProcesses` is enough to find runs, because a run IS a node process. Finding whether a dev
  * server still has an OWNER is not: its chain runs through `cmd.exe` shims, so a node-only table
@@ -145,35 +148,11 @@ function posixNodeProcesses() {
  * never fires there and would quietly report nothing. Returning an empty table says that
  * honestly instead of guessing.
  */
-export function allProcesses() {
-  if (process.platform !== 'win32') return [];
-  const script =
-    '@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,KernelModeTime,UserModeTime) | ' +
-    'ConvertTo-Json -Depth 3 -Compress';
-  const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    encoding: 'utf8',
-    windowsHide: true,
-    maxBuffer: 64 * 1024 * 1024,
-    timeout: 10_000, // A diagnostic must return unknown if the OS query stalls.
-  });
-  if (res.status !== 0 || res.stderr?.trim() || !res.stdout?.trim()) return [];
-  try {
-    const rows = JSON.parse(res.stdout);
-    return (Array.isArray(rows) ? rows : [rows]).map((r) => ({
-      pid: Number(r.ProcessId),
-      ppid: Number(r.ParentProcessId),
-      name: String(r.Name ?? ''),
-      command: typeof r.CommandLine === 'string' ? r.CommandLine : '',
-      // WHEN it started, which is half of a process's IDENTITY on a system that reuses pids.
-      // `orphanedCodexTrees` refuses to kill a pid whose start time is not the one that was
-      // recorded, so this field is what makes a recorded kill safe hours after the recording.
-      createdMs: msFromCimDate(r.CreationDate),
-      cpuSeconds: r.KernelModeTime != null && r.UserModeTime != null
-        ? (Number(r.KernelModeTime) + Number(r.UserModeTime)) / 10_000_000 : null,
-    }));
-  } catch {
-    return [];
-  }
+export function allProcesses({ list = listProcesses } = {}) {
+  // `createdMs` is what `orphanedCodexTrees` pins a recorded kill to, hours after the recording.
+  // A diagnostic must return unknown if the OS query stalls, hence the short timeout.
+  const listed = list({ timeoutMs: 10_000 });
+  return listed.ok ? listed.processes : [];
 }
 
 /** The top-level Playwright test CLI - one process per run, whatever config it was handed. */
