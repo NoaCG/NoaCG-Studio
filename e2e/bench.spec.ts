@@ -204,6 +204,18 @@ test.describe('runtime bench detection fixtures', () => {
     expect(rules((res as { warnings: { rule: string }[] }).warnings)).toContain('bench-unbacked-text');
   });
 
+  test('a glass panel counts as the surface however faint its tint', async ({ page }) => {
+    await toApp(page);
+    // A frosted panel: a near-transparent fill over a blurred backdrop, which the viewer sees as
+    // the panel. The ticker and device checks already counted it; this one read it as bare (#893).
+    const res = await page.evaluate(spillFixture(
+      'width:300px;height:70px;background:rgba(255,255,255,0.04);backdrop-filter:blur(12px);',
+      'Elena Marsh, Senior Correspondent',
+    ));
+    const { warnings } = res as { warnings: { rule: string }[] };
+    expect(rules(warnings)).toContain('bench-unbacked-text');
+  });
+
   test('text over bare video is silent here - that is the legibility floor\'s question, not this one', async ({ page }) => {
     await toApp(page);
     const res = await page.evaluate(spillFixture('width:300px;height:70px;', 'Elena Marsh, Senior Correspondent'));

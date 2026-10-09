@@ -419,6 +419,25 @@ function clippedSides(el: Element, win: Window): Set<'left' | 'right' | 'top' | 
 }
 
 /**
+ * At most `max` items, in their original order, with the first item of every kind present kept
+ * before any kind gets a second (#894). A plain head-of-list cut let twelve rows of one problem
+ * hide the single row of another, which is usually the one a person would act on.
+ */
+export function capKeepingEachKind<T>(items: T[], max: number, kindOf: (item: T) => string): T[] {
+  const keep = new Set<number>();
+  const kinds = new Set<string>();
+  items.forEach((item, i) => {
+    const kind = kindOf(item);
+    if (keep.size < max && !kinds.has(kind)) {
+      kinds.add(kind);
+      keep.add(i);
+    }
+  });
+  for (let i = 0; i < items.length && keep.size < max; i++) keep.add(i);
+  return items.filter((_, i) => keep.has(i));
+}
+
+/**
  * Measure every visible element that DIRECTLY contains text on a settled frame, against the
  * canonical design rules.
  */
@@ -693,7 +712,8 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
     });
   }
 
-  const block = findings.filter((f) => f.severity === 'block').slice(0, 10);
-  const advise = findings.filter((f) => f.severity === 'advise').slice(0, 8);
+  const code = (f: ReadabilityFinding) => f.code;
+  const block = capKeepingEachKind(findings.filter((f) => f.severity === 'block'), 10, code);
+  const advise = capKeepingEachKind(findings.filter((f) => f.severity === 'advise'), 8, code);
   return { findings: [...block, ...advise], readings };
 }

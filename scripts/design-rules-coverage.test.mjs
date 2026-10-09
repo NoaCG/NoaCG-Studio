@@ -15,6 +15,8 @@
 //   - the mark rule fires for a mark outside the safe area and not for a cropped picture well;
 //   - a ticker with no animation block is held to the margin rule, a lower third is not, and a
 //     glass band or a full list of other warnings does not hide an off-centre ticker;
+//   - the eight-row cap keeps a row for each kind of problem present, so one brand-mark row is
+//     never hidden behind repeated size rows (#894);
 //   - across the whole catalog, in the pose the export panel measures, no shipped design reads
 //     as "not checked" and none trips the mark rule - the false positives that would teach
 //     people to ignore the warnings;
@@ -147,6 +149,16 @@ const measured = await withBundledPage(SPECS, async (page) => {
         + ' .band span{font-size:12px;margin-right:40px}',
       body: `<div class="band"><span id="f0">Ana Example</span>${'<span>tiny</span>'.repeat(12)}</div>`,
     }),
+    // More tiny-text rows than the panel shows, and one brand mark outside the safe area: the
+    // single row of another kind must not sit behind the repeated ones (#894).
+    crowdedWithMark: await fixture({
+      type: 'lower-third',
+      fields: [...TEXT_FIELD, { field: 'f1', ftype: 'filelist', title: 'Logo', value: '' }],
+      css: `.p{${PANEL}} .p span{font-size:12px;margin-right:40px}`
+        + ' #f1{position:absolute;left:10px;top:10px;width:200px;height:100px}',
+      body: `<div class="p"><span id="f0">Ana Example</span>${'<span>tiny</span>'.repeat(12)}</div>`
+        + `<img id="f1" src="${MARK}">`,
+    }),
     catalog: await page.evaluate(MEASURE_CATALOG, {}),
     // Each ticker moved right, so a full-bleed or centred band sits off-centre.
     tickersShifted: await page.evaluate(MEASURE_CATALOG, {
@@ -184,6 +196,12 @@ test('a glass ticker band is measured, and the margin row survives the warning c
   const crowded = rules(measured.tickerCrowded);
   assert.equal(crowded.length, 8, JSON.stringify(crowded));
   assert.ok(crowded.includes('legibility-ticker-margins'), JSON.stringify(crowded));
+});
+
+test('a single warning of another kind keeps a row beside many repeated ones', () => {
+  const crowded = measured.crowdedWithMark;
+  assert.equal(crowded.length, 8, JSON.stringify(crowded));
+  assert.equal(crowded.filter((w) => w.message.startsWith('The brand mark')).length, 1, JSON.stringify(crowded));
 });
 
 test('no catalog design reads as "not checked" or trips the mark rule', () => {

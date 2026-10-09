@@ -24,11 +24,12 @@ import type { SpxTemplate } from '../model/types';
 import { DATA_SOURCE_CLASS } from '../templates/shared/base';
 import type { ValidationIssue } from './validateTemplate';
 import { isMarkImage } from './markLegibility';
-import { measureReadability, type ReadabilityFinding } from './readabilityCheck';
+import { capKeepingEachKind, measureReadability, type ReadabilityFinding } from './readabilityCheck';
 import { measureTickerMargins } from './tickerCheck';
 
 /** At most this many legibility warnings per run - a wall of near-identical rows teaches
- *  people to stop reading the panel, which costs more than the tail it hides. */
+ *  people to stop reading the panel, which costs more than the tail it hides. Every kind of
+ *  problem present keeps a row inside it; the repeats are what the cap drops. */
 const MAX_WARNINGS = 8;
 
 const px = (n: number) => `${Math.round(n)}px`;
@@ -195,31 +196,31 @@ export function designRulesWarnings(
     category: template.type ?? null,
     markFieldId: markFieldOf(doc, template),
   });
-  const issues: ValidationIssue[] = [];
+  // Each row with its kind: the rule and, under it, the finding, so a brand-mark row is not the
+  // same kind as the field-text rows that share its safe-area rule.
+  const rows: { issue: ValidationIssue; kind: string }[] = [];
   // Static design text (a LIVE tag, a label) can be read while every operator field is faded
   // out, so the question is whether any FIELD text was read.
   if (!report.readings.some((r) => r.fieldBound) && hasFieldText(doc, template)) {
-    issues.push(unmeasured('none of its text was visible when it was measured'));
+    rows.push({ issue: unmeasured('none of its text was visible when it was measured'), kind: LEGIBILITY_UNMEASURED });
+  }
+  for (const finding of report.findings) {
+    const msg = productMessage(finding, legibility);
+    if (msg) rows.push({ issue: msg, kind: `${msg.rule} ${finding.code}` });
   }
   // The ticker-margin rule holds tickers only, and the template says what it is - the same
   // ruling as the lead-line target above. Inferring a crawl from declared motion held counters
   // and bars on wide infographics and results boards to it (#873), and a lower third anchored
-  // left is not an off-centre ticker. Its row is kept clear of the cap: it is a different
-  // problem from the readability rows, and an eighth contrast row hid it on a shipped ticker.
-  const tickerIssues: ValidationIssue[] = template.type === 'ticker'
-    ? measureTickerMargins(doc).findings.map((finding) => ({
-      rule: 'legibility-ticker-margins',
-      message: `${finding.detail} (computed for ${viewingPhrase(legibility)})`,
-    }))
-    : [];
-  const room = MAX_WARNINGS - tickerIssues.length;
-  for (const finding of report.findings) {
-    if (issues.length >= room) break;
-    const msg = productMessage(finding, legibility);
-    if (msg) issues.push(msg);
+  // left is not an off-centre ticker.
+  if (template.type === 'ticker') {
+    for (const finding of measureTickerMargins(doc).findings) {
+      rows.push({
+        issue: { rule: 'legibility-ticker-margins', message: `${finding.detail} (computed for ${viewingPhrase(legibility)})` },
+        kind: 'legibility-ticker-margins',
+      });
+    }
   }
-  issues.push(...tickerIssues);
-  return issues;
+  return capKeepingEachKind(rows, MAX_WARNINGS, (row) => row.kind).map((row) => row.issue);
 }
 
 /**
