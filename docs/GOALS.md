@@ -26,7 +26,6 @@ There are two ways in, and both end in the same production and playout workflow:
   into the production.
 
 **The two end-to-end scenarios every outcome serves:**
-
 1. Need -> import, template or editor -> production -> on air.
 2. Need -> agent -> graphics package in a production, rundown ready -> on air.
 
@@ -40,11 +39,13 @@ controlling, self-hosting, and the built-in AI. There is no paid surface and non
 around monetization. The goal is to be useful, excellent and widely used.
 
 **Standing non-goals.**
-
 - Native SDI/NDI playout, until it can come through an OGraf-compatible runtime or server.
 - Recreating After Effects. The editor is a focused broadcast tool.
 - A code editor as a product goal.
 - A second cue or control system beside the production workflow.
+- An elaborate multi-user editing or version-control system. Rank work by reliability and broadcast
+  safety, then a fast predictable Take, then simple operation, then flexibility; collaboration grows
+  only from shown need, and a real risk gets the smallest safe fix (owner, 2026-10-09).
 
 ## How done works
 
@@ -145,9 +146,8 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
 
 ### 5. Production, rundown and playout (now; rank 1)
 
-- **Why:** a graphic is worth something only on air, wherever the production runs, and a group
-  must be able to prepare and run one production without one person being a single point of
-  failure.
+- **Why:** a graphic is worth something only on air, wherever the production runs, and a group must
+  be able to prepare and run one production without one person being a single point of failure.
 - **Desired state:** one reliable production workflow (rundown, cues, control panel, basic media)
   that plays out to every environment the production uses. No player is preferred forever. A
   production and its rundown belong to the team, not to one account.

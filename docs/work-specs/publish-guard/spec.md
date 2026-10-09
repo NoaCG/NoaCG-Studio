@@ -1,6 +1,6 @@
 # Publish guard
 
-Status: agreed with the owner on 2026-10-09 (P1). Not built yet.
+Status: agreed with the owner on 2026-10-09 (P1, P2). Not built yet.
 Parent: `docs/work-specs/playout-workflow-simplification/spec.md` (non-goal 3).
 
 ## Why
@@ -8,99 +8,90 @@ Parent: `docs/work-specs/playout-workflow-simplification/spec.md` (non-goal 3).
 Publish reads the published version's number, then writes the whole payload in a separate step
 with no check (`publishControlShow`, `src/control/hostedControl.ts`). A page holding an older copy
 of a graphic therefore puts that copy back on air. In a team production that is any member other
-than the graphic's author: their page builds the copy embedded when the graphic was added, so
-publishing a cue change reverts the author's newer design. A second window of your own does the
-same. Nothing says it happened.
+than the graphic's author: their page builds from the copy embedded in the production when the
+graphic was added (`addGraphicToShow`, `src/model/shows.ts`), which later library edits never
+update. Publishing a cue change from that page reverts the author's newer design, silently.
 
 ## Goal
 
-Publishing never replaces a newer graphic with an older copy. Each page publishes the graphics it
-changed and keeps everyone else's newer ones, with no prompt in the common case. Only when two
-pages changed the same graphic does the later one ask, once.
+The newest saved edit of each graphic is what airs, whichever page publishes. A page with an
+outdated copy never silently restores an older design. Playout settings (layer, sounds) survive.
 
 ## Non-goals
 
-- The rundown, layers, sounds, bindings, layout and output setup: they come from the production
-  record, which team saves already merge per cue (`src/model/teamShowMerge.ts`). A personal
-  production on two devices keeps relying on the sync's own rule for its record.
-- Showing the newer design on this page: its monitors show this page's copy, as today.
-- Merging inside one graphic (per field).
+- A conflict dialog, version history or merging inside one graphic.
+- Changing what editing does: a library edit reaches the production's copy and air only through
+  Publish or Prepare, as today.
+- Take, the outputs and the hosted page: they read the published payload as today.
 - Refusing pages from before this change on the server: they publish as today until reloaded.
 
-## Owner decision (2026-10-09, binding)
+## Owner decisions (binding)
 
-- **P1. Merge per graphic.** A publish puts up the graphics this page changed and keeps the rest
-  of the newer published version. It asks only when both changed the same graphic.
+- **P1 (2026-10-09). Merge per graphic.** A publish puts up what this page changed and keeps the
+  rest of the newer published version.
+- **P2 (2026-10-09). The newest saved edit wins, kept lean.** Not whichever page publishes last.
+  Reuse the existing sync and publish mechanisms; no conflict dialogs or new sync layers. When the
+  same graphic was edited on two devices, the later edit wins, as the library sync already does.
 
 ## Key decisions
 
 Derived (revertible; each says how):
 
-- **G1. The design merges, the record does not.** Per graphic, its design (template html, css, js,
-  assets, resolution, fps, and on the hosted page its fields and saved entries) is merged.
-  Which graphics a production has, their layers and sounds, and everything else in the payload
-  come from this page's production record as today. Revert: merge over the whole graphic spec.
-- **G2. The later edit wins.** Each published graphic carries when its design was last edited
-  (the library record's save time, or for an embedded copy the time it was added), who published
-  it and when. A copy edited earlier than the published design never replaces it; a later one
-  does. That also publishes a change made before this page was opened. Revert: compare with the
-  version this page loaded.
-- **G3. Both changed.** The published design moved since this page last loaded or published the
-  production, and this page's copy was edited after the design it had seen. Only then the page
-  asks, once for all such graphics: "<who> published a newer <graphic> at <time>." with "Publish
-  mine" and "Keep theirs". Closing it publishes nothing. In a personal production <who> is "Your
-  other window", as the team save note says. Revert: the later edit wins without asking.
-- **G4. Compare and set.** The write lands only if the published version is still the one the
-  merge read; otherwise the page reads again and merges again, up to three times. Two pages
-  publishing together both keep their changes. No migration: the condition is a filter on the
-  version stamp inside the payload. Revert: the plain update.
-- **G5. Quiet.** A merge that keeps someone else's newer graphic says nothing: nothing of this
-  page was lost, as with a team save. The "unpublished changes" mark counts only graphics this
-  page would actually replace.
-- **G6. Old payloads.** A payload published before this change has no edit times; the first
-  guarded publish over it treats this page's copies as newer (today's behaviour), once.
+- **G1. Publish refreshes the production's copies.** Before it builds, Publish copies into the
+  production record every design this page's library holds a newer edit of than the production's
+  copy, keeping the graphic's name, id, layer and sounds. The record carries it to every teammate
+  through the existing team save. Revert: drop the refresh.
+- **G2. Publish builds from the latest record.** For a team production it first pulls the
+  latest record and saves this page's pending edits (`refreshTeams`, `flushTeamProduction`). A
+  save that fails does not stop the publish; G3 still holds. Revert: build from what the page has.
+- **G3. Never an older design.** Each published graphic carries when its design was last edited.
+  A publish that would replace a graphic with an older design stops before writing, on the page's
+  existing failure line: "<Graphic> on air is newer than this page's copy. Reload this page to get
+  it." Revert: drop the check.
+- **G4. One write at a time.** The write lands only on the published version it read. If another
+  page published in between, this page pulls again and publishes once more by itself; a second
+  miss stops on the failure line. No migration: the condition is a filter on the version stamp
+  inside the payload. Revert: the plain update.
 
-Edit times come from each device's clock. A skew larger than the gap between two edits of the
-same graphic picks the wrong one; G3's question still covers edits made while both pages watched.
+Edit times come from each device's clock. Within one production they are compared only between
+copies of one graphic, which only its author edits, so a skew matters only for one author on two
+devices editing the same graphic within the skew.
 
 ## Behaviour
 
 ### AC-1: An older copy never replaces a newer graphic
-Anna publishes a new design of Lower third. Ben, whose copy is older (the copy embedded when it was
-added, or a window opened before her edit), changes a cue and publishes. Air keeps Anna's Lower
-third, the outputs rebuild nothing for it, and Ben's cue change is on air. Nobody is asked.
+Anna publishes a new design of Lower third. Ben, a teammate whose copy dates from when it was
+added, changes a cue and publishes. Air keeps Anna's design, the outputs rebuild nothing for it,
+and Ben's cue change is on air. Nobody is asked anything.
 
 ### AC-2: Both pages' changes survive
-Anna changes Lower third and Ben changes Score bug. Whether they publish one after the other or at
-the same moment, both changes are on air.
+Anna changes Lower third, Ben changes a cue or another graphic. Whether they publish one after the
+other or at the same moment, both changes are on air.
 
-### AC-3: A change made before opening the page publishes
-A graphic edited in the editor, then the production page opened and Publish pressed: the edit is on
-air.
+### AC-3: Playout settings survive
+Ben changes Lower third's layer or sounds and publishes: Anna's design airs with Ben's settings.
 
-### AC-4: Both changed the same graphic
-Two pages both change Lower third after the version they saw. The later publisher is asked once,
-naming who published the newer one and when. "Publish mine" puts this page's design on air, "Keep
-theirs" keeps the published one and publishes everything else, closing publishes nothing.
+### AC-4: An outdated page stops rather than revert
+A page whose copy is older than the published design and that cannot get the newer one (a second
+device not yet synced) stops before writing, naming the graphic. Air is unchanged.
 
-### AC-5: The unpublished mark tells the truth
-A page whose copy of a graphic is older than the published one does not show "unpublished changes"
-for it.
+### AC-5: Editing does not reach air or the record by itself
+Editing a graphic in the library changes neither air nor the production's copy until Publish.
 
 ### AC-6: Old pages and old payloads keep working
 A page from before this change publishes as before. Outputs, the hosted page and the Companion
-module read the payload unchanged. A payload without edit times takes the first guarded publish as
-today.
+module read the payload unchanged. A payload without edit times is published over as today.
 
 ## Preserved behaviour
 
 The publish gate; the team save merge and its note; audience state across a republish; per-graphic
-replacement on the outputs (`docs/work-specs/per-graphic-replacement/spec.md`); version labels.
+replacement on the outputs (`docs/work-specs/per-graphic-replacement/spec.md`); version labels;
+Take.
 
 ## Verification
 
-- The merge rules in Node (`scripts/publish-merge.test.mjs`): later edit wins, older copy kept
-  out, both changed, additions, a payload without edit times.
-- Configured e2e with two pages on a local stack (`e2e/configured/publish-guard.spec.ts`): AC-1,
-  AC-2 one after the other and together, AC-4 both answers.
+- The older-design rule and the stamp in Node (`scripts/payload-version.test.mjs`).
+- Configured e2e with two members on a local stack (`e2e/configured/publish-guard.spec.ts`):
+  AC-1, AC-2 at the same moment, AC-3, AC-4.
+- The refresh in an offline spec where it can run without a backend.
 - `/check`, then `/queue-merge`.
