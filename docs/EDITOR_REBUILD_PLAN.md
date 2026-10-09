@@ -23,8 +23,8 @@ Their inspected revisions are in the
 - **Each phase is checked against them.** After the phase lands, a checker that did not build it
   does the phase's task in NoaCG on `main` and the same task in the reference editor, and records
   in the phase notes below where NoaCG matches, falls short or does better.
-- Inspecting and trying them needs no owner approval. Copying code does not follow from it: the
-  [licensing boundary](#licensing-and-reuse-boundaries) applies to any reuse.
+- Inspecting and trying them needs no owner approval. Reusing their code is a separate question,
+  settled by the [licensing boundary](#licensing-and-reuse-boundaries).
 
 ## Workflow additions, 2026-09-19
 

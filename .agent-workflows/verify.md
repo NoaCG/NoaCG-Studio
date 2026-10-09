@@ -56,10 +56,10 @@ A decision only he can make, or a step only he can take, is asked at once, never
 - **He is in the session**: ask him there, one question with your recommendation, and continue
   from his answer.
 - **Unattended work** (a wave row or a plan run): decide it yourself and record the decision in the
-  pull request, where he can revert it. Only what his instructions reserve (money, accounts, an
-  important security or privacy boundary, something genuinely hard to undo) is not decided: that
-  item stops, the rest of the work goes on, and the coordinator asks him in its own session with a
-  phone notification.
+  pull request, where he can revert it. A step only he can take, and what his instructions reserve
+  (money, accounts, an important security or privacy boundary, something genuinely hard to undo),
+  are not decided: that item stops, the rest of the work goes on, and the coordinator asks him in
+  its own session with a phone notification.
 
 A refused production migration keeps its own route. No file is written for any of these, and
 agent-verifiable work never reaches him just because it changed the product.
