@@ -36,7 +36,8 @@ when the owner copies a prompt from the last session, which the owner rarely has
 - A long plan runs phase by phase, each phase in a fresh session, with a different fresh session
   checking it before the next phase starts. The owner starts a run by naming the plan, and it runs
   until its time limit. Never more than 24 hours, since the owner closes the computer now and then.
-- A plan run and a normal wave are **two skills**, and a night runs **one or the other**.
+- A plan run and a normal wave are **two skills**, and a night runs **one or the other**. Both
+  work in Codex as well as Claude Code, since the owner uses both.
 - Neither may get worse as the night goes on: fresh context for every step, clear plans and clear
   acceptance, so nothing gets built that was not asked for.
 - Build order: cleanup first, then the editor plan's reference check, then the rest.
@@ -132,6 +133,15 @@ agent to remember anything.
     open-source reference editors is only in the research copy
     (`docs/research/editor-consolidation-2026-09-17/EDITOR_REBUILD_PLAN.md`). It moves into the live
     `docs/EDITOR_REBUILD_PLAN.md`, and becomes part of the checker's work after each phase.
+18. **It works in Claude Code and in Codex.** The owner uses both. `/plan-run` is one shared
+    procedure in `.agent-workflows/`, with a Claude command and a Codex skill pointing at it, as
+    the orchestrator is. In Codex, the builder and checker are native subagents started without
+    the coordinator's context, each in its own `git worktree add` worktree, and the coordinator
+    wakes on a thread heartbeat. A question for the owner is asked in the coordinator's own thread;
+    the phone notification is Claude Code's, and Codex gives its own notice when the turn ends.
+    The endless-wait refusal (point 1) is a Claude Code hook and this repository configures no
+    Codex hooks, so the row checks whether Codex can run the same check; where it cannot, the
+    one-hour cleanup (point 4), which is plain code, covers processes Codex started.
 
 ## Preserved behaviour
 
@@ -224,6 +234,13 @@ run again. It continues from the next unfinished step and launches nothing twice
 Owner step after AC-6 and AC-7 land: the app setting "Auto-archive sessions when their pull
 request closes" is on.
 
+### AC-13: A plan run works from Codex as well as Claude Code
+
+Scenario: the small test plan from AC-8 runs to its end from Codex, with each phase built and
+checked by Codex subagents that did not inherit the coordinator's context, and AC-11's restart
+holds there too. From Codex, an abandoned shell loop is closed by the sweep (AC-3), and the
+endless-wait refusal either works or the record says why Codex cannot run it.
+
 ## Decisions taken while writing (revisit freely)
 
 - **One hour, not three, for abandoned processes.** The owner suggested it could be shorter, and
@@ -234,4 +251,4 @@ request closes" is on.
   on an unchecked phase, and it tests what users get.
 - **The skill is `/plan-run <name>`**, with a short list of runnable plans in the skill.
 - **Build order:** AC-1 to AC-3 (cleanup), AC-4 (editor plan), AC-5 to AC-7 (decisions and
-  handoff), AC-8 to AC-11 (`/plan-run`), AC-12 (owner's setting) last.
+  handoff), AC-8 to AC-11 and AC-13 (`/plan-run`, in both tools), AC-12 (owner's setting) last.
