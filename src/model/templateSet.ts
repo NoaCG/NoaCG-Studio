@@ -40,7 +40,7 @@ export async function saveTemplateSetToProduction(
   fallbackName: string,
   dest: ProductionDest,
   /** Each template's community pack stamp, by position (a community pack's install, D7). */
-  fromPacks?: ReadonlyArray<GraphicDoc['fromPack'] | undefined>,
+  fromPacks?: ReadonlyArray<GraphicDoc['fromPack']>,
 ): Promise<Show> {
   if (!templates.length) throw new Error('There are no graphics to save.');
 

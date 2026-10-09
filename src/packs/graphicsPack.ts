@@ -30,7 +30,7 @@ import {
   setGraphicSounds,
   type Show,
 } from '../model/shows';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../model/library';
+import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, packStampFor } from '../model/library';
 import { readPackStamp, type PackStamp } from '../model/graphicDoc';
 import { isProductionSounds } from '../assets/productionSounds';
 import { rememberSound, soundBlob, materializeSoundAssets, isSoundAssetRef } from '../assets/soundAssets';
@@ -476,7 +476,7 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
     const template = g.soundConfig ? resolveSavedGraphicDoc(g,library)?.template ?? g.template : templateForSavedGraphic(g, library);
     const entry = await packGraphicEntry(template, { name: g.name, layer: graphicLayer(g) });
     // A graphic installed from the community shelf stays one through Export and Import.
-    const stamp = resolveSavedGraphicDoc(g, library)?.fromPack;
+    const stamp = packStampFor(g, library);
     if (stamp) entry.fromPack = stamp;
     if (g.soundConfig) {
       if (!isProductionSounds(g.soundConfig)) throw new Error(`Unreadable sounds: ${g.name}`);

@@ -203,7 +203,8 @@ version), so the lock survives export and reload. Scenario: install a pack, find
 graphics, change a cue value and take it.
 
 Built (`e2e/community-pack-lock.spec.ts`): the graphic's control page shows no Edit graphic, motion
-picker or sound edit, and the store will not open it as the working document. The rundown's foot
+picker or template sound edit, the store will not open it as the working document, and Save never
+overwrites its record. A production's own sound cues for it stay the operator's, like its cues. The rundown's foot
 ends with one credit per pack, "From Pub Quiz by NoaCG", with ", CC BY 4.0" for a shared pack as
 its card shows. The stamp gains the pack's `name` and is kept by Duplicate, Save As and a
 production's Export then Import (a per-graphic `fromPack` in the pack file). It is not written

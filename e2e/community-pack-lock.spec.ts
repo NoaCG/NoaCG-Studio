@@ -6,6 +6,7 @@
 // production's Export then Import. Offline, against the built shelf under public/packs/community/.
 
 import { test, expect } from '@playwright/test';
+import { settleDurableWrites } from './_durable';
 
 test('an installed pack has no edit door, says where it came from once, and its cue still takes a changed value', async ({ page }) => {
   const errors: string[] = [];
@@ -36,15 +37,25 @@ test('an installed pack has no edit door, says where it came from once, and its 
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { openGraphicById } = await import('/src/store/saveActions.ts');
     const pack = loadGraphics().find((g) => g.name === 'Pub Quiz')!;
-    const own = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'My own third' }).doc;
-    return { pack: pack.id, own: own.id, opened: openGraphicById(pack.id) };
+    // The same lower third twice, one of them stamped: only the stamp tells their pages apart.
+    const third = variantsFor('lower-third')[0].create({});
+    const own = createGraphic(third, { name: 'My own third' }).doc;
+    const stamped = createGraphic(third, { name: 'A pack third', fromPack: pack.fromPack }).doc;
+    return { pack: pack.id, own: own.id, stamped: stamped.id, opened: openGraphicById(pack.id) };
   });
   expect(ids.opened).toBe(false);
+  await settleDurableWrites(page);
   await page.goto(`/app#/control/${ids.own}`);
   await expect(page.getByTestId('control-open-editor')).toBeVisible();
-  await page.goto(`/app#/control/${ids.pack}`);
-  await expect(page.locator('.control-page-preview')).toBeVisible();
-  await expect(page.getByTestId('control-open-editor')).toHaveCount(0);
+  await expect(page.getByTestId('control-motion')).toBeVisible();
+  await expect(page.getByTestId('sound-controls')).toBeVisible();
+  for (const id of [ids.stamped, ids.pack]) {
+    await page.goto(`/app#/control/${id}`);
+    await expect(page.locator('.control-page-preview')).toBeVisible();
+    await expect(page.getByTestId('control-open-editor')).toHaveCount(0);
+    await expect(page.getByTestId('control-motion')).toHaveCount(0);
+    await expect(page.getByTestId('sound-controls')).toHaveCount(0);
+  }
 
   // Reload: the lock and the credit are read from the library record, not from this session.
   await page.goto(production);
@@ -57,14 +68,14 @@ test('an installed pack has no edit door, says where it came from once, and its 
 test('the stamp survives Duplicate, Save As and a production export then import, and a shared pack credits CC BY 4.0', async ({ page }) => {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
-  const result = await page.evaluate(async () => {
+  const stamp = { id: 'community:lineage-1', version: 2, author: 'Someone', name: 'Two thirds' };
+  const result = await page.evaluate(async (stamp) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { loadGraphics, duplicateGraphic, graphicById } = await import('/src/model/library.ts');
+    const { loadGraphics, duplicateGraphic, graphicById, graphicNameIndex, librarySaveEffect } = await import('/src/model/library.ts');
     const { loadShows } = await import('/src/model/shows.ts');
     const { parsePack, installPack, buildPack } = await import('/src/packs/graphicsPack.ts');
     const { openGraphicDoc, saveGraphicAs } = await import('/src/store/saveActions.ts');
     const { packCredit, productionCredits } = await import('/src/community/packStamp.ts');
-    const stamp = { id: 'community:lineage-1', version: 2, author: 'Someone', name: 'Two thirds' };
     const [first, second] = variantsFor('lower-third');
     const pack = {
       name: 'Two thirds',
@@ -98,9 +109,10 @@ test('the stamp survives Duplicate, Save As and a production export then import,
       back,
       credits: productionCredits(loadShows().find((s) => s.id === reimported.id)!, library),
       seed: packCredit({ id: 'pub-quiz', version: 1, author: 'NoaCG' }),
+      // A wizard save under a pack graphic's name makes a new graphic, never writes over it.
+      wizardSave: librarySaveEffect(graphicNameIndex(), 'B', null).kind,
     };
-  });
-  const stamp = { id: 'community:lineage-1', version: 2, author: 'Someone', name: 'Two thirds' };
+  }, stamp);
   expect(result.copy).toEqual(stamp);
   expect(result.savedAs).toEqual(stamp);
   expect(result.fileStamps).toEqual([stamp, stamp]);
@@ -108,4 +120,5 @@ test('the stamp survives Duplicate, Save As and a production export then import,
   expect(result.credits).toEqual(['From Two thirds by Someone, CC BY 4.0']);
   // A stamp from before stamps carried the pack's name still credits its maker.
   expect(result.seed).toBe('From a community pack by NoaCG');
+  expect(result.wizardSave).toBe('mint');
 });

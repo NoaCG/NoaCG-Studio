@@ -62,7 +62,7 @@ import { openNewEditor } from '../editorFoundation/openNewEditor';
 import ProductionPicker from './ProductionPicker';
 import { IconControl } from '../icons';
 import { slug } from '../../model/slug';
-import { designLocked } from '../../community/packStamp';
+import { designLocked } from '../../model/graphicDoc';
 
 /** The speed knob's three stops — the wizard's Animation step offers the same three
  *  (model/wizard.ts AnimSpeed: ±33% read as "no change" on the owner's walk, ±80% does not). */

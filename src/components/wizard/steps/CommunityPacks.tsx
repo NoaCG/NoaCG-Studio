@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Show } from '../../../model/shows';
 import { installPack, parsePack, type GraphicsPack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
-import type { GraphicDoc } from '../../../model/library';
+import type { PackStamp } from '../../../model/graphicDoc';
 import { useAuthState } from '../../auth/useAuthState';
 import { useIsModerator } from '../../../community/useIsModerator';
 import {
@@ -11,13 +11,13 @@ import {
   listSharedPacks,
   listWaitingPacks,
   PACK_STATE_LABEL,
-  sharedPackId,
   sharedPackText,
   withdrawPack,
   type MyPack,
   type SharedPack,
 } from '../../../community/packs';
 import { candidateOf, checkPack, type PackFinding } from '../../../community/packChecks';
+import { sharedPackId } from '../../../community/packStamp';
 import MiniPreview from '../MiniPreview';
 import WizardConfirm from '../WizardConfirm';
 import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
@@ -55,8 +55,6 @@ export interface CommunityPackEntry {
 type Card = ({ kind: 'seed' } & CommunityPackEntry) | ({ kind: 'shared' } & SharedPack);
 
 const SHELF = '/packs/community/';
-
-type FromPack = NonNullable<GraphicDoc['fromPack']>;
 
 interface Props {
   /** The search box above Browse's branch - it filters the shelf by name, description and maker. */
@@ -126,7 +124,7 @@ function readInto<T>(read: () => Promise<T>, set: (value: T) => void): () => voi
   };
 }
 
-async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: FromPack }> {
+async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: PackStamp }> {
   if (card.kind === 'shared') {
     return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.lineage), version: card.version, author: card.author, name: card.name } };
   }

@@ -17,6 +17,7 @@ import {
   type GraphicDoc,
 } from '../model/library';
 import { saveProject } from '../model/project';
+import { designLocked } from '../model/graphicDoc';
 import { commitDurableWrites } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
@@ -63,6 +64,9 @@ export async function saveCurrentGraphic(opts?: {
   prepareEmptyOut();
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
+  // A community pack's record keeps its design (spec AC-5). A working document still linked to
+  // one (opened before the lock) saves as a new graphic instead, which Save As stamps the same.
+  if (designLocked(graphicById(s.saved.graphicId))) return 'needs-name';
   s.setSaved({ ...s.saved, status: 'saving' });
   // The key is ADDED rather than set to undefined: `updateGraphic` copies the patch with
   // Object.assign, which would write an undefined name straight onto the record.
@@ -146,7 +150,7 @@ export function openGraphicDoc(doc: GraphicDoc): void {
 export function openGraphicById(id: string): boolean {
   const doc = graphicById(id);
   // A community pack's graphic is never the working document: its design is locked (spec AC-5).
-  if (!doc || doc.fromPack) return false;
+  if (!doc || designLocked(doc)) return false;
   openGraphicDoc(doc);
   return true;
 }

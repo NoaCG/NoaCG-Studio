@@ -131,7 +131,3 @@ export async function decidePack(id: string, state: 'live' | 'not_accepted' | 't
   const { error } = await sb.rpc('community_pack_decide', { p_id: id, p_state: state, p_reason: reason ?? null });
   if (error) throw new Error(error.message);
 }
-
-/** The shelf id a shared pack's installs are stamped with (`fromPack.id`, spec D7): its lineage,
- *  one id for every version, beside the stamp's `version`. */
-export const sharedPackId = (lineage: string): string => `community:${lineage}`;

@@ -96,11 +96,15 @@ export interface PackStamp {
   name?: string;
 }
 
+/** Is this graphic's design locked (spec AC-5)? True for anything installed from the community
+ *  shelf: it offers no door to the editor, while its fields and cues work as for any graphic. */
+export const designLocked = (doc: { fromPack?: PackStamp | null } | null | undefined): boolean => !!doc?.fromPack;
+
 /** A stamp as it travels in a pack file, or null when the value is not one. */
 export function readPackStamp(value: unknown): PackStamp | null {
   if (typeof value !== 'object' || value === null) return null;
   const v = value as Record<string, unknown>;
-  if (typeof v.id !== 'string' || !v.id.trim() || typeof v.author !== 'string') return null;
+  if (typeof v.id !== 'string' || !v.id.trim() || typeof v.author !== 'string' || !v.author.trim()) return null;
   if (typeof v.version !== 'number' || !Number.isInteger(v.version) || v.version < 1) return null;
   return {
     id: v.id,

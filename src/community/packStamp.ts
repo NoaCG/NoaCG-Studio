@@ -6,25 +6,26 @@
 // exported files are plain templates anyone can edit elsewhere.
 
 import type { PackStamp } from '../model/graphicDoc';
-import { resolveSavedGraphicDoc, type GraphicDoc } from '../model/library';
+import { packStampFor, type GraphicDoc } from '../model/library';
 import type { Show } from '../model/shows';
 
-/** Is this graphic's design locked? True for anything installed from the community shelf. */
-export const designLocked = (doc: Pick<GraphicDoc, 'fromPack'> | null | undefined): boolean => !!doc?.fromPack;
+/** The shelf id a shared pack's installs are stamped with (`fromPack.id`, spec D7): its lineage,
+ *  one id for every version, beside the stamp's `version`. A seed's id is its slug. */
+export const sharedPackId = (lineage: string): string => `community:${lineage}`;
+const isSharedPackId = (id: string): boolean => id.startsWith(sharedPackId(''));
 
 /** The credit a pack's graphics carry: "From Pub Quiz by NoaCG", and a shared pack's licence. A
  *  stamp written before stamps carried the pack's name says "a community pack" in its place. */
 export function packCredit(stamp: PackStamp): string {
-  const shared = stamp.id.startsWith('community:');
+  const shared = isSharedPackId(stamp.id);
   return `From ${stamp.name || 'a community pack'} by ${stamp.author}${shared ? ', CC BY 4.0' : ''}`;
 }
 
 /** One credit per pack the production's graphics came from, in pool order. */
 export function productionCredits(show: Pick<Show, 'graphics'>, library: GraphicDoc[]): string[] {
-  const seen = new Map<string, string>();
-  for (const g of show.graphics) {
-    const stamp = resolveSavedGraphicDoc(g, library)?.fromPack;
-    if (stamp && !seen.has(stamp.id)) seen.set(stamp.id, packCredit(stamp));
-  }
-  return [...seen.values()];
+  const credits = show.graphics.flatMap((g) => {
+    const stamp = packStampFor(g, library);
+    return stamp ? [packCredit(stamp)] : [];
+  });
+  return [...new Set(credits)];
 }
