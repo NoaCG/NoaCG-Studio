@@ -293,7 +293,8 @@ test('a publish never puts an older design over a newer one (publish-guard G3)',
   // A newer edit replaces it; so does anything over a payload published before edit times.
   const newer = await stampPayload({ resolution: { width: 1920, height: 1080 }, graphics: [graphic('Strap', '<b>newer</b>')] }, onAir, new Date(0), { Strap: at(9) });
   assert.deepEqual(olderDesigns(newer, onAir), []);
-  const { t: _times, ...untimed } = onAir;
+  const untimed = { ...onAir };
+  delete untimed.t;
   assert.deepEqual(olderDesigns(stale, untimed), []);
   assert.deepEqual(olderDesigns(stale, null), []);
   // An older copy that renders exactly what is on air harms nothing.
