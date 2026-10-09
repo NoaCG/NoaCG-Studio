@@ -134,9 +134,21 @@ the logs say otherwise.
 
 Budget, recomputed before every start and never cached:
 
-- **Day (07:00-24:00 Helsinki): 1.0.** Never two suites while someone is using the machine.
-- **Night (00:00-07:00 Helsinki): 2.0.** Two suites, or one suite plus a night's worth of
-  landings draining beside it rather than behind it.
+- **Modest (weekdays 08:00-16:00 Helsinki): 1.0.** The owner's working day, when he uses the
+  laptop for light work and other agent sessions (owner, 2026-10-09).
+- **Full (every other hour, weekends included): 2.0.** The one browser job plus a build or two
+  beside it, as far as the RAM floor lets them in.
+- **Alone: full, whatever the clock.** When at most one agent session is live - whoever is
+  driving the queue - nobody else is competing for the machine. Live means Claude Code's own
+  session inventory lists it and it is busy or wrote a turn in the last 15 minutes, or a Codex
+  session log moved in that window. A session a running queue job started is the queue's own.
+  An inventory that does not answer means "cannot tell", which gets the modest budget. The clock
+  and the session signal are injected into `schedule`, so the tests pin both; `npm run jobs`
+  prints the budget in effect and why on one line.
+- **One browser-driving job per machine, whatever the budget.** A job `command-match.mjs` knows
+  drives a browser, or one queued `--kind sweep`, waits while another runs in the queue or
+  outside it. Before 2026-10-09 the night budget admitted two Playwright runs at once; a
+  `:queued` one then waited inside its slot for the other.
 - **A free-RAM floor overrides the clock in both directions.** Below the floor nothing new starts,
   however many slots the schedule allows. The floor scales with the job's cost, and one scheduling
   pass subtracts what it has already let through, so two jobs cannot both be admitted against the
@@ -156,9 +168,9 @@ Budget, recomputed before every start and never cached:
   takes NO share of the budget, whether it is being admitted or already running
   (`budgetShareOf`), so a running `land-watch` never holds a suite out.
 
-Night = 2.0 is a starting point, not a promise, and it is probably already at the memory wall
-rather than conservative: past it a RAM-bound box pages, and every job slows down together, so
-more parallel stops being more throughput. Raise it only against measurements.
+Full = 2.0 is at the memory wall rather than conservative: past it a RAM-bound box pages, and
+every job slows down together, so more parallel stops being more throughput. Raise it only
+against measurements ("What a job actually costs in RAM" below).
 
 ### Per-job cap
 
@@ -348,9 +360,8 @@ answerable rather than silent:
             gigabyte free; `npm run jobs -- presence away` starts it now
 ```
 
-Presence moves the floor and nothing else. The concurrency budget above is still the clock's: an
-away day runs the one suite the clock allows, and an away night the two - never more because
-nobody is home.
+Presence moves the floor and nothing else. The concurrency budget above is the clock's and the
+live sessions': an away working day runs the modest budget, never more because nobody is home.
 
 ## What a job actually costs in RAM
 

@@ -17,8 +17,12 @@ import {
   NO_VERDICT_EXIT,
   POLICY,
   PRESENCE_TTL_MS,
+  SESSION_ACTIVE_MS,
   addJob,
   adoptOrphanedLandings,
+  agentSessions,
+  budgetMode,
+  drivesBrowser,
   cancelVerdict,
   capacity,
   classifyRefusal,
@@ -52,8 +56,10 @@ import {
   stampGap,
 } from './jobs-store.mjs';
 
-const NIGHT = 3; // 03:00 local
-const DAY = 14; // 14:00 local
+// Timestamps, because the schedule reads a weekday and an hour in Helsinki rather than an hour
+// on whatever machine runs the test. Wednesday 2026-10-07; Helsinki is UTC+3 in October.
+const NIGHT = Date.parse('2026-10-07T03:00:00+03:00'); // full budget
+const DAY = Date.parse('2026-10-07T14:00:00+03:00'); // modest budget
 const PLENTY = 12_000; // MB free
 
 /**
@@ -129,49 +135,120 @@ test('the walk fixture is a command the classifier does not recognise - the prem
   );
 });
 
-test('capacity is one by day, two at night', () => {
-  assert.equal(capacity({ hour: DAY, freeMemMb: PLENTY }), 1);
-  assert.equal(capacity({ hour: NIGHT, freeMemMb: PLENTY }), 2);
-  // The boundaries themselves, since an off-by-one here silently halves a night's throughput.
-  assert.equal(capacity({ hour: POLICY.nightFrom, freeMemMb: PLENTY }), 2, '00:00 is night');
-  assert.equal(capacity({ hour: POLICY.nightTo, freeMemMb: PLENTY }), 1, '07:00 is day again');
-  assert.equal(capacity({ hour: POLICY.nightTo - 1, freeMemMb: PLENTY }), 2, '06:00 is still night');
+test('the budget is modest on weekdays 08:00-16:00 Helsinki and full otherwise', () => {
+  assert.equal(capacity({ now: DAY }), POLICY.byModest);
+  assert.equal(capacity({ now: NIGHT }), POLICY.byFull);
+  assert.ok(POLICY.byFull > POLICY.byModest, 'full is the larger budget');
+  // The boundaries themselves, since an off-by-one here silently halves an evening's throughput
+  // or spends the owner's working hour.
+  const at = (iso) => budgetMode({ now: Date.parse(iso) });
+  assert.equal(at('2026-10-09T15:59:00+03:00').mode, 'modest', 'Friday 15:59 is still the working day');
+  assert.equal(at('2026-10-09T16:00:00+03:00').mode, 'full', 'Friday 16:00 is not');
+  assert.equal(at('2026-10-10T11:00:00+03:00').mode, 'full', 'Saturday midday is not a working day');
+  assert.equal(at('2026-10-11T11:00:00+03:00').mode, 'full', 'nor is Sunday');
+  assert.equal(at('2026-10-12T07:59:00+03:00').mode, 'full', 'Monday 07:59 is before it');
+  assert.equal(at('2026-10-12T08:00:00+03:00').mode, 'modest', 'Monday 08:00 starts it');
+  // Helsinki time, not the machine's and not UTC: 07:30 UTC on a winter Monday is 09:30 there.
+  assert.equal(at('2026-12-07T07:30:00Z').mode, 'modest', 'winter time, UTC+2');
+  assert.equal(at('2026-12-07T14:30:00Z').mode, 'full', '16:30 in Helsinki');
+});
+
+test('alone on the machine, the full budget applies whatever the clock says', () => {
+  assert.equal(capacity({ now: DAY, alone: true }), POLICY.byFull);
+  assert.equal(capacity({ now: NIGHT, alone: true }), POLICY.byFull, 'alone never lowers it');
+  const mode = budgetMode({ now: DAY, alone: true });
+  assert.equal(mode.mode, 'full');
+  assert.match(mode.why, /Wed 14:00 Helsinki is in weekdays 08:00-16:00, but no other agent session is live/);
+  assert.match(budgetMode({ now: DAY }).why, /^Wed 14:00 Helsinki is in weekdays 08:00-16:00$/);
+  assert.match(budgetMode({ now: NIGHT }).why, /^Wed 03:00 Helsinki is outside weekdays 08:00-16:00$/);
+  // And `schedule` reads it: two builds start together by day only when nobody else is working.
+  const builds = [job('j-0001', { command: 'npm run build' }), job('j-0002', { command: 'npm run build' }), job('j-0003', { command: 'npm run build' })];
+  assert.equal(schedule(builds, { now: DAY, freeMemMb: PLENTY }).start.length, 2, '0.8 of a modest 1');
+  const alone = schedule(builds, { now: DAY, freeMemMb: PLENTY, alone: true });
+  assert.equal(alone.start.length, 3);
+  assert.equal(alone.budget.mode, 'full');
+});
+
+test('alone means at most one live agent session, and only when the inventory answered', () => {
+  const NOW_MS = DAY;
+  const row = (over = {}) => ({ pid: 1, cwd: 'C:\\wt\\a', sessionId: 's1', status: 'busy', startedAt: NOW_MS - 3_600_000, ...over });
+  const inv = (rows) => ({ available: true, rows });
+  // Whoever is driving the work is one live session, and one is alone.
+  assert.equal(agentSessions({ claude: inv([row()]), now: NOW_MS }).alone, true);
+  assert.equal(agentSessions({ claude: inv([row(), row({ pid: 2, sessionId: 's2' })]), now: NOW_MS }).alone, false);
+  // An idle session counts while its transcript moved inside the window, and not after.
+  const idle = row({ pid: 2, sessionId: 's2', status: 'idle' });
+  const lastActiveMs = (r) => (r.sessionId === 's2' ? NOW_MS - SESSION_ACTIVE_MS + 60_000 : null);
+  assert.equal(agentSessions({ claude: inv([row(), idle]), lastActiveMs, now: NOW_MS }).alone, false, 'idle a few minutes: still in use');
+  assert.equal(agentSessions({ claude: inv([row(), idle]), now: NOW_MS }).alone, true, 'idle and silent: left open, not in use');
+  // A session with no status at all is counted: absence of the field is not idleness.
+  assert.equal(agentSessions({ claude: inv([row(), row({ pid: 3, sessionId: 's3', status: undefined })]), now: NOW_MS }).alone, false);
+  // A Codex session is a live session too.
+  assert.equal(agentSessions({ claude: inv([row()]), codexActive: 1, now: NOW_MS }).alone, false);
+  // The queue's own job is not another session: a Claude session started by a running job, in
+  // its checkout, after it started.
+  const running = [job('j-0001', { state: 'running', pid: 9, checkout: 'C:/wt/b', startedAt: NOW_MS - 60_000 })];
+  const spawned = row({ pid: 4, sessionId: 's4', cwd: 'C:\\wt\\b\\sub', startedAt: NOW_MS - 30_000 });
+  assert.equal(agentSessions({ claude: inv([row(), spawned]), jobs: running, now: NOW_MS }).alone, true);
+  const before = row({ pid: 5, sessionId: 's5', cwd: 'C:\\wt\\b', startedAt: NOW_MS - 120_000 });
+  assert.equal(agentSessions({ claude: inv([row(), before]), jobs: running, now: NOW_MS }).alone, false, 'a session there before the job is somebody');
+  // Could not tell is not alone.
+  for (const claude of [{ available: false, rows: [] }, inv([]), undefined]) {
+    const read = agentSessions({ claude, now: NOW_MS });
+    assert.equal(read.known, false);
+    assert.equal(read.alone, false);
+  }
 });
 
 test('the RAM floor is an admission check on a job, not a cut to the budget', () => {
   // Zeroing the budget also stopped the cheapest jobs, which is the opposite of what the floor
   // is for - so the budget is now purely the clock, and the floor is applied per job in
   // `schedule`, scaled by that job's cost.
-  assert.equal(capacity({ hour: NIGHT }), 2);
-  assert.equal(capacity({ hour: DAY }), 1);
+  assert.equal(capacity({ now: NIGHT }), 2);
+  assert.equal(capacity({ now: DAY }), 1);
 });
 
 test('work started outside the queue is subtracted from capacity', () => {
   // Another coding agent, or a hand-run suite. Invisible to us, visible to the process table.
-  assert.equal(capacity({ hour: NIGHT, freeMemMb: PLENTY, outsideRuns: 1 }), 1);
-  assert.equal(capacity({ hour: NIGHT, freeMemMb: PLENTY, outsideRuns: 2 }), 0);
-  assert.equal(capacity({ hour: NIGHT, freeMemMb: PLENTY, outsideRuns: 5 }), 0, 'never negative');
-  assert.equal(capacity({ hour: DAY, freeMemMb: PLENTY, outsideRuns: 1 }), 0);
+  assert.equal(capacity({ now: NIGHT, freeMemMb: PLENTY, outsideRuns: 1 }), 1);
+  assert.equal(capacity({ now: NIGHT, freeMemMb: PLENTY, outsideRuns: 2 }), 0);
+  assert.equal(capacity({ now: NIGHT, freeMemMb: PLENTY, outsideRuns: 5 }), 0, 'never negative');
+  assert.equal(capacity({ now: DAY, freeMemMb: PLENTY, outsideRuns: 1 }), 0);
 });
 
 test('by day one suite starts and the rest say why they are waiting', () => {
   const jobs = [job('j-0001'), job('j-0002'), job('j-0003')];
-  const { start, waiting, slots } = schedule(jobs, { hour: DAY, freeMemMb: PLENTY });
+  const { start, waiting, slots } = schedule(jobs, { now: DAY, freeMemMb: PLENTY });
   assert.deepEqual(start.map((j) => j.id), ['j-0001']);
   assert.equal(slots, 1);
   assert.deepEqual(waiting.map((w) => w.job.id), ['j-0002', 'j-0003']);
-  assert.match(waiting[0].reason, /budget 1\/1 used/);
+  assert.match(waiting[0].reason, /one browser-driving job per machine/);
 });
 
-test('at night two start together', () => {
-  const jobs = [job('j-0001'), job('j-0002'), job('j-0003')];
-  const { start } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY });
-  assert.deepEqual(start.map((j) => j.id), ['j-0001', 'j-0002']);
+test('one browser-driving job per machine, even in the full budget', () => {
+  // Two suite-equivalents would admit two Playwright runs; the machine gets one browser job.
+  const jobs = [job('j-0001'), job('j-0002'), job('j-0003', { command: 'npm run build' })];
+  const { start, waiting } = schedule(jobs, { now: NIGHT, freeMemMb: PLENTY });
+  assert.deepEqual(start.map((j) => j.id), ['j-0001', 'j-0003'], 'the budget left over goes to work that is not a browser');
+  assert.match(waiting[0].reason, /one browser-driving job per machine - j-0001 holds it/);
+
+  // A running one holds it, a sweep declared as such counts, and so does a run outside the queue.
+  const held = [job('j-0001', { state: 'running', pid: 1 }), job('j-0002', { kind: 'sweep', command: 'node x.mjs' })];
+  assert.deepEqual(schedule(held, { now: NIGHT, freeMemMb: PLENTY }).start, []);
+  const outside = schedule([job('j-0001')], { now: NIGHT, freeMemMb: PLENTY, outsideRuns: 1 });
+  assert.deepEqual(outside.start, []);
+  assert.match(outside.waiting[0].reason, /a browser run outside this queue holds it/);
+
+  // What the slot does NOT hold: a landing, a build, and a command nobody has classified.
+  assert.equal(drivesBrowser(merge('j-0001')), false);
+  assert.equal(drivesBrowser(job('j-0001', { command: 'npm run build' })), false);
+  assert.equal(drivesBrowser(walk('j-0001')), false);
+  assert.equal(drivesBrowser(job('j-0001', { command: 'npx playwright test e2e/a.spec.ts' })), true);
 });
 
-test('a running suite occupies the whole day budget', () => {
-  const jobs = [job('j-0001', { state: 'running', pid: 1 }), job('j-0002')];
-  const { start, waiting } = schedule(jobs, { hour: DAY, freeMemMb: PLENTY });
+test('a running suite occupies the whole modest budget', () => {
+  const jobs = [job('j-0001', { state: 'running', pid: 1 }), job('j-0002', { command: 'npm run build' })];
+  const { start, waiting } = schedule(jobs, { now: DAY, freeMemMb: PLENTY });
   assert.deepEqual(start, []);
   assert.match(waiting[0].reason, /budget 1\/1 used/);
 });
@@ -179,12 +256,12 @@ test('a running suite occupies the whole day budget', () => {
 test('two merges never overlap, whatever the clock says', () => {
   // This is what makes "land one branch at a time" structural instead of remembered.
   const two = [merge('j-0001'), merge('j-0002')];
-  const { start, waiting } = schedule(two, { hour: NIGHT, freeMemMb: PLENTY });
+  const { start, waiting } = schedule(two, { now: NIGHT, freeMemMb: PLENTY });
   assert.deepEqual(start.map((j) => j.id), ['j-0001']);
   assert.match(waiting[0].reason, /another landing is in flight/);
 
   const oneRunning = [merge('j-0001', { state: 'running', pid: 1 }), merge('j-0002')];
-  assert.deepEqual(schedule(oneRunning, { hour: NIGHT, freeMemMb: PLENTY }).start, []);
+  assert.deepEqual(schedule(oneRunning, { now: NIGHT, freeMemMb: PLENTY }).start, []);
 });
 
 test('a landing runs beside a suite in ANOTHER checkout, but never in its own', () => {
@@ -192,20 +269,20 @@ test('a landing runs beside a suite in ANOTHER checkout, but never in its own', 
   // `gh run watch`. Charging them a full slot each would queue them behind a suite for no reason.
   const elsewhere = [job('j-0001', { state: 'running', pid: 1, checkout: '/wt/a' }), merge('j-0002', { checkout: '/wt/b' })];
   assert.deepEqual(
-    schedule(elsewhere, { hour: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id),
+    schedule(elsewhere, { now: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id),
     ['j-0002'],
     'a landing in another worktree is harmless beside a suite',
   );
 
   // Same checkout is a different matter: the merge rewrites the tree the suite is reading.
   const sameTree = [job('j-0001', { state: 'running', pid: 1, checkout: '/wt/a' }), merge('j-0002', { checkout: '/wt/a' })];
-  const { start, waiting } = schedule(sameTree, { hour: NIGHT, freeMemMb: PLENTY });
+  const { start, waiting } = schedule(sameTree, { now: NIGHT, freeMemMb: PLENTY });
   assert.deepEqual(start, []);
   assert.match(waiting[0].reason, /using that checkout/);
 
   // And nothing else starts in a checkout a landing is already using.
   const mergeFirst = [merge('j-0001', { state: 'running', pid: 1, checkout: '/wt/a' }), job('j-0002', { checkout: '/wt/a' })];
-  assert.deepEqual(schedule(mergeFirst, { hour: NIGHT, freeMemMb: PLENTY }).start, []);
+  assert.deepEqual(schedule(mergeFirst, { now: NIGHT, freeMemMb: PLENTY }).start, []);
 });
 
 test('a landing is not charged against the suite budget', () => {
@@ -214,18 +291,18 @@ test('a landing is not charged against the suite budget', () => {
   // couple of git commands and then ten minutes waiting on GitHub; its concurrency is governed
   // by rules that are stricter where it matters, not by the RAM budget.
   const busy = [job('j-0001', { state: 'running', pid: 1, checkout: '/wt/a' }), merge('j-0002', { checkout: '/wt/b' })];
-  assert.deepEqual(schedule(busy, { hour: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
+  assert.deepEqual(schedule(busy, { now: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
 
   // Even with the budget fully spent by work OUTSIDE the queue.
   const outside = [merge('j-0001', { checkout: '/wt/b' })];
   assert.deepEqual(
-    schedule(outside, { hour: DAY, freeMemMb: PLENTY, outsideRuns: 2 }).start.map((j) => j.id),
+    schedule(outside, { now: DAY, freeMemMb: PLENTY, outsideRuns: 2 }).start.map((j) => j.id),
     ['j-0001'],
   );
 
   // A non-merge job is still charged, so the exemption cannot be used as a general escape.
   const cheap = [job('j-0001', { state: 'running', pid: 1 }), job('j-0002', { command: 'npm run build' })];
-  assert.deepEqual(schedule(cheap, { hour: DAY, freeMemMb: PLENTY }).start, []);
+  assert.deepEqual(schedule(cheap, { now: DAY, freeMemMb: PLENTY }).start, []);
 });
 
 test('a RUNNING landing does not hold a browser job out of the budget', () => {
@@ -235,21 +312,21 @@ test('a RUNNING landing does not hold a browser job out of the budget', () => {
   // admitted; it has to cover the landings already running too, or back-to-back landings starve
   // every suite for the whole night.
   const landing = [merge('j-0001', { state: 'running', pid: 1, checkout: '/wt/a' }), job('j-0002', { checkout: '/wt/b' })];
-  assert.deepEqual(schedule(landing, { hour: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
+  assert.deepEqual(schedule(landing, { now: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
 
   // A landing admitted in the SAME pass does not charge the browser job behind it either.
   const both = [merge('j-0001', { checkout: '/wt/a' }), job('j-0002', { checkout: '/wt/b' })];
-  assert.deepEqual(schedule(both, { hour: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0001', 'j-0002']);
+  assert.deepEqual(schedule(both, { now: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0001', 'j-0002']);
 
   // The RAM floor still applies to the browser job: a landing is free of the budget, not of
   // physics, and it does not lend its exemption to whatever runs beside it.
-  const short = schedule(landing, { hour: DAY, freeMemMb: 1024 });
+  const short = schedule(landing, { now: DAY, freeMemMb: 1024 });
   assert.deepEqual(short.start, []);
   assert.match(short.waiting[0].reason, /RAM free/);
 
-  // And a browser job still waits for a browser job: only the landing's share was forgiven.
-  const suite = [...landing, job('j-0003', { checkout: '/wt/c' })];
-  const { start, waiting } = schedule(suite, { hour: DAY, freeMemMb: PLENTY });
+  // And the browser job is still charged its share: only the landing's was forgiven.
+  const suite = [...landing, job('j-0003', { checkout: '/wt/c', command: 'npm run build' })];
+  const { start, waiting } = schedule(suite, { now: DAY, freeMemMb: PLENTY });
   assert.deepEqual(start.map((j) => j.id), ['j-0002']);
   assert.match(waiting[0].reason, /budget 1\/1 used/);
 });
@@ -258,7 +335,7 @@ test('several landings fit inside one suite-equivalent', () => {
   // Landings are not charged against the budget at all, and they still drain one at a time
   // because two merges never overlap.
   const many = [merge('j-0001'), merge('j-0002'), merge('j-0003')];
-  const { start } = schedule(many, { hour: DAY, freeMemMb: PLENTY });
+  const { start } = schedule(many, { now: DAY, freeMemMb: PLENTY });
   assert.deepEqual(start.map((j) => j.id), ['j-0001'], 'serial by the merge rule, not by the budget');
   assert.ok(costOf(many[0]) * 3 < 1, 'three landings cost less than one suite');
 });
@@ -354,14 +431,14 @@ test('a single browser walk starts on the RAM a suite is rightly refused', () =>
   // and sat refused for about three hours - "only 2.0-3.2 GB RAM free, needs 4.0" - because an
   // unrecognised command was charged a whole suite and the floor scales with the cost. The fix
   // is per-job accounting, NOT a lower floor: at the same 3.2 GB a real suite must still wait.
-  const short = { hour: NIGHT, freeMemMb: 3277 }; // 3.2 GB, the reading j-0888 was refused on
+  const short = { now: NIGHT, freeMemMb: 3277 }; // 3.2 GB, the reading j-0888 was refused on
   assert.deepEqual(schedule([walk('j-0001')], short).start.map((j) => j.id), ['j-0001']);
   assert.deepEqual(schedule([job('j-0001')], short).start, [], 'a suite is still refused on 3.2 GB');
   assert.match(schedule([job('j-0001')], short).waiting[0].reason, /3\.2 GB RAM free, needs 4\.0/);
 
   // And a session that declares a smaller cost gets a smaller floor with it.
   const declared = walk('j-0001', { cost: 0.25 });
-  assert.deepEqual(schedule([declared], { hour: NIGHT, freeMemMb: 1100 }).start.map((j) => j.id), ['j-0001']);
+  assert.deepEqual(schedule([declared], { now: NIGHT, freeMemMb: 1100 }).start.map((j) => j.id), ['j-0001']);
 });
 
 // -- Presence: who is at the machine decides the floor ------------------------------------------
@@ -375,7 +452,7 @@ test('a single browser walk starts on the RAM a suite is rightly refused', () =>
 test('the same free-RAM reading admits a suite when the machine is away and refuses it when it is in use', () => {
   // 3.5 GB free: above the away floor (3.0), below the in-use one (4.0). This is the reading the
   // control-panel chain sat on all evening on 2026-09-15 with nobody at the keyboard.
-  const reading = { hour: NIGHT, freeMemMb: 3584 };
+  const reading = { now: NIGHT, freeMemMb: 3584 };
   assert.deepEqual(
     schedule([job('j-0001')], { ...reading, presence: 'away' }).start.map((j) => j.id),
     ['j-0001'],
@@ -396,7 +473,7 @@ test('the same free-RAM reading admits a suite when the machine is away and refu
   // The suffix is about presence and nothing else: a job that is short under BOTH floors says so
   // plainly rather than blaming a person who is not the reason.
   assert.doesNotMatch(
-    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 1024, presence: 'present' }).waiting[0].reason,
+    schedule([job('j-0001')], { now: NIGHT, freeMemMb: 1024, presence: 'present' }).waiting[0].reason,
     /presence away/,
   );
 });
@@ -405,7 +482,7 @@ test('an unknown presence is treated as somebody being at the machine', () => {
   // The whole safety property. A caller that has not been taught about presence, a typo, a state
   // written by a newer version of the store - each of them is an UNKNOWN, and an unknown that
   // reads as "away" spends the machine out from under whoever is using it.
-  const reading = { hour: NIGHT, freeMemMb: 3584 };
+  const reading = { now: NIGHT, freeMemMb: 3584 };
   for (const unknown of [undefined, null, '', 'AWAY', 'Away', 'afk', 'present', 0, false]) {
     assert.deepEqual(
       schedule([job('j-0001')], { ...reading, presence: unknown }).start,
@@ -421,13 +498,13 @@ test('an unknown presence is treated as somebody being at the machine', () => {
 
 test('presence moves the floor and leaves the concurrency budget alone', () => {
   // The floor is an admission check on ONE job; the budget is how much of this machine agent work
-  // may occupy at once, and the owner set that by the clock. An away night that started two
-  // suites where the budget says one would be this change reaching past what it was asked for.
-  assert.equal(capacity({ hour: DAY, freeMemMb: PLENTY, presence: 'away' }), POLICY.byDay);
-  assert.equal(capacity({ hour: NIGHT, freeMemMb: PLENTY, presence: 'away' }), POLICY.byNight);
+  // may occupy at once, and the owner set that by the clock and the other sessions. An away
+  // working day that started more than the modest budget would be presence reaching past its job.
+  assert.equal(capacity({ now: DAY, freeMemMb: PLENTY, presence: 'away' }), POLICY.byModest);
+  assert.equal(capacity({ now: NIGHT, freeMemMb: PLENTY, presence: 'away' }), POLICY.byFull);
   const two = [job('j-0001'), job('j-0002')];
   assert.deepEqual(
-    schedule(two, { hour: DAY, freeMemMb: PLENTY, presence: 'away' }).start.map((j) => j.id),
+    schedule(two, { now: DAY, freeMemMb: PLENTY, presence: 'away' }).start.map((j) => j.id),
     ['j-0001'],
     'one suite by day, however much memory is free and however away the machine is',
   );
@@ -509,13 +586,13 @@ test('a policy written before presence existed still has a RAM floor', () => {
   assert.equal(freeMemFloorFor('present', before), 4096);
   assert.equal(freeMemFloorFor('away', before), 4096, 'one number means one floor, whoever is there');
   assert.deepEqual(
-    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 100, policy: before }).start,
+    schedule([job('j-0001')], { now: NIGHT, freeMemMb: 100, policy: before }).start,
     [],
     'a suite on 100 MB free is refused, exactly as it was before presence existed',
   );
   // And the day-wave suffix stays quiet, because with one floor presence is never the difference.
   assert.doesNotMatch(
-    schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 3584, policy: before }).waiting[0].reason,
+    schedule([job('j-0001')], { now: NIGHT, freeMemMb: 3584, policy: before }).waiting[0].reason,
     /presence away/,
   );
 });
@@ -525,9 +602,9 @@ test('the held-job message computes the memory it names, rather than quoting a n
   // job prints must not be the thing that goes stale when he answers - so the difference is
   // computed from the policy in force, and it scales with the job like every other figure here.
   const lower = { ...POLICY, freeMemFloorMb: { present: 4096, away: 2048 } };
-  const suite = schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 3072, policy: lower }).waiting[0].reason;
+  const suite = schedule([job('j-0001')], { now: NIGHT, freeMemMb: 3072, policy: lower }).waiting[0].reason;
   assert.match(suite, /holds 2\.0 GB back/, 'a suite: 4096 - 2048');
-  const oneWalk = schedule([walk('j-0001')], { hour: NIGHT, freeMemMb: 1536, policy: lower }).waiting[0].reason;
+  const oneWalk = schedule([walk('j-0001')], { now: NIGHT, freeMemMb: 1536, policy: lower }).waiting[0].reason;
   assert.match(oneWalk, /holds 1\.0 GB back/, 'a walk pays half of that difference, like its floor');
 });
 
@@ -568,7 +645,7 @@ test('each job admitted in one pass spends the free memory the last one took', (
   // memory all started at once - four walks on 2.1 GB free, which is not four walks' worth of
   // machine. The floor is only a backstop if the pass subtracts what it has already let through.
   const four = [walk('j-0001'), walk('j-0002'), walk('j-0003'), walk('j-0004')];
-  const { start, waiting } = schedule(four, { hour: NIGHT, freeMemMb: 2150 }); // 2.1 GB
+  const { start, waiting } = schedule(four, { now: NIGHT, freeMemMb: 2150 }); // 2.1 GB
   assert.deepEqual(start.map((j) => j.id), ['j-0001'], 'one walk fits 2.1 GB, not four');
   // The reason names BOTH figures. Reporting the pass's remainder as though it were the machine's
   // free memory sent a reader hunting for 2 GB that was never missing - the box has 2.1 GB free
@@ -577,7 +654,7 @@ test('each job admitted in one pass spends the free memory the last one took', (
 
   // With room for two, two go - the accounting is a subtraction, not a one-job cap.
   assert.deepEqual(
-    schedule(four, { hour: NIGHT, freeMemMb: 4200 }).start.map((j) => j.id),
+    schedule(four, { now: NIGHT, freeMemMb: 4200 }).start.map((j) => j.id),
     ['j-0001', 'j-0002'],
   );
 });
@@ -590,20 +667,20 @@ test('a landing is not refused on memory the jobs ahead of it claimed in the sam
   // so that landings are the thing that always gets through.
   const two = [walk('j-0001'), walk('j-0002'), merge('j-0003')];
   assert.deepEqual(
-    schedule(two, { hour: NIGHT, freeMemMb: 4300 }).start.map((j) => j.id),
+    schedule(two, { now: NIGHT, freeMemMb: 4300 }).start.map((j) => j.id),
     ['j-0001', 'j-0002', 'j-0003'],
   );
 
   // The physical backstop is kept, though: a landing on a genuinely short box still waits, and
   // says the machine's real reading rather than a bookkeeping remainder.
-  const short = schedule([merge('j-0001')], { hour: NIGHT, freeMemMb: 300 });
+  const short = schedule([merge('j-0001')], { now: NIGHT, freeMemMb: 300 });
   assert.deepEqual(short.start, []);
   assert.match(short.waiting[0].reason, /only 0\.3 GB RAM free, needs 0\.6/);
 
   // And exempting it cannot admit a crowd, because two merges never overlap whatever the memory
   // says - that rule runs before this one and is what keeps landings serial.
   assert.deepEqual(
-    schedule([merge('j-0001'), merge('j-0002')], { hour: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id),
+    schedule([merge('j-0001'), merge('j-0002')], { now: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id),
     ['j-0001'],
   );
 });
@@ -622,26 +699,26 @@ test('the day still spends at most one suite-equivalent, whether it is spent who
   // the day's promise - one suite-equivalent of agent work while the owner is using the laptop -
   // is kept either way.
   const three = [walk('j-0001'), walk('j-0002'), walk('j-0003')];
-  const { start, waiting } = schedule(three, { hour: DAY, freeMemMb: PLENTY });
+  const { start, waiting } = schedule(three, { now: DAY, freeMemMb: PLENTY });
   assert.deepEqual(start.map((j) => j.id), ['j-0001', 'j-0002']);
   assert.match(waiting[0].reason, /budget 1\/1 used/);
 });
 
 test('a cheap job runs beside a suite at night', () => {
   const jobs = [job('j-0001', { state: 'running', pid: 1 }), job('j-0002', { command: 'npm run build' })];
-  assert.deepEqual(schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
+  assert.deepEqual(schedule(jobs, { now: NIGHT, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
   // ...but not by day, where the whole budget is one suite.
-  assert.deepEqual(schedule(jobs, { hour: DAY, freeMemMb: PLENTY }).start, []);
+  assert.deepEqual(schedule(jobs, { now: DAY, freeMemMb: PLENTY }).start, []);
 });
 
 test('a dependency holds a job back until it is green, and names what it waits on', () => {
   const jobs = [job('j-0001', { state: 'running', pid: 1 }), job('j-0002', { after: ['j-0001'] })];
-  const { start, waiting } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY });
+  const { start, waiting } = schedule(jobs, { now: NIGHT, freeMemMb: PLENTY });
   assert.deepEqual(start, []);
   assert.match(waiting[0].reason, /waiting on j-0001/);
 
   const done = [job('j-0001', { state: 'done' }), job('j-0002', { after: ['j-0001'] })];
-  assert.deepEqual(schedule(done, { hour: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
+  assert.deepEqual(schedule(done, { now: DAY, freeMemMb: PLENTY }).start.map((j) => j.id), ['j-0002']);
 });
 
 test('a landing chained behind a FAILED one runs once that one is terminal', () => {
@@ -651,7 +728,7 @@ test('a landing chained behind a FAILED one runs once that one is terminal', () 
   // fully re-verified against whatever main it finds.
   for (const bad of ['failed', 'timed-out', 'cancelled']) {
     const jobs = [job('j-0001', { state: bad }), job('j-0002', { after: ['j-0001'], kind: 'merge' })];
-    const { start, waiting, dead, released } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY });
+    const { start, waiting, dead, released } = schedule(jobs, { now: NIGHT, freeMemMb: PLENTY });
     assert.deepEqual(start.map((j) => j.id), ['j-0002'], `a ${bad} predecessor must release the landing`);
     assert.deepEqual(waiting, [], 'and never leave it waiting on a state that will never arrive');
     assert.deepEqual(dead, []);
@@ -663,7 +740,7 @@ test('a NON-landing whose dependency died is written off, not left waiting', () 
   // A gate that was to run after a build cannot mean anything once that build failed. Saying so
   // on every poll for ever is the stall; the job is terminal with the reason on it.
   const jobs = [job('j-0001', { state: 'failed' }), job('j-0002', { after: ['j-0001'], kind: 'gate' })];
-  const { start, waiting, dead } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY });
+  const { start, waiting, dead } = schedule(jobs, { now: NIGHT, freeMemMb: PLENTY });
   assert.deepEqual(start, []);
   assert.deepEqual(waiting, []);
   assert.deepEqual(dead.map((d) => d.job.id), ['j-0002']);
@@ -672,13 +749,13 @@ test('a NON-landing whose dependency died is written off, not left waiting', () 
 
 test('a job depending on an id that does not exist is not startable', () => {
   const jobs = [job('j-0002', { after: ['j-0999'] })];
-  const { start, dead } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY });
+  const { start, dead } = schedule(jobs, { now: NIGHT, freeMemMb: PLENTY });
   assert.deepEqual(start, []);
   assert.match(dead[0].reason, /did not finish green/);
 });
 
 test('no SUITE starts under the RAM floor, and the reason names the memory', () => {
-  const { start, waiting } = schedule([job('j-0001')], { hour: NIGHT, freeMemMb: 3174 });
+  const { start, waiting } = schedule([job('j-0001')], { now: NIGHT, freeMemMb: 3174 });
   assert.deepEqual(start, []);
   assert.match(waiting[0].reason, /3\.1 GB RAM free, needs 4\.0/);
 });
@@ -687,12 +764,12 @@ test('the floor scales with the job, so a landing is not blocked by a suite-size
   // The floor stops a dev server and four browser workers starting on a short box. A landing is
   // a few hundred megabytes spending ten minutes waiting on GitHub, and charging it the full
   // 4 GB stalled exactly the work that most needs to finish overnight.
-  const tight = { hour: NIGHT, freeMemMb: 2458 }; // 2.4 GB - under the suite floor
+  const tight = { now: NIGHT, freeMemMb: 2458 }; // 2.4 GB - under the suite floor
   assert.deepEqual(schedule([job('j-0001')], tight).start, [], 'a suite still waits');
   assert.deepEqual(schedule([merge('j-0001')], tight).start.map((j) => j.id), ['j-0001'], 'a landing goes');
 
   // But a landing is not exempt either - below its own scaled floor it waits too.
-  const starved = { hour: NIGHT, freeMemMb: 100 };
+  const starved = { now: NIGHT, freeMemMb: 100 };
   assert.deepEqual(schedule([merge('j-0001')], starved).start, []);
   assert.match(schedule([merge('j-0001')], starved).waiting[0].reason, /needs 0\.6/);
 });
@@ -1378,14 +1455,14 @@ test('a hold that nothing ever answers SURFACES rather than waiting for ever', (
 });
 
 test('the scheduler holds a parked landing instead of starting it, and says why', () => {
-  const { start, waiting, dead } = schedule([held(['claude/f'], 20)], { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const { start, waiting, dead } = schedule([held(['claude/f'], 20)], { freeMemMb: PLENTY, now: NOW });
   assert.deepEqual(start, [], 'running it again would print the same refusal at the price of a CI wait');
   assert.deepEqual(dead, []);
   assert.match(waiting[0].reason, /held for claude\/f/);
 });
 
 test('a hold that runs out is WRITTEN OFF, so the branch surfaces instead of waiting', () => {
-  const { start, waiting, dead } = schedule([held(['claude/f'], 13 * 60)], { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const { start, waiting, dead } = schedule([held(['claude/f'], 13 * 60)], { freeMemMb: PLENTY, now: NOW });
   assert.deepEqual(start, []);
   assert.deepEqual(waiting, []);
   assert.match(dead[0].reason, /no landing was ever queued/);
@@ -1400,14 +1477,14 @@ test('the ordering cascade releases itself - the whole thing, end to end', () =>
     merge('j-0445', { branch: 'claude/f', state: 'timed-out', finishedAt: 100 }),
     held(['claude/f'], 20, { branch: 'claude/j' }),
   ];
-  const blocked = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const blocked = schedule(jobs, { freeMemMb: PLENTY, now: NOW });
   assert.deepEqual(blocked.start, [], 'F is dead and unqueued, so nothing has changed for J');
   assert.match(blocked.waiting.find((w) => w.job.branch === 'claude/j').reason, /held for claude\/f/);
 
   // The sweep adopts F. That is the ONLY new fact, and it is enough.
   const adopted = adoptOrphanedLandings(jobs).map((a, i) => merge(`j-070${i}`, { ...a, state: 'waiting' }));
   assert.equal(adopted.length, 1, 'F is put back');
-  const released = schedule([...jobs, ...adopted], { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const released = schedule([...jobs, ...adopted], { freeMemMb: PLENTY, now: NOW });
   const j = released.waiting.find((w) => w.job.branch === 'claude/j');
   assert.ok(
     released.start.some((s) => s.branch === 'claude/j') || /another landing is in flight/.test(j?.reason ?? ''),
@@ -1429,7 +1506,7 @@ test('two landings held behind each other do not read as queued to one another',
       blockedSince: NOW - 20 * 60_000,
     }),
   ];
-  const { start, waiting } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const { start, waiting } = schedule(jobs, { freeMemMb: PLENTY, now: NOW });
   assert.deepEqual(start, []);
   assert.equal(waiting.filter((w) => /held for/.test(w.reason)).length, 2);
 });
@@ -1443,7 +1520,7 @@ test('a landing that was released and is deferring normally does not read as hel
     branch: 'claude/f', state: 'waiting', deferrals: 2, blockedSince: NOW - 60 * 60_000,
   });
   const jobs = [releasedAndDeferring, held(['claude/f'], 20, { branch: 'claude/j' })];
-  const { waiting } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const { waiting } = schedule(jobs, { freeMemMb: PLENTY, now: NOW });
   const j = waiting.find((w) => w.job.branch === 'claude/j');
   assert.ok(!/held for/.test(j?.reason ?? ''), `F is coming, so J is not held - got: ${j?.reason}`);
 });
@@ -1455,7 +1532,7 @@ test('a landing held on a branch that is RUNNING its own landing is released', (
     merge('j-0602', { branch: 'claude/f', state: 'running', startedAt: NOW - 60_000 }),
     held(['claude/f'], 20, { branch: 'claude/j' }),
   ];
-  const { waiting } = schedule(jobs, { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const { waiting } = schedule(jobs, { freeMemMb: PLENTY, now: NOW });
   assert.match(waiting[0].reason, /another landing is in flight/);
 });
 
@@ -1522,7 +1599,7 @@ test('an ordering block failed by an OLD runner is adopted back, already held', 
 
   // And it costs nothing while it waits: reborn held, it never runs until a blocker moves.
   const revived = merge('j-0800', { ...next, state: 'waiting' });
-  const { start, waiting } = schedule([refused, revived], { hour: NIGHT, freeMemMb: PLENTY, now: NOW });
+  const { start, waiting } = schedule([refused, revived], { freeMemMb: PLENTY, now: NOW });
   assert.deepEqual(start, []);
   assert.match(waiting[0].reason, /held for claude\/f/);
 });
@@ -1770,7 +1847,7 @@ test('readReviewStamp: reads checks/<branch-with-dashes>.json and treats an unre
 test('advisory idle evidence neither releases the browser slot nor reaps a live job', () => {
   const live = job('j-0001', { state: 'running', pid: 42, startedAt: 1000 });
   const waiting = job('j-0002');
-  const facts = { hour: DAY, freeMemMb: PLENTY, now: 800000 };
+  const facts = { freeMemMb: PLENTY, now: 800000 };
   const baseline = schedule([live, waiting], facts);
   const observed = schedule([live, waiting], { ...facts,
     holderDiagnostics: [{ pid: 42, status: 'suspected-idle', cpuDeltaSeconds: 0 }] });

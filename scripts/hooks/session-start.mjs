@@ -466,8 +466,9 @@ try {
       // One read, used for both: the plan must be built on the same declaration this prints, or
       // the summary explains a wait with a floor the scheduler did not use.
       const machine = readPresence(dir);
+      // No `alone` here: reading the session inventory would slow every session start, and
+      // leaving it out can only understate what the runner will start, never overstate it.
       const plan = schedule(jobs, {
-        hour: new Date().getHours(),
         freeMemMb: Math.round(freemem() / (1024 * 1024)),
         presence: machine.state,
       });

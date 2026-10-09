@@ -22,12 +22,14 @@
 // exactly one runner.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync } from 'node:fs';
-import { freemem } from 'node:os';
+import { closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
+import { freemem, homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { activeRuns, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
+import { readInventory } from './claude-agents.mjs';
+import { projectDirName, transcriptsRoot } from './session-liveness.mjs';
 import { requiresRunningDevServer, runsWholeSuite, WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
@@ -49,8 +51,10 @@ import {
   ORDER_BLOCKED_REFUSAL,
   POLICY,
   PRESENCE,
+  SESSION_ACTIVE_MS,
   addJob,
   adoptOrphanedLandings,
+  agentSessions,
   budgetShareOf,
   cancelVerdict,
   classifyRefusal,
@@ -609,10 +613,12 @@ async function cmdRequeue() {
 }
 
 async function cmdList() {
-  const { jobs, start, waiting, dead, running, slots } = snapshot();
+  const { jobs, start, waiting, dead, running, slots, budget, sessions } = snapshot();
   const holderDiagnostics = await sampleHolderDiagnostics();
   if (flag('--json')) {
     process.stdout.write(`${JSON.stringify({
+      budget,
+      sessions,
       running,
       holderDiagnostics,
       waiting: waiting.map((w) => ({ ...w.job, reason: w.reason })),
@@ -668,6 +674,13 @@ async function cmdList() {
     console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()}${machine.setBy ? ` (set by ${machine.setBy})` : ''}`
       + ` - the RAM floor is ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB. \`npm run jobs -- presence present\` if you are at it.`);
   }
+  // WHICH BUDGET AND WHY, in one line and on every read, because it now moves with the clock and
+  // with the other sessions on the machine - a wait reading "budget 1/1 used" means nothing to a
+  // reader who cannot see that it is a weekday morning with three sessions live.
+  const sessionNote = sessions.known ? sessions.why : `agent sessions unknown (${sessions.why})`;
+  console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}`
+    + `${budget.alone ? '' : `, ${sessionNote}`}`
+    + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state})`);
 
   if (pending(jobs).length === 0) {
     console.log('Job queue empty.');
@@ -1060,8 +1073,8 @@ async function runner() {
 
     jobs = readJobs(dir);
     const { start, dead, released, waiting, running } = schedule(jobs, {
-      hour: new Date(now).getHours(),
       freeMemMb: freeMb(),
+      alone: machineSessions(jobs, now).alone,
       // Re-read every pass, deliberately. Presence is the one input that changes while the runner
       // is alive - somebody sits down - and a value cached at runner start would be exactly the
       // stale environment variable this replaced.
@@ -1405,6 +1418,64 @@ function outsideRuns(jobs) {
   return activeRuns({}).filter((run) => !ours.has(normalize(run.root))).length;
 }
 
+/**
+ * The agent sessions live on this machine (`agentSessions` decides; this reads), re-read at most
+ * once a minute. The runner polls every five seconds, and spawning Claude Code's inventory that
+ * often would make the queue one of the heavier things on the laptop it is trying to spare.
+ */
+const SESSIONS_TTL_MS = 60_000;
+let sessionsRead = null;
+function machineSessions(jobs, now = Date.now()) {
+  if (sessionsRead && now - sessionsRead.at < SESSIONS_TTL_MS) return sessionsRead.value;
+  const projects = transcriptsRoot();
+  const mtime = (file) => {
+    try {
+      return statSync(file).mtimeMs;
+    } catch {
+      return null;
+    }
+  };
+  const value = agentSessions({
+    claude: readInventory(),
+    lastActiveMs: (row) => (row.sessionId && row.cwd
+      ? mtime(join(projects, projectDirName(row.cwd), `${row.sessionId}.jsonl`))
+      : null),
+    codexActive: codexSessionsActive(now),
+    jobs,
+    now,
+  });
+  sessionsRead = { at: now, value };
+  return value;
+}
+
+/**
+ * Codex session logs written inside `SESSION_ACTIVE_MS`. Codex appends each turn to
+ * `<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-*.jsonl`, filed by the day the session started, so
+ * the last week of day folders covers any session still being used. Unreadable means none.
+ */
+function codexSessionsActive(now) {
+  const root = join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'sessions');
+  let count = 0;
+  for (let back = 0; back < 7; back += 1) {
+    const day = new Date(now - back * 86_400_000);
+    const dir = join(root, String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
+    let names;
+    try {
+      names = readdirSync(dir).filter((n) => n.endsWith('.jsonl'));
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      try {
+        if (now - statSync(join(dir, name)).mtimeMs < SESSION_ACTIVE_MS) count += 1;
+      } catch {
+        // gone between the listing and the stat
+      }
+    }
+  }
+  return count;
+}
+
 // Function declarations, not const arrows. The dispatch runs after the whole module body now, so
 // a `const` here is initialised by the time any command reads it - but a declaration still reads
 // better beside its siblings, and the habit costs nothing.
@@ -1439,11 +1510,13 @@ function sleep(ms) {
 
 function snapshot() {
   const jobs = readJobs(dir);
+  const sessions = machineSessions(jobs);
   return {
     jobs,
+    sessions,
     ...schedule(jobs, {
-      hour: new Date().getHours(),
       freeMemMb: freeMb(),
+      alone: sessions.alone,
       presence: readPresence(dir).state,
       outsideRuns: outsideRuns(jobs),
       aheadOfMain,

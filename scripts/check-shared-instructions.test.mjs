@@ -141,6 +141,14 @@ test('shared-instructions gate accepts the repository and refuses instruction dr
     (file, content) => { writeFileSync(file, content + '\nExtra workflow instruction.'.repeat(171)); },
     ['.agent-workflows/orchestrator.md is ', 'over its limit of 170']);
 
+  // The job queue enforces this boundary (`drivesBrowser` in scripts/jobs-store.mjs); the line
+  // that tells a wave about it must not be lost in a rewrite.
+  await refuses('orchestrator drops the browser boundary', '.agent-workflows/orchestrator.md',
+    (file, content) => {
+      assert.ok(content.includes('One browser-driving job per machine.'));
+      writeFileSync(file, content.replace('One browser-driving job per machine.', 'Browser jobs go through the queue.'));
+    }, ['is missing critical contract marker "One browser-driving job per machine."']);
+
   await refuses('Claude command exceeds the thin wrapper line limit', '.claude/commands/next.md',
     (file, content) => { writeFileSync(file, content + '\nExtra adapter instruction.'.repeat(26)); },
     ['Claude command adapter: .claude/commands/next.md is ', 'canonical instructions belong in .agent-workflows/next.md']);
