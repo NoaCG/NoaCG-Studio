@@ -27,7 +27,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gitCommonDir } from './dev-port.mjs';
-import { invokesE2e, invokesSweep, requiresRunningDevServer } from './command-match.mjs';
+import { commandSegments, invokesE2e, invokesSweep, requiresRunningDevServer } from './command-match.mjs';
 
 /** Job lifecycle. `waiting` and `running` are live; the rest are terminal. */
 export const LIVE_STATES = Object.freeze(['waiting', 'running']);
@@ -739,6 +739,18 @@ function browserMemory(dir, now) {
   return Object.fromEntries(
     Object.entries(commands).filter(([, seen]) => Number.isFinite(seen?.at) && now - seen.at < BROWSER_MEMORY_MS),
   );
+}
+
+/**
+ * Was this shell command caught launching a browser (#920)? The guard hook asks, so a remembered
+ * wrapper typed straight into a shell meets the same one-browser-run rule as a listed script.
+ * Each segment is looked up too: a typed command carries the `cd <worktree> &&` a queued one does
+ * not. False with no queue directory, and a missing or torn file is no memory.
+ */
+export function rememberedAsBrowser(dir, command, now = Date.now()) {
+  if (!dir || typeof command !== 'string') return false;
+  const memory = browserMemory(dir, now);
+  return [command, ...commandSegments(command)].some((typed) => Object.hasOwn(memory, commandKey(typed)));
 }
 
 /** Remember that `command` (job `job`) launched a browser while priced light. The runner's only write. */

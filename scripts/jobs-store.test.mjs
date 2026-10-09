@@ -57,6 +57,7 @@ import {
   writeJob,
   readReviewStamp,
   rememberBrowserCommand,
+  rememberedAsBrowser,
   repricedAsBrowser,
   stampGap,
   watchedForBrowser,
@@ -356,6 +357,22 @@ test('a command caught launching a browser is queued as browser work from the st
   assert.equal(sayGate.caughtBrowser, undefined);
   // The memory sits beside the jobs and is never read as one.
   assert.ok(readJobs(dir).every((j) => typeof j.id === 'string' && j.id.startsWith('j-')));
+});
+
+test('the guard reads the same memory: a caught command is browser work typed into a shell too (#920)', (t) => {
+  const dir = tempQueue();
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const command = 'node scripts/before-after.mjs';
+  assert.equal(rememberedAsBrowser(dir, command, NIGHT), false, 'nothing caught yet');
+  rememberBrowserCommand(dir, { command, job: 'j-0001', now: NIGHT });
+  for (const typed of [command, ` node  scripts/before-after.mjs`, `cd /wt/a && ${command}`, `FOO=1 ${command}`]) {
+    assert.equal(rememberedAsBrowser(dir, typed, NIGHT + 1), true, typed);
+  }
+  // Only that command, only in its window, and no queue or no memory is no answer.
+  assert.equal(rememberedAsBrowser(dir, `${command} --dry-run`, NIGHT + 1), false);
+  assert.equal(rememberedAsBrowser(dir, command, NIGHT + BROWSER_MEMORY_MS), false);
+  assert.equal(rememberedAsBrowser(null, command, NIGHT + 1), false);
+  assert.equal(rememberedAsBrowser(join(dir, 'missing'), command, NIGHT + 1), false);
 });
 
 test('a remembered browser command expires and the memory is capped, so no script stays heavy for ever', (t) => {

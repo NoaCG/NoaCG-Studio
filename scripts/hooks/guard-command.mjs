@@ -45,6 +45,7 @@ import {
   WHOLE_SUITE_ON_GITHUB,
 } from '../command-match.mjs';
 import { checkoutRoot, commandCheckout, devPortOverride } from '../command-target.mjs';
+import { jobsDir, rememberedAsBrowser } from '../jobs-store.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
@@ -283,7 +284,9 @@ if (toMain) {
 //     session can see it from inside its own checkout.
 //     Serialising costs nothing: two jobs sharing one box do not finish sooner than two run
 //     back to back, they only make everything else unusable while they do it.
-if (invokesE2e(command) || invokesSweep(command)) {
+//     A command the job runner caught launching a browser is browser work here too (#920): its
+//     text says nothing, but the queue already knows (`rememberedAsBrowser` in jobs-store.mjs).
+if (invokesE2e(command) || invokesSweep(command) || rememberedAsBrowser(jobsDir(), command)) {
   //   The whole default suite runs on GitHub Actions, never here: the job queue refuses it as a
   //   job, and this refuses it typed straight into the shell.
   if (runsWholeSuite(command)) deny(WHOLE_SUITE_ON_GITHUB);
