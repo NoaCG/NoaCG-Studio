@@ -97,7 +97,8 @@ export function createCommunityPacksHandler(deps: CommunityPacksDeps = {}): { fe
           return apiError('forbidden', 'This credential may not create graphics in the library.', 403);
         }
         const budget = checkAgentSavePrincipalRateLimit(principal.userId);
-        if (budget) return apiError('rate_limited', 'Too many saves - slow down.', 429, {}, { 'retry-after': String(budget.retryAfterSec) });
+        // The save doors' budget: a share is one more thing the same key sends.
+        if (budget) return apiError('rate_limited', 'Too many requests from this key - slow down.', 429, {}, { 'retry-after': String(budget.retryAfterSec) });
 
         let body: unknown;
         try {

@@ -67,13 +67,16 @@ export type ShareOutcome =
   | { id: string; state: 'in_review'; shownAs: string; withoutCues: boolean }
   | { reason: 'checks' | 'refused' | 'bridge'; error: string; findings?: Array<{ graphic?: string; message: string }> };
 
-/** Why a share cannot even start, or null. `names` are the arguments as the caller spells them. */
+/** Why a share cannot even start, or null. `names` are the arguments as the caller spells them.
+ *  The lengths are the submit gate's (migration 0084), checked here so nothing is sent first. */
 export function shareProblem(
   share: ShareOptions,
   save: boolean,
-  names = { save: '--save', license: `--license ${SHARE_LICENSE}`, shownAs: '--shown-as', description: '--description' },
+  packName: string,
+  names = { save: '--save', name: '--name', license: `--license ${SHARE_LICENSE}`, shownAs: '--shown-as', description: '--description' },
 ): string | null {
   if (!save) return `Sharing needs ${names.save}: the shared pack is the one put on your Home.`;
+  if (packName.trim().length > 80) return `A shared pack's ${names.name} is at most 80 characters.`;
   if (share.license.trim().toLowerCase() !== SHARE_LICENSE) {
     return `Sharing needs ${names.license}: everything on Community packs is CC BY 4.0, so anyone may use it in any show with the name it is shown under.`;
   }
@@ -244,11 +247,14 @@ async function shareToCommunity(
   } catch (e) {
     let message = e instanceof Error ? e.message : String(e);
     if (e instanceof ApiError) {
-      // 409 is the submit gate's own sentence; 404 is a deployment without the share door.
-      message = e.failure.status === 409
-        ? e.failure.message
-        : e.failure.status === 404
-          ? `the NoaCG at ${origin} does not take shared packs yet`
+      // The share door's own sentences say what to do (the submit gate's 409, the size and shape
+      // refusals, a deployment with no accounts); the package door's hints would not fit them.
+      // A 404 is a deployment that predates the door.
+      const { status } = e.failure;
+      message = status === 404
+        ? `the NoaCG at ${origin} does not take shared packs yet`
+        : [400, 409, 413, 503].includes(status)
+          ? e.failure.message
           : explainFailure(e.failure);
     }
     return { reason: 'refused', error: `Not shared: ${message}` };
@@ -304,7 +310,7 @@ export async function runPack(args: ParsedArgs, out: Out): Promise<number> {
   const rundownFile = flagString(args, 'rundown');
   const rundown = rundownFile ? await readRundown(rundownFile) : undefined;
   // Everything a share needs is the user's own words, so it is refused before any browser starts.
-  const problem = share ? shareProblem(share, save) : null;
+  const problem = share ? shareProblem(share, save, name) : null;
   if (problem) throw new UsageError(problem);
 
   // Every input must exist BEFORE the browser starts. `pack` is the one verb that cannot refuse a

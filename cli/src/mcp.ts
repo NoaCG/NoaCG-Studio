@@ -301,8 +301,9 @@ async function pack(input: Input): Promise<Result> {
   if (!save && !input.out) return refuse(notLoggedIn(origin));
   const rundown = input.rundown ? rundownFrom(input.rundown, 'rundown') : undefined;
   const problem = input.share
-    ? shareProblem(input.share, save, {
+    ? shareProblem(input.share, save, input.name, {
         save: 'this machine logged in to NoaCG (`noacg login`)',
+        name: '"name"',
         license: '"share.license": "cc-by-4.0"',
         shownAs: '"share.shownAs"',
         description: '"share.description"',

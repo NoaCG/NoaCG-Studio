@@ -623,6 +623,7 @@ test('pack --share refuses before any browser without --save, the licence, a sho
     [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'mit', '--shown-as', 'K', '--json'], /--license cc-by-4\.0/],
     [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--json'], /--shown-as/],
     [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--license', 'cc-by-4.0', '--shown-as', 'K', '--json'], /--description/],
+    [['pack', graphic, '--save', '--share', '--name', 'Q'.repeat(81), '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--shown-as', 'K', '--json'], /--name is at most 80/],
   ];
   for (const [args, said] of cases) {
     const r = await run(args);
