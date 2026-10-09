@@ -61,7 +61,8 @@ test.describe('community gallery closed to publishing (configured / signed-in)',
         uploadMessage: upload.error?.message ?? '',
       };
     });
-    // 42501: 0078's policy refused it (a database 0085 has not reached). PGRST205: no such table.
+    // 42501: 0078's policy refused it, on a database 0085 has not reached yet (hosted staging until
+    // it is pushed there). PGRST205: no such table. Keep only PGRST205 once 0085 is everywhere.
     expect(['42501', 'PGRST205'], answer.insertMessage).toContain(answer.insertCode);
     expect(answer.uploadRefused, 'an upload to the public community bucket must be refused').toBe(true);
     expect(answer.uploadMessage).toMatch(/row-level security/i);

@@ -99,7 +99,6 @@ export function TemplatesSection({ session }: { session: AdminSessionResponse })
               <tr key={`${entry.source}:${entry.key}`}>
                 <td>
                   <span className="admin-mono">{entry.key}</span>
-                  {entry.name && entry.name !== entry.key ? <div>{entry.name}</div> : null}
                 </td>
                 <td>{entry.source}</td>
                 <td>

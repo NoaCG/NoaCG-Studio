@@ -64,10 +64,6 @@ export default {
         templates.push({
           key: row.template_key,
           source: row.source === 'community' ? 'community' : 'catalog',
-          // The catalog's display name lives in the browser bundle, so an overlay row shows
-          // its id until the page joins it with the catalog it already has loaded.
-          name: row.template_key,
-          category: '',
           visibility: isVisibility(row.visibility) ? row.visibility : 'public',
           uses: uses.get(row.template_key) ?? 0,
           note: row.note,
