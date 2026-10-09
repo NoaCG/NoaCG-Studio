@@ -189,13 +189,10 @@ export const POLICY = Object.freeze({
    * everything slows at once - the instability an unattended wave must not cause. 3.5 GB still
    * admits the suite in the case that motivated `away` (3.5 GB free all evening, nobody there).
    *
-   * A BROWSER RUN ADMITTED HERE IS SIZED BY THE WORKER LADDER, NOT BY THIS FLOOR (#855). A
-   * targeted spec takes 1.8-2.8 GB depending on its workers (measured 2026-10-10, the table is in
-   * `scripts/e2e-workers.mjs`), and three workers at 3.5 GB left 0.8-1.2 GB. Raising this
-   * floor was the other answer and the wrong one: free memory never reached 3.5 GB in 47 minutes
-   * of that away night with agent sessions live, so a higher floor only holds browser work out
-   * longer. The ladder now picks two workers at this floor and about 1.4 GB stays free;
-   * `e2e-workers.test.mjs` pins the two numbers together.
+   * A BROWSER RUN ADMITTED HERE IS SIZED BY THE WORKER LADDER (`scripts/e2e-workers.mjs`, #855),
+   * which keeps a gigabyte free at this floor; `e2e-workers.test.mjs` pins the two together. The
+   * floor was not raised instead: free memory never reached 3.5 GB in 47 minutes of the away night
+   * it was measured on, so a higher floor would only hold browser work out longer.
    */
   freeMemFloorMb: Object.freeze({
     present: overrideFloorMb() ?? 4096,
