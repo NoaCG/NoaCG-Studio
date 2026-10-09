@@ -134,7 +134,8 @@ reach users: a package an agent made can be shared, reviewed and installed by an
 - **D12: NoaCG first, then everyone.** Until AC-5's lock has landed, the server accepts
   submissions only from moderator accounts and the door shows only to them, so NoaCG seeds the
   shelf through the real path while no outside pack can go live unlocked. When AC-5 lands, one
-  migration opens submit to every signed-in account and the door follows.
+  migration opens submit to every signed-in account and the door follows. Done with the lock:
+  migration 0082.
 - **D13: the admin is the existing moderator role** (`public.moderators`, `is_moderator()`,
   migration 0004), decided server-side; the client's `useIsModerator` only decides what to draw.
 - **D14: no notification channel.** The maker reads decisions in Your packs.
@@ -200,6 +201,14 @@ The production page offers no edit door for a graphic that came from a community
 fields and cues work as for any graphic. The graphic carries where it came from (pack id and
 version), so the lock survives export and reload. Scenario: install a pack, find no Edit on its
 graphics, change a cue value and take it.
+
+Built (`e2e/community-pack-lock.spec.ts`): the graphic's control page shows no Edit graphic, motion
+picker or sound edit, and the store will not open it as the working document. The rundown's foot
+ends with one credit per pack, "From Pub Quiz by NoaCG", with ", CC BY 4.0" for a shared pack as
+its card shows. The stamp gains the pack's `name` and is kept by Duplicate, Save As and a
+production's Export then Import (a per-graphic `fromPack` in the pack file). It is not written
+into the template, so the SPX, OGraf and CasparCG exports stay plain templates: the lock is the
+studio's, not a rights control, and CC BY 4.0 permits adaptations anyway.
 
 ### AC-6: A signed-in maker submits a set of their own graphics from the shelf
 

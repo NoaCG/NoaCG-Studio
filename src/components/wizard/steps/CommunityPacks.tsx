@@ -35,8 +35,8 @@ import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
  * public/packs/community/), then the approved shared packs (migration 0079), a Submit a pack
  * door, the maker's own submissions under Your packs, and - for a NoaCG admin - what waits for
  * review. A live pack of the maker's takes an update, a new version that waits for review while
- * the live one stays on the shelf (AC-11). Until the design lock lands, submitting is open to
- * admins only (D12), on the server and here.
+ * the live one stays on the shelf (AC-11). Every signed-in account may submit (D12, migration 0082)
+ * now that the design lock (AC-5) keeps an installed pack's design as its maker made it.
  */
 
 /** One shelf entry, as public/packs/community/index.json lists it. */
@@ -343,7 +343,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
     <div className="wz-community" data-testid="community-packs">
       <div className="wz-community-head">
         <p className="wz-kit-lede">Install one and it opens as a production, rundown included.</p>
-        {moderator && (
+        {signedIn && (
           <button type="button" onClick={() => setSheet({})} data-testid="submit-pack-open">
             Submit a pack
           </button>
@@ -368,7 +368,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 {(p.state === 'in_review' || p.state === 'live') && (
                   <div className="wz-community-row-actions">
                     {/* The door is the submit door's (D12). */}
-                    {moderator && p.state === 'live' && !waitingLineages.has(p.lineage) && (
+                    {signedIn && p.state === 'live' && !waitingLineages.has(p.lineage) && (
                       <button type="button" disabled={busy !== null} onClick={() => setSheet({ updating: p })}>
                         Submit an update
                       </button>

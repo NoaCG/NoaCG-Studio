@@ -1,15 +1,15 @@
-// covers: src/components/wizard/steps/{CommunityPacks,SubmitPackSheet}.tsx, src/community/{packs,packChecks,packSources}.ts, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql
+// covers: src/components/wizard/steps/{CommunityPacks,SubmitPackSheet}.tsx, src/community/{packs,packChecks,packSources}.ts, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql, supabase/migrations/0082_community_pack_submit_open.sql
 //
 // THE COMMUNITY PACK REVIEW LOOP (docs/work-specs/community-packs/spec.md, first slice): a NoaCG
 // admin submits a folder of their own graphics from the wizard's shelf, sees it In review,
 // approves it from Waiting for review, and a signed-out visitor then finds it beside the seeds and
 // installs it as a production with one starter cue per graphic; Take down removes it again and the
-// maker reads the reason. A signed-in account that is not an admin gets no submit door (D12).
+// maker reads the reason. A signed-in account that is not an admin gets the submit door (D12).
 // Then an update (AC-11): the maker sends a new version of a live pack, it waits for review while
 // the live one stays on the shelf, approval replaces it, and Install gives the new version while
 // the old install stays as it was; withdrawing the live pack takes a waiting update with it. Last,
-// the server itself refuses a submit from an account that is not an admin and from one whose
-// `community.publish` is switched off.
+// the server takes a submit from an account that is not an admin, which waits for review and
+// which that account cannot approve, and refuses one whose `community.publish` is switched off.
 // Needs the service_role key to mint the two accounts and grant the admin role.
 
 import { test, expect, type Page } from '@playwright/test';
@@ -152,12 +152,14 @@ test.describe('community pack review (configured)', () => {
     }
     await install(visitor, PACK, 2);
 
-    // An account that is not an admin has no submit door while D12 holds.
+    // An account that is not an admin has the submit door (D12), and no admin's Take down.
     const maker = await browser.newPage();
     await signInOnHome(maker, MAKER_EMAIL, PASSWORD);
     await openShelf(maker);
-    await expect(maker.locator('.wz-community-card', { hasText: PACK })).toBeVisible();
-    await expect(maker.getByTestId('submit-pack-open')).toHaveCount(0);
+    const makerCard = maker.locator('.wz-community-card', { hasText: PACK });
+    await expect(makerCard).toBeVisible();
+    await expect(maker.getByTestId('submit-pack-open')).toBeVisible();
+    await expect(makerCard.getByRole('button', { name: 'Take down' })).toHaveCount(0);
 
     // TAKE DOWN with a reason the maker reads; the shelf stops offering it.
     const live = page.locator('.wz-community-card', { hasText: PACK });
@@ -278,14 +280,17 @@ test.describe('community pack review (configured)', () => {
     await expect(page.getByTestId('waiting-packs')).toHaveCount(0);
   });
 
-  test('the server refuses a submit from an account that is not an admin, and from one with community.publish off', async () => {
+  test('the server takes a submit from an account that is not an admin for review only, and refuses one with community.publish off', async () => {
     test.skip(!ANON_KEY, 'set VITE_SUPABASE_ANON_KEY to sign in as the two accounts');
     const pack = { format: 'noacg-pack', version: 1, name: 'x', graphics: [{ name: 'A' }] };
-    const submitAs = async (email: string) => {
+    const signIn = async (email: string) => {
       const client = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
       const { error: signInError } = await client.auth.signInWithPassword({ email, password: PASSWORD });
       if (signInError) throw new Error(signInError.message);
-      const { error } = await client.rpc('community_pack_submit', {
+      return client;
+    };
+    const submitAs = async (email: string) => {
+      const { error } = await (await signIn(email)).rpc('community_pack_submit', {
         p_name: 'Refused',
         p_description: 'Should not be stored',
         p_author: 'Nobody',
@@ -294,7 +299,19 @@ test.describe('community pack review (configured)', () => {
       return error?.message ?? null;
     };
 
-    expect(await submitAs(MAKER_EMAIL)).toBe('Submitting packs is open to NoaCG only for now.');
+    // A maker who is not an admin: the pack is stored, waits for review, and they cannot approve it.
+    const maker = await signIn(MAKER_EMAIL);
+    const sent = await maker.rpc('community_pack_submit', {
+      p_name: 'From a maker',
+      p_description: 'Waits for review',
+      p_author: 'A maker',
+      p_pack: pack,
+    });
+    expect(sent.error).toBeNull();
+    const decided = await maker.rpc('community_pack_decide', { p_id: sent.data, p_state: 'live', p_reason: null });
+    expect(decided.error?.message).toBe('Only a NoaCG admin can decide on a pack.');
+    const { data: stored } = await admin.from('community_packs').select('state').eq('id', sent.data).single();
+    expect(stored?.state).toBe('in_review');
 
     // An admin's per-account switch: a permanent override that denies (migration 0022).
     const { error } = await admin.from('user_grants').insert({
