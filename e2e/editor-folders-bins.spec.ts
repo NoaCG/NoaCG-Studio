@@ -338,14 +338,14 @@ test('real template task uses folders, groups and bins, reopens and executes eve
     const sponsorBin = page.getByRole('button', { name: 'Bin Sponsors', exact: true });
     await sponsorBin.scrollIntoViewIfNeeded(); await expect(sponsorBin).toBeInViewport();
     expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(150);
-    await page.screenshot({ path: 'docs/research/editor-r1-2b-7/' + label + '-bins.png', fullPage: true });
+    await page.screenshot({ path: test.info().outputPath(label + '-bins.png'), fullPage: true });
   }
   await page.getByRole('button', { name: 'Close Project', exact: true }).click();
   for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) {
     await page.setViewportSize({ width, height }); await select(page, [group]); await page.getByRole('button', { name: 'Enter group', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Back to Composition', exact: true })).toBeVisible();
     expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(150);
-    await page.screenshot({ path: 'docs/research/editor-r1-2b-7/' + label + '.png', fullPage: true });
+    await page.screenshot({ path: test.info().outputPath(label + '.png'), fullPage: true });
     await page.getByRole('button', { name: 'Back to Composition', exact: true }).click();
   }
   await page.setViewportSize({ width: 1920, height: 1080 });

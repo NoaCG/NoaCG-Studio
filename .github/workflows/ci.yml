@@ -544,6 +544,19 @@ jobs:
           echo "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"
           npm run test:e2e -- $SPECS
 
+      # A spec writes its pictures and reports to its own output folder (`testInfo.outputPath`,
+      # under the ignored test-results/), never into the repository. One that rewrote tracked
+      # evidence under docs/ left changed files unrelated to the work, which then rode into
+      # whatever commit came next (issue #801). This names the spec's leftovers and fails.
+      - name: Tests left the tree clean
+        run: |
+          DIRTY="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$DIRTY" ]; then
+            echo "::error title=E2E wrote into the repository::A spec in this shard changed or created files git does not ignore. Write test output to testInfo.outputPath() instead."
+            echo "$DIRTY"
+            exit 1
+          fi
+
       - name: Upload shard report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

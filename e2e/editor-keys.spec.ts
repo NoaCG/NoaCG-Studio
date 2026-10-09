@@ -5,7 +5,6 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
-import { mkdirSync } from 'node:fs';
 import { pickDesign } from './_browse';
 
 test('Quiz source-controlled animation is preserved and explains the base editing path', async ({ page }) => {
@@ -135,8 +134,7 @@ for (const width of [1920, 1366, 1093]) test('text and box second keys, cancel, 
     const bounds = await (await preview(page)).locator(selector).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; });
     expect(bounds.x).toBeGreaterThan(0); expect(bounds.y).toBeGreaterThan(0); expect(bounds.right).toBeLessThan(1920); expect(bounds.bottom).toBeLessThan(1080);
   }
-  mkdirSync('docs/research/editor-r1-1b/built', { recursive: true });
-  await page.screenshot({ path: `docs/research/editor-r1-1b/built/keys-${width}.png` });
+  await page.screenshot({ path: test.info().outputPath(`keys-${width}.png`) });
   expect(errors).toEqual([]);
 });
 

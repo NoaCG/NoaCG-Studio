@@ -109,8 +109,8 @@ test('real template search reaches a created path in Hairline drawing space', as
   const start = await f.locator(id + ' path').evaluate(el => { const path = el as SVGPathElement, p = path.getPointAtLength(0), m = path.getScreenCTM()!; return { x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f }; });
   expect(Math.abs(start.x - 700)).toBeLessThan(2); expect(Math.abs(start.y - 300)).toBeLessThan(2);
   await page.getByRole('button', { name: 'Edit points', exact: true }).click();
-  await page.screenshot({ path: 'docs/research/editor-r1-2b-4/catalog-path.png', fullPage: true });
-  await page.setViewportSize({ width: 1366, height: 900 }); await page.screenshot({ path: 'docs/research/editor-r1-2b-4/laptop-path.png', fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('catalog-path.png'), fullPage: true });
+  await page.setViewportSize({ width: 1366, height: 900 }); await page.screenshot({ path: test.info().outputPath('laptop-path.png'), fullPage: true });
   expect(errors).toEqual([]);
 });
 
