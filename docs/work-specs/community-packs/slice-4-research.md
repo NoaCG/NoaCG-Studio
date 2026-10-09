@@ -145,6 +145,9 @@ the same sheet with those two. As a non-moderator, signed out, and offline, neit
 
 ### Recommendation: `--share` on `noacg pack`, one server door, one opt-in skill reference
 
+**As built (2026-10-09):** as recommended, with migration 0084 for the gate and CLI 0.10.0. The door
+also refuses a body without `"license": "cc-by-4.0"`, and `docs/AGENT_SAVE.md` §8 is its reference.
+
 **The command.** `noacg pack` gains `--share`, which sends the pack for review to Community
 packs from the same build it already makes. It needs `--save`: the owner's ask is sharing as
 the user imports to their own account, and requiring it reuses the key lookup, normalisation and
