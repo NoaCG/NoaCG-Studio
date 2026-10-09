@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/CommunityPacks.tsx, src/components/community/SubmitPackSheet.tsx, src/components/home/sections/GraphicsSection.tsx, src/community/{packs,packChecks,packSources,librarySource}.ts, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql, supabase/migrations/0082_community_pack_submit_open.sql
+// covers: src/components/wizard/steps/CommunityPacks.tsx, src/components/community/SubmitPackSheet.tsx, src/components/home/sections/GraphicsSection.tsx, src/community/{packs,packChecks,packSources,librarySource}.ts, src/validation/networkBench.ts, supabase/migrations/0086_community_pack_reports.sql, supabase/migrations/0079_community_packs.sql, supabase/migrations/0080_community_pack_update.sql, supabase/migrations/0082_community_pack_submit_open.sql
 //
 // THE COMMUNITY PACK REVIEW LOOP (docs/work-specs/community-packs/spec.md, first slice): a NoaCG
 // admin submits a folder of their own graphics from the wizard's shelf, sees it In review,
@@ -12,7 +12,8 @@
 // which that account cannot approve, and refuses one whose `community.publish` is switched off.
 // And from Home (slice 4 (a)): a folder's ⋯, opened by right-click, and a selection's ⋯ open the
 // same sheet with that source chosen, leaving out what was installed from the shelf; signed out,
-// Home offers neither.
+// Home offers neither. Send refuses a graphic that makes an outside request (D5) and names it. A
+// signed-in account reports a live pack; the admin reads it under Reported and dismisses it.
 // Needs the service_role key to mint the two accounts and grant the admin role.
 
 import { test, expect, type Page } from '@playwright/test';
@@ -187,6 +188,30 @@ test.describe('community pack review (configured)', () => {
     await expect(maker.getByTestId('submit-pack-open')).toBeVisible();
     await expect(makerCard.getByRole('button', { name: 'Take down' })).toHaveCount(0);
 
+    // REPORT: that account reports the pack with what is wrong with it, and hears nothing more.
+    // Signed out there is no Report, and the maker's own card has none.
+    await expect(visitor.locator('.wz-community-card', { hasText: PACK }).getByRole('button', { name: 'Report' })).toHaveCount(0);
+    await expect(page.locator('.wz-community-card', { hasText: PACK }).getByRole('button', { name: 'Report' })).toHaveCount(0);
+    await makerCard.getByRole('button', { name: 'Report' }).click();
+    await makerCard.getByLabel('What is wrong with it').fill('Uses a logo it has no right to');
+    await makerCard.getByRole('button', { name: 'Report' }).click();
+    await expect(makerCard).toContainText('Reported. Thank you.');
+    await expect(makerCard.getByRole('button', { name: 'Report' })).toHaveCount(0);
+    if (SHOTS) await maker.screenshot({ path: `${SHOTS}/reported-card-desktop.png` });
+
+    // The admin reads it under Reported, with the reason, and dismisses it: the pack stays live.
+    await openShelf(page);
+    const reported = page.getByTestId('reported-packs').locator('.wz-community-row', { hasText: PACK });
+    await expect(reported).toContainText('1 report');
+    await expect(reported).toContainText('Uses a logo it has no right to');
+    if (SHOTS) {
+      await reported.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${SHOTS}/reported-row-desktop.png` });
+    }
+    await reported.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(page.getByTestId('reported-packs')).toHaveCount(0);
+    await expect(page.locator('.wz-community-card', { hasText: PACK })).toHaveCount(1);
+
     // TAKE DOWN with a reason the maker reads; the shelf stops offering it.
     const live = page.locator('.wz-community-card', { hasText: PACK });
     await live.getByRole('button', { name: 'Take down' }).click();
@@ -350,6 +375,35 @@ test.describe('community pack review (configured)', () => {
     await sheet.getByTestId('submit-pack-go').click();
     await expect(sheet).toHaveCount(0);
 
+    // AN OUTSIDE REQUEST (D5): a graphic that loads a picture from a CDN when it plays, its URL
+    // built at runtime so the static screen cannot read it, passes the checks as the sheet
+    // changes; Send plays it with the request refused, names the URL and keeps the sheet open
+    // with nothing sent.
+    const FETCHES = `${PACK} fetches`;
+    await page.evaluate(async (folder) => {
+      const { variantsFor } = await import('/src/templates/catalog.ts');
+      const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
+      const t = variantsFor('lower-third')[0].create({});
+      const js = `${t.js}\n;(function () { var own = window.play; window.play = function () { new Image().src = 'https:' + '//cdn.example.invalid/logo.png'; return own && own.apply(this, arguments); }; })();`;
+      const made = createGraphic({ ...t, js }, { name: 'Fetching strap', packageId: null });
+      if (made.error) throw new Error(made.error);
+      const error = setGraphicsFolder([made.doc.id], folder);
+      if (error) throw new Error(error);
+    }, FETCHES);
+    await page.getByTestId('home-search').fill('');
+    await openHomeGraphics(page);
+    const fetching = page.getByTestId(`folder-item-${FETCHES}`);
+    await fetching.getByTestId('row-menu').click();
+    await fetching.getByTestId('submit-to-community').click();
+    await sheet.getByTestId('submit-pack-description').fill('Asks the internet for its logo');
+    await expect(sheet.getByTestId('submit-pack-findings')).toHaveCount(0);
+    await sheet.getByTestId('submit-pack-go').click();
+    await expect(sheet.getByTestId('submit-pack-findings')).toContainText('https://cdn.example.invalid/logo.png (an image) when it plays', { timeout: 20_000 });
+    // The sheet stays open with nothing sent; Send stays live, because it checks again.
+    await expect(sheet.getByTestId('submit-pack-go')).toBeEnabled();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/home-submit-request-refused-desktop.png` });
+    await sheet.getByTestId('submit-pack-cancel').click();
+
     // Both wait for review under the maker's Your packs, with the graphics chosen on Home.
     await openShelf(page);
     const mine = page.getByTestId('your-packs');
@@ -357,6 +411,8 @@ test.describe('community pack review (configured)', () => {
     await expect(mine.locator('.wz-community-row', { hasText: `${PACK} picked` })).toContainText('In review');
     const { data: stored } = await admin.from('community_packs').select('name, graphics').in('name', [QUIZ, `${PACK} picked`]);
     expect(Object.fromEntries((stored ?? []).map((r) => [r.name, r.graphics]))).toEqual({ [QUIZ]: 3, [`${PACK} picked`]: 2 });
+    const { count: refused } = await admin.from('community_packs').select('id', { count: 'exact', head: true }).eq('name', FETCHES);
+    expect(refused).toBe(0);
 
     // SIGNED OUT, Home offers neither door: absent, never disabled.
     const visitor = await browser.newPage();

@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{CommunityPacks,BrowseStep}.tsx, src/components/community/SubmitPackSheet.tsx, src/community/{packChecks,packSources}.ts, {packs/community/**,public/packs/community/**,scripts/build-production-pack.mjs}
+// covers: src/components/wizard/steps/{CommunityPacks,BrowseStep}.tsx, src/components/community/SubmitPackSheet.tsx, src/community/{packChecks,packSources}.ts, src/validation/{networkBench,networkGuard}.ts, {packs/community/**,public/packs/community/**,scripts/build-production-pack.mjs}
 //
 // COMMUNITY PACKS (docs/work-specs/community-packs/spec.md): the template wizard's third
 // category. Browse offers One graphic, A whole kit and Community packs; the shelf lists the
@@ -130,6 +130,49 @@ test('a pack of graphics: the checks refuse an outside font, placeholder text an
   expect(result.rundown).toBeNull();
   expect(result.graphics).toEqual(['A', 'B']);
   expect(result.cues).toBe(2);
+});
+
+test('the request check plays each graphic with outside requests refused and names what it asked for, and when (D5)', async ({ page }) => {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const found = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { checkPackRequests } = await import('/src/community/packChecks.ts');
+    const clean = variantsFor('lower-third')[0].create({});
+    // Two URLs built at runtime, which the static share screen cannot read: an image a CDN serves
+    // when the graphic plays, and a call its code makes on Continue.
+    const wrap = (name: string, before: string) =>
+      `\n;(function () { var own = window.${name}; window.${name} = function () { ${before} return own && own.apply(this, arguments); }; })();`;
+    const cdn = { ...clean, js: clean.js + wrap('play', "new Image().src = 'https://cdn.example.invalid/' + 'logo.png';") };
+    const later = {
+      ...clean,
+      js: clean.js + wrap('next', "window['fe' + 'tch']('https://api.example.invalid/' + 'scores').catch(function () {});"),
+    };
+    // Two that no policy refuses: a peer-to-peer connection, and a page sent somewhere else.
+    const peer = { ...clean, js: clean.js + wrap('play', 'try { new RTCPeerConnection(); } catch (e) {}') };
+    const away = { ...clean, js: clean.js + wrap('next', "location.href = 'https:' + '//away.example.invalid/';") };
+    return checkPackRequests([
+      { name: 'Clean', template: clean },
+      { name: 'From a CDN', template: cdn },
+      { name: 'On Continue', template: later },
+      { name: 'Peer to peer', template: peer },
+      { name: 'Away', template: away },
+    ]);
+  });
+  // A catalog graphic asks for nothing outside itself: its bundled font is the one allowed file.
+  // Each finding is a `securitypolicyviolation`, the browser saying it refused the request.
+  expect(found).toEqual([
+    {
+      graphic: 'From a CDN',
+      message: expect.stringContaining('It asks for https://cdn.example.invalid/logo.png (an image) when it plays.'),
+    },
+    {
+      graphic: 'On Continue',
+      message: expect.stringContaining('It asks for https://api.example.invalid/scores (a request from its code) on Continue.'),
+    },
+    { graphic: 'Peer to peer', message: expect.stringContaining('It asks for a peer-to-peer connection (WebRTC) when it plays.') },
+    { graphic: 'Away', message: expect.stringContaining('It asks for another page (a navigation) on Continue.') },
+  ]);
 });
 
 test('the shelf reads on a phone', async ({ page }) => {

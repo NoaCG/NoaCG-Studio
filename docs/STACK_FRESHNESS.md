@@ -335,13 +335,13 @@ every landing after #745 applied it, and 4 unused-index entries had gone. `commu
 deny-all (RLS on, no policy, no client grant; 0079's self-check asserts it), its decider foreign
 key is unindexed on a small table, and its seven functions are the only door: the two anon ones
 answer only live packs, which the owner made visible signed out, and the rest check the caller
-inside. It holds **182** as of 2026-10-09: the 4 new ones are migration 0081's
-(`0081_panel_lease.sql`, the panel ownership lease), reported by every post-land run from
-37901349091 (the landing of #846, which applied 0081) on, and so by each landing after it that did
-not cause them. `panel_lease` and `panel_renew`, each for `anon`
-and `authenticated`, take the control slug through the same `panel_room_for_slug` guard as 0073's
-`panel_claim` and write only that production's `panel_rooms` row; the operator page calls them
-signed out as well as signed in. The last full breakdown was taken at 70 on
+inside. It holds **186** as of 2026-10-09: 4 are migration 0086's (community pack reports),
+recorded with that migration before it applied, and 4 are migration 0081's (`0081_panel_lease.sql`,
+the panel ownership lease), reported by every post-land run from 37901349091 (the landing of #846,
+which applied 0081) on, and so by each landing after it that did not cause them. `panel_lease` and
+`panel_renew`, each for `anon` and `authenticated`, take the control slug through the same
+`panel_room_for_slug` guard as 0073's `panel_claim` and write only that production's `panel_rooms`
+row; the operator page calls them signed out as well as signed in. The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.

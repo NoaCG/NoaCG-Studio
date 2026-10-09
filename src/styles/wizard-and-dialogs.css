@@ -1170,6 +1170,12 @@
 .wz-community-body .hint { font-size: 12px; }
 .wz-community-meta { font-size: 11px; color: var(--text-dim); }
 .wz-community-install { align-self: flex-start; }
+/* Report is quiet (community-packs slice-4-research.md): dim words at the end of the card's row,
+   never a second button beside Install. */
+.wz-community-row-actions:has(.wz-community-report, .wz-community-reported) { align-items: center; }
+.link-inline.wz-community-report { margin-left: auto; color: var(--text-dim); font-size: 12px; text-decoration: none; }
+.link-inline.wz-community-report:hover { color: var(--text); text-decoration: underline; }
+.wz-community-reported { margin-left: auto; font-size: 12px; }
 .wz-community-error { margin: 0; font-size: 12px; color: var(--danger); }
 /* A shared pack's preview is a live render, framed like the seed's still. */
 .wz-community-live { overflow: hidden; }
