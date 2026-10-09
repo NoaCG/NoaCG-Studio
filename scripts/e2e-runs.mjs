@@ -586,7 +586,7 @@ const DESKTOP_CODEX_NAME = /^chatgpt\.exe$/i;
  * times fall back to trusting the link, which is the direction that keeps a real family together;
  * every kill is separately gated on a start time that matches the record.
  */
-function believableParent(parent, child) {
+export function believableParent(parent, child) {
   if (!parent || !child) return false;
   if (!Number.isFinite(parent.createdMs) || !Number.isFinite(child.createdMs)) return true;
   return parent.createdMs <= child.createdMs;
