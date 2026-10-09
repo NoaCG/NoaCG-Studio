@@ -29,7 +29,7 @@ function stalePluginLines(plugin: InstalledPlugin, cli: string, latest: string |
   const newest = behindNpm ? (latest as string) : cli;
   const source = behindNpm ? "npm's latest is" : 'this CLI ships';
   if (!isBehind(plugin.version, newest)) return null; // current, or a version nobody can order
-  const label = plugin.kind === 'mcp' ? 'mcp plugin   ' : 'skill        ';
+  const label = (plugin.kind === 'mcp' ? 'mcp plugin' : 'skill').padEnd(13);
   return [
     `${label}${plugin.version} in ${plugin.harness}, but ${source} ${newest} - an installed plugin does not update itself unless its marketplace has auto-update on`,
     `             run: ${plugin.update}`,

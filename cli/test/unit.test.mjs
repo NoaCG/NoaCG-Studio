@@ -671,20 +671,12 @@ async function sharePack(origin, findings) {
     packEntry: async (template) => ({ name: template.name }),
     communityCheck: async () => findings,
   };
-  const before = { url: process.env.NOACG_URL, key: process.env.NOACG_AGENT_KEY };
-  process.env.NOACG_URL = origin;
-  process.env.NOACG_AGENT_KEY = `${AGENT_KEY_PREFIX}${'s'.repeat(32)}`;
-  try {
-    return await makePack([path.join(dir, 'strap')], {
-      name: 'Quiz',
-      save: true,
-      share: { license: 'cc-by-4.0', shownAs: 'Quizmaster K', description: 'A pub quiz' },
-      description: 'A pub quiz',
-    }, bridge, () => {});
-  } finally {
-    if (before.url === undefined) delete process.env.NOACG_URL; else process.env.NOACG_URL = before.url;
-    if (before.key === undefined) delete process.env.NOACG_AGENT_KEY; else process.env.NOACG_AGENT_KEY = before.key;
-  }
+  return withEnv({ NOACG_URL: origin, NOACG_AGENT_KEY: `${AGENT_KEY_PREFIX}${'s'.repeat(32)}` }, () => makePack([path.join(dir, 'strap')], {
+    name: 'Quiz',
+    save: true,
+    share: { license: 'cc-by-4.0', shownAs: 'Quizmaster K', description: 'A pub quiz' },
+    description: 'A pub quiz',
+  }, bridge, () => {}));
 }
 
 test('pack --save --share sends nothing to Home when the share is refused, so a retry adds no copy', async (t) => {

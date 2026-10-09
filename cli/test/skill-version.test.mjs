@@ -142,6 +142,27 @@ test('isBehind orders releases and refuses everything it cannot order', () => {
   }
 });
 
+/** `noacg doctor` against the fake config directories under `home` and the planted `latest` in
+ *  `cache`. Its browser cannot exist: doctor reports it as missing and never opens one, so a run
+ *  costs no browser launch and no network. */
+function runDoctor(home, cache) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(DIST, 'index.js'), 'doctor'], {
+      env: {
+        ...process.env,
+        CLAUDE_CONFIG_DIR: home,
+        CODEX_HOME: path.join(home, 'no-codex'),
+        NOACG_CLI_LATEST_CACHE_FILE: cache,
+        NOACG_BROWSER: path.join(home, 'no-such-browser'),
+      },
+    });
+    let stdout = '';
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.resume();
+    child.on('close', (code) => resolve({ stdout, code }));
+  });
+}
+
 test('doctor names the stale install and the command that fixes it', async (t) => {
   const home = await tempDir(t, 'doctor');
   const root = await plantPlugin(home, { dir: '0.2.0', manifest: '.claude-plugin', manifestVersion: '0.2.0' });
@@ -152,33 +173,16 @@ test('doctor names the stale install and the command that fixes it', async (t) =
   const { version } = JSON.parse(await fs.readFile(path.join(DIST, '..', 'package.json'), 'utf8'));
   await fs.writeFile(cache, JSON.stringify({ latest: version, checkedAt: Date.now() }));
 
-  const run = (env) => new Promise((resolve) => {
-    const child = spawn(process.execPath, [path.join(DIST, 'index.js'), 'doctor'], {
-      env: {
-        ...process.env,
-        CLAUDE_CONFIG_DIR: home,
-        CODEX_HOME: path.join(home, 'no-codex'),
-        NOACG_CLI_LATEST_CACHE_FILE: cache,
-        // A browser that cannot exist: doctor reports it as missing and never opens one, so this
-        // test costs no browser launch and no network.
-        NOACG_BROWSER: path.join(home, 'no-such-browser'),
-        ...env,
-      },
-    });
-    let stdout = '';
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.resume();
-    child.on('close', (code) => resolve({ stdout, code }));
-  });
+  const run = () => runDoctor(home, cache);
 
-  const stale = await run({});
+  const stale = await run();
   assert.match(stale.stdout, /skill {8}0\.2\.0 in Claude Code, but this CLI ships /);
   assert.match(stale.stdout, /run: claude plugin marketplace update noacg-studio && claude plugin update noacg@noacg-studio/);
   assert.doesNotMatch(stale.stdout, /^update /m, 'the CLI matches the planted latest, so it says nothing about itself');
 
   // The same run with the version the CLI ships: no row at all.
   await fs.writeFile(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'noacg', version }));
-  const current = await run({});
+  const current = await run();
   assert.doesNotMatch(current.stdout, /^skill /m, 'matching versions print nothing');
   assert.equal(current.code, stale.code, 'a version row never changes the exit code');
 
@@ -188,7 +192,7 @@ test('doctor names the stale install and the command that fixes it', async (t) =
   await fs.writeFile(cache, JSON.stringify({ latest: '9.9.9', checkedAt: Date.now() }));
   // The CLI itself is not told to move to npm's latest: it already runs what the plugin runs, and a
   // newer CLI is what the plugin's launcher would skip. Updating the plugin comes first.
-  const bothOld = await run({});
+  const bothOld = await run();
   assert.match(bothOld.stdout, new RegExp(`^skill {8}${version.replace(/\./g, '\\.')} in Claude Code, but npm's latest is 9\\.9\\.9`, 'm'));
   assert.doesNotMatch(bothOld.stdout, /^update /m, 'the CLI matches the plugin, so it is not told to move');
   assert.doesNotMatch(bothOld.stdout, /@latest/);
@@ -205,21 +209,7 @@ async function doctorWith(t, { latest, plugins = [] }) {
   await plantIndex(home, entries);
   const cache = path.join(home, 'latest.json');
   await fs.writeFile(cache, JSON.stringify({ latest, checkedAt: Date.now() }));
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, [path.join(DIST, 'index.js'), 'doctor'], {
-      env: {
-        ...process.env,
-        CLAUDE_CONFIG_DIR: home,
-        CODEX_HOME: path.join(home, 'no-codex'),
-        NOACG_CLI_LATEST_CACHE_FILE: cache,
-        NOACG_BROWSER: path.join(home, 'no-such-browser'),
-      },
-    });
-    let stdout = '';
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.resume();
-    child.on('close', () => resolve(stdout));
-  });
+  return (await runDoctor(home, cache)).stdout;
 }
 
 test('doctor recommends the CLI version the installed plugin runs, never one its launcher skips', async (t) => {

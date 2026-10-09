@@ -289,11 +289,11 @@ export function describePack(outcome: PackOutcome): string {
       `Sent "${outcome.name}" for review under CC BY 4.0, shown as "${share.shownAs}". It is In review under Your packs on the Community packs shelf; you can withdraw it there.`,
     );
     if (share.withoutCues && outcome.url) lines.push('The shared copy carries no cues; the rundown stays on your Home copy.');
+    if (!outcome.ok && outcome.error) lines.push(outcome.error); // shared, but Home refused
   } else if (share) {
     for (const f of share.findings ?? []) lines.push(f.graphic ? `- ${f.graphic}: ${f.message}` : `- ${f.message}`);
     lines.push(share.error);
   }
-  if (!outcome.ok && share && 'id' in share && outcome.error) lines.push(outcome.error);
   return lines.join('\n');
 }
 
