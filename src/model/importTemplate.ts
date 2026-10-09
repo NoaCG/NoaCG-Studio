@@ -158,13 +158,9 @@ export function importHtmlTemplate(
   // the HTML, like our own templates) and a bundled GSAP (ours is re-added at export/preview).
   html = html.replace(/[ \t]*<script\b([^>]*)>([\s\S]*?)<\/script>\s*/gi, (full: string, attrs: string, body: string) => {
     if (/\bsrc\s*=/i.test(attrs)) return full; // external reference — keep in place
-    if (/SPXGCTemplateDefinition/.test(body)) return full;
-    // A module script must keep its tag: import/export only parse as a module, so moving
-    // the body into the classic JS pane manufactures a syntax error (real SPX packs ship
-    // <script type="module"> templates - the HKO lineage in the reference corpus).
-    if (/\btype\s*=\s*["']module["']/i.test(attrs)) return full;
-    // Our own injected control receiver is re-added at export time — drop it on import so
-    // a round-trip stays faithful (same as we drop a bundled GSAP blob below).
+    // What an export adds is dropped by its id, first, since an export writes it again. A
+    // round trip then stays faithful (same as we drop a bundled GSAP blob below). Our own
+    // injected control receiver:
     if (/spx-control-receiver/.test(attrs)) return '';
     // The flex-gap shim likewise: every composer and exporter re-adds it, so it is stripped by
     // its id here rather than recognised by its size or wording.
@@ -173,6 +169,19 @@ export function importHtmlTemplate(
     if (/noacg-spx-steps/.test(attrs)) return '';
     // And its text script (export/spxText.ts), which the CasparCG single file carries too.
     if (/noacg-spx-text/.test(attrs)) return '';
+    // And what a single-file target runs after the template's JS (export/selfContained.ts
+    // TargetScript): CasparCG's data shim, H2R's on/off toggle, the overlay's relay receiver and
+    // autoplay. Kept, each came back as the graphic's code and stacked on every round trip (#901);
+    // the autoplay block reads SPXGCTemplateDefinition, so the test below kept it in the HTML.
+    // H2R's GDD block is written again from the fields too (export/targets/h2r.ts gddScript).
+    if (/noacg-(caspar-data|h2r-toggle|h2r-gdd|local-receiver|overlay-autoplay)\b/.test(attrs)) return '';
+    if (/SPXGCTemplateDefinition/.test(body)) return full;
+    // A block that is not classic JavaScript keeps its tag. A module script: import/export only
+    // parse as a module, so moving the body into the classic JS pane manufactures a syntax error
+    // (real SPX packs ship <script type="module"> templates - the HKO lineage in the reference
+    // corpus). And data (somebody's own H2R GDD, JSON), which would not parse there either.
+    const type = /\btype\s*=\s*["']([^"']*)["']/i.exec(attrs)?.[1].trim().toLowerCase();
+    if (type && !/^(text|application)\/(x-)?(java|ecma)script$/.test(type)) return full;
     const trimmed = body.trim();
     if (!trimmed) return '';
     if (trimmed.length > 12000 && /gsap|GreenSock/i.test(trimmed.slice(0, 400))) return '';

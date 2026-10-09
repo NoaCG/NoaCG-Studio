@@ -19,17 +19,26 @@ import { appendToBody, injectProjectFormatMeta } from './common';
 import { expandInset, expandInsetInMarkup } from '../assets/cssCompat';
 import { inlineSounds } from './inlineSounds';
 
+/** A script a single-file target runs after the template's own JS, in a tag of its own. */
+export interface TargetScript {
+  /** The tag's id, by which the import door (model/importTemplate.ts) leaves it out. */
+  id: string;
+  js: string;
+}
+
 /**
  * Build the single-file HTML: strip external refs, inline everything. `extraBodyScripts` are
- * appended AFTER the template's own JS (each becomes part of the same <script> block), so a
- * target can wrap the globals — e.g. CasparCG's XML data shim or the overlay's autoplay block.
+ * appended AFTER the template's own JS, so a target can wrap the globals — e.g. CasparCG's XML
+ * data shim or the overlay's autoplay block. Each is its own <script> tag with an id, never part
+ * of the template's block: the import door moves that block into the JS pane, so a shim inside it
+ * came back as the graphic's code and stacked one more copy on every round trip (issue #901).
  *
  * Async because the bundled font files are fetched from the app's own /fonts/ to be embedded;
  * a font that cannot be read fails the export rather than shipping a dangling reference.
  */
 export async function composeSelfContainedHtml(
   template: SpxTemplate,
-  extraBodyScripts: string[] = [],
+  extraBodyScripts: TargetScript[] = [],
 ): Promise<string> {
   template = { ...template, js: prepareOutRuntime(template.js) };
   // Inline uploaded assets (images/foo.png -> data URL) in markup and styles.
@@ -66,9 +75,13 @@ export async function composeSelfContainedHtml(
   // data: URL that inlineAssetRefs just put in the markup. The logo painted on the first frame
   // and then vanished, with nothing in the console: a broken <img alt=""> over transparent video
   // is indistinguishable from an empty slot.
-  const scripts = [await inlineSounds(template), ...extraBodyScripts.map(script=>inlineAssetRefs(script,template.assets.filter(a=>!a.audio)))].join('\n\n');
   // At the END of the body, so it lands after a receiver an earlier pass already appended - and
   // after anything that receiver's own text happens to contain (export/common.ts appendToBody
-  // carries the incident).
-  return appendToBody(html, `<script>\n${scripts}\n</script>`);
+  // carries the incident). Each appended tag lands after the one before, so the order holds.
+  const images = template.assets.filter((a) => !a.audio);
+  html = appendToBody(html, `<script>\n${await inlineSounds(template)}\n</script>`);
+  for (const { id, js } of extraBodyScripts) {
+    html = appendToBody(html, `<script id="${id}">\n${inlineAssetRefs(js, images)}\n</script>`);
+  }
+  return html;
 }

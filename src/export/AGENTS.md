@@ -15,7 +15,10 @@ export-time reflow, stretching, or cropping.
   for a project that was never saved. Only the two targets that bundle an operator page - SPX
   and the HTML overlay - consume them).
 - **selfContained.ts** - single-file composer: inline CSS/GSAP/JS/assets/FONTS + extra body
-  scripts. ASYNC, because the fonts are fetched to be embedded.
+  scripts. ASYNC, because the fonts are fetched to be embedded. Each extra script (a
+  `TargetScript`: CasparCG's data shim, H2R's toggle, the overlay's relay receiver and autoplay)
+  is its own tag with an id that the import door strips, never part of the template's block: the
+  door moves that block into the JS pane, so a shim inside it stacked on every round trip (#901).
 - **bundledFonts.ts** - the one place that knows how a builder font leaves the app. Generated CSS
   always says `url("fonts/<file>")`; there are exactly two ways to honour that, and the package
   shape picks one. A FOLDER package ships the file beside the HTML (common.ts
@@ -42,7 +45,8 @@ export-time reflow, stretching, or cropping.
   noacgPackage.ts keeps `controlpanel.html`, which its CLI documents); and a stepped graphic
   carries `spxStepGuardScript`, which turns the Continue after the last step into stop(), because
   SPX 1.2.1 sends one more `next` there and shows the item as stopped. The guard is stripped on
-  import by its id.
+  import by its id. The panel name is the only difference `forSpx` makes: the dual package is
+  the same SPX layout, so it carries the guard and the text script too (#900).
 - **outputEmbed.ts** - the OUTPUT EMBED: one standalone .html that frames a published production's
   `/output?production=<slug>` URL, downloaded from the production page's Links block beside the URL
   itself (never from the export dialog - it packages no graphics, it IS that link in another
