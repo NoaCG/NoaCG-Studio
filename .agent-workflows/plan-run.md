@@ -38,7 +38,7 @@ with the branch and worktree. The ledger refuses a step out of order or launched
 means launch nothing and run `next` again.
 
 - **launch build** (or **repair**): a builder with the brief below, the repair one with the
-  checker's findings. When its pull request merges, record `landed #<n>`.
+  checker's findings. When its pull request merges, record the event `landed` with detail `#<n>`.
 - **launch check**: a checker with the brief below, after the phase is on `main`. When its notes
   pull request merges, record `pass` or `fail` and its findings in one line.
 - **wait**: the step is running. After a restart its session may be gone: a merged pull request is
