@@ -12,23 +12,38 @@
 // It acts only in a template that has the contract's `setFieldValue` writer: the NoaCG contract
 // writes field values as text and escapes anything it builds with innerHTML, so a decoded value
 // still goes in as text. A template without that writer (the blank starter, an imported SPX
-// template) sets values as HTML the way SPX expects, and is left exactly as it was.
+// template) sets values as HTML the way SPX expects, and is left exactly as it was. The one
+// exception is the Picture graphic (templates/picture.ts): its only value is an image path it sets
+// as the src attribute without `setFieldValue`, so a picked `Q&A.jpg` arrived as `Q&amp;A.jpg` and
+// the picture was blank (issue #888). The exporter knows the graphic's type and opens the gate for
+// a Picture, which also covers every Picture already saved in a production: its runtime is stored
+// with it and never regenerated.
 //
 // Decoding reverses SPX's escaping exactly once, so text that arrives through SPX comes out as
 // typed, even text that itself looked like an entity. A value that did NOT come through SPX (the
 // bundled control panel, a CasparCG client) is decoded too; only text typed as a literal entity or
 // a literal <br> changes there, which is the price of one rule for every caller.
 //
+// Every SPX-layout package carries it, and so does the CasparCG single file, whose guide says how
+// to play it from SPX. It is always its own script tag at the end of the body, never part of the
+// template's JS, so the import door strips it by its id and a re-exported graphic carries it once:
+// a second copy would decode twice and turn a typed `&amp;` into `&`.
+//
 // ES5, for CasparCG 2.3.x's Chromium 71 (SPX can play a template there). Dependency-free, so
-// scripts/spx-text.test.mjs runs it in Node. Stripped on import by its id, like the Continue guard.
+// scripts/spx-text.test.mjs runs it in Node.
+
+import type { SpxTemplate } from '../model/types';
 
 export const SPX_TEXT_SCRIPT_ID = 'noacg-spx-text';
 
-/** The runtime, as the body of a classic script. */
-export const SPX_TEXT_JS = `/* SPX sends field values HTML-escaped, with a line break as <br>: hand them over as typed. */
+/** The runtime, as the body of a classic script. `anyTemplate` opens the gate for a template that
+ *  sets its values as text or a path without the contract's writer (the Picture graphic). */
+export function spxTextJs(anyTemplate = false): string {
+  return `/* SPX sends field values HTML-escaped, with a line break as <br>: hand them over as typed. */
 (function () {
   var update = window.update;
-  if (typeof update !== 'function' || typeof window.setFieldValue !== 'function') return;
+  if (typeof update !== 'function') return;
+  if (!${anyTemplate} && typeof window.setFieldValue !== 'function') return;
   var CHARS = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&#92;': '\\\\' };
   function asTyped(value) {
     if (typeof value !== 'string') return value;
@@ -49,8 +64,12 @@ export const SPX_TEXT_JS = `/* SPX sends field values HTML-escaped, with a line 
     return update.call(this, typeof data === 'string' ? JSON.stringify(typed) : typed);
   };
 })();`;
+}
 
-/** The script tag an SPX package appends to the end of the template's body, after js/template.js. */
-export function spxTextScript(): string {
-  return `<script id="${SPX_TEXT_SCRIPT_ID}">\n${SPX_TEXT_JS}\n</script>`;
+/** The runtime a template with the contract's writer gets. */
+export const SPX_TEXT_JS = spxTextJs();
+
+/** The script tag a package appends to the end of the template's body, after the template's JS. */
+export function spxTextScript(template: Pick<SpxTemplate, 'type'>): string {
+  return `<script id="${SPX_TEXT_SCRIPT_ID}">\n${spxTextJs(template.type === 'picture')}\n</script>`;
 }

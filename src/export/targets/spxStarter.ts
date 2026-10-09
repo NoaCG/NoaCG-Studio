@@ -198,7 +198,7 @@ export async function buildStarterInto(
   if (opts?.forSpx && steps >= 2) html = appendToBody(html, spxStepGuardScript(steps));
   // Every package of this layout plays in SPX, the dual one included, and SPX hands each value
   // over HTML-escaped: the text script writes it as typed (spxText.ts).
-  html = appendToBody(html, spxTextScript());
+  html = appendToBody(html, spxTextScript(template));
   root.file(fileName, html);
   // SPX plays it on CasparCG, which on 2.3 is Chromium 71: no `inset` (assets/cssCompat.ts).
   root.file('css/template.css', cssForSubfolder(expandInset(template.css)));

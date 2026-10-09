@@ -17,7 +17,8 @@
 import JSZip from 'jszip';
 import type { SpxTemplate } from '../../model/types';
 import { composeSelfContainedHtml } from '../selfContained';
-import { addControlPanel, withControlReceiver } from '../common';
+import { addControlPanel, appendToBody, withControlReceiver } from '../common';
+import { spxTextScript } from '../spxText';
 import { slug } from '../../model/slug';
 import { onAirGuideMd } from '../onAirGuide';
 import { casparClientStepsMd, dataFields, fieldReferenceMd } from '../fieldReference';
@@ -51,9 +52,15 @@ const CASPAR_DATA_SHIM = `// ── CasparCG data shim ────────�
 
 /** Build the single-file HTML: strip external refs, inline everything (shared composer).
  *  The control receiver lands first - it goes at the end of the body and the composer appends
- *  the template's own JS after it - so the bundled panel has something to answer it. */
-export function composeCasparHtml(template: SpxTemplate): Promise<string> {
-  return composeSelfContainedHtml(withControlReceiver(template), [CASPAR_DATA_SHIM]);
+ *  the template's own JS after it - so the bundled panel has something to answer it.
+ *  The SPX text script comes last, in its own tag: GETTING-ON-AIR.md tells an operator how to
+ *  play this file from SPX, which hands every value over HTML-escaped (spxText.ts). Inside the
+ *  composer's block it would come back on import as part of the template's JS and decode twice
+ *  after the next export; in its own tag the import door strips it by its id. A CasparCG client's
+ *  XML passes it untouched (it is not JSON) and the shim under it reads the XML as before. */
+export async function composeCasparHtml(template: SpxTemplate): Promise<string> {
+  const html = await composeSelfContainedHtml(withControlReceiver(template), [CASPAR_DATA_SHIM]);
+  return appendToBody(html, spxTextScript(template));
 }
 
 export const casparTarget: ExportTarget = {

@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 
-const { SPX_TEXT_JS, spxTextScript, SPX_TEXT_SCRIPT_ID } = await import('../src/export/spxText.ts');
+const { SPX_TEXT_JS, spxTextJs, spxTextScript, SPX_TEXT_SCRIPT_ID } = await import('../src/export/spxText.ts');
 
 /** SPX 1.4.1's cleanUpString (utils/spx_server_functions.js), verbatim, minus its log line. */
 function cleanUpString(str) {
@@ -27,9 +27,14 @@ function cleanUpString(str) {
 
 /** A page with js/template.js loaded (the contract's setFieldValue and update), then, when asked,
  *  the SPX package's text script after it, as the package's HTML orders them. */
-function page({ withScript = true, templateJs } = {}) {
+function page({ withScript = true, script = SPX_TEXT_JS, templateJs } = {}) {
   const elements = {};
-  const el = (id, tagName = 'DIV') => (elements[id] = { id, tagName, textContent: '', innerHTML: '', src: '', style: {} });
+  const el = (id, tagName = 'DIV') =>
+    (elements[id] = {
+      id, tagName, textContent: '', innerHTML: '', src: '', style: {}, attributes: {},
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      removeAttribute(name) { delete this.attributes[name]; },
+    });
   const context = { document: { getElementById: (id) => elements[id] ?? null } };
   context.window = context;
   vm.createContext(context);
@@ -45,7 +50,7 @@ function page({ withScript = true, templateJs } = {}) {
       }`,
     context,
   );
-  if (withScript) vm.runInContext(SPX_TEXT_JS, context);
+  if (withScript) vm.runInContext(script, context);
   /** What SPX does on Play or Update: escape each value, send the fields as a JSON string. */
   const spxUpdate = (fields) =>
     context.update(JSON.stringify(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, cleanUpString(v)]))));
@@ -135,9 +140,52 @@ test('a template without the contract\'s text writer is left as it was', () => {
   assert.equal(context.setFieldValue, undefined);
 });
 
+/** The Picture graphic's update() as templates/picture.ts writes it, in every version: the path goes
+ *  into the src attribute, and there is no setFieldValue. */
+const PICTURE_JS = `function update(data) {
+  var fields = (typeof data === 'string') ? JSON.parse(data) : data;
+  var img = document.getElementById('f0');
+  if (!img) return;
+  if (Object.prototype.hasOwnProperty.call(fields, 'f0')) {
+    var src = fields.f0 ? String(fields.f0) : '';
+    if (src) { img.setAttribute('src', src); img.style.display = 'block'; }
+    else { img.removeAttribute('src'); img.style.display = 'none'; }
+  }
+}`;
+
+/** The body of the tag a package appends for a graphic of this type. */
+const scriptFor = (type) => spxTextScript({ type }).replace(/^<script[^>]*>\n|\n<\/script>$/g, '');
+
+test('a picture SPX picked by a name with & or \' gets its path as named', () => {
+  // Issue #888: SPX hands the filelist value over as `images/Q&amp;A.jpg`, a file that is not
+  // there, so the picture was blank on air. The exporter opens the gate for a Picture.
+  const { el, spxUpdate } = page({ script: scriptFor('picture'), templateJs: PICTURE_JS });
+  const img = el('f0', 'IMG');
+  spxUpdate({ f0: 'images/Q&A.jpg' });
+  assert.equal(img.attributes.src, 'images/Q&A.jpg');
+  spxUpdate({ f0: "./images/O'Brien.png" });
+  assert.equal(img.attributes.src, "./images/O'Brien.png");
+});
+
+test('the measured Picture failure is what a gate shut to it does', () => {
+  const { el, spxUpdate } = page({ script: scriptFor('blank'), templateJs: PICTURE_JS });
+  const img = el('f0', 'IMG');
+  spxUpdate({ f0: 'images/Q&A.jpg' });
+  assert.equal(img.attributes.src, 'images/Q&amp;A.jpg');
+});
+
+test('only a Picture opens the gate without the contract\'s writer', () => {
+  assert.equal(scriptFor('blank'), SPX_TEXT_JS);
+  assert.equal(scriptFor('lower-third'), SPX_TEXT_JS);
+  assert.equal(scriptFor('picture'), spxTextJs(true));
+  assert.notEqual(spxTextJs(true), SPX_TEXT_JS);
+});
+
 test('the script tag carries the id the import door strips it by', () => {
   assert.equal(SPX_TEXT_SCRIPT_ID, 'noacg-spx-text');
-  assert.match(spxTextScript(), /^<script id="noacg-spx-text">\n[\s\S]*\n<\/script>$/);
-  // ES5 for CasparCG 2.3.x's Chromium 71: no arrows, let/const, template strings or optional chaining.
-  assert.doesNotMatch(SPX_TEXT_JS, /=>|\blet\b|\bconst\b|`|\?\./);
+  for (const type of ['blank', 'picture']) {
+    assert.match(spxTextScript({ type }), /^<script id="noacg-spx-text">\n[\s\S]*\n<\/script>$/);
+    // ES5 for CasparCG 2.3.x's Chromium 71: no arrows, let/const, template strings or optional chaining.
+    assert.doesNotMatch(spxTextJs(type === 'picture'), /=>|\blet\b|\bconst\b|`|\?\./);
+  }
 });

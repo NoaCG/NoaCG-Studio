@@ -515,6 +515,7 @@ test('the single SPX and the CasparCG packages say the votes board rule too', as
     const { buildShowZip, buildShowZipFor } = await import('/src/export/showExport.ts');
     const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
     const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { buildGraphicPackage } = await import('/src/export/noacgPackage.ts');
     const { variantById } = await import('/src/templates/catalog.ts');
     const show = loadShows().find((s) => s.graphics.some((g) => g.name === 'Votes board'))!;
     const votes = show.graphics.find((g) => g.name === 'Votes board')!.template;
@@ -524,6 +525,8 @@ test('the single SPX and the CasparCG packages say the votes board rule too', as
     return {
       spxSingle: await text(await spxTarget.build(votes), /^votes_board\/README\.md$/),
       spxFolder: await text(await buildShowZip(show), /^[^/]+\/votes_board\/README\.md$/),
+      // The dual NoaCG package plays in SPX too (issue #888).
+      dual: await text(await buildGraphicPackage(votes), /^votes_board\/README\.md$/),
       casparSingle: await text(casparZip, /^votes_board\/README\.md$/),
       casparRoot: await text(await buildShowZipFor(show, 'casparcg'), /^[^/]+\/README\.md$/),
       casparHtml: await text(casparZip, /^votes_board\/votes_board\.html$/),
@@ -531,7 +534,7 @@ test('the single SPX and the CasparCG packages say the votes board rule too', as
       plainCaspar: await text(await casparTarget.build(variantById('lt01')!.create({})), /^hairline\/README\.md$/),
     };
   });
-  for (const readme of [out.spxSingle, out.spxFolder]) {
+  for (const readme of [out.spxSingle, out.spxFolder, out.dual]) {
     expect(readme).toContain('Update after Continue, in SPX');
     expect(readme).toContain("Votes board's hidden **Shown** field (`f16`)");
   }

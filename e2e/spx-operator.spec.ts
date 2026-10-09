@@ -247,3 +247,82 @@ test('a value SPX hands over HTML-escaped goes on air as typed', async ({ page, 
   expect(imported).not.toContain('noacg-spx-text');
   expect(imported).not.toContain('asTyped');
 });
+
+test('a Picture and a CasparCG single file played from SPX show what was picked and typed', async ({ page, context }) => {
+  // Issue #888: the text script stayed off in the Picture graphic (no setFieldValue), so a file
+  // picked as `Q&A.jpg` arrived as `Q&amp;A.jpg` and the picture was blank; and the CasparCG
+  // single file, whose guide says how to play it from SPX, carried no script at all.
+  const files = await page.evaluate(async () => {
+    const { createPictureTemplate } = await import('/src/templates/picture.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const out: Record<string, string> = {};
+    const zips = [await spxTarget.build(createPictureTemplate()), await casparTarget.build(variantById('lt01')!.create({}))];
+    for (const zip of zips) {
+      for (const n of Object.keys(zip.files)) {
+        if (!zip.files[n].dir && /\.(html|js|css)$/.test(n)) out[n] = await zip.file(n)!.async('string');
+      }
+    }
+    return out;
+  });
+  const air = await context.newPage();
+  // A one-pixel PNG for the picked files, so a path that reaches the server as named shows a picture.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  await air.route('http://spx-routes.local/**', (route) => {
+    const path = decodeURIComponent(new URL(route.request().url()).pathname.slice(1));
+    if (/^pictures\/images\/(Q&A\.jpg|O'Brien\.png)$/.test(path)) {
+      return route.fulfill({ contentType: 'image/png', body: png });
+    }
+    const body = files[path];
+    if (body === undefined) return route.fulfill({ status: 404, body: '' });
+    const type = path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html';
+    return route.fulfill({ contentType: type, body });
+  });
+  const update = (target: typeof air, payload: string) =>
+    target.evaluate((data) => (window as unknown as { update(d: string): void }).update(data), payload);
+  const pictureShown = () =>
+    air.locator('#f0').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
+
+  // The values as SPX 1.4.1's cleanUpString hands them over.
+  await air.goto('http://spx-routes.local/pictures/pictures.html', { waitUntil: 'load' });
+  await update(air, JSON.stringify({ f0: 'images/Q&amp;A.jpg' }));
+  expect(await air.locator('#f0').getAttribute('src')).toBe('images/Q&A.jpg');
+  await expect.poll(pictureShown).toBe(true);
+  await update(air, JSON.stringify({ f0: 'images/O&#039;Brien.png' }));
+  expect(await air.locator('#f0').getAttribute('src')).toBe("images/O'Brien.png");
+  await expect.poll(pictureShown).toBe(true);
+
+  await air.goto('http://spx-routes.local/hairline/hairline.html', { waitUntil: 'load' });
+  await update(air, JSON.stringify({ f0: 'Anna O&#039;Brien &amp; Sons' }));
+  expect(await air.locator('#f0').textContent()).toBe("Anna O'Brien & Sons");
+  // A CasparCG client's XML still reaches the template through the data shim, and as typed.
+  await update(air, '<templateData><componentData id="f0"><data id="text" value="AT&amp;amp;T"/></componentData></templateData>');
+  expect(await air.locator('#f0').textContent()).toBe('AT&amp;T');
+  await air.close();
+
+  // Imported and exported again, the single file carries the script once, so SPX's escaping is
+  // undone once: a typed `AT&amp;T` still reads `AT&amp;T`.
+  const again = await page.evaluate(async (html) => {
+    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
+    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { template } = importHtmlTemplate('hairline.html', html);
+    const zip = await casparTarget.build(template);
+    return {
+      imported: `${template.html}\n${template.js}`,
+      html: await zip.file(/^[^/]+\/[^/]+\.html$/).find((f) => !/controlpanel/.test(f.name))!.async('string'),
+    };
+  }, files['hairline/hairline.html']);
+  expect(again.imported).not.toContain('noacg-spx-text');
+  expect(again.imported).not.toContain('asTyped');
+  expect(again.html.match(/id="noacg-spx-text"/g)).toHaveLength(1);
+  const reair = await context.newPage();
+  await reair.route('http://spx-again.local/**', (route) => route.fulfill({ contentType: 'text/html', body: again.html }));
+  await reair.goto('http://spx-again.local/hairline.html', { waitUntil: 'load' });
+  await update(reair, JSON.stringify({ f0: 'AT&amp;amp;T' }));
+  expect(await reair.locator('#f0').textContent()).toBe('AT&amp;T');
+  await reair.close();
+});
