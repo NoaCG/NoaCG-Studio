@@ -66,8 +66,7 @@ function phaseState(steps) {
       if (state === 'failed' && fails > REPAIRS) fails = REPAIRS;
       continue;
     }
-    if (step.event === 'build' || step.event === 'repair') waiting = step;
-    if (step.event === 'check') waiting = step;
+    if (step.event === 'build' || step.event === 'repair' || step.event === 'check') waiting = step;
     state = { build: 'building', repair: 'repairing', landed: 'built', check: 'checking', pass: 'passed', fail: 'failed' }[step.event];
     if (step.event === 'fail') fails += 1;
     if (step.event === 'landed' || step.event === 'pass' || step.event === 'fail') waiting = null;
