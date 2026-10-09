@@ -383,7 +383,7 @@ test('All out unloads the NoaCG renderer from CasparCG through the Bridge when t
   // AC-1: the cloud stops answering. All out fails, and unloads the renderer through the Bridge.
   cloud=false;
   await allOut.click();
-  await expect(note).toContainText('Unloaded NoaCG graphics from 1-20. When the connection is back, press All out, then Load in Playout.',{timeout:20_000});
+  await expect(note).toContainText('Unloaded NoaCG graphics from 1-20. When the connection is back, press All out before Load on 1-20.',{timeout:20_000});
   expect(unloads()).toBe(1);
   expect(bridge.runs['1-20'],'the slot is empty').toBeUndefined();
   await page.screenshot({path:test.info().outputPath('offline-clear-note.png')});

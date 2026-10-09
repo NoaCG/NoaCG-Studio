@@ -2609,7 +2609,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     let said = '';
     await slotAction(async () => {
       const { where, failed } = await takeOffSlot();
-      said = failed ?? `Unloaded NoaCG graphics from ${where}. When the connection is back, press All out, then Load in Playout.`;
+      said = failed ?? `Unloaded NoaCG graphics from ${where}. When the connection is back, press All out before Load on ${where}.`;
     });
     return said ? `${base.replace(/\.?$/, '.')} ${said}` : base;
   };

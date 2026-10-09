@@ -39,7 +39,7 @@ Derived (revertible; each says how):
   animation) and the slot reads empty. Server cues are cleared by All out through the Bridge as
   today.
 - **C3. Said once.** The page's existing note line keeps All out's own failure and adds: "Unloaded
-  NoaCG graphics from <slot>. When the connection is back, press All out, then Load in Playout." A
+  NoaCG graphics from <slot>. When the connection is back, press All out before Load on <slot>." A
   renderer loaded again boots into what the cloud still says is on air, and the All out never
   reached the cloud, so All out comes first. A failed unload says that instead. Revert: the old
   note alone.
