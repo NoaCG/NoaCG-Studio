@@ -251,9 +251,9 @@ test('one browser-driving job per machine, even in the full budget', () => {
   assert.equal(drivesBrowser(job('j-0001', { command: 'npx playwright test e2e/a.spec.ts' })), true);
 });
 
-/** A process-table row; `createdMs` follows the pid, so every parent is older than its child. */
+/** A process-table row created at NIGHT + pid, so every parent is older than its child. */
 function proc(pid, ppid, name, command = name) {
-  return { pid, ppid, name, command, createdMs: pid };
+  return { pid, ppid, name, command, createdMs: NIGHT + pid };
 }
 
 /** The 2026-10-09 shape: the runner's shell, a wrapper script, Playwright under it, a browser. */
@@ -276,7 +276,7 @@ test('a wrapper that launches a browser is priced light by its text and caught b
 
   // The runner watches it, and its process tree says what the text did not.
   assert.equal(watchedForBrowser(wrapper), true);
-  assert.deepEqual(browserWorkBelow([100], WRAPPED_BROWSER).map((p) => p.pid), [102, 103]);
+  assert.deepEqual(browserWorkBelow(100, NIGHT + 100, WRAPPED_BROWSER).map((p) => p.pid), [102, 103]);
 
   // Re-queued as browser work: same place in the queue, the slot and the full floor now apply.
   const repriced = repricedAsBrowser(wrapper);
@@ -310,16 +310,27 @@ test('ordinary light work and plan-only Playwright are not browser work', () => 
     proc(102, 101, 'node.exe', 'node scripts/x.test.mjs'),
     proc(103, 101, 'powershell.exe'),
   ];
-  assert.deepEqual(browserWorkBelow([100], tests), []);
+  assert.deepEqual(browserWorkBelow(100, NIGHT + 100, tests), []);
   // Listing specs starts no browser.
   const listing = [proc(100, 1, 'cmd.exe'), proc(101, 100, 'node.exe', 'node C:/r/node_modules/@playwright/test/cli.js test --list')];
-  assert.deepEqual(browserWorkBelow([100], listing), []);
-  // A known sweep under a wrapper is browser work before it opens its first page.
-  const sweep = [proc(100, 1, 'cmd.exe'), proc(101, 100, 'node.exe', 'node scripts/l3-sweep.mjs shots')];
-  assert.deepEqual(browserWorkBelow([100], sweep).map((p) => p.pid), [101]);
-  // A pid reused by an older stranger is not the job's child.
+  assert.deepEqual(browserWorkBelow(100, NIGHT + 100, listing), []);
+  // A command line that only names a sweep script (a lint run over it) opens nothing.
+  const lint = [proc(100, 1, 'cmd.exe'), proc(101, 100, 'node.exe', 'node node_modules/eslint/bin/eslint.js scripts/l3-sweep.mjs')];
+  assert.deepEqual(browserWorkBelow(100, NIGHT + 100, lint), []);
+  // A child pid reused by an older stranger is not the job's child.
   const recycled = [proc(100, 1, 'cmd.exe'), { ...proc(60, 100, 'chrome.exe'), createdMs: 1 }];
-  assert.deepEqual(browserWorkBelow([100], recycled), []);
+  assert.deepEqual(browserWorkBelow(100, NIGHT + 100, recycled), []);
+});
+
+test('a job pid that now belongs to somebody else finds nothing, so nothing of theirs is killed', () => {
+  // The job's shell is gone and Windows gave its pid to the owner's Chrome, which started later.
+  const owners = [proc(100, 1, 'chrome.exe'), proc(101, 100, 'chrome.exe', 'chrome.exe --type=renderer')];
+  assert.deepEqual(browserWorkBelow(100, NIGHT + 100 - 60_000, owners), []);
+  // A start time the table cannot give is not proof either way, so it is not acted on.
+  const unknown = WRAPPED_BROWSER.map((p) => (p.pid === 100 ? { ...p, createdMs: null } : p));
+  assert.deepEqual(browserWorkBelow(100, NIGHT + 100, unknown), []);
+  // The runner records the start just after the shell is created; that gap is no stranger.
+  assert.equal(browserWorkBelow(100, NIGHT + 100 - 2_000, WRAPPED_BROWSER).length, 2);
 });
 
 test('the queued e2e entry points are priced as browser work by their text, as before, and not watched', () => {

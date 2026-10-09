@@ -645,21 +645,30 @@ export function descendantsOf(pids, processes) {
   return [...found.values()];
 }
 
+/** A job's start is recorded just after its shell is created; this covers the gap and clock grain. */
+const ROOT_START_SLACK_MS = 5_000;
+
 /**
- * The browser work running below `pids`: a browser process, a Playwright test CLI that is doing
- * more than listing, or a known sweep. What the job queue asks of a job it priced as light work.
+ * The browser work running below the process `pid`, started at `startedAt`: a browser, or a
+ * Playwright test CLI doing more than listing. What the job queue asks of a job it priced as
+ * light work.
  *
  * A COMMAND'S TEXT CANNOT SAY WHAT IT WILL LAUNCH. `node scripts/before-after.mjs` that spawns
  * `npx playwright test` reads as an ordinary node script, and on 2026-10-09 one was admitted as
  * light work at 1.7 GB free, under the 4 GB a browser job is held to. Its process tree tells the
- * truth whatever the wrapper is called. Matching by what is RUNNING also keeps ordinary node
- * scripts out: one that opens no browser has nothing here to find.
+ * truth whatever the wrapper is called. Matching what is RUNNING also keeps ordinary node scripts
+ * out: one that opens no browser has nothing here to find, and a command line that merely names
+ * a sweep script (a lint run over it) is not one.
+ *
+ * THE PID MUST STILL BE THE JOB'S. Windows reuses pids, and the caller kills what this finds, so a
+ * root that started after the job did is somebody else - the owner's own Chrome, say - and has
+ * nothing below it as far as this answer goes. An unknown start time is treated the same way.
  */
-export function browserWorkBelow(pids, processes) {
-  return descendantsOf(pids, processes).filter((p) =>
-    BROWSER.test(p.name ?? '')
-    || (RUNNER.test(p.command ?? '') && !isPlanOnly(p.command))
-    || SWEEP.test(p.command ?? ''));
+export function browserWorkBelow(pid, startedAt, processes) {
+  const root = processes.find((p) => p.pid === pid);
+  if (!Number.isFinite(root?.createdMs) || !(root.createdMs <= startedAt + ROOT_START_SLACK_MS)) return [];
+  return descendantsOf([pid], processes).filter((p) =>
+    BROWSER.test(p.name ?? '') || (RUNNER.test(p.command ?? '') && !isPlanOnly(p.command)));
 }
 
 /**

@@ -1078,15 +1078,27 @@ async function runner() {
     jobs = readJobs(dir);
     if (jobs.some(watchedForBrowser) && now - browserWatchAt >= BROWSER_WATCH_MS) {
       browserWatchAt = now;
-      const table = allProcesses();
+      // The holder diagnostics may have read the same table this pass; one query, not two.
+      const table = diagnosticAt === now ? diagnosticSample.processes : allProcesses();
       for (const job of jobs.filter(watchedForBrowser)) {
-        const seen = browserWorkBelow([job.pid], table);
+        const seen = browserWorkBelow(job.pid, job.startedAt, table);
         if (seen.length === 0) continue;
         const what = `${seen[0].name || 'a browser'} (pid ${seen[0].pid})`;
-        writeJob(dir, repricedAsBrowser(job));
+        // Stopped FIRST, and re-queued only once it is: a record that says waiting over a job
+        // still running would let the scheduler start it a second time beside itself.
         killTree(job.pid);
-        const said = `${job.id} launched ${what} while priced as light work - stopped, re-queued as browser work`;
-        appendFileSync(job.logPath, `\n--- ${said}\n`);
+        if (isAlive(job.pid)) {
+          console.log(`  ${job.id} launched ${what} while priced as light work - could not stop it, trying again`);
+          continue;
+        }
+        writeJob(dir, repricedAsBrowser(job));
+        const said = `${job.id} launched ${what} while priced as light work - stopped, re-queued as browser work`
+          + ' (queue it with --kind sweep to start it as one)';
+        try {
+          appendFileSync(job.logPath, `\n--- ${said}\n`);
+        } catch {
+          // The note is for whoever reads the log; a missing log must not stop the runner.
+        }
         console.log(`  ${said}`);
       }
     }

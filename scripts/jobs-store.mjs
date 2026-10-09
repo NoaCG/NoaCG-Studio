@@ -734,7 +734,9 @@ const KNOWN_PRICES = [
  *
  * The old default's argument - assume an unknown command is the worst thing on the machine -
  * survives in weakened form: an unknown command is still assumed to open a browser and is never
- * free, so a night cannot fill up with eight of them.
+ * free, so a night cannot fill up with eight of them. One that really does open a browser is
+ * caught running and re-queued at a full browser's price (`watchedForBrowser`), since 2026-10-09:
+ * every local browser run is held to the floor, not only the suite-sized ones.
  */
 export function costOf(job) {
   if (typeof job.cost === 'number') return job.cost;
