@@ -153,9 +153,15 @@ export function validatePackage(files, { host, name, version }) {
       for (const m of text.matchAll(/(?:npx -y|npm i -g) @noacg\/cli([^\s`<]*)/g)) requireThat(m[1] === `@${version}`, `unpinned or stale CLI command: ${m[0]}`);
     }
   } else {
-    const mcp = parse(files, '.mcp.json');
+    // Claude expands ${CLAUDE_PLUGIN_ROOT} in .mcp.json. Codex (0.163) does not: it starts the
+    // server from its manifest's mcpServers file, resolving `cwd` against the plugin root.
+    const [config, server] = host === 'claude'
+      ? ['.mcp.json', { command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/mcp-server.mjs'] }]
+      : ['codex-mcp.json', { command: 'node', args: ['./mcp-server.mjs'], cwd: '.' }];
+    if (host === 'codex') requireThat(parse(files, '.codex-plugin/plugin.json').mcpServers === `./${config}`, 'Codex manifest must name its MCP file');
+    const mcp = parse(files, config);
     requireThat(Object.keys(mcp?.mcpServers ?? {}).join() === 'noacg', 'MCP must declare exactly noacg');
-    requireThat(mcp.mcpServers.noacg.command === 'node' && JSON.stringify(mcp.mcpServers.noacg.args) === JSON.stringify(['${CLAUDE_PLUGIN_ROOT}/mcp-server.mjs']), 'MCP entry must be a bundled file');
+    requireThat(JSON.stringify(mcp.mcpServers.noacg) === JSON.stringify(server), `${host}: MCP entry must start the bundled launcher`);
     const launcher = files.get('mcp-server.mjs')?.toString();
     requireThat(launcher?.includes('`@noacg/cli@${REVIEWED}`') && !launcher.includes("'-y', '@noacg/cli'"), 'MCP fallback pin missing');
   }
@@ -195,7 +201,7 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
     main.set(`skills/noacg-graphic/${file}`, bytes);
   }
   requireThat(pathsIn(path.join(root, 'cli/plugin/skills/noacg-graphic')).length === pathsIn(path.join(root, 'cli/skill/noacg-graphic')).length, 'stray generated skill file');
-  for (const file of ['README.md', 'LICENSE', 'NOTICE', 'assets/icon.png', '.mcp.json', 'mcp-server.mjs']) mcp.set(file, read(`cli/plugin-mcp/${file}`));
+  for (const file of ['README.md', 'LICENSE', 'NOTICE', 'assets/icon.png', '.mcp.json', 'codex-mcp.json', 'mcp-server.mjs']) mcp.set(file, read(`cli/plugin-mcp/${file}`));
   requireThat(mcp.get('LICENSE').equals(shared.get('LICENSE')) && mcp.get('NOTICE').equals(shared.get('NOTICE')), 'MCP licence drift');
   const marketplace = JSON.parse(read('.claude-plugin/marketplace.json'));
   requireThat(marketplace.name === 'noacg-studio' && marketplace.plugins.length === 2, 'marketplace split drift');
@@ -209,8 +215,8 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
   mcp.set('PROVENANCE.json', provenance);
   const claude = new Map([...main].filter(([p]) => !p.startsWith('.codex-plugin/')));
   const codex = new Map([...main].filter(([p]) => !p.startsWith('.claude-plugin/') && !p.startsWith('commands/')));
-  const claudeMcp = new Map([...mcp].filter(([p]) => !p.startsWith('.codex-plugin/')));
-  const codexMcp = new Map([...mcp].filter(([p]) => !p.startsWith('.claude-plugin/')));
+  const claudeMcp = new Map([...mcp].filter(([p]) => !p.startsWith('.codex-plugin/') && p !== 'codex-mcp.json'));
+  const codexMcp = new Map([...mcp].filter(([p]) => !p.startsWith('.claude-plugin/') && p !== '.mcp.json'));
   // The launcher uses the Claude manifest as its version authority even for local Codex installs.
   codexMcp.set('.claude-plugin/plugin.json', mcp.get('.claude-plugin/plugin.json'));
   const packages = { claude, codex, 'claude-mcp': claudeMcp, 'codex-mcp-local': codexMcp };

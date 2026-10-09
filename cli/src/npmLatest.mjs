@@ -1,20 +1,11 @@
-// "Is this copy behind npm's latest?" - ONE implementation, for both entrances.
+// "Is this copy behind npm's latest?" - asked by `noacg doctor`.
 //
-// The comparison started life inside cli/plugin-mcp/mcp-server.mjs (the optional MCP plugin's
-// launcher), which is the entrance we recommend LEAST. `noacg doctor` - the command the README's
-// setup prompt tells every agent to run - said nothing. Rather than write a second copy with its
-// own timeout and its own idea of the cache format, the logic lives here and the launcher gets a
-// GENERATED copy beside it (cli/scripts/build-skill.mjs writes cli/plugin-mcp/npm-latest.mjs from
-// this file, and `--check` fails if the two drift).
+// The comparison started life inside cli/plugin-mcp/mcp-server.mjs, the optional MCP plugin's
+// launcher, which later had a generated copy of this file. The launcher no longer asks npm
+// anything: it runs exactly the CLI version its plugin was reviewed with
+// (docs/work-specs/agent-toolkit-distribution/spec.md), so this check lives on in doctor alone.
 //
-// Why a copy rather than an import: the launcher checks a CLI that may be years old, so the
-// checker has to be the component that is current. It resolves an installed @noacg/cli and imports
-// its dist/index.js; if it imported this module from that same resolved copy, a stale 0.2.0 - the
-// exact case worth warning about - would not carry the file, and the warning would vanish for the
-// only people who need it. The launcher therefore ships its own copy of the text.
-//
-// This file is plain ESM on node builtins only: it is copied verbatim into a folder that has no
-// node_modules and no build step, so it can never import anything from the CLI.
+// This file is plain ESM on node builtins only, a shape kept from when it was copied verbatim.
 
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import os from 'node:os';

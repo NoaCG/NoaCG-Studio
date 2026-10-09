@@ -44,6 +44,17 @@ test('both MCP manifests name every verb the tool has', () => {
   }
 });
 
+test('each host gets an MCP entry it can start: Claude expands its root variable, Codex resolves cwd', () => {
+  assert.ok(result.packages['claude-mcp'].has('.mcp.json') && !result.packages['claude-mcp'].has('codex-mcp.json'));
+  const codex = new Map(result.packages['codex-mcp-local']);
+  assert.ok(codex.has('codex-mcp.json') && !codex.has('.mcp.json'));
+  const mcpOptions = { host: 'codex', name: 'noacg-mcp', version };
+  validatePackage(codex, mcpOptions);
+  // The Claude form, which Codex 0.163 starts as a literal "${CLAUDE_PLUGIN_ROOT}/..." path.
+  codex.set('codex-mcp.json', result.packages['claude-mcp'].get('.mcp.json'));
+  assert.throws(() => validatePackage(codex, mcpOptions), /codex: MCP entry/);
+});
+
 test('output is idempotent, and altered or stray output is refused without deletion', (t) => {
   const dir = path.join(scratch(t), 'out');
   writeDistribution(dir, result);
