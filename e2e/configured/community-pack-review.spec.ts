@@ -226,6 +226,31 @@ test.describe('community pack review (configured)', () => {
     await visitor.goto('/app#/home/productions');
     await expect(visitor.getByText(PACK).first()).toBeVisible();
 
+    // A LATE PRE-FILL (#923): the maker's earlier name arrives only after they are in the author
+    // field, as it can at hosted latency. It must not land under their cursor, so what they type
+    // is the whole name rather than an addition to it.
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    const answered: Promise<void>[] = [];
+    await page.route('**/rest/v1/rpc/community_pack_mine*', (route) => {
+      const sent = held.then(async () => route.fulfill({ response: await route.fetch() }));
+      answered.push(sent);
+      return sent;
+    });
+    await page.getByTestId('submit-pack-open').click();
+    const early = page.getByTestId('submit-pack');
+    await early.getByTestId('submit-pack-author').click();
+    await expect.poll(() => answered.length).toBeGreaterThan(0);
+    answer();
+    await Promise.all(answered);
+    // Two frames: the answer's state update has rendered by then.
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    await early.getByTestId('submit-pack-author').pressSequentially('Pack Tester');
+    await expect(early.getByTestId('submit-pack-author')).toHaveValue('Pack Tester');
+    await page.unroute('**/rest/v1/rpc/community_pack_mine*');
+    await early.getByRole('button', { name: 'Cancel' }).click();
+    await expect(early).toHaveCount(0);
+
     // WITHDRAW: the maker sends the folder again and takes it back before anyone decides.
     await page.getByTestId('submit-pack-open').click();
     const again = page.getByTestId('submit-pack');
