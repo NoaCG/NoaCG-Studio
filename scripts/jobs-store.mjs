@@ -106,7 +106,14 @@ export function hasFlag(args, name) {
  * nothing can measure it. Work the repo KNOWS drives a browser is held to one at a time on top of
  * all this (`drivesBrowser`); an unknown command is priced like a page but not held to the slot.
  */
-export const COST = Object.freeze({ browser: 1, walk: 0.5, merge: 0.15, other: 0.4 });
+/*
+ * `build` IS MEASURED, 2026-10-09: `npm run build` peaked at 2.8 GB of working set across 62
+ * processes over six and a half minutes, against 3.8 GB for a targeted one-spec e2e run - three
+ * quarters of a browser job. It used to share `other`'s 0.4 with test runs that measured 0.2 GB,
+ * which let two builds start in the working day and charged each one 1.6 GB of floor for the
+ * 2.8 it takes.
+ */
+export const COST = Object.freeze({ browser: 1, build: 0.75, walk: 0.5, merge: 0.15, other: 0.4 });
 
 /**
  * `NOACG_JOBS_FREE_MB` as a number, or null when it says nothing usable.
@@ -138,9 +145,11 @@ function overrideFloorMb() {
  * peak, twelve browser processes and about 3.7 cores for its one minute, and drove free memory
  * from 4.1 GB to 1.3 GB beside the owner's own sessions. That is one suite-equivalent, and it is
  * all of the machine's spare memory in the working day: `byModest` is ONE, so a browser run never
- * shares the day with a second heavy job. Script tests (0.2 GB, seconds) and a landing (0.1 GB,
- * no CPU) are noise beside it. `byFull` is TWO: the one browser run plus a build or two beside
- * it, which the RAM floor still refuses when the free memory is not there.
+ * shares the working day with a second heavy job. A build took 2.8 GB over six and a half
+ * minutes, so it is priced at three quarters (`COST.build`) and two builds no longer fit the
+ * modest budget either. Script tests (0.2 GB, seconds) and a landing (0.1 GB, no CPU) are noise
+ * beside them. `byFull` is TWO: the one browser run with a build beside it, or two builds, and
+ * the RAM floor still refuses either when the free memory is not there.
  */
 export const POLICY = Object.freeze({
   timeZone: 'Europe/Helsinki',
@@ -551,14 +560,16 @@ export function pruneJobs(dir, { now = Date.now(), retentionMs = JOB_RETENTION_M
  * we subtract it before starting anything. Cooperation is an optimisation here; the OS process
  * table stays the source of truth.
  */
-export function capacity({ now = Date.now(), alone = false, outsideRuns = 0, policy = POLICY }) {
+export function capacity({
+  now = Date.now(), alone = false, outsideRuns = 0, policy = POLICY, budget = budgetMode({ now, alone, policy }),
+}) {
   // The free-RAM floor is deliberately NOT here. It is an admission check on one job, scaled by
   // what that job costs (see `schedule`), because zeroing the whole budget on a suite-sized
   // threshold also stopped the landings - the cheapest jobs there are, and the ones that most
   // need to finish overnight.
   // An outside run is browser work by definition - `activeRuns` only reports Playwright CLIs and
   // sweeps - so it costs a full suite-equivalent.
-  return Math.max(0, budgetMode({ now, alone, policy }).slots - outsideRuns * COST.browser);
+  return Math.max(0, budget.slots - outsideRuns * COST.browser);
 }
 
 const WEEKDAYS = Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
@@ -604,29 +615,33 @@ export const SESSION_ACTIVE_MS = 15 * 60_000;
  * The agent sessions live on this machine, as `{ known, live, alone, why }`.
  *
  * THE SIGNALS. `claude` is Claude Code's own process inventory (`claude-agents.mjs`): one row per
- * running session, with its `status` and, from `lastActiveMs(row)`, when its transcript last
- * moved. A row counts when it is not `idle`, or when it was busy inside `SESSION_ACTIVE_MS`.
- * `codexActive` is how many Codex session logs moved inside the same window - Codex runs no
- * process per session, so its logs are the only sign of one.
+ * running session, with its `status` and, from `lastActiveMs(row)`, when its transcript or its
+ * subagents' last moved. A row counts while it is `busy`, or when it moved inside
+ * `SESSION_ACTIVE_MS` - so a session parked on a prompt overnight stops counting, and one whose
+ * subagents are working keeps counting. `codexActive` is how many Codex session logs moved inside
+ * the same window - Codex runs no process per session, so its logs are the only sign of one.
  *
  * WHAT IS NOT COUNTED. A subagent is not a process, so a wave's rows count as their orchestrator,
- * which is the session the queue is working for. A Claude session a RUNNING queue job started -
- * same checkout, started after the job - is the queue's own work, not somebody else's. And ONE
- * live session is always allowed: whoever is driving the work, this one included, so `alone` is
- * "at most one". It needs the inventory to have answered with rows; an empty or failed inventory
- * means the machine cannot say, and the caller gets the modest budget.
+ * which is the session the queue is working for. A session whose process descends from a running
+ * queue job (`queuePids`) is the queue's own work, not somebody else's. And ONE live session is
+ * always allowed: whoever is driving the work, this one included, so `alone` is "at most one".
+ *
+ * It needs the inventory to have answered with rows. A failed read, or an empty list - which
+ * `claude-agents.mjs` cannot tell from a daemon that is not talking - means the machine cannot
+ * say, and the caller gets the modest budget.
  */
-export function agentSessions({ claude = { available: false, rows: [] }, lastActiveMs = () => null, codexActive = 0, jobs = [], now = Date.now() } = {}) {
-  const rows = claude.available && Array.isArray(claude.rows) ? claude.rows : [];
-  if (rows.length === 0) {
-    return { known: false, live: null, alone: false, why: 'the Claude Code session inventory did not answer' };
+export function agentSessions({
+  claude = { available: false, rows: [] }, lastActiveMs = () => null, codexActive = 0, queuePids = new Set(), now = Date.now(),
+} = {}) {
+  if (!claude?.available) {
+    return { known: false, live: null, alone: false, why: 'the session inventory did not answer' };
   }
-  const running = jobs.filter((j) => j.state === 'running' && j.startedAt);
-  const startedByQueue = (row) => running.some(
-    (j) => isUnderPath(row.cwd, j.checkout) && Number(row.startedAt) >= j.startedAt,
-  );
-  const active = (row) => row.status !== 'idle' || now - (lastActiveMs(row) ?? -Infinity) < SESSION_ACTIVE_MS;
-  const claudeLive = rows.filter((row) => !startedByQueue(row) && active(row)).length;
+  const rows = Array.isArray(claude.rows) ? claude.rows : [];
+  if (rows.length === 0) {
+    return { known: false, live: null, alone: false, why: 'the session inventory listed no session' };
+  }
+  const active = (row) => row.status === 'busy' || now - (lastActiveMs(row) ?? -Infinity) < SESSION_ACTIVE_MS;
+  const claudeLive = rows.filter((row) => !queuePids.has(Number(row.pid)) && active(row)).length;
   const live = claudeLive + Math.max(0, Number(codexActive) || 0);
   return {
     known: true,
@@ -634,13 +649,6 @@ export function agentSessions({ claude = { available: false, rows: [] }, lastAct
     alone: live <= 1,
     why: `${live} agent session${live === 1 ? '' : 's'} live`,
   };
-}
-
-function isUnderPath(child, parent) {
-  const norm = (p) => String(p ?? '').replaceAll('\\', '/').toLowerCase().replace(/\/$/, '');
-  const c = norm(child);
-  const p = norm(parent);
-  return p !== '' && (c === p || c.startsWith(`${p}/`));
 }
 
 /**
@@ -669,7 +677,9 @@ export function drivesBrowser(job) {
  * charging a cheap job too much costs wall clock at night, while charging an expensive one too
  * little puts two dev servers and eight browser workers on a 16 GB laptop at once.
  */
-const CHEAP = [/\bnpm\s+run\s+build\b/, /\bnode\s+--test\b/, /\bnpm\s+run\s+lint\b/, /\btsc\b/, /\bnpm\s+run\s+check:/];
+const CHEAP = [/\bnode\s+--test\b/, /\bnpm\s+run\s+lint\b/, /\btsc\b/, /\bnpm\s+run\s+check:/];
+/** The full build: no browser, but `COST.build` of the machine (measured, see `COST`). */
+const BUILD = /\bnpm\s+run\s+build\b/;
 
 /**
  * What one job costs, in suite-equivalents.
@@ -705,9 +715,10 @@ export function costOf(job) {
   // `sweep` on the record is a DECLARATION - the session queueing it said this is battery work -
   // and a declaration beats a guess made from the command text, which is the whole point of the
   // kind. Without this an unlisted battery queued honestly as a sweep still read as a walk.
-  if (job.kind === 'sweep') return COST.browser;
+  // `drivesBrowser` reads both, so the price and the browser slot cannot disagree.
+  if (drivesBrowser(job)) return COST.browser;
   const command = job.command ?? '';
-  if (invokesE2e(command) || invokesSweep(command)) return COST.browser;
+  if (BUILD.test(command)) return COST.build;
   return CHEAP.some((p) => p.test(command)) ? COST.other : COST.walk;
 }
 
@@ -790,7 +801,7 @@ export function schedule(jobs, {
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const running = jobs.filter((j) => j.state === 'running');
   const budget = budgetMode({ now, alone, policy });
-  const slots = capacity({ now, alone, outsideRuns, policy });
+  const slots = capacity({ outsideRuns, budget });
 
   /**
    * Is a landing for `branch` actually COMING, in the sense that waiting behind it can pay?

@@ -26,7 +26,7 @@ import { closeSync, createWriteStream, existsSync, fstatSync, openSync, readFile
 import { freemem, homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { activeRuns, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
+import { activeRuns, allProcesses, descendantsOf, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
 import { readInventory } from './claude-agents.mjs';
 import { projectDirName, transcriptsRoot } from './session-liveness.mjs';
@@ -55,6 +55,7 @@ import {
   addJob,
   adoptOrphanedLandings,
   agentSessions,
+  budgetMode,
   budgetShareOf,
   cancelVerdict,
   classifyRefusal,
@@ -184,7 +185,7 @@ async function cmdAdd() {
   if (!command || command.startsWith('-')) {
     console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>] [--cost <suite-equivalents>]');
     console.error('  --cost says what this job weighs when you know better than the classifier: 1 is a');
-    console.error('  Playwright suite or a catalog battery, 0.5 one browser page, 0.4 a build, and 0.15');
+    console.error('  Playwright suite or a catalog battery, 0.75 a build, 0.5 one browser page, and 0.15');
     console.error('  - a landing - is the least anything may claim. It sets both the budget share and');
     console.error('  the free RAM the job demands before it may start.');
     process.exit(1);
@@ -242,7 +243,9 @@ async function cmdAdd() {
   });
   await ensureRunner();
   console.log(`${job.id} queued: ${job.command}`);
-  const { waiting } = snapshot();
+  // A prediction for the line below, not a decision, so it skips the session inventory: a wave
+  // queues dozens of jobs, and a spawn each to word one line is not worth it.
+  const { waiting } = snapshot({ readSessions: false });
   const mine = waiting.find((w) => w.job.id === job.id);
   console.log(mine ? `  ${mine.reason}` : '  starting now');
   console.log(`  output: node scripts/jobs.mjs log ${job.id}`);
@@ -677,9 +680,10 @@ async function cmdList() {
   // WHICH BUDGET AND WHY, in one line and on every read, because it now moves with the clock and
   // with the other sessions on the machine - a wait reading "budget 1/1 used" means nothing to a
   // reader who cannot see that it is a weekday morning with three sessions live.
-  const sessionNote = sessions.known ? sessions.why : `agent sessions unknown (${sessions.why})`;
-  console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}`
-    + `${budget.alone ? '' : `, ${sessionNote}`}`
+  // `sessions` is null outside the modest hours, where nobody's sessions change the budget.
+  const sessionNote = !sessions || budget.alone ? ''
+    : sessions.known ? `, ${sessions.why}` : `, agent sessions unknown (${sessions.why})`;
+  console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`
     + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state})`);
 
   if (pending(jobs).length === 0) {
@@ -1074,7 +1078,9 @@ async function runner() {
     jobs = readJobs(dir);
     const { start, dead, released, waiting, running } = schedule(jobs, {
       freeMemMb: freeMb(),
-      alone: machineSessions(jobs, now).alone,
+      // Asked only when something the budget governs is waiting; a landing is exempt from it.
+      alone: jobs.some((j) => j.state === 'waiting' && j.kind !== 'merge')
+        && (machineSessions(jobs, now)?.alone ?? false),
       // Re-read every pass, deliberately. Presence is the one input that changes while the runner
       // is alive - somebody sits down - and a value cached at runner start would be exactly the
       // stale environment variable this replaced.
@@ -1419,15 +1425,39 @@ function outsideRuns(jobs) {
 }
 
 /**
- * The agent sessions live on this machine (`agentSessions` decides; this reads), re-read at most
- * once a minute. The runner polls every five seconds, and spawning Claude Code's inventory that
- * often would make the queue one of the heavier things on the laptop it is trying to spare.
+ * The agent sessions live on this machine (`agentSessions` decides; this reads), or null when the
+ * answer cannot change the budget: outside the modest hours the budget is full whoever is live.
+ *
+ * Re-read at most once a minute. The runner polls every five seconds, and spawning Claude Code's
+ * inventory that often would make the queue one of the heavier things on the laptop it spares.
  */
 const SESSIONS_TTL_MS = 60_000;
 let sessionsRead = null;
 function machineSessions(jobs, now = Date.now()) {
+  if (budgetMode({ now }).mode !== 'modest') return null;
   if (sessionsRead && now - sessionsRead.at < SESSIONS_TTL_MS) return sessionsRead.value;
+  // A short timeout: this runs on the runner's poll, and a stalled inventory is "cannot tell".
+  const claude = readInventory({ timeoutMs: 5_000 });
+  // The queue's own sessions are found by ancestry, and the process table is read only when a
+  // job is running and there is a session it could have started.
+  const running = jobs.filter((j) => j.state === 'running' && j.pid && j.kind !== 'merge').map((j) => j.pid);
+  const queuePids = claude.rows.length > 0 && running.length > 0
+    ? new Set(descendantsOf(running, allProcesses()).map((p) => p.pid))
+    : new Set();
   const projects = transcriptsRoot();
+  const value = agentSessions({
+    claude,
+    lastActiveMs: (row) => (row.sessionId && row.cwd ? transcriptMovedMs(join(projects, projectDirName(row.cwd)), row.sessionId) : null),
+    codexActive: codexSessionsActive(now),
+    queuePids,
+    now,
+  });
+  sessionsRead = { at: now, value };
+  return value;
+}
+
+/** Newest write to a session's transcript or to any of its subagents' - a wave's rows are its turns. */
+function transcriptMovedMs(dir, sessionId) {
   const mtime = (file) => {
     try {
       return statSync(file).mtimeMs;
@@ -1435,17 +1465,15 @@ function machineSessions(jobs, now = Date.now()) {
       return null;
     }
   };
-  const value = agentSessions({
-    claude: readInventory(),
-    lastActiveMs: (row) => (row.sessionId && row.cwd
-      ? mtime(join(projects, projectDirName(row.cwd), `${row.sessionId}.jsonl`))
-      : null),
-    codexActive: codexSessionsActive(now),
-    jobs,
-    now,
-  });
-  sessionsRead = { at: now, value };
-  return value;
+  const subagents = join(dir, sessionId, 'subagents');
+  let names = [];
+  try {
+    names = readdirSync(subagents).filter((n) => n.endsWith('.jsonl'));
+  } catch {
+    // no subagents
+  }
+  const times = [mtime(join(dir, `${sessionId}.jsonl`)), ...names.map((n) => mtime(join(subagents, n)))].filter((t) => t !== null);
+  return times.length > 0 ? Math.max(...times) : null;
 }
 
 /**
@@ -1508,15 +1536,15 @@ function sleep(ms) {
   return new Promise((done) => setTimeout(done, ms));
 }
 
-function snapshot() {
+function snapshot({ readSessions = true } = {}) {
   const jobs = readJobs(dir);
-  const sessions = machineSessions(jobs);
+  const sessions = readSessions ? machineSessions(jobs) : null;
   return {
     jobs,
     sessions,
     ...schedule(jobs, {
       freeMemMb: freeMb(),
-      alone: sessions.alone,
+      alone: sessions?.alone ?? false,
       presence: readPresence(dir).state,
       outsideRuns: outsideRuns(jobs),
       aheadOfMain,

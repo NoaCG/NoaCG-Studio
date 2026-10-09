@@ -104,7 +104,8 @@ Jobs are weighted in **suite-equivalents**, because counting them was the crude 
 |---|---|---|
 | e2e suite, sweep, bench, or anything queued `--kind sweep` | **1.0** | a dev server plus four browser workers; two at once measured 34 browser processes, 93% CPU, under 2 GB free |
 | anything unrecognised | **0.5** | assumed to be a dev server and ONE browser page - see the asymmetry below |
-| `npm run build`, `node --test`, lint, `tsc`, `check:*` | **0.4** | CPU, little RAM, no browser |
+| `npm run build` | **0.75** | no browser, but measured at 2.8 GB peak against a browser run's 3.8 (2026-10-09) |
+| `node --test`, lint, `tsc`, `check:*` | **0.4** | CPU, little RAM, no browser |
 | a landing (`auto-merge`) | **0.15** | almost entirely `gh run watch`, waiting on GitHub's network |
 
 A job may also declare its own cost - `npm run queue -- "<command>" --cost 0.5` - anywhere between
@@ -136,13 +137,14 @@ Budget, recomputed before every start and never cached:
 
 - **Modest (weekdays 08:00-16:00 Helsinki): 1.0.** The owner's working day, when he uses the
   laptop for light work and other agent sessions (owner, 2026-10-09).
-- **Full (every other hour, weekends included): 2.0.** The one browser job plus a build or two
-  beside it, as far as the RAM floor lets them in.
+- **Full (every other hour, weekends included): 2.0.** The one browser job with a build beside it,
+  or two builds, as far as the RAM floor lets them in.
 - **Alone: full, whatever the clock.** When at most one agent session is live - whoever is
   driving the queue - nobody else is competing for the machine. Live means Claude Code's own
-  session inventory lists it and it is busy or wrote a turn in the last 15 minutes, or a Codex
-  session log moved in that window. A session a running queue job started is the queue's own.
-  An inventory that does not answer means "cannot tell", which gets the modest budget. The clock
+  session inventory lists it and it is busy, or it or its subagents wrote a turn in the last 15
+  minutes, or a Codex session log moved in that window. A session whose process descends from a
+  running queue job is the queue's own. An inventory that does not answer, or lists nothing,
+  means "cannot tell", which gets the modest budget. The clock
   and the session signal are injected into `schedule`, so the tests pin both; `npm run jobs`
   prints the budget in effect and why on one line.
 - **One browser-driving job per machine, whatever the budget.** A job `command-match.mjs` knows
@@ -364,6 +366,23 @@ Presence moves the floor and nothing else. The concurrency budget above is the c
 live sessions': an away working day runs the modest budget, never more because nobody is home.
 
 ## What a job actually costs in RAM
+
+**Measured 2026-10-09, 12:30-13:10 Helsinki**, after whole suites stopped running locally (#852),
+on the same laptop with the owner working and other agent sessions live. Each job ran through
+the queue while a sampler read its process tree every 3 s (`Get-CimInstance Win32_Process`:
+working set and private bytes summed over the tree). Durations are the queue's own records for
+the 14 days to 2026-10-09.
+
+| Job | Peak working set | Peak private | Processes | Duration (this run; 14-day median, p90) |
+| --- | --- | --- | --- | --- |
+| Targeted e2e, one spec (14 tests, 3 workers) | **3.8 GB** | 4.4 GB | 24, 12 browser | 1.0 min; 0.7, 2.9 min over 660 runs |
+| `npm run build` | **2.8 GB** | 2.9 GB | 62 | 6.6 min; 5.4, 9.2 min over 175 runs |
+| `node --test`, three script test files | 0.2 GB | 0.1 GB | 6 | 10 s |
+| Landing (`land-watch`) | 0.1 GB | 0.1 GB | 6 | 29 min this one; 9.6, 30.1 min over 335 |
+
+The targeted run took free memory from 4.1 GB to 1.3 GB, which is why the modest budget is one
+suite-equivalent and a build is priced at 0.75. The playwright worker count follows free memory
+(`scripts/e2e-workers.mjs`), so with more free memory the same run uses more of it.
 
 **Measured 2026-09-16, 13:30-13:45 UTC**, on the 15.9 GB laptop (16236 MB visible), with six agent
 sessions live and the owner away. Taken with `Get-CimInstance Win32_OperatingSystem` for free

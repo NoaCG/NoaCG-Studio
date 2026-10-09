@@ -201,12 +201,13 @@ so every worktree of the repository sees the same queue (`scripts/jobs-store.mjs
 lists running and waiting jobs with the reason each one waits; `node scripts/jobs.mjs wait`, `log`
 and `cancel` take a job id.
 
-- **One browser-driving budget per machine.** Jobs are costed in suite-equivalents: an E2E suite
-  or catalog battery is 1, an unrecognised command (assumed to open one browser) 0.5, a known cheap
-  command such as the build 0.4. The machine runs one suite-equivalent at a time by day and two
-  between 00:00 and 07:00 local time, and browser work the queue did not start counts against it.
+- **One budget per machine.** Jobs are costed in suite-equivalents: an E2E run or catalog battery
+  is 1, the build 0.75, an unrecognised command (assumed to open one browser) 0.5, a known cheap
+  command such as a test run 0.4. The machine runs one suite-equivalent on weekdays 08:00-16:00
+  Helsinki and two at every other hour, or whenever at most one agent session is live; browser
+  work the queue did not start counts against it, and only one browser-driving job runs at a time.
   A landing watcher is not charged against the budget. `--cost` and `--kind sweep` declare a cost
-  the guess would get wrong.
+  the guess would get wrong. `npm run jobs` prints the budget in effect and why.
 - **One E2E run per machine.** `scripts/hooks/guard-command.mjs` refuses to start an E2E suite
   while another checkout on the machine runs one; the `:queued` script forms wait their turn.
 - **RAM admission.** A job starts only when free memory covers its share of a per-suite floor:

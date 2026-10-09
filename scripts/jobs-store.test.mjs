@@ -161,11 +161,12 @@ test('alone on the machine, the full budget applies whatever the clock says', ()
   assert.match(mode.why, /Wed 14:00 Helsinki is in weekdays 08:00-16:00, but no other agent session is live/);
   assert.match(budgetMode({ now: DAY }).why, /^Wed 14:00 Helsinki is in weekdays 08:00-16:00$/);
   assert.match(budgetMode({ now: NIGHT }).why, /^Wed 03:00 Helsinki is outside weekdays 08:00-16:00$/);
-  // And `schedule` reads it: two builds start together by day only when nobody else is working.
+  // And `schedule` reads it: two builds start together in the working day only when nobody else
+  // is working.
   const builds = [job('j-0001', { command: 'npm run build' }), job('j-0002', { command: 'npm run build' }), job('j-0003', { command: 'npm run build' })];
-  assert.equal(schedule(builds, { now: DAY, freeMemMb: PLENTY }).start.length, 2, '0.8 of a modest 1');
+  assert.equal(schedule(builds, { now: DAY, freeMemMb: PLENTY }).start.length, 1);
   const alone = schedule(builds, { now: DAY, freeMemMb: PLENTY, alone: true });
-  assert.equal(alone.start.length, 3);
+  assert.equal(alone.start.length, 2);
   assert.equal(alone.budget.mode, 'full');
 });
 
@@ -181,17 +182,18 @@ test('alone means at most one live agent session, and only when the inventory an
   const lastActiveMs = (r) => (r.sessionId === 's2' ? NOW_MS - SESSION_ACTIVE_MS + 60_000 : null);
   assert.equal(agentSessions({ claude: inv([row(), idle]), lastActiveMs, now: NOW_MS }).alone, false, 'idle a few minutes: still in use');
   assert.equal(agentSessions({ claude: inv([row(), idle]), now: NOW_MS }).alone, true, 'idle and silent: left open, not in use');
-  // A session with no status at all is counted: absence of the field is not idleness.
-  assert.equal(agentSessions({ claude: inv([row(), row({ pid: 3, sessionId: 's3', status: undefined })]), now: NOW_MS }).alone, false);
+  // Busy is the one status that counts by itself. A session parked on a prompt, or one whose
+  // build reports no status, counts only while its transcript moves.
+  const parked = row({ pid: 3, sessionId: 's3', status: 'waiting' });
+  assert.equal(agentSessions({ claude: inv([row(), parked]), now: NOW_MS }).alone, true, 'parked overnight');
+  const noStatus = row({ pid: 3, sessionId: 's2', status: undefined });
+  assert.equal(agentSessions({ claude: inv([row(), noStatus]), lastActiveMs, now: NOW_MS }).alone, false, 'no status, recent turn');
   // A Codex session is a live session too.
   assert.equal(agentSessions({ claude: inv([row()]), codexActive: 1, now: NOW_MS }).alone, false);
-  // The queue's own job is not another session: a Claude session started by a running job, in
-  // its checkout, after it started.
-  const running = [job('j-0001', { state: 'running', pid: 9, checkout: 'C:/wt/b', startedAt: NOW_MS - 60_000 })];
-  const spawned = row({ pid: 4, sessionId: 's4', cwd: 'C:\\wt\\b\\sub', startedAt: NOW_MS - 30_000 });
-  assert.equal(agentSessions({ claude: inv([row(), spawned]), jobs: running, now: NOW_MS }).alone, true);
-  const before = row({ pid: 5, sessionId: 's5', cwd: 'C:\\wt\\b', startedAt: NOW_MS - 120_000 });
-  assert.equal(agentSessions({ claude: inv([row(), before]), jobs: running, now: NOW_MS }).alone, false, 'a session there before the job is somebody');
+  // The queue's own job is not another session: one whose process descends from a running job.
+  const spawned = row({ pid: 4, sessionId: 's4' });
+  assert.equal(agentSessions({ claude: inv([row(), spawned]), queuePids: new Set([4]), now: NOW_MS }).alone, true);
+  assert.equal(agentSessions({ claude: inv([row(), spawned]), queuePids: new Set([7]), now: NOW_MS }).alone, false);
   // Could not tell is not alone.
   for (const claude of [{ available: false, rows: [] }, inv([]), undefined]) {
     const read = agentSessions({ claude, now: NOW_MS });
@@ -343,7 +345,8 @@ test('several landings fit inside one suite-equivalent', () => {
 test('cost is read from the command, and an unrecognised command is assumed to be ONE browser', () => {
   assert.equal(costOf({ command: 'npm run test:e2e:affected', kind: 'gate' }), COST.browser);
   assert.equal(costOf({ command: 'node scripts/l3-sweep.mjs scoreboard', kind: 'sweep' }), COST.browser);
-  assert.equal(costOf({ command: 'npm run build', kind: 'gate' }), COST.other);
+  assert.equal(costOf({ command: 'npm run build', kind: 'gate' }), COST.build);
+  assert.ok(COST.other < COST.build && COST.build < COST.browser, 'a build: no browser, but most of one in memory');
   assert.equal(costOf({ command: 'node --test scripts/x.test.mjs', kind: 'gate' }), COST.other);
   assert.equal(costOf({ command: 'node scripts/land-watch.mjs --pr 12 --branch x', kind: 'merge' }), COST.merge);
   // THE DEFAULT FOR AN UNKNOWN COMMAND. Suite-sized work is enumerated - the e2e suites and the
