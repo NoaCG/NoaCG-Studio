@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import WizardConfirm from '../wizard/WizardConfirm';
 import { packSources, type LibrarySource } from '../../community/packSources';
 import {
@@ -60,9 +60,16 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
   const [busy, setBusy] = useState(false);
   /** Which graphic the request check is playing, while Send runs it. */
   const [checking, setChecking] = useState<{ index: number; total: number } | null>(null);
-  /** What the request check found, kept with the set it checked: changing the set drops it. */
+  /** What the request check found, kept with the set it checked: changing the set drops it. It is
+   *  shown, but never locks Send, because Send runs the check again. */
   const [requests, setRequests] = useState<{ of: unknown; findings: PackFinding[] } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  // Cancel closes the sheet while the check may still be playing graphics: nothing may be sent
+  // after the maker has closed it.
+  const open = useRef(true);
+  useEffect(() => () => {
+    open.current = false;
+  }, []);
 
   // The name this maker chose on their previous pack is the only pre-fill allowed (D15). It never
   // overwrites what the maker has typed meanwhile.
@@ -82,7 +89,7 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
   const graphicFindings = useMemo(() => checkPackGraphics(chosen), [chosen]);
   const requestFindings = requests?.of === chosen ? requests.findings : [];
   const shownFindings = [...graphicFindings, ...requestFindings];
-  const findings: PackFinding[] = [...checkPackMeta({ name, description, author }), ...shownFindings];
+  const findings: PackFinding[] = [...checkPackMeta({ name, description, author }), ...graphicFindings];
 
   const pick = (id: string) => {
     setSourceId(id);
@@ -95,10 +102,11 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
     setBusy(true);
     setFailure(null);
     try {
-      const refused = await checkPackRequests(chosen, (index, total) => setChecking({ index, total }));
+      const refused = await checkPackRequests(chosen, (index, total) => open.current && setChecking({ index, total }));
+      if (!open.current) return;
       setChecking(null);
+      setRequests({ of: chosen, findings: refused });
       if (refused.length) {
-        setRequests({ of: chosen, findings: refused });
         setBusy(false);
         return;
       }

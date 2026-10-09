@@ -33,6 +33,8 @@ const LOAD_MS = 8_000;
 /** Play waits for the fonts (up to 400 ms inside the frame) before it runs; this is how long
  *  the bench waits for it to say it played before moving on regardless. */
 const PLAYED_MS = 1_500;
+/** After Out, for a request the graphic makes once it has left the air. */
+const AFTER_OUT_MS = 750;
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -71,6 +73,18 @@ export async function observeRequests(template: SpxTemplate): Promise<ObservedRe
   };
   window.addEventListener('message', onMessage);
   const send = (cmd: PreviewCmd) => iframe.contentWindow?.postMessage({ type: PREVIEW_CMD_TYPE, ...cmd }, '*');
+  // A hidden tab stops a graphic's animation frames, and a request made on one would go unseen:
+  // a check that ran hidden is no check, so it says so rather than passing.
+  let hidden = document.hidden;
+  const onVisibility = () => {
+    if (document.hidden) hidden = true;
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  let phase = 'load';
+  const sendPhase = (cmd: PreviewCmd) => {
+    phase = cmd.cmd;
+    send(cmd);
+  };
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -78,27 +92,33 @@ export async function observeRequests(template: SpxTemplate): Promise<ObservedRe
       iframe.onload = () => {
         clearTimeout(timer);
         resolve();
+        // Every later load is the graphic navigating its own page away, which no policy refuses.
+        iframe.onload = () => {
+          if (!seen.has('another page')) seen.set('another page', { url: 'another page', directive: 'navigation', phase });
+        };
       };
       iframe.srcdoc = withNetworkGuard(composeDocument(template, { liveControl: true }), fontBase, TIME_SCALE);
       document.body.appendChild(iframe);
     });
     await wait(PHASE_MS);
     const data = defaults(template);
-    send({ cmd: 'update', data });
+    sendPhase({ cmd: 'update', data });
     await wait(PHASE_MS);
-    await Promise.race([new Promise<void>((resolve) => { played = resolve; send({ cmd: 'play', data }); }), wait(PLAYED_MS)]);
+    await Promise.race([new Promise<void>((resolve) => { played = resolve; sendPhase({ cmd: 'play', data }); }), wait(PLAYED_MS)]);
     await wait(PHASE_MS);
     const steps = Number.parseInt(template.settings.steps, 10);
     const continues = Math.min(Math.max(Number.isFinite(steps) ? steps : 1, 1), MAX_CONTINUES);
     for (let i = 0; i < continues; i++) {
-      send({ cmd: 'next' });
+      sendPhase({ cmd: 'next' });
       await wait(PHASE_MS);
     }
-    send({ cmd: 'stop' });
-    await wait(PHASE_MS);
+    sendPhase({ cmd: 'stop' });
+    await wait(AFTER_OUT_MS);
   } finally {
     window.removeEventListener('message', onMessage);
+    document.removeEventListener('visibilitychange', onVisibility);
     iframe.remove();
   }
+  if (hidden) throw new Error('The check could not watch it: keep this tab in front while a pack is checked, then try again.');
   return [...seen.values()];
 }

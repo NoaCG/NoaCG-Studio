@@ -73,25 +73,38 @@ export function checkPackGraphics(graphics: PackCandidate['graphics']): PackFind
   return findings;
 }
 
+/** One request check at a time on this page: several review rows mounting together would
+ *  otherwise play every pack's graphics at once and starve each other's frames. */
+let benchTurn: Promise<unknown> = Promise.resolve();
+
 /** The observed-request refusal (spec D5): each graphic played through the network bench, one at
- *  a time, and every request it made that leaves the pack named. Asynchronous and slow (about two
- *  seconds a graphic), so it runs on Send and on the admin's review row, never as the sheet
- *  changes. `onProgress` hears which graphic is being checked. Browser-only. */
-export async function checkPackRequests(
+ *  a time, and every request it made that leaves the pack named. Each plays as the pack carries it
+ *  (`packGraphicEntry`: sounds and pictures inlined), so a library graphic's stored sound is not
+ *  mistaken for a request. Asynchronous and slow (a few seconds a graphic), so it runs on Send and
+ *  on the admin's review row, never as the sheet changes. `onProgress` hears which graphic is
+ *  being checked. Browser-only. */
+export function checkPackRequests(
   graphics: PackCandidate['graphics'],
   onProgress?: (index: number, total: number) => void,
 ): Promise<PackFinding[]> {
-  const { observeRequests } = await import('../validation/networkBench');
-  const findings: PackFinding[] = [];
-  for (const [index, g] of graphics.entries()) {
-    onProgress?.(index, graphics.length);
-    try {
-      for (const r of await observeRequests(g.template)) findings.push({ graphic: g.name, message: requestMessage(r) });
-    } catch (error) {
-      findings.push({ graphic: g.name, message: error instanceof Error ? error.message : String(error) });
+  const run = async (): Promise<PackFinding[]> => {
+    const { observeRequests } = await import('../validation/networkBench');
+    const findings: PackFinding[] = [];
+    for (const [index, g] of graphics.entries()) {
+      onProgress?.(index, graphics.length);
+      try {
+        const entry = await packGraphicEntry(g.template, { name: g.name });
+        const carried = { ...g.template, html: entry.html, css: entry.css, js: entry.js, assets: entry.assets ?? [] };
+        for (const r of await observeRequests(carried)) findings.push({ graphic: g.name, message: requestMessage(r) });
+      } catch (error) {
+        findings.push({ graphic: g.name, message: error instanceof Error ? error.message : String(error) });
+      }
     }
-  }
-  return findings;
+    return findings;
+  };
+  const turn = benchTurn.then(run, run);
+  benchTurn = turn.catch(() => undefined);
+  return turn;
 }
 
 /** The size refusal for a serialized pack, or null when it fits. */

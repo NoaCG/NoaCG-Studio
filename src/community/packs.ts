@@ -33,8 +33,11 @@ export interface SharedPack {
 
 /** A live pack with reports an admin has not dismissed: how many, and the latest reasons. */
 export interface ReportedPack extends SharedPack {
+  /** How many accounts reported it. */
   reports: number;
   reasons: string[];
+  /** The newest report the list holds; Dismiss covers reports up to it, never a later one. */
+  lastReported: string;
 }
 
 /** One of the maker's own submissions. */
@@ -55,6 +58,7 @@ interface Row {
   reason?: string | null;
   reports?: number;
   reasons?: string[] | null;
+  last_reported?: string;
 }
 
 const shared = (r: Row): SharedPack => ({
@@ -97,7 +101,12 @@ export async function listWaitingPacks(): Promise<SharedPack[]> {
 
 /** Live packs with reports waiting, most recently reported first. Empty for anyone but a moderator. */
 export async function listReportedPacks(): Promise<ReportedPack[]> {
-  return (await rows('community_pack_reported')).map((r) => ({ ...shared(r), reports: r.reports ?? 0, reasons: r.reasons ?? [] }));
+  return (await rows('community_pack_reported')).map((r) => ({
+    ...shared(r),
+    reports: r.reports ?? 0,
+    reasons: r.reasons ?? [],
+    lastReported: r.last_reported ?? '',
+  }));
 }
 
 /** Report a live pack that is not the caller's own, with what is wrong with it. */
@@ -108,11 +117,12 @@ export async function reportPack(id: string, reason: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** A moderator keeps a reported pack: its reports leave the Reported list. */
-export async function dismissReports(id: string): Promise<void> {
+/** A moderator keeps a reported pack: the reports they read, up to `until`, leave the Reported
+ *  list; one filed since stays. */
+export async function dismissReports(id: string, until: string): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const { error } = await sb.rpc('community_pack_reports_dismiss', { p_id: id });
+  const { error } = await sb.rpc('community_pack_reports_dismiss', { p_id: id, p_until: until });
   if (error) throw new Error(error.message);
 }
 

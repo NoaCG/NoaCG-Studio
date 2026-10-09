@@ -38,22 +38,49 @@ function fontScope(fontBase: string): string {
   return href;
 }
 
-/** The policy and its listener, FIRST in the document so nothing it loads precedes them. The
- *  listener records which command the graphic was running, read off the same messages the
- *  live-control script obeys, and speeds GSAP up so a Continue settles in tens of milliseconds. */
+/**
+ * The policy and its listener, FIRST in the document so nothing it loads precedes them.
+ *
+ * - The listener sits on `window` in the capture phase and keeps its own handle on the parent, so
+ *   it hears every refusal before any listener the graphic adds could stop it.
+ * - It records which command the graphic was running, read off the messages the live-control
+ *   script obeys.
+ * - A peer-to-peer connection (WebRTC) is a request no policy covers, so its constructors report
+ *   and refuse. A page that navigates itself away is reported by the bench, which sees the frame
+ *   load a second time.
+ * - Time runs `timeScale` times faster for the graphic's own timers as for GSAP, so a request
+ *   made a few seconds after Take is still seen inside the bench's short phases.
+ */
 export function networkGuardTags(fontBase: string, timeScale: number): string {
   return `<meta http-equiv="Content-Security-Policy" content="${networkPolicy(fontBase)}">
 <script id="noacg-network-guard">
 (function () {
+  var host = window.parent;
   var phase = 'load';
+  var report = function (url, directive) {
+    try { host.postMessage({ type: ${JSON.stringify(NETWORK_REQUEST_TYPE)}, url: url, directive: directive, phase: phase }, '*'); } catch (x) {}
+  };
   window.addEventListener('message', function (ev) {
-    if (ev.source === window.parent && ev.data && typeof ev.data.cmd === 'string') phase = ev.data.cmd;
+    if (ev.source === host && ev.data && typeof ev.data.cmd === 'string') phase = ev.data.cmd;
+  }, true);
+  window.addEventListener('securitypolicyviolation', function (e) {
+    report(String(e.blockedURI || ''), String(e.effectiveDirective || e.violatedDirective || ''));
+  }, true);
+  ['RTCPeerConnection', 'webkitRTCPeerConnection'].forEach(function (name) {
+    if (!window[name]) return;
+    window[name] = function () {
+      report('a peer-to-peer connection', 'webrtc');
+      throw new Error('Refused: a community pack makes no outside connection.');
+    };
   });
-  document.addEventListener('securitypolicyviolation', function (e) {
-    try {
-      parent.postMessage({ type: ${JSON.stringify(NETWORK_REQUEST_TYPE)}, url: String(e.blockedURI || ''), directive: String(e.effectiveDirective || e.violatedDirective || ''), phase: phase }, '*');
-    } catch (x) {}
-  });
+  var later = function (native) {
+    return function (fn, ms) {
+      var rest = Array.prototype.slice.call(arguments, 2);
+      return native.apply(window, [fn, (Number(ms) || 0) / ${timeScale}].concat(rest));
+    };
+  };
+  window.setTimeout = later(window.setTimeout);
+  window.setInterval = later(window.setInterval);
   document.addEventListener('DOMContentLoaded', function () {
     try { if (window.gsap) window.gsap.globalTimeline.timeScale(${timeScale}); } catch (x) {}
   });
@@ -91,6 +118,8 @@ export function requestKind(directive: string): string {
     case 'child-src': return 'a frame';
     case 'worker-src': return 'a worker';
     case 'form-action': return 'a form';
+    case 'webrtc': return 'WebRTC';
+    case 'navigation': return 'a navigation';
     default: return 'a file';
   }
 }

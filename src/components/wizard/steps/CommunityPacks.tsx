@@ -177,9 +177,11 @@ function SharedPreview({ id, name }: { id: string; name: string }) {
 
 /** A reason asked inline under the button that needs it: by default one the maker will read; a
  *  report asks what is wrong instead, because the maker never reads a reporter's words. */
-function ReasonAsk({ label, placeholder = 'Reason the maker reads', onSend, onCancel }: {
+function ReasonAsk({ label, placeholder = 'Reason the maker reads', busy, onSend, onCancel }: {
   label: string;
   placeholder?: string;
+  /** An action is running: the send waits, so a double press sends once. */
+  busy: boolean;
   onSend: (reason: string) => void;
   onCancel: () => void;
 }) {
@@ -194,7 +196,7 @@ function ReasonAsk({ label, placeholder = 'Reason the maker reads', onSend, onCa
         aria-label={placeholder}
         autoFocus
       />
-      <button type="button" disabled={!reason.trim()} onClick={() => onSend(reason.trim())}>
+      <button type="button" disabled={busy || !reason.trim()} onClick={() => onSend(reason.trim())}>
         {label}
       </button>
       <button type="button" onClick={onCancel}>
@@ -245,7 +247,7 @@ function ReviewRow({ pack, busy, onTry, onDecide }: {
         )}
       </div>
       {asking ? (
-        <ReasonAsk label="Not accepted" onSend={(reason) => onDecide('not_accepted', reason)} onCancel={() => setAsking(false)} />
+        <ReasonAsk label="Not accepted" busy={busy} onSend={(reason) => onDecide('not_accepted', reason)} onCancel={() => setAsking(false)} />
       ) : (
         <div className="wz-community-row-actions">
           <button type="button" disabled={busy} onClick={onTry}>Install to try</button>
@@ -457,6 +459,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 {takingDown === `reported:${p.id}` ? (
                   <ReasonAsk
                     label="Take down"
+                    busy={busy !== null}
                     onSend={(reason) => void decide(`reported:${p.id}`, p.id, 'taken_down', reason)}
                     onCancel={() => setTakingDown(null)}
                   />
@@ -466,7 +469,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                       type="button"
                       disabled={busy !== null}
                       onClick={() => void run(`reported:${p.id}`, async () => {
-                        await dismissReports(p.id);
+                        await dismissReports(p.id, p.lastReported);
                         refresh();
                       })}
                     >
@@ -517,9 +520,9 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
               </span>
             </div>
             {takingDown === p.id ? (
-              <ReasonAsk label="Take down" onSend={(reason) => void decide(cardKey(p), p.id, 'taken_down', reason)} onCancel={() => setTakingDown(null)} />
+              <ReasonAsk label="Take down" busy={busy !== null} onSend={(reason) => void decide(cardKey(p), p.id, 'taken_down', reason)} onCancel={() => setTakingDown(null)} />
             ) : reporting === p.id ? (
-              <ReasonAsk label="Report" placeholder="What is wrong with it" onSend={(reason) => void report(p, reason)} onCancel={() => setReporting(null)} />
+              <ReasonAsk label="Report" placeholder="What is wrong with it" busy={busy !== null} onSend={(reason) => void report(p, reason)} onCancel={() => setReporting(null)} />
             ) : (
               <div className="wz-community-row-actions">
                 <button

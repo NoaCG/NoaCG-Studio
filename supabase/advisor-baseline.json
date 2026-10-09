@@ -323,10 +323,10 @@
       "level": "WARN",
       "detail": "Function `public.community_pack_reported()` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reported`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
-    "authenticated_security_definer_function_executable_public_community_pack_reports_dismiss_p_id uuid": {
+    "authenticated_security_definer_function_executable_public_community_pack_reports_dismiss_p_id uuid, p_until timestamptz": {
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
-      "detail": "Function `public.community_pack_reports_dismiss(p_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reports_dismiss`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+      "detail": "Function `public.community_pack_reports_dismiss(p_id uuid, p_until timestamptz)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/community_pack_reports_dismiss`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_community_pack_shelf_": {
       "name": "authenticated_security_definer_function_executable",

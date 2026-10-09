@@ -26,8 +26,9 @@ alter table public.community_pack_reports enable row level security;
 revoke all on table public.community_pack_reports from public, anon, authenticated;
 grant all on table public.community_pack_reports to service_role;
 
--- Report a live pack. Signed-in only, never one's own, a reason of 1 to 300 characters (the field's
--- own limit), and at most ten a minute per account (the 0004 shape, inside the function).
+-- Report a live pack. Signed-in only, never one's own, once per account while its report waits,
+-- a reason of 1 to 300 characters (the field's own limit), and at most ten a minute per account
+-- (the 0004 shape, inside the function).
 create or replace function public.community_pack_report(p_id uuid, p_reason text)
 returns void
 language plpgsql security definer set search_path = '' as $$
@@ -35,6 +36,7 @@ declare
   v_uid uuid := (select auth.uid());
   v_reason text := btrim(coalesce(p_reason, ''));
   v_author uuid;
+  v_lineage uuid;
 begin
   if v_uid is null then
     raise exception 'Sign in to report a pack.';
@@ -42,12 +44,19 @@ begin
   if char_length(v_reason) not between 1 and 300 then
     raise exception 'Say what is wrong with it, in at most 300 characters.';
   end if;
-  select c.author_id into v_author from public.community_packs c where c.id = p_id and c.state = 'live';
+  select c.author_id, c.lineage into v_author, v_lineage from public.community_packs c where c.id = p_id and c.state = 'live';
   if not found then
     raise exception 'That pack is no longer offered.';
   end if;
   if v_author = v_uid then
     raise exception 'This pack is yours. Withdraw it under Your packs instead.';
+  end if;
+  -- One voice per account: a second report of a pack whose first still waits would only inflate
+  -- the count the admin reads.
+  if exists (select 1 from public.community_pack_reports r
+               join public.community_packs c on c.id = r.pack_id
+              where c.lineage = v_lineage and r.reporter_id = v_uid and r.dismissed_at is null) then
+    raise exception 'You have reported this pack already.';
   end if;
   if (select count(*) from public.community_pack_reports r
        where r.reporter_id = v_uid and r.created_at > now() - interval '60 seconds') >= 10 then
@@ -59,15 +68,16 @@ $$;
 revoke all on function public.community_pack_report(uuid, text) from public, anon;
 grant execute on function public.community_pack_report(uuid, text) to authenticated;
 
--- What an admin reads: each live pack with reports not yet dismissed, counted across every
--- version of the pack (an approved update replaces the reported row but not the reason), with the
--- three latest reasons, most recently reported first. Empty for anyone but a moderator.
+-- What an admin reads: each live pack with reports not yet dismissed, counted as the accounts that
+-- reported it across every version of the pack (an approved update replaces the reported row but
+-- not the reason), with the three latest reasons and the newest report's time, most recently
+-- reported first. Empty for anyone but a moderator.
 create or replace function public.community_pack_reported()
 returns table (id uuid, lineage uuid, name text, description text, author_name text, graphics integer, version integer,
                reports integer, reasons text[], last_reported timestamptz)
 language sql stable security definer set search_path = '' as $$
   select live.id, live.lineage, live.name, live.description, live.author_name, live.graphics, live.version,
-         count(*)::integer,
+         count(distinct r.reporter_id)::integer,
          (array_agg(r.reason order by r.created_at desc))[1:3],
          max(r.created_at)
   from public.community_pack_reports r
@@ -80,8 +90,9 @@ $$;
 revoke all on function public.community_pack_reported() from public, anon;
 grant execute on function public.community_pack_reported() to authenticated;
 
--- An admin keeps a reported pack: its reports, on every version, leave the Reported list.
-create or replace function public.community_pack_reports_dismiss(p_id uuid)
+-- An admin keeps a reported pack: the reports they read, on every version, leave the Reported
+-- list. `p_until` is the newest report the admin's list held, so a report filed since stays.
+create or replace function public.community_pack_reports_dismiss(p_id uuid, p_until timestamptz)
 returns void
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -93,12 +104,13 @@ begin
   update public.community_pack_reports r
      set dismissed_at = now(), dismissed_by = v_uid
    where r.dismissed_at is null
+     and r.created_at <= p_until
      and r.pack_id in (select c.id from public.community_packs c
                         where c.lineage = (select p.lineage from public.community_packs p where p.id = p_id));
 end;
 $$;
-revoke all on function public.community_pack_reports_dismiss(uuid) from public, anon;
-grant execute on function public.community_pack_reports_dismiss(uuid) to authenticated;
+revoke all on function public.community_pack_reports_dismiss(uuid, timestamptz) from public, anon;
+grant execute on function public.community_pack_reports_dismiss(uuid, timestamptz) to authenticated;
 
 -- Self-check, part one: the grants. Signed-out callers reach none of the three; the table
 -- grants clients nothing.
@@ -106,7 +118,7 @@ do $$
 begin
   if has_function_privilege('anon', 'public.community_pack_report(uuid, text)', 'execute')
      or has_function_privilege('anon', 'public.community_pack_reported()', 'execute')
-     or has_function_privilege('anon', 'public.community_pack_reports_dismiss(uuid)', 'execute') then
+     or has_function_privilege('anon', 'public.community_pack_reports_dismiss(uuid, timestamptz)', 'execute') then
     raise exception '0083 self-check: anon may reach a report function';
   end if;
   if not has_function_privilege('authenticated', 'public.community_pack_report(uuid, text)', 'execute') then
@@ -157,7 +169,16 @@ begin
     end if;
     v_error := null;
     begin
-      perform public.community_pack_reports_dismiss(v_pack);
+      perform public.community_pack_report(v_pack, 'Again');
+    exception when raise_exception then
+      v_error := sqlerrm;
+    end;
+    if v_error is distinct from 'You have reported this pack already.' then
+      raise exception '0083 self-check failed: one account reported a pack twice (%)', v_error;
+    end if;
+    v_error := null;
+    begin
+      perform public.community_pack_reports_dismiss(v_pack, now());
     exception when raise_exception then
       v_error := sqlerrm;
     end;
@@ -181,7 +202,12 @@ begin
     if v_count is distinct from 1 then
       raise exception '0083 self-check failed: the admin sees % reports, not 1', v_count;
     end if;
-    perform public.community_pack_reports_dismiss(v_pack);
+    -- A dismissal up to a moment before the report leaves it waiting; up to now clears it.
+    perform public.community_pack_reports_dismiss(v_pack, now() - interval '1 second');
+    if not exists (select 1 from public.community_pack_reported() r where r.id = v_pack) then
+      raise exception '0083 self-check failed: a dismissal cleared a report filed after its moment';
+    end if;
+    perform public.community_pack_reports_dismiss(v_pack, now());
     if exists (select 1 from public.community_pack_reported() r where r.id = v_pack) then
       raise exception '0083 self-check failed: a dismissed pack is still listed';
     end if;
