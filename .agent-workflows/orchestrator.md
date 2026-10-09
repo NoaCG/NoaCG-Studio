@@ -114,8 +114,8 @@ A row that fixes an issue puts `Closes #<n>` on its own line in a commit message
 what it checked. Left over: fix a follow-up yourself only when it is small and in the area you are
 already changing; anything else becomes a GitHub issue (`gh issue create`, with a priority, an area
 label and why it matters). Nothing speculative. No handoff file, no new doc unless it is the goal.
-Then /check and /queue-merge. Its next-session comment on the pull request ends your report, as a
-link. Do not wait for the landing.
+Then /check and /queue-merge. End your report with the link to its next-session comment, not the
+comment's text. Do not wait for the landing.
 Never merge or push main, never touch another worktree, and leave nothing running.
 ```
 
