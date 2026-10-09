@@ -359,8 +359,9 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
       refresh();
     });
 
+  // Keyed apart from the card's own so Install does not read "Installing…" while a report sends.
   const report = (card: Card, reason: string) =>
-    run(cardKey(card), async () => {
+    run(`report:${card.id}`, async () => {
       await reportPack(card.id, reason);
       setReporting(null);
       setReported((prev) => new Set(prev).add(card.id));
@@ -543,7 +544,9 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 {reported.has(p.id) && <span className="hint wz-community-reported" role="status">Reported. Thank you.</span>}
               </div>
             )}
-            {note?.id === cardKey(p) && <p className="wz-community-error" role="alert">{note.message}</p>}
+            {(note?.id === cardKey(p) || note?.id === `report:${p.id}`) && (
+              <p className="wz-community-error" role="alert">{note.message}</p>
+            )}
           </li>
         ))}
       </ul>
