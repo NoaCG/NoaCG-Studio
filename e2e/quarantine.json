@@ -6,11 +6,6 @@
       "since": "2026-10-09",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37898329567"
-    },
-    "e2e/editor-foundation.spec.ts": {
-      "since": "2026-10-08",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37774551409"
     }
   },
   "released": {
@@ -29,6 +24,10 @@
     "e2e/editor-canvas-transforms.spec.ts": {
       "count": 1,
       "last": "2026-10-04"
+    },
+    "e2e/editor-foundation.spec.ts": {
+      "count": 2,
+      "last": "2026-10-09"
     },
     "e2e/editor-keys.spec.ts": {
       "count": 2,
