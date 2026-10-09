@@ -22,7 +22,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, mintAccount, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { chooseNoacgAgent } from '../_ai-step';
@@ -358,25 +358,39 @@ test.describe('signing up (configured)', () => {
     const settings = (await (
       await fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SERVICE_ROLE_KEY } })
     ).json()) as { mailer_autoconfirm?: boolean };
-    // A project that confirms addresses would send a real email on every run; the next test
-    // covers that reply without one.
-    test.skip(settings.mailer_autoconfirm !== true, 'this project confirms email addresses');
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const email = `e2e-sign-up@${E2E_EMAIL.split('@')[1] || 'noacg.local'}`;
+    const password = 'noacg-e2e-sign-up-pw';
     await deleteAccountByEmail(admin, email); // a leftover from a run that died before its cleanup
 
     try {
       const notes = await openSignUp(page);
       // The reply itself, so the walk below is known to be the session case it claims to be.
       let repliedWithSession = false;
-      await page.route('**/auth/v1/signup*', async (route) => {
-        const response = await route.fetch();
-        repliedWithSession = Boolean(((await response.json()) as { access_token?: string }).access_token);
-        await route.fulfill({ response });
-      });
+      if (settings.mailer_autoconfirm === true) {
+        // Confirmations off, as on the hosted project: the real sign-up, and its real reply.
+        await page.route('**/auth/v1/signup*', async (route) => {
+          const response = await route.fetch();
+          repliedWithSession = Boolean(((await response.json()) as { access_token?: string }).access_token);
+          await route.fulfill({ response });
+        });
+      } else {
+        // This project confirms addresses, or does not say (the staging project behind
+        // hosted-latency.yml skipped here on 2026-10-09), so a real sign-up could send an email. Serve the reply confirmations off would give instead: the account,
+        // made through the admin API, and a real session for it.
+        await mintAccount(admin, email, password);
+        const anon = createClient(SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY ?? '', { auth: { persistSession: false } });
+        const { data, error } = await anon.auth.signInWithPassword({ email, password });
+        if (error || !data.session) throw new Error(`could not open a session for ${email}: ${error?.message}`);
+        const session = data.session;
+        await page.route('**/auth/v1/signup*', async (route) => {
+          repliedWithSession = true;
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) });
+        });
+      }
       await page.locator('#auth-email').fill(email);
-      await page.locator('#auth-pass').fill('noacg-e2e-sign-up-pw');
+      await page.locator('#auth-pass').fill(password);
       await page.locator('.auth-card').getByRole('button', { name: 'Create account', exact: true }).click();
 
       // Signed in: the topbar names the new account and the dialog is gone.
