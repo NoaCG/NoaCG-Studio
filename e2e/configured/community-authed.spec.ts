@@ -1,13 +1,13 @@
-// covers: src/community/communityData.ts, src/components/home/{HomePage,GraphicRow}.tsx
-// covers: supabase/migrations/0078_community_gallery_closed.sql
+// covers: src/components/home/{HomePage,GraphicRow}.tsx
+// covers: supabase/migrations/0078_community_gallery_closed.sql, supabase/migrations/0085_community_gallery_retired.sql
 import { test, expect } from '@playwright/test';
 import { settleDurableWrites } from '../_durable';
-import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics, wipeMySubmissions } from './_helpers';
+import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
 
-// The Era 5.5 community gallery is CLOSED to publishing (owner, 2026-10-08): the community shares
-// reviewed packs only. A signed-in account finds no publish entry, and the database refuses a
-// publish sent around the UI - the boundary is the server, not the missing button. What was
-// already published stays read-only, so browsing still answers.
+// The Era 5.5 community gallery closed to publishing (owner, 2026-10-08: the community shares
+// reviewed packs only) and its tables are retired (0085). A signed-in account finds no publish
+// entry, and a publish sent around the UI is refused by the server - the boundary is the server,
+// not the missing button. The community-assets bucket stays, still refusing every upload.
 
 test.describe('community gallery closed to publishing (configured / signed-in)', () => {
   test.skip(!haveCreds, 'set E2E_EMAIL + E2E_PASSWORD to run the authed community suite');
@@ -20,8 +20,6 @@ test.describe('community gallery closed to publishing (configured / signed-in)',
   });
 
   test.afterEach(async ({ page }) => {
-    // Should the closure ever regress, the refused insert below becomes a live row: withdraw it.
-    await wipeMySubmissions(page);
     await wipeMyGraphics(page);
   });
 
@@ -43,11 +41,12 @@ test.describe('community gallery closed to publishing (configured / signed-in)',
     await expect(page.getByTestId('publish-sheet')).toHaveCount(0);
   });
 
-  test('the database refuses a direct publish and a community-assets upload', async ({ page }) => {
+  test('the server refuses a direct publish and a community-assets upload', async ({ page }) => {
     const answer = await page.evaluate(async () => {
       const sb = (await (await import('/src/backend/supabase.ts')).getSupabase())!;
       const { data: who } = await sb.auth.getUser();
       const uid = who.user!.id;
+      // Refused either way: by 0078's policy while the table exists, as an unknown table after 0085.
       const insert = await sb
         .from('community_templates')
         .insert({ kind: 'graphic', name: 'Closed gallery E2E', summary: '', body: {} })
@@ -55,19 +54,14 @@ test.describe('community gallery closed to publishing (configured / signed-in)',
       const upload = await sb.storage
         .from('community-assets')
         .upload(`${uid}/closed-gallery-e2e`, new Blob(['x'], { type: 'text/plain' }), { upsert: false });
-      const browse = await sb.rpc('community_list', { p_kind: null, p_category: null, p_limit: 1, p_offset: 0 });
       return {
-        insertCode: insert.error?.code ?? null,
-        insertMessage: insert.error?.message ?? '',
+        insertRefused: Boolean(insert.error),
         uploadRefused: Boolean(upload.error),
         uploadMessage: upload.error?.message ?? '',
-        browseError: browse.error?.message ?? null,
       };
     });
-    expect(answer.insertCode, answer.insertMessage).toBe('42501');
-    expect(answer.insertMessage).toMatch(/community_publishing_closed/);
+    expect(answer.insertRefused, 'a publish to the retired gallery must be refused').toBe(true);
     expect(answer.uploadRefused, 'an upload to the public community bucket must be refused').toBe(true);
     expect(answer.uploadMessage).toMatch(/row-level security/i);
-    expect(answer.browseError, 'browsing what was already published still answers').toBeNull();
   });
 });

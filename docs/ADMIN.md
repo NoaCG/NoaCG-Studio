@@ -151,7 +151,7 @@ routes through one catch-all (`api/ai/lite/[...path].ts`, `api/ai/tasks/[...path
 | `ai.pro` | `api/ai/generate.ts`, on the `surface: 'pro'` discriminator the NoaCG Pro pipeline sets - the same mechanism, honest limit, and testability as `ai.video` below. It also gates `surface: 'spike'`, the bench-only Phase 0 surface (`docs/NOACG_PRO_PLAN.md` §0), which no user reaches and which exists to request forced-tool structured output: a bench surface belonging to Pro must not carry a weaker gate than Pro |
 | `ai.video` | `api/ai/generate.ts`, on the `surface: 'video'` discriminator the video harness sets; the decision itself is `gatedFeature()` + `surfaceRefused()` in `api/_lib/entitlements.ts`, so it is testable without a verified token. It binds only a caller the server RECOGNISED - anonymous resolves defaults that carry no account feature, and account-free BYO video works today. See "Gating a surface on a shared endpoint" below for what the check can and cannot do |
 | `render.cloud` | `api/render/start.ts` |
-| `community.publish` | `community_pack_submit` refuses a community pack submission or update (`0080`). The older RLS gates on the closed gallery still stand: the two `community_templates_publish_*` gates + `community_assets_publish_insert` on the bucket (`0022`), with moderators exempt on UPDATE |
+| `community.publish` | `community_pack_submit` refuses a community pack submission or update (`0080`). On the retired gallery's bucket, `community_assets_publish_insert` (`0022`) still stands; its tables and their gates went in `0085` |
 | `control.hosted` | RLS: the two `control_shows_hosted_*` gates, plus the owner check inside `control_send`, `control_stage` and `control_report` (`0022`) - the RPCs are where an existing page actually costs something |
 | `showchat` | RLS: the two `shows_showchat_*` gates and `chat_submissions_showchat_update`, plus the owner check inside `show_accepts` (what the anonymous send-in policy from `0003` already tests) and `show_by_slug`, so the page agrees with the policy (`0022`) |
 | `audience` | RLS-shaped, but through RPCs alone (`0035`): every audience write - submit, vote, moderate, set the state, open or close a round - resolves the production's owner and refuses on `feature_denied_for(owner, 'audience')`. The three tables have RLS on and NO policies, so there is no second path to gate. The join resolve is the deliberate exception: a denial folds into `open = false`, because a viewer holding a link should see a closed door rather than an error naming a feature they have never heard of |
@@ -204,7 +204,7 @@ with its own profile, the way `ai.lite` and `ai.import-analysis` have one.
 
 `sync.cloud`, `community.publish`, `control.hosted` and `showchat` have no endpoint to gate.
 Every one of them writes STRAIGHT FROM THE BROWSER through the Supabase client -
-`backend/supabaseProvider.ts` (documents, assets), `community/communityData.ts`,
+`backend/supabaseProvider.ts` (documents, assets), the old community gallery (retired in `0085`),
 `control/hostedControl.ts`, `showchat/chatData.ts` - so RLS is the only thing in the path.
 This section is the design decision for them, written before any migration exists.
 

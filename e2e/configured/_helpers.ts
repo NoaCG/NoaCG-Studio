@@ -215,13 +215,3 @@ export async function lastAppliedRow(air: Page): Promise<number> {
   const m = /last row: (\d+)/.exec(text ?? '');
   return m ? Number(m[1]) : 0;
 }
-
-/** Remove every community submission owned by the signed-in test account (bulletproof teardown for a
- *  throwaway account that should only ever hold test rows). */
-export async function wipeMySubmissions(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    const { listMySubmissions, unpublish } = await import('/src/community/communityData.ts');
-    const subs = await listMySubmissions();
-    for (const s of subs) await unpublish(s.id);
-  });
-}

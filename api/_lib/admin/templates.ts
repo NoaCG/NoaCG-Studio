@@ -1,6 +1,6 @@
 // /api/admin/templates - template visibility and usage.
 //
-//   GET                                          the overlay rows, community rows, and usage
+//   GET                                          the overlay rows and usage
 //   POST { action: 'set', key, source, visibility, name?, category?, note? }
 //   POST { action: 'clear', key }                back to the default (public)
 //
@@ -40,10 +40,7 @@ export default {
     const db = await adminDb();
 
     if (req.method === 'GET') {
-      const [overlay, community] = await Promise.all([
-        db.from('template_admin').select('template_key, source, visibility, note'),
-        db.from('community_templates').select('id, slug, name, category, status').limit(500),
-      ]);
+      const overlay = await db.from('template_admin').select('template_key, source, visibility, note');
       if (overlay.error) return apiError('internal', 'Could not read the template settings.', 500);
 
       // PER-TEMPLATE USAGE IS NOT RECORDED, and this endpoint used to pretend otherwise: it
@@ -63,10 +60,7 @@ export default {
       const usageUnavailable = true;
 
       const templates: AdminTemplateEntry[] = [];
-      const seen = new Set<string>();
-
       for (const row of (overlay.data ?? []) as OverlayRow[]) {
-        seen.add(row.template_key);
         templates.push({
           key: row.template_key,
           source: row.source === 'community' ? 'community' : 'catalog',
@@ -75,23 +69,8 @@ export default {
           name: row.template_key,
           category: '',
           visibility: isVisibility(row.visibility) ? row.visibility : 'public',
-          status: null,
           uses: uses.get(row.template_key) ?? 0,
           note: row.note,
-        });
-      }
-
-      for (const row of (community.data ?? []) as { id: string; slug: string; name: string; category: string | null; status: string }[]) {
-        if (seen.has(row.slug)) continue;
-        templates.push({
-          key: row.slug,
-          source: 'community',
-          name: row.name,
-          category: row.category ?? '',
-          visibility: 'public',
-          status: row.status,
-          uses: uses.get(row.slug) ?? 0,
-          note: '',
         });
       }
 
