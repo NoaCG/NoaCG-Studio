@@ -58,18 +58,17 @@ const MEASURE_FIXTURE = async ({ type, body, css, fields }) => {
 };
 
 /** The export panel's own measurement over every catalog design, a few frames at a time. Runs in
- *  the browser; returns each design's type and rule ids. With `shift`, only the tickers, each
- *  moved right by that many pixels so a full-bleed or centred band sits off-centre. */
-const MEASURE_CATALOG = async (shift) => {
+ *  the browser; returns each design's type and rule ids. With `onlyType`, only designs of that
+ *  type; `css` is appended to each one measured. */
+const MEASURE_CATALOG = async ({ onlyType = null, css = '' } = {}) => {
   const ids = Object.values(window.NOACG_CATALOG.CATALOG).flat().map((v) => v.id);
   const out = {};
   const BATCH = 6;
   for (let i = 0; i < ids.length; i += BATCH) {
     await Promise.all(ids.slice(i, i + BATCH).map(async (id) => {
       const template = window.NOACG_CATALOG.variantById(id).create({});
-      if (shift && template.type !== 'ticker') return;
-      if (shift) template.css += `
-body{transform:translateX(${shift}px)}`;
+      if (onlyType && template.type !== onlyType) return;
+      template.css += css;
       const warnings = await window.NOACG_RULES.checkTemplateLegibility(template, null);
       out[id] = {
         type: template.type,
@@ -148,8 +147,11 @@ const measured = await withBundledPage(SPECS, async (page) => {
         + ' .band span{font-size:12px;margin-right:40px}',
       body: `<div class="band"><span id="f0">Ana Example</span>${'<span>tiny</span>'.repeat(12)}</div>`,
     }),
-    catalog: await page.evaluate(MEASURE_CATALOG, 0),
-    tickersShifted: await page.evaluate(MEASURE_CATALOG, 160),
+    catalog: await page.evaluate(MEASURE_CATALOG, {}),
+    // Each ticker moved right, so a full-bleed or centred band sits off-centre.
+    tickersShifted: await page.evaluate(MEASURE_CATALOG, {
+      onlyType: 'ticker', css: '\nbody{transform:translateX(160px)}',
+    }),
   };
 });
 

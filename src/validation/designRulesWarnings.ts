@@ -212,8 +212,9 @@ export function designRulesWarnings(
       message: `${finding.detail} (computed for ${viewingPhrase(legibility)})`,
     }))
     : [];
+  const room = MAX_WARNINGS - tickerIssues.length;
   for (const finding of report.findings) {
-    if (issues.length >= MAX_WARNINGS - tickerIssues.length) break;
+    if (issues.length >= room) break;
     const msg = productMessage(finding, legibility);
     if (msg) issues.push(msg);
   }
