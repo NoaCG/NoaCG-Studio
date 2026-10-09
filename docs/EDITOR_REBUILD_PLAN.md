@@ -715,6 +715,12 @@ against the reference editors found. Only what the next phase needs; order and a
 - Pinned VectorCraft v0.4.0 executed comparable import/edit/history/native reopen. It has no
   equivalent CLI broadcast package or output contract. Compare interaction/rendering only
   for that subset; retain the NoaCG-specific regressions and post-landing independent check.
+- [Independent post-landing check](work-specs/editor-cli-round-trip/independent/README.md)
+  passed on merged main and production at 2e164047, with a post-merge pinned reference
+  repeat. Text, typography, history and durable reopen match their contracts; panel
+  translation and fill were different artwork tasks. Browser exports agree, including
+  a measured OGraf test-host offset. Small-view timeline/artboard limits and production
+  consent occlusion remain explicit; no broadcast-reference or whole-editor parity claim.
 - Next: reproduce the existing linked-scale/corner/rotation feedback before R1.5. Paired MCP
   stays R3.2; general help, funding/BYOK, WebMCP and broader release acceptance stay separate.
 

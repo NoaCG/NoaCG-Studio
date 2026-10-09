@@ -1,0 +1,689 @@
+{
+  "startedAt": "2026-10-09T22:50:33.117Z",
+  "finishedAt": "2026-10-09T22:50:35.834Z",
+  "job": "j-4097",
+  "reference": "VectorCraft 0.4.0",
+  "revision": "a26aa5b203c901979eb447d28e34e7357138c789",
+  "archiveSha256": "fa8d7dc5590ebf1adb93d040dd7420441a2e55db2971f33c05c0c0e5edde0fec",
+  "executableSha256": "19d93588ae034e38084be17e626a7f2174bd626059723c93d4681e752a72ffba",
+  "input": {
+    "path": "reference-input.svg",
+    "sha256": "ba66fd9cc1e56b45face08e272cace46b3b086b2806afaca5c2fb351b7fe3f4a"
+  },
+  "task": "Import independently authored interview card; edit headline and typography; move artwork; undo/redo; native save/reopen",
+  "snapshots": {
+    "imported": {
+      "dirty": false,
+      "revision": 1,
+      "historyCount": 0,
+      "redoCount": 0,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Nadia Kovacs",
+          "bounds": {
+            "height": 67.03125,
+            "width": 370.1953125,
+            "x": 190,
+            "y": 765.68359375
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 150,
+            "y": 735
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "afterText": {
+      "dirty": true,
+      "revision": 2,
+      "historyCount": 1,
+      "redoCount": 0,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 67.03125,
+            "width": 283.4765625,
+            "x": 190,
+            "y": 765.68359375
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 150,
+            "y": 735
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "beforeMove": {
+      "dirty": true,
+      "revision": 3,
+      "historyCount": 2,
+      "redoCount": 0,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 71.5,
+            "width": 302.375,
+            "x": 190,
+            "y": 762.0625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 150,
+            "y": 735
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "fontUndone": {
+      "dirty": true,
+      "revision": 4,
+      "historyCount": 1,
+      "redoCount": 1,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 67.03125,
+            "width": 283.4765625,
+            "x": 190,
+            "y": 765.68359375
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 150,
+            "y": 735
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "fontRedone": {
+      "dirty": true,
+      "revision": 5,
+      "historyCount": 2,
+      "redoCount": 0,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 71.5,
+            "width": 302.375,
+            "x": 190,
+            "y": 762.0625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 150,
+            "y": 735
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "moved": {
+      "dirty": true,
+      "revision": 6,
+      "historyCount": 3,
+      "redoCount": 0,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 71.5,
+            "width": 302.375,
+            "x": 190,
+            "y": 762.0625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 190,
+            "y": 710
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "undone": {
+      "dirty": true,
+      "revision": 7,
+      "historyCount": 2,
+      "redoCount": 1,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 71.5,
+            "width": 302.375,
+            "x": 190,
+            "y": 762.0625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 150,
+            "y": 735
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "redone": {
+      "dirty": true,
+      "revision": 8,
+      "historyCount": 3,
+      "redoCount": 0,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 71.5,
+            "width": 302.375,
+            "x": 190,
+            "y": 762.0625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 190,
+            "y": 710
+          },
+          "fill": "#18384c"
+        }
+      ]
+    },
+    "reopened": {
+      "dirty": false,
+      "revision": 1,
+      "historyCount": 0,
+      "redoCount": 0,
+      "nodes": [
+        {
+          "id": 5,
+          "name": "interview-note",
+          "kind": "Type",
+          "text": "KITE LIVE",
+          "bounds": {
+            "height": 27.9296875,
+            "width": 116.71142578125,
+            "x": 1080,
+            "y": 902.3681640625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 4,
+          "name": "interview-role",
+          "kind": "Type",
+          "text": "Stage producer",
+          "bounds": {
+            "height": 37.984375,
+            "width": 232.953125,
+            "x": 190,
+            "y": 844.220703125
+          },
+          "fill": "#a8d6e4"
+        },
+        {
+          "id": 3,
+          "name": "interview-name",
+          "kind": "Type",
+          "text": "Mina Patel",
+          "bounds": {
+            "height": 71.5,
+            "width": 302.375,
+            "x": 190,
+            "y": 762.0625
+          },
+          "fill": "#ffffff"
+        },
+        {
+          "id": 2,
+          "name": "interview-panel",
+          "kind": "Path",
+          "bounds": {
+            "height": 225,
+            "width": 1180,
+            "x": 190,
+            "y": 710
+          },
+          "fill": "#18384c"
+        }
+      ]
+    }
+  },
+  "calls": [
+    {
+      "method": "ui.resize",
+      "params": {
+        "width": 1366,
+        "height": 768
+      },
+      "ok": true
+    },
+    {
+      "method": "app.open",
+      "params": {
+        "path": "<evidence>/interview-card.svg"
+      },
+      "ok": true
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.setText",
+        "params": {
+          "id": 3,
+          "text": "Mina Patel"
+        }
+      },
+      "ok": true
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.setStyle",
+        "params": {
+          "id": 3,
+          "size": 64,
+          "fill": "#ffffff"
+        }
+      },
+      "ok": true
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "ok": true
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true,
+        "shift": true
+      },
+      "ok": true
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.transform",
+        "params": {
+          "ids": [
+            2
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            1,
+            40,
+            -25
+          ]
+        }
+      },
+      "ok": true
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "ok": true
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true,
+        "shift": true
+      },
+      "ok": true
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "file.saveAs",
+        "params": {
+          "path": "<evidence>/interview-edited-1791586235515.vectorcraft",
+          "format": "vectorcraft"
+        }
+      },
+      "ok": true
+    },
+    {
+      "method": "app.open",
+      "params": {
+        "path": "<evidence>/interview-edited-1791586235515.vectorcraft"
+      },
+      "ok": true
+    },
+    {
+      "method": "ui.render",
+      "params": {
+        "path": "<evidence>/reference-independent-render.png",
+        "scale": 0.5
+      },
+      "ok": true
+    },
+    {
+      "method": "ui.screenshot",
+      "params": {
+        "path": "<evidence>/reference-independent-ui.png"
+      },
+      "ok": true
+    }
+  ],
+  "assertions": {
+    "headline": "Mina Patel",
+    "fontChangeFrom60To64IncreasedBounds": true,
+    "typographyUndoRedoRestoredCorrespondingBounds": true,
+    "panelTranslation": [
+      40,
+      -25
+    ],
+    "panelUndoRedoRestoredCorrespondingBounds": true,
+    "nativeSaveCreatedNewFile": true,
+    "nativeReopenPreservedEditedBoundsAndText": true,
+    "untouchedRole": "Stage producer",
+    "untouchedStaticText": "KITE LIVE"
+  },
+  "nativeSavedBytes": 28950
+}
