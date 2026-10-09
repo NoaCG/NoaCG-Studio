@@ -286,7 +286,8 @@ if (toMain) {
 //     back to back, they only make everything else unusable while they do it.
 //     A command the job runner caught launching a browser is browser work here too (#920): its
 //     text says nothing, but the queue already knows (`rememberedAsBrowser` in jobs-store.mjs).
-if (invokesE2e(command) || invokesSweep(command) || rememberedAsBrowser(jobsDir(), command)) {
+const namedBrowserWork = invokesE2e(command) || invokesSweep(command);
+if (namedBrowserWork || rememberedAsBrowser(jobsDir(), command)) {
   //   The whole default suite runs on GitHub Actions, never here: the job queue refuses it as a
   //   job, and this refuses it typed straight into the shell.
   if (runsWholeSuite(command)) deny(WHOLE_SUITE_ON_GITHUB);
@@ -303,7 +304,7 @@ if (invokesE2e(command) || invokesSweep(command) || rememberedAsBrowser(jobsDir(
   if (others.length > 0 && !/NOACG_ALLOW_PARALLEL_E2E\s*=\s*1/.test(command)) {
     deny(
       `Blocked: browser-driving work is already running on this machine:\n${describeRuns(others)}\n` +
-        (invokesE2e(command) || invokesSweep(command)
+        (namedBrowserWork
           ? ''
           : 'The job queue caught this command opening a browser, so it counts as browser work; ' +
             '`npm run queue -- "<this command>"` runs it after.\n') +
