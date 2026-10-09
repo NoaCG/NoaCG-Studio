@@ -41,7 +41,9 @@ import {
   mainPushes,
   pollsQueue,
   pushesAndDispatches,
+  runsWholeSuite,
   startsDevServer,
+  WHOLE_SUITE_ON_GITHUB,
 } from '../command-match.mjs';
 import { checkoutRoot, commandCheckout, devPortOverride } from '../command-target.mjs';
 
@@ -300,6 +302,9 @@ if (toMain) {
 //     Serialising costs nothing: two jobs sharing one box do not finish sooner than two run
 //     back to back, they only make everything else unusable while they do it.
 if (invokesE2e(command) || invokesSweep(command)) {
+  //   The whole default suite runs on GitHub Actions, never here: the job queue refuses it as a
+  //   job, and this refuses it typed straight into the shell.
+  if (runsWholeSuite(command)) deny(WHOLE_SUITE_ON_GITHUB);
   //   A command that already routes through the waiter serialises itself, so it is exempt:
   //   blocking it would be refusing the very fix this rule recommends.
   //   ENQUEUING is the strongest form of that fix and starts nothing at all - see
@@ -316,7 +321,7 @@ if (invokesE2e(command) || invokesSweep(command)) {
         'A suite, a catalog sweep and a bench all cost the same memory, and two at once exhaust it ' +
         'rather than sharing it (see `root/enqueue-browser-driving-work-rather-than`).\n' +
         'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +
-        'or queue an e2e run behind it with `npm run test:e2e:queued` / `npm run test:e2e:focus:queued`.\n' +
+        'or queue the specs you need behind it: `npm run queue -- "npm run test:e2e -- e2e/<name>.spec.ts"`.\n' +
         'If the overlap is genuinely wanted, include NOACG_ALLOW_PARALLEL_E2E=1 in the command.',
     );
   }

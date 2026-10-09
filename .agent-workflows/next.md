@@ -52,9 +52,9 @@ quick scan, not an audit.
   measured with a real three-way merge rather than a guess. Order is the queue's - pull requests
   land in the order they were queued - so the only question is whether a conflict with `main` is
   waiting, and section 2 says what to do with the answer.
-- **Verification gap.** Was `npm run build` run after the last code change? Is there observable
-  behaviour that was never checked in the browser or with a focused `e2e/` spec? A green build
-  alone does not close a UI-visible change. But absence of a test is a gap, not a bug - never
+- **Verification gap.** Did the targeted checks run after the last code change, and is the pull
+  request's CI green? Is there observable behaviour that was never checked in the browser or with
+  a focused `e2e/` spec? Green checks alone do not close a UI-visible change. But absence of a test is a gap, not a bug - never
   claim something is broken without evidence it is.
 - **Evidence in the work area** - `TODO`/`FIXME`/`HACK` markers and open questions in the files
   this session touched, plus the nested `AGENTS.md`/`CLAUDE.md` and `docs/` contracts that govern

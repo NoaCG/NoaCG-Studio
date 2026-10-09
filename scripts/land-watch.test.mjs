@@ -133,7 +133,7 @@ test('#609 replayed through the watcher: refused on the first confirmed tick, wi
   try {
     code = await watch(
       { pr: '609', branch: 'claude/editor-r1-2b-anchor-typography-bf62be', expectSha: PR_609.headRefOid },
-      { view: () => PR_609, checks: () => NIGHT_609, wait: async (ms) => { waits.push(ms); clock += ms; }, now: () => clock },
+      { view: () => PR_609, checks: () => NIGHT_609, mergeGroupRuns: () => [], wait: async (ms) => { waits.push(ms); clock += ms; }, now: () => clock },
     );
   } finally {
     console.error = said;
@@ -180,11 +180,13 @@ test('a refusal names where its CI log is: the red job on the pull request, else
   const runs = () => { asked += 1; return []; };
   assert.equal(ciLogLink(checks, 850, runs), 'https://x/runs/1/job/3', 'the leg that went red, not the aggregate');
   assert.equal(ciLogLink([checks[0]], 850, runs), 'https://x/runs/1/job/9');
+  assert.equal(ciLogLink([job('E2E 1/4 (subset)', 'CANCELLED', 'https://x/runs/1/job/2'), ...checks], 850, runs), 'https://x/runs/1/job/3', 'the shard that failed, not one fail-fast cancelled');
   assert.equal(asked, 0, 'no gh call while the pull request names its own failure');
   // Dropped from the queue: the pull request's checks are green and the merge group's run is red.
   const group = [
     { headBranch: 'gh-readonly-queue/main/pr-8500-aaa', conclusion: 'failure', url: 'https://x/runs/7' },
     { headBranch: 'gh-readonly-queue/main/pr-850-bbb', conclusion: 'success', url: 'https://x/runs/5' },
+    { headBranch: 'gh-readonly-queue/main/pr-850-ddd', conclusion: 'cancelled', url: 'https://x/runs/6' },
     { headBranch: 'gh-readonly-queue/main/pr-850-ccc', conclusion: 'failure', url: 'https://x/runs/4' },
   ];
   assert.equal(ciLogLink([checks[2]], 850, () => group), 'https://x/runs/4');
@@ -198,7 +200,7 @@ test('a refused landing writes its CI log line, and `jobs failed` reads it back'
   try {
     await watch(
       { pr: '609', branch: 'claude/x', expectSha: PR_609.headRefOid },
-      { view: () => PR_609, checks: () => NIGHT_609.map((c) => ({ ...c, detailsUrl: `https://x/${encodeURIComponent(c.name)}` })), wait: async () => {}, now: () => 0 },
+      { view: () => PR_609, checks: () => NIGHT_609.map((c) => ({ ...c, detailsUrl: `https://x/${encodeURIComponent(c.name)}` })), mergeGroupRuns: () => [], wait: async () => {}, now: () => 0 },
     );
   } finally {
     console.error = said;
@@ -206,7 +208,7 @@ test('a refused landing writes its CI log line, and `jobs failed` reads it back'
   const log = ['=== j-2 node scripts/land-watch.mjs --pr 609 --branch claude/x', ...lines, ''].join('\n');
   const now = 10 * 60_000;
   const record = (over) => ({ kind: 'merge', branch: 'claude/x', state: 'failed', exitCode: 1, enqueuedAt: 2, finishedAt: now - 60_000, command: 'node scripts/land-watch.mjs --pr 609 --branch claude/x', ...over });
-  const jobs = [record({ id: 'j-1', enqueuedAt: 1, state: 'done', exitCode: 0 }), record({ id: 'j-2' })];
+  const jobs = [record({ id: 'j-1', enqueuedAt: 1, finishedAt: now - 120_000, state: 'done', exitCode: 0 }), record({ id: 'j-2' })];
   assert.deepEqual(failedLandings(jobs, { now, logOf: () => log }), [{
     id: 'j-2',
     branch: 'claude/x',

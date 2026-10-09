@@ -256,26 +256,28 @@ export const WHOLE_SUITE_ON_GITHUB = [
 ].join('\n');
 
 /** The two package scripts and the bare Playwright call that run the default config. */
-const DEFAULT_SUITE_ENTRY = /^(?:(?:(?:npm|pnpm)\s+(?:run\s+)?|yarn\s+)test:e2e(?::queued)?|(?:npx\s+)?playwright\s+test)(?=\s|$)/;
+const DEFAULT_SUITE_ENTRY = /^(?:(?:npm|pnpm|yarn)\s+(?:run\s+)?test:e2e(?::queued)?|(?:npx\s+)?playwright\s+test)(?=\s|$)/;
 /** Flags that narrow a run, or point it at another config, so it is not the whole default suite. */
 const NARROWS_RUN = /^(?:-g|--grep|--last-failed|--only-changed|-c|--config|--list|--help)(?:=|$)/;
+/** Playwright flags whose value may follow as its own token, which is then not a file filter. */
+const TAKES_VALUE = /^(?:--reporter|--retries|--timeout|--global-timeout|--repeat-each|--workers|-j|--project|--max-failures|--output|--trace|--shard)$/;
 
 /**
  * Does this command run the WHOLE offline suite: Playwright on its default config with nothing
  * naming specs or narrowing it? `npm run test:e2e`, `npm run test:e2e:queued` and
- * `npx playwright test` with no file, grep or config argument. The job queue refuses these
- * (scripts/jobs.mjs `add`); the affected planner refuses its own whole-suite plans at run time,
- * because only it knows what a diff escalates to.
+ * `npx playwright test` with no file, grep or config argument. The job queue and the command
+ * guard refuse these; the affected planner refuses its own whole-suite plans at run time, because
+ * only it knows what a diff escalates to.
  *
- * A token that is not a flag is a file filter. That reads `--workers 2` as narrowed too, which errs
- * toward letting a run through: the refusal is for the plain spelling, not an adversary.
+ * Any other token that is not a flag or a flag's value is a file filter: the refusal is for the
+ * plain spellings, not an adversary.
  */
 export function runsWholeSuite(text) {
   return invocationParts(text).some((part) => {
     const entry = DEFAULT_SUITE_ENTRY.exec(part);
     if (!entry) return false;
     const rest = part.slice(entry[0].length).trim().split(/\s+/).filter((t) => t && t !== '--');
-    return !rest.some((t) => !t.startsWith('-') || NARROWS_RUN.test(t));
+    return !rest.some((t, i) => NARROWS_RUN.test(t) || (!t.startsWith('-') && !TAKES_VALUE.test(rest[i - 1] ?? '')));
   });
 }
 

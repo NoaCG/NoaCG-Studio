@@ -854,6 +854,8 @@ test('the job queue refuses the WHOLE default suite and lets one or two named sp
     'npm run test:e2e -- --reporter=list',
     'npx playwright test',
     'playwright test --workers=2',
+    'npx playwright test --reporter list --retries 0',
+    'yarn run test:e2e',
     'set E2E_WORKERS=3&& npm run test:e2e',
     'bash -c "npm run test:e2e"',
   ]) {

@@ -564,7 +564,10 @@ export function repositoryFiles() {
 function changedFiles(ref) {
   const diff = spawnSync('git', ['diff', '--name-only', `${ref}...HEAD`], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
-  const fromDiff = diff.status === 0 ? diff.stdout.split('\n') : [];
+  // A ref that cannot be diffed against is an error, never an empty change set that passes having
+  // checked nothing.
+  if (diff.status !== 0) throw new Error(`gates: cannot diff against ${ref}: ${diff.stderr.trim()}`);
+  const fromDiff = diff.stdout.split('\n');
   const fromStatus = status.stdout.split('\n').map((l) => l.slice(3).trim());
   return [...new Set([...fromDiff, ...fromStatus].map((f) => f.replaceAll('\\', '/')).filter(Boolean))];
 }
@@ -763,7 +766,13 @@ function main(argv) {
 
   const { checks, tests } = loadAll();
   const ref = flags.get('--changed');
-  const changed = typeof ref === 'string' ? changedFiles(ref) : null;
+  let changed = null;
+  try {
+    changed = typeof ref === 'string' ? changedFiles(ref) : null;
+  } catch (error) {
+    console.error(error.message);
+    return 2;
+  }
   const inTier = (g) => g.header.gate === tier;
   // `run --changed` is the targeted local check: the gates that reach the changed paths, where the
   // build and CI run every gate. The narrowed tier may honestly be empty, which `list` explains.

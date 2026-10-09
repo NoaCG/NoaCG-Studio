@@ -13,7 +13,8 @@ so only the session that owns the branch queues it.
 
 - Everything is committed and `/check` has stamped the tip with its targeted checks passing; the
   full build and the browser suites run on the pull request's CI, not here. `add-merge` refuses a
-  tip the stamp does not cover or whose verdict is not a pass, whichever agent did the work. Landing without a review is possible only visibly:
+  tip the stamp does not cover or whose verdict is not a pass, whichever agent did the work.
+  Landing without a review is possible only visibly:
   `npm run queue:merge -- --unreviewed "<reason>"`.
 - If the branch finishes a GitHub issue, put `Closes #<n>` on its own line in a commit message:
   queueing copies it into the pull request, and GitHub closes the issue when the branch lands. A

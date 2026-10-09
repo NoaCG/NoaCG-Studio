@@ -256,7 +256,8 @@ forces the plain branch-only diff.
 
 It stays cheap: a wide diff escalates, and under sprint focus an escalation is the focus set, not
 all 128 spec files. The order is **update from main -> verify the combined state -> fix -> push**,
-and CI remains the final authority.
+and CI remains the final authority: it plans from the fork point on every pull request and merge
+group, and off CI a whole-suite plan is refused, so locally name the specs the merge touches.
 
 **CI asks the same question, since 2026-08-19.** It used to pass `github.event.before` as the base,
 which switched integration off - so a merge commit's run diffed the pre-merge branch tip against the

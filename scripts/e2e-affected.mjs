@@ -686,8 +686,8 @@ export function localRunPolicy({ mode, focusApplied = false, catalog = false }, 
   return { refusal: mode === 'full' || focusApplied ? WHOLE_SUITE_ON_GITHUB : null, catalog: false };
 }
 
-/** True on GitHub Actions (and any CI that sets `CI`), the one place the whole suite runs. */
-const onCi = () => Boolean(process.env.CI || process.env.GITHUB_ACTIONS);
+/** True on GitHub Actions, the one place the whole suite runs. Not `CI`: local tools set that too. */
+const onCi = () => process.env.GITHUB_ACTIONS === 'true';
 
 /** The one-line verdict, naming each run - so a red overall status says WHICH run went red. */
 export function summariseRuns(runs, status) {

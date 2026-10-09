@@ -20,7 +20,7 @@ import { appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
-import { giveUpReason, jobsDir, NO_VERDICT_EXIT } from './jobs-store.mjs';
+import { jobsDir, landingStateFor, NO_VERDICT_EXIT } from './jobs-store.mjs';
 import { REQUIRED_CHECKS } from './landing-ruleset-reader.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
 import { triggerUnattendedSweep } from './worktree-cleanup-lib.mjs';
@@ -130,13 +130,19 @@ function requiredRefusal(checks) {
  * `mergeGroupRuns` is called only then, since it costs a `gh` call.
  */
 export function ciLogLink(checks, pr, mergeGroupRuns = () => []) {
-  const failed = (checks ?? []).filter(red);
-  const job = failed.find((c) => !required(c) && c.workflowName) ?? failed[0];
+  // A failure before a cancellation: a fail-fast matrix cancels the shards beside the one that
+  // failed, and a cancelled shard's page holds no error.
+  const rank = (c) => (BROKE.test(c.conclusion || c.state || '') ? 0 : 2) + (!required(c) && c.workflowName ? 0 : 1);
+  const job = (checks ?? []).filter(red).sort((a, b) => rank(a) - rank(b))[0];
   const link = job?.detailsUrl ?? job?.targetUrl;
   if (link) return link;
   const head = `gh-readonly-queue/main/pr-${pr}-`;
-  return (mergeGroupRuns() ?? []).find((r) => String(r.headBranch ?? '').startsWith(head) && FAILED.test(r.conclusion ?? ''))?.url ?? null;
+  const runs = (mergeGroupRuns() ?? []).filter((r) => String(r.headBranch ?? '').startsWith(head));
+  return (runs.find((r) => BROKE.test(r.conclusion ?? '')) ?? runs.find((r) => FAILED.test(r.conclusion ?? '')))?.url ?? null;
 }
+
+/** A conclusion that is a failure in its own right, not a cancellation by something else. */
+const BROKE = /^(FAILURE|ERROR|TIMED_OUT|STARTUP_FAILURE)$/i;
 
 /** The merge-group CI runs GitHub has, newest first. */
 function recentMergeGroupRuns() {
@@ -151,25 +157,22 @@ const CI_LOG_LINE = /^land-watch: CI log: (\S+)$/m;
 /**
  * Pure: the queued pull requests whose landing failed within `withinMs`, one per branch, oldest
  * first - what the orchestrator reads when a row finishes, to send a row its CI failure
- * (`npm run jobs -- failed`). Only a branch's LATEST landing counts: a re-queue after a fix
- * replaces the failure. A record the runner wrote as failed while its log says it landed (a
- * watcher reaped after the landing) is not a failure.
+ * (`npm run jobs -- failed`). The verdict per branch is `landingStateFor`'s, the one the listing
+ * uses: a re-queue replaces the failure, and a record with no exit code whose commit `main`
+ * contains landed. A record whose log says it landed (a watcher reaped after the landing) did too.
  *
  * @param {object[]} jobs  the queue's records
- * @param {{ now?: number, withinMs?: number, logOf?: (job: object) => string }} options
+ * @param {{ now?: number, withinMs?: number, logOf?: (job: object) => string, git?: object }} options
+ *   `git` is what `landingStateFor` asks (`inMain`)
  * @returns {{ id: string, branch: string, pr: string|null, reason: string, ciLog: string|null }[]}
  */
-export function failedLandings(jobs, { now = Date.now(), withinMs = 24 * 60 * 60_000, logOf = () => '' } = {}) {
-  const latest = new Map();
-  for (const job of jobs ?? []) {
-    if (job.kind !== 'merge' || !job.branch) continue;
-    const seen = latest.get(job.branch);
-    if (!seen || (job.enqueuedAt ?? 0) >= (seen.enqueuedAt ?? 0)) latest.set(job.branch, job);
-  }
-  return [...latest.values()]
-    .filter((job) => !['waiting', 'running', 'done', 'cancelled'].includes(job.state) && now - (job.finishedAt ?? 0) <= withinMs)
-    .sort((a, b) => (a.finishedAt ?? 0) - (b.finishedAt ?? 0))
-    .flatMap((job) => {
+export function failedLandings(jobs, { now = Date.now(), withinMs = 24 * 60 * 60_000, logOf = () => '', git = {} } = {}) {
+  const branches = new Set((jobs ?? []).filter((j) => j.kind === 'merge' && j.branch).map((j) => j.branch));
+  return [...branches]
+    .map((branch) => landingStateFor(branch, jobs, git))
+    .filter(({ state, job }) => state === 'gave-up' && now - (job.finishedAt ?? 0) <= withinMs)
+    .sort((a, b) => (a.job.finishedAt ?? 0) - (b.job.finishedAt ?? 0))
+    .flatMap(({ job, reason }) => {
       const log = String(logOf(job) ?? '');
       const attempt = log.slice(Math.max(0, log.lastIndexOf(`=== ${job.id} `)));
       if (LANDED_LINE.test(attempt)) return [];
@@ -177,7 +180,7 @@ export function failedLandings(jobs, { now = Date.now(), withinMs = 24 * 60 * 60
         id: job.id,
         branch: job.branch,
         pr: /--pr (\d+)/.exec(job.command ?? '')?.[1] ?? null,
-        reason: REFUSED_LINE.exec(attempt)?.[1] ?? giveUpReason(job),
+        reason: REFUSED_LINE.exec(attempt)?.[1] ?? reason,
         ciLog: CI_LOG_LINE.exec(attempt)?.[1] ?? null,
       }];
     });
@@ -256,7 +259,8 @@ export async function watch({ pr, branch, expectSha }, io = {}) {
     // The checks are only read while they can decide something: an open pull request the queue
     // has not taken. Inside the queue they are history, and one `gh` call a tick is enough.
     const undecided = view?.state === 'OPEN' && !view.mergeQueueEntry;
-    const { verdict, sha, reason } = watchVerdict(view, undecided ? readChecks(pr) : [], { expectSha });
+    const checks = undecided ? readChecks(pr) : [];
+    const { verdict, sha, reason } = watchVerdict(view, checks, { expectSha });
     if (verdict === 'landed') {
       record({ branch, sha, worktree: process.cwd(), at: now(), pr: Number(pr) });
       console.log(`land-watch: ${branch} landed on main as ${String(sha).slice(0, 8)} (${view.url})`);
@@ -281,9 +285,9 @@ export async function watch({ pr, branch, expectSha }, io = {}) {
     }
     if (verdict === 'refused') {
       // A pull request the queue let go is read without its checks; read them now to name them.
-      const checks = readChecks(pr);
-      const why = undecided ? reason : watchVerdict(view, checks, { expectSha }).reason;
-      const ciLog = ciLogLink(checks, pr, mergeGroupRuns);
+      const named = undecided ? checks : readChecks(pr);
+      const why = undecided ? reason : watchVerdict(view, named, { expectSha }).reason;
+      const ciLog = ciLogLink(named, pr, mergeGroupRuns);
       console.error(`land-watch: the landing of ${branch} was refused: ${why}`);
       if (ciLog) console.error(`land-watch: CI log: ${ciLog}`);
       console.error(`  ${view?.url ?? ''} - fix it, run /check, and npm run queue:merge again.`);

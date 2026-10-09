@@ -881,7 +881,7 @@ function cmdLog() {
  */
 async function cmdFailed() {
   const { failedLandings } = await import('./land-watch.mjs');
-  const failed = failedLandings(readJobs(dir), { logOf: (job) => tailOf(job.logPath) });
+  const failed = failedLandings(readJobs(dir), { logOf: (job) => tailOf(job.logPath), git: gitFacts() });
   if (failed.length === 0) {
     console.log('No landing failed in the last 24 h.');
     return;
