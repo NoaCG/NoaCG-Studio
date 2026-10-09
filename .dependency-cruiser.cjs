@@ -261,6 +261,14 @@ module.exports = {
     },
     {
       comment:
+        '§3: bridge -> community, the pack checks only. An agent sharing a pack to Community packs ' +
+        '(docs/AGENT_SAVE.md §8) is checked by the shelf\'s own pure checks, not a copy of them; ' +
+        'the rest of community/ talks to the backend, which the bridge never reaches.',
+      from: { path: '^src/bridge/' },
+      to: { path: '^src/community/packChecks\\.ts$' },
+    },
+    {
+      comment:
         '§3: community -> backend, validation, packs. A community pack IS a noacg-pack file ' +
         '(docs/work-specs/community-packs/spec.md D2), so the shelf builds and re-checks it through ' +
         'the one pack format rather than a second copy of it.',
