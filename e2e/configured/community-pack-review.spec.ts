@@ -375,15 +375,16 @@ test.describe('community pack review (configured)', () => {
     await sheet.getByTestId('submit-pack-go').click();
     await expect(sheet).toHaveCount(0);
 
-    // AN OUTSIDE REQUEST (D5): a graphic that loads a picture from a CDN when it plays passes the
-    // checks as the sheet changes, and Send plays it with the request refused, names the URL and
-    // keeps the sheet open with nothing sent.
+    // AN OUTSIDE REQUEST (D5): a graphic that loads a picture from a CDN when it plays, its URL
+    // built at runtime so the static screen cannot read it, passes the checks as the sheet
+    // changes; Send plays it with the request refused, names the URL and keeps the sheet open
+    // with nothing sent.
     const FETCHES = `${PACK} fetches`;
     await page.evaluate(async (folder) => {
       const { variantsFor } = await import('/src/templates/catalog.ts');
       const { createGraphic, setGraphicsFolder } = await import('/src/model/library.ts');
       const t = variantsFor('lower-third')[0].create({});
-      const js = `${t.js}\n;(function () { var own = window.play; window.play = function () { new Image().src = 'https://cdn.example.invalid/' + 'logo.png'; return own && own.apply(this, arguments); }; })();`;
+      const js = `${t.js}\n;(function () { var own = window.play; window.play = function () { new Image().src = 'https:' + '//cdn.example.invalid/logo.png'; return own && own.apply(this, arguments); }; })();`;
       const made = createGraphic({ ...t, js }, { name: 'Fetching strap', packageId: null });
       if (made.error) throw new Error(made.error);
       const error = setGraphicsFolder([made.doc.id], folder);
