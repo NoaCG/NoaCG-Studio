@@ -151,9 +151,7 @@
         },
         "stale": false,
         "regenerated": true,
-        "sourceChanges": [
-          "riverlight_festival.html (normalized to the package layout)"
-        ]
+        "sourceChanges": []
       },
       "inspect": {
         "ok": true,
@@ -335,9 +333,7 @@
         },
         "stale": false,
         "regenerated": true,
-        "sourceChanges": [
-          "harbor_cup.html (normalized to the package layout)"
-        ]
+        "sourceChanges": []
       },
       "inspect": {
         "ok": true,

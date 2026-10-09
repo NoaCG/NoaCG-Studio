@@ -1,7 +1,7 @@
 [
   {
     "name": "riverlight",
-    "sha256": "17bb9de23d70798eb40995b77d3c09dd41e9a57c5369b810aa7443ddf2df3be3",
+    "sha256": "f03ed74c585cad7e0b46ba1fec16e314d73b986d2e969d688aa35ba7f0fb4311",
     "files": [
       "controlpanel.html",
       "css/",
@@ -26,7 +26,7 @@
   },
   {
     "name": "harbor",
-    "sha256": "52b2490ae35cd783d93e8dc2cee5fad78f9d6d20a8897caafd0aae0d6a747989",
+    "sha256": "f11d48a8e0f5285cd3e11732ef48dbc11c36ad941c2b775b218b7465acfb71d7",
     "files": [
       "controlpanel.html",
       "css/",

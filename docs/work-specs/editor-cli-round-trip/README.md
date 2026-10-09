@@ -108,3 +108,10 @@ Final package regeneration j-4043 repeated validate/inspect against this checkou
 own server after the OGraf repair. Both packages had zero errors/warnings; the
 actual CLI-produced graphic.mjs retains festival-config. ZIP hashes were refreshed.
 j-4044 passed all six qualification cases against those final bytes (exit 0).
+
+After landed export/import PR #911, reconciliation retained generated runtime
+stripping before authored SPX/data preservation. j-4051 regenerated both actual
+CLI packages with zero errors/warnings; j-4053 passed lint, TypeScript and gates
+(29 tests). j-4054 passed all six qualification cases plus the landed single-file
+round-trip and SPX Continue guard (8/8, exit 0). The latest proxy capture was
+inspected and retains the stated small-view limits. See the final check receipt.

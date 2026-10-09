@@ -100,3 +100,24 @@ cases with exit 0; j-4041 passed targeted ESLint/TypeScript and affected gates
 errors/warnings and retained OGraf metadata. j-4044 passed all six cases on final
 package bytes with exit 0. Latest rendered captures inspected; small-view limits
 remain recorded. PR/merge-group CI and independent post-land evidence follow.
+
+## Landed export/import reconciliation
+
+PR #911 landed as b9d83ad0528c4e91d5e16c6a006a73cccb4d6b2d after the prior
+tip passed all 17 PR checks. The branch was dequeued and only its j-4048
+watch cancelled before resolving importTemplate.ts. Generated target runtime
+stripping remains before authored SPX/data preservation; classification still
+uses the shared scriptKind helper, including unquoted types. No gate changed.
+
+j-4051 regenerated and validated both actual CLI packages on the reconciled
+server, zero errors/warnings, retained OGraf JSON. j-4053 passed targeted lint,
+TypeScript and affected gates (29 tests, including landed contract coverage).
+j-4052 failed before tests because Windows cmd treated single-quoted pipes as
+commands; j-4054 corrected only the command quoting and passed all eight cases
+with exit 0: six qualification cases, the landed single-file runtime round-trip
+and SPX Continue guard. Latest proxy capture inspected; recorded limits persist.
+Final review base is b18836011252ba9e1885842cb9a1a982dff217e2 after the
+scheduler landing, reconciled without conflict or application changes. Same
+35-file scope, inline 2/2 findings fixed, simplify/verify inline. j-4055 passed
+the final affected gates (19 tests). The earlier green CI
+proves its former tip only; the new reviewed tip must pass CI again.
