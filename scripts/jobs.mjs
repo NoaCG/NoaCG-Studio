@@ -1075,25 +1075,25 @@ async function runner() {
     // A LIGHT JOB THAT LAUNCHED A BROWSER IS BROWSER WORK, whatever its command says. Its price
     // came from the command text, so a wrapper script that starts Playwright was admitted without
     // the browser slot or the full floor. Stopped and re-queued as browser work, it waits for both.
-    jobs = readJobs(dir);
-    if (jobs.some(watchedForBrowser) && now - browserWatchAt >= BROWSER_WATCH_MS) {
+    // The pass reuses the holder diagnostics' table whenever they read one, so the watch adds at
+    // most one query of its own in their 30 s.
+    const watched = jobs.filter(watchedForBrowser);
+    if (watched.length && (now - browserWatchAt >= BROWSER_WATCH_MS || diagnosticAt === now)) {
       browserWatchAt = now;
-      // The holder diagnostics may have read the same table this pass; one query, not two.
       const table = diagnosticAt === now ? diagnosticSample.processes : allProcesses();
-      for (const job of jobs.filter(watchedForBrowser)) {
+      for (const job of watched) {
         const seen = browserWorkBelow(job.pid, job.startedAt, table);
         if (seen.length === 0) continue;
-        const what = `${seen[0].name || 'a browser'} (pid ${seen[0].pid})`;
+        const caught = `${job.id} launched ${seen[0].name || 'a browser'} (pid ${seen[0].pid}) while priced as light work`;
         // Stopped FIRST, and re-queued only once it is: a record that says waiting over a job
         // still running would let the scheduler start it a second time beside itself.
         killTree(job.pid);
         if (isAlive(job.pid)) {
-          console.log(`  ${job.id} launched ${what} while priced as light work - could not stop it, trying again`);
+          console.log(`  ${caught} - could not stop it, trying again`);
           continue;
         }
         writeJob(dir, repricedAsBrowser(job));
-        const said = `${job.id} launched ${what} while priced as light work - stopped, re-queued as browser work`
-          + ' (queue it with --kind sweep to start it as one)';
+        const said = `${caught} - stopped, re-queued as browser work (queue it with --kind sweep to start it as one)`;
         try {
           appendFileSync(job.logPath, `\n--- ${said}\n`);
         } catch {
