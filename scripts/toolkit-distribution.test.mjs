@@ -1,5 +1,5 @@
 // gate: build
-// guards: cli/scripts/toolkit-distribution.mjs, cli/scripts/build-skill.mjs, cli/plugin/**, cli/plugin-mcp/**, cli/skill/**, cli/NOTICE, cli/LICENSE, cli/package.json, cli/package-lock.json, .github/workflows/release-cli.yml
+// guards: cli/scripts/toolkit-distribution.mjs, cli/scripts/build-skill.mjs, cli/plugin/**, cli/plugin-mcp/**, cli/skill/**, cli/NOTICE, cli/LICENSE, cli/package.json, cli/package-lock.json, cli/src/mcp.ts, .github/workflows/release-cli.yml
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -32,6 +32,16 @@ test('every independent ZIP extracts with verified CRCs and canonical bytes', as
   assert.ok(!result.packages.codex.has('commands/graphic.md'));
   assert.ok(!result.packages.codex.has('.mcp.json'));
   assert.ok(![...result.packages.repository.keys()].some((p) => /(^|\/)(src|research|benchmarks|node_modules|\.gitattributes)\//.test(p)));
+});
+
+test('both MCP manifests name every verb the tool has', () => {
+  const verbs = readFileSync(path.join(ROOT, 'cli/src/mcp.ts'), 'utf8').match(/MCP_COMMANDS = \[([^\]]+)\]/)[1].match(/'(\w+)'/g).map((v) => v.slice(1, -1));
+  assert.ok(verbs.length >= 8 && verbs.includes('pack'), verbs.join());
+  for (const host of ['claude', 'codex']) {
+    const { description } = JSON.parse(result.packages[`${host}-mcp${host === 'codex' ? '-local' : ''}`].get(`.${host}-plugin/plugin.json`));
+    const listed = description.match(/\(types[^)]*\)/)?.[0] ?? '';
+    for (const verb of verbs) assert.match(listed, new RegExp(`\\b${verb}\\b`), `${host}: ${verb} missing from ${listed}`);
+  }
 });
 
 test('output is idempotent, and altered or stray output is refused without deletion', (t) => {
@@ -110,8 +120,10 @@ function launcher(t, { installed, override } = {}) {
   mkdirSync(path.dirname(entry), {recursive:true});
   writeFileSync(entry, 'process.stdout.write(JSON.stringify(process.argv.slice(2)));');
   writeFileSync(path.join(dir,'node_modules/@noacg/cli/package.json'),JSON.stringify({name:'@noacg/cli',version:installed ?? '9.9.9',type:'module'}));
-  const env={...process.env,NOACG_CLI:override==='entry'?entry:override==='directory'?path.dirname(entry):override ?? '',PATH:''};
-  return spawnSync(process.execPath,[path.join(plugin,'mcp-server.mjs'),'--help'],{env,encoding:'utf8',timeout:10000});
+  // npx runs offline against an empty scratch cache, so its fallback fails fast and fetches nothing.
+  const env={...process.env,NOACG_CLI:override==='entry'?entry:override==='directory'?path.dirname(entry):override ?? '',PATH:'',
+    npm_config_offline:'true',npm_config_cache:path.join(dir,'npm-cache'),npm_config_update_notifier:'false'};
+  return spawnSync(process.execPath,[path.join(plugin,'mcp-server.mjs'),'--help'],{env,encoding:'utf8',timeout:20000,windowsHide:true});
 }
 
 test('launcher imports matching install and forwards MCP arguments in one process', (t) => {
@@ -119,12 +131,12 @@ test('launcher imports matching install and forwards MCP arguments in one proces
   assert.equal(r.status,0,r.stderr);
   assert.deepEqual(JSON.parse(r.stdout),['mcp','--help']);
 });
-test('launcher refuses older/newer/unknown installation before running it', (t) => {
+test('launcher never runs an older/newer/unknown installation; it goes to the pinned npx instead', (t) => {
   for (const installed of ['0.0.1','9.9.9','unknown']) {
     const r=launcher(t,{installed});
-    assert.equal(r.status,1);
     assert.equal(r.stdout,'');
-    assert.ok(r.stderr.includes(`npm i -g @noacg/cli@${version}`),r.stderr);
+    assert.match(r.stderr,/so it is not used/);
+    assert.ok(r.stderr.includes(`running @noacg/cli@${version} through npx`),r.stderr);
   }
 });
 test('explicit development override is disclosed; missing override cannot fall through', (t) => {

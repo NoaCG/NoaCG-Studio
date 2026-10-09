@@ -1,7 +1,8 @@
 # NoaCG MCP server
 
 Optional local companion to the noacg skill plugin. It exposes the existing NoaCG CLI as one
-stdio MCP tool, noacg, with authoring, inspect, validate, screenshot, docs and save verbs.
+stdio MCP tool, noacg, with the CLI's eight verbs: types, scaffold, validate, inspect,
+screenshot, docs, save and pack.
 It starts a process in every session where enabled. Keep the main plugin for the skill and
 install this companion only when an always-on tool and warm browser are useful.
 
@@ -19,9 +20,10 @@ noacg doctor
 
 Node 20 or newer, npm, system Chrome or Edge and a reachable NoaCG deployment are required.
 The launcher imports an installed CLI only when its package version exactly matches this
-plugin's manifest. Otherwise it refuses with an exact install command. With no CLI installed,
-it runs pinned npx to download @noacg/cli@0.9.0 from registry.npmjs.org. This fallback costs an
-extra process. The pin follows cli/package.json; it never resolves npm's latest implicitly.
+plugin's manifest. With no CLI installed, or with another version installed, it runs npx with
+the exact pin instead, which downloads @noacg/cli@0.9.0 and its dependencies from
+registry.npmjs.org once and caches them. This fallback costs an extra process. The pin follows
+cli/package.json; the launcher never resolves npm's latest version.
 
 Explicit NOACG_CLI may name an existing absolute development entry file. This bypasses the pin
 and prints a notice on stderr. A missing override fails. NOACG_URL selects a self-hosted deployment;
@@ -40,7 +42,8 @@ No shell, inline program or floating package version is used. Claude's review ru
 hold the subfolder JavaScript launcher, imports and package fallback for a reviewer. Passing
 local checks does not mean the portal has approved it.
 
-Authoring runs in a local headless browser loading the selected deployment's /bridge page.
+The deployment is https://noacg.studio unless NOACG_URL names another one. Authoring runs in a
+local headless browser loading that deployment's /bridge page.
 Its context blocks other origins, /api/ requests and WebSockets. These calls do not upload the
 graphic. Login opens browser consent and keeps a scoped key locally. Save and pack --save send
 graphics, including field text, to that deployment. Saving does not publish, replace a production

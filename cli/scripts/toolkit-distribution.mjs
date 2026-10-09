@@ -161,7 +161,7 @@ export function validatePackage(files, { host, name, version }) {
   }
 }
 
-export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()) {
+export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8', windowsHide: true }).trim()) {
   const sourceHashes = {};
   const read = (relative) => {
     const stat = lstatSync(path.join(root, relative));
@@ -260,7 +260,7 @@ export function writeDistribution(out, result) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    requireThat(execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: ROOT, encoding: 'utf8' }).trim() === '', 'commit changes first: distribution provenance requires a clean checkout');
+    requireThat(execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: ROOT, encoding: 'utf8', windowsHide: true }).trim() === '', 'commit changes first: distribution provenance requires a clean checkout');
     const result = assemble();
     const out = process.argv[2] ?? path.join(ROOT, 'cli/dist/toolkit', result.report.sourceCommit);
     requireThat(!out.startsWith('-'), 'usage: npm run toolkit:dist -- [empty-output-directory]');

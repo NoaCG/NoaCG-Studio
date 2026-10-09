@@ -4,7 +4,7 @@
 // The plugin used to declare `npx -y @noacg/cli mcp`, and npx cannot do that job cheaply. It
 // resolves the package, spawns the real binary with `stdio: 'inherit'`, and then stays alive for
 // the whole session with nothing left to do but forward the child's exit code. Measured on
-// 2026-09-02 (docs/backlog/cli-mcp-startup-weight.md): that launcher process holds ~85 MB of
+// 2026-09-02 (https://github.com/NoaCG/NoaCG-Studio/blob/4e81a1225298f48fd6a80d45d83e3f9f64e26536/docs/backlog/cli-mcp-startup-weight.md): that launcher process holds ~85 MB of
 // private bytes for hours, and npx adds roughly 1.5-4 s to every session start. Pinning the
 // version does not help - the cost is npx's own machinery, not the "what is latest?" lookup.
 // An MCP server declared by a plugin starts in EVERY session that has the plugin installed, so
@@ -104,27 +104,30 @@ function readOwnVersion(entry) {
 }
 
 const extra = process.argv.slice(2);
-const cli = resolveCli();
+let cli = resolveCli();
+
+// An installed CLI of another version is never run: the plugin runs exactly the version it was
+// reviewed with, so a different one goes the same pinned way as a missing one.
+if (cli && cli !== process.env.NOACG_CLI) {
+  const ownVersion = readOwnVersion(cli);
+  if (ownVersion !== REVIEWED) {
+    process.stderr.write(`[noacg] the installed @noacg/cli is ${ownVersion ?? 'of unknown version'}, not ${REVIEWED}, so it is not used.\n`);
+    cli = null;
+  }
+} else if (cli) {
+  process.stderr.write(`[noacg] explicit NOACG_CLI development override: ${cli}; reviewed version ${REVIEWED} is bypassed.\n`);
+}
 
 if (cli) {
-  if (cli !== process.env.NOACG_CLI) {
-    const ownVersion = readOwnVersion(cli);
-    if (ownVersion !== REVIEWED) {
-      process.stderr.write(`[noacg] installed CLI ${ownVersion ?? '(unknown)'} is incompatible with this reviewed plugin (${REVIEWED}). Run ${INSTALL}, then restart.\n`);
-      process.exit(1);
-    }
-  } else {
-    process.stderr.write(`[noacg] explicit NOACG_CLI development override: ${cli}; reviewed version ${REVIEWED} is bypassed.\n`);
-  }
   // `dist/index.js` runs its own `main()` on import and reads `process.argv.slice(2)`, so hand it
   // the argv it would have had as a real command. One process from here on.
   process.argv = [process.execPath, cli, 'mcp', ...extra];
   await import(pathToFileURL(cli).href);
 } else {
-  // No installed copy. Say so on stderr - stdout belongs to the MCP protocol, and a stray line
-  // there breaks the transport.
+  // Say so on stderr - stdout belongs to the MCP protocol, and a stray line there breaks the
+  // transport.
   process.stderr.write(
-    `[noacg] @noacg/cli@${REVIEWED} is not installed; pinned npx downloads it from registry.npmjs.org.\n`
+    `[noacg] running @noacg/cli@${REVIEWED} through npx, which downloads it once from registry.npmjs.org.\n`
       + `[noacg] This costs an extra process. ${INSTALL} makes it a single process.\n`,
   );
   // Run npm's own npx entry IN THIS PROCESS rather than spawning the `npx` shim. Two reasons, both

@@ -19,9 +19,9 @@ not install Node, a browser, account credentials or a playout server.
    consent, then `noacg whoami`. If consent is cancelled or a key is revoked, log in again or
    deliver the validated ZIP/offline pack. Do not read inherited credentials to bypass consent.
 
-The optional MCP plugin requires the same CLI version. A missing installation uses pinned npx,
-which downloads from registry.npmjs.org and costs an extra process. A different installed version
-is refused with an install command. Explicit `NOACG_CLI` selects a development entry file, prints
+The optional MCP plugin runs the same CLI version. With no installation, or another version
+installed, it uses pinned npx, which downloads from registry.npmjs.org and costs an extra process.
+Explicit `NOACG_CLI` selects a development entry file, prints
 an override notice and bypasses the version pin; a nonexistent override fails. Use this only
 when deliberately testing a checkout, not as the directory setup path.
 

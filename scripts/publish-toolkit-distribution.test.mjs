@@ -14,7 +14,7 @@ test('distribution branch has only generated history, preserves parents and refu
   t.after(() => rmSync(dir, {recursive:true,force:true}));
   const source=path.join(dir,'source');
   mkdirSync(source);
-  const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+  const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe'],windowsHide:true}).trim();
   for (const file of ['cli/package.json','cli/package-lock.json','cli/LICENSE','cli/NOTICE','cli/scripts/toolkit-distribution.mjs','.claude-plugin','cli/plugin','cli/plugin-mcp','cli/skill']) {
     mkdirSync(path.dirname(path.join(source,file)),{recursive:true});
     cpSync(path.join(ROOT,file),path.join(source,file),{recursive:true});
