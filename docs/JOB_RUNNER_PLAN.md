@@ -162,7 +162,7 @@ Budget, recomputed before every start and never cached:
   however many slots the schedule allows. The floor scales with the job's cost, and one scheduling
   pass subtracts what it has already let through, so two jobs cannot both be admitted against the
   same free-memory reading. **Since 2026-09-16 there are two floors and presence picks one**:
-  3.0 GB while nobody is at the machine, 4.0 GB while somebody may be - see "What a job actually
+  3.5 GB while nobody is at the machine, 4.0 GB while somebody may be - see "What a job actually
   costs in RAM" below for where those numbers come from and "Presence" for how it is declared.
   `NOACG_JOBS_FREE_MB` still overrides, and pins both.
 - **Work started outside the queue still counts.** Another coding agent - Codex, or a hand-run
@@ -345,7 +345,7 @@ laptop is not - `ram-reclaim.mjs` established that much, since `MainWindowHandle
 apps with a visible window. So presence is DECLARED:
 
 ```
-npm run jobs -- presence away      # nobody at the keyboard: the floor drops to 3.0 GB
+npm run jobs -- presence away      # nobody at the keyboard: the floor drops to 3.5 GB
 npm run jobs -- presence present   # back at the desk: 4.0 GB again, at once
 npm run jobs -- presence           # what the scheduler currently believes, and until when
 ```
@@ -389,7 +389,9 @@ the 14 days to 2026-10-09.
 
 The targeted run took free memory from 4.1 GB to 1.3 GB, which is why the modest budget is one
 suite-equivalent and a build is priced at 0.75. The playwright worker count follows free memory
-(`scripts/e2e-workers.mjs`), so with more free memory the same run uses more of it.
+(`scripts/e2e-workers.mjs`), so with more free memory the same run uses more of it. At the 3.5 GB
+away floor it now picks two workers, which took 2.0-2.1 GB on 2026-10-10 and so leave about 1.4 GB
+free (#855).
 
 **Measured 2026-09-16, 13:30-13:45 UTC**, on the 15.9 GB laptop (16236 MB visible), with six agent
 sessions live and the owner away. Taken with `Get-CimInstance Win32_OperatingSystem` for free
@@ -407,8 +409,8 @@ point and nothing had measured what a run costs.
 | Desktop apps that are not agent work | 3114 MB - the Codex/ChatGPT app 1020, Wispr Flow 583, Antigravity, WD Discovery, the scanners |
 
 **What that says about the floor.** The floor times the job's cost should be what the job takes.
-A walk measured 1.4 GB at 0.5, so a suite-equivalent is about 3 GB - which is the away floor,
-3072 MB. Every cost class then lands on its own measurement rather than a guess: a walk is charged
+A walk measured 1.4 GB at 0.5, so a suite-equivalent is about 3 GB - which was the away floor then,
+3072 MB (3584 MB since). Every cost class then lands on its own measurement rather than a guess: a walk is charged
 1536 MB against a measured 1.4 GB, and a landing 461 MB against the few hundred megabytes
 `gh run watch` uses. The 2026-09-09 reading of two suites leaving "under 2 GB free" on a box that
 idles near 6.5 GB agrees - about 2.3 GB a suite, so 3072 keeps a margin.

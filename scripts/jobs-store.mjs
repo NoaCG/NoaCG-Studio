@@ -188,6 +188,11 @@ export const POLICY = Object.freeze({
    * leaves nothing for the rest of the system, and on Windows that tips into the page file, where
    * everything slows at once - the instability an unattended wave must not cause. 3.5 GB still
    * admits the suite in the case that motivated `away` (3.5 GB free all evening, nobody there).
+   *
+   * A BROWSER RUN ADMITTED HERE IS SIZED BY THE WORKER LADDER (`scripts/e2e-workers.mjs`, #855),
+   * which keeps a gigabyte free at this floor; `e2e-workers.test.mjs` pins the two together. The
+   * floor was not raised instead: free memory never reached 3.5 GB in 47 minutes of the away night
+   * it was measured on, so a higher floor would only hold browser work out longer.
    */
   freeMemFloorMb: Object.freeze({
     present: overrideFloorMb() ?? 4096,
