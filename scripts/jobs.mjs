@@ -22,11 +22,11 @@
 // exactly one runner.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
+import { appendFileSync, closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
 import { freemem, homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { activeRuns, allProcesses, descendantsOf, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
+import { activeRuns, allProcesses, browserWorkBelow, descendantsOf, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
 import { readInventory } from './claude-agents.mjs';
 import { sessionLastActiveMs } from './session-liveness.mjs';
@@ -81,14 +81,22 @@ import {
   readLandings,
   reapDead,
   refusalGuidance,
+  repricedAsBrowser,
   requeueDecision,
   schedule,
   timedOutRecord,
   waitVerdict,
+  watchedForBrowser,
   writeJob,
 } from './jobs-store.mjs';
 
 const POLL_MS = 5_000;
+/**
+ * How often a running light job's process tree is read for a browser. A full process table costs
+ * about three quarters of a second of PowerShell here, so not every poll; a Playwright run spends
+ * longer than this starting its dev server before the first browser opens.
+ */
+const BROWSER_WATCH_MS = 15_000;
 /** How long a verified auto-start waits for the runner to appear, and how often it looks. */
 const RUNNER_START_WAIT_MS = 3_000;
 const RUNNER_START_POLL_MS = 1_000;
@@ -1027,6 +1035,7 @@ async function runner() {
   let starvedSince = null;
   let diagnosticSample = null;
   let diagnosticAt = 0;
+  let browserWatchAt = 0;
 
   for (;;) {
     const now = Date.now();
@@ -1062,6 +1071,37 @@ async function runner() {
       console.log(record.landedBeforeItEnded
         ? `  ${job.id} killed at its ${job.capMinutes} min cap - it had already landed ${job.branch} on main`
         : `  ${job.id} timed out after ${job.capMinutes} min - killed`);
+    }
+
+    // A LIGHT JOB THAT LAUNCHED A BROWSER IS BROWSER WORK, whatever its command says. Its price
+    // came from the command text, so a wrapper script that starts Playwright was admitted without
+    // the browser slot or the full floor. Stopped and re-queued as browser work, it waits for both.
+    // The pass reuses the holder diagnostics' table whenever they read one, so the watch adds at
+    // most one query of its own in their 30 s.
+    const watched = jobs.filter(watchedForBrowser);
+    if (watched.length && (now - browserWatchAt >= BROWSER_WATCH_MS || diagnosticAt === now)) {
+      browserWatchAt = now;
+      const table = diagnosticAt === now ? diagnosticSample.processes : allProcesses();
+      for (const job of watched) {
+        const seen = browserWorkBelow(job.pid, job.startedAt, table);
+        if (seen.length === 0) continue;
+        const caught = `${job.id} launched ${seen[0].name || 'a browser'} (pid ${seen[0].pid}) while priced as light work`;
+        // Stopped FIRST, and re-queued only once it is: a record that says waiting over a job
+        // still running would let the scheduler start it a second time beside itself.
+        killTree(job.pid);
+        if (isAlive(job.pid)) {
+          console.log(`  ${caught} - could not stop it, trying again`);
+          continue;
+        }
+        writeJob(dir, repricedAsBrowser(job));
+        const said = `${caught} - stopped, re-queued as browser work (queue it with --kind sweep to start it as one)`;
+        try {
+          appendFileSync(job.logPath, `\n--- ${said}\n`);
+        } catch {
+          // The note is for whoever reads the log; a missing log must not stop the runner.
+        }
+        console.log(`  ${said}`);
+      }
     }
 
     // ADOPT anything whose landing died without a verdict - the one this poll just killed, and
@@ -1168,7 +1208,7 @@ function spawnJob(job) {
   // while the stdio pipes are still draining and the file stream still holds a buffer - and the
   // REFUSAL-KIND line is the last thing a landing writes, so reading on `exit` would miss exactly
   // the ordering block this is all for, intermittently and with no sign that it had.
-  child.on('close', (code) => out.end(() => finishJob(job, code)));
+  child.on('close', (code) => out.end(() => finishJob(job, code, child.pid)));
 }
 
 /**
@@ -1198,10 +1238,11 @@ function giveUpReasonFor(code, refusal, branch = '<branch>') {
 }
 
 /** Record what a finished job did: park it, defer it, or write the verdict down. */
-function finishJob(job, code) {
+function finishJob(job, code, pid) {
   const current = readJobs(dir).find((j) => j.id === job.id);
-  // Cancelled or timed out while running: that verdict wins, do not overwrite it.
-  if (!current || current.state !== 'running') return;
+  // Cancelled or timed out while running: that verdict wins, do not overwrite it. Nor may an
+  // attempt stopped for launching a browser write over the attempt that replaced it.
+  if (!current || current.state !== 'running' || current.pid !== pid) return;
 
   // NOT MY TURN YET (auto-merge exit 3): the branch is blocked by another that is itself still
   // waiting, so this resolves the moment that one lands. Send it to the BACK of the queue
