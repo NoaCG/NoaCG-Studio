@@ -399,7 +399,8 @@ test.describe('community pack review (configured)', () => {
     await expect(sheet.getByTestId('submit-pack-findings')).toHaveCount(0);
     await sheet.getByTestId('submit-pack-go').click();
     await expect(sheet.getByTestId('submit-pack-findings')).toContainText('https://cdn.example.invalid/logo.png (an image) when it plays', { timeout: 20_000 });
-    await expect(sheet.getByTestId('submit-pack-go')).toBeDisabled();
+    // The sheet stays open with nothing sent; Send stays live, because it checks again.
+    await expect(sheet.getByTestId('submit-pack-go')).toBeEnabled();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/home-submit-request-refused-desktop.png` });
     await sheet.getByTestId('submit-pack-cancel').click();
 
