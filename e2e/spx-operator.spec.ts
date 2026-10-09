@@ -1,12 +1,31 @@
 // covers: src/export/**, src/model/importTemplate.ts
 // focus
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+import { lowerThirdPng } from './_png';
 
 // What an SPX operator meets with a NoaCG package, pinned from the real-server walk
 // (docs/SPX_ON_A_REAL_SERVER.md §2): the layer each graphic lands on, which files SPX's template
 // browser offers, and one Continue more than the graphic has steps. Each case builds the package
 // with the real exporter and reads or runs what it wrote.
+
+/** Serve a package's text files at `origin` the way SPX's template server does, and any `pictures`
+ *  (by path) as PNGs. */
+function serveFiles(target: Page, origin: string, files: Record<string, string>, pictures: string[] = []) {
+  return target.route(`${origin}/**`, (route) => {
+    const path = decodeURIComponent(new URL(route.request().url()).pathname.slice(1));
+    if (pictures.includes(path)) return route.fulfill({ contentType: 'image/png', body: lowerThirdPng(1, 1) });
+    const body = files[path];
+    if (body === undefined) return route.fulfill({ status: 404, body: '' });
+    const type = path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html';
+    return route.fulfill({ contentType: type, body });
+  });
+}
+
+/** What SPX does on Play or Update: hand the template's update() a payload. */
+function update(target: Page, payload: string) {
+  return target.evaluate((data) => (window as unknown as { update(d: string): void }).update(data), payload);
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/app');
@@ -147,13 +166,7 @@ test('one Continue past the last step takes the graphic out, as SPX\'s rundown s
   expect(files['hairline/hairline.html']).not.toContain('noacg-spx-steps');
 
   const air = await context.newPage();
-  await air.route('http://spx-steps.local/**', (route) => {
-    const path = new URL(route.request().url()).pathname.slice(1);
-    const body = files[path];
-    if (body === undefined) return route.fulfill({ status: 404, body: '' });
-    const type = path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html';
-    return route.fulfill({ contentType: type, body });
-  });
+  await serveFiles(air, 'http://spx-steps.local', files);
   await air.goto('http://spx-steps.local/clean_quiz/clean_quiz.html', { waitUntil: 'load' });
   const calls = await air.evaluate(() => {
     const w = window as unknown as { play(): void; stop(): void; next(): unknown; stops: number; spyOn: boolean };
@@ -210,15 +223,8 @@ test('a value SPX hands over HTML-escaped goes on air as typed', async ({ page, 
   for (const n of html) expect(files[n]).toContain('id="noacg-spx-text"');
 
   const air = await context.newPage();
-  await air.route('http://spx-text.local/**', (route) => {
-    const path = new URL(route.request().url()).pathname.slice(1);
-    const body = files[path];
-    if (body === undefined) return route.fulfill({ status: 404, body: '' });
-    const type = path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html';
-    return route.fulfill({ contentType: type, body });
-  });
-  const spxUpdate = (fields: Record<string, string>) =>
-    air.evaluate((json) => (window as unknown as { update(d: string): void }).update(json), JSON.stringify(fields));
+  await serveFiles(air, 'http://spx-text.local', files);
+  const spxUpdate = (fields: Record<string, string>) => update(air, JSON.stringify(fields));
 
   // The values exactly as SPX 1.4.1 delivered them on the real server.
   await air.goto('http://spx-text.local/hairline/hairline.html', { waitUntil: 'load' });
@@ -246,4 +252,85 @@ test('a value SPX hands over HTML-escaped goes on air as typed', async ({ page, 
   });
   expect(imported).not.toContain('noacg-spx-text');
   expect(imported).not.toContain('asTyped');
+});
+
+test('a Picture and a CasparCG single file played from SPX show what was picked and typed', async ({ page, context }) => {
+  // Issue #888: the text script stayed off in the Picture graphic (no setFieldValue), so a file
+  // picked as `Q&A.jpg` arrived as `Q&amp;A.jpg` and the picture was blank; and the CasparCG
+  // single file, whose guide says how to play it from SPX, carried no script at all. A filelist
+  // path is now decoded in any template.
+  const built = await page.evaluate(async () => {
+    const { createPictureTemplate } = await import('/src/templates/picture.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const out: Record<string, string> = {};
+    const picture = await spxTarget.build(createPictureTemplate());
+    // Imported back from its SPX package, a Picture is a plain graphic that keeps its filelist field.
+    const { template: reimported } = await importZipTemplate(
+      'pictures.zip',
+      await picture.generateAsync({ type: 'arraybuffer' }),
+    );
+    const zips = [
+      ['', picture],
+      ['again/', await spxTarget.build(reimported)],
+      ['', await casparTarget.build(variantById('lt01')!.create({}))],
+    ] as const;
+    for (const [prefix, zip] of zips) {
+      for (const n of Object.keys(zip.files)) {
+        if (!zip.files[n].dir && /\.(html|js|css)$/.test(n)) out[prefix + n] = await zip.file(n)!.async('string');
+      }
+    }
+    return { files: out, reimportedType: reimported.type };
+  });
+  expect(built.reimportedType).toBe('blank');
+  const files = built.files;
+  const air = await context.newPage();
+  // The picked files exist under their own names, so a path that reaches the server as named shows.
+  const picked = ['', 'again/'].flatMap((at) => [`${at}pictures/images/Q&A.jpg`, `${at}pictures/images/O'Brien.png`]);
+  await serveFiles(air, 'http://spx-routes.local', files, picked);
+  const pictureShown = () =>
+    air.locator('#f0').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
+
+  // The values as SPX 1.4.1's cleanUpString hands them over.
+  for (const at of ['pictures/pictures.html', 'again/pictures/pictures.html']) {
+    await air.goto(`http://spx-routes.local/${at}`, { waitUntil: 'load' });
+    await update(air, JSON.stringify({ f0: 'images/Q&amp;A.jpg' }));
+    expect(await air.locator('#f0').getAttribute('src')).toBe('images/Q&A.jpg');
+    await expect.poll(pictureShown).toBe(true);
+    await update(air, JSON.stringify({ f0: 'images/O&#039;Brien.png' }));
+    expect(await air.locator('#f0').getAttribute('src')).toBe("images/O'Brien.png");
+    await expect.poll(pictureShown).toBe(true);
+  }
+
+  await air.goto('http://spx-routes.local/hairline/hairline.html', { waitUntil: 'load' });
+  await update(air, JSON.stringify({ f0: 'Anna O&#039;Brien &amp; Sons' }));
+  expect(await air.locator('#f0').textContent()).toBe("Anna O'Brien & Sons");
+  // A CasparCG client's XML still reaches the template through the data shim, and as typed.
+  await update(air, '<templateData><componentData id="f0"><data id="text" value="AT&amp;amp;T"/></componentData></templateData>');
+  expect(await air.locator('#f0').textContent()).toBe('AT&amp;T');
+  await air.close();
+
+  // Imported and exported again, the single file carries the script once, so SPX's escaping is
+  // undone once: a typed `AT&amp;T` still reads `AT&amp;T`.
+  const again = await page.evaluate(async (html) => {
+    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
+    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { template } = importHtmlTemplate('hairline.html', html);
+    const zip = await casparTarget.build(template);
+    return {
+      imported: `${template.html}\n${template.js}`,
+      html: await zip.file(/^[^/]+\/[^/]+\.html$/).find((f) => !/controlpanel/.test(f.name))!.async('string'),
+    };
+  }, files['hairline/hairline.html']);
+  expect(again.imported).not.toContain('noacg-spx-text');
+  expect(again.imported).not.toContain('asTyped');
+  expect(again.html.match(/id="noacg-spx-text"/g)).toHaveLength(1);
+  const reair = await context.newPage();
+  await serveFiles(reair, 'http://spx-again.local', { 'hairline.html': again.html });
+  await reair.goto('http://spx-again.local/hairline.html', { waitUntil: 'load' });
+  await update(reair, JSON.stringify({ f0: 'AT&amp;amp;T' }));
+  expect(await reair.locator('#f0').textContent()).toBe('AT&amp;T');
+  await reair.close();
 });

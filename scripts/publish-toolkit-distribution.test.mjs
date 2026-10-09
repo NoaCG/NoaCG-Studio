@@ -2,7 +2,7 @@
 // guards: cli/scripts/publish-toolkit-distribution.mjs, cli/scripts/toolkit-distribution.mjs, .github/workflows/release-cli.yml
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -54,4 +54,16 @@ test('distribution branch has only generated history, preserves parents and refu
   assert.throws(()=>prepare(remote),/does not contain/);
   writeFileSync(path.join(source,'dirty.md'),'uncommitted');
   assert.throws(()=>prepareDistribution({source}),/clean source/);
+});
+
+// The push runs in a fresh repository in a temporary folder, so it has only the global credential
+// helper `gh auth setup-git` installs, and gh answers it from GH_TOKEN at push time. CLI 0.10.1's
+// branch update failed with "could not read Username" because the token was set only for setup.
+test('the release workflow pushes the distribution in the step that holds the token', () => {
+  const workflow = readFileSync(path.join(ROOT, '.github/workflows/release-cli.yml'), 'utf8');
+  const steps = workflow.split(/\n(?= {6}- )/);
+  const push = steps.filter((step) => step.includes('publish-toolkit-distribution.mjs --push'));
+  assert.equal(push.length, 1);
+  assert.match(push[0], /^ +GH_TOKEN: \$\{\{ github\.token \}\}$/m);
+  assert.match(push[0], /^ +gh auth setup-git --hostname github\.com$/m);
 });

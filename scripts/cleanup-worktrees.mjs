@@ -652,6 +652,39 @@ export function assessSelf(cwd) {
 }
 
 /**
+ * THE STEP BEFORE A WORKTREE'S FOLDER MAY GO, the same for one worktree (`applySelf`) and for a
+ * sweep (`applyPlan`). Records into `done` (`reapedDelegations`, `closedProcesses`, `held`,
+ * `errors`) and answers whether the removal may go on.
+ *
+ * First the worktree's finished Codex delegations are closed: their `codex.exe` runs with this
+ * folder as its working directory, so one still running both leaks memory and holds the folder.
+ * A delegation that has NOT finished keeps the worktree: it outlives the session that launched it
+ * by design, and nothing else here can see one. Removing the worktree would delete every file
+ * underneath a running Codex worker.
+ *
+ * Then what agents left running from it is closed (agent-processes.mjs). Somebody still in it (a
+ * process that is not an agent's) is `held`: a skip, not an error. A close that failed, or a
+ * process list that could not be read, is an error and keeps the worktree - never "nothing running".
+ */
+function releaseWorktree(path, done, { reap, processes }) {
+  const reaped = reapDelegationTrees(path, { run: reap });
+  done.reapedDelegations.push({ path, said: reaped.output });
+  if (reaped.busy) {
+    done.errors.push(
+      `worktree ${path}: a Codex delegation is still running there - kept. It outlives the session that `
+        + 'started it: let it finish, or cancel it with `node scripts/codex-rescue.mjs cancel`, and clean up again.',
+    );
+    return false;
+  }
+  const closing = processes(path);
+  done.closedProcesses.push(...(closing.closed ?? []));
+  if (closing.ok) return true;
+  if ((closing.kept ?? []).length > 0) done.held.push({ path, why: closing.why });
+  else done.errors.push(`worktree ${path}: ${closing.why} - kept`);
+  return false;
+}
+
+/**
  * Perform the self cleanup an `assessSelf` plan approved. Re-verifies from scratch first: the
  * assessment may be seconds old, but this deletes things, and `main` moves under long sessions.
  *
@@ -679,6 +712,7 @@ export function applySelf(
     deletedRemoteBranch: null,
     archived: null,
     releasedPorts: [],
+    held: [], // { path, why } - somebody is in it: left in place, the same skip as the sweep's
     reapedDelegations: [], // { path, said } - this worktree's delegations, on the way out
     closedProcesses: [], // what agents left running from it, closed on the way out
     errors: [],
@@ -710,33 +744,9 @@ export function applySelf(
     return done;
   }
 
-  // The delegations this worktree started are closed BEFORE the folder goes: their `codex.exe`
-  // runs with this directory as its working directory, so one still running both leaks memory
-  // and holds the folder open against the removal below.
-  //
-  // AND A DELEGATION THAT HAS NOT FINISHED STOPS THE REMOVAL DEAD. A delegation deliberately
-  // outlives the session that launched it, and nothing else here can see one: the session hold
-  // only knows about Claude sessions. Removing the worktree would delete every file underneath a
-  // running Codex worker's working directory.
-  const reaped = reapDelegationTrees(plan.path, { run: reap });
-  done.reapedDelegations = [{ path: plan.path, said: reaped.output }];
-  if (reaped.busy) {
-    done.errors.push(
-      `a Codex delegation is still running in ${plan.path} - it outlives the session that started `
-        + 'it, so nothing was removed. Let it finish, or cancel it with '
-        + '`node scripts/codex-rescue.mjs cancel`, and clean up again.',
-    );
-    return done;
-  }
-
   // What this session and its agents left running here goes with it; the session's own line of
-  // processes is never judged. Anything else running here keeps the worktree.
-  const closing = processes(plan.path);
-  done.closedProcesses = closing.closed ?? [];
-  if (!closing.ok) {
-    done.errors.push(`not removed: ${closing.why}`);
-    return done;
-  }
+  // processes is never judged.
+  if (!releaseWorktree(plan.path, done, { reap, processes })) return done;
 
   // Never --force: a refusal here is git protecting something this assessment did not see.
   const removed = git(['worktree', 'remove', plan.path], plan.primaryRoot);
@@ -1203,29 +1213,9 @@ export function applyPlan(
       continue;
     }
 
-    // Close this worktree's finished delegations first: their `codex.exe` runs with this folder
-    // as its working directory, so one still running is both leaked memory and a process that
-    // would make the move below report the worktree as in use. One that has NOT finished keeps the
-    // worktree - a delegation outlives its session by design, and nothing else in this sweep can
-    // see one.
-    const reaped = reapDelegationTrees(w.path, { run: reap });
-    done.reapedDelegations.push({ path: w.path, said: reaped.output });
-    if (reaped.busy) {
-      done.errors.push(`worktree ${w.path}: a Codex delegation is still running there - kept`);
-      continue;
-    }
-
-    // LANDED WORK TAKES ITS PROCESSES WITH IT: what agents left running from the worktree is closed
-    // before the move below, which would otherwise find it holding the folder. A process that is
-    // not an agent's keeps the worktree in place, and a process list that could not be read is an
-    // error, never "nothing running".
-    const closing = processes(w.path);
-    done.closedProcesses.push(...(closing.closed ?? []));
-    if (!closing.ok) {
-      if ((closing.kept ?? []).length > 0) done.held.push({ path: w.path, why: closing.why });
-      else done.errors.push(`worktree ${w.path}: ${closing.why} - kept`);
-      continue;
-    }
+    // LANDED WORK TAKES ITS PROCESSES WITH IT, before the move below, which would otherwise find
+    // them holding the folder.
+    if (!releaseWorktree(w.path, done, { reap, processes })) continue;
 
     // NEVER PULL A FOLDER OUT FROM UNDER A PROCESS. Measured on Windows: `git worktree remove`
     // on a folder some process sits in deletes every file and fails only on the empty directory -
@@ -1733,8 +1723,11 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
   if (done.folderRemains) {
     console.log('The now-empty folder is still on disk - this session holds it open. It is swept automatically once this session exits.');
   }
+  for (const { why } of done.held) console.log(`  ! left in place: ${why}`);
   for (const error of done.errors) console.log(`  ! ${error}`);
-  process.exit(done.errors.length > 0 ? 1 : 0);
+  // A held worktree is a skip, not an error, but this command exists to remove one worktree: a
+  // caller reading exit 0 as "it is gone" would be wrong.
+  process.exit(done.errors.length > 0 || done.held.length > 0 ? 1 : 0);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

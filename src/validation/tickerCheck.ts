@@ -11,9 +11,10 @@
 // warning, like every R4 check (the ratified severity policy: hard where the machine
 // decides, warning where a human does).
 //
-// WHAT COUNTS AS THE BAND: the widest painted surface spanning at least half the frame. A
-// ticker without such a band has no band to measure, and this instrument stays silent - the
-// overflow and paint instruments own that failure.
+// WHAT COUNTS AS THE BAND: the widest painted surface spanning at least half the frame, where a
+// backdrop-filtered glass panel counts as painted however faint its tint. A ticker without such
+// a band has no band to measure, and this instrument stays silent - the overflow and paint
+// instruments own that failure.
 
 export interface TickerMarginReport {
   band: string | null;
@@ -35,6 +36,9 @@ function describe(el: Element): string {
 
 function paintsSurface(style: CSSStyleDeclaration): boolean {
   if (style.backgroundImage && style.backgroundImage !== 'none') return true;
+  // A glass panel: a faint tint over a blurred backdrop still reads as the band.
+  const backdrop = style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter');
+  if (backdrop && backdrop !== 'none') return true;
   const bg = style.backgroundColor;
   if (!bg || bg === 'transparent') return false;
   const alpha = bg.match(/rgba\([^)]*,\s*([\d.]+)\s*\)/)?.[1];
