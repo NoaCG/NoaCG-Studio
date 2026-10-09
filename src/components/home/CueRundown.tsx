@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from '../../app/router';
-import { useTemplateStore } from '../../store/templateStore';
+import { startNewGraphic } from '../NewGraphicButton';
 import {
   addPlayoutItems,
   addShowCue,
@@ -267,7 +266,6 @@ export default function CueRundown({
   refreshRundown: () => Promise<void>;
   refreshing: boolean;
 }) {
-  const navigate = useRouter((s) => s.navigate);
   const [addPick, setAddPick] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const libraryPick = useRef<HTMLSelectElement>(null);
@@ -456,10 +454,9 @@ export default function CueRundown({
   const rangeCount = range.size;
   const selectedCue = cues.find((c) => c.id === selectedCueId);
   const folderCueIds = rangeCount ? [...range] : selectedCue && !selectedCue.folderId ? [selectedCue.id] : [];
-  const createGraphic = () => {
-    useTemplateStore.setState({ pendingProductionId: show.id });
-    navigate({ view: 'new' });
-  };
+  // The bar's + New graphic press, so this door asks before it discards a wizard walk left
+  // mid-way, or unsaved work, exactly as the bar's does (e2e/wizard-draft-guard.spec.ts).
+  const createGraphic = () => startNewGraphic(show.id);
   const pickAdd = (run: () => void) => () => {
     setAddOpen(false);
     run();
