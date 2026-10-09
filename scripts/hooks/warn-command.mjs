@@ -5,9 +5,9 @@
 //
 //   A PUSH REPLACED A RUN THAT NEVER FINISHED: the branch already had a run for its previous tip
 //   and that run was cancelled or still going. This one is BELT-AND-BRACES since 2026-09-06, when
-//   ci.yml started measuring every branch push from the merge-base with main: the replacement run
-//   now covers the cancelled one's delta by construction, so the plan is no longer narrowed and
-//   the notice no longer points at a hole. What it still says is true and worth saying - the run
+//   ci.yml stopped planning a branch from the previous push (today its pull request run plans
+//   from main): the replacement run covers the cancelled one's delta by construction, so the plan
+//   is no longer narrowed and the notice no longer points at a hole. What it still says is true and worth saying - the run
 //   you were watching is gone, here is its replacement, and the house rule is to read WHICH JOBS
 //   RAN rather than the colour. The reasoning sits with the rule below; it costs one
 //   `gh run list`, only on a push that updated a remote branch.
@@ -78,19 +78,19 @@ const notices = [];
 // plan was measured from `github.event.before`: sixteen handoffs between 2026-09-01 and
 // 2026-09-05 carry a run that reported green having skipped every shard the cancelled one owed.
 //
-// THE HOLE IS CLOSED IN THE WORKFLOW. Since 2026-09-06 ci.yml measures every branch push from
-// `git merge-base origin/main HEAD`, which is an ancestor of the cancelled tip whatever it was,
-// so the replacement run plans the branch's whole work and cannot plan less than the PUSH run it
-// cancelled. Re-measured 2026-09-16 over 158 branch push runs: 12 green-after-cancelled, 4 of
-// them shard-free, all 4 planning `mode: none` off the merge-base over paths that cannot reach
-// the E2E surface. So this notice is belt-and-braces for a cancelled PUSH run, and it is kept for
-// two reasons that survive the fix: it is the one place a session is told the run it was watching
-// is gone and which run replaced it, and it would speak again if the workflow ever regressed.
+// THE HOLE IS CLOSED IN THE WORKFLOW. Since 2026-09-06 ci.yml plans a branch from main rather
+// than from the previous push - from the merge-base for a branch push then, from the pull
+// request's base since 2026-10-09, when branch push runs stopped (#851) - so the replacement run
+// plans the branch's whole work and cannot plan less than the run it cancelled. Re-measured
+// 2026-09-16 over 158 branch push runs: 12 green-after-cancelled, 4 of them shard-free, all 4
+// planning `mode: none` off the merge-base over paths that cannot reach the E2E surface. So this
+// notice is belt-and-braces, and it is kept for two reasons that survive the fix: it is the one
+// place a session is told the run it was watching is gone and which run replaced it, and it would
+// speak again if the workflow ever regressed.
 //
-// A CANCELLED DISPATCH IS STILL A REAL LOSS, and the notice says the opposite thing about it -
-// which is why the runs are fetched with their `event`. `pushReplacedNotice` owns that split and
-// explains it. The underlying defect, one concurrency group across two event types, is filed as
-// `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md`.
+// A DISPATCH IS NOT CANCELLED BY A PUSH any more: it keys on the branch ref, the pull request run
+// on `refs/pull/<n>/merge`, so they sit in different concurrency groups. `unfinishedRun` skips it,
+// which is why the runs are fetched with their `event`.
 //
 // EXACT, so it cannot cry wolf: silent when the earlier run had FINISHED, because then the
 // incremental plan is right by design; silent on a first push, a no-op and a rejection, because
@@ -189,9 +189,8 @@ function ciRuns(cwd, branch, sha) {
   const scope = sha ? ['--commit', sha] : ['--branch', branch, '--limit', '10'];
   const res = spawnSync(
     'gh',
-    // `event` is fetched because a cancelled DISPATCH and a cancelled PUSH owe opposite advice:
-    // the push run that replaced them covers the first and is deliberately narrower than the
-    // second. The notice below branches on it.
+    // `event` is fetched because a push cancels a pull request run but never a dispatch, which
+    // runs in a concurrency group of its own; `unfinishedRun` reads it.
     ['run', 'list', ...scope, '--workflow', 'ci.yml', '--json', 'databaseId,status,conclusion,headSha,event'],
     { cwd, encoding: 'utf8', windowsHide: true, timeout: 8_000 },
   );

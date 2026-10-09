@@ -803,33 +803,6 @@ function branchCreationIn(git) {
   return at === -1 ? null : { dir: git.dir, branch: options[at + 1] ?? '' };
 }
 
-/**
- * Does this command line PUSH a branch and DISPATCH a workflow run in the same breath?
- *
- * `ci.yml` keeps every run of one ref in one concurrency group with `cancel-in-progress`, so a
- * push run and a dispatched run for the same branch cannot both live: whichever registers second
- * cancels the first, and the order two webhooks register in is not stable. Measured four times
- * over 2026-09-04 and 2026-09-05 ("Pushing and dispatching in one breath is a coin flip, and I
- * lost it once" - four handoffs of those two days, all drained since;
- * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the dispatch loses,
- * what survives is the push run, which plans only the
- * delta since the previous push - the narrow plan the dispatch was issued to avoid.
- *
- * Positional on both halves, like every matcher here: a `git push` INVOCATION and a `gh workflow
- * run` INVOCATION, so a lone `echo` or `grep` naming the pair is not the pairing. A `--dry-run`
- * push registers nothing and is not one either.
- *
- * KNOWN LIMIT, the same one `startableSegments` states: the splitter is not quote-aware, so a
- * push beside a quoted string that carries `&& gh workflow run` reads as the pair - measured in
- * review, 2026-09-05: `git push; echo "done && gh workflow run ci.yml is next"` is refused. A
- * commit message that discusses the pairing, committed and pushed in ONE command, hits it; the
- * way past is the one the refusal already prescribes, two commands. Closing it needs a quote-aware
- * splitter, which every matcher here would then have to share.
- */
-export function pushesAndDispatches(text) {
-  return pushes(text) && invocationParts(text).some((part) => /^gh\s+workflow\s+run\b/.test(part));
-}
-
 /** Does this command line push to a remote for real? */
 function pushes(text) {
   return gitInvocations(text).some(isRealPush);
@@ -917,9 +890,9 @@ function checksOutMain(git) {
  *
  * Only an UPDATE of a branch the remote already had is listed - `<old>..<new> local -> remote` -
  * because that is the only push that leaves a run behind: the run for `<old>`, which this push
- * cancels if it is still going. (The new run does NOT plan from `<old>`; since 2026-09-06 ci.yml
- * measures a branch push from the merge-base with main. That is why the notice this feeds is
- * belt-and-braces rather than a hole - see `hooks/warn-command.mjs`.)
+ * cancels if it is still going. (The new run does NOT plan from `<old>`: a pull request run plans
+ * from main. That is why the notice this feeds is belt-and-braces rather than a hole - see
+ * `hooks/warn-command.mjs`.)
  * A first push (`[new branch]`) had nothing in flight; `Everything up-to-date` moved nothing; a
  * rejected push moved nothing either. A forced update (`+ <old>...<new>`) is still an update.
  *
@@ -944,32 +917,31 @@ export function pushedUpdates(text, response) {
  * old tip's delta is covered. Pure, so both directions are pinned in the tests with the two real
  * run sets they were measured on (2026-09-05).
  *
- * ONE FINISHED RUN IS ENOUGH, whichever it was. A sha routinely has two runs - the push's,
- * cancelled, and the dispatch that cancelled it, green - and reading only the newest would have
- * been right by luck there and wrong the other way round. "Finished" is a run that reached a
- * verdict: `success` or `failure`. A `cancelled` run never reached one, and neither did a run that
- * stopped at its own `timeout-minutes` (`timed_out`) - the root AGENTS.md says so in as many words
- * - so those count as unfinished too, and a run still going counts the same as one about to be
- * cancelled, because in the seconds after the push it is.
+ * ONE FINISHED RUN IS ENOUGH, whichever it was. A sha can have several runs - its pull request's,
+ * cancelled, beside a green dispatch - and reading only the newest would be right by luck one way
+ * round and wrong the other. "Finished" is a run that reached a verdict: `success` or `failure`.
+ * A `cancelled` run never reached one, and neither did a run that stopped at its own
+ * `timeout-minutes` (`timed_out`) - the root AGENTS.md says so in as many words - so those count
+ * as unfinished too, and a run still going counts the same as one about to be cancelled, because
+ * in the seconds after the push it is.
+ *
+ * A DISPATCH IS NEVER THE ONE SPOKEN ABOUT. Since 2026-10-09 a branch has no push run (#851): its
+ * run is its pull request's, in the pull request's concurrency group (`refs/pull/<n>/merge`), and
+ * a dispatched run keys on the branch ref - so a push cancels the old tip's pull request run and
+ * leaves a dispatch running. A finished dispatch still counts as the verdict above.
  */
 export function unfinishedRun(runs, from) {
   if (!Array.isArray(runs)) return null;
   const forTip = runs.filter((run) => typeof run?.headSha === 'string' && run.headSha.startsWith(from));
-  if (forTip.length === 0) return null;
   if (forTip.some((run) => run.conclusion === 'success' || run.conclusion === 'failure')) return null;
-  return forTip[0];
+  return forTip.find((run) => run.event !== 'workflow_dispatch') ?? null;
 }
 
 /**
- * What to tell a session whose push replaced the unfinished run `unfinishedRun` just found.
- *
- * THE TWO CASES OWE OPPOSITE ADVICE, which is the whole reason this is a function rather than one
- * string. A cancelled PUSH run is covered by its replacement: since 2026-09-06 `ci.yml` measures a
- * branch push from the merge-base with `main`, an ancestor of both tips, so the new plan is the
- * branch's whole work and cannot be narrower. A cancelled DISPATCH is a real loss - a dispatch has
- * no diff base and runs the full suite, and the concurrency group keys on the ref with no event in
- * it (`ci-${github.ref}`), so a push cancels one and the narrower push plan replaces it. Telling
- * that session not to re-dispatch would throw away the override it had just bought.
+ * What to tell a session whose push replaced the unfinished run `unfinishedRun` just found. The
+ * replacement covers it: a pull request run plans GitHub's merge of the branch onto `main` from
+ * its base, so the new plan is the branch's whole change and cannot be narrower than the run it
+ * replaced.
  *
  * IT LIVES HERE SO IT CAN BE TESTED. `hooks/warn-command.mjs` reads stdin at module top level and
  * cannot be imported, exactly as this file's header says of `guard-command.mjs`. The claim that
@@ -980,35 +952,18 @@ export function unfinishedRun(runs, from) {
  * @param {string} input.branch the branch this push moved
  * @param {string} input.from the tip the remote held before the push
  * @param {string} input.to the tip it holds now
- * @param {{ databaseId: number|string, conclusion?: string, status?: string, event?: string }} input.run
+ * @param {{ databaseId: number|string, conclusion?: string, status?: string }} input.run
  *   the unfinished run for `from`, as `unfinishedRun` returned it
  */
 export function pushReplacedNotice({ branch, from, to, run }) {
-  const wasDispatch = run?.event === 'workflow_dispatch';
-  const head =
-    `Heads up: this push moved ${branch} from ${from.slice(0, 8)} to ${to.slice(0, 8)}, and CI run ` +
-    `${run.databaseId} for ${from.slice(0, 8)} never finished (${run.conclusion || run.status}). ` +
-    'The concurrency group cancelled it.';
-  const situation = wasDispatch
-    ? 'That run was a DISPATCH, which has no diff base and so runs the FULL suite; the run for ' +
-      'this push plans from the merge-base with main instead, which is narrower on purpose and ' +
-      'is not what the dispatch was bought for. The override is gone, not the coverage of your ' +
-      'own change.'
-    : 'The run for THIS push covers the delta it owed: since 2026-09-06 ci.yml measures a branch ' +
-      'push from the merge-base with main, which is an ancestor of both tips, so the new plan is ' +
-      "this branch's whole work and cannot be narrower than the push run it replaced.";
-  const suite = wasDispatch
-    ? 'Ask for the full suite again as its OWN command once the push run is listed:'
-    : 'A full suite is no longer the answer to a cancelled push run. Ask for one only to ' +
-      'override the plan itself, as its OWN command once the push run is listed:';
-  // Both cases say the same four things in the same order - what happened, what it means for
-  // coverage, whether to buy a full suite, and how to check - so they differ only in the two
-  // middle strings rather than in the shape of the message.
   return [
-    `${head} ${situation}`,
-    `${suite}\n  gh workflow run ci.yml --ref ${branch}`,
-    '(pushed and dispatched in one breath, one of the two is cancelled and which one is not ' +
-      'stable; the shell guard refuses that pairing).',
+    `Heads up: this push moved ${branch} from ${from.slice(0, 8)} to ${to.slice(0, 8)}, and CI run ` +
+      `${run.databaseId} for ${from.slice(0, 8)} never finished (${run.conclusion || run.status}). ` +
+      "The concurrency group cancelled it. The pull request's run for THIS push covers the delta " +
+      "it owed: it plans from main, so it is this branch's whole work and cannot be narrower than " +
+      'the run it replaced. No pull request, or one that conflicts with main, means no run at all.',
+    'A full suite is not the answer to a cancelled run. Ask for one only to override the plan ' +
+      `itself:\n  gh workflow run ci.yml --ref ${branch}`,
     'Read WHICH JOBS RAN before believing the colour - a skipped shard means the plan found ' +
       'nothing that reaches the E2E surface, and it is worth knowing which:\n' +
       `  gh run list --branch ${branch} --limit 3\n` +

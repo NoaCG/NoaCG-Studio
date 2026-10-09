@@ -271,10 +271,10 @@ it means a forgotten local run is no longer a silent hole.
 
 ## The pre-merge gate belongs to CI, not the laptop
 
-`ci.yml` runs on every branch push and does strictly more than a local run can (build, the affected
+`ci.yml` runs on every pull request, once per commit, and does strictly more than a local run can (build, the affected
 plan sharded up to nine ways, the factory gates, the catalog tripwire when raised) in about ten
-minutes, free, on a clean checkout. The safe-merge workflow's Phase 3 prefers a CI run green on
-exactly the commit being promoted and falls back to the local pair only when there isn't one.
+minutes, free, on a clean checkout. The merge queue requires its `CI gate` on the pull request
+and again on the merge group, so nothing lands without it.
 
 **The shard count follows measured minutes, not a file count** (`shardsFor` in
 `scripts/e2e-affected.mjs`, table in `scripts/e2e-durations.json`): about three minutes of test
@@ -367,10 +367,12 @@ Nothing gated the change and the tick said otherwise. Measured 2026-08-19 on
 green with four of eight jobs skipped - on a branch whose whole subject was the catalog, which is
 the one thing `e2e/catalog-baseline.spec.ts` only ever checks in CI.
 
-Since 2026-09-06 `ci.yml` measures EVERY branch push from `git merge-base origin/main HEAD`. That
-commit is an ancestor of the cancelled tip whatever the sequence was, so a replacement run plans
-the branch's whole work plus whatever `main` brought in since the fork, and it cannot plan less
-than the PUSH run it cancelled. Measured 2026-09-15 over 434 branch runs: 28 green runs came
+Since 2026-09-06 `ci.yml` measures every branch push or pull request run from `main`, never from
+the previous push. A
+branch push then measured from `git merge-base origin/main HEAD`; since 2026-10-09, when branch
+push runs stopped (#851), the pull request run tests GitHub's merge of the branch onto `main` and
+measures from that `main`. Either way a replacement run plans the branch's whole change, so it
+cannot plan less than the run it cancelled. Measured 2026-09-15 over 434 branch runs: 28 green runs came
 straight after a cancelled one and 8 of those ran no shard. Re-measured 2026-09-16 over the 158
 branch push runs of the preceding week, this time reading each one's plan rather than counting
 them: 12 were green straight after a cancelled run on the same branch, 4 of those ran no E2E
@@ -378,12 +380,10 @@ shard, and all 4 planned `mode: none` from the merge-base over docs, handoffs, `
 scripts the application never loads. No false green among them - which is what turns the earlier
 count from an upper bound into an answer.
 
-**The exception is a cancelled DISPATCH, and it is a real loss.** The concurrency group keys on
-the ref with no event in the key, so a push cancels an in-flight `gh workflow run` on the same
-branch. A dispatch has no diff base and runs everything; the push run that replaces it plans from
-the merge-base, which is narrower than what you had just bought. Nothing is uncovered - your own
-change is planned honestly - but the override is gone, so ask for it again. The defect itself is
-[`docs/backlog/ci-concurrency-group-per-event.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md).
+**A push no longer cancels a dispatch.** A dispatched run keys its concurrency group on the branch
+ref and a pull request run on `refs/pull/<n>/merge`, so `gh workflow run ci.yml --ref <branch>`
+keeps running beside the pull request's run. Until 2026-10-09 the branch push run shared the
+dispatch's group and cancelled it ([`docs/backlog/ci-concurrency-group-per-event.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md)).
 
 **So read the job list for what it now tells you, which is the PLAN and not a hole.** A skipped
 shard means the classifier found nothing in the branch's whole diff against `main` that reaches
@@ -392,8 +392,9 @@ the look is disagreeing with it: if the shards were skipped and you know you tou
 that can reach the app, a spec header is missing a `covers:` line, and that is a bug
 to fix rather than a run to re-buy. To override the plan itself, ask for the whole suite as its
 own command: `gh workflow run ci.yml --ref <branch>`. A dispatched run has no `event.before`,
-finds no diff base, and escalates to the FULL suite by design. (A pull request reaches the same
-honest base through `PR_BASE`.)
+finds no diff base, and escalates to the FULL suite by design. It is also how a branch with no
+pull request yet gets a run; `-f diff_base=$(git merge-base origin/main HEAD)` plans only the
+branch's change.
 
 ## A slow gate is a defect
 
@@ -1129,7 +1130,7 @@ GitHub telling the owner that a run *they* triggered went red. There is no secon
 | **By-design alarm** | `nightly-drift` red while its rolling issue is open (1) | yes, once per firing, twice a day | correct; the repeat COMMENT is now withheld, the red is not |
 | **Self-requested** | `workflow_dispatch` failing while somebody iterates on it (10) | yes | correct - the person who typed it asked for exactly this answer. It is not inbox noise; it is the reply |
 | **Flake** | attempt 1 red, re-run green (5) | yes | red without an action. Only fixable by fixing the flake |
-| **Superseded, mid-run** | branch push cancels its predecessor, `cancel-in-progress: true` (26) | **no** | deliberate - saves runner slots, tells nobody |
+| **Superseded, mid-run** | a new commit cancels its predecessor's run (counted on branch pushes, before #851), `cancel-in-progress: true` (26) | **no** | deliberate - saves runner slots, tells nobody |
 | **Superseded, never started** | `main` run cancelled while queued, `jobs: []` (3) | **no** | costs a per-commit verdict, nothing else - see the concurrency comment in `ci.yml` |
 | **Exhausted** | a job killed at its own `timeout-minutes`, recorded as `cancelled` (4 of the 30 `main` runs to 2026-09-04) | **no** | no verdict, and NOT a fault. `main` sets `cancel-in-progress: false`, so a cancel there can only mean this. The gate says "ran out of time" and files nothing; the fix is to make the shards fit, and `docs/CI_STABILITY.md` §4 carries the measurement |
 

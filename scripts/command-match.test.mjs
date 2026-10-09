@@ -20,7 +20,6 @@ import {
   mainPushes,
   pollsQueue,
   pushedUpdates,
-  pushesAndDispatches,
   unfinishedRun,
   pushReplacedNotice,
   requiresRunningDevServer,
@@ -614,36 +613,6 @@ test('reading, searching or quoting a commit is not making one', () => {
   }
 });
 
-test('a push and a workflow dispatch in one command are the coin flip, in every spelling used here', () => {
-  // Four handoffs over 2026-09-04 and 2026-09-05; the PowerShell spelling is this machine's
-  // ordinary one, since `&&` is a parser error there.
-  for (const cmd of [
-    'git push && gh workflow run ci.yml --ref claude/x',
-    'git push origin HEAD; gh workflow run ci.yml --ref claude/x',
-    'git push -u origin claude/x; if ($?) { gh workflow run ci.yml --ref claude/x }',
-    'cd /c/wt && git push && sleep 20 && gh workflow run ci.yml --ref claude/x',
-    'gh workflow run ci.yml --ref claude/x && git push',
-  ]) {
-    assert.ok(pushesAndDispatches(cmd), cmd);
-  }
-});
-
-test('a push alone, a dispatch alone, a dry run, and the pair as text are not the coin flip', () => {
-  for (const cmd of [
-    'git push',
-    'git push -u origin claude/x',
-    'gh workflow run ci.yml --ref claude/x',
-    'git push && gh run list --branch claude/x --limit 1',
-    'git push --dry-run && gh workflow run ci.yml --ref claude/x',
-    'git push -n && gh workflow run ci.yml --ref claude/x',
-    'echo "git push && gh workflow run ci.yml"',
-    'grep -rn "gh workflow run" docs/ && git push',
-    'git log --oneline -3; gh workflow run ci.yml --ref claude/x',
-  ]) {
-    assert.ok(!pushesAndDispatches(cmd), cmd);
-  }
-});
-
 test('a push that names main is a main push, in every spelling used here', () => {
   // The agents run as an admin GitHub lets bypass the merge queue, so nothing downstream refuses
   // these. The PowerShell block form is this machine's ordinary spelling, since `&&` is a parser
@@ -802,47 +771,27 @@ test('unfinishedRun speaks only when no run for the old tip reached a verdict', 
   // No run for the tip, or nothing to read, is nothing to say.
   assert.equal(unfinishedRun(oneCancelled, 'deadbeef'), null);
   assert.equal(unfinishedRun(null, 'a8ce0d1b'), null);
+  // A push cancels the old tip's pull request run but not a dispatch, which keys on the branch ref
+  // in its own concurrency group (#851): a dispatch still going is no cause to speak.
+  const dispatchGoing = { conclusion: '', databaseId: 4, headSha: 'a8ce0d1bffff', status: 'in_progress', event: 'workflow_dispatch' };
+  const prCancelled = { conclusion: 'cancelled', databaseId: 5, headSha: 'a8ce0d1bffff', status: 'completed', event: 'pull_request' };
+  assert.equal(unfinishedRun([dispatchGoing], 'a8ce0d1b'), null);
+  assert.equal(unfinishedRun([dispatchGoing, prCancelled], 'a8ce0d1b')?.databaseId, 5);
 });
 
-test('pushReplacedNotice tells a cancelled push and a cancelled dispatch opposite things', () => {
+test('pushReplacedNotice names the run, says its replacement covers it, and how to check', () => {
   const where = { branch: 'claude/x', from: 'a8ce0d1bffffffff', to: 'b1b1b1b1ffffffff' };
-  const push = pushReplacedNotice({
-    ...where,
-    run: { databaseId: 42, conclusion: 'cancelled', status: 'completed', event: 'push' },
-  });
-  const dispatch = pushReplacedNotice({
-    ...where,
-    run: { databaseId: 43, conclusion: 'cancelled', status: 'completed', event: 'workflow_dispatch' },
-  });
-
-  // Both name the branch, the two tips and the run, because that is what the reader is looking for.
-  for (const notice of [push, dispatch]) {
-    assert.match(notice, /claude\/x/);
-    assert.match(notice, /a8ce0d1b/);
-    assert.match(notice, /b1b1b1b1/);
-    assert.match(notice, /gh run view <id> --json jobs/);
-  }
-  assert.match(push, /\b42\b/);
-  assert.match(dispatch, /\b43\b/);
-
-  // THE SPLIT THAT MATTERS. A cancelled PUSH run is covered by its replacement, so the notice says
-  // so and says a full suite is not the answer. A cancelled DISPATCH lost an override nothing
-  // replaces, so the notice must NOT claim coverage and must ask for the dispatch again.
-  assert.match(push, /cannot be narrower than the push run it replaced/);
-  assert.match(push, /A full suite is no longer the answer/);
-  assert.doesNotMatch(push, /DISPATCH, which has no diff base/);
-
-  assert.match(dispatch, /DISPATCH, which has no diff base/);
-  assert.match(dispatch, /Ask for the full suite again/);
-  assert.doesNotMatch(dispatch, /cannot be narrower/);
-  assert.doesNotMatch(dispatch, /A full suite is no longer the answer/);
-
-  // A run gh reported without an event is not a dispatch as far as this is concerned: the common
-  // case is a push, and claiming a lost override that nothing lost would send the reader to buy a
-  // suite for no reason. A still-running run has no conclusion, so the status stands in.
-  const noEvent = pushReplacedNotice({ ...where, run: { databaseId: 44, status: 'in_progress' } });
-  assert.match(noEvent, /cannot be narrower than the push run it replaced/);
-  assert.match(noEvent, /never finished \(in_progress\)/);
+  const notice = pushReplacedNotice({ ...where, run: { databaseId: 42, conclusion: 'cancelled', status: 'completed' } });
+  assert.match(notice, /claude\/x/);
+  assert.match(notice, /a8ce0d1b/);
+  assert.match(notice, /b1b1b1b1/);
+  assert.match(notice, /\b42\b/);
+  assert.match(notice, /cannot be narrower than the run it replaced/);
+  assert.match(notice, /A full suite is not the answer/);
+  assert.match(notice, /gh run view <id> --json jobs/);
+  // A still-running run has no conclusion, so the status stands in.
+  const going = pushReplacedNotice({ ...where, run: { databaseId: 44, status: 'in_progress' } });
+  assert.match(going, /never finished \(in_progress\)/);
 });
 
 test('the job queue refuses the WHOLE default suite and lets one or two named specs through', () => {

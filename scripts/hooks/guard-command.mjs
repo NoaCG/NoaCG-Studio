@@ -12,8 +12,6 @@
 //     AI/agent/chat-session language, no internal plan codenames.
 //  3. Commits never include dist/ or the generated .claude/launch.json.
 //  3b. Nobody polls the job queue in the foreground, and no polling loop runs without a time limit.
-//  3c. A push and a workflow dispatch never share one command - ci.yml's concurrency group makes
-//     the pair a coin flip over which run survives.
 //  3d. Nothing pushes to `main` - only the merge queue writes it.
 //  4. The e2e suites only start when (a) no OTHER checkout of this repo is already running one -
 //     several worktrees are normally live and each config asks for 4 workers, so two overlapping
@@ -42,7 +40,6 @@ import {
   invokesSweep,
   mainPushes,
   pollsQueue,
-  pushesAndDispatches,
   runsWholeSuite,
   startsDevServer,
   WHOLE_SUITE_ON_GITHUB,
@@ -248,33 +245,6 @@ if (pollsQueue(command)) {
 // Codex runs the same rule through its own hook (codex-guard-command.mjs), with the same words.
 const wait = endlessWait(command);
 if (wait) deny(endlessWaitRefusal(wait));
-
-// --- 3c. A push and a workflow dispatch never share one command --------------------------------
-//
-// `ci.yml` keeps every run of one ref in one concurrency group with cancel-in-progress, so the
-// push's run and the dispatched run cannot both live: the one that registers second cancels the
-// first, and the order two webhooks register in is not stable ("Pushing and dispatching in one
-// breath is a coin flip, and I lost it once" - measured on 2026-09-04 across four handoffs, all
-// drained since; https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the
-// dispatch loses, the push run survives and
-// plans only the delta since the previous push - the narrow plan the dispatch was issued to avoid -
-// and it reports green. A refusal because the check is exact: no reading of the pair in one
-// command is reliable, and the sanctioned shape is two commands. The matcher is positional
-// (`pushesAndDispatches` in command-match.mjs), so quoting the pair in an echo is not the pair.
-if (pushesAndDispatches(command)) {
-  deny(
-    'Blocked: this pushes and dispatches a CI run in one breath. ci.yml holds every run of a ref in ' +
-      'one concurrency group with cancel-in-progress, so whichever of the two registers second ' +
-      'cancels the first - and which one that is is a coin flip (lost for real on 2026-09-04). When ' +
-      'the dispatch loses, the push run survives and plans only the delta since the previous push, ' +
-      'which is the narrow plan you dispatched to avoid, and it reports green.\n' +
-      'Do it as two commands:\n' +
-      '  git push\n' +
-      '  gh workflow run ci.yml --ref <branch>   once `gh run list --branch <branch> --limit 1` lists ' +
-      "the push's run; the dispatch then cancels that run and the full suite runs in its place.\n" +
-      'A push on its own is fine; so is a dispatch on its own.',
-  );
-}
 
 // --- 3d. Nothing pushes to `main`: only the merge queue writes it ------------------------------
 //

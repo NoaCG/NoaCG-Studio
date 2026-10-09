@@ -85,7 +85,8 @@ fix needs a product decision or a change well outside the pull request's scope.
   every generated file with its generator rather than trusting the merged text (for example
   `npm run contracts:compile`). Resolve mechanical conflicts yourself; hand a conflict about
   meaning to a fresh agent session with both sides' intent. Then `/check` with targeted checks and
-  queue again: CI plans the e2e run from the fork point, so it covers both sides.
+  queue again: the pull request's CI run tests the merge with `main` and the merge group tests it
+  again, so both sides are covered.
 - A landing that reached no verdict (killed at its cap, the runner gone, CI with no result) is
   retried once automatically; a verdict the queue reached is never retried behind anyone's back.
 - `npm run jobs` shows each branch's state (`QUEUED`, `LANDED`, `LANDING FAILED` with the refusal).
