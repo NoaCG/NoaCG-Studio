@@ -744,6 +744,13 @@ function styleRuleSelectors(rules: CSSRuleList): string[] {
   return out;
 }
 
+/** Every style rule's selector list in a stylesheet's text, as the browser's own parser reads it. */
+function parseSelectors(css: string): string[] {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  return styleRuleSelectors(sheet.cssRules);
+}
+
 /**
  * The export's FAIL-CLOSED gate on the rewrite: the scoped stylesheet is parsed by the browser's
  * own CSS parser, and the export refuses if any style rule's selector does not start with the
@@ -756,13 +763,8 @@ export function assertScopedCss(original: string, scoped: string, self: string):
   if (typeof CSSStyleSheet === 'undefined') {
     throw new Error('OGraf export: the scoped stylesheet can only be verified where a CSS parser exists (a browser).');
   }
-  const parse = (css: string) => {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
-    return styleRuleSelectors(sheet.cssRules);
-  };
-  const before = parse(original);
-  const after = parse(scoped);
+  const before = parseSelectors(original);
+  const after = parseSelectors(scoped);
   if (after.length !== before.length) {
     throw new Error(`OGraf export: scoping the stylesheet changed its rule count (${before.length} -> ${after.length}) - a rewritten selector no longer parses.`);
   }
@@ -810,12 +812,7 @@ function namesToken(text: string, word: string): boolean {
  * the template's code names, or an id a selector names.
  */
 function isolateMarkupIds(root: DocumentFragment, template: SpxTemplate, suffix: string): Map<string, string> {
-  const fields = new Set(template.fields.map((f) => f.field));
-  const sheets = [template.css, ...Array.from(root.querySelectorAll('style'), (s) => s.textContent ?? '')];
-  const parsed = new CSSStyleSheet();
-  parsed.replaceSync(sheets.join('\n'));
-  const selectors = styleRuleSelectors(parsed.cssRules).join('\n');
-  const named = (id: string) => fields.has(id) || namesToken(template.js, id) || namesToken(selectors, `#${id}`);
+  const sheets = Array.from(root.querySelectorAll('style'), (s) => s.textContent ?? '');
   const isHref = (attr: Attr) => /^(?:xlink:)?href$/i.test(attr.name) && attr.value.startsWith('#');
   const elements = Array.from(root.querySelectorAll('*'));
   const referenced = new Set<string>();
@@ -825,8 +822,12 @@ function isolateMarkupIds(root: DocumentFragment, template: SpxTemplate, suffix:
       for (const m of attr.value.matchAll(URL_REF)) referenced.add(m[2]);
     }
   }
-  for (const sheet of sheets.slice(1)) for (const m of sheet.matchAll(URL_REF)) referenced.add(m[2]);
+  for (const sheet of sheets) for (const m of sheet.matchAll(URL_REF)) referenced.add(m[2]);
   const renames = new Map<string, string>();
+  if (!referenced.size) return renames;
+  const fields = new Set(template.fields.map((f) => f.field));
+  const selectors = parseSelectors([template.css, ...sheets].join('\n')).join('\n');
+  const named = (id: string) => fields.has(id) || namesToken(template.js, id) || namesToken(selectors, `#${id}`);
   for (const el of elements) {
     if (el.id && referenced.has(el.id) && !named(el.id)) renames.set(el.id, `${el.id}--${suffix}`);
   }
@@ -834,7 +835,8 @@ function isolateMarkupIds(root: DocumentFragment, template: SpxTemplate, suffix:
   for (const el of elements) {
     if (renames.has(el.id)) el.id = renames.get(el.id)!;
     for (const attr of Array.from(el.attributes)) {
-      if (isHref(attr)) attr.value = `#${renames.get(attr.value.slice(1)) ?? attr.value.slice(1)}`;
+      const ref = isHref(attr) ? attr.value.slice(1) : null;
+      if (ref !== null) attr.value = `#${renames.get(ref) ?? ref}`;
       else attr.value = renameUrlRefs(attr.value, renames);
     }
     if (el.localName === 'style') el.textContent = renameUrlRefs(el.textContent ?? '', renames);
@@ -842,11 +844,17 @@ function isolateMarkupIds(root: DocumentFragment, template: SpxTemplate, suffix:
   return renames;
 }
 
+/** A stylesheet re-addressed to the graphic's element, then checked by the browser's parser. */
+function scopeChecked(css: string, self: string): string {
+  return assertScopedCss(css, scopeCssToGraphic(css, self), self);
+}
+
 /**
- * The design's markup as graphic.mjs injects it, with its own document-wide carriers kept to
- * the graphic's element, and the ids it renamed (which the stylesheet's references follow).
+ * The design's markup and stylesheet as graphic.mjs injects them, every document-wide carrier
+ * kept to the graphic's own element.
  *
- * An imported SVG carries the artwork's own `<style>` inside the inline `<svg>`, with
+ * The stylesheet is re-addressed and checked (`scopeCssToGraphic`, `assertScopedCss`), and the
+ * MARKUP's own carriers get the same treatment. An imported SVG carries the artwork's own `<style>` inside the inline `<svg>`, with
  * Illustrator's shared class names (`.st0`, `.cls-1`) and ids, and a hand-written template may
  * carry a `<style>` in its body. In a renderer's light DOM every such sheet and id is
  * document-wide wherever it sits, so two imported designs on two layers recoloured or hid each
@@ -856,19 +864,18 @@ function isolateMarkupIds(root: DocumentFragment, template: SpxTemplate, suffix:
  * so a sheet's entities, CDATA and comments and a self-closing `<style/>` in SVG mean what they
  * mean on air. Markup with neither a style nor a renamed id comes back byte for byte.
  */
-export function graphicMarkup(template: SpxTemplate): { html: string; renames: Map<string, string> } {
-  const html = bodyContent(templateHtmlForModule(template));
+export function graphicSources(template: SpxTemplate): { html: string; css: string } {
+  const self = graphicSelfSelector(template);
+  const markup = bodyContent(templateHtmlForModule(template));
   const holder = document.createElement('template');
-  holder.innerHTML = html;
+  holder.innerHTML = markup;
   const renames = isolateMarkupIds(holder.content, template, ografGraphicId(template.name));
   const styles = Array.from(holder.content.querySelectorAll('style'));
-  if (!styles.length && !renames.size) return { html, renames };
-  const self = graphicSelfSelector(template);
-  for (const style of styles) {
-    const css = style.textContent ?? '';
-    style.textContent = assertScopedCss(css, scopeCssToGraphic(css, self), self);
-  }
-  return { html: holder.innerHTML, renames };
+  for (const style of styles) style.textContent = scopeChecked(style.textContent ?? '', self);
+  return {
+    html: styles.length || renames.size ? holder.innerHTML : markup,
+    css: scopeChecked(renameUrlRefs(template.css, renames), self),
+  };
 }
 
 /**
@@ -950,13 +957,9 @@ function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB):
   const actionIds = customActions(template).map((a) => a.id as string);
   const graphicId = ografGraphicId(template.name);
   const self = graphicSelfSelector(template);
-  // Re-addressed to the element, then checked by the browser's parser - the export refuses
-  // rather than ship a rule that would reach the renderer's page.
-  // The markup's own carriers get the same treatment: its referenced ids become this design's
-  // (the stylesheet's references follow them), and its <style> blocks are scoped and checked.
-  const markup = graphicMarkup(template);
-  const css = renameUrlRefs(template.css, markup.renames);
-  const scopedCss = assertScopedCss(css, scopeCssToGraphic(css, self), self);
+  // The markup and stylesheet, re-addressed to the element and checked by the browser's parser -
+  // the export refuses rather than ship a rule that would reach the renderer's page.
+  const sources = graphicSources(template);
   const usesLottie = templateUsesLottie(template);
   const ensureLottieFn = usesLottie
     ? `
@@ -1012,7 +1015,7 @@ function ensureFlexGap() {
   });
 }${ensureLottieFn}
 
-const TEMPLATE_HTML = ${JSON.stringify(markup.html)};
+const TEMPLATE_HTML = ${JSON.stringify(sources.html)};
 
 // This design's manifest id, stamped on the element at load() as data-noacg-graphic. Every
 // rule in TEMPLATE_CSS is scoped under that attribute (the studio's \`html, body\` and \`:root\`
@@ -1041,7 +1044,7 @@ const GRAPHIC_BOX_CSS = ${JSON.stringify(
       `${self} :where(:not(svg, svg *)) { overflow: revert; }`,
   )};
 
-const TEMPLATE_CSS = ${JSON.stringify(scopedCss)};
+const TEMPLATE_CSS = ${JSON.stringify(sources.css)};
 
 // The package's own base URL. A Graphic is a COMPONENT inside the renderer's page, not the
 // page itself, so a relative \`fonts/inter.woff2\` in the injected CSS resolves against the
@@ -1216,13 +1219,14 @@ function scopedGsap(root) {
     const inside = Array.from(root.querySelectorAll(targets));
     return root.matches(targets) ? [root].concat(inside) : inside;
   };
+  const tweens = ['to', 'from', 'fromTo', 'set'];
   const scoped = Object.create(null);
-  for (const name of ['to', 'from', 'fromTo', 'set', 'killTweensOf', 'getTweensOf', 'isTweening', 'quickSetter', 'quickTo']) {
+  for (const name of [...tweens, 'killTweensOf', 'getTweensOf', 'isTweening', 'quickSetter', 'quickTo']) {
     scoped[name] = (targets, ...rest) => real[name](own(targets), ...rest);
   }
   scoped.timeline = (...args) => {
     const tl = real.timeline(...args);
-    for (const name of ['to', 'from', 'fromTo', 'set']) {
+    for (const name of tweens) {
       const method = tl[name];
       tl[name] = function (targets, ...rest) { return method.call(this, own(targets), ...rest); };
     }

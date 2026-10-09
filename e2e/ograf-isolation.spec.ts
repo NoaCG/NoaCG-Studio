@@ -183,16 +183,17 @@ test('two imported SVG designs on one renderer keep their own colours, gradients
   };
   // Each artwork paints its own colours: neither file's `.st0`, `.st1` nor `SVGID_1_` reaches the
   // design beside it, and A's `.st1` hides A's drawn state and nothing of B's.
-  expect(await pixels(page, points)).toEqual({
+  const own = {
     aClass: [255, 0, 0], bClass: [0, 0, 255],
     aGradient: [0, 255, 0], bGradient: [255, 0, 255],
     aHidden: GROUND, bShown: [255, 255, 0],
-  });
+  };
+  expect(await pixels(page, points)).toEqual(own);
 
   // Taking A off the renderer leaves B exactly as it was: nothing B paints with lived in A.
   await unmount(page, 'a');
   expect(await pixels(page, { bClass: points.bClass, bGradient: points.bGradient, bShown: points.bShown }))
-    .toEqual({ bClass: [0, 0, 255], bGradient: [255, 0, 255], bShown: [255, 255, 0] });
+    .toEqual({ bClass: own.bClass, bGradient: own.bGradient, bShown: own.bShown });
 });
 
 test("a child-combinator rule off `body` matches the design's own top-level elements, and `body.children` lists them", async ({ page }) => {

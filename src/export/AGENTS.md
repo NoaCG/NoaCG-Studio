@@ -196,7 +196,7 @@ export-time reflow, stretching, or cropping.
   with the element for the same reason - the studio's `--scale` reads and `body.clientWidth`
   measure the canvas, not the host page. Pinned by `e2e/ograf-conformance.spec.ts` (host page
   untouched, frame pixel-identical to the studio document, every catalog sheet scoped).
-  The MARKUP's own carriers are re-addressed at export too (`graphicMarkup`, issue #789): it is
+  The MARKUP's own carriers are re-addressed at export too (`graphicSources`, issue #789): it is
   parsed as a renderer parses it, its `<style>` blocks go through the same rewrite and gate, and
   the ids it references (Illustrator's `SVGID_1_`) are renamed to the design's own, references in
   `template.css` with them, unless a field, the code or a selector names them. `load()` makes the
