@@ -61,7 +61,7 @@ test('distribution branch has only generated history, preserves parents and refu
 // branch update failed with "could not read Username" because the token was set only for setup.
 test('the release workflow pushes the distribution in the step that holds the token', () => {
   const workflow = readFileSync(path.join(ROOT, '.github/workflows/release-cli.yml'), 'utf8');
-  const steps = workflow.split(/\n(?=      - )/);
+  const steps = workflow.split(/\n(?= {6}- )/);
   const push = steps.filter((step) => step.includes('publish-toolkit-distribution.mjs --push'));
   assert.equal(push.length, 1);
   assert.match(push[0], /^ +GH_TOKEN: \$\{\{ github\.token \}\}$/m);
