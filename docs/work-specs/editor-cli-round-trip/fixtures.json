@@ -1,0 +1,50 @@
+[
+  {
+    "name": "riverlight",
+    "sha256": "18e3356b3cd73adf0ee5998c199db8bced312f936827891f3e6c9f0f2d068c58",
+    "files": [
+      "controlpanel.html",
+      "css/",
+      "css/template.css",
+      "FIELDS.md",
+      "fonts/",
+      "fonts/FONT_LICENSES.md",
+      "fonts/inter.woff2",
+      "GETTING-ON-AIR.md",
+      "graphic.mjs",
+      "images/",
+      "images/festival-mark.svg",
+      "js/",
+      "js/flex-gap-shim.js",
+      "js/gsap.min.js",
+      "js/template.js",
+      "README.md",
+      "riverlight_festival.html",
+      "riverlight_festival.ograf.json",
+      "thumbnail.png"
+    ]
+  },
+  {
+    "name": "harbor",
+    "sha256": "4925fc01e517b3c4607dfc542fe1ad29c9153565d0555a9cb6b13c7bdbb180b0",
+    "files": [
+      "controlpanel.html",
+      "css/",
+      "css/template.css",
+      "FIELDS.md",
+      "fonts/",
+      "fonts/FONT_LICENSES.md",
+      "fonts/oswald.woff2",
+      "fonts/saira.woff2",
+      "GETTING-ON-AIR.md",
+      "graphic.mjs",
+      "harbor_cup.html",
+      "harbor_cup.ograf.json",
+      "js/",
+      "js/flex-gap-shim.js",
+      "js/gsap.min.js",
+      "js/template.js",
+      "README.md"
+    ]
+  }
+]

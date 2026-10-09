@@ -7,6 +7,7 @@
 // import is just the normal Export tab.
 
 import JSZip from 'jszip';
+import { scriptKind } from './scriptKind';
 import { ensureExternalRefs } from './externalRefs';
 import { parseDefinition } from './spxDefinition';
 import { sourceHash } from './contentHash';
@@ -162,7 +163,8 @@ export function importHtmlTemplate(
     // A module script must keep its tag: import/export only parse as a module, so moving
     // the body into the classic JS pane manufactures a syntax error (real SPX packs ship
     // <script type="module"> templates - the HKO lineage in the reference corpus).
-    if (/\btype\s*=\s*["']module["']/i.test(attrs)) return full;
+    // Data blocks and unknown types retain their HTML meaning.
+    if (scriptKind(attrs) !== 'classic') return full;
     // Our own injected control receiver is re-added at export time — drop it on import so
     // a round-trip stays faithful (same as we drop a bundled GSAP blob below).
     if (/spx-control-receiver/.test(attrs)) return '';

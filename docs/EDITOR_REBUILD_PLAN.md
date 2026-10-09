@@ -699,6 +699,23 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-09: bounded CLI-generated source round-trip
+
+- [Receipt](work-specs/editor-cli-round-trip/README.md): local CLI scaffold/validate/inspect,
+  normal ZIP import, visual text/panel/typography edits, durable reopen, history/context
+  guards and executed SPX/CasparCG/OGraf browser outputs. Independent scoreboard retains
+  its operator machine. Three viewport captures remain engineering evidence.
+- Preserve non-executable script tags in HTML. Imported file Finish now reuses the existing
+  artwork editor door and byte-preserving applier. CSS appearance writes use the last exact
+  top-level duplicate rule; existing readers and nested/unrelated rules stay intact.
+- Custom non-field HTML spans remain outside visual target discovery. Retain their source
+  and refuse edits honestly; no general HTML conversion or new document model.
+- Pinned VectorCraft v0.4.0 executed comparable import/edit/history/native reopen. It has no
+  equivalent CLI broadcast package or output contract. Compare interaction/rendering only
+  for that subset; retain the NoaCG-specific regressions and post-landing independent check.
+- Next: reproduce the existing linked-scale/corner/rotation feedback before R1.5. Paired MCP
+  stays R3.2; general help, funding/BYOK, WebMCP and broader release acceptance stay separate.
+
 ### 2026-10-09: the reference check moved into this plan (no phase built)
 
 - The reference check above binds every phase and its checker from now on; until today it lived

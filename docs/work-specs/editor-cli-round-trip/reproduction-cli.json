@@ -1,0 +1,246 @@
+{
+  "kind": "noacg",
+  "ok": false,
+  "validation": {
+    "ok": false,
+    "gate": {
+      "ok": false,
+      "errors": [
+        {
+          "rule": "syntax",
+          "message": "JavaScript syntax error: Unexpected token ':'"
+        }
+      ],
+      "warnings": []
+    },
+    "bench": {
+      "ok": false,
+      "errors": [
+        {
+          "rule": "bench-binding",
+          "message": "update() did not land field f0 (\"Name\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f0'))."
+        },
+        {
+          "rule": "bench-binding",
+          "message": "update() did not land field f1 (\"Role\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f1'))."
+        },
+        {
+          "rule": "bench-entrance",
+          "message": "After play() the graphic is not visible on the canvas - the entrance must reveal the root (the root starts CSS-hidden and play() shows it)."
+        },
+        {
+          "rule": "bench-replay",
+          "message": "play() after stop() does not bring the graphic back - reset transient state at the top of the entrance so the graphic replays cleanly (a leaked exit end-state is the usual cause)."
+        },
+        {
+          "rule": "bench-runtime",
+          "message": "Runtime error during load: Uncaught SyntaxError: Unexpected token ':'"
+        }
+      ],
+      "warnings": [
+        {
+          "rule": "bench-field-unpainted",
+          "message": "Field Name (f0) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible."
+        },
+        {
+          "rule": "bench-field-unpainted",
+          "message": "Field Role (f1) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible."
+        }
+      ]
+    },
+    "benchSkipped": null,
+    "merged": {
+      "ok": false,
+      "errors": [
+        {
+          "rule": "syntax",
+          "message": "JavaScript syntax error: Unexpected token ':'"
+        },
+        {
+          "rule": "bench-binding",
+          "message": "update() did not land field f0 (\"Name\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f0'))."
+        },
+        {
+          "rule": "bench-binding",
+          "message": "update() did not land field f1 (\"Role\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f1'))."
+        },
+        {
+          "rule": "bench-entrance",
+          "message": "After play() the graphic is not visible on the canvas - the entrance must reveal the root (the root starts CSS-hidden and play() shows it)."
+        },
+        {
+          "rule": "bench-replay",
+          "message": "play() after stop() does not bring the graphic back - reset transient state at the top of the entrance so the graphic replays cleanly (a leaked exit end-state is the usual cause)."
+        },
+        {
+          "rule": "bench-runtime",
+          "message": "Runtime error during load: Uncaught SyntaxError: Unexpected token ':'"
+        }
+      ],
+      "warnings": [
+        {
+          "rule": "bench-field-unpainted",
+          "message": "Field Name (f0) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible."
+        },
+        {
+          "rule": "bench-field-unpainted",
+          "message": "Field Role (f1) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible."
+        }
+      ]
+    },
+    "readiness": [
+      {
+        "id": "fields",
+        "label": "Operator fields reach the graphic",
+        "state": "fail",
+        "messages": [
+          "update() did not land field f0 (\"Name\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f0')).",
+          "update() did not land field f1 (\"Role\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f1'))."
+        ]
+      },
+      {
+        "id": "lifecycle",
+        "label": "Plays, comes off air, and replays cleanly",
+        "state": "fail",
+        "messages": [
+          "After play() the graphic is not visible on the canvas - the entrance must reveal the root (the root starts CSS-hidden and play() shows it).",
+          "play() after stop() does not bring the graphic back - reset transient state at the top of the entrance so the graphic replays cleanly (a leaked exit end-state is the usual cause).",
+          "Runtime error during load: Uncaught SyntaxError: Unexpected token ':'"
+        ]
+      },
+      {
+        "id": "layout",
+        "label": "Nothing collides or escapes the frame",
+        "state": "pass",
+        "messages": []
+      },
+      {
+        "id": "legibility",
+        "label": "Reads where it will be watched",
+        "state": "pass",
+        "messages": []
+      },
+      {
+        "id": "stress",
+        "label": "Survives text twice as long",
+        "state": "pass",
+        "messages": []
+      },
+      {
+        "id": "editable",
+        "label": "Motion is editable on the timeline",
+        "state": "pass",
+        "messages": []
+      },
+      {
+        "id": "export",
+        "label": "Exports plug-and-play",
+        "state": "fail",
+        "messages": [
+          "JavaScript syntax error: Unexpected token ':'"
+        ]
+      }
+    ],
+    "unclaimed": [
+      {
+        "rule": "bench-field-unpainted",
+        "message": "Field Name (f0) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible."
+      },
+      {
+        "rule": "bench-field-unpainted",
+        "message": "Field Role (f1) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible."
+      }
+    ],
+    "engines": [
+      {
+        "engine": {
+          "id": "casparcg-23",
+          "label": "CasparCG 2.3.x",
+          "chromium": 71,
+          "note": "measured 2026-09-10 on the 2.3.3 LTS download, below the supported floor"
+        },
+        "verdict": "fine",
+        "missing": []
+      },
+      {
+        "engine": {
+          "id": "obs-30",
+          "label": "OBS Studio 30.x",
+          "chromium": 103,
+          "note": "an OBS not updated since 2023 — below the floor"
+        },
+        "verdict": "fine",
+        "missing": []
+      },
+      {
+        "engine": {
+          "id": "vmix",
+          "label": "vMix 27+",
+          "chromium": 103,
+          "note": "changelog only, never measured here"
+        },
+        "verdict": "fine",
+        "missing": []
+      },
+      {
+        "engine": {
+          "id": "casparcg-24",
+          "label": "CasparCG 2.4.x",
+          "chromium": 117,
+          "note": "THE SUPPORTED FLOOR"
+        },
+        "verdict": "fine",
+        "missing": []
+      },
+      {
+        "engine": {
+          "id": "obs",
+          "label": "OBS Studio 31.x and 32.x",
+          "chromium": 127,
+          "note": "measured 2026-09-30 on 32.2.1"
+        },
+        "verdict": "fine",
+        "missing": []
+      },
+      {
+        "engine": {
+          "id": "casparcg-25",
+          "label": "CasparCG 2.5.x",
+          "chromium": 142,
+          "note": "measured 2026-08-07"
+        },
+        "verdict": "fine",
+        "missing": []
+      },
+      {
+        "engine": {
+          "id": "browser",
+          "label": "A current browser",
+          "chromium": null,
+          "note": "the studio preview, and SPX’s monitor copy in the operator’s browser (SPX on air runs in its host)"
+        },
+        "verdict": "fine",
+        "missing": []
+      }
+    ],
+    "engineHeadline": "Renders on every supported playout engine.",
+    "text": "- ERROR syntax: JavaScript syntax error: Unexpected token ':'\n- ERROR bench-binding: update() did not land field f0 (\"Name\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f0')).\n- ERROR bench-binding: update() did not land field f1 (\"Role\") in its element - write each field's value into the element with the same id (setFieldValue / getElementById('f1')).\n- ERROR bench-entrance: After play() the graphic is not visible on the canvas - the entrance must reveal the root (the root starts CSS-hidden and play() shows it).\n- ERROR bench-replay: play() after stop() does not bring the graphic back - reset transient state at the top of the entrance so the graphic replays cleanly (a leaked exit end-state is the usual cause).\n- ERROR bench-runtime: Runtime error during load: Uncaught SyntaxError: Unexpected token ':'\n- WARN bench-field-unpainted: Field Name (f0) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible.\n- WARN bench-field-unpainted: Field Role (f1) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible."
+  },
+  "normalize": {
+    "converted": false,
+    "dataRegion": true,
+    "note": "The ANIMATION region is already NoaCG keyframe data (timeline-editable)."
+  },
+  "stale": true,
+  "screenshots": {
+    "off": "<worktree>\\.noacg\\rich-shots\\off.png",
+    "onair": "<worktree>\\.noacg\\rich-shots\\onair.png",
+    "stress": "<worktree>\\.noacg\\rich-shots\\stress.png"
+  },
+  "stateFrames": [],
+  "regenerated": true,
+  "sourceChanges": [
+    "riverlight_festival.html (normalized to the package layout)",
+    "js/template.js (normalized to the package layout)"
+  ]
+}

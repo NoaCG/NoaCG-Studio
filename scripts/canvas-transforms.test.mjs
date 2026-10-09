@@ -201,3 +201,9 @@ test('a handle gesture writes what typing writes: a turn keys an animated rotati
   const accent = one({ '#a': { scaleX: [k(0, 0), k(0.6, 1)] } });
   assert.deepEqual(transformOperations(accent, '#a', '#a', base, pose(0), { scaleX: 1.2, scaleY: 1 }, at).map(o => [o.kind, o.property ?? Object.keys(o.values)]), [['animation.key', 'scaleX']]);
 });
+
+test('repeated CSS declarations patch the effective value and retain important priority', () => {
+  const original = '#a { color: red !important; }\n#a { width: 20px; color: green; }';
+  assert.equal(setCssDeclaration(original, '#a', 'color', 'blue'), '#a { color: blue !important; }\n#a { width: 20px; color: green; }');
+  assert.equal(setCssDeclaration('#a { color: red; color: green; }', '#a', 'color', 'blue'), '#a { color: red; color: blue; }');
+});
