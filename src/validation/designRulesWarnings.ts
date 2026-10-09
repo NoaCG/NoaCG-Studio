@@ -23,6 +23,7 @@ import { parseAnimData } from '../blocks/animData';
 import { allTimelines } from '../blocks/animMachine';
 import { composeDocument } from '../preview/composeDocument';
 import type { SpxTemplate } from '../model/types';
+import { DATA_SOURCE_CLASS } from '../templates/shared/base';
 import type { ValidationIssue } from './validateTemplate';
 import { isMarkImage } from './markLegibility';
 import { measureReadability, type ReadabilityFinding } from './readabilityCheck';
@@ -53,10 +54,15 @@ const NOT_RENDERED = 'the graphic could not be rendered for measuring';
 /** Field types whose value is text a viewer reads. `hidden` carries data, not words. */
 const READ_FTYPES = new Set(['textfield', 'textarea', 'number']);
 
-/** How many declared text fields hold text in this frame - what there was to read. */
+/** How many declared text fields hold text on screen in this frame - what there was to read. A
+ *  `noacg-data-source` holder is never on screen: the runtime paints its value elsewhere (the
+ *  end-credits rows, a clock), so its text is not text the viewer was meant to read there. */
 function fieldsWithText(doc: Document, template: SpxTemplate): number {
-  return template.fields.filter((f) => READ_FTYPES.has(f.ftype)
-    && (doc.getElementById(f.field)?.textContent?.trim().length ?? 0) >= 2).length;
+  return template.fields.filter((f) => {
+    if (!READ_FTYPES.has(f.ftype)) return false;
+    const el = doc.getElementById(f.field);
+    return Boolean(el && !el.closest(`.${DATA_SOURCE_CLASS}`) && (el.textContent?.trim().length ?? 0) >= 2);
+  }).length;
 }
 
 /** The brand mark's field: a file field shown as a loaded `<img>` that is a mark rather than a
