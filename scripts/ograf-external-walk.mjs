@@ -161,7 +161,8 @@ async function startDevServer() {
     // shell is the child, and the node process holding the port is its child.
     detached: process.platform !== 'win32',
     env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_PREVIEW_DEBOUNCE_MS: '50' },
-    windowsHide: true,
+    // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+    windowsHide: false,
   });
   children.push(child);
   await waitFor(`${appOrigin}/app`, 'the app dev server');
@@ -180,7 +181,8 @@ async function startOgrafServer() {
   const child = spawn(process.execPath, ['dist/main.js'], {
     cwd: join(serverDir, 'packages', 'server'),
     stdio: 'ignore',
-    windowsHide: true,
+    // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+    windowsHide: false,
   });
   children.push(child);
   await waitFor(`${ograf}/api/ograf/v1/graphics`, 'ograf-server');

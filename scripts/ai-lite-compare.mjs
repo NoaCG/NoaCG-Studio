@@ -198,7 +198,8 @@ function startServer(model, providerAllowlist) {
     AI_LITE_FALLBACK_MODEL: '',
     AI_LITE_GATEWAY_PROVIDERS: providerAllowlist,
   };
-  const child = spawn('npm', ['run', 'dev'], { env, shell: true, stdio: 'ignore', windowsHide: true });
+  // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+  const child = spawn('npm', ['run', 'dev'], { env, shell: true, stdio: 'ignore', windowsHide: false });
   return child;
 }
 

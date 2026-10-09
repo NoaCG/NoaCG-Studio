@@ -789,7 +789,8 @@ export function main(argv = process.argv.slice(2), { env = process.env, home = h
     cwd,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
-    windowsHide: true,
+    // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+    windowsHide: false,
   });
   const durationMs = Date.now() - startedAt;
 

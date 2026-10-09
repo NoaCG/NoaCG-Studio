@@ -114,6 +114,7 @@ test('one local child sees its durable claim, preserves deadlines and cannot be 
     launch: (command, args, options) => {
       assert.equal(JSON.parse(readFileSync(f.file)).refill.launchCount, 1);
       assert.equal(options.shell, false);
+      assert.equal(options.windowsHide, true);
       duplicate = assert.rejects(resumeDispatch(f.file, command, args, { now: () => NOW }), /EEXIST/);
       return spawn(command, args, { ...options, windowsHide: true });
     },

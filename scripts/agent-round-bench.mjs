@@ -292,7 +292,8 @@ function runClaude(cellDir, prompt, arm, binDir) {
   if (model) args.push('--model', model);
   const env = { ...process.env, PATH: `${binDir}${path.delimiter}${process.env.PATH}`, NOACG_URL: url };
   const started = Date.now();
-  const r = spawnSync(claudeExecutable(), args, { cwd: cellDir, env, input: prompt, encoding: 'utf8', timeout: maxMinutes * 60_000, maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+  // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+  const r = spawnSync(claudeExecutable(), args, { cwd: cellDir, env, input: prompt, encoding: 'utf8', timeout: maxMinutes * 60_000, maxBuffer: 64 * 1024 * 1024, windowsHide: false });
   writeFileSync(path.join(cellDir, 'claude.stdout.txt'), r.stdout || '');
   writeFileSync(path.join(cellDir, 'claude.stderr.txt'), r.stderr || '');
   let json = null;

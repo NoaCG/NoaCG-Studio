@@ -1281,7 +1281,7 @@ async function launch(argv, cwd) {
   const relay = spawn(
     process.execPath,
     relayArgs({ self: fileURLToPath(import.meta.url), script: companionScript(), outFile, scriptArgs }),
-    { cwd, detached: true, stdio: 'ignore', windowsHide: true, ...(bare.env ? { env: bare.env } : {}) },
+    { cwd, detached: true, stdio: 'ignore', ...(bare.env ? { env: bare.env } : {}), windowsHide: true },
   );
   relay.unref();
 

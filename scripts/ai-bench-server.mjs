@@ -89,7 +89,8 @@ export async function providerAllowlistFor(model) {
 }
 
 export function startServer(env) {
-  return spawn('npm', ['run', 'dev'], { env: { ...process.env, ...env }, shell: true, stdio: 'ignore', windowsHide: true });
+  // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+  return spawn('npm', ['run', 'dev'], { env: { ...process.env, ...env }, shell: true, stdio: 'ignore', windowsHide: false });
 }
 
 /** The dev script is a WRAPPER, so killing the returned child kills the wrapper and
