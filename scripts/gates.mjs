@@ -776,10 +776,11 @@ function main(argv) {
   const inTier = (g) => g.header.gate === tier;
   // `run --changed` is the targeted local check: the gates that reach the changed paths, where the
   // build and CI run every gate. The narrowed tier may honestly be empty, which `list` explains.
-  const reached = (g) => command !== 'run' || !changed || guardsHit(guardsOf(g), changed);
+  const narrowed = command === 'run' && changed !== null;
+  const reached = (g) => !narrowed || guardsHit(guardsOf(g), changed);
   const tierChecks = checks.filter((g) => inTier(g) && reached(g));
   const tierTests = tests.filter((g) => inTier(g) && reached(g));
-  if (command === 'run' && changed && tierChecks.length + tierTests.length === 0) {
+  if (narrowed && tierChecks.length + tierTests.length === 0) {
     console.log(`[gates] no ${tier} gate reaches the ${changed.length} changed path(s) since ${ref}.`);
     return 0;
   }
@@ -804,7 +805,7 @@ function main(argv) {
       return 2;
     }
     let failed = [];
-    if (only !== 'tests' && !(changed && tierChecks.length === 0)) {
+    if (only !== 'tests' && !(narrowed && tierChecks.length === 0)) {
       const empty = emptyPopulation(tier, 'checks', tierChecks.length);
       if (empty?.fatal) {
         process.stderr.write(empty.line);
@@ -817,7 +818,7 @@ function main(argv) {
       console.error(`\n[gates] ${failed.length} check(s) failed: ${failed.join(', ')}${only === 'checks' ? '' : ' - tests not run'}`);
       return 1;
     }
-    if (only === 'checks' || (changed && tierTests.length === 0)) return 0;
+    if (only === 'checks' || (narrowed && tierTests.length === 0)) return 0;
     const status = runTests(tierTests.map((t) => t.entry), tier);
     if (status !== 0) console.error(`\n[gates] tests failed (exit ${status})`);
     return status;

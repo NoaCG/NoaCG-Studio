@@ -880,13 +880,13 @@ function cmdLog() {
  * queue's own files, so it costs no `gh` call; the CI link is what the watcher wrote as it refused.
  */
 async function cmdFailed() {
-  const { failedLandings } = await import('./land-watch.mjs');
+  const { FAILED_WINDOW_HOURS, failedLandings } = await import('./land-watch.mjs');
   const failed = failedLandings(readJobs(dir), { logOf: (job) => tailOf(job.logPath), git: gitFacts() });
   if (failed.length === 0) {
-    console.log('No landing failed in the last 24 h.');
+    console.log(`No landing failed in the last ${FAILED_WINDOW_HOURS} h.`);
     return;
   }
-  console.log(`Failed landings, last 24 h (${failed.length}):`);
+  console.log(`Failed landings, last ${FAILED_WINDOW_HOURS} h (${failed.length}):`);
   for (const f of failed) {
     console.log(`  ${f.pr ? `#${f.pr}` : '(no PR)'}  ${f.branch}  ${f.reason}`);
     console.log(`        ${f.ciLog ? `CI log: ${f.ciLog}   ·   ` : ''}watcher log: node scripts/jobs.mjs log ${f.id}`);

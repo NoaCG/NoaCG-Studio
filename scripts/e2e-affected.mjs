@@ -1147,13 +1147,10 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
     for (const s of plan) log('  -', s);
   }
   if (catalogAffected) {
-    log(
-      hypothetical
-        ? 'e2e-affected: catalog/bench-affecting path detected - would also run npm run test:e2e:catalog.'
-        : catalogHere
-          ? 'e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.'
-          : 'e2e-affected: catalog/bench-affecting change detected - the catalog gate runs on GitHub Actions; here, run the battery `node scripts/catalog-affected.mjs` prints.',
-    );
+    let catalogLine = 'e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.';
+    if (hypothetical) catalogLine = 'e2e-affected: catalog/bench-affecting path detected - would also run npm run test:e2e:catalog.';
+    else if (!catalogHere) catalogLine = 'e2e-affected: catalog/bench-affecting change detected - the catalog gate runs on GitHub Actions; here, run the battery `node scripts/catalog-affected.mjs` prints.';
+    log(catalogLine);
   }
 }
 
@@ -1232,9 +1229,8 @@ function main() {
     }
     log('e2e-affected: --all - the FULL suite and the catalog gate, with no diff.');
     if (listOnly) return 0;
-    const { refusal } = localRunPolicy({ mode: 'full', catalog: true }, { ci: onCi() });
-    if (refusal) {
-      console.error(refusal);
+    if (!onCi()) {
+      console.error(WHOLE_SUITE_ON_GITHUB);
       return 2;
     }
     const { status, runs } = runPlan({ mode: 'full', specs: [], catalog: true }, ({ args: a }) =>
