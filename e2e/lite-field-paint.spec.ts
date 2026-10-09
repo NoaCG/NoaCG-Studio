@@ -133,6 +133,31 @@ test.describe('a Lite graphic paints every field it declares', () => {
   });
 });
 
+test.describe('a match clock\'s field is driven with a time', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/app');
+  });
+
+  test('a match board\'s clock reaches the screen, and a hidden one still does not (#770)', async ({ page }) => {
+    // The clock element IS the field (shared/matchClock.ts): it parses what it is sent and
+    // repaints in its own minutes:seconds, so a tag never showed and all eleven catalog match
+    // boards were told their clock reaches no pixels. A time comes back verbatim.
+    const out = await page.evaluate(async () => {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const bench = await import('/src/validation/runtimeBench.ts');
+      const board = variantById('sb05')!.create({});
+      const clock = board.fields.find((f) => f.title === 'Clock')!.field;
+      const unpainted = async (css = '') => {
+        const res = await bench.benchTemplateRuntime({ ...board, css: board.css + css }, { fieldPaints: true });
+        return res.warnings.filter((w) => w.rule === 'bench-field-unpainted').map((w) => w.message);
+      };
+      return { clock, shown: await unpainted(), hidden: await unpainted('\n.scoreboard-clock { display: none !important; }') };
+    });
+    expect(out.shown.filter((m) => m.includes(`(${out.clock})`))).toEqual([]);
+    expect(out.hidden.filter((m) => m.includes(`(${out.clock})`))).toHaveLength(1);
+  });
+});
+
 test.describe('the drive asks the whole machine, not one state', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/app');
@@ -333,10 +358,12 @@ async function benchProofGraphic(page: Page, name: string, mutate: BenchMutation
       const ms = Math.round(performance.now() - startedAt);
       const findings = [...result.errors, ...result.warnings];
       // The phase words every branch finding carries: `after the "plus1" event from flash/none`.
+      // One defect seen after several presses is ONE finding naming each of them, comma-joined.
       const pressed = new Set<string>();
       for (const f of findings) {
-        const m = /after the "([^"]+)" event from (\S+)/.exec(f.message);
-        if (m) pressed.add(`${m[1]}@${m[2]}`);
+        for (const m of f.message.matchAll(/after the "([^"]+)" event from ([^\s,]+)/g)) {
+          pressed.add(`${m[1]}@${m[2]}`);
+        }
       }
       return {
         ms,
@@ -377,6 +404,15 @@ test.describe('the bench presses every operator ARROW, not every event NAME', ()
     expect(out.pressed).toContain('plus1@flash/shown');
     expect(out.pressed).toContain('newGame@flash/none');
     expect(out.pressed).toContain('newGame@flash/shown');
+
+    // ONE defect, ONE finding (#770): the stacked pair is on screen in every frame the walk
+    // measures, and the report names it once, carrying every one of those frames' phase words.
+    // (The stress pass is its own finding under its own rule: the doubled values are a
+    // different measurement.)
+    const stacked = out.messages.filter((m) => m.includes('#f0') && m.includes('#f5')
+      && m.includes('overlap') && !m.includes('doubled in length'));
+    expect(stacked).toHaveLength(1);
+    expect(stacked[0]).toContain('with the default field values');
   });
 
   test('an arrow out of a state the walk has already left is still pressed', async ({ page }) => {

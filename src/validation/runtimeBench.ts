@@ -253,6 +253,48 @@ function listArrows(unpressed: UnpressedArrow[]): string {
   return rest > 0 ? `${named}, and ${rest} more` : named;
 }
 
+type FrameIssues = { errors: ValidationIssue[]; warnings: ValidationIssue[] };
+
+/**
+ * ONE LAYOUT DEFECT, ONE FINDING. The overlap, overflow and occlusion checks run on every frame
+ * the bench measures - the settled default look and the pose after each operator arrow - and a
+ * defect on the default path is on screen in all of them, so it used to be reported once per
+ * press: up to 25 copies of one overlap in `noacg validate`'s report, which an agent and a person
+ * both read.
+ *
+ * The collapse keeps EVERY phase it merged. The phase words say which press produced the pose -
+ * the diagnosis - and `e2e/lite-field-paint.spec.ts` reads them back as the only record of what
+ * the bench pressed. So a repeat is not dropped: its phase joins the first finding's sentence,
+ * at the first finding's place in the list. Two findings merge only when they say the same thing
+ * apart from the phase, under the same rule and severity; a ratio that changed between presses
+ * is a different measurement and stays its own finding.
+ *
+ * Returns the recorder: `found` is one frame's issues, written with `phase` (each message names
+ * it once), and `rule` renames them, as the stress pass does.
+ */
+function layoutRecorder(errors: ValidationIssue[], warnings: ValidationIssue[]) {
+  const SLOT = '\u0000';
+  const seen = new Map<string, { issue: ValidationIssue; sentence: string; phases: string[] }>();
+  return (found: FrameIssues, phase: string, rule?: string) => {
+    for (const [list, issues, severity] of [[errors, found.errors, 'error'], [warnings, found.warnings, 'warning']] as const) {
+      for (const one of issues) {
+        const named = rule ?? one.rule;
+        const sentence = one.message.split(phase).join(SLOT);
+        const key = `${severity} ${named} ${sentence}`;
+        const prior = seen.get(key);
+        if (prior) {
+          if (!prior.phases.includes(phase)) prior.phases.push(phase);
+          prior.issue.message = prior.sentence.split(SLOT).join(prior.phases.join(', '));
+          continue;
+        }
+        const issue = { rule: named, message: one.message };
+        seen.set(key, { issue, sentence, phases: [phase] });
+        list.push(issue);
+      }
+    }
+  };
+}
+
 /** '#id', '.first-class', or the tag name - how findings name an element. */
 function labelFor(el: Element): string {
   if (el.id) return `#${el.id}`;
@@ -566,6 +608,53 @@ function paintedAncestor(el: Element, win: Window): Element | null {
   return null;
 }
 
+/** Whether a box establishes the containing block of an absolutely positioned descendant. */
+function holdsAbsolute(el: Element, win: Window): boolean {
+  const cs = win.getComputedStyle(el);
+  return cs.position !== 'static' || cs.transform !== 'none';
+}
+
+/**
+ * Whether `anc`'s overflow clip reaches `el`. An ancestor's overflow clips its descendants only
+ * through their containing blocks: a fixed box, or an absolute one whose containing block lies
+ * above `anc`, paints wherever it is placed, however small `anc` is. A pill pinned out of an
+ * empty, zero-width mask (ls41's "STREAMING NOW") is not cut by it.
+ */
+function clipReaches(anc: Element, el: Element, win: Window): boolean {
+  let node: Element | null = el;
+  while (node && node !== anc) {
+    const position = win.getComputedStyle(node).position;
+    if (position === 'fixed') return false;
+    let up: Element | null = node.parentElement;
+    if (position === 'absolute') {
+      while (up && up !== anc && !holdsAbsolute(up, win)) up = up.parentElement;
+      if (up === anc && !holdsAbsolute(anc, win)) return false;
+    }
+    node = up;
+  }
+  return node === anc;
+}
+
+/** The part of `rect` (the box of `el`) that its overflow-clipping ancestors below `surface` let
+ *  paint, each on the axes it hides; null when they hide all of it. */
+function paintedPart(el: Element, rect: DOMRect, surface: Element, win: Window): DOMRect | null {
+  let { left, top, right, bottom } = rect;
+  for (let anc = el.parentElement; anc && anc !== surface; anc = anc.parentElement) {
+    if (!clipReaches(anc, el, win)) continue;
+    const cs = win.getComputedStyle(anc);
+    const ar = anc.getBoundingClientRect();
+    if (cs.overflowX === 'hidden' || cs.overflowX === 'clip') {
+      left = Math.max(left, ar.left);
+      right = Math.min(right, ar.right);
+    }
+    if (cs.overflowY === 'hidden' || cs.overflowY === 'clip') {
+      top = Math.max(top, ar.top);
+      bottom = Math.min(bottom, ar.bottom);
+    }
+  }
+  return right > left && bottom > top ? new DOMRect(left, top, right - left, bottom - top) : null;
+}
+
 /** Mid-line clipping, canvas escape, and title-safe escape for every leaf. */
 function overflowIssues(
   leaves: Element[],
@@ -593,9 +682,36 @@ function overflowIssues(
     // settled state the text must still fit - but the mask is sized by the text, so a real
     // clip shows up against a FIXED-size ancestor (a panel with overflow hidden).
     // The element ITSELF is checked too: `clip-path` on the text node cuts its own glyphs.
+    let maskCut = false;
     for (let anc: Element | null = el; anc && anc !== win.document.body; anc = anc.parentElement) {
       const cls = anc.getAttribute('class') ?? '';
-      if (/-mask\b/.test(cls)) continue;
+      if (/-mask\b/.test(cls)) {
+        // "The mask is sized by the text" stops being true SIDEWAYS when a layout squeezes the
+        // mask: a flex row shrinks an overflow-hidden mask below its text (an overflow-hidden
+        // item has no minimum width), and a capped panel cannot wrap one long word. Both cut the
+        // line's end off at rest - a neutral scoreboard showed "18" of a score of 188 under the
+        // stress name, and its corner bug "Konstantopou" - while this loop skipped the mask and
+        // (a2) below described the hidden part as text past its panel. So a mask is measured on
+        // the one axis it has no business cutting at rest. Vertically it is still exempt: there
+        // it hugs a line box its glyphs routinely overhang. A tracked line's last letter carries
+        // its letter-spacing as empty advance past the ink, and centred tracked caps hang exactly
+        // that much past their mask (lt33), so that much is not a cut. A WARNING until the
+        // catalog has been calibrated against it, like (a2).
+        const ar = anc.getBoundingClientRect();
+        const tracking = Math.max(0, parseFloat(win.getComputedStyle(el).letterSpacing) || 0);
+        const cut = rect.left < ar.left - 2 || rect.right - tracking > ar.right + 2;
+        if (anc !== el && !maskCut && cut && clipReaches(anc, el, win)) {
+          maskCut = true;
+          warnings.push(
+            issue(
+              'bench-overflow',
+              `${labelFor(el)} is cut off by its mask ${labelFor(anc)} ${phase} - the line is wider than the mask, ` +
+                `so its end never shows. Let the line wrap (overflow-wrap: anywhere) or keep the mask from shrinking (flex-shrink: 0).`,
+            ),
+          );
+        }
+        continue;
+      }
       const cs = win.getComputedStyle(anc);
       const ar = anc.getBoundingClientRect();
       // A clip-path cuts on BOTH axes and applies to the element carrying it; overflow
@@ -636,12 +752,18 @@ function overflowIssues(
     // technique - a headline overhanging its bar is a designed look, not a defect - and this
     // gate runs over the whole catalog. A rule that cannot tell the two apart may report, but
     // must not block.
+    //
+    // It compares what PAINTS: the part of the text its clipping ancestors (a reveal mask, an
+    // overflow-hidden row) let through. A cut-off end never shows, so it cannot read against the
+    // video; (a) reports the cut itself. Comparing the whole layout box sent untouched neutral
+    // scaffolds a warning about text past their panel that was nowhere in the picture.
     const surface = paintedAncestor(el, win);
-    if (surface) {
+    const shown = surface ? paintedPart(el, rect, surface, win) : null;
+    if (surface && shown) {
       const sr = surface.getBoundingClientRect();
       const escapes =
-        rect.left < sr.left - 2 || rect.right > sr.right + 2 ||
-        rect.top < sr.top - 2 || rect.bottom > sr.bottom + 2;
+        shown.left < sr.left - 2 || shown.right > sr.right + 2 ||
+        shown.top < sr.top - 2 || shown.bottom > sr.bottom + 2;
       if (escapes) {
         warnings.push(
           issue(
@@ -1004,15 +1126,11 @@ export async function benchTemplateRuntime(
 
     phase = 'settled (default data)';
     const leaves = collectLeaves(win);
-    const lap = overlapIssues(leaves, exempt, 'with the default field values');
-    errors.push(...lap.errors);
-    warnings.push(...lap.warnings);
-    const flow = overflowIssues(leaves, exempt, win, { width, height }, 'with the default field values');
-    errors.push(...flow.errors);
-    warnings.push(...flow.warnings);
-    const hidden = occlusionIssues(win, leaves, exempt, 'with the default field values');
-    errors.push(...hidden.errors);
-    warnings.push(...hidden.warnings);
+    const recordLayout = layoutRecorder(errors, warnings);
+    const atRest = 'with the default field values';
+    recordLayout(overlapIssues(leaves, exempt, atRest), atRest);
+    recordLayout(overflowIssues(leaves, exempt, win, { width, height }, atRest), atRest);
+    recordLayout(occlusionIssues(win, leaves, exempt, atRest), atRest);
 
     // ── The design rules, as plain-language warnings (R4: warn-first, never blocking) ──
     // Measured here, on the settled default look with the whole path walked - the frame
@@ -1135,12 +1253,8 @@ export async function benchTemplateRuntime(
         await wait(80);
         const branchLeaves = collectLeaves(win);
         const where = `after the "${arrow.event}" event from ${at}`;
-        const bLap = overlapIssues(branchLeaves, exempt, where);
-        errors.push(...bLap.errors);
-        warnings.push(...bLap.warnings);
-        const bFlow = overflowIssues(branchLeaves, exempt, win, { width, height }, where);
-        errors.push(...bFlow.errors);
-        warnings.push(...bFlow.warnings);
+        recordLayout(overlapIssues(branchLeaves, exempt, where), where);
+        recordLayout(overflowIssues(branchLeaves, exempt, win, { width, height }, where), where);
       }
       if (unpressed.length > 0) {
         warnings.push(
@@ -1200,25 +1314,13 @@ export async function benchTemplateRuntime(
     }
     await wait(80);
     const stressLeaves = collectLeaves(win);
-    const stressLap = overlapIssues(stressLeaves, exempt, 'once every text value is doubled in length');
-    errors.push(...stressLap.errors.map((e) => ({ ...e, rule: 'bench-stress' })));
-    warnings.push(...stressLap.warnings.map((w) => ({ ...w, rule: 'bench-stress' })));
-    const stressFlow = overflowIssues(
-      stressLeaves,
-      exempt,
-      win,
-      { width, height },
-      'once every text value is doubled in length',
-    );
-    errors.push(...stressFlow.errors.map((e) => ({ ...e, rule: 'bench-stress' })));
-    warnings.push(...stressFlow.warnings.map((w) => ({ ...w, rule: 'bench-stress' })));
+    const doubled = 'once every text value is doubled in length';
+    recordLayout(overlapIssues(stressLeaves, exempt, doubled), doubled, 'bench-stress');
+    recordLayout(overflowIssues(stressLeaves, exempt, win, { width, height }, doubled), doubled, 'bench-stress');
     // A panel grown by long text is the likeliest way a graphic comes to cover its own line, so
     // this belongs in the stress pass as much as in the settled one - remapped to `bench-stress`
     // like its two neighbours, because what failed is the doubled value, not the design at rest.
-    const stressHidden = occlusionIssues(win, stressLeaves, exempt,
-      'once every text value is doubled in length');
-    errors.push(...stressHidden.errors.map((e) => ({ ...e, rule: 'bench-stress' })));
-    warnings.push(...stressHidden.warnings.map((w) => ({ ...w, rule: 'bench-stress' })));
+    recordLayout(occlusionIssues(win, stressLeaves, exempt, doubled), doubled, 'bench-stress');
 
     // Let any trailing async errors arrive before we detach.
     await wait(50);

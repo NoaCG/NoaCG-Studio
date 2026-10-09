@@ -25,11 +25,13 @@
 // HONEST LIMITS, stated rather than papered over:
 // - Contrast is measured against the nearest ancestor's solid background-color, or against a
 //   SLAB PAINTED ON THAT ANCESTOR'S ::before / ::after (resolveBacking below states exactly
-//   which pseudo-layers count and which do not). A url() image or a fully transparent stack
-//   (text straight over footage) is UNKNOWABLE here, so no ratio is reported - instead the
-//   PROTECTION rule asks whether such text carries a panel, gradient scrim, text-shadow or
-//   stroke detectable from computed style (WARN in v1: the owner passed a panel-free
-//   minimalist anchor, so a hard fail would flag it on day one).
+//   which pseudo-layers count and which do not). A url() image, a frosted glass panel, a faint
+//   tint or a fully transparent stack (text straight over footage) is UNKNOWABLE here, so no
+//   ratio is reported - instead the PROTECTION rule asks whether such text carries a panel,
+//   gradient scrim, text-shadow or stroke detectable from computed style (WARN in v1: the owner
+//   passed a panel-free minimalist anchor, so a hard fail would flag it on day one). A glass
+//   panel counts as that panel, as it does for every other instrument (surface.ts); a faint
+//   flat tint does not (GLASS below says why, #912).
 // - The safe-area check reads the LAYOUT box and skips any side an ancestor clips - where a
 //   mask cut the text, the edge position is the mask's design and the overflow instruments
 //   own that question.
@@ -46,6 +48,7 @@ import {
   type ViewingTarget,
   type TextRole,
 } from '../model/designRules';
+import { frostsBackdrop } from './surface';
 
 export interface ReadabilityReading {
   /** First characters of the text, for the finding and the calibration table. */
@@ -132,12 +135,40 @@ interface Backing {
   color: { r: number; g: number; b: number } | null;
   /** A gradient anywhere on the way up counts as a protective scrim. */
   gradient: boolean;
+  /** The backing hides the footage enough to read against: a solid-enough fill, a gradient
+   *  scrim, or a frosted glass panel. The protection rule's question. */
+  shields: boolean;
 }
+
+/** Nothing behind the text hides the footage: it reads straight against the video. */
+const BARE: Backing = { color: null, gradient: false, shields: false };
+
+/**
+ * A FROSTED GLASS PANEL: a backdrop blur under a tint too faint to measure as a colour. The
+ * shared surface predicate counts it as a panel (surface.ts); the protection rule asks the
+ * stricter question of whether the backing hides the footage enough to read against, and it
+ * answers the two halves of that separately (#912):
+ *
+ * - Protection: yes. A blur takes out the detail that breaks letterforms over busy footage,
+ *   which is the job a scrim or a text-shadow does, and the viewer sees a panel. Telling the
+ *   author "no panel" about a visible one fired on the whole shipped glass family, and that is
+ *   the warning that teaches people to scroll past the panel.
+ * - Contrast: unmeasured. A blur moves no luminance, so the footage's brightness still comes
+ *   through the faint tint and nothing here knows it. Composing the tint over an assumed
+ *   mid-grey would invent a ratio, and the contrast finding BLOCKS: a guess there would refuse
+ *   designs on a number nobody measured.
+ *
+ * A faint FLAT tint stays bare: with no blur the footage shows through it detail and all, and
+ * scripts/legibility-backing.test.mjs pins a 20% slab as no backing. The walk goes on past glass,
+ * so a solid surface further out is still the colour to measure against.
+ */
+const GLASS: Backing = { color: null, gradient: false, shields: true };
 
 /** What an element's (or pseudo-element's) own paint contributes, or null for "see through
  *  me, keep walking". A url() IMAGE makes the backing unknowable (the image wins the paint);
  *  a GRADIENT also stops the walk but is remembered as protection - a scrim behind text is the
- *  treatment the rule asks for. `alphaScale` folds in a pseudo-layer's own opacity.
+ *  treatment the rule asks for. A glass panel answers GLASS (above): protection, no colour,
+ *  keep walking. `alphaScale` folds in a pseudo-layer's own opacity.
  *
  *  A backing that clears the threshold is then measured AS IF IT WERE SOLID, and for a panel
  *  between 0.86 and 0.96 - where nine of the fourteen curated palettes put `--panel-bg` - that
@@ -149,11 +180,12 @@ interface Backing {
  *  measurement and the severity question it turns on. */
 function paintOf(cs: CSSStyleDeclaration, alphaScale = 1): Backing | null {
   if (cs.backgroundImage && cs.backgroundImage !== 'none') {
-    return { color: null, gradient: /gradient\(/.test(cs.backgroundImage) };
+    const gradient = /gradient\(/.test(cs.backgroundImage);
+    return { color: null, gradient, shields: gradient };
   }
   const bg = parseColor(cs.backgroundColor);
-  if (bg && bg.a * alphaScale >= 0.5) return { color: bg, gradient: false };
-  return null;
+  if (bg && bg.a * alphaScale >= 0.5) return { color: bg, gradient: false, shields: true };
+  return frostsBackdrop(cs) ? GLASS : null;
 }
 
 /** A parallelogram in viewport pixels - what a transformed box actually paints over. */
@@ -357,20 +389,26 @@ function pseudoBacking(
  *  a pseudo paints over its own host's background and so is the nearer surface; between the
  *  two, the one on the higher layer wins, and ::after breaks a tie by painting last. */
 function resolveBacking(el: Element, textRect: DOMRect, win: Window): Backing {
+  // Glass on the way up is remembered and walked past: it protects the text, and a solid
+  // surface further out is still the colour to measure against.
+  let glass = false;
+  const found = (paint: Backing): Backing => (glass && !paint.shields ? { ...paint, shields: true } : paint);
   let node: Element | null = el;
   while (node && node !== el.ownerDocument.documentElement) {
     // ::after is asked second so that, on an equal layer, it wins - it paints last.
     let nearest: { z: number; paint: Backing } | null = null;
     for (const which of ['::before', '::after'] as const) {
       const layer = pseudoBacking(node, which, textRect, win);
-      if (layer && (!nearest || layer.z >= nearest.z)) nearest = layer;
+      if (layer?.paint === GLASS) glass = true;
+      else if (layer && (!nearest || layer.z >= nearest.z)) nearest = layer;
     }
-    if (nearest) return nearest.paint;
+    if (nearest) return found(nearest.paint);
     const own = paintOf(win.getComputedStyle(node));
-    if (own) return own;
+    if (own === GLASS) glass = true;
+    else if (own) return found(own);
     node = node.parentElement;
   }
-  return { color: null, gradient: false };
+  return glass ? GLASS : BARE;
 }
 
 function describe(el: Element): string {
@@ -509,7 +547,7 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
   for (const c of candidates) {
     const role = roleFor(c);
     const ink = parseColor(c.cs.color);
-    const backing = ink && ink.a >= 0.1 ? resolveBacking(c.el, c.rect, win) : { color: null, gradient: false };
+    const backing = ink && ink.a >= 0.1 ? resolveBacking(c.el, c.rect, win) : BARE;
     let contrast: number | null = null;
     if (ink && backing.color) {
       // Composite a translucent ink over its backing before comparing.
@@ -583,7 +621,7 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
         });
       }
     } else if (role !== 'decorative' && ink && ink.a >= 0.1) {
-      const protectedText = backing.gradient || carriesProtection(c.cs);
+      const protectedText = backing.shields || carriesProtection(c.cs);
       if (!protectedText) {
         findings.push({
           code: 'text-unprotected-over-video',
@@ -600,7 +638,7 @@ export function measureReadability(doc: Document, options: ReadabilityOptions = 
 
     // ── Weight ────────────────────────────────────────────────────────────────────────
     if (role !== 'decorative') {
-      const overVideo = contrast === null && !backing.gradient;
+      const overVideo = contrast === null && !backing.shields;
       const floor = weightFloor(c.fontPx, width, height, overVideo);
       if (c.weight < floor) {
         findings.push({

@@ -1,4 +1,4 @@
-// guards: src/model/designRules.ts
+// guards: src/model/designRules.ts, src/ai/spike/tasteCheck.ts, cli/skill/noacg-graphic/references/design-notes.md, cli/skill/noacg-graphic/references/validator.md
 //
 // Self-tests for the canonical design-rules module (src/model/designRules.ts) - the pure math
 // only, no DOM: the owner size table's composition (floor x mode x profile), the warning band,
@@ -8,7 +8,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { buildApiRuntime } from './api-runtime-build.mjs';
 
@@ -255,6 +255,20 @@ test('no band can fall below the legibility floor that a graphic already answers
     assert.ok(primary >= Math.min(secondary, legibility) - 0.01,
       `${String(cat)}: lead line floor ${primary} is under every other floor on the graphic`);
   }
+});
+
+test('the skill states the validator\'s supporting-text numbers beside the 28px guideline (#770)', () => {
+  // An agent sizes text to the numbers it is shown. The design notes' 28px is the taste corpus's
+  // eligibility line (TASTE_SECONDARY_SIZE_PX), and the validator warns lower, at this table's
+  // secondary band. Both documents say so, and this keeps the numbers they quote the real ones.
+  const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8').replace(/\s+/g, ' ');
+  const { hard, warn } = rules.SIZE_TABLE.standard.secondary;
+  const taste = Number(/TASTE_SECONDARY_SIZE_PX = (\d+)/.exec(read('src/ai/spike/tasteCheck.ts'))[1]);
+  const notes = read('cli/skill/noacg-graphic/references/design-notes.md');
+  assert.match(notes, new RegExp(`at least ${taste}px`));
+  assert.match(notes, new RegExp(`under about ${Math.round(warn * 1080)}px at 1080p`));
+  assert.match(read('cli/skill/noacg-graphic/references/validator.md'), new RegExp(
+    `supporting text under about ${Math.round(warn * 1080)}px at 1080p, more strongly under ${Math.round(hard * 1080)}px`));
 });
 
 test('safe mode keeps the three ratified flat floors, whatever the category', () => {

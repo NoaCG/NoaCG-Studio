@@ -12,6 +12,7 @@
 // Browser-only: it drives a template running in a same-origin iframe and re-reads the frame.
 
 import { parseAnimData } from '../blocks/animData';
+import { detectPrefix } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
 import { DATA_SOURCE_CLASS } from '../templates/shared/base';
 
@@ -79,6 +80,30 @@ export function sentinelFor(field: SpxTemplate['fields'][number], i: number): st
       .join('\n');
   }
   return tag;
+}
+
+/**
+ * The value a MATCH CLOCK's field is driven with: a time, because that is what the clock reads.
+ *
+ * The scoreboard's clock element IS its field - `id="fN"` on the design's `.<prefix>-clock`
+ * (shared/matchClock.ts) - so an operator can correct a drifting clock by typing into it. The
+ * runtime parses what arrives and repaints the element in its own minutes:seconds, so a tag
+ * like `ZQ5X` parses as 0:00 and never reaches the screen. Every board with a clock was told
+ * its clock "reaches no pixels": the eleven catalog match boards measured on 2026-10-10, and the
+ * hockey scorebug an agent built in docs/research/plugin-graphics-quality-2026-10-02 (brief 2).
+ *
+ * Silencing the field would have been the blanket answer. A time the clock can parse comes back
+ * verbatim instead (unpadded minutes, two-digit seconds - `formatMatchClock`), so driving one
+ * keeps this a measurement: a design that draws its clock nowhere still fails it. The minutes
+ * stay under an hour, where the clock never switches format, and differ per field index.
+ */
+export function clockSentinelFor(i: number): string {
+  return `${41 + (i % 18)}:${String(13 + (i % 46)).padStart(2, '0')}`;
+}
+
+/** Whether this field's element is the design's match clock (the `.<prefix>-clock` it drives). */
+function isClockField(doc: Document, field: SpxTemplate['fields'][number], prefix: string | null): boolean {
+  return !!prefix && !!doc.getElementById(field.field)?.classList.contains(`${prefix}-clock`);
 }
 
 /**
@@ -175,8 +200,9 @@ export async function unreachableFields(
   template: SpxTemplate,
   settleMs: number,
 ): Promise<string[]> {
+  const prefix = detectPrefix(template.html);
   const driven = template.fields
-    .map((f, i) => ({ field: f, sentinel: sentinelFor(f, i) }))
+    .map((f, i) => ({ field: f, sentinel: isClockField(doc, f, prefix) ? clockSentinelFor(i) : sentinelFor(f, i) }))
     .filter((d) => TEXT_FTYPES.has(d.field.ftype));
   if (!driven.length) return [];
 

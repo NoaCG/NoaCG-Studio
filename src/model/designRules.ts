@@ -76,6 +76,13 @@ export function profileMultiplier(profile: string | null | undefined): number {
  * mapped onto this module's roles as primary/secondary/fine ("normal text" is the secondary
  * role here; the owner's "secondary" is the fine role). In safe mode there is no warning band:
  * every floor is hard.
+ *
+ * NOT THE 28px OF docs/DESIGN_LANGUAGE.md, and on purpose (#770). That number is the taste
+ * instrument's ELIGIBILITY line (`TASTE_SECONDARY_SIZE_PX`, src/ai/spike/tasteCheck.ts): which
+ * secondary text is big enough to be judged on contrast and weight, "not a universal gate". Held
+ * here it would warn on every lower third in the taste corpus, all 36 of which set their role
+ * line at 26px - the warning people learn to ignore. The skill's design notes state both numbers
+ * and why they differ, and scripts/design-rules.test.mjs holds them to this table.
  */
 export interface SizeFloorSpec {
   /** Hard floor as a fraction of the reference size. */

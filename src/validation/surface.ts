@@ -28,12 +28,19 @@ function frosts(filter: string): boolean {
   return Boolean(filter) && filter !== 'none' && !/^blur\(0(px)?\)$/.test(filter);
 }
 
+/** Whether this computed style frosts what lies behind it: the glass half of `paintsSurface`,
+ *  for the legibility protection rule, which asks the stricter question of whether a surface
+ *  hides the footage (readabilityCheck.ts, #912). */
+export function frostsBackdrop(style: CSSStyleDeclaration): boolean {
+  return frosts(style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter'));
+}
+
 /** Whether this computed style paints a surface: a gradient or image, a frosted glass panel
  *  (a backdrop blur reads as the panel however faint its tint), or a fill above
  *  `SURFACE_MIN_ALPHA`. Visibility and opacity are the caller's question. */
 export function paintsSurface(style: CSSStyleDeclaration): boolean {
   if (style.backgroundImage && style.backgroundImage !== 'none') return true;
-  if (frosts(style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter'))) return true;
+  if (frostsBackdrop(style)) return true;
   const bg = style.backgroundColor;
   return Boolean(bg) && alphaOf(bg) > SURFACE_MIN_ALPHA;
 }
