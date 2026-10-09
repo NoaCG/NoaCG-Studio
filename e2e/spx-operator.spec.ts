@@ -114,6 +114,8 @@ test('SPX\'s template browser finds only graphics in the single and the producti
   expect(result.singleReadme).not.toContain('controlpanel.html');
   expect(result.singleGuide).toContain('controlpanel.shtml');
   expect(result.singleGuide).not.toContain('controlpanel.html');
+  // SPX 1.4's Update changes nothing on air (docs/SPX_ON_A_REAL_SERVER.md §2); the guide says so.
+  expect(result.singleGuide).toContain('On SPX 1.4, **Update** changes nothing on air');
   expect(result.showListed).toEqual(['spx_show/clean_quiz/clean_quiz.html', 'spx_show/hairline/hairline.html']);
   expect(result.showPanels).toEqual([
     'spx_show/clean_quiz/controlpanel.shtml',
@@ -185,4 +187,63 @@ test('one Continue past the last step takes the graphic out, as SPX\'s rundown s
   });
   expect(imported).not.toContain('noacg-spx-steps');
   expect(imported).not.toContain('continues >= steps');
+});
+
+test('a value SPX hands over HTML-escaped goes on air as typed', async ({ page, context }) => {
+  // SPX escapes every value it plays and turns a line break into <br> first (cleanUpString,
+  // docs/SPX_ON_A_REAL_SERVER.md §11): `Anna O'Brien & Sons` aired as `Anna O&#039;Brien &amp; Sons`
+  // and the News Strip's items were joined by a literal `&lt;br&gt;` (issue #788).
+  const files = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const out: Record<string, string> = {};
+    for (const id of ['lt01', 'tk01']) {
+      const zip = await spxTarget.build(variantById(id)!.create({}));
+      for (const n of Object.keys(zip.files)) {
+        if (!zip.files[n].dir && /\.(html|js|css)$/.test(n)) out[n] = await zip.file(n)!.async('string');
+      }
+    }
+    return out;
+  });
+  const html = Object.keys(files).filter((n) => /^([^/]+)\/\1\.html$/.test(n)).sort();
+  expect(html).toEqual(['hairline/hairline.html', 'news_strip/news_strip.html']);
+  for (const n of html) expect(files[n]).toContain('id="noacg-spx-text"');
+
+  const air = await context.newPage();
+  await air.route('http://spx-text.local/**', (route) => {
+    const path = new URL(route.request().url()).pathname.slice(1);
+    const body = files[path];
+    if (body === undefined) return route.fulfill({ status: 404, body: '' });
+    const type = path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html';
+    return route.fulfill({ contentType: type, body });
+  });
+  const spxUpdate = (fields: Record<string, string>) =>
+    air.evaluate((json) => (window as unknown as { update(d: string): void }).update(json), JSON.stringify(fields));
+
+  // The values exactly as SPX 1.4.1 delivered them on the real server.
+  await air.goto('http://spx-text.local/hairline/hairline.html', { waitUntil: 'load' });
+  await spxUpdate({ f0: 'Anna O&#039;Brien &amp; Sons', f1: 'Line one&lt;br&gt;Line two &lt;b&gt;' });
+  expect(await air.locator('#f0').textContent()).toBe("Anna O'Brien & Sons");
+  expect(await air.locator('#f1').textContent()).toBe('Line one\nLine two <b>');
+  // Text stays text: the typed <b> is a character, not an element.
+  expect(await air.locator('#f1 b').count()).toBe(0);
+
+  await air.goto('http://spx-text.local/news_strip/news_strip.html', { waitUntil: 'load' });
+  await spxUpdate({ f0: 'First story&lt;br&gt;Second story &amp; more' });
+  const items = await air.locator('#ticker-track .ticker-item').allTextContents();
+  expect([...new Set(items)]).toEqual(['First story', 'Second story & more']);
+  expect(await air.locator('#ticker-track').textContent()).not.toMatch(/&lt;|&gt;|&amp;|<br/);
+  await air.close();
+
+  // The script is packaging, not the graphic: importing the package back leaves it out.
+  const imported = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { importZipTemplate } = await import('/src/model/importTemplate.ts');
+    const zip = await spxTarget.build(variantById('lt01')!.create({}));
+    const result = await importZipTemplate('hairline.zip', await zip.generateAsync({ type: 'arraybuffer' }));
+    return `${result.template.html}\n${result.template.js}`;
+  });
+  expect(imported).not.toContain('noacg-spx-text');
+  expect(imported).not.toContain('asTyped');
 });

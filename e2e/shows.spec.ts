@@ -505,6 +505,64 @@ test('the SPX package says what it leaves behind, and the SPX rule for the votes
   }
 });
 
+test('the single SPX and the CasparCG packages say the votes board rule too', async ({ page, context }) => {
+  // Issue #788: the Shown rule was written only at the SPX production's root. A single SPX export
+  // of the votes board, each graphic folder, and the CasparCG flavours carried none, though a
+  // CasparCG client also stores an item's data and sends all of it with every Update.
+  await importProofCase(page);
+  const out = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { buildShowZip, buildShowZipFor } = await import('/src/export/showExport.ts');
+    const { spxTarget } = await import('/src/export/targets/spxStarter.ts');
+    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const show = loadShows().find((s) => s.graphics.some((g) => g.name === 'Votes board'))!;
+    const votes = show.graphics.find((g) => g.name === 'Votes board')!.template;
+    const text = async (zip: { file(re: RegExp): { async(t: 'string'): Promise<string> }[] }, re: RegExp) =>
+      zip.file(re)[0].async('string');
+    const casparZip = await casparTarget.build(votes);
+    return {
+      spxSingle: await text(await spxTarget.build(votes), /^votes_board\/README\.md$/),
+      spxFolder: await text(await buildShowZip(show), /^[^/]+\/votes_board\/README\.md$/),
+      casparSingle: await text(casparZip, /^votes_board\/README\.md$/),
+      casparRoot: await text(await buildShowZipFor(show, 'casparcg'), /^[^/]+\/README\.md$/),
+      casparHtml: await text(casparZip, /^votes_board\/votes_board\.html$/),
+      plainSpx: await text(await spxTarget.build(variantById('lt01')!.create({})), /^hairline\/README\.md$/),
+      plainCaspar: await text(await casparTarget.build(variantById('lt01')!.create({})), /^hairline\/README\.md$/),
+    };
+  });
+  for (const readme of [out.spxSingle, out.spxFolder]) {
+    expect(readme).toContain('Update after Continue, in SPX');
+    expect(readme).toContain("Votes board's hidden **Shown** field (`f16`)");
+  }
+  for (const readme of [out.casparSingle, out.casparRoot]) {
+    expect(readme).toContain('Update after Next, in CasparCG');
+    expect(readme).toContain("Votes board's hidden **Shown** field (`f16`)");
+    expect(readme).toContain('first set `f16` to `revealed` in the item\'s data');
+    expect(readme).toContain('recover with **Stop**, **Play**, **Next**');
+    expect(readme).not.toContain('in SPX');
+  }
+  expect(out.plainSpx).not.toContain('Update after');
+  expect(out.plainCaspar).not.toContain('Update after');
+
+  // What the CasparCG rule says, run in the exported file: Next marks the answer but leaves Shown
+  // at votes, so any update clears the marks, and one that sends Shown = revealed keeps them.
+  const air = await context.newPage();
+  await air.route('http://caspar-votes.local/**', (route) => route.fulfill({ contentType: 'text/html', body: out.casparHtml }));
+  await air.goto('http://caspar-votes.local/votes_board.html', { waitUntil: 'load' });
+  type Verbs = { play(): void; next(): void; update(d: string): void };
+  const marked = () => air.locator('.is-correct').count();
+  await air.evaluate(() => (window as unknown as Verbs).play());
+  await air.evaluate(() => (window as unknown as Verbs).next());
+  await expect.poll(marked).toBeGreaterThan(0);
+  expect(await air.locator('#f16').textContent()).toBe('votes');
+  await air.evaluate(() => (window as unknown as Verbs).update(JSON.stringify({ f0: 'Katri' })));
+  expect(await marked()).toBe(0);
+  await air.evaluate(() => (window as unknown as Verbs).update(JSON.stringify({ f0: 'Katri', f16: 'revealed' })));
+  expect(await marked()).toBeGreaterThan(0);
+  await air.close();
+});
+
 test("a show export bakes each graphic's saved library entries into both panels", async ({ page }) => {
   // Entries live on the library GraphicDoc, not on the show's embedded copy — the export must
   // resolve them out of the library (by graphicId, unique-name fallback) so the aggregated

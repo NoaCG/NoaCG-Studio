@@ -305,6 +305,8 @@ source, for the same reason - nothing in it is SPX-specific except the definitio
 3. Add the template to a rundown. The operator's fields appear automatically; they come from the
    template's own definition.
 4. **Play** airs the graphic, **Continue** walks its steps, **Stop** plays it out.
+5. On SPX 1.4, **Update** changes nothing on air (an SPX bug, `docs/SPX_ON_A_REAL_SERVER.md` §2).
+   To change a graphic on air, Save, then **Stop** and **Play**. SPX 1.2 updates it in place.
 
 The number of Continue presses is one less than the template's `steps` count — a three-phase
 graphic takes two presses before Continue stops doing anything. `docs/SPX_TEMPLATE_FORMAT.md` §2
