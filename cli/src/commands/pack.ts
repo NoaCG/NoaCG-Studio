@@ -7,6 +7,11 @@
 //            opens its rundown. Works from any machine - a cloud agent included - because it
 //            rides the same scoped agent key `noacg save` uses.
 //   --out    write the `.noacgpack.json` file, for Home → Productions → Import a package.
+//   --share  ALSO send it for review to Community packs (docs/AGENT_SAVE.md §8), only when the
+//            user asked to share it. It needs --save, the licence written out (--license
+//            cc-by-4.0), the name it is shown under (--shown-as) and --description. The shared
+//            copy carries no cues. The studio's community checks run after the Home copy is sent,
+//            so a finding refuses the share while the Home copy stays.
 //
 // A package that is SENT is validated first, graphic by graphic, exactly as `noacg save` does
 // (the static gate + the runtime bench): one graphic with an error refuses the whole package
@@ -14,8 +19,8 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { ApiError, explainFailure, resolveKey, savePackageToHome } from '../auth.js';
-import { BridgeClient, type BridgeValidation } from '../bridgeClient.js';
+import { ApiError, explainFailure, resolveKey, savePackageToHome, shareCommunityPack } from '../auth.js';
+import { BridgeClient, type BridgeValidation, type SpxTemplate } from '../bridgeClient.js';
 import { noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagList, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { readPackageInput } from '../workspace.js';
@@ -42,6 +47,39 @@ export interface PackOptions {
   outFile?: string;
   bench?: boolean;
   houseContract?: boolean;
+  /** Also send it for review to Community packs. Needs `save`; set only on the user's request. */
+  share?: ShareOptions;
+}
+
+/** The one licence a community pack is shared under, as the command line writes it. */
+export const SHARE_LICENSE = 'cc-by-4.0';
+
+/** What the user gave for a share: the licence they accepted, the name the pack is shown under
+ *  and its one-line description. The CLI never fills them from the account (spec D15). */
+export interface ShareOptions {
+  license: string;
+  shownAs: string;
+  description: string;
+}
+
+/** What a share asked for and what became of it. */
+export type ShareOutcome =
+  | { id: string; state: 'in_review'; shownAs: string; withoutCues: boolean }
+  | { reason: 'checks' | 'refused' | 'bridge'; error: string; findings?: Array<{ graphic?: string; message: string }> };
+
+/** Why a share cannot even start, or null. `names` are the arguments as the caller spells them. */
+export function shareProblem(
+  share: ShareOptions,
+  save: boolean,
+  names = { save: '--save', license: `--license ${SHARE_LICENSE}`, shownAs: '--shown-as', description: '--description' },
+): string | null {
+  if (!save) return `Sharing needs ${names.save}: the shared pack is the one put on your Home.`;
+  if (share.license.trim().toLowerCase() !== SHARE_LICENSE) {
+    return `Sharing needs ${names.license}: everything on Community packs is CC BY 4.0, so anyone may use it in any show with the name it is shown under.`;
+  }
+  if (!share.shownAs.trim() || share.shownAs.trim().length > 60) return `Sharing needs ${names.shownAs} "<the name the pack is shown under>", at most 60 characters.`;
+  if (!share.description.trim() || share.description.trim().length > 200) return `Sharing needs ${names.description} "<one line: what it is for>", at most 200 characters.`;
+  return null;
 }
 
 export interface PackOutcome {
@@ -56,6 +94,8 @@ export interface PackOutcome {
   reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'bad-rundown';
   /** Per graphic, when a sent package was refused for validation errors. */
   failures?: Array<{ input: string; validation: BridgeValidation }>;
+  /** The Community packs share, when the user asked for one. */
+  share?: ShareOutcome;
 }
 
 /** Check a rundown: a list of { graphic, label, values?, note? }. `source` names where it came
@@ -99,6 +139,7 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
 
   const layers = opts.layers ?? [];
   const graphics: Record<string, unknown>[] = [];
+  const templates: SpxTemplate[] = [];
   const failures: PackOutcome['failures'] = [];
   for (const [i, input] of inputs.entries()) {
     const { bytes, fileName } = await readPackageInput(input);
@@ -116,6 +157,7 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
     }
     const layer = layers.length === 1 ? layers[0] + i : layers[i];
     graphics.push(await bridge.packEntry(template, Number.isFinite(layer) ? { layer } : {}));
+    templates.push(template);
   }
   if (failures.length) {
     const named = failures.map((f) => `"${f.input}" (${f.validation.merged.errors.length} error(s))`).join(', ');
@@ -155,15 +197,69 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
       const message = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
       return { ...outcome, ok: false, reason: 'refused', error: `Not sent: ${message}` };
     }
+    if (opts.share) {
+      const share = await shareToCommunity(opts, opts.share, graphics, templates, bridge, origin, key.key, log);
+      outcome.share = share;
+      // The user asked for both: a refused share is a failed run, with the Home copy kept.
+      if (!('id' in share)) outcome.ok = false;
+    }
   }
   return outcome;
+}
+
+/** The second pass of a share: the studio's own community checks over the templates the save
+ *  already validated, then the share door. Never throws; what went wrong is the outcome. */
+async function shareToCommunity(
+  opts: PackOptions,
+  share: ShareOptions,
+  graphics: Record<string, unknown>[],
+  templates: SpxTemplate[],
+  bridge: BridgeClient,
+  origin: string,
+  key: string,
+  log: (line: string) => void,
+): Promise<ShareOutcome> {
+  const description = share.description.trim();
+  const author = share.shownAs.trim();
+  log('Checking the pack for Community packs…');
+  let findings: Array<{ graphic?: string; message: string }>;
+  try {
+    findings = await bridge.communityCheck({
+      name: opts.name,
+      description,
+      author,
+      graphics: templates.map((template, i) => ({ name: String(graphics[i].name), template })),
+    });
+  } catch (e) {
+    return { reason: 'bridge', error: `Not shared: ${e instanceof Error ? e.message : String(e)}` };
+  }
+  if (findings.length) {
+    return { reason: 'checks', findings, error: 'Not shared: Community packs refuses what is listed above. Fix it and share again.' };
+  }
+  // A community pack is graphics only (spec D2): the server refuses cues, so none are sent.
+  const pack = { format: 'noacg-pack', version: 1, name: opts.name, description, graphics };
+  try {
+    const sent = await shareCommunityPack(origin, key, { name: opts.name, description, author, license: SHARE_LICENSE, pack });
+    return { id: sent.id, state: sent.state, shownAs: author, withoutCues: Boolean(opts.rundown?.length) };
+  } catch (e) {
+    let message = e instanceof Error ? e.message : String(e);
+    if (e instanceof ApiError) {
+      // 409 is the submit gate's own sentence; 404 is a deployment without the share door.
+      message = e.failure.status === 409
+        ? e.failure.message
+        : e.failure.status === 404
+          ? `the NoaCG at ${origin} does not take shared packs yet`
+          : explainFailure(e.failure);
+    }
+    return { reason: 'refused', error: `Not shared: ${message}` };
+  }
 }
 
 /** What a finished pack says to a person, in the terminal and in the MCP tool. */
 export function describePack(outcome: PackOutcome): string {
   const lines: string[] = [];
   for (const f of outcome.failures ?? []) lines.push(`${f.input}:\n${describeValidation(f.validation)}`);
-  if (!outcome.ok) {
+  if (!outcome.ok && !outcome.share) {
     lines.push(outcome.error ?? 'Not packed.');
     return lines.join('\n\n');
   }
@@ -171,6 +267,16 @@ export function describePack(outcome: PackOutcome): string {
   if (outcome.url) {
     lines.push(`Sent "${outcome.name}" (${outcome.graphics} graphic(s)) to your NoaCG Home -> ${outcome.url}`);
     lines.push('It is waiting on Home → Productions: press Install and the production opens with its rundown.');
+  }
+  const share = outcome.share;
+  if (share && 'id' in share) {
+    lines.push(
+      `Sent "${outcome.name}" for review under CC BY 4.0, shown as "${share.shownAs}". It is In review under Your packs on the Community packs shelf; you can withdraw it there.`,
+    );
+    if (share.withoutCues) lines.push('The shared copy carries no cues; the rundown stays on your Home copy.');
+  } else if (share) {
+    for (const f of share.findings ?? []) lines.push(f.graphic ? `- ${f.graphic}: ${f.message}` : `- ${f.message}`);
+    lines.push(share.error);
   }
   return lines.join('\n');
 }
@@ -182,6 +288,13 @@ export async function runPack(args: ParsedArgs, out: Out): Promise<number> {
   const saveFlag = args.flags.save;
   if (typeof saveFlag === 'string') inputs.unshift(saveFlag);
   const save = saveFlag !== undefined && saveFlag !== false && saveFlag !== 'false';
+  // `--share` is the same kind of switch, with the same give-back.
+  const shareFlag = args.flags.share;
+  if (typeof shareFlag === 'string') inputs.unshift(shareFlag);
+  const sharing = shareFlag !== undefined && shareFlag !== false && shareFlag !== 'false';
+  const share: ShareOptions | undefined = sharing
+    ? { license: flagString(args, 'license') ?? '', shownAs: flagString(args, 'shown-as') ?? '', description: flagString(args, 'description') ?? '' }
+    : undefined;
   const outFile = flagString(args, 'out');
   if (!inputs.length) throw new UsageError('pack needs one or more package directories or .zip files.');
   if (!outFile && !save) throw new UsageError('pack needs --save (send it to your NoaCG Home) and/or --out <file.noacgpack.json>.');
@@ -190,6 +303,9 @@ export async function runPack(args: ParsedArgs, out: Out): Promise<number> {
   if (!name) throw new UsageError('pack --save needs --name "<the production\'s name>".');
   const rundownFile = flagString(args, 'rundown');
   const rundown = rundownFile ? await readRundown(rundownFile) : undefined;
+  // Everything a share needs is the user's own words, so it is refused before any browser starts.
+  const problem = share ? shareProblem(share, save) : null;
+  if (problem) throw new UsageError(problem);
 
   // Every input must exist BEFORE the browser starts. `pack` is the one verb that cannot refuse a
   // stray word the way the others do, because its packages ARE its words - so an unquoted
@@ -224,6 +340,7 @@ export async function runPack(args: ParsedArgs, out: Out): Promise<number> {
         outFile,
         bench: flagBool(args, 'bench', true),
         houseContract: flagBool(args, 'house-contract', true),
+        share,
       },
       bridge,
       (line) => out.log(line),

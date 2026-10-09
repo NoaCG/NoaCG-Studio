@@ -83,7 +83,23 @@ export interface AgentAccessStore {
   countWaitingPackages(userId: string): Promise<number>;
   /** INSERT a waiting package for the user; the server mints and returns its id. */
   insertPackage(userId: string, row: NewWaitingPackage): Promise<string>;
+  /** Send a pack for review to Community packs as the user, through the database's one submit
+   *  gate (`community_pack_submit_for`, migration 0084). Returns the submission's id; a refusal
+   *  of that gate throws a `CommunityPackRefusal` carrying its sentence. */
+  submitCommunityPack(userId: string, row: NewCommunityPack): Promise<string>;
 }
+
+/** A pack an agent shares for review: its words and the `noacg-pack` file, with no cues. */
+export interface NewCommunityPack {
+  name: string;
+  description: string;
+  /** The name the pack is shown under, chosen by the user (spec D15). */
+  author: string;
+  pack: unknown;
+}
+
+/** The submit gate said no: the sentence is the database's own, written for the maker. */
+export class CommunityPackRefusal extends Error {}
 
 /** A graphics package waiting on the user's Productions page for Install. */
 export interface NewWaitingPackage {
@@ -252,6 +268,18 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
+    async submitCommunityPack(userId, row) {
+      const { data, error } = await (await db()).rpc('community_pack_submit_for', {
+        p_uid: userId,
+        p_name: row.name,
+        p_description: row.description,
+        p_author: row.author,
+        p_pack: row.pack,
+      });
+      // P0001 is a `raise exception` inside the gate: a refusal meant for the maker, not a fault.
+      if (error) throw error.code === 'P0001' ? new CommunityPackRefusal(error.message) : new Error(error.message);
+      return String(data);
+    },
     async insertPackage(userId, row) {
       // INSERT, never upsert, and the id is the database's own - the same rule as insertGraphic.
       const { data, error } = await (await db())
@@ -280,6 +308,9 @@ export interface MemoryAgentAccessStore extends AgentAccessStore {
   keyHashes: Map<string, string>;
   graphics: Array<{ userId: string; doc: GraphicDocBase }>;
   packages: Array<NewWaitingPackage & { id: string; userId: string }>;
+  communityPacks: Array<NewCommunityPack & { id: string; userId: string }>;
+  /** When set, the next community submit is refused with this sentence, as the gate would. */
+  refuseCommunityPack: string | null;
   /** The clock the store compares expiries against - a test advances it. */
   now: () => string;
 }
@@ -298,6 +329,8 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     keyHashes: new Map(),
     graphics: [],
     packages: [],
+    communityPacks: [],
+    refuseCommunityPack: null,
     now,
     async createCode(row) {
       store.codes.push({ ...row, usedAt: null });
@@ -355,6 +388,12 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     async insertPackage(userId, row) {
       const id = nextId();
       store.packages.push({ ...row, id, userId });
+      return id;
+    },
+    async submitCommunityPack(userId, row) {
+      if (store.refuseCommunityPack) throw new CommunityPackRefusal(store.refuseCommunityPack);
+      const id = nextId();
+      store.communityPacks.push({ ...row, id, userId });
       return id;
     },
   };

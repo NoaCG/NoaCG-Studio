@@ -28,7 +28,7 @@ import { cliVersion, noacgUrl } from './config.js';
 import { describeInspection } from './commands/inspect.js';
 import { docTopics, readDoc } from './commands/docs.js';
 import { scaffoldRequestFrom } from './commands/scaffold.js';
-import { describePack, makePack, rundownFrom } from './commands/pack.js';
+import { describePack, makePack, rundownFrom, shareProblem } from './commands/pack.js';
 import { notLoggedIn, savePackage } from './commands/save.js';
 import { describeNormalize, describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
@@ -69,6 +69,9 @@ const ARGUMENTS = {
   topic: arg(z.string(), docTopics().join('|')),
   folder: arg(z.string(), 'a library folder'),
   rundown: arg(z.array(z.record(z.unknown())), '[{graphic,label,values}]'),
+  // Sharing to Community packs is opt-in and never offered (docs/AGENT_SAVE.md §8): the schema
+  // says only where the instructions live, so a session that never shares pays one line for it.
+  share: arg(z.object({ license: z.string(), shownAs: z.string(), description: z.string() }), "see the skill's references/share.md"),
 };
 type ArgName = keyof typeof ARGUMENTS;
 
@@ -81,7 +84,7 @@ const READS: Record<McpCommand, readonly ArgName[]> = {
   screenshot: ['path', 'state', 'data', 'events', 'at', 'background'],
   docs: ['topic'],
   save: ['path', 'name', 'folder', 'bench', 'houseContract'],
-  pack: ['paths', 'name', 'rundown', 'out', 'bench', 'houseContract'],
+  pack: ['paths', 'name', 'rundown', 'out', 'bench', 'houseContract', 'share'],
 };
 
 const COMMAND = z.enum(MCP_COMMANDS).describe('types: the graphic types NoaCG knows | scaffold: write a package | validate: gate + runtime bench, regenerates the package | inspect: the operator surface | screenshot: one frame, as an image | docs: a reference text | save: validate, then into the user\'s NoaCG library | pack: several graphics + rundown to the user\'s Home, to Install as a production');
@@ -297,6 +300,15 @@ async function pack(input: Input): Promise<Result> {
   const save = Boolean(await resolveKey(origin));
   if (!save && !input.out) return refuse(notLoggedIn(origin));
   const rundown = input.rundown ? rundownFrom(input.rundown, 'rundown') : undefined;
+  const problem = input.share
+    ? shareProblem(input.share, save, {
+        save: 'this machine logged in to NoaCG (`noacg login`)',
+        license: '"share.license": "cc-by-4.0"',
+        shownAs: '"share.shownAs"',
+        description: '"share.description"',
+      })
+    : null;
+  if (problem) return refuse(problem);
   const b = await bridge();
   const outcome = await makePack(
     paths,
@@ -307,6 +319,7 @@ async function pack(input: Input): Promise<Result> {
       outFile: input.out,
       bench: input.bench ?? true,
       houseContract: input.houseContract ?? true,
+      ...(input.share ? { share: input.share, description: input.share.description } : {}),
     },
     b,
     () => undefined,

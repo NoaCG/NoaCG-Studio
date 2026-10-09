@@ -42,6 +42,7 @@ import { benchTemplateRuntime, mergeResults } from '../validation/runtimeBench';
 import { typeFloorFor } from '../validation/typeFloor';
 import type { ValidationIssue, ValidationResult } from '../validation/validateTemplate';
 import { hostTagFor, ografHostDocument, type OgrafHostOptions } from '../control/ografHost';
+import { checkPackGraphics, checkPackMeta, checkPackRequests, type PackCandidate, type PackFinding } from '../community/packChecks';
 
 export const BRIDGE_CHANNEL = 'noacg-bridge' as const;
 /** Bump on a BREAKING change to any function below; additive fields never bump. */
@@ -598,6 +599,16 @@ export function graphicDoc(
   });
 }
 
+// ── Community packs (docs/work-specs/community-packs/spec.md AC-12) ──────────
+
+/** The studio's own checks over a pack an agent is about to share, the ones the submit sheet runs:
+ *  its words, each graphic through the share gate, and then each graphic played with outside
+ *  requests refused (D5). Empty means it may be sent; the admin checks the stored pack again. */
+export async function communityCheck(candidate: PackCandidate): Promise<PackFinding[]> {
+  const found = [...checkPackMeta(candidate), ...checkPackGraphics(candidate.graphics)];
+  return found.length ? found : checkPackRequests(candidate.graphics);
+}
+
 // ── The OGraf host (third-party packages) ────────────────────────────────────
 
 export { hostTagFor };
@@ -622,6 +633,7 @@ export const bridgeApi = {
   exportPackage,
   packEntry,
   graphicDoc,
+  communityCheck,
   ografHost,
   hostTagFor,
 };

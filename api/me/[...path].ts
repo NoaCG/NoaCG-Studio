@@ -20,7 +20,8 @@
 // The AGENT ACCESS routes (docs/AGENT_SAVE.md) are the exception, by their nature: `agent-keys`
 // mints / lists / revokes the scoped keys a coding agent's CLI holds (a session consents; the
 // key is minted through a one-time code), `graphics` is the save door a key opens and
-// `packages` its whole-package sibling (a package waits on Home for Install) - all three
+// `packages` its whole-package sibling (a package waits on Home for Install), and
+// `community-packs` sends a pack for review to Community packs when the user asks - all four
 // resolve a principal through api/_lib/principal.ts and refuse an anonymous caller. They live
 // here because they are things a visitor does ABOUT THEMSELVES, and because this catch-all is
 // where they cost no function slot.
@@ -31,6 +32,7 @@ import feedback from '../_lib/me/feedback.js';
 import agentKeys from '../_lib/me/agentKeys.js';
 import graphics from '../_lib/me/graphics.js';
 import packages from '../_lib/me/packages.js';
+import communityPacks from '../_lib/me/communityPacks.js';
 
 interface Handler {
   fetch(req: Request): Promise<Response>;
@@ -42,6 +44,7 @@ const ROUTES: Record<string, Handler> = {
   'agent-keys': agentKeys,
   graphics,
   packages,
+  'community-packs': communityPacks,
 };
 
 export default {

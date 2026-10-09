@@ -96,6 +96,7 @@ const EXPECTED_ARGUMENTS = {
   topic: ['docs'],
   folder: ['save'],
   rundown: ['pack'],
+  share: ['pack'],
 };
 
 /** The schema's size ceiling, in characters of the JSON an MCP client receives. The measured
@@ -202,6 +203,21 @@ test('a verb without its argument, or with one it does not read, is a usage erro
     assert.equal(stray.isError, true, 'docs with houseContract should refuse');
     assert.ok(stray.content[0].text.includes('"houseContract"'), `the refusal should name the stray argument, said: ${stray.content[0].text}`);
   });
+});
+
+test('pack shares only with a login and the user\'s own licence, name and description', async () => {
+  // The share is opt-in (docs/AGENT_SAVE.md §8); its refusals need no bridge and send nothing.
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-mcp-share-'));
+  try {
+    await withServer(async (client) => {
+      const share = { license: 'cc-by-4.0', shownAs: 'Quizmaster K', description: 'A pub quiz' };
+      const unsaved = await call(client, { command: 'pack', paths: [dir], name: 'Quiz', out: path.join(dir, 'q.noacgpack.json'), share });
+      assert.equal(unsaved.isError, true);
+      assert.match(unsaved.content[0].text, /noacg login/, `a share needs the Home copy, said: ${unsaved.content[0].text}`);
+    });
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('an unknown verb is refused by the schema itself, before dispatch', async () => {

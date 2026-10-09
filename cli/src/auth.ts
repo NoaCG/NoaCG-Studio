@@ -229,6 +229,27 @@ export async function savePackageToHome(origin: string, key: string, pack: Recor
   return (await response.json()) as SaveResult;
 }
 
+export interface ShareResult {
+  id: string;
+  state: 'in_review';
+}
+
+/** POST a pack to the share door (`noacg pack --save --share`, docs/AGENT_SAVE.md §8): it waits
+ *  for review on Community packs under the user's Your packs. Only ever on the user's request. */
+export async function shareCommunityPack(
+  origin: string,
+  key: string,
+  body: { name: string; description: string; author: string; license: string; pack: Record<string, unknown> },
+): Promise<ShareResult> {
+  const response = await fetch(`${origin}/api/me/community-packs`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, 'x-noacg-cli-version': cliVersion() },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new ApiError(await failureOf(response));
+  return (await response.json()) as ShareResult;
+}
+
 /** The error table of docs/AGENT_SAVE.md, in the CLI's words. */
 export function explainFailure(f: ApiFailure): string {
   switch (f.status) {

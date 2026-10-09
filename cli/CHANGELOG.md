@@ -10,6 +10,17 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.10.0 - 2026-10-09
+
+**Share a package to Community packs, when you ask for it.** `noacg pack … --save --share` now
+also sends the package for review to NoaCG's Community packs shelf, as the account you logged in
+with. Give the licence (`--license cc-by-4.0`), the name it is shown under (`--shown-as`) and a
+one-line `--description`; nothing is filled in for you. The studio's own checks run first, and a
+graphic that asks for anything outside itself while it plays (an image from a CDN, a fetch, a web
+font) is named and the share refused, while the copy on your Home stays. The shared copy carries
+no cues. It waits In review under Your packs on the shelf, where you can withdraw it. In the MCP
+tool, `pack` takes the same as one `share` argument. Your agent only shares when you ask it to.
+
 ## 0.9.0 - 2026-10-06
 
 **Picture cues support Fit and Stretch through the Bridge.** Fit preserves the whole image

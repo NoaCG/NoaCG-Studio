@@ -608,6 +608,34 @@ test('pack --save with no key refuses before it starts a browser, and keeps the 
   assert.ok(Date.now() - started < 15000, 'the no-key refusal must not wait on a browser');
 });
 
+test('pack --share refuses before any browser without --save, the licence, a shown name or a description', async () => {
+  // Sharing to Community packs is the user's grant, so every word of it is theirs and is checked
+  // before anything starts (docs/AGENT_SAVE.md §8). Nothing here can reach a server: NOACG_URL is
+  // a closed port and there is no key.
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'graphic', 'graphic.html'), '<h1/>');
+  const graphic = path.join(dir, 'graphic');
+  const full = ['--name', 'Quiz', '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--shown-as', 'Quizmaster K', '--json'];
+  const cases = [
+    [['pack', graphic, '--share', '--out', path.join(dir, 'q.noacgpack.json'), ...full], /needs --save/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--shown-as', 'K', '--json'], /--license cc-by-4\.0/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'mit', '--shown-as', 'K', '--json'], /--license cc-by-4\.0/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--json'], /--shown-as/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--license', 'cc-by-4.0', '--shown-as', 'K', '--json'], /--description/],
+  ];
+  for (const [args, said] of cases) {
+    const r = await run(args);
+    assert.equal(r.code, 2, `${args.join(' ')} should be a usage error`);
+    assert.match(JSON.parse(r.stdout).error, said);
+  }
+  // `--share ./a` hands the package to the flag; it comes back as a package, and with every word
+  // given the run reaches the next refusal: no key.
+  const r = await run(['pack', '--share', graphic, '--save', ...full]);
+  assert.equal(r.code, 1);
+  assert.equal(JSON.parse(r.stdout).reason, 'not-logged-in');
+});
+
 test('pack --rundown refuses a file that is not a list of cues naming a graphic', async () => {
   const dir = await tmpdir();
   await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
