@@ -21,6 +21,7 @@ import { unreachableFields } from './fieldPaint';
 import { markLegibilityFindings, markLegibilityMessage } from './markLegibility';
 import { designRulesWarnings } from './designRulesWarnings';
 import { measureOcclusion, OCCLUSION_ERROR, OCCLUSION_WARN } from './occlusion';
+import { paintsSurface } from './surface';
 import type { ProjectLegibility } from '../model/designRules';
 
 export interface RuntimeBenchOptions {
@@ -538,19 +539,10 @@ function overlapIssues(
   return { errors, warnings };
 }
 
-/** Mid-line clipping, canvas escape, and title-safe escape for every leaf. */
-/** Does this style actually paint, rather than merely declare a background? A fully
- *  transparent colour and `none` are declarations; everything else puts pixels down. */
-function paintsSurface(cs: CSSStyleDeclaration): boolean {
-  if (cs.backgroundImage && cs.backgroundImage !== 'none') return true;
-  const bg = cs.backgroundColor;
-  if (!bg || bg === 'transparent') return false;
-  const alpha = /rgba?\([^)]*,\s*([\d.]+)\s*\)/.exec(bg);
-  return alpha ? Number(alpha[1]) > 0.05 : true;
-}
-
 /**
- * The nearest thing painted behind this element, or null when nothing is.
+ * The nearest thing painted behind this element, or null when nothing is. "Painted" is the
+ * shared surface predicate (surface.ts), so a glass panel counts here as it does for the ticker
+ * and device checks.
  *
  * A PSEUDO-ELEMENT COUNTS HERE, and that is the opposite of the rule in the creative style
  * gate, on purpose. There, the question is whether the design supplied a reading surface at
@@ -574,6 +566,7 @@ function paintedAncestor(el: Element, win: Window): Element | null {
   return null;
 }
 
+/** Mid-line clipping, canvas escape, and title-safe escape for every leaf. */
 function overflowIssues(
   leaves: Element[],
   exempt: Element[],

@@ -11,10 +11,12 @@
 // warning, like every R4 check (the ratified severity policy: hard where the machine
 // decides, warning where a human does).
 //
-// WHAT COUNTS AS THE BAND: the widest painted surface spanning at least half the frame, where a
-// backdrop-filtered glass panel counts as painted however faint its tint. A ticker without such
-// a band has no band to measure, and this instrument stays silent - the overflow and paint
-// instruments own that failure.
+// WHAT COUNTS AS THE BAND: the widest painted surface spanning at least half the frame, by the
+// predicate the runtime bench and the device check share (surface.ts), so a glass panel counts.
+// A ticker without such a band has no band to measure, and this instrument stays silent - the
+// overflow and paint instruments own that failure.
+
+import { paintsSurface } from './surface';
 
 export interface TickerMarginReport {
   band: string | null;
@@ -32,17 +34,6 @@ function describe(el: Element): string {
   const id = el.id ? `#${el.id}` : '';
   const cls = el.classList.length ? `.${el.classList[0]}` : '';
   return `${el.tagName.toLowerCase()}${id}${cls}`;
-}
-
-function paintsSurface(style: CSSStyleDeclaration): boolean {
-  if (style.backgroundImage && style.backgroundImage !== 'none') return true;
-  // A glass panel: a faint tint over a blurred backdrop still reads as the band.
-  const backdrop = style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter');
-  if (backdrop && backdrop !== 'none') return true;
-  const bg = style.backgroundColor;
-  if (!bg || bg === 'transparent') return false;
-  const alpha = bg.match(/rgba\([^)]*,\s*([\d.]+)\s*\)/)?.[1];
-  return alpha === undefined || parseFloat(alpha) > 0.15;
 }
 
 export function measureTickerMargins(doc: Document): TickerMarginReport {
