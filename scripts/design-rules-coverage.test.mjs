@@ -13,7 +13,8 @@
 //   - a frame whose field text is all faded out says "not checked" instead of nothing, even beside
 //     visible static text, and a frame with visible field text or with no text fields does not;
 //   - the mark rule fires for a mark outside the safe area and not for a cropped picture well;
-//   - a ticker with no animation block is held to the margin rule, a lower third is not;
+//   - a ticker with no animation block is held to the margin rule, a lower third is not, and a
+//     glass band or a full list of other warnings does not hide an off-centre ticker;
 //   - across the whole catalog, in the pose the export panel measures, no shipped design reads
 //     as "not checked" and none trips the mark rule - the false positives that would teach
 //     people to ignore the warnings;
@@ -133,6 +134,20 @@ const measured = await withBundledPage(SPECS, async (page) => {
       css: '.band{position:absolute;left:0;top:960px;width:1600px;height:72px;background:#101418;font-size:40px}',
       body: '<div class="band"><span id="f0">Ana Example</span></div>',
     }),
+    // A glass band: a faint tint over a blurred backdrop, below the paint threshold on its own.
+    tickerGlass: await fixture({
+      type: 'ticker', fields: TEXT_FIELD,
+      css: '.band{position:absolute;left:0;top:960px;width:1600px;height:72px;font-size:40px;'
+        + 'background:rgba(255,255,255,.1);backdrop-filter:blur(12px)}',
+      body: '<div class="band"><span id="f0">Ana Example</span></div>',
+    }),
+    // An off-centre ticker that also has more readability findings than the panel shows.
+    tickerCrowded: await fixture({
+      type: 'ticker', fields: TEXT_FIELD,
+      css: '.band{position:absolute;left:0;top:960px;width:1600px;height:72px;background:#101418}'
+        + ' .band span{font-size:12px;margin-right:40px}',
+      body: `<div class="band"><span id="f0">Ana Example</span>${'<span>tiny</span>'.repeat(12)}</div>`,
+    }),
     catalog: await page.evaluate(MEASURE_CATALOG, 0),
     tickersShifted: await page.evaluate(MEASURE_CATALOG, 160),
   };
@@ -160,6 +175,13 @@ test('a brand mark outside the safe area is reported, a cropped picture well is 
 test('a ticker with no animation block is held to the margin rule, a lower third is not', () => {
   assert.ok(rules(measured.tickerUneven).includes('legibility-ticker-margins'), JSON.stringify(measured.tickerUneven));
   assert.ok(!rules(measured.strapUneven).includes('legibility-ticker-margins'), JSON.stringify(measured.strapUneven));
+});
+
+test('a glass ticker band is measured, and the margin row survives the warning cap', () => {
+  assert.ok(rules(measured.tickerGlass).includes('legibility-ticker-margins'), JSON.stringify(measured.tickerGlass));
+  const crowded = rules(measured.tickerCrowded);
+  assert.equal(crowded.length, 8, JSON.stringify(crowded));
+  assert.ok(crowded.includes('legibility-ticker-margins'), JSON.stringify(crowded));
 });
 
 test('no catalog design reads as "not checked" or trips the mark rule', () => {

@@ -218,7 +218,7 @@ export function designRulesWarnings(
     if (msg) issues.push(msg);
   }
   issues.push(...tickerIssues);
-  return issues.slice(0, MAX_WARNINGS);
+  return issues;
 }
 
 /**
