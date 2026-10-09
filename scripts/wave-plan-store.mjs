@@ -7,6 +7,9 @@
 //   node scripts/wave-plan-store.mjs --open 2026-10-08 night --until 2026-10-09T06:00:00+03:00
 //                                                              # start (or resume) a wave: refuses a
 //                                                              # second open wave and a window over 24 h
+//   node scripts/wave-plan-store.mjs --open 2026-10-09 plan-editor --until 2026-10-09T18:00:00+03:00
+//                                                              # the same for a plan run (`/plan-run`):
+//                                                              # a plan run and a wave exclude each other
 //
 // WHY. The wave plan is the ONLY record of which pools ran, what the routing was, and every
 // `DECIDED:` line the orchestrator wrote when it took a decision on the owner's behalf. It is
@@ -59,11 +62,24 @@ export function ensureWavePlansDir(dir = jobsDir()) {
   return folder;
 }
 
-/** The one filename a plan may have: `<date>-<day|night>-wave-plan.local.md`. */
+/**
+ * A plan run (`/plan-run <plan>`) is the third kind: `plan-<plan>`. It lives in this store as a wave
+ * does, so "one wave or one plan run, never both" is the same open-wave check, not a second one.
+ */
+const PLAN_RUN_KIND = /^plan-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** The one filename a plan may have: `<date>-<day|night|plan-<plan>>-wave-plan.local.md`. */
 export function wavePlanName(date, kind) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date ?? ''))) throw new Error(`date must be YYYY-MM-DD, got "${date}"`);
-  if (kind !== 'day' && kind !== 'night') throw new Error(`kind must be day or night, got "${kind}"`);
+  if (kind !== 'day' && kind !== 'night' && !PLAN_RUN_KIND.test(String(kind ?? ''))) {
+    throw new Error(`kind must be day, night or plan-<plan name>, got "${kind}"`);
+  }
   return `${date}-${kind}${PLAN_SUFFIX}`;
+}
+
+function waveTitle(date, kind) {
+  if (kind === 'day' || kind === 'night') return `# ${kind === 'night' ? 'Night' : 'Day'} wave ${date}`;
+  return `# Plan run ${kind.slice('plan-'.length)} ${date}`;
 }
 
 /**
@@ -136,21 +152,20 @@ export function openWave({ date, kind, until, dir = jobsDir(), now = Date.now() 
   const others = openWaves(dir, now, name);
   if (others.length > 0) {
     return {
-      refusal: `another wave is open (no report yet): ${others.join(', ')}. One orchestrator at a time: finish or ` +
-        'report that wave first. To resume it after a restart, open it again with its own date and kind.',
+      refusal: `another wave or plan run is open (no report yet): ${others.join(', ')}. One at a time: finish or ` +
+        'report it first. To resume it after a restart, open it again with its own date and kind.',
     };
   }
   if (!existsSync(file)) {
-    const title = `# ${kind === 'night' ? 'Night' : 'Day'} wave ${date}`;
-    writeFileSync(file, `${title}\n\nWindow starts: ${new Date(now).toISOString()}\nWindow ends: ${until}\n`, 'utf8');
+    writeFileSync(file, `${waveTitle(date, kind)}\n\nWindow starts: ${new Date(now).toISOString()}\nWindow ends: ${until}\n`, 'utf8');
   }
   return { file };
 }
 
-const USAGE = `Usage: node scripts/wave-plan-store.mjs --path <YYYY-MM-DD> <day|night>
+const USAGE = `Usage: node scripts/wave-plan-store.mjs --path <YYYY-MM-DD> <day|night|plan-<plan>>
        node scripts/wave-plan-store.mjs --dir
        node scripts/wave-plan-store.mjs --list
-       node scripts/wave-plan-store.mjs --open <YYYY-MM-DD> <day|night> --until <iso time with offset>`;
+       node scripts/wave-plan-store.mjs --open <YYYY-MM-DD> <day|night|plan-<plan>> --until <iso time with offset>`;
 
 export function main(argv = process.argv.slice(2)) {
   const folder = wavePlansDir();

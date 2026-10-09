@@ -86,6 +86,20 @@ const CRITICAL_WORKFLOW_MARKERS = new Map([
     ],
   ],
   [
+    // A plan run is unattended for up to a day, phase after phase. Its order and no-repeat promises
+    // live in the ledger script; these lines are the boundaries the script cannot hold.
+    'plan-run',
+    [
+      'One plan run or one wave, never both.',
+      '24 hours is the ceiling',
+      'Only phases written in the plan.',
+      'Only the merge queue writes `main`.',
+      'node scripts/wave-plan-store.mjs --open',
+      'node scripts/plan-run.mjs next',
+      'You did not build it.',
+    ],
+  ],
+  [
     'handoff',
     [
       'git rev-parse --short HEAD',
@@ -385,7 +399,7 @@ function reportChainHeadroom() {
 // should improve it (2026-09-01), then 2,036 lines across fourteen modules that every coordinator
 // read in full before planning anyway (2026-10-07). It is one file now, so a lesson that needs words
 // has to displace words. Raise a limit only with the reason in the commit.
-const WORKFLOW_LINE_LIMITS = new Map([['orchestrator', 170]]);
+const WORKFLOW_LINE_LIMITS = new Map([['orchestrator', 170], ['plan-run', 90]]);
 
 function checkWorkflowScriptReferences(file) {
   const content = text(file);

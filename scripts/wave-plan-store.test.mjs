@@ -24,7 +24,9 @@ test('a plan filename is a date, a kind, and nothing else', () => {
   assert.equal(wavePlanName('2026-09-09', 'night'), `2026-09-09-night${PLAN_SUFFIX}`);
   assert.equal(wavePlanName('2026-09-09', 'day'), `2026-09-09-day${PLAN_SUFFIX}`);
   assert.throws(() => wavePlanName('9 Sep', 'day'), /YYYY-MM-DD/);
-  assert.throws(() => wavePlanName('2026-09-09', 'evening'), /day or night/);
+  assert.throws(() => wavePlanName('2026-09-09', 'evening'), /day, night or plan-/);
+  assert.equal(wavePlanName('2026-10-09', 'plan-editor'), `2026-10-09-plan-editor${PLAN_SUFFIX}`);
+  assert.throws(() => wavePlanName('2026-10-09', 'plan-../x'), /plan-/);
 });
 
 test('the location check accepts a plan in the store and refuses one in a checkout', () => {
@@ -98,7 +100,7 @@ test('a second wave is refused while another has no report, and allowed once it 
   const first = openWave({ date: '2026-10-08', kind: 'day', until: '2026-10-08T23:00:00+03:00', dir, now: NOW - 3_600_000 });
   touch(first.file, NOW - 3_600_000);
   const second = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
-  assert.match(second.refusal, /another wave is open/);
+  assert.match(second.refusal, /another wave or plan run is open/);
   writeFileSync(first.file, `${readFileSync(first.file, 'utf8')}\n## Report\n\nAll landed.\n`, 'utf8');
   touch(first.file, NOW - 600_000);
   assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
@@ -139,4 +141,20 @@ test('a wave nobody has written to for six hours stops blocking, and the refusal
   assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).refusal, /open it again with its own date and kind/);
   touch(day.file, NOW - 7 * 3_600_000);
   assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
+});
+
+// A PLAN RUN opens through the same store, so it and a wave exclude each other with one check.
+
+test('a plan run and a wave refuse each other, and a plan run gets the same 24-hour ceiling', () => {
+  const dir = store();
+  const run = openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  assert.ok(run.file, run.refusal);
+  assert.match(readFileSync(run.file, 'utf8'), /^# Plan run editor 2026-10-08$/m);
+  assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).refusal, /another wave or plan run is open/);
+
+  const other = store();
+  openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir: other, now: NOW });
+  assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-09T06:00:00+03:00', dir: other, now: NOW }).refusal, /another wave or plan run is open/);
+
+  assert.match(openWave({ date: '2026-10-08', kind: 'plan-editor', until: '2026-10-10T00:00:00+03:00', dir: store(), now: NOW }).refusal, /24 hours/);
 });
