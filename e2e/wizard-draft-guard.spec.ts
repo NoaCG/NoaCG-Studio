@@ -1,11 +1,13 @@
 // covers: src/components/NewGraphicButton.tsx, src/store/saveActions.ts, src/components/save/SaveDialogs.tsx
 // covers: src/components/wizard/CreationWizard.tsx, src/components/home/HomePage.tsx
+// covers: src/components/home/CueRundown.tsx
 //
 // + NEW GRAPHIC FROM HOME OVER A WIZARD WALK LEFT MID-WAY. The wizard's Home door closes it with
 // the draft still in memory, and + New graphic used to open it FRESH, wiping that draft without
 // a word. The guard that asks before replacing the working document (e2e/new-graphic-guard.spec.ts)
 // now covers the walk too, under the same rule: it asks only when something the user did would be
-// lost, and its safe answer takes them back into the walk where they left it.
+// lost, and its safe answer takes them back into the walk where they left it. The production
+// page's doors (the bar's and the rundown's New graphic) go through the same guard.
 
 import { test, expect, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
@@ -83,4 +85,58 @@ test('a walk left by browser Back is held too, and Continue returns to the furth
   await guard.getByTestId('switch-resume').click();
   await expect(page.getByTestId('wz-stepcount')).toHaveText(where);
   await expect(page.locator('.wz-title-doc')).toContainText('Hairline');
+});
+
+test('the production page asks too: its rundown door, Continue at the furthest step, Discard starts fresh', async ({ page }) => {
+  // A fresh profile boots onto the wizard, and New production lands on an empty production page.
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-entry="new-production"]').click();
+  const production = page.getByTestId('production-page');
+  await expect(production).toBeVisible();
+
+  // Into the wizard through the rundown's own New graphic, with a design chosen in it.
+  const rundownDoor = page.getByTestId('production-new-graphic');
+  await rundownDoor.click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  const doc = page.locator('.wz-title-doc');
+  await expect(doc).toContainText('Hairline');
+  const where = (await page.getByTestId('wz-stepcount').textContent())!;
+
+  /** Browser Back out of the walk, onto the production page it was opened from. */
+  const backToProduction = async () => {
+    while (/#\/new/.test(page.url())) await page.goBack();
+    await expect(production).toBeVisible();
+    await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  };
+
+  await backToProduction();
+  await rundownDoor.click();
+  const guard = page.getByTestId('confirm-switch');
+  await expect(guard).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+
+  // Cancel stays on the production page and keeps the walk: the bar's door asks about it too.
+  await guard.getByTestId('switch-cancel').click();
+  await expect(guard).toBeHidden();
+  await expect(production).toBeVisible();
+  await page.locator('[data-door="new-graphic"]').click();
+  await expect(guard).toBeVisible();
+
+  // Continue: back on the furthest step the walk reached, the chosen design still in it.
+  await guard.getByTestId('switch-resume').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.getByTestId('wz-stepcount')).toHaveText(where);
+  await expect(doc).toContainText('Hairline');
+
+  // Discard: the wizard opens fresh on its front page.
+  await backToProduction();
+  await rundownDoor.click();
+  await guard.getByTestId('switch-discard').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  await expect(page.getByTestId('wz-stepcount')).toHaveCount(0);
+  await expect(doc).toHaveCount(0);
 });

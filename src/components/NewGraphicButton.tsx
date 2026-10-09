@@ -18,7 +18,7 @@ import { useTemplateStore } from '../store/templateStore';
  * guard covers a wizard walk the reader LEFT mid-way: the wizard opens fresh, which would wipe
  * it, so a walk with work in it is asked about first and can be continued instead
  * (e2e/wizard-draft-guard.spec.ts). `startNewGraphic` is the press itself, for the other
- * "+ New graphic" buttons that are not this door (Home's empty library).
+ * "+ New graphic" buttons that are not this door (Home's empty library, the production rundown's).
  *
  * `productionId` is the production this open is FOR (the dashboard's own door): the wizard
  * pre-applies that production's look and preselects it on Finish. Standing inside a production,
