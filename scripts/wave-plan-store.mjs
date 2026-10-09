@@ -139,7 +139,7 @@ export function openWaves(dir = jobsDir(), now = Date.now(), except = '') {
 export function openNightWave(dir = jobsDir(), now = Date.now()) {
   return openWaves(dir, now).find((file) => {
     if (!path.basename(file).endsWith(`-night${PLAN_SUFFIX}`)) return false;
-    const end = Date.parse(/^Window ends: (\S+)\s*$/m.exec(readFileSync(file, 'utf8'))?.[1] ?? '');
+    const end = Date.parse(/^Window ends: (\S+)/m.exec(readFileSync(file, 'utf8'))?.[1] ?? '');
     return Number.isNaN(end) || now < end;
   }) ?? null;
 }

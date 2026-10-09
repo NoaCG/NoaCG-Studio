@@ -155,7 +155,12 @@ test('only an open night wave inside its window counts as unattended', () => {
   const night = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
   touch(night.file, NOW);
   assert.equal(openNightWave(dir, NOW), night.file);
-  assert.equal(openNightWave(dir, Date.parse('2026-10-09T06:00:00+03:00')), null, 'the window has ended');
+  // Written to at the very end, so only the window line can close it, not six quiet hours.
+  const end = Date.parse('2026-10-09T06:00:00+03:00');
+  touch(night.file, end);
+  assert.equal(openNightWave(dir, end - 60_000), night.file, 'the last minute of the window');
+  assert.equal(openNightWave(dir, end), null, 'the window has ended');
+  touch(night.file, NOW);
   writeFileSync(night.file, `${readFileSync(night.file, 'utf8')}\n## Report\n\nDone.\n`, 'utf8');
   touch(night.file, NOW);
   assert.equal(openNightWave(dir, NOW), null, 'a reported wave is over');
