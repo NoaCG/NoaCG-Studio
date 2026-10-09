@@ -18,7 +18,8 @@ import { spawnSync } from 'node:child_process';
 // terminates through the same handle, so nothing can swap the process in between. Windows refuses
 // to terminate a process that is already exiting, with the same "access denied" a protected one
 // gets: a hidden shell's conhost.exe starts exiting the moment the shell it serves is closed, just
-// before its own turn (#919). So a refused terminate waits on the handle, and one that exits is gone.
+// before its own turn (#919). So a refused terminate waits a second on the handle, and one that exits
+// in it is gone.
 const HELPER = String.raw`
 using System;
 using System.Runtime.InteropServices;
@@ -62,7 +63,7 @@ public static class NoacgProcesses {
       if (!GetProcessTimes(h, out created, out exited, out kernel, out user)) return "denied";
       if (Math.Abs((created - 116444736000000000L) / 10000L - createdMs) > 1000) return "gone";
       if (WaitForSingleObject(h, 0) == 0) return "gone";
-      if (!TerminateProcess(h, 1)) return WaitForSingleObject(h, 5000) == 0 ? "gone" : "denied";
+      if (!TerminateProcess(h, 1)) return WaitForSingleObject(h, 1000) == 0 ? "gone" : "denied";
       return WaitForSingleObject(h, 5000) == 0 ? "closed" : "still running";
     } finally { CloseHandle(h); }
   }
@@ -137,17 +138,17 @@ export function listProcesses({ platform = process.platform, run, timeoutMs, cwd
 
 const CLOSE_BATCH = 100;
 
-/** Answers a close can give for a process that was exiting under it, rather than refusing. */
-const RACED = new Set(['denied', 'still running']);
+const closedOrGone = (said) => said === 'closed' || said === 'gone';
 
 /**
  * Close `entries` (`{ pid, createdMs, ... }`), in order, each only if it is still the process that
  * was judged. Returns `{ closed, failed }`; `gone` counts as closed.
  *
- * A REFUSED CLOSE IS CHECKED AGAINST A FRESH TABLE before it fails anything (#919). A process that
- * was exiting while it was closed answers "denied" or "still running" and is gone a moment later;
- * one that is not in `list()` with the same start time is gone too. One still listed is a real
- * refusal and stays failed, and a table that cannot be read changes nothing.
+ * A FAILED CLOSE IS CHECKED AGAINST A FRESH TABLE before it fails anything (#919). A process that
+ * was exiting while it was closed can answer "denied" or "still running" and be gone a moment
+ * later, so one that is not in `list()` with the same start time counts as gone. One still listed,
+ * or listed without a start time, is a real refusal and stays failed; a table that cannot be read
+ * changes nothing.
  */
 export function closeProcesses(entries, { platform = process.platform, run, list = () => listProcesses({ platform, run, cwd: false }) } = {}) {
   const pinned = [];
@@ -174,17 +175,17 @@ export function closeProcesses(entries, { platform = process.platform, run, list
       if (found) results.set(Number(found[1]), found[2]);
     }
   }
-  const raced = pinned.filter((e) => RACED.has(results.get(e.pid)));
-  if (raced.length > 0) {
+  const refused = pinned.filter((e) => !closedOrGone(results.get(e.pid)));
+  if (refused.length > 0) {
     const fresh = list();
-    const running = (e) => fresh.processes.some((p) => p.pid === e.pid && Math.abs(p.createdMs - e.createdMs) <= 1000);
-    if (fresh.ok) for (const e of raced) if (!running(e)) results.set(e.pid, 'gone');
+    const running = (e) => fresh.processes.some((p) => p.pid === e.pid && (!Number.isFinite(p.createdMs) || Math.abs(p.createdMs - e.createdMs) <= 1000));
+    if (fresh.ok) for (const e of refused) if (!running(e)) results.set(e.pid, 'gone');
   }
   const closed = [];
   const failed = [...unpinned];
   for (const e of pinned) {
     const said = results.get(e.pid) ?? 'no answer';
-    (said === 'closed' || said === 'gone' ? closed : failed).push({ ...e, result: said });
+    (closedOrGone(said) ? closed : failed).push({ ...e, result: said });
   }
   return { closed, failed };
 }

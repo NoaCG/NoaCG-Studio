@@ -7,7 +7,7 @@ import { chooseWorkers } from './e2e-workers.mjs';
 import { POLICY } from './jobs-store.mjs';
 
 // What one targeted spec took out of free memory at each count, worst measured (e2e-workers.mjs).
-const TAKEN_MB = { 2: 2114, 3: 2800, 4: 3100, 6: 4100 };
+const TAKEN_MB = { 2: 2114, 3: 2800, 4: 3900, 6: 4100 };
 
 test('an explicit E2E_WORKERS always wins, however little memory is free', () => {
   const { workers, reason } = chooseWorkers({ freeMb: 300, override: '8' });
@@ -19,7 +19,7 @@ test('a junk or non-positive override is ignored rather than obeyed', () => {
   // '0', 'yes' and '-2' must not silently produce a zero or negative worker count, which
   // Playwright would either reject or interpret as something nobody intended.
   for (const override of ['0', 'yes', '-2', '']) {
-    const { workers } = chooseWorkers({ freeMb: 4549, override });
+    const { workers } = chooseWorkers({ freeMb: 5000, override });
     assert.equal(workers, 4, `override ${JSON.stringify(override)} should fall through`);
   }
 });
@@ -27,8 +27,9 @@ test('a junk or non-positive override is ignored rather than obeyed', () => {
 test('the benchmarked points reproduce the counts they were measured at', () => {
   // 5794 MB free, 6 workers: 125.7 s, the fastest run recorded, 1669 MB still free.
   assert.equal(chooseWorkers({ freeMb: 5794 }).workers, 6);
-  // 4549 MB free, 4 workers: 137.7 s, 1488 MB still free.
-  assert.equal(chooseWorkers({ freeMb: 4549 }).workers, 4);
+  // 4549 MB free, 4 workers: 137.7 s, 1488 MB still free - but from 4535 the same count left
+  // 651 MB, and 3 left 2472 for 8 s more, so this much memory now buys 3.
+  assert.equal(chooseWorkers({ freeMb: 4549 }).workers, 3);
   // 4535 MB free was also where 6 workers went SLOWER (157.1 s) and left 401 MB - the ladder
   // must not pick 6 down here, which is the whole reason it is memory-keyed.
   assert.ok(chooseWorkers({ freeMb: 4535 }).workers < 6);
@@ -54,7 +55,7 @@ test('every rung above one leaves at least a gigabyte behind', () => {
   // The promise this module makes to the person at the keyboard, checked against the measured
   // take of each count rather than against the thresholds themselves. One worker is what is left
   // when even two do not fit, so it promises nothing.
-  for (const freeMb of [3200, 3900, 4200, 5300, 8000]) {
+  for (const freeMb of [3200, 3900, 4900, 5300, 8000]) {
     const { workers } = chooseWorkers({ freeMb });
     const left = freeMb - TAKEN_MB[workers];
     assert.ok(left >= 1000, `${freeMb} MB free -> ${workers} workers would leave only ${left} MB`);

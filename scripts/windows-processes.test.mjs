@@ -49,7 +49,9 @@ test('closing goes in batches a command line can carry, and a failed batch fails
     const script = Buffer.from(args.at(-1), 'base64').toString('utf16le');
     return { status: 0, stdout: [...script.matchAll(/::Close\((\d+),/g)].map(([, pid]) => `${pid}=closed`).join('\r\n'), stderr: '' };
   };
-  const { closed, failed } = closeProcesses(entries, { platform: 'win32', run });
+  // The failed batch's processes are all still running when the table is read again.
+  const list = () => ({ ok: true, supported: true, processes: entries.map(({ pid, createdMs }) => ({ pid, createdMs })) });
+  const { closed, failed } = closeProcesses(entries, { platform: 'win32', run, list });
   assert.equal(encoded.length, 3, 'three batches of at most 100');
   for (const command of encoded) assert.ok(command.length < 30_000, `an encoded batch of ${command.length} characters`);
   assert.equal(closed.length, 150);
@@ -75,9 +77,18 @@ test('a close that raced the process exiting counts as closed, and a real refusa
   assert.deepEqual(closed.map((e) => `${e.name}=${e.result}`), ['bash.exe=closed', 'conhost.exe=gone', 'node.exe=gone']);
   assert.deepEqual(failed.map((e) => `${e.name}=${e.result}`), ['MsMpEng.exe=denied']);
 
-  // A table that cannot be read is no evidence that anything exited.
+  // A table that cannot be read is no evidence that anything exited, and neither is a row whose
+  // start time could not be read.
   const blind = closeProcesses([conhost], { platform: 'win32', run, list: () => ({ ok: false, supported: true, processes: [], why: 'timed out' }) });
   assert.deepEqual(blind.failed.map((e) => e.result), ['denied']);
+  const unknown = closeProcesses([conhost], { platform: 'win32', run, list: () => ({ ok: true, supported: true, processes: [row(conhost, null)] }) });
+  assert.deepEqual(unknown.failed.map((e) => e.result), ['denied']);
+
+  // A batch PowerShell gave up on after its closes ran: what has exited is not failed for it.
+  const stalled = () => ({ status: null, signal: 'SIGTERM' });
+  const late = closeProcesses([shell, protectedOne], { platform: 'win32', run: stalled, list: () => table });
+  assert.deepEqual(late.closed.map((e) => `${e.name}=${e.result}`), ['bash.exe=gone']);
+  assert.match(late.failed[0].result, /did not answer/);
 
   // Nothing refused, nothing listed.
   closeProcesses([shell], { platform: 'win32', run, list: () => assert.fail('listed with nothing to re-check') });
