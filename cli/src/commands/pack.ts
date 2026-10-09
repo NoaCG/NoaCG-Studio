@@ -184,6 +184,15 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
     ...(opts.rundown?.length ? { cues: opts.rundown } : {}),
   };
 
+  // The local file first: it sends nothing, and a write that fails then stops the run before
+  // anything leaves the machine.
+  const outcome: PackOutcome = { ...base, ok: true };
+  if (opts.outFile) {
+    const file = path.resolve(opts.outFile);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, `${JSON.stringify(pack, null, 2)}\n`);
+    outcome.file = file;
+  }
   // A share goes before the Home copy (#876). A refused share then sends nothing at all, so the
   // user fixes the graphic and runs the same command again without a second copy piling up on
   // Home. The other order would leave a duplicate share in an admin's review queue instead,
@@ -192,15 +201,8 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
   const share = opts.save && key && opts.share
     ? await shareToCommunity(opts, opts.share, graphics, templates, bridge, origin, key.key, log)
     : undefined;
-  if (share && !('id' in share)) return { ...base, share };
-
-  const outcome: PackOutcome = { ...base, ok: true, ...(share ? { share } : {}) };
-  if (opts.outFile) {
-    const file = path.resolve(opts.outFile);
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, `${JSON.stringify(pack, null, 2)}\n`);
-    outcome.file = file;
-  }
+  if (share) outcome.share = share;
+  if (share && !('id' in share)) return { ...outcome, ok: false, reason: 'refused', error: share.error };
   if (opts.save && key) {
     try {
       const sent = await savePackageToHome(origin, key.key, pack);
@@ -209,7 +211,7 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
     } catch (e) {
       const message = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
       const error = share
-        ? `Not sent to your Home: ${message} It is shared, so pack it again without sharing to put it on your Home.`
+        ? `Not sent to your Home: ${message.replace(/[.\s]*$/, '.')} It is shared, so pack it again without sharing to put it on your Home.`
         : `Not sent: ${message}`;
       return { ...outcome, ok: false, reason: 'refused', error };
     }
@@ -286,7 +288,7 @@ export function describePack(outcome: PackOutcome): string {
     lines.push(
       `Sent "${outcome.name}" for review under CC BY 4.0, shown as "${share.shownAs}". It is In review under Your packs on the Community packs shelf; you can withdraw it there.`,
     );
-    if (share.withoutCues) lines.push('The shared copy carries no cues; the rundown stays on your Home copy.');
+    if (share.withoutCues && outcome.url) lines.push('The shared copy carries no cues; the rundown stays on your Home copy.');
   } else if (share) {
     for (const f of share.findings ?? []) lines.push(f.graphic ? `- ${f.graphic}: ${f.message}` : `- ${f.message}`);
     lines.push(share.error);

@@ -105,9 +105,13 @@ export async function runDoctor(args: ParsedArgs, out: Out): Promise<number> {
     // launcher skips any CLI but its own version, and the lines above already say when a newer
     // plugin exists. `isBehind`, not `!==`, so a checkout built ahead of the published version -
     // every developer of this repo between a bump and its release - is told nothing.
+    // A plugin ahead of npm (taken from the marketplace between a release landing and its publish)
+    // names a version npm would refuse, so that waits for npm.
     const pinned = pluginCliVersion(plugins);
     if (pinned) {
-      if (isBehind(cli, pinned)) out.say(`update       the installed plugin runs @noacg/cli ${pinned} - run: npm i -g @noacg/cli@${pinned}`);
+      if (isBehind(cli, pinned) && !isBehind(latest, pinned)) {
+        out.say(`update       the installed plugin uses @noacg/cli ${pinned} - run: npm i -g @noacg/cli@${pinned}`);
+      }
     } else if (isBehind(cli, latest)) {
       out.say(`update       npm's latest @noacg/cli is ${latest} - run: npm i -g @noacg/cli@latest`);
     }

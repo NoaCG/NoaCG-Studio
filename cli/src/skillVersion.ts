@@ -18,8 +18,9 @@
 // manifest works on the installs that exist today, including the stale one.
 //
 // WHAT IT REFUSES TO DO. Never print a version it guessed. A version comes from a manifest lying
-// beside a real SKILL.md, never from a cache directory's name, never from the harness's index
-// alone. Anything unreadable, ambiguous or absent is silence.
+// beside a real SKILL.md (or, for the launcher, a `noacg-mcp` folder holding `mcp-server.mjs`),
+// never from a cache directory's name, never from the harness's index alone. Anything unreadable,
+// ambiguous or absent is silence.
 //
 // The reads are synchronous, unlike the rest of `src/` - a handful of local stats and two small
 // JSON files, where async would buy nothing and cost every caller an await.
@@ -37,7 +38,7 @@ export interface InstalledPlugin {
   harness: string;
   /** The plugin id, `name@marketplace`, as the harness's own commands spell it. */
   plugin: string;
-  /** The version on the manifest beside the skill. */
+  /** The version on the plugin's own manifest. */
   version: string;
   /** The plugin root on disk. */
   path: string;
@@ -140,8 +141,10 @@ function pluginRoots(home: string, carries: (root: string, name: string) => bool
         if (carries(installPath, nameOf(plugin))) found.push({ root: installPath, plugin });
       }
     }
+    // A harness that keeps the record is believed, absence included: a plugin it does not list
+    // is uninstalled, even when its old cache directory is still on disk.
+    return found;
   }
-  if (found.length) return found;
 
   // `plugins/cache/<marketplace>/<plugin>/<version>/`, the layout both harnesses use.
   const cache = path.join(plugins, 'cache');
@@ -157,8 +160,9 @@ function pluginRoots(home: string, carries: (root: string, name: string) => bool
 }
 
 /**
- * Every installed NoaCG plugin this machine can be shown to have, per harness and kind. An empty list is the normal answer for a terminal user who never installed a plugin, and
- * also the answer whenever anything about an install is unreadable.
+ * Every installed NoaCG plugin this machine can be shown to have, per harness and kind. An empty
+ * list is the normal answer for a terminal user who never installed a plugin, and also the answer
+ * whenever anything about an install is unreadable.
  *
  * It reports what is INSTALLED rather than trying to work out which harness invoked it. A
  * subprocess cannot tell that reliably - this laptop's own sessions carry both `CLAUDECODE` and

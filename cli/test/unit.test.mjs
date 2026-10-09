@@ -697,6 +697,8 @@ test('pack --save --share sends nothing to Home when the share is refused, so a 
   assert.equal(byChecks.ok, false);
   assert.equal(byChecks.share.reason, 'checks');
   assert.deepEqual(checked.posts, [], 'a check refusal sends nothing anywhere');
+  assert.equal(byChecks.reason, 'refused', 'a --json reader sees the refusal at the top level too');
+  assert.equal(byChecks.error, byChecks.share.error);
   assert.match(describePack(byChecks), /Strap: It still says/);
   assert.match(describePack(byChecks), /Not sent: Community packs refuses/);
 

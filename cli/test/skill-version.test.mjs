@@ -123,6 +123,10 @@ test('the noacg-mcp launcher is found by its name and file, and no other plugin 
   });
   const found = await withHomes(home, path.join(home, 'no-codex'), installedPlugins);
   assert.deepEqual(found.map((p) => [p.kind, p.plugin, p.version]), [['mcp', 'noacg-mcp@noacg-studio', '0.10.0']]);
+
+  // Uninstalled: the record no longer lists it, and its cache folder left behind is not an install.
+  await plantIndex(home, { 'someone-else@noacg-studio': [{ scope: 'user', installPath: other }] });
+  assert.deepEqual(await withHomes(home, path.join(home, 'no-codex'), installedPlugins), []);
 });
 
 test('isBehind orders releases and refuses everything it cannot order', () => {
@@ -225,7 +229,7 @@ test('doctor recommends the CLI version the installed plugin runs, never one its
 
   // The plugin is ahead of this CLI: name the plugin's version, not latest.
   const ahead = await doctorWith(t, { latest: '9.9.9', plugins: [{ ...mcp, manifestVersion: '9.9.8' }] });
-  assert.match(ahead, /^update {7}the installed plugin runs @noacg\/cli 9\.9\.8 - run: npm i -g @noacg\/cli@9\.9\.8$/m);
+  assert.match(ahead, /^update {7}the installed plugin uses @noacg\/cli 9\.9\.8 - run: npm i -g @noacg\/cli@9\.9\.8$/m);
   assert.match(ahead, /^mcp plugin {3}9\.9\.8 in Claude Code, but npm's latest is 9\.9\.9/m, 'a newer plugin is named separately');
   assert.doesNotMatch(ahead, /@latest/);
 
@@ -234,14 +238,18 @@ test('doctor recommends the CLI version the installed plugin runs, never one its
     latest: '9.9.9',
     plugins: [{ ...mcp, manifestVersion: '9.9.7' }, { manifestVersion: '9.9.9' }],
   });
-  assert.match(both, /^update {7}the installed plugin runs @noacg\/cli 9\.9\.7 - run: npm i -g @noacg\/cli@9\.9\.7$/m);
+  assert.match(both, /^update {7}the installed plugin uses @noacg\/cli 9\.9\.7 - run: npm i -g @noacg\/cli@9\.9\.7$/m);
   assert.match(both, /^mcp plugin {3}9\.9\.7 in Claude Code, but npm's latest is 9\.9\.9/m);
   assert.doesNotMatch(both, /@latest/);
 
   // A skill plugin alone pins the same way: its setup reference says to run its own version.
   const skillOnly = await doctorWith(t, { latest: '9.9.9', plugins: [{ manifestVersion: '9.9.9' }] });
-  assert.match(skillOnly, /^update {7}the installed plugin runs @noacg\/cli 9\.9\.9 - run: npm i -g @noacg\/cli@9\.9\.9$/m);
+  assert.match(skillOnly, /^update {7}the installed plugin uses @noacg\/cli 9\.9\.9 - run: npm i -g @noacg\/cli@9\.9\.9$/m);
   assert.doesNotMatch(skillOnly, /NEWER|@latest/);
+
+  // A plugin ahead of npm names a version npm does not have yet, so nothing is advised.
+  const unpublished = await doctorWith(t, { latest: '9.9.8', plugins: [{ ...mcp, manifestVersion: '9.9.9' }] });
+  assert.doesNotMatch(unpublished, /^update /m);
 
   // With no plugin at all, latest is still the advice.
   const none = await doctorWith(t, { latest: '9.9.9' });
