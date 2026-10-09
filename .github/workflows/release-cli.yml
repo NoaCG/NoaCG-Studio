@@ -60,6 +60,10 @@ on:
         description: 'Dry run: build, test and pack, stop before the registry call.'
         type: boolean
         default: true
+      distribution_only:
+        description: 'Only rebuild the agent-toolkit-dist branch from the released commit (tag cli-vX.Y.Z) of the version on this ref. Publishes nothing; with dry run checked it prepares the branch without pushing.'
+        type: boolean
+        default: false
 
 # A release is never superseded by a newer one. Two publishes racing is exactly the case where
 # cancel-in-progress would leave a half-answered question behind.
@@ -104,8 +108,9 @@ jobs:
   publish:
     name: Publish @noacg/cli
     needs: decide
-    # Never on a fork, never on a fork's tag push, and only when `decide` found a version to release.
-    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.decide.outputs.release == 'true' }}
+    # Never on a fork, never on a fork's tag push, only when `decide` found a version to release,
+    # and never for a dispatch that asked only for the distribution branch.
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.decide.outputs.release == 'true' && !inputs.distribution_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -421,11 +426,16 @@ jobs:
   # against its 50 MiB limit (#842). So a published release also replaces the generated
   # `agent-toolkit-dist` branch: the marketplace and the two plugin folders, with its own root
   # commit and no application history, each snapshot naming its source commit in PROVENANCE.json.
-  # It writes only that branch, never main, and a dry run never reaches it.
+  # It writes only that branch, never main, and a dry run never pushes it.
+  #
+  # The "distribution_only" dispatch re-drives just this job for a version already on npm, from
+  # that version's tag, without the publish job. That is how a release whose npm publish went
+  # through and whose branch update failed (CLI 0.10.1) gets its branch without a new version.
   distribution:
     name: Update the generated toolkit distribution branch
     needs: publish
-    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.publish.result == 'success' && !inputs.dry_run }}
+    # `!cancelled()` lets the distribution-only dispatch run although it skipped `publish`.
+    if: ${{ !cancelled() && github.repository == 'NoaCG/NoaCG-Studio' && (inputs.distribution_only || (needs.publish.result == 'success' && !inputs.dry_run)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -439,9 +449,31 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-      - name: Let git push with the workflow's token
+      # The snapshot is the released commit, never a later main that may carry unreleased plugin
+      # changes under the same version number. The tag is written only after a publish succeeds.
+      - name: Check out the released commit (distribution only)
+        if: ${{ inputs.distribution_only }}
+        run: |
+          TAG="cli-v$(node -p 'require("./cli/package.json").version')"
+          git fetch --no-tags origin "refs/tags/$TAG:refs/tags/$TAG" main
+          if ! git merge-base --is-ancestor "$TAG" origin/main; then
+            echo "::error title=Not on main::$TAG is not on main, so it is not a released commit."
+            exit 1
+          fi
+          git checkout --detach "$TAG"
+          echo "Building the distribution from $TAG ($(git rev-parse HEAD))."
+      # The script commits and pushes from a fresh repository in a temporary folder, so the
+      # checkout's own credential does not reach it. `gh auth setup-git` makes git ask gh, and gh
+      # answers with GH_TOKEN, which must therefore be set for the push itself, not only for the
+      # setup (CLI 0.10.1 failed with "could not read Username" when it was set only there).
+      - name: Replace the distribution tree from the published source commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh auth setup-git --hostname github.com
-      - name: Replace the distribution tree from the published source commit
-        run: node cli/scripts/publish-toolkit-distribution.mjs --push
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          gh auth setup-git --hostname github.com
+          if [ "$DRY_RUN" = "true" ]; then
+            node cli/scripts/publish-toolkit-distribution.mjs
+          else
+            node cli/scripts/publish-toolkit-distribution.mjs --push
+          fi
