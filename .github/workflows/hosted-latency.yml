@@ -35,6 +35,16 @@
 # this repository has spent enough of its attention on those. The job records per-spec durations
 # in its summary so a regression is visible to a person; turn that into a gate only once several
 # runs have shown what "normal" is.
+#
+# FOUR SHARDS, EACH WITH ITS OWN ACCOUNTS, since 2026-10-09 (issue #902). On one worker the suite
+# grew from 60 tests in 14 minutes (2026-09-27) to 99 tests that needed about 50, and two runs
+# were cancelled by the 45-minute timeout at test 88 and 89 with nothing hung: a cancelled run
+# gives no verdict. The shards split by file (`--shard`, the config is not fullyParallel), so a
+# spec's own throwaway accounts are only ever used by one shard. The suite's shared pair is not:
+# account.spec.ts changes its password and the sync specs count its passes, so each shard signs
+# in as its own `e2e-s<n>` pair. The `verdict` job merges the shards' blob reports and judges the
+# whole run once, as before. Ten to fifteen minutes a shard leaves the 30-minute timeout room to
+# mean a hang; when a shard nears it, add a shard rather than raise the timeout.
 
 name: hosted-latency
 
@@ -53,9 +63,14 @@ permissions:
 
 jobs:
   hosted:
-    name: Configured E2E against hosted staging
+    name: Configured E2E against hosted staging ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
+    strategy:
+      # Every shard finishes, so one red shard cannot hide another's evidence.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     env:
       # Staging only. These names are prefixed so nobody can confuse them with the production pair
       # that still lives in .env on the owner's machine and nowhere else.
@@ -64,14 +79,14 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       # The account is minted per run against staging, so it needs no secret - the same reasoning
       # as the local job. Six characters is GoTrue's minimum and account.spec.ts round-trips a
-      # password change.
-      E2E_EMAIL: e2e@noacg.staging
+      # password change. One per shard, because the shards run at once (see the header).
+      E2E_EMAIL: e2e-s${{ matrix.shard }}@noacg.staging
       E2E_PASSWORD: noacg-e2e-staging-pw
       # The SECOND account of the two-person team walk in e2e/configured/teams.spec.ts: a teammate
       # who joins a team the first account made. Same reasoning as the pair above - minted in the
-      # step below, destroyed with the stack - and the walk skips without it, which the no-skips
-      # guard at the end of this job would then report.
-      E2E_TEAMMATE_EMAIL: e2e-teammate@noacg.staging
+      # step below - and the walk skips without it, which the no-skips guard in the verdict job
+      # would then report.
+      E2E_TEAMMATE_EMAIL: e2e-teammate-s${{ matrix.shard }}@noacg.staging
       E2E_TEAMMATE_PASSWORD: noacg-e2e-staging-pw
     steps:
       # Before anything is installed, and specific about WHICH secret is missing. Without these the
@@ -108,10 +123,6 @@ jobs:
       - uses: ./.github/actions/node-modules
 
       - uses: ./.github/actions/playwright-chromium
-
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.111.0
 
       # STAGING'S SCHEMA IS APPLIED FROM THE OWNER'S MACHINE, ON PURPOSE, AND THIS JOB DOES NOT TRY
       # TO ASSERT IT.
@@ -262,7 +273,7 @@ jobs:
           per=$(( (end - start) / 1000000 / 20 ))
           echo "round trip to staging: ~${per} ms/request from this runner"
           {
-            echo "### Hosted latency"
+            echo "### Hosted latency (shard ${{ matrix.shard }})"
             echo ""
             echo "Round trip to \`noacg-staging\` from this runner: **~${per} ms/request**, as the"
             echo "signed-in test account reading \`documents\` through RLS."
@@ -284,10 +295,64 @@ jobs:
       # nothing of the failure. Here a failure is most often a slow answer from the staging project,
       # and only the failed attempt's network timings can tell that apart from a page that waited
       # on the wrong thing.
+      #
+      # A blob report per shard, merged into one JSON report by the verdict job.
       - name: Configured E2E suite against staging
+        run: npm run test:e2e:live -- --shard=${{ matrix.shard }}/4 --reporter=list,blob --trace=retain-on-failure || true
+
+      - name: Upload shard report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: hosted-blob-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: hosted-results-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  verdict:
+    name: Hosted staging verdict
+    needs: hosted
+    # Also after a shard was cut off by its timeout: its tests are then missing from the merged
+    # report, the verdict's floor says so, and the last step names the shard job's result.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # Playwright's merge-reports, and the verdict script's imports.
+      - uses: ./.github/actions/node-modules
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: hosted-blob-*
+          merge-multiple: true
+
+      # No blob at all leaves no report, which the verdict reads as "never produced a report".
+      - name: Merge the shard reports
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: hosted-report.json
-        run: npm run test:e2e:live -- --reporter=list,json --trace=retain-on-failure || true
+        run: |
+          if ls all-blob-reports/*.zip > /dev/null 2>&1; then
+            npx --no-install playwright merge-reports --reporter=json all-blob-reports
+          else
+            echo "::error title=No shard reported::No shard uploaded a blob report."
+          fi
 
       # The SAME verdict as the local nightly, from the same script AND the same expected run, so
       # the two cannot drift. This job used to carry its own floor and allowlist; configured-suite
@@ -321,9 +386,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: hosted-report
-          path: |
-            hosted-report.json
-            test-results/
+          path: hosted-report.json
           retention-days: 14
           if-no-files-found: ignore
 
@@ -340,7 +403,7 @@ jobs:
       # is scoped to the branch the alarm is about. A schedule run's ref IS main, and the explicit
       # event test says so rather than relying on it.
       - name: File / update the rolling issue
-        if: ${{ always() && steps.assert.outputs.green != 'true' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        if: ${{ always() && (steps.assert.outputs.green != 'true' || needs.hosted.result != 'success') && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -390,7 +453,7 @@ jobs:
           gh issue comment "$EXISTING" --body "Still red. $BODY"
 
       - name: Close the rolling issue
-        if: ${{ steps.assert.outputs.green == 'true' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        if: ${{ steps.assert.outputs.green == 'true' && needs.hosted.result == 'success' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -402,5 +465,11 @@ jobs:
           fi
 
       - name: Fail the run when the suite was not a clean verdict
-        if: ${{ steps.assert.outputs.green != 'true' }}
-        run: exit 1
+        if: ${{ steps.assert.outputs.green != 'true' || needs.hosted.result != 'success' }}
+        env:
+          SHARDS: ${{ needs.hosted.result }}
+        run: |
+          if [ "$SHARDS" != "success" ]; then
+            echo "::error title=A shard did not finish::The shard jobs ended '${SHARDS}' (a timeout reads as cancelled), so the merged report is missing their tests."
+          fi
+          exit 1
