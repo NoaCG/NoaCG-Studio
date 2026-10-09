@@ -39,7 +39,8 @@ can see becomes a row.
   (step 3). Read code only to settle a planning question; each row does its own research.
 - **Asking**: while the owner is here, ask him straight away, one question at a time with your
   recommendation, and only for a choice that changes behaviour. Otherwise decide, record it in the
-  pull request and the wave file, and go on. An unattended wave asks nothing.
+  pull request and the wave file, and go on. An unattended wave asks nothing. Only a reserved
+  decision a row stopped on (`verify.md` step 5) goes to him at once, with a phone notification.
 
 ## 2. The work list
 

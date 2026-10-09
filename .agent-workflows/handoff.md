@@ -30,16 +30,24 @@ before ending the session: acceptance observations and evidence paths. The next 
 execution status stay in the existing wave/job records, never in `work.json`.
 The handoff is operational evidence; it cannot rewrite the owner intent or close a parent spec.
 
-A short list, best next step first. Concrete enough to act on without re-reading the chat.
-Scope it to THIS session's line of work - never "go merge branch X". Include:
+**Loose ends are fixed, not handed off.** A small follow-up in the area this session changed, a
+doc it made wrong, a step it can take: do it now (see Rules). A decision only the owner can make is
+asked now, in this session, one question with your recommendation
+(`.agent-workflows/verify.md`, step 5). Nothing optional is offered.
+
+**A phase of a written plan hands off in the plan.** Its notes for the next phase (what changed
+that the next phase must allow for, decisions taken, traps found, what the check found) go into
+the plan document in the pull request that lands the phase, because the chat and this worktree do
+not outlive the landing. If they are missing, add them before the verdict.
+
+What is left after that is a short list, best next step first. Concrete enough to act on without
+re-reading the chat. Scope it to THIS session's line of work - never "go merge branch X":
 
 - **Unfinished work known only from this chat** - a half-done feature, a bug found but not
-  fixed, a design agreed but not built, a decision deferred. This is the most valuable line in
-  the output: git cannot reconstruct it and archiving the chat destroys it.
-- **A blocking step the work implies** - a `supabase/` migration, a `VITE_*` env var, a
-  `render-worker`/`player-host` rebuild, a nested `AGENTS.md`/`CLAUDE.md` or `docs/GOALS.md`
-  now wrong.
-- **Optional follow-ups**, clearly marked as optional so they are easy to skip.
+  fixed, a design agreed but not built. This is the most valuable line in the output: git cannot
+  reconstruct it, and the chat is archived once its pull request merges.
+- **A blocking step the work implies** that this session could not take - a `supabase/`
+  migration, a `VITE_*` env var, a `render-worker`/`player-host` rebuild.
 
 **Every item carries its WHY - the real problem it solves, or the goal it serves.** One clause
 is enough: the defect it fixes, the user it unblocks, or the section of `docs/GOALS.md` it moves.
@@ -52,7 +60,8 @@ is not a next step; drop it rather than dressing it up.
 Prefer the honest small why to the grand one. "The export door is untested on real hardware and
 the class runs on it" is useful. "Improves quality" is not a why.
 
-If there is genuinely nothing to do next, say so in one line. Don't invent work.
+If nothing is left, the whole handoff is the verdict in "Bottom line": no list, no prompt, no
+summary. Don't invent work.
 
 ### 2. Pasteable prompt - only if work remains
 
@@ -97,8 +106,8 @@ language:
   state and no stash holding this work, `git merge-base --is-ancestor HEAD main` exits 0, and
   `git merge-base --is-ancestor HEAD origin/main` exits 0. The normal state once the queue has
   landed the branch. On this verdict the session may archive itself.
-- `SAFE TO ARCHIVE WITH NOTES` - the same four hold, and there are follow-ups captured in the
-  prompt above. The verdict answers whether closing the chat LOSES anything, and a follow-up
+- `SAFE TO ARCHIVE WITH NOTES` - the same four hold, and the remaining work is captured in the
+  prompt above. The verdict answers whether closing the chat LOSES anything, and remaining work
   written down is not a loss.
 - `NOT SAFE TO ARCHIVE YET` - anything else, **including every case where the answer is merely
   unproven**. Uncommitted or unpushed changes, an untracked file worth keeping, work that should
@@ -152,7 +161,8 @@ remaining work. If the answer is the boring expected one, say nothing.
   worktree, and never offer to.
 - **Create or update no files** - no handoff file, session summary, timestamped note, project
   document, or tool-specific memory. Deliver all continuation context in the response so the same
-  handoff works in Claude Code and Codex. The one exception is a WAVE session that leaves
+  handoff works in Claude Code and Codex. Two exceptions: a finished phase's notes, which go into
+  its plan through a pull request as above, and a WAVE session that leaves
   meaningful work UNFINISHED: it opens a GitHub issue for it (what remains, why it matters, the
   `docs/GOALS.md` outcome it serves and what done means, with a priority and an area label) and
   links it from the pull request, because the orchestrator plans from Issues. Completed work

@@ -25,6 +25,9 @@ Task decomposition, size, dependencies, worker IDs and next work belong in the e
 wave/job/landing records. Oversized work is autonomously split there, never sent to the owner
 unless it reveals a real product/intent decision. `SPEC <record> AC-1,AC-2` and `SIZE standard`
 bind a wave row to acceptance without giving this ledger execution authority.
+A plan built phase by phase keeps a `## Phase notes` section: the pull request that lands a phase
+adds there what the next phase must allow for, decisions, traps and the check's findings
+(`docs/EDITOR_REBUILD_PLAN.md`). A note anywhere else does not survive the worktree.
 
 A reviewer records `review` with a full Git `revision`, `specSha256`, review-receipt `evidence`
 and one `criteria` entry per AC:

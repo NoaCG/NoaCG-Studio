@@ -332,8 +332,8 @@ its step rules and its shell rules share `draft.ts`, `WizardPreview` and `Creati
 throughout, so every candidate section binds both in `wizard/` and in `wizard/steps/` - and the
 files are not loose, they are already in `steps/`, where moving them deeper buys nothing. That
 chain had 1470 bytes free on 2026-09-02 with no move left in it. When relocation is exhausted the
-next lever is a DELETION, which is the owner's ruling to make: file the proposed cuts and what
-each loses as a `needs owner` issue rather than taking them.
+next lever is a DELETION, which is the owner's ruling to make: ask him about the proposed cuts and
+what each loses (`.agent-workflows/verify.md`, step 5) rather than taking them.
 
 ## Retiring one, and what a workflow actually costs
 
