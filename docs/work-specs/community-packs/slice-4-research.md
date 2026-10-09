@@ -264,6 +264,12 @@ In a conversation where the user never asked to share, the agent never mentions 
 
 ## The observed-request refusal (D5)
 
+**As built (2026-10-09):** a separate network bench, `src/validation/networkBench.ts`, rather than
+an option on `benchTemplateRuntime`. That bench reaches into a same-origin frame to measure
+layout, and on the admin's review row the code is a stranger's beside the admin's session; the
+network bench needs no measurement, so it drives the graphic over the preview's postMessage
+channel in a sandboxed frame. The policy, the listener and the phases are as below.
+
 **Where it goes:** into `benchTemplateRuntime` as an option, `refuseNetwork: true`. The bench
 puts a Content-Security-Policy meta first in the composed document's head (`default-src 'none'`,
 inline and eval scripts and styles allowed, `img-src`, `font-src` and `media-src` limited to
@@ -292,6 +298,9 @@ only (a regex is evaded by building a URL at runtime); turning the option on for
 (it would refuse live blocks where they are allowed).
 
 ## The Report link
+
+**As built (2026-10-09):** as below, plus one report per account while it waits, Reported
+counting accounts, and a Dismiss beside Take down for a pack the admin keeps (migration 0083).
 
 **Where it goes:** a quiet "Report" text button on every live shared card, after Install, for
 signed-in accounts; absent on seeds, on the maker's own packs and signed out. It opens the
