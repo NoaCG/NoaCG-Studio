@@ -249,3 +249,40 @@ test('a stretch design measures the same room whether or not the renderer offset
   expect(atOrigin, 'the fixture did not stretch at all - nothing was proven').toBe('143.2px');
   expect(await stretchAt(240), 'an offset stage changed how far the design stretches').toBe(atOrigin);
 });
+
+test('MEASUREMENT (temporary): what a shadow root would change for a graphic', async ({ page }) => {
+  await page.goto('/app');
+  const files = await ografFiles(page, { kind: 'catalog', name: 'Shadow Probe', html: '', css: '' });
+  const font = Object.keys(files).find((f) => f.endsWith('.woff2'));
+  await serveRenderer(page, { shadow: files });
+  const out = await page.evaluate(async ({ origin, font }) => {
+    await new Promise<void>((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = `${origin}/shadow/lib/gsap.min.js`;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('gsap'));
+      document.head.appendChild(s);
+    });
+    const gsap = (window as unknown as { gsap: { timeline(): { set(t: unknown, v: unknown): unknown }; set(t: unknown, v: unknown): unknown } }).gsap;
+    const host = document.createElement('div');
+    document.getElementById('stage')!.appendChild(host);
+    const root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = `<style>@font-face { font-family: 'ShadowProbe'; src: url('${origin}/shadow/${font}'); } .p { font-family: 'ShadowProbe'; }</style><div class="p">Probe</div><div class="q"></div>`;
+    gsap.timeline().set('.p', { x: 10 });
+    gsap.set('.q', { x: 10 });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const light = document.createElement('div');
+    light.className = 'r';
+    document.body.appendChild(light);
+    gsap.timeline().set('.r', { x: 10 });
+    return {
+      font,
+      timelineSelectorInShadow: getComputedStyle(root.querySelector('.p')!).transform,
+      gsapSetSelectorInShadow: getComputedStyle(root.querySelector('.q')!).transform,
+      timelineSelectorInLight: getComputedStyle(light).transform,
+      shadowFontFaceRegistered: Array.from(document.fonts as unknown as Iterable<FontFace>).some((f) => f.family.includes('ShadowProbe')),
+      shadowFontCheck: document.fonts.check("16px 'ShadowProbe'"),
+    };
+  }, { origin: ORIGIN, font });
+  console.log('SHADOW-MEASUREMENT', JSON.stringify(out));
+});
