@@ -53,8 +53,11 @@ import {
   waitVerdict,
   writeJob,
   readReviewStamp,
+  repricedAsBrowser,
   stampGap,
+  watchedForBrowser,
 } from './jobs-store.mjs';
+import { browserWorkBelow } from './e2e-runs.mjs';
 
 // Timestamps, because the schedule reads a weekday and an hour in Helsinki rather than an hour
 // on whatever machine runs the test. Wednesday 2026-10-07; Helsinki is UTC+3 in October.
@@ -246,6 +249,88 @@ test('one browser-driving job per machine, even in the full budget', () => {
   assert.equal(drivesBrowser(job('j-0001', { command: 'npm run build' })), false);
   assert.equal(drivesBrowser(walk('j-0001')), false);
   assert.equal(drivesBrowser(job('j-0001', { command: 'npx playwright test e2e/a.spec.ts' })), true);
+});
+
+/** A process-table row; `createdMs` follows the pid, so every parent is older than its child. */
+function proc(pid, ppid, name, command = name) {
+  return { pid, ppid, name, command, createdMs: pid };
+}
+
+/** The 2026-10-09 shape: the runner's shell, a wrapper script, Playwright under it, a browser. */
+const WRAPPED_BROWSER = [
+  proc(100, 1, 'cmd.exe', 'cmd.exe /d /s /c "node scripts/before-after.mjs"'),
+  proc(101, 100, 'node.exe', 'node scripts/before-after.mjs'),
+  proc(102, 101, 'node.exe', 'node C:/repo/node_modules/@playwright/test/cli.js test e2e/a.spec.ts'),
+  proc(103, 102, 'chrome-headless-shell.exe', 'chrome-headless-shell.exe --headless'),
+  // Somebody's own browser, not below the job.
+  proc(50, 1, 'chrome.exe', 'chrome.exe'),
+];
+
+test('a wrapper that launches a browser is priced light by its text and caught by its tree', () => {
+  // Reproduced: the command text prices it as light work, outside the browser slot.
+  const wrapper = job('j-0001', { command: 'node scripts/before-after.mjs', state: 'running', pid: 100, startedAt: NIGHT });
+  assert.equal(drivesBrowser(wrapper), false);
+  assert.equal(costOf(wrapper), COST.walk);
+  const atLightFloor = schedule([{ ...wrapper, state: 'waiting', pid: null }], { now: NIGHT, freeMemMb: 2500 });
+  assert.equal(atLightFloor.start.length, 1, 'light work is admitted at 2.5 GB free');
+
+  // The runner watches it, and its process tree says what the text did not.
+  assert.equal(watchedForBrowser(wrapper), true);
+  assert.deepEqual(browserWorkBelow([100], WRAPPED_BROWSER).map((p) => p.pid), [102, 103]);
+
+  // Re-queued as browser work: same place in the queue, the slot and the full floor now apply.
+  const repriced = repricedAsBrowser(wrapper);
+  assert.equal(repriced.state, 'waiting');
+  assert.equal(repriced.pid, null);
+  assert.equal(repriced.startedAt, null);
+  assert.equal(repriced.enqueuedAt, wrapper.enqueuedAt);
+  assert.equal(drivesBrowser(repriced), true);
+  assert.equal(costOf(repriced), COST.browser);
+  assert.equal(watchedForBrowser({ ...repriced, state: 'running', pid: 7 }), false, 'caught once, not again');
+  const held = schedule([repriced], { now: NIGHT, freeMemMb: 2500 });
+  assert.deepEqual(held.start, []);
+  assert.match(held.waiting[0].reason, /RAM free/);
+  const slot = schedule([job('j-0002', { state: 'running', pid: 9 }), repriced], { now: NIGHT, freeMemMb: PLENTY });
+  assert.match(slot.waiting[0].reason, /one browser-driving job per machine/);
+});
+
+test('a declared cost does not keep a job that launched a browser below the browser price', () => {
+  const declared = job('j-0001', { command: 'node scripts/before-after.mjs', state: 'running', pid: 100, cost: 0.4 });
+  assert.equal(costOf(repricedAsBrowser(declared)), COST.browser);
+});
+
+test('ordinary light work and plan-only Playwright are not browser work', () => {
+  // A plain `node --test` run stays light and finds nothing in its tree.
+  const unit = job('j-0001', { command: 'node --test scripts/x.test.mjs', state: 'running', pid: 100 });
+  assert.equal(costOf(unit), COST.other);
+  assert.equal(watchedForBrowser(unit), true);
+  const tests = [
+    proc(100, 1, 'cmd.exe'),
+    proc(101, 100, 'node.exe', 'node --test scripts/x.test.mjs'),
+    proc(102, 101, 'node.exe', 'node scripts/x.test.mjs'),
+    proc(103, 101, 'powershell.exe'),
+  ];
+  assert.deepEqual(browserWorkBelow([100], tests), []);
+  // Listing specs starts no browser.
+  const listing = [proc(100, 1, 'cmd.exe'), proc(101, 100, 'node.exe', 'node C:/r/node_modules/@playwright/test/cli.js test --list')];
+  assert.deepEqual(browserWorkBelow([100], listing), []);
+  // A known sweep under a wrapper is browser work before it opens its first page.
+  const sweep = [proc(100, 1, 'cmd.exe'), proc(101, 100, 'node.exe', 'node scripts/l3-sweep.mjs shots')];
+  assert.deepEqual(browserWorkBelow([100], sweep).map((p) => p.pid), [101]);
+  // A pid reused by an older stranger is not the job's child.
+  const recycled = [proc(100, 1, 'cmd.exe'), { ...proc(60, 100, 'chrome.exe'), createdMs: 1 }];
+  assert.deepEqual(browserWorkBelow([100], recycled), []);
+});
+
+test('the queued e2e entry points are priced as browser work by their text, as before, and not watched', () => {
+  for (const command of ['npm run test:e2e:affected:queued', 'npm run test:e2e:focus:queued', 'npm run test:e2e:queued -- e2e/a.spec.ts']) {
+    const queued = job('j-0001', { command, state: 'running', pid: 100 });
+    assert.equal(drivesBrowser(queued), true, command);
+    assert.equal(costOf(queued), COST.browser, command);
+    assert.equal(watchedForBrowser(queued), false, command);
+  }
+  assert.equal(watchedForBrowser(merge('j-0002', { state: 'running', pid: 100 })), false, 'a landing is never watched');
+  assert.equal(watchedForBrowser(job('j-0003', { command: 'npm run build' })), false, 'a waiting job has no tree');
 });
 
 test('a running suite occupies the whole modest budget', () => {

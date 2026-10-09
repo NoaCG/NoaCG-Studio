@@ -102,7 +102,7 @@ Jobs are weighted in **suite-equivalents**, because counting them was the crude 
 
 | job | cost | why |
 |---|---|---|
-| e2e suite, sweep, bench, or anything queued `--kind sweep` | **1.0** | a dev server plus four browser workers; two at once measured 34 browser processes, 93% CPU, under 2 GB free |
+| e2e suite, sweep, bench, anything queued `--kind sweep`, or any job seen launching a browser | **1.0** | a dev server plus four browser workers; two at once measured 34 browser processes, 93% CPU, under 2 GB free |
 | anything unrecognised | **0.5** | assumed to be a dev server and ONE browser page - see the asymmetry below |
 | `npm run build` | **0.75** | no browser, but measured at 2.8 GB peak against a browser run's 3.8 (2026-10-09) |
 | `node --test`, lint, `tsc`, `check:*` | **0.4** | CPU, little RAM, no browser |
@@ -116,7 +116,10 @@ number is the RAM admission threshold: left open, a job could waive that check o
 
 Heavy work is classified by `command-match.mjs` - the repo's ONE named list of what starts
 browser work, read by the guard hook and the process detector too, so a script that is heavy here
-is heavy everywhere rather than in a second opinion that can drift.
+is heavy everywhere rather than in a second opinion that can drift. Command text cannot see
+through a wrapper, so the runner also reads each running light job's process tree every 15 s: a
+job with a browser, a Playwright test run or a known sweep below it is stopped and re-queued as
+`--kind sweep`, keeping its place, so the browser slot and the full floor apply.
 
 **The asymmetry decides the default, and it cuts both ways.** Charging an expensive job too little
 puts two dev servers and eight browser workers on a 16 GB laptop. Charging a cheap one too much

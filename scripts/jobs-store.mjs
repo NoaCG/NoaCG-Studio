@@ -104,7 +104,8 @@ export function hasFlag(args, name) {
  * and the RAM floor is the physical backstop that stops the second slice starting on a box that
  * cannot take it. Work OUTSIDE the queue is still charged a full suite each (`capacity`), because
  * nothing can measure it. Work the repo KNOWS drives a browser is held to one at a time on top of
- * all this (`drivesBrowser`); an unknown command is priced like a page but not held to the slot.
+ * all this (`drivesBrowser`); an unknown command is priced like a page but not held to the slot
+ * until the runner sees it launch a browser (`watchedForBrowser`).
  */
 /*
  * `build` IS MEASURED, 2026-10-09: `npm run build` peaked at 2.8 GB of working set across 62
@@ -659,13 +660,36 @@ export function agentSessions({
  * deadlock). A targeted one-spec run measured 3.8 GB on its own, so two at once would also be the
  * memory wall. A landing never counts, and an unrecognised command is priced as one page but not
  * held here: holding every unknown node script to the browser slot would serialize cheap work on
- * a guess.
+ * a guess. One that does launch a browser is caught running and re-queued (`watchedForBrowser`).
  */
 export function drivesBrowser(job) {
   if (job.kind === 'merge') return false;
   if (job.kind === 'sweep') return true;
   const command = job.command ?? '';
   return invokesE2e(command) || invokesSweep(command);
+}
+
+/**
+ * Is this running job one the runner must watch for a browser? Everything priced below the
+ * browser slot: the command text is a guess, and a wrapper (`node some-script.mjs` that starts
+ * Playwright) passes it as light work. A landing is never watched, as it is never held.
+ */
+export function watchedForBrowser(job) {
+  return job.state === 'running' && Boolean(job.pid) && job.kind !== 'merge' && !drivesBrowser(job);
+}
+
+/**
+ * The record for a light job caught launching a browser (`browserWorkBelow` in e2e-runs.mjs): back
+ * to waiting as declared browser work, so the browser slot and the full floor admit it next time.
+ *
+ * IT KEEPS ITS PLACE IN THE QUEUE (`enqueuedAt` is untouched): it was admitted once in good faith
+ * and only the price was wrong. A declared `--cost` goes, because it priced a browser below its
+ * floor and no declaration is above one browser.
+ */
+export function repricedAsBrowser(job) {
+  const record = { ...job, kind: 'sweep', state: 'waiting', startedAt: null, pid: null };
+  delete record.cost;
+  return record;
 }
 
 /**

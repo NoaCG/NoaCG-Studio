@@ -37,7 +37,7 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SWEEP_SCRIPTS } from './command-match.mjs';
+import { SWEEP_SCRIPTS, isPlanOnly } from './command-match.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -643,6 +643,23 @@ export function descendantsOf(pids, processes) {
     }
   }
   return [...found.values()];
+}
+
+/**
+ * The browser work running below `pids`: a browser process, a Playwright test CLI that is doing
+ * more than listing, or a known sweep. What the job queue asks of a job it priced as light work.
+ *
+ * A COMMAND'S TEXT CANNOT SAY WHAT IT WILL LAUNCH. `node scripts/before-after.mjs` that spawns
+ * `npx playwright test` reads as an ordinary node script, and on 2026-10-09 one was admitted as
+ * light work at 1.7 GB free, under the 4 GB a browser job is held to. Its process tree tells the
+ * truth whatever the wrapper is called. Matching by what is RUNNING also keeps ordinary node
+ * scripts out: one that opens no browser has nothing here to find.
+ */
+export function browserWorkBelow(pids, processes) {
+  return descendantsOf(pids, processes).filter((p) =>
+    BROWSER.test(p.name ?? '')
+    || (RUNNER.test(p.command ?? '') && !isPlanOnly(p.command))
+    || SWEEP.test(p.command ?? ''));
 }
 
 /**

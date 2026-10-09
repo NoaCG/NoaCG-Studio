@@ -190,7 +190,7 @@ export function commandSegments(text) {
  * list for the same reason and one more: it is what a session types after the planner has just
  * REFUSED an unrecognised flag, so blocking it would answer a refusal with a second refusal.
  */
-function isPlanOnly(segment) {
+export function isPlanOnly(segment) {
   return /(?:^|\s)--(?:list|json|help)(?:\s|$)/.test(segment);
 }
 
