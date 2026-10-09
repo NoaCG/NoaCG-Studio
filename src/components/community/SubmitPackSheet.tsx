@@ -113,17 +113,17 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
       ) : (
         <>
           {!from && (
-          <label className="wz-submit-field">
-            <span>Graphics from</span>
-            <select value={sourceId} onChange={(e) => pick(e.target.value)} data-testid="submit-pack-source">
-              {!source && <option value="">Choose…</option>}
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.kind === 'folder' ? 'Folder' : 'Production'}: {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="wz-submit-field">
+              <span>Graphics from</span>
+              <select value={sourceId} onChange={(e) => pick(e.target.value)} data-testid="submit-pack-source">
+                {!source && <option value="">Choose…</option>}
+                {sources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.kind === 'folder' ? 'Folder' : 'Production'}: {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
           <ul className="wz-submit-graphics" aria-label="Graphics in the pack">
             {source?.graphics.map((g) => (

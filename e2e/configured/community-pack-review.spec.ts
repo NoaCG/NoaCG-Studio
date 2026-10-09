@@ -60,6 +60,14 @@ async function openHomeGraphics(page: Page): Promise<void> {
   await page.goto('/app#/home/graphics');
   await page.reload();
   await expect(page.getByTestId('home-page')).toBeVisible();
+  await declineConsent(page);
+}
+
+/** The optional-analytics banner sits over the lower cards and the bulk bar; decline it so it
+ *  covers nothing. */
+async function declineConsent(page: Page): Promise<void> {
+  const consent = page.getByTestId('analytics-consent');
+  if (await consent.isVisible()) await consent.getByRole('button', { name: 'No thanks' }).click();
 }
 
 /** How many graphics each of this browser's productions of that name holds, fewest first. */
@@ -85,9 +93,7 @@ async function openShelf(page: Page): Promise<void> {
   await page.locator('[data-entry="template"]').click();
   await page.getByTestId('wz-buildmode').locator('[data-build-mode="community"]').click();
   await expect(page.getByTestId('community-packs')).toBeVisible();
-  // The optional-analytics banner sits over the lower cards; decline it so it covers nothing.
-  const consent = page.getByTestId('analytics-consent');
-  if (await consent.isVisible()) await consent.getByRole('button', { name: 'No thanks' }).click();
+  await declineConsent(page);
 }
 
 test.describe('community pack review (configured)', () => {

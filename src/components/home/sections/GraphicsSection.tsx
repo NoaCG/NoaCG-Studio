@@ -105,7 +105,6 @@ export default function GraphicsSection({
   // The shelf's own door (CommunityPacks.tsx): a real account, never the offline `signedIn`.
   const canSubmitPack = auth.backendConfigured && auth.signedIn;
   const [submitting, setSubmitting] = useState<LibrarySource | null>(null);
-  const [bulkMenuOpen, setBulkMenuOpen] = useState(false);
   // Cards or table. Device-level and remembered (model/prefs.ts) — which one is right
   // depends on the library's size and the screen, so it is a setting, not a session state.
   const [view, setViewState] = useState<'grid' | 'list'>(() => loadPrefs().libraryView);
@@ -440,6 +439,7 @@ export default function GraphicsSection({
   const graphicsIn = (folder: string) => typed.filter((g) => g.folder === folder);
 
   const showFolders = !flat && folderFilter === null;
+  const selectionSubmit = submitItem(selectedListed);
 
   return (
     <>
@@ -782,17 +782,8 @@ export default function GraphicsSection({
 
           {/* An overflow for the selection whose one item is the share verb (owner, #797): drawn
               only for an account that may submit, so for everyone else the bar is unchanged. */}
-          {submitItem(selectedListed).length > 0 && (
-            <RowMenu
-              items={submitItem(selectedListed)}
-              label="More actions for the selection"
-              open={bulkMenuOpen}
-              onOpenChange={(next) => {
-                setBulkMenuOpen(next);
-                if (next) { setProdOpen(false); setFolderOpen(false); }
-              }}
-              testid="bulk-more"
-            />
+          {selectionSubmit.length > 0 && (
+            <RowMenu items={selectionSubmit} label="More actions for the selection" testid="bulk-more" />
           )}
 
           <button onClick={clearSelection} title="Clear the selection" data-testid="bulk-clear">✕</button>
@@ -804,6 +795,7 @@ export default function GraphicsSection({
           from={submitting}
           onClose={() => setSubmitting(null)}
           onSent={(name) => {
+            if (submitting.source.kind === 'selection') clearSelection();
             setSubmitting(null);
             setNote(`✓ Sent "${name}" for review. Its status is in Your packs on the Community packs shelf.`);
           }}
