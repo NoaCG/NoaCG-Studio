@@ -90,8 +90,8 @@ Take.
 
 ## Verification
 
-- The older-design rule and the stamp in Node (`scripts/payload-version.test.mjs`).
-- Configured e2e with two members on a local stack (`e2e/configured/publish-guard.spec.ts`):
-  AC-1, AC-2 at the same moment, AC-3, AC-4.
-- The refresh in an offline spec where it can run without a backend.
+- The older-design rule and the stamp in Node (`scripts/readiness.test.mjs`).
+- Configured e2e on a local stack (`e2e/configured/publish-guard.spec.ts`): two members for AC-1
+  and AC-3; on one page, a newer design forged onto the published row for AC-4, and a publish
+  forged between the page's read and its write for AC-2 at the same moment.
 - `/check`, then `/queue-merge`.

@@ -16,7 +16,7 @@ import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/sho
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import type { ResolvedValues } from '../model/productionData';
-import { loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
@@ -31,7 +31,7 @@ import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, logTopic, 
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
 import { noteSend, withSender } from './livePath';
-import { graphicDigest, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
+import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
 import {
@@ -537,12 +537,24 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   if (!sb) return null;
   const raw = await buildOutputPayload(show, library);
   const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
-  // THE VERSION STAMP (payloadVersion.ts): the previous stamp's number, read as ONE field so the
+  // THE VERSION STAMP (payloadVersion.ts): the previous stamp, read as ONE field so the
   // multi-megabyte payload is not downloaded to learn it. A production published for the first
-  // time, or last published before stamps existed, starts at 1. A read that fails decides nothing
-  // worse than the label.
+  // time, or last published before stamps existed, starts at 1. The write below lands only on this
+  // same version (the publish guard, docs/work-specs/publish-guard/spec.md G4), so a read that
+  // fails stops the publish.
   const previous = await sb.from('control_shows').select('ver:output->ver').eq('id', show.id).maybeSingle();
-  const version = await stampPayload(built, readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver));
+  if (previous.error) throw new Error(previous.error.message);
+  const held = readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver);
+  const edited = Object.fromEntries(show.graphics.map((g) => [g.name, designEditedAt(g, library)]));
+  const version = await stampPayload(built, held, undefined, edited);
+  // NEVER AN OLDER DESIGN (G3): this page's copy of a graphic is older than the one on air - a
+  // second device not yet synced, or a teammate whose production has not received the newer copy.
+  const older = olderDesigns(version, held);
+  if (older.length) {
+    const one = older.length === 1;
+    throw new Error(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this page's copy. Reload this page to get ${one ? 'it' : 'them'}.`);
+  }
+  const expected: ExpectedVersion = { exists: !!previous.data, n: held?.n ?? null };
   const output: OutputPayload = { ...built, ver: version };
   // The upsert names only the columns it owns, which is what keeps `audience_state` (0035) —
   // open/mode/prompt/round/rev, all of it live operator state — from being reset by a
@@ -580,7 +592,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // the SET makes Postgres lock the existing row FOR UPDATE, which blocks every Take's KEY SHARE on
   // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
   // KEY UPDATE, which a Take passes (migration 0071, review finding ordering:F1).
-  const error = await writeControlShow(sb, published);
+  const error = await writeControlShow(sb, published, expected);
   // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
   // would take the panel, the payload and the bindings down with it — every publish failing for
@@ -589,9 +601,11 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // already follows, stated there as "publishing a production must not start failing because an
   // instance has not run the latest migration", and the retry is the cheapest way to hold it: one
   // extra round trip, only on the instances that need it, and only until they are migrated.
+  if (error === 'moved') throw new PublishRaced();
   if (error) {
     const { profile: _dropped, ...withoutProfile } = published;
-    const retry = await writeControlShow(sb, withoutProfile);
+    const retry = await writeControlShow(sb, withoutProfile, expected);
+    if (retry === 'moved') throw new PublishRaced();
     // The retry failing means the error was never about this column — report the ORIGINAL, which
     // is the one that describes what is actually wrong.
     if (retry) throw new Error(error.message);
@@ -649,27 +663,48 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   };
 }
 
+/** Another page published between this publish's read of the version and its write
+ *  (docs/work-specs/publish-guard/spec.md G4). Nothing was written; the caller pulls the latest
+ *  record and publishes again. */
+export class PublishRaced extends Error {
+  constructor() {
+    super('Another page published at the same moment. Publish again.');
+  }
+}
+
+/** The published version a write may land on: no row yet, or the row as read, by its stamp's
+ *  number (null: published before stamps). */
+interface ExpectedVersion {
+  exists: boolean;
+  n: number | null;
+}
+
 /**
- * Write a published row by id: update it where it exists, insert it where it does not, and update
- * again if another publish inserted it in between (unique violation). Answers the error that
- * describes the failure, or null. The columns are exactly the ones given; `id` is the address and
- * is never in the update's SET, so the row lock is NO KEY UPDATE.
+ * Write a published row by id, only over the version `expected` names: update it where it exists,
+ * insert it where it does not. Answers the error that describes the failure, `'moved'` when the
+ * row is no longer the version read (another publish landed first), or null. The columns are
+ * exactly the ones given; `id` is the address and is never in the update's SET, so the row lock is
+ * NO KEY UPDATE. The condition is a filter on the stamp inside the payload, so no migration.
  */
 async function writeControlShow(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   row: { id: string } & Record<string, unknown>,
-): Promise<{ message: string; code?: string } | null> {
+  expected: ExpectedVersion,
+): Promise<{ message: string; code?: string } | 'moved' | null> {
   const { id, ...columns } = row;
-  const update = async () => sb.from('control_shows').update(columns).eq('id', id).select('id');
-  const first = await update();
-  if (first.error) return first.error;
-  if ((first.data ?? []).length > 0) return null;
+  if (expected.exists) {
+    const update = sb.from('control_shows').update(columns).eq('id', id);
+    const landed = await (expected.n === null ? update.is('output->ver', null) : update.eq('output->ver->>n', String(expected.n))).select('id');
+    if (landed.error) return landed.error;
+    return (landed.data ?? []).length > 0 ? null : 'moved';
+  }
   const inserted = await sb.from('control_shows').insert(row);
   if (!inserted.error) return null;
   if (inserted.error.code !== '23505') return inserted.error;
-  const again = await update();
-  if (again.error) return again.error;
-  return (again.data ?? []).length > 0 ? null : inserted.error;
+  // Taken: by a publish that inserted first, or by a row this account cannot see, which no retry
+  // can fix, so that one keeps its own error.
+  const seen = await sb.from('control_shows').select('id').eq('id', id).maybeSingle();
+  return seen.data ? 'moved' : inserted.error;
 }
 
 /**

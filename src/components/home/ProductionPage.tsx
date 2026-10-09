@@ -20,6 +20,7 @@ import {
   setShowOutputSlug,
   setShowOutputSetup,
   setShowProfile,
+  refreshGraphicCopies,
   updateShowCue,
   updateShowCueChecked,
   playoutItemOf,
@@ -187,6 +188,7 @@ import {
   controlPingSeq,
   outputPageUrl,
   publishControlShow,
+  PublishRaced,
   sendControlVerbs,
   staleSentence,
   takeCueItems,
@@ -2630,7 +2632,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
       // Started before this press: then this is a re-publish, and open outputs are asked to prepare.
       const wasStarted = !!current?.hostedSlug;
-      const published = current ? await publishControlShow(current) : null;
+      // THE PUBLISH GUARD (docs/work-specs/publish-guard/spec.md): a team production is pulled to
+      // its latest record, this page's newer designs are copied into the record and saved, and the
+      // payload is built from that. A teammate who published in between is pulled in once more.
+      const publishLatest = async () => {
+        for (let attempt = 0; ; attempt += 1) {
+          const team = !!loadShows().find((s) => s.id === show.id)?.teamId;
+          if (team) await refreshTeams();
+          const library = loadGraphics();
+          const refreshed = refreshGraphicCopies(show.id, (g) => resolveSavedGraphicDoc(g, library));
+          setShows(refreshed.shows);
+          if (refreshed.error) throw new Error(refreshed.error);
+          // A team save that fails does not stop the publish (G2): an older design is still refused.
+          if (team) await flushTeamProduction(show.id);
+          else {
+            const failure = await commitDurableWrites();
+            if (failure) throw new Error(failure);
+          }
+          const latest = loadShows().find((s) => s.id === show.id);
+          if (!latest) return null;
+          try {
+            return await publishControlShow(latest);
+          } catch (e) {
+            if (!(e instanceof PublishRaced) || attempt > 0) throw e;
+          }
+        }
+      };
+      const published = current ? await publishLatest() : null;
       if (published) {
         setShowHostedSlug(show.id, published.slug);
         // The audience capabilities are minted by the database and read back, never chosen
