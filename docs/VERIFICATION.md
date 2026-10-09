@@ -61,15 +61,18 @@ every laptop are all good reasons. What is not fine is a gate outside the build 
 because that gate protects nothing while looking exactly like one that does.
 
 There is **no application unit-test suite**; focused Node tests cover infrastructure scripts.
-Verify product changes with `npm run build` plus in-browser checks; never mark work done on a green
-build alone if the behaviour is observable.
+Verify product changes with targeted checks plus in-browser checks (`.agent-workflows/verify.md`);
+the full build and the browser suites run on GitHub Actions. Never mark work done on green checks
+alone if the behaviour is observable.
 
 ## E2E is TIERED
 
 `npm run test:e2e:affected` maps changed files to covering specs (`scripts/e2e-affected.mjs`) and
 is both the inner loop AND what CI runs per change - except on **`main`, which always runs the FULL
 suite** (a spec no change maps to is never selected, so it can sit red through green run after
-green run - measured, eight of them), and NIGHTLY.
+green run - measured, eight of them), and NIGHTLY. Off CI it refuses a whole-suite plan (a full or
+focus escalation, or `--all`) and leaves the catalog gate to CI; the job queue refuses
+`npm run test:e2e` with no spec named. Locally, name the one or two specs that cover the change.
 
 **During the student-release sprint, `npm run test:e2e:focus` is THE student-critical suite
 command** (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs

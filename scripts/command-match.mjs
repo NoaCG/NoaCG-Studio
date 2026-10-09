@@ -242,6 +242,44 @@ export function invokesE2e(text) {
 }
 
 /**
+ * Why a whole-suite run is refused on this machine, and what to run instead. One text for both
+ * refusals: the job queue's (`runsWholeSuite` below) and the planner's (`localRunPolicy` in
+ * scripts/e2e-affected.mjs).
+ */
+export const WHOLE_SUITE_ON_GITHUB = [
+  'Refused: the whole browser suite runs on GitHub Actions, not on this machine. CI runs it on the',
+  'pull request and again on the merge group, and the machine has to stay responsive for everything',
+  'else running on it.',
+  '  Run the one or two specs that cover your change:  npm run queue -- "npm run test:e2e -- e2e/<name>.spec.ts"',
+  '  Candidates:  node scripts/e2e-affected.mjs --list --files <changed paths>',
+  '  A risky change or a CI failure to reproduce may name a larger set of specs, never the whole suite.',
+].join('\n');
+
+/** The two package scripts and the bare Playwright call that run the default config. */
+const DEFAULT_SUITE_ENTRY = /^(?:(?:(?:npm|pnpm)\s+(?:run\s+)?|yarn\s+)test:e2e(?::queued)?|(?:npx\s+)?playwright\s+test)(?=\s|$)/;
+/** Flags that narrow a run, or point it at another config, so it is not the whole default suite. */
+const NARROWS_RUN = /^(?:-g|--grep|--last-failed|--only-changed|-c|--config|--list|--help)(?:=|$)/;
+
+/**
+ * Does this command run the WHOLE offline suite: Playwright on its default config with nothing
+ * naming specs or narrowing it? `npm run test:e2e`, `npm run test:e2e:queued` and
+ * `npx playwright test` with no file, grep or config argument. The job queue refuses these
+ * (scripts/jobs.mjs `add`); the affected planner refuses its own whole-suite plans at run time,
+ * because only it knows what a diff escalates to.
+ *
+ * A token that is not a flag is a file filter. That reads `--workers 2` as narrowed too, which errs
+ * toward letting a run through: the refusal is for the plain spelling, not an adversary.
+ */
+export function runsWholeSuite(text) {
+  return invocationParts(text).some((part) => {
+    const entry = DEFAULT_SUITE_ENTRY.exec(part);
+    if (!entry) return false;
+    const rest = part.slice(entry[0].length).trim().split(/\s+/).filter((t) => t && t !== '--');
+    return !rest.some((t) => !t.startsWith('-') || NARROWS_RUN.test(t));
+  });
+}
+
+/**
  * Does this command start a catalog sweep or a bench? They cost the same memory as a suite, so
  * they belong in the same mutual exclusion - the guard used to serialise suite-against-suite and
  * then let a sweep start alongside one, which costs exactly as much.

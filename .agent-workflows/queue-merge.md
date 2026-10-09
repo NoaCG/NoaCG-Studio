@@ -11,9 +11,9 @@ so only the session that owns the branch queues it.
 
 ## 1. Be finished
 
-- Everything is committed, `npm run build` is green on the tip, and `/check` has stamped that tip.
-  `add-merge` refuses a tip the stamp does not cover or whose verdict is not a pass, whichever
-  agent did the work. Landing without a review is possible only visibly:
+- Everything is committed and `/check` has stamped the tip with its targeted checks passing; the
+  full build and the browser suites run on the pull request's CI, not here. `add-merge` refuses a
+  tip the stamp does not cover or whose verdict is not a pass, whichever agent did the work. Landing without a review is possible only visibly:
   `npm run queue:merge -- --unreviewed "<reason>"`.
 - If the branch finishes a GitHub issue, put `Closes #<n>` on its own line in a commit message:
   queueing copies it into the pull request, and GitHub closes the issue when the branch lands. A
@@ -50,12 +50,14 @@ Claude desktop app, right after queueing: bind the pull request to the session i
 (`ccd_pr bind_pr`), then turn Auto-fix on (`ccd_pr set_monitor` with `auto_fix` and
 `address_comments` true). It wakes the session that owns the branch on a CI failure, a merge
 conflict or a review comment. It is not a merge permission: never turn auto-merge on through it,
-since landing stays the queue's. A tool without these (Codex, a cloud session) says in its report
-that nothing watches the pull request.
+since landing stays the queue's. A wave row has no Auto-fix: its orchestrator reads
+`npm run jobs -- failed` and sends the row its failure. Any other tool without these (Codex, a
+cloud session) says in its report that nothing watches the pull request.
 
 **On a CI failure, repair it yourself, within the pull request's scope.** Read the failed job's
-whole log (the failing step's summary is often not where the error is), reproduce it, fix the
-cause, run the failing check locally where it can run, `/check`, and queue again. At most three
+whole log (`gh run view <run> --log-failed`; the failing step's summary is often not where the
+error is), reproduce it with the failing check or specs (never the whole suite), fix the cause,
+`/check`, and queue again. At most three
 repair attempts per failure; then stop and report what failed, what was tried and why it did not
 hold. Never disable a check, skip or weaken a test, or re-record a baseline only to make a run
 green: a re-record is for a change of look or finding that was meant. Ask the owner only when the
@@ -67,9 +69,8 @@ fix needs a product decision or a change well outside the pull request's scope.
 - **A conflict with `main`:** in the branch's own worktree, `git merge origin/main`. Regenerate
   every generated file with its generator rather than trusting the merged text (for example
   `npm run contracts:compile`). Resolve mechanical conflicts yourself; hand a conflict about
-  meaning to a fresh agent session with both sides' intent. Then build, run
-  `npm run test:e2e:integration` so both sides are covered from the fork point, `/check`, and queue
-  again.
+  meaning to a fresh agent session with both sides' intent. Then `/check` with targeted checks and
+  queue again: CI plans the e2e run from the fork point, so it covers both sides.
 - A landing that reached no verdict (killed at its cap, the runner gone, CI with no result) is
   retried once automatically; a verdict the queue reached is never retried behind anyone's back.
 - `npm run jobs` shows each branch's state (`QUEUED`, `LANDED`, `LANDING FAILED` with the refusal).

@@ -23,6 +23,7 @@ import {
   unfinishedRun,
   pushReplacedNotice,
   requiresRunningDevServer,
+  runsWholeSuite,
   startsDevServer,
   SWEEP_SCRIPTS,
 } from './command-match.mjs';
@@ -841,4 +842,40 @@ test('pushReplacedNotice tells a cancelled push and a cancelled dispatch opposit
   const noEvent = pushReplacedNotice({ ...where, run: { databaseId: 44, status: 'in_progress' } });
   assert.match(noEvent, /cannot be narrower than the push run it replaced/);
   assert.match(noEvent, /never finished \(in_progress\)/);
+});
+
+test('the job queue refuses the WHOLE default suite and lets one or two named specs through', () => {
+  // The whole suite runs on GitHub Actions; on this machine it starved the memory another row's
+  // Docker needed. These are the plain spellings of it, as a queued job's command.
+  for (const cmd of [
+    'npm run test:e2e',
+    'npm run test:e2e --',
+    'npm run test:e2e:queued',
+    'npm run test:e2e -- --reporter=list',
+    'npx playwright test',
+    'playwright test --workers=2',
+    'set E2E_WORKERS=3&& npm run test:e2e',
+    'bash -c "npm run test:e2e"',
+  ]) {
+    assert.ok(runsWholeSuite(cmd), `whole suite: ${cmd}`);
+  }
+  // A targeted run is what verification on this machine is now, so it must never be caught.
+  for (const cmd of [
+    'npm run test:e2e -- e2e/project.spec.ts',
+    'npm run test:e2e -- e2e/project.spec.ts e2e/wizard.spec.ts',
+    'npm run test:e2e:queued -- e2e/project-format.spec.ts',
+    'npx playwright test competition-pack.spec.ts',
+    'npx playwright test --grep "saves a project"',
+    'npx playwright test -g=autosave',
+    'npx playwright test --last-failed',
+    'npx playwright test --list',
+    'npm run test:e2e:catalog',
+    'npm run test:e2e:live:queued -- imported-quiz-output',
+    'npx playwright test --config=playwright.catalog.config.ts',
+    // The planner is not judged by its command line: it refuses its own whole-suite plans.
+    'npm run test:e2e:affected',
+    'grep -n "npm run test:e2e" AGENTS.md',
+  ]) {
+    assert.ok(!runsWholeSuite(cmd), `targeted or not a suite: ${cmd}`);
+  }
 });

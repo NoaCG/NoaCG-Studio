@@ -26,6 +26,7 @@ import {
   copyContext,
   headIsMainMerge,
   integrationBase,
+  localRunPolicy,
   packShards,
   parseArgs,
   planFor,
@@ -1550,4 +1551,22 @@ test('copy path: the scanner reads every .tsx in src exactly as the TypeScript p
     }
     assert.deepEqual(got.sort(), want.sort(), file);
   }
+});
+
+test('off CI a whole-suite plan is refused, and a one- or two-spec plan runs', () => {
+  const two = { mode: 'subset', specs: ['project.spec.ts', 'wizard.spec.ts'], catalog: false };
+  for (const plan of [{ ...two, specs: ['project.spec.ts'] }, two]) {
+    const here = localRunPolicy(plan);
+    assert.equal(here.refusal, null);
+    assert.deepEqual(runsFor({ ...plan, catalog: here.catalog }), [
+      { name: 'suite', args: ['playwright', 'test', ...plan.specs] },
+    ]);
+  }
+  // The whole suite, and the focus set an escalation collapses to, go to GitHub Actions.
+  for (const plan of [{ mode: 'full', specs: [], catalog: true }, { mode: 'subset', specs: ['a.spec.ts'], focusApplied: true }]) {
+    assert.match(localRunPolicy(plan).refusal, /runs on GitHub Actions/);
+  }
+  // The catalog gate is a whole-catalog run: left to CI here, kept on CI.
+  assert.equal(localRunPolicy({ ...two, catalog: true }).catalog, false);
+  assert.deepEqual(localRunPolicy({ mode: 'full', specs: [], catalog: true }, { ci: true }), { refusal: null, catalog: true });
 });

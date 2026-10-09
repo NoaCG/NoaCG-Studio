@@ -2,6 +2,7 @@
 // THE BUILD'S GATES, DISCOVERED - not enumerated on one line of package.json.
 //
 //   node scripts/gates.mjs run [--gate build|factory|after-build] [--only checks|tests]   # what the build line calls
+//   node scripts/gates.mjs run --changed origin/main      # only the gates that reach this branch's changes
 //   node scripts/gates.mjs list [--gate <tier>] [--changed <ref>] [--json]                # what would run, and why
 //   node scripts/gates.mjs audit                                                          # are the declarations honest
 //
@@ -761,13 +762,20 @@ function main(argv) {
   }
 
   const { checks, tests } = loadAll();
+  const ref = flags.get('--changed');
+  const changed = typeof ref === 'string' ? changedFiles(ref) : null;
   const inTier = (g) => g.header.gate === tier;
-  const tierChecks = checks.filter(inTier);
-  const tierTests = tests.filter(inTier);
+  // `run --changed` is the targeted local check: the gates that reach the changed paths, where the
+  // build and CI run every gate. The narrowed tier may honestly be empty, which `list` explains.
+  const reached = (g) => command !== 'run' || !changed || guardsHit(guardsOf(g), changed);
+  const tierChecks = checks.filter((g) => inTier(g) && reached(g));
+  const tierTests = tests.filter((g) => inTier(g) && reached(g));
+  if (command === 'run' && changed && tierChecks.length + tierTests.length === 0) {
+    console.log(`[gates] no ${tier} gate reaches the ${changed.length} changed path(s) since ${ref}.`);
+    return 0;
+  }
 
   if (command === 'list') {
-    const ref = flags.get('--changed');
-    const changed = typeof ref === 'string' ? changedFiles(ref) : null;
     const rows = gatesFor([...tierChecks, ...tierTests], changed ?? []);
     if (flags.has('--json')) {
       console.log(JSON.stringify(rows.map((g) => ({ kind: g.kind, name: g.name, entry: g.entry, gate: g.header.gate, guards: guardsOf(g), hit: changed ? g.hit : undefined })), null, 2));
@@ -787,7 +795,7 @@ function main(argv) {
       return 2;
     }
     let failed = [];
-    if (only !== 'tests') {
+    if (only !== 'tests' && !(changed && tierChecks.length === 0)) {
       const empty = emptyPopulation(tier, 'checks', tierChecks.length);
       if (empty?.fatal) {
         process.stderr.write(empty.line);
@@ -800,13 +808,13 @@ function main(argv) {
       console.error(`\n[gates] ${failed.length} check(s) failed: ${failed.join(', ')}${only === 'checks' ? '' : ' - tests not run'}`);
       return 1;
     }
-    if (only === 'checks') return 0;
+    if (only === 'checks' || (changed && tierTests.length === 0)) return 0;
     const status = runTests(tierTests.map((t) => t.entry), tier);
     if (status !== 0) console.error(`\n[gates] tests failed (exit ${status})`);
     return status;
   }
 
-  console.error('usage: gates.mjs run [--gate build|factory|after-build] [--only checks|tests] | list [--gate <tier>] [--changed <ref>] [--json] | audit');
+  console.error('usage: gates.mjs run [--gate build|factory|after-build] [--only checks|tests] [--changed <ref>] | list [--gate <tier>] [--changed <ref>] [--json] | audit');
   return 2;
 }
 

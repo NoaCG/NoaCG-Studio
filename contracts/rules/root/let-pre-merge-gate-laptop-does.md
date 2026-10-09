@@ -3,7 +3,7 @@ v: 1
 scope: .agent-workflows/queue-merge.md, .agent-workflows/check.md
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/root/2026-09-07-let-pre-merge-gate-laptop-does.md
 ---
