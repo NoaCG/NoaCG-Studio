@@ -706,8 +706,10 @@ against the reference editors found. Only what the next phase needs; order and a
   guards and executed SPX/CasparCG/OGraf browser outputs. Independent scoreboard retains
   its operator machine. Three viewport captures remain engineering evidence.
 - Preserve non-executable script tags in HTML. Imported file Finish now reuses the existing
-  artwork editor door and byte-preserving applier. CSS appearance writes use the last exact
-  top-level duplicate rule; existing readers and nested/unrelated rules stay intact.
+  artwork editor door and byte-preserving applier. Existing CSS declarations are edited
+  where effective across repeats, retaining important priority; new declarations stay in
+  the first owned rule for anchor/group readers. Nested/unrelated rules stay intact.
+  OGraf retains inert head/body data inside its scoped DOM, using the import classifier.
 - Custom non-field HTML spans remain outside visual target discovery. Retain their source
   and refuse edits honestly; no general HTML conversion or new document model.
 - Pinned VectorCraft v0.4.0 executed comparable import/edit/history/native reopen. It has no

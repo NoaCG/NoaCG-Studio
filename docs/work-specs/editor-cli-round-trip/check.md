@@ -2,7 +2,7 @@
 
 Branch: codex/editor-cli-round-trip. Original review base: 00767d2e131d86e1c74cc368a2b47dbdda8d1c6e.
 
-Review: inline, one confirmed finding fixed. The first repeated-selector fix
+Review: inline, two confirmed findings fixed. The first repeated-selector fix
 could still lose to an earlier important declaration, or patch the first of
 multiple declarations in one rule. j-4010 reproduced it; the final writer patches
 the effective declaration and keeps important priority. j-4014 passed 8/8 tests.
@@ -23,7 +23,7 @@ to captures, source/asset hashes, refusals and executed output actions.
 Pinned working VectorCraft comparison passed; post-landing independent repeat
 and CI/deployment results will be recorded on the pull request.
 
-All 34 scoped files below were reviewed, including ZIP inventories/bytes,
+All 35 scoped files below were reviewed, including ZIP inventories/bytes,
 JSON outcomes and rendered PNGs. The final stamp names the committed tip.
 The model identifies itself as GPT-6/Codex; runtime model ID and reasoning
 setting are not exposed to this session. No stronger provenance is claimed.
@@ -36,6 +36,7 @@ setting are not exposed to this session. No stronger provenance is claimed.
 - docs/work-specs/editor-cli-round-trip/check.md
 - docs/work-specs/editor-cli-round-trip/desktop.json
 - docs/work-specs/editor-cli-round-trip/desktop.png
+- docs/work-specs/editor-cli-round-trip/final-cli.json
 - docs/work-specs/editor-cli-round-trip/fixed-cli.json
 - docs/work-specs/editor-cli-round-trip/fixtures.json
 - docs/work-specs/editor-cli-round-trip/import-finish-before.png
@@ -78,3 +79,24 @@ feature worktree without conflict. Re-ran review/simplify inline over the same
 34-file scope against that base; no additional finding or cleanup. j-4022 passed
 all six qualification cases on the reconciled tree (1.1 minutes). j-4023 passed
 TypeScript, affected gates and 18 tests. No product code changed in reconciliation.
+
+## CSS reader ownership repair
+
+The final ownership review found missing declarations were appended to the last
+rule while anchor/group readers inspect the first. j-4033 reproduced the mismatch.
+Existing declarations still patch their effective occurrence; newly added ones
+retain the original first-rule ownership. j-4034 passed 9/9 pure tests, targeted
+lint/TypeScript and affected gates (19 tests). j-4035 printed all 17 browser assertions as passed,
+but the scheduler reaped it with no exit verdict; j-4040 repeats the combined tree. Review: inline 2/2 fixed; simplify/verify inline.
+
+## Final reconciled check
+
+Final review base: 19014a4833f52a664851bc412069bf800a74a00d. All 35 files above
+reviewed inline, including refreshed ZIP contents and CLI receipts; 2/2 findings
+fixed, simplify/verify inline. Landed SPX import/export changes reconciled without
+conflict and retain their runtime-script ownership. j-4040 passed 17/17 browser
+cases with exit 0; j-4041 passed targeted ESLint/TypeScript and affected gates
+(19 tests). j-4043 regenerated both packages through the local CLI with zero
+errors/warnings and retained OGraf metadata. j-4044 passed all six cases on final
+package bytes with exit 0. Latest rendered captures inspected; small-view limits
+remain recorded. PR/merge-group CI and independent post-land evidence follow.

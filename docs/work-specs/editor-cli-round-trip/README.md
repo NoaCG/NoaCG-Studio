@@ -3,7 +3,7 @@
 Bounded R1.3b slice. See [spec](spec.md), [reference comparison](reference-comparison.md)
 and the actual local CLI receipts: [plain scaffold](initial-cli.json),
 [reproduced failure](reproduction-cli.json), [repaired package](fixed-cli.json),
-[independent scoreboard](independent-cli.json). Package hashes and contents are
+[independent scoreboard](independent-cli.json), [final CLI regeneration](final-cli.json). Package hashes and contents are
 in [fixtures.json](fixtures.json); the generated ZIPs live under
 `e2e/fixtures/cli-round-trip/` with their bundled font licence notices.
 
@@ -20,6 +20,7 @@ in [fixtures.json](fixtures.json); the generated ZIPs live under
   styles split layout and appearance into repeated selectors; editing the first
   rule left the later appearance in control. Existing first-rule readers and
   nested/unrelated rules keep their semantics, including important priority.
+  New declarations stay in the first owned rule for anchor/group readers.
 
 - OGraf browser execution exposed a second loss of the inert JSON block: the body
   extractor dropped head metadata. Retain inert head/body blocks in the graphic's
@@ -52,8 +53,40 @@ in one HTML file; its unused editor thumbnail is retained in the saved graphic
 and folder exports, rather than embedded in executable HTML. No receiving-host
 claim follows from Chromium execution.
 
-Final functional job, rendered captures and /check result are recorded below
-when complete. Full build and browser suites belong to PR/merge-group CI.
+Final local job j-4018: all six new cases and the existing script-loading import
+case passed (7 passed, 3 skipped, 1.1 minutes). The three skips use retired-editor
+helpers tracked in #800; no case in this slice skipped. j-4022 repeated all six
+cases after main reconciliation. Targeted ESLint/TypeScript and affected gates
+passed in j-4016/j-4017 and j-4023. Review reproduced two CSS edge cases: important
+priority (j-4010) and first-rule ownership for new properties (j-4033). The final
+repair passed nine pure tests, targeted lint/TypeScript and gates with 19 tests
+(j-4034), j-4035 printed 17/17 passing browser assertions, but the scheduler reaped it
+with no exit verdict. The combined tree passed 17/17 browser cases in j-4040 (exit 0), and lint,
+TypeScript and affected gates in j-4041. See [check.md](check.md). Full builds/suites belong to PR/merge-group CI.
+
+| Rendered task | Capture | Machine-readable result |
+|---|---|---|
+| 1920x1080 | [Desktop](desktop.png) | [Result](desktop.json) |
+| 1366x768 | [Laptop](laptop.png) | [Result](laptop.json) |
+| 1093x614 proxy, 200% Fit | [Zoom proxy](laptop-125.png) | [Result](laptop-125.json) |
+| Independent scoreboard | [Scoreboard](independent-scoreboard.png) | [Result](independent-scoreboard.json) |
+
+All four captures were inspected. The navy panel, mint logo, wording, decorative
+label and fonts survive. Desktop shows properties and timeline together. Laptop
+properties scroll and its smaller stage makes the strap small. The proxy retains
+a reachable timeline and selected text at 200% Fit but remains cramped. Selection
+handles obscure some small text. These are explicit usability limits, not broad
+owner/workflow acceptance.
+
+Reproduce with the locally built CLI and NOACG_URL set to this worktree's dev
+server: scaffold a typeless package with Name:text=Amira Solano and
+Role:text=Festival director, then validate and inspect its folder. Riverlight
+adds synthetic artwork/static text and an inert JSON block before validation.
+Independently scaffold --type scoreboard --name 'Harbor cup', validate and inspect.
+Import either committed ZIP through New graphic > Import graphics > Finish >
+Edit this graphic, change public text or panel fill, Save, reload and Play/Out.
+The scoreboard control page also has Goal A and Clear flag. The focused spec
+executes that flow and all three browser exports.
 
 ## Boundaries and next step
 
@@ -70,3 +103,8 @@ Next bounded step: reproduce the October 6 linked-scale/corner/rotation task on
 current main, then fix only concrete transform/property gaps. Retain this CLI
 round-trip regression when changing those handlers. Leave save/sync work with its
 existing ownership and do not jump ahead to R1.5.
+
+Final package regeneration j-4043 repeated validate/inspect against this checkout's
+own server after the OGraf repair. Both packages had zero errors/warnings; the
+actual CLI-produced graphic.mjs retains festival-config. ZIP hashes were refreshed.
+j-4044 passed all six qualification cases against those final bytes (exit 0).

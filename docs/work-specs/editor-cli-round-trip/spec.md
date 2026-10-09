@@ -57,8 +57,9 @@ determines the implementation scope before product edits.
   existing editor navigation; retain byte-faithful import and walk-back guards.
 - The real scaffold repeats its panel selector for layout and appearance. The
   existing CSS writer patched the first rule, so a visual colour edit was hidden
-  by the later rule. Patch the last top-level rule with the existing scanner;
-  preserve nested/other rules and the existing first-rule readers.
+  by the later rule. Patch the effective declaration with the existing scanner,
+  retaining important priority. New declarations stay in the first owned rule
+  for anchor/group readers; preserve nested/unrelated rules.
 - Custom non-field HTML spans are outside the existing target registry. Preserve
   their text/IDs and test honest command refusal; do not add general HTML editing.
 
