@@ -109,6 +109,15 @@ const SILENT_MERGE_FILES = [
 const SEQUENCE_DIRS = ['supabase/migrations'];
 
 /**
+ * Days without a commit after which a branch with no open pull request counts as STALE: nobody is
+ * landing it, so the conflicts it would absorb are not a cost anyone pays. It is named once and
+ * left out of the conflict count and the ranking. On 2026-10-09 every row of a wave read `hold`
+ * solely because of a six-day-old PR-less branch whose work had landed under another name.
+ * Three days, because a live session commits each verified phase and a row lands within hours.
+ */
+export const STALE_DAYS = 3;
+
+/**
  * Full read-only assessment of everything ahead of `target` in the checkout containing `cwd`.
  *
  * Returns `{ target, self, branches, order, notReady }` where `branches` is one entry per local
@@ -116,9 +125,15 @@ const SEQUENCE_DIRS = ['supabase/migrations'];
  *   { branch, worktree, dirty, uncommitted, ahead, files, structural, lastCommit,
  *     conflicts: Map<otherBranch, string[]>, imposed, silent: [...], stacked: [...] }
  * `order` is the recommended landing sequence (ready branches only, cheapest first) and
- * `notReady` lists branches that safe-merge would refuse today, with the reason.
+ * `notReady` lists branches that safe-merge would refuse today, with the reason. `stale` lists
+ * branches left out as stale (see `STALE_DAYS`); `branch` (the one being asked about) and the
+ * branch checked out at `cwd` are never stale. `openPullRequests` resolves to the set of branch
+ * names with an open pull request, or null when that cannot be known - then nothing is stale.
  */
-export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } = {}) {
+export async function assessMergeOrder(
+  cwd = process.cwd(),
+  { target = 'main', branch: asked = null, openPullRequests = openPullRequestBranches, now = Date.now() } = {},
+) {
   const entries = worktreeEntries(cwd);
   if (entries.length === 0) return empty(target);
   const primary = entries[0].root;
@@ -134,7 +149,7 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
 
   const byBranch = new Map(entries.filter((entry) => entry.branch).map((entry) => [entry.branch, entry]));
 
-  const branches = await Promise.all(
+  const candidates = await Promise.all(
     names.map(async (branch) => {
       const worktree = byBranch.get(branch) ?? null;
       const [ahead, status, uncommitted, tip] = await Promise.all([
@@ -173,13 +188,21 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
     }),
   );
 
+  // A stale branch still counts for ancestry: a branch that CONTAINS it would land its commits too.
+  const { branches, stale } = await splitStale(candidates, {
+    keep: new Set([asked, self?.branch].filter(Boolean)),
+    openPullRequests: () => openPullRequests(primary),
+    now,
+  });
+  if (branches.length === 0) return { ...empty(target), ref, primary, self: self?.branch ?? null, remoteOnly, stale };
+
   // ONE call for the whole run, not one per pair: what the target already holds is the same
   // answer for every branch, and it is the only thing the pairwise pass cannot work out alone.
   const targetSequences = await targetSequenceNumbers(primary, ref);
   for (const branch of branches) recordTakenSequences(branch, targetSequences, target);
 
   await measurePairs(primary, branches);
-  await markStacked(primary, branches);
+  await markStacked(primary, [...branches, ...stale]);
 
   return {
     target,
@@ -194,7 +217,37 @@ export async function assessMergeOrder(cwd = process.cwd(), { target = 'main' } 
       .map((b) => ({ branch: b.branch, worktree: b.worktree, reason: readiness(b) }))
       .filter((entry) => entry.reason !== null),
     remoteOnly,
+    stale,
   };
+}
+
+/**
+ * `{ branches, stale }`: stale means no commit for `STALE_DAYS` and no open pull request. The
+ * pull request lookup runs only when some branch is old enough to need it, and an unknown answer
+ * keeps every branch live - counting a dead branch is the old behaviour, not a new wrong one.
+ */
+async function splitStale(candidates, { keep, openPullRequests, now }) {
+  const old = candidates.filter(
+    (b) => !keep.has(b.branch) && typeof b.lastCommit?.at === 'number' && now - b.lastCommit.at * 1000 >= STALE_DAYS * 86_400_000,
+  );
+  const open = old.length > 0 ? await openPullRequests() : null;
+  if (!open) return { branches: candidates, stale: [] };
+  const stale = old.filter((b) => !open.has(b.branch));
+  return { branches: candidates.filter((b) => !stale.includes(b)), stale };
+}
+
+/** Branch names with an open pull request on GitHub, or null when `gh` cannot say. */
+async function openPullRequestBranches(primary) {
+  try {
+    const { stdout } = await execFileAsync('gh', ['pr', 'list', '--state', 'open', '--limit', '1000', '--json', 'headRefName'], {
+      cwd: primary,
+      timeout: 30_000,
+      windowsHide: true,
+    });
+    return new Set(JSON.parse(stdout).map((pr) => pr.headRefName));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -455,7 +508,8 @@ export function verdictFor(assessment, branchName) {
   const branch = assessment.branches.find((entry) => entry.branch === branchName);
   if (!branch) return { severity: 'clear', branch: branchName, reasons: [], landFirst: null, blockedBy: [] };
 
-  const blockedBy = branch.stacked.filter((needed) => assessment.branches.some((entry) => entry.branch === needed));
+  const unlanded = [...assessment.branches, ...(assessment.stale ?? [])];
+  const blockedBy = branch.stacked.filter((needed) => unlanded.some((entry) => entry.branch === needed));
   const cheaper = assessment.order.filter((entry) => entry.branch !== branchName && cost(entry) < cost(branch));
   const landFirst = blockedBy[0] ?? cheaper[0]?.branch ?? null;
 
@@ -622,7 +676,7 @@ async function git(args, cwd, { raw = false } = {}) {
 }
 
 function empty(target) {
-  return { target, ref: null, primary: null, self: null, branches: [], order: [], notReady: [], remoteOnly: [] };
+  return { target, ref: null, primary: null, self: null, branches: [], order: [], notReady: [], remoteOnly: [], stale: [] };
 }
 
 function count(stdout) {
@@ -644,9 +698,9 @@ function isUnder(path, root) {
  * block is the whole point of the output; the ranked list underneath is the supporting detail.
  */
 export function formatOrder(assessment) {
-  const { branches, order, notReady, target, ref, primary, remoteOnly = [] } = assessment;
+  const { branches, order, notReady, target, ref, primary, remoteOnly = [], stale = [] } = assessment;
   if (branches.length === 0) {
-    return [`Nothing is ahead of ${target} - no ordering question to answer.`, ...remoteOnlyLines(remoteOnly, target)];
+    return [`Nothing is ahead of ${target} - no ordering question to answer.`, ...staleLines(stale), ...remoteOnlyLines(remoteOnly, target)];
   }
 
   const out = [];
@@ -685,8 +739,16 @@ export function formatOrder(assessment) {
     out.push(`  -  ${entry.branch} - NOT LANDABLE: ${entry.reason}`);
     out.push(`     in ${where(branch, primary)}`);
   }
+  out.push(...staleLines(stale));
   out.push(...remoteOnlyLines(remoteOnly, target));
   return out;
+}
+
+/** One line naming the branches left out as stale, so a reader can see what was not counted. */
+function staleLines(stale) {
+  if (stale.length === 0) return [];
+  const named = stale.map((b) => `${b.branch} (last commit ${b.lastCommit?.relative ?? 'unknown'})`).join(', ');
+  return ['', `Not counted - stale, no open pull request and no commit for ${STALE_DAYS}+ days: ${named}.`];
 }
 
 /**
@@ -781,7 +843,7 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
   const branchArg = argv.includes('--branch') ? argv[argv.indexOf('--branch') + 1] : null;
   const targetArg = argv.includes('--target') ? argv[argv.indexOf('--target') + 1] : 'main';
 
-  const assessment = await assessMergeOrder(process.cwd(), { target: targetArg });
+  const assessment = await assessMergeOrder(process.cwd(), { target: targetArg, branch: branchArg });
   const verdict = branchArg ? verdictFor(assessment, branchArg) : null;
 
   if (wantsJson) {
@@ -800,6 +862,7 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
             silent: b.silent,
           })),
           notReady: assessment.notReady,
+          stale: assessment.stale.map((b) => ({ branch: b.branch, worktree: b.worktree, lastCommit: b.lastCommit })),
           verdict,
         },
         null,

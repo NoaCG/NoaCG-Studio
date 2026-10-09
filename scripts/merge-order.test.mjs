@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 
-import { AGING_HOURS, assessMergeOrder, formatOrder, rank, verdictFor } from './merge-order.mjs';
+import { AGING_HOURS, assessMergeOrder, formatOrder, rank, STALE_DAYS, verdictFor } from './merge-order.mjs';
 
 function runGit(cwd, ...args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
@@ -53,6 +53,19 @@ function branchWith(root, branch, files, { extraGitArgs = [] } = {}) {
   runGit(root, 'add', '-A');
   runGit(root, 'commit', '-m', `work on ${branch}`);
   runGit(root, 'checkout', '-q', 'main');
+}
+
+/** Commit everything in the tree, dated `days` ago - how a branch nobody has touched looks. */
+function commitDaysAgo(root, days) {
+  const date = new Date(Date.now() - days * 86_400_000).toISOString();
+  runGit(root, 'add', '-A');
+  const result = spawnSync('git', ['commit', '-m', `work from ${days} day(s) ago`], {
+    cwd: root,
+    encoding: 'utf8',
+    windowsHide: true,
+    env: { ...process.env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
+  });
+  assert.equal(result.status, 0, result.stderr);
 }
 
 test('a branch that conflicts with nobody ranks first and reads clear', async (t) => {
@@ -206,6 +219,70 @@ test('a stacked branch is held behind the branch it contains', async (t) => {
     order.indexOf('feature/base') < order.indexOf('feature/stacked'),
     `ancestor must precede the branch stacked on it, got ${order.join(' -> ')}`,
   );
+});
+
+/**
+ * 2026-10-09: every row of a wave read `hold` because landing it would leave conflicts for a
+ * six-day-old branch with no pull request that nobody was ever going to land.
+ */
+test('a stale branch with no open pull request is named once and left out of the conflict count', async (t) => {
+  const wide = Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`f${n}.txt`, `base ${n}\n`]));
+  const edit = (who) => Object.fromEntries(Object.keys(wide).map((file) => [file, `${who}\n`]));
+
+  async function verdict({ oldDaysAgo, open }) {
+    const root = makeRepo(t);
+    for (const [path, contents] of Object.entries(wide)) write(root, path, contents);
+    runGit(root, 'add', '-A');
+    runGit(root, 'commit', '-m', 'wide base');
+    branchWith(root, 'feature/free', { 'docs/note.md': 'standalone\n' });
+    branchWith(root, 'feature/mine', edit('mine'));
+    runGit(root, 'checkout', '-q', '-b', 'codex/old', 'main');
+    for (const [path, contents] of Object.entries(edit('old'))) write(root, path, contents);
+    commitDaysAgo(root, oldDaysAgo);
+    runGit(root, 'checkout', '-q', 'main');
+
+    const assessment = await assessMergeOrder(root, { branch: 'feature/mine', openPullRequests: async () => open });
+    return { assessment, verdict: verdictFor(assessment, 'feature/mine') };
+  }
+
+  // Stale and PR-less: not counted, so landing mine first costs nobody anything.
+  const stale = await verdict({ oldDaysAgo: STALE_DAYS + 3, open: new Set(['feature/free', 'feature/mine']) });
+  assert.equal(stale.verdict.severity, 'clear', JSON.stringify(stale.verdict.reasons));
+  assert.deepEqual(stale.assessment.stale.map((b) => b.branch), ['codex/old']);
+  assert.ok(!stale.assessment.order.some((b) => b.branch === 'codex/old'), 'a stale branch is not ranked');
+  const named = formatOrder(stale.assessment).filter((line) => line.includes('codex/old'));
+  assert.equal(named.length, 1, 'the stale branch is named exactly once');
+  assert.match(named[0], /stale/);
+
+  // Each of these keeps it live, and five files imposed on it with a cheaper branch ready is a hold.
+  const live = [
+    ['an open pull request', { oldDaysAgo: STALE_DAYS + 3, open: new Set(['codex/old']) }],
+    ['a recent commit', { oldDaysAgo: 0, open: new Set() }],
+    ['no answer from GitHub', { oldDaysAgo: STALE_DAYS + 3, open: null }],
+  ];
+  for (const [why, setup] of live) {
+    const result = await verdict(setup);
+    assert.equal(result.verdict.severity, 'hold', `${why} keeps the branch counted`);
+    assert.equal(result.assessment.stale.length, 0, why);
+  }
+});
+
+test('a branch that contains a stale branch is still held behind it', async (t) => {
+  const root = makeRepo(t);
+  runGit(root, 'checkout', '-q', '-b', 'codex/old', 'main');
+  write(root, 'old.txt', 'old\n');
+  commitDaysAgo(root, STALE_DAYS + 1);
+  runGit(root, 'checkout', '-q', '-b', 'feature/on-top', 'codex/old');
+  write(root, 'mine.txt', 'mine\n');
+  runGit(root, 'add', '-A');
+  runGit(root, 'commit', '-m', 'work on top');
+  runGit(root, 'checkout', '-q', 'main');
+
+  const assessment = await assessMergeOrder(root, { branch: 'feature/on-top', openPullRequests: async () => new Set() });
+  assert.deepEqual(assessment.stale.map((b) => b.branch), ['codex/old']);
+  const verdict = verdictFor(assessment, 'feature/on-top');
+  assert.deepEqual(verdict.blockedBy, ['codex/old'], 'landing it would land the stale commits too');
+  assert.equal(verdict.severity, 'hold');
 });
 
 test('a lone branch costs nobody anything, however wide it is', async (t) => {
