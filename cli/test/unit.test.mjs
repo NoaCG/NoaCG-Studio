@@ -637,6 +637,98 @@ test('pack --share refuses before any browser without --save, the licence, a sho
   assert.equal(JSON.parse(r.stdout).reason, 'not-logged-in');
 });
 
+/** A NoaCG with both agent doors, answering each POST with the status the test sets, and recording
+ *  every POST so a test can say what was sent. */
+function stubDoors(status = { packages: 201, 'community-packs': 201 }) {
+  const posts = [];
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      req.resume();
+      req.on('end', () => {
+        const door = req.url.replace('/api/me/', '');
+        posts.push(door);
+        const code = status[door] ?? 404;
+        res.writeHead(code, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(code === 201
+          ? (door === 'packages' ? { id: 'p1', url: 'https://example.test/home' } : { id: 'c1', state: 'in_review' })
+          : { error: { code: 'limit_exceeded', message: 'Refused by the stub.' } }));
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, posts, origin: `http://127.0.0.1:${server.address().port}` }));
+  });
+}
+
+/** `makePack` with a bridge that reads one graphic and returns `findings` from the community check. */
+async function sharePack(origin, findings) {
+  const { makePack } = await import('../dist/commands/pack.js');
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'strap'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'strap', 'strap.html'), '<h1/>');
+  const bridge = {
+    readPackage: async () => ({ imported: { template: { name: 'Strap' } } }),
+    normalize: async (template) => ({ template }),
+    validate: async () => ({ ok: true, merged: { errors: [] } }),
+    packEntry: async (template) => ({ name: template.name }),
+    communityCheck: async () => findings,
+  };
+  const before = { url: process.env.NOACG_URL, key: process.env.NOACG_AGENT_KEY };
+  process.env.NOACG_URL = origin;
+  process.env.NOACG_AGENT_KEY = `${AGENT_KEY_PREFIX}${'s'.repeat(32)}`;
+  try {
+    return await makePack([path.join(dir, 'strap')], {
+      name: 'Quiz',
+      save: true,
+      share: { license: 'cc-by-4.0', shownAs: 'Quizmaster K', description: 'A pub quiz' },
+      description: 'A pub quiz',
+    }, bridge, () => {});
+  } finally {
+    if (before.url === undefined) delete process.env.NOACG_URL; else process.env.NOACG_URL = before.url;
+    if (before.key === undefined) delete process.env.NOACG_AGENT_KEY; else process.env.NOACG_AGENT_KEY = before.key;
+  }
+}
+
+test('pack --save --share sends nothing to Home when the share is refused, so a retry adds no copy', async (t) => {
+  // #876: the Home copy used to go first, so each refused share left one more package on Home.
+  const { describePack } = await import('../dist/commands/pack.js');
+
+  const checked = await stubDoors();
+  t.after(() => checked.server.close());
+  const byChecks = await sharePack(checked.origin, [{ graphic: 'Strap', message: 'It still says "Lorem ipsum".' }]);
+  assert.equal(byChecks.ok, false);
+  assert.equal(byChecks.share.reason, 'checks');
+  assert.deepEqual(checked.posts, [], 'a check refusal sends nothing anywhere');
+  assert.match(describePack(byChecks), /Strap: It still says/);
+  assert.match(describePack(byChecks), /Not sent: Community packs refuses/);
+
+  const door = await stubDoors({ packages: 201, 'community-packs': 409 });
+  t.after(() => door.server.close());
+  const byDoor = await sharePack(door.origin, []);
+  assert.equal(byDoor.ok, false);
+  assert.equal(byDoor.share.reason, 'refused');
+  assert.deepEqual(door.posts, ['community-packs'], 'a refusal at the share door leaves no Home copy');
+  assert.equal(byDoor.url, undefined);
+  assert.match(describePack(byDoor), /Refused by the stub\./);
+
+  const both = await stubDoors();
+  t.after(() => both.server.close());
+  const sent = await sharePack(both.origin, []);
+  assert.equal(sent.ok, true);
+  assert.deepEqual(both.posts, ['community-packs', 'packages']);
+  assert.equal(sent.share.id, 'c1');
+  assert.equal(sent.id, 'p1');
+
+  // Shared, then the Home door refuses: say so, and how to send the Home copy without a second share.
+  const full = await stubDoors({ packages: 409, 'community-packs': 201 });
+  t.after(() => full.server.close());
+  const homeRefused = await sharePack(full.origin, []);
+  assert.equal(homeRefused.ok, false);
+  assert.equal(homeRefused.share.id, 'c1');
+  const said = describePack(homeRefused);
+  assert.match(said, /for review under CC BY 4\.0/);
+  assert.match(said, /Not sent to your Home: Refused by the stub\./);
+  assert.match(said, /without sharing/);
+});
+
 test('pack --rundown refuses a file that is not a list of cues naming a graphic', async () => {
   const dir = await tmpdir();
   await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
