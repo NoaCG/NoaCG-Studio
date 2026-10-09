@@ -13,43 +13,47 @@ const migrations = await Promise.all(
   files.map(async (f) => ({ file: f, sql: (await readFile(new URL(f, dir), 'utf8')).replace(/--[^\n]*/g, '').toLowerCase() })),
 );
 
-/** The body of the last `create or replace function public.<name>(` across all migrations. */
+/** The latest definition of every `public` function: name -> { file, head, body }. */
+const functions = new Map();
+for (const { file, sql } of migrations) {
+  for (const m of sql.matchAll(/create or replace function public\.(\w+)\(([\s\S]*?)\$\$([\s\S]*?)\$\$/g)) {
+    functions.set(m[1], { file, head: m[2], body: m[3] });
+  }
+}
 function latest(name) {
-  let found = null;
-  const re = new RegExp(`create or replace function public\\.${name}\\(([\\s\\S]*?)\\$\\$([\\s\\S]*?)\\$\\$`, 'g');
-  for (const { file, sql } of migrations) for (const m of sql.matchAll(re)) found = { file, body: m[2] };
+  const found = functions.get(name);
   assert.ok(found, `no migration defines public.${name}`);
   return found;
 }
 
 test('the control link door checks the value it writes, not only the path', () => {
   const { file, body } = latest('control_data_patch_by_slug');
-  assert.match(body, /production_data_is_value\(v_named\.value\)/, `${file}: a bound path takes any JSON, null and {} included`);
-  assert.match(body, /production_data_is_value\(v_old\)/, `${file}: a bound path may overwrite a whole branch`);
+  // Both roads, the exact bound path and a bound leaf inside an array, ask the same question.
+  assert.equal((body.match(/production_data_may_replace\(/g) ?? []).length, 2, `${file}: a road writes without asking what it replaces`);
+  assert.match(body, /position\('\.' in \w+\)/, `${file}: a dotted patch key can pass for a bound path`);
   assert.match(body, /for no key update/, `${file}: the stored tree is read without the row lock control_data_apply takes`);
+  assert.doesNotMatch(body, /control_data_apply\(v_show, p_patch/, `${file}: the caller's own patch reaches the apply unchecked`);
 });
 
-test('an array through the carve-out moves only bound leaves of the stored array', () => {
-  const { file, body } = latest('control_data_patch_by_slug');
-  // The caller's array is never forwarded: the stored array is the base, bound leaves are copied in.
-  assert.match(body, /v_kept := v_stored;/, `${file}: the carve-out does not start from the stored array`);
-  assert.match(body, /v_kept := jsonb_set\(v_kept, v_rel, v_new, true\)/, `${file}: bound leaves are not copied one by one`);
-  assert.match(body, /control_data_apply\(v_show, v_patch, 'operator'\)/, `${file}: the caller's own patch reaches the apply`);
-  assert.doesNotMatch(body, /control_data_apply\(v_show, p_patch/, `${file}: the caller's own patch reaches the apply`);
+test('what a press may write over is a field value or nothing, and a list only over a list', () => {
+  const { file, body } = latest('production_data_may_replace');
+  assert.match(body, /production_data_is_value\(p_new\)/, `${file}: null, {} or a branch may be written`);
+  assert.match(body, /jsonb_typeof\(p_new\) <> 'array' or jsonb_typeof\(p_old\) = 'array'/, `${file}: [] may erase a scalar`);
 });
 
-test('the definer functions a suspended account could write through refuse it first', () => {
-  for (const [name, write] of [
-    ['team_rotate_code', 'update public.teams'],
-    ['community_pack_report', 'insert into public.community_pack_reports'],
-    ['team_join', 'insert into public.team_members'],
-    ['team_production_save', 'update public.team_productions'],
-  ]) {
-    const { file, body } = latest(name);
-    const gate = body.indexOf('is_suspended()');
-    assert.ok(gate >= 0, `${file}: ${name} never asks whether the caller is suspended`);
-    const at = body.indexOf(write);
-    assert.ok(at < 0 || gate < at, `${file}: ${name} writes before it asks whether the caller is suspended`);
+test('every definer function that writes for the signed-in account refuses a suspended one first', () => {
+  // Writes that stay open on purpose, as deletes do (0018): taking one's own pack down, and the
+  // moderator's own verbs, which a moderator is stripped of rather than suspended from.
+  const open = new Set(['community_pack_withdraw', 'community_pack_decide', 'community_pack_reports_dismiss']);
+  const writers = [...functions.entries()].filter(
+    ([, f]) => /security definer/.test(f.head) && /auth\.uid\(\)/.test(f.body) && /\b(insert into|update) (public|storage)\./.test(f.body),
+  );
+  assert.ok(writers.some(([name]) => name === 'team_join'), 'the function parser found no account writers');
+  for (const [name, { file, body }] of writers) {
+    if (open.has(name)) continue;
+    const gate = body.search(/is_suspended\(\)|feature_denied\(/);
+    const write = body.search(/\b(insert into|update) (public|storage)\./);
+    assert.ok(gate >= 0 && gate < write, `${file}: ${name} writes for the caller without asking whether they are suspended`);
   }
 });
 

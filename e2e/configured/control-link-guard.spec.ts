@@ -64,6 +64,7 @@ test.describe('control link and suspension guards (configured)', () => {
     // an object, a key that only looks like a bound path.
     for (const patch of [
       { match: { home: { score: null } } },
+      { match: { home: { score: [] } } },
       { panel: { katri: { points: {} } } },
       { drivers: { 0: { gap: 'x' } } },
       { 'drivers.0': { gap: 'x' } },

@@ -93,8 +93,9 @@ const ACCEPTED_CLASSES = {
     'reachability ground - operating a production needs no account, and the slug is what says you ' +
     'may - with the unrestricted apply beneath it, control_data_apply, kept to service_role. ' +
     'Its guard (0088, issue #795) checks the value as well as the path: a bound path takes only a ' +
-    'field value, and an array over an indexed binding moves only the bound leaves of the stored ' +
-    'array, so a hand-made patch cannot delete, truncate or blank the authored tree. ' +
+    'field value over a field value or nothing, and an array over an indexed binding moves only the ' +
+    'bound leaves of the stored array. A hand-made patch can therefore move bound values (as any ' +
+    'press can) but not delete branches, truncate an indexed array or erase a value silently. ' +
     'The numbered-log RPCs of 0071 (control_send_seq, control_output_report_seq, ' +
     'control_show_resolve, control_output_resolve, control_tail_seq, control_output_tail_seq) are ' +
     'the same slug doors with the same guards: the send and the report write only the log and the ' +
