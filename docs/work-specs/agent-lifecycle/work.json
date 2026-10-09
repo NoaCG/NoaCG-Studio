@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "22637fad3eac2bf547404ad9b8a80ad3ecb049373af277415cc5526949913eaa",
+  "authority": {
+    "status": "draft",
+    "source": "owner conversation 2026-10-09: strict cleanup (landed or about three hours quiet closes everything an agent started, short exemption list); loose-ends handoff offers no optional work; phase notes reach the next phase without the owner; long plans run phase by phase in fresh sessions with a separate checker, started only by the owner; plan run and wave are two skills and a night runs one or the other; show the spec before it goes live"
+  },
+  "review": null
+}
