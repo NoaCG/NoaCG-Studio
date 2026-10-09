@@ -24,7 +24,7 @@
 // queue. Ids are minted with the exclusive 'wx' flag, which is the whole concurrency story -
 // the filesystem decides who won, exactly as it does for port tickets.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gitCommonDir } from './dev-port.mjs';
 import { invokesE2e, invokesSweep, requiresRunningDevServer } from './command-match.mjs';
@@ -429,19 +429,21 @@ export function costProblem(cost) {
 }
 
 export function addJob(dir, {
-  command, checkout, branch = null, kind = 'gate', after = [], capMinutes = POLICY.capMinutes,
+  command, checkout, branch = null, kind: declaredKind, after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
   retryReason = null, ciDispatched = false, review = null, cost = null, now,
 }) {
+  let kind = declaredKind ?? 'gate';
   if (!KINDS.includes(kind)) throw new Error(`unknown job kind: ${kind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
   const badCost = costProblem(cost);
   if (badCost) throw new Error(badCost);
   ensureJobsDir(dir);
   // A command the runner caught launching a browser starts as browser work, as its re-queued
-  // record did (`repricedAsBrowser`, which also drops a declared light cost). Only `gate`: a
-  // landing is never held, and `sweep` already is.
-  const caughtBrowser = kind === 'gate' ? browserMemory(dir, now)[commandKey(command)] ?? null : null;
+  // record did (`repricedAsBrowser`, which also drops a declared light cost). Only when no kind
+  // was declared: a landing is never held, and `--kind gate` is how a session that knows its
+  // command no longer opens a browser says so before the entry runs out.
+  const caughtBrowser = (declaredKind ?? null) === null ? browserMemory(dir, now ?? Date.now())[commandKey(command)] ?? null : null;
   if (caughtBrowser) {
     kind = 'sweep';
     cost = null;
@@ -748,8 +750,11 @@ function browserMemory(dir, now) {
 export function rememberBrowserCommand(dir, { command, job, now = Date.now() }) {
   const commands = { ...browserMemory(dir, now), [commandKey(command)]: { at: now, job } };
   const kept = Object.entries(commands).sort(([, a], [, b]) => b.at - a.at).slice(0, BROWSER_MEMORY_CAP);
-  // `commands` nests the entries so the file can never pass `readJobs` for a job with an id.
-  writeFileSync(browserMemoryPath(dir), `${JSON.stringify({ commands: Object.fromEntries(kept) }, null, 1)}\n`);
+  // `commands` nests the entries so the file can never pass `readJobs` for a job with an id. Written
+  // aside and renamed over, so a session queueing a job meanwhile never reads half a file.
+  const file = browserMemoryPath(dir);
+  writeFileSync(`${file}.tmp`, `${JSON.stringify({ commands: Object.fromEntries(kept) }, null, 1)}\n`);
+  renameSync(`${file}.tmp`, file);
 }
 
 /**

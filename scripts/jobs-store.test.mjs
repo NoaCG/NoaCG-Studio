@@ -323,6 +323,9 @@ test('a command caught launching a browser is queued as browser work from the st
   // Only that command: another argument, a landing, or a declared kind is left as it is.
   assert.equal(addJob(dir, { command: `${command} --dry-run`, checkout: '/wt/a', now: NIGHT }).kind, 'gate');
   assert.equal(addJob(dir, { command, checkout: '/wt/a', kind: 'merge', now: NIGHT }).kind, 'merge');
+  const sayGate = addJob(dir, { command, checkout: '/wt/a', kind: 'gate', now: NIGHT });
+  assert.equal(sayGate.kind, 'gate', 'a session that knows it no longer opens one says --kind gate');
+  assert.equal(sayGate.caughtBrowser, undefined);
   // The memory sits beside the jobs and is never read as one.
   assert.ok(readJobs(dir).every((j) => typeof j.id === 'string' && j.id.startsWith('j-')));
 });
