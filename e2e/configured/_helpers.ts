@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Page, type Request } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { finishIntoEditor, finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
@@ -205,6 +205,49 @@ export async function clearPublishedShows(page: Page): Promise<void> {
     const { syncNow } = await import('/src/backend/syncController.ts');
     await syncNow();
   });
+}
+
+/**
+ * WATCH A HOSTED OPERATOR PAGE'S READS OF THE LOG, so a press can wait until the page is level.
+ *
+ * While the page reads the numbered log's tail (on joining, and on each poll) its own presses take
+ * the durable road and leave its monitor alone (hostedControl.ts `recovering`): the chip does not
+ * say "on air" and Out stays disabled until the server answers the Take. A spec that holds that
+ * answer and presses as the page comes up can land inside the join's read. Against a local stack
+ * the read takes a millisecond and never caught a press; against hosted staging it takes about
+ * 200 ms and caught two (issue #902).
+ *
+ * Level means: one read answered, none open, and none for LEVEL_QUIET_MS, because a walk that
+ * pages or is asked again starts its next read right after the last answer. It watches the
+ * numbered log only, so the page must be on protocol 2 (migration 0071).
+ *
+ * Call before the page's `goto`; await the returned function before a press that needs the page's
+ * own monitor to move at once.
+ */
+export function watchLogReads(page: Page): () => Promise<void> {
+  const LEVEL_QUIET_MS = 300;
+  let answered = 0;
+  let open = 0;
+  let lastClosed = 0;
+  const isTail = (r: Request) => /\/rpc\/control_tail_seq\b/.test(r.url());
+  const closed = (r: Request, ok: boolean) => {
+    if (!isTail(r)) return;
+    open -= 1;
+    lastClosed = Date.now();
+    if (ok) answered += 1;
+  };
+  page.on('request', (r) => {
+    if (isTail(r)) open += 1;
+  });
+  page.on('requestfinished', (r) => closed(r, true));
+  page.on('requestfailed', (r) => closed(r, false));
+  return () =>
+    expect
+      .poll(() => answered > 0 && open === 0 && Date.now() - lastClosed >= LEVEL_QUIET_MS, {
+        message: 'the operator page has read the log and is not reading it now',
+        timeout: 30_000,
+      })
+      .toBe(true);
 }
 
 /**
