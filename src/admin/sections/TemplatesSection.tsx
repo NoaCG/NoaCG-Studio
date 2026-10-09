@@ -48,7 +48,7 @@ export function TemplatesSection({ session }: { session: AdminSessionResponse })
     <section className="admin-section admin-section-wide">
       <SectionHeader
         title="Templates"
-        lede="Visibility for catalog designs and published community templates. Templates are never put behind a plan."
+        lede="Visibility for catalog designs. Templates are never put behind a plan."
       />
       {problem ? <p className="admin-problem">{problem}</p> : null}
 
@@ -99,8 +99,6 @@ export function TemplatesSection({ session }: { session: AdminSessionResponse })
               <tr key={`${entry.source}:${entry.key}`}>
                 <td>
                   <span className="admin-mono">{entry.key}</span>
-                  {entry.name && entry.name !== entry.key ? <div>{entry.name}</div> : null}
-                  {entry.status && entry.status !== 'approved' ? <Pill tone="warn">{entry.status}</Pill> : null}
                 </td>
                 <td>{entry.source}</td>
                 <td>

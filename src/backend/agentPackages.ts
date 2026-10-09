@@ -7,7 +7,7 @@
 // hands the package's text to the same parse → validate → install path a pack file takes
 // (src/packs/graphicsPack.ts), so an uploaded package and an imported file are one door.
 //
-// Offline-invariant, the communityData.ts rule: every function opens with `getSupabase()`, which
+// Offline-invariant: every function opens with `getSupabase()`, which
 // resolves null in a build with no backend, so an offline studio asks nothing and shows nothing.
 
 import { getSupabase } from './supabase';

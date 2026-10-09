@@ -10,12 +10,6 @@ import {
 } from '../../model/videoProject';
 import { useDocKindStore } from '../../store/docKindStore';
 import { getSyncState, onSyncState, syncNow, type IncomingCounts, type SyncState } from '../../backend/syncController';
-import {
-  listMySubmissions,
-  STATUS_LABEL,
-  unpublish,
-  type MySubmission,
-} from '../../community/communityData';
 import { graphicKindLabel } from '../../model/types';
 import { DOWNLOADS_URL } from '../../downloads/links';
 import BrandLogo from '../BrandLogo';
@@ -220,17 +214,6 @@ export default function HomePage({ route }: { route: Route }) {
     videos: videos.length,
     looks: looks.length,
   };
-
-  // The Era 5.5 community gallery is closed to publishing (owner, 2026-10-08: the community shares
-  // reviewed packs only; migration 0078 refuses a publish in the database). What an author already
-  // published stays listed here, read-only, so they can still withdraw it. Only surfaces with a
-  // configured backend AND a signed-in account; the offline app grows zero community UI.
-  const communityOn = hasBackend && authStatus === 'signed-in';
-  const [mySubs, setMySubs] = useState<MySubmission[]>([]);
-  useEffect(() => {
-    if (communityOn) void listMySubmissions().then(setMySubs).catch(() => {});
-    else setMySubs([]);
-  }, [communityOn, rev]);
 
   /** null = the dashboard. Old bookmarks/specs naming the retired sections land there too. */
   const section: Section | null =
@@ -452,19 +435,6 @@ export default function HomePage({ route }: { route: Route }) {
                   with the first-run hint tells a user with forty graphics that they have none.
                   The section says why its own list is short; the hint is for having no work. */}
               {graphics.length === 0 && <EmptyHint onNew={() => startNewGraphic()} />}
-              {communityOn && mySubs.length > 0 && (
-                <div className="panel-section" style={{ marginTop: 14 }}>
-                  <h3>My community templates</h3>
-                  {mySubs.map((s) => (
-                    <div className="pk-graphic" key={s.id}>
-                      <strong>{s.name}</strong>
-                      <span className="muted">{s.kind} · {STATUS_LABEL[s.status]}</span>
-                      <div className="spacer" />
-                      <button onClick={() => { void unpublish(s.id).then(refresh); }} title="Remove from the community">✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </>
           )}
 
