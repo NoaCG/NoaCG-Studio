@@ -10,14 +10,14 @@ import type { TemplateVariant } from '../model/wizard';
 import { lt01 } from '../templates/lowerThirds/lt01';
 import { tk01 } from '../templates/tickers/tk01';
 import { ig01 } from '../templates/infographics/ig01';
-import { variantFromType, type GraphicType } from '../templates/types/graphicType';
+import { variantsFromType, type GraphicType } from '../templates/types/graphicType';
 import { sponsorBugType } from '../templates/types/bugs';
 import { scoreboardType } from '../templates/types/scoreboard';
 import { holdingScreenType } from '../templates/types/clocks';
 
+/** A type-promoted design, compiled the way the catalog compiles it (registry.ts typeVariants). */
 function promoted(type: GraphicType, id: string): TemplateVariant | undefined {
-  const design = type.designs.find((d) => d.id === id);
-  return design && variantFromType(type, design);
+  return variantsFromType(type).find((v) => v.id === id);
 }
 
 /** Keyed by the catalog name each card carries in its data-starter attribute. */

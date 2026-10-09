@@ -64,16 +64,18 @@ function mountPreview(host: HTMLElement, template: SpxTemplate): void {
   new ResizeObserver(fit).observe(host);
 }
 
+/** The exporter, fetched when a visitor reaches for a download rather than with the page. */
+const loadExporter = () => import('../export/targets/ograf');
+
 async function downloadStarter(variant: TemplateVariant, note: HTMLElement): Promise<void> {
   note.textContent = 'Building and validating the package…';
-  let ografTarget: typeof import('../export/targets/ograf').ografTarget;
-  try {
-    ({ ografTarget } = await import('../export/targets/ograf'));
-  } catch {
-    // The exporter is fetched on this click; after a deploy the page's copy of it is gone.
+  const exporter = await loadExporter().catch(() => null);
+  if (!exporter) {
+    // After a deploy the chunk this page was built with is gone.
     note.textContent = 'This page is out of date. Reload it to download.';
     return;
   }
+  const { ografTarget } = exporter;
   try {
     const template = variant.create();
     // Live intent: every starter must download, and the post-production gate rightly refuses
@@ -110,6 +112,9 @@ function enhanceCard(card: HTMLElement): void {
   if (preview) mountPreview(preview, variant.create());
   if (button) {
     button.disabled = false;
+    const warm = () => void loadExporter().catch(() => {});
+    button.addEventListener('pointerenter', warm, { once: true });
+    button.addEventListener('focus', warm, { once: true });
     button.addEventListener('click', () => {
       button.disabled = true;
       void downloadStarter(variant, note ?? document.createElement('p')).finally(() => {
