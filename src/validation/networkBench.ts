@@ -16,7 +16,6 @@
 
 import { composeDocument } from '../preview/composeDocument';
 import { PREVIEW_BOX_TYPE, PREVIEW_CMD_TYPE, type PreviewCmd } from '../preview/previewProtocol';
-import { fieldDescriptors } from '../control/controlModel';
 import type { SpxTemplate } from '../model/types';
 import { isRequest, NETWORK_REQUEST_TYPE, withNetworkGuard, type ObservedRequest } from './networkGuard';
 
@@ -37,11 +36,10 @@ const PLAYED_MS = 1_500;
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** The graphic's own field defaults, as the live channel's update takes them. */
+/** The graphic's own field defaults, as the live channel's update takes them (the runtime
+ *  bench's default payload). */
 function defaults(template: SpxTemplate): string {
-  const data: Record<string, string> = {};
-  for (const d of fieldDescriptors(template.fields, { includeHidden: true })) data[d.key] = String(d.defaultValue ?? '');
-  return JSON.stringify(data);
+  return JSON.stringify(Object.fromEntries(template.fields.map((f) => [f.field, f.value ?? ''])));
 }
 
 /**
