@@ -140,8 +140,8 @@ function posixNodeProcesses() {
  *
  * `nodeProcesses` is enough to find runs, because a run IS a node process. Finding whether a dev
  * server still has an OWNER is not: its chain runs through `cmd.exe` shims, so a node-only table
- * shows a broken chain for a perfectly healthy server. Only the orphan check needs this, and it
- * is a rare manual command, so the heavier query costs nothing that matters.
+ * shows a broken chain for a perfectly healthy server. The orphan check, the holder diagnostics and
+ * the Codex reaper (`codex-rescue.mjs`, before every delegation launch) read it, so keep it cheap.
  *
  * Windows only, like `browserShells` - and for the same reason. On POSIX an orphaned process is
  * REPARENTED to init rather than left with a dead parent, so "the chain ended in a dead parent"
@@ -149,9 +149,8 @@ function posixNodeProcesses() {
  * honestly instead of guessing.
  */
 export function allProcesses({ list = listProcesses } = {}) {
-  // `createdMs` is what `orphanedCodexTrees` pins a recorded kill to, hours after the recording.
-  // A diagnostic must return unknown if the OS query stalls, hence the short timeout.
-  const listed = list({ timeoutMs: 10_000 });
+  // 10 s: a diagnostic must answer unknown if the OS query stalls.
+  const listed = list({ timeoutMs: 10_000, cwd: false });
   return listed.ok ? listed.processes : [];
 }
 

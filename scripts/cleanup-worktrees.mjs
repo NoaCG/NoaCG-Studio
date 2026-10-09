@@ -1723,7 +1723,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1] && pro
   if (done.folderRemains) {
     console.log('The now-empty folder is still on disk - this session holds it open. It is swept automatically once this session exits.');
   }
-  for (const { why } of done.held) console.log(`Left in place, in use: ${why}`);
+  for (const { why } of done.held) console.log(`  ! left in place: ${why}`);
   for (const error of done.errors) console.log(`  ! ${error}`);
   // A held worktree is a skip, not an error, but this command exists to remove one worktree: a
   // caller reading exit 0 as "it is gone" would be wrong.

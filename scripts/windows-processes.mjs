@@ -1,7 +1,7 @@
 // THE MACHINE'S PROCESSES ON WINDOWS: ONE LIST, AND CLOSING ONE BY ITS IDENTITY.
 //
-// Every script that needs the whole process table reads it here, so there is one PowerShell query
-// to maintain. Two callers want different things from a failure, and both get them from the same
+// The worktree sweep and the e2e diagnostics read the whole process table here, so they share one
+// PowerShell query. They want different things from a failure, and both get them from the same
 // answer:
 //   - the worktree sweep (agent-processes.mjs) decides what to close and what to delete, so a list
 //     that could not be read is `{ ok: false }` and it then closes and removes nothing;
@@ -66,8 +66,9 @@ public static class NoacgProcesses {
 }
 `;
 
-function powershell(script, { run = spawnSync, timeoutMs = 60_000 } = {}) {
-  const full = `$ErrorActionPreference = 'Stop'\nAdd-Type -TypeDefinition @'\n${HELPER}\n'@\n${script}`;
+function powershell(script, { run = spawnSync, timeoutMs = 60_000, helper = true } = {}) {
+  const compile = helper ? `Add-Type -TypeDefinition @'\n${HELPER}\n'@\n` : '';
+  const full = `$ErrorActionPreference = 'Stop'\n${compile}${script}`;
   const encoded = Buffer.from(full, 'utf16le').toString('base64');
   const res = run('powershell', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], {
     encoding: 'utf8',
@@ -87,11 +88,13 @@ function powershell(script, { run = spawnSync, timeoutMs = 60_000 } = {}) {
  *
  * `createdMs` is half of a process's IDENTITY on a system that reuses pids: a kill is pinned to it
  * (`closeProcesses`, and the Codex reaper's ownership records). `cwd` is read from the process
- * itself and is null where it cannot be (another user, elevated, 32-bit).
+ * itself and is null where it cannot be (another user, elevated, 32-bit). `cwd: false` skips that
+ * read and the compiled helper it needs, for callers that never look at it: about half a second
+ * less per call, and no `Add-Type` that a locked-down machine could refuse.
  *
  * `ok: false` is the only way a failure is reported; an empty list is never the answer to one.
  */
-export function listProcesses({ platform = process.platform, run, timeoutMs } = {}) {
+export function listProcesses({ platform = process.platform, run, timeoutMs, cwd = true } = {}) {
   if (platform !== 'win32') return { ok: false, supported: false, processes: [], why: 'process listing is only implemented on Windows' };
   const script = [
     '$rows = foreach ($p in Get-CimInstance Win32_Process) {',
@@ -99,11 +102,11 @@ export function listProcesses({ platform = process.platform, run, timeoutMs } = 
     '  if ($p.CreationDate) { $created = ([DateTimeOffset]$p.CreationDate).ToUnixTimeMilliseconds() }',
     '  [pscustomobject]@{ pid = [int]$p.ProcessId; ppid = [int]$p.ParentProcessId; name = $p.Name; exe = $p.ExecutablePath;',
     '    command = $p.CommandLine; createdMs = $created; kernel = $p.KernelModeTime; user = $p.UserModeTime;',
-    '    cwd = [NoacgProcesses]::Cwd([int]$p.ProcessId) }',
+    `    cwd = ${cwd ? '[NoacgProcesses]::Cwd([int]$p.ProcessId)' : '$null'} }`,
     '}',
     '@($rows) | ConvertTo-Json -Depth 2 -Compress',
   ].join('\n');
-  const res = powershell(script, { run, timeoutMs });
+  const res = powershell(script, { run, timeoutMs, helper: cwd });
   if (!res.ok) return { ok: false, supported: true, processes: [], why: `could not list processes: ${res.why}` };
   let rows;
   try {
@@ -129,6 +132,8 @@ export function listProcesses({ platform = process.platform, run, timeoutMs } = 
   return { ok: true, supported: true, processes, why: null };
 }
 
+const CLOSE_BATCH = 100;
+
 /**
  * Close `entries` (`{ pid, createdMs, ... }`), in order, each only if it is still the process that
  * was judged. Returns `{ closed, failed }`; `gone` counts as closed.
@@ -143,12 +148,21 @@ export function closeProcesses(entries, { platform = process.platform, run } = {
   const failAll = (result) => ({ closed: [], failed: [...pinned.map((e) => ({ ...e, result })), ...unpinned] });
   if (pinned.length === 0) return failAll(null);
   if (platform !== 'win32') return failAll('closing is only implemented on Windows');
-  const calls = pinned.map((e) => `"${e.pid}=" + [NoacgProcesses]::Close(${e.pid}, ${Math.trunc(e.createdMs)})`).join('\n');
-  const res = powershell(calls, { run });
-  if (!res.ok) return failAll(res.why);
-  const results = new Map(
-    res.stdout.split(/\r?\n/).map((line) => /^(\d+)=(.*)$/.exec(line.trim())).filter(Boolean).map(([, pid, said]) => [Number(pid), said]),
-  );
+  // In batches: one encoded command carries the helper and a line per close, and Windows refuses a
+  // command line over 32767 characters, about 150 closes. A batch that fails fails its own entries.
+  const results = new Map();
+  for (let at = 0; at < pinned.length; at += CLOSE_BATCH) {
+    const batch = pinned.slice(at, at + CLOSE_BATCH);
+    const res = powershell(batch.map((e) => `"${e.pid}=" + [NoacgProcesses]::Close(${e.pid}, ${Math.trunc(e.createdMs)})`).join('\n'), { run });
+    if (!res.ok) {
+      for (const e of batch) results.set(e.pid, res.why);
+      continue;
+    }
+    for (const line of res.stdout.split(/\r?\n/)) {
+      const found = /^(\d+)=(.*)$/.exec(line.trim());
+      if (found) results.set(Number(found[1]), found[2]);
+    }
+  }
   const closed = [];
   const failed = [...unpinned];
   for (const e of pinned) {

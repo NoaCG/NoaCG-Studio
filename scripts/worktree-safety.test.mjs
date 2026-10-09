@@ -602,17 +602,18 @@ test('self cleanup and the sweep keep a worktree in use the same way: held, a de
   const blind = () => ({ ok: false, supported: true, closed: [], kept: [], failed: [], why: 'could not list processes: timed out' });
   const busy = () => ({ status: 3, stdout: 'a delegation is still running', stderr: '' });
   const cases = [
-    { name: 'in-use', reap: noDelegations, processes: inUse, held: /in use by pwsh/, error: null },
+    { name: 'in use', reap: noDelegations, processes: inUse, held: /in use by pwsh/, error: null },
     { name: 'blind', reap: noDelegations, processes: blind, held: null, error: /timed out - kept$/ },
     { name: 'busy', reap: busy, processes: () => assert.fail('listed while a delegation runs'), held: null, error: /Codex delegation is still running there - kept/ },
   ];
+  // One landed worktree serves every case: none of them may touch it.
+  const { primary } = makeRepo(t);
+  const worktree = addWorktree(primary, 'kept');
+  commitInWorktree(worktree.path);
+  runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
+  runGit(primary, 'merge', '--ff-only', worktree.branch);
+  runGit(primary, 'push', 'origin', 'main');
   for (const c of cases) {
-    const { primary } = makeRepo(t);
-    const worktree = addWorktree(primary, `kept-${c.name}`);
-    commitInWorktree(worktree.path);
-    runGit(worktree.path, 'push', '-u', 'origin', worktree.branch);
-    runGit(primary, 'merge', '--ff-only', worktree.branch);
-    runGit(primary, 'push', 'origin', 'main');
     const deps = { prunePorts: () => [], refreshRemote: () => ({ ok: true }), reap: c.reap, processes: c.processes };
     const self = applySelf(assessSelf(worktree.path), deps);
     const sweep = applyPlan(assess(primary), primary, deps);

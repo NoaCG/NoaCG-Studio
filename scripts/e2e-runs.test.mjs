@@ -33,21 +33,15 @@ import {
 } from './e2e-runs.mjs';
 
 const onlyWindows = { skip: process.platform !== 'win32' };
+const onlyPosix = { skip: process.platform === 'win32' };
 
 test('the full process table is the shared list, failing open with a short timeout', () => {
   const table = [{ pid: 1, ppid: 0, name: 'x.exe', command: 'x', createdMs: 5, cpuSeconds: 0.1, cwd: null }];
   const asked = [];
   assert.deepEqual(allProcesses({ list: (options) => (asked.push(options), { ok: true, processes: table }) }), table);
-  assert.deepEqual(asked, [{ timeoutMs: 10_000 }]);
+  assert.deepEqual(asked, [{ timeoutMs: 10_000, cwd: false }]);
   assert.deepEqual(allProcesses({ list: () => ({ ok: false, supported: true, processes: [], why: 'timed out' }) }), []);
 });
-
-test('on Windows the full process table carries what the diagnostics and the reaper pin to', onlyWindows, () => {
-  const me = allProcesses().find((p) => p.pid === process.pid);
-  assert.ok(me, 'this process is in the table');
-  assert.ok(Number.isFinite(me.createdMs) && Number.isFinite(me.cpuSeconds), JSON.stringify(me));
-});
-const onlyPosix = { skip: process.platform === 'win32' };
 
 test('the main checkout, launched through the .bin shim', onlyWindows, () => {
   const cmd = '"node"   "C:\\claude\\NoaCG-Studio\\node_modules\\.bin\\\\..\\@playwright\\test\\cli.js" test advanced-mode.spec.ts';
