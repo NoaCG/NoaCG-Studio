@@ -131,6 +131,20 @@ export function openWaves(dir = jobsDir(), now = Date.now(), except = '') {
 }
 
 /**
+ * The open NIGHT wave whose window has not ended, or null: the one state in which nobody is there
+ * to answer a question (scripts/hooks/guard-question.mjs). A day wave and a plan run run with the
+ * owner near, and a night wave past its `Window ends:` line is over even if its report is missing.
+ * A night wave with no readable window end counts as running.
+ */
+export function openNightWave(dir = jobsDir(), now = Date.now()) {
+  return openWaves(dir, now).find((file) => {
+    if (!path.basename(file).endsWith(`-night${PLAN_SUFFIX}`)) return false;
+    const end = Date.parse(/^Window ends: (\S+)\s*$/m.exec(readFileSync(file, 'utf8'))?.[1] ?? '');
+    return Number.isNaN(end) || now < end;
+  }) ?? null;
+}
+
+/**
  * Open a wave: refuse a window past the 24-hour ceiling and a second live wave, then create the
  * plan with its window lines, or hand back the existing one when this same wave is resumed. A
  * resumed wave is measured from the start its file records, so a restart cannot stretch it.

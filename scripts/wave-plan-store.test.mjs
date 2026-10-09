@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { inStore, openWave, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
+import { inStore, openNightWave, openWave, PLAN_SUFFIX, wavePlanFiles, wavePlanName, wavePlansDir, ensureWavePlansDir } from './wave-plan-store.mjs';
 
 /** A throwaway job store, so nothing here can touch the machine's real one. */
 function store() {
@@ -141,6 +141,27 @@ test('a wave nobody has written to for six hours stops blocking, and the refusal
   assert.match(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).refusal, /open it again with its own date and kind/);
   touch(day.file, NOW - 7 * 3_600_000);
   assert.ok(openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW }).file);
+});
+
+test('only an open night wave inside its window counts as unattended', () => {
+  const dir = store();
+  assert.equal(openNightWave(dir, NOW), null, 'no wave');
+  const day = openWave({ date: '2026-10-08', kind: 'day', until: '2026-10-09T01:00:00+03:00', dir, now: NOW });
+  touch(day.file, NOW);
+  assert.equal(openNightWave(dir, NOW), null, 'a day wave has the owner near');
+  writeFileSync(day.file, `${readFileSync(day.file, 'utf8')}\n## Report\n\nDone.\n`, 'utf8');
+  touch(day.file, NOW);
+
+  const night = openWave({ date: '2026-10-08', kind: 'night', until: '2026-10-09T06:00:00+03:00', dir, now: NOW });
+  touch(night.file, NOW);
+  assert.equal(openNightWave(dir, NOW), night.file);
+  assert.equal(openNightWave(dir, Date.parse('2026-10-09T06:00:00+03:00')), null, 'the window has ended');
+  writeFileSync(night.file, `${readFileSync(night.file, 'utf8')}\n## Report\n\nDone.\n`, 'utf8');
+  touch(night.file, NOW);
+  assert.equal(openNightWave(dir, NOW), null, 'a reported wave is over');
+  writeFileSync(night.file, '# Night wave 2026-10-08\n', 'utf8');
+  touch(night.file, NOW);
+  assert.equal(openNightWave(dir, NOW), night.file, 'no window line still counts as running');
 });
 
 // A PLAN RUN opens through the same store, so it and a wave exclude each other with one check.

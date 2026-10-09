@@ -13,7 +13,12 @@
 // should decide. Writing the tag is the check; an untagged question is refused with the rule so
 // the agent sorts it first. (The older reasons - account, money, identity, harness, alignment -
 // are all decisions only he can make, so the one tag covers them.) Kind 3 is refused
-// outright when the harness says the call comes from a wave-row subagent.
+// outright when the harness says the call comes from a wave-row subagent, or while a night wave is
+// open in the wave store (scripts/wave-plan-store.mjs `openNightWave`). The orchestrator of a night
+// wave is an ordinary session to the harness, and a question there blocks the whole wave until
+// morning. A day wave may ask: the owner is near (.agent-workflows/orchestrator.md, "Asking").
+// Presence (`npm run jobs -- presence away`) is not the signal: it also means a walk away from
+// the desk, when a question simply waits for him.
 //
 // It refuses rather than warns because a PreToolUse warning reaches the user and never the model
 // (scripts/hooks/lib.mjs). FAILS OPEN on input it cannot read. Nothing is exported: a hook reads
@@ -36,6 +41,26 @@ if (/^wave-row/.test(String(input.agent_type ?? ''))) {
     'STOP - a wave row asks nothing. Nobody is there to answer.',
     '',
     RULE,
+  ].join('\n'));
+}
+
+let nightWave = null;
+try {
+  const { openNightWave } = await import('../wave-plan-store.mjs');
+  nightWave = openNightWave();
+} catch {
+  // Fails open: a store that cannot be read says nothing about who is there.
+}
+if (nightWave) {
+  deny([
+    'STOP - a night wave is running and nobody is there to answer. A question here blocks the',
+    'wave until morning.',
+    '',
+    'Decide it yourself and record it as a `DECIDED:` line in the wave file and in the pull',
+    'request, where he can revert it. What his instructions reserve (money, accounts, an important',
+    'security or privacy boundary, something hard to undo) stops only that item: say it in plain',
+    'text with a phone notification and keep the rest of the wave going.',
+    `  wave: ${nightWave}`,
   ].join('\n'));
 }
 

@@ -120,7 +120,7 @@ commands, not by thinking harder about the regex.
 | `guard-preview.mjs` | PreToolUse `mcp__Claude_Browser__preview_start` | deny | the dev-server door opened from a LINKED worktree, which serves a sibling checkout's page as this branch's work |
 | `guard-agent-launch.mjs` | PreToolUse `Agent` | deny | a wave prompt whose `TOUCHES` or `READ` line names a path that exists neither in the launching checkout nor on `origin/main` |
 | `spawn-task-guard.mjs` | PreToolUse `mcp__ccd_session__spawn_task` | deny | a background-task chip minted for work the session could have done here or filed under `docs/backlog/` |
-| `guard-question.mjs` | PreToolUse `AskUserQuestion` | deny | a question to the owner that does not name, in its own text, the one reason it is his (`needs: account|money|identity|harness|alignment`) - everything else is a consult, a decision and a record he can revert (ruling 2026-09-05) |
+| `guard-question.mjs` | PreToolUse `AskUserQuestion` | deny | a question not tagged `needs: decision`, more than one per call, or one without a recommended answer; any question from a wave row, or while a night wave is open (nobody is there to answer) |
 | `warn-command.mjs` | PostToolUse `Bash`/`PowerShell` | warn | a commit that just staled a queued landing pin; a follow-up push whose earlier CI run never finished, so the new run plans past a delta nothing covered |
 | `warn-edit.mjs` | PostToolUse `Write` | warn | a new migration whose number is already claimed on another ref |
 | `lint-file.mjs` | PostToolUse edits | warn | lint findings in the file just written |
