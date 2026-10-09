@@ -15,10 +15,14 @@
 // auth.spec.ts can only pin that it says neither.
 // covers: src/components/auth/{accountCopy.ts,SignInDialog.tsx,SignInPrompt.tsx}
 // covers: src/components/save/SaveDialogs.tsx
+//
+// SIGNING UP: what the dialog says after "Create account" is decided from the server's reply, and
+// only a real project can give the reply with a session (the "signing up" block at the end).
+// covers: src/backend/{auth,signUpOutcome}.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { dismissWizard, E2E_EMAIL, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { chooseNoacgAgent } from '../_ai-step';
@@ -328,8 +332,13 @@ async function openSignUp(page: Page): Promise<string[]> {
     if (text.startsWith('auth-note: ')) notes.push(text.slice('auth-note: '.length));
   });
   await page.addInitScript(() => {
+    const seen = new Set<string>();
     new MutationObserver(() => {
-      for (const note of document.querySelectorAll('.auth-note')) console.info(`auth-note: ${note.textContent}`);
+      for (const note of document.querySelectorAll('.auth-note')) {
+        const text = note.textContent ?? '';
+        if (!seen.has(text)) console.info(`auth-note: ${text}`);
+        seen.add(text);
+      }
     }).observe(document, { subtree: true, childList: true, characterData: true });
   });
   await page.goto('/app#/home');
@@ -355,13 +364,7 @@ test.describe('signing up (configured)', () => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const email = `e2e-sign-up@${E2E_EMAIL.split('@')[1] || 'noacg.local'}`;
-    const removeAccount = async () => {
-      const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      if (error) throw new Error(`could not list users: ${error.message}`);
-      const user = data.users.find((u) => u.email === email);
-      if (user) await admin.auth.admin.deleteUser(user.id);
-    };
-    await removeAccount(); // a leftover from a run that died before its cleanup
+    await deleteAccountByEmail(admin, email); // a leftover from a run that died before its cleanup
 
     try {
       const notes = await openSignUp(page);
@@ -385,7 +388,7 @@ test.describe('signing up (configured)', () => {
       expect(notes, 'notes the dialog showed').toEqual([]);
     } finally {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
-      await removeAccount();
+      await deleteAccountByEmail(admin, email);
     }
   });
 

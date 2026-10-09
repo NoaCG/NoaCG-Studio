@@ -100,28 +100,28 @@ export default function SignInDialog() {
       else setNote('Check your email. The reset link brings you back here to set a new password.');
       return;
     }
-    if (mode === 'signin') {
-      // A session closes the dialog through the auth subscription; only an error stays here.
-      const { error } = await signInWithEmail(email.trim(), password);
-      setBusy(false);
-      if (error) setError(error);
-      return;
-    }
-    const { error, outcome } = await signUpWithEmail(email.trim(), password);
+    const result =
+      mode === 'signin'
+        ? await signInWithEmail(email.trim(), password)
+        : await signUpWithEmail(email.trim(), password);
     setBusy(false);
-    if (error) {
-      setError(error);
+    if (result.error !== null) {
+      setError(result.error);
       return;
     }
-    // Counted here rather than in backend/auth so the funnel client keeps its one-way
-    // dependency on auth (it reads the access token) instead of forming a cycle. Only the
-    // email path can tell a NEW account from a returning one - an OAuth sign-in looks the
-    // same either way, so it is deliberately not counted rather than counted wrongly.
-    trackEvent('signup');
-    // A new account that works at once is signed in already: the dialog closes like a sign-in
-    // and the topbar names the account. Only a project that really sent a confirmation email
-    // says to go and find it (signUpOutcome.ts, issue #794).
-    if (outcome === 'confirm-email') setNote('Check your email to confirm your account, then sign in.');
+    // A session closes the dialog through the auth subscription, after a sign-in and after a
+    // sign-up that is signed in at once; the topbar then names the account. Only a project that
+    // really sent a confirmation email says to go and find it (signUpOutcome.ts, issue #794).
+    if (mode === 'signup') {
+      // Counted here rather than in backend/auth so the funnel client keeps its one-way
+      // dependency on auth (it reads the access token) instead of forming a cycle. Only the
+      // email path can tell a NEW account from a returning one - an OAuth sign-in looks the
+      // same either way, so it is deliberately not counted rather than counted wrongly.
+      trackEvent('signup');
+      if ('outcome' in result && result.outcome === 'confirm-email') {
+        setNote('Check your email to confirm your account, then sign in.');
+      }
+    }
   };
 
   const toggle = () => {

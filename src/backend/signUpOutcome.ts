@@ -1,5 +1,3 @@
-import type { Session } from '@supabase/supabase-js';
-
 /**
  * Where a sign-up the server ACCEPTED leaves the visitor, read from its reply and never from a
  * setting: whether the project confirms email addresses is server configuration the client cannot
@@ -16,6 +14,6 @@ import type { Session } from '@supabase/supabase-js';
  */
 export type SignUpOutcome = 'signed-in' | 'confirm-email';
 
-export function signUpOutcome(reply: { session: Session | null }): SignUpOutcome {
+export function signUpOutcome(reply: { session: unknown }): SignUpOutcome {
   return reply.session ? 'signed-in' : 'confirm-email';
 }
