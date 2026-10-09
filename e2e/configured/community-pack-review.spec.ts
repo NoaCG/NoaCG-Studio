@@ -228,7 +228,8 @@ test.describe('community pack review (configured)', () => {
 
     // A LATE PRE-FILL (#923): the maker's earlier name arrives only after they are in the author
     // field, as it can at hosted latency. It must not land under their cursor, so what they type
-    // is the whole name rather than an addition to it.
+    // is the whole name rather than an addition to it. A name other than the earlier one, so a
+    // pre-fill that swallowed the typing could not pass either.
     let answer!: () => void;
     const held = new Promise<void>((resolve) => (answer = resolve));
     const answered: Promise<void>[] = [];
@@ -243,10 +244,12 @@ test.describe('community pack review (configured)', () => {
     await expect.poll(() => answered.length).toBeGreaterThan(0);
     answer();
     await Promise.all(answered);
-    // Two frames: the answer's state update has rendered by then.
-    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
-    await early.getByTestId('submit-pack-author').pressSequentially('Pack Tester');
-    await expect(early.getByTestId('submit-pack-author')).toHaveValue('Pack Tester');
+    // What is checked is an ABSENCE, which no event announces, so the page gets a fixed moment
+    // to apply the answer (the dev server's StrictMode sends a second request, awaited after it).
+    await page.waitForTimeout(500);
+    await Promise.all(answered);
+    await early.getByTestId('submit-pack-author').pressSequentially('Someone New');
+    await expect(early.getByTestId('submit-pack-author')).toHaveValue('Someone New');
     await page.unroute('**/rest/v1/rpc/community_pack_mine*');
     await early.getByRole('button', { name: 'Cancel' }).click();
     await expect(early).toHaveCount(0);
