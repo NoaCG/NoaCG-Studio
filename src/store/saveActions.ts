@@ -100,6 +100,8 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
     aiSpec: s.aiSpec,
     aiThread: s.aiThread,
     legibility: s.legibility,
+    // A copy of a community pack's graphic is still the pack's (spec AC-5), as Duplicate keeps it.
+    fromPack: s.saved.graphicId ? graphicById(s.saved.graphicId)?.fromPack ?? null : null,
   });
   const failure = error ?? (await commitDurableWrites());
   if (failure) {
@@ -143,7 +145,8 @@ export function openGraphicDoc(doc: GraphicDoc): void {
 
 export function openGraphicById(id: string): boolean {
   const doc = graphicById(id);
-  if (!doc) return false;
+  // A community pack's graphic is never the working document: its design is locked (spec AC-5).
+  if (!doc || doc.fromPack) return false;
   openGraphicDoc(doc);
   return true;
 }

@@ -128,13 +128,13 @@ function readInto<T>(read: () => Promise<T>, set: (value: T) => void): () => voi
 
 async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: FromPack }> {
   if (card.kind === 'shared') {
-    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.lineage), version: card.version, author: card.author } };
+    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.lineage), version: card.version, author: card.author, name: card.name } };
   }
   const res = await fetch(`${SHELF}${card.file}`);
   if (!res.ok) throw new Error(`The pack could not be downloaded (${res.status}).`);
   const { pack, error } = parsePack(await res.text());
   if (!pack) throw new Error(error ?? 'That file is not a NoaCG graphics pack.');
-  return { pack, fromPack: { id: card.id, version: 1, author: card.author } };
+  return { pack, fromPack: { id: card.id, version: 1, author: card.author, name: card.name } };
 }
 
 /** A shared pack's card preview: its first graphic, rendered live and settled (spec D3). */
