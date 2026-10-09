@@ -257,7 +257,7 @@ export function findRuleBody(css: string, selector: string): CssRuleBody | null 
 }
 
 /**
- * Set the effective declaration among repeated exact top-level rules, or append to the last
+ * Set the effective declaration among repeated exact top-level rules, or append to the first
  * rule when absent. Keep unrelated and nested rules intact, and retain important priority.
  */
 export function setCssDeclaration(css: string, selector: string, prop: string, value: string): string {
@@ -266,7 +266,8 @@ export function setCssDeclaration(css: string, selector: string, prop: string, v
   // A trailing comment on the previous declaration also counts as a boundary.
   const re = new RegExp(`(^|;|\\{|\\*\\/)(\\s*)${escapeRe(prop)}\\s*:[^;}]*`, 'gi');
   for (const candidate of ruleBodies(css, selector)) {
-    rule = candidate;
+    // New properties stay in the first owned rule, which anchor/group readers inspect.
+    rule ??= candidate;
     for (const match of candidate.body.matchAll(re)) {
       const important = /!\s*important\s*$/i.test(match[0].replace(/\/\*[\s\S]*?\*\//g, ''));
       if (!chosen || important || !chosen.important) chosen = { rule: candidate, match, important };

@@ -207,3 +207,9 @@ test('repeated CSS declarations patch the effective value and retain important p
   assert.equal(setCssDeclaration(original, '#a', 'color', 'blue'), '#a { color: blue !important; }\n#a { width: 20px; color: green; }');
   assert.equal(setCssDeclaration('#a { color: red; color: green; }', '#a', 'color', 'blue'), '#a { color: red; color: blue; }');
 });
+
+
+test('new declarations stay in the first owned rule for anchor and group readers', () => {
+  const original = '#a { width: 20px; }\n#a { color: green; }';
+  assert.equal(setCssDeclaration(original, '#a', '--base-anchor-x', '4px'), '#a { width: 20px;\n  --base-anchor-x: 4px;\n}\n#a { color: green; }');
+});
