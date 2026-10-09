@@ -7,6 +7,25 @@ Independent review of d5e8c1db is accepted with the corrections below.
 The old rebuild plan is archived with the consolidation evidence; its mode and phase order
 are superseded. Existing application behavior remains the source of truth until replaced.
 
+## Reference editors in every phase
+
+The open-source editors are working evidence, not background reading.
+[Zero Density OGraf Studio](https://github.com/zerodensity/ograf-studio) is the editor to match or
+beat; [Eyevinn ograf-editor](https://github.com/Eyevinn/ograf-editor) is the smaller second example.
+Their inspected revisions are in the
+[research inventory](research/editor-consolidation-2026-09-17/OGRAF_STUDIO_RESEARCH.md).
+
+- **Each phase starts there.** Before designing a feature, inspect how the reference does it:
+  trace the UI event through its source mutation and preview update, read its tests, and try the
+  same interaction in the running reference editor. Never guess from screenshots. The phase's
+  receipt names the upstream revision and files inspected, the behaviour to reproduce, what NoaCG
+  adapts, and each deliberate difference with its user-facing reason.
+- **Each phase is checked against them.** After the phase lands, a checker that did not build it
+  does the phase's task in NoaCG on `main` and the same task in the reference editor, and records
+  in the phase notes below where NoaCG matches, falls short or does better.
+- Inspecting and trying them needs no owner approval. Copying code does not follow from it: the
+  [licensing boundary](#licensing-and-reuse-boundaries) applies to any reuse.
+
 ## Workflow additions, 2026-09-19
 
 [Workflow decisions](research/editor-workflow-review-2026-09-19/README.md) specify timeline-owned
@@ -672,3 +691,16 @@ R1.5 owns fuller unaided user tasks, licence clarification, default switch and n
 R2/R3 and P-COMP own their added fixtures. The
 [acceptance register](research/editor-acceptance-register-2026-09-17.md) retains every B identity.
 Builds or screenshots cannot substitute for correctness, usability or real-host evidence.
+
+## Phase notes
+
+The pull request that lands a phase adds its notes here for the next phase, newest first: what
+changed that the next phase must allow for, decisions taken, traps found, and what the check
+against the reference editors found. Only what the next phase needs; order and acceptance stay in
+[EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
+
+### 2026-10-09: the reference check moved into this plan (no phase built)
+
+- The reference check above binds every phase and its checker from now on; until today it lived
+  only in the archived research copy.
+- The next work is as [EDITOR_PLAN.md](EDITOR_PLAN.md#completion-and-continuation) states it.

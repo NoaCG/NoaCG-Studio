@@ -119,7 +119,7 @@ ends with `npm run stamp` (`scripts/check-stamp.mjs`), which writes a stamp for 
 the shared job store. The verdict is derived from the legs, so a leg that did not run is a fail.
 
 Only what needs human judgment reaches the owner: a look at the change in its pull request
-comment, and a decision or a step only he can take as a GitHub issue labelled `needs owner`
+comment, and a decision or a step only he can take asked at once, never filed for later
 (`.agent-workflows/verify.md`, step 5). Work an agent can verify never reaches him, and a technical
 problem is never the owner's. The backlog is GitHub Issues (`docs/backlog/README.md`).
 

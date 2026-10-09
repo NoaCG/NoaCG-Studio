@@ -46,8 +46,20 @@ the verify leg's mode; this evidence goes in the commit or the pull request.
 ## 5. Ask a person only where judgment adds value
 
 Everything an agent can verify, it verifies. Something reaches the owner only when human judgment
-genuinely helps. A look at the change (a quick one he can take on his phone, or a desktop or
-production check where product judgment matters) goes in the pull request comment: what to open,
-where, and what to judge. A decision only he can make, or a step only he can take, becomes a GitHub
-issue labelled `needs owner`. No file is written for either, and agent-verifiable work never
-reaches him just because it changed the product.
+genuinely helps, and never as a note for him to read later. A look at the change (a quick one he
+can take on his phone, or a desktop or production check where product judgment matters) goes in
+the pull request comment: what to open, where, and what to judge.
+
+A decision only he can make, or a step only he can take, is asked at once, never filed as a
+`needs owner` issue:
+
+- **He is in the session**: ask him there, one question with your recommendation, and continue
+  from his answer.
+- **Unattended work** (a wave row or a plan run): decide it yourself and record the decision in the
+  pull request, where he can revert it. Only what his instructions reserve (money, accounts, an
+  important security or privacy boundary, something genuinely hard to undo) is not decided: that
+  item stops, the rest of the work goes on, and the coordinator asks him in its own session with a
+  phone notification.
+
+A refused production migration keeps its own route. No file is written for any of these, and
+agent-verifiable work never reaches him just because it changed the product.
