@@ -194,10 +194,11 @@ async function cmdAdd() {
   const command = args[1];
   if (!command || command.startsWith('-')) {
     console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>] [--cost <suite-equivalents>]');
-    console.error('  --cost says what this job weighs when you know better than the classifier: 1 is');
-    console.error('  anything that opens a browser, and browser work is never priced lower; 0.75 a build,');
-    console.error('  0.4 tests or lint, and 0.15 - a landing - is the least anything may claim. It sets');
-    console.error('  both the budget share and the free RAM the job demands before it may start.');
+    console.error('  --cost says what this job weighs when you know better than the classifier: 1 is a');
+    console.error('  Playwright run or a catalog battery, and work the queue knows opens a browser is never');
+    console.error('  priced lower; 0.75 a build, 0.4 tests or lint, and 0.15 - a landing - is the least');
+    console.error('  anything may claim. It sets both the budget share and the free RAM the job demands');
+    console.error('  before it may start.');
     process.exit(1);
   }
   // THE WHOLE SUITE RUNS ON GITHUB ACTIONS. Every pull request and every merge group runs it there,
@@ -256,8 +257,9 @@ async function cmdAdd() {
   if (job.caughtBrowser) {
     console.log(`  as browser work${declaredCost === undefined ? '' : ', not at the declared --cost'}: ${job.caughtBrowser.job} ran this command and launched a browser on ${new Date(job.caughtBrowser.at).toISOString().slice(0, 10)} (--kind gate says it no longer does)`);
   }
-  if (typeof job.cost === 'number' && costOf(job) > job.cost) {
-    console.log(`  priced ${costOf(job)}, not the declared --cost ${job.cost}: browser work is never priced below one browser run`);
+  const priced = costOf(job);
+  if (typeof job.cost === 'number' && priced > job.cost) {
+    console.log(`  priced ${priced}, not the declared --cost ${job.cost}: browser work is never priced below one browser run`);
   }
   // A prediction for the line below, not a decision, so it skips the session inventory: a wave
   // queues dozens of jobs, and a spawn each to word one line is not worth it.

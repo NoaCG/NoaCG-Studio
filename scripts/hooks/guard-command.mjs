@@ -303,6 +303,10 @@ if (invokesE2e(command) || invokesSweep(command) || rememberedAsBrowser(jobsDir(
   if (others.length > 0 && !/NOACG_ALLOW_PARALLEL_E2E\s*=\s*1/.test(command)) {
     deny(
       `Blocked: browser-driving work is already running on this machine:\n${describeRuns(others)}\n` +
+        (invokesE2e(command) || invokesSweep(command)
+          ? ''
+          : 'The job queue caught this command opening a browser, so it counts as browser work; ' +
+            '`npm run queue -- "<this command>"` runs it after.\n') +
         'A suite, a catalog sweep and a bench all cost the same memory, and two at once exhaust it ' +
         'rather than sharing it (see `root/enqueue-browser-driving-work-rather-than`).\n' +
         'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +
