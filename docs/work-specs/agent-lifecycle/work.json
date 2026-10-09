@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "3a2ad20a787fbdd517bfaf92ae4973d7b8b623a97f37e8dd77e5710f91c9b660",
+  "authority": {
+    "status": "agreed",
+    "source": "owner conversation 2026-10-09: strict cleanup with a short exemption list, shorter than three hours acceptable; a session never stops because a task did not end, it notices, fixes and restarts; waits get renewable time limits; decisions are asked in the session at once, never filed as needs-owner notes; loose ends are fixed, phase notes reach the next phase without the owner; /plan-run names a plan and runs phase by phase in fresh sessions with a separate checker until its time limit, at most 24 hours; plan run and wave are two skills, one or the other per night; build order cleanup first, then the editor plan reference check; build it in the day wave of 2026-10-09; owner 2026-10-09 later: the plan run must work in Codex too, since both harnesses are used"
+  },
+  "review": null
+}
