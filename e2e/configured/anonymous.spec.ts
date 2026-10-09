@@ -16,8 +16,9 @@
 // covers: src/components/auth/{accountCopy.ts,SignInDialog.tsx,SignInPrompt.tsx}
 // covers: src/components/save/SaveDialogs.tsx
 
-import { test, expect } from '@playwright/test';
-import { dismissWizard, SUPABASE_URL } from './_helpers';
+import { test, expect, type Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+import { dismissWizard, E2E_EMAIL, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { chooseNoacgAgent } from '../_ai-step';
@@ -309,5 +310,113 @@ test.describe('anonymous visitor (open editor)', () => {
     await page.goto('/app#access_token=not-a-real-token&expires_in=3600&token_type=bearer&type=recovery');
     await expect(page.getByTestId('password-recovery-page')).toBeVisible();
     await expect(page.getByTestId('recovery-expired')).toBeVisible();
+  });
+});
+
+// SIGNING UP (issue #794). What the dialog says after "Create account" is decided by the server's
+// reply (src/backend/signUpOutcome.ts): a reply with a session is a working account, so the visitor
+// is signed in and told nothing about email; only a reply without one says to check the inbox.
+// Every sign-up used to be told to confirm an email, though this project sends none.
+
+/** Open the dialog's create-account half from Home, and log every note the dialog ever puts in
+ *  the DOM - however briefly, and across the reload a sign-in makes onto the account's library -
+ *  so a note that flashes before the dialog closes is caught, not only one that stays. */
+async function openSignUp(page: Page): Promise<string[]> {
+  const notes: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (text.startsWith('auth-note: ')) notes.push(text.slice('auth-note: '.length));
+  });
+  await page.addInitScript(() => {
+    new MutationObserver(() => {
+      for (const note of document.querySelectorAll('.auth-note')) console.info(`auth-note: ${note.textContent}`);
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
+  await page.locator('.auth-signin').click();
+  await page.locator('.auth-card').getByRole('button', { name: 'New here? Create a free account' }).click();
+  await expect(page.locator('.auth-submit')).toHaveText('Create account');
+  return notes;
+}
+
+test.describe('signing up (configured)', () => {
+  test.skip(!SUPABASE_URL, 'set VITE_SUPABASE_URL to run the configured-mode suite');
+
+  test('a new account that works at once is signed in, and never told to check an email', async ({ page }) => {
+    test.skip(!SERVICE_ROLE_KEY, 'needs SUPABASE_SERVICE_ROLE_KEY to delete the account it makes');
+    const settings = (await (
+      await fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SERVICE_ROLE_KEY } })
+    ).json()) as { mailer_autoconfirm?: boolean };
+    // A project that confirms addresses would send a real email on every run; the next test
+    // covers that reply without one.
+    test.skip(settings.mailer_autoconfirm !== true, 'this project confirms email addresses');
+
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const email = `e2e-sign-up@${E2E_EMAIL.split('@')[1] || 'noacg.local'}`;
+    const removeAccount = async () => {
+      const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
+      if (error) throw new Error(`could not list users: ${error.message}`);
+      const user = data.users.find((u) => u.email === email);
+      if (user) await admin.auth.admin.deleteUser(user.id);
+    };
+    await removeAccount(); // a leftover from a run that died before its cleanup
+
+    try {
+      const notes = await openSignUp(page);
+      // The reply itself, so the walk below is known to be the session case it claims to be.
+      let repliedWithSession = false;
+      await page.route('**/auth/v1/signup*', async (route) => {
+        const response = await route.fetch();
+        repliedWithSession = Boolean(((await response.json()) as { access_token?: string }).access_token);
+        await route.fulfill({ response });
+      });
+      await page.locator('#auth-email').fill(email);
+      await page.locator('#auth-pass').fill('noacg-e2e-sign-up-pw');
+      await page.locator('.auth-card').getByRole('button', { name: 'Create account', exact: true }).click();
+
+      // Signed in: the topbar names the new account and the dialog is gone.
+      await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId('auth-state')).toHaveText('e2e-sign-up');
+      await expect(page.locator('.auth-card')).toHaveCount(0);
+      expect(repliedWithSession, 'the server answered the sign-up with a session').toBe(true);
+      // And at no point did it say to go and confirm an email.
+      expect(notes, 'notes the dialog showed').toEqual([]);
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await removeAccount();
+    }
+  });
+
+  test('a sign-up that waits on a confirmation says to check the email, and signs nobody in', async ({ page }) => {
+    // What GoTrue answers when the project confirms addresses: the new user, no session. Served
+    // here so no account is made and no email is sent.
+    await page.route('**/auth/v1/signup*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '00000000-0000-4000-8000-000000000794',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: 'e2e-unconfirmed@noacg.local',
+          confirmation_sent_at: new Date().toISOString(),
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: {},
+          identities: [{ id: '00000000-0000-4000-8000-000000000794', provider: 'email' }],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_anonymous: false,
+        }),
+      }),
+    );
+    await openSignUp(page);
+    await page.locator('#auth-email').fill('e2e-unconfirmed@noacg.local');
+    await page.locator('#auth-pass').fill('noacg-e2e-sign-up-pw');
+    await page.locator('.auth-card').getByRole('button', { name: 'Create account', exact: true }).click();
+    await expect(page.locator('.auth-note')).toHaveText('Check your email to confirm your account, then sign in.');
+    await expect(page.locator('.auth-card')).toBeVisible();
+    await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
   });
 });

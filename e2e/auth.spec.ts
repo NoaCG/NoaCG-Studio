@@ -17,8 +17,20 @@
 // covers: src/components/save/SaveDialogs.tsx
 
 import { test, expect } from '@playwright/test';
+import type { Session } from '@supabase/supabase-js';
 import { FAKE_JOIN_ROUTE, TEAM } from './_teams';
 import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
+import { signUpOutcome } from '../src/backend/signUpOutcome';
+
+// WHAT A SIGN-UP SAYS NEXT (issue #794), decided from the server's reply. No page: this is the
+// decision alone. e2e/configured/anonymous.spec.ts walks both replies through the real dialog.
+test('sign-up: a reply with a session is signed in, and only a reply without one waits on an email', () => {
+  const user = { id: 'u1', email: 'new@noacg.local' };
+  // Confirmations off: GoTrue returns the user and a session.
+  expect(signUpOutcome({ session: { access_token: 'a', refresh_token: 'r', user } as unknown as Session })).toBe('signed-in');
+  // Confirmations on: the user and no session; the email is on its way.
+  expect(signUpOutcome({ session: null })).toBe('confirm-email');
+});
 
 // Era 5.6: the editor is open to everyone — there is no login wall anywhere. And with no Supabase
 // backend configured (the default, and always the case in this test's env) the app must grow NO
