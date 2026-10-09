@@ -19,8 +19,6 @@ import {
   type ResolvedLegibility,
   type TextRole,
 } from '../model/designRules';
-import { parseAnimData } from '../blocks/animData';
-import { allTimelines } from '../blocks/animMachine';
 import { composeDocument } from '../preview/composeDocument';
 import type { SpxTemplate } from '../model/types';
 import { DATA_SOURCE_CLASS } from '../templates/shared/base';
@@ -203,53 +201,25 @@ export function designRulesWarnings(
   if (!report.readings.some((r) => r.fieldBound) && hasFieldText(doc, template)) {
     issues.push(unmeasured('none of its text was visible when it was measured'));
   }
+  // The ticker-margin rule holds tickers only, and the template says what it is - the same
+  // ruling as the lead-line target above. Inferring a crawl from declared motion held counters
+  // and bars on wide infographics and results boards to it (#873), and a lower third anchored
+  // left is not an off-centre ticker. Its row is kept clear of the cap: it is a different
+  // problem from the readability rows, and an eighth contrast row hid it on a shipped ticker.
+  const tickerIssues: ValidationIssue[] = template.type === 'ticker'
+    ? measureTickerMargins(doc).findings.map((finding) => ({
+      rule: 'legibility-ticker-margins',
+      message: `${finding.detail} (computed for ${viewingPhrase(legibility)})`,
+    }))
+    : [];
+  const room = MAX_WARNINGS - tickerIssues.length;
   for (const finding of report.findings) {
+    if (issues.length >= room) break;
     const msg = productMessage(finding, legibility);
     if (msg) issues.push(msg);
-    if (issues.length >= MAX_WARNINGS) break;
   }
-
-  // The ticker-margin rule, only where a CRAWL exists: the widest painted band must also
-  // carry (or contain) a measured-motion target, or the "band" is just a strap/panel whose
-  // uneven margins are its design. A lower third anchored left is not an off-centre ticker.
-  if (issues.length < MAX_WARNINGS && hasCrawlBand(doc, template)) {
-    const ticker = measureTickerMargins(doc);
-    for (const finding of ticker.findings) {
-      issues.push({
-        rule: 'legibility-ticker-margins',
-        message: `${finding.detail} (computed for ${viewingPhrase(legibility)})`,
-      });
-    }
-  }
-  return issues.slice(0, MAX_WARNINGS);
-}
-
-/** True when the template declares measured motion (a NOACG_ANIM dynamics segment) whose
- *  target intersects a band spanning at least half the frame - the crawl signature. A ticker
- *  that declares no measured motion (hand-written or CSS motion, an import, an unreadable block)
- *  has none to find, so its TYPE stands in: without that the rule could never reach it (#840). */
-function hasCrawlBand(doc: Document, template: SpxTemplate): boolean {
-  const selectors = new Set<string>();
-  const data = parseAnimData(template.js);
-  for (const step of data ? allTimelines(data) : []) {
-    for (const d of step.dynamics ?? []) if (d.target) selectors.add(d.target);
-  }
-  if (selectors.size === 0) return template.type === 'ticker';
-  const frameWidth = doc.documentElement.clientWidth || template.resolution.width;
-  for (const sel of selectors) {
-    try {
-      for (const el of Array.from(doc.querySelectorAll(sel))) {
-        // The crawl's travel is horizontal when its content is wider than tall; a credits
-        // roll travels vertically and has no side-margin contract to hold.
-        const rect = el.getBoundingClientRect();
-        const host = el.parentElement?.getBoundingClientRect();
-        if ((host?.width ?? rect.width) >= frameWidth / 2 && rect.width >= rect.height) return true;
-      }
-    } catch {
-      /* an exotic selector - leave it to the author */
-    }
-  }
-  return false;
+  issues.push(...tickerIssues);
+  return issues;
 }
 
 /**

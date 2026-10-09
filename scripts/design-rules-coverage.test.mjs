@@ -13,11 +13,14 @@
 //   - a frame whose field text is all faded out says "not checked" instead of nothing, even beside
 //     visible static text, and a frame with visible field text or with no text fields does not;
 //   - the mark rule fires for a mark outside the safe area and not for a cropped picture well;
-//   - a ticker with no animation block is held to the margin rule, a lower third is not;
+//   - a ticker with no animation block is held to the margin rule, a lower third is not, and a
+//     glass band or a full list of other warnings does not hide an off-centre ticker;
 //   - across the whole catalog, in the pose the export panel measures, no shipped design reads
 //     as "not checked" and none trips the mark rule - the false positives that would teach
-//     people to ignore the warnings. The ticker rule is not asserted here: it already fires on
-//     six non-ticker designs through their declared motion, which is #873.
+//     people to ignore the warnings;
+//   - no shipped design trips the ticker rule, including the infographics and results boards whose
+//     counters and bars once read as a crawl (#873), yet every catalog ticker pushed off-centre
+//     does: the rule reaches each ticker, glass ones and ones with a full list of other warnings.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
@@ -55,16 +58,22 @@ const MEASURE_FIXTURE = async ({ type, body, css, fields }) => {
 };
 
 /** The export panel's own measurement over every catalog design, a few frames at a time. Runs in
- *  the browser; returns each design's rule ids. */
-const MEASURE_CATALOG = async () => {
+ *  the browser; returns each design's type and rule ids. With `onlyType`, only designs of that
+ *  type; `css` is appended to each one measured. */
+const MEASURE_CATALOG = async ({ onlyType = null, css = '' } = {}) => {
   const ids = Object.values(window.NOACG_CATALOG.CATALOG).flat().map((v) => v.id);
   const out = {};
   const BATCH = 6;
   for (let i = 0; i < ids.length; i += BATCH) {
     await Promise.all(ids.slice(i, i + BATCH).map(async (id) => {
       const template = window.NOACG_CATALOG.variantById(id).create({});
+      if (onlyType && template.type !== onlyType) return;
+      template.css += css;
       const warnings = await window.NOACG_RULES.checkTemplateLegibility(template, null);
-      out[id] = warnings.map((w) => (w.message.startsWith('The brand mark') ? 'mark-safe-area' : w.rule));
+      out[id] = {
+        type: template.type,
+        rules: warnings.map((w) => (w.message.startsWith('The brand mark') ? 'mark-safe-area' : w.rule)),
+      };
     }));
   }
   return out;
@@ -124,7 +133,25 @@ const measured = await withBundledPage(SPECS, async (page) => {
       css: '.band{position:absolute;left:0;top:960px;width:1600px;height:72px;background:#101418;font-size:40px}',
       body: '<div class="band"><span id="f0">Ana Example</span></div>',
     }),
-    catalog: await page.evaluate(MEASURE_CATALOG),
+    // A glass band: a faint tint over a blurred backdrop, below the paint threshold on its own.
+    tickerGlass: await fixture({
+      type: 'ticker', fields: TEXT_FIELD,
+      css: '.band{position:absolute;left:0;top:960px;width:1600px;height:72px;font-size:40px;'
+        + 'background:rgba(255,255,255,.1);backdrop-filter:blur(12px)}',
+      body: '<div class="band"><span id="f0">Ana Example</span></div>',
+    }),
+    // An off-centre ticker that also has more readability findings than the panel shows.
+    tickerCrowded: await fixture({
+      type: 'ticker', fields: TEXT_FIELD,
+      css: '.band{position:absolute;left:0;top:960px;width:1600px;height:72px;background:#101418}'
+        + ' .band span{font-size:12px;margin-right:40px}',
+      body: `<div class="band"><span id="f0">Ana Example</span>${'<span>tiny</span>'.repeat(12)}</div>`,
+    }),
+    catalog: await page.evaluate(MEASURE_CATALOG, {}),
+    // Each ticker moved right, so a full-bleed or centred band sits off-centre.
+    tickersShifted: await page.evaluate(MEASURE_CATALOG, {
+      onlyType: 'ticker', css: '\nbody{transform:translateX(160px)}',
+    }),
   };
 });
 
@@ -152,11 +179,36 @@ test('a ticker with no animation block is held to the margin rule, a lower third
   assert.ok(!rules(measured.strapUneven).includes('legibility-ticker-margins'), JSON.stringify(measured.strapUneven));
 });
 
+test('a glass ticker band is measured, and the margin row survives the warning cap', () => {
+  assert.ok(rules(measured.tickerGlass).includes('legibility-ticker-margins'), JSON.stringify(measured.tickerGlass));
+  const crowded = rules(measured.tickerCrowded);
+  assert.equal(crowded.length, 8, JSON.stringify(crowded));
+  assert.ok(crowded.includes('legibility-ticker-margins'), JSON.stringify(crowded));
+});
+
 test('no catalog design reads as "not checked" or trips the mark rule', () => {
   const ids = Object.keys(measured.catalog);
   assert.ok(ids.length > 100, `measured ${ids.length} catalog designs`);
   for (const rule of ['legibility-unmeasured', 'mark-safe-area']) {
-    const hit = ids.filter((id) => measured.catalog[id].includes(rule));
+    const hit = ids.filter((id) => measured.catalog[id].rules.includes(rule));
     assert.deepEqual(hit, [], `${hit.length} of ${ids.length} designs report ${rule}`);
   }
+});
+
+const TICKER_RULE = 'legibility-ticker-margins';
+
+test('no catalog design trips the ticker-margin rule, and only tickers are held to it', () => {
+  // The six that did (#873): counters and bars on boards at least half the frame wide.
+  for (const id of ['ig17', 'ig20', 'ig21', 'ig24', 'rs01', 'rs02']) {
+    assert.ok(measured.catalog[id] && measured.catalog[id].type !== 'ticker', `${id} is a catalog non-ticker`);
+  }
+  const hit = Object.keys(measured.catalog).filter((id) => measured.catalog[id].rules.includes(TICKER_RULE));
+  assert.deepEqual(hit, []);
+});
+
+test('every catalog ticker gets the ticker-margin rule', () => {
+  const tickers = Object.keys(measured.tickersShifted);
+  assert.ok(tickers.length >= 10 && tickers.includes('tk01'), `measured ${tickers.length} tickers`);
+  const missed = tickers.filter((id) => !measured.tickersShifted[id].rules.includes(TICKER_RULE));
+  assert.deepEqual(missed, [], `${missed.length} of ${tickers.length} off-centre tickers were not warned`);
 });
