@@ -148,10 +148,15 @@ test('the request check plays each graphic with outside requests refused and nam
       ...clean,
       js: clean.js + wrap('next', "window['fe' + 'tch']('https://api.example.invalid/' + 'scores').catch(function () {});"),
     };
+    // Two that no policy refuses: a peer-to-peer connection, and a page sent somewhere else.
+    const peer = { ...clean, js: clean.js + wrap('play', 'try { new RTCPeerConnection(); } catch (e) {}') };
+    const away = { ...clean, js: clean.js + wrap('next', "location.href = 'https:' + '//away.example.invalid/';") };
     return checkPackRequests([
       { name: 'Clean', template: clean },
       { name: 'From a CDN', template: cdn },
       { name: 'On Continue', template: later },
+      { name: 'Peer to peer', template: peer },
+      { name: 'Away', template: away },
     ]);
   });
   // A catalog graphic asks for nothing outside itself: its bundled font is the one allowed file.
@@ -165,6 +170,8 @@ test('the request check plays each graphic with outside requests refused and nam
       graphic: 'On Continue',
       message: expect.stringContaining('It asks for https://api.example.invalid/scores (a request from its code) on Continue.'),
     },
+    { graphic: 'Peer to peer', message: expect.stringContaining('It asks for a peer-to-peer connection (WebRTC) when it plays.') },
+    { graphic: 'Away', message: expect.stringContaining('It asks for another page (a navigation) on Continue.') },
   ]);
 });
 

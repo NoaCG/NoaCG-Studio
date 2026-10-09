@@ -4,6 +4,9 @@
 
 /** What the bench posts to its parent for each refused request. */
 export const NETWORK_REQUEST_TYPE = 'noacg-network-request';
+/** What it posts once the graphic's document has loaded, so the bench drives that document and
+ *  not the empty one a frame may load first. */
+export const NETWORK_READY_TYPE = 'noacg-network-ready';
 
 /**
  * Everything a composed graphic needs runs inline or from a `data:`/`blob:` URL, with one
@@ -46,8 +49,8 @@ function fontScope(fontBase: string): string {
  * - It records which command the graphic was running, read off the messages the live-control
  *   script obeys.
  * - A peer-to-peer connection (WebRTC) is a request no policy covers, so its constructors report
- *   and refuse. A page that navigates itself away is reported by the bench, which sees the frame
- *   load a second time.
+ *   and refuse; and a page that navigates itself away reports as it goes.
+ * - It says when the document has loaded.
  * - Time runs `timeScale` times faster for the graphic's own timers as for GSAP, so a request
  *   made a few seconds after Take is still seen inside the bench's short phases.
  */
@@ -66,6 +69,10 @@ export function networkGuardTags(fontBase: string, timeScale: number): string {
   window.addEventListener('securitypolicyviolation', function (e) {
     report(String(e.blockedURI || ''), String(e.effectiveDirective || e.violatedDirective || ''));
   }, true);
+  window.addEventListener('pagehide', function () { report('another page', 'navigation'); }, true);
+  window.addEventListener('load', function () {
+    try { host.postMessage({ type: ${JSON.stringify(NETWORK_READY_TYPE)} }, '*'); } catch (x) {}
+  });
   ['RTCPeerConnection', 'webkitRTCPeerConnection'].forEach(function (name) {
     if (!window[name]) return;
     window[name] = function () {

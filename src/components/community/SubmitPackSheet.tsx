@@ -67,8 +67,11 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
   // Cancel closes the sheet while the check may still be playing graphics: nothing may be sent
   // after the maker has closed it.
   const open = useRef(true);
-  useEffect(() => () => {
-    open.current = false;
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
   }, []);
 
   // The name this maker chose on their previous pack is the only pre-fill allowed (D15). It never

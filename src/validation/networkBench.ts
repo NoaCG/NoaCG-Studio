@@ -17,7 +17,7 @@
 import { composeDocument } from '../preview/composeDocument';
 import { PREVIEW_BOX_TYPE, PREVIEW_CMD_TYPE, type PreviewCmd } from '../preview/previewProtocol';
 import type { SpxTemplate } from '../model/types';
-import { isRequest, NETWORK_REQUEST_TYPE, withNetworkGuard, type ObservedRequest } from './networkGuard';
+import { isRequest, NETWORK_READY_TYPE, NETWORK_REQUEST_TYPE, withNetworkGuard, type ObservedRequest } from './networkGuard';
 
 export type { ObservedRequest } from './networkGuard';
 
@@ -62,11 +62,14 @@ export async function observeRequests(template: SpxTemplate): Promise<ObservedRe
     'opacity:0;pointer-events:none;transform:scale(0.05);transform-origin:0 0;z-index:-1;';
 
   const seen = new Map<string, ObservedRequest>();
-  // Play answers with the graphic's box once it has run, so Continue is never pressed before it.
+  // The guard says when the graphic's document has loaded; play answers with the graphic's box
+  // once it has run, so Continue is never pressed before it.
+  let ready: () => void = () => {};
   let played: () => void = () => {};
   const onMessage = (ev: MessageEvent) => {
     if (ev.source !== iframe.contentWindow) return;
     const m = ev.data as Partial<ObservedRequest> & { type?: string };
+    if (m?.type === NETWORK_READY_TYPE) ready();
     if (m?.type === PREVIEW_BOX_TYPE) played();
     if (!m || m.type !== NETWORK_REQUEST_TYPE || typeof m.url !== 'string' || !isRequest(m.url)) return;
     if (!seen.has(m.url)) seen.set(m.url, { url: m.url, directive: String(m.directive ?? ''), phase: String(m.phase ?? '') });
@@ -80,39 +83,30 @@ export async function observeRequests(template: SpxTemplate): Promise<ObservedRe
     if (document.hidden) hidden = true;
   };
   document.addEventListener('visibilitychange', onVisibility);
-  let phase = 'load';
-  const sendPhase = (cmd: PreviewCmd) => {
-    phase = cmd.cmd;
-    send(cmd);
-  };
 
   try {
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('The request check could not load the graphic.')), LOAD_MS);
-      iframe.onload = () => {
+      ready = () => {
         clearTimeout(timer);
         resolve();
-        // Every later load is the graphic navigating its own page away, which no policy refuses.
-        iframe.onload = () => {
-          if (!seen.has('another page')) seen.set('another page', { url: 'another page', directive: 'navigation', phase });
-        };
       };
       iframe.srcdoc = withNetworkGuard(composeDocument(template, { liveControl: true }), fontBase, TIME_SCALE);
       document.body.appendChild(iframe);
     });
     await wait(PHASE_MS);
     const data = defaults(template);
-    sendPhase({ cmd: 'update', data });
+    send({ cmd: 'update', data });
     await wait(PHASE_MS);
-    await Promise.race([new Promise<void>((resolve) => { played = resolve; sendPhase({ cmd: 'play', data }); }), wait(PLAYED_MS)]);
+    await Promise.race([new Promise<void>((resolve) => { played = resolve; send({ cmd: 'play', data }); }), wait(PLAYED_MS)]);
     await wait(PHASE_MS);
     const steps = Number.parseInt(template.settings.steps, 10);
     const continues = Math.min(Math.max(Number.isFinite(steps) ? steps : 1, 1), MAX_CONTINUES);
     for (let i = 0; i < continues; i++) {
-      sendPhase({ cmd: 'next' });
+      send({ cmd: 'next' });
       await wait(PHASE_MS);
     }
-    sendPhase({ cmd: 'stop' });
+    send({ cmd: 'stop' });
     await wait(AFTER_OUT_MS);
   } finally {
     window.removeEventListener('message', onMessage);
