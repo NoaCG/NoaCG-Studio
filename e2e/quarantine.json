@@ -6,11 +6,6 @@
       "since": "2026-10-09",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37898329567"
-    },
-    "e2e/editor-images.spec.ts": {
-      "since": "2026-10-09",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37915047615"
     }
   },
   "released": {
@@ -32,6 +27,10 @@
     },
     "e2e/editor-foundation.spec.ts": {
       "count": 2,
+      "last": "2026-10-09"
+    },
+    "e2e/editor-images.spec.ts": {
+      "count": 1,
       "last": "2026-10-09"
     },
     "e2e/editor-keys.spec.ts": {
