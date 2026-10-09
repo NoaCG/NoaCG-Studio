@@ -2586,12 +2586,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     onAirChanged('air', result, casparOutputTarget(settings));
     if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
-  const unloadFromSlot = (): Promise<void> => slotAction(async () => {
+  /** Take this production's renderer off its CasparCG slot through the Bridge: where, and the note
+   *  a failure leaves. */
+  const takeOffSlot = async (): Promise<{ where: string; failed: string | null }> => {
     const settings = loadPlayoutSettings();
+    const where = slotAddress(slotOf(settings));
     const result = await takeOutputOff(settings);
     onAirChanged('stop', result, casparOutputTarget(settings));
-    if (result.state !== 'ok') setNote(`Unload from ${slotAddress(slotOf(settings))} failed: ${result.detail}`);
+    return { where, failed: result.state === 'ok' ? null : `Unload from ${where} failed: ${result.detail}` };
+  };
+  const unloadFromSlot = (): Promise<void> => slotAction(async () => {
+    const { failed } = await takeOffSlot();
+    if (failed) setNote(failed);
   });
+  /** THE OFFLINE CLEAR (docs/work-specs/offline-clear/spec.md): All out did not clear NoaCG
+   *  graphics through the cloud, so this production's renderer comes off its CasparCG slot through
+   *  the Bridge, which needs no cloud. A renderer loaded again boots into what the cloud still says
+   *  is on air, which is why the note asks for All out before Load. Answers `base` with that said,
+   *  or `base` alone when the slot does not hold this production's renderer. */
+  const clearThroughBridge = async (base: string): Promise<string> => {
+    if (outputSlot?.holds !== 'ours') return base;
+    let said = '';
+    await slotAction(async () => {
+      const { where, failed } = await takeOffSlot();
+      said = failed ?? `Unloaded NoaCG graphics from ${where}. When the connection is back, press All out before Load on ${where}.`;
+    });
+    return said ? `${base.replace(/\.?$/, '.')} ${said}` : base;
+  };
 
   /** Publish; the version it wrote, or null when it did not (the note says why). `forPrepare`:
    *  The readiness flow owns preparation and reports the result in the status panel. */
@@ -3178,7 +3199,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     try {
       const sent = await sendVerb(clearAllCueBatches(cleared), 'All out', true);
       if (!sent.ok) {
-        setNote(sent.note);
+        setNote(await clearThroughBridge(sent.note));
         return;
       }
       // A graphic this page pressed again while the All out was on its way stays as that later press
@@ -3187,7 +3208,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
       // Clearing… until the heads say each is off; one still on is named, never assumed gone.
       const still = hostedSlug ? await headsStillOn(hostedSlug, off, ALL_OUT_CONFIRM_MS) : [];
-      if (still.length > 0) setNote(`All out did not clear ${nameList(still)}`);
+      if (still.length > 0) setNote(await clearThroughBridge(`All out did not clear ${nameList(still)}`));
     } finally {
       setClearing(false);
     }
