@@ -98,14 +98,22 @@ export function hasFlag(args, name) {
  * the right guess for an unknown command. If the logs say the common unknown is nearer a whole
  * browser, this is the number to move, and that measurement is the one to make first.
  *
- * IT FOLLOWS THAT TWO WALKS MAY RUN BY DAY WHERE ONE SUITE COULD, AND FOUR AT NIGHT. That is the
- * unit meaning what it says rather than a hole: the day budget spends at most ONE suite-equivalent
- * of this machine on agent work either way, sliced instead of whole, and the RAM floor is the
- * physical backstop that stops the second slice starting on a box that cannot take it. Work
- * OUTSIDE the queue is still charged a full suite each (`capacity`), because nothing can measure
- * it.
+ * IT FOLLOWS THAT TWO WALKS MAY RUN IN THE MODEST BUDGET WHERE ONE SUITE COULD, AND FOUR IN THE
+ * FULL ONE. That is the unit meaning what it says rather than a hole: the modest budget spends at
+ * most ONE suite-equivalent of this machine on agent work either way, sliced instead of whole,
+ * and the RAM floor is the physical backstop that stops the second slice starting on a box that
+ * cannot take it. Work OUTSIDE the queue is still charged a full suite each (`capacity`), because
+ * nothing can measure it. Work the repo KNOWS drives a browser is held to one at a time on top of
+ * all this (`drivesBrowser`); an unknown command is priced like a page but not held to the slot.
  */
-export const COST = Object.freeze({ browser: 1, walk: 0.5, merge: 0.15, other: 0.4 });
+/*
+ * `build` IS MEASURED, 2026-10-09: `npm run build` peaked at 2.8 GB of working set across 62
+ * processes over six and a half minutes, against 3.8 GB for a targeted one-spec e2e run - three
+ * quarters of a browser job. It used to share `other`'s 0.4 with test runs that measured 0.2 GB,
+ * which let two builds start in the working day and charged each one 1.6 GB of floor for the
+ * 2.8 it takes.
+ */
+export const COST = Object.freeze({ browser: 1, build: 0.75, walk: 0.5, merge: 0.15, other: 0.4 });
 
 /**
  * `NOACG_JOBS_FREE_MB` as a number, or null when it says nothing usable.
@@ -120,13 +128,38 @@ function overrideFloorMb() {
   return Number.isFinite(raw) && raw > 0 ? raw : null;
 }
 
-/** Capacity policy. Night is for agents; the day belongs to the person using the laptop. */
+/**
+ * Capacity policy. The owner's working day is modest; every other hour, and any hour when no
+ * other agent session is live, gets the full budget.
+ *
+ * WHY THESE HOURS. Owner, 2026-10-09: on weekdays 08:00-16:00 Helsinki he uses the laptop for
+ * light work and other agent sessions, so the queue stays modest then; outside those hours it may
+ * use full throughput, and with no other live agent session it may use the larger budget whatever
+ * the clock says. A suggestion rather than a hard rule, which is why `alone` overrides the clock.
+ * Until then the day budget ran 07:00-24:00 every day, weekends included, and the full one only
+ * 00:00-07:00. The clock is read in `timeZone`, not the machine's zone, because the rule is
+ * stated in Helsinki time.
+ *
+ * WHY THESE NUMBERS (measured 2026-10-09, after whole suites stopped running locally; the table
+ * is in `docs/JOB_RUNNER_PLAN.md`). A targeted one-spec e2e run took 3.8 GB of working set at
+ * peak, twelve browser processes and about 3.7 cores for its one minute, and drove free memory
+ * from 4.1 GB to 1.3 GB beside the owner's own sessions. That is one suite-equivalent, and it is
+ * all of the machine's spare memory in the working day: `byModest` is ONE, so a browser run never
+ * shares the working day with a second heavy job. A build took 2.8 GB over six and a half
+ * minutes, so it is priced at three quarters (`COST.build`) and two builds no longer fit the
+ * modest budget either. Script tests (0.2 GB, seconds) and a landing (0.1 GB, no CPU) are noise
+ * beside them. `byFull` is TWO: the one browser run with a build beside it, or two builds, and
+ * the RAM floor still refuses either when the free memory is not there.
+ */
 export const POLICY = Object.freeze({
-  nightFrom: 0, // 00:00 local, inclusive
-  nightTo: 7, //  07:00 local, exclusive
+  timeZone: 'Europe/Helsinki',
+  /** Monday to Friday (0 is Sunday), from 08:00 inclusive to 16:00 exclusive. */
+  modestDays: Object.freeze([1, 2, 3, 4, 5]),
+  modestFrom: 8,
+  modestTo: 16,
   /** Budgets in suite-equivalents, not job counts. */
-  byDay: 1,
-  byNight: 2,
+  byModest: 1,
+  byFull: 2,
   /**
    * Below this much free RAM nothing new starts, whatever the clock allows - one figure for one
    * suite-equivalent, scaled by what the job costs (see `schedule`).
@@ -527,25 +560,129 @@ export function pruneJobs(dir, { now = Date.now(), retentionMs = JOB_RETENTION_M
  * we subtract it before starting anything. Cooperation is an optimisation here; the OS process
  * table stays the source of truth.
  */
-export function capacity({ hour, outsideRuns = 0, policy = POLICY }) {
+export function capacity({
+  now = Date.now(), alone = false, outsideRuns = 0, policy = POLICY, budget = budgetMode({ now, alone, policy }),
+}) {
   // The free-RAM floor is deliberately NOT here. It is an admission check on one job, scaled by
   // what that job costs (see `schedule`), because zeroing the whole budget on a suite-sized
   // threshold also stopped the landings - the cheapest jobs there are, and the ones that most
   // need to finish overnight.
-  const isNight = hour >= policy.nightFrom && hour < policy.nightTo;
   // An outside run is browser work by definition - `activeRuns` only reports Playwright CLIs and
   // sweeps - so it costs a full suite-equivalent.
-  return Math.max(0, (isNight ? policy.byNight : policy.byDay) - outsideRuns * COST.browser);
+  return Math.max(0, budget.slots - outsideRuns * COST.browser);
+}
+
+const WEEKDAYS = Object.freeze(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+
+/** Weekday (0 is Sunday) and hour of `now` in `timeZone`, plus a label like `Fri 15:59`. */
+export function clockIn(now, timeZone) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+      .formatToParts(new Date(now))
+      .map((p) => [p.type, p.value]),
+  );
+  return { weekday: WEEKDAYS.indexOf(parts.weekday), hour: Number(parts.hour), label: `${parts.weekday} ${parts.hour}:${parts.minute}` };
 }
 
 /**
- * Commands we KNOW are cheap: CPU and a little RAM, no dev server, no browser.
+ * Which budget is in effect, as `{ mode, slots, why }` - `mode` is `modest` or `full`, and `why`
+ * is the half-sentence the listing prints.
+ *
+ * `alone` is true only when the caller KNOWS no other agent session is live (`agentSessions`).
+ * "Could not tell" is not alone: the modest budget is the answer that cannot hurt the owner.
+ */
+export function budgetMode({ now = Date.now(), alone = false, policy = POLICY } = {}) {
+  const clock = clockIn(now, policy.timeZone);
+  const window = `weekdays ${String(policy.modestFrom).padStart(2, '0')}:00-${policy.modestTo}:00`;
+  const working = policy.modestDays.includes(clock.weekday)
+    && clock.hour >= policy.modestFrom && clock.hour < policy.modestTo;
+  const at = `${clock.label} ${policy.timeZone.split('/').pop()}`;
+  if (!working) return { mode: 'full', slots: policy.byFull, why: `${at} is outside ${window}` };
+  if (alone) return { mode: 'full', slots: policy.byFull, why: `${at} is in ${window}, but no other agent session is live` };
+  return { mode: 'modest', slots: policy.byModest, why: `${at} is in ${window}` };
+}
+
+/**
+ * How long a session may sit idle and still count as live: the owner reading a reply and typing
+ * the next prompt is still using that session, and fifteen minutes covers that without letting a
+ * session left open overnight hold the budget down for ever.
+ */
+export const SESSION_ACTIVE_MS = 15 * 60_000;
+
+/**
+ * The agent sessions live on this machine, as `{ known, live, alone, why }`.
+ *
+ * THE SIGNALS. `claude` is Claude Code's own process inventory (`claude-agents.mjs`): one row per
+ * running session, with its `status` and, from `lastActiveMs(row)`, when its transcript or its
+ * subagents' last moved. A row counts while it is `busy`, or when it moved inside
+ * `SESSION_ACTIVE_MS` - so a session parked on a prompt overnight stops counting, and one whose
+ * subagents are working keeps counting. `codexActive` is how many Codex session logs moved inside
+ * the same window - Codex runs no process per session, so its logs are the only sign of one.
+ *
+ * WHAT IS NOT COUNTED. A subagent is not a process, so a wave's rows count as their orchestrator,
+ * which is the session the queue is working for. A session whose process descends from a running
+ * queue job (`queuePids`) is the queue's own work, not somebody else's. And ONE live session is
+ * always allowed: whoever is driving the work, this one included, so `alone` is "at most one".
+ *
+ * It needs the inventory to have answered with rows. A failed read, or an empty list - which
+ * `claude-agents.mjs` cannot tell from a daemon that is not talking - means the machine cannot
+ * say, and the caller gets the modest budget.
+ */
+export function agentSessions({
+  claude = { available: false, rows: [] }, lastActiveMs = () => null, codexActive = 0, queuePids = new Set(), now = Date.now(),
+} = {}) {
+  if (!claude?.available) {
+    return { known: false, live: null, alone: false, why: 'the session inventory did not answer' };
+  }
+  const rows = Array.isArray(claude.rows) ? claude.rows : [];
+  if (rows.length === 0) {
+    return { known: false, live: null, alone: false, why: 'the session inventory listed no session' };
+  }
+  const active = (row) => row.status === 'busy' || now - (lastActiveMs(row) ?? -Infinity) < SESSION_ACTIVE_MS;
+  const claudeLive = rows.filter((row) => !queuePids.has(Number(row.pid)) && active(row)).length;
+  const live = claudeLive + codexActive;
+  return {
+    known: true,
+    live,
+    alone: live <= 1,
+    why: `${live} agent session${live === 1 ? '' : 's'} live`,
+  };
+}
+
+/**
+ * Does this job drive a browser, by the repo's ONE list of what does (`command-match.mjs`) or by
+ * its own `--kind sweep` declaration?
+ *
+ * ONE BROWSER-DRIVING JOB PER MACHINE, whatever the budget says. The full budget is two
+ * suite-equivalents, and before this a second Playwright run could start beside the first - and,
+ * as a `:queued` script, wait inside its slot for the first one to finish (the bench/spec
+ * deadlock). A targeted one-spec run measured 3.8 GB on its own, so two at once would also be the
+ * memory wall. A landing never counts, and an unrecognised command is priced as one page but not
+ * held here: holding every unknown node script to the browser slot would serialize cheap work on
+ * a guess.
+ */
+export function drivesBrowser(job) {
+  if (job.kind === 'merge') return false;
+  if (job.kind === 'sweep') return true;
+  const command = job.command ?? '';
+  return invokesE2e(command) || invokesSweep(command);
+}
+
+/**
+ * Commands we KNOW, with what they cost: no dev server and no browser, so less than a page. The
+ * build is measured (see `COST`); the rest are CPU and a little RAM. First match wins.
  *
  * The list is deliberately short and explicit, and the two failure directions are not symmetric:
  * charging a cheap job too much costs wall clock at night, while charging an expensive one too
  * little puts two dev servers and eight browser workers on a 16 GB laptop at once.
  */
-const CHEAP = [/\bnpm\s+run\s+build\b/, /\bnode\s+--test\b/, /\bnpm\s+run\s+lint\b/, /\btsc\b/, /\bnpm\s+run\s+check:/];
+const KNOWN_PRICES = [
+  [/\bnpm\s+run\s+build\b/, COST.build],
+  [/\bnode\s+--test\b/, COST.other],
+  [/\bnpm\s+run\s+lint\b/, COST.other],
+  [/\btsc\b/, COST.other],
+  [/\bnpm\s+run\s+check:/, COST.other],
+];
 
 /**
  * What one job costs, in suite-equivalents.
@@ -581,10 +718,9 @@ export function costOf(job) {
   // `sweep` on the record is a DECLARATION - the session queueing it said this is battery work -
   // and a declaration beats a guess made from the command text, which is the whole point of the
   // kind. Without this an unlisted battery queued honestly as a sweep still read as a walk.
-  if (job.kind === 'sweep') return COST.browser;
-  const command = job.command ?? '';
-  if (invokesE2e(command) || invokesSweep(command)) return COST.browser;
-  return CHEAP.some((p) => p.test(command)) ? COST.other : COST.walk;
+  // `drivesBrowser` reads both, so the price and the browser slot cannot disagree.
+  if (drivesBrowser(job)) return COST.browser;
+  return KNOWN_PRICES.find(([pattern]) => pattern.test(job.command ?? ''))?.[1] ?? COST.walk;
 }
 
 /**
@@ -654,18 +790,19 @@ export function dependencyDecision(job, byId) {
  * happening" from outside, which is the thing this whole mechanism exists to end.
  */
 export function schedule(jobs, {
-  hour, freeMemMb, outsideRuns = 0, policy = POLICY, aheadOfMain = () => true, now = Date.now(),
-  presence = 'present',
+  freeMemMb, outsideRuns = 0, policy = POLICY, aheadOfMain = () => true, now = Date.now(),
+  presence = 'present', alone = false,
 }) {
   // Presence moves the RAM floor and NOTHING ELSE. It is not part of `capacity` below: the budget
   // is about how much of this machine agent work may occupy at once, which the owner set by the
-  // clock, and the floor is about whether ONE job physically fits right now. Merging them would
-  // make an away DAY start two suites where the clock says one - the day budget is the one that
-  // says one, and an away night must still run the two the clock already allows and no more.
+  // clock and by whether other agent sessions are live, and the floor is about whether ONE job
+  // physically fits right now. Merging them would make an away working day start two suites
+  // where the schedule says one.
   const freeMemFloorMb = freeMemFloorFor(presence, policy);
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const running = jobs.filter((j) => j.state === 'running');
-  const slots = capacity({ hour, freeMemMb, outsideRuns, policy });
+  const budget = budgetMode({ now, alone, policy });
+  const slots = capacity({ outsideRuns, budget });
 
   /**
    * Is a landing for `branch` actually COMING, in the sense that waiting behind it can pay?
@@ -735,6 +872,17 @@ export function schedule(jobs, {
     ) {
       waiting.push({ job, reason: 'a landing is using that checkout' });
       continue;
+    }
+    // ONE BROWSER-DRIVING JOB PER MACHINE (`drivesBrowser`), whatever the budget allows.
+    if (drivesBrowser(job)) {
+      const holder = live.find(drivesBrowser);
+      if (holder || outsideRuns > 0) {
+        waiting.push({
+          job,
+          reason: `one browser-driving job per machine - ${holder ? `${holder.id} holds it` : 'a browser run outside this queue holds it'}`,
+        });
+        continue;
+      }
     }
     const cost = costOf(job);
     // THE FLOOR SCALES WITH THE JOB. It exists to stop a dev server and four browser workers
@@ -807,7 +955,7 @@ export function schedule(jobs, {
     used += budgetShareOf(job);
     if (job.kind !== 'merge') freeLeftMb -= needsMb;
   }
-  return { start, waiting, dead, released, running, slots };
+  return { start, waiting, dead, released, running, slots, budget };
 }
 
 /**

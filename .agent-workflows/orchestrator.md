@@ -17,8 +17,8 @@ These hold whatever the prompt says.
 - **24 hours is the ceiling** of any unattended wave; opening a wave refuses a longer window.
 - **Never touch another session's worktree.** Read it through `node scripts/worktree-activity.mjs`
   and plan around it: never open, change, clean or adopt it.
-- **One browser-driving job per machine.** Rows run e2e and screenshots through the job queue
-  (`:queued` scripts), never the shared browser pane.
+- **One browser-driving job per machine.** The job queue starts one at a time, whatever its budget;
+  rows run e2e and screenshots through it (`:queued` scripts), never the shared browser pane.
 - **`docs/private/` stays private.** Plan with it; never copy it or cite a date from it in a prompt,
   PR, commit or report.
 

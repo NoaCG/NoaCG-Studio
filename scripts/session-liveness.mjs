@@ -101,6 +101,23 @@ export function lastSessionActivity(
   };
 }
 
+/**
+ * When ONE session last wrote a turn: its own transcript, or any of its subagents' (filed under
+ * `<session>/subagents/`), so a session whose wave is working reads as working. Null when neither
+ * exists. Never throws.
+ */
+export function sessionLastActiveMs(cwd, sessionId, { root = transcriptsRoot() } = {}) {
+  const dir = join(root, projectDirName(cwd));
+  let own = null;
+  try {
+    own = statSync(join(dir, `${sessionId}.jsonl`)).mtimeMs;
+  } catch {
+    /* no transcript of its own yet */
+  }
+  const nested = newestTranscript(join(dir, sessionId), 0);
+  return own === null ? nested : nested === null ? own : Math.max(own, nested);
+}
+
 /** Newest *.jsonl mtime under `dir`, one level of `subagents/` included. Never throws. */
 function newestTranscript(dir, depth) {
   if (depth > 2) return null;
