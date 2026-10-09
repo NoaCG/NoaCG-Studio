@@ -203,8 +203,13 @@ STARTS with `create [unique] index concurrently` or `reindex ... concurrently`. 
 - **Reset a local database with CLI 2.112.0 or later.** `db push`, `migration up` and `start`
   split the file on 2.111.0 already, but 2.111.0's local `supabase db reset` hands every file to its
   older Go applier as one pipeline, so from 0074 on it stops with `CREATE INDEX CONCURRENTLY cannot
-  be executed within a pipeline (SQLSTATE 25001)`. On an older CLI, upgrade it or run `npx -y supabase@2.112.0 db
+  be executed within a pipeline (SQLSTATE 25001)`. On an older CLI, upgrade it or run `npx -y supabase@2.113.0 db
   reset`. No file can fix this: a concurrent build cannot run in a pipeline in any form.
+- **Never push by hand with CLI 2.112.0.** Its `link` rejects the Management API's key timestamps
+  (`+00:00`, where 2.112.0 accepts only `Z`), so `db:push` stops before pushing with
+  `LegacyLinkApiKeysNetworkError ... SchemaError(... at [2]["inserted_at"])` on production and staging
+  alike. 2.111.0 (post-land's pin) and 2.113.0 or later pass. `db:push` runs the global `supabase`,
+  so upgrade it, or point the shim at another build with `SUPABASE_CLI_BINARY_OVERRIDE=<supabase.exe>`.
 
 ## Live-path migrations wait for a quiet window
 
