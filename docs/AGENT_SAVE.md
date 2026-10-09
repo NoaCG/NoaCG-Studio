@@ -265,7 +265,7 @@ the plugins as well as from the studio's shelf, and only when the user asks for 
   A separate scope would put a sharing line on every CLI login's consent page and make every
   existing key log in again before its first share.
 - **One submit gate for both doors.** An agent key is not a session, so the door cannot call the
-  session function `community_pack_submit`. Migration 0084 moved its body into
+  session function `community_pack_submit`. Migration 0087 moved its body into
   `community_pack_submit_for(p_uid, ...)`, granted to the service role only, with every check
   naming the account explicitly (the `community.publish` and suspension checks through the
   service-only `feature_denied_for`). The session function is now a wrapper passing

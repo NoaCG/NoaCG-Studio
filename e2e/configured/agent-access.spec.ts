@@ -11,7 +11,7 @@
 // are pinned in e2e/configured/anonymous.spec.ts alone; the save dialog's signed-in and
 // signed-out lines are pinned in signed-in-ux.spec.ts and anonymous.spec.ts, and offline
 // auth.spec.ts can only pin that it says neither.
-// covers: api/_lib/me/{agentKeys,graphics,graphicShape,communityPacks}.ts, supabase/migrations/0084_community_pack_submit_for.sql
+// covers: api/_lib/me/{agentKeys,graphics,graphicShape,communityPacks}.ts, supabase/migrations/0087_community_pack_submit_for.sql
 // covers: api/_lib/{principal,agentAccessStore}.ts, api/me/?...path?.ts, scripts/meDevPlugin.mjs
 
 import { test, expect } from '@playwright/test';

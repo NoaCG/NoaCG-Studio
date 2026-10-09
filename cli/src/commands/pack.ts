@@ -68,7 +68,7 @@ export type ShareOutcome =
   | { reason: 'checks' | 'refused' | 'bridge'; error: string; findings?: Array<{ graphic?: string; message: string }> };
 
 /** Why a share cannot even start, or null. `names` are the arguments as the caller spells them.
- *  The lengths are the submit gate's (migration 0084), checked here so nothing is sent first. */
+ *  The lengths are the submit gate's (migration 0087), checked here so nothing is sent first. */
 export function shareProblem(
   share: ShareOptions,
   save: boolean,

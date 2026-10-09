@@ -84,7 +84,7 @@ export interface AgentAccessStore {
   /** INSERT a waiting package for the user; the server mints and returns its id. */
   insertPackage(userId: string, row: NewWaitingPackage): Promise<string>;
   /** Send a pack for review to Community packs as the user, through the database's one submit
-   *  gate (`community_pack_submit_for`, migration 0084). Returns the submission's id; a refusal
+   *  gate (`community_pack_submit_for`, migration 0087). Returns the submission's id; a refusal
    *  of that gate throws a `CommunityPackRefusal` carrying its sentence. */
   submitCommunityPack(userId: string, row: NewCommunityPack): Promise<string>;
 }

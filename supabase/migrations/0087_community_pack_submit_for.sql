@@ -108,14 +108,14 @@ do $$
 begin
   if has_function_privilege('anon', 'public.community_pack_submit_for(uuid, text, text, text, jsonb, uuid)', 'execute')
      or has_function_privilege('authenticated', 'public.community_pack_submit_for(uuid, text, text, text, jsonb, uuid)', 'execute') then
-    raise exception '0084 self-check: a client may submit for another account';
+    raise exception '0087 self-check: a client may submit for another account';
   end if;
   if not has_function_privilege('service_role', 'public.community_pack_submit_for(uuid, text, text, text, jsonb, uuid)', 'execute') then
-    raise exception '0084 self-check: the service role cannot submit for an account';
+    raise exception '0087 self-check: the service role cannot submit for an account';
   end if;
   if has_function_privilege('anon', 'public.community_pack_submit(text, text, text, jsonb, uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.community_pack_submit(text, text, text, jsonb, uuid)', 'execute') then
-    raise exception '0084 self-check: the session door lost its grants';
+    raise exception '0087 self-check: the session door lost its grants';
   end if;
 end;
 $$;
@@ -138,14 +138,14 @@ begin
      and (select count(*) from public.community_packs c where c.author_id = u.id and c.state = 'in_review') <= 8
    limit 1;
   if v_user is null then
-    raise notice '0084 behaviour self-check skipped: no account on this instance may submit';
+    raise notice '0087 behaviour self-check skipped: no account on this instance may submit';
     return;
   end if;
   begin
     perform set_config('request.jwt.claims', '', true);
     v_id := public.community_pack_submit_for(v_user, 'Self-check', 'Self-check pack', 'Self-check', v_pack);
     if (select c.author_id from public.community_packs c where c.id = v_id and c.state = 'in_review') is distinct from v_user then
-      raise exception '0084 self-check failed: a pack submitted for an account is not that account''s, waiting';
+      raise exception '0087 self-check failed: a pack submitted for an account is not that account''s, waiting';
     end if;
 
     v_error := null;
@@ -155,7 +155,7 @@ begin
       v_error := sqlerrm;
     end;
     if v_error is distinct from 'Sign in to submit a pack.' then
-      raise exception '0084 self-check failed: a pack with no account was taken (%)', v_error;
+      raise exception '0087 self-check failed: a pack with no account was taken (%)', v_error;
     end if;
 
     v_error := null;
@@ -165,17 +165,17 @@ begin
       v_error := sqlerrm;
     end;
     if v_error is distinct from 'Sign in to submit a pack.' then
-      raise exception '0084 self-check failed: the session door took a signed-out pack (%)', v_error;
+      raise exception '0087 self-check failed: the session door took a signed-out pack (%)', v_error;
     end if;
 
     perform set_config('request.jwt.claims', json_build_object('sub', v_user, 'role', 'authenticated')::text, true);
     v_id := public.community_pack_submit('Self-check session', 'Self-check pack', 'Self-check', v_pack);
     if (select c.author_id from public.community_packs c where c.id = v_id) is distinct from v_user then
-      raise exception '0084 self-check failed: the session door did not submit as the caller';
+      raise exception '0087 self-check failed: the session door did not submit as the caller';
     end if;
 
     insert into public.user_grants (user_id, kind, key, value, reason)
-    values (v_user, 'feature', 'community.publish', '{"value": false}'::jsonb, '0084 self-check');
+    values (v_user, 'feature', 'community.publish', '{"value": false}'::jsonb, '0087 self-check');
     v_error := null;
     begin
       perform public.community_pack_submit_for(v_user, 'Denied', 'd', 'Self-check', v_pack);
@@ -183,12 +183,12 @@ begin
       v_error := sqlerrm;
     end;
     if v_error is distinct from 'This account cannot submit packs.' then
-      raise exception '0084 self-check failed: an account with community.publish off could submit (%)', v_error;
+      raise exception '0087 self-check failed: an account with community.publish off could submit (%)', v_error;
     end if;
 
-    raise exception '0084-self-check-passed';
+    raise exception '0087-self-check-passed';
   exception when raise_exception then
-    if sqlerrm <> '0084-self-check-passed' then
+    if sqlerrm <> '0087-self-check-passed' then
       raise;
     end if;
   end;

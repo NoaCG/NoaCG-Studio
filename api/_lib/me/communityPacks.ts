@@ -8,7 +8,7 @@
 // every CLI login's consent page.
 //
 // An agent key is not a session, so the database's session function cannot be called with one.
-// The store calls `community_pack_submit_for(p_uid, …)` (migration 0084) with the service role,
+// The store calls `community_pack_submit_for(p_uid, …)` (migration 0087) with the service role,
 // the one function that also serves the shelf's sheet, so every refusal - suspension, the
 // `community.publish` switch, sizes, no cues, ten waiting packs - is the same for both doors and
 // comes back here as a 409 carrying the database's own sentence.
