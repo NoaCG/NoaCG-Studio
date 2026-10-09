@@ -656,6 +656,31 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
   });
 }
 
+/**
+ * PUBLISH REFRESHES THE PRODUCTION'S COPIES (docs/work-specs/publish-guard/spec.md G1). A pool
+ * graphic whose library record this browser holds a NEWER edit of than the copy embedded here
+ * takes that design, so a teammate's page, which builds from the copy, publishes it too rather
+ * than reverting it. Name, id, layer and sounds stay: they are the production's. The copy takes
+ * the record's edit time, never now, so the two read as the same edit. Only Publish calls it: an
+ * edit reaches the production only through Publish.
+ */
+export function refreshGraphicCopies(
+  showId: string,
+  newer: (graphic: SavedGraphic) => { template: SpxTemplate; updatedAt: string } | undefined,
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, show => {
+    let changed = false;
+    for (const graphic of show.graphics) {
+      const doc = newer(graphic);
+      if (!doc || !(Date.parse(doc.updatedAt) > Date.parse(graphic.savedAt))) continue;
+      graphic.template = doc.template;
+      graphic.savedAt = doc.updatedAt;
+      changed = true;
+    }
+    return changed;
+  });
+}
+
 /** `patchShow`, answering too whether the write was refused on the spot (a full store): what a
  *  folder write that tells the operator anything reports, with `commitDurableWrites` after it. */
 function patchShowChecked(showId: string, mutate: (show: Show, at: string) => boolean): { shows: Show[]; error: string | null } {

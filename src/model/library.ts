@@ -433,3 +433,10 @@ export function entriesForSavedGraphic(graphic: SavedGraphic, library: GraphicDo
 export function templateForSavedGraphic(graphic: SavedGraphic, library: GraphicDoc[]): SpxTemplate {
   return withProductionSounds(resolveSavedGraphicDoc(graphic, library)?.template ?? graphic.template, graphic.soundConfig);
 }
+
+/** When the design `templateForSavedGraphic` resolves was last edited: the library record's save
+ *  time, else the embedded copy's. A publish never puts an older one over a newer one
+ *  (docs/work-specs/publish-guard/spec.md G3). */
+export function designEditedAt(graphic: SavedGraphic, library: GraphicDoc[]): string {
+  return resolveSavedGraphicDoc(graphic, library)?.updatedAt ?? graphic.savedAt;
+}

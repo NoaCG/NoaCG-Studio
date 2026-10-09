@@ -277,3 +277,27 @@ test('a publish renders differently only where a graphic the stamp names has ano
   // Graphics this page does not read from its own library are simply absent from `now`.
   assert.equal(rendersDiffer({}, { Theirs: 'eeee' }), false);
 });
+
+test('a publish never puts an older design over a newer one (publish-guard G3)', async () => {
+  const { olderDesigns } = await import('../src/control/payloadVersion.ts');
+  const graphic = (key, html) => ({ key, html, css: '', js: '', assets: [], resolution: { width: 1920, height: 1080 }, fps: 50, layer: 20 });
+  const at = (minute) => new Date(Date.UTC(2026, 9, 9, 14, minute)).toISOString();
+  const onAir = await stampPayload({ resolution: { width: 1920, height: 1080 }, graphics: [graphic('Strap', '<b>new</b>'), graphic('Bug', '<i/>')] }, null, new Date(0), { Strap: at(5), Bug: at(0) });
+  assert.deepEqual(readPayloadVersion(JSON.parse(JSON.stringify(onAir))).t, { Strap: at(5), Bug: at(0) }, 'the edit times survive the wire');
+  // A teammate's copy from before the edit, publishing a change elsewhere: refused, by name.
+  const stale = await stampPayload({ resolution: { width: 1920, height: 1080 }, graphics: [graphic('Strap', '<b>old</b>'), graphic('Bug', '<i/>')] }, onAir, new Date(0), { Strap: at(1), Bug: at(0) });
+  assert.deepEqual(olderDesigns(stale, onAir), ['Strap']);
+  // The same design with another layer or sounds renders differently but is the same edit: allowed.
+  const relayered = await stampPayload({ resolution: { width: 1920, height: 1080 }, graphics: [{ ...graphic('Strap', '<b>new</b>'), layer: 30 }] }, onAir, new Date(0), { Strap: at(5) });
+  assert.deepEqual(olderDesigns(relayered, onAir), []);
+  // A newer edit replaces it; so does anything over a payload published before edit times.
+  const newer = await stampPayload({ resolution: { width: 1920, height: 1080 }, graphics: [graphic('Strap', '<b>newer</b>')] }, onAir, new Date(0), { Strap: at(9) });
+  assert.deepEqual(olderDesigns(newer, onAir), []);
+  const untimed = { ...onAir };
+  delete untimed.t;
+  assert.deepEqual(olderDesigns(stale, untimed), []);
+  assert.deepEqual(olderDesigns(stale, null), []);
+  // An older copy that renders exactly what is on air harms nothing.
+  const same = await stampPayload({ resolution: { width: 1920, height: 1080 }, graphics: [graphic('Strap', '<b>new</b>')] }, onAir, new Date(0), { Strap: at(1) });
+  assert.deepEqual(olderDesigns(same, onAir), []);
+});

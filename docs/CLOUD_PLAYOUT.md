@@ -128,6 +128,14 @@ operator page should always match the current design, but a renderer that has be
 three hours must never change under the operator's feet. The production page shows a "changes
 not yet published" hint when the library template or cue list is newer than the last publish.
 
+**The newest saved edit of each graphic is what a publish puts up**, whichever page presses it
+(`docs/work-specs/publish-guard/spec.md`). A teammate's page builds a graphic from the copy the
+production embeds, so Publish first copies every design this page's library holds a newer edit of
+into that copy, and for a team production pulls the latest record and saves it before building.
+The stamp (`ver.t`) names when each design was last edited; a publish that would put an older
+design over a newer one stops on the page's failure line with nothing written, and the write lands
+only on the stamp it read, so a publish landing in between is pulled in and published over once.
+
 ### Server changes (migration `0029_cloud_playout.sql`)
 
 1. `control_shows.output_slug` + `control_shows.output` (above), plus
