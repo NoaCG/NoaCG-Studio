@@ -20,16 +20,11 @@ name: CI
 # GitHub produces in six to nine minutes.
 #
 # ONE RUN PER COMMIT OF A PULL REQUEST. A branch is gated by its pull request's run, then by the
-# merge group's; `push` is main only. Until 2026-10-09 every branch push ran too, so a same-repo
-# pull request ran the whole plan twice per commit (the push and the pull_request event) before
-# the merge group ran it a third time. Minutes are free here, but runner SLOTS are not: about 20
-# jobs run at once, a product change plans about 11 E2E shards, and parallel pull requests' shards
-# waited 6 to 12 minutes for a runner (#851). Both required checks, `CI gate` and `Reviewed`,
-# already came from the pull_request run (`Reviewed` never ran on a push), so the ruleset reads
-# exactly what it read before. What a branch gives up is a run before its pull request exists;
-# `gh workflow run ci.yml --ref <branch>` still asks for one (a full suite, see the input below).
-# A pull request with a merge conflict gets no run either, as GitHub cannot build its merge
-# commit; /queue-merge reconciles with main before it opens one.
+# merge group's; `push` is main only. A branch push ran too until #851, which doubled every pull
+# request's shards against a ceiling of about 20 concurrent jobs. The required checks, `CI gate`
+# and `Reviewed`, come from the pull request run. A branch with no pull request (or one that
+# conflicts with main) has no run; `gh workflow run ci.yml --ref <branch>` asks for one, and a
+# push does not cancel it.
 on:
   # main only: what landed is tested again in full (the plan below), and post-land work keys on it.
   # The merge queue's temporary `gh-readonly-queue/**` branches get their run from `merge_group`.
@@ -76,7 +71,7 @@ on:
         type: boolean
         default: false
 
-# Superseded runs cancel on branches and PRs, but never on main: a landed commit must keep
+# Superseded runs cancel on pull requests and dispatches, but never on main: a landed commit must keep
 # its verdict (cancelled main runs left commits with NO CI answer while they were already
 # deployed to production). Within the main group, newer pushes queue; GitHub keeps only the
 # newest queued run, so main's HEAD always ends with a completed run.
@@ -274,7 +269,6 @@ jobs:
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE: ${{ github.event.before }}
           DISPATCH_BASE: ${{ inputs.diff_base }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
           GH_TOKEN: ${{ github.token }}
@@ -307,8 +301,8 @@ jobs:
               fi
             fi
           fi
-          if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; elif [ "$EVENT" = "merge_group" ]; then BASE="$MERGE_GROUP_BASE"; else BASE="$PUSH_BEFORE"; fi
-          # The fork-point base below asks "is this merge's second parent contained in main?",
+          if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; elif [ "$EVENT" = "merge_group" ]; then BASE="$MERGE_GROUP_BASE"; else BASE=""; fi
+          # `--integration` below asks "is this merge's second parent contained in main?",
           # which needs a main ref to ask it OF. `fetch-depth: 0` above brings the remote branches
           # with it, but a missing `origin/main` would make that question answer "no merge here"
           # and quietly hand back the narrow base - a silent hole where a loud one belongs. So
@@ -325,12 +319,11 @@ jobs:
           # delivering, and planning the full suite there asked for about three times the work with
           # minutes left on the landing's clock - which is how j-0438 and j-0445 died on
           # 2026-09-03. The base it passed was the main sha it had integrated, so `--integration`
-          # below moved to the same fork point the push run would have used and the two runs
-          # planned identically. A base that is empty or unreachable falls through to the
+          # below moved to the fork point and planned the branch's change. A base that is empty or unreachable falls through to the
           # escalation below, unchanged: this
           # can only ever make a dispatch narrower ON PURPOSE, never by accident.
           #
-          # It carries the same `origin/main` condition as the fork-point base below, and for
+          # It carries the same `origin/main` condition as `--integration` below, and for
           # the same reason: `--integration` asks whether this commit merged something main does
           # not have, and without a main ref that question answers "no merge here" and quietly
           # hands back a narrow base. A run that has already given up on finding main runs
@@ -343,8 +336,7 @@ jobs:
           fi
           # A PULL REQUEST measures from its base, today's main, and the commit under test is
           # GitHub's merge of the branch onto it - so every run plans the branch's whole change
-          # against main, never only the delta since the previous push. Branch pushes used to
-          # recover a fork-point base here; since 2026-10-09 a branch has no push run (#851).
+          # against main, never only the delta since the previous push.
           #
           # MAIN RUNS EVERYTHING. Every other run tests what THIS change can affect, which is
           # the right economics for a branch and the wrong one for the branch production ships
@@ -363,12 +355,11 @@ jobs:
           if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
             echo "::notice title=E2E plan::main - running the FULL suite regardless of the diff."
             PLAN="$(node scripts/e2e-affected.mjs --json --all)"
-          # An absent, all-zero or garbage-collected base means we cannot know what changed.
+          # An absent or garbage-collected base means we cannot know what changed.
           # Then we do not guess: the fallback is the whole suite, because the one thing a
           # fallback must never do is run LESS than the truth. It is the LAST resort - what a
           # dispatched run, or a run with no reachable `origin/main`, lands on.
           elif [ -z "$BASE" ] \
-            || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
             || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
             echo "::notice title=E2E plan::No usable diff base ('${BASE}') - running the FULL suite."
             PLAN="$(node scripts/e2e-affected.mjs --json --all)"

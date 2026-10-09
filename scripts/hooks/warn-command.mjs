@@ -7,8 +7,7 @@
 //   and that run was cancelled or still going. This one is BELT-AND-BRACES since 2026-09-06, when
 //   ci.yml stopped planning a branch from the previous push (today its pull request run plans
 //   from main): the replacement run covers the cancelled one's delta by construction, so the plan
-//   is no longer narrowed and
-//   the notice no longer points at a hole. What it still says is true and worth saying - the run
+//   is no longer narrowed and the notice no longer points at a hole. What it still says is true and worth saying - the run
 //   you were watching is gone, here is its replacement, and the house rule is to read WHICH JOBS
 //   RAN rather than the colour. The reasoning sits with the rule below; it costs one
 //   `gh run list`, only on a push that updated a remote branch.

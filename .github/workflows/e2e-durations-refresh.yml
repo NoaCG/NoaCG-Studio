@@ -180,7 +180,7 @@ jobs:
           # keeps it from escalating to the whole suite for a file no spec can observe. The
           # `Reviewed` half is deliberately NOT asked for: that stamp is the person's, and this
           # pull request is waiting for one.
-          # With the App token the push and the pull request have started their own runs already.
+          # With the App token the pull request has started its own run already.
           if [ "$BOT_APP" != "true" ]; then gh workflow run ci.yml --ref "$BRANCH" -f "diff_base=$BASE"; fi
 
       - name: Say so when nothing moved

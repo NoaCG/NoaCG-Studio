@@ -273,8 +273,8 @@ it means a forgotten local run is no longer a silent hole.
 
 `ci.yml` runs on every pull request, once per commit, and does strictly more than a local run can (build, the affected
 plan sharded up to nine ways, the factory gates, the catalog tripwire when raised) in about ten
-minutes, free, on a clean checkout. The safe-merge workflow's Phase 3 prefers a CI run green on
-exactly the commit being promoted and falls back to the local pair only when there isn't one.
+minutes, free, on a clean checkout. The merge queue requires its `CI gate` on the pull request
+and again on the merge group, so nothing lands without it.
 
 **The shard count follows measured minutes, not a file count** (`shardsFor` in
 `scripts/e2e-affected.mjs`, table in `scripts/e2e-durations.json`): about three minutes of test
@@ -367,7 +367,8 @@ Nothing gated the change and the tick said otherwise. Measured 2026-08-19 on
 green with four of eight jobs skipped - on a branch whose whole subject was the catalog, which is
 the one thing `e2e/catalog-baseline.spec.ts` only ever checks in CI.
 
-Since 2026-09-06 `ci.yml` measures EVERY branch run from `main`, never from the previous push. A
+Since 2026-09-06 `ci.yml` measures every branch push or pull request run from `main`, never from
+the previous push. A
 branch push then measured from `git merge-base origin/main HEAD`; since 2026-10-09, when branch
 push runs stopped (#851), the pull request run tests GitHub's merge of the branch onto `main` and
 measures from that `main`. Either way a replacement run plans the branch's whole change, so it
@@ -392,7 +393,8 @@ that can reach the app, a spec header is missing a `covers:` line, and that is a
 to fix rather than a run to re-buy. To override the plan itself, ask for the whole suite as its
 own command: `gh workflow run ci.yml --ref <branch>`. A dispatched run has no `event.before`,
 finds no diff base, and escalates to the FULL suite by design. It is also how a branch with no
-pull request yet gets a run.
+pull request yet gets a run; `-f diff_base=$(git merge-base origin/main HEAD)` plans only the
+branch's change.
 
 ## A slow gate is a defect
 
@@ -1128,7 +1130,7 @@ GitHub telling the owner that a run *they* triggered went red. There is no secon
 | **By-design alarm** | `nightly-drift` red while its rolling issue is open (1) | yes, once per firing, twice a day | correct; the repeat COMMENT is now withheld, the red is not |
 | **Self-requested** | `workflow_dispatch` failing while somebody iterates on it (10) | yes | correct - the person who typed it asked for exactly this answer. It is not inbox noise; it is the reply |
 | **Flake** | attempt 1 red, re-run green (5) | yes | red without an action. Only fixable by fixing the flake |
-| **Superseded, mid-run** | a pull request's new commit cancels its predecessor, `cancel-in-progress: true` (26) | **no** | deliberate - saves runner slots, tells nobody |
+| **Superseded, mid-run** | a new commit cancels its predecessor's run (counted on branch pushes, before #851), `cancel-in-progress: true` (26) | **no** | deliberate - saves runner slots, tells nobody |
 | **Superseded, never started** | `main` run cancelled while queued, `jobs: []` (3) | **no** | costs a per-commit verdict, nothing else - see the concurrency comment in `ci.yml` |
 | **Exhausted** | a job killed at its own `timeout-minutes`, recorded as `cancelled` (4 of the 30 `main` runs to 2026-09-04) | **no** | no verdict, and NOT a fault. `main` sets `cancel-in-progress: false`, so a cancel there can only mean this. The gate says "ran out of time" and files nothing; the fix is to make the shards fit, and `docs/CI_STABILITY.md` §4 carries the measurement |
 

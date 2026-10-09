@@ -3,7 +3,7 @@
 // Why this exists: many worktree branches are active at once, and every push used to spend
 // a Vercel build on a preview nobody asked for - burning build minutes, emitting failure
 // emails, and drowning the one deployment that matters (production from main) in noise.
-// CI already builds and tests every branch, so previews are opt-in:
+// CI already builds and tests every pull request, so previews are opt-in:
 //
 //   - any branch other than main builds only when its head commit message contains "[preview]".
 //   - main builds when the commit can change what production serves - see below.

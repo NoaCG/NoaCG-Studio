@@ -961,7 +961,7 @@ export function pushReplacedNotice({ branch, from, to, run }) {
       `${run.databaseId} for ${from.slice(0, 8)} never finished (${run.conclusion || run.status}). ` +
       "The concurrency group cancelled it. The pull request's run for THIS push covers the delta " +
       "it owed: it plans from main, so it is this branch's whole work and cannot be narrower than " +
-      'the run it replaced.',
+      'the run it replaced. No pull request, or one that conflicts with main, means no run at all.',
     'A full suite is not the answer to a cancelled run. Ask for one only to override the plan ' +
       `itself:\n  gh workflow run ci.yml --ref ${branch}`,
     'Read WHICH JOBS RAN before believing the colour - a skipped shard means the plan found ' +

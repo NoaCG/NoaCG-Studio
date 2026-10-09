@@ -449,9 +449,8 @@ programme and nobody reloads them. Deploying every landing is safe for them; the
   `main` red for two hours on `catalog-baseline.spec.ts`. A gate that cannot fail the way
   production fails is not a gate.
 - **That verification now happens in CI, not on the developer's machine.** `ci.yml` runs
-  on every pull request (not just `main`), so a landing waits for the run whose head
-  SHA is exactly the commit being promoted and cites it, falling back to the local
-  `npm run build` + `npm run test:e2e:focus:queued` pair only when no such run exists. This is
+  on every pull request (not just `main`), and the merge queue requires its `CI gate` on the
+  pull request and again on the merge group. This is
   more coverage, not less: CI adds the factory gates and runs the affected plan across up to
   nine shards on a clean checkout, in about ten minutes of somebody else's compute. The local
   pair was costing far longer than that and taking the machine out of service while it ran -
