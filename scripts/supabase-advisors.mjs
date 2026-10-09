@@ -118,8 +118,9 @@ const ACCEPTED_CLASSES = {
     'itself grants clients nothing.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
-    'are what let a policy read a table the caller cannot. The community_pack_* functions (0079) ' +
-    'are the only door to community_packs: each checks auth.uid() or is_moderator() inside.',
+    'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
+    '0080, 0086) are the only door to community_packs and community_pack_reports: each checks ' +
+    'auth.uid() or is_moderator() inside.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +

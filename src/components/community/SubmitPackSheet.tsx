@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import WizardConfirm from '../wizard/WizardConfirm';
 import { packSources, type LibrarySource } from '../../community/packSources';
 import {
   buildCommunityPack,
   checkPackGraphics,
   checkPackMeta,
+  checkPackRequests,
   checkPackSize,
   type PackFinding,
 } from '../../community/packChecks';
@@ -15,8 +16,9 @@ import { listMyPacks, submitPack, type MyPack } from '../../community/packs';
  * AC-6, AC-7). One sheet: pick one of your folders or personal productions, keep the graphics
  * you want, name and describe the pack, choose the name it is shown under, read the checks and
  * the licence, Send for review. The checks run as the sheet changes; the primary stays off until
- * nothing refuses. An update of a live pack (AC-11) is the same sheet, filled from the live
- * version, and sends a new version that waits for review beside it.
+ * nothing refuses. Send first plays each graphic with outside requests refused (D5) and stays
+ * open naming any it made. An update of a live pack (AC-11) is the same sheet, filled from the
+ * live version, and sends a new version that waits for review beside it.
  *
  * Two surfaces open it: the wizard's Community packs shelf, where the maker chooses the source,
  * and Home, where a folder's or a selection's menu has already chosen it
@@ -56,7 +58,21 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
   const [description, setDescription] = useState(updating?.description ?? '');
   const [author, setAuthor] = useState(updating?.author ?? '');
   const [busy, setBusy] = useState(false);
+  /** Which graphic the request check is playing, while Send runs it. */
+  const [checking, setChecking] = useState<{ index: number; total: number } | null>(null);
+  /** What the request check found, kept with the set it checked: changing the set drops it. It is
+   *  shown, but never locks Send, because Send runs the check again. */
+  const [requests, setRequests] = useState<{ of: unknown; findings: PackFinding[] } | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  // Cancel closes the sheet while the check may still be playing graphics: nothing may be sent
+  // after the maker has closed it.
+  const open = useRef(true);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
 
   // The name this maker chose on their previous pack is the only pre-fill allowed (D15). It never
   // overwrites what the maker has typed meanwhile.
@@ -74,6 +90,8 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
   const chosen = useMemo(() => (source?.graphics ?? []).filter((g) => !off.has(g.key)), [source, off]);
   // The gate parses every chosen graphic, so it runs when the SET changes, not on every keystroke.
   const graphicFindings = useMemo(() => checkPackGraphics(chosen), [chosen]);
+  const requestFindings = requests?.of === chosen ? requests.findings : [];
+  const shownFindings = [...graphicFindings, ...requestFindings];
   const findings: PackFinding[] = [...checkPackMeta({ name, description, author }), ...graphicFindings];
 
   const pick = (id: string) => {
@@ -87,12 +105,21 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
     setBusy(true);
     setFailure(null);
     try {
+      const refused = await checkPackRequests(chosen, (index, total) => open.current && setChecking({ index, total }));
+      if (!open.current) return;
+      setChecking(null);
+      setRequests({ of: chosen, findings: refused });
+      if (refused.length) {
+        setBusy(false);
+        return;
+      }
       const pack = await buildCommunityPack({ name, description, author, graphics: chosen });
       const tooBig = checkPackSize(JSON.stringify(pack));
       if (tooBig) throw new Error(tooBig.message);
       await submitPack({ name, description, author }, pack, updating?.id);
       onSent(name);
     } catch (error) {
+      setChecking(null);
       setFailure(error instanceof Error ? error.message : String(error));
       setBusy(false);
     }
@@ -101,7 +128,7 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
   return (
     <WizardConfirm
       title={updating ? `Update “${updating.name}”` : 'Submit a pack'}
-      confirmLabel={busy ? 'Sending…' : 'Send for review'}
+      confirmLabel={checking ? `Checking ${checking.index + 1} of ${checking.total}…` : busy ? 'Sending…' : 'Send for review'}
       confirmDisabled={busy || findings.length > 0}
       onConfirm={() => void send()}
       cancelLabel="Cancel"
@@ -177,8 +204,8 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
           </label>
           {/* The pack's own words show as empty fields; only what the checks found in the
               graphics needs saying. */}
-          {graphicFindings.length > 0 && (
-            <PackFindings findings={graphicFindings} testid="submit-pack-findings" />
+          {shownFindings.length > 0 && (
+            <PackFindings findings={shownFindings} testid="submit-pack-findings" />
           )}
           <p className="wz-confirm-warn">
             Submitting publishes this under CC BY 4.0. Anyone may use it in any show, with the name you
