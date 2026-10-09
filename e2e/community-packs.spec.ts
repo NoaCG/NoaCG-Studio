@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{CommunityPacks,BrowseStep,SubmitPackSheet}.tsx, src/community/{packChecks,packSources}.ts, {packs/community/**,public/packs/community/**,scripts/build-production-pack.mjs}
+// covers: src/components/wizard/steps/{CommunityPacks,BrowseStep}.tsx, src/components/community/SubmitPackSheet.tsx, src/community/{packChecks,packSources}.ts, {packs/community/**,public/packs/community/**,scripts/build-production-pack.mjs}
 //
 // COMMUNITY PACKS (docs/work-specs/community-packs/spec.md): the template wizard's third
 // category. Browse offers One graphic, A whole kit and Community packs; the shelf lists the

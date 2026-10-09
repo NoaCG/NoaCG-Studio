@@ -2,8 +2,9 @@
 
 Research for Slices item 4 of [`spec.md`](spec.md). It answers the owner's two asks of 2026-10-08
 (a pack made from Home; sharing from the CLI and the plugins only when the user asks) and places
-the observed-request refusal (D5) and a Report link. Nothing here is built. The build is tracked
-on issue #797.
+the observed-request refusal (D5) and a Report link. The build is tracked on issue #797, which
+says what has landed. Since migration 0082 submit is open to every signed-in maker, so where this
+note says "moderators only until slice 3", the door now admits every signed-in account.
 
 Read for this note, on `main` at 99b55d8a1: `src/community/packs.ts`, `packSources.ts`,
 `packChecks.ts`; `src/components/wizard/steps/CommunityPacks.tsx` and `SubmitPackSheet.tsx`;
@@ -321,19 +322,22 @@ path, and an account is one sign-in away).
 2. (a) the Home door: independent, can land any time, moderators only until slice 3.
 3. (b) the agent door (AC-12): after the agent-toolkit distribution work lands in `cli/`.
 
-## Questions for the owner
+## Questions for the owner (answered 2026-10-08: yes to all three, recorded on #797)
 
 1. **May the agent key that saves graphics also submit packs for review?** Recommended: yes, no
    new scope. The share happens only on the user's explicit request, a human reviews every pack,
    and the maker withdraws at once. A separate scope would put a sharing line on every CLI
    login's consent page, a suggestion to every user who never shares (D16), and would make every
-   existing key log in again before its first share.
+   existing key log in again before its first share. **Answer: yes.** Sharing uses the agent
+   key's existing `graphics:create` scope.
 2. **Should the agent confirm the name and the licence before it shares?** Recommended: once,
    only when the request did not already give the name and accept the licence; one message and
    the user's yes. The sheet shows the licence sentence before Send for the same reason: the
-   grant is the maker's.
+   grant is the maker's. **Answer: yes.** The agent confirms the shown name and the licence with
+   the user once before sharing.
 3. **May a selection on Home carry an icon-only ⋯ whose one item is Submit to Community packs?**
    Recommended: yes. It is what "select some graphics and add them as a pack" needs, it shows
    only to accounts the door admits, and it reads as an overflow, not a prompt. The stricter
    reading of D16 drops it: a selection then becomes a pack through Folder › New folder and the
-   folder's ⋯, one extra step and no new control on Home.
+   folder's ⋯, one extra step and no new control on Home. **Answer: yes.** The bulk bar gets an
+   icon-only ⋯ whose only item is "Submit to Community packs…", next to the folder's ⋯ menu.

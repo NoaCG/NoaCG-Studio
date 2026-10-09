@@ -12,12 +12,15 @@ import { raiseStorageAlert } from '../../../store/storageAlert';
 import { loadPrefs, savePrefs } from '../../../model/prefs';
 import { commitDurableWrites } from '../../../model/durableStore';
 import { graphicKindLabel, type TemplateType } from '../../../model/types';
+import { ownGraphic, ownLibrarySource, type LibrarySource } from '../../../community/librarySource';
+import { useAuthState } from '../../auth/useAuthState';
+import SubmitPackSheet from '../../community/SubmitPackSheet';
 import FolderItem from '../FolderItem';
 import GraphicRow from '../GraphicRow';
 import LibMenu from '../LibMenu';
 import ProductionPicker from '../ProductionPicker';
 import RowMenu, { type RowMenuItem } from '../RowMenu';
-import { IconFolder, IconGrid, IconList, IconPencil, IconTrash } from '../../icons';
+import { IconFolder, IconGrid, IconList, IconPencil, IconTrash, IconUpload } from '../../icons';
 
 type SortKey = 'newest' | 'oldest' | 'name';
 
@@ -61,6 +64,10 @@ function typeLabel(type: TemplateType): string {
  *   (delete, move to folder, add to production, new production from selection). Selection is
  *   UI state over ids; every mutation goes through the model layer's bulk helpers so N rows
  *   cost one storage write.
+ * - A FOLDER OR A SELECTION BECOMES A COMMUNITY PACK from its ⋯ (community-packs
+ *   slice-4-research.md (a)): "Submit to Community packs…" opens the shelf's own submit sheet with
+ *   that source chosen. Only for an account the shelf's door admits, and absent, never disabled,
+ *   for everyone else, so Home says nothing about sharing to anyone who cannot (spec D16).
  */
 export default function GraphicsSection({
   graphics,
@@ -94,6 +101,10 @@ export default function GraphicsSection({
   onChanged: () => void;
 }) {
   const navigate = useRouter((s) => s.navigate);
+  const auth = useAuthState();
+  // The shelf's own door (CommunityPacks.tsx): a real account, never the offline `signedIn`.
+  const canSubmitPack = auth.backendConfigured && auth.signedIn;
+  const [submitting, setSubmitting] = useState<LibrarySource | null>(null);
   // Cards or table. Device-level and remembered (model/prefs.ts) — which one is right
   // depends on the library's size and the screen, so it is a setting, not a session state.
   const [view, setViewState] = useState<'grid' | 'list'>(() => loadPrefs().libraryView);
@@ -333,6 +344,18 @@ export default function GraphicsSection({
     );
   };
 
+  /** "Submit to Community packs…" for a set holding at least one graphic the maker made; a set
+   *  installed wholly from the shelf has nothing of theirs to submit, so it gets no item. */
+  const submitItem = (docs: GraphicDoc[], folder?: string): RowMenuItem[] =>
+    canSubmitPack && docs.some(ownGraphic)
+      ? [{
+          label: 'Submit to Community packs…',
+          icon: <IconUpload />,
+          onClick: () => setSubmitting(ownLibrarySource(docs, folder)),
+          testid: 'submit-to-community',
+        }]
+      : [];
+
   const folderMenu = (folder: string): RowMenuItem[] => [
     {
       label: 'Rename',
@@ -346,6 +369,7 @@ export default function GraphicsSection({
       onClick: () => void removeFolder(folder),
       testid: 'remove-folder',
     },
+    ...submitItem(graphics.filter((g) => g.folder === folder), folder),
   ];
 
   /** Pool every graphic of a list, stopping at the FIRST failure and saying how far it got - a
@@ -415,6 +439,7 @@ export default function GraphicsSection({
   const graphicsIn = (folder: string) => typed.filter((g) => g.folder === folder);
 
   const showFolders = !flat && folderFilter === null;
+  const selectionSubmit = submitItem(selectedListed);
 
   return (
     <>
@@ -755,8 +780,26 @@ export default function GraphicsSection({
             <IconTrash /> {deleteArmed ? `Delete ${selectedListed.length}?` : 'Delete'}
           </button>
 
+          {/* An overflow for the selection whose one item is the share verb (owner, #797): drawn
+              only for an account that may submit, so for everyone else the bar is unchanged. */}
+          {selectionSubmit.length > 0 && (
+            <RowMenu items={selectionSubmit} label="More actions for the selection" testid="bulk-more" />
+          )}
+
           <button onClick={clearSelection} title="Clear the selection" data-testid="bulk-clear">✕</button>
         </div>
+      )}
+
+      {submitting && (
+        <SubmitPackSheet
+          from={submitting}
+          onClose={() => setSubmitting(null)}
+          onSent={(name) => {
+            if (submitting.source.kind === 'selection') clearSelection();
+            setSubmitting(null);
+            setNote(`✓ Sent "${name}" for review. Its status is in Your packs on the Community packs shelf.`);
+          }}
+        />
       )}
     </>
   );

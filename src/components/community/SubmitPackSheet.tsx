@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
-import WizardConfirm from '../WizardConfirm';
-import { packSources } from '../../../community/packSources';
+import { useEffect, useMemo, useState } from 'react';
+import WizardConfirm from '../wizard/WizardConfirm';
+import { packSources, type LibrarySource } from '../../community/packSources';
 import {
   buildCommunityPack,
   checkPackGraphics,
   checkPackMeta,
   checkPackSize,
   type PackFinding,
-} from '../../../community/packChecks';
-import { submitPack, type MyPack } from '../../../community/packs';
+} from '../../community/packChecks';
+import { listMyPacks, submitPack, type MyPack } from '../../community/packs';
 
 /**
  * SUBMIT A PACK - the community shelf's giving half (docs/work-specs/community-packs/spec.md
@@ -17,6 +17,10 @@ import { submitPack, type MyPack } from '../../../community/packs';
  * the licence, Send for review. The checks run as the sheet changes; the primary stays off until
  * nothing refuses. An update of a live pack (AC-11) is the same sheet, filled from the live
  * version, and sends a new version that waits for review beside it.
+ *
+ * Two surfaces open it: the wizard's Community packs shelf, where the maker chooses the source,
+ * and Home, where a folder's or a selection's menu has already chosen it
+ * (slice-4-research.md (a)).
  */
 
 /** What the checks refused, each naming its graphic - the sheet's list and the admin's review row. */
@@ -31,16 +35,17 @@ export function PackFindings({ findings, testid }: { findings: PackFinding[]; te
 }
 
 interface Props {
-  /** The name this maker chose on their previous pack - the only pre-fill allowed (D15). */
-  lastAuthor: string;
+  /** The source chosen where the sheet was opened (Home): no source select is drawn. */
+  from?: LibrarySource;
   /** The live pack this sends a new version of; absent for a new pack. */
   updating?: MyPack;
   onClose: () => void;
-  onSent: () => void;
+  /** Called with the pack's name once the server has taken it. */
+  onSent: (name: string) => void;
 }
 
-export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent }: Props) {
-  const sources = useMemo(() => packSources(), []);
+export default function SubmitPackSheet({ from, updating, onClose, onSent }: Props) {
+  const sources = useMemo(() => (from ? [from.source] : packSources()), [from]);
   // An update starts from the source bearing the pack's name, or from none: a guess at another
   // folder would send its graphics as the pack's next version.
   const first = updating ? sources.find((s) => s.name === updating.name) : sources[0];
@@ -49,9 +54,22 @@ export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent 
   const [off, setOff] = useState<Set<string>>(new Set());
   const [name, setName] = useState(updating?.name ?? first?.name ?? '');
   const [description, setDescription] = useState(updating?.description ?? '');
-  const [author, setAuthor] = useState(updating?.author ?? lastAuthor);
+  const [author, setAuthor] = useState(updating?.author ?? '');
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+
+  // The name this maker chose on their previous pack is the only pre-fill allowed (D15). It never
+  // overwrites what the maker has typed meanwhile.
+  useEffect(() => {
+    if (updating) return;
+    let live = true;
+    listMyPacks()
+      .then((mine) => live && setAuthor((typed) => typed || mine[0]?.author || ''))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [updating]);
 
   const chosen = useMemo(() => (source?.graphics ?? []).filter((g) => !off.has(g.key)), [source, off]);
   // The gate parses every chosen graphic, so it runs when the SET changes, not on every keystroke.
@@ -73,7 +91,7 @@ export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent 
       const tooBig = checkPackSize(JSON.stringify(pack));
       if (tooBig) throw new Error(tooBig.message);
       await submitPack({ name, description, author }, pack, updating?.id);
-      onSent();
+      onSent(name);
     } catch (error) {
       setFailure(error instanceof Error ? error.message : String(error));
       setBusy(false);
@@ -94,17 +112,19 @@ export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent 
         <p>None of your folders or productions holds a graphic you made.</p>
       ) : (
         <>
-          <label className="wz-submit-field">
-            <span>Graphics from</span>
-            <select value={sourceId} onChange={(e) => pick(e.target.value)} data-testid="submit-pack-source">
-              {!source && <option value="">Choose…</option>}
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.kind === 'folder' ? 'Folder' : 'Production'}: {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {!from && (
+            <label className="wz-submit-field">
+              <span>Graphics from</span>
+              <select value={sourceId} onChange={(e) => pick(e.target.value)} data-testid="submit-pack-source">
+                {!source && <option value="">Choose…</option>}
+                {sources.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.kind === 'folder' ? 'Folder' : 'Production'}: {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <ul className="wz-submit-graphics" aria-label="Graphics in the pack">
             {source?.graphics.map((g) => (
               <li key={g.key}>
@@ -126,6 +146,11 @@ export default function SubmitPackSheet({ lastAuthor, updating, onClose, onSent 
               </li>
             ))}
           </ul>
+          {from && from.leftOut > 0 && (
+            <p className="hint" data-testid="submit-pack-left-out">
+              {from.leftOut === 1 ? '1 installed from Community packs is' : `${from.leftOut} installed from Community packs are`} left out.
+            </p>
+          )}
           <label className="wz-submit-field">
             <span>Name</span>
             <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} data-testid="submit-pack-name" />

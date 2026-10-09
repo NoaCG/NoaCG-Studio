@@ -190,6 +190,18 @@ test('folder CARDS: name one, drag a graphic in, open it, and rename it from ins
   // Grouping again: the dragged graphic left the root listing for the folder.
   await expect(page.locator('.lib-row--grid')).toHaveCount(2);
 
+  // A right-click on the folder opens its own ⋯ menu. Offline there is no account, so neither
+  // that menu nor a selection's bar offers Submit to Community packs: absent, never disabled.
+  await card.click({ button: 'right' });
+  await expect(card.getByTestId('rename-folder')).toBeVisible();
+  await expect(page.getByTestId('submit-to-community')).toHaveCount(0);
+  await card.getByTestId('row-menu').click();
+  await expect(card.getByTestId('rename-folder')).toHaveCount(0);
+  await page.getByTestId('select-graphic').first().click();
+  await expect(page.getByTestId('bulk-bar')).toBeVisible();
+  await expect(page.getByTestId('bulk-more')).toHaveCount(0);
+  await page.getByTestId('bulk-clear').click();
+
   // Opening it shows that graphic alone; the head is the way back.
   await card.click();
   await expect(page.locator('.lib-row--grid')).toHaveCount(1);
