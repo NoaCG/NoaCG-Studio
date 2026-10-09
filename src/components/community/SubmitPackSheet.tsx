@@ -74,13 +74,17 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
     };
   }, []);
 
-  // The name this maker chose on their previous pack is the only pre-fill allowed (D15). It never
-  // overwrites what the maker has typed meanwhile.
+  // The name this maker chose on their previous pack is the only pre-fill allowed (D15). It lands
+  // only in a field nobody has entered yet: an answer arriving after the maker focused the field
+  // would put text under their cursor, or under a selection they are about to type over.
+  const authorEntered = useRef(false);
   useEffect(() => {
     if (updating) return;
     let live = true;
     listMyPacks()
-      .then((mine) => live && setAuthor((typed) => typed || mine[0]?.author || ''))
+      .then((mine) => {
+        if (live && !authorEntered.current) setAuthor((typed) => typed || mine[0]?.author || '');
+      })
       .catch(() => {});
     return () => {
       live = false;
@@ -198,6 +202,7 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
               value={author}
               maxLength={60}
               placeholder="Any name; it appears on the card"
+              onFocus={() => (authorEntered.current = true)}
               onChange={(e) => setAuthor(e.target.value)}
               data-testid="submit-pack-author"
             />
