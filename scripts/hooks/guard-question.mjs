@@ -33,7 +33,7 @@ if (questions.length === 0) process.exit(0);
 
 if (/^wave-row/.test(String(input.agent_type ?? ''))) {
   deny([
-    'STOP - a wave asks nothing. Nobody is there to answer.',
+    'STOP - a wave row asks nothing. Nobody is there to answer.',
     '',
     RULE,
   ].join('\n'));

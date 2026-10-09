@@ -54,9 +54,9 @@ Most important first, written in the wave file before the first launch:
 
 **Solve at least as many problems as the wave creates**, so the open list does not grow. A few
 issues fixed well make a good wave; there is no target and no rush. Count the open `P1`-`P3` issues
-at the wave's start and end; before building from the backlog, one row checks them against `main`.
-Whoever verifies an issue fixed (its covering check passed, a screenshot in the PR for a visible
-change), already fixed, obsolete or a duplicate closes it with a short note of what it checked,
+at the wave's start and end; before building, one row checks them against current `main`. An issue
+verified fixed (its covering check passed, a screenshot in the PR for a visible change), or found
+already fixed, obsolete or a duplicate, is closed by the agent with a short note of what it checked,
 without the owner's review; he reopens it if the problem returns. Never close one that is not really
 solved, nor rush a fix to shorten the list.
 
