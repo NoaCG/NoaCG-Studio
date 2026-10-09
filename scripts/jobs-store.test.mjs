@@ -10,6 +10,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  BROWSER_MEMORY_CAP,
+  BROWSER_MEMORY_MS,
   COST,
   FOREGROUND_WAIT_CAP_MS,
   JOB_RETENTION_MS,
@@ -53,6 +55,7 @@ import {
   waitVerdict,
   writeJob,
   readReviewStamp,
+  rememberBrowserCommand,
   repricedAsBrowser,
   stampGap,
   watchedForBrowser,
@@ -297,6 +300,57 @@ test('a wrapper that launches a browser is priced light by its text and caught b
 test('a declared cost does not keep a job that launched a browser below the browser price', () => {
   const declared = job('j-0001', { command: 'node scripts/before-after.mjs', state: 'running', pid: 100, cost: 0.4 });
   assert.equal(costOf(repricedAsBrowser(declared)), COST.browser);
+});
+
+test('a command caught launching a browser is queued as browser work from the start next time (#904)', (t) => {
+  const dir = tempQueue();
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const command = 'node scripts/before-after.mjs';
+  // Reproduced: before anything is remembered, the same wrapper is priced light again.
+  const first = addJob(dir, { command, checkout: '/wt/a', now: NIGHT });
+  assert.equal(drivesBrowser(first), false);
+
+  // The runner caught it and remembers the command, for every session and checkout.
+  rememberBrowserCommand(dir, { command, job: first.id, now: NIGHT });
+  const next = addJob(dir, { command: ` node   scripts/before-after.mjs `, checkout: '/wt/b', cost: 0.3, now: NIGHT + 1000 });
+  assert.equal(next.kind, 'sweep');
+  assert.equal(drivesBrowser(next), true);
+  assert.equal(costOf(next), COST.browser, 'a declared light cost goes too, as when it is re-priced');
+  assert.deepEqual(next.caughtBrowser, { at: NIGHT, job: first.id });
+  const held = schedule([next], { now: NIGHT, freeMemMb: 2500 });
+  assert.deepEqual(held.start, [], 'admitted only at the browser floor');
+
+  // Only that command: another argument, a landing, or a declared kind is left as it is.
+  assert.equal(addJob(dir, { command: `${command} --dry-run`, checkout: '/wt/a', now: NIGHT }).kind, 'gate');
+  assert.equal(addJob(dir, { command, checkout: '/wt/a', kind: 'merge', now: NIGHT }).kind, 'merge');
+  // The memory sits beside the jobs and is never read as one.
+  assert.ok(readJobs(dir).every((j) => typeof j.id === 'string' && j.id.startsWith('j-')));
+});
+
+test('a remembered browser command expires and the memory is capped, so no script stays heavy for ever', (t) => {
+  const dir = tempQueue();
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const command = 'node scripts/before-after.mjs';
+  rememberBrowserCommand(dir, { command, job: 'j-0001', now: NIGHT });
+  assert.equal(addJob(dir, { command, checkout: '/wt/a', now: NIGHT + BROWSER_MEMORY_MS - 1 }).kind, 'sweep');
+  assert.equal(addJob(dir, { command, checkout: '/wt/a', now: NIGHT + BROWSER_MEMORY_MS }).kind, 'gate', 'past its window it is light, and watched, again');
+  // A run born as browser work is not watched, so it cannot refresh its own entry: only a new catch does.
+  rememberBrowserCommand(dir, { command, job: 'j-0009', now: NIGHT + BROWSER_MEMORY_MS });
+  assert.equal(addJob(dir, { command, checkout: '/wt/a', now: NIGHT + BROWSER_MEMORY_MS + 1 }).caughtBrowser.job, 'j-0009');
+
+  // The newest few are kept; the oldest go first.
+  for (let i = 0; i < BROWSER_MEMORY_CAP + 3; i += 1) {
+    rememberBrowserCommand(dir, { command: `node scripts/wrapper-${i}.mjs`, job: `j-${i}`, now: NIGHT + BROWSER_MEMORY_MS + 10 + i });
+  }
+  const at = NIGHT + BROWSER_MEMORY_MS + 100;
+  assert.equal(addJob(dir, { command: 'node scripts/wrapper-0.mjs', checkout: '/wt/a', now: at }).kind, 'gate');
+  assert.equal(addJob(dir, { command: `node scripts/wrapper-${BROWSER_MEMORY_CAP + 2}.mjs`, checkout: '/wt/a', now: at }).kind, 'sweep');
+
+  // A torn or hand-mangled file is no memory, and the next catch writes over it.
+  writeFileSync(join(dir, 'browser-commands.json'), '{"commands": [');
+  assert.equal(addJob(dir, { command, checkout: '/wt/a', now: at }).kind, 'gate');
+  rememberBrowserCommand(dir, { command, job: 'j-0010', now: at });
+  assert.equal(addJob(dir, { command, checkout: '/wt/a', now: at + 1 }).kind, 'sweep');
 });
 
 test('ordinary light work and plan-only Playwright are not browser work', () => {

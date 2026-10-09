@@ -40,6 +40,7 @@ import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mj
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
+  BROWSER_MEMORY_MS,
   COST,
   FOREGROUND_WAIT_CAP_MS,
   MAX_LANDING_RETRIES,
@@ -81,6 +82,7 @@ import {
   readLandings,
   reapDead,
   refusalGuidance,
+  rememberBrowserCommand,
   repricedAsBrowser,
   requeueDecision,
   schedule,
@@ -251,6 +253,9 @@ async function cmdAdd() {
   });
   await ensureRunner();
   console.log(`${job.id} queued: ${job.command}`);
+  if (job.caughtBrowser) {
+    console.log(`  as browser work: ${job.caughtBrowser.job} ran this command and launched a browser on ${new Date(job.caughtBrowser.at).toISOString().slice(0, 10)}`);
+  }
   // A prediction for the line below, not a decision, so it skips the session inventory: a wave
   // queues dozens of jobs, and a spawn each to word one line is not worth it.
   const { waiting } = snapshot({ readSessions: false });
@@ -1094,7 +1099,13 @@ async function runner() {
           continue;
         }
         writeJob(dir, repricedAsBrowser(job));
-        const said = `${caught} - stopped, re-queued as browser work (queue it with --kind sweep to start it as one)`;
+        // And for next time: the same command queued again starts as browser work (#904).
+        try {
+          rememberBrowserCommand(dir, { command: job.command, job: job.id, now });
+        } catch {
+          // Without the note the next run is caught again, as before; the runner goes on.
+        }
+        const said = `${caught} - stopped and re-queued as browser work; queued again within ${BROWSER_MEMORY_MS / 86_400_000} days, the same command starts as browser work`;
         try {
           appendFileSync(job.logPath, `\n--- ${said}\n`);
         } catch {

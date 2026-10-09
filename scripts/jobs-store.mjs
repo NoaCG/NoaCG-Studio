@@ -438,6 +438,14 @@ export function addJob(dir, {
   const badCost = costProblem(cost);
   if (badCost) throw new Error(badCost);
   ensureJobsDir(dir);
+  // A command the runner caught launching a browser starts as browser work, as its re-queued
+  // record did (`repricedAsBrowser`, which also drops a declared light cost). Only `gate`: a
+  // landing is never held, and `sweep` already is.
+  const caughtBrowser = kind === 'gate' ? browserMemory(dir, now)[commandKey(command)] ?? null : null;
+  if (caughtBrowser) {
+    kind = 'sweep';
+    cost = null;
+  }
 
   const taken = new Set(readdirSync(dir).filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5)));
   // Ids continue from the highest one still on disk rather than restarting at the first free
@@ -469,6 +477,8 @@ export function addJob(dir, {
       // and picks up any later change to that default rather than freezing yesterday's guess.
       // A retry or an adopted landing spreads the old record into `addJob`, so it inherits this.
       ...(typeof cost === 'number' ? { cost } : {}),
+      // Why a job queued as `gate` reads `sweep`: when its command was caught, and by which job.
+      ...(caughtBrowser ? { caughtBrowser } : {}),
       // Set only when the job is born already parked behind another branch - an ordering block the
       // sweep adopted. It is `waiting` like any other job; the scheduler is what holds it.
       ...(orderHold ? { orderHold } : {}),
@@ -690,6 +700,56 @@ export function repricedAsBrowser(job) {
   const record = { ...job, kind: 'sweep', state: 'waiting', startedAt: null, pid: null };
   delete record.cost;
   return record;
+}
+
+// --- commands caught launching a browser --------------------------------------------------------
+//
+// A re-price fixes one record. The next time the same wrapper is queued, by this session or any
+// other, its text prices it light again and it is caught again, after a partial run spent under
+// the floor the catch exists to enforce (#904). So the runner remembers the command beside the
+// jobs, and `addJob` queues it as browser work from the start.
+//
+// KEYED BY THE WHOLE COMMAND, spaces collapsed, never by the script alone: the same script with
+// other arguments may well open nothing (`--list`, `--dry-run`), and a miss only costs one more
+// catch, while a false match holds light work to the browser slot.
+
+/**
+ * How long a catch is believed. A job queued as browser work is not watched, so it can never show
+ * it has stopped opening one: the entry runs out instead, the next run is priced light and watched
+ * again, and a script that still opens a browser is caught and remembered again.
+ */
+export const BROWSER_MEMORY_MS = 7 * 24 * 60 * 60 * 1000;
+/** How many commands are remembered; the oldest catch goes first. */
+export const BROWSER_MEMORY_CAP = 50;
+
+function browserMemoryPath(dir) {
+  return join(dir, 'browser-commands.json');
+}
+
+function commandKey(command) {
+  return String(command ?? '').trim().replace(/\s+/g, ' ');
+}
+
+/** The remembered commands still in their window, `{ [command]: { at, job } }`; unreadable is none. */
+function browserMemory(dir, now) {
+  let commands;
+  try {
+    commands = JSON.parse(readFileSync(browserMemoryPath(dir), 'utf8'))?.commands;
+  } catch {
+    return {};
+  }
+  if (!commands || typeof commands !== 'object' || Array.isArray(commands)) return {};
+  return Object.fromEntries(
+    Object.entries(commands).filter(([, seen]) => Number.isFinite(seen?.at) && now - seen.at < BROWSER_MEMORY_MS),
+  );
+}
+
+/** Remember that `command` (job `job`) launched a browser while priced light. The runner's only write. */
+export function rememberBrowserCommand(dir, { command, job, now = Date.now() }) {
+  const commands = { ...browserMemory(dir, now), [commandKey(command)]: { at: now, job } };
+  const kept = Object.entries(commands).sort(([, a], [, b]) => b.at - a.at).slice(0, BROWSER_MEMORY_CAP);
+  // `commands` nests the entries so the file can never pass `readJobs` for a job with an id.
+  writeFileSync(browserMemoryPath(dir), `${JSON.stringify({ commands: Object.fromEntries(kept) }, null, 1)}\n`);
 }
 
 /**
