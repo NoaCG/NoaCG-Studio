@@ -66,6 +66,9 @@ const ROWS: { id: string; label: string; rules: string[]; live: boolean }[] = [
       'legibility-protection',
       'legibility-safe-area',
       'legibility-ticker-margins',
+      // The measurement could not read the frame, or read none of its text (designRulesWarnings
+      // LEGIBILITY_UNMEASURED). It warns rather than passing: a zero nobody measured is not a pass.
+      'legibility-unmeasured',
     ],
     live: true,
   },

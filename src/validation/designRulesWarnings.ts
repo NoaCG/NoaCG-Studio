@@ -24,6 +24,7 @@ import { allTimelines } from '../blocks/animMachine';
 import { composeDocument } from '../preview/composeDocument';
 import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue } from './validateTemplate';
+import { isMarkImage } from './markLegibility';
 import { measureReadability, type ReadabilityFinding } from './readabilityCheck';
 import { measureTickerMargins } from './tickerCheck';
 
@@ -32,6 +33,44 @@ import { measureTickerMargins } from './tickerCheck';
 const MAX_WARNINGS = 8;
 
 const px = (n: number) => `${Math.round(n)}px`;
+
+/**
+ * THE DISHONEST ZERO, reported instead of returned (#840). An empty warning list is what a clean
+ * graphic gets, so it must only ever mean "measured, nothing wrong". When the frame could not be
+ * read, or held text the readability rules read none of (every field hidden or faded at the
+ * measured pose), this rule says so. It is one warning like the rest of this module, so the
+ * readiness report's legibility row and the export panel say "not checked" instead of nothing.
+ */
+export const LEGIBILITY_UNMEASURED = 'legibility-unmeasured';
+
+const unmeasured = (why: string): ValidationIssue => ({
+  rule: LEGIBILITY_UNMEASURED,
+  message: `Legibility was not checked: ${why}.`,
+});
+
+const NOT_RENDERED = 'the graphic could not be rendered for measuring';
+
+/** Field types whose value is text a viewer reads. `hidden` carries data, not words. */
+const READ_FTYPES = new Set(['textfield', 'textarea', 'number']);
+
+/** How many declared text fields hold text in this frame - what there was to read. */
+function fieldsWithText(doc: Document, template: SpxTemplate): number {
+  return template.fields.filter((f) => READ_FTYPES.has(f.ftype)
+    && (doc.getElementById(f.field)?.textContent?.trim().length ?? 0) >= 2).length;
+}
+
+/** The brand mark's field: a file field shown as an `<img>` that is a mark rather than a cropped
+ *  picture well, by the same test the mark-legibility check uses. */
+function markFieldOf(doc: Document, template: SpxTemplate): string | null {
+  const win = doc.defaultView;
+  if (!win) return null;
+  for (const f of template.fields) {
+    if (f.ftype !== 'filelist') continue;
+    const el = doc.getElementById(f.field);
+    if (el?.tagName === 'IMG' && isMarkImage(el as HTMLImageElement, win)) return f.field;
+  }
+  return null;
+}
 
 /** How the copy names where the graphic will be watched, per profile. The size sentence
  *  embeds this; every other rule states it as a suffix. */
@@ -127,7 +166,8 @@ function productMessage(f: ReadabilityFinding, legibility: ResolvedLegibility): 
 /**
  * The design-rules warnings for an already-rendered frame. `doc` is a settled same-origin
  * render (the runtime bench's iframe, or the throwaway frame `checkTemplateLegibility`
- * mounts). Pure measurement + phrasing; never blocks anything.
+ * mounts). Pure measurement + phrasing; never blocks anything. Empty means measured and clean:
+ * a frame it could not read returns `LEGIBILITY_UNMEASURED` instead.
  */
 export function designRulesWarnings(
   doc: Document,
@@ -135,6 +175,7 @@ export function designRulesWarnings(
   settings?: ProjectLegibility | null,
 ): ValidationIssue[] {
   const legibility = resolveLegibility(settings);
+  if (!doc.defaultView || !doc.body) return [unmeasured(NOT_RENDERED)];
   const { width, height } = template.resolution;
   const report = measureReadability(doc, {
     mode: legibility.mode,
@@ -145,8 +186,12 @@ export function designRulesWarnings(
     // template knows, so the product surface never has to guess - and a corner bug stops being
     // told its 21px mark should be 50px.
     category: template.type ?? null,
+    markFieldId: markFieldOf(doc, template),
   });
   const issues: ValidationIssue[] = [];
+  if (report.readings.length === 0 && fieldsWithText(doc, template) > 0) {
+    issues.push(unmeasured('none of its text was visible when it was measured'));
+  }
   for (const finding of report.findings) {
     const msg = productMessage(finding, legibility);
     if (msg) issues.push(msg);
@@ -169,10 +214,12 @@ export function designRulesWarnings(
 }
 
 /** True when the template declares measured motion (a NOACG_ANIM dynamics segment) whose
- *  target intersects a band spanning at least half the frame - the crawl signature. */
+ *  target intersects a band spanning at least half the frame - the crawl signature. A ticker
+ *  whose block is absent or unreadable (hand-written motion, an import) has no declared motion
+ *  to find, so its TYPE stands in: without that the rule could never reach it (#840). */
 function hasCrawlBand(doc: Document, template: SpxTemplate): boolean {
   const data = parseAnimData(template.js);
-  if (!data) return false;
+  if (!data) return template.type === 'ticker';
   const selectors = new Set<string>();
   for (const step of allTimelines(data)) {
     for (const d of step.dynamics ?? []) if (d.target) selectors.add(d.target);
@@ -200,14 +247,15 @@ function hasCrawlBand(doc: Document, template: SpxTemplate): boolean {
  * let it settle, measure, take it down (the `checkMarkLegibility` pattern). For surfaces
  * with no runtime bench - the editor's export panel and the community publish dialog.
  * No `play()`: the settled pose preserves layout (the root hides via opacity, which keeps
- * geometry), and an entrance tween would have this measuring text mid-flight. Returns []
- * anywhere without a DOM.
+ * geometry), and an entrance tween would have this measuring text mid-flight. Anywhere it
+ * cannot mount or read the frame, including without a DOM, it says so with
+ * `LEGIBILITY_UNMEASURED` rather than returning the empty list a clean graphic gets.
  */
 export async function checkTemplateLegibility(
   template: SpxTemplate,
   settings?: ProjectLegibility | null,
 ): Promise<ValidationIssue[]> {
-  if (typeof document === 'undefined') return [];
+  if (typeof document === 'undefined') return [unmeasured(NOT_RENDERED)];
   const frame = document.createElement('iframe');
   frame.setAttribute('aria-hidden', 'true');
   frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${template.resolution.width}px;`
@@ -220,7 +268,7 @@ export async function checkTemplateLegibility(
       document.body.appendChild(frame);
     });
     const doc = frame.contentDocument;
-    if (!doc) return [];
+    if (!doc) return [unmeasured(NOT_RENDERED)];
     await Promise.race([
       doc.fonts.ready.then(() => undefined),
       new Promise<void>((resolve) => { setTimeout(resolve, 1200); }),
@@ -237,7 +285,7 @@ export async function checkTemplateLegibility(
     ]);
     return designRulesWarnings(doc, template, settings);
   } catch {
-    return [];
+    return [unmeasured(NOT_RENDERED)];
   } finally {
     frame.remove();
   }
