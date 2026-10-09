@@ -69,7 +69,6 @@
 //     fully contained in local main and origin/main, and even then let `git branch -d` refuse as
 //     a final backstop.
 
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -663,8 +662,8 @@ export function applySelf(
     archive = archiveAndVerify,
     // Injectable for the same reason `archive` is: a test that removes a temp worktree has no
     // delegations to collect, and spawning the reaper to prove it costs a full enumeration of the
-    // machine's processes per removal.
-    reap = spawnSync,
+    // machine's processes per removal. Left undefined, reapDelegationTrees runs the real reaper.
+    reap,
   } = {},
 ) {
   const done = {
@@ -1151,7 +1150,7 @@ export function applyPlan(
     liveness = {},
     // See `applySelf`: injectable so the safety suite does not enumerate the machine's processes
     // once per removed worktree.
-    reap = spawnSync,
+    reap,
   } = {},
 ) {
   const done = {

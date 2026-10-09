@@ -22,7 +22,7 @@ import { normalize } from './worktree-cleanup-lib.mjs';
 const hook = join(dirname(fileURLToPath(import.meta.url)), 'hooks', 'session-start.mjs');
 
 function runGit(cwd, ...args) {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   assert.equal(res.status, 0, `git ${args.join(' ')} failed:\n${res.stderr || res.stdout}`);
   return res.stdout.trim();
 }
@@ -75,7 +75,7 @@ function transcriptFor(root, cwd, branch, minutesAgo) {
 function runHook(repo, input) {
   const env = { ...process.env, NOACG_NO_AUTO_CLEANUP: '1', NOACG_JOBS_DIR: repo.jobs };
   delete env.CLAUDE_ENV_FILE;
-  return spawnSync(process.execPath, [hook], { cwd: input.cwd, input: JSON.stringify(input), encoding: 'utf8', env });
+  return spawnSync(process.execPath, [hook], { cwd: input.cwd, input: JSON.stringify(input), encoding: 'utf8', env, windowsHide: true });
 }
 
 test('a fresh branch name never reuses one that exists or has landed', () => {

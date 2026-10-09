@@ -68,7 +68,7 @@ const isEntrypoint =
 const REPO = fileURLToPath(new URL('..', import.meta.url));
 
 function git(...cmd) {
-  return execFileSync('git', cmd, { encoding: 'utf8', cwd: REPO }).trim();
+  return execFileSync('git', cmd, { encoding: 'utf8', cwd: REPO, windowsHide: true }).trim();
 }
 
 /**

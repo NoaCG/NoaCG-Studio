@@ -212,6 +212,7 @@ test('Vercel-style JavaScript artifacts load and execute every Creative AI funct
         AI_GATEWAY_API_KEY: 'provider-key-placeholder-gateway',
         HF_TOKEN: 'provider-key-placeholder-huggingface',
       }),
+      windowsHide: true,
     },
   );
   assert.equal(result.status, 0, result.stderr || result.stdout);

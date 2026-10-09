@@ -72,7 +72,7 @@ import {
 const noDelegations = () => ({ status: 0, stdout: 'No stale Codex jobs found.', stderr: '' });
 
 function runGit(cwd, ...args) {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   assert.equal(
     result.status,
     0,

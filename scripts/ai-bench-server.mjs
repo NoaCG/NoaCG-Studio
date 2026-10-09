@@ -89,7 +89,7 @@ export async function providerAllowlistFor(model) {
 }
 
 export function startServer(env) {
-  return spawn('npm', ['run', 'dev'], { env: { ...process.env, ...env }, shell: true, stdio: 'ignore' });
+  return spawn('npm', ['run', 'dev'], { env: { ...process.env, ...env }, shell: true, stdio: 'ignore', windowsHide: true });
 }
 
 /** The dev script is a WRAPPER, so killing the returned child kills the wrapper and
@@ -98,7 +98,7 @@ export function startServer(env) {
 export function killTree(child) {
   if (!child?.pid) return;
   if (process.platform === 'win32') {
-    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
   } else {
     try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
   }

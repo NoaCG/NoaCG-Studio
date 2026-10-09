@@ -83,7 +83,7 @@ if (!force && built && prev === hash) {
 
 const run = (cmd) => {
   console.log(`[player-host] ${cmd}`);
-  execSync(cmd, { cwd: hostDir, stdio: 'inherit' });
+  execSync(cmd, { cwd: hostDir, stdio: 'inherit', windowsHide: true });
 };
 
 // npm ci needs a lockfile; the first-ever build (or a dep change) falls back to install.

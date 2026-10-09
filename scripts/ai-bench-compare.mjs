@@ -149,6 +149,7 @@ for (const model of CANDIDATES) {
         // The bench signs itself in: a managed key is only available to a signed-in caller
         // once a backend is configured, and it runs in a fresh context with no session.
         env: { ...process.env, E2E_EMAIL: fileEnv.E2E_EMAIL ?? '', E2E_PASSWORD: fileEnv.E2E_PASSWORD ?? '' },
+        windowsHide: true,
       });
       child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`bench exited ${code}`))));
       child.on('error', reject);

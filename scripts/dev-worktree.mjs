@@ -209,6 +209,7 @@ const child = spawn(process.execPath, [viteBin, ...viteArgs], {
   cwd: repoRoot,
   stdio: 'inherit',
   env: { ...process.env, CI: process.env.CI ?? '1' },
+  windowsHide: true,
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

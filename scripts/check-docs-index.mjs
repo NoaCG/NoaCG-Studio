@@ -93,6 +93,7 @@ function allDocPaths() {
   const out = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '--', 'docs'], {
     cwd: ROOT,
     encoding: 'utf8',
+    windowsHide: true,
   });
   return [
     ...new Set(

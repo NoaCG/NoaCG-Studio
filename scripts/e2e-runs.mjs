@@ -117,7 +117,7 @@ function msFromCimDate(value) {
 }
 
 function posixNodeProcesses() {
-  const res = spawnSync('ps', ['-eo', 'pid=,ppid=,etimes=,args='], { encoding: 'utf8' });
+  const res = spawnSync('ps', ['-eo', 'pid=,ppid=,etimes=,args='], { encoding: 'utf8', windowsHide: true });
   if (res.status !== 0 || !res.stdout) return [];
   return res.stdout
     .split('\n')

@@ -68,7 +68,7 @@ const LEVELS = new Set(['low', 'medium', 'high', 'max']);
  * names its callers ask for and wrong for every byte of porcelain.
  */
 function git(args, { allowFail = false } = {}) {
-  const run = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+  const run = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   if (run.status !== 0) {
     if (allowFail) return null;
     throw new Error(`git ${args.join(' ')} failed: ${(run.stderr || '').trim()}`);

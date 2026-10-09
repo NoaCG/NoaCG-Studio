@@ -126,7 +126,7 @@ function renderMp4s(seq, id, fps, frames, triggerFrame) {
 
   const errors = [];
   for (const [bin, args] of passes) {
-    const r = spawnSync(bin, args, { encoding: 'utf8', timeout: 120_000 });
+    const r = spawnSync(bin, args, { encoding: 'utf8', timeout: 120_000, windowsHide: true });
     if (r.status !== 0) errors.push((r.stderr || r.error?.message || 'timed out').trim().split('\n').pop());
   }
   fs.rmSync(prog, { force: true });
@@ -211,7 +211,7 @@ function verdicts(stats, decl, fps, frames) {
 async function main() {
   // Build the pages the capture loads, so one command is enough and the gate can never run
   // against a stale rig.
-  const built = spawnSync(process.execPath, [path.join(ROOT, 'scripts/stinger-review.mjs')], { encoding: 'utf8' });
+  const built = spawnSync(process.execPath, [path.join(ROOT, 'scripts/stinger-review.mjs')], { encoding: 'utf8', windowsHide: true });
   if (built.status !== 0) throw new Error(`review build failed: ${built.stderr}`);
 
   const files = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.html')).sort()

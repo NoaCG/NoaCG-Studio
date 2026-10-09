@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { classifyLocation, mismatchReport } from './agent-isolation.mjs';
 
 const CLI = fileURLToPath(new URL('./agent-isolation.mjs', import.meta.url));
-const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8' });
+const run = (...args) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8', windowsHide: true });
 
 test('queue records alone settle it, because git never clones them', () => {
   const verdict = classifyLocation({ queueRecords: 557, worktrees: 0 });

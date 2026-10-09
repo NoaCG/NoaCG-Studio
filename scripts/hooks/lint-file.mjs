@@ -36,6 +36,7 @@ if (!existsSync(eslintBin)) process.exit(0); // deps not installed - the build g
 const res = spawnSync(process.execPath, [eslintBin, '--max-warnings', '0', '--no-warn-ignored', rel], {
   cwd: ROOT,
   encoding: 'utf8',
+  windowsHide: true,
 });
 if (res.status !== 0) {
   // Every line of this reaches the session after the edit, so a file with many problems shows the

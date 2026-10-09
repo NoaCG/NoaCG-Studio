@@ -34,6 +34,7 @@ function filesContaining(needle) {
     return execFileSync('git', ['grep', '-l', '--fixed-strings', needle, '--', 'src', 'e2e'], {
       cwd: repo,
       encoding: 'utf8',
+      windowsHide: true,
     })
       .trim()
       .split('\n')

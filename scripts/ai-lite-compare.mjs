@@ -198,7 +198,7 @@ function startServer(model, providerAllowlist) {
     AI_LITE_FALLBACK_MODEL: '',
     AI_LITE_GATEWAY_PROVIDERS: providerAllowlist,
   };
-  const child = spawn('npm', ['run', 'dev'], { env, shell: true, stdio: 'ignore' });
+  const child = spawn('npm', ['run', 'dev'], { env, shell: true, stdio: 'ignore', windowsHide: true });
   return child;
 }
 
@@ -208,7 +208,7 @@ function startServer(model, providerAllowlist) {
 function killTree(child) {
   if (!child?.pid) return;
   if (process.platform === 'win32') {
-    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
   } else {
     try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
   }
@@ -235,7 +235,7 @@ for (const model of plan) {
       const evaluation = spawn(
         process.execPath,
         ['scripts/ai-lite-eval.mjs', runDir, label, String(fixtures)],
-        { env: { ...process.env, NOACG_LITE_EVAL_BEARER_TOKEN: token }, stdio: 'inherit' },
+        { env: { ...process.env, NOACG_LITE_EVAL_BEARER_TOKEN: token }, stdio: 'inherit', windowsHide: true },
       );
       evaluation.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`eval exited ${code}`))));
       evaluation.on('error', reject);

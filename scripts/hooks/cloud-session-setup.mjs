@@ -149,9 +149,9 @@ export function freshen(fallbackRoot, hook = {}) {
   const quiet = { line: '', lockMoved: false };
   // A resumed or compacted session is mid-work; moving its tree under it would surprise it.
   if (hook.source && hook.source !== 'startup') return quiet;
-  const top = hook.cwd ? spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: hook.cwd, encoding: 'utf8' }) : null;
+  const top = hook.cwd ? spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd: hook.cwd, encoding: 'utf8', windowsHide: true }) : null;
   const root = top?.status === 0 ? top.stdout.trim() : fallbackRoot;
-  const git = (...args) => spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+  const git = (...args) => spawnSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true });
   const read = (...args) => {
     const res = git(...args);
     return res.status === 0 ? res.stdout.trim() : null;
@@ -226,6 +226,7 @@ function runGit(root, args, timeout = MAIN_FETCH_TIMEOUT_MS) {
     killSignal: 'SIGKILL',
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
+    windowsHide: true,
   });
 }
 
@@ -321,8 +322,8 @@ function installIfMissing(dir, label, { force = false } = {}) {
   // npm is a .cmd file on Windows, which only a shell can start - given one fixed command string,
   // so no argument is ever concatenated into a shell line.
   const run = process.platform === 'win32'
-    ? spawnSync('npm ci --no-audit --no-fund', { cwd: dir, stdio: 'ignore', shell: true })
-    : spawnSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, stdio: 'ignore' });
+    ? spawnSync('npm ci --no-audit --no-fund', { cwd: dir, stdio: 'ignore', shell: true, windowsHide: true })
+    : spawnSync('npm', ['ci', '--no-audit', '--no-fund'], { cwd: dir, stdio: 'ignore', windowsHide: true });
   console.log(
     run.status === 0
       ? `Setup: installed ${label} dependencies (npm ci).`

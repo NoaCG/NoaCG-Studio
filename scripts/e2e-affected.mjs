@@ -679,7 +679,7 @@ export function summariseRuns(runs, status) {
  * git call there rather than to wherever the process was started.
  */
 function gitIn(cwd, ...cmd) {
-  return execFileSync('git', cmd, { encoding: 'utf8', ...(cwd ? { cwd } : {}) }).trim();
+  return execFileSync('git', cmd, { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true }).trim();
 }
 
 /**
@@ -697,7 +697,7 @@ function gitIn(cwd, ...cmd) {
  * @returns {string[]} repo-relative paths, forward slashes, deduplicated
  */
 export function changedFilesSince(base, cwd = undefined) {
-  const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}) };
+  const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true };
   const committed = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], opts).trim().split('\n');
   const working = execFileSync('git', ['status', '--porcelain'], opts)
     .split('\n')
@@ -730,7 +730,7 @@ export function copyContext(base, changed, cwd = undefined) {
     if (!COPY_PATH_FILE.test(file)) continue;
     let before;
     try {
-      before = execFileSync('git', ['show', `${old}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}) });
+      before = execFileSync('git', ['show', `${old}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}), windowsHide: true });
     } catch {
       continue;
     }
@@ -784,7 +784,7 @@ const MEASURES_GEOMETRY = /scrollHeight|scrollWidth|clientHeight|clientWidth|off
 function mainRefs(cwd) {
   return ['main', 'origin/main'].filter(
     (ref) =>
-      spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore', cwd }).status === 0,
+      spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore', cwd, windowsHide: true }).status === 0,
   );
 }
 
@@ -821,7 +821,7 @@ export function headIsMainMerge(cwd = undefined) {
 
 /** True when `maybeAncestor` is contained in `ref`. Exit status, so no output to parse. */
 function isAncestor(maybeAncestor, ref, cwd) {
-  return spawnSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], { stdio: 'ignore', cwd }).status === 0;
+  return spawnSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], { stdio: 'ignore', cwd, windowsHide: true }).status === 0;
 }
 
 /**
@@ -1209,7 +1209,7 @@ function main() {
     log('e2e-affected: --all - running the FULL suite and the catalog gate, with no diff.');
     if (listOnly) return 0;
     const { status, runs } = runPlan({ mode: 'full', specs: [], catalog: true }, ({ args: a }) =>
-      spawnSync('npx', a, { stdio: 'inherit', shell: true }).status,
+      spawnSync('npx', a, { stdio: 'inherit', shell: true, windowsHide: true }).status,
     );
     log(summariseRuns(runs, status));
     return status;
@@ -1290,7 +1290,7 @@ function main() {
 
   const { status, runs } = runPlan(
     { ...local, catalog: catalogAffected },
-    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true }).status,
+    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true, windowsHide: true }).status,
   );
   if (runs.length > 1 || status !== 0) log(summariseRuns(runs, status));
   return status;

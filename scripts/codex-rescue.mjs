@@ -1153,7 +1153,7 @@ function bareCodexEnv(dir, env = process.env) {
   const listArgs = ['--disable', 'plugins', 'mcp', 'list', '--json'];
   const listed = windows
     ? spawnSync(`"${lister}" ${listArgs.join(' ')}`, { encoding: 'utf8', shell: true, windowsHide: true, timeout: 30_000 })
-    : spawnSync(lister, listArgs, { encoding: 'utf8', timeout: 30_000 });
+    : spawnSync(lister, listArgs, { encoding: 'utf8', timeout: 30_000, windowsHide: true });
   let servers = null;
   try {
     servers = JSON.parse(listed.stdout ?? '');
@@ -1411,7 +1411,7 @@ async function poll(argv, cwd) {
 function result(argv, cwd) {
   const reference = argv.find((token) => !token.startsWith('--')) ?? '';
   const args = ['result', ...(reference ? [reference] : []), '--cwd', cwd, ...(argv.includes('--json') ? ['--json'] : [])];
-  const run = spawnSync(process.execPath, [companionScript(), ...args], { encoding: 'utf8', shell: false });
+  const run = spawnSync(process.execPath, [companionScript(), ...args], { encoding: 'utf8', shell: false, windowsHide: true });
   if (run.stdout) process.stdout.write(run.stdout);
   if (run.status !== 0 && run.stderr) process.stderr.write(run.stderr);
   return run.status ?? 1;

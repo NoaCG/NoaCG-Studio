@@ -119,7 +119,7 @@ let launched = null;
 function stopChildren() {
   for (const child of children.splice(0)) {
     try {
-      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
       else process.kill(-child.pid, 'SIGTERM');
     } catch {
       /* the walk is over either way */
@@ -161,6 +161,7 @@ async function startDevServer() {
     // shell is the child, and the node process holding the port is its child.
     detached: process.platform !== 'win32',
     env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_PREVIEW_DEBOUNCE_MS: '50' },
+    windowsHide: true,
   });
   children.push(child);
   await waitFor(`${appOrigin}/app`, 'the app dev server');
@@ -179,6 +180,7 @@ async function startOgrafServer() {
   const child = spawn(process.execPath, ['dist/main.js'], {
     cwd: join(serverDir, 'packages', 'server'),
     stdio: 'ignore',
+    windowsHide: true,
   });
   children.push(child);
   await waitFor(`${ograf}/api/ograf/v1/graphics`, 'ograf-server');

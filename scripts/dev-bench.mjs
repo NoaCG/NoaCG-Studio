@@ -72,6 +72,7 @@ const dispatcher = join(root, 'scripts', 'bench-dispatcher.mjs');
 const child = spawn(process.execPath, ['--import', pathToFileURL(dispatcher).href, viteBin, '--mode', 'bench'], {
   cwd: root,
   stdio: ['inherit', 'pipe', 'pipe'],
+  windowsHide: true,
 });
 
 for (const [stream, out] of [[child.stdout, process.stdout], [child.stderr, process.stderr]]) {

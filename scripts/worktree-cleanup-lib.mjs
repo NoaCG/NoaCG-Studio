@@ -168,7 +168,7 @@ export function lastGitActivityMs(worktreePath) {
 
 /** Run git with the given args in `cwd`; return { ok, stdout, stderr } all trimmed. */
 export function git(args, cwd) {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   return {
     ok: res.status === 0,
     stdout: typeof res.stdout === 'string' ? res.stdout.trim() : '',

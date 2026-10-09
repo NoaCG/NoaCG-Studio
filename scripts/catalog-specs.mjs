@@ -67,7 +67,7 @@ for (const run of runs) {
   // Both run even when the first goes red: the second's verdict is information worth having, and
   // skipping it would turn one red run into two round trips. The FIRST failure's status is what
   // this command reports - a passing second run must never green over a failing first.
-  const code = spawnSync('npx', run.args, { stdio: 'inherit', shell: true, cwd: REPO, env }).status ?? 1;
+  const code = spawnSync('npx', run.args, { stdio: 'inherit', shell: true, cwd: REPO, env, windowsHide: true }).status ?? 1;
   if (code !== 0 && status === 0) status = code;
 }
 process.exit(status);
