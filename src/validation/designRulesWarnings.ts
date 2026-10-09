@@ -200,15 +200,15 @@ export function designRulesWarnings(
   // field text that shares its safe-area rule. That makes eight kinds at most - not measured,
   // primary size, supporting size, contrast, protection, field safe area, mark safe area and
   // ticker margins - so every kind present always fits under the cap.
-  const rows: { issue: ValidationIssue; kind: string }[] = [];
+  const rows: { issue: ValidationIssue; kind?: string }[] = [];
   // Static design text (a LIVE tag, a label) can be read while every operator field is faded
   // out, so the question is whether any FIELD text was read.
   if (!report.readings.some((r) => r.fieldBound) && hasFieldText(doc, template)) {
-    rows.push({ issue: unmeasured('none of its text was visible when it was measured'), kind: LEGIBILITY_UNMEASURED });
+    rows.push({ issue: unmeasured('none of its text was visible when it was measured') });
   }
   for (const finding of report.findings) {
     const msg = productMessage(finding, legibility);
-    if (msg) rows.push({ issue: msg, kind: finding.code === 'mark-outside-safe-area' ? finding.code : msg.rule });
+    if (msg) rows.push({ issue: msg, kind: finding.code === 'mark-outside-safe-area' ? finding.code : undefined });
   }
   // The ticker-margin rule holds tickers only, and the template says what it is - the same
   // ruling as the lead-line target above. Inferring a crawl from declared motion held counters
@@ -218,11 +218,10 @@ export function designRulesWarnings(
     for (const finding of measureTickerMargins(doc).findings) {
       rows.push({
         issue: { rule: 'legibility-ticker-margins', message: `${finding.detail} (computed for ${viewingPhrase(legibility)})` },
-        kind: 'legibility-ticker-margins',
       });
     }
   }
-  return capKeepingEachKind(rows, MAX_WARNINGS, (row) => row.kind).map((row) => row.issue);
+  return capKeepingEachKind(rows, MAX_WARNINGS, (row) => row.kind ?? row.issue.rule).map((row) => row.issue);
 }
 
 /**

@@ -9,7 +9,7 @@
 
 /** A flat fill at or under this alpha is a tint, not a surface: over footage the viewer does not
  *  see a 10% wash as a box. Glass is the exception, counted by its backdrop blur instead. */
-export const SURFACE_MIN_ALPHA = 0.15;
+const SURFACE_MIN_ALPHA = 0.15;
 
 /** The alpha of a computed colour: `rgba(r, g, b, a)`, the slash form of the newer colour
  *  functions (`none` there is 0), and 1 for a colour that states no alpha. */
