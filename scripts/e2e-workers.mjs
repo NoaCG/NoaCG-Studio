@@ -25,7 +25,7 @@
 // THE RESERVE IS THE POINT, and it is deliberately modest. The brief here was explicit: the
 // tests are the priority for this machine, and the headroom only has to be enough to keep email
 // and a browser responsive - not to keep a second heavy application comfortable. So the ladder
-// spends aggressively and holds back roughly 1.2-1.5 GB. If that is only enough for one worker,
+// spends aggressively and holds back at least a gigabyte. If that is only enough for one worker,
 // one worker is the honest answer: a slow suite is an annoyance, a machine that stops responding
 // costs the whole session.
 
@@ -49,10 +49,22 @@ const LADDER = [
   // 4 consumed ~3.1 GB from 4549 free, leaving 1488. On a busier box the same count reached
   // 3.9 GB, which is why this sits above 4.1 rather than at it.
   { minFreeMb: 4200, workers: 4 },
-  // The original anchor: 4535 free, 3 workers, 2472 still free - comfortable, and the right
-  // answer once something big is already resident.
-  { minFreeMb: 3300, workers: 3 },
-  { minFreeMb: 2600, workers: 2 },
+  // The two rungs the job queue's away floor lands on, measured 2026-10-10 with the owner away
+  // and other agent sessions live: one 20-test spec through the queue, free memory and the job's
+  // process tree sampled every 2 s.
+  //
+  //     workers   free before -> lowest   took     tree peak   duration
+  //     3         3342 -> 986 MB          2356 MB  3.3 GB      44 s
+  //     2         2622 -> 508 MB          2114 MB  2.7 GB      57 s
+  //     1         3401 -> 1585 MB         1816 MB  2.0 GB      68 s
+  //
+  // and 2026-10-09 (#854): 3 workers, 4.1 -> 1.3 GB, 2.8 GB taken. The dev server and the runner
+  // are most of it; a worker adds 0.3-0.5 GB. A browser job is admitted at 3.5 GB free while away
+  // (`POLICY.freeMemFloorMb.away`), where these rungs used to pick 3 and leave 0.7-1.1 GB. Each
+  // rung is now its worst measured take plus a gigabyte, so the floor gets two workers and about
+  // 1.4 GB stays free; the spec ran 13 s slower for it.
+  { minFreeMb: 3900, workers: 3 },
+  { minFreeMb: 3200, workers: 2 },
 ];
 
 /**

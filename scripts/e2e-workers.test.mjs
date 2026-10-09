@@ -4,6 +4,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chooseWorkers } from './e2e-workers.mjs';
+import { POLICY } from './jobs-store.mjs';
+
+// What one targeted spec took out of free memory at each count, worst measured (e2e-workers.mjs).
+const TAKEN_MB = { 2: 2114, 3: 2800, 4: 3100, 6: 4100 };
 
 test('an explicit E2E_WORKERS always wins, however little memory is free', () => {
   const { workers, reason } = chooseWorkers({ freeMb: 300, override: '8' });
@@ -40,20 +44,33 @@ test('more free memory buys more workers, up to the measured ceiling', () => {
 test('a busy machine scales down instead of taking what is left', () => {
   // Premiere with a project open, or a second heavy app, is exactly this case. 3076 MB is the
   // figure actually observed with a 2.9 GB allocation held against this machine.
-  assert.equal(chooseWorkers({ freeMb: 3400 }).workers, 3);
-  assert.equal(chooseWorkers({ freeMb: 3076 }).workers, 2);
+  assert.equal(chooseWorkers({ freeMb: 4000 }).workers, 3);
+  assert.equal(chooseWorkers({ freeMb: 3400 }).workers, 2);
+  assert.equal(chooseWorkers({ freeMb: 3076 }).workers, 1);
   assert.equal(chooseWorkers({ freeMb: 2300 }).workers, 1);
 });
 
-test('every rung leaves roughly a gigabyte and a half behind', () => {
+test('every rung above one leaves at least a gigabyte behind', () => {
   // The promise this module makes to the person at the keyboard, checked against the measured
-  // peak consumption of each count rather than against the thresholds themselves.
-  const CONSUMED_MB = { 1: 900, 2: 1500, 3: 2100, 4: 3100, 6: 4100 };
-  for (const freeMb of [2000, 2600, 3300, 4200, 5300, 8000]) {
+  // take of each count rather than against the thresholds themselves. One worker is what is left
+  // when even two do not fit, so it promises nothing.
+  for (const freeMb of [3200, 3900, 4200, 5300, 8000]) {
     const { workers } = chooseWorkers({ freeMb });
-    const left = freeMb - CONSUMED_MB[workers];
-    assert.ok(left >= 1100, `${freeMb} MB free -> ${workers} workers would leave only ${left} MB`);
+    const left = freeMb - TAKEN_MB[workers];
+    assert.ok(left >= 1000, `${freeMb} MB free -> ${workers} workers would leave only ${left} MB`);
   }
+});
+
+test('a browser job admitted at either queue floor leaves a gigabyte free (#855)', { skip: process.env.NOACG_JOBS_FREE_MB && 'the floor is pinned by NOACG_JOBS_FREE_MB' }, () => {
+  // The queue admits a browser job at its floor and this ladder then picks the workers, so only
+  // the two numbers together keep the machine out of the page file. At the away floor three
+  // workers left 0.7-1.1 GB; two leave about 1.4.
+  for (const [presence, freeMb] of Object.entries(POLICY.freeMemFloorMb)) {
+    const { workers } = chooseWorkers({ freeMb });
+    const left = freeMb - TAKEN_MB[workers];
+    assert.ok(left >= 1000, `${presence} floor ${freeMb} MB -> ${workers} workers would leave only ${left} MB`);
+  }
+  assert.equal(chooseWorkers({ freeMb: POLICY.freeMemFloorMb.away }).workers, 2);
 });
 
 test('the ladder is monotonic - more memory never yields fewer workers', () => {
