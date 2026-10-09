@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Show } from '../../../model/shows';
 import { installPack, parsePack, type GraphicsPack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
-import type { GraphicDoc } from '../../../model/library';
+import type { PackStamp } from '../../../model/graphicDoc';
 import { useAuthState } from '../../auth/useAuthState';
 import { useIsModerator } from '../../../community/useIsModerator';
 import {
@@ -11,13 +11,13 @@ import {
   listSharedPacks,
   listWaitingPacks,
   PACK_STATE_LABEL,
-  sharedPackId,
   sharedPackText,
   withdrawPack,
   type MyPack,
   type SharedPack,
 } from '../../../community/packs';
 import { candidateOf, checkPack, type PackFinding } from '../../../community/packChecks';
+import { sharedPackId } from '../../../community/packStamp';
 import MiniPreview from '../MiniPreview';
 import WizardConfirm from '../WizardConfirm';
 import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
@@ -35,8 +35,8 @@ import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
  * public/packs/community/), then the approved shared packs (migration 0079), a Submit a pack
  * door, the maker's own submissions under Your packs, and - for a NoaCG admin - what waits for
  * review. A live pack of the maker's takes an update, a new version that waits for review while
- * the live one stays on the shelf (AC-11). Until the design lock lands, submitting is open to
- * admins only (D12), on the server and here.
+ * the live one stays on the shelf (AC-11). Every signed-in account may submit (D12, migration 0082)
+ * now that the design lock (AC-5) keeps an installed pack's design as its maker made it.
  */
 
 /** One shelf entry, as public/packs/community/index.json lists it. */
@@ -55,8 +55,6 @@ export interface CommunityPackEntry {
 type Card = ({ kind: 'seed' } & CommunityPackEntry) | ({ kind: 'shared' } & SharedPack);
 
 const SHELF = '/packs/community/';
-
-type FromPack = NonNullable<GraphicDoc['fromPack']>;
 
 interface Props {
   /** The search box above Browse's branch - it filters the shelf by name, description and maker. */
@@ -126,15 +124,15 @@ function readInto<T>(read: () => Promise<T>, set: (value: T) => void): () => voi
   };
 }
 
-async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: FromPack }> {
+async function packFor(card: Card): Promise<{ pack: GraphicsPack; fromPack: PackStamp }> {
   if (card.kind === 'shared') {
-    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.lineage), version: card.version, author: card.author } };
+    return { pack: await readShared(card.id), fromPack: { id: sharedPackId(card.lineage), version: card.version, author: card.author, name: card.name } };
   }
   const res = await fetch(`${SHELF}${card.file}`);
   if (!res.ok) throw new Error(`The pack could not be downloaded (${res.status}).`);
   const { pack, error } = parsePack(await res.text());
   if (!pack) throw new Error(error ?? 'That file is not a NoaCG graphics pack.');
-  return { pack, fromPack: { id: card.id, version: 1, author: card.author } };
+  return { pack, fromPack: { id: card.id, version: 1, author: card.author, name: card.name } };
 }
 
 /** A shared pack's card preview: its first graphic, rendered live and settled (spec D3). */
@@ -343,7 +341,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
     <div className="wz-community" data-testid="community-packs">
       <div className="wz-community-head">
         <p className="wz-kit-lede">Install one and it opens as a production, rundown included.</p>
-        {moderator && (
+        {signedIn && (
           <button type="button" onClick={() => setSheet({})} data-testid="submit-pack-open">
             Submit a pack
           </button>
@@ -368,7 +366,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
                 {(p.state === 'in_review' || p.state === 'live') && (
                   <div className="wz-community-row-actions">
                     {/* The door is the submit door's (D12). */}
-                    {moderator && p.state === 'live' && !waitingLineages.has(p.lineage) && (
+                    {signedIn && p.state === 'live' && !waitingLineages.has(p.lineage) && (
                       <button type="button" disabled={busy !== null} onClick={() => setSheet({ updating: p })}>
                         Submit an update
                       </button>

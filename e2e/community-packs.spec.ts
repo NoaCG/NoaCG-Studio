@@ -75,7 +75,7 @@ test('the shelf lists the seeded pub quiz, and Install opens a production whose 
       offered: packSources().flatMap((s) => s.graphics.map((g) => g.name)),
     };
   });
-  expect(stamp.fromPack).toEqual({ id: 'pub-quiz', version: 1, author: 'NoaCG' });
+  expect(stamp.fromPack).toEqual({ id: 'pub-quiz', version: 1, author: 'NoaCG', name: 'Pub Quiz' });
   expect(stamp.offered).not.toContain('Pub Quiz');
 
   expect(errors).toEqual([]);

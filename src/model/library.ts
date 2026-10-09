@@ -19,7 +19,7 @@ import type { ProjectLegibility } from './designRules';
 import { firstIndexById, loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
 import { durable } from './durableStore';
 import { uuid } from './id';
-import { newGraphicDoc, type GraphicDocBase } from './graphicDoc';
+import { designLocked, newGraphicDoc, type GraphicDocBase, type PackStamp } from './graphicDoc';
 
 // The record SHAPE and its pure builder live in model/graphicDoc.ts (DOM-free, storage-free,
 // so the /bridge page and the save API mint the identical record); this module binds the AI
@@ -93,6 +93,8 @@ export interface LibraryNameEntry {
   updatedAt: string;
   /** Its operator fields, so a replacement can NAME the cue values it strands. */
   fields: { field: string; title: string }[];
+  /** A community pack's graphic (spec AC-5): never written over by a save under its name. */
+  locked?: boolean;
 }
 
 /** Every live graphic, reduced to that. In library order - the same derive-from-the-data shape
@@ -107,6 +109,7 @@ export function graphicNameIndex(): LibraryNameEntry[] {
     // Every wizard save reads this index, so one malformed record would otherwise throw inside
     // a door's promise and leave the reader with nothing saved and nothing said.
     fields: (g.template.fields ?? []).map((f) => ({ field: f.field, title: f.title || f.field })),
+    ...(designLocked(g) ? { locked: true } : {}),
   }));
 }
 
@@ -193,7 +196,7 @@ export function librarySaveEffect(
       sharesWith: holderIn(index.filter((g) => g.id !== mine.id), wanted) ?? null,
     };
   }
-  const holder = holderIn(index, wanted);
+  const holder = holderIn(index.filter((g) => !g.locked), wanted);
   return holder ? { kind: 'over', targetId: holder.id, holder } : { kind: 'mint', targetId: null };
 }
 
@@ -414,6 +417,12 @@ export function resolveSavedGraphicDoc(graphic: SavedGraphic, library: GraphicDo
   if (graphic.graphicId) return library.find((d) => d.id === graphic.graphicId);
   const byName = library.filter((d) => d.name === graphic.name);
   return byName.length === 1 ? byName[0] : undefined;
+}
+
+/** The community pack stamp of a pool graphic's own library record. Only by its link: the name
+ *  fallback above could credit a pack for a user's own graphic that happens to share its name. */
+export function packStampFor(graphic: SavedGraphic, library: GraphicDoc[]): PackStamp | null {
+  return graphic.graphicId ? library.find((d) => d.id === graphic.graphicId)?.fromPack ?? null : null;
 }
 
 export function entriesForSavedGraphic(graphic: SavedGraphic, library: GraphicDoc[]): ControlEntry[] {

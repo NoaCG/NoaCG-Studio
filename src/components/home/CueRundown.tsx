@@ -13,6 +13,7 @@ import {
 } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { GraphicDoc } from '../../model/library';
+import { productionCredits } from '../../community/packStamp';
 import { graphicKindLabel } from '../../model/types';
 import { accentColor, routeColor } from '../../model/outputSetup';
 import { CueAccentControl } from './RundownColors';
@@ -270,6 +271,8 @@ export default function CueRundown({
   const [addPick, setAddPick] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const libraryPick = useRef<HTMLSelectElement>(null);
+  // Where the production's community pack graphics came from, said once (spec AC-5).
+  const credits = useMemo(() => productionCredits(show, library), [show, library]);
   const serverPick = useRef<HTMLButtonElement>(null);
   /** The hidden file input behind "＋ Add pictures…". */
   const pictureInput = useRef<HTMLInputElement>(null);
@@ -1152,6 +1155,9 @@ export default function CueRundown({
           }}
           data-testid="add-pictures-input"
         />
+        {credits.map((credit) => (
+          <p key={credit} className="pd-credit" data-testid="pack-credit">{credit}</p>
+        ))}
       </div>
       {shortcutCue && cues.find(c => c.id === shortcutCue) && <CueShortcutDialog key={shortcutCue} show={show} cue={cues.find(c => c.id === shortcutCue)!} setShows={setShows} onClose={() => setShortcutCue(null)} />}
     </aside>

@@ -73,6 +73,14 @@ records back into this shape (rundown as the top-level list), downloadable from 
 production export dialog ("Graphics pack (.noacgpack.json)") — so the format is how whole
 productions are shared, not only how shipped packs arrive.
 
+**The community pack stamp (optional, additive).** A graphic installed from the Community packs
+shelf carries `fromPack` on its library record (`{ id, version, author, name }`), which locks its
+design (docs/work-specs/community-packs/spec.md AC-5). The export writes it on that graphic's
+entry, and an import stamps the new record from it, so the lock and the production's credit line
+survive Export then Import. Install from the shelf stamps every graphic with the shelf's own id,
+whatever a file entry says. The stamp lives on the record and in this file, never inside the
+template: the SPX, OGraf and CasparCG exports stay plain templates.
+
 ## The three pieces
 
 - **`src/packs/graphicsPack.ts`** — the owner: `parsePack` (refuse-with-reason, never coerce),

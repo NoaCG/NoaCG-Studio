@@ -3,6 +3,7 @@
 // team production (another member's work) and never a graphic installed from the shelf.
 
 import { loadGraphics, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { designLocked } from '../model/graphicDoc';
 import { graphicLayer, loadShows } from '../model/shows';
 import type { SpxTemplate } from '../model/types';
 
@@ -21,7 +22,7 @@ export interface PackSource {
   graphics: SourceGraphic[];
 }
 
-const own = (doc: GraphicDoc | undefined) => !doc?.fromPack;
+const own = (doc: GraphicDoc | undefined) => !designLocked(doc);
 
 /** A pool graphic is the maker's own unless it links to a library record that is stamped, or to
  *  one this library does not hold (a teammate's graphic in a personal copy of a team production,

@@ -2209,6 +2209,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* The foot is how graphics get in: the library picker, a new graphic, pictures. */
 .pd-rail-foot { flex: none; border-top: 1px solid var(--border); padding: 9px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .pd-new-graphic { width: 100%; }
+/* A community pack's credit (spec AC-5): the foot's last line, quiet. */
+.pd-credit { margin: 0; font-size: 11px; color: var(--text-dim); }
 
 /* ── Phone (docs/PLAYOUT_DASHBOARD.md §3) ──────────────────────────────────────
    One column: header, the two monitors STILL SIDE BY SIDE (seeing preview and air together is
