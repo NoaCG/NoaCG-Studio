@@ -54,15 +54,15 @@ const NOT_RENDERED = 'the graphic could not be rendered for measuring';
 /** Field types whose value is text a viewer reads. `hidden` carries data, not words. */
 const READ_FTYPES = new Set(['textfield', 'textarea', 'number']);
 
-/** How many declared text fields hold text on screen in this frame - what there was to read. A
+/** Whether a declared text field holds text on screen in this frame - something to read. A
  *  `noacg-data-source` holder is never on screen: the runtime paints its value elsewhere (the
  *  end-credits rows, a clock), so its text is not text the viewer was meant to read there. */
-function fieldsWithText(doc: Document, template: SpxTemplate): number {
-  return template.fields.filter((f) => {
+function hasFieldText(doc: Document, template: SpxTemplate): boolean {
+  return template.fields.some((f) => {
     if (!READ_FTYPES.has(f.ftype)) return false;
     const el = doc.getElementById(f.field);
     return Boolean(el && !el.closest(`.${DATA_SOURCE_CLASS}`) && (el.textContent?.trim().length ?? 0) >= 2);
-  }).length;
+  });
 }
 
 /** The brand mark's field: a file field shown as a loaded `<img>` that is a mark rather than a
@@ -200,7 +200,7 @@ export function designRulesWarnings(
   const issues: ValidationIssue[] = [];
   // Static design text (a LIVE tag, a label) can be read while every operator field is faded
   // out, so the question is whether any FIELD text was read.
-  if (!report.readings.some((r) => r.fieldBound) && fieldsWithText(doc, template) > 0) {
+  if (!report.readings.some((r) => r.fieldBound) && hasFieldText(doc, template)) {
     issues.push(unmeasured('none of its text was visible when it was measured'));
   }
   for (const finding of report.findings) {
