@@ -1,4 +1,4 @@
-import { type DragEvent } from 'react';
+import { useState, type DragEvent } from 'react';
 import ProductionPicker from './ProductionPicker';
 import RowMenu, { type RowMenuItem } from './RowMenu';
 import { IconFolder } from '../icons';
@@ -14,6 +14,9 @@ import { IconFolder } from '../icons';
  *
  * It is also a DROP TARGET in both views: dragging graphics onto a folder is the fastest way
  * to fill one, and it worked in the card grid only for as long as the table had chips.
+ *
+ * A right-click on the item opens that same ⋯ menu, as a rundown folder's header does
+ * (FolderRow.tsx): one list of folder verbs, two ways to reach it.
  */
 export default function FolderItem({
   folder,
@@ -55,6 +58,7 @@ export default function FolderItem({
   onAddToProduction: (showId: string, showName: string) => Promise<boolean>;
   onCreateProduction: (name: string) => Promise<boolean>;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div
       className={`lib-folder-item lib-folder-item--${view}${dropping ? ' dropping' : ''}`}
@@ -67,6 +71,12 @@ export default function FolderItem({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
+      onContextMenu={(e) => {
+        if (renaming) return;
+        e.preventDefault();
+        onPickerOpenChange(false);
+        setMenuOpen(true);
+      }}
       data-testid={`folder-item-${folder}`}
     >
       <span className="lib-folder-mark"><IconFolder /></span>
@@ -103,7 +113,7 @@ export default function FolderItem({
           onAdd={onAddToProduction}
           onCreate={onCreateProduction}
         />
-        <RowMenu items={menu} label={`More actions for ${folder}`} />
+        <RowMenu items={menu} label={`More actions for ${folder}`} open={menuOpen} onOpenChange={setMenuOpen} />
       </div>
     </div>
   );

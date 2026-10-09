@@ -20,7 +20,7 @@ import { candidateOf, checkPack, type PackFinding } from '../../../community/pac
 import { sharedPackId } from '../../../community/packStamp';
 import MiniPreview from '../MiniPreview';
 import WizardConfirm from '../WizardConfirm';
-import SubmitPackSheet, { PackFindings } from './SubmitPackSheet';
+import SubmitPackSheet, { PackFindings } from '../../community/SubmitPackSheet';
 
 /**
  * COMMUNITY PACKS - Browse's third answer (docs/work-specs/community-packs/spec.md).
@@ -460,7 +460,6 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
 
       {sheet && (
         <SubmitPackSheet
-          lastAuthor={mine[0]?.author ?? ''}
           updating={sheet.updating}
           onClose={() => setSheet(null)}
           onSent={() => {
