@@ -109,7 +109,7 @@ noacg pack ./opener ./name-strap ./scorebug ./endboard --name "Friday Fight Nigh
   "rundown": [ … ] }` - sent to Home when this machine holds a key; `out` also writes the file.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli@0.9.0 <command>` when nothing is installed; `npm i -g @noacg/cli@0.9.0` once makes every
+(`npx -y @noacg/cli@0.10.0 <command>` when nothing is installed; `npm i -g @noacg/cli@0.10.0` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the
