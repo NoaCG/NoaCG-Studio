@@ -234,6 +234,30 @@ export class BridgeClient {
     );
   }
 
+  /** The studio's Community packs checks over a pack about to be shared: its words, the share
+   *  gate per graphic, and each graphic played with outside requests refused. A deployment that
+   *  predates the check says so plainly rather than failing late. */
+  async communityCheck(candidate: {
+    name: string;
+    description: string;
+    author: string;
+    graphics: Array<{ name: string; template: SpxTemplate }>;
+  }): Promise<Array<{ graphic?: string; message: string }>> {
+    try {
+      return await withTimeout(
+        this.call<Array<{ graphic?: string; message: string }>>('communityCheck', candidate),
+        30_000 + 5_000 * candidate.graphics.length,
+        'the Community packs check',
+        () => this.bench.close(),
+      );
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('has no function "communityCheck"')) {
+        throw new Error(`The NoaCG at ${this.origin} cannot check a pack for Community packs yet - point NOACG_URL at a newer deployment.`);
+      }
+      throw e;
+    }
+  }
+
   inspect(input: { template?: SpxTemplate; manifest?: unknown }): Promise<BridgeInspection> {
     return this.call('inspect', input);
   }

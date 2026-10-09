@@ -11,7 +11,7 @@
 // are pinned in e2e/configured/anonymous.spec.ts alone; the save dialog's signed-in and
 // signed-out lines are pinned in signed-in-ux.spec.ts and anonymous.spec.ts, and offline
 // auth.spec.ts can only pin that it says neither.
-// covers: api/_lib/me/{agentKeys,graphics,graphicShape}.ts
+// covers: api/_lib/me/{agentKeys,graphics,graphicShape,communityPacks}.ts, supabase/migrations/0087_community_pack_submit_for.sql
 // covers: api/_lib/{principal,agentAccessStore}.ts, api/me/?...path?.ts, scripts/meDevPlugin.mjs
 
 import { test, expect } from '@playwright/test';
@@ -32,6 +32,8 @@ import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './
 //   4. the deep link opens the graphic on first load (a miss while signed in runs one sync pass);
 //   4b. POST /api/me/packages with the key -> the package waits on Home -> Productions; Install
 //      makes the production with its rundown and removes the row; Dismiss removes one unseen;
+//   4c. POST /api/me/community-packs with the key -> refused without the licence; with it, the
+//      pack waits for review under the account's Your packs;
 //   5. Settings -> Account -> Agent access lists the key; Revoke -> the same key is 401.
 
 /** A real pack file (`noacg-pack` v1) - what `noacg pack --save` sends. */
@@ -222,6 +224,37 @@ test.describe('agent access (configured)', () => {
           return (await listWaitingPackages()).filter((p) => p.name.startsWith(n)).length;
         }, packName))
         .toBe(0);
+
+      // 4c. SHARE to Community packs (docs/AGENT_SAVE.md §8): the same key, only with the user's
+      // licence and words, and a pack with no cues; it waits for review under Your packs. The
+      // test withdraws it so the account is left as it was found.
+      const shareName = `Agent E2E share ${randomBytes(3).toString('hex')}`;
+      const graphicsOnly = (packFile.graphics as Array<Record<string, unknown>>).map(({ cues: _cues, ...g }) => g);
+      const sendShare = (extra: Record<string, unknown>) =>
+        fetch(`${origin}/api/me/community-packs`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.key}` },
+          body: JSON.stringify({
+            name: shareName,
+            description: 'A newsroom pack shared from an agent',
+            author: 'Agent E2E',
+            pack: { format: 'noacg-pack', version: 1, name: shareName, graphics: graphicsOnly },
+            ...extra,
+          }),
+        });
+      expect((await sendShare({})).status, 'no licence, no share').toBe(400);
+      const shared = await sendShare({ license: 'cc-by-4.0' });
+      expect(shared.status, await shared.clone().text()).toBe(201);
+      const sharedId = ((await shared.json()) as { id: string; state: string }).id;
+      const mine = await page.evaluate(async () => {
+        const { listMyPacks } = await import('/src/community/packs.ts');
+        return listMyPacks();
+      });
+      expect(mine.find((p) => p.id === sharedId)).toMatchObject({ name: shareName, author: 'Agent E2E', state: 'in_review' });
+      await page.evaluate(async (id) => {
+        const { withdrawPack } = await import('/src/community/packs.ts');
+        await withdrawPack(id);
+      }, sharedId);
 
       // 5. Settings lists the key; Revoke ends it. From HOME: the production page carries no
       // account button (issue #403 was this step waiting on one).

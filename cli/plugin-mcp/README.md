@@ -14,14 +14,14 @@ From the generated distribution's repository directory:
 claude plugin marketplace add ./
 claude plugin install noacg@noacg-studio
 claude plugin install noacg-mcp@noacg-studio
-npm i -g @noacg/cli@0.9.0
+npm i -g @noacg/cli@0.10.0
 noacg doctor
 ~~~
 
 Node 20 or newer, npm, system Chrome or Edge and a reachable NoaCG deployment are required.
 The launcher imports an installed CLI only when its package version exactly matches this
 plugin's manifest. With no CLI installed, or with another version installed, it runs npx with
-the exact pin instead, which downloads @noacg/cli@0.9.0 and its dependencies from
+the exact pin instead, which downloads @noacg/cli@0.10.0 and its dependencies from
 registry.npmjs.org once and caches them. This fallback costs an extra process. The pin follows
 cli/package.json; the launcher never resolves npm's latest version.
 

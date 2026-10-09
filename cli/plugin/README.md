@@ -33,13 +33,13 @@ Read the skill's references/setup.md. Install Node 20 or newer with npm and syst
 or Edge, then install the reviewed CLI:
 
 ~~~sh
-npm i -g @noacg/cli@0.9.0
+npm i -g @noacg/cli@0.10.0
 noacg --version
 noacg doctor
 ~~~
 
 The installed version must match this plugin version. If it differs, install the exact pin or
-use npx -y @noacg/cli@0.9.0 for each command. The maintained generator updates these pins with
+use npx -y @noacg/cli@0.10.0 for each command. The maintained generator updates these pins with
 cli/package.json. Explicit NOACG_URL selects a self-hosted deployment; NOACG_BROWSER selects
 a Chromium executable. Doctor diagnoses missing browser, deployment reachability and protocol.
 A managed organization can prohibit install or execution; its administrator must grant access.

@@ -608,6 +608,35 @@ test('pack --save with no key refuses before it starts a browser, and keeps the 
   assert.ok(Date.now() - started < 15000, 'the no-key refusal must not wait on a browser');
 });
 
+test('pack --share refuses before any browser without --save, the licence, a shown name or a description', async () => {
+  // Sharing to Community packs is the user's grant, so every word of it is theirs and is checked
+  // before anything starts (docs/AGENT_SAVE.md §8). Nothing here can reach a server: NOACG_URL is
+  // a closed port and there is no key.
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'graphic', 'graphic.html'), '<h1/>');
+  const graphic = path.join(dir, 'graphic');
+  const full = ['--name', 'Quiz', '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--shown-as', 'Quizmaster K', '--json'];
+  const cases = [
+    [['pack', graphic, '--share', '--out', path.join(dir, 'q.noacgpack.json'), ...full], /needs --save/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--shown-as', 'K', '--json'], /--license cc-by-4\.0/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'mit', '--shown-as', 'K', '--json'], /--license cc-by-4\.0/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--json'], /--shown-as/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--license', 'cc-by-4.0', '--shown-as', 'K', '--json'], /--description/],
+    [['pack', graphic, '--save', '--share', '--name', 'Q'.repeat(81), '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--shown-as', 'K', '--json'], /--name is at most 80/],
+  ];
+  for (const [args, said] of cases) {
+    const r = await run(args);
+    assert.equal(r.code, 2, `${args.join(' ')} should be a usage error`);
+    assert.match(JSON.parse(r.stdout).error, said);
+  }
+  // `--share ./a` hands the package to the flag; it comes back as a package, and with every word
+  // given the run reaches the next refusal: no key.
+  const r = await run(['pack', '--share', graphic, '--save', ...full]);
+  assert.equal(r.code, 1);
+  assert.equal(JSON.parse(r.stdout).reason, 'not-logged-in');
+});
+
 test('pack --rundown refuses a file that is not a list of cues naming a graphic', async () => {
   const dir = await tmpdir();
   await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
@@ -981,14 +1010,16 @@ test('the default skill names no house look: no palette, face, size or timing ru
   assert.doesNotMatch(frame, /\d(\.\d+)?\s?-\s?\d(\.\d+)?\s?s\b/, 'the contract states a motion duration range again');
 });
 
-test('the two opt-in tools exist, are off by default, and are reachable in both hosts', async () => {
+test('the opt-in tools exist, are off by default, and are reachable in both hosts', async () => {
   const skill = await shippedSkill();
   const optIn = [...sectionsOf(skill)].find(([title]) => /opt-in/i.test(title))?.[1];
   assert.ok(optIn, 'SKILL.md lost its opt-in section');
-  assert.match(optIn, /OFF unless the user asks/, 'the opt-in section no longer says both tools are off by default');
-  assert.match(optIn, /When neither is on, do not open either file/, 'the default no longer keeps the opt-in files closed');
+  assert.match(optIn, /OFF unless the user asks/, 'the opt-in section no longer says the tools are off by default');
+  assert.match(optIn, /When none is on, do not open their files/, 'the default no longer keeps the opt-in files closed');
+  // Sharing is never offered: only the user's own request switches it on (docs/AGENT_SAVE.md §8).
+  assert.match(optIn, /Never offer it, mention it, suggest it or ask\s+about it otherwise/, 'the share tool may be offered');
 
-  for (const [file, word] of [['critique.md', 'critique'], ['design-notes.md', 'guidelines']]) {
+  for (const [file, word] of [['critique.md', 'critique'], ['design-notes.md', 'guidelines'], ['share.md', 'share']]) {
     const text = (await fs.readFile(path.join(skillDir(), 'references', file), 'utf8')).replace(/\r\n/g, '\n');
     assert.match(text.split('\n')[0], /OPT-IN/, `references/${file} no longer says on its first line that it is opt-in`);
     assert.ok(optIn.includes(`references/${file}`), `the opt-in section no longer points at references/${file} (${word})`);

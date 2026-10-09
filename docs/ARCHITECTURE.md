@@ -116,7 +116,8 @@ here and not in §6 are wrong - fix the code, not the table.
   the exporter; it reads no store, no components, no backend)
 - `bridge` -> templates, blocks (`animData` - is the region data-shaped? - and `animationRegion`,
   which says WHY the importer refused one), model, validation,
-  community (`gate` only), preview, export, packs, control (the headless bridge page,
+  community (`packChecks` only: the shelf's own checks over a pack an agent shares), preview,
+  export, packs, control (the headless bridge page,
   docs/AGENT_CLI.md: it composes the studio's OWN functions - the type registry and neutral
   scaffold, the authored-region converter, `publishGate` + the runtime bench + readiness + the
   engine scan, `composeDocument`, the dual graphic package + the OGraf package reader, the pack
