@@ -10,6 +10,20 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.10.1 - 2026-10-09
+
+**A refused share no longer leaves a copy on your Home.** `noacg pack … --save --share` now runs
+the Community packs checks and sends the share before it puts the package on your Home. When the
+share is refused, nothing is sent, so fixing the graphic and running the same command again
+leaves one package on Home instead of one per attempt. In the rare case the share goes through
+and Home refuses the package, the message says so: pack it again without sharing.
+
+**`noacg doctor` recommends the CLI version your plugin runs.** With the `noacg` or `noacg-mcp`
+plugin installed, doctor now says `npm i -g @noacg/cli@<the plugin's version>` instead of
+`@latest`. The MCP plugin runs only its own CLI version, so a newer CLI was skipped and every
+session started through the slower npx path. When a newer plugin exists, doctor says so on its
+own line with the command that updates it.
+
 ## 0.10.0 - 2026-10-09
 
 **Share a package to Community packs, when you ask for it.** `noacg pack … --save --share` now
