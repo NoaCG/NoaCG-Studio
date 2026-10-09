@@ -191,10 +191,10 @@ export async function assessMergeOrder(
   // A stale branch still counts for ancestry: a branch that CONTAINS it would land its commits too.
   const { branches, stale } = await splitStale(candidates, {
     keep: new Set([asked, self?.branch].filter(Boolean)),
-    openPullRequests: () => openPullRequests(primary),
+    openPullRequests,
+    primary,
     now,
   });
-  if (branches.length === 0) return { ...empty(target), ref, primary, self: self?.branch ?? null, remoteOnly, stale };
 
   // ONE call for the whole run, not one per pair: what the target already holds is the same
   // answer for every branch, and it is the only thing the pairwise pass cannot work out alone.
@@ -227,15 +227,9 @@ export async function assessMergeOrder(
  * keeps every branch live - counting a dead branch is the old behaviour, not a new wrong one.
  * Uncommitted files also keep a branch live: somebody may be editing in it right now.
  */
-async function splitStale(candidates, { keep, openPullRequests, now }) {
-  const old = candidates.filter(
-    (b) =>
-      !keep.has(b.branch) &&
-      !b.dirty &&
-      typeof b.lastCommit?.at === 'number' &&
-      now - b.lastCommit.at * 1000 >= STALE_DAYS * 86_400_000,
-  );
-  const open = old.length > 0 ? await openPullRequests() : null;
+async function splitStale(candidates, { keep, openPullRequests, primary, now }) {
+  const old = candidates.filter((b) => !keep.has(b.branch) && !b.dirty && waitingHours(b, now) >= STALE_DAYS * 24);
+  const open = old.length > 0 ? await openPullRequests(primary) : null;
   if (!open) return { branches: candidates, stale: [] };
   const stale = old.filter((b) => !open.has(b.branch));
   return { branches: candidates.filter((b) => !stale.includes(b)), stale };
@@ -246,7 +240,8 @@ async function openPullRequestBranches(primary) {
   try {
     const { stdout } = await execFileAsync('gh', ['pr', 'list', '--state', 'open', '--limit', '1000', '--json', 'headRefName'], {
       cwd: primary,
-      timeout: 30_000,
+      // Short: `npm run jobs` waits on this, and no answer only means nothing is called stale.
+      timeout: 10_000,
       windowsHide: true,
     });
     return new Set(JSON.parse(stdout).map((pr) => pr.headRefName));
@@ -515,10 +510,11 @@ export function verdictFor(assessment, branchName) {
 
   // A contained STALE branch still holds - landing this would land its commits too - but nobody
   // will land it first, so it is never the recommendation; rebasing without it is the way out.
-  const isStale = (name) => (assessment.stale ?? []).some((entry) => entry.branch === name);
-  const liveBlockers = branch.stacked.filter((needed) => assessment.branches.some((entry) => entry.branch === needed));
-  const staleBlockers = branch.stacked.filter(isStale);
-  const blockedBy = [...liveBlockers, ...staleBlockers];
+  // `stacked` only ever names branches still ahead of the target, live or stale.
+  const staleNames = new Set(assessment.stale.map((entry) => entry.branch));
+  const blockedBy = branch.stacked;
+  const liveBlockers = blockedBy.filter((needed) => !staleNames.has(needed));
+  const staleBlockers = blockedBy.filter((needed) => staleNames.has(needed));
   const cheaper = assessment.order.filter((entry) => entry.branch !== branchName && cost(entry) < cost(branch));
   const landFirst = liveBlockers[0] ?? cheaper[0]?.branch ?? null;
 
@@ -879,7 +875,12 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
             silent: b.silent,
           })),
           notReady: assessment.notReady,
-          stale: assessment.stale.map((b) => ({ branch: b.branch, worktree: b.worktree, lastCommit: b.lastCommit })),
+          // The `notReady` shape, so a reader of either list needs no second wording.
+          stale: assessment.stale.map((b) => ({
+            branch: b.branch,
+            worktree: b.worktree,
+            reason: `stale, not ranked: no open pull request and no commit for ${STALE_DAYS}+ days`,
+          })),
           verdict,
         },
         null,
