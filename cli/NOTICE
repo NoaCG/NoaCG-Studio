@@ -1,0 +1,10 @@
+NoaCG Agent Toolkit
+Copyright NoaCG Studio contributors.
+
+The CLI, toolkit skill, plugin metadata, launcher and NoaCG icons in this distribution
+are distributed under Apache-2.0. See LICENSE and the source-commit provenance.
+The NoaCG Studio application is a separate AGPL-3.0-only work and is not bundled here.
+
+Node, the browser and npm packages are separate installations. Their licences apply
+to those installations. No GSAP runtime, fonts, research assets, benchmark fixtures
+or third-party graphics are included in the toolkit distribution.

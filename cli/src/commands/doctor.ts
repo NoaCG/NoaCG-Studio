@@ -3,7 +3,7 @@
 // It also answers a question nothing else on the machine answers: is what you are running CURRENT?
 // Two halves, both silent when there is nothing to say - the `noacg-graphic` skill an installed
 // plugin carries (src/skillVersion.ts), and this CLI against npm's `latest` (src/npmLatest.mjs,
-// the same check the MCP plugin's launcher has made since 2026-09-16). Neither can fail the
+// which the MCP plugin's launcher made from 2026-09-16 to 2026-10-09). Neither can fail the
 // command: a version check is a report, and the exit code stays what the browser and the bridge
 // say, so a script that gates on `doctor` does not start failing the day a release lands.
 

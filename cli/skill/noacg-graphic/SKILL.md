@@ -20,6 +20,11 @@ one of the two opt-in tools at the end of this file.
 
 ## The loop
 
+Before calling the CLI, follow `references/setup.md`: check Node, browser, deployment and
+the installed CLI version against this package's reviewed pin. Use the pinned npm command
+when the existing installation differs. This is a local workflow; ordinary Claude Chat
+cannot execute the CLI.
+
 1. **Start a package.** Either author from scratch against the contract below, or take a
    scaffold when it saves work or brings behaviour you need:
    - `noacg types` lists the graphic TYPES NoaCG knows (fields, operator events, designs). A type
@@ -104,7 +109,7 @@ noacg pack ./opener ./name-strap ./scorebug ./endboard --name "Friday Fight Nigh
   "rundown": [ … ] }` - sent to Home when this machine holds a key; `out` also writes the file.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli <command>` when nothing is installed; `npm i -g @noacg/cli` once makes every
+(`npx -y @noacg/cli@0.9.0 <command>` when nothing is installed; `npm i -g @noacg/cli@0.9.0` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the

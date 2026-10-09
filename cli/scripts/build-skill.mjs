@@ -21,10 +21,9 @@
 //      `name` is not stamped but CHECKED against cli/package.json `mcpName`: the registry refuses
 //      a publish whose npm package does not carry the same name, and it only says so after npm
 //      already holds the version
-//   4. cli/plugin-mcp/npm-latest.mjs - a byte-identical copy of cli/src/npmLatest.mjs, the "is
-//      this copy behind npm's latest?" check that `noacg doctor` and the MCP launcher both run.
-//      The launcher gets a copy rather than importing it from the CLI it resolves, because the
-//      copy it resolves may be too old to carry the check at all (that file's header says why)
+//   4. the exact CLI version in every `npx -y` / `npm i -g @noacg/cli` command of the skill source
+//      and the plugin READMEs, and both plugins' LICENSE and NOTICE, copied from cli/ (the
+//      directory listings require them in each plugin folder)
 // cli/LICENSE used to be generated here too - the repository LICENSE copied in, on the assumption
 // that the repo keeps one licence text. That assumption ended on 2026-08-25: this package is
 // Apache-2.0 and the rest of the repository is AGPL-3.0-only (docs/AGENT_CLI.md explains why).
@@ -53,9 +52,6 @@ const ROOT = path.resolve(CLI, '..');
 const SOURCE = path.join(CLI, 'skill', 'noacg-graphic');
 const PLUGIN = path.join(CLI, 'plugin');
 const PLUGIN_SKILL = path.join(PLUGIN, 'skills', 'noacg-graphic');
-/** The shared registry check, and where the MCP plugin's launcher reads its copy of it. */
-const NPM_LATEST_SOURCE = path.join(CLI, 'src', 'npmLatest.mjs');
-const NPM_LATEST_COPY = path.join(CLI, 'plugin-mcp', 'npm-latest.mjs');
 const MARKETPLACE = path.join(ROOT, '.claude-plugin', 'marketplace.json');
 /** The plugins the marketplace offers, read from the marketplace itself so a plugin listed there
  *  can never miss its stamp: today `noacg` (the skill and the command, no server) and `noacg-mcp`
@@ -101,13 +97,28 @@ const SERVER_JSON = path.join(CLI, 'server.json');
 /** Every generated file, as the bytes it must hold. */
 const expected = new Map();
 
-// 1. The plugin's skill copy: byte-identical to the source, nothing added, nothing left behind.
+// 1. Versioned install commands in maintained documentation, then byte-identical skill copies.
 if (!existsSync(SOURCE)) {
   console.error(`missing the skill source ${rel(SOURCE)}`);
   process.exit(2);
 }
+function pinCommands(bytes) {
+  return Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n')
+    .replace(/((?:npx -y|npm i -g) @noacg\/cli)(?:@[^\s`<]+)?/g, `$1@${version}`)
+    .replace(/@noacg\/cli@\d+\.\d+\.\d+/g, `@noacg/cli@${version}`)
+    .replace(/(match |match\s+)(\d+\.\d+\.\d+)( for this package)/g, `$1${version}$3`));
+}
 for (const file of walk(SOURCE)) {
-  expected.set(path.join(PLUGIN_SKILL, ...file.split('/')), readFileSync(path.join(SOURCE, ...file.split('/'))));
+  const sourceFile = path.join(SOURCE, ...file.split('/'));
+  const bytes = pinCommands(readFileSync(sourceFile));
+  expected.set(sourceFile, bytes);
+  expected.set(path.join(PLUGIN_SKILL, ...file.split('/')), bytes);
+}
+for (const plugin of PLUGINS) {
+  expected.set(path.join(plugin.dir, 'README.md'), pinCommands(readFileSync(path.join(plugin.dir, 'README.md'))));
+  for (const file of ['LICENSE', 'NOTICE']) {
+    expected.set(path.join(plugin.dir, file), readFileSync(path.join(CLI, file)));
+  }
 }
 
 // 2. The version on every plugin's two manifests and on the marketplace entries. The manifests are
@@ -181,21 +192,13 @@ expected.set(
   }),
 );
 
-// 3. The MCP launcher's copy of the shared "behind npm's latest?" check.
-if (!existsSync(NPM_LATEST_SOURCE)) {
-  console.error(`missing ${rel(NPM_LATEST_SOURCE)} - the MCP launcher's version check is copied from it`);
-  process.exit(2);
-}
-expected.set(NPM_LATEST_COPY, readFileSync(NPM_LATEST_SOURCE));
-
 // Every generated copy is now known. `expected` is built by walking the skill source and by
 // stamping manifests found through the marketplace, so an empty map is what a moved source folder
 // or an emptied marketplace list looks like - and a comparison over no files is a --check that
 // passes having compared nothing.
 measured(expected.size, 'generated files');
 
-// (cli/LICENSE is deliberately NOT generated - see the header. The package's licence differs from
-//  the repository's, so there is nothing to copy it from.)
+// cli/LICENSE is the Apache source; never copy the application's AGPL root licence here.
 
 // Strays: anything under the generated skill copy that the source no longer has.
 const strays = existsSync(PLUGIN_SKILL)
