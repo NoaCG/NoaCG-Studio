@@ -130,6 +130,7 @@ Act when a row finishes or the timer fires, and at no other time:
 - Read `npm run jobs -- failed`: each queued pull request whose landing failed, with its CI log.
   That row, or one that ended without a PR, is sent the failure (Claude Code: SendMessage to the
   row; Codex: `send_message`) and resumes in its own worktree. After two failed repairs, report it.
+  Another session's failed PR is that session's to repair; if no live session holds it, give it a row.
 - A row past twice the median with no result is reported, never killed; launch beside it only if
   the machine has room.
 

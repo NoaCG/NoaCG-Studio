@@ -46,22 +46,36 @@ request once `CI gate` and `Reviewed` pass, runs CI on the merge group and merge
 commit. Do not sit and watch: `node scripts/jobs.mjs wait <id>` is bounded if the verdict is needed
 now. A migration on the branch is applied by the landing itself (`post-land.yml`).
 
-**Auto-fix is on for every pull request an agent queues** (the owner's standing instruction). In the
-Claude desktop app, right after queueing: bind the pull request to the session if the app has not
-(`ccd_pr bind_pr`), then turn Auto-fix on (`ccd_pr set_monitor` with `auto_fix` and
-`address_comments` true). It wakes the session that owns the branch on a CI failure, a merge
-conflict or a review comment. It is not a merge permission: never turn auto-merge on through it,
-since landing stays the queue's. A wave row has no Auto-fix: its orchestrator reads
-`npm run jobs -- failed` and sends the row its failure. Any other tool without these (Codex, a
-cloud session) says in its report that nothing watches the pull request.
+**Auto-fix is on for every pull request, without asking** (the owner's standing instruction).
+Right after queueing, turn on the one fixer your tool has; never two on one pull request:
+
+- **Claude Code session with the app's pull request tools** (`ccd_pr`): bind the pull request if the
+  app has not (`bind_pr`), then `set_monitor` with `auto_fix` and `address_comments` true. The app
+  wakes this session on a CI failure, a merge conflict or a review comment. It is no merge
+  permission: landing stays the queue's.
+- **Codex app chat**: schedule a task in this chat with `automation_update`: `mode: "create"`,
+  `kind: "heartbeat"`, `destination: "thread"`, `targetThreadId` from `$env:CODEX_THREAD_ID`,
+  `rrule: "FREQ=MINUTELY;INTERVAL=10"`, `status: "ACTIVE"`, `name: "Repair PR <n>"`, and this
+  prompt with its blanks filled: "Check pull request #<n> (branch <branch>, worktree <path>) with
+  `gh pr view <n> --json state,mergeStateStatus,statusCheckRollup` and `node scripts/jobs.mjs`.
+  Merged or closed: pause this task (`automation_update`, `mode: "update"`, its id, `status:
+  "PAUSED"`) and report the outcome in one line. A red check, a failed landing or a conflict with
+  main: repair it here by .agent-workflows/queue-merge.md (the repair paragraph and section 4),
+  then queue again; after three attempts on one failure, pause and report. Otherwise say nothing."
+- **A wave row, or a tool with neither** (a subagent, the Codex CLI, a cloud session): turn nothing
+  on. A row's orchestrator owns the repair (`npm run jobs -- failed`); anyone else says in the
+  report that nothing watches the pull request.
 
 **On a CI failure, repair it yourself, within the pull request's scope.** Read the failed job's
 whole log (`gh run view <run> --log-failed`; the failing step's summary is often not where the
 error is), reproduce it with the failing check or specs (never the whole suite), fix the cause,
 `/check`, and queue again. At most three
 repair attempts per failure; then stop and report what failed, what was tried and why it did not
-hold. Never disable a check, skip or weaken a test, or re-record a baseline only to make a run
-green: a re-record is for a change of look or finding that was meant. Ask the owner only when the
+hold. Never disable a check, skip or weaken a test, raise a limit, or re-record a baseline only to
+make a run green: a re-record is for a change of look or finding that was meant. A spec this branch
+does not touch that fails, then passes when the failed jobs re-run on the same commit
+(`gh run rerun <run> --failed`), is a flake: quarantine it
+(`node scripts/e2e-quarantine.mjs enter <spec> --run <url> --queue`). Ask the owner only when the
 fix needs a product decision or a change well outside the pull request's scope.
 
 ## 4. When a landing is refused, reconcile and queue again
