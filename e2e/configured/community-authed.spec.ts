@@ -55,12 +55,14 @@ test.describe('community gallery closed to publishing (configured / signed-in)',
         .from('community-assets')
         .upload(`${uid}/closed-gallery-e2e`, new Blob(['x'], { type: 'text/plain' }), { upsert: false });
       return {
-        insertRefused: Boolean(insert.error),
+        insertCode: insert.error?.code ?? null,
+        insertMessage: insert.error?.message ?? '',
         uploadRefused: Boolean(upload.error),
         uploadMessage: upload.error?.message ?? '',
       };
     });
-    expect(answer.insertRefused, 'a publish to the retired gallery must be refused').toBe(true);
+    // 42501: 0078's policy refused it (a database 0085 has not reached). PGRST205: no such table.
+    expect(['42501', 'PGRST205'], answer.insertMessage).toContain(answer.insertCode);
     expect(answer.uploadRefused, 'an upload to the public community bucket must be refused').toBe(true);
     expect(answer.uploadMessage).toMatch(/row-level security/i);
   });

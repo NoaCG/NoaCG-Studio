@@ -161,7 +161,7 @@ routes through one catch-all (`api/ai/lite/[...path].ts`, `api/ai/tasks/[...path
 | AI allowances | `applyEntitlementToLiteProfile()` before the reservation RPC |
 | render tier | `resolveTier(signedIn, entitlement.renderTier.value)` |
 | render formats | `validateRenderRequest(m, tier, entitlement.renderFormats.value)` |
-| template visibility | `api/_lib/templateVisibility.ts` -> `GET /api/me/entitlement` -> the wizard's Browse step and the community gallery |
+| template visibility | `api/_lib/templateVisibility.ts` -> `GET /api/me/entitlement` -> the wizard's Browse step |
 | beta cohort | the same visibility resolver; membership is never sent to the browser |
 | storage / projects | **nothing, deliberately** - observe-only, see above |
 | `plans.billing` | **nothing** - stored for a future integration |

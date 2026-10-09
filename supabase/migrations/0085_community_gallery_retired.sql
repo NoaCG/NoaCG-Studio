@@ -36,7 +36,8 @@ begin
   select count(*) into v_reports from public.community_reports;
   if v_templates > 0 or v_reports > 0 then
     raise exception '0085 refused: community_templates holds % row(s) and community_reports % row(s). It retires only empty tables, so nothing was changed.',
-      v_templates, v_reports;
+      v_templates, v_reports
+      using hint = 'Export or remove those rows deliberately, then push again.';
   end if;
 end $$;
 
@@ -60,9 +61,11 @@ begin
      or to_regprocedure('public.community_report_guard()') is not null then
     raise exception '0085 self-check FAILED: a gallery function is still there';
   end if;
+  -- community_pack_submit by name: its argument list has changed twice (0079, 0080) and may again.
   if to_regclass('public.moderators') is null
      or to_regprocedure('public.is_moderator()') is null
-     or to_regprocedure('public.community_pack_submit(text, text, text, jsonb)') is null then
+     or not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                    where n.nspname = 'public' and p.proname = 'community_pack_submit') then
     raise exception '0085 self-check FAILED: something community packs use is missing';
   end if;
   if not exists (select 1 from storage.buckets b where b.id = 'community-assets')
