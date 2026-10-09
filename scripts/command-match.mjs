@@ -591,20 +591,17 @@ export const WAIT_LIMIT_MAX_SECONDS = 60 * 60;
  * loop ends with its input.
  */
 export function endlessWait(text) {
+  // Most commands sleep nowhere, and a polling loop has to: nothing more to read for those.
+  if (!SLEEP.test(String(text ?? ''))) return null;
   const body = stripHeredocBodies(String(text ?? ''));
   const code = maskQuotedData(body);
-  const heads = [
-    ...code.matchAll(/(?:^|[;&|\n({'"])\s*((?:while|until)\b)/gi),
-    ...code.matchAll(/(?:^|[;&|\n({'"])\s*(do\s*\{)/gi),
-    ...code.matchAll(/(?:^|[;&|\n({'"])\s*(for\s*\(\(?\s*;\s*;)/g),
-  ];
-  for (const match of heads) {
+  for (const match of code.matchAll(/(?:^|[;&|\n({'"])\s*((?:while|until)\b|do\s*\{|for\s*\(\(?\s*;\s*;)/gi)) {
     const at = match.index + match[0].length - match[1].length;
     const rest = code.slice(at);
     if (/^(?:while|until)\s+(?:IFS=\S*\s+)?read\b/i.test(rest)) continue;
     const done = /\bdone\b/.exec(rest);
     const loop = done ? rest.slice(0, done.index) : rest;
-    if (!/(?:^|[^\w$-])(?:sleep|Start-Sleep)\b|\btimeout\s+\/t\b/i.test(loop)) continue;
+    if (!SLEEP.test(loop)) continue;
     if (CLOCK.test(loop) || COUNTER.test(loop)) continue;
     const limit = timeoutSeconds(code.slice(commandStart(body, at), at));
     if (limit === null) return { why: 'unbounded' };
@@ -612,6 +609,9 @@ export function endlessWait(text) {
   }
   return null;
 }
+
+/** What a polling loop waits with. */
+const SLEEP = /(?:^|[^\w$-])(?:sleep|Start-Sleep)\b|\btimeout\s+\/t\b/i;
 
 /** A clock in a loop is a deadline: `$SECONDS`, `date +%s`, `Get-Date`, a stopwatch. */
 const CLOCK = /\$SECONDS\b|\bdate\s+\+%s|Get-Date|\[datetime\]|Stopwatch|\$deadline\b|\.Elapsed\b/;

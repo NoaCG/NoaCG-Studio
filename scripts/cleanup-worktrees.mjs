@@ -75,7 +75,7 @@
 import { existsSync, mkdirSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { closeAbandonedProcesses, closeWorktreeProcesses, worktreeCloser } from './agent-processes.mjs';
+import { closeAbandonedProcesses, worktreeCloser } from './agent-processes.mjs';
 import { primaryCheckout } from './reattach-main.mjs';
 import { pruneStalePorts } from './dev-port.mjs';
 import { jobsDir, pending, readJobs, readLandings } from './jobs-store.mjs';
@@ -669,7 +669,7 @@ export function applySelf(
     // machine's processes per removal. Left undefined, reapDelegationTrees runs the real reaper.
     reap,
     // The same, for closing what agents left running from the worktree (agent-processes.mjs).
-    processes = (path) => closeWorktreeProcesses(path, { primaryRoot: plan.primaryRoot }),
+    processes = worktreeCloser(plan.primaryRoot),
   } = {},
 ) {
   const done = {

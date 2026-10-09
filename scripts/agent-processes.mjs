@@ -36,21 +36,15 @@
 import { spawnSync } from 'node:child_process';
 import { closeSync, openSync, readdirSync, readSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 
-import { believableParent, withinRoot as within } from './e2e-runs.mjs';
+import { normalisePath as key } from './claude-agents.mjs';
+import { ancestorsOf, believableParent, sameRoot, withinRoot as within } from './e2e-runs.mjs';
 import { sessionHold } from './session-liveness.mjs';
 import { lastGitActivityMs, worktreeRoots } from './worktree-cleanup-lib.mjs';
 
 /** A process an agent started is abandoned once its session and worktree are this quiet. */
-export const ABANDONED_AFTER_MINUTES = 60;
-
-const NO_INVENTORY = Object.freeze({ available: false, rows: [] });
-
-/** Lower-case path with forward slashes and no trailing slash, for comparison. */
-function key(path) {
-  return resolve(path).replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase();
-}
+const ABANDONED_AFTER_MINUTES = 60;
 
 const base = (p) => String(p?.name ?? '').toLowerCase();
 const text = (p) => `${p?.exe ?? ''} ${p?.command ?? ''}`;
@@ -79,7 +73,7 @@ const DESKTOP_APP = /[/\\]windowsapps[/\\](?:claude_|openai\.)/i;
  * A Claude Code or Codex session process: the CLI the desktop app runs per session, a terminal
  * install, the Codex app server and CLI, and Codex's sandbox and runner helpers.
  */
-export function isAgentSession(p) {
+function isAgentSession(p) {
   const name = base(p);
   // The desktop app hosts its sessions' PowerShell tool in a node service of its own.
   if (DESKTOP_APP.test(text(p))) return name === 'claude.exe' && /--utility-sub-type=node\.mojom\.NodeService/i.test(p.command ?? '');
@@ -161,23 +155,23 @@ export function judgeProcesses(processes, { roots = [], self = process.pid } = {
     return believableParent(parent, p) ? parent : null;
   };
   // The sweep's own line: itself up to the session it runs in, never above that session. Above it
-  // are the desktop app, a terminal, explorer - shared with the owner's own work.
-  // Those ancestors themselves (the terminal the session runs in) are never judged either.
-  const selfLine = new Set();
-  const ancestors = new Set();
-  let below = true;
-  for (let at = byPid.get(self); at && !ancestors.has(at.pid); at = parentOf(at)) {
-    ancestors.add(at.pid);
-    if (below) selfLine.add(at.pid);
-    if (isAgentSession(at)) below = false;
-  }
-  const ordered = [...roots].sort((a, b) => key(b).length - key(a).length);
-  const rootOf = (path) => (path ? ordered.find((root) => within(path, root)) ?? null : null);
+  // are the desktop app, a terminal, explorer - shared with the owner's own work. Those ancestors
+  // themselves (the terminal the session runs in) are never judged either.
+  const chain = byPid.has(self) ? [byPid.get(self), ...ancestorsOf(self, processes)] : [];
+  const ancestors = new Set(chain.map((p) => p.pid));
+  const sessionAt = chain.findIndex(isAgentSession);
+  const selfLine = new Set((sessionAt < 0 ? chain : chain.slice(0, sessionAt + 1)).map((p) => p.pid));
+
+  // Deepest checkout first, each spelled once.
+  const ordered = roots.map((root) => ({ root, key: key(root) })).sort((a, b) => b.key.length - a.key.length);
+  const rootOf = (path) => {
+    const at = key(path);
+    return ordered.find((r) => at === r.key || at.startsWith(`${r.key}/`))?.root ?? null;
+  };
   const namedRoot = (command) => {
     const lower = String(command ?? '').replaceAll('\\', '/').toLowerCase();
-    return ordered.find((root) => lower.includes(key(root))) ?? null;
+    return ordered.find((r) => lower.includes(r.key))?.root ?? null;
   };
-
   const homes = new Map();
   const homeOf = (p, depth = 0) => {
     if (homes.has(p.pid)) return homes.get(p.pid);
@@ -190,57 +184,43 @@ export function judgeProcesses(processes, { roots = [], self = process.pid } = {
     return home;
   };
 
-  const judged = new Map();
-  for (const p of processes) {
-    const home = homeOf(p);
-    const out = (verdict, why = null, root = null, session = null) => judged.set(p.pid, { p, home, verdict, why, root, session });
-    if (ancestors.has(p.pid)) {
-      out('self', 'the sweep itself');
-      continue;
-    }
+  /** `{ verdict, why, root, session }` for one process, by walking up its parents. */
+  const judgeOne = (p) => {
+    if (ancestors.has(p.pid)) return { verdict: 'self', why: 'the sweep itself' };
     const line = [p];
-    let decided = false;
     for (let at = p, steps = 0; at && steps < 64; steps += 1) {
       // Below the sweep, or below one of the shells it runs in (their console host, a sibling in
       // the same command): its own line, whatever the rest of the session is doing.
       if (at.pid === self || (at !== p && selfLine.has(at.pid) && !isAgentSession(at))) {
-        out('self', 'started by the sweep itself');
-        decided = true;
-        break;
+        return { verdict: 'self', why: 'started by the sweep itself' };
       }
       if (isAgentSession(at)) {
         const shell = line.at(-2);
         // What the session the sweep runs in keeps for itself is the sweep's own line too: a self
         // cleanup must not be refused by its own MCP servers.
-        const own = (why) => out(selfLine.has(at.pid) ? 'self' : 'keep', why);
-        if (at === p) out('keep', 'a Claude Code or Codex session itself');
-        else if (!SHELLS.has(base(shell))) own('what a session runs for itself, such as its MCP servers');
-        else if (!persistentShell(shell)) out('agent', null, shell, at);
-        else if (shell === p) own("a session's own shell");
-        else out('agent', null, line.at(-3), at);
-        decided = true;
-        break;
+        const own = (why) => ({ verdict: selfLine.has(at.pid) ? 'self' : 'keep', why });
+        if (at === p) return { verdict: 'keep', why: 'a Claude Code or Codex session itself' };
+        if (!SHELLS.has(base(shell))) return own('what a session runs for itself, such as its MCP servers');
+        if (!persistentShell(shell)) return { verdict: 'agent', root: shell, session: at };
+        if (shell === p) return own("a session's own shell");
+        return { verdict: 'agent', root: line.at(-3), session: at };
       }
       const exempt = exemption(at);
-      if (exempt) {
-        out('keep', exempt);
-        decided = true;
-        break;
-      }
+      if (exempt) return { verdict: 'keep', why: exempt };
       const parent = parentOf(at);
       if (!parent) {
         // A dead parent is an orphan; pid 0 or 4 above is the top of the machine, which only
         // Windows' own processes reach.
-        if (at.ppid === 0 || at.ppid === 4) out('keep', 'not started by an agent');
-        else out('orphan', null, at);
-        decided = true;
-        break;
+        return at.ppid === 0 || at.ppid === 4 ? { verdict: 'keep', why: 'not started by an agent' } : { verdict: 'orphan', root: at };
       }
       line.push(parent);
       at = parent;
     }
-    if (!decided) out('keep', 'its parents could not be followed');
-  }
+    return { verdict: 'keep', why: 'its parents could not be followed' };
+  };
+
+  const judged = new Map();
+  for (const p of processes) judged.set(p.pid, { p, home: homeOf(p), why: null, root: null, session: null, ...judgeOne(p) });
   return judged;
 }
 
@@ -261,7 +241,10 @@ function rootsFirst(entries, judged) {
     }
     return n;
   };
-  return [...entries].sort((a, b) => depth(a.pid) - depth(b.pid));
+  return entries
+    .map((e) => ({ e, depth: depth(e.pid) }))
+    .sort((a, b) => a.depth - b.depth)
+    .map(({ e }) => e);
 }
 
 /**
@@ -270,13 +253,12 @@ function rootsFirst(entries, judged) {
  * can leave the worktree in place rather than pull it out from under somebody.
  */
 export function worktreeProcesses(processes, worktree, { roots = [worktree], self = process.pid } = {}) {
-  const judged = judgeProcesses(processes, { roots: roots.some((r) => key(r) === key(worktree)) ? roots : [...roots, worktree], self });
+  const judged = judgeProcesses(processes, { roots: roots.some((r) => sameRoot(r, worktree)) ? roots : [...roots, worktree], self });
   const close = [];
   const keep = [];
   for (const judgement of judged.values()) {
-    if (!judgement.home || key(judgement.home) !== key(worktree) || judgement.verdict === 'self') continue;
-    if (judgement.verdict === 'keep') keep.push(entry(judgement));
-    else close.push(entry(judgement));
+    if (!judgement.home || !sameRoot(judgement.home, worktree) || judgement.verdict === 'self') continue;
+    (judgement.verdict === 'keep' ? keep : close).push(entry(judgement));
   }
   return { close: rootsFirst(close, judged), keep };
 }
@@ -295,13 +277,13 @@ export function abandonedProcesses(
   const answers = new Map();
   const isQuiet = (home) => {
     if (!answers.has(home)) {
-      let answer;
+      let answer = false;
       try {
-        answer = quiet(home);
-      } catch (error) {
-        answer = { quiet: false, why: error?.message ?? String(error) };
+        answer = quiet(home)?.quiet === true;
+      } catch {
+        // a check that failed is never silence
       }
-      answers.set(home, answer?.quiet === true);
+      answers.set(home, answer);
     }
     return answers.get(home);
   };
@@ -309,7 +291,7 @@ export function abandonedProcesses(
   for (const judgement of judged.values()) {
     const { verdict, home, root } = judgement;
     if ((verdict !== 'agent' && verdict !== 'orphan') || !home) continue;
-    if (verdict === 'orphan' && primaryRoot && key(home) === key(primaryRoot)) continue;
+    if (verdict === 'orphan' && primaryRoot && sameRoot(home, primaryRoot)) continue;
     const started = root?.createdMs;
     if (!Number.isFinite(started) || now - started < minutes * 60_000) continue;
     if (!isQuiet(home)) continue;
@@ -325,7 +307,7 @@ export function abandonedProcesses(
 // --- Quiet: no session and no git activity for the window --------------------------------------
 
 /** Where Codex writes its session logs: one JSONL per session, its first line naming the cwd. */
-export function codexSessionsRoot({ env = process.env, home = homedir() } = {}) {
+function codexSessionsRoot({ env = process.env, home = homedir() } = {}) {
   return join(env.CODEX_HOME || join(home, '.codex'), 'sessions');
 }
 
@@ -371,7 +353,7 @@ function firstLineCwd(file) {
   let fd;
   try {
     fd = openSync(file, 'r');
-    const buffer = Buffer.alloc(1024 * 1024);
+    const buffer = Buffer.allocUnsafe(1024 * 1024);
     const read = readSync(fd, buffer, 0, buffer.length, 0);
     const line = buffer.toString('utf8', 0, read).split('\n')[0];
     const found = /"cwd"\s*:\s*("(?:[^"\\]|\\.)*")/.exec(line);
@@ -395,7 +377,7 @@ export function worktreeQuiet(
   { now = Date.now(), minutes = ABANDONED_AFTER_MINUTES, liveness = {}, codexSessions = null, gitActivity = lastGitActivityMs } = {},
 ) {
   // Every signal that could not be read answers "not quiet": a check that failed is never silence.
-  const hold = sessionHold(path, { ...liveness, inventory: NO_INVENTORY, minIdleMinutes: minutes, now });
+  const hold = sessionHold(path, { ...liveness, inventory: { available: false, rows: [] }, minIdleMinutes: minutes, now });
   if (hold.busy) return { quiet: false, why: hold.why };
   if (hold.activity?.available === false) return { quiet: false, why: 'the session transcripts could not be read' };
   const codex = (codexSessions ?? recentCodexSessions({ now, windowMs: minutes * 60_000 })).find(
@@ -525,13 +507,18 @@ export function listProcesses({ platform = process.platform, run = spawnSync } =
  * still the process that was judged. Returns `{ closed, failed }`; `gone` counts as closed.
  */
 export function closeProcesses(entries, { platform = process.platform, run = spawnSync } = {}) {
-  const pinned = entries.filter((e) => Number.isInteger(e.pid) && Number.isFinite(e.createdMs));
-  const unpinned = entries.filter((e) => !pinned.includes(e)).map((e) => ({ ...e, result: 'no start time to check its identity against' }));
-  if (pinned.length === 0) return { closed: [], failed: unpinned };
-  if (platform !== 'win32') return { closed: [], failed: [...pinned.map((e) => ({ ...e, result: 'closing is only implemented on Windows' })), ...unpinned] };
+  const pinned = [];
+  const unpinned = [];
+  for (const e of entries) {
+    if (Number.isInteger(e.pid) && Number.isFinite(e.createdMs)) pinned.push(e);
+    else unpinned.push({ ...e, result: 'no start time to check its identity against' });
+  }
+  const failAll = (result) => ({ closed: [], failed: [...pinned.map((e) => ({ ...e, result })), ...unpinned] });
+  if (pinned.length === 0) return failAll(null);
+  if (platform !== 'win32') return failAll('closing is only implemented on Windows');
   const calls = pinned.map((e) => `"${e.pid}=" + [NoacgProcesses]::Close(${e.pid}, ${Math.trunc(e.createdMs)})`).join('\n');
   const res = powershell(calls, { run });
-  if (!res.ok) return { closed: [], failed: [...pinned.map((e) => ({ ...e, result: res.why })), ...unpinned] };
+  if (!res.ok) return failAll(res.why);
   const results = new Map(
     res.stdout.split(/\r?\n/).map((line) => /^(\d+)=(.*)$/.exec(line.trim())).filter(Boolean).map(([, pid, said]) => [Number(pid), said]),
   );
@@ -554,13 +541,12 @@ export function closeProcesses(entries, { platform = process.platform, run = spa
  */
 export function closeWorktreeProcesses(
   worktree,
-  { primaryRoot = null, roots = primaryRoot ? worktreeRoots(primaryRoot) : [worktree], self = process.pid, list = listProcesses, close = closeProcesses } = {},
+  { roots = [worktree], self = process.pid, list = listProcesses, close = closeProcesses } = {},
 ) {
   const listed = list();
   if (!listed.ok) {
-    return listed.supported === false
-      ? { ok: true, supported: false, closed: [], kept: [], failed: [], why: listed.why }
-      : { ok: false, supported: true, closed: [], kept: [], failed: [], why: listed.why };
+    const supported = listed.supported !== false;
+    return { ok: !supported, supported, closed: [], kept: [], failed: [], why: listed.why };
   }
   const { close: toClose, keep } = worktreeProcesses(listed.processes, worktree, { roots, self });
   // Somebody still in it keeps the worktree, and with it everything running there: what they
@@ -609,7 +595,7 @@ export function closeAbandonedProcesses({
       codexSessions ??= recentCodexSessions({ now, windowMs: minutes * 60_000 });
       return worktreeQuiet(home, { now, minutes, liveness, codexSessions });
     });
-    const abandoned = abandonedProcesses(listed.processes, { roots, primaryRoot: roots[0], self, now, minutes, quiet: ask });
+    const abandoned = abandonedProcesses(listed.processes, { roots, self, now, minutes, quiet: ask });
     if (abandoned.length === 0) return { ok: true, closed: [], failed: [], why: null };
     const { closed, failed } = close(abandoned);
     return { ok: failed.length === 0, closed, failed, why: failed.length > 0 ? `could not close ${describe(failed)}` : null };

@@ -38,7 +38,8 @@ test('a wait with no time limit is refused, and says how to add one', () => {
 
 test('the same wait under a limit runs, and fails when the limit runs out', { skip: !hasBash && 'no bash with timeout here' }, () => {
   const bounded = "timeout 2 bash -c 'until noacg-not-a-command >/dev/null 2>&1; do sleep 1; done'";
-  assert.equal(runHook(GUARD, bash(bounded)).status, 0, runHook(GUARD, bash(bounded)).message);
+  const allowed = runHook(GUARD, bash(bounded));
+  assert.equal(allowed.status, 0, allowed.message);
   const started = Date.now();
   const res = spawnSync('bash', ['-c', bounded], { encoding: 'utf8', windowsHide: true, timeout: 30_000 });
   assert.equal(res.status, 124, 'a wait that runs out exits with a failure');
