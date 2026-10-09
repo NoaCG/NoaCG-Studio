@@ -121,3 +121,26 @@ scheduler landing, reconciled without conflict or application changes. Same
 35-file scope, inline 2/2 findings fixed, simplify/verify inline. j-4055 passed
 the final affected gates (19 tests). The earlier green CI
 proves its former tip only; the new reviewed tip must pass CI again.
+
+## Clean-tree artifact compatibility
+
+Main #916 added the E2E clean-tree gate while this branch was waiting. Review
+confirmed the new spec still wrote reviewed docs on every run (j-4054 changed
+a tracked proxy capture). The branch was withdrawn before repair. Its output
+helper now reuses test.info().outputPath, like the landed specs; committed
+receipts are curated separately. No gate or assertion was weakened. This is
+the third confirmed/fixed review finding; the two product findings remain fixed.
+
+j-4066 passed targeted ESLint, TypeScript and affected gates (19 tests). j-4065
+printed all six cases passed and left tracked evidence unchanged, but its exit
+verdict was lost (reapedAsDead, exitCode null); it is not a passing job verdict.
+j-4069 used the direct Playwright Node entry and completed all six cases with
+exit 0. The only tracked change during that run was the intentional spec edit.
+All four current PNG artifacts are byte-identical to the inspected committed
+captures. New JSON/captures live only in ignored per-test output folders.
+
+Final review base: c763ef9ab111979cbf74fcba6cb46d26d085b6da, including the
+landed test-output gate, process scheduler and hosted-check changes. All 35
+files reviewed against that base; inline 3/3 fixed, simplify/verify inline.
+Previous tip 90765d4 passed all 17 PR CI checks; that verdict is historical and
+the new stamped tip requires its own PR/merge-group checks.

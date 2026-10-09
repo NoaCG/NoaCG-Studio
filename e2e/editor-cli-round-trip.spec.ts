@@ -1,11 +1,12 @@
 // covers: src/blocks/edit.ts, src/components/editorFoundation/**, src/components/wizard/CreationWizard.tsx, src/model/{importTemplate,scriptKind}.ts, src/export/**, src/bridge/**
 import { test, expect, type Page } from '@playwright/test';
-import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import JSZip from 'jszip';
 import { settleDurableWrites } from './_durable';
 
-const evidence = 'docs/work-specs/editor-cli-round-trip';
+// Run artifacts stay in this test's ignored output folder; committed receipts are curated separately.
+const evidence = (name: string) => test.info().outputPath(name);
 const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
 const inspection = (page: Page) => page.evaluate(async () => {
   const i = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect();
@@ -44,7 +45,7 @@ async function capture(page: Page, name: string) {
   const f = await frame(page), style = await f.addStyleTag({ content: '*{will-change:auto !important}' });
   const settle = () => f.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
   await settle(); await style.evaluate(el => el.remove()); await settle();
-  mkdirSync(evidence, { recursive: true }); await page.screenshot({ path: evidence + '/' + name + '.png' });
+  await page.screenshot({ path: evidence(name + '.png') });
 }
 
 async function exportedFiles(page: Page, target: string) {
@@ -152,7 +153,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
     outputs.push({ target, pose: outputPose }); await output.close();
   }
   expect(errors).toEqual([]); expect(network).toEqual([]);
-  writeFileSync(evidence + '/' + label + '.json', JSON.stringify({ viewport: { width, height }, fields: saved.fields, assets: saved.assets.map(a => ({ path: a.path, sha256: createHash('sha256').update(a.data).digest('hex') })), source: Object.fromEntries((['html', 'css', 'js'] as const).map(k => [k, createHash('sha256').update(saved[k]).digest('hex')])), history, refusals: refused, outputs, errors, network }, null, 2));
+  writeFileSync(evidence(label + '.json'), JSON.stringify({ viewport: { width, height }, fields: saved.fields, assets: saved.assets.map(a => ({ path: a.path, sha256: createHash('sha256').update(a.data).digest('hex') })), source: Object.fromEntries((['html', 'css', 'js'] as const).map(k => [k, createHash('sha256').update(saved[k]).digest('hex')])), history, refusals: refused, outputs, errors, network }, null, 2));
 });
 
 test('independent CLI scoreboard retains its operator machine after visual edit and reopen', async ({ page }) => {
@@ -192,7 +193,7 @@ test('independent CLI scoreboard retains its operator machine after visual edit 
     await command('stop'); await expect.poll(() => output.locator('.scoreboard').evaluate(el => getComputedStyle(el).opacity)).toBe('0');
     expect(errors).toEqual([]); expect(network).toEqual([]); outputs.push({ target, actions: ['play', 'goalA', 'clearFlag', 'stop'], errors }); await output.close();
   }
-  writeFileSync(evidence + '/independent-scoreboard.json', JSON.stringify({ fields: saved.fields, sourceUnchanged: { js: completed.js === initial.js, assets: JSON.stringify(completed.assets) === JSON.stringify(initial.assets) }, outputs }, null, 2));
+  writeFileSync(evidence('independent-scoreboard.json'), JSON.stringify({ fields: saved.fields, sourceUnchanged: { js: completed.js === initial.js, assets: JSON.stringify(completed.assets) === JSON.stringify(initial.assets) }, outputs }, null, 2));
 });
 
 test('inline data scripts retain their tags while classic scripts use the JS pane', async ({ page }) => {

@@ -115,3 +115,12 @@ CLI packages with zero errors/warnings; j-4053 passed lint, TypeScript and gates
 (29 tests). j-4054 passed all six qualification cases plus the landed single-file
 round-trip and SPX Continue guard (8/8, exit 0). The latest proxy capture was
 inspected and retains the stated small-view limits. See the final check receipt.
+
+The focused spec writes new JSON and captures to Playwright
+`test.info().outputPath()` under ignored `test-results/`, following landed #916.
+Committed receipts are deliberately reviewed copies. j-4069 repeated all six
+cases with exit 0 after this harness-only repair, leaving tracked evidence
+unchanged; all four PNGs matched these inspected receipts byte for byte.
+Lint, TypeScript and affected gates passed in j-4066. The scheduler lost the
+exit verdict for j-4065 despite six passing assertions; it is not counted as a
+passing job. See check.md for exact provenance and final review base.
