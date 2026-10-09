@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   branchCreations,
   commitCheckouts,
+  endlessWait,
   enqueuesWork,
   invokesE2e,
   invokesSweep,
@@ -26,6 +27,7 @@ import {
   runsWholeSuite,
   startsDevServer,
   SWEEP_SCRIPTS,
+  WAIT_LIMIT_MAX_SECONDS,
 } from './command-match.mjs';
 
 /** Either matcher firing means "this command starts heavy browser work". */
@@ -880,4 +882,33 @@ test('the job queue refuses the WHOLE default suite and lets one or two named sp
   ]) {
     assert.ok(!runsWholeSuite(cmd), `targeted or not a suite: ${cmd}`);
   }
+});
+
+// docs/work-specs/agent-lifecycle AC-1: a polling loop with no end is refused, one with a limit of
+// up to an hour is not, and a loop that is only mentioned is not a loop.
+test('a polling loop needs a time limit of up to an hour', () => {
+  for (const cmd of [
+    'until docker info >/dev/null 2>&1; do sleep 5; done',
+    'while true; do if curl -s localhost:5173; then break; fi; sleep 5; done',
+    'bash -c "until test -f ready; do sleep 1; done"',
+    'for ((;;)); do sleep 5; done',
+    'while (-not (Test-Path ready)) { Start-Sleep 5 }',
+    'do { Start-Sleep 2 } until (Test-Path ready)',
+  ]) {
+    assert.deepEqual(endlessWait(cmd), { why: 'unbounded' }, cmd);
+  }
+  assert.deepEqual(endlessWait("timeout 2h bash -c 'until docker info; do sleep 5; done'"), { why: 'too-long', seconds: 7200 });
+  for (const cmd of [
+    "timeout 60 bash -c 'until docker info >/dev/null 2>&1; do sleep 5; done'",
+    'timeout -k 5 3600 bash -c "while ! curl -s x; do sleep 1; done"',
+    'i=0; while [ $i -lt 30 ]; do i=$((i+1)); sleep 1; done',
+    '$deadline = (Get-Date).AddMinutes(5); while (-not (Test-Path x)) { if ((Get-Date) -gt $deadline) { throw "t" }; Start-Sleep 5 }',
+    'grep -n "while true; do sleep" notes.md',
+    'for f in a b; do echo $f; sleep 1; done',
+    'while read line; do echo "$line"; done < list.txt',
+    "cat > wait.sh <<'EOF'\nuntil ready; do sleep 1; done\nEOF",
+  ]) {
+    assert.equal(endlessWait(cmd), null, cmd);
+  }
+  assert.equal(WAIT_LIMIT_MAX_SECONDS, 3600);
 });

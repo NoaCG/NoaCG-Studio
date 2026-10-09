@@ -571,6 +571,60 @@ export function pollsQueue(text) {
   return false;
 }
 
+/** The longest one wait may be given. An agent that needs longer starts a new wait. */
+export const WAIT_LIMIT_MAX_SECONDS = 60 * 60;
+
+/**
+ * Is this command a POLLING LOOP THAT CANNOT END - an `until`/`while` (or PowerShell `while (…)` /
+ * `do { } until`) around a sleep, with no `timeout` and no deadline or counter?
+ * docs/work-specs/agent-lifecycle/spec.md point 1: on 2026-10-09 `until docker info; do sleep 5;
+ * done` polled for 14 hours because Docker was not running, and nothing ever said so. A loop with
+ * an end fails when it runs out, and that failure is what tells its agent it is stuck.
+ *
+ * Returns null, `{ why: 'unbounded' }`, or `{ why: 'too-long', seconds }` for a `timeout` over
+ * WAIT_LIMIT_MAX_SECONDS. Pure, so any harness can ask it; the Claude Code command guard does.
+ *
+ * The loop keyword must stand where a command starts - at the start, after a separator, or as
+ * the payload of `bash -c` / `-Command` - so `grep "while true; do sleep" notes.md` is not a loop.
+ * A counter or a clock in the loop counts as a deadline, as does any `timeout <duration>`.
+ */
+export function endlessWait(text) {
+  const body = stripHeredocBodies(String(text ?? ''));
+  const head = /(?:^|[;&|\n({]|(?:\s-c|\s-Command)\s+['"]?)\s*(?:while|until)\b/i;
+  const powershellDo = /(?:^|[;&|\n({])\s*do\s*\{[\s\S]*\}\s*(?:while|until)\s*\(/i;
+  const forever = /\bfor\s*\(\(?\s*;\s*;\s*\)?\)/;
+  if (!head.test(body) && !powershellDo.test(body) && !forever.test(body)) return null;
+  if (!/(?:^|[^\w$-])(?:sleep|Start-Sleep)\b|\btimeout\s+\/t\b/i.test(body)) return null;
+
+  const limit = timeoutSeconds(body);
+  if (limit !== null) return limit > WAIT_LIMIT_MAX_SECONDS ? { why: 'too-long', seconds: limit } : null;
+  const clockOrCounter =
+    /\$SECONDS\b|\bSECONDS\b|\bdate\s+\+%s|Get-Date|\[datetime\]|Stopwatch|\bdeadline\b|\bElapsed\b|\+\+|\+=\s*1\b|\$\(\(\s*\w+\s*\+\s*1\s*\)\)|\blet\s+\w+|\bseq\b/i;
+  return clockOrCounter.test(body) ? null : { why: 'unbounded' };
+}
+
+/**
+ * The duration a coreutils `timeout` in the command is given, in seconds, or null when there is
+ * none. Its options come first (`-k 5`, `--signal=KILL`, `-s TERM`), then the duration.
+ */
+function timeoutSeconds(body) {
+  for (const match of body.matchAll(/(?:^|[\s;&|({'"])timeout\s+([^\n;&|]*)/g)) {
+    const tokens = match[1].trim().split(/\s+/);
+    for (let i = 0; i < tokens.length; i += 1) {
+      const token = tokens[i];
+      if (/^(?:-k|-s|--kill-after|--signal)$/.test(token)) {
+        i += 1;
+        continue;
+      }
+      if (token.startsWith('-')) continue;
+      const duration = /^(\d+(?:\.\d+)?)([smhd]?)$/.exec(token);
+      if (!duration) break;
+      return Number(duration[1]) * { '': 1, s: 1, m: 60, h: 3600, d: 86_400 }[duration[2]];
+    }
+  }
+  return null;
+}
+
 /**
  * Does this command CREATE A BRANCH, and in which checkout does it say to do it?
  *

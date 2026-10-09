@@ -10,11 +10,12 @@
 
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join } from 'node:path';
+import { basename, isAbsolute, join } from 'node:path';
 import test from 'node:test';
 
+import { closeAbandonedProcesses, listProcesses } from './agent-processes.mjs';
 import { runUnattended, unattendedRule, UNATTENDED_IDLE_MINUTES } from './cleanup-worktrees.mjs';
 import { projectDirName, resetSessionScanCache } from './session-liveness.mjs';
 import {
@@ -54,13 +55,15 @@ function makeRepo(t) {
   const previousArchive = process.env.NOACG_CLEANUP_ARCHIVE;
   process.env.NOACG_CLEANUP_ARCHIVE = join(root, 'archive');
   resetSessionScanCache();
-  t.after(() => {
+  const repo = { root, primary, stateDir: join(root, 'cleanup-state'), projects: join(root, 'projects'), beforeRemove: null };
+  t.after(async () => {
     if (previousArchive === undefined) delete process.env.NOACG_CLEANUP_ARCHIVE;
     else process.env.NOACG_CLEANUP_ARCHIVE = previousArchive;
     resetSessionScanCache();
-    rmSync(root, { recursive: true, force: true });
+    await repo.beforeRemove?.();
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
-  return { root, primary, stateDir: join(root, 'cleanup-state'), projects: join(root, 'projects') };
+  return repo;
 }
 
 /** A worktree the way the harness makes one: from origin/main, a branch with NO upstream. */
@@ -107,15 +110,80 @@ function quiet(repo, path, minutesAgo) {
   }
 }
 
-function sweep(repo, { landed = [], jobs = [] } = {}) {
+/** No process to close: what agents leave running is judged in agent-processes.test.mjs and below. */
+const nothingRunning = () => ({ ok: true, supported: true, closed: [], kept: [], failed: [], why: null });
+const noneAbandoned = () => ({ ok: true, closed: [], failed: [], why: null });
+
+/** `realProcesses` lets the sweep list and close this machine's processes for real. */
+function sweep(repo, { landed = [], jobs = [], realProcesses = false, processes = nothingRunning, abandoned = noneAbandoned } = {}) {
   resetSessionScanCache();
   return runUnattended(repo.primary, {
     stateDir: repo.stateDir,
     landings: () => landed.map((branch) => ({ branch })),
     jobs: () => jobs,
     liveness: { root: repo.projects, inventory: NO_INVENTORY },
-    applyOptions: { prunePorts: () => [{ port: 5180 }], reap: noDelegations },
+    abandoned: realProcesses ? undefined : abandoned,
+    applyOptions: { prunePorts: () => [{ port: 5180 }], reap: noDelegations, ...(realProcesses ? {} : { processes }) },
   });
+}
+
+/**
+ * Start processes the way an agent leaves them behind: from a launcher that exits at once, so
+ * their parent is gone and nothing in this test's own process tree holds them. Returns their pids.
+ */
+function startOrphans(specs) {
+  const launcher =
+    "const { spawn } = require('node:child_process');" +
+    'const pids = JSON.parse(process.argv[1]).map((s) => {' +
+    "  const child = spawn(s.file, s.args, { cwd: s.cwd, detached: true, stdio: 'ignore', windowsHide: true });" +
+    '  child.unref(); return child.pid; });' +
+    'process.stdout.write(JSON.stringify(pids));';
+  const res = spawnSync(process.execPath, ['-e', launcher, JSON.stringify(specs)], { encoding: 'utf8', windowsHide: true });
+  assert.equal(res.status, 0, res.stderr);
+  return JSON.parse(res.stdout);
+}
+
+/** This machine's processes whose command line carries `marker`; closed by `t.after` whatever happens. */
+function leftovers(marker) {
+  const listed = listProcesses();
+  assert.equal(listed.ok, true, listed.why);
+  return listed.processes.filter((p) => p.pid !== process.pid && String(p.command).toLowerCase().includes(marker.toLowerCase()));
+}
+
+/** Before the fixture is deleted, close whatever this test started that is still running. */
+function closeLeftovers(repo, marker) {
+  repo.beforeRemove = async () => {
+    for (const p of leftovers(marker)) {
+      try {
+        process.kill(p.pid);
+      } catch {
+        // already gone
+      }
+    }
+    await settle(() => leftovers(marker));
+  };
+}
+
+async function settle(check, ms = 8000) {
+  const until = Date.now() + ms;
+  for (;;) {
+    const value = check();
+    if (value.length === 0 || Date.now() > until) return value;
+    await new Promise((done) => setTimeout(done, 250));
+  }
+}
+
+const GIT_BASH = 'C:\\Program Files\\Git\\bin\\bash.exe';
+const HEADLESS = join(process.env.LOCALAPPDATA ?? '', 'ms-playwright');
+
+/** A real test browser if Playwright has one installed here, else null. */
+function headlessShell() {
+  if (!existsSync(HEADLESS)) return null;
+  for (const dir of readdirSync(HEADLESS).filter((name) => name.startsWith('chromium_headless_shell-')).sort().reverse()) {
+    const exe = join(HEADLESS, dir, 'chrome-headless-shell-win64', 'chrome-headless-shell.exe');
+    if (existsSync(exe)) return exe;
+  }
+  return null;
 }
 
 const branchExists = (primary, branch) =>
@@ -235,6 +303,82 @@ test('a worktree a process is sitting in is left exactly as it is, then goes onc
   assert.equal(existsSync(wt.path), false);
   assert.equal(registered(repo.primary, wt.path), false);
   assert.equal(branchExists(repo.primary, wt.branch), false, `${JSON.stringify(freed.done.errors)}`);
+});
+
+test('AC-2: landing a worktree closes the dev server, the shell loop and the test browser running from it', { skip: process.platform !== 'win32' && 'Windows only' }, async (t) => {
+  const repo = makeRepo(t);
+  const marker = basename(repo.root);
+  closeLeftovers(repo, marker);
+  const wt = addWorktree(repo.primary, 'agent-landed-with-processes');
+  land(repo.primary, wt);
+  quiet(repo, wt.path, 30 * HOUR);
+
+  const server = `require('node:http').createServer((q, s) => s.end('ok')).listen(0); // ${marker}`;
+  const loop = existsSync(GIT_BASH)
+    ? { file: GIT_BASH, args: ['-c', `while true; do sleep 1; done # ${marker}`] }
+    : { file: process.execPath, args: ['-e', `setInterval(() => {}, 1000); // ${marker}`] };
+  const browser = headlessShell();
+  const specs = [
+    { file: process.execPath, args: ['-e', server], cwd: wt.path },
+    { ...loop, cwd: wt.path },
+    browser
+      ? { file: browser, args: ['--headless', `--user-data-dir=${join(repo.root, 'profile')}`, '--remote-debugging-port=0', 'about:blank'], cwd: wt.path }
+      : { file: process.execPath, args: ['-e', `setInterval(() => {}, 1000); // browser ${marker}`], cwd: wt.path },
+  ];
+  startOrphans(specs);
+  await new Promise((done) => setTimeout(done, 2000));
+  assert.ok(leftovers(marker).length >= 3, 'the three processes are running');
+
+  const result = sweep(repo, { landed: [wt.branch], realProcesses: true });
+  assert.deepEqual(result.done.held, [], 'the removal must not find the folder in use');
+  assert.deepEqual(result.done.errors, []);
+  assert.deepEqual(result.done.removedWorktrees.map(normalize), [normalize(wt.path)]);
+  assert.equal(existsSync(wt.path), false);
+  assert.ok(result.done.closedProcesses.length >= 3, JSON.stringify(result.done.closedProcesses));
+  assert.deepEqual((await settle(() => leftovers(marker))).map((p) => `${p.name} ${p.pid}`), [], 'nothing it started still runs');
+  const last = JSON.parse(readFileSync(join(repo.stateDir, 'last.json'), 'utf8'));
+  assert.ok(last.closedProcesses.length >= 3, 'what was closed is written down');
+});
+
+test('AC-3: an abandoned shell loop closes after a quiet hour, and an exempt process of the same age stays', { skip: process.platform !== 'win32' && 'Windows only' }, async (t) => {
+  const repo = makeRepo(t);
+  const marker = basename(repo.root);
+  closeLeftovers(repo, marker);
+  const wt = addWorktree(repo.primary, 'agent-left-a-loop');
+  const [loop, runner] = startOrphans([
+    { file: process.execPath, args: ['-e', `setInterval(() => {}, 1000); // loop ${marker}`], cwd: wt.path },
+    // Stands in for the job queue runner: exempt by its command line, wherever it runs.
+    { file: process.execPath, args: ['-e', `setInterval(() => {}, 1000); // ${marker}`, 'scripts/jobs.mjs', '--runner'], cwd: wt.path },
+  ]);
+  await new Promise((done) => setTimeout(done, 1000));
+
+  // Now: young and working, nothing closes.
+  const early = closeAbandonedProcesses({ primaryRoot: repo.primary, liveness: { root: repo.projects } });
+  assert.deepEqual(early.closed, []);
+
+  // The clock moved forward two hours: nothing has touched the worktree since.
+  const result = sweep(repo, {
+    abandoned: (root) => closeAbandonedProcesses({ primaryRoot: root, now: Date.now() + 2 * 60 * 60_000, liveness: { root: repo.projects } }),
+  });
+  assert.equal(result.ran, true);
+  const still = (await settle(() => leftovers(`loop ${marker}`))).map((p) => p.pid);
+  assert.deepEqual(still, [], 'the loop was closed');
+  assert.ok(leftovers(marker).some((p) => p.pid === runner), 'the exempt runner still runs');
+  assert.ok(existsSync(wt.path), 'closing processes removes no worktree');
+  const last = JSON.parse(readFileSync(join(repo.stateDir, 'last.json'), 'utf8'));
+  assert.deepEqual(last.closedProcesses.map((p) => p.pid), [loop]);
+});
+
+test('a process list that cannot be read keeps the worktree, and says so', (t) => {
+  const repo = makeRepo(t);
+  const wt = addWorktree(repo.primary, 'agent-unknown-processes');
+  land(repo.primary, wt);
+  quiet(repo, wt.path, 30 * HOUR);
+  const unreadable = () => ({ ok: false, supported: true, closed: [], kept: [], failed: [], why: 'could not list processes: timed out' });
+  const result = sweep(repo, { landed: [wt.branch], processes: unreadable });
+  assert.deepEqual(result.done.removedWorktrees, []);
+  assert.ok(result.done.errors.some((error) => /could not list processes/.test(error)), JSON.stringify(result.done.errors));
+  assert.ok(existsSync(join(wt.path, 'README.md')));
 });
 
 test('anything that needs a person is written down, never acted on', (t) => {
