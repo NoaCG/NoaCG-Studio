@@ -99,10 +99,10 @@ performed every wave, deleted the same way. Same folder, same command shape, opp
 what separated them was the record rather than the document. Its reasoning is in
 `scripts/handoff-trace.mjs` at 745c6f2.
 
-A hook that reaches for a fact outside the repo - the push notice asks GitHub - is verified against
-the real source, bounded, and silent when it cannot answer: `gh` under a ten-second timeout, null on
-any failure, and the must-fire case is a real cancelled run found with `gh run list --status
-cancelled`, not a fixture.
+A hook that reaches for a fact outside the repo is verified against the real source, bounded, and
+silent when it cannot answer. The push notice (retired 2026-10-09, #884) was the worked example:
+`gh` under a timeout, null on any failure, and a must-fire case that was a real cancelled run found
+with `gh run list --status cancelled`, not a fixture.
 
 The 2026-09-02 widening is the worked example for the matcher half. With an inert stand-in on the
 process table,
@@ -121,7 +121,7 @@ commands, not by thinking harder about the regex.
 | `guard-agent-launch.mjs` | PreToolUse `Agent` | deny | a wave prompt whose `TOUCHES` or `READ` line names a path that exists neither in the launching checkout nor on `origin/main` |
 | `spawn-task-guard.mjs` | PreToolUse `mcp__ccd_session__spawn_task` | deny | a background-task chip minted for work the session could have done here or filed under `docs/backlog/` |
 | `guard-question.mjs` | PreToolUse `AskUserQuestion` | deny | a question not tagged `needs: decision`, more than one per call, or one without a recommended answer; any question from a wave row, or while a night wave is open (nobody is there to answer) |
-| `warn-command.mjs` | PostToolUse `Bash`/`PowerShell` | warn | a commit that just staled a queued landing pin; a follow-up push whose earlier CI run never finished, so the new run plans past a delta nothing covered |
+| `warn-command.mjs` | PostToolUse `Bash`/`PowerShell` | warn | a commit that just staled a queued landing pin |
 | `warn-edit.mjs` | PostToolUse `Write` | warn | a new migration whose number is already claimed on another ref |
 | `lint-file.mjs` | PostToolUse edits | warn | lint findings in the file just written |
 | `stop-wait.mjs` | Stop / SubagentStop | warn | a turn that ends waiting on something that cannot wake the session |

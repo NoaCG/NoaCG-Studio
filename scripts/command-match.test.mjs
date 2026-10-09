@@ -19,9 +19,6 @@ import {
   commandSegments,
   mainPushes,
   pollsQueue,
-  pushedUpdates,
-  unfinishedRun,
-  pushReplacedNotice,
   requiresRunningDevServer,
   runsWholeSuite,
   startsDevServer,
@@ -708,90 +705,6 @@ test('a push to another branch, a dry run, and a push as text are not main pushe
   ]) {
     assert.deepEqual(mainPushes(cmd), [], cmd);
   }
-});
-
-test('pushedUpdates reads the branches a push updated off the report git printed', () => {
-  // Git prints the report on stderr; the tool response carries both streams as fields.
-  const stderr =
-    'To github.com:NoaCG/NoaCG-Studio.git\n' +
-    '   1765fcfe..2a3b4c5d  claude/r-mistake-triggers -> claude/r-mistake-triggers\n';
-  assert.deepEqual(pushedUpdates('git push', { stdout: '', stderr, interrupted: false, exit_code: 0 }), [
-    { from: '1765fcfe', to: '2a3b4c5d', branch: 'claude/r-mistake-triggers' },
-  ]);
-  // A forced update is still an update, and a string response is read the same way.
-  assert.deepEqual(
-    pushedUpdates('git push --force-with-lease', ' + 1765fcfe...2a3b4c5d claude/x -> claude/x (forced update)\r\n'),
-    [{ from: '1765fcfe', to: '2a3b4c5d', branch: 'claude/x' }],
-  );
-});
-
-test('pushedUpdates is empty for a first push, a no-op, a rejection, a dry run and a non-push', () => {
-  const cases = [
-    ['git push -u origin claude/x', ' * [new branch]      claude/x -> claude/x\n'],
-    ['git push', 'Everything up-to-date\n'],
-    ['git push', ' ! [rejected]        claude/x -> claude/x (fetch first)\nerror: failed to push some refs\n'],
-    ['git push --dry-run', '   1765fcfe..2a3b4c5d  claude/x -> claude/x\n'],
-    ['git log --oneline -3', '   1765fcfe..2a3b4c5d  claude/x -> claude/x\n'],
-    ['git push', null],
-    ['git push', { stdout: 42 }],
-    ['git push', undefined],
-  ];
-  for (const [cmd, response] of cases) assert.deepEqual(pushedUpdates(cmd, response), [], cmd);
-});
-
-test('a refspec push reports the branch gh knows, not refs/heads/', () => {
-  assert.deepEqual(pushedUpdates('git push origin HEAD:refs/heads/claude/x', '   1765fcfe..2a3b4c5d  HEAD -> refs/heads/claude/x\n'), [
-    { from: '1765fcfe', to: '2a3b4c5d', branch: 'claude/x' },
-  ]);
-});
-
-test('unfinishedRun speaks only when no run for the old tip reached a verdict', () => {
-  // Both sets are real, read with gh run list on 2026-09-05. The first was the first event the
-  // notice was ever fed and it must be SILENT: the cancelled push run has a green dispatch beside
-  // it, so the delta at 43c9d60b was covered.
-  const twoRuns = [
-    { conclusion: 'success', databaseId: 33925755805, headSha: '83468df6d98352a895da6adbb6a52bf5160d53ae', status: 'completed' },
-    { conclusion: 'success', databaseId: 33924695227, headSha: '43c9d60b1b5dc51fb53725e156f9c4936efc7cf5', status: 'completed' },
-    { conclusion: 'cancelled', databaseId: 33924688365, headSha: '43c9d60b1b5dc51fb53725e156f9c4936efc7cf5', status: 'completed' },
-  ];
-  assert.equal(unfinishedRun(twoRuns, '43c9d60b'), null);
-  // The real 2026-09-04 follow-up push on claude/b-gate-covers-what-it-claims: one cancelled run
-  // for a8ce0d1b and nothing else, so nothing that finished covers it.
-  const oneCancelled = [
-    { conclusion: 'success', databaseId: 33920462610, headSha: '70c3a9776e866138fe5ea842b7956d309764f984', status: 'completed' },
-    { conclusion: 'cancelled', databaseId: 33920380841, headSha: 'a8ce0d1bd1529ed9fd30d5881d2c4457a5105f78', status: 'completed' },
-  ];
-  assert.equal(unfinishedRun(oneCancelled, 'a8ce0d1b')?.databaseId, 33920380841);
-  // Still going counts as unfinished - it is about to be cancelled.
-  assert.equal(unfinishedRun([{ conclusion: '', databaseId: 1, headSha: 'a8ce0d1bffff', status: 'in_progress' }], 'a8ce0d1b')?.databaseId, 1);
-  // A run that stopped at its own timeout-minutes is not a verdict either (root AGENTS.md).
-  assert.equal(unfinishedRun([{ conclusion: 'timed_out', databaseId: 2, headSha: 'a8ce0d1bffff', status: 'completed' }], 'a8ce0d1b')?.databaseId, 2);
-  // A red run IS a verdict: the delta was tested, and the colour says so.
-  assert.equal(unfinishedRun([{ conclusion: 'failure', databaseId: 3, headSha: 'a8ce0d1bffff', status: 'completed' }], 'a8ce0d1b'), null);
-  // No run for the tip, or nothing to read, is nothing to say.
-  assert.equal(unfinishedRun(oneCancelled, 'deadbeef'), null);
-  assert.equal(unfinishedRun(null, 'a8ce0d1b'), null);
-  // A push cancels the old tip's pull request run but not a dispatch, which keys on the branch ref
-  // in its own concurrency group (#851): a dispatch still going is no cause to speak.
-  const dispatchGoing = { conclusion: '', databaseId: 4, headSha: 'a8ce0d1bffff', status: 'in_progress', event: 'workflow_dispatch' };
-  const prCancelled = { conclusion: 'cancelled', databaseId: 5, headSha: 'a8ce0d1bffff', status: 'completed', event: 'pull_request' };
-  assert.equal(unfinishedRun([dispatchGoing], 'a8ce0d1b'), null);
-  assert.equal(unfinishedRun([dispatchGoing, prCancelled], 'a8ce0d1b')?.databaseId, 5);
-});
-
-test('pushReplacedNotice names the run, says its replacement covers it, and how to check', () => {
-  const where = { branch: 'claude/x', from: 'a8ce0d1bffffffff', to: 'b1b1b1b1ffffffff' };
-  const notice = pushReplacedNotice({ ...where, run: { databaseId: 42, conclusion: 'cancelled', status: 'completed' } });
-  assert.match(notice, /claude\/x/);
-  assert.match(notice, /a8ce0d1b/);
-  assert.match(notice, /b1b1b1b1/);
-  assert.match(notice, /\b42\b/);
-  assert.match(notice, /cannot be narrower than the run it replaced/);
-  assert.match(notice, /A full suite is not the answer/);
-  assert.match(notice, /gh run view <id> --json jobs/);
-  // A still-running run has no conclusion, so the status stands in.
-  const going = pushReplacedNotice({ ...where, run: { databaseId: 44, status: 'in_progress' } });
-  assert.match(going, /never finished \(in_progress\)/);
 });
 
 test('the job queue refuses the WHOLE default suite and lets one or two named specs through', () => {

@@ -803,12 +803,7 @@ function branchCreationIn(git) {
   return at === -1 ? null : { dir: git.dir, branch: options[at + 1] ?? '' };
 }
 
-/** Does this command line push to a remote for real? */
-function pushes(text) {
-  return gitInvocations(text).some(isRealPush);
-}
-
-/** A push that writes a remote. Shared by every push rule here so they cannot drift. */
+/** A push that writes a remote. */
 function isRealPush(git) {
   return git.subcommand === 'push' && !isDryRun(git);
 }
@@ -883,103 +878,4 @@ function checksOutMain(git) {
   // `git checkout main <path>` and `git checkout main -- <path>` restore files and move nothing.
   const named = git.args.filter((arg) => !arg.startsWith('-'));
   return !git.args.includes('--') && named.length === 1 && named[0] === 'main';
-}
-
-/**
- * The branches a `git push` in this command just UPDATED, read off git's own report of it.
- *
- * Only an UPDATE of a branch the remote already had is listed - `<old>..<new> local -> remote` -
- * because that is the only push that leaves a run behind: the run for `<old>`, which this push
- * cancels if it is still going. (The new run does NOT plan from `<old>`: a pull request run plans
- * from main. That is why the notice this feeds is belt-and-braces rather than a hole - see
- * `hooks/warn-command.mjs`.)
- * A first push (`[new branch]`) had nothing in flight; `Everything up-to-date` moved nothing; a
- * rejected push moved nothing either. A forced update (`+ <old>...<new>`) is still an update.
- *
- * Read from the RESPONSE rather than by asking git afterwards, because the response is the one
- * record of what the remote held BEFORE this push, and it is already in the hook's hands. Git
- * prints the report on stderr, so both streams are read.
- */
-export function pushedUpdates(text, response) {
-  if (!pushes(text)) return [];
-  const report = responseText(response);
-  const line = /^\s*\+?\s*([0-9a-f]{7,40})\.\.\.?([0-9a-f]{7,40})\s+(\S+)\s+->\s+(\S+)(?:\s+\(.*\))?\s*$/gm;
-  // A refspec push reports `refs/heads/<branch>`, which `gh run list --branch` answers with nothing.
-  return [...report.matchAll(line)].map((match) => ({
-    from: match[1],
-    to: match[2],
-    branch: match[4].replace(/^refs\/heads\//, ''),
-  }));
-}
-
-/**
- * The run the push notice should speak about, given the runs for the OLD tip, or null when the
- * old tip's delta is covered. Pure, so both directions are pinned in the tests with the two real
- * run sets they were measured on (2026-09-05).
- *
- * ONE FINISHED RUN IS ENOUGH, whichever it was. A sha can have several runs - its pull request's,
- * cancelled, beside a green dispatch - and reading only the newest would be right by luck one way
- * round and wrong the other. "Finished" is a run that reached a verdict: `success` or `failure`.
- * A `cancelled` run never reached one, and neither did a run that stopped at its own
- * `timeout-minutes` (`timed_out`) - the root AGENTS.md says so in as many words - so those count
- * as unfinished too, and a run still going counts the same as one about to be cancelled, because
- * in the seconds after the push it is.
- *
- * A DISPATCH IS NEVER THE ONE SPOKEN ABOUT. Since 2026-10-09 a branch has no push run (#851): its
- * run is its pull request's, in the pull request's concurrency group (`refs/pull/<n>/merge`), and
- * a dispatched run keys on the branch ref - so a push cancels the old tip's pull request run and
- * leaves a dispatch running. A finished dispatch still counts as the verdict above.
- */
-export function unfinishedRun(runs, from) {
-  if (!Array.isArray(runs)) return null;
-  const forTip = runs.filter((run) => typeof run?.headSha === 'string' && run.headSha.startsWith(from));
-  if (forTip.some((run) => run.conclusion === 'success' || run.conclusion === 'failure')) return null;
-  return forTip.find((run) => run.event !== 'workflow_dispatch') ?? null;
-}
-
-/**
- * What to tell a session whose push replaced the unfinished run `unfinishedRun` just found. The
- * replacement covers it: a pull request run plans GitHub's merge of the branch onto `main` from
- * its base, so the new plan is the branch's whole change and cannot be narrower than the run it
- * replaced.
- *
- * IT LIVES HERE SO IT CAN BE TESTED. `hooks/warn-command.mjs` reads stdin at module top level and
- * cannot be imported, exactly as this file's header says of `guard-command.mjs`. The claim that
- * went wrong before - a message asserting the plan had been narrowed, ten days after the workflow
- * stopped narrowing it - was wrong in prose that nothing checked.
- *
- * @param {object} input
- * @param {string} input.branch the branch this push moved
- * @param {string} input.from the tip the remote held before the push
- * @param {string} input.to the tip it holds now
- * @param {{ databaseId: number|string, conclusion?: string, status?: string }} input.run
- *   the unfinished run for `from`, as `unfinishedRun` returned it
- */
-export function pushReplacedNotice({ branch, from, to, run }) {
-  return [
-    `Heads up: this push moved ${branch} from ${from.slice(0, 8)} to ${to.slice(0, 8)}, and CI run ` +
-      `${run.databaseId} for ${from.slice(0, 8)} never finished (${run.conclusion || run.status}). ` +
-      "The concurrency group cancelled it. The pull request's run for THIS push covers the delta " +
-      "it owed: it plans from main, so it is this branch's whole work and cannot be narrower than " +
-      'the run it replaced. No pull request, or one that conflicts with main, means no run at all.',
-    'A full suite is not the answer to a cancelled run. Ask for one only to override the plan ' +
-      `itself:\n  gh workflow run ci.yml --ref ${branch}`,
-    'Read WHICH JOBS RAN before believing the colour - a skipped shard means the plan found ' +
-      'nothing that reaches the E2E surface, and it is worth knowing which:\n' +
-      `  gh run list --branch ${branch} --limit 3\n` +
-      `  gh run view <id> --json jobs -q '.jobs[] | "\\(.conclusion)\\t\\(.name)"'`,
-  ].join('\n');
-}
-
-/**
- * The text of a tool response, whatever shape it arrives in. A PostToolUse event carries the
- * shell tool's response as an object (`stdout`, `stderr`, `interrupted`, `exit_code`); a string
- * is accepted too, and anything else reads as empty, which every caller treats as nothing to say.
- */
-export function responseText(response) {
-  if (typeof response === 'string') return response;
-  if (!response || typeof response !== 'object') return '';
-  return Object.values(response)
-    .filter((value) => typeof value === 'string')
-    .join('\n');
 }
