@@ -113,7 +113,6 @@ test('the CHROMIUM-launching -sweep scripts count, and the ones that open no bro
     'node scripts/occlusion-sweep.mjs',
     'node scripts/occlusion-sweep.mjs --category=lower-third --stress',
     'node scripts/design-rules-audit-sweep.mjs',
-    'node scripts/plate-legibility-sweep.mjs',
   ]) {
     assert.ok(invokesSweep(cmd), cmd);
   }

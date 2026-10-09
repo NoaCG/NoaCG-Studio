@@ -107,7 +107,7 @@ function surfaceCandidates(el: Element, win: Window): CssColor[] {
  *  `object-fit: cover` is the picture-well signature (ls25's release artwork is square by nature
  *  and correctly cropped - judging it as a mark reports a defect the design does not have; see
  *  `TemplateVariant.imageSlot`). A hidden or unpainted image is not judged at all. */
-function isMarkImage(img: HTMLImageElement, win: Window): boolean {
+export function isMarkImage(img: HTMLImageElement, win: Window): boolean {
   const cs = win.getComputedStyle(img);
   if (cs.display === 'none' || cs.visibility === 'hidden') return false;
   if (cs.objectFit === 'cover') return false;

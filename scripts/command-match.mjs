@@ -75,19 +75,19 @@ export const SWEEP_SCRIPTS =
   // rule AGENTS.md states.
   + '|pro-taste-rejudge'
   // THE `-sweep` SCRIPTS THAT LAUNCH CHROMIUM THEMSELVES, listed one by one because the family
-  // is NOT safely name-shaped: of the nine scripts here whose name ends in `-sweep`, two
+  // is NOT safely name-shaped: of the scripts here whose name ends in `-sweep`, two
   // (`reference-companion-sweep`, `spx-corpus-sweep`) open no browser at all, so a
   // `[\w-]*-sweep` entry beside the `*bench*` and `*spike*` families would queue two scripts
-  // that cost nothing - the "too eager" failure this module exists to avoid. All four below
+  // that cost nothing - the "too eager" failure this module exists to avoid. All three below
   // render the catalog at 1920x1080 through the app: `occlusion-sweep` is the calibration the
-  // occlusion rule is read off, `design-rules-audit-sweep` and `plate-legibility-sweep` were
-  // already doing it unlisted, and `footprint-stability-sweep` was listed the day it was written.
+  // occlusion rule is read off, `design-rules-audit-sweep` was already doing it unlisted, and
+  // `footprint-stability-sweep` was listed the day it was written.
   // `footprint-stability-sweep` renders the whole registry TWICE (short text, then long), so it
-  // is the heaviest of the four and the one that would hurt most sitting beside a live suite.
+  // is the heaviest of the three and the one that would hurt most sitting beside a live suite.
   // `text-containment-sweep` renders the whole registry once, drives every text field to a long
   // value and freezes the motion before reading, so it holds the machine for as long as its
   // siblings and belongs here for the same reason they do.
-  + '|occlusion-sweep|design-rules-audit-sweep|plate-legibility-sweep|footprint-stability-sweep'
+  + '|occlusion-sweep|design-rules-audit-sweep|footprint-stability-sweep'
   // `card-look-sweep` renders every design in a category full-frame and screenshots each one,
   // which is the same workload as its siblings above under a name none of them share.
   // `card-pair-sweep` renders the same set through the same rig and then compares every
@@ -491,7 +491,7 @@ export const DEV_SERVER_DEPENDENT_SCRIPTS =
   + '|ai-lite-calibrate|ai-lite-regress|ai-vision-dataset|catalog-geometry|catalog-sameness|engine-floor'
   + '|factory|field-coverage|footprint-stability-sweep|import-suggest-audit|lite-on-pro-bank'
   + '|make-render-manifest|numerals|occlusion-sweep|overflow-sweep|pack8-shots|palette-freedom'
-  + '|plate-legibility-sweep|pro-harness-spike|pro-iterate-spike|pro-spike|pro-taste-rejudge|pro-type-calibrate|probe-composition'
+  + '|pro-harness-spike|pro-iterate-spike|pro-spike|pro-taste-rejudge|pro-type-calibrate|probe-composition'
   + '|reference-companion-sweep|reference-select-check|reference-select-simulate|svg-import-sweep'
   + '|render-smoke|render-smoke-hyperframes|render-smoke-video|spike-axis-calibrate'
   + '|spike-checkpoint-probe|spike-countdown-calibrate|spike-device-mutation-check'

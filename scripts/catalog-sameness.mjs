@@ -20,6 +20,7 @@
 import { writeFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
 import { devPort } from './dev-port.mjs';
+import { locateAnimData } from '../src/assets/animationLiteral.ts';
 
 const args = process.argv.slice(2);
 const jsonAt = args.indexOf('--json');
@@ -287,17 +288,9 @@ for (const a of AXES) {
 // ── 3. The motion vocabulary ─────────────────────────────────────────────────────────────
 function animOf(v) {
   const js = v.emitted.js;
-  const start = js.indexOf('var NOACG_ANIM = ');
-  if (start < 0) return null;
-  const open = js.indexOf('{', start);
-  let depth = 0;
-  for (let i = open; i < js.length; i++) {
-    if (js[i] === '{') depth++;
-    else if (js[i] === '}' && --depth === 0) {
-      try { return JSON.parse(js.slice(open, i + 1)); } catch { return null; }
-    }
-  }
-  return null;
+  const at = locateAnimData(js);
+  if (!at) return null;
+  try { return JSON.parse(js.slice(at.start, at.end)); } catch { return null; }
 }
 const vocabOf = (v) => {
   const a = animOf(v);

@@ -1,11 +1,13 @@
-// guards: src/assets/animationLiteral.ts, src/blocks/animData.ts, src/templates/shared/animRuntime.ts, src/validation/validateTemplate.ts, src/validation/runtimeBench.ts, src/validation/engineSupport.ts, src/validation/templateBench.ts
+// guards: src/assets/animationLiteral.ts, src/blocks/animData.ts, src/templates/shared/animRuntime.ts, src/validation/validateTemplate.ts, src/validation/runtimeBench.ts, src/validation/engineSupport.ts, src/validation/templateBench.ts, src/validation/designRulesWarnings.ts, src/validation/readiness.ts
 //
 // The graphic validators decide WHETHER to check from a marker or a registry, and an empty answer
 // there reads exactly like a clean graphic: no findings. These pin the three cheapest guards
 // against that (issue #803):
 //   - the animation block's declaration is one constant, and what the emitter writes is what the
 //     validator looks for - so changing the emitter cannot disarm the animation rules unnoticed;
-//   - the engine feature table and the unsafe-JS table are not empty, and each is still consulted.
+//   - the engine feature table and the unsafe-JS table are not empty, and each is still consulted;
+//   - the design-rules warnings say "not checked" when they had no frame to read, and the
+//     readiness report claims that finding rather than passing over it (issue #840).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -22,12 +24,14 @@ async function load(entry) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
 
-const [anim, { emitAnimRegion }, { validateTemplate }, { ENGINE_FEATURES, scanEngineSupport }, { UNSAFE_JS, unsafeJsConstructs }] = await Promise.all([
+const [anim, { emitAnimRegion }, { validateTemplate }, { ENGINE_FEATURES, scanEngineSupport }, { UNSAFE_JS, unsafeJsConstructs }, rules, readiness] = await Promise.all([
   'src/blocks/animData.ts',
   'src/templates/shared/animRuntime.ts',
   'src/validation/validateTemplate.ts',
   'src/validation/engineSupport.ts',
   'src/validation/templateBench.ts',
+  'src/validation/designRulesWarnings.ts',
+  'src/validation/readiness.ts',
 ].map(load));
 
 const data = { version: 2, root: '.g', speed: 1, steps: [
@@ -56,4 +60,28 @@ test('the engine feature table is populated and consulted', () => {
 test('the unsafe-JS table is populated and consulted', () => {
   assert.ok(UNSAFE_JS.length > 0, 'an empty table would pass every network call and frame escape');
   assert.ok(unsafeJsConstructs('fetch("/x")').some((c) => c.rule === 'unsafe-js-network'));
+});
+
+const TEMPLATE = {
+  name: 't', type: 'lower-third', resolution: { width: 1920, height: 1080 }, fps: 50,
+  html: '', css: '', js: '', fields: [{ field: 'f0', ftype: 'textfield', title: 'Name', value: 'Ana' }],
+  settings: {}, assets: [],
+};
+
+test('the design-rules warnings say "not checked" when there is no frame to read', async () => {
+  // Node has no DOM: the export panel's measurement cannot mount a frame here, which is exactly
+  // the case that used to come back as an empty list - the answer a clean graphic gets.
+  const offline = await rules.checkTemplateLegibility(TEMPLATE, null);
+  assert.deepEqual(offline.map((w) => w.rule), [rules.LEGIBILITY_UNMEASURED]);
+  const unrendered = rules.designRulesWarnings({ defaultView: null, body: null }, TEMPLATE, null);
+  assert.deepEqual(unrendered.map((w) => w.rule), [rules.LEGIBILITY_UNMEASURED]);
+});
+
+test('the readiness report claims "not checked" on the legibility row instead of passing', () => {
+  const warning = { rule: rules.LEGIBILITY_UNMEASURED, message: 'Legibility was not checked: test.' };
+  const validation = { ok: true, errors: [], warnings: [warning] };
+  const row = readiness.readinessRows(validation, true).find((r) => r.id === 'legibility');
+  assert.equal(row.state, 'warn');
+  assert.deepEqual(row.messages, [warning.message]);
+  assert.deepEqual(readiness.unclaimedFindings(validation), []);
 });
