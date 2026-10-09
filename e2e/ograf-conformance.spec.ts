@@ -70,7 +70,7 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
   // mix, step count or state machine can produce a manifest a renderer would reject.
   const report = await page.evaluate(async () => {
     const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { buildOgrafManifest, scopeCssToGraphic, graphicSelfSelector, assertScopedCss } = await import('/src/export/targets/ograf.ts');
+    const { buildOgrafManifest, graphicSources } = await import('/src/export/targets/ograf.ts');
     const { validateOgrafManifest } = await import('/src/export/targets/ografSchema.ts');
     const failures: string[] = [];
     let checked = 0;
@@ -84,12 +84,12 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
       } catch {
         continue; // a variant that needs options is covered by the wizard's own specs
       }
-      // The stylesheet the package injects, re-addressed to the element and checked by the
-      // browser's own parser (the export's fail-closed gate): no rule left on the document, no
-      // rule lost. Over the whole catalog, so a selector shape one design uses cannot slip past.
-      const self = graphicSelfSelector(template);
+      // The stylesheet and markup the package injects, re-addressed to the element and checked by
+      // the browser's own parser (the export's fail-closed gate): no rule left on the document, no
+      // rule lost, the markup's own <style> blocks and referenced ids included (issue #789). Over
+      // the whole catalog, so a selector shape one design uses cannot slip past.
       try {
-        assertScopedCss(template.css, scopeCssToGraphic(template.css, self), self);
+        graphicSources(template);
         scopedSheets += 1;
       } catch (err) {
         failures.push(`${template.name} (stylesheet): ${(err as Error).message}`);
