@@ -1,4 +1,5 @@
-// Which `noacg-graphic` skill this machine actually has installed, and how to update it.
+// Which NoaCG plugins this machine actually has installed - the `noacg` plugin carrying the
+// `noacg-graphic` skill, and the `noacg-mcp` launcher - at which version, and how to update them.
 //
 // Nothing auto-updates a Claude Code or Codex marketplace. A plugin installed once keeps the skill
 // text it was installed with - measured on this laptop 2026-09-16 (
@@ -27,15 +28,18 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-/** One installed copy of the skill, with the exact command that updates it. */
-export interface InstalledSkill {
+/** One installed NoaCG plugin, with the exact command that updates it. */
+export interface InstalledPlugin {
+  /** `skill` for the plugin carrying the `noacg-graphic` skill, `mcp` for the `noacg-mcp` launcher,
+   *  which runs only the CLI version on its own manifest (cli/plugin-mcp/mcp-server.mjs). */
+  kind: 'skill' | 'mcp';
   /** The agent harness holding it, as a person would name it. */
   harness: string;
   /** The plugin id, `name@marketplace`, as the harness's own commands spell it. */
   plugin: string;
   /** The version on the manifest beside the skill. */
   version: string;
-  /** The plugin root on disk - the folder holding `skills/noacg-graphic/`. */
+  /** The plugin root on disk. */
   path: string;
   /** What to run to bring it current. */
   update: string;
@@ -67,8 +71,12 @@ const HARNESSES: Harness[] = [
   },
 ];
 
-/** The skill folder a plugin must carry for any of this to be about the skill at all. */
-const SKILL_FILE = path.join('skills', 'noacg-graphic', 'SKILL.md');
+/** What a plugin root must hold to count as each kind. The skill folder is specific enough on its
+ *  own; `mcp-server.mjs` is a common name, so the launcher also has to be called `noacg-mcp`. */
+const KINDS: { kind: InstalledPlugin['kind']; carries: (root: string, name: string) => boolean }[] = [
+  { kind: 'skill', carries: (root) => existsSync(path.join(root, 'skills', 'noacg-graphic', 'SKILL.md')) },
+  { kind: 'mcp', carries: (root, name) => name === 'noacg-mcp' && existsSync(path.join(root, 'mcp-server.mjs')) },
+];
 
 /**
  * Where a plugin keeps its manifest. One plugin folder ships both (`cli/plugin/`), and which one
@@ -105,16 +113,16 @@ function manifestVersion(root: string): string | null {
 }
 
 /**
- * Plugin roots that carry the skill, as `{ root, plugin }` where `plugin` is `name@marketplace`.
+ * Plugin roots that `carries` accepts, as `{ root, plugin }` where `plugin` is `name@marketplace`.
  *
  * Preferred source is the harness's own install record, which names the ACTIVE install path. The
  * cache-directory scan is the fallback for a harness that keeps no such file (Codex, today), and
  * it refuses to choose when a plugin has several versions cached: the newest directory is not
  * necessarily the one a session loaded, and a guess here is exactly what this command must not do.
  */
-function pluginRoots(home: string): { root: string; plugin: string }[] {
+function pluginRoots(home: string, carries: (root: string, name: string) => boolean): { root: string; plugin: string }[] {
   const plugins = path.join(home, 'plugins');
-  const carriesSkill = (root: string) => existsSync(path.join(root, SKILL_FILE));
+  const nameOf = (plugin: string) => (plugin.includes('@') ? plugin.slice(0, plugin.lastIndexOf('@')) : plugin);
 
   const index = readJson(path.join(plugins, 'installed_plugins.json'))?.plugins;
   const found: { root: string; plugin: string }[] = [];
@@ -129,7 +137,7 @@ function pluginRoots(home: string): { root: string; plugin: string }[] {
         const installPath = (record as { installPath?: unknown })?.installPath;
         if (typeof installPath !== 'string' || seen.has(installPath)) continue;
         seen.add(installPath);
-        if (carriesSkill(installPath)) found.push({ root: installPath, plugin });
+        if (carries(installPath, nameOf(plugin))) found.push({ root: installPath, plugin });
       }
     }
   }
@@ -141,7 +149,7 @@ function pluginRoots(home: string): { root: string; plugin: string }[] {
     for (const name of dirNames(path.join(cache, marketplace))) {
       const versions = dirNames(path.join(cache, marketplace, name))
         .map((v) => path.join(cache, marketplace, name, v))
-        .filter(carriesSkill);
+        .filter((root) => carries(root, name));
       if (versions.length === 1) found.push({ root: versions[0], plugin: `${name}@${marketplace}` });
     }
   }
@@ -149,8 +157,7 @@ function pluginRoots(home: string): { root: string; plugin: string }[] {
 }
 
 /**
- * Every installed copy of the skill this machine can be shown to have, one per harness that has
- * one. An empty list is the normal answer for a terminal user who never installed a plugin, and
+ * Every installed NoaCG plugin this machine can be shown to have, per harness and kind. An empty list is the normal answer for a terminal user who never installed a plugin, and
  * also the answer whenever anything about an install is unreadable.
  *
  * It reports what is INSTALLED rather than trying to work out which harness invoked it. A
@@ -158,8 +165,8 @@ function pluginRoots(home: string): { root: string; plugin: string }[] {
  * `CODEX_*` in the same environment - and a wrong attribution would print the wrong update
  * command. Naming the harness on the line costs one word and is always true.
  */
-export function installedSkills(): InstalledSkill[] {
-  const out: InstalledSkill[] = [];
+export function installedPlugins(): InstalledPlugin[] {
+  const out: InstalledPlugin[] = [];
   for (const harness of HARNESSES) {
     let home: string;
     try {
@@ -167,11 +174,13 @@ export function installedSkills(): InstalledSkill[] {
     } catch {
       continue; // no home directory to speak of (a service account) - not an error worth a word
     }
-    for (const { root, plugin } of pluginRoots(home)) {
-      const version = manifestVersion(root);
-      if (!version) continue; // no manifest, no claim - a hand-copied skill folder has no version
-      const marketplace = plugin.includes('@') ? plugin.slice(plugin.lastIndexOf('@') + 1) : plugin;
-      out.push({ harness: harness.name, plugin, version, path: root, update: harness.update(plugin, marketplace) });
+    for (const { kind, carries } of KINDS) {
+      for (const { root, plugin } of pluginRoots(home, carries)) {
+        const version = manifestVersion(root);
+        if (!version) continue; // no manifest, no claim - a hand-copied skill folder has no version
+        const marketplace = plugin.includes('@') ? plugin.slice(plugin.lastIndexOf('@') + 1) : plugin;
+        out.push({ kind, harness: harness.name, plugin, version, path: root, update: harness.update(plugin, marketplace) });
+      }
     }
   }
   return out;

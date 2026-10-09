@@ -21,7 +21,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { installedSkills } from '../dist/skillVersion.js';
+import { installedPlugins } from '../dist/skillVersion.js';
 import { isBehind } from '../dist/npmLatest.mjs';
 
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -34,8 +34,12 @@ async function tempDir(t, name) {
 }
 
 /** A plugin as a harness caches it: `plugins/cache/<marketplace>/<plugin>/<version>/`. */
-async function plantPlugin(home, { marketplace = 'noacg-studio', name = 'noacg', dir, manifest, manifestVersion, skill = true } = {}) {
+async function plantPlugin(home, { marketplace = 'noacg-studio', name = 'noacg', dir, manifest, manifestVersion, skill = true, launcher = false } = {}) {
   const root = path.join(home, 'plugins', 'cache', marketplace, name, dir);
+  if (launcher) {
+    await fs.mkdir(root, { recursive: true });
+    await fs.writeFile(path.join(root, 'mcp-server.mjs'), '// launcher\n');
+  }
   if (skill) {
     await fs.mkdir(path.join(root, 'skills', 'noacg-graphic'), { recursive: true });
     await fs.writeFile(path.join(root, 'skills', 'noacg-graphic', 'SKILL.md'), '# skill\n');
@@ -53,7 +57,7 @@ async function plantIndex(home, plugins) {
   await fs.writeFile(path.join(home, 'plugins', 'installed_plugins.json'), JSON.stringify({ version: 2, plugins }));
 }
 
-/** `installedSkills()` reads the environment, so every case runs with both homes pinned. */
+/** `installedPlugins()` reads the environment, so every case runs with both homes pinned. */
 async function withHomes(claudeHome, codexHome, fn) {
   const before = { c: process.env.CLAUDE_CONFIG_DIR, x: process.env.CODEX_HOME };
   process.env.CLAUDE_CONFIG_DIR = claudeHome;
@@ -68,7 +72,7 @@ async function withHomes(claudeHome, codexHome, fn) {
 
 test('no plugin installed is silence, not an error', async (t) => {
   const empty = await tempDir(t, 'empty');
-  const skills = await withHomes(path.join(empty, 'claude'), path.join(empty, 'codex'), installedSkills);
+  const skills = await withHomes(path.join(empty, 'claude'), path.join(empty, 'codex'), installedPlugins);
   assert.deepEqual(skills, [], 'a terminal user who never installed a plugin has nothing to report');
 });
 
@@ -79,7 +83,7 @@ test('the version comes from the manifest beside the skill, never from the direc
   const root = await plantPlugin(home, { dir: '9.9.9', manifest: '.claude-plugin', manifestVersion: '0.2.0' });
   await plantIndex(home, { 'noacg@noacg-studio': [{ scope: 'user', installPath: root, version: '9.9.9' }] });
 
-  const [skill, ...rest] = await withHomes(home, path.join(home, 'no-codex'), installedSkills);
+  const [skill, ...rest] = await withHomes(home, path.join(home, 'no-codex'), installedPlugins);
   assert.equal(rest.length, 0);
   assert.equal(skill.version, '0.2.0');
   assert.equal(skill.harness, 'Claude Code');
@@ -92,21 +96,33 @@ test('a skill folder with no manifest beside it is reported as nothing', async (
   // (cli/README.md). There is no version anywhere in those files, so there is nothing to say.
   const home = await tempDir(t, 'manifestless');
   await plantPlugin(home, { dir: '0.3.3' });
-  const skills = await withHomes(home, path.join(home, 'no-codex'), installedSkills);
+  const skills = await withHomes(home, path.join(home, 'no-codex'), installedPlugins);
   assert.deepEqual(skills, []);
 });
 
 test('a plugin with two versions cached and no install record is ambiguous, so silent', async (t) => {
   const home = await tempDir(t, 'codex');
   await plantPlugin(home, { dir: '0.2.0', manifest: '.codex-plugin', manifestVersion: '0.2.0' });
-  const skills = await withHomes(path.join(home, 'no-claude'), home, installedSkills);
+  const skills = await withHomes(path.join(home, 'no-claude'), home, installedPlugins);
   assert.equal(skills.length, 1, 'one cached version is unambiguous - that one is the install');
   assert.equal(skills[0].harness, 'Codex');
   assert.equal(skills[0].update, 'codex plugin marketplace upgrade noacg-studio && codex plugin add noacg@noacg-studio');
 
   await plantPlugin(home, { dir: '0.3.3', manifest: '.codex-plugin', manifestVersion: '0.3.3' });
-  const both = await withHomes(path.join(home, 'no-claude'), home, installedSkills);
+  const both = await withHomes(path.join(home, 'no-claude'), home, installedPlugins);
   assert.deepEqual(both, [], 'with two cached versions, which one a session loaded is a guess');
+});
+
+test('the noacg-mcp launcher is found by its name and file, and no other plugin is', async (t) => {
+  const home = await tempDir(t, 'launcher');
+  const root = await plantPlugin(home, { name: 'noacg-mcp', dir: '0.10.0', manifest: '.claude-plugin', manifestVersion: '0.10.0', skill: false, launcher: true });
+  const other = await plantPlugin(home, { name: 'someone-else', dir: '1.0.0', manifest: '.claude-plugin', manifestVersion: '1.0.0', skill: false, launcher: true });
+  await plantIndex(home, {
+    'noacg-mcp@noacg-studio': [{ scope: 'user', installPath: root }],
+    'someone-else@noacg-studio': [{ scope: 'user', installPath: other }],
+  });
+  const found = await withHomes(home, path.join(home, 'no-codex'), installedPlugins);
+  assert.deepEqual(found.map((p) => [p.kind, p.plugin, p.version]), [['mcp', 'noacg-mcp@noacg-studio', '0.10.0']]);
 });
 
 test('isBehind orders releases and refuses everything it cannot order', () => {
@@ -166,7 +182,68 @@ test('doctor names the stale install and the command that fixes it', async (t) =
   // old. Measured against the CLI alone they agree and nothing is said, and the user would hear
   // about the skill only on the doctor run AFTER the one that told them to update the CLI.
   await fs.writeFile(cache, JSON.stringify({ latest: '9.9.9', checkedAt: Date.now() }));
+  // The CLI itself is not told to move to npm's latest: it already runs what the plugin runs, and a
+  // newer CLI is what the plugin's launcher would skip. Updating the plugin comes first.
   const bothOld = await run({});
   assert.match(bothOld.stdout, new RegExp(`^skill {8}${version.replace(/\./g, '\\.')} in Claude Code, but npm's latest is 9\\.9\\.9`, 'm'));
-  assert.match(bothOld.stdout, /^update {7}npm's latest @noacg\/cli is 9\.9\.9 - run: npm i -g @noacg\/cli@latest$/m);
+  assert.doesNotMatch(bothOld.stdout, /^update /m, 'the CLI matches the plugin, so it is not told to move');
+  assert.doesNotMatch(bothOld.stdout, /@latest/);
+});
+
+/** A doctor run against fake config directories, a planted `latest` and no browser. */
+async function doctorWith(t, { latest, plugins = [] }) {
+  const home = await tempDir(t, 'doctor-pin');
+  const entries = {};
+  for (const p of plugins) {
+    const root = await plantPlugin(home, { ...p, dir: p.manifestVersion, manifest: '.claude-plugin' });
+    entries[`${p.name ?? 'noacg'}@noacg-studio`] = [{ scope: 'user', installPath: root }];
+  }
+  await plantIndex(home, entries);
+  const cache = path.join(home, 'latest.json');
+  await fs.writeFile(cache, JSON.stringify({ latest, checkedAt: Date.now() }));
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(DIST, 'index.js'), 'doctor'], {
+      env: {
+        ...process.env,
+        CLAUDE_CONFIG_DIR: home,
+        CODEX_HOME: path.join(home, 'no-codex'),
+        NOACG_CLI_LATEST_CACHE_FILE: cache,
+        NOACG_BROWSER: path.join(home, 'no-such-browser'),
+      },
+    });
+    let stdout = '';
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.resume();
+    child.on('close', () => resolve(stdout));
+  });
+}
+
+test('doctor recommends the CLI version the installed plugin runs, never one its launcher skips', async (t) => {
+  // #863: the noacg-mcp launcher runs only the CLI version on its own manifest. Telling its user
+  // to install npm's latest moves them onto the slower npx path whenever the plugin is older.
+  const mcp = { name: 'noacg-mcp', skill: false, launcher: true };
+
+  // The plugin is ahead of this CLI: name the plugin's version, not latest.
+  const ahead = await doctorWith(t, { latest: '9.9.9', plugins: [{ ...mcp, manifestVersion: '9.9.8' }] });
+  assert.match(ahead, /^update {7}the installed plugin runs @noacg\/cli 9\.9\.8 - run: npm i -g @noacg\/cli@9\.9\.8$/m);
+  assert.match(ahead, /^mcp plugin {3}9\.9\.8 in Claude Code, but npm's latest is 9\.9\.9/m, 'a newer plugin is named separately');
+  assert.doesNotMatch(ahead, /@latest/);
+
+  // The launcher wins over the skill: the skill plugin is newer, but 9.9.7 is what would run.
+  const both = await doctorWith(t, {
+    latest: '9.9.9',
+    plugins: [{ ...mcp, manifestVersion: '9.9.7' }, { manifestVersion: '9.9.9' }],
+  });
+  assert.match(both, /^update {7}the installed plugin runs @noacg\/cli 9\.9\.7 - run: npm i -g @noacg\/cli@9\.9\.7$/m);
+  assert.match(both, /^mcp plugin {3}9\.9\.7 in Claude Code, but npm's latest is 9\.9\.9/m);
+  assert.doesNotMatch(both, /@latest/);
+
+  // A skill plugin alone pins the same way: its setup reference says to run its own version.
+  const skillOnly = await doctorWith(t, { latest: '9.9.9', plugins: [{ manifestVersion: '9.9.9' }] });
+  assert.match(skillOnly, /^update {7}the installed plugin runs @noacg\/cli 9\.9\.9 - run: npm i -g @noacg\/cli@9\.9\.9$/m);
+  assert.doesNotMatch(skillOnly, /NEWER|@latest/);
+
+  // With no plugin at all, latest is still the advice.
+  const none = await doctorWith(t, { latest: '9.9.9' });
+  assert.match(none, /^update {7}npm's latest @noacg\/cli is 9\.9\.9 - run: npm i -g @noacg\/cli@latest$/m);
 });
