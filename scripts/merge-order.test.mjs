@@ -229,7 +229,7 @@ test('a stale branch with no open pull request is named once and left out of the
   const wide = Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`f${n}.txt`, `base ${n}\n`]));
   const edit = (who) => Object.fromEntries(Object.keys(wide).map((file) => [file, `${who}\n`]));
 
-  async function verdict({ oldDaysAgo, open }) {
+  async function verdict({ oldDaysAgo, open, dirty = false }) {
     const root = makeRepo(t);
     for (const [path, contents] of Object.entries(wide)) write(root, path, contents);
     runGit(root, 'add', '-A');
@@ -240,6 +240,7 @@ test('a stale branch with no open pull request is named once and left out of the
     for (const [path, contents] of Object.entries(edit('old'))) write(root, path, contents);
     commitDaysAgo(root, oldDaysAgo);
     runGit(root, 'checkout', '-q', 'main');
+    if (dirty) write(addWorktree(root, 'old', 'codex/old').path, 'editing.txt', 'in progress\n');
 
     const assessment = await assessMergeOrder(root, { branch: 'feature/mine', openPullRequests: async () => open });
     return { assessment, verdict: verdictFor(assessment, 'feature/mine') };
@@ -259,6 +260,7 @@ test('a stale branch with no open pull request is named once and left out of the
     ['an open pull request', { oldDaysAgo: STALE_DAYS + 3, open: new Set(['codex/old']) }],
     ['a recent commit', { oldDaysAgo: 0, open: new Set() }],
     ['no answer from GitHub', { oldDaysAgo: STALE_DAYS + 3, open: null }],
+    ['uncommitted work in its worktree', { oldDaysAgo: STALE_DAYS + 3, open: new Set(), dirty: true }],
   ];
   for (const [why, setup] of live) {
     const result = await verdict(setup);
@@ -283,6 +285,8 @@ test('a branch that contains a stale branch is still held behind it', async (t) 
   const verdict = verdictFor(assessment, 'feature/on-top');
   assert.deepEqual(verdict.blockedBy, ['codex/old'], 'landing it would land the stale commits too');
   assert.equal(verdict.severity, 'hold');
+  assert.equal(verdict.landFirst, null, 'nobody will land a stale branch first, so it is not the advice');
+  assert.match(verdict.reasons[0].text, /rebase/);
 });
 
 test('a lone branch costs nobody anything, however wide it is', async (t) => {

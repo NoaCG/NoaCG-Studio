@@ -225,10 +225,15 @@ export async function assessMergeOrder(
  * `{ branches, stale }`: stale means no commit for `STALE_DAYS` and no open pull request. The
  * pull request lookup runs only when some branch is old enough to need it, and an unknown answer
  * keeps every branch live - counting a dead branch is the old behaviour, not a new wrong one.
+ * Uncommitted files also keep a branch live: somebody may be editing in it right now.
  */
 async function splitStale(candidates, { keep, openPullRequests, now }) {
   const old = candidates.filter(
-    (b) => !keep.has(b.branch) && typeof b.lastCommit?.at === 'number' && now - b.lastCommit.at * 1000 >= STALE_DAYS * 86_400_000,
+    (b) =>
+      !keep.has(b.branch) &&
+      !b.dirty &&
+      typeof b.lastCommit?.at === 'number' &&
+      now - b.lastCommit.at * 1000 >= STALE_DAYS * 86_400_000,
   );
   const open = old.length > 0 ? await openPullRequests() : null;
   if (!open) return { branches: candidates, stale: [] };
@@ -508,10 +513,14 @@ export function verdictFor(assessment, branchName) {
   const branch = assessment.branches.find((entry) => entry.branch === branchName);
   if (!branch) return { severity: 'clear', branch: branchName, reasons: [], landFirst: null, blockedBy: [] };
 
-  const unlanded = [...assessment.branches, ...(assessment.stale ?? [])];
-  const blockedBy = branch.stacked.filter((needed) => unlanded.some((entry) => entry.branch === needed));
+  // A contained STALE branch still holds - landing this would land its commits too - but nobody
+  // will land it first, so it is never the recommendation; rebasing without it is the way out.
+  const isStale = (name) => (assessment.stale ?? []).some((entry) => entry.branch === name);
+  const liveBlockers = branch.stacked.filter((needed) => assessment.branches.some((entry) => entry.branch === needed));
+  const staleBlockers = branch.stacked.filter(isStale);
+  const blockedBy = [...liveBlockers, ...staleBlockers];
   const cheaper = assessment.order.filter((entry) => entry.branch !== branchName && cost(entry) < cost(branch));
-  const landFirst = blockedBy[0] ?? cheaper[0]?.branch ?? null;
+  const landFirst = liveBlockers[0] ?? cheaper[0]?.branch ?? null;
 
   const reasons = [];
   const structuralHits = branch.structuralHits ?? [];
@@ -535,8 +544,15 @@ export function verdictFor(assessment, branchName) {
       text: `landing it first leaves ${branch.imposed} conflicted file(s) for other branches to resolve (${spread})`,
     });
   }
-  if (blockedBy.length > 0) {
-    reasons.push({ kind: 'stacked', severity: 'hold', text: `contains ${blockedBy.join(', ')}, which must land first` });
+  if (liveBlockers.length > 0) {
+    reasons.push({ kind: 'stacked', severity: 'hold', text: `contains ${liveBlockers.join(', ')}, which must land first` });
+  }
+  if (staleBlockers.length > 0) {
+    reasons.push({
+      kind: 'stacked',
+      severity: 'hold',
+      text: `contains stale ${staleBlockers.join(', ')}, which nobody is landing - rebase onto ${assessment.target} without its commits`,
+    });
   }
 
   const worst = reasons.some((reason) => reason.severity === 'hold') ? 'hold' : reasons.length > 0 ? 'caution' : 'clear';
@@ -700,7 +716,8 @@ function isUnder(path, root) {
 export function formatOrder(assessment) {
   const { branches, order, notReady, target, ref, primary, remoteOnly = [], stale = [] } = assessment;
   if (branches.length === 0) {
-    return [`Nothing is ahead of ${target} - no ordering question to answer.`, ...staleLines(stale), ...remoteOnlyLines(remoteOnly, target)];
+    const nothing = stale.length > 0 ? `Nothing but stale branches is ahead of ${target}` : `Nothing is ahead of ${target}`;
+    return [`${nothing} - no ordering question to answer.`, ...staleLines(stale), ...remoteOnlyLines(remoteOnly, target)];
   }
 
   const out = [];
