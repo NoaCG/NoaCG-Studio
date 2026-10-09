@@ -288,9 +288,9 @@ export function markKnockCss(prefix: string, knock: MarkTreatment & { kind: 'kno
  *
  * §17.2: the owner read `minimalist.ledger` (`panel: none`) as unreadable over a busy plate while
  * every gate passed it, because `BROADCAST_BACKDROP` is a single near-black card and a near-white
- * super measures 14:1 against it. `validation/plateLegibility.ts` asks the same question of an
- * arbitrary rendered graphic and has to INFER the surface from the DOM, which under-detects a
- * panel drawn as a positioned sibling.
+ * super measures 14:1 against it. A DOM instrument that asked the same question of an arbitrary
+ * rendered graphic had to INFER the surface, under-detected a panel drawn as a positioned sibling,
+ * and was enforced nowhere; it was removed on 2026-10-09 (docs/NOACG_PRO_PLAN.md §17.2).
  *
  * **Here nothing is inferred.** The composer chose the surface, so it can compose the language's
  * own ink over its own surface over each plate and report the truth. That is the whole argument
@@ -331,8 +331,7 @@ export function platePlan(
     const worst = ratios.reduce((a, b) => (b.ratio < a.ratio ? b : a));
     // THE PICTURE HAS TO BE WHAT MAKES THE DIFFERENCE, or this is the wrong instrument speaking:
     // ink that misses the floor on every plate is too close to the language's own surface, which
-    // is the ordinary contrast question. Same rule, same reason, as
-    // `validation/plateLegibility.ts` - stated in both because they are read separately.
+    // is the ordinary contrast question.
     if (ratios.every((r) => r.ratio < floor)) continue;
     // ANY plate under the floor is reported, and the first version of this got it wrong in a way
     // worth keeping. It required TWO, reasoning that one failure is an extreme a designer may
@@ -348,8 +347,8 @@ export function platePlan(
   return out;
 }
 
-/** The three plates `validation/plateLegibility.ts` measures against, as CSS values - one list,
- *  so a number computed at compose time and a number measured on a rendered frame cannot drift. */
+/** The three plates: a night exterior, a mid-tone shot and a blown-out sky. Three, because two
+ *  would hide the middle, which is where `minimalist.ledger` failed. */
 const PLATE_COLORS = [
   { id: 'a night exterior', value: 'rgb(8, 9, 12)' },
   { id: 'a mid-tone shot', value: 'rgb(128, 128, 128)' },

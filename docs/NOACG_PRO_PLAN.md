@@ -2358,6 +2358,13 @@ the footage being dark**, which is a fact nobody had measured and not, by itself
 and panel-less designs are deliberate compositions. Nothing is gated on this. The number that
 would justify gating does not exist yet.
 
+**Removed 2026-10-09 (#840).** `plateLegibility.ts` and its sweep were deleted. Nothing imported
+the instrument and no workflow ran the sweep, so it was a rule enforced nowhere. Wiring it into a
+product surface would have warned on about half the catalog's lower thirds, some of them the
+sibling-panel blind spot above: the kind of gate authors learn to ignore. `platePlan` keeps the
+exact Pro measurement. The numbers above stay in `benchmarks/pro/evidence/plate-legibility.json`,
+and the last commit carrying the instrument is `b3b2fd090`.
+
 ### 17.9 ls17's dead space - 2026-08-16
 
 Measured before touching anything, which is what made the fix a one-liner instead of a redesign.
