@@ -111,7 +111,9 @@ const ACCEPTED_CLASSES = {
     'writes the command log; each is bounded (presses per key, wants per key, failed pairings). ' +
     'panel_lease and panel_renew (0081, the panel ownership lease) are page doors of the same kind: ' +
     'they take the control slug, run through the same panel_room_for_slug guard as panel_claim, and ' +
-    'write only that production\'s panel_rooms row (who answers the panel, and until when). ' +
+    'write only that production\'s panel_rooms row (who answers the panel, and until when). Like ' +
+    'panel_claim they have no burst cap: a slug holder can move the panel between pages in a loop, ' +
+    'which is less than the same slug already allows (operating the production). ' +
     'control_cue_arm and control_cue_arms_for (0075, timed cues) are the same slug door again: the ' +
     'read answers only that production\'s countdowns, and the write moves only its arm row, its head ' +
     'and its log, under the head lock and the burst cap of control_send_seq. ' +
@@ -123,7 +125,7 @@ const ACCEPTED_CLASSES = {
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot. The community_pack_* functions (0079) ' +
     'are the only door to community_packs: each checks auth.uid() or is_moderator() inside. ' +
-    'The panel_* page RPCs (0073, 0081) are the anon slug doors reached by a signed-in caller.',
+    'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +
