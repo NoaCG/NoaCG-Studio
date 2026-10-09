@@ -18,8 +18,13 @@ plugin metadata and launcher. Package readiness precedes account setup, submissi
 - Generate separate Claude packages and a skills-only Codex upload. Keep the supported
   `.codex-plugin` format; a portable Agent Plugins overlay adds no needed capability in Phase 1.
 - Use `cli/package.json` as the version authority for manifests, documented install pins and
-  the MCP launcher. Default installed CLI must match exactly; an explicit `NOACG_CLI` path
-  remains a disclosed development override. A missing override fails instead of falling through.
+  the MCP launcher. The launcher imports an installed CLI only at exactly that version; a missing
+  or different one goes to npx with the exact pin (decided 2026-10-09: refusing left a user with a
+  moved global CLI without a server). An explicit `NOACG_CLI` path remains a disclosed development
+  override; a missing override fails instead of falling through.
+- Each host gets an MCP entry it can start: Claude Code's `.mcp.json` uses `${CLAUDE_PLUGIN_ROOT}`,
+  which Codex does not expand, so the Codex manifest names `codex-mcp.json` (relative launcher,
+  `cwd` at the plugin root). Checked against Codex 0.163.0-alpha.2 on 2026-10-09.
 - Distribution includes only allowlisted manifests, skill/references, command, launcher, icons,
   READMEs and Apache licence material. npm dependencies and browsers remain separate downloads.
 - Ordinary Claude Chat cannot run the local CLI. Local execution requires Claude Code, a local

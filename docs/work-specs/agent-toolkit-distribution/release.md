@@ -22,14 +22,16 @@ record the Node/zlib versions; use that toolchain for byte-identical compressed 
 The source remains `cli/skill/noacg-graphic`, the plugin metadata/READMEs/command and launcher.
 `cli/scripts/build-skill.mjs` keeps the skill copies, CLI pins, manifests and licences current.
 `npm run check:toolkit` checks distribution shape and independent host metadata without writing
-output. The build also runs its rejection/ZIP/launcher tests.
+output. The build also runs its rejection/ZIP/launcher tests. On pull requests that touch
+these sources, `.github/workflows/toolkit-distribution.yml` generates the distribution, measures
+the branch archive and runs a pinned `claude plugin validate --strict` on every Claude folder.
 
 ## Release path
 
 1. Make source changes and bump `cli/package.json` through the existing CLI release procedure.
    Synchronize its lockfile, write the changelog and run the existing CLI build/skill generator.
    All runtime CLI dependencies remain exact and lockfile-backed. `/check` and `/queue-merge`
-   govern landing. Initial Phase 1 packages depend on the already published CLI 0.8.1.
+   govern landing. The first generated packages pin the published CLI 0.9.0.
 2. The existing release workflow builds/tests the CLI and generates these packages from that
    clean source commit. The `noacg-agent-toolkit-<version>` Actions artifact contains the actual
    ZIPs and measurements. Download it, extract the outer Actions archive, then upload the inner

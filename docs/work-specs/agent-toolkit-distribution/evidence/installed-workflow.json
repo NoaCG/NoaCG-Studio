@@ -1,71 +1,52 @@
 {
-  "artifactSourceCommit": "2036628c117d174fbbceb01b469e59427b8235b9",
-  "cli": "0.8.1",
+  "date": "2026-10-09",
+  "artifactSourceCommit": "37eac5cdb7b5749e0b3df34cf087104c7b6c2409",
+  "plugin": "0.9.0",
+  "cli": "0.9.0",
   "hosts": {
     "claudeCode": "2.1.287",
-    "codexCli": "0.162.0-alpha.9"
+    "codexCli": "0.163.0-alpha.2"
   },
   "node": "24.13.0",
-  "bridge": {
-    "channel": "noacg-bridge",
-    "v": 1,
-    "app": {
-      "commit": "5b91be155a1439e4b7d36f578f43b5a69eb047f8",
-      "ref": "main"
-    },
-    "origin": "https://noacg.studio"
+  "deployment": {
+    "origin": "https://noacg.studio",
+    "bridge": "v1 (main@c588234490)"
   },
-  "publicCliIntegrity": "sha512-+XODKUoqyv/Z3zFksVMggOTNuyr/1UwqTH0sL/kxte9V/ryOPRAkKuhQiVnIoKqmyfkVVLcchRBAX7gYvvwOxA==",
-  "installedLockSha256": "0f6b95a2ff26f83f24570cb13d3273514b10488234ccb0567902ce5699db0f55",
-  "audit": {
-    "freshPublicInstallation": 0,
-    "sourceCliLock": {
-      "high": 1,
-      "moderate": 3
-    }
+  "artifact": {
+    "repositoryZipBytes": 397448,
+    "repositoryUnpackedBytes": 485249,
+    "repositoryFiles": 31,
+    "repositoryEntries": 45,
+    "distributionBranchArchiveBytes": 403667,
+    "claudePluginValidateStrict": ["repository", "repository/plugins/noacg", "repository/plugins/noacg-mcp", "claude", "claude-mcp"]
   },
-  "commands": {
-    "doctor": 0,
-    "scaffold": 0,
-    "inspect": 0,
-    "validate": 0,
-    "screenshot": 0,
-    "offlinePack": 0,
-    "saveMissingLogin": 1,
-    "saveInvalidSyntheticKey": 1,
-    "missingBrowser": 2,
-    "unreachableDeployment": 2
+  "profiles": {
+    "claudeCode": "CLAUDE_CONFIG_DIR under ignored cli/dist/toolkit-profiles; marketplace added from the generated repository folder; noacg and noacg-mcp installed; claude mcp list: Connected",
+    "codexMarketplace": "CODEX_HOME under the same folder; noacg and noacg-mcp installed from the generated repository; the skill appears in the model prompt input; the MCP server starts from codex-mcp.json",
+    "codexUploadZip": "a second CODEX_HOME installs noacg from the extracted noacg-codex-0.9.0.zip"
   },
-  "validation": {
-    "ok": true,
-    "staticGate": {
-      "ok": true,
-      "errors": [],
-      "warnings": []
-    },
-    "bench": {
-      "ok": true,
-      "errors": [],
-      "warnings": [
-        {
-          "rule": "bench-stress",
-          "message": "#f1 extends past .scoreboard-box, the nearest thing painted behind it, once every text value is doubled in length - part of the text reads straight against the video. Either let the surface follow the content (width: fit-content, padding) or keep the text inside it."
-        }
-      ]
-    }
+  "launcher": {
+    "installedGlobalCli": "0.3.3",
+    "behaviour": "installed 0.3.3 not used; pinned npx ran @noacg/cli@0.9.0 from an empty isolated npm cache",
+    "server": "noacg 0.9.0",
+    "verbs": ["types", "scaffold", "validate", "inspect", "screenshot", "docs", "save", "pack"],
+    "exitedOnStdinClose": true
   },
-  "mcp": {
-    "pinnedMissingCliFallback": true,
-    "initialize": true,
-    "toolList": true
+  "brief": "A curling scoreboard: two teams and scores, the end being played, which team has the hammer, buttons for points, next end and hammer",
+  "calls": {
+    "types": "ok",
+    "scaffold duel-score design sb26": "ok (design neutral refused: this type has no neutral scaffold)",
+    "validate with screenshots": "ok, 0 errors, 0 warnings after one 22px to 24px fix",
+    "inspect": "ok, 6 inputs, 9 buttons",
+    "screenshot after pointA, pointA, nextEnd, hammerB, pointB over video": "ok, 2-1, END 2, hammer on team 2",
+    "pack out .noacgpack.json": "ok, 1 graphic",
+    "save": "refused: not logged in (isolated key store)"
   },
-  "notChecked": [
-    "successful account-backed save",
-    "real self-hosted deployment",
-    "missing Node machine",
-    "managed organization denial",
-    "portal validation and review",
-    "authenticated model-driven host session",
-    "publication and directory discovery"
+  "notRehearsed": [
+    "an authenticated model-driven session in either host (no sign-in in an isolated profile); the brief was driven through the installed MCP launcher by the rehearsing agent, reading the installed skill",
+    "account-backed save and pack --save",
+    "opening the pack in the NoaCG studio (Home, Import a package)",
+    "the portal's own validation, security scan and review",
+    "the distribution branch push, which the next CLI release performs"
   ]
 }
