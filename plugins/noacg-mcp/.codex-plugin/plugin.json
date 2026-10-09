@@ -1,0 +1,36 @@
+{
+  "name": "noacg-mcp",
+  "version": "0.10.1",
+  "description": "The NoaCG CLI as an always-on MCP server for Codex: one tool, noacg, with the CLI's verbs (types, scaffold, validate with screenshots, inspect, screenshot, docs, save, pack). Optional - the noacg plugin's skill drives the same CLI from the terminal with no server.",
+  "author": {
+    "name": "NoaCG Studio",
+    "url": "https://noacg.studio"
+  },
+  "homepage": "https://noacg.studio",
+  "repository": "https://github.com/NoaCG/NoaCG-Studio",
+  "license": "Apache-2.0",
+  "mcpServers": "./codex-mcp.json",
+  "keywords": [
+    "broadcast-graphics",
+    "ograf",
+    "spx",
+    "casparcg",
+    "mcp"
+  ],
+  "interface": {
+    "displayName": "NoaCG MCP server",
+    "shortDescription": "The NoaCG CLI as an MCP tool",
+    "longDescription": "One MCP tool, noacg, speaking the NoaCG CLI's verbs with a browser kept warm between calls. Optional: the noacg plugin's skill drives the same CLI from the terminal with no server running; install this one when you want the tool present in every session.",
+    "developerName": "NoaCG Studio",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Write"
+    ],
+    "websiteURL": "https://noacg.studio",
+    "privacyPolicyURL": "https://noacg.studio/privacy",
+    "termsOfServiceURL": "https://noacg.studio/terms",
+    "defaultPrompt": [],
+    "screenshots": [],
+    "brandColor": "#F6A623"
+  }
+}
