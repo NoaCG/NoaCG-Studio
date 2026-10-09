@@ -1028,7 +1028,7 @@ let ffmpegAvailable = null;
 
 async function haveFfmpeg() {
   if (ffmpegAvailable === null) {
-    ffmpegAvailable = await runFfmpeg(FFMPEG, ['-version']).then(() => true).catch(() => false);
+    ffmpegAvailable = await runFfmpeg(FFMPEG, ['-version'], { windowsHide: true }).then(() => true).catch(() => false);
     if (!ffmpegAvailable) {
       console.log(`  ! ${FFMPEG} not found - the gallery will show stills only.`
         + ' Set FFMPEG_PATH to encode the motion strips.');
@@ -1062,7 +1062,7 @@ async function encodeClips(slug, scratch, clipCounts) {
         '-vf', `scale=${CLIP_WIDTH}:-2,format=rgb24`,
         '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-b:v', '0', '-crf', '34', '-row-mt', '1',
         '-an', path.join(OUT, out),
-      ]);
+      ], { windowsHide: true });
       clips[strip] = out;
     } catch (error) {
       console.log(`  ! could not encode ${out}: ${error.message.split('\n')[0]}`);

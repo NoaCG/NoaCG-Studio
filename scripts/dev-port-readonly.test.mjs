@@ -31,7 +31,7 @@ function cleanEnv() {
 }
 
 function git(cwd, ...args) {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   assert.equal(res.status, 0, `git ${args.join(' ')}: ${res.stderr}`);
   return res.stdout.trim();
 }
@@ -78,7 +78,7 @@ function fullRegistryRepo(t, ageMs = 0) {
 }
 
 function node(cwd, args) {
-  return spawnSync(process.execPath, args, { cwd, encoding: 'utf8', env: cleanEnv() });
+  return spawnSync(process.execPath, args, { cwd, encoding: 'utf8', env: cleanEnv(), windowsHide: true });
 }
 
 test('with every port reserved, postinstall still succeeds and asking reserves nothing', (t) => {
@@ -146,7 +146,7 @@ test('loading every config that names a port reserves nothing', () => {
     await resolveConfig({ configFile: 'vite.config.ts', logLevel: 'silent', appType: 'custom', server: { middlewareMode: true } }, 'serve');
     process.stdout.write(JSON.stringify({ before, after: snap() }));
   `;
-  const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: repoRoot, encoding: 'utf8', env: cleanEnv() });
+  const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: repoRoot, encoding: 'utf8', env: cleanEnv(), windowsHide: true });
   assert.equal(res.status, 0, res.stderr);
   const { before, after } = JSON.parse(res.stdout.slice(res.stdout.indexOf('{"before"')));
   assert.deepEqual(after, before, 'a config load or a build reserved a dev port');

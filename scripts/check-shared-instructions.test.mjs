@@ -31,7 +31,7 @@ test('shared-instructions gate accepts the repository and refuses instruction dr
     const remaining = Math.floor(deadline - performance.now());
     assert.ok(remaining > 0, 'fixture suite must finish in under two minutes');
     const result = spawnSync(command, args, {
-      cwd, env, encoding: 'utf8', timeout: remaining, maxBuffer: 4 * 1024 * 1024,
+      cwd, env, encoding: 'utf8', timeout: remaining, maxBuffer: 4 * 1024 * 1024, windowsHide: true,
     });
     assert.ifError(result.error);
     assert.equal(result.signal, null, `${command} was terminated: ${result.stderr}`);

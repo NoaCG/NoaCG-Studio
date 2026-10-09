@@ -23,7 +23,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 }).trim();
+const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28, windowsHide: true }).trim();
 const lines = (text) => text.split('\n').map((l) => l.trim()).filter(Boolean);
 
 function parse(argv) {
@@ -79,7 +79,7 @@ function openBranches(old) {
 }
 
 function refExists(ref) {
-  return spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd: ROOT, stdio: 'ignore' }).status === 0;
+  return spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd: ROOT, stdio: 'ignore', windowsHide: true }).status === 0;
 }
 
 const key = (p) => JSON.stringify({ mode: p.mode, specs: p.specs, catalog: p.catalog, configured: p.configured, unmapped: p.unmapped, focusApplied: p.focusApplied });

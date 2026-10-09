@@ -158,7 +158,7 @@ console.log(`Run npm run video:bench:report -- --input="${outputDir}" after scor
 
 async function run(command, commandArgs) {
   return new Promise((resolve) => {
-    const child = spawn(command, commandArgs, { cwd: root, stdio: 'inherit' });
+    const child = spawn(command, commandArgs, { cwd: root, stdio: 'inherit', windowsHide: true });
     child.on('exit', (code) => resolve(code ?? 1));
     child.on('error', () => resolve(1));
   });
@@ -166,7 +166,7 @@ async function run(command, commandArgs) {
 
 async function commandOutput(command, commandArgs) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, commandArgs, { cwd: root, stdio: ['ignore', 'pipe', 'inherit'] });
+    const child = spawn(command, commandArgs, { cwd: root, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true });
     let output = '';
     child.stdout.on('data', (chunk) => { output += chunk; });
     child.on('exit', (code) => code === 0 ? resolve(output.trim()) : reject(new Error(`${command} failed`)));

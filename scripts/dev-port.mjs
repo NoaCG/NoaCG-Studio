@@ -129,7 +129,7 @@ const busyCache = new Map();
 function isPortBusySync(port) {
   if (busyCache.has(port)) return busyCache.get(port);
   const probe = join(repoRoot, 'scripts', 'port-probe.mjs');
-  const res = spawnSync(process.execPath, [probe, String(port), String(port + 1)], { encoding: 'utf8' });
+  const res = spawnSync(process.execPath, [probe, String(port), String(port + 1)], { encoding: 'utf8', windowsHide: true });
   let map = {};
   if (res.status === 0 && typeof res.stdout === 'string') {
     try {

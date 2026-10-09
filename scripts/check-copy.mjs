@@ -320,7 +320,7 @@ export function compare(baseline, actual) {
 }
 
 function listFiles() {
-  return execFileSync('git', ['ls-files', '--', ...SCANNED], { cwd: projectRoot, encoding: 'utf8' })
+  return execFileSync('git', ['ls-files', '--', ...SCANNED], { cwd: projectRoot, encoding: 'utf8', windowsHide: true })
     .split('\n')
     .map((f) => f.trim())
     .filter(Boolean)

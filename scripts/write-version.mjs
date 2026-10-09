@@ -26,7 +26,7 @@ import { lastAffectingCommit } from './deploy-affecting-paths.mjs';
 
 const fromGit = (args) => {
   try {
-    return execSync(`git ${args}`, { encoding: 'utf8' }).trim();
+    return execSync(`git ${args}`, { encoding: 'utf8', windowsHide: true }).trim();
   } catch {
     return null;
   }

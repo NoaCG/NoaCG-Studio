@@ -332,6 +332,7 @@ function powershell(command) {
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
     shell: false,
+    windowsHide: true,
   });
   if (result.error || result.status !== 0) {
     throw new Error(`PowerShell failed: ${result.error?.message ?? result.stderr?.trim() ?? `exit ${result.status}`}`);
@@ -383,7 +384,7 @@ const freeMemoryBytes = () => freemem();
  * is no graceful path at all: see the header on MainWindowHandle.
  */
 function close(pid) {
-  const result = spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8', shell: false });
+  const result = spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8', shell: false, windowsHide: true });
   return result.error ? { ok: false, message: result.error.message } : { ok: result.status === 0, message: '' };
 }
 

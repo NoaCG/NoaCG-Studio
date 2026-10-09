@@ -8,7 +8,7 @@ import test from 'node:test';
 const SCRIPT = new URL('./instruction-audit.mjs', import.meta.url);
 
 test('the audit reports budgets and every review list the monthly review reads', () => {
-  const run = spawnSync(process.execPath, [SCRIPT.pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--json'], { encoding: 'utf8' });
+  const run = spawnSync(process.execPath, [SCRIPT.pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--json'], { encoding: 'utf8', windowsHide: true });
   assert.equal(run.status, 0, run.stderr);
   const report = JSON.parse(run.stdout);
   assert.equal(report.snapshot.always.unscopedRules, 0, 'no .claude/rules file may load in every session');

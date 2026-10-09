@@ -86,7 +86,7 @@ function main() {
   if (mode === 'run' && rest.length > 0) {
     const prompt = `Use the Read tool to read only the first 2 lines of each of these files, one at a time: ${rest.join(', ')}. Then reply DONE.`;
     const run = spawnSync(process.env.CLAUDE_BIN || 'claude', ['-p', prompt, '--model', 'claude-haiku-4-5-20251001',
-      '--allowedTools', 'Read', '--output-format', 'json'], { cwd: ROOT, encoding: 'utf8' });
+      '--allowedTools', 'Read', '--output-format', 'json'], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
     if (run.status !== 0) throw new Error(`claude exited ${run.status}: ${run.stderr || run.error}`);
     return report(transcriptFor(JSON.parse(run.stdout).session_id)) ? 1 : 0;
   }

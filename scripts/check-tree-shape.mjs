@@ -72,7 +72,7 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
 /** Tracked paths, one per line, from git itself rather than a directory walk - the question is
  *  "what is COMMITTED", and a walk would also see ignored and untracked files. */
 export function trackedPaths(cwd = repoRoot) {
-  return execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  return execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true })
     .split('\0')
     .filter(Boolean);
 }

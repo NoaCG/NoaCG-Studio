@@ -108,6 +108,7 @@ export function changedFiles(from, to, cwd = process.cwd()) {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      windowsHide: true,
     });
     return out.split('\n').map((s) => s.trim()).filter(Boolean);
   } catch {
@@ -132,7 +133,7 @@ export function lastAffectingCommit(ref, cwd = process.cwd(), limit = 400) {
   const log = execFileSync(
     'git',
     ['log', '--first-parent', '-m', '--no-renames', '--name-only', '--format=%x00%H', `--max-count=${limit}`, ref],
-    { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true },
   );
   for (const block of log.split('\0').slice(1)) {
     const [sha, ...files] = block.split('\n');

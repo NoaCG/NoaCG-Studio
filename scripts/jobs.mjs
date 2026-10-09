@@ -1093,6 +1093,7 @@ function spawnJob(job) {
     shell: true,
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
   });
   // `{ end: false }`, and the stream is closed once below. Two sources piping into one destination
   // otherwise means the FIRST of them to finish calls `out.end()`, and whatever the other writes

@@ -32,7 +32,7 @@ const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(projectRoot, 'public', 'landing');
 mkdirSync(outDir, { recursive: true });
 
-const port = execSync('node scripts/dev-port.mjs', { cwd: projectRoot }).toString().trim();
+const port = execSync('node scripts/dev-port.mjs', { cwd: projectRoot, windowsHide: true }).toString().trim();
 const base = `http://localhost:${port}`;
 
 const only = (process.argv.find((a) => a.startsWith('--only=')) ?? '').slice('--only='.length);

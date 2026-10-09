@@ -46,7 +46,7 @@ const refAt = args.indexOf('--ref');
 const REF = refAt >= 0 ? args[refAt + 1] : 'origin/main';
 
 const run = (cmd, cmdArgs, opts = {}) =>
-  execFileSync(cmd, cmdArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts }).trim();
+  execFileSync(cmd, cmdArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts, windowsHide: true }).trim();
 
 const git = (...a) => run('git', a);
 const fail = (message, fix) => {
@@ -296,7 +296,7 @@ if (!verifyOnly) {
   if (!runId) fail('the tag was pushed but no run appeared for it', 'Check the Actions tab; the publish may still be running.');
 
   try {
-    execFileSync('gh', ['run', 'watch', runId, '--exit-status'], { stdio: 'inherit' });
+    execFileSync('gh', ['run', 'watch', runId, '--exit-status'], { stdio: 'inherit', windowsHide: true });
   } catch {
     fail(
       `the release run failed — gh run view ${runId} --log-failed`,

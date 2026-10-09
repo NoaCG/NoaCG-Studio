@@ -112,7 +112,7 @@ console.log(`html-kind PASS: ${buf.byteLength} bytes in ${((Date.now() - t0) / 1
 const { execFileSync } = await import('node:child_process');
 const { readFileSync, mkdirSync } = await import('node:fs');
 mkdirSync('.render-dev', { recursive: true });
-execFileSync('node', ['scripts/make-remotion-manifest.mjs', '.render-dev/smoke-remotion.json', '40', 'mp4']);
+execFileSync('node', ['scripts/make-remotion-manifest.mjs', '.render-dev/smoke-remotion.json', '40', 'mp4'], { windowsHide: true });
 const remotionManifest = JSON.parse(readFileSync('.render-dev/smoke-remotion.json', 'utf8'));
 
 // The smoke submits 4 jobs total but the anonymous quota is 2/h - give each phase-2 job
