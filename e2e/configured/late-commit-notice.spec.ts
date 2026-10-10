@@ -10,8 +10,8 @@
 // request is held and then sent from outside the page, after the page has given up and said so.
 // Holding the request in the browser instead is the other story, late-send-abandoned.spec.ts.
 //
-// Mutation-tested: without the transport's check (hostedControl.ts `heard`) the first walk shows
-// the notice; without a page's `hearCommand` its notice stays up after the late row lands.
+// Red before the fix, at the first walk's notice assertion (configured-suite run 38055424031), and
+// green with it (run 38055648571).
 // covers: src/control/failedSends.ts
 
 import { publishProduction } from '../_publish';
