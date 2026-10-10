@@ -10,7 +10,7 @@ test('actual browser 125 percent zoom cumulative qualification', async()=>{
   const extension=resolve(test.info().outputPath('zoom-extension')); mkdirSync(extension,{recursive:true});
   writeFileSync(extension+'/manifest.json',JSON.stringify({manifest_version:3,name:'Disposable physical browser zoom probe',version:'1.0',permissions:['tabs'],background:{service_worker:'worker.js'}}));
   writeFileSync(extension+'/worker.js','chrome.runtime.onInstalled.addListener(() => {});');
-  const context=await chromium.launchPersistentContext(test.info().outputPath('profile'),{headless:false,channel:'chromium',viewport:null,baseURL:String(test.info().project.use.baseURL),args:['--window-size=1366,768','--disable-extensions-except='+extension,'--load-extension='+extension]});
+  const context=await chromium.launchPersistentContext(test.info().outputPath('profile'),{headless:false,channel:'chromium',viewport:null,deviceScaleFactor:undefined,isMobile:undefined,baseURL:String(test.info().project.use.baseURL),args:['--window-size=1366,768','--disable-extensions-except='+extension,'--load-extension='+extension]});
   const page=context.pages()[0]; const errors:string[]=[]; page.on('pageerror',e=>errors.push(e.message));
   try {
     const worker=context.serviceWorkers()[0]??await context.waitForEvent('serviceworker');
@@ -20,6 +20,7 @@ test('actual browser 125 percent zoom cumulative qualification', async()=>{
       if(!tab?.id) throw Error('No application browser tab'); await chrome.tabs.setZoom(tab.id,1.25); return chrome.tabs.getZoom(tab.id);
     }); expect(zoom).toBe(1.25);
     const metrics=await page.evaluate(()=>({innerWidth,innerHeight,outerWidth,outerHeight,devicePixelRatio,visualScale:visualViewport?.scale}));
+    writeFileSync(test.info().outputPath('browser-zoom-initial.json'),JSON.stringify({zoom,metrics},null,2));
     expect(metrics.devicePixelRatio).toBe(1.25); expect(metrics.outerWidth).toBe(1366);
   await open(page); const initial=await source(page); await select(page,'#f0');
   await page.getByRole('textbox',{name:'Artwork text',exact:true}).fill('Elena Marquez'); await page.getByRole('button',{name:'Apply text',exact:true}).click(); await expect((await frame(page)).locator('#f0')).toHaveText('Elena Marquez');
@@ -28,7 +29,7 @@ test('actual browser 125 percent zoom cumulative qualification', async()=>{
   const edited=await source(page); await undo(page); await redo(page); expect(await source(page)).toEqual(edited); const h=(await inspection(page)).history;
   await scrub(page,x,30,undefined,'Escape'); expect(await source(page)).toEqual(edited); expect((await inspection(page)).history).toEqual(h);
   await page.getByRole('button',{name:'Hide Live plate layer',exact:true}).click(); await expect((await frame(page)).locator(shape)).toBeHidden();
-  const saved=await saveReopen(page,'Layer property qualification'); expect(saved.assets).toEqual(initial.assets); expect(saved.html).toContain('festival-mask'); expect(saved.html).toContain('id="festival-config"');
+  const saved=await saveReopen(page,'Layer property qualification'); expect(saved.assets).toEqual(initial.assets); expect(saved.html.match(/<div class="graphic-mask">/g)).toEqual(initial.html.match(/<div class="graphic-mask">/g)); expect(saved.html).toContain('id="festival-config"');
   await seek(page,0); const receipts=[];
   for(const target of ['spx','casparcg','ograf']){
     const files=await page.evaluate(async target=>{
@@ -54,5 +55,5 @@ test('actual browser 125 percent zoom cumulative qualification', async()=>{
     await capture(page,test.info().outputPath('actual-125.png'));
     const finalZoom=await worker.evaluate(async()=>{const tabs=await chrome.tabs.query({url:'http://127.0.0.1/*'});return chrome.tabs.getZoom(tabs.find(t=>t.url?.includes('/app'))!.id!);});expect(finalZoom).toBe(1.25);
     writeFileSync(test.info().outputPath('browser-zoom.json'),JSON.stringify({zoom,finalZoom,metrics,errors,canvas:await page.getByTestId('foundation-canvas').boundingBox()},null,2)); expect(errors).toEqual([]);
-  } finally {await context.close();}
+  } catch(error) { await page.screenshot({path:test.info().outputPath('zoom-failed.png')}); throw error; } finally {await context.close();}
 });

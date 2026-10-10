@@ -48,6 +48,8 @@ test('pinned Studio comparable layer and property interactions', async ({ page }
     await page.getByRole('button',{name:'Add Rectangle',exact:true}).focus();
     await page.keyboard.press('Control+z'); observations.undoCount=await rows.count();
     await page.keyboard.press('Control+Shift+z'); observations.redoCount=await rows.count();
+    await page.getByRole('button',{name:'Edit',exact:true}).click(); await page.getByRole('menuitem',{name:/^Undo /}).first().click(); await expect(rows).toHaveCount(3); observations.explicitUndo=await rows.count();
+    await page.getByRole('button',{name:'Edit',exact:true}).click(); await page.getByRole('menuitem',{name:/^Redo /}).first().click(); await expect(rows).toHaveCount(2); observations.explicitRedo=await rows.count();
     writeFileSync(test.info().outputPath('reference-created.txt'),await page.locator('body').ariaSnapshot());
     await page.screenshot({path:test.info().outputPath('reference-created.png')});
   } finally {child.kill();writeFileSync(test.info().outputPath('reference-server.log'),log);writeFileSync(test.info().outputPath('reference-observations.json'),JSON.stringify(observations,null,2));}
