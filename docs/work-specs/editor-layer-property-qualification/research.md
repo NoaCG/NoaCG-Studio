@@ -22,9 +22,9 @@ Inspected paths and source behavior:
 Source tests were inspected, not executed. Runtime matches, shortfalls and deliberate NoaCG differences must be recorded after the comparable task, before correction design.
 
 ## Execution status
-Local transform browser job j-4201 was held below the scheduler 4 GB RAM floor and cancelled before execution. Local baseline/reference probe is queued through the same scheduler. No browser-memory limit or user application was changed.
+Local transform browser job j-4201 was held below the scheduler 4 GB RAM floor and cancelled before execution. Local baseline/reference job j-4203 was also cancelled while held. No browser-memory limit or user application was changed.
 
-A disposable manual-only CI probe is prepared in ignored `.noacg/layer-property/research.spec.ts` and `probe-workflow.yml`. It grants only contents:read, verifies the Linux release binary checksum and uploads test-results. Automatic approval review rejected creating/pushing/dispatching this remote probe because it expands remote workflow/binary execution. User approval is pending; no remote probe branch/workflow was created. These local preparations are not passing runtime evidence.
+A disposable manual-only CI probe is prepared in ignored `.noacg/layer-property/research.spec.ts` and `probe-workflow.yml`. It grants only contents:read, verifies the Linux release binary checksum and uploads test-results. Automatic approval review rejected creating/pushing/dispatching this remote probe because it expands remote workflow/binary execution. The user explicitly approved the disposable remote probe on 2026-10-10. Separate non-landing branch `codex/editor-layer-property-probe` holds the manual-only workflow; the product branch does not. Run 38077595726 reached both editors but failed harness assumptions (reference icon buttons are named Add Rectangle; Whole graphic intentionally has no base transform). Corrected comparable probes are running. No passing runtime claim is made from that failed discovery run.
 
 ## NoaCG source candidates
 Current-main inspection shows the Properties inspector already exposes Position/Layout offset, Scale and Rotation without keys and distinct accessibility names for property animation and current-key actions. Composition and Back to Composition are visible source routes. Canvas additive selection, persistent tools and existing source/session history remain in place.
@@ -38,3 +38,4 @@ Fetched Eyevinn ograf-editor `616841bd949e3a21137579451123f66c292543f0` into ign
 The source branch contains the completed independent transform comparison through #960/fb3edd49. Nothing in `docs/work-specs/editor-transform-qualification/independent/` or the maintained `e2e/editor-cli-round-trip.spec.ts` has been changed. Their regression assertions and output/source/channel/context contracts remain binding.
 
 The NoaCG interaction contract (`EDITOR_REBUILD_PLAN.md`, per-property controls) documents Shift 10x and Ctrl on Windows/Cmd on macOS 0.1x for number scrubbing. Studio uses Alt 0.1x. Preserve the NoaCG documented modifier contract when qualifying a correction; a reference convention does not override it. The plan also names A/P/S/R/T property reveal and U for animated properties, which must be recorded as existing passes or remaining limitations rather than silently declared complete.
+
