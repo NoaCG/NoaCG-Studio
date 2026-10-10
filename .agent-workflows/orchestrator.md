@@ -146,13 +146,14 @@ CI is green after the last landing, and look at the changed public surfaces on p
 write the report into the wave file under `## Report` and send it to the owner. A row still
 running at the window's end keeps running; the report says so.
 
-**The report**, at most 25 lines, in plain words for a non-technical reader:
+**The report**, at most 25 lines and its prompt, in plain words for a non-technical reader:
 
 1. **Needs you**, first, each with the exact step, or "nothing".
 2. **Issues**: opened and closed in the wave, and open at its start and end; why each new one waits.
 3. **Shipped**: one line per pull request, what changed for a user and how it was verified.
 4. **Not done or not checked**: one line each, with its issue and its row's next-session link.
 5. **Retro**: at most three findings and what was done about each.
+6. **The prompt**, last: one code block a fresh session uses to walk him through 1 and 4, linked.
 
 ## 6. The retro: improve without growing
 
