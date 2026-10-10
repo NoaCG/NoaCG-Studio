@@ -279,8 +279,9 @@ export-time reflow, stretching, or cropping.
   ships none). Beside it sits `v_spx`, SPX's own vendor keys (root layer and out mode, each
   property's SPX field type), and the `ograf` target adds `spx-custom-actions.js` to a graphic
   with custom actions, the controller function SPX 1.4.1 lacks. The Graphic also hands its
-  template a `gsap` that resolves selector strings inside itself, in the timelines it makes too
-  (`scopedGsap`), and starts its
+  template a `gsap` that resolves selector strings inside itself, in array targets and in the
+  timelines it makes too (`scopedGsap`), a `window` whose `document` is the scoped one
+  (`scopedWindow`), and starts its
   element from initial values against the host's styles. Why, measured: docs/SPX_ON_A_REAL_SERVER.md §10.
 - **targets/ografImport.ts** - the READER: `readOgrafPackage(files)` finds the shallowest
   manifest, validates manifest + package, reads `v_noacg` (`readNoacgVendorBlock`), compares the

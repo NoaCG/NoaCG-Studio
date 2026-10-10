@@ -6,6 +6,7 @@
 // covers: src/templates/**
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
@@ -57,6 +58,7 @@ async function serve(page: Page, zip: JSZip, origin: string, folder: string) {
       body,
     });
   });
+  await installGraphicBody(page);
   return [...files.keys()];
 }
 
@@ -263,8 +265,8 @@ test('skipAnimation lands the action instantly, in real time', async ({ page }) 
     // clears the inline properties when the exit ends, and the box has no CSS opacity of its own,
     // so it returns to 1 while the root sits at 0. Reading the exit off the box would assert that
     // an off-air graphic is fully opaque.
-    const boxOpacity = (el: HTMLElement) => getComputedStyle(el.querySelector('.lower-third-box')!).opacity;
-    const rootOpacity = (el: HTMLElement) => getComputedStyle(el.querySelector('.lower-third')!).opacity;
+    const boxOpacity = (el: HTMLElement) => getComputedStyle(graphicBody(el).querySelector('.lower-third-box')!).opacity;
+    const rootOpacity = (el: HTMLElement) => getComputedStyle(graphicBody(el).querySelector('.lower-third')!).opacity;
     // ONE graphic at a time, disposed before the next is mounted. The template's own runtime
     // addresses its elements with document-wide selectors — exactly as it does under SPX, where
     // a template owns its page — so two instances of the same design sharing one document would
@@ -323,7 +325,7 @@ test('the loaded Graphic resolves its own fonts and images against the PACKAGE, 
     const el = document.createElement('ograf-assets-under-test') as Driver;
     document.body.appendChild(el);
     await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
-    const css = el.querySelector('style')!.textContent!;
+    const css = (el.shadowRoot ?? el).querySelector('style')!.textContent!;
     const refs = [...css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)].map((m) => m[1]);
     // Fetching each one is the dangling-reference half: the fake origin 404s anything the
     // package does not contain, so a 200 means the file is really there under that path.
@@ -378,13 +380,13 @@ test('two DIFFERENT graphics in one document do not write into each other', asyn
     // Update ONLY b. a must be untouched, and b must actually have changed.
     await b.updateAction({ data: { f0: 'B owns this' } });
     return {
-      a: a.querySelector('#f0')?.textContent,
-      b: b.querySelector('#f0')?.textContent,
-      duplicateIds: document.querySelectorAll('#f0').length,
+      a: graphicBody(a).querySelector('#f0')?.textContent,
+      b: graphicBody(b).querySelector('#f0')?.textContent,
+      withF0: [a, b].filter((el) => graphicBody(el).querySelector('#f0')).length,
     };
   });
 
-  expect(result.duplicateIds, 'the two graphics did not both mount an #f0 — nothing was proven').toBe(2);
+  expect(result.withF0, 'the two graphics did not both mount an #f0 — nothing was proven').toBe(2);
   expect(result.b, "the updated graphic's own field did not change").toBe('B owns this');
   expect(result.a, 'updating one graphic rewrote the graphic beside it').toBe('A owns this');
 });
@@ -422,7 +424,7 @@ test('actions called concurrently, too early, or after dispose all answer with a
       el.updateAction({ data: { f0: 'Third' } }),
     ];
     const settled = await Promise.all(pending);
-    const afterConcurrent = el.querySelector('#f0')?.textContent;
+    const afterConcurrent = graphicBody(el).querySelector('#f0')?.textContent;
 
     const unknownAction = await el.customAction({ id: 'no-such-action' });
     const disposed = await el.dispose({});
@@ -520,13 +522,13 @@ test("a renderer page's own text and box rules do not reach the graphic (SPX 1.4
       await el.playAction({ skipAnimation: true });
       await document.fonts.ready;
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      const boxes = [...el.querySelectorAll('*')]
+      const boxes = [...graphicBody(el).querySelectorAll('*')]
         .filter((e) => !['STYLE', 'SCRIPT'].includes(e.tagName))
         .map((e) => {
           const r = e.getBoundingClientRect();
           return [r.x, r.y, r.width, r.height];
         });
-      return { boxes, fontSize: getComputedStyle(el).fontSize };
+      return { boxes, fontSize: getComputedStyle(graphicBody(el)).fontSize };
     });
   };
 
@@ -572,20 +574,20 @@ test("one graphic's play or stop leaves the other graphics' animation alone, and
     await a.playAction({});
     // Hold the clock so the quiz's entrance is still running whatever the machine's speed.
     gsap.globalTimeline.pause();
-    const before = gsap.getTweensOf(a.querySelectorAll('*')).length;
+    const before = gsap.getTweensOf(graphicBody(a).querySelectorAll('*')).length;
     // SPX's own sequence for a Play: load, updateAction, playAction.
     const b = await mount(origins[1], 'spx-bug');
     await b.updateAction({ data: {} });
     await b.playAction({});
     await b.stopAction({});
-    const after = gsap.getTweensOf(a.querySelectorAll('*')).length;
+    const after = gsap.getTweensOf(graphicBody(a).querySelectorAll('*')).length;
     gsap.globalTimeline.resume();
     const c = await mount(origins[2], 'spx-mark');
     await c.updateAction({ data: { f1: './images/logo.png' } });
     return {
       before,
       after,
-      images: [...c.querySelectorAll('img')].map((img) => img.getAttribute('src')),
+      images: [...graphicBody(c).querySelectorAll('img')].map((img) => img.getAttribute('src')),
     };
   }, { origins: [quiz.origin, bug.origin, mark.origin] });
   expect(result.before, 'the quiz had no entrance running - nothing was proven').toBeGreaterThan(0);
@@ -819,7 +821,7 @@ test("mounting a Graphic leaves the renderer's page as it was, and paints the st
     await el.playAction({ skipAnimation: true });
     await document.fonts.ready;
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const s = getComputedStyle(el);
+    const s = getComputedStyle(graphicBody(el));
     return { display: s.display, position: s.position, width: s.width, height: s.height, overflow: s.overflowY };
   }, { origin: HOST_ORIGIN, data });
   const mounted = await shoot();
@@ -1003,9 +1005,9 @@ test("a mounted Graphic's timeline calls still fire — an operator action PAINT
       document.body.appendChild(el);
       await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
       await el.playAction({ skipAnimation: true });
-      const before = el.querySelectorAll('.quiz-sel').length;
+      const before = graphicBody(el).querySelectorAll('.quiz-sel').length;
       const action = await el.customAction({ id: 'select', payload: { [field]: pick }, skipAnimation: true });
-      const after = el.querySelectorAll('.quiz-sel').length;
+      const after = graphicBody(el).querySelectorAll('.quiz-sel').length;
       await el.dispose({});
       el.remove();
       return { statusCode: action.statusCode, before, after };

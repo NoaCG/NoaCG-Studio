@@ -1171,6 +1171,10 @@ function scopedDocument(root) {
  * template parks on window are per-graphic, so two designs on two layers cannot overwrite each
  * other's.
  *
+ * \`document\` is answered here too, with the graphic's scoped document: hand-written code that
+ * reaches the page as \`window.document.getElementById('f0')\` would otherwise find the
+ * renderer's first #f0, which is the neighbour's when another graphic mounted first.
+ *
  * ONE READ IS REWRITTEN, and only one: a host METHOD - \`getComputedStyle\`, \`setTimeout\`,
  * \`fetch\` - throws when it is called with any receiver but the real window, so it is handed
  * back bound. Nothing else is, because a bound function carries none of the original's own
@@ -1178,9 +1182,10 @@ function scopedDocument(root) {
  * and binding gsap would drop every method hanging off it. Host methods are exactly the native
  * functions with no \`prototype\`, which is what tells the two apart.
  */
-function scopedWindow(names) {
+function scopedWindow(names, doc) {
   const own = Object.create(null);
   for (const name of names) own[name] = undefined;
+  own.document = doc;
   const isHostMethod = (fn) =>
     !fn.prototype && /\\[native code\\]/.test(Function.prototype.toString.call(fn));
   return new Proxy(window, {
@@ -1209,7 +1214,9 @@ function scopedWindow(names) {
  * air - measured in SPX 1.4.1 with a quiz and a scorebug played 0.8 s apart
  * (docs/SPX_ON_A_REAL_SERVER.md §10). So a string target given to GSAP's own target-taking
  * calls is resolved inside this Graphic (the element itself included, being the template's
- * \`html\` and \`body\`); element targets and everything else are GSAP itself.
+ * \`html\` and \`body\`), and so is each string in an array target, which the competition
+ * reveals pass (\`gsap.set(['.reveal-subject', '.reveal-note'], ...)\`); element targets and
+ * everything else are GSAP itself.
  *
  * A TIMELINE resolves its own string targets the same document-wide way, and the animation
  * interpreter and the catalog's presets build every entrance and exit as \`tl.set('.x', ...)\`,
@@ -1220,6 +1227,7 @@ function scopedWindow(names) {
 function scopedGsap(root) {
   const real = window.gsap;
   const own = (targets) => {
+    if (Array.isArray(targets)) return targets.flatMap(own);
     if (typeof targets !== 'string') return targets;
     const inside = Array.from(root.querySelectorAll(targets));
     return root.matches(targets) ? [root].concat(inside) : inside;
@@ -1398,7 +1406,8 @@ class Graphic extends HTMLElement {
     this._claimCanvas(withPackageUrls.css(TEMPLATE_CSS));
     this.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
 
-    this._runtime = initTemplate(scopedDocument(this), scopedWindow(TIMELINE_FUNCTIONS), scopedGsap(this));
+    const doc = scopedDocument(this);
+    this._runtime = initTemplate(doc, scopedWindow(TIMELINE_FUNCTIONS, doc), scopedGsap(this));
     try {
       if (this._runtime.soundPrepare) await this._runtime.soundPrepare();
       const audioError = this._runtime.soundStatus && this._runtime.soundStatus();

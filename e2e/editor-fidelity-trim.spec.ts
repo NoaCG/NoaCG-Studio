@@ -5,6 +5,7 @@
 // covers: docs/research/editor-r1-1d/baseline/**, src/templates/importedDesign/svg.ts
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg } from './_svg-import';
@@ -143,6 +144,7 @@ test('wizard group transforms compose with child keys and preserve source and ex
       return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.woff2') ? 'font/woff2' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
     });
     if (target === 'ograf') {
+      await installGraphicBody(output);
       await output.goto('http://fidelity-output.local/');
       await output.evaluate(async () => {
         document.body.style.margin = '0';
@@ -159,7 +161,7 @@ test('wizard group transforms compose with child keys and preserve source and ex
         if (target !== 'ograf') host.gsap.globalTimeline.clear();
         const timeline = target === 'ograf' ? host.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - .8) < .001)! : host.buildStepTimeline(0);
         timeline.pause(); timeline.time(time, true); if (time === 0) timeline.render(0, true, true);
-        const el = document.querySelector('#f0')!, s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!;
+        const el = (target === 'ograf' ? graphicBody(document.querySelector('fidelity-graphic')!) : document).querySelector('#f0')!, s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!;
         return { visibility: s.visibility, opacity: Number(s.opacity), matrix: [m.a,m.b,m.c,m.d,m.e,m.f], text: el.textContent };
       }, { time: sample.time, target });
       expect(actual.visibility, target + ':' + sample.time).toBe(sample.pose.visibility); expect(actual.opacity).toBeCloseTo(sample.pose.opacity, 3); expect(actual.text).toBe(sample.pose.text);

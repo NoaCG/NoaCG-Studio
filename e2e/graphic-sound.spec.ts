@@ -5,6 +5,7 @@
 // focus
 
 import { test, expect } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
@@ -241,10 +242,11 @@ test('dual package preserves the attachment on import, OGraf isolates audio and 
   expect(r.loadA.statusCode).toBe(200); expect(r.loadB.statusCode).toBe(200);
   expect(r).toMatchObject({skipped:0,skippedAnswer:0,before:2,isolated:'running',closed:['closed','closed']});
   failOnce = true;
+  await installGraphicBody(page);
   const recovery = await page.evaluate(`(async()=>{
     const {default:Graphic}=await import('/sound-package/graphic.mjs');const g=new Graphic();document.body.append(g);
     const failed=await g.load({renderType:'realtime'}),empty=g.childNodes.length===0;
-    const retry=await g.load({renderType:'realtime'}),copies=g.querySelectorAll('#box').length;
+    const retry=await g.load({renderType:'realtime'}),copies=graphicBody(g).querySelectorAll('#box').length;
     await g.dispose();return{failed:failed.statusCode,empty,retry:retry.statusCode,copies};
   })()`);
   expect(recovery).toEqual({failed:500,empty:true,retry:200,copies:1});

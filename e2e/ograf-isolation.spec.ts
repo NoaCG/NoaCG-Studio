@@ -12,6 +12,7 @@
 // load(), play.
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 
 const ORIGIN = 'http://ograf-isolation.local';
 const GROUND = [10, 20, 30];
@@ -37,11 +38,13 @@ type Files = Record<string, string>;
  *    through `importSvgMarkup`, the template through the SVG variant's own `create` - and named,
  *    as the Finish step names it, so two designs carry two manifest ids;
  *  - `catalog`: the Hairline lower third with a probe added to its markup, stylesheet and code
- *    (`stretch` appends the importer's stretch runtime for a `probe` design instead of `js`).
+ *    (`stretch` appends the importer's stretch runtime for a `probe` design instead of `js`);
+ *  - `design`: a catalog design exactly as it ships.
  */
 type Source =
   | { kind: 'svg'; name: string; source: string }
-  | { kind: 'catalog'; name: string; html: string; css: string; js?: string; stretch?: boolean };
+  | { kind: 'catalog'; name: string; html: string; css: string; js?: string; stretch?: boolean }
+  | { kind: 'design'; id: string };
 
 /** Build an OGraf package in the app; the files come back base64, package-relative. */
 async function ografFiles(page: Page, from: Source): Promise<Files> {
@@ -54,6 +57,9 @@ async function ografFiles(page: Page, from: Source): Promise<Files> {
       const svg = importSvgMarkup(from.source);
       const designSvg = { markup: svg.markup, width: svg.width, height: svg.height, fields: [], images: [], outlines: [], fonts: [] };
       template = { ...IMPORTED_SVG.create({ designSvg } as never), name: from.name };
+    } else if (from.kind === 'design') {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      template = variantById(from.id)!.create({} as never);
     } else {
       const { variantById } = await import('/src/templates/catalog.ts');
       const { stretchRuntimeJs } = await import('/src/templates/importedDesign/stretch.ts');
@@ -92,6 +98,7 @@ async function serveRenderer(page: Page, packages: Record<string, Files>) {
     });
   });
   await page.setViewportSize({ width: 1920, height: 1080 });
+  await installGraphicBody(page);
   await page.goto(`${ORIGIN}/`);
 }
 
@@ -209,10 +216,10 @@ test("a child-combinator rule off `body` matches the design's own top-level elem
   await serveRenderer(page, { probe: files });
   await mount(page, 'probe', 'ograf-isolation-probe');
   const read = await page.evaluate(() => {
-    const el = document.querySelector('[data-folder="probe"]')!;
+    const body = graphicBody(document.querySelector('[data-folder="probe"]')!);
     return {
-      width: getComputedStyle(el.querySelector('.probe-card')!).width,
-      children: el.getAttribute('data-probe-children')!.split(' '),
+      width: getComputedStyle(body.querySelector('.probe-card')!).width,
+      children: body.getAttribute('data-probe-children')!.split(' '),
     };
   });
   expect(read.width, '`body > .probe-card` matched nothing').toBe('37px');
@@ -242,11 +249,105 @@ test('a stretch design measures the same room whether or not the renderer offset
     await page.evaluate((left) => { document.getElementById('stage')!.style.left = `${left}px`; }, left);
     await mount(page, 'stretch', 'ograf-isolation-stretch');
     const value = await page.evaluate(() =>
-      (document.querySelector('[data-folder="stretch"] .probe-box') as HTMLElement).style.getPropertyValue('--stretch-x'));
+      graphicBody(document.querySelector('[data-folder="stretch"]')!).querySelector<HTMLElement>('.probe-box')!.style.getPropertyValue('--stretch-x'));
     await unmount(page, 'stretch');
     return value;
   };
   const atOrigin = await stretchAt(0);
   expect(atOrigin, 'the fixture did not stretch at all - nothing was proven').toBe('143.2px');
   expect(await stretchAt(240), 'an offset stage changed how far the design stretches').toBe(atOrigin);
+});
+
+/** Run one OGraf action on a mounted graphic and return its status code. */
+async function act(page: Page, folder: string, action: 'playAction' | 'stopAction' | 'updateAction', params: Record<string, unknown> = {}) {
+  return page.evaluate(async ({ folder, action, params }) => {
+    const el = document.querySelector(`[data-folder="${folder}"]`) as unknown as Record<string, (p: unknown) => Promise<{ statusCode: number }>>;
+    return (await el[action](params)).statusCode;
+  }, { folder, action, params });
+}
+
+/** Each element's computed opacity and inline style, inside one mounted graphic. */
+async function look(page: Page, folder: string, selectors: string[]) {
+  return page.evaluate(({ folder, selectors }) => {
+    const body = graphicBody(document.querySelector(`[data-folder="${folder}"]`)!);
+    return Object.fromEntries(selectors.map((s) => {
+      const el = body.querySelector<HTMLElement>(s)!;
+      return [s, { opacity: getComputedStyle(el).opacity, inline: el.style.cssText }];
+    }));
+  }, { folder, selectors });
+}
+
+/** Wait until `selectors` are fully shown in one graphic and nothing in it is still tweening. */
+async function settled(page: Page, folder: string, selectors: string[]) {
+  await expect.poll(() => page.evaluate(({ folder, selectors }) => {
+    const body = graphicBody(document.querySelector(`[data-folder="${folder}"]`)!);
+    const gsap = (window as unknown as { gsap: { getTweensOf(t: NodeListOf<Element>, onlyActive: boolean): unknown[] } }).gsap;
+    return {
+      shown: selectors.every((s) => getComputedStyle(body.querySelector(s)!).opacity === '1'),
+      moving: gsap.getTweensOf(body.querySelectorAll('*'), true).length,
+    };
+  }, { folder, selectors }), { message: `${folder} never settled` }).toEqual({ shown: true, moving: 0 });
+}
+
+test('two reveal designs on one renderer each move and clear only their own elements', async ({ page }) => {
+  // The competition reveals hand GSAP ARRAYS of selector strings: every replay resets with
+  // `gsap.set(['.reveal-subject', '.reveal-note', ...], { clearProps: 'all' })`, and the winner
+  // card's press reveals with `gsap.fromTo(['.reveal-subject', '.reveal-runner'], ...)`. All of
+  // them share those class names, so each selector must resolve inside its own graphic.
+  await page.goto('/app');
+  const award = await ografFiles(page, { kind: 'design', id: 'aw01' });
+  const winner = await ografFiles(page, { kind: 'design', id: 'wn01' });
+  await serveRenderer(page, { award, winner });
+  await mount(page, 'award', 'ograf-isolation-award');
+  await mount(page, 'winner', 'ograf-isolation-winner');
+  const REVEALED = ['.reveal-subject', '.reveal-runner'];
+  const CLEARED = ['.reveal-subject', '.reveal-note', '.reveal-logo', '.reveal-accent'];
+
+  // The winner's press reveals its result. The award's subject is still sealed.
+  expect(await act(page, 'winner', 'playAction')).toBe(200);
+  await settled(page, 'winner', REVEALED);
+  const sealed = (await look(page, 'award', ['.reveal-subject']))['.reveal-subject'].opacity;
+
+  // The award opens; the winner's replay resets the winner and leaves the award as it was.
+  expect(await act(page, 'award', 'playAction')).toBe(200);
+  await settled(page, 'award', ['.reveal-subject', '.reveal-note', '.reveal-logo']);
+  const opened = await look(page, 'award', CLEARED);
+  await act(page, 'winner', 'stopAction', { skipAnimation: true });
+  await act(page, 'winner', 'playAction', { skipAnimation: true });
+  const awardAfter = await look(page, 'award', CLEARED);
+
+  // The other way round: the winner's result is up again, and the award's replay leaves it alone.
+  expect(await act(page, 'winner', 'playAction')).toBe(200);
+  await settled(page, 'winner', REVEALED);
+  const shown = await look(page, 'winner', CLEARED);
+  await act(page, 'award', 'stopAction', { skipAnimation: true });
+  await act(page, 'award', 'playAction', { skipAnimation: true });
+  const winnerAfter = await look(page, 'winner', CLEARED);
+
+  expect(Object.values(opened).every((l) => l.inline !== ''), "the award's open left no inline state to clear - nothing was proven").toBe(true);
+  expect({ sealed, award: awardAfter, winner: winnerAfter }, "one design's press or replay reached the other's elements")
+    .toEqual({ sealed: '0', award: opened, winner: shown });
+});
+
+test("a template's `window.document` is its own, when a neighbour mounted first has the same field id", async ({ page }) => {
+  // Hand-written code may reach the document through `window`. Every NoaCG design names its first
+  // field #f0, and the real document answers with the FIRST #f0 in it: the neighbour's.
+  await page.goto('/app');
+  const neighbour = await ografFiles(page, { kind: 'catalog', name: 'Neighbour', html: '', css: '' });
+  const probe = await ografFiles(page, {
+    kind: 'catalog',
+    name: 'Window Probe',
+    html: '',
+    css: '',
+    js: 'function update(raw) { var data = JSON.parse(raw); if (data.f0 != null) window.document.getElementById(\'f0\').textContent = data.f0; }',
+  });
+  await serveRenderer(page, { neighbour, probe });
+  await mount(page, 'neighbour', 'ograf-isolation-neighbour');
+  await mount(page, 'probe', 'ograf-isolation-window-probe');
+  const field = () => page.evaluate(() => Object.fromEntries(['neighbour', 'probe'].map((folder) =>
+    [folder, graphicBody(document.querySelector(`[data-folder="${folder}"]`)!).querySelector('#f0')!.textContent])));
+  const before = await field();
+  expect(await act(page, 'probe', 'updateAction', { data: { f0: 'Written through window.document' } })).toBe(200);
+  expect(await field(), "the probe's update wrote the neighbour's field")
+    .toEqual({ neighbour: before.neighbour, probe: 'Written through window.document' });
 });

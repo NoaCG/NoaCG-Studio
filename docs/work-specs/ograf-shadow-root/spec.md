@@ -324,3 +324,37 @@ included.
 ## Phase notes
 
 (Each phase's pull request adds its notes here.)
+
+### Phase 1 (2026-10-10)
+
+- **Built.** `scopedGsap` resolves each string in an array target inside the graphic (nested
+  arrays too; elements and objects pass through). `scopedWindow(names, doc)` answers `document`
+  with the same scoped document `initTemplate` gets, so `window.document === document` inside the
+  template. Phase 2 hands that one document the canvas and both follow.
+- **AC-1.** Two cases in `e2e/ograf-isolation.spec.ts`: `aw01` and `wn01` on one renderer page, and
+  a Hairline whose own `update` writes through `window.document`, mounted after a Hairline
+  neighbour. On the wrapper before the change both failed: the winner's press showed the award's
+  sealed subject (opacity 1), each design's replay emptied the other's inline state, and the
+  probe's update wrote the neighbour's `#f0`. Both pass after it.
+- **AC-2.** `graphicBody(el)` is `e2e/_graphicBody.ts`, a page global installed with
+  `installGraphicBody(page)`; the walk installs the same script and imports it under Node 24. It
+  is an e2e helper on purpose: `e2e/_*` is core in `scripts/e2e-affected.mjs`, while `scripts/`
+  is ignored, so a helper there would run no spec when it changed. In a shadow mount it answers
+  `el.shadowRoot.querySelector('[data-noacg-graphic]')`, so **phase 2's canvas must carry that
+  attribute** (it does in "Behaviour after the last phase"), or the helper changes, not the
+  readers. The review grep finds only the three dispose checks phase 2 rewrites (`exports`,
+  `ograf-conformance`, `graphic-sound`). Already done here: `ograf-conformance` counts each
+  graphic's own `#f0` instead of `#f0` document-wide, and reads its stylesheet through
+  `el.shadowRoot ?? el` (its `@font-face` assertion still needs the phase 2 form, because the
+  lift empties that stylesheet). The `body.children` expectation in `ograf-isolation` is phase 2's.
+  The nine locator-only editor specs were re-read: no page-JS read inside a graphic.
+- **AC-8.** The `src` diff is `src/export/targets/ograf.ts` and `src/export/AGENTS.md`;
+  `node scripts/check-catalog-emit.mjs` passes (528 designs); `e2e/exports.spec.ts` passes whole.
+- **For phase 2.** `dispose()` kills its elements' tweens but not the template's running timeline,
+  so a step's call can fire after dispose and throw on a null lookup: main logs it in the exports
+  quiz case and the conformance "timeline calls still fire" case. It is noise today; the shadow
+  dispose should stop the runtime's timeline as well. Still open on purpose: `window.self`,
+  `window.window`, `globalThis` and `document.defaultView` reach the real page. No generator
+  emits them, and decision 1's list of escapes did not include them.
+- **Not run.** The SuperFly walk (its read path changed; phase 3 runs it). Locally only the OGraf
+  tests of the eight editor specs ran; CI runs them whole.

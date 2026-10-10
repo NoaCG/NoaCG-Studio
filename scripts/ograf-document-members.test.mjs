@@ -48,7 +48,9 @@ const PASS_THROUGH = {
 /** Roads to the renderer's page around the scoped `document`: any of them is a decision as well. */
 const ESCAPES = new RegExp(
   [
-    // Through the window object (the scoped window passes these through to the renderer's).
+    // Through the window object. The scoped window passes these through to the renderer's, except
+    // `document`, which it answers with the scoped one; that road stays closed here all the same,
+    // because the member scan below reads only a bare `document.`.
     /\b(?:window|globalThis|self)\.(?:document|top|parent|frameElement|innerWidth|innerHeight|outerWidth|outerHeight|devicePixelRatio|visualViewport|screen|scrollX|scrollY|pageXOffset|pageYOffset|matchMedia)\b/.source,
     // As bare globals, which no parameter of initTemplate shadows. (`top`, `parent` and `screen`
     // are left out bare: they are ordinary words in the CSS and prose these sources carry.)
