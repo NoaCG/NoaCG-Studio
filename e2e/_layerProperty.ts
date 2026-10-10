@@ -37,12 +37,12 @@ export async function seek(page: Page, time: number) {
 export async function select(page: Page, selector: string) { await row(page, selector).locator('.ef-layer').click(); await ready(page); }
 export async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
 export async function redo(page: Page) { await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); }
-export async function scrub(page: Page, field: Locator, distance: number, modifier?: 'Shift' | 'Control', cancel?: 'Escape' | 'pointercancel') {
+export async function scrub(page: Page, field: Locator, distance: number, modifier?: 'Shift' | 'Control', cancel?: 'Escape' | 'pointercancel', preview?: () => Promise<void>) {
   await field.scrollIntoViewIfNeeded(); const box = (await field.boundingBox())!;
   if (modifier) await page.keyboard.down(modifier);
   await page.mouse.move(box.x + 16, box.y + box.height / 2); await page.mouse.down();
   await page.mouse.move(box.x + 16 + distance, box.y + box.height / 2, { steps: 8 });
-  const during = await field.inputValue();
+  const during = await field.inputValue(); await preview?.();
   if (cancel === 'Escape') await page.keyboard.press('Escape');
   if (cancel === 'pointercancel') await field.locator('..').dispatchEvent('pointercancel', { pointerId: 1, pointerType: 'mouse' });
   await page.mouse.up(); if (modifier) await page.keyboard.up(modifier);

@@ -35,6 +35,14 @@ for (const [width, height] of [[1920,1080],[1366,768]]) test(`ordinary layer sel
 test('numeric scrub previews one undo exact cancellation modifiers and armed routing', async ({page})=>{
   await page.setViewportSize({width:1920,height:1080}); await open(page); await select(page,'#f0'); const initial=await source(page), count=(await inspection(page)).history.undo;
   const x=number(page,'Layout offset X'); await expect(x).toHaveValue('0');
+  const renderedX = async () => (await frame(page)).locator('#f0').evaluate(el => el.getBoundingClientRect().x);
+  const originalX = await renderedX(), history = (await inspection(page)).history;
+  await scrub(page,x,20,undefined,'Escape',async()=>{
+    await expect.poll(renderedX).toBeCloseTo(originalX+10,2);
+    expect(await source(page)).toEqual(initial); expect((await inspection(page)).history).toEqual(history);
+    await capture(page,test.info().outputPath('scrub-preview.png'));
+  });
+  await expect.poll(renderedX).toBeCloseTo(originalX,2); expect(await source(page)).toEqual(initial); expect((await inspection(page)).history).toEqual(history);
   for(const [modifier,delta] of [[undefined,10],['Shift',100],['Control',1]] as const){
     const before=await source(page), previous=Number(await x.inputValue()), h=(await inspection(page)).history.undo;
     expect(Number(await scrub(page,x,20,modifier))).toBe(previous+delta); await expect(x).toHaveValue(String(previous+delta));
