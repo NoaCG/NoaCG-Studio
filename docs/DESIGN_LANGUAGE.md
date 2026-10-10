@@ -240,7 +240,7 @@ Text boxes **hug their content and wrap gracefully**; operators type any length.
   max-width: 800px;                /* never grow past this — wrap instead (~42% of 1920) */
 }
 .lower-third-name {
-  overflow-wrap: break-word;       /* break very long unbroken words */
+  overflow-wrap: anywhere;         /* break a word too long for the box (break-word cannot narrow an inline-block line, so its mask cuts it) */
   text-wrap: balance;              /* wrapped lines get even lengths */
 }
 ```
