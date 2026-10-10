@@ -2,6 +2,7 @@
 // covers: src/blocks/{baseEdits,designLayout,artworkEdits,artworkLayers,svgIdentity,editorAnimation,editorOut,animData,animEdit}.ts
 // covers: src/model/structure.ts, src/templates/shared/{animRuntime,easeRuntime}.ts
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx, e2e/fixtures/interpreter-pre-g01.js
+// covers: docs/research/editor-r1-1d/baseline/**, src/templates/importedDesign/svg.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
