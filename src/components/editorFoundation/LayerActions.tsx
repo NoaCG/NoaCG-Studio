@@ -56,7 +56,7 @@ export default function LayerActions({ part, index, selection, session, pause, o
       onClick={() => run([{ kind: 'layer.visibility', selector: part.selector, hidden: !part.hidden }])}>
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 10Q10 1 18 10Q10 19 2 10Z" /><circle cx="10" cy="10" r="2.5" />{part.hidden && <path d="M3 3L17 17" />}</svg>
     </button>
-    {draft ? <InlineOrganizationName name={part.label} label="Layer name" commit={label => { run([{ kind: 'layer.rename', selector: part.selector, label }], draft); endRename(); }} cancel={endRename} /> :
+    {draft ? <InlineOrganizationName name={part.label} label="Layer name" commit={label => { if (label.trim() !== part.label) run([{ kind: 'layer.rename', selector: part.selector, label }], draft); endRename(); }} cancel={endRename} /> :
       <button ref={button} className="ef-layer" aria-pressed={selection.includes(part.selector)} title={part.label + ' · Double-click or Enter to rename'} onClick={onSelect} onDoubleClick={rename}
         onContextMenu={event => { event.preventDefault(); open(event.clientX, event.clientY); }} onKeyDown={event => {
           if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); rename(); }

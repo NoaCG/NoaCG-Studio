@@ -1,5 +1,6 @@
 // covers: src/components/editorFoundation/**, src/blocks/{artworkEdits,artworkLayers,editorGroups}.ts, src/model/structure.ts, src/export/**
 import { test, expect } from '@playwright/test';
+import { finishIntoNewEditor } from './_create';
 import { writeFileSync } from 'node:fs';
 import { source, selected, inspection, row, number, frame, ready, open, seek, select, undo, redo, scrub, draw, point, capture, saveReopen } from './_layerProperty';
 
@@ -80,7 +81,7 @@ test('cumulative import text artwork animation cancel save reopen executable out
   const edited=await source(page); await undo(page); await redo(page); expect(await source(page)).toEqual(edited); const h=(await inspection(page)).history;
   await scrub(page,x,30,undefined,'Escape'); expect(await source(page)).toEqual(edited); expect((await inspection(page)).history).toEqual(h);
   await page.getByRole('button',{name:'Hide Live plate layer',exact:true}).click(); await expect((await frame(page)).locator(shape)).toBeHidden();
-  const saved=await saveReopen(page,'Layer property qualification'); expect(saved.assets).toEqual(initial.assets); expect(saved.html).toContain('festival-mask'); expect(saved.html).toContain('id="festival-config"');
+  const saved=await saveReopen(page,'Layer property qualification'); expect(saved.assets).toEqual(initial.assets); expect(saved.html.match(/<div class="graphic-mask">/g)).toEqual(initial.html.match(/<div class="graphic-mask">/g)); expect(saved.html).toContain('id="festival-config"');
   await seek(page,0); const receipts=[];
   for(const target of ['spx','casparcg','ograf']){
     const files=await page.evaluate(async target=>{
@@ -99,4 +100,18 @@ test('cumulative import text artwork animation cancel save reopen executable out
     receipts.push({target,hidden:true,text:'Elena Marquez',errors});await output.close();
   }
   writeFileSync(test.info().outputPath('journey.json'),JSON.stringify({receipts,fields:saved.fields.map(f=>f.field),assets:saved.assets.map(a=>a.path)},null,2));
+});
+
+
+test('ordinary nested SVG label and eye retain definitions masks references and identity', async ({page})=>{
+  await page.goto('/app?editor=foundation#/new'); await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type=file]').setInputFiles('e2e/fixtures/fidelity-nested.svg'); await page.locator('.wz-next').click();
+  await finishIntoNewEditor(page); await ready(page); await seek(page,1);
+  const card=page.locator('.ef-track:not(.ef-property-track)').filter({has:page.locator('.ef-layer-label',{hasText:'Clipped card'})});
+  await expect(card).toHaveCount(1); const selector=(await card.getAttribute('data-selector'))!; await select(page,selector);
+  const initial=await source(page); await card.locator('.ef-layer').dblclick(); await page.getByRole('textbox',{name:'Layer name'}).fill('Masked plate'); await page.getByRole('textbox',{name:'Layer name'}).press('Enter');
+  const renamed=await source(page); expect(renamed.html.replace(' data-noacg-label="Masked plate"','')).toBe(initial.html); expect(renamed.fields).toEqual(initial.fields); expect(renamed.assets).toEqual(initial.assets); expect(renamed.js).toBe(initial.js); expect(renamed.css).toBe(initial.css);
+  await page.getByRole('button',{name:'Hide Masked plate layer',exact:true}).click(); await expect((await frame(page)).locator(selector)).toBeHidden(); await expect(row(page,selector)).toBeVisible();
+  const hidden=await source(page); expect(hidden.html.replace(' data-noacg-hidden="true"','')).toBe(renamed.html); expect(hidden.html.match(/<defs>[\s\S]*?<\/defs>/)?.[0]).toBe(initial.html.match(/<defs>[\s\S]*?<\/defs>/)?.[0]); expect(hidden.js).toBe(initial.js); expect(hidden.fields).toEqual(initial.fields); expect(hidden.assets).toEqual(initial.assets);
+  await undo(page); expect(await source(page)).toEqual(renamed); await expect((await frame(page)).locator(selector)).toBeVisible(); await undo(page); expect(await source(page)).toEqual(initial);
 });

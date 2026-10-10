@@ -37,6 +37,7 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   // Key selection and the properties shown under each layer are editor UI state only.
   const rangeAnchor = useRef<string | null>(null);
+  useEffect(() => { if (selection.length === 1) rangeAnchor.current = selection[0]; }, [selection]);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [picked, setPicked] = useState<KeyRef[]>([]);
   const keys = useMemo(() => liveKeys(view.data, picked), [view.data, picked]);
