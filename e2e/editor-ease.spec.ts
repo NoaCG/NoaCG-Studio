@@ -11,6 +11,7 @@
 // R1.2a.2's key-side presets and Hold are played here the same way (docs/research/editor-r1-2a-2).
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { readFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 
@@ -72,6 +73,7 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
       return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
     });
     if (target === 'ograf') {
+      await installGraphicBody(output);
       await output.goto('http://ease-package.local/');
       await output.evaluate(async () => {
         const mod = await import('http://ease-package.local/graphic.mjs'); customElements.define('ease-graphic', mod.default);
@@ -84,6 +86,7 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number; getChildren(n: boolean, tw: boolean, tl: boolean): { vars: { ease?: unknown }; targets(): Element[]; duration(): number }[] };
     const w = window as unknown as { play(): void; stop(): void; gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('ease-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
+    const body: ParentNode = target === 'ograf' ? graphicBody(element) : document;
     const command = async (action: 'play' | 'stop') => {
       if (target === 'simulator') window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-' + action, data: '{}' } }));
       else if (target === 'ograf') { if (action === 'play') await element.playAction({}); else await element.stopAction({}); }
@@ -94,8 +97,8 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
       if (!found) throw new Error(`No ${d} s timeline; found ${all.map(x => x.duration()).join(', ')} s`);
       return found;
     };
-    const box = document.querySelector('#box')!;
-    const pose = () => layers.flatMap(s => { const e = document.querySelector(s)!; return ['x', 'y', 'rotation', 'scaleX'].map(p => Number(w.gsap.getProperty(e, p))).concat(Number(getComputedStyle(e).opacity)); });
+    const box = body.querySelector('#box')!;
+    const pose = () => layers.flatMap(s => { const e = body.querySelector(s)!; return ['x', 'y', 'rotation', 'scaleX'].map(p => Number(w.gsap.getProperty(e, p))).concat(Number(getComputedStyle(e).opacity)); });
     await command('play'); const entry = timeline(durations[0]); entry.pause();
     // Which eases reached GSAP as strings: a recognized one must arrive as the shared function.
     const handed = entry.getChildren(true, true, false).filter(x => x.targets().includes(box) && x.duration() > 0).map(x => typeof x.vars.ease === 'function' ? 'function' : String(x.vars.ease));

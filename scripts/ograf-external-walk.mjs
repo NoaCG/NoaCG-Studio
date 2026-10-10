@@ -45,6 +45,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import { devPort } from './dev-port.mjs';
+import { GRAPHIC_BODY_SCRIPT } from '../e2e/_graphicBody.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -285,12 +286,13 @@ async function api(step, method, path, body) {
  * tokens are the ones the import stamped on the artwork (`data-noacg-role`), and a lit layer
  * carries the runtime's on-class.
  */
+/* global graphicBody -- the renderer page's, from GRAPHIC_BODY_SCRIPT */
 async function litRoles(page, graphicId) {
   return page.evaluate((id) => {
     // The renderer registers the Graphic as `customElements.define(manifest.id, …)`, so the
     // manifest id IS the element's tag name - which is why this walk never has to guess one.
-    const host = document.querySelector(id) ?? document.body;
-    const roots = host.querySelectorAll('[data-noacg-role]');
+    const host = document.querySelector(id);
+    const roots = (host ? graphicBody(host) : document.body).querySelectorAll('[data-noacg-role]');
     const lit = [];
     for (const el of roots) {
       if (el.classList.contains('imported-design-on')) lit.push(el.getAttribute('data-noacg-role'));
@@ -367,6 +369,8 @@ async function main() {
     transcript.push({ step: 'renderer page error', text: String(err).slice(0, 500) });
     say(`renderer page error: ${String(err).slice(0, 300)}`);
   });
+  // Every read inside the mounted graphic goes through its body (e2e/_graphicBody.ts).
+  await rendererPage.addInitScript(GRAPHIC_BODY_SCRIPT);
   await rendererPage.goto(`${ograf}/renderer/default/`);
   // THE PAGE MUST BE IN FRONT, and this is not cosmetic. A browser throttles
   // requestAnimationFrame in a page that is not the visible one, GSAP rides that clock, and a

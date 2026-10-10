@@ -8,6 +8,7 @@
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -469,6 +470,7 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
     });
   });
 
+  await installGraphicBody(page);
   const result = await page.evaluate(async () => {
     const mod = await import('http://ograf-test.local/graphic.mjs');
     customElements.define('ograf-under-test', mod.default);
@@ -482,12 +484,12 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
     document.body.appendChild(el);
     const loaded = await el.load({ data: { f0: 'OGraf Works', f1: 'Contract Test' } });
     const gsapType = typeof (window as { gsap?: unknown }).gsap;
-    const afterLoad = el.querySelector('#f0')?.textContent;
+    const afterLoad = graphicBody(el).querySelector('#f0')?.textContent;
     await el.updateAction({ data: { f0: 'Updated Name' } });
-    const afterUpdate = el.querySelector('#f0')?.textContent;
+    const afterUpdate = graphicBody(el).querySelector('#f0')?.textContent;
     const played = await el.playAction({});
     await new Promise((r) => setTimeout(r, 700));
-    const opacity = getComputedStyle(el.querySelector('.lower-third')!).opacity;
+    const opacity = getComputedStyle(graphicBody(el).querySelector('.lower-third')!).opacity;
     await el.stopAction({});
     await el.dispose();
     const cleared = el.innerHTML === '';
@@ -545,6 +547,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
     });
   });
 
+  await installGraphicBody(page);
   const result = await page.evaluate(async () => {
     const mod = await import('http://ograf-offline.local/graphic.mjs');
     customElements.define('ograf-offline-under-test', mod.default);
@@ -569,7 +572,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
     });
     const snapshot = async (timestamp: number) => {
       await el.goToTime({ timestamp });
-      const doc = el.querySelector('iframe')!.contentDocument!;
+      const doc = graphicBody(el).querySelector('iframe')!.contentDocument!;
       const root = doc.querySelector('.lower-third')!;
       return {
         timestamp,
@@ -627,6 +630,7 @@ test('ograf: scheduled custom actions reconstruct branching machine state', asyn
     });
   });
 
+  await installGraphicBody(page);
   const frames = await page.evaluate(async () => {
     const mod = await import('http://ograf-branch.local/graphic.mjs');
     customElements.define('ograf-branch-under-test', mod.default);
@@ -648,7 +652,7 @@ test('ograf: scheduled custom actions reconstruct branching machine state', asyn
     const out = [];
     for (const timestamp of [2200, 400, 1400, 2200]) {
       await el.goToTime({ timestamp });
-      const frame = el.querySelector('iframe')!;
+      const frame = graphicBody(el).querySelector('iframe')!;
       const win = frame.contentWindow as Window & { noacgMachineState(): { groups: Record<string, string> } };
       out.push({
         timestamp,
@@ -697,6 +701,7 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
     });
   });
 
+  await installGraphicBody(page);
   const result = await page.evaluate(async () => {
     const mod = await import('http://ograf-quiz.local/graphic.mjs');
     customElements.define('ograf-quiz-under-test', mod.default);
@@ -712,12 +717,12 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
 
     // `select` carries its payload atomically; a branch move keeps the walk pointer.
     const selected = await el.customAction({ id: 'select', payload: { f6: 'C' } });
-    const f6 = el.querySelector('#f6')?.textContent;
+    const f6 = graphicBody(el).querySelector('#f6')?.textContent;
     const locked = await el.customAction({ id: 'lock' });
     // After Lock, `select` is STRUCTURALLY illegal — the guard drops the event AND its
     // payload (no arrow leaves `locked` for it), exactly like every other surface.
     const late = await el.customAction({ id: 'select', payload: { f6: 'D' } });
-    const f6AfterLate = el.querySelector('#f6')?.textContent;
+    const f6AfterLate = graphicBody(el).querySelector('#f6')?.textContent;
     // From `locked`, `judge` rejoins the walk at the reveal waypoint — the pointer follows.
     const judged = await el.customAction({ id: 'judge' });
     const unknown = await el.customAction({ id: 'nonsense' });

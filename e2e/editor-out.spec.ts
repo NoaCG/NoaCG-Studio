@@ -4,6 +4,7 @@
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
 import { dropSvg } from './_svg-import';
@@ -258,6 +259,7 @@ async function executable(page: Page, target: string) {
       return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
     });
     if (target === 'ograf') {
+      await installGraphicBody(output);
       await output.goto('http://out-package.local/');
       await output.evaluate(async () => {
         const mod = await import('http://out-package.local/graphic.mjs'); customElements.define('out-graphic', mod.default);
@@ -276,18 +278,19 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('40 percent
     type Host = Runtime & { play(): void; stop(): void; __activeTl?: { tl: Timeline }; gsap: Runtime['gsap'] & { globalTimeline: { clear(): void; getChildren(n: boolean, t: boolean, tl: boolean): Timeline[] } } };
     const w = window as unknown as Host;
     const element = document.querySelector('out-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
+    const body: ParentNode = target === 'ograf' ? graphicBody(element) : document;
     const command = async (action: 'play' | 'stop') => {
       if (target === 'simulator') window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-' + action, data: '{}' } }));
       else if (target === 'ograf') { if (action === 'play') await element.playAction({}); else await element.stopAction({}); }
       else w[action]();
     };
-    const pose = () => ['#box', '#title'].map(s => { const el = document.querySelector(s)!; return [el.getBoundingClientRect().x - document.querySelector('.fixture')!.getBoundingClientRect().x, Number(getComputedStyle(el).opacity)]; });
+    const pose = () => ['#box', '#title'].map(s => { const el = body.querySelector(s)!; return [el.getBoundingClientRect().x - body.querySelector('.fixture')!.getBoundingClientRect().x, Number(getComputedStyle(el).opacity)]; });
     const timeline = (duration: number) => w.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - duration) < .0001)!;
     await command('play'); const entrance = timeline(2); entrance.pause(); entrance.time(.8, true);
     const before = pose(); await command('stop'); const after = pose();
     const exit = timeline(1); exit.pause(); exit.time(.25, true); const quarter = pose();
     await command('stop'); const repeated = pose();
-    exit.time(1, true); const final = pose(), hidden = getComputedStyle(document.querySelector('.fixture')!).opacity;
+    exit.time(1, true); const final = pose(), hidden = getComputedStyle(body.querySelector('.fixture')!).opacity;
     await command('play'); const replay = pose();
     const second = timeline(2); second.pause(); second.progress(1, true); await command('stop');
     const normal = timeline(1); normal.pause(); normal.time(.5, true); const normalMid = pose();
@@ -317,18 +320,19 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('Out interr
     type Host = Runtime & { play(): void; stop(): void; gsap: Runtime['gsap'] & { globalTimeline: { getChildren(n: boolean, t: boolean, tl: boolean): Timeline[] } } };
     const w = window as unknown as Host;
     const element = document.querySelector('out-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
+    const body: ParentNode = target === 'ograf' ? graphicBody(element) : document;
     const command = async (action: 'play' | 'stop') => {
       if (target === 'simulator') window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-' + action, data: '{}' } }));
       else if (target === 'ograf') { if (action === 'play') await element.playAction({}); else await element.stopAction({}); }
       else w[action]();
     };
-    const pose = () => ['#box', '#title'].map(s => { const el = document.querySelector(s)!; return [el.getBoundingClientRect().x - document.querySelector('.fixture')!.getBoundingClientRect().x, Number(getComputedStyle(el).opacity)]; });
+    const pose = () => ['#box', '#title'].map(s => { const el = body.querySelector(s)!; return [el.getBoundingClientRect().x - body.querySelector('.fixture')!.getBoundingClientRect().x, Number(getComputedStyle(el).opacity)]; });
     const timeline = (duration: number) => w.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - duration) < .0001)!;
     await command('play'); const entrance = timeline(.6); entrance.pause(); entrance.time(.24, true);
     const before = pose(); await command('stop'); const after = pose();
     const exit = timeline(.4); exit.pause(); exit.time(.2, true); const middle = pose();
     exit.time(.4, true);
-    return { before, after, middle, hidden: getComputedStyle(document.querySelector('.fixture')!).opacity };
+    return { before, after, middle, hidden: getComputedStyle(body.querySelector('.fixture')!).opacity };
   }, target);
   for (let i = 0; i < 2; i++) {
     expect(Math.abs(result.before[i][0] - result.after[i][0]), target).toBeLessThan(1);
