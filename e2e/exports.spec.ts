@@ -9,6 +9,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
+import { inMount, shadowOgraf, OGRAF_MOUNTS, type OgrafMount, type OgrafUsageLabel } from './_ografMount';
 import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -33,6 +34,16 @@ async function downloadTarget(page: Page, label: string, ografUsage?: 'Live' | '
     page.getByRole('button', { name: /Validate & download/ }).click(),
   ]);
   return JSZip.loadAsync(readFileSync(await download.path()));
+}
+
+/**
+ * The open graphic's OGraf package for `mount`: the export dialog's download in the light mount,
+ * the same template built in the page in the shadow mount, which the dialog has no option for
+ * (e2e/_ografMount.ts).
+ */
+async function downloadOgraf(page: Page, mount: OgrafMount, usage?: OgrafUsageLabel): Promise<JSZip> {
+  if (mount === 'light') return downloadTarget(page, 'OGraf (EBU) export', usage);
+  return shadowOgraf(page, usage);
 }
 
 test("a saved graphic's control entries ride into its own export, not just the show's", async ({ page }) => {
@@ -436,9 +447,9 @@ test('liveos: the OGraf package with LiveOS instructions — same graphic, LiveO
   );
 });
 
-test('ograf: a valid v1 Graphic whose Web Component passes the action contract', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: a valid v1 Graphic whose Web Component passes the action contract', mount), async ({ page }) => {
   await createHairline(page);
-  const zip = await downloadTarget(page, 'OGraf (EBU) export');
+  const zip = await downloadOgraf(page, mount);
 
   // The manifest carries the spec's required fields + the field-driven data schema.
   const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
@@ -492,7 +503,8 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
     const opacity = getComputedStyle(graphicBody(el).querySelector('.lower-third')!).opacity;
     await el.stopAction({});
     await el.dispose();
-    const cleared = el.innerHTML === '';
+    // Nothing of the graphic left: its shadow root in the shadow mount, else its own children.
+    const cleared = el.innerHTML === '' && !el.shadowRoot?.innerHTML;
     return { statusCode: loaded.statusCode, gsapType, afterLoad, afterUpdate, currentStep: played.currentStep, opacity, cleared };
   });
 
@@ -505,7 +517,7 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
   expect(result.cleared).toBe(true);
 });
 
-test('ograf: non-real-time schedule seeks are deterministic in shuffled order', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: non-real-time schedule seeks are deterministic in shuffled order', mount), async ({ page }) => {
   await createHairline(page);
   const capabilities = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -522,7 +534,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
     [true, true],
   ]);
 
-  const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Both');
+  const zip = await downloadOgraf(page, mount, 'Both');
   const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
   expect(manifest.supportsRealTime).toBe(true);
   expect(manifest.supportsNonRealTime).toBe(true);
@@ -611,9 +623,9 @@ test('ograf: post-production intent is blocked for non-deterministic code', asyn
   await expect(page.getByRole('button', { name: /Validate & download/ })).toBeDisabled();
 });
 
-test('ograf: scheduled custom actions reconstruct branching machine state', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: scheduled custom actions reconstruct branching machine state', mount), async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
-  const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Post-production');
+  const zip = await downloadOgraf(page, mount, 'Post-production');
   const files = new Map<string, Buffer>();
   for (const name of Object.keys(zip.files)) {
     if (!zip.files[name].dir) files.set(name.replace(/^arena_quiz\//, ''), await zip.file(name)!.async('nodebuffer'));
@@ -667,9 +679,9 @@ test('ograf: scheduled custom actions reconstruct branching machine state', asyn
   expect(frames[2].selected).toBe('C');
 });
 
-test('ograf: the machine\'s operator events are custom actions, guarded like every surface', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: the machine\'s operator events are custom actions, guarded like every surface', mount), async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
-  const zip = await downloadTarget(page, 'OGraf (EBU) export');
+  const zip = await downloadOgraf(page, mount);
 
   // The manifest declares the machine's events with their control labels + payload schemas.
   const manifest = JSON.parse(await zip.file('arena_quiz/arena_quiz.ograf.json')!.async('string'));
