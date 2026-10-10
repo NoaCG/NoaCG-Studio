@@ -60,9 +60,15 @@ const ease = (page: Page) => page.getByRole('combobox', { name: 'Key ease' });
 async function marquee(page: Page, from: [number, Locator], to: [number, Locator], modifiers: ('Control' | 'Shift')[] = [], finish = true) {
   const extent = await page.evaluate(async () => Math.max(2, (await import('/src/components/editorFoundation/timelineView.ts')).readTimeline((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).duration * 1.15));
   const point = async ([time, lane]: [number, Locator]) => { const box = (await lane.locator('.ef-track-lane').boundingBox())!; return { x: box.x + time / extent * box.width, y: box.y + box.height / 2 }; };
-  const a = await point(from), b = await point(to);
+  // Expanded properties can exceed the timeline's scrollport. Start on a visible lane,
+  // then scroll to the destination while capture keeps the marquee in content coordinates.
+  await from[1].scrollIntoViewIfNeeded();
+  const a = await point(from);
   for (const m of modifiers) await page.keyboard.down(m);
   await page.mouse.move(a.x, a.y); await page.mouse.down();
+  await expect(page.locator('.ef-marquee')).toBeVisible();
+  await to[1].scrollIntoViewIfNeeded();
+  const b = await point(to);
   await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 4 }); await page.mouse.move(b.x, b.y, { steps: 4 });
   if (finish) await page.mouse.up();
   for (const m of modifiers) await page.keyboard.up(m);
