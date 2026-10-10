@@ -1,0 +1,68 @@
+{
+  "html": {
+    "client": 1093,
+    "scroll": 1093
+  },
+  "body": {
+    "client": 1093,
+    "scroll": 1093
+  },
+  "controls": {
+    ".ef-shell": {
+      "x": 0,
+      "y": 0,
+      "width": 1092.800048828125,
+      "height": 544.7999877929688,
+      "scrollWidth": 1093,
+      "clientWidth": 1093
+    },
+    ".ef-inspector": {
+      "x": 812.7999877929688,
+      "y": 84,
+      "width": 280,
+      "height": 196.8000030517578,
+      "scrollWidth": 267,
+      "clientWidth": 267
+    },
+    ".ef-document-strip": {
+      "x": 0,
+      "y": 48,
+      "width": 1092.800048828125,
+      "height": 36,
+      "scrollWidth": 1093,
+      "clientWidth": 1093
+    },
+    ".ef-group-breadcrumbs": {
+      "x": 993.2750244140625,
+      "y": 51.10000228881836,
+      "width": 87.5250015258789,
+      "height": 29,
+      "scrollWidth": 88,
+      "clientWidth": 88
+    },
+    ".ef-canvas > .ef-toolbar": {
+      "x": 0,
+      "y": 84,
+      "width": 812.7999877929688,
+      "height": 38,
+      "scrollWidth": 813,
+      "clientWidth": 813
+    },
+    ".ef-viewport": {
+      "x": 0,
+      "y": 160.8000030517578,
+      "width": 812.7999877929688,
+      "height": 94,
+      "scrollWidth": 813,
+      "clientWidth": 813
+    },
+    ".ef-timeline": {
+      "x": 0,
+      "y": 280.8000183105469,
+      "width": 1092.800048828125,
+      "height": 240,
+      "scrollWidth": 1093,
+      "clientWidth": 1093
+    }
+  }
+}
