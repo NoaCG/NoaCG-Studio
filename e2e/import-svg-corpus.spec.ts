@@ -1116,6 +1116,44 @@ test('corpus: a stated text-anchor gets the alignment work rather than opting th
   }
 });
 
+// "THE PANEL GETS WIDER" GROWS THE PANEL ON A FULL-FRAME FILE (issue #778). Most student files are
+// frame-sized, with a background rect as wide as the frame. The shape a box's answer grows is the
+// smallest one holding the line, chosen by geometry; growing the frame's own background can never
+// show anything, and was once what this control named on this very file.
+test('corpus: on a full-frame file, "the panel gets wider" widens the plate, not the background', async ({
+  page,
+}) => {
+  await mapCorpusFile(page, 'figma-centred-title-card');
+  const titleRow = await rowLabelled(page, /title/i);
+  const frame = page.frameLocator('.wz-side iframe');
+  await boxGrowOf(page, titleRow).selectOption('grow-x');
+  await typeQuestion(page, titleRow, 'The Long Winter');
+
+  /** Every shape a growth row names, and the frame's own background, in screen px. */
+  const read = () =>
+    readArt(frame, (art) => {
+      const w = window as unknown as { NOACG_LAYOUT?: { rules: { el: string; axis: string }[] } };
+      const frameBox = art.getBoundingClientRect();
+      const grown = (w.NOACG_LAYOUT?.rules ?? []).map((rule) => {
+        const el = art.querySelector(`[data-noacg-el~="${rule.el}"]`);
+        const r = el?.getBoundingClientRect();
+        return { id: el?.id ?? '', width: r?.width ?? 0, axis: rule.axis };
+      });
+      const ground = art.querySelector(':scope > g > rect') as SVGGraphicsElement;
+      return { frame: frameBox.width, grown, ground: ground.getBoundingClientRect().width };
+    }, null);
+
+  const rest = await read();
+  const sideways = rest.grown.filter((g) => g.axis !== 'y');
+  expect(sideways.map((g) => g.id), 'the row names the plate the title sits on').toEqual(['Plate']);
+  expect(sideways[0].width).toBeLessThan(rest.frame - 2);
+
+  await typeQuestion(page, titleRow, LADDER_VALUES.over3);
+  const long = await read();
+  expect(long.grown.find((g) => g.axis !== 'y')!.width, 'the plate got wider').toBeGreaterThan(sideways[0].width + 1);
+  expect(Math.abs(long.ground - rest.ground), 'the background stayed the frame').toBeLessThan(1);
+});
+
 test('corpus: a plate turned on its LAYER measures a screen pixel the same as one turned on itself', async ({
   page,
 }) => {
