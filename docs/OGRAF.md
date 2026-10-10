@@ -298,8 +298,10 @@ disagree with each other.
   that nobody decided. A renderer must place and scale that box itself; `load()` does not read
   `renderCharacteristics` yet ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)). Pinned by
   `e2e/ograf-conformance.spec.ts` ("leaves the renderer's page as it was"). A shadow root per
-  graphic would also close the inbound direction and the one-instance limit below; what it
-  would cost is measured in [issue #922](https://github.com/NoaCG/NoaCG-Studio/issues/922), an open decision.
+  graphic closes the inbound direction and the one-instance limit below. The owner decided on it
+  on 2026-10-10 ([issue #922](https://github.com/NoaCG/NoaCG-Studio/issues/922)), and
+  `docs/work-specs/ograf-shadow-root/spec.md` is the phased plan; until its last phase lands,
+  packages mount in the light DOM as described here.
 - **One instance of a given DESIGN per document.** Several *different* graphics in one document
   are fine, which is the arrangement a Web Component renderer actually uses: each Graphic runs
   against a `document` scoped to itself, so its `getElementById('fN')` lookups cannot reach a
