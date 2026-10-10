@@ -492,9 +492,14 @@ node scripts/jobs.mjs wait <id>
 ```
 
 It writes the zip, one PNG per beat and a transcript of every request and response into
-`ograf-external-out/`, which is gitignored: the frames are a run's output and are rebuilt by
-re-running it. Built here at version 1.0.0 of `ograf-server`, main branch, on Node 24 and
+`ograf-external-out/<mount>/`, which is gitignored: the frames are a run's output and are rebuilt
+by re-running it. Built here at version 1.0.0 of `ograf-server`, main branch, on Node 24 and
 yarn 4.9.1.
+
+`--mount shadow` builds the same graphic with the shadow-root mount, which the export dialog does
+not offer yet. In either mount the walk then puts two copies of the board, and the board beside a
+Hairline, on two layers. SPX 1.4.1 has the same walk, `scripts/ograf-spx-walk.mjs --spx
+<SPX_1_4_1_source>` (docs/SPX_ON_A_REAL_SERVER.md §10).
 
 Two things about the server that cost an hour and are written down so they do not again: the
 renderer page is **`/renderer/default/`**, not `/renderer/renderer-layer/` - its route matcher

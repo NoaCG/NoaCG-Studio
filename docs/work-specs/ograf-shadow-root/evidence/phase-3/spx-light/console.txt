@@ -1,0 +1,28 @@
+note layers as imported: [2,4,5,5,2]
+ok   Hairline, Clean Quiz and House Scorebug import on layers 2, 4 and 5 (got 2, 4, 5)
+ok   Hairline paints as on a bare page: SPX's renderer rules do not reach in
+ok   the name saved in the controller is on air
+ok   Clean Quiz finished its entrance though the scorebug played during it
+ok   House Scorebug paints as on a bare page: SPX's renderer rules do not reach in
+ok   the three are on air together on layers 2, 4 and 5 (noacg-hairline, noacg-clean-quiz, noacg-house-scorebug)
+ok   each graphic is in the light mount (shadow root: false, false, false)
+note what a custom action sends (SPX forwards no payload): {"command":"customAction","id":"select","webplayout":"4"}
+ok   Clean Quiz offers Select, Lock and Reveal correct (declares select, lock, revealChoice, judge, audience)
+ok   Clean Quiz after select, lock, judge shows what the same actions show on a bare page
+note House Scorebug text while its clock runs, then after it stops: {"running":["HOME 0 AWAY 0 1H 0:01 #f6a623 #7dd3fc","HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc"],"stopped":["HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc","HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc"]}
+ok   House Scorebug's clockStart runs its clock and clockStop stops it
+ok   Continue takes Clean Quiz to its next step as on a bare page
+ok   Stop takes Hairline off air as on a bare page
+ok   Stop takes Clean Quiz off air as on a bare page
+note Glass Mark file-list choices: ["Logo from folder:","./images/","","none","./images/noacg_walk_logo.png"]
+ok   Glass Mark with a picked picture paints as on a bare page
+note Glass Mark pictures: [{"src":"http://localhost:5656/templates/noacg_walk_light/bug01/images/noacg_walk_logo.png","w":96}]
+ok   the picked picture loads from inside the package
+ok   the first copy paints its own data as on a bare page
+ok   the second copy, on layer 3, paints its own data as on a bare page
+ok   each copy shows its own name
+ok   taking the first copy off air leaves the second exactly as it was
+ok   the renderer page threw nothing (0 errors)
+renderer page error: TypeError: Cannot read properties of null (reading 'value')
+note Update on an OGraf item (an SPX gap): {"onAir":"Walk Alpha First copy","changed":false,"callsSincePlay":["load","updateAction","playAction"],"rendererErrors":["TypeError: Cannot read properties of null (reading 'value')"]}
+Every judged beat passed on SPX 1.4.1 (light mount).

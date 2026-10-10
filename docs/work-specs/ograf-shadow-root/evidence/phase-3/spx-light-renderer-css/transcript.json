@@ -1,0 +1,418 @@
+[
+  {
+    "step": "spx version",
+    "version": {
+      "vendor": "SPX Graphics",
+      "product": "SPX Solo",
+      "version": "1.4.1",
+      "id": "502f9b20",
+      "os": "win32"
+    }
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/shows/",
+    "form": {
+      "foldername": "NoaCG_Walk_light",
+      "format": "OGRAF"
+    },
+    "status": 302,
+    "location": "/show/NoaCG_Walk_light/config"
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_light/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_light\\lt01",
+      "template": "hairline.ograf.json",
+      "showFolder": "NoaCG_Walk_light"
+    },
+    "status": 302,
+    "location": "/show/NoaCG_Walk_light/config"
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_light/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_light\\qz04",
+      "template": "clean_quiz.ograf.json",
+      "showFolder": "NoaCG_Walk_light"
+    },
+    "status": 302,
+    "location": "/show/NoaCG_Walk_light/config"
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_light/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_light\\sb05",
+      "template": "house_scorebug.ograf.json",
+      "showFolder": "NoaCG_Walk_light"
+    },
+    "status": 302,
+    "location": "/show/NoaCG_Walk_light/config"
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_light/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_light\\bug01",
+      "template": "glass_mark.ograf.json",
+      "showFolder": "NoaCG_Walk_light"
+    },
+    "status": 302,
+    "location": "/show/NoaCG_Walk_light/config"
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_light/config",
+    "form": {
+      "command": "addshowextrascript",
+      "customscript": "/templates/noacg_walk_light/qz04/spx-custom-actions.js",
+      "showFolder": "NoaCG_Walk_light"
+    },
+    "status": 302,
+    "location": "/show/NoaCG_Walk_light/config"
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_light",
+    "form": {
+      "filebasename": "Walk"
+    },
+    "status": 302,
+    "location": "/gc/NoaCG_Walk_light/Walk"
+  },
+  {
+    "step": "recorded",
+    "what": "rules added to the renderer page",
+    "detail": "div, span { letter-spacing: 12px !important; }"
+  },
+  {
+    "step": "recorded",
+    "what": "layers as imported",
+    "detail": [
+      2,
+      4,
+      5,
+      5,
+      2
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Hairline, Clean Quiz and House Scorebug import on layers 2, 4 and 5 (got 2, 4, 5)"
+  },
+  {
+    "step": "replayed",
+    "what": "Hairline paints as on a bare page: SPX's renderer rules do not reach in",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "Hairline paints as on a bare page: SPX's renderer rules do not reach in",
+    "detail": "6 of 7 elements, first: div 120,866 444x96 o1.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 319x96 o1.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the name saved in the controller is on air"
+  },
+  {
+    "step": "replayed",
+    "what": "Clean Quiz finished its entrance though the scorebug played during it",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "Clean Quiz finished its entrance though the scorebug played during it",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o1.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o1.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "replayed",
+    "what": "House Scorebug paints as on a bare page: SPX's renderer rules do not reach in",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "House Scorebug paints as on a bare page: SPX's renderer rules do not reach in",
+    "detail": "17 of 22 elements, first: div 585,89 294x94 o1.00 visible rgb(0, 0, 0) 16px \"Space Grotesk\" against div 670,89 232x94 o1.00 visible rgb(0, 0, 0) 16px \"Space Grotesk\""
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the three are on air together on layers 2, 4 and 5 (noacg-hairline, noacg-clean-quiz, noacg-house-scorebug)"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "each graphic is in the light mount (shadow root: false, false, false)"
+  },
+  {
+    "step": "frame three-on-air",
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\01-three-on-air.png"
+  },
+  {
+    "step": "recorded",
+    "what": "what a custom action sends (SPX forwards no payload)",
+    "detail": {
+      "command": "customAction",
+      "id": "select",
+      "webplayout": "4"
+    }
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Clean Quiz offers Select, Lock and Reveal correct (declares select, lock, revealChoice, judge, audience)"
+  },
+  {
+    "step": "replayed",
+    "what": "Clean Quiz after select, lock, judge shows what the same actions show on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "customAction select",
+      "customAction lock",
+      "customAction judge"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "Clean Quiz after select, lock, judge shows what the same actions show on a bare page",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o1.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o1.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "frame quiz-actions",
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\02-quiz-actions.png"
+  },
+  {
+    "step": "recorded",
+    "what": "House Scorebug text while its clock runs, then after it stops",
+    "detail": {
+      "running": [
+        "HOME 0 AWAY 0 1H 0:01 #f6a623 #7dd3fc",
+        "HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc"
+      ],
+      "stopped": [
+        "HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc",
+        "HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc"
+      ]
+    }
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "House Scorebug's clockStart runs its clock and clockStop stops it"
+  },
+  {
+    "step": "replayed",
+    "what": "Continue takes Clean Quiz to its next step as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "customAction select",
+      "customAction lock",
+      "customAction judge",
+      "playAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "Continue takes Clean Quiz to its next step as on a bare page",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o0.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o0.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "frame quiz-continued",
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\03-quiz-continued.png"
+  },
+  {
+    "step": "replayed",
+    "what": "Stop takes Hairline off air as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "stopAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "Stop takes Hairline off air as on a bare page",
+    "detail": "6 of 7 elements, first: div 120,866 444x96 o0.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 319x96 o0.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "replayed",
+    "what": "Stop takes Clean Quiz off air as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "customAction select",
+      "customAction lock",
+      "customAction judge",
+      "playAction",
+      "stopAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "Stop takes Clean Quiz off air as on a bare page",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o0.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o0.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "frame stopped",
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\04-stopped.png"
+  },
+  {
+    "step": "recorded",
+    "what": "Glass Mark file-list choices",
+    "detail": [
+      "Logo from folder:",
+      "./images/",
+      "",
+      "none",
+      "./images/noacg_walk_logo.png"
+    ]
+  },
+  {
+    "step": "replayed",
+    "what": "Glass Mark with a picked picture paints as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "Glass Mark with a picked picture paints as on a bare page",
+    "detail": "2 of 7 elements, first: div 1700,188 81x30 o1.00 visible rgb(0, 0, 0) 16px Manrope against div 1718,188 44x30 o1.00 visible rgb(0, 0, 0) 16px Manrope"
+  },
+  {
+    "step": "recorded",
+    "what": "Glass Mark pictures",
+    "detail": [
+      {
+        "src": "http://localhost:5656/templates/noacg_walk_light/bug01/images/noacg_walk_logo.png",
+        "w": 96
+      }
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the picked picture loads from inside the package"
+  },
+  {
+    "step": "frame file-list-image",
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\05-file-list-image.png"
+  },
+  {
+    "step": "replayed",
+    "what": "the first copy paints its own data as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "the first copy paints its own data as on a bare page",
+    "detail": "6 of 7 elements, first: div 120,866 444x96 o1.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 319x96 o1.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "replayed",
+    "what": "the second copy, on layer 3, paints its own data as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": false,
+    "what": "the second copy, on layer 3, paints its own data as on a bare page",
+    "detail": "6 of 7 elements, first: div 120,866 397x96 o1.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 284x96 o1.00 visible rgb(0, 0, 0) 16px Inter"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "each copy shows its own name"
+  },
+  {
+    "step": "frame two-copies",
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\06-two-copies.png"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "taking the first copy off air leaves the second exactly as it was"
+  },
+  {
+    "step": "frame second-copy-alone",
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\07-second-copy-alone.png"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the renderer page threw nothing (0 errors)"
+  },
+  {
+    "step": "renderer page error",
+    "text": "TypeError: Cannot read properties of null (reading 'value')"
+  },
+  {
+    "step": "recorded",
+    "what": "Update on an OGraf item (an SPX gap)",
+    "detail": {
+      "onAir": "Walk Alpha First copy",
+      "changed": false,
+      "callsSincePlay": [
+        "load",
+        "updateAction",
+        "playAction"
+      ],
+      "rendererErrors": [
+        "TypeError: Cannot read properties of null (reading 'value')"
+      ]
+    }
+  }
+]

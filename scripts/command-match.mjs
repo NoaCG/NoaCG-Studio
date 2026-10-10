@@ -135,7 +135,9 @@ export const SWEEP_SCRIPTS =
   // opens a SECOND browser page on somebody else's renderer and drives it there. Two pages and
   // two servers for the length of a wizard walk plus a graphic's whole lifecycle - the same
   // workload as the shots scripts above, under a name that matches no family here.
-  + '|ograf-external-walk'
+  // `ograf-spx-walk` is its SPX 1.4.1 sibling: four pages (app, renderer, controller and a bare
+  // reference page) and two servers.
+  + '|ograf-external-walk|ograf-spx-walk'
   + `|render-smoke[\\w-]*|(?!(?:${SERVER_SCRIPTS})\\.)[\\w-]*bench[\\w-]*`
   + '|[\\w-]*spike[\\w-]*';
 

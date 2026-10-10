@@ -1,0 +1,31 @@
+ok   load answered 200/200
+ok   the graphic is in the light mount (shadow root: false)
+ok   playAction answered 200/200
+ok   the manifest declares the board's operator actions
+ok   customAction select answered 200/200
+ok   customAction lock answered 200/200
+ok   customAction revealChoice answered 200/200
+ok   customAction judge answered 200/200
+ok   the operator actions light the drawn states the designer named
+ok   an unknown custom action answered 400 - "This graphic defines no custom action "no-such-action"."
+ok   stopAction answered 200/200
+ok   clear answered 200
+ok   copy one: load and play answered 200/200
+ok   copy two: load and play answered 200/200
+ok   two copies on two layers each show their own question ("Copy one LOCKED IN Brisbane Doha Santiag" / "Copy two LOCKED IN Brisbane Doha Santiag")
+ok   copy one: customAction select answered 200
+ok   select on copy one lights its own drawn states (answer.selected/B)
+ok   copy one's action leaves copy two exactly as it was
+ok   copy one: clear answered 200
+ok   clearing copy one leaves copy two exactly as it was
+ok   copy two: clear answered 200
+ok   board: load and play answered 200/200
+ok   Hairline: load and play answered 200/200
+ok   the Hairline is on air on the second layer ("Alexandra Riva Chief Correspondent")
+ok   the Hairline arriving on another layer leaves the board as it was
+ok   board: customAction select answered 200
+ok   the board's action leaves the Hairline as it was
+ok   board: clear answered 200
+ok   clearing the board leaves the Hairline as it was
+ok   Hairline: clear answered 200
+Every beat answered as the contract says it should.

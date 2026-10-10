@@ -1,0 +1,1178 @@
+[
+  {
+    "step": "upload",
+    "method": "POST",
+    "url": "/api/serverApi/internal/graphics/graphic",
+    "status": 200,
+    "body": "{\"graphics\":[{\"id\":\"noacg-quiz-board\"}]}"
+  },
+  {
+    "step": "upload",
+    "method": "POST",
+    "url": "/api/serverApi/internal/graphics/graphic",
+    "status": 200,
+    "body": "{\"graphics\":[{\"id\":\"noacg-hairline\"}]}"
+  },
+  {
+    "step": "list graphics",
+    "method": "GET",
+    "url": "/api/ograf/v1/graphics",
+    "status": 200,
+    "response": {
+      "graphics": [
+        {
+          "id": "noacg-hairline",
+          "name": "Hairline",
+          "description": "Hairline"
+        },
+        {
+          "id": "noacg-quiz-board",
+          "name": "Quiz board",
+          "description": "Imported SVG design"
+        }
+      ]
+    }
+  },
+  {
+    "step": "read manifest",
+    "method": "GET",
+    "url": "/api/ograf/v1/graphics/noacg-quiz-board",
+    "status": 200,
+    "response": {
+      "graphic": {
+        "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+        "id": "noacg-quiz-board",
+        "version": "1.0.0",
+        "name": "Quiz board",
+        "description": "Imported SVG design",
+        "main": "graphic.mjs",
+        "supportsRealTime": true,
+        "supportsNonRealTime": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "f0": {
+              "type": "string",
+              "title": "Question",
+              "default": "Which city hosts the 2032 Olympics?",
+              "v_noacg": {
+                "kind": "text"
+              },
+              "v_spx": {
+                "ftype": "textfield"
+              }
+            },
+            "f1": {
+              "type": "string",
+              "title": "Answer A",
+              "default": "Brisbane",
+              "v_noacg": {
+                "kind": "text"
+              },
+              "v_spx": {
+                "ftype": "textfield"
+              }
+            },
+            "f2": {
+              "type": "string",
+              "title": "Answer B",
+              "default": "Doha",
+              "v_noacg": {
+                "kind": "text"
+              },
+              "v_spx": {
+                "ftype": "textfield"
+              }
+            },
+            "f3": {
+              "type": "string",
+              "title": "Answer C",
+              "default": "Santiago",
+              "v_noacg": {
+                "kind": "text"
+              },
+              "v_spx": {
+                "ftype": "textfield"
+              }
+            },
+            "f4": {
+              "type": "string",
+              "title": "Answer D",
+              "default": "Budapest",
+              "v_noacg": {
+                "kind": "text"
+              },
+              "v_spx": {
+                "ftype": "textfield"
+              }
+            },
+            "f5": {
+              "type": "string",
+              "title": "Correct answer",
+              "default": "A",
+              "enum": [
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "v_noacg": {
+                "kind": "select"
+              },
+              "v_spx": {
+                "ftype": "dropdown",
+                "items": [
+                  {
+                    "text": "A",
+                    "value": "A"
+                  },
+                  {
+                    "text": "B",
+                    "value": "B"
+                  },
+                  {
+                    "text": "C",
+                    "value": "C"
+                  },
+                  {
+                    "text": "D",
+                    "value": "D"
+                  }
+                ]
+              }
+            },
+            "f6": {
+              "type": "string",
+              "title": "Selected answer",
+              "default": "",
+              "enum": [
+                "",
+                "A",
+                "B",
+                "C",
+                "D"
+              ],
+              "v_noacg": {
+                "kind": "select"
+              },
+              "v_spx": {
+                "ftype": "dropdown",
+                "items": [
+                  {
+                    "text": "-",
+                    "value": ""
+                  },
+                  {
+                    "text": "A",
+                    "value": "A"
+                  },
+                  {
+                    "text": "B",
+                    "value": "B"
+                  },
+                  {
+                    "text": "C",
+                    "value": "C"
+                  },
+                  {
+                    "text": "D",
+                    "value": "D"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "stepCount": 2,
+        "customActions": [
+          {
+            "id": "select",
+            "name": "Select answer",
+            "description": "Pick, then lock — fires the \"select\" event.",
+            "v_noacg": {
+              "section": "Pick, then lock"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "f6": {
+                  "type": "string",
+                  "title": "Selected answer",
+                  "default": ""
+                }
+              }
+            }
+          },
+          {
+            "id": "lock",
+            "name": "Lock it in",
+            "description": "Pick, then lock — fires the \"lock\" event.",
+            "v_noacg": {
+              "section": "Pick, then lock"
+            },
+            "schema": null
+          },
+          {
+            "id": "revealChoice",
+            "name": "Reveal choice",
+            "description": "Pick, then lock — fires the \"revealChoice\" event.",
+            "v_noacg": {
+              "section": "Pick, then lock"
+            },
+            "schema": null
+          },
+          {
+            "id": "judge",
+            "name": "Reveal correct",
+            "description": "Reveal — fires the \"judge\" event.",
+            "v_noacg": {
+              "section": "Reveal"
+            },
+            "schema": {
+              "type": "object",
+              "properties": {
+                "f5": {
+                  "type": "string",
+                  "title": "Correct answer",
+                  "default": "A"
+                }
+              }
+            }
+          }
+        ],
+        "actionDurations": [
+          {
+            "type": "playAction",
+            "duration": 800,
+            "steps": [
+              {
+                "step": 0,
+                "duration": 800
+              },
+              {
+                "step": 1,
+                "duration": 450
+              }
+            ]
+          },
+          {
+            "type": "stopAction",
+            "duration": 450
+          },
+          {
+            "type": "updateAction",
+            "duration": 0
+          },
+          {
+            "type": "customAction",
+            "customActionId": "select",
+            "duration": -1
+          },
+          {
+            "type": "customAction",
+            "customActionId": "lock",
+            "duration": -1
+          },
+          {
+            "type": "customAction",
+            "customActionId": "revealChoice",
+            "duration": -1
+          },
+          {
+            "type": "customAction",
+            "customActionId": "judge",
+            "duration": -1
+          }
+        ],
+        "renderRequirements": [
+          {
+            "resolution": {
+              "width": {
+                "ideal": 1920
+              },
+              "height": {
+                "ideal": 1080
+              }
+            },
+            "frameRate": {
+              "ideal": 25
+            }
+          }
+        ],
+        "v_spx": {
+          "playlayer": "2",
+          "webplayout": "2",
+          "out": "manual"
+        }
+      },
+      "metadata": {
+        "createdAt": "2026-10-10T20:19:25.714Z",
+        "updatedAt": "2026-10-10T20:19:25.714Z",
+        "content": {
+          "url": "http://127.0.0.1:8080/api/serverApi/internal/graphics/noacg-quiz-board/3/",
+          "files": [
+            {
+              "path": "FIELDS.md"
+            },
+            {
+              "path": "graphic.mjs"
+            },
+            {
+              "path": "manifest.json"
+            },
+            {
+              "path": "quiz_board.ograf.json"
+            },
+            {
+              "path": "README.md"
+            },
+            {
+              "path": "spx-custom-actions.js"
+            },
+            {
+              "path": "fonts\\archivo.woff2"
+            },
+            {
+              "path": "fonts\\FONT_LICENSES.md"
+            },
+            {
+              "path": "fonts\\inter.woff2"
+            },
+            {
+              "path": "lib\\flex-gap-shim.js"
+            },
+            {
+              "path": "lib\\gsap.min.js"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "step": "renderer info",
+    "method": "GET",
+    "url": "/api/ograf/v1/renderers/renderer:0",
+    "status": 200,
+    "response": {
+      "renderer": {
+        "id": "renderer:0",
+        "name": "Unnamed Renderer",
+        "customActions": [
+          {
+            "id": "reload-page",
+            "name": "Reload page",
+            "description": "Reload the Renderer HTML page",
+            "schema": null
+          }
+        ],
+        "renderTargetSchema": {
+          "type": "object",
+          "properties": {
+            "layerId": {
+              "type": "string",
+              "title": "Layer",
+              "enum": [
+                "layer-0",
+                "layer-1",
+                "layer-2",
+                "layer-3",
+                "layer-4"
+              ],
+              "gddType": "select",
+              "gddOptions": {
+                "labels": {
+                  "layer-0": "Layer 0",
+                  "layer-1": "Layer 1",
+                  "layer-2": "Layer 2",
+                  "layer-3": "Layer 3",
+                  "layer-4": "Layer 4"
+                }
+              }
+            }
+          },
+          "default": {
+            "layerId": "layer-0"
+          }
+        },
+        "status": {
+          "status": "OK"
+        },
+        "renderTargets": []
+      }
+    }
+  },
+  {
+    "step": "load",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/load",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicId": "noacg-quiz-board",
+      "params": {
+        "data": {
+          "f0": "Which city hosts the 2032 Olympics?",
+          "f1": "Brisbane",
+          "f2": "Doha",
+          "f3": "Santiago",
+          "f4": "Budapest",
+          "f5": "C",
+          "f6": ""
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "graphicInstanceId": "0",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame loaded",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\01-loaded.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": []
+    }
+  },
+  {
+    "step": "playAction",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/playAction",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "0",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "0",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame on-air",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\02-on-air.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": []
+    }
+  },
+  {
+    "step": "customAction select",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/customActions/select",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "0",
+      "params": {
+        "payload": {
+          "f6": "B"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "0",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame action-select",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\03-action-select.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": [
+        "answer.selected/B"
+      ]
+    }
+  },
+  {
+    "step": "customAction lock",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/customActions/lock",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "0",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "0",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame action-lock",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\04-action-lock.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": [
+        "answer.selected/B",
+        "locked"
+      ]
+    }
+  },
+  {
+    "step": "customAction revealChoice",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/customActions/revealChoice",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "0",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "0",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame action-revealChoice",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\05-action-revealChoice.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": [
+        "answer.selected/B",
+        "locked"
+      ]
+    }
+  },
+  {
+    "step": "customAction judge",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/customActions/judge",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "0",
+      "params": {
+        "payload": {
+          "f5": "B"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 1,
+      "graphicInstanceId": "0",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame action-judge",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\06-action-judge.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": [
+        "answer.correct/B",
+        "answer.wrong/A",
+        "answer.wrong/C",
+        "answer.wrong/D"
+      ]
+    }
+  },
+  {
+    "step": "customAction (unknown)",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/customActions/no-such-action",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "0",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 400,
+      "statusMessage": "This graphic defines no custom action \"no-such-action\".",
+      "graphicInstanceId": "0"
+    }
+  },
+  {
+    "step": "stopAction",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/stopAction",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "0",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "graphicInstanceId": "0",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame off-air",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\07-off-air.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": [
+        "answer.correct/B",
+        "answer.wrong/A",
+        "answer.wrong/C",
+        "answer.wrong/D"
+      ]
+    }
+  },
+  {
+    "step": "clear",
+    "method": "PUT",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/clear",
+    "requestBody": {
+      "filters": [
+        {
+          "renderTarget": {
+            "layerId": "layer-0"
+          }
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "graphicInstances": [
+        {
+          "renderTarget": {
+            "layerId": "layer-0"
+          },
+          "graphicInstanceId": "0"
+        }
+      ]
+    }
+  },
+  {
+    "step": "copy one: load",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/load",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicId": "noacg-quiz-board",
+      "params": {
+        "data": {
+          "f0": "Copy one",
+          "f1": "Brisbane",
+          "f2": "Doha",
+          "f3": "Santiago",
+          "f4": "Budapest",
+          "f5": "C",
+          "f6": ""
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "graphicInstanceId": "1",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "copy one: playAction",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/playAction",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "1",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "1",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "copy two: load",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/load",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-1"
+      },
+      "graphicId": "noacg-quiz-board",
+      "params": {
+        "data": {
+          "f0": "Copy two",
+          "f1": "Brisbane",
+          "f2": "Doha",
+          "f3": "Santiago",
+          "f4": "Budapest",
+          "f5": "C",
+          "f6": ""
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "graphicInstanceId": "2",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "copy two: playAction",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/playAction",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-1"
+      },
+      "graphicInstanceId": "2",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "2",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "frame two-copies",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\08-two-copies.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": []
+    }
+  },
+  {
+    "step": "copy one: customAction select",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/customActions/select",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "1",
+      "params": {
+        "payload": {
+          "f6": "B"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "1",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "compare: copy one's action leaves copy two exactly as it was",
+    "diff": []
+  },
+  {
+    "step": "frame copy-one-acted",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\09-copy-one-acted.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": [
+        "answer.selected/B"
+      ]
+    }
+  },
+  {
+    "step": "copy one: clear",
+    "method": "PUT",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/clear",
+    "requestBody": {
+      "filters": [
+        {
+          "renderTarget": {
+            "layerId": "layer-0"
+          }
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "graphicInstances": [
+        {
+          "renderTarget": {
+            "layerId": "layer-0"
+          },
+          "graphicInstanceId": "1"
+        }
+      ]
+    }
+  },
+  {
+    "step": "compare: clearing copy one leaves copy two exactly as it was",
+    "diff": []
+  },
+  {
+    "step": "frame copy-two-alone",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\10-copy-two-alone.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": []
+    }
+  },
+  {
+    "step": "copy two: clear",
+    "method": "PUT",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/clear",
+    "requestBody": {
+      "filters": [
+        {
+          "renderTarget": {
+            "layerId": "layer-1"
+          }
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "graphicInstances": [
+        {
+          "renderTarget": {
+            "layerId": "layer-1"
+          },
+          "graphicInstanceId": "2"
+        }
+      ]
+    }
+  },
+  {
+    "step": "read Hairline manifest",
+    "method": "GET",
+    "url": "/api/ograf/v1/graphics/noacg-hairline",
+    "status": 200,
+    "response": {
+      "graphic": {
+        "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+        "id": "noacg-hairline",
+        "version": "1.0.0",
+        "name": "Hairline",
+        "description": "Hairline",
+        "main": "graphic.mjs",
+        "supportsRealTime": true,
+        "supportsNonRealTime": false,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "f0": {
+              "type": "string",
+              "title": "Name",
+              "default": "Alexandra Riva",
+              "v_noacg": {
+                "kind": "text"
+              },
+              "v_spx": {
+                "ftype": "textfield"
+              }
+            },
+            "f1": {
+              "type": "string",
+              "title": "Title",
+              "default": "Chief Correspondent",
+              "v_noacg": {
+                "kind": "text"
+              },
+              "v_spx": {
+                "ftype": "textfield"
+              }
+            }
+          }
+        },
+        "stepCount": 1,
+        "actionDurations": [
+          {
+            "type": "playAction",
+            "duration": 1340,
+            "steps": [
+              {
+                "step": 0,
+                "duration": 1340
+              }
+            ]
+          },
+          {
+            "type": "stopAction",
+            "duration": 750
+          },
+          {
+            "type": "updateAction",
+            "duration": 0
+          }
+        ],
+        "renderRequirements": [
+          {
+            "resolution": {
+              "width": {
+                "ideal": 1920
+              },
+              "height": {
+                "ideal": 1080
+              }
+            },
+            "frameRate": {
+              "ideal": 25
+            }
+          }
+        ],
+        "v_spx": {
+          "playlayer": "2",
+          "webplayout": "2",
+          "out": "manual"
+        }
+      },
+      "metadata": {
+        "createdAt": "2026-10-10T20:19:25.812Z",
+        "updatedAt": "2026-10-10T20:19:25.812Z",
+        "content": {
+          "url": "http://127.0.0.1:8080/api/serverApi/internal/graphics/noacg-hairline/3/",
+          "files": [
+            {
+              "path": "FIELDS.md"
+            },
+            {
+              "path": "graphic.mjs"
+            },
+            {
+              "path": "hairline.ograf.json"
+            },
+            {
+              "path": "manifest.json"
+            },
+            {
+              "path": "README.md"
+            },
+            {
+              "path": "fonts\\FONT_LICENSES.md"
+            },
+            {
+              "path": "fonts\\inter.woff2"
+            },
+            {
+              "path": "lib\\flex-gap-shim.js"
+            },
+            {
+              "path": "lib\\gsap.min.js"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "step": "board: load",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/load",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicId": "noacg-quiz-board",
+      "params": {
+        "data": {
+          "f0": "Which city hosts the 2032 Olympics?",
+          "f1": "Brisbane",
+          "f2": "Doha",
+          "f3": "Santiago",
+          "f4": "Budapest",
+          "f5": "C",
+          "f6": ""
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "graphicInstanceId": "3",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "board: playAction",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/playAction",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "3",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "3",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "Hairline: load",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/load",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-1"
+      },
+      "graphicId": "noacg-hairline",
+      "params": {
+        "data": {
+          "f0": "Alexandra Riva",
+          "f1": "Chief Correspondent"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "graphicInstanceId": "4",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "Hairline: playAction",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/playAction",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-1"
+      },
+      "graphicInstanceId": "4",
+      "params": {}
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "4",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "compare: the Hairline arriving on another layer leaves the board as it was",
+    "diff": []
+  },
+  {
+    "step": "board: customAction select",
+    "method": "POST",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/customActions/select",
+    "requestBody": {
+      "renderTarget": {
+        "layerId": "layer-0"
+      },
+      "graphicInstanceId": "3",
+      "params": {
+        "payload": {
+          "f6": "B"
+        }
+      }
+    },
+    "status": 200,
+    "response": {
+      "statusCode": 200,
+      "currentStep": 0,
+      "graphicInstanceId": "3",
+      "statusMessage": "N/A"
+    }
+  },
+  {
+    "step": "compare: the board's action leaves the Hairline as it was",
+    "diff": []
+  },
+  {
+    "step": "frame board-and-hairline",
+    "frame": "<repo>\\ograf-external-out\\shadow\\frames\\11-board-and-hairline.png",
+    "drawnStates": {
+      "stamped": 13,
+      "lit": [
+        "answer.selected/B"
+      ]
+    }
+  },
+  {
+    "step": "board: clear",
+    "method": "PUT",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/clear",
+    "requestBody": {
+      "filters": [
+        {
+          "renderTarget": {
+            "layerId": "layer-0"
+          }
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "graphicInstances": [
+        {
+          "renderTarget": {
+            "layerId": "layer-0"
+          },
+          "graphicInstanceId": "3"
+        }
+      ]
+    }
+  },
+  {
+    "step": "compare: clearing the board leaves the Hairline as it was",
+    "diff": []
+  },
+  {
+    "step": "Hairline: clear",
+    "method": "PUT",
+    "url": "/api/ograf/v1/renderers/renderer:0/target/graphicInstance/clear",
+    "requestBody": {
+      "filters": [
+        {
+          "renderTarget": {
+            "layerId": "layer-1"
+          }
+        }
+      ]
+    },
+    "status": 200,
+    "response": {
+      "graphicInstances": [
+        {
+          "renderTarget": {
+            "layerId": "layer-1"
+          },
+          "graphicInstanceId": "4"
+        }
+      ]
+    }
+  }
+]

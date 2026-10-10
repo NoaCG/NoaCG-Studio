@@ -40,7 +40,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Files allowed to say `windowsHide: false`, and why their child must share the console. */
 const SHARES_THE_CONSOLE = {
-  'scripts/ograf-external-walk.mjs': 'the app dev server and ograf-server hold ports, and the walk has no Ctrl+C handler to stop them',
+  'scripts/ograf-walk-common.mjs': 'the app dev server, ograf-server and SPX hold ports, and the OGraf renderer walks have no Ctrl+C handler to stop them',
   'scripts/ai-bench-server.mjs': 'the dev server holds the port; Ctrl+C on the bench must stop it',
   'scripts/ai-lite-compare.mjs': 'the dev server holds the port; Ctrl+C on the comparison must stop it',
   'scripts/agent-round-bench.mjs': 'a paid `claude -p` cell runs for minutes; Ctrl+C on the bench must stop it',
