@@ -44,7 +44,7 @@ repository's `.codex/config.toml` is still used for trusted project configuratio
 ## Short aliases
 
 A workflow may have a short invocation alias - `/n` and `$n` for `next`, `/o` and `$o` for
-`orchestrator`. An alias is nothing but
+`orchestrator`, `/ask` and `$ask` for `walk`. An alias is nothing but
 a second pair of adapters (`.claude/commands/<alias>.md` and `.agents/skills/<alias>/SKILL.md`)
 pointing at the target's canonical workflow, so a shortcut can never grow its own copy of the
 procedure. `WORKFLOW_ALIASES` in `scripts/check-shared-instructions.mjs` is the registry; the

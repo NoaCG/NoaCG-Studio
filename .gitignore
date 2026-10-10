@@ -156,12 +156,14 @@ sweep-*.json
 .agents/*
 !.agents/skills/
 .agents/skills/*
+!.agents/skills/ask/
 !.agents/skills/check/
 !.agents/skills/cleanup-worktrees/
 !.agents/skills/handoff/
 !.agents/skills/n/
 !.agents/skills/next/
 !.agents/skills/noacg-graphic-local/
+!.agents/skills/now/
 !.agents/skills/orchestrator-week/
 !.agents/skills/o/
 !.agents/skills/ograf-expert/

@@ -41,6 +41,7 @@ const EXPLICIT_ONLY_WORKFLOWS = new Set(['cleanup-worktrees']);
 const WORKFLOW_ALIASES = new Map([
   ['n', 'next'],
   ['o', 'orchestrator'],
+  ['ask', 'walk'],
 ]);
 const CLAUDE_ONLY_EXCEPTIONS = new Map([
   [
