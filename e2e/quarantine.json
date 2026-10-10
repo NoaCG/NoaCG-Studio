@@ -12,6 +12,11 @@
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38005906607"
     },
+    "e2e/configured/production-data-key.spec.ts": {
+      "since": "2026-10-10",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38084274673"
+    },
     "e2e/editor-base-edits.spec.ts": {
       "since": "2026-10-10",
       "count": 2,
