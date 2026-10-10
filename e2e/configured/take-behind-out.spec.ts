@@ -75,11 +75,12 @@ test('a Take pressed while the Out is on its way stays on air here, and All out 
   await expect(chip).toContainText('on air:');
 
   // The Out has answered (the Take only leaves after it) and the Take has committed; its answer is
-  // still held. The page still says the Take is up, which is what air shows.
+  // still held. The page still says the Take is up, which is what air shows. ONE read, never a
+  // waiting assertion: the Take's own answer, due in a moment, would mark it up again and a wait
+  // would pass on that (it did, mutation-testing this walk). Soft, so the walk goes on to All out.
   await takeIn;
-  await expect.poll(headOn, { timeout: 5_000 }).toBe(true);
   await page.waitForTimeout(150);
-  await expect(chip).toContainText('on air:');
+  expect.soft(await chip.textContent(), 'the Out answering must not take the Take off this page').toContain('on air:');
 
   // ALL OUT, in that moment. Before the fix it was judged against "nothing up here, the head says
   // off" and sent nothing, and the Take stayed on air.
