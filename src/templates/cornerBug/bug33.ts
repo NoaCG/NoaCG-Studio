@@ -40,8 +40,7 @@ ${bugLineMasks(o)}
 
     css: `${labelFontFaceCss(fontById('jetbrains-mono'))}
 
-/* The chip — the house void tint holding both words on one row. A place and a status fit it;
-   words longer than the bug's width cap wrap inside their own masks rather than being cut. */
+/* The chip — the house void tint holding both words on one row. */
 .corner-bug-box {
   display: flex;                   /* the two words sit side by side */
   align-items: center;             /* both on one baseline */
@@ -62,6 +61,7 @@ ${bugLineMasks(o)}
   letter-spacing: var(--display-tracking);  /* the family's display tracking */
   text-transform: uppercase;       /* place names read as marks here */
   color: var(--text-color);        /* primary text */
+  white-space: nowrap;             /* the chip is one row: neither word wraps */
 }
 
 /* The divider — an amber dot between the place and what is happening there. It is drawn on
@@ -91,6 +91,7 @@ ${bugLineMasks(o)}
   letter-spacing: var(--label-tracking);  /* the house label tracking */
   text-transform: uppercase;       /* label voice */
   color: var(--label-color);       /* the house carries the accent in the label */
+  white-space: nowrap;             /* the chip is one row: neither word wraps */
 }`,
 
     hasAccent: false, // the accent moment is the divider dot, drawn on the second line's mask

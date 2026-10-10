@@ -164,7 +164,7 @@ ${zoneCssText(o.zone, o.nudge, o.resolution)}
 }
 .transition-mask > span {
   display: inline-block;           /* so the label can move inside its mask */
-  overflow-wrap: anywhere;         /* a word too long for its mask breaks: break-word cannot narrow the line, so the mask cut its end off */
+  overflow-wrap: break-word;       /* break a very long unbroken label */
   text-wrap: balance;              /* wrapped rows get even lengths */
   text-align: center;              /* the lockup is centre-axis */
 }

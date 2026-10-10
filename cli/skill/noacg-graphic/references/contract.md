@@ -484,7 +484,7 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: transp
 .now-playing { position: absolute; left: calc(120px * var(--scale)); bottom: calc(120px * var(--scale)); opacity: 0; }
 .now-playing-box { width: fit-content; max-width: calc(900px * var(--scale)); padding: calc(18px * var(--scale)) calc(28px * var(--scale)); background: var(--panel-bg); color: var(--text-color); border-left: calc(6px * var(--scale)) solid var(--accent); }
 .now-playing-mask { overflow: hidden; }
-.now-playing-mask > span { display: inline-block; overflow-wrap: anywhere; }
+.now-playing-mask > span { display: inline-block; overflow-wrap: break-word; }
 .now-playing-artist { font-size: calc(44px * var(--scale) * var(--type-scale)); font-weight: 700; line-height: 1.1; }
 .now-playing-song { font-size: calc(26px * var(--scale) * var(--type-scale)); color: var(--text-dim); }
 ```

@@ -100,11 +100,6 @@ ${duration}    </div>`,
   text-align: right;                /* lines up down a sequence of cues */
   white-space: nowrap;              /* a numeral never wraps */
 }
-.lower-third-numcell .lower-third-name {
-  overflow-wrap: normal;            /* nor breaks inside a word: in a 99px column the shared
-                                       overflow-wrap: anywhere would stack a long value letter by
-                                       letter up off the frame */
-}
 
 /* The rule between the numeral and the title — the graphic's accent node, and the column
    divider a printed programme would draw. */

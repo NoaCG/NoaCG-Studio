@@ -79,13 +79,12 @@ ${slot(o, 2, 'lower-third-caller', '        ')}
   letter-spacing: var(--label-tracking);  /* the family's label tracking */
   text-transform: uppercase;        /* COMMENTARY, whatever the operator types */
   color: var(--accent);             /* the rail's one dose of colour */
-  max-width: calc(300px * var(--scale));  /* a segment label is a word or two; one far longer wraps
-                                       here instead of taking the rail from the callers */
+  white-space: nowrap;              /* the label never wraps — it would break the rail */
 }
 
 /* The label's own mask never shrinks. A reveal mask is overflow:hidden, and that switches OFF a
-   flex item's automatic minimum size — so the label was squeezed below its own width and CUT
-   instead. The callers wrap for a living; the label absorbs nothing past its own cap. */
+   flex item's automatic minimum size — so the label, which may not wrap, was squeezed below its
+   own width and CUT instead. The callers wrap for a living; the label absorbs nothing. */
 .lower-third-box > .lower-third-mask {
   flex: none;                       /* the label keeps its width; the rail gives way elsewhere */
 }
