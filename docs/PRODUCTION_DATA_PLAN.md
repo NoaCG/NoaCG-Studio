@@ -458,6 +458,9 @@ so the five catalog gates are not in scope.
 6. Any extension of `liveData.ts`.
 7. Repeat/loop binding for arrays of objects. Phase 1 handles Scenario C with indexed paths -
    verbose, honest, and zero new machinery. Revisit only with a real leaderboard in a real show.
+   (2026-10-10: an election night, the heaviest leaderboard case, was designed against this list
+   in `docs/research/election-night-2026-10-10/demo-spec.md` and needs no row binding: the
+   connector writes `label | value` line arrays.)
 8. Enterprise API-key management (scopes, multiple keys, rotation UI).
 9. Expression or formatting language in the binding (`{{score}} pts`). Formatting lives in the
    template.
