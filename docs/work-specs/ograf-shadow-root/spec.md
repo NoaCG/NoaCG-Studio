@@ -416,3 +416,34 @@ included.
   that read through `graphicBody` ran on CI only.
 - **For the flip, also.** The sweep's reference becomes the studio document, and `sb21`, `sb22`
   stay excepted until #964 is fixed.
+
+### Phase 3 (2026-10-10)
+
+- **Built.** Both walks take `--mount light|shadow` and build their packages in the app page with
+  that mount (`ografZip` and `shadowOgraf`); their plumbing is `scripts/ograf-walk-common.mjs`.
+  `scripts/ograf-spx-walk.mjs` is new: it makes an OGRAF project through SPX's own endpoints,
+  drives the controller's own functions, and judges a beat by reading the graphic in `/renderer`
+  (text, and each element's box, opacity, colour and type, through `graphicBody`) against the same
+  package after the same calls on SPX's blank `/templates/empty.html`. The SuperFly walk gains the
+  two layer beats. Both are browser work in `scripts/command-match.mjs`.
+- **AC-10.** Light and shadow each pass all 20 judged beats on the 1.4.1 source build; SPX's
+  Update and payload gaps read the same in both. With `div, span { letter-spacing: 12px
+  !important }` added to the renderer page, light fails the ten layout beats and shadow passes
+  every beat: on SPX the light mount already holds against SPX's own rules (the `all: initial`
+  guard), so the shadow root's gain there is against rules a page adds. `evidence/phase-3.md`.
+- **AC-9.** Against ograf-server main built on 2026-10-10, light and shadow each pass every beat:
+  the board's load, play, four custom actions, the unknown action's 400, stop and clear, and the
+  new layer beats, where two copies of the board and then the board beside a Hairline each keep
+  their own text, boxes and lit drawn states while the other plays, acts and is cleared. The
+  board has no id-referenced paint, so light passes the copies too; the gradient case stays with
+  AC-5.
+- **Found.** The SuperFly walk looked its graphic up by the manifest id, but ograf-server names
+  the element `ograf-<id>`, so it read `data-noacg-role` across the whole page: right in the
+  light DOM by accident, blind in a shadow root. It now finds a layer's Graphic by its
+  `data-noacg-graphic` stamp. It also had not run since the old editor closed on 2026-09-24
+  ("Create project" and the editor's Export tab are gone); it now takes Finish's "Export it" door
+  and the export window.
+- **For the flip.** Run both walks on that branch with `--mount shadow`, then drop `--mount` with
+  the option: the light path of the SuperFly walk is the export dialog, which by then builds the
+  shadow package itself. SPX 1.4.1 and the ograf-server main build used here stay where the walks'
+  headers say to build them.

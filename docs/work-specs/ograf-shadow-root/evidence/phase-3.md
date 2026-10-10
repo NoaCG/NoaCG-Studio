@@ -51,11 +51,39 @@ gain is against rules a page adds, as the spikes measured.
 
 ## SuperFly.tv ograf-server (AC-9)
 
-Not run yet. The source of `SuperFlyTV/ograf-server` main was fetched on 2026-10-10; its
-dependencies were not installed in this session.
+`node scripts/ograf-external-walk.mjs --server <ograf-server-main> --mount light|shadow`, against
+`SuperFlyTV/ograf-server` main fetched on 2026-10-10 (version 1.0.0, `yarn install` and
+`yarn build` with corepack's yarn 4.9.1, Node 24.13). The board is `docs/svg-samples/quiz-board.svg`
+through the import wizard and Finish's "Export it" door; the light package is the export window's
+download, the shadow one the same graphic built in the page with the mount. The second design is
+the catalog's Hairline. Transcripts in `phase-3/superfly-<mount>/`, with the frames of the layer
+beats (the renderer page is transparent, so the Hairline's white type does not show in them; its
+text is in the transcript's readings).
+
+| Beat | Light | Shadow |
+|---|---|---|
+| Upload, list, load, play (the graphic in the mount the run asked for) | pass | pass |
+| `select`, `lock`, `revealChoice`, `judge` each answer 200 and light the drawn states (`answer.selected/B`, then `locked`, then `answer.correct/B` and three `answer.wrong`) | pass | pass |
+| An unknown action answers 400 with our message; stop; clear | pass | pass |
+| Two copies on `layer-0` and `layer-1`, each with its own question | pass | pass |
+| `select` on copy one lights copy one only; copy two reads identical (text, boxes, lit states) | pass | pass |
+| Clearing copy one leaves copy two identical | pass | pass |
+| The board and a Hairline on two layers: the Hairline's arrival leaves the board identical, the board's action and its clearing leave the Hairline identical | pass | pass |
+
+The walk sends `judge` its answer key as payload, the second choice (B), which is why B lights
+as correct although the board loaded with C: the walk's choice, the same in both mounts.
+
+The light mount passes the two-copies beats here because the board's artwork has no
+id-referenced paint; two copies recolouring their own gradients, which the light mount fails,
+stay with `e2e/ograf-isolation.spec.ts` (AC-5).
 
 Found while extending the walk: the renderer names a graphic's element `ograf-<id>`
 (`getCustomElementName` in renderer-layer's `GraphicsCache.ts`), not the manifest id. The walk
 looked the element up by the manifest id, found nothing and read `data-noacg-role` across the
 whole page instead, which works in the light DOM and finds nothing inside a shadow root. It now
 finds the Graphic on a layer by its `data-noacg-graphic` stamp and the layer div's z-index.
+
+Also found: the walk could not have run since 2026-09-24. It ended the import wizard on
+"Create project" and exported from the old editor's Export tab, and both went when the old editor
+closed. It now takes Finish's "Export it" door, which saves the graphic and opens the export
+window, and downloads from there.

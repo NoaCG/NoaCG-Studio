@@ -9,7 +9,7 @@
 // exactly what a person would do, in one process:
 //
 //   1. drives the REAL import door in the app (drop `quiz-board.svg`, take the proposed quiz
-//      binding, create the graphic) and exports it through the REAL export dialog as OGraf,
+//      binding, take Finish's Export door) and exports it from the REAL export window as OGraf,
 //   2. uploads that zip to a running ograf-server through its own zip endpoint,
 //   3. opens the server's renderer page in a browser and drives the graphic ONLY through the
 //      server's HTTP control API - load, playAction, the three custom actions, stopAction -
@@ -108,23 +108,26 @@ async function startOgrafServer() {
 // ── beat 1: the package, out of the product's own doors ──────────────────────
 
 /**
- * Drop the sample on the Import door, take the proposed behaviour, create the graphic, then
- * export it as OGraf through the export dialog. Returns the zip's path.
+ * Drop the sample on the Import door, take the proposed behaviour, finish the wizard through its
+ * "Export it" door, and export OGraf from the export window. Returns the zip's path.
  *
  * Nothing here reaches past the UI: the walk is only worth anything if the package is the one a
  * student would get by clicking the same buttons. The one exception is the shadow mount, which
- * the dialog does not offer yet: that package is the same graphic built in the page by the same
- * exporter, told the mount (`shadowOgraf`, e2e/_ografMount.ts).
+ * the export window does not offer yet: that package is the same graphic built in the page by the
+ * same exporter, told the mount (`shadowOgraf`, e2e/_ografMount.ts).
  */
 async function exportOgrafPackage(page) {
   say(`app: dropping ${sample.replace(root + '\\', '').replace(root + '/', '')} on the Import door`);
   await page.goto(`${appOrigin}/app`);
   const modal = page.locator('.wz-modal');
+  // The wizard's own Next, scoped to it as e2e/_svg-import.ts scopes it.
+  const next = modal.getByRole('button', { name: 'Next' });
+  const onStep = (n) => page.getByTestId('wz-stepcount').filter({ hasText: String(n) }).waitFor({ timeout: 30_000 });
   await modal.waitFor({ state: 'visible', timeout: 30_000 });
   await page.locator('[data-entry="import-graphic"]').click();
   await page.locator('.wz-drop input[type="file"]').setInputFiles(sample);
   await page.getByTestId('import-svg-card').waitFor({ state: 'visible', timeout: 30_000 });
-  await page.locator('.wz-next').click();
+  await next.click();
   await page.getByTestId('map-svg-fields').waitFor({ state: 'visible', timeout: 30_000 });
 
   // THE BEHAVIOUR IS THE POINT OF THE WALK, so read it back rather than assuming the proposal
@@ -134,17 +137,22 @@ async function exportOgrafPackage(page) {
   if (kind !== 'quiz') throw new Error(`the import proposed behaviour "${kind}", not a quiz`);
   say('app: the quiz binding is proposed from the layer names');
 
-  await page.getByRole('button', { name: 'Create project' }).click();
-  await modal.waitFor({ state: 'hidden', timeout: 60_000 });
+  // Animation, then Finish, each click settled on the step counter before the next.
+  await next.click();
+  await onStep(4);
+  await next.click();
+  await onStep(5);
+  say('app: Finish -> Export it');
+  await page.getByTestId('wz-finish-export').click();
+  await page.getByTestId('export-window').waitFor({ state: 'visible', timeout: 60_000 });
 
   const zipPath = join(outDir, 'imported-quiz-ograf.zip');
   if (mount === 'shadow') {
-    say('app: the shadow package, built in the page from the same graphic (the dialog has no mount)');
+    say('app: the shadow package, built in the page from the same graphic (the export window has no mount)');
     const zip = await shadowOgraf(page, 'Live');
     writeFileSync(zipPath, await zip.generateAsync({ type: 'nodebuffer' }));
   } else {
-    say('app: Export -> OGraf (EBU) export -> Validate & download');
-    await page.getByTestId('dock-tab-export').click();
+    say('app: OGraf (EBU) export -> Validate & download');
     await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 60_000 }),
