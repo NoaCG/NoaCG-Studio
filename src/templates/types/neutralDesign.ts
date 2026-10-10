@@ -278,9 +278,10 @@ function neutralScoreboardDesign(type: GraphicType): SbDesign {
   const rows: string[] = [];
   for (let i = 0; i < lines.length; i += 2) {
     const pair = lines.slice(i, i + 2).map(({ field, spx: f }) => {
-      const cls = field.kind === 'number' ? `${p}-score` : `${p}-team`;
+      const score = field.kind === 'number';
+      // A score's mask holds its width; the team name beside it is the line that wraps.
       return `          <!-- ${field.label} (${f.field}) -->\n` +
-        `          <div class="${p}-mask"><span id="${f.field}" class="${cls}">${escapeText(f.value)}</span></div>`;
+        `          <div class="${p}-mask${score ? ` ${p}-score-mask` : ''}"><span id="${f.field}" class="${score ? `${p}-score` : `${p}-team`}">${escapeText(f.value)}</span></div>`;
     });
     rows.push(`        <div class="${p}-row">\n${pair.join('\n')}\n        </div>`);
   }
@@ -353,6 +354,10 @@ ${hasAccent ? `.${p}-accent {
   align-items: baseline;
   justify-content: space-between;
   gap: calc(40px * var(--scale));
+}
+.${p}-score-mask {
+  flex: none;                      /* a reveal mask has no minimum width: without this a long team
+                                      name beside it squeezes the score and its digits are cut */
 }
 .${p}-team {
   font-size: calc(40px * var(--scale) * var(--type-scale));
