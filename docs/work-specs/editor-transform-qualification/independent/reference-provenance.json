@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-10T13:25:41.8586955Z",
+  "release": "https://github.com/storytold/vectorcraft/releases/tag/v0.4.0",
+  "tag": "refs/tags/v0.4.0",
+  "revision": "a26aa5b203c901979eb447d28e34e7357138c789",
+  "assets": [
+    {
+      "name": "SHA256SUMS.txt",
+      "browser_download_url": "https://github.com/storytold/vectorcraft/releases/download/v0.4.0/SHA256SUMS.txt",
+      "digest": "sha256:926a8a3e570288ed843bf60f9f49c0e556161ef4e85f47d5c1564176a587cf81"
+    },
+    {
+      "name": "vectorcraft-0.4.0-windows-x64-portable.zip",
+      "browser_download_url": "https://github.com/storytold/vectorcraft/releases/download/v0.4.0/vectorcraft-0.4.0-windows-x64-portable.zip",
+      "digest": "sha256:fa8d7dc5590ebf1adb93d040dd7420441a2e55db2971f33c05c0c0e5edde0fec"
+    }
+  ],
+  "archiveSha256": "fa8d7dc5590ebf1adb93d040dd7420441a2e55db2971f33c05c0c0e5edde0fec",
+  "executableSha256": "19d93588ae034e38084be17e626a7f2174bd626059723c93d4681e752a72ffba"
+}
