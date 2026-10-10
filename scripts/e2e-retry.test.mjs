@@ -1,9 +1,14 @@
+// guards: .github/workflows/ci.yml
 // Which files the retry re-runs, read off a Playwright JSON report, and the three refusals that
 // keep a green retry honest. The report shape is the reporter's (suites nest, specs carry tests,
 // tests carry a final `status`), and the two traps e2e/AGENTS.md names are the cases: `ok` says
 // nothing about a skipped spec, and a spec that passed after a retry is `flaky`, not `unexpected`.
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { runInNewContext } from 'node:vm';
 
 import { failedSpecFiles, retryPlan } from './e2e-retry.mjs';
 
@@ -82,4 +87,66 @@ test('a dead shard does not lift the edited-spec refusal for a spec that failed 
   const plan = retryPlan({ failed: ['e2e/c.spec.ts'], reported: [1, 2], shards: 3, shardSpecs: bins, changed: ['e2e/c.spec.ts'] });
   assert.equal(plan.ok, false);
   assert.match(plan.reason, /e2e\/c\.spec\.ts failed and this change edits it/);
+});
+
+// Exercise the workflow's actual expression and shell, so a planner-only pass cannot hide
+// a skipped retry or a final gate that still rejects its successful verdict.
+const workflow = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const retryIf = workflow.match(/^  e2e-retry:\n[\s\S]*?^    if: \$\{\{ (.*) \}\}$/m)?.[1];
+assert.ok(retryIf, 'retry eligibility must be present in the workflow');
+const canRetry = (result, event = 'push', ref = 'refs/heads/main', cancelled = false) => runInNewContext(retryIf, {
+  cancelled: () => cancelled,
+  needs: { e2e: { result } },
+  github: { event_name: event, ref },
+}, { timeout: 100 });
+
+test('main and merge groups can retry a failed or cancelled matrix, never a manual cancellation', () => {
+  for (const result of ['failure', 'cancelled']) {
+    assert.equal(canRetry(result), true, result);
+    assert.equal(canRetry(result, 'merge_group', 'refs/heads/gh-readonly-queue/main/test'), true, result);
+    assert.equal(canRetry(result, 'push', 'refs/heads/main', true), false, 'manual workflow cancellation');
+    assert.equal(canRetry(result, 'merge_group', 'refs/heads/gh-readonly-queue/main/test', true), false);
+    assert.equal(canRetry(result, 'pull_request', 'refs/pull/1/merge'), false, 'PRs have no retry');
+    assert.equal(canRetry(result, 'push', 'refs/heads/topic'), false, 'feature branch pushes have no retry');
+  }
+  for (const result of ['success', 'skipped']) assert.equal(canRetry(result), false, result);
+});
+
+const gateBody = workflow.match(/      - name: Require every gate\n[\s\S]*?        run: \|\n((?: {10}[^\n]*\n|\n)*)/)?.[1];
+assert.ok(gateBody, 'the final gate shell must be present in the workflow');
+const gateScript = gateBody.replace(/^ {10}/gm, '');
+const bash = process.platform === 'win32' ? join(process.env.ProgramFiles || 'C:/Program Files', 'Git/bin/bash.exe') : 'bash';
+function gate(results = {}) {
+  const run = spawnSync(bash, ['--noprofile', '--norc', '-s'], {
+    input: gateScript, encoding: 'utf8', timeout: 10_000, windowsHide: true,
+    env: { ...process.env, BUILD_RESULT: 'success', PLAN_RESULT: 'success', FACTORY_RESULT: 'success',
+      CATALOG_RESULT: 'success', E2E_RESULT: 'success', RETRY_RESULT: 'skipped', ...results },
+  });
+  assert.ifError(run.error);
+  assert.equal(run.signal, null, run.stderr);
+  return run;
+}
+
+test('a cancelled matrix passes only after its bounded retry succeeds', () => {
+  const completed = gate({ E2E_RESULT: 'cancelled', RETRY_RESULT: 'success' });
+  assert.equal(completed.status, 0, completed.stdout + completed.stderr);
+  assert.doesNotMatch(completed.stdout, /a flake, not a regression/, 'unreported tests have no prior assertion verdict');
+  for (const result of ['', 'skipped', 'failure', 'cancelled']) {
+    assert.notEqual(gate({ E2E_RESULT: 'cancelled', RETRY_RESULT: result }).status, 0, result);
+  }
+});
+
+test('failed-then-passed assertions retain the flake verdict; a failed retry stays red', () => {
+  const completed = gate({ E2E_RESULT: 'failure', RETRY_RESULT: 'success' });
+  assert.equal(completed.status, 0, completed.stdout + completed.stderr);
+  assert.match(completed.stdout, /a flake, not a regression/);
+  assert.notEqual(gate({ E2E_RESULT: 'failure', RETRY_RESULT: 'failure' }).status, 0);
+});
+
+test('a successful retry never overrides any other required gate', () => {
+  for (const key of ['BUILD_RESULT', 'PLAN_RESULT', 'FACTORY_RESULT', 'CATALOG_RESULT']) {
+    for (const result of ['failure', 'cancelled']) {
+      assert.notEqual(gate({ E2E_RESULT: 'cancelled', RETRY_RESULT: 'success', [key]: result }).status, 0, key + result);
+    }
+  }
 });

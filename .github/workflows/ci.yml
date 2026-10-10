@@ -604,7 +604,7 @@ jobs:
   e2e-retry:
     name: E2E retry (failed specs, same commit)
     needs: [plan, e2e]
-    if: ${{ !cancelled() && needs.e2e.result == 'failure' && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
+    if: ${{ !cancelled() && (needs.e2e.result == 'failure' || needs.e2e.result == 'cancelled') && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
     # A dead shard's files are a whole shard's worth of work, and the shard that died ran out of its
     # 20 minutes on them; the same cap here would kill the second run for the same reason. A hung
@@ -982,6 +982,11 @@ jobs:
           # the shards' verdict stands.
           if [ "$E2E_RESULT" = "failure" ] && [ "$RETRY_RESULT" = "success" ]; then
             echo "::warning title=CI gate::E2E shards failed and the failed specs passed on a second run of this same commit - a flake, not a regression. Those specs are being quarantined (e2e/quarantine.json)."
+            E2E_RESULT=success
+          elif [ "$E2E_RESULT" = "cancelled" ] && [ "$RETRY_RESULT" = "success" ]; then
+            # The planner refuses multiple missing reports and replays the one missing shard's
+            # assigned files. Its completed verdict supplies the answer the matrix never reached.
+            echo "::notice title=CI gate::The bounded retry completed successfully after the E2E matrix was cancelled. Any failed specs are recorded separately by the retry and quarantine steps."
             E2E_RESULT=success
           fi
           fail() {
