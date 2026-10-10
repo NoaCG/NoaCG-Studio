@@ -220,7 +220,13 @@ test('B02 Quiz whole selection, modifier selection and pointer cancellation pres
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect(await source(page)).toEqual(initial);
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
   await page.locator('.ef-track[data-selector=".quiz-option-1"] .ef-layer').click({ modifiers: ['Control'] });
-  expect((await selected(page)).length).toBe(2);
+  expect(await selected(page)).toEqual(['#f0', '.quiz-option-1']);
   await page.locator('.ef-track[data-selector=".quiz-option-2"] .ef-layer').click({ modifiers: ['Shift'] });
-  expect((await selected(page)).length).toBe(3);
+  expect(await selected(page)).toEqual(['.quiz-option-1', '.quiz-option-2']);
+  expect(await source(page)).toEqual(initial);
+  await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
+  await page.locator('.ef-track[data-selector=".quiz-option-1"] .ef-layer').click({ modifiers: ['Control'] });
+  await page.locator('.ef-track[data-selector=".quiz-option-2"] .ef-layer').click({ modifiers: ['Control', 'Shift'] });
+  expect(await selected(page)).toEqual(['#f0', '.quiz-option-1', '.quiz-option-2']);
+  expect(await source(page)).toEqual(initial);
 });

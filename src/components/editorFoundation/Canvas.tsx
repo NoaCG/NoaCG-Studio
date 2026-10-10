@@ -33,6 +33,7 @@ interface Props {
   linked: boolean;
   groupScope: string | null; enterGroup: (selector: string) => void;
   setSelection: (selection: string[]) => void;
+  openLayerMenu: (selector: string, x: number, y: number) => void;
   onAppearance: (appearance: Record<string, RenderedPart['appearance']>) => void;
   onDrawingSpace: (space: PreviewReply['drawingSpace']) => void;
   rootSelector?: string;
@@ -41,7 +42,7 @@ interface Props {
   openAssets: () => void;
   pathEditing: string | null; onPathEditing: (selector: string | null) => void;
 }
-export default function Canvas({ template, sampleData, session, time, selection, select, linked, groupScope, enterGroup, setSelection, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets, pathEditing, onPathEditing }: Props) {
+export default function Canvas({ template, sampleData, session, time, selection, select, linked, groupScope, enterGroup, setSelection, openLayerMenu, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets, pathEditing, onPathEditing }: Props) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const controller = useRef<PreviewController | null>(null);
@@ -203,6 +204,16 @@ export default function Canvas({ template, sampleData, session, time, selection,
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
       data-testid="foundation-canvas" data-tool={tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
       data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
+      onContextMenu={event => {
+        if (pending || tool !== 'select' || pathEditing || (event.target as HTMLElement).closest('.ef-inline-text')) return;
+        event.preventDefault(); pause(); keyboard.cancel(); gesture.cancel();
+        const point = pointerPoint(event, size, pan, scale, width, height);
+        const hits = visibleParts.filter(part => part.selector !== rootSelector && point.x >= part.x && point.x <= part.x + part.width && point.y >= part.y && point.y <= part.y + part.height)
+          .sort((a, b) => Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || a.width * a.height - b.width * b.height);
+        const hit = hits[0]; if (!hit) return;
+        if (!selection.includes(hit.selector)) select(hit.selector, false);
+        openLayerMenu(hit.selector, event.clientX, event.clientY);
+      }}
       onDragOver={event => {
         if (event.dataTransfer.types.includes('Files') || event.dataTransfer.types.includes(ASSET_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }
       }}

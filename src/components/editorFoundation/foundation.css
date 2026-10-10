@@ -258,3 +258,23 @@
 .ef-proposal-panel p { overflow-wrap: anywhere; }
 .ef-proposal-commands { padding-left: 20px; }
 .ef-proposal-commands p { white-space: pre-wrap; margin: 6px 0; }
+
+/* Bounded layer/property qualification: keep labels, values and distinct actions aligned. */
+.ef-transform-property { display: grid; grid-template-columns: minmax(0, 1fr) 56px; column-gap: 6px; margin-bottom: 10px; }
+.ef-animation-properties .ef-number { display: grid; grid-template-columns: minmax(0, 1fr) 68px; align-items: center; gap: 6px; }
+.ef-animation-properties input { width: 68px; text-align: right; }
+.ef-transform-property .ef-key-controls { display: grid; grid-template-columns: 24px 24px; gap: 4px; margin: 0; align-self: start; }
+.ef-transform-property .ef-key-controls button { padding: 3px; min-width: 24px; }
+.ef-transform-property .ef-key-controls .ef-muted { grid-column: 1 / -1; font-size: 9px; }
+.ef-scrubbable { touch-action: pan-y; }
+.ef-scrubbable > span:first-child, .ef-scrubbable input { cursor: ew-resize; }
+.ef-scrubbable input:focus { cursor: text; }
+.ef-scrubbable [role=alert] { grid-column: 1 / -1; color: var(--warn); }
+.ef-shell .ef-layer-eye { flex: none; width: 24px; padding: 3px; min-height: 0; border: 0; background: transparent; color: var(--text-mid); }
+.ef-layer-eye svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.3; vertical-align: middle; }
+.ef-layer-eye[aria-pressed=false] { color: var(--text-dim); }
+.ef-layer-cell { position: relative; }
+.ef-layer-error { position: absolute; left: 0; top: 100%; z-index: 6; width: 260px; white-space: normal; background: var(--bg-panel); color: var(--warn); padding: 6px; }
+.ef-layer-cell .ef-layer { padding-inline: 5px; gap: 7px; }
+.ef-layer-number, .ef-layer-icon { flex-shrink: 0; }
+.ef-document-strip .ef-document-tab { display: block; max-width: 30%; min-width: 0; }

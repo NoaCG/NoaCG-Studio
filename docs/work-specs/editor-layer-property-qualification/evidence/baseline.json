@@ -1,0 +1,78 @@
+{
+  "selectors": [
+    ".graphic",
+    ".graphic-box",
+    "#f0",
+    "#f1"
+  ],
+  "shift": [
+    ".graphic",
+    "#f0"
+  ],
+  "additive": [
+    ".graphic",
+    "#f0"
+  ],
+  "deleteChanged": false,
+  "count": 1,
+  "afterCount": 1,
+  "rename": 0,
+  "menu": 0,
+  "controls": [
+    {
+      "name": "Disable Opacity animation",
+      "title": "Remove this property’s keys and retain the current pose"
+    },
+    {
+      "name": "Add Opacity key",
+      "title": null
+    },
+    {
+      "name": null,
+      "title": null
+    },
+    {
+      "name": "Enable Layout offset X animation",
+      "title": "Create one key at the playhead"
+    },
+    {
+      "name": "Add Layout offset X key",
+      "title": null
+    },
+    {
+      "name": "Enable Layout offset Y animation",
+      "title": "Create one key at the playhead"
+    },
+    {
+      "name": "Add Layout offset Y key",
+      "title": null
+    },
+    {
+      "name": "Enable Scale X animation",
+      "title": "Create one key at the playhead"
+    },
+    {
+      "name": "Add Scale X key",
+      "title": null
+    },
+    {
+      "name": "Enable Scale Y animation",
+      "title": "Create one key at the playhead"
+    },
+    {
+      "name": "Add Scale Y key",
+      "title": null
+    },
+    {
+      "name": "Enable Rotation animation",
+      "title": "Create one key at the playhead"
+    },
+    {
+      "name": "Add Rotation key",
+      "title": null
+    }
+  ],
+  "before": "0",
+  "after": "0",
+  "visibility": 0
+}

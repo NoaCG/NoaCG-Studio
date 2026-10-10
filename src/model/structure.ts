@@ -136,6 +136,8 @@ export interface TemplatePart {
    *  flag exists so questions about THIS graphic's own shape (how many lines the design has)
    *  don't count a guest's. */
   inserted?: boolean;
+  /** An authored eye override, separate from animation and imported hidden design states. */
+  hidden?: boolean;
 }
 
 /**
@@ -339,6 +341,13 @@ export function getTemplateParts(html: string, fields: SpxField[] = [], nestedSv
   }
 
   for (const part of parts) if (doc.querySelector(part.selector)?.hasAttribute('data-noacg-group')) part.label = 'Group ' + part.selector.replace(/^#group-/, '');
+
+  for (const part of parts) {
+    const node = doc.querySelector(part.selector);
+    const label = node?.getAttribute('data-noacg-label');
+    if (label?.trim()) part.label = label;
+    if (node?.getAttribute('data-noacg-hidden') === 'true') part.hidden = true;
+  }
 
   if (nestedSvg) {
     const nodes = new Map(parts.map(part => [part.selector, doc.querySelector(part.selector)!]));

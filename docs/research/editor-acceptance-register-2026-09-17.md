@@ -543,3 +543,10 @@ DOM parsing, not independent coordinate conversion, Node-pure or model parity.
 This advances E23 and the shared-handler portion of B17 only. B18 model quality,
 CLI round-trip, WebMCP, physical receiving-host, owner workflow and broader R1.3b
 acceptance stay open. Paired live MCP remains R3.2. No whole acceptance row closes.
+
+
+## R1.2b bounded layer/property qualification, 2026-10-10
+
+[Spec and engineering receipts](../work-specs/editor-layer-property-qualification/README.md) advance B02/B03/B05/E02/E04/E08/E17 with ordered layer ranges, source label/eye metadata, canvas/row Delete/context actions, unkeyed transform discovery, aligned distinct key controls and transactional numeric scrubbing. Existing passes were reproduced before correction; pinned Studio source/runtime matches, shortfalls and deliberate differences are recorded. The cumulative ordinary import/create/text/artwork/animate/history/cancel/save/reopen/output task retains fields, masks, assets and stable IDs. #950/#960 independent transform evidence and CLI round-trip regressions are unchanged.
+
+Native 125% zoom was measured, not proxied: a 1366x768 outer window yields 1093x545 CSS content, a 94px canvas. The task completes through scrolling; comfortable zoomed layout acceptance remains open. [#967](https://github.com/NoaCG/NoaCG-Studio/issues/967) requires a fresh independent reference/landed-main repeat and a bounded next correction if the layout shortfall is confirmed. Broader property shortcuts/conventions, whole B02/B03/B05, owner acceptance, R1.5/default switch, receiving hosts and paired MCP remain open. Save/leave/cloud-status remains with its separate owner.
