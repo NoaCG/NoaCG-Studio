@@ -157,30 +157,71 @@ function attemptWithin(
  * nothing about the one that failed, which is still on this monitor and on no other screen, and
  * taking the notice down then would hide exactly that. So each failure is remembered with the
  * graphics it carried, and the notices are released together once none of them is owed.
+ *
+ * A FAILED SEND CAN STILL LAND (ATTEMPT_TIMEOUT_MS above, WHAT THIS CANNOT DO): both attempts
+ * abandoned on a slow link, and the server committed one anyway. Its row then comes back to this
+ * page carrying the ids the press minted, and that settles the graphic as surely as an answer
+ * would (`heard`). Seen on hosted staging (#917): without it the notice said "on this monitor
+ * only" for a Take that was on air. Only the NEWEST failure of a graphic is owed by its ids, so
+ * an older failed press landing late never clears a later one that is still owed.
  */
 interface SendDebts {
-  failed(items: readonly { graphic: string }[], notice: string): void;
+  /** A send carrying these items failed. Each item's `msg.oid`, when it has one, is how its row
+   *  is recognised if it commits after all. */
+  failed(items: readonly { graphic: string; msg?: unknown }[], notice: string): void;
   /** A send carrying these items landed. Returns the notice line's next state: cleared if it
    *  still shows a failure this settled (on its own, or inside a folder's summary of its cues),
    *  and untouched while anything is still owed or once the line has moved on. */
   landed(items: readonly { graphic: string }[]): (shown: string | null) => string | null;
+  /** These commands came back from the server (a row, or its broadcast). When one is a failed
+   *  send's own, its graphic is settled: the notice line's next state as `landed` returns it, or
+   *  null when nothing changed. */
+  heard(items: readonly { graphic: string; msg?: unknown }[]): ((shown: string | null) => string | null) | null;
 }
 
+/** commandRoads.ts `oidOf`, restated because this file imports nothing. */
+const oidIn = (msg: unknown): string | null => {
+  const oid = (msg as { oid?: unknown } | null | undefined)?.oid;
+  return typeof oid === 'string' && oid.length > 0 ? oid : null;
+};
+
 export function createSendDebts(): SendDebts {
-  const owed = new Set<string>();
+  /** Per graphic owed, the ids its newest failed send carried (none, when it carried none). */
+  const owed = new Map<string, Set<string>>();
   let notices: string[] = [];
   const unchanged = (shown: string | null) => shown;
+  const settle = () => {
+    if (owed.size > 0 || notices.length === 0) return unchanged;
+    const settled = notices;
+    notices = [];
+    return (shown: string | null) => (shown !== null && settled.some((s) => shown.includes(s)) ? null : shown);
+  };
   return {
     failed(items, notice) {
-      for (const item of items) owed.add(item.graphic);
+      const newest = new Map<string, Set<string>>();
+      for (const item of items) {
+        const oids = newest.get(item.graphic) ?? new Set<string>();
+        const oid = oidIn(item.msg);
+        if (oid) oids.add(oid);
+        newest.set(item.graphic, oids);
+      }
+      for (const [graphic, oids] of newest) owed.set(graphic, oids);
       notices.push(notice);
     },
     landed(items) {
       for (const item of items) owed.delete(item.graphic);
-      if (owed.size > 0 || notices.length === 0) return unchanged;
-      const settled = notices;
-      notices = [];
-      return (shown) => (shown !== null && settled.some((s) => shown.includes(s)) ? null : shown);
+      return settle();
+    },
+    heard(items) {
+      let any = false;
+      for (const item of items) {
+        const oid = oidIn(item.msg);
+        if (oid && owed.get(item.graphic)?.has(oid)) {
+          owed.delete(item.graphic);
+          any = true;
+        }
+      }
+      return any ? settle() : null;
     },
   };
 }

@@ -72,6 +72,7 @@ import {
   verbAired,
   verbStale,
   verbsLanded,
+  verbSentItems,
   withLiveCue,
   type ControlEventRow,
   type ControlSendItem,
@@ -322,6 +323,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       }
     }
   }, []);
+  /** Commands the server sent back, on either road. One of a send that failed here landed after
+   *  all, so the notice about it comes down (failedSends.ts `heard`). */
+  const hearCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
+    const settle = sendDebts.current.heard(items);
+    if (settle) setError(settle);
+    applyCommand(items);
+  }, [applyCommand]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -447,7 +455,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         seq: resolved.seq,
         onEpochReset: () => armWire.current?.reset(),
         // THE FAST ROAD - the verbs, broadcast by the database and here before their rows are.
-        onCommand: applyCommand,
+        onCommand: hearCommand,
         // Reported in this page's Presence entry, so an output's operator can be told apart from
         // a page that is itself on the poll floor.
         onStatus: ({ status }) => {
@@ -460,7 +468,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           const msg = row.msg;
           // The SAME door the broadcast comes through, so a command applies once whichever road
           // won it. What stays here is what is a property of the ROW rather than of the verb.
-          applyCommand([{ graphic: row.graphic, msg }]);
+          hearCommand([{ graphic: row.graphic, msg }]);
           // A timed cue's countdown moves with its cue rows, and starts at a renderer's report.
           armWire.current?.row(row);
           if (msg.t === 'staged') {
@@ -492,10 +500,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       armWire.current = null;
       setArmsOn(false);
     };
-    // `applyCommand`, `noteMachineState` and `setCueArms` are declared with no dependencies of their own,
-    // so listing them re-runs nothing. `applyCommand` is here because the follow now hands it BOTH
+    // `hearCommand`, `noteMachineState` and `setCueArms` are declared with no changing dependencies,
+    // so listing them re-runs nothing. `hearCommand` is here because the follow now hands it BOTH
     // roads and a silent capture would be the easiest way for the two to drift.
-  }, [slug, applyCommand, noteMachineState, setCueArms]);
+  }, [slug, hearCommand, noteMachineState, setCueArms]);
 
   const resolved = show && show !== 'loading' ? show : null;
   /** The staged values this page acts on: the shared buffer, with this page's own edits that
@@ -749,7 +757,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         return true;
       },
       (e: Error) => {
-        surfaceSendError(items, e);
+        surfaceSendError(verbSentItems(e) ?? items, e);
         return false;
       },
     );
@@ -775,7 +783,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       (e: Error) => {
         const landed = verbsLanded(e);
         if (landed > 0) sendDebts.current.landed(batches.slice(0, landed).flat());
-        surfaceSendError(batches[landed] ?? [], e);
+        surfaceSendError(verbSentItems(e) ?? batches[landed] ?? [], e);
         return null;
       },
     );
