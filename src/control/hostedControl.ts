@@ -27,7 +27,7 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
 import { noteSend, withSender } from './livePath';
@@ -1227,6 +1227,12 @@ const slowKey = (showId: string | null, graphic: string) => `${showId ?? '-'}:${
  *  leaves when its send settles, so the map holds only sends in flight. */
 const newestSend = new Map<string, object>();
 
+/** Every command this page's log follow has heard back from the server, on either road, by the id
+ *  its press minted: how a send abandoned on a slow link is known to have landed after all, when
+ *  its own row came back before the send gave up (`sendControlVerb`, failedSends.ts
+ *  ATTEMPT_TIMEOUT_MS). Bounded like any applied set (commandRoads.ts REMEMBERED). */
+const heard = createAppliedOnce();
+
 /** One item as `control_send_many` receives it: the command, plus the transport-only mark that
  *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
  *  `graphic` and `msg`, so the mark never reaches the log or a receiver). */
@@ -1332,11 +1338,23 @@ export async function sendControlVerb(opts: {
     }
     noteSend(true);
   } catch (e) {
+    // ABANDONED, AND LANDED ANYWAY. Every attempt gave up without an answer, but the server
+    // committed one of them and its row is already back: the send landed, and saying it had not
+    // would tell the operator a Take that is on air is on their monitor only (#917). A row that
+    // comes back only after this is settled by the page (failedSends.ts `heard`).
+    if (wire.some((item) => heard.has(item.msg))) {
+      noteSend(true);
+      if (session && sender) sent.pressedAgain = presses.since(opts.slug, sender);
+      return sent;
+    }
     noteSend(false);
     // THE PICTURE MOVED HERE AND NOWHERE ELSE. The surfaces word their notice off this flag,
     // because "Take failed" is a lie to an operator looking at the graphic on their own monitor.
-    const failed = e as Error & { aired?: boolean };
+    // The items go with it as they were sent, minted ids and all, so the page can recognise the
+    // row if this send commits after all.
+    const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[] };
     failed.aired = fast.length > 0;
+    failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
     throw failed;
   } finally {
     // THE HOLD-BACK RUNS FROM WHEN THE ROW EXISTS, not from when the press left. The 1200 ms is
@@ -1437,6 +1455,13 @@ export async function sendControlVerbs(
 export function verbsLanded(e: unknown): number {
   const landed = (e as { landed?: unknown } | null)?.landed;
   return typeof landed === 'number' ? landed : 0;
+}
+
+/** The items a failed send carried, as sent: their minted ids are how its row is recognised if it
+ *  commits after all (failedSends.ts `heard`). Null when the error is not a send's. */
+export function verbSentItems(e: unknown): ControlSendItem[] | null {
+  const sent = (e as { sent?: unknown } | null)?.sent;
+  return Array.isArray(sent) ? (sent as ControlSendItem[]) : null;
 }
 
 /** Did this send put commands on THIS surface's screen before failing? Read off the thrown
@@ -1742,7 +1767,10 @@ export async function followControlLog(opts: {
       tail: plan.tail,
       onRows: (rows, replayed) => {
         if (replayed && rows.length) opts.onReplay?.(true);
-        rows.forEach((row) => opts.onRow(row));
+        rows.forEach((row) => {
+          heard.claim(row.msg);
+          opts.onRow(row);
+        });
         if (replayed && rows.length) opts.onReplay?.(false);
       },
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
@@ -1768,7 +1796,10 @@ export async function followControlLog(opts: {
   const follower = createLogFollower<ControlEventRow>({
     from: opts.from,
     tail: opts.tail,
-    onRow: opts.onRow,
+    onRow: (row) => {
+      heard.claim(row.msg);
+      opts.onRow(row);
+    },
     onReplay: opts.onReplay,
     onWalk: (walking) => (walking ? recovering.add(opts.showId) : recovering.delete(opts.showId)),
     onHole: opts.onHole,
@@ -1795,6 +1826,7 @@ export async function followControlLog(opts: {
     }
     report();
   }, onCommand && ((items) => {
+    for (const item of items) heard.claim(item.msg);
     if (!follower.walking) onCommand(items);
   }), opts.onCommandStatus);
   return () => {

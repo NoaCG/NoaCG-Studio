@@ -196,6 +196,7 @@ import {
   verbAired,
   verbStale,
   verbsLanded,
+  verbSentItems,
   leftAlone,
   withLiveCue,
   type ControlEventRow,
@@ -1031,6 +1032,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // setter identity, so it is declared rather than assumed.
     [applyProgram, rememberAired, setLiveCue],
   );
+  /** Commands the server sent back, on either road. One of a send that failed here landed after
+   *  all, so the notice about it comes down (failedSends.ts `heard`). */
+  const hearCommand = useCallback(
+    (items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
+      const settle = sendDebts.current.heard(items);
+      if (settle) setNote(settle);
+      applyCommand(items);
+    },
+    [applyCommand],
+  );
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
   const folders = useMemo(() => show?.folders ?? NO_FOLDERS, [show]);
@@ -1801,14 +1812,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // THE FAST ROAD. The same verbs, broadcast by the database on the production's private
         // topic and here before their rows are - which is what moves this page's PROGRAM monitor
         // when the press came from another operator's phone.
-        onCommand: applyCommand,
+        onCommand: hearCommand,
         onRow: (row) => {
           const msg = row.msg;
           // Mirror air locally: the PROGRAM monitor follows the wire, not just this page's own
           // buttons, so a take from another operator's phone shows here too. It is the SAME
           // door the broadcast above comes through, and `applyCommand` drops whichever copy is
           // second - a duplicate entrance would leave no trace on screen.
-          applyCommand([{ graphic: row.graphic, msg }]);
+          hearCommand([{ graphic: row.graphic, msg }]);
           // A timed cue's countdown moves with its cue rows, and starts at a renderer's report.
           armWire.current?.row(row);
           // A 'live' row is the renderer REPORTING what it applied — machine state included,
@@ -2221,8 +2232,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           : verbAired(e)
             ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
             : `${label} failed: ${(e as Error).message}`;
-        // Owed: the batch that failed and those after it. The ones before it landed.
-        sendDebts.current.failed(marked.slice(verbsLanded(e)).flat(), note);
+        // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.
+        const landed = verbsLanded(e);
+        sendDebts.current.failed([...(verbSentItems(e) ?? marked[landed] ?? []), ...marked.slice(landed + 1).flat()], note);
         return { ok: false, note };
       }
     },
