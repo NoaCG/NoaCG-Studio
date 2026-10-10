@@ -33,9 +33,9 @@ nothing is open, or nothing matches, say so in one line and stop. An empty list 
 3. Record his answer in his words on the issue or pull request the item is about
    (`gh issue comment`, `gh pr comment`):
    - **Done or decided**: write a decision where the work that depends on it will read it (the
-     issue that waits on it, the plan doc or the commit), then close the issue. A decision that
-     starts work larger than a small fix gets a prompt for a fresh session, in one code block in
-     the chat, ready to copy.
+     issue that waits on it, the plan doc or the commit), then close the issue, unless the work the
+     decision starts is tracked there: then drop its `needs owner` label. Work larger than a small
+     fix gets a prompt for a fresh session, in one code block in the chat, ready to copy.
    - **Feedback**: turn it into work, a fix now if it is small and in scope, otherwise a new issue
      linked from this one. Say which. The issue stays open until that work lands.
    - **Not now**: leave the issue as it is.
