@@ -48,7 +48,7 @@ async function fixture(page: Page) {
   });
   await ready(page);
   for (const selector of ['#box', '#title']) {
-    const toggle = page.locator(`.ef-track[data-selector="${selector}"]:not([data-property])`).getByRole('button', { name: 'Animated properties' });
+    const toggle = page.locator(`.ef-track[data-selector="${selector}"]:not([data-property])`).getByRole('button', { name: /^Properties of / });
     await toggle.click(); await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   }
 }
