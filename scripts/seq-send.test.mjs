@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 
 const {
   createGraphicFifo,
+  createPressBook,
   createSeqSession,
   isStale,
   learnHead,
@@ -202,6 +203,39 @@ test('different graphics do not wait for each other; a payload on two waits for 
   onB.resolve();
   await both;
   assert.deepEqual(started, ['A', 'B', 'AB']);
+});
+
+// Issue #914, as hosted staging ran it: Out, then a Take of the same graphic pressed while the Out
+// was still on its way. The Take waits in the queue; the Out answers first.
+test('an answer names the graphics pressed again since, so the page leaves the later press standing', async () => {
+  const book = createPressBook();
+  const session = createSeqSession('E1', { H: { rev: 2, on: true } });
+  const fifo = createGraphicFifo(1500);
+  const press = (n, graphics, allOut = false) => {
+    const body = senderBody(session, 'page', n, graphics, allOut);
+    book.pressed('show', body);
+    return body;
+  };
+  const outAnswer = deferred();
+  const out = press(3, ['H']);
+  const outSent = fifo.run(['H'], () => outAnswer.promise);
+  const take = press(4, ['H']);
+  const takeAnswer = deferred();
+  const takeSent = fifo.run(['H'], () => takeAnswer.promise);
+  outAnswer.resolve();
+  await outSent;
+  assert.deepEqual(book.since('show', out), ['H'], 'the Out landed, and the Take pressed after it is what stands');
+  // All out, pressed while the Take is still on its way: the Take's answer must not mark H on.
+  const allOut = press(5, ['H'], true);
+  takeAnswer.resolve();
+  await takeSent;
+  assert.deepEqual(book.since('show', take), ['H']);
+  assert.deepEqual(book.since('show', allOut), [], 'the newest press writes what it did');
+  // Per production and per graphic: another show's press, or another graphic's, changes nothing.
+  book.pressed('other', senderBody(session, 'page', 6, ['H'], false));
+  book.pressed('show', senderBody(session, 'page', 7, ['B'], false));
+  assert.deepEqual(book.since('show', allOut), []);
+  assert.deepEqual(book.since('show', senderBody(session, 'page', 5, ['H', 'B'], false)), ['B']);
 });
 
 // playout-workflow-simplification D11: the page keeps what each head says is on, for All out.

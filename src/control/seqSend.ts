@@ -183,6 +183,31 @@ export function settleAnswer(
 }
 
 /**
+ * WHICH GRAPHICS THIS PAGE HAS PRESSED AGAIN SINCE A PRESS, per production slug: its newest press
+ * number per graphic, taken when each press is numbered.
+ *
+ * An answer arrives after whatever the operator pressed meanwhile. A Take pressed while the Out
+ * before it was still on its way already stands on this page's monitor, and the server applies
+ * the two in order, so the Out landing is no reason to write "off" when its answer comes back: the
+ * Take is what stands. Written anyway, the page said nothing was on air while the Take aired, and
+ * an All out judged against that list cleared nothing (issue #914).
+ */
+export function createPressBook() {
+  const newest = new Map<string, number>();
+  const key = (slug: string, graphic: string) => `${slug}:${graphic}`;
+  return {
+    /** A press was numbered: it is the newest on each of its graphics. */
+    pressed(slug: string, body: SenderBody): void {
+      for (const graphic of Object.keys(body.base)) newest.set(key(slug, graphic), body.press);
+    },
+    /** The graphics of `body` that a later press of this page has touched. */
+    since(slug: string, body: SenderBody): string[] {
+      return Object.keys(body.base).filter((graphic) => (newest.get(key(slug, graphic)) ?? 0) > body.press);
+    },
+  };
+}
+
+/**
  * ONE SEND IN FLIGHT PER PAGE AND GRAPHIC.
  *
  * The server's chain rule lets a page's later press through without the page having seen its

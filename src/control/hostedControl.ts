@@ -36,6 +36,7 @@ import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, 
 import { uuid } from '../model/id';
 import {
   createGraphicFifo,
+  createPressBook,
   createSeqSession,
   learnHead,
   readSendAnswer,
@@ -1279,7 +1280,8 @@ export async function sendControlVerb(opts: {
   // has pressed again since: that later press is what stands, on air and here (the server leaves
   // it too, per graphic). Applied, the older batch put the graphic back on the monitor while air
   // kept the later press, and nothing ever corrected it (review 3 client:F1).
-  const overtaken = (graphic: string) => !!sender && (newestPress.get(`${opts.slug}:${graphic}`) ?? 0) > sender.press;
+  const pressedBefore = new Set(sender ? presses.since(opts.slug, sender) : []);
+  const overtaken = (graphic: string) => pressedBefore.has(graphic);
   const wire: WireItem[] = [];
   const fast: ControlSendItem[] = [];
   const held: string[] = [];
@@ -1313,12 +1315,14 @@ export async function sendControlVerb(opts: {
   const keys = [...new Set(opts.items.map((item) => `${opts.slug}:${item.graphic}`))];
   for (const key of keys) newestSend.set(key, send);
   const resend = { deadline: now + RESEND_WINDOW_MS, stillNewest: () => keys.every((key) => newestSend.get(key) === send) };
-  const sent: VerbSent = { skipped: [], superseded: [] };
+  const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
   try {
     if (session && sender) {
       const settled = await sendSeqVerb(opts.slug, wire, session, sender, resend, !!opts.allOut);
       sent.skipped = settled.skipped;
       if (settled.superseded) sent.superseded = Object.keys(sender.base);
+      // Read at the answer: a press made while this one was on its way stands over it.
+      sent.pressedAgain = presses.since(opts.slug, sender);
     } else {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
@@ -1350,30 +1354,33 @@ export async function sendControlVerb(opts: {
 }
 
 /**
- * WHAT A VERB'S SEND CAME TO, beyond landing (protocol 2 only; both lists are empty on protocol 1).
+ * WHAT A VERB'S SEND CAME TO, beyond landing (protocol 2 only; every list is empty on protocol 1).
  * A caller that writes a picture after the answer (a chip, a cue marked on or off air) must not
- * write it for either list (`leftAlone`): what stands there is this page's LATER press, whose own
- * handler has already written it, and a write now would overwrite it with this older one.
+ * write it for any list (`leftAlone`): what stands there is this page's LATER press, which moved
+ * the picture when it was pressed, and a write now would overwrite it with this older one.
  */
 export interface VerbSent {
   /** Graphics the server left as this page's later press left them, the rest of the batch applied. */
   skipped: string[];
   /** Graphics of a batch refused whole: this page pressed it before its own All out. */
   superseded: string[];
+  /** Graphics this page pressed again while the send was on its way: the batch landed, and the
+   *  later press, applied after it, is what stands (seqSend.ts `createPressBook`). */
+  pressedAgain: string[];
 }
 
 /** Every graphic a send left alone, for a caller about to write what the send changed. */
 export function leftAlone(sent: VerbSent): string[] {
-  return [...sent.skipped, ...sent.superseded];
+  return [...sent.skipped, ...sent.superseded, ...sent.pressedAgain];
 }
 
-/** Per control slug and graphic, the newest press number this page has given it. */
-const newestPress = new Map<string, number>();
+/** Per control slug and graphic, the newest press this page has numbered. */
+const presses = createPressBook();
 
 /** One batch's number and base, read now. */
 function pressSender(slug: string, session: SeqSession, items: readonly ControlSendItem[], allOut: boolean): SenderBody {
   const body = senderBody(session, SENDER_ID, (lastPress += 1), [...new Set(items.map((item) => item.graphic))], allOut);
-  for (const graphic of Object.keys(body.base)) newestPress.set(`${slug}:${graphic}`, body.press);
+  presses.pressed(slug, body);
   return body;
 }
 
@@ -1392,7 +1399,7 @@ export async function sendControlVerbs(
   const { batches, ...one } = opts;
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
-  const sent: VerbSent = { skipped: [], superseded: [] };
+  const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
   // ALL OUT IS PACED to the server's burst cap: a press clearing more graphics than one window's
   // share leaves in waves a window apart, rather than being refused halfway with the rest of the
   // allowance spent. Numbered at the press, a later wave still skips what this page pressed since
@@ -1412,10 +1419,11 @@ export async function sendControlVerbs(
         if (session && base) items = batch.filter((item) => (session.revs.get(item.graphic) ?? 0) <= (base[item.graphic] ?? 0));
         sent.skipped.push(...new Set(batch.filter((item) => !items.includes(item)).map((item) => item.graphic)));
       }
-      const each = items.length ? await sendControlVerb({ ...one, items, sender: senders[index] }) : { skipped: [], superseded: [] };
+      const each = items.length ? await sendControlVerb({ ...one, items, sender: senders[index] }) : { skipped: [], superseded: [], pressedAgain: [] };
       waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
       sent.superseded.push(...each.superseded);
+      sent.pressedAgain.push(...each.pressedAgain);
       landed += 1;
     }
   } catch (e) {
