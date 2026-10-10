@@ -45,30 +45,12 @@ It proves capabilities; it is not a scripted video of something that does not ru
 
 ## What election nights put on air
 
-From the broadcasts sampled for this research (`graphics.md`), in order of importance:
-
-1. **A persistent party results bar** that stays on air most of the night, over studio, outside
-   broadcasts and split screens: election, area, share counted or turnout, then the top parties and
-   "others" with share, change against the previous election and a party chip. It alternates
-   between two elections on a combined night.
-2. **A forecast state**: the same graphics switch to the broadcaster's forecast behind an editorial
-   gate, with a clear "forecast" tab, and switch back to counted results late in the count. The
-   forecast reveal is the most-watched moment of the night.
-3. **Full-screen comparisons**: all parties, this election against the previous one as paired bars,
-   with change chips and an optional highlighted group (for example the governing parties). The
-   same graphic also runs on the studio's LED wall.
-4. **Seat distributions** with change, drawn as bars or stacked seat ticks.
-5. **An area panel beside a video box**: one municipality, constituency or county, its share
-   counted, its seats and its party rows.
-6. **Candidate bars** in a presidential election: many candidates in round one, a head-to-head with
-   a 50 % marker in round two, with an empty state before 20:00.
-7. **A countdown to 20:00**, when the advance votes are released.
-8. **Operator-filled tags and strips**: party and location pills, headline strips, split-screen
-   frames.
-9. **Statistics full-screens** late in the night: turnout history, gender and age of the elected.
-
-Maps coloured by leading party appear on the web results services. They were not seen on air in the
-sampled frames, which is not proof of absence; a broadcaster will still ask for one.
+`graphics.md` ranks what the sampled broadcasts showed. In short: one persistent party results bar
+carries the night, the same graphics switch to a forecast behind an editorial gate, full-screen
+comparisons also run on the studio's LED wall, and seat distributions, area panels beside video,
+candidate bars, a 20:00 countdown and operator-filled tags fill the rest. Data refreshes in versions
+about every five minutes, and a Finnish and a Swedish programme run at once from the same templates.
+Maps appeared on the web results services but not on air in the sampled frames.
 
 ## Key decisions
 
@@ -89,8 +71,9 @@ sampled frames, which is not proof of absence; a broadcaster will still ask for 
    sets on the cue; the data field carries every area and the template filters. Data never selects,
    takes or clears anything.
 6. **The forecast is a graphic state behind an operator gate,** not a data event. The bar and the
-   full-screens have a *Forecast* state the operator enters and leaves; while in it they read
-   `forecast.*` instead of `national.*`.
+   full-screens carry two bound line fields, results (`national.*`) and forecast (`forecast.*`), and
+   a *Forecast* state the operator enters and leaves; the state decides which field shows and draws
+   the tab. A data update never changes the state.
 7. **A map is a graphic, not a map engine.** Boundaries from Statistics Finland are projected and
    simplified once, at authoring time, into SVG paths inside the graphic. At runtime it reads
    `code | party` lines and a `party | colour` list. No tiles, no runtime projection.
