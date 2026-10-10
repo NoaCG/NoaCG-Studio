@@ -73,3 +73,11 @@ test('a defect any recent green run had is not new; gone and unswept are read ag
   assert.equal(v.fixed[0].example, 'room moved to 238 (the design offers 0)');
   assert.deepEqual(v.lost, []);
 });
+
+test('a file known to flip is reported, never judged', () => {
+  const baseline = [file('illustrator-live-vote-band', [])];
+  const tonight = [file('illustrator-live-vote-band', [finding('f0', '"g0" stayed 0 px wide')])];
+  const v = judge(tonight, [baseline]);
+  assert.deepEqual(v.regressions, []);
+  assert.equal(v.unjudged.length, 1);
+});

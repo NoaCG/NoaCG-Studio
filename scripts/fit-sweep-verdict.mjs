@@ -66,6 +66,13 @@ export function slim(files) {
 }
 
 /** Compare tonight with the recent green runs, newest first. None means there is none yet. */
+/** FILES WHOSE FINDINGS FLIP FROM RUN TO RUN ON ONE TREE, reported every night and never judged.
+ *  The vote band's line sits in a state layer whose room is measured either side of its first
+ *  reveal, so two sweeps of the same commit disagreed on it - and only on it - after the sweep
+ *  itself was made deterministic (issue #778, "vote band height"). Take a file off once its rest
+ *  pose is stable, or it hides a real regression there. */
+export const UNSTABLE = new Set(['illustrator-live-vote-band']);
+
 export function judge(current, baselines = []) {
   const now = defects(current);
   const swept = (files) => new Set(files.filter((f) => !f.skipped).map((f) => f.name));
@@ -77,7 +84,7 @@ export function judge(current, baselines = []) {
   const unjudged = [];
   for (const [key, d] of now) {
     if (before.has(key)) continue;
-    (sweptBefore.has(d.file) ? regressions : unjudged).push(d);
+    (sweptBefore.has(d.file) && !UNSTABLE.has(d.file) ? regressions : unjudged).push(d);
   }
   const fixed = [...defects(newest)].filter(([key, d]) => !now.has(key) && sweptNow.has(d.file)).map(([, d]) => d);
   const lost = [...swept(newest)].filter((name) => !sweptNow.has(name));
@@ -126,7 +133,7 @@ export function summary({ current, verdict, missing, accepted }) {
     }
   };
   table('New: no recent green run had these', verdict.regressions);
-  table('On files new to the corpus (not judged)', verdict.unjudged);
+  table('On files new to the corpus or known to flip (not judged)', verdict.unjudged);
   table('Gone since the last green run', verdict.fixed);
   return `${lines.join('\n')}\n`;
 }
