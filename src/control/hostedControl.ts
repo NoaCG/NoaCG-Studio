@@ -1423,12 +1423,13 @@ export async function sendControlVerbs(
       waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
       sent.superseded.push(...each.superseded);
-      sent.pressedAgain.push(...each.pressedAgain);
       landed += 1;
     }
   } catch (e) {
     throw Object.assign(e as Error, { landed });
   }
+  // Over the whole press, not per batch: a batch is not pressed again by this press's own next one.
+  sent.pressedAgain = presses.since(one.slug, ...senders.filter((s): s is SenderBody => !!s));
   return sent;
 }
 

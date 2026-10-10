@@ -200,9 +200,13 @@ export function createPressBook() {
     pressed(slug: string, body: SenderBody): void {
       for (const graphic of Object.keys(body.base)) newest.set(key(slug, graphic), body.press);
     },
-    /** The graphics of `body` that a later press of this page has touched. */
-    since(slug: string, body: SenderBody): string[] {
-      return Object.keys(body.base).filter((graphic) => (newest.get(key(slug, graphic)) ?? 0) > body.press);
+    /** The graphics of these batches that a later press of this page has touched. The batches of
+     *  one press (`sendControlVerbs`) are numbered one after another, so a graphic counts from the
+     *  last of them that touches it: a press is never "pressed again" by its own later batch. */
+    since(slug: string, ...bodies: SenderBody[]): string[] {
+      const last = new Map<string, number>();
+      for (const body of bodies) for (const graphic of Object.keys(body.base)) last.set(graphic, Math.max(last.get(graphic) ?? 0, body.press));
+      return [...last].filter(([graphic, press]) => (newest.get(key(slug, graphic)) ?? 0) > press).map(([graphic]) => graphic);
     },
   };
 }

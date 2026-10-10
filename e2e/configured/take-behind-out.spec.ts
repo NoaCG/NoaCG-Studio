@@ -20,10 +20,11 @@ import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, signIn,
 
 test.skip(!haveCreds || !SERVICE_ROLE_KEY, 'E2E_EMAIL / E2E_PASSWORD and the service key unset - configured-mode spec');
 
-/** How long each answer is held: under the page's 1.5 s attempt deadline (failedSends.ts), so
- *  neither send is abandoned and both are answers that arrive late. */
-const OUT_ANSWER_MS = 900;
-const TAKE_ANSWER_MS = 1200;
+/** How long each answer is held: with the round trip itself (up to about 750 ms on hosted staging)
+ *  still under the page's 1.5 s attempt deadline (failedSends.ts), so neither send is abandoned
+ *  and both are answers that arrive late. */
+const OUT_ANSWER_MS = 600;
+const TAKE_ANSWER_MS = 600;
 
 test('a Take pressed while the Out is on its way stays on air here, and All out then clears it', async ({ page }) => {
   test.setTimeout(240_000);
