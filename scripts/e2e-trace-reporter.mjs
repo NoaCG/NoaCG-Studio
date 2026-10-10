@@ -4,13 +4,18 @@
 //
 // The reporter adds what the fixture cannot know: whether each spec FINISHED. A spec with a test
 // that failed or never ran executed only part of what it needs, and the merge treats it so.
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { readRecords, traceOf } from './e2e-traced.mjs';
 
 export default class TraceReporter {
   onBegin(config, suite) {
     this.suite = suite;
+    const dir = process.env.NOACG_E2E_TRACE;
+    if (!dir) return;
+    // This run's records only: a directory reused from an earlier run must not lend it its files.
+    mkdirSync(dir, { recursive: true });
+    for (const name of readdirSync(dir)) if (/^worker-\d+\.jsonl$|^trace\.json$/.test(name)) rmSync(path.join(dir, name));
   }
 
   onEnd() {

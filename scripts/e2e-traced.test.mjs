@@ -11,7 +11,9 @@ import {
   MAP_BRANCH,
   MAP_PATH,
   MAX_AGE_DAYS,
+  mergeRefusal,
   mergeTraces,
+  MIN_FRESH_SHARE,
   queueTracedMap,
   readRecords,
   readTracedMap,
@@ -76,6 +78,18 @@ test('a night: a finished spec is tonight alone, an unfinished or silent one kee
   assert.deepEqual(map.carried, ['b.spec.ts', 'c.spec.ts']);
   assert.deepEqual(map.untraced, ['d.spec.ts']);
   assert.equal(map.specs, 3);
+});
+
+// A night that traced nothing must not re-date carried-over content, or the age limit never fires.
+test('a night that traced too little of the suite is refused rather than dated as new', () => {
+  const previous = { files: { 'src/x.ts': ['a.spec.ts', 'b.spec.ts'] } };
+  const specsOnDisk = ['a.spec.ts', 'b.spec.ts', 'c.spec.ts'];
+  const empty = mergeTraces([], previous, { sha: 's', tracedAt: 't', specsOnDisk });
+  assert.equal(empty.fresh, 0);
+  assert.match(mergeRefusal(empty, specsOnDisk), /only 0 of 3/);
+  const enough = mergeTraces([{ specs: { 'a.spec.ts': { complete: true, files: [] }, 'b.spec.ts': { complete: true, files: [] } } }], previous, { sha: 's', tracedAt: 't', specsOnDisk });
+  assert.equal(mergeRefusal(enough, specsOnDisk), null);
+  assert.equal(MIN_FRESH_SHARE <= 2 / 3, true);
 });
 
 test('the committed form is one file per line and parses back to the same map', () => {
@@ -197,4 +211,22 @@ test('the map lands through one regenerated branch: force-pushed, stamped and qu
 
   calls.length = 0;
   assert.match(queueTracedMap({ file, root, git: runner('git'), gh: runner('gh') }).skipped, /already holds/, 'an unchanged map proposes nothing');
+});
+
+test('the reporter starts from an empty trace directory and writes into it even when no test did', async () => {
+  const { default: TraceReporter } = await import('./e2e-trace-reporter.mjs');
+  const dir = join(mkdtempSync(join(tmpdir(), 'e2e-traced-reporter-')), 'nested');
+  const before = process.env.NOACG_E2E_TRACE;
+  process.env.NOACG_E2E_TRACE = dir;
+  try {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'worker-0.jsonl'), `${JSON.stringify({ spec: 'stale.spec.ts', urls: [] })}\n`);
+    const reporter = new TraceReporter();
+    reporter.onBegin({}, { allTests: () => [] });
+    reporter.onEnd();
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'trace.json'), 'utf8')).specs, {}, 'a stale record from an earlier run is not this run');
+  } finally {
+    if (before === undefined) delete process.env.NOACG_E2E_TRACE;
+    else process.env.NOACG_E2E_TRACE = before;
+  }
 });

@@ -1155,6 +1155,8 @@ export function parseArgs(args) {
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
 function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }, { count, noun, hypothetical, catalogHere = true }) {
+  // What made the plan escalate, so the line that says so names the cause the reader has to fix.
+  const why = tracedProblem ? 'core/unmapped/untraced' : 'core/unmapped';
   if (tracedProblem) {
     log(`e2e-affected: ${tracedProblem} - so these escalate instead of trusting it (scripts/e2e-traced.mjs):`);
     for (const f of tracedEscalated) log('  -', f);
@@ -1183,13 +1185,13 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
     for (const f of unmapped) log('  -', f);
   }
   if (focusApplied) {
-    log(`e2e-affected: SPRINT FOCUS - a core/unmapped ${hypothetical ? 'path' : 'change'} would run the full suite (${specFilesOnDisk().length} files); the plan is the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
+    log(`e2e-affected: SPRINT FOCUS - a ${why} ${hypothetical ? 'path' : 'change'} would run the full suite (${specFilesOnDisk().length} files); the plan is the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
   }
   if (mode === 'full') {
     log(
       hypothetical
-        ? `e2e-affected: core/unmapped path(s) detected - the FULL suite would run (${count} path(s)).`
-        : `e2e-affected: core/unmapped change detected - the plan is the FULL suite (${count} changed files).`,
+        ? `e2e-affected: ${why} path(s) detected - the FULL suite would run (${count} path(s)).`
+        : `e2e-affected: ${why} change detected - the plan is the FULL suite (${count} changed files).`,
     );
   } else if (mode === 'none') {
     log(

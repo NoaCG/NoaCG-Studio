@@ -33,6 +33,7 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from './e2e-quarantine.mjs';
 import { configureBotIdentity, queuePullRequest, spawnRunner } from './queue-pr.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -120,11 +121,17 @@ function isFile(file) {
  * @param {Map<string, boolean>} complete spec -> did every planned test finish
  */
 export function traceOf(records, complete, toFile = repoFileOf) {
+  // Every test of a shard asks about the same thousand-odd module URLs; look each one up once.
+  const known = new Map();
+  const fileOf = (url) => {
+    if (!known.has(url)) known.set(url, toFile(url));
+    return known.get(url);
+  };
   const files = new Map();
   for (const { spec, urls } of records) {
     if (!files.has(spec)) files.set(spec, new Set());
     for (const url of urls ?? []) {
-      const file = toFile(url);
+      const file = fileOf(url);
       if (file) files.get(spec).add(file);
     }
   }
@@ -174,11 +181,13 @@ export function mergeTraces(shards, previous, { sha, tracedAt, run = '', specsOn
   const bySpec = new Map();
   const carried = [];
   const untraced = [];
+  let fresh = 0;
   for (const spec of [...specsOnDisk].sort()) {
     const now = tonight.get(spec);
     const old = before.get(spec);
     if (now?.complete) {
       bySpec.set(spec, now.files);
+      fresh += 1;
       continue;
     }
     const files = new Set([...(now?.files ?? []), ...(old ?? [])]);
@@ -198,7 +207,22 @@ export function mergeTraces(shards, previous, { sha, tracedAt, run = '', specsOn
     }
   }
   for (const f of [...index.keys()].sort()) files[f] = index.get(f).sort();
-  return { version: MAP_VERSION, sha, tracedAt, run, specs: bySpec.size, carried, untraced, files };
+  return { version: MAP_VERSION, sha, tracedAt, run, specs: bySpec.size, fresh, carried, untraced, files };
+}
+
+/**
+ * The least share of the suite a night must trace to completion before its map may carry that
+ * night's date. The date is what the planner's age limit reads, so a night that traced nothing (no
+ * shard sent a trace, the artifacts did not download) and stamped its carried-over content as new
+ * would keep an old map "fresh" for ever. Below this line the merge refuses, the job goes red, and
+ * the committed map ages into escalation as it should.
+ */
+export const MIN_FRESH_SHARE = 0.5;
+
+/** Why a merged map must not be published, or null. */
+export function mergeRefusal(map, specsOnDisk) {
+  const need = Math.ceil(MIN_FRESH_SHARE * specsOnDisk.length);
+  return map.fresh >= need ? null : `only ${map.fresh} of ${specsOnDisk.length} spec(s) were traced to completion tonight (need ${need}); refusing to date carried-over entries as new`;
 }
 
 /** spec -> Set(file) from a map's file index. */
@@ -233,20 +257,24 @@ export function serializeMap(map) {
  * @returns {{ files: Map<string, string[]>, broad: Set<string>, problem: string | null, tracedAt: string | null }}
  */
 export function readTracedMap({ file = process.env.NOACG_E2E_TRACED_MAP || path.join(ROOT, MAP_PATH), now = Date.now() } = {}) {
-  const none = (problem) => ({ files: new Map(), broad: new Set(), problem, tracedAt: null });
-  if (!existsSync(file)) return none(`no traced spec map at ${path.relative(ROOT, file).replaceAll(path.win32.sep, '/')}`);
+  if (!existsSync(file)) return untrusted(`no traced spec map at ${path.relative(ROOT, file).replaceAll(path.win32.sep, '/')}`);
   let map;
   try {
     map = JSON.parse(readFileSync(file, 'utf8'));
   } catch (error) {
-    return none(`the traced spec map is unreadable (${error.message})`);
+    return untrusted(`the traced spec map is unreadable (${error.message})`);
   }
   return tracedFrom(map, now);
 }
 
+/** A map the planner may not trust: it lends no specs, and its `problem` escalates. */
+function untrusted(problem, tracedAt = null) {
+  return { files: new Map(), broad: new Set(), broadEscalates: BROAD_ESCALATES, problem, tracedAt };
+}
+
 /** `readTracedMap` minus the disk, for tests. */
 export function tracedFrom(map, now = Date.now()) {
-  const none = (problem) => ({ files: new Map(), broad: new Set(), problem, tracedAt: map?.tracedAt ?? null });
+  const none = (problem) => untrusted(problem, map?.tracedAt ?? null);
   if (map?.version !== MAP_VERSION || typeof map.files !== 'object' || map.files === null) {
     return none(`the traced spec map is not version ${MAP_VERSION}`);
   }
@@ -290,24 +318,12 @@ export function queueTracedMap({ file, runUrl = '', summary = '', root = ROOT, g
   return queuePullRequest({ branch: MAP_BRANCH, title, body, mechanism: 'traced spec map from the nightly', runUrl, diffBase: base, force: true, git, gh });
 }
 
-function flagValues(argv) {
-  const flags = new Map();
-  const rest = [];
-  for (let i = 0; i < argv.length; i += 1) {
-    const a = argv[i];
-    if (a.startsWith('--')) flags.set(a, argv[i + 1]), (i += 1);
-    else rest.push(a);
-  }
-  return { flags, rest };
-}
-
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
 }
 
 async function main(argv) {
-  const [command, ...args] = argv;
-  const { flags, rest } = flagValues(args);
+  const { command, rest, flags } = parseArgs(argv);
   if (command === 'merge') {
     const out = flags.get('--out');
     const sha = flags.get('--sha');
@@ -317,11 +333,18 @@ async function main(argv) {
     const prevFile = flags.get('--previous');
     const previous = prevFile && existsSync(prevFile) ? readJson(prevFile) : null;
     const shards = rest.map(readJson);
-    const map = mergeTraces(shards, previous, { sha, tracedAt, run: flags.get('--run') ?? '', specsOnDisk: specFilesOnDisk() });
+    const specsOnDisk = specFilesOnDisk();
+    const map = mergeTraces(shards, previous, { sha, tracedAt, run: flags.get('--run') ?? '', specsOnDisk });
+    const refusal = mergeRefusal(map, specsOnDisk);
+    if (refusal) {
+      console.error(`e2e-traced: ${refusal}. The committed map is left to age; plans escalate once it passes ${MAX_AGE_DAYS} days.`);
+      return 1;
+    }
     writeFileSync(out, serializeMap(map));
+    const some = (list) => (list.length === 0 ? 'none' : `${list.slice(0, 10).join(', ')}${list.length > 10 ? `, and ${list.length - 10} more` : ''}`);
     console.log(
-      `e2e-traced: ${map.specs} spec(s) traced from ${shards.length} shard trace(s), ${Object.keys(map.files).length} source file(s); ` +
-        `${map.carried.length} kept their previous entry (${map.carried.join(', ') || 'none'}), ${map.untraced.length} have none (${map.untraced.join(', ') || 'none'}).`,
+      `e2e-traced: ${map.fresh} of ${specsOnDisk.length} spec(s) traced to completion from ${shards.length} shard trace(s), ${Object.keys(map.files).length} source file(s); ` +
+        `${map.carried.length} kept their previous entry (${some(map.carried)}), ${map.untraced.length} have none (${some(map.untraced)}).`,
     );
     return 0;
   }
