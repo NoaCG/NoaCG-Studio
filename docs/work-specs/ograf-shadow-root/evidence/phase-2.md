@@ -42,6 +42,19 @@ Every compared frame read 0 differing pixels, light against light again and ligh
 shadow. The one design not compared is `geometry-unescaped-ampersand`, which the import road
 refuses on purpose (a bare `&`). About 2.2 to 2.7 seconds per design on one local worker.
 
+On CI (the pull request's catalog job, 4 workers on ubuntu-latest), the whole sweep:
+
+| Run | Designs | Not compared | Failing |
+|---|---|---|---|
+| Catalog, 24 units | 528 | 2 | 0 |
+| SVG corpus, 2 units, with the probes | 51 | 1 | 0 |
+
+Every compared frame read 0 pixels there too. The two catalog designs not compared are `sb21` and
+`sb22`, which do not load in the light mount either, on main as on this branch: an OGraf defect
+older than the shadow root (https://github.com/NoaCG/NoaCG-Studio/issues/964), listed as a known
+exception in the harness. The catalog job took 9.2 minutes for every catalog spec together,
+inside its 25-minute cap.
+
 The light-against-studio record varies from run to run (see above), so it is not tabulated here;
 the catalog job's log prints each unit's reading.
 

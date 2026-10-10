@@ -29,6 +29,16 @@ import { decodePng } from '../scripts/png-decode.mjs';
 import { installGraphicBody } from './_graphicBody';
 import { graphicTemplate, ografPackages, type GraphicSource, type OgrafFiles, type OgrafMount } from './_ografMount';
 
+/**
+ * Designs the light mount itself cannot show, an OGraf defect older than the shadow root: not
+ * compared, each with its own issue (decision 5). One that shows again fails the sweep until it
+ * leaves this list, so the list cannot go stale.
+ */
+const KNOWN_LIGHT_FAILURES: Record<string, string> = {
+  sb21: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
+  sb22: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
+};
+
 /** Fewer differing pixels than this, a frame matches (the conformance spec's bound). */
 export const PARITY_BOUND = 1_000;
 /** Per colour channel, the difference two pixels may have and still match (the conformance spec's). */
@@ -447,8 +457,11 @@ export async function expectParity(label: string, rows: ParityRow[], expected: n
   expect(rows.length, `${label} compared nothing`).toBe(expected);
   const refused = rows.filter((row) => /^build: /.test(row.error ?? ''));
   if (!opts.refusable) expect(refused, `${label}: a design did not build`).toEqual([]);
-  expect(rows.filter((row) => row.error && !refused.includes(row) && !/^studio: [^;]*$/.test(row.error)), `${label}: a design did not mount`).toEqual([]);
+  const known = rows.filter((row) => row.key in KNOWN_LIGHT_FAILURES);
+  const excused = known.filter((row) => /^light: /.test(row.error ?? ''));
+  expect(known.filter((row) => !excused.includes(row)).map((row) => row.key), `${label}: a known light-mount failure shows now - take it off KNOWN_LIGHT_FAILURES`).toEqual([]);
+  expect(rows.filter((row) => row.error && !refused.includes(row) && !excused.includes(row) && !/^studio: [^;]*$/.test(row.error)), `${label}: a design did not mount`).toEqual([]);
   expect(parityFailures(rows), `${label}: the shadow mount paints a different frame (bound ${PARITY_BOUND} pixels)`).toEqual([]);
-  const built = rows.filter((row) => !refused.includes(row));
+  const built = rows.filter((row) => !refused.includes(row) && !excused.includes(row));
   expect(unstable(built).length, `${label}: too many designs painted two different frames from one build`).toBeLessThanOrEqual(Math.ceil(built.length / 10));
 }

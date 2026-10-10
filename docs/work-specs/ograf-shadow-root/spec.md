@@ -378,7 +378,10 @@ included.
   runs the first design of each category, the Lottie and stretch probes and the quiz-board SVG in
   three units; `e2e/catalog/ograf-parity.spec.ts` runs the whole catalog in 24 units and the SVG
   corpus in two, and `src/export/targets/ograf.ts` is a catalog trigger. Every compared frame
-  read 0 pixels locally: the default slice and four catalog or corpus units, 120 designs.
+  read 0 pixels, locally (120 designs) and on CI over the whole catalog (528) and corpus (51),
+  where the catalog job took 9.2 minutes in all. `sb21` and `sb22` do not load in the light mount
+  either, on main as here: an older OGraf defect (issue #964), a known exception in the harness
+  until it is fixed.
 - **AC-4 to AC-7.** In `e2e/ograf-isolation.spec.ts`, both mounts unless named: a design's own
   faces and `@property` (the head style counted 1, 1, 1, 0 across two copies, shadow only), two
   copies of one imported design (asserted in shadow, the light failure recorded), a renderer
@@ -411,3 +414,5 @@ included.
   `setInterval` (the bug clock, the game timers' rings) outlives `dispose()`.
 - **Not run.** The SuperFly and SPX walks (phase 3). The whole-catalog sweep and the editor specs
   that read through `graphicBody` ran on CI only.
+- **For the flip, also.** The sweep's reference becomes the studio document, and `sb21`, `sb22`
+  stay excepted until #964 is fixed.
