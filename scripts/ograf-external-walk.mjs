@@ -15,7 +15,15 @@
 //      server's HTTP control API - load, playAction, the three custom actions, stopAction -
 //      never by calling our own class,
 //   4. screenshots the renderer's own page after each beat and writes a transcript of every
-//      request and response.
+//      request and response,
+//   5. puts two copies of the board on two layers, then the board and a Hairline on two layers,
+//      and requires each to keep its own data and drawn states while the other plays, acts and
+//      is cleared.
+//
+// IN EITHER MOUNT. `--mount light` (the default) exports through the dialog as before; `--mount
+// shadow` builds the same graphic in the app page with the shadow-root mount, which the dialog
+// does not offer until the flip (docs/work-specs/ograf-shadow-root/spec.md, AC-9). Every read
+// inside a mounted graphic goes through `graphicBody`, so the beats are the same in both.
 //
 // WHY THE PACKAGE IS BUILT THROUGH THE APP rather than by calling `ografTarget.build()` in a
 // bundle the way scripts/ograf-starters-emit.mjs does: the SVG import road is the wizard. The
@@ -34,35 +42,30 @@
 //
 // Usage (browser work - enqueue it, do not run it beside a suite; see AGENTS.md):
 //
-//   npm run queue -- node scripts/ograf-external-walk.mjs --server <ograf-server-main>
-//   node scripts/ograf-external-walk.mjs --server <dir> --out <dir> --sample <file> --headed
+//   npm run queue -- "node scripts/ograf-external-walk.mjs --server <ograf-server-main> --mount shadow"
+//   node scripts/ograf-external-walk.mjs --server <dir> [--mount light|shadow] [--out <dir>] [--sample <file>] [--headed]
 //
 // Exit 1 if any beat fails. A failure here is a NoaCG defect until the transcript says
 // otherwise - the platform owns OGraf compatibility.
-import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
-import { devPort } from './dev-port.mjs';
 import { GRAPHIC_BODY_SCRIPT } from '../e2e/_graphicBody.ts';
+import { shadowOgraf } from '../e2e/_ografMount.ts';
+import {
+  appOrigin, designTemplate, differences, flag, has, isUp, mountArg, ografZip, prepareOut, root, say, settledReading,
+  startChild, startDevServer, stopChildren, waitFor,
+} from './ograf-walk-common.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-const args = process.argv.slice(2);
-const flag = (name) => {
-  const i = args.indexOf(name);
-  return i !== -1 && args[i + 1] ? args[i + 1] : null;
-};
 const serverDir = resolve(flag('--server') ?? process.env.OGRAF_SERVER_DIR ?? '');
-const outDir = resolve(flag('--out') ?? join(root, 'ograf-external-out'));
+const mount = mountArg();
+const outDir = resolve(flag('--out') ?? join(root, 'ograf-external-out', mount));
 const sample = resolve(flag('--sample') ?? join(root, 'docs', 'svg-samples', 'quiz-board.svg'));
-const headed = args.includes('--headed');
+const headed = has('--headed');
 
 /** The server's own port, fixed in packages/server/src/server.ts. */
 const OGRAF_PORT = 8080;
 const ograf = `http://localhost:${OGRAF_PORT}`;
-const appOrigin = `http://localhost:${devPort()}`;
 
 if (!flag('--server') && !process.env.OGRAF_SERVER_DIR) {
   console.error(
@@ -80,112 +83,25 @@ if (!existsSync(sample)) {
   process.exit(2);
 }
 
-// The output directory is emptied before a run, and `--out` is a path somebody types - so it is
-// checked before anything is deleted. `--out .` would otherwise take the checkout with it.
-if (!outDir.startsWith(root + (process.platform === 'win32' ? '\\' : '/'))) {
-  console.error(`--out must be a directory INSIDE the repository (got ${outDir}); this run empties it.`);
-  process.exit(2);
-}
-rmSync(outDir, { recursive: true, force: true });
-mkdirSync(outDir, { recursive: true });
-const framesDir = join(outDir, 'frames');
-mkdirSync(framesDir, { recursive: true });
+const framesDir = prepareOut(outDir);
 
 /** Every HTTP call to the renderer's API, in order, with what came back. Written whatever
  *  happens - a failed walk's transcript is the evidence, so it must survive the failure. */
 const transcript = [];
 let frameNo = 0;
 
-function say(line) {
-  console.log(line);
-}
-
-// ── the two servers ──────────────────────────────────────────────────────────
-
-const children = [];
 /** The Chromium this run launched, closed in the `finally` whether the walk finished or threw. */
 let launched = null;
-/**
- * Stop what this run started, before this process exits.
- *
- * SYNCHRONOUSLY, which is the whole point: `process.exit()` follows immediately, and an async
- * `spawn('taskkill')` never gets to run - measured on 2026-09-09, when three runs in a row each
- * left a 640 MB Vite server behind and the queue's own memory floor then blocked the next one.
- *
- * THE TREE, not the leader, on either platform: a shelled `npm run dev` is a `.cmd` (or an `sh`)
- * wrapping the node process that actually holds the port, and signalling the wrapper leaves the
- * server running. Windows takes the tree with `taskkill /T`; elsewhere the child is its own
- * process group (`detached`) and the group is signalled by negating the pid.
- */
-function stopChildren() {
-  for (const child of children.splice(0)) {
-    try {
-      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-      else process.kill(-child.pid, 'SIGTERM');
-    } catch {
-      /* the walk is over either way */
-    }
-  }
-}
 
-async function waitFor(url, what, timeoutMs = 90_000) {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {
-      /* not up yet */
-    }
-    if (Date.now() > deadline) throw new Error(`${what} never came up at ${url}`);
-    await new Promise((r) => setTimeout(r, 400));
-  }
-}
-
-/** The app's dev server, pinned OFFLINE exactly as playwright.config.ts pins it, so the walk
- *  never touches a developer's real backend and the import road behaves as the suite's does. */
-async function startDevServer() {
-  const already = await fetch(`${appOrigin}/app`).then(
-    () => true,
-    () => false,
-  );
-  if (already) {
-    say(`app: reusing the dev server already on ${appOrigin}`);
-    return;
-  }
-  say(`app: starting the dev server on ${appOrigin}`);
-  const child = spawn('npm', ['run', 'dev'], {
-    cwd: root,
-    shell: true,
-    stdio: 'ignore',
-    // Its own process group off Windows, so stopChildren can take the whole tree down: the
-    // shell is the child, and the node process holding the port is its child.
-    detached: process.platform !== 'win32',
-    env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_PREVIEW_DEBOUNCE_MS: '50' },
-    // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
-    windowsHide: false,
-  });
-  children.push(child);
-  await waitFor(`${appOrigin}/app`, 'the app dev server');
-}
+// ── the renderer's server ────────────────────────────────────────────────────
 
 async function startOgrafServer() {
-  const already = await fetch(`${ograf}/api/ograf/v1/graphics`).then(
-    () => true,
-    () => false,
-  );
-  if (already) {
+  if (await isUp(`${ograf}/api/ograf/v1/graphics`)) {
     say(`renderer: reusing the ograf-server already on ${ograf}`);
     return;
   }
   say(`renderer: starting ograf-server on ${ograf}`);
-  const child = spawn(process.execPath, ['dist/main.js'], {
-    cwd: join(serverDir, 'packages', 'server'),
-    stdio: 'ignore',
-    // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
-    windowsHide: false,
-  });
-  children.push(child);
+  startChild(process.execPath, ['dist/main.js'], { cwd: join(serverDir, 'packages', 'server') });
   await waitFor(`${ograf}/api/ograf/v1/graphics`, 'ograf-server');
 }
 
@@ -193,10 +109,12 @@ async function startOgrafServer() {
 
 /**
  * Drop the sample on the Import door, take the proposed behaviour, create the graphic, then
- * export it as OGraf through the export dialog. Returns the zip's bytes.
+ * export it as OGraf through the export dialog. Returns the zip's path.
  *
  * Nothing here reaches past the UI: the walk is only worth anything if the package is the one a
- * student would get by clicking the same buttons.
+ * student would get by clicking the same buttons. The one exception is the shadow mount, which
+ * the dialog does not offer yet: that package is the same graphic built in the page by the same
+ * exporter, told the mount (`shadowOgraf`, e2e/_ografMount.ts).
  */
 async function exportOgrafPackage(page) {
   say(`app: dropping ${sample.replace(root + '\\', '').replace(root + '/', '')} on the Import door`);
@@ -219,16 +137,30 @@ async function exportOgrafPackage(page) {
   await page.getByRole('button', { name: 'Create project' }).click();
   await modal.waitFor({ state: 'hidden', timeout: 60_000 });
 
-  say('app: Export -> OGraf (EBU) export -> Validate & download');
-  await page.getByTestId('dock-tab-export').click();
-  await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
-  const [download] = await Promise.all([
-    page.waitForEvent('download', { timeout: 60_000 }),
-    page.getByRole('button', { name: /Validate & download/ }).click(),
-  ]);
   const zipPath = join(outDir, 'imported-quiz-ograf.zip');
-  await download.saveAs(zipPath);
+  if (mount === 'shadow') {
+    say('app: the shadow package, built in the page from the same graphic (the dialog has no mount)');
+    const zip = await shadowOgraf(page, 'Live');
+    writeFileSync(zipPath, await zip.generateAsync({ type: 'nodebuffer' }));
+  } else {
+    say('app: Export -> OGraf (EBU) export -> Validate & download');
+    await page.getByTestId('dock-tab-export').click();
+    await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 60_000 }),
+      page.getByRole('button', { name: /Validate & download/ }).click(),
+    ]);
+    await download.saveAs(zipPath);
+  }
   say(`app: package written to ${zipPath}`);
+  return zipPath;
+}
+
+/** A second, different design for the two-designs beat: the catalog's Hairline, in the mount. */
+async function hairlinePackage(page) {
+  const zipPath = join(outDir, 'hairline-ograf.zip');
+  writeFileSync(zipPath, await ografZip(page, await designTemplate(page, 'lt01'), mount));
+  say(`app: Hairline package written to ${zipPath}`);
   return zipPath;
 }
 
@@ -244,7 +176,7 @@ async function exportOgrafPackage(page) {
  */
 async function uploadPackage(zipPath) {
   const body = new FormData();
-  body.set('graphic', new Blob([readFileSync(zipPath)], { type: 'application/zip' }), 'imported-quiz-ograf.zip');
+  body.set('graphic', new Blob([readFileSync(zipPath)], { type: 'application/zip' }), zipPath.split(/[\\/]/).pop());
   const res = await fetch(`${ograf}/api/serverApi/internal/graphics/graphic`, { method: 'POST', body });
   const text = await res.text();
   transcript.push({ step: 'upload', method: 'POST', url: '/api/serverApi/internal/graphics/graphic', status: res.status, body: text.slice(0, 2000) });
@@ -287,21 +219,28 @@ async function api(step, method, path, body) {
  * carries the runtime's on-class.
  */
 /* global graphicBody -- the renderer page's, from GRAPHIC_BODY_SCRIPT */
-async function litRoles(page, graphicId) {
-  return page.evaluate((id) => {
-    // The renderer registers the Graphic as `customElements.define(manifest.id, …)`, so the
-    // manifest id IS the element's tag name - which is why this walk never has to guess one.
-    const host = document.querySelector(id);
-    const roots = (host ? graphicBody(host) : document.body).querySelectorAll('[data-noacg-role]');
+async function litRoles(page, layer = 0) {
+  return (await onLayer(page, layer)).evaluate((host) => {
+    if (!host) return { stamped: 0, lit: [] };
+    const roots = graphicBody(host).querySelectorAll('[data-noacg-role]');
     const lit = [];
     for (const el of roots) {
       if (el.classList.contains('imported-design-on')) lit.push(el.getAttribute('data-noacg-role'));
     }
     return { stamped: roots.length, lit };
-  }, graphicId);
+  });
 }
 
-async function frame(page, name, graphicId) {
+/**
+ * The NoaCG Graphic on the renderer's layer `layer`, or null. The renderer names its element
+ * after the graphic id (`ograf-<id>`, `getCustomElementName` in renderer-layer's GraphicsCache.ts),
+ * so this does not guess a tag: our Graphic stamps its element `data-noacg-graphic` while it is
+ * loaded, in either mount, and each layer is a fixed div whose z-index is its number.
+ */
+const onLayer = (page, layer) =>
+  page.evaluateHandle((z) => [...document.querySelectorAll('[data-noacg-graphic]')].find((el) => el.parentElement?.style.zIndex === String(z)) ?? null, layer);
+
+async function frame(page, name, layer = 0) {
   frameNo += 1;
   const file = join(framesDir, `${String(frameNo).padStart(2, '0')}-${name}.png`);
   // THE RENDERER'S OWN PAGE, not ours. Waiting on the graphic's animation is the only place a
@@ -311,7 +250,7 @@ async function frame(page, name, graphicId) {
   await page.bringToFront();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: file });
-  const roles = await litRoles(page, graphicId);
+  const roles = await litRoles(page, layer);
   transcript.push({ step: `frame ${name}`, frame: file, drawnStates: roles });
   say(`frame: ${name} - ${roles.stamped} drawn states, lit: ${roles.lit.join(', ') || '(none)'}`);
   return roles;
@@ -331,9 +270,11 @@ async function main() {
   const appPage = await context.newPage();
 
   const zipPath = await exportOgrafPackage(appPage);
+  const hairlineZip = await hairlinePackage(appPage);
   await appPage.close();
 
   const graphicId = await uploadPackage(zipPath);
+  const hairlineId = await uploadPackage(hairlineZip);
 
   const listed = await api('list graphics', 'GET', '/api/ograf/v1/graphics');
   const graphics = listed.payload?.graphics ?? [];
@@ -424,11 +365,13 @@ async function main() {
   });
   expect(load.status === 200 && load.payload?.statusCode === 200, `load answered ${load.status}/${load.payload?.statusCode}`);
   const graphicInstanceId = load.payload?.graphicInstanceId;
-  await frame(rendererPage, 'loaded', graphicId);
+  const shadowed = await (await onLayer(rendererPage, 0)).evaluate((host) => (host ? Boolean(host.shadowRoot) : null));
+  expect(shadowed === (mount === 'shadow'), `the graphic is in the ${mount} mount (shadow root: ${shadowed})`);
+  await frame(rendererPage, 'loaded');
 
   const play = await api('playAction', 'POST', `${target}/playAction`, { renderTarget, graphicInstanceId, params: {} });
   expect(play.status === 200 && play.payload?.statusCode === 200, `playAction answered ${play.status}/${play.payload?.statusCode}`);
-  await frame(rendererPage, 'on-air', graphicId);
+  await frame(rendererPage, 'on-air');
 
   // THE OPERATOR VERBS THE BOARD DREW. Names come off the manifest rather than from here,
   // because the whole claim is that the renderer reads them out of the package.
@@ -440,6 +383,8 @@ async function main() {
   // reveal all answer 200 and light nothing is a board that goes to air and does not play - the
   // exact failure this walk exists to catch, and one no status code can report.
   let painted = false;
+  /** The first action that lit a drawn state, which the layer beats below press again. */
+  let lighting = null;
   for (const action of declared) {
     const params = payloadFor(action, manifest, props);
     const res = await api(`customAction ${action}`, 'POST', `${target}/customActions/${action}`, {
@@ -448,8 +393,11 @@ async function main() {
       params,
     });
     expect(res.status === 200 && res.payload?.statusCode === 200, `customAction ${action} answered ${res.status}/${res.payload?.statusCode}`);
-    const roles = await frame(rendererPage, `action-${action}`, graphicId);
-    if (roles.lit.length) painted = true;
+    const roles = await frame(rendererPage, `action-${action}`);
+    if (roles.lit.length) {
+      painted = true;
+      lighting ??= action;
+    }
   }
   expect(painted, 'the operator actions light the drawn states the designer named');
 
@@ -466,12 +414,101 @@ async function main() {
 
   const stop = await api('stopAction', 'POST', `${target}/stopAction`, { renderTarget, graphicInstanceId, params: {} });
   expect(stop.status === 200 && stop.payload?.statusCode === 200, `stopAction answered ${stop.status}/${stop.payload?.statusCode}`);
-  await frame(rendererPage, 'off-air', graphicId);
+  await frame(rendererPage, 'off-air');
 
   // `clear` is the renderer's own verb for dropping the instance, and it takes a list of
   // FILTERS rather than one target - a controller clears "everything matching this" in one call.
   const cleared = await api('clear', 'PUT', `${target}/clear`, { filters: [{ renderTarget }] });
   expect(cleared.status === 200, `clear answered ${cleared.status}`);
+
+  // ── beat 5: two graphics on two layers ─────────────────────────────────────
+  //
+  // What a broadcaster running several graphics on one renderer needs, and what the light DOM
+  // could not promise (docs/work-specs/ograf-shadow-root/spec.md): the renderer caches the
+  // element class per graphic id, so two copies of one design are two elements of one class on
+  // one page. Each layer is judged by what it shows - its text, its boxes and its lit drawn
+  // states - before and after the other one plays, acts and is cleared.
+  const layerIds = info.payload?.renderer?.renderTargetSchema?.properties?.layerId?.enum ?? [];
+  const secondId = layerIds.find((id) => id !== renderTarget.layerId);
+  if (!secondId || !lighting) {
+    expect(false, `the layer beats need a second layer (${layerIds.join(', ')}) and an action that lights a state (${lighting})`);
+    return failures;
+  }
+  const secondTarget = { layerId: secondId };
+  // A layer's z-index is its place in the renderer's list (LayersManager.ts).
+  const firstLayer = Math.max(0, layerIds.indexOf(renderTarget.layerId));
+  const secondLayer = layerIds.indexOf(secondId);
+
+  const loadAndPlay = async (step, onTarget, id, withData) => {
+    const loaded = await api(`${step}: load`, 'POST', `${target}/load`, { renderTarget: onTarget, graphicId: id, params: { data: withData } });
+    const instance = loaded.payload?.graphicInstanceId;
+    const played = await api(`${step}: playAction`, 'POST', `${target}/playAction`, { renderTarget: onTarget, graphicInstanceId: instance, params: {} });
+    expect(loaded.payload?.statusCode === 200 && played.payload?.statusCode === 200, `${step}: load and play answered ${loaded.payload?.statusCode}/${played.payload?.statusCode}`);
+    return instance;
+  };
+  const press = async (step, onTarget, instance) => {
+    const res = await api(`${step}: customAction ${lighting}`, 'POST', `${target}/customActions/${lighting}`, {
+      renderTarget: onTarget,
+      graphicInstanceId: instance,
+      params: payloadFor(lighting, manifest, props),
+    });
+    expect(res.payload?.statusCode === 200, `${step}: customAction ${lighting} answered ${res.payload?.statusCode}`);
+  };
+  const clearLayer = async (step, onTarget) => {
+    const res = await api(step, 'PUT', `${target}/clear`, { filters: [{ renderTarget: onTarget }] });
+    expect(res.status === 200, `${step} answered ${res.status}`);
+  };
+  /** What a layer shows once it has stopped moving, with its lit drawn states. */
+  const shows = async (layer) => {
+    const reading = await settledReading(rendererPage, await onLayer(rendererPage, layer));
+    return { ...reading, lit: (await litRoles(rendererPage, layer)).lit };
+  };
+  /** Nothing about `layer` changed between two readings. */
+  const unchanged = (now, before, what) => {
+    const diff = differences(now, before);
+    if (now.lit.join() !== before.lit.join()) diff.push(`lit ${now.lit.join(', ') || '(none)'} against ${before.lit.join(', ') || '(none)'}`);
+    transcript.push({ step: `compare: ${what}`, diff });
+    expect(diff.length === 0, `${what}${diff.length ? ` - ${diff.join('; ')}` : ''}`);
+  };
+
+  // Two copies of the board, each with its own question.
+  const questionField = idTitled('Question') ?? fields.find((f) => props[f]?.type === 'string' && !props[f]?.enum);
+  const asked = (question) => (questionField ? { ...data, [questionField]: question } : data);
+  const copyOne = await loadAndPlay('copy one', renderTarget, graphicId, asked('Copy one'));
+  await loadAndPlay('copy two', secondTarget, graphicId, asked('Copy two'));
+  const one = await shows(firstLayer);
+  const two = await shows(secondLayer);
+  await frame(rendererPage, 'two-copies', firstLayer);
+  expect(
+    one.text.includes('Copy one') && !one.text.includes('Copy two') && two.text.includes('Copy two') && !two.text.includes('Copy one'),
+    `two copies on two layers each show their own question ("${one.text.slice(0, 40)}" / "${two.text.slice(0, 40)}")`,
+  );
+  await press('copy one', renderTarget, copyOne);
+  const oneActed = await shows(firstLayer);
+  expect(oneActed.lit.join() !== one.lit.join(), `${lighting} on copy one lights its own drawn states (${oneActed.lit.join(', ') || '(none)'})`);
+  unchanged(await shows(secondLayer), two, "copy one's action leaves copy two exactly as it was");
+  await frame(rendererPage, 'copy-one-acted', firstLayer);
+  await clearLayer('copy one: clear', renderTarget);
+  unchanged(await shows(secondLayer), two, 'clearing copy one leaves copy two exactly as it was');
+  await frame(rendererPage, 'copy-two-alone', secondLayer);
+  await clearLayer('copy two: clear', secondTarget);
+
+  // The board and a different design, the catalog's Hairline, on the second layer.
+  const hairline = (await api('read Hairline manifest', 'GET', `/api/ograf/v1/graphics/${hairlineId}`)).payload?.graphic;
+  const hairlineProps = hairline?.schema?.properties ?? {};
+  const hairlineData = Object.fromEntries(Object.keys(hairlineProps).map((f) => [f, hairlineProps[f]?.default ?? '']));
+  const board = await loadAndPlay('board', renderTarget, graphicId, data);
+  const boardAlone = await shows(firstLayer);
+  await loadAndPlay('Hairline', secondTarget, hairlineId, hairlineData);
+  const lowerThird = await shows(secondLayer);
+  expect(lowerThird.text.length > 0, `the Hairline is on air on the second layer ("${lowerThird.text.slice(0, 40)}")`);
+  unchanged(await shows(firstLayer), boardAlone, 'the Hairline arriving on another layer leaves the board as it was');
+  await press('board', renderTarget, board);
+  unchanged(await shows(secondLayer), lowerThird, "the board's action leaves the Hairline as it was");
+  await frame(rendererPage, 'board-and-hairline', firstLayer);
+  await clearLayer('board: clear', renderTarget);
+  unchanged(await shows(secondLayer), lowerThird, 'clearing the board leaves the Hairline as it was');
+  await clearLayer('Hairline: clear', secondTarget);
 
   return failures;
 }

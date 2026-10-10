@@ -436,6 +436,14 @@ and file-path checks were each run against the code without their fix, and faile
 bare test page); the project `DATAROOT\NoaCG_V_OGraf` with rundowns `Round` and `Layers`, which
 SPX put at the top of `config.json`'s recent list. The server was stopped afterwards.
 
+**The walk is a script now** (2026-10-10): `scripts/ograf-spx-walk.mjs --spx <SPX_1_4_1_source>
+[--mount light|shadow]` builds Hairline, Clean Quiz, House Scorebug and Glass Mark, makes the
+project through the same endpoints, drives the controller's own functions, and judges each beat
+by comparing the graphic in `/renderer` with the same package after the same calls on SPX's blank
+`/templates/empty.html`. It writes `ASSETS\templates\noacg_walk_<mount>\` and the project
+`DATAROOT\NoaCG_Walk_<mount>`, both replaced on every run, and its frames and transcript into
+`ograf-spx-out/<mount>/` (gitignored).
+
 ## 11. The production's rundown, walked on both servers (2026-10-02)
 
 Branch `claude/x-spx-rundown-export` made the SPX production package carry a ready SPX project,

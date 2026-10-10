@@ -1,0 +1,288 @@
+[
+  {
+    "step": "spx version",
+    "version": {
+      "vendor": "SPX Graphics",
+      "product": "SPX Solo",
+      "version": "1.4.1",
+      "id": "502f9b20",
+      "os": "win32"
+    }
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/shows/",
+    "form": {
+      "foldername": "NoaCG_Walk_shadow",
+      "format": "OGRAF"
+    },
+    "status": 302
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_shadow/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\hairline",
+      "template": "hairline.ograf.json",
+      "showFolder": "NoaCG_Walk_shadow"
+    },
+    "status": 302
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_shadow/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\clean_quiz",
+      "template": "clean_quiz.ograf.json",
+      "showFolder": "NoaCG_Walk_shadow"
+    },
+    "status": 302
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_shadow/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\house_scorebug",
+      "template": "house_scorebug.ograf.json",
+      "showFolder": "NoaCG_Walk_shadow"
+    },
+    "status": 302
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_shadow/config",
+    "form": {
+      "command": "addtemplate",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\glass_mark",
+      "template": "glass_mark.ograf.json",
+      "showFolder": "NoaCG_Walk_shadow"
+    },
+    "status": 302
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_shadow/config",
+    "form": {
+      "command": "addshowextrascript",
+      "customscript": "/templates/noacg_walk_shadow/clean_quiz/spx-custom-actions.js",
+      "showFolder": "NoaCG_Walk_shadow"
+    },
+    "status": 302
+  },
+  {
+    "step": "spx",
+    "method": "POST",
+    "url": "/show/NoaCG_Walk_shadow",
+    "form": {
+      "filebasename": "Walk"
+    },
+    "status": 302
+  },
+  {
+    "step": "recorded",
+    "what": "layers as imported",
+    "detail": [
+      "2",
+      "4",
+      "5",
+      "5",
+      "2"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Hairline, Clean Quiz and House Scorebug import on layers 2, 4 and 5 (got 2, 4, 5)"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Hairline paints as on a bare page: SPX's renderer rules do not reach in"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the name saved in the controller is on air"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Clean Quiz finished its entrance though the scorebug played during it"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "House Scorebug paints as on a bare page: SPX's renderer rules do not reach in"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the three are on air together on layers 2, 4 and 5 (noacg-hairline-v1.0.0, noacg-clean-quiz-v1.0.0, noacg-house-scorebug-v1.0.0)"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "each graphic is in the shadow mount (shadow root: true, true, true)"
+  },
+  {
+    "step": "frame three-on-air",
+    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\01-three-on-air.png"
+  },
+  {
+    "step": "recorded",
+    "what": "what a custom action sends (SPX forwards no payload)",
+    "detail": {
+      "command": "customAction",
+      "id": "select",
+      "webplayout": "4"
+    }
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Clean Quiz offers Select, Lock and Reveal correct (declares select, lock, revealChoice, judge, audience)"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Clean Quiz after select, lock, judge shows what the same actions show on a bare page"
+  },
+  {
+    "step": "frame quiz-actions",
+    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\02-quiz-actions.png"
+  },
+  {
+    "step": "recorded",
+    "what": "House Scorebug text while its clock runs, then after it stops",
+    "detail": {
+      "running": [
+        "HOME 0 AWAY 0 1H 0:01 #f6a623 #7dd3fc",
+        "HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc"
+      ],
+      "stopped": [
+        "HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc",
+        "HOME 0 AWAY 0 1H 0:03 #f6a623 #7dd3fc"
+      ]
+    }
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "House Scorebug's clockStart runs its clock and clockStop stops it"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Continue takes Clean Quiz to its next step as on a bare page"
+  },
+  {
+    "step": "frame quiz-continued",
+    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\03-quiz-continued.png"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Stop takes Hairline off air as on a bare page"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Stop takes Clean Quiz off air as on a bare page"
+  },
+  {
+    "step": "frame stopped",
+    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\04-stopped.png"
+  },
+  {
+    "step": "recorded",
+    "what": "Glass Mark file-list choices",
+    "detail": [
+      "Logo from folder:",
+      "./images/",
+      "",
+      "none",
+      "./images/noacg_walk_logo.png"
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "Glass Mark with a picked picture paints as on a bare page"
+  },
+  {
+    "step": "recorded",
+    "what": "Glass Mark pictures",
+    "detail": [
+      {
+        "src": "http://localhost:5656/templates/noacg_walk_shadow/glass_mark/images/noacg_walk_logo.png",
+        "w": 96
+      }
+    ]
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the picked picture loads from inside the package"
+  },
+  {
+    "step": "frame file-list-image",
+    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\05-file-list-image.png"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the first copy paints its own data as on a bare page"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the second copy, on layer 3, paints its own data as on a bare page"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "each copy shows its own name"
+  },
+  {
+    "step": "frame two-copies",
+    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\06-two-copies.png"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "taking the first copy off air leaves the second exactly as it was"
+  },
+  {
+    "step": "frame second-copy-alone",
+    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\07-second-copy-alone.png"
+  },
+  {
+    "step": "judged",
+    "ok": true,
+    "what": "the renderer page threw nothing (0 errors)"
+  },
+  {
+    "step": "renderer page error",
+    "text": "TypeError: Cannot read properties of null (reading 'value')"
+  },
+  {
+    "step": "recorded",
+    "what": "Update on an OGraf item (an SPX gap)",
+    "detail": {
+      "onAir": "Walk Alpha First copy",
+      "changed": false,
+      "rendererErrors": [
+        "TypeError: Cannot read properties of null (reading 'value')"
+      ]
+    }
+  }
+]
