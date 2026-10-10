@@ -21,8 +21,8 @@ jobs:
           curl -fL https://github.com/zerodensity/ograf-studio/releases/download/v0.17/OGrafStudioServer-linux-x64 -o .noacg/reference/studio
           echo '9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681  .noacg/reference/studio' | sha256sum -c -
           chmod +x .noacg/reference/studio
-      - name: Check exact Quiz Shift and additive ranges
-        run: xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test e2e/editor-usability.spec.ts --grep "B02 Quiz whole" --workers=1
+      - name: Check modifier and property disclosure regressions
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test e2e/editor-usability.spec.ts e2e/editor-key-ease.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
