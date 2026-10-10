@@ -424,13 +424,15 @@ included.
   `scripts/ograf-spx-walk.mjs` is new: it makes an OGRAF project through SPX's own endpoints,
   drives the controller's own functions, and judges a beat by reading the graphic in `/renderer`
   (text, and each element's box, opacity, colour and type, through `graphicBody`) against the same
-  package after the same calls on SPX's blank `/templates/empty.html`. The SuperFly walk gains the
-  two layer beats. Both are browser work in `scripts/command-match.mjs`.
+  package on SPX's blank `/templates/empty.html` after the Web Component calls SPX made to it,
+  recorded on the renderer page. `--renderer-css` adds rules to the renderer page. The SuperFly
+  walk gains the two layer beats. Both stop the app's dev server once their packages are built,
+  and both are browser work in `scripts/command-match.mjs`.
 - **AC-10.** Light and shadow each pass all 20 judged beats on the 1.4.1 source build; SPX's
-  Update and payload gaps read the same in both. With `div, span { letter-spacing: 12px
-  !important }` added to the renderer page, light fails the ten layout beats and shadow passes
-  every beat: on SPX the light mount already holds against SPX's own rules (the `all: initial`
-  guard), so the shadow root's gain there is against rules a page adds. `evidence/phase-3.md`.
+  Update and payload gaps read the same in both. With `--renderer-css "div, span { letter-spacing:
+  12px !important; }"`, light fails the ten layout beats and shadow passes every beat: on SPX the
+  light mount already holds against SPX's own rules (the `all: initial` guard), so the shadow
+  root's gain there is against rules a page adds. `evidence/phase-3.md`.
 - **AC-9.** Against ograf-server main built on 2026-10-10, light and shadow each pass every beat:
   the board's load, play, four custom actions, the unknown action's 400, stop and clear, and the
   new layer beats, where two copies of the board and then the board beside a Hairline each keep
@@ -444,6 +446,8 @@ included.
   ("Create project" and the editor's Export tab are gone); it now takes Finish's "Export it" door
   and the export window.
 - **For the flip.** Run both walks on that branch with `--mount shadow`, then drop `--mount` with
-  the option: the light path of the SuperFly walk is the export dialog, which by then builds the
-  shadow package itself. SPX 1.4.1 and the ograf-server main build used here stay where the walks'
-  headers say to build them.
+  the option: the light path of the SuperFly walk is the export window, which by then builds the
+  shadow package itself. The walks import `graphicTemplate`, `ografPackages` and `shadowOgraf`
+  from `e2e/_ografMount.ts`, which the flip deletes, so the in-page builder they need moves with
+  it (`e2e/_ografParity.ts` needs one too). SPX 1.4.1 and the ograf-server main build used here
+  stay where the walks' headers say to build them.

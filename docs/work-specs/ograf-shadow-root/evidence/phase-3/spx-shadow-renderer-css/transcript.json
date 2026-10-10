@@ -17,7 +17,8 @@
       "foldername": "NoaCG_Walk_shadow",
       "format": "OGRAF"
     },
-    "status": 302
+    "status": 302,
+    "location": "/show/NoaCG_Walk_shadow/config"
   },
   {
     "step": "spx",
@@ -25,11 +26,12 @@
     "url": "/show/NoaCG_Walk_shadow/config",
     "form": {
       "command": "addtemplate",
-      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\hairline",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\lt01",
       "template": "hairline.ograf.json",
       "showFolder": "NoaCG_Walk_shadow"
     },
-    "status": 302
+    "status": 302,
+    "location": "/show/NoaCG_Walk_shadow/config"
   },
   {
     "step": "spx",
@@ -37,11 +39,12 @@
     "url": "/show/NoaCG_Walk_shadow/config",
     "form": {
       "command": "addtemplate",
-      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\clean_quiz",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\qz04",
       "template": "clean_quiz.ograf.json",
       "showFolder": "NoaCG_Walk_shadow"
     },
-    "status": 302
+    "status": 302,
+    "location": "/show/NoaCG_Walk_shadow/config"
   },
   {
     "step": "spx",
@@ -49,11 +52,12 @@
     "url": "/show/NoaCG_Walk_shadow/config",
     "form": {
       "command": "addtemplate",
-      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\house_scorebug",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\sb05",
       "template": "house_scorebug.ograf.json",
       "showFolder": "NoaCG_Walk_shadow"
     },
-    "status": 302
+    "status": 302,
+    "location": "/show/NoaCG_Walk_shadow/config"
   },
   {
     "step": "spx",
@@ -61,11 +65,12 @@
     "url": "/show/NoaCG_Walk_shadow/config",
     "form": {
       "command": "addtemplate",
-      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\glass_mark",
+      "curFolder": "<SPX_1_4_1_source>\\ASSETS\\templates\\noacg_walk_shadow\\bug01",
       "template": "glass_mark.ograf.json",
       "showFolder": "NoaCG_Walk_shadow"
     },
-    "status": 302
+    "status": 302,
+    "location": "/show/NoaCG_Walk_shadow/config"
   },
   {
     "step": "spx",
@@ -73,10 +78,11 @@
     "url": "/show/NoaCG_Walk_shadow/config",
     "form": {
       "command": "addshowextrascript",
-      "customscript": "/templates/noacg_walk_shadow/clean_quiz/spx-custom-actions.js",
+      "customscript": "/templates/noacg_walk_shadow/qz04/spx-custom-actions.js",
       "showFolder": "NoaCG_Walk_shadow"
     },
-    "status": 302
+    "status": 302,
+    "location": "/show/NoaCG_Walk_shadow/config"
   },
   {
     "step": "spx",
@@ -85,23 +91,38 @@
     "form": {
       "filebasename": "Walk"
     },
-    "status": 302
+    "status": 302,
+    "location": "/gc/NoaCG_Walk_shadow/Walk"
+  },
+  {
+    "step": "recorded",
+    "what": "rules added to the renderer page",
+    "detail": "div, span { letter-spacing: 12px !important; }"
   },
   {
     "step": "recorded",
     "what": "layers as imported",
     "detail": [
-      "2",
-      "4",
-      "5",
-      "5",
-      "2"
+      2,
+      4,
+      5,
+      5,
+      2
     ]
   },
   {
     "step": "judged",
     "ok": true,
     "what": "Hairline, Clean Quiz and House Scorebug import on layers 2, 4 and 5 (got 2, 4, 5)"
+  },
+  {
+    "step": "replayed",
+    "what": "Hairline paints as on a bare page: SPX's renderer rules do not reach in",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
   },
   {
     "step": "judged",
@@ -114,9 +135,27 @@
     "what": "the name saved in the controller is on air"
   },
   {
+    "step": "replayed",
+    "what": "Clean Quiz finished its entrance though the scorebug played during it",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
     "step": "judged",
     "ok": true,
     "what": "Clean Quiz finished its entrance though the scorebug played during it"
+  },
+  {
+    "step": "replayed",
+    "what": "House Scorebug paints as on a bare page: SPX's renderer rules do not reach in",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
   },
   {
     "step": "judged",
@@ -126,7 +165,7 @@
   {
     "step": "judged",
     "ok": true,
-    "what": "the three are on air together on layers 2, 4 and 5 (noacg-hairline-v1.0.0, noacg-clean-quiz-v1.0.0, noacg-house-scorebug-v1.0.0)"
+    "what": "the three are on air together on layers 2, 4 and 5 (noacg-hairline, noacg-clean-quiz, noacg-house-scorebug)"
   },
   {
     "step": "judged",
@@ -135,7 +174,7 @@
   },
   {
     "step": "frame three-on-air",
-    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\01-three-on-air.png"
+    "frame": "<repo>\\ograf-spx-out\\shadow-renderer-css\\frames\\01-three-on-air.png"
   },
   {
     "step": "recorded",
@@ -152,13 +191,25 @@
     "what": "Clean Quiz offers Select, Lock and Reveal correct (declares select, lock, revealChoice, judge, audience)"
   },
   {
+    "step": "replayed",
+    "what": "Clean Quiz after select, lock, judge shows what the same actions show on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "customAction select",
+      "customAction lock",
+      "customAction judge"
+    ]
+  },
+  {
     "step": "judged",
     "ok": true,
     "what": "Clean Quiz after select, lock, judge shows what the same actions show on a bare page"
   },
   {
     "step": "frame quiz-actions",
-    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\02-quiz-actions.png"
+    "frame": "<repo>\\ograf-spx-out\\shadow-renderer-css\\frames\\02-quiz-actions.png"
   },
   {
     "step": "recorded",
@@ -180,18 +231,55 @@
     "what": "House Scorebug's clockStart runs its clock and clockStop stops it"
   },
   {
+    "step": "replayed",
+    "what": "Continue takes Clean Quiz to its next step as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "customAction select",
+      "customAction lock",
+      "customAction judge",
+      "playAction"
+    ]
+  },
+  {
     "step": "judged",
     "ok": true,
     "what": "Continue takes Clean Quiz to its next step as on a bare page"
   },
   {
     "step": "frame quiz-continued",
-    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\03-quiz-continued.png"
+    "frame": "<repo>\\ograf-spx-out\\shadow-renderer-css\\frames\\03-quiz-continued.png"
+  },
+  {
+    "step": "replayed",
+    "what": "Stop takes Hairline off air as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "stopAction"
+    ]
   },
   {
     "step": "judged",
     "ok": true,
     "what": "Stop takes Hairline off air as on a bare page"
+  },
+  {
+    "step": "replayed",
+    "what": "Stop takes Clean Quiz off air as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction",
+      "customAction select",
+      "customAction lock",
+      "customAction judge",
+      "playAction",
+      "stopAction"
+    ]
   },
   {
     "step": "judged",
@@ -200,7 +288,7 @@
   },
   {
     "step": "frame stopped",
-    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\04-stopped.png"
+    "frame": "<repo>\\ograf-spx-out\\shadow-renderer-css\\frames\\04-stopped.png"
   },
   {
     "step": "recorded",
@@ -214,6 +302,15 @@
     ]
   },
   {
+    "step": "replayed",
+    "what": "Glass Mark with a picked picture paints as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
+  },
+  {
     "step": "judged",
     "ok": true,
     "what": "Glass Mark with a picked picture paints as on a bare page"
@@ -223,7 +320,7 @@
     "what": "Glass Mark pictures",
     "detail": [
       {
-        "src": "http://localhost:5656/templates/noacg_walk_shadow/glass_mark/images/noacg_walk_logo.png",
+        "src": "http://localhost:5656/templates/noacg_walk_shadow/bug01/images/noacg_walk_logo.png",
         "w": 96
       }
     ]
@@ -235,12 +332,30 @@
   },
   {
     "step": "frame file-list-image",
-    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\05-file-list-image.png"
+    "frame": "<repo>\\ograf-spx-out\\shadow-renderer-css\\frames\\05-file-list-image.png"
+  },
+  {
+    "step": "replayed",
+    "what": "the first copy paints its own data as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
   },
   {
     "step": "judged",
     "ok": true,
     "what": "the first copy paints its own data as on a bare page"
+  },
+  {
+    "step": "replayed",
+    "what": "the second copy, on layer 3, paints its own data as on a bare page",
+    "calls": [
+      "load",
+      "updateAction",
+      "playAction"
+    ]
   },
   {
     "step": "judged",
@@ -254,7 +369,7 @@
   },
   {
     "step": "frame two-copies",
-    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\06-two-copies.png"
+    "frame": "<repo>\\ograf-spx-out\\shadow-renderer-css\\frames\\06-two-copies.png"
   },
   {
     "step": "judged",
@@ -263,7 +378,7 @@
   },
   {
     "step": "frame second-copy-alone",
-    "frame": "<repo>\\ograf-spx-out\\shadow-injected\\frames\\07-second-copy-alone.png"
+    "frame": "<repo>\\ograf-spx-out\\shadow-renderer-css\\frames\\07-second-copy-alone.png"
   },
   {
     "step": "judged",
@@ -280,6 +395,11 @@
     "detail": {
       "onAir": "Walk Alpha First copy",
       "changed": false,
+      "callsSincePlay": [
+        "load",
+        "updateAction",
+        "playAction"
+      ],
       "rendererErrors": [
         "TypeError: Cannot read properties of null (reading 'value')"
       ]

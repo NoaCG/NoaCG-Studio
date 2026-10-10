@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "f30baecb3d7f195f542b4e03d1da65060ba91c67ad24b880634cf83440661643",
+  "specSha256": "696e3d89821c21caa67f67e9ec30876ba213fcff871da65889b5e47e0979746c",
   "authority": {
     "status": "agreed",
     "source": "the owner's decision of 2026-10-10 on issue #922 (move exported OGraf graphics into a shadow root in phases; OGraf export only, CasparCG, SPX and HTML5 output unchanged; the default only after it is proven on SPX 1.4.1 and SuperFly's OGraf server) and the owner's session prompt of 2026-10-10 that asked for this plan and said: ask only what changes direction, decide the rest and record it in the spec. The derived decisions are recorded in the spec and open to the owner's overrule."

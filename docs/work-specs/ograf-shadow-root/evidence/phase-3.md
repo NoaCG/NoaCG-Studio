@@ -1,8 +1,9 @@
 # Phase 3 evidence (2026-10-10)
 
-The two renderer walks, run on light packages (the baseline) and shadow packages (the proof).
-Each run's transcript, console verdicts and frames are in `phase-3/<renderer>-<mount>/`, with
-local paths replaced by `<repo>` and `<SPX_1_4_1_source>`.
+The two renderer walks, run on light packages (the baseline) and shadow packages (the proof), on
+the branch's final code on the night of 2026-10-10, one walk at a time. Each run's transcript and
+console verdicts are in `phase-3/<renderer>-<mount>/`, with frames where they show something, and
+local paths replaced by `<repo>`, `<SPX_1_4_1_source>` and `<ograf-server-main>`.
 
 ## SPX 1.4.1 (AC-10)
 
@@ -14,10 +15,10 @@ Mark (`bug01`), the shadow ones written again with `addOgrafPackage(..., { mount
 **How a beat is judged.** Each graphic on SPX's `/renderer` is read once it stops moving: its
 visible text, and per element its box relative to the template's body, opacity, visibility,
 colour, font size and family (`readGraphic` in `scripts/ograf-walk-common.mjs`, read through
-`graphicBody`). The same package is then mounted on SPX's blank `/templates/empty.html`, sized as
-SPX sizes its element, and driven with the calls SPX makes (`load`, `updateAction` and
-`playAction` with the item's data, then `playAction()`, `customAction({ id })` or
-`stopAction({})`), settling after each. The two readings must be identical.
+`graphicBody`). An init script on the renderer page records every Web Component call SPX sends
+the element, with its argument (SPX's own `rundownData` left out). The same package is then
+mounted on SPX's blank `/templates/empty.html`, sized as SPX sizes its element, and sent those
+calls in order, settling after each one that follows Play. The two readings must be identical.
 
 | Beat | Light | Shadow |
 |---|---|---|
@@ -36,18 +37,20 @@ SPX sizes its element, and driven with the calls SPX makes (`load`, `updateActio
 Recorded, unchanged in both mounts, SPX's own:
 
 - **Update does nothing.** The renderer throws `Cannot read properties of null (reading 'value')`
-  in its `updateItem()` and the graphic keeps its old name, as §10 of
+  in its `updateItem()`, the graphic keeps its old name, and the recorded calls show why: after
+  Play's `load`, `updateAction` and `playAction`, Update sends the graphic nothing. As §10 of
   docs/SPX_ON_A_REAL_SERVER.md found.
 - **A custom action carries no payload.** The controller posts
   `{"command":"customAction","id":"select","webplayout":"4"}`.
 
-**The comparison catches a leak.** With one rule added to the renderer page,
-`div, span { letter-spacing: 12px !important; }`, the light run failed ten beats (every layout
-comparison: the three on air, the quiz's actions, Continue, both Stops, the picture, both copies)
-and kept the ten that judge text, state and wiring. The shadow run with the same rule passed every
-beat (`phase-3/spx-shadow-injected-rule/transcript.json`). SPX's own renderer rules do not reach
-into a light graphic either, since the `all: initial` guard of §10, so on SPX the shadow root's
-gain is against rules a page adds, as the spikes measured.
+**The comparison catches a leak, and only the shadow root holds against it.** With
+`--renderer-css "div, span { letter-spacing: 12px !important; }"`, a rule on the renderer page,
+the light run failed ten beats (every layout comparison: the three on air, the quiz's actions,
+Continue, both Stops, the picture, both copies) and kept the ten that judge text, state and wiring
+(`phase-3/spx-light-renderer-css/`). The shadow run with the same rule passed every beat
+(`phase-3/spx-shadow-renderer-css/`). SPX's own renderer rules do not reach into a light graphic
+either, since the `all: initial` guard of §10, so on SPX the shadow root's gain is against rules a
+page adds, as the spikes measured.
 
 ## SuperFly.tv ograf-server (AC-9)
 

@@ -306,10 +306,10 @@
         }
       },
       "metadata": {
-        "createdAt": "2026-10-10T19:52:42.226Z",
-        "updatedAt": "2026-10-10T19:52:42.226Z",
+        "createdAt": "2026-10-10T20:18:50.613Z",
+        "updatedAt": "2026-10-10T20:18:50.613Z",
         "content": {
-          "url": "http://127.0.0.1:8080/api/serverApi/internal/graphics/noacg-quiz-board/0/",
+          "url": "http://127.0.0.1:8080/api/serverApi/internal/graphics/noacg-quiz-board/2/",
           "files": [
             {
               "path": "FIELDS.md"
@@ -954,10 +954,10 @@
         }
       },
       "metadata": {
-        "createdAt": "2026-10-10T19:52:42.324Z",
-        "updatedAt": "2026-10-10T19:52:42.324Z",
+        "createdAt": "2026-10-10T20:18:50.723Z",
+        "updatedAt": "2026-10-10T20:18:50.723Z",
         "content": {
-          "url": "http://127.0.0.1:8080/api/serverApi/internal/graphics/noacg-hairline/0/",
+          "url": "http://127.0.0.1:8080/api/serverApi/internal/graphics/noacg-hairline/2/",
           "files": [
             {
               "path": "FIELDS.md"

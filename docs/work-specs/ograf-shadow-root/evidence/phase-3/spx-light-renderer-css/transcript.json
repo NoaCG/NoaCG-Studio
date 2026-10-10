@@ -96,6 +96,11 @@
   },
   {
     "step": "recorded",
+    "what": "rules added to the renderer page",
+    "detail": "div, span { letter-spacing: 12px !important; }"
+  },
+  {
+    "step": "recorded",
     "what": "layers as imported",
     "detail": [
       2,
@@ -121,8 +126,9 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "Hairline paints as on a bare page: SPX's renderer rules do not reach in"
+    "ok": false,
+    "what": "Hairline paints as on a bare page: SPX's renderer rules do not reach in",
+    "detail": "6 of 7 elements, first: div 120,866 444x96 o1.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 319x96 o1.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "judged",
@@ -140,8 +146,9 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "Clean Quiz finished its entrance though the scorebug played during it"
+    "ok": false,
+    "what": "Clean Quiz finished its entrance though the scorebug played during it",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o1.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o1.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "replayed",
@@ -154,8 +161,9 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "House Scorebug paints as on a bare page: SPX's renderer rules do not reach in"
+    "ok": false,
+    "what": "House Scorebug paints as on a bare page: SPX's renderer rules do not reach in",
+    "detail": "17 of 22 elements, first: div 585,89 294x94 o1.00 visible rgb(0, 0, 0) 16px \"Space Grotesk\" against div 670,89 232x94 o1.00 visible rgb(0, 0, 0) 16px \"Space Grotesk\""
   },
   {
     "step": "judged",
@@ -169,7 +177,7 @@
   },
   {
     "step": "frame three-on-air",
-    "frame": "<repo>\\ograf-spx-out\\light\\frames\\01-three-on-air.png"
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\01-three-on-air.png"
   },
   {
     "step": "recorded",
@@ -199,12 +207,13 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "Clean Quiz after select, lock, judge shows what the same actions show on a bare page"
+    "ok": false,
+    "what": "Clean Quiz after select, lock, judge shows what the same actions show on a bare page",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o1.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o1.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "frame quiz-actions",
-    "frame": "<repo>\\ograf-spx-out\\light\\frames\\02-quiz-actions.png"
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\02-quiz-actions.png"
   },
   {
     "step": "recorded",
@@ -240,12 +249,13 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "Continue takes Clean Quiz to its next step as on a bare page"
+    "ok": false,
+    "what": "Continue takes Clean Quiz to its next step as on a bare page",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o0.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o0.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "frame quiz-continued",
-    "frame": "<repo>\\ograf-spx-out\\light\\frames\\03-quiz-continued.png"
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\03-quiz-continued.png"
   },
   {
     "step": "replayed",
@@ -259,8 +269,9 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "Stop takes Hairline off air as on a bare page"
+    "ok": false,
+    "what": "Stop takes Hairline off air as on a bare page",
+    "detail": "6 of 7 elements, first: div 120,866 444x96 o0.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 319x96 o0.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "replayed",
@@ -278,12 +289,13 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "Stop takes Clean Quiz off air as on a bare page"
+    "ok": false,
+    "what": "Stop takes Clean Quiz off air as on a bare page",
+    "detail": "18 of 21 elements, first: div 420,323 1080x435 o0.00 visible rgb(0, 0, 0) 16px Inter against div 420,346 1080x389 o0.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "frame stopped",
-    "frame": "<repo>\\ograf-spx-out\\light\\frames\\04-stopped.png"
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\04-stopped.png"
   },
   {
     "step": "recorded",
@@ -307,8 +319,9 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "Glass Mark with a picked picture paints as on a bare page"
+    "ok": false,
+    "what": "Glass Mark with a picked picture paints as on a bare page",
+    "detail": "2 of 7 elements, first: div 1700,188 81x30 o1.00 visible rgb(0, 0, 0) 16px Manrope against div 1718,188 44x30 o1.00 visible rgb(0, 0, 0) 16px Manrope"
   },
   {
     "step": "recorded",
@@ -327,7 +340,7 @@
   },
   {
     "step": "frame file-list-image",
-    "frame": "<repo>\\ograf-spx-out\\light\\frames\\05-file-list-image.png"
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\05-file-list-image.png"
   },
   {
     "step": "replayed",
@@ -340,8 +353,9 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "the first copy paints its own data as on a bare page"
+    "ok": false,
+    "what": "the first copy paints its own data as on a bare page",
+    "detail": "6 of 7 elements, first: div 120,866 444x96 o1.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 319x96 o1.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "replayed",
@@ -354,8 +368,9 @@
   },
   {
     "step": "judged",
-    "ok": true,
-    "what": "the second copy, on layer 3, paints its own data as on a bare page"
+    "ok": false,
+    "what": "the second copy, on layer 3, paints its own data as on a bare page",
+    "detail": "6 of 7 elements, first: div 120,866 397x96 o1.00 visible rgb(0, 0, 0) 16px Inter against div 120,866 284x96 o1.00 visible rgb(0, 0, 0) 16px Inter"
   },
   {
     "step": "judged",
@@ -364,7 +379,7 @@
   },
   {
     "step": "frame two-copies",
-    "frame": "<repo>\\ograf-spx-out\\light\\frames\\06-two-copies.png"
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\06-two-copies.png"
   },
   {
     "step": "judged",
@@ -373,7 +388,7 @@
   },
   {
     "step": "frame second-copy-alone",
-    "frame": "<repo>\\ograf-spx-out\\light\\frames\\07-second-copy-alone.png"
+    "frame": "<repo>\\ograf-spx-out\\light-renderer-css\\frames\\07-second-copy-alone.png"
   },
   {
     "step": "judged",

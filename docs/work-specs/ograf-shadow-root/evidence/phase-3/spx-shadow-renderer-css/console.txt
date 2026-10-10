@@ -1,3 +1,4 @@
+note rules added to the renderer page: "div, span { letter-spacing: 12px !important; }"
 note layers as imported: [2,4,5,5,2]
 ok   Hairline, Clean Quiz and House Scorebug import on layers 2, 4 and 5 (got 2, 4, 5)
 ok   Hairline paints as on a bare page: SPX's renderer rules do not reach in
