@@ -179,6 +179,7 @@ interface SendDebts {
   heard(items: readonly { graphic: string; msg?: unknown }[]): ((shown: string | null) => string | null) | null;
 }
 
+/** commandRoads.ts `oidOf`, restated because this file imports nothing. */
 const oidIn = (msg: unknown): string | null => {
   const oid = (msg as { oid?: unknown } | null | undefined)?.oid;
   return typeof oid === 'string' && oid.length > 0 ? oid : null;

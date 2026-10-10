@@ -1037,7 +1037,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const hearCommand = useCallback(
     (items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
       const settle = sendDebts.current.heard(items);
-      if (settle) setNote(settle);
+      if (settle) {
+        setNote(settle);
+        // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
+        setTakeMisses((m) => {
+          const kept = Object.entries(m).filter(([, missed]) => settle(missed) !== null);
+          return kept.length === Object.keys(m).length ? m : Object.fromEntries(kept);
+        });
+      }
       applyCommand(items);
     },
     [applyCommand],
