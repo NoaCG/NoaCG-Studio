@@ -358,3 +358,56 @@ included.
   emits them, and decision 1's list of escapes did not include them.
 - **Not run.** The SuperFly walk (its read path changed; phase 3 runs it). Locally only the OGraf
   tests of the eight editor specs ran; CI runs them whole.
+
+### Phase 2 (2026-10-10)
+
+- **Built.** `addOgrafPackage(..., { mount })`, default `'light'`, reaches `graphicModule`. The
+  shadow mount: `_claimCanvas` attaches the open shadow root once (later loads reuse it) and puts
+  in it one `<style>` (the `:host` box, `GRAPHIC_BOX_CSS`, the scoped sheet) and one `div` canvas
+  carrying `data-noacg-graphic`; `scopedDocument(canvas, head)` answers `head` with the shadow
+  root; `graphicSources(template, 'shadow')` lifts every `@font-face` and `@property` rule of the
+  stylesheet and the markup's `<style>` blocks (a grouping prelude goes with its rule), checked by
+  the browser's parser at export (`assertLifted`, fail-closed like `assertScopedCss`), into one
+  `<style data-noacg-fonts>` counted per design. In both mounts `scopedGsap` records every tween,
+  timeline and delayed call it starts in a WeakSet and `dispose()` kills them (the running
+  timeline of the phase 1 note), and a load that throws after it mounted is disposed and answers
+  500. The light mount otherwise behaves as before.
+- **AC-3.** The harness is `e2e/_ografParity.ts`: decision 5's virtual clock, plus two things it
+  needed before two light mounts of one build agreed, faces and pictures loaded before Play and a
+  fresh paint before every frame (`evidence/phase-2.md` has the measurements). The default suite
+  runs the first design of each category, the Lottie and stretch probes and the quiz-board SVG in
+  three units; `e2e/catalog/ograf-parity.spec.ts` runs the whole catalog in 24 units and the SVG
+  corpus in two, and `src/export/targets/ograf.ts` is a catalog trigger. Every compared frame
+  read 0 pixels locally: the default slice and four catalog or corpus units, 120 designs.
+- **AC-4 to AC-7.** In `e2e/ograf-isolation.spec.ts`, both mounts unless named: a design's own
+  faces and `@property` (the head style counted 1, 1, 1, 0 across two copies, shadow only), two
+  copies of one imported design (asserted in shadow, the light failure recorded), a renderer
+  page's rules (shadow only, on the parity harness), a template's own `document.head` style. In
+  `e2e/ograf-conformance.spec.ts`: `load()` again after `dispose()` in the same tree, `dispose()`
+  stopping what the graphic started (it failed in both mounts with the kill taken out), the lift
+  over the whole catalog. `noacg validate` on a shadow Hairline: every action 200, its frame
+  identical to the light package's. The OGraf cases of `exports` and `graphic-sound` run in both
+  mounts; the three dispose checks read `el.innerHTML === '' && !el.shadowRoot?.innerHTML`.
+- **AC-8.** The `src` diff is `src/export/targets/ograf.ts` and `src/export/AGENTS.md`;
+  `node scripts/check-catalog-emit.mjs` passes (528 designs); `e2e/exports.spec.ts` passes whole.
+- **For phase 3.** A shadow package is the target's own build with `addOgrafPackage(..., { mount:
+  'shadow' })` written again into the same zip (`ografZips` in `e2e/_ografMount.ts`); the walks can
+  build theirs the same way in the app page. `graphicBody` needed no change.
+- **For the flip.** The studio-document record is not yet reliable: one design reads 0 on one run
+  and thousands of pixels on the next, because the fresh paint inside the studio's iframe does not
+  settle it, so it has to be made deterministic before the studio becomes the reference. What
+  goes: the `${shadow ? ...}` branches and the `mount` option in `ograf.ts`, `e2e/_ografMount.ts`
+  with the `for (const mount of OGRAF_MOUNTS)` prefixes, and the light-only expectations (the
+  stylesheet first in `body.children`, no head style). The graphic-sound shadow run writes a plain
+  shadow package over the dual one (`lib/` paths, no `v_noacg`), because threading the mount
+  through `noacgPackage.ts` is outside AC-8; at the flip the dual package is shadow itself.
+- **Known limits found.** `document.head` is the shadow root, not an element, so hand-written
+  code calling an element-only method on it (`insertAdjacentHTML`) throws there; no generator
+  reads `document.head`. The head font style stays while a renderer keeps the element without
+  calling `dispose()`. A renderer that sizes the element smaller than the authored canvas clips the
+  canvas instead of resizing it, as the light mount did. Two behaviours older than this plan, left
+  alone because changing them changes behaviour: `_settle()` for a template without a state
+  machine still fast-forwards every graphic's animations on the page, and a template's own
+  `setInterval` (the bug clock, the game timers' rings) outlives `dispose()`.
+- **Not run.** The SuperFly and SPX walks (phase 3). The whole-catalog sweep and the editor specs
+  that read through `graphicBody` ran on CI only.

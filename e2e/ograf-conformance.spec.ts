@@ -7,6 +7,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
+import { inMount, shadowOgraf, OGRAF_MOUNTS, installOgrafZips, type OgrafMount, type OgrafUsageLabel } from './_ografMount';
 import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
@@ -39,6 +40,16 @@ async function downloadOgraf(page: Page, usage?: 'Live' | 'Post-production' | 'B
     page.getByRole('button', { name: /Validate & download/ }).click(),
   ]);
   return JSZip.loadAsync(readFileSync(await download.path()));
+}
+
+/**
+ * The open graphic's OGraf package for `mount`: downloaded through the export dialog in the light
+ * mount, built in the page from the same template in the shadow mount, which the dialog has no
+ * option for (e2e/_ografMount.ts).
+ */
+async function ografPackage(page: Page, mount: OgrafMount, usage?: OgrafUsageLabel): Promise<JSZip> {
+  if (mount === 'light') return downloadOgraf(page, usage);
+  return shadowOgraf(page, usage);
 }
 
 /** Serve an exported package from a fake origin — a minimal OGraf renderer's file access. */
@@ -79,6 +90,7 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
     let withActions = 0;
     let withDurations = 0;
     let scopedSheets = 0;
+    let liftedSheets = 0;
     for (const variant of Object.values(CATALOG).flat().filter(Boolean)) {
       let template;
       try {
@@ -93,6 +105,9 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
       try {
         graphicSources(template);
         scopedSheets += 1;
+        // The shadow mount's sheets: the same rewrite, with every @font-face and @property rule
+        // lifted out for the renderer's head and checked by the export's own gate (`assertLifted`).
+        if (graphicSources(template, 'shadow').head) liftedSheets += 1;
       } catch (err) {
         failures.push(`${template.name} (stylesheet): ${(err as Error).message}`);
       }
@@ -128,7 +143,7 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
         for (const error of validateOgrafManifest(manifest)) failures.push(`${template.name} (${usage}): ${error}`);
       }
     }
-    return { failures: failures.slice(0, 25), failureCount: failures.length, checked, withActions, withDurations, scopedSheets };
+    return { failures: failures.slice(0, 25), failureCount: failures.length, checked, withActions, withDurations, scopedSheets, liftedSheets };
   });
 
   expect(report.checked, 'the catalog sweep found nothing to check').toBeGreaterThan(100);
@@ -138,6 +153,7 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
   expect(report.withActions, 'no graphic exercised the customActions branch').toBeGreaterThan(0);
   expect(report.withDurations, 'no graphic exercised the actionDurations branch').toBeGreaterThan(0);
   expect(report.scopedSheets, 'no stylesheet went through the rewrite').toBeGreaterThan(100);
+  expect(report.liftedSheets, 'no design had a face or a property to lift for the shadow mount').toBeGreaterThan(100);
 });
 
 test('the validator refuses the manifest mistakes the spec is strict about', async ({ page }) => {
@@ -234,9 +250,9 @@ test('the exported package declares its steps, durations and canvas — and ship
   expect(verdict, 'the downloaded package is not conformant').toEqual([]);
 });
 
-test('skipAnimation lands the action instantly, in real time', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('skipAnimation lands the action instantly, in real time', mount), async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-  const zip = await downloadOgraf(page);
+  const zip = await ografPackage(page, mount);
   await serve(page, zip, 'http://ograf-skip.local', 'hairline');
 
   const result = await page.evaluate(async () => {
@@ -305,7 +321,7 @@ test('skipAnimation lands the action instantly, in real time', async ({ page }) 
   expect(result.control, 'the control case was already settled — the assertion proves nothing').not.toBe('1');
 });
 
-test('the loaded Graphic resolves its own fonts and images against the PACKAGE, not the host page', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('the loaded Graphic resolves its own fonts and images against the PACKAGE, not the host page', mount), async ({ page }) => {
   // A Graphic is a component inside somebody else's document. A relative `fonts/inter.woff2`
   // in the injected CSS therefore resolves against the RENDERER's directory, not the package —
   // and the failure is silent, because `font-display: swap` paints the fallback face. Found by
@@ -314,7 +330,7 @@ test('the loaded Graphic resolves its own fonts and images against the PACKAGE, 
   // (docs/OGRAF.md, "What an external renderer said"). Under SPX the same path is correct,
   // because there the template IS the document — which is why nothing local caught it.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-  const zip = await downloadOgraf(page);
+  const zip = await ografPackage(page, mount);
   const origin = 'http://ograf-assets.local';
   await serve(page, zip, origin, 'hairline');
 
@@ -325,7 +341,9 @@ test('the loaded Graphic resolves its own fonts and images against the PACKAGE, 
     const el = document.createElement('ograf-assets-under-test') as Driver;
     document.body.appendChild(el);
     await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
-    const css = (el.shadowRoot ?? el).querySelector('style')!.textContent!;
+    // The graphic's own stylesheet, and in the shadow mount the faces it lifted into the head.
+    const lifted = document.head.querySelector('style[data-noacg-fonts]')?.textContent ?? '';
+    const css = `${(el.shadowRoot ?? el).querySelector('style')!.textContent!}\n${lifted}`;
     const refs = [...css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)].map((m) => m[1]);
     // Fetching each one is the dangling-reference half: the fake origin 404s anything the
     // package does not contain, so a 200 means the file is really there under that path.
@@ -347,7 +365,7 @@ test('the loaded Graphic resolves its own fonts and images against the PACKAGE, 
   for (const line of result.statuses) expect(line, 'the package does not contain what its CSS names').toContain('-> 200');
 });
 
-test('two DIFFERENT graphics in one document do not write into each other', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('two DIFFERENT graphics in one document do not write into each other', mount), async ({ page }) => {
   // An OGraf renderer mounts every layer as a Web Component in ONE document — that is the
   // arrangement the standard is for. Our field convention is `getElementById('fN')` and the
   // ids are the same in every design, so before this was scoped, updating the graphic on
@@ -356,9 +374,9 @@ test('two DIFFERENT graphics in one document do not write into each other', asyn
   // the SAME design is a different, still-documented limit — class-keyed GSAP selectors
   // cannot be told apart — which is why this test uses two different designs.
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-  await serve(page, await downloadOgraf(page), 'http://ograf-a.local', 'hairline');
+  await serve(page, await ografPackage(page, mount), 'http://ograf-a.local', 'hairline');
   await bootstrapGraphic(page, { category: 'Info cards', name: 'Public Advisory' });
-  await serve(page, await downloadOgraf(page), 'http://ograf-b.local', 'public_advisory');
+  await serve(page, await ografPackage(page, mount), 'http://ograf-b.local', 'public_advisory');
 
   const result = await page.evaluate(async () => {
     type Driver = HTMLElement & {
@@ -391,9 +409,9 @@ test('two DIFFERENT graphics in one document do not write into each other', asyn
   expect(result.a, 'updating one graphic rewrote the graphic beside it').toBe('A owns this');
 });
 
-test('actions called concurrently, too early, or after dispose all answer with a ReturnPayload', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('actions called concurrently, too early, or after dispose all answer with a ReturnPayload', mount), async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-  const zip = await downloadOgraf(page);
+  const zip = await ografPackage(page, mount);
   await serve(page, zip, 'http://ograf-contract.local', 'hairline');
 
   const result = await page.evaluate(async () => {
@@ -427,8 +445,16 @@ test('actions called concurrently, too early, or after dispose all answer with a
     const afterConcurrent = graphicBody(el).querySelector('#f0')?.textContent;
 
     const unknownAction = await el.customAction({ id: 'no-such-action' });
+    // The tree the graphic mounted: the element's shadow root in the shadow mount, else the element.
+    const tree = el.shadowRoot ?? el;
     const disposed = await el.dispose({});
     const afterDispose = await el.playAction({});
+    const cleared = el.innerHTML === '' && !el.shadowRoot?.innerHTML;
+    // load() again on the same element: the shadow mount reuses its one shadow root.
+    const reloaded = await el.load({ data: { f0: 'Again' }, renderType: 'realtime', renderCharacteristics: {} });
+    const again = graphicBody(el).querySelector('#f0')?.textContent;
+    const sameTree = (el.shadowRoot ?? el) === tree;
+    await el.dispose({});
 
     return {
       early: early.statusCode,
@@ -438,7 +464,10 @@ test('actions called concurrently, too early, or after dispose all answer with a
       unknownAction: unknownAction.statusCode,
       disposed: disposed.statusCode,
       afterDispose: afterDispose.statusCode,
-      cleared: el.innerHTML === '',
+      cleared,
+      reloaded: reloaded.statusCode,
+      again,
+      sameTree,
     };
   });
 
@@ -449,7 +478,9 @@ test('actions called concurrently, too early, or after dispose all answer with a
   expect(result.unknownAction).toBe(400);
   expect(result.disposed).toBe(200);
   expect(result.afterDispose, 'an action after dispose() should answer 4xx, not throw').toBe(409);
-  expect(result.cleared).toBe(true);
+  expect(result.cleared, 'dispose() left the graphic on the page').toBe(true);
+  expect({ reloaded: result.reloaded, again: result.again, sameTree: result.sameTree }, 'load() after dispose() did not mount the graphic again in the same tree')
+    .toEqual({ reloaded: 200, again: 'Again', sameTree: true });
 });
 
 // ── The graphic inside SPX 1.4.1's renderer ────────────────────────────────────────────────
@@ -463,20 +494,21 @@ const SPX_RENDERER_RULES = `
   body, html { margin: 0; padding: 0px; background-color: rgba(0,0,0,0); color: black; font-size: 3em; }
   .ografRenderTarget { margin: 0; width: 100%; height: 100%; padding: 0px; overflow: hidden; position: absolute; }`;
 
-/** Build catalog graphics' OGraf packages in-page and serve each from its own fake origin. */
-async function serveCatalogPackages(page: Page, names: string[]): Promise<Array<{ name: string; origin: string; files: string[] }>> {
-  const built = await page.evaluate(async (names) => {
+/** Build catalog graphics' OGraf packages in-page for `mount` and serve each from its own fake origin. */
+async function serveCatalogPackages(page: Page, names: string[], mount: OgrafMount): Promise<Array<{ name: string; origin: string; files: string[] }>> {
+  await installOgrafZips(page);
+  const built = await page.evaluate(async ({ names, mount }) => {
     const { CATALOG } = await import('/src/templates/catalog.ts');
-    const { ografTarget } = await import('/src/export/targets/ograf.ts');
     const all = Object.values(CATALOG).flat().filter(Boolean);
     const out: Array<{ name: string; b64: string }> = [];
     for (const name of names) {
       const variant = all.find((v) => v.name === name)!;
-      const zip = await ografTarget.build(variant.create({}), { graphicUsage: 'live' });
-      out.push({ name, b64: await zip.generateAsync({ type: 'base64' }) });
+      const zip = (await ografZips(variant.create({}), { mounts: [mount] }))[mount];
+      if (!zip || !('b64' in zip)) throw new Error(`${name} did not build: ${zip?.error}`);
+      out.push({ name, b64: zip.b64 });
     }
     return out;
-  }, names);
+  }, { names, mount });
   const served = [];
   for (const [i, { name, b64 }] of built.entries()) {
     const zip = await JSZip.loadAsync(b64, { base64: true });
@@ -500,14 +532,14 @@ async function spxLikeHost(page: Page, origin: string, rules: string) {
   await page.goto(`${origin}/host`);
 }
 
-test("a renderer page's own text and box rules do not reach the graphic (SPX 1.4.1's renderer)", async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount("a renderer page's own text and box rules do not reach the graphic (SPX 1.4.1's renderer)", mount), async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/app');
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 1920, height: 1080 });
   // The six /ograf starters and the three graphics of the SPX record.
   const names = ['Hairline', 'Glass Mark', 'News Strip', 'Match Strip', 'Big Stat', 'House Hold', 'Clean Quiz', 'House Scorebug'];
-  const served = await serveCatalogPackages(page, names);
+  const served = await serveCatalogPackages(page, names, mount);
 
   const measure = async (origin: string, rules: string) => {
     await spxLikeHost(page, origin, rules);
@@ -546,13 +578,13 @@ test("a renderer page's own text and box rules do not reach the graphic (SPX 1.4
   expect(report, 'a graphic laid out differently under the renderer page\'s rules').toEqual([]);
 });
 
-test("one graphic's play or stop leaves the other graphics' animation alone, and a file field resolves inside the package", async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount("one graphic's play or stop leaves the other graphics' animation alone, and a file field resolves inside the package", mount), async ({ page }) => {
   await page.goto('/app');
   await page.keyboard.press('Escape');
   // A quiz and a scorebug played 0.8 s apart in SPX 1.4.1 left the quiz half drawn: the
   // template runtime's `gsap.killTweensOf('*')` meant its own page under SPX and the renderer's
   // whole page here (docs/SPX_ON_A_REAL_SERVER.md §10).
-  const [quiz, bug, mark] = await serveCatalogPackages(page, ['Clean Quiz', 'House Scorebug', 'Glass Mark']);
+  const [quiz, bug, mark] = await serveCatalogPackages(page, ['Clean Quiz', 'House Scorebug', 'Glass Mark'], mount);
   await spxLikeHost(page, quiz.origin, SPX_RENDERER_RULES);
   const result = await page.evaluate(async ({ origins }) => {
     type Driver = HTMLElement & {
@@ -757,7 +789,7 @@ function hostSnapshot(page: Page): Promise<typeof HOST_FIXTURE> {
   });
 }
 
-test("mounting a Graphic leaves the renderer's page as it was, and paints the studio's own frame", async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount("mounting a Graphic leaves the renderer's page as it was, and paints the studio's own frame", mount), async ({ page }) => {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   // The created project's canvas, its field defaults, and the studio's own document for it.
   const { format, data, studioDoc } = await page.evaluate(async () => {
@@ -770,7 +802,7 @@ test("mounting a Graphic leaves the renderer's page as it was, and paints the st
       studioDoc: composeDocument(template),
     };
   });
-  const zip = await downloadOgraf(page);
+  const zip = await ografPackage(page, mount);
   await serve(page, zip, HOST_ORIGIN, 'hairline');
   // Registered after serve(): the newest route runs first, so `/` is the page and not a 404.
   await page.route(`${HOST_ORIGIN}/`, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: HOST_PAGE }));
@@ -961,7 +993,7 @@ test('the stylesheet rewrite is exact on every shape it has to survive, and the 
   expect(report.lost).toContain('changed its rule count');
 });
 
-test("a mounted Graphic's timeline calls still fire — an operator action PAINTS, not just answers 200", async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount("a mounted Graphic's timeline calls still fire — an operator action PAINTS, not just answers 200", mount), async ({ page }) => {
   // THE DEFECT THIS PINS, found on 2026-09-09 by driving an imported quiz board in SuperFly.tv's
   // ograf-server (docs/OGRAF.md): every custom action answered 200, the machine moved, and not
   // one drawn state ever lit.
@@ -977,7 +1009,7 @@ test("a mounted Graphic's timeline calls still fire — an operator action PAINT
   // A catalog quiz is the subject rather than an imported board because it is what CI can build
   // in one line; the mechanism is the same one, and it is the mechanism that broke.
   await bootstrapGraphic(page, 'Arena Split');
-  const zip = await downloadOgraf(page);
+  const zip = await ografPackage(page, mount);
   await serve(page, zip, 'http://ograf-calls.local', 'arena_split');
 
   const manifestName = Object.keys(zip.files).find((n) => n.endsWith('.ograf.json'))!;
@@ -1019,4 +1051,36 @@ test("a mounted Graphic's timeline calls still fire — an operator action PAINT
   expect(result.before, 'a row was already marked before anything was picked').toBe(0);
   // The whole point: 200 was never the question.
   expect(result.after, 'select answered 200 and marked no answer row — the timeline call never fired').toBe(1);
+});
+
+for (const mount of OGRAF_MOUNTS) test(inMount('dispose() stops everything the graphic started, so no step call fires into a graphic that is gone', mount), async ({ page }) => {
+  // Killing the tweens of its own elements left the TIMELINES running: a step's calls fired after
+  // dispose(), into a graphic whose elements were gone, and threw on the lookup.
+  await bootstrapGraphic(page, 'Arena Split');
+  const zip = await ografPackage(page, mount);
+  await serve(page, zip, 'http://ograf-dispose.local', 'arena_split');
+  const errors: string[] = [];
+  page.on('pageerror', (err) => errors.push(err.message));
+  const result = await page.evaluate(async () => {
+    const mod = await import('http://ograf-dispose.local/graphic.mjs');
+    customElements.define('ograf-dispose-under-test', mod.default);
+    type Driver = HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown>; dispose(p?: unknown): Promise<unknown> };
+    type Gsap = { globalTimeline: { getChildren(a: boolean, b: boolean, c: boolean): Array<{ isActive(): boolean }> } };
+    const gsap = () => (window as unknown as { gsap: Gsap }).gsap;
+    const active = () => gsap().globalTimeline.getChildren(true, true, true).filter((a) => a.isActive()).length;
+    const el = document.createElement('ograf-dispose-under-test') as Driver;
+    document.body.appendChild(el);
+    await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
+    await el.playAction({});
+    const running = active();
+    await el.dispose({});
+    const left = active();
+    // Past the whole entrance, where its calls would have fired.
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    el.remove();
+    return { running, left };
+  });
+  expect(result.running, 'the entrance was not running - nothing was proven').toBeGreaterThan(0);
+  expect(result.left, 'dispose() left animations of the graphic running').toBe(0);
+  expect(errors, 'a timeline call fired into the disposed graphic').toEqual([]);
 });
