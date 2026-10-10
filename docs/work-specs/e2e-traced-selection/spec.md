@@ -43,7 +43,13 @@ so an unlisted dependency is selected without anybody having to know about it.
    bot branch, `bot/e2e-traced`, force-pushed each night and queued like the quarantine's branches.
 4. **Fail toward running more.** A missing, unreadable or over-age map (`MAX_AGE_DAYS`) escalates
    every file that would have consulted it, through the existing escalation (the focus set under
-   sprint focus). A file most of the suite executes (`BROAD_SHARE`) escalates like `CORE`.
+   sprint focus). The map never makes a file look mapped, so an unmapped file still escalates.
+5. **Broad files keep their curated selection** (derived choice, made unattended and recorded in
+   `BROAD_ESCALATES`, one constant to revert). 276 of 1190 files are executed by more than half
+   the suite (`BROAD_SHARE`). Replayed over 150 landings with sprint focus: curated plans total
+   4915 test-minutes; the narrow union 5555 (+13%); escalating broad files like `CORE` 6152 (+25%);
+   a plain union 8102 (+65%). The #927 class is narrow and is caught at +13%; broad files stay with
+   their headers and main's full run, as today, and the plan names them.
 
 ## Acceptance criteria
 

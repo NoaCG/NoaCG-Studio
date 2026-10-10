@@ -43,7 +43,7 @@ import {
 import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
 import { editedSpecs, planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
 import { WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
-import { readTracedMap } from './e2e-traced.mjs';
+import { BROAD_ESCALATES, readTracedMap } from './e2e-traced.mjs';
 
 /**
  * THE QUARANTINE, applied to a plan. A spec in e2e/quarantine.json failed and then passed on one
@@ -380,16 +380,17 @@ export function planFor(
     const central = CENTRAL.filter(([r]) => r.test(file));
     // THE TRACED HALF: the specs whose browser executed this file on the last nightly
     // (scripts/e2e-traced.mjs), added to whatever the curated headers name. A map that cannot be
-    // trusted escalates the file instead of being skipped, and a file executed by most of the
-    // suite escalates like CORE: its honest selection IS most of the suite. CENTRAL source is
-    // known to be invisible to the browser, so it never asks.
+    // trusted escalates the file instead of being skipped. A file most of the suite executes is
+    // BROAD: it keeps its curated selection and the plan names it, unless `BROAD_ESCALATES` says
+    // to escalate it like CORE (the cost of each is measured there). CENTRAL source is known to
+    // be invisible to the browser, so it never asks.
     if (traced && central.length === 0) {
       if (traced.problem) {
         tracedEscalated.push(file);
         full = true;
       } else if (traced.broad.has(file)) {
         tracedBroad.push(file);
-        full = true;
+        if (traced.broadEscalates) full = true;
       } else {
         for (const s of traced.files.get(file) ?? []) if (!onDisk || onDisk.has(s)) fromTrace.add(s);
       }
@@ -1159,7 +1160,9 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
     for (const f of tracedEscalated) log('  -', f);
   }
   if (tracedBroad.length > 0) {
-    log('e2e-affected: the last nightly saw most of the suite execute these, so they escalate like core (scripts/e2e-traced.mjs):');
+    log(
+      `e2e-affected: the last nightly saw most of the suite execute these, so ${BROAD_ESCALATES ? 'they escalate like core' : 'they keep their covers selection'} (BROAD_ESCALATES, scripts/e2e-traced.mjs):`,
+    );
     for (const f of tracedBroad) log('  -', f);
   }
   if (traced.length > 0) {

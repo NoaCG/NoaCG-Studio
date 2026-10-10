@@ -50,11 +50,25 @@ export const MAP_VERSION = 1;
 export const MAX_AGE_DAYS = 3;
 
 /**
- * A file executed by more than this share of the traced specs is BROAD: its honest selection is
- * most of the suite, so the planner escalates it like CORE rather than listing that many specs.
- * Placeholder until the first whole-suite trace is measured.
+ * A file executed by more than this share of the traced specs is BROAD. Measured on the first
+ * whole-suite trace (nightly run 38050437755, 2026-10-10): 276 of 1190 files are over half the
+ * suite and the next 13 sit between a third and a half, so the line falls in a real gap. They are
+ * the shared UI most specs walk through (the wizard steps, the editor canvas, Home), not noise.
  */
 export const BROAD_SHARE = 0.5;
+
+/**
+ * WHAT A BROAD FILE DOES TO A PLAN - decided 2026-10-10, revert by flipping this one constant.
+ *
+ * false (now): a broad file keeps its curated selection and the plan names it; the map adds specs
+ * only for narrow files. true: a broad file escalates like CORE (the focus set under sprint focus).
+ * Replayed over the 150 landings to origin/main on 2026-10-10 with sprint focus on, today's curated
+ * plans total 4915 test-minutes; the narrow union makes that 5555 (+13%), escalating broad files
+ * 6152 (+25%, 15 more landings run the focus set), and a plain union with no broad rule 8102
+ * (+65%). The miss that motivated the map (#927, `svg.ts`) is narrow and is caught either way, and
+ * neither setting ever plans fewer specs than the headers alone.
+ */
+export const BROAD_ESCALATES = false;
 
 /**
  * The repository file a dev-server script URL names, repo-relative with forward slashes, or null
@@ -245,7 +259,7 @@ export function tracedFrom(map, now = Date.now()) {
   const files = new Map(Object.entries(map.files));
   const limit = BROAD_SHARE * (map.specs || 1);
   const broad = new Set([...files].filter(([, specs]) => specs.length > limit).map(([file]) => file));
-  return { files, broad, problem: null, tracedAt: map.tracedAt };
+  return { files, broad, broadEscalates: BROAD_ESCALATES, problem: null, tracedAt: map.tracedAt };
 }
 
 /** The one branch the nightly's map lands through. */

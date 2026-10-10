@@ -6,6 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  BROAD_ESCALATES,
   BROAD_SHARE,
   MAP_BRANCH,
   MAP_PATH,
@@ -139,11 +140,16 @@ test('a stale, missing or unreadable map escalates every file that would have as
   assert.equal(focus.focusApplied, true, 'under sprint focus it is the focus set, the existing escalation');
 });
 
-test('a broad file escalates like core instead of listing most of the suite', () => {
+test('a broad file keeps its covers selection and is named, or escalates like core when BROAD_ESCALATES says so', () => {
   const coverage = [{ spec: 'legal.spec.ts', test: (f) => f === 'src/shell.tsx' }];
-  const plan = planFor(['src/shell.tsx'], { coverage, traced: fresh({ 'src/shell.tsx': ['a.spec.ts', 'b.spec.ts'] }, ['src/shell.tsx']) });
-  assert.equal(plan.mode, 'full');
-  assert.deepEqual(plan.tracedBroad, ['src/shell.tsx']);
+  const map = { 'src/shell.tsx': ['a.spec.ts', 'b.spec.ts'] };
+  const kept = planFor(['src/shell.tsx'], { coverage, traced: fresh(map, ['src/shell.tsx']) });
+  assert.equal(kept.mode, 'subset');
+  assert.deepEqual(kept.specs, ['legal.spec.ts'], 'never fewer than the headers, and none of the broad list');
+  assert.deepEqual(kept.tracedBroad, ['src/shell.tsx']);
+  const escalated = planFor(['src/shell.tsx'], { coverage, traced: { ...fresh(map, ['src/shell.tsx']), broadEscalates: true } });
+  assert.equal(escalated.mode, 'full');
+  assert.equal(BROAD_ESCALATES, tracedFrom({ version: 1, sha: 's', tracedAt: new Date().toISOString(), specs: 1, files: {} }).broadEscalates);
 });
 
 test('CENTRAL source never consults the map, so a stale map does not escalate it', () => {

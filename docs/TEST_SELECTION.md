@@ -54,6 +54,39 @@ file, a central rule naming a spec that does not exist, and a malformed header, 
 line. Sixteen specs say `covers: none` today: they were selected by no source path before the move
 either, and their headers say why.
 
+## The traced half: what each spec really executes
+
+The headers are what a person believes a spec depends on. Since 2026-10-10 the plan also asks what
+the browser actually ran. Each nightly records, per spec, which source files had a function
+execute (V8 function coverage, `e2e/_trace.ts`), and lands the result as
+`scripts/e2e-traced.json` through a bot pull request (`bot/e2e-traced`, regenerated and
+force-pushed each night, never merged by hand). `scripts/e2e-traced.mjs` has the mechanism.
+
+The planner adds the specs the map names for a changed file to those the headers name. It never
+removes one, and it never makes an unknown file look mapped: an unmapped path still escalates.
+
+| the map | what the plan does |
+|---|---|
+| fresh, file executed by fewer than half the traced specs | adds those specs, and says which ones it added |
+| fresh, file executed by more than half (`BROAD_SHARE`) | keeps the covers selection and names the file (`BROAD_ESCALATES` switches this to a core-style escalation) |
+| missing, unreadable, or older than `MAX_AGE_DAYS` (3) | escalates every file that would have asked it, and the CI plan annotates the run with the reason |
+| `cli/` and other CENTRAL source | never asked: the browser cannot see it |
+
+Why it exists: #927 changed `src/templates/importedDesign/svg.ts`, which
+`editor-fidelity-trim.spec.ts` runs through its SVG drop, and the spec's header did not list it. Its
+plan never ran the spec and `main` went red. With the headers as they were then, the traced map adds
+that spec (`docs/work-specs/e2e-traced-selection/evidence/`).
+
+Why executed, not loaded: the app imports most of `src/` eagerly, so every spec loads 600 or more
+of its files. A load map would select nearly the whole suite for any change.
+
+Why broad files keep their headers: 276 of 1190 files are executed by most specs, because most
+specs walk the wizard and open the editor. Replayed over 150 landings with sprint focus, the narrow
+union costs +13% planned test-minutes, escalating broad files +25%, and a plain union +65%.
+
+What the map cannot see stays the headers' job: files a spec reads from Node (a baseline, a
+fixture), what the dev server's own handlers run, and pages a spec opens in a context of its own.
+
 ## What runs, per kind of change
 
 Measured against today's table (147 specs, 99.7 minutes) with sprint focus on, which is how CI runs

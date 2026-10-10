@@ -119,3 +119,10 @@ scripts/fixtures/package-merge-corpus.json text eol=lf
 # likelier on 2026-09-16, when .github/workflows/e2e-durations-refresh.yml started proposing a
 # recording every week.
 scripts/e2e-durations.json -merge
+
+# The traced spec map is the same kind of file: one night's coverage, stamped with that night's run
+# and date (scripts/e2e-traced.mjs). A line merge of two nights would claim a date some rows are not
+# from. It is written by the nightly alone and regenerated every night, so a conflict keeps either
+# side whole and the next night replaces it; nobody merges it by hand.
+scripts/e2e-traced.json text eol=lf
+scripts/e2e-traced.json -merge
