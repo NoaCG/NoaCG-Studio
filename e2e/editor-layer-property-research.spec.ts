@@ -43,7 +43,7 @@ test('pinned Studio comparable layer and property interactions', async ({ page }
     await rows.nth(0).click(); const rowCount=await rows.count();
     await page.getByRole('button',{name:'Add element',exact:true}).count();
     // The reference keyboard shortcuts respect input focus. Its visible row Delete button is the comparable explicit route.
-    await rows.nth(0).getByRole('button',{name:'Delete layer',exact:true}).click();
+    await rows.nth(0).locator('[title="Delete layer"]').click();
     observations.delete={before:rowCount,after:await rows.count()};
     await page.getByRole('button',{name:'Add Rectangle',exact:true}).focus();
     await page.keyboard.press('Control+z'); observations.undoCount=await rows.count();
@@ -66,10 +66,10 @@ test('current-main ordinary layer property baseline', async ({ page }) => {
   const selectors=await page.locator('.ef-track:not(.ef-property-track)').evaluateAll(els=>els.map(el=>el.getAttribute('data-selector')));
   await rows.nth(0).click(); await rows.nth(2).click({modifiers:['Shift']}); const shift=await selected();
   await rows.nth(0).click(); await rows.nth(2).click({modifiers:['Control']}); const additive=await selected();
-  await rows.nth(0).click(); const initial=await source(), count=await history();
-  await rows.nth(0).press('Delete'); const deleted=await source();
-  await rows.nth(0).dblclick(); const rename=await page.getByRole('textbox',{name:/Layer name/}).count();
-  await rows.nth(0).press('Escape'); await rows.nth(0).click({button:'right'}); const menu=await page.getByRole('menu').count(); await page.keyboard.press('Escape');
+  await rows.nth(2).click(); const initial=await source(), count=await history();
+  await rows.nth(2).press('Delete'); const deleted=await source();
+  await rows.nth(2).dblclick(); const rename=await page.getByRole('textbox',{name:/Layer name/}).count();
+  await rows.nth(2).press('Escape'); await rows.nth(2).click({button:'right'}); const menu=await page.getByRole('menu').count(); await page.keyboard.press('Escape');
   await rows.nth(2).click();
   const field=page.locator('.ef-animation-properties').getByRole('textbox',{name:/offset X|Position X/}).first();
   const controls=await page.locator('.ef-key-controls button').evaluateAll(els=>els.map(el=>({name:el.getAttribute('aria-label'),title:el.getAttribute('title')})));
