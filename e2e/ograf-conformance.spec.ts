@@ -382,11 +382,11 @@ test('two DIFFERENT graphics in one document do not write into each other', asyn
     return {
       a: graphicBody(a).querySelector('#f0')?.textContent,
       b: graphicBody(b).querySelector('#f0')?.textContent,
-      duplicateIds: [a, b].filter((el) => graphicBody(el).querySelector('#f0')).length,
+      withF0: [a, b].filter((el) => graphicBody(el).querySelector('#f0')).length,
     };
   });
 
-  expect(result.duplicateIds, 'the two graphics did not both mount an #f0 — nothing was proven').toBe(2);
+  expect(result.withF0, 'the two graphics did not both mount an #f0 — nothing was proven').toBe(2);
   expect(result.b, "the updated graphic's own field did not change").toBe('B owns this');
   expect(result.a, 'updating one graphic rewrote the graphic beside it').toBe('A owns this');
 });

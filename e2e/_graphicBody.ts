@@ -21,8 +21,12 @@ declare global {
 /** Defines `graphicBody` in a page. */
 export const GRAPHIC_BODY_SCRIPT = "globalThis.graphicBody = (el) => el.shadowRoot?.querySelector('[data-noacg-graphic]') ?? el;";
 
+const installed = new WeakSet<Page>();
+
 /** Define `graphicBody` in the page's current document and in every document it opens next. */
 export async function installGraphicBody(page: Page): Promise<void> {
+  if (installed.has(page)) return;
+  installed.add(page);
   await page.addInitScript(GRAPHIC_BODY_SCRIPT);
   await page.evaluate(GRAPHIC_BODY_SCRIPT);
 }
