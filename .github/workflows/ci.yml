@@ -392,6 +392,12 @@ jobs:
           # instead of annotating the run.
           node -e '
             const plan = JSON.parse(process.argv[1]);
+            // A traced spec map the plan could not trust (scripts/e2e-traced.mjs) escalated these
+            // files rather than being skipped; say why, so a run that grew has its reason on it.
+            if (plan.traced && plan.traced.problem) {
+              console.log("::warning title=E2E plan::" + plan.traced.problem + " - escalated " +
+                plan.traced.escalated.length + " file(s) instead of trusting it. The nightly refreshes it (bot/e2e-traced).");
+            }
             if (plan.unmeasured && plan.unmeasured.length) {
               console.log("::warning title=E2E plan::" + plan.unmeasured.length +
                 " spec file(s) have no measured duration and were packed at the median: " +

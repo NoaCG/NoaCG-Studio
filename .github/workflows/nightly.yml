@@ -118,6 +118,9 @@ jobs:
           SHARD_INDEX: ${{ matrix.shardIndex }}
           # One blob name per shard, so the report job can tell which shard sent none.
           NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
+          # Record which source each spec EXECUTED, for the traced spec map the report job builds
+          # (scripts/e2e-traced.mjs). V8's binary function coverage; it adds no measurable time.
+          NOACG_E2E_TRACE: ${{ runner.temp }}/e2e-trace
         run: |
           SPECS="$(node -e '
             const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");
@@ -139,6 +142,17 @@ jobs:
           path: blob-report/
           retention-days: 7
           if-no-files-found: error
+
+      # A shard that died before its reporter finished sends none; the merge then keeps the previous
+      # map's entry for each of its specs rather than dropping them.
+      - name: Upload shard trace
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: nightly-trace-${{ matrix.shardIndex }}
+          path: ${{ runner.temp }}/e2e-trace/trace.json
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Upload failure evidence
         uses: actions/upload-artifact@v4
@@ -258,8 +272,32 @@ jobs:
     needs: [plan, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The traced spec map's pull request (the last step): push its branch, stamp it, queue it, and
+    # dispatch its CI when the bot App is not set up. Everything else here only reads.
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+      actions: write
     steps:
+      # THE BOT'S OWN TOKEN, for the traced map's pull request. An App token makes that pull request
+      # start its own CI; without the App (NOACG_BOT_CLIENT_ID / NOACG_BOT_PRIVATE_KEY) this step is
+      # skipped and scripts/queue-pr.mjs dispatches the run with the workflow token instead.
+      - name: Bot token
+        id: bot
+        if: ${{ vars.NOACG_BOT_CLIENT_ID != '' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.NOACG_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.NOACG_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-statuses: write
+
       - uses: actions/checkout@v5
+        with:
+          # The traced map's push uses this credential.
+          token: ${{ steps.bot.outputs.token || github.token }}
 
       - uses: actions/setup-node@v5
         with:
@@ -280,6 +318,39 @@ jobs:
         run: |
           npx playwright merge-reports --reporter=html ./all-blob-reports
           npx playwright merge-reports --reporter=json ./all-blob-reports > nightly-report.json
+
+      # THE TRACED SPEC MAP (scripts/e2e-traced.mjs): what each spec executed tonight, merged with
+      # the committed map for any spec that did not finish. Before the time budget, which can fail
+      # this job; the map is worth the same on a slow night.
+      - name: Download shard traces
+        if: ${{ !cancelled() }}
+        uses: actions/download-artifact@v5
+        with:
+          path: all-traces
+          pattern: nightly-trace-*
+
+      - name: Merge the traced spec map
+        id: traced
+        if: ${{ !cancelled() }}
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          SUMMARY="$(node scripts/e2e-traced.mjs merge --previous scripts/e2e-traced.json --sha "$GITHUB_SHA" \
+            --date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --run "$RUN_URL" --out "$RUNNER_TEMP/e2e-traced.json" all-traces/*/trace.json)"
+          echo "$SUMMARY"
+          echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+          printf 'summary<<EOF\n%s\nEOF\n' "$SUMMARY" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the traced spec map
+        if: ${{ !cancelled() && steps.traced.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-traced-map
+          path: ${{ runner.temp }}/e2e-traced.json
+          retention-days: 14
+          if-no-files-found: error
 
       # The nightly is the only run whose aggregate is comparable night to night - every other
       # run tests a subset - so the time budget lives here and nowhere else. It enforces the
@@ -366,6 +437,20 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+      # LAST, because it switches this checkout to the map's branch. Branch-guarded like every alarm
+      # here: a dispatch from a feature branch builds and uploads the map but never proposes it. Not
+      # continue-on-error: a refresh that stops landing makes every plan escalate within
+      # MAX_AGE_DAYS, so it has to turn the night red rather than fail quietly.
+      - name: Queue the traced spec map
+        if: ${{ !cancelled() && steps.traced.outcome == 'success' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main') }}
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token || github.token }}
+          NOACG_BOT_TOKEN: ${{ steps.bot.outputs.token != '' && 'app' || 'workflow' }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SUMMARY: ${{ steps.traced.outputs.summary }}
+        run: node scripts/e2e-traced.mjs queue --file "$RUNNER_TEMP/e2e-traced.json" --run "$RUN_URL" --summary "$SUMMARY"
+
   verdict:
     name: Nightly verdict
     if: ${{ !cancelled() }}
@@ -395,9 +480,10 @@ jobs:
           # 2026-09-08 triage looking at those two while the log said which gate it actually was.
           # The step log now prints `CATALOG GATES FAILED: <names>`; this line says where to look.
           [ "$GATES_RESULT" = "success" ] || failed="${failed}- Catalog gates (type floor, overflow, field coverage, numerals, engine floor - the log names which): ${GATES_RESULT}\n"
-          # This job also carries the time budget, so name both - a reader who sees only
-          # "report failed" would go looking for a broken merge rather than a slower suite.
-          [ "$REPORT_RESULT" = "success" ] || failed="${failed}- Combined report / E2E time budget: ${REPORT_RESULT}\n"
+          # This job also carries the time budget and the traced spec map, so name all three - a
+          # reader who sees only "report failed" would go looking for a broken merge rather than a
+          # slower suite or a map that did not queue.
+          [ "$REPORT_RESULT" = "success" ] || failed="${failed}- Combined report / E2E time budget / traced spec map (the job log names which step): ${REPORT_RESULT}\n"
           if [ -z "$failed" ]; then
             echo "green=true" >> "$GITHUB_OUTPUT"
           else

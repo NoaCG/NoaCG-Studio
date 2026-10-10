@@ -48,6 +48,13 @@ import {
 
 const E2E_DIR = fileURLToPath(new URL('../e2e/', import.meta.url));
 
+// The CLI reads the nightly's traced map (scripts/e2e-traced.mjs), and a map older than its limit
+// escalates. The CLI tests here pin the CURATED behaviour, so they hand it a fresh, empty map
+// rather than the committed one, whose age depends on the day the build runs.
+const FRESH_EMPTY_MAP = join(mkdtempSync(join(tmpdir(), 'e2e-traced-')), 'map.json');
+writeFileSync(FRESH_EMPTY_MAP, JSON.stringify({ version: 1, sha: 'test', tracedAt: new Date().toISOString(), specs: 0, files: {} }));
+const CLI_ENV = { ...process.env, NOACG_E2E_TRACED_MAP: FRESH_EMPTY_MAP };
+
 /**
  * Specs that ENUMERATE a catalog collection - `CATALOG`, `TYPES`, `KITS` or `PACKS` - rather
  * than pulling one design out by id. They are the specs whose assertions move when a design is
@@ -388,7 +395,7 @@ test('a merge commit plans from the fork point, so the catalog gate is not skipp
   };
   const cli = fileURLToPath(new URL('./e2e-affected.mjs', import.meta.url));
   const plan = (...args) =>
-    JSON.parse(execFileSync(process.execPath, [cli, ...args], { cwd: repo, encoding: 'utf8', windowsHide: true }));
+    JSON.parse(execFileSync(process.execPath, [cli, ...args], { cwd: repo, encoding: 'utf8', windowsHide: true, env: CLI_ENV }));
 
   try {
     git('init', '-b', 'main');
@@ -1219,6 +1226,7 @@ test('--files maps a covered path through the same index a ref diff would use', 
     execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', 'src/legal.css'], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
+      env: CLI_ENV,
       windowsHide: true,
     }),
   );
@@ -1237,6 +1245,7 @@ test('--files reports an unmapped path exactly like the ref mode does', () => {
     execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', unknown], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
+      env: CLI_ENV,
       windowsHide: true,
     }),
   );
@@ -1255,6 +1264,7 @@ test('--files prints the CONFIGURED-deployment notice, exactly like the ref mode
   const out = execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--list', '--files', file], {
     encoding: 'utf8',
     cwd: REPO_ROOT,
+    env: CLI_ENV,
     windowsHide: true,
   });
   assert.match(out, /CONFIGURED deployment/);
