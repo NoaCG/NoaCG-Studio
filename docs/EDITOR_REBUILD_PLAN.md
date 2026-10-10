@@ -699,6 +699,12 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-10: independent landed-transform comparison (#950)
+
+- [Independent receipt](work-specs/editor-transform-qualification/independent/README.md): a fresh checker repeated fetched main `a67891ae` (including `0c355905`) and independently downloaded/hash-verified VectorCraft v0.4.0. The unchanged 28 transform/canvas/typography/CLI cases and a separate normal-route task passed in CI, one worker, zero retries. Local browser jobs were cancelled before starting at the scheduler's RAM floor; the fresh native reference job completed locally through the scheduler.
+- Both editors preserve constrained ratios, independent side scaling, text-side reflow, pointer/numeric rotation and native reopen. Preserve deliberate NoaCG differences: Link plus Shift inversion, text corners scaling appearance, clockwise values and 15-degree snapping. Reference area corners resize the frame; its active-drag Escape again committed, while NoaCG cancellation retained exact source/history.
+- No product correction was needed. Retain CLI/source/channel/context regressions. Inspected three fresh NoaCG viewport captures; the 1093x614 200%-of-Fit proxy still clips the artboard vertically and needs panel/timeline scrolling. Broader workflow/owner acceptance, R1.5/default switch, real receiving hosts and paired live MCP remain separate.
+
 ### 2026-10-10: bounded linked scale, text-box handles and rotation (#910)
 
 - [Spec and receipts](work-specs/editor-transform-qualification/README.md): current-main reproduction found linked ordinary side handles ignored Link proportions. Sides now use the same link/Shift inversion as corners, through the existing handler. Collapsed sides keep a usable hit area for the existing zero-scale refusal and numeric recovery.
