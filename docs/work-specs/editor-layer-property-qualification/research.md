@@ -36,3 +36,5 @@ Fetched Eyevinn ograf-editor `616841bd949e3a21137579451123f66c292543f0` into ign
 
 ## Protected evidence
 The source branch contains the completed independent transform comparison through #960/fb3edd49. Nothing in `docs/work-specs/editor-transform-qualification/independent/` or the maintained `e2e/editor-cli-round-trip.spec.ts` has been changed. Their regression assertions and output/source/channel/context contracts remain binding.
+
+The NoaCG interaction contract (`EDITOR_REBUILD_PLAN.md`, per-property controls) documents Shift 10x and Ctrl on Windows/Cmd on macOS 0.1x for number scrubbing. Studio uses Alt 0.1x. Preserve the NoaCG documented modifier contract when qualifying a correction; a reference convention does not override it. The plan also names A/P/S/R/T property reveal and U for animated properties, which must be recorded as existing passes or remaining limitations rather than silently declared complete.
