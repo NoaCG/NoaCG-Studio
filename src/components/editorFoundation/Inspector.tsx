@@ -82,7 +82,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
           <ImageControls key={'image:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} openAssets={openAssets} />
           <PathControls key={'path:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} editPoints={editPoints} />
           <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} />
-          <AnimationProperties key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} />
+          <AnimationProperties key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} previewTemplate={previewTemplate} />
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">
           <button onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>

@@ -188,7 +188,7 @@ function ungroup(template: SpxTemplate, selector: string) {
   }) || timelines.some(step => Object.entries(step.layers[selector] ?? {}).some(([property, keys]) => ['opacity', 'autoAlpha', 'filter', 'clipPath'].includes(property) && keys.some(key => property !== 'opacity' || key.value !== 1)))) {
     throw new Error('This group composites opacity, masking or effects across its members. Ungroup cannot split that appearance exactly. Its source is preserved.');
   }
-  if (node.attributes.length !== [...node.attributes].filter(attr => ['id', 'data-gfx', 'data-noacg-group', 'data-group-x', 'data-group-y', 'data-group-width', 'data-group-height'].includes(attr.name)).length) throw new Error('This group has additional source attributes. Ungroup would change their meaning; its source is preserved.');
+  if (node.attributes.length !== [...node.attributes].filter(attr => ['id', 'data-gfx', 'data-noacg-group', 'data-noacg-label', 'data-group-x', 'data-group-y', 'data-group-width', 'data-group-height'].includes(attr.name)).length) throw new Error('This group has additional source attributes. Ungroup would change their meaning; its source is preserved.');
   const groupReference = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w-])');
   const relatedRules = rulesOf(template).filter(rule => groupReference.test(rule.selectorText));
   if (relatedRules.length !== 1 || relatedRules[0].selectorText !== selector) throw new Error('Other CSS rules refer to this group. Its source is preserved.');
