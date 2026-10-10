@@ -1,23 +1,29 @@
 #!/usr/bin/env node
-// THE TRACED SPEC MAP: which source files each e2e spec's browser actually loaded on the last
-// nightly, generated, never written by hand.
+// THE TRACED SPEC MAP: which source files had code execute in each e2e spec's browser on the last
+// nightly. Generated, never written or merged by hand.
 //
 // The `// covers:` headers (scripts/e2e-lists.mjs) are CURATED: a person says what a spec covers,
 // and a file the spec depends on but nobody listed is a change that lands green and breaks main.
 // That happened on 2026-10-10: #927 changed src/templates/importedDesign/svg.ts, which
-// e2e/editor-fidelity-trim.spec.ts loads through its SVG drop but did not list, so the pull
+// e2e/editor-fidelity-trim.spec.ts runs through its SVG drop but did not list, so the pull
 // request's plan never ran it and the full run after landing went red. This map is the measured
-// half. scripts/e2e-affected.mjs adds its specs to the curated ones (a union, so it can only
-// select MORE), and a map that is missing, unreadable or older than MAX_AGE_DAYS escalates the
-// plan exactly like an unmapped file instead of being skipped.
+// half. scripts/e2e-affected.mjs adds its specs to the curated ones (a union, so it only ever
+// selects MORE), escalates a file most of the suite executes like CORE, and escalates every file
+// that would have asked a map that is missing, unreadable or older than MAX_AGE_DAYS.
 //
-// How it is recorded: the nightly sets NOACG_E2E_TRACE, which turns on the dev server's request
-// log (scripts/traceDevPlugin.mjs) and the trace reporter (scripts/e2e-trace-reporter.mjs). CI runs
-// one worker per shard, so the test running when a request arrived is the test that asked for it
-// (`attribute`). Each shard writes its own trace; the nightly's report job merges them with the
-// previous map (`mergeTraces`) and queues the result as a bot pull request. What it cannot see is
-// what a spec reads from Node (`readFileSync` of a fixture) or what the dev server's own API
-// handlers load: the curated headers keep carrying those.
+// EXECUTED, NOT LOADED. The app imports most of src/ eagerly: measured on 2026-10-10, three specs
+// each loaded 629 to 1239 of 1498 source files, and layout.spec.ts loaded svg.ts without running
+// it. A map of loads would select nearly every spec for any change. V8's function coverage says
+// which modules had a function run, and on the same three specs svg.ts ran in exactly the two that
+// import SVGs.
+//
+// How it is recorded: the nightly sets NOACG_E2E_TRACE, and playwright.config.ts then maps the
+// specs' Playwright import to e2e/_trace.ts (an auto fixture reading coverage from every page of
+// the test) and adds scripts/e2e-trace-reporter.mjs, which writes one trace per shard. The
+// report job merges the shards with the committed map (`mergeTraces`) and queues the result as a
+// bot pull request (`queueTracedMap`). What it cannot see is what a spec reads from Node
+// (`readFileSync` of a fixture or baseline), what the dev server's own handlers run, and pages a
+// spec opens in a browser context of its own: the curated headers keep carrying those.
 //
 //   node scripts/e2e-traced.mjs merge --previous scripts/e2e-traced.json --sha <sha> \
 //     --date <iso> [--run <url>] --out scripts/e2e-traced.json <shard-trace.json>...
@@ -42,6 +48,13 @@ export const MAP_VERSION = 1;
  * silently stopped is found within the week rather than trusted for a month.
  */
 export const MAX_AGE_DAYS = 3;
+
+/**
+ * A file executed by more than this share of the traced specs is BROAD: its honest selection is
+ * most of the suite, so the planner escalates it like CORE rather than listing that many specs.
+ * Placeholder until the first whole-suite trace is measured.
+ */
+export const BROAD_SHARE = 0.5;
 
 /**
  * The repository file a dev-server script URL names, repo-relative with forward slashes, or null
@@ -199,13 +212,15 @@ export function serializeMap(map) {
 
 /**
  * What the planner gets: the file index, or the reason it may not be trusted. Never throws - a map
- * that cannot be read is a `problem`, and a problem escalates.
+ * that cannot be read is a `problem`, and a problem escalates. NOACG_E2E_TRACED_MAP points it at
+ * another map file, which is how the planner's own tests hand it a map they control instead of
+ * one whose age depends on the day they run.
  *
- * @returns {{ files: Map<string, string[]>, problem: string | null, tracedAt: string | null }}
+ * @returns {{ files: Map<string, string[]>, broad: Set<string>, problem: string | null, tracedAt: string | null }}
  */
-export function readTracedMap({ file = path.join(ROOT, MAP_PATH), now = Date.now() } = {}) {
-  const none = (problem) => ({ files: new Map(), problem, tracedAt: null });
-  if (!existsSync(file)) return none(`no traced spec map at ${MAP_PATH}`);
+export function readTracedMap({ file = process.env.NOACG_E2E_TRACED_MAP || path.join(ROOT, MAP_PATH), now = Date.now() } = {}) {
+  const none = (problem) => ({ files: new Map(), broad: new Set(), problem, tracedAt: null });
+  if (!existsSync(file)) return none(`no traced spec map at ${path.relative(ROOT, file).replaceAll(path.win32.sep, '/')}`);
   let map;
   try {
     map = JSON.parse(readFileSync(file, 'utf8'));
@@ -217,7 +232,7 @@ export function readTracedMap({ file = path.join(ROOT, MAP_PATH), now = Date.now
 
 /** `readTracedMap` minus the disk, for tests. */
 export function tracedFrom(map, now = Date.now()) {
-  const none = (problem) => ({ files: new Map(), problem, tracedAt: map?.tracedAt ?? null });
+  const none = (problem) => ({ files: new Map(), broad: new Set(), problem, tracedAt: map?.tracedAt ?? null });
   if (map?.version !== MAP_VERSION || typeof map.files !== 'object' || map.files === null) {
     return none(`the traced spec map is not version ${MAP_VERSION}`);
   }
@@ -227,7 +242,10 @@ export function tracedFrom(map, now = Date.now()) {
   if (days > MAX_AGE_DAYS) {
     return none(`the traced spec map is ${days.toFixed(1)} days old (limit ${MAX_AGE_DAYS}; traced ${map.tracedAt} at ${String(map.sha).slice(0, 9)})`);
   }
-  return { files: new Map(Object.entries(map.files)), problem: null, tracedAt: map.tracedAt };
+  const files = new Map(Object.entries(map.files));
+  const limit = BROAD_SHARE * (map.specs || 1);
+  const broad = new Set([...files].filter(([, specs]) => specs.length > limit).map(([file]) => file));
+  return { files, broad, problem: null, tracedAt: map.tracedAt };
 }
 
 /** The one branch the nightly's map lands through. */
@@ -242,12 +260,12 @@ export const MAP_BRANCH = 'bot/e2e-traced';
  * must keep coming. `file` lives outside the checkout, because the checkout is switched to the
  * branch first.
  */
-export function queueTracedMap({ file, runUrl = '', summary = '', git = spawnRunner('git'), gh = spawnRunner('gh') }) {
+export function queueTracedMap({ file, runUrl = '', summary = '', root = ROOT, git = spawnRunner('git'), gh = spawnRunner('gh') }) {
   const next = readFileSync(file, 'utf8');
   git(['fetch', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main']);
   const base = git(['rev-parse', 'refs/remotes/origin/main']).out;
   git(['checkout', '-q', '--force', '-B', MAP_BRANCH, base]);
-  const target = path.join(ROOT, MAP_PATH);
+  const target = path.join(root, MAP_PATH);
   if (existsSync(target) && readFileSync(target, 'utf8') === next) return { skipped: 'origin/main already holds this map' };
   writeFileSync(target, next);
   configureBotIdentity(git);

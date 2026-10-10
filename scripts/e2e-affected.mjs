@@ -43,6 +43,7 @@ import {
 import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
 import { editedSpecs, planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
 import { WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
+import { readTracedMap } from './e2e-traced.mjs';
 
 /**
  * THE QUARANTINE, applied to a plan. A spec in e2e/quarantine.json failed and then passed on one
@@ -222,7 +223,7 @@ const CORE = [
 // 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
 // 759-spec run.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists|e2e-trace';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
 // it ran 53 specs to prove nothing. It already has a real gate in `npm run build`:
@@ -255,7 +256,7 @@ const SUITE_CRITICAL_SCRIPTS =
 // that makes a clean tree read as dirty.
 const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
-const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/svg-examples\/)/, /^(?!docs\/tutorials\/svg-examples\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
+const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/svg-examples\/)/, /^(?!docs\/tutorials\/svg-examples\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
@@ -321,13 +322,15 @@ const CATALOG_TRIGGERS = [
  * @param {string[]} changed        repo-relative paths, forward slashes
  * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
  *           copyEdits?: Map<string, { kind: 'text'|'class', terms: string[], grew?: boolean }>,
- *           specTexts?: Map<string, string>, baselined?: string[], measuring?: string[] }} [opts]
+ *           specTexts?: Map<string, string>, baselined?: string[], measuring?: string[],
+ *           traced?: { files: Map<string, string[]>, broad: Set<string>, problem: string | null } | null }} [opts]
+ *   `traced` is the nightly's map (`readTracedMap`); null leaves it out, which only tests do.
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
  *             unmapped: string[], focusApplied: boolean, copyOnly: string[] }}
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [] } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null } = {},
 ) {
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
@@ -336,6 +339,9 @@ export function planFor(
   let configured = false;
   const unmapped = [];
   const copyOnly = [];
+  const fromTrace = new Set();
+  const tracedEscalated = [];
+  const tracedBroad = [];
 
   for (const file of changed) {
     // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` is ignored for the
@@ -372,6 +378,22 @@ export function planFor(
     }
     const covering = coverage.filter((c) => c.test(file));
     const central = CENTRAL.filter(([r]) => r.test(file));
+    // THE TRACED HALF: the specs whose browser executed this file on the last nightly
+    // (scripts/e2e-traced.mjs), added to whatever the curated headers name. A map that cannot be
+    // trusted escalates the file instead of being skipped, and a file executed by most of the
+    // suite escalates like CORE: its honest selection IS most of the suite. CENTRAL source is
+    // known to be invisible to the browser, so it never asks.
+    if (traced && central.length === 0) {
+      if (traced.problem) {
+        tracedEscalated.push(file);
+        full = true;
+      } else if (traced.broad.has(file)) {
+        tracedBroad.push(file);
+        full = true;
+      } else {
+        for (const s of traced.files.get(file) ?? []) if (!onDisk || onDisk.has(s)) fromTrace.add(s);
+      }
+    }
     if (covering.length === 0 && central.length === 0) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
       full = true;
@@ -380,6 +402,10 @@ export function planFor(
       for (const [, list] of central) for (const s of list) specs.add(s);
     }
   }
+
+  // Only what the curated rules did not already name, so the plan can say what tracing added.
+  const traceOnly = [...fromTrace].filter((s) => !specs.has(s)).sort();
+  for (const s of traceOnly) specs.add(s);
 
   // Under sprint focus, the escalation that would have run everything runs the focus set
   // (union with whatever the mapped rules already named). The full->catalog coupling below is
@@ -400,7 +426,13 @@ export function planFor(
   // reported rather than run (scripts/e2e-lists.mjs). A change that touches ONLY its territory
   // still reports 'none' for this gate, and the printed line is what says otherwise.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
-  return { mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly };
+  return {
+    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly,
+    traced: full ? [] : traceOnly,
+    tracedProblem: tracedEscalated.length > 0 ? traced.problem : null,
+    tracedEscalated,
+    tracedBroad,
+  };
 }
 
 /**
@@ -903,6 +935,15 @@ export function integrationBase(cwd = undefined) {
   return null;
 }
 
+/**
+ * What the traced map did to a plan, for the JSON: the specs it added, and the reason and files
+ * when it escalated instead. ci.yml turns a `problem` into a run annotation, because CI reads the
+ * JSON and never sees the narration that says it locally.
+ */
+function tracedReport({ traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }) {
+  return { added: traced, problem: tracedProblem, escalated: tracedEscalated, broad: tracedBroad };
+}
+
 /** The plan, as CI consumes it. `mode` covers the specs to run; `catalog` is independent of it,
  *  because a catalog change can need the calibration gate while needing no feature spec.
  *
@@ -911,7 +952,7 @@ export function integrationBase(cwd = undefined) {
  *  size and the assignment cannot disagree. For mode 'full' the suite comes from the directory
  *  rather than from `specs`, which stays `[]` because that is what the rest of the CLI means by
  *  "no filter"; the two are consistent because every runner is now handed its files explicitly. */
-function emitJson({ mode, specs, catalog, base, changedFiles }) {
+function emitJson({ mode, specs, catalog, base, changedFiles, traced = null }) {
   const changed = changedFiles === null ? null : changedFiles.length;
   const onDisk = specFilesOnDisk();
   const planned = mode === 'full' ? onDisk : specs;
@@ -987,7 +1028,7 @@ function emitJson({ mode, specs, catalog, base, changedFiles }) {
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed })}\n`,
+    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced })}\n`,
   );
 }
 
@@ -1112,7 +1153,18 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [] }, { count, noun, hypothetical, catalogHere = true }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }, { count, noun, hypothetical, catalogHere = true }) {
+  if (tracedProblem) {
+    log(`e2e-affected: ${tracedProblem} - so these escalate instead of trusting it (scripts/e2e-traced.mjs):`);
+    for (const f of tracedEscalated) log('  -', f);
+  }
+  if (tracedBroad.length > 0) {
+    log('e2e-affected: the last nightly saw most of the suite execute these, so they escalate like core (scripts/e2e-traced.mjs):');
+    for (const f of tracedBroad) log('  -', f);
+  }
+  if (traced.length > 0) {
+    log(`e2e-affected: the traced map added ${traced.length} spec(s) the covers headers do not name: ${traced.join(', ')}`);
+  }
   if (copyOnly.length > 0) {
     log(`e2e-affected: ${copyOnly.length} file(s) changed only wording or class styling - planned by the specs that name what changed (scripts/e2e-affected-copy.mjs):`);
     for (const f of copyOnly) log('  -', f);
@@ -1206,10 +1258,10 @@ function main() {
   // identical `planFor` result differently.
   if (has('--files')) {
     const changed = [...new Set(parsed.files)].map((f) => f.replace(/\\/g, '/'));
-    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk() });
+    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap() });
     narratePlan(log, plan, { count: changed.length, noun: 'path(s)', hypothetical: true });
     if (asJson) {
-      emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed });
+      emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed, traced: tracedReport(plan) });
       return 0;
     }
     // --files answers a planning question, not "run this now": it has no branch to run Playwright
@@ -1276,7 +1328,7 @@ function main() {
     return 0;
   }
 
-  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), ...copyContext(base, changed) });
+  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), ...copyContext(base, changed) });
   const { mode, specs: plan, catalog: catalogAffected } = planResult;
   const full = mode === 'full';
 
@@ -1299,7 +1351,7 @@ function main() {
     // is exactly why the empty plan must report 'none' rather than 'subset'. An empty spec list
     // handed to Playwright is not "no tests", it is EVERY test, so a mislabelled subset would
     // quietly run the whole suite.
-    emitJson({ mode, specs: plan, catalog: catalogAffected, base, changedFiles: changed });
+    emitJson({ mode, specs: plan, catalog: catalogAffected, base, changedFiles: changed, traced: tracedReport(planResult) });
     return 0;
   }
 
