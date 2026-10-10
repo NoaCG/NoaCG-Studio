@@ -11,6 +11,11 @@
       "since": "2026-10-09",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37999855026"
+    },
+    "e2e/editor-groups.spec.ts": {
+      "since": "2026-10-10",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38052366628"
     }
   },
   "released": {
