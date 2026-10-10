@@ -151,7 +151,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         const view = readTimeline(template), owner = ownerOf(view, originalBase.selector);
         const keyed = keysControl(view.data, owner, 'scaleX') || keysControl(view.data, owner, 'scaleY');
         const frame = keyed ? frameOf(part) : multiply(part.parent!, ownLinear(originalBase.mode === 'placed' ? originalBase.rotation : base.rotation, 1, 1));
-        const ratios = handleRatios(frame, points[handle.index], pivot, delta, corner ? 'xy' : handle.index % 2 ? 'x' : 'y', corner ? linked !== modifiers.shiftKey : modifiers.shiftKey);
+        const ratios = handleRatios(frame, points[handle.index], pivot, delta, corner ? 'xy' : handle.index % 2 ? 'x' : 'y', linked !== modifiers.shiftKey);
         const shift = pivotShift(part.parent!, frame, ratios, pivot, anchor);
         gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + shift.x, y: base.y + shift.y,
           scaleX: base.scaleX * ratios.x, scaleY: base.scaleY * ratios.y }, gesture.time);

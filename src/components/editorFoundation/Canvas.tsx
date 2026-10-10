@@ -78,7 +78,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
     // Keep a draggable centre even when Fit makes a small layer narrower than the normal hit area:
     // measured on the layer's own sides, since a turned layer's bounds are wider than it is.
     const [c0, c1, , c3] = single.corners!, side = (q: { x: number; y: number }) => Math.hypot(q.x - c0.x, q.y - c0.y) * scale / 4;
-    const radius = Math.min(8, side(c1), side(c3)), near = (q: { x: number; y: number }, r: number) => Math.hypot(q.x - p.x, q.y - p.y) * scale <= r;
+    const radius = Math.min(8, ...[side(c1), side(c3)].filter(length => length > .01)), near = (q: { x: number; y: number }, r: number) => Math.hypot(q.x - p.x, q.y - p.y) * scale <= r;
     const corner = single.corners!.findIndex(q => near(q, radius));
     if (corner >= 0) return { kind: 'corner', index: corner };
     const edge = edges.findIndex(q => near(q, radius));

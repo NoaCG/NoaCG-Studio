@@ -699,6 +699,13 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-10: bounded linked scale, text-box handles and rotation (#910)
+
+- [Spec and receipts](work-specs/editor-transform-qualification/README.md): current-main reproduction found linked ordinary side handles ignored Link proportions. Sides now use the same link/Shift inversion as corners, through the existing handler. Collapsed sides keep a usable hit area for the existing zero-scale refusal and numeric recovery.
+- Text-box sides still resize/reflow; corners scale appearance. Rotation already agreed with typed values. Preserve source IDs, owned CSS, channel arming, history and context guards; retain the CLI round-trip regression cases.
+- Pinned VectorCraft v0.4.0 executed proportional/independent side and corner scaling, rotation, area resize, undo and native reopen. Its pointer constraint, type-area corner semantics and rotation units differ deliberately; active-drag Escape did not cancel in the recorded reference run. Do not claim whole-editor parity.
+- Three viewport captures were inspected, including the established 1093x614 / 200% Fit proxy. Broader workflow acceptance, R1.5 and paired live MCP remain separate. Record the independent reference/main repeat after actual landing in this phase's receipt.
+
 ### 2026-10-09: bounded CLI-generated source round-trip
 
 - [Receipt](work-specs/editor-cli-round-trip/README.md): local CLI scaffold/validate/inspect,

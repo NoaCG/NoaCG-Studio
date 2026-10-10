@@ -60,6 +60,14 @@ test('linked scale preserves unequal axes for typing, corners and sides; Shift i
   await drag(p, await point(p, '[data-edge="1"]'), 40, 0, undefined, true); b = await base(p, s); expect(b.scaleY).toBe(.9); expect(b.scaleX).toBeGreaterThan(1.8); await undo(p);
   await link.uncheck(); await drag(p, await point(p, '[data-edge="1"]'), 40, 0); expect((await base(p, s)).scaleY).toBe(.9); await undo(p);
   await drag(p, await point(p, '[data-edge="1"]'), 40, 0, undefined, true); b = await base(p, s); expect(b.scaleX / b.scaleY).toBeCloseTo(2, 5);
+  await undo(p); await type(p, 'Scale X %', 0); const zero = await source(p), zeroCount = await history(p);
+  await drag(p, await point(p, '[data-edge="1"]'), 20, 0);
+  await expect(p.locator('.ef-stage-error')).toContainText('zero scale axis');
+  expect(await source(p)).toEqual(zero); expect(await history(p)).toBe(zeroCount);
+  await type(p, 'Scale X %', 180); await link.check(); await type(p, 'Rotation', 30);
+  const opposite = await point(p, '[data-edge="3"]');
+  await drag(p, await point(p, '[data-edge="1"]'), 40 * Math.cos(Math.PI / 6), 20);
+  b = await base(p, s); expect(b.scaleX / b.scaleY).toBeCloseTo(2, 5); near(await point(p, '[data-edge="3"]'), opposite);
   expect((await source(p)).html).toBe(initial.html); expect((await source(p)).js).toBe(initial.js);
 });
 for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'zoom-proxy']] as const) test('text-box side versus corner and rotation reopen ' + label, async ({ page: p }) => {
@@ -75,7 +83,7 @@ for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'lapt
   const after = await source(p); await undo(p); expect(await source(p)).toEqual(before); await type(p, 'Rotation', rotated.rotation); expect((await source(p)).css).toBe(after.css);
   const completed = await source(p); expect(completed.html).toBe(initial.html); expect(completed.js).toBe(initial.js); expect(completed.fields).toEqual(initial.fields);
   await p.getByTestId('save-graphic').click(); await p.getByTestId('save-name').fill('Transform ' + label); await p.getByTestId('save-confirm').click(); await expect(p.getByTestId('save-status')).toHaveText('Saved');
-  await settleDurableWrites(p); await p.reload(); await ready(p); expect(await source(p)).toEqual(completed);
+  await settleDurableWrites(p); await p.reload(); await ready(p); expect(await source(p)).toEqual({ ...completed, name: 'Transform ' + label });
   await p.locator(`.ef-track[data-selector="${s}"] .ef-layer`).first().click(); await ready(p);
   if (label === 'zoom-proxy') { await p.getByRole('combobox', { name: 'Canvas zoom' }).selectOption('2'); await ready(p); }
   const live = await frame(p), style = await live.addStyleTag({ content: '*{will-change:auto !important}' }), settle = () => live.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
