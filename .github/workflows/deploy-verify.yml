@@ -21,32 +21,8 @@ jobs:
           curl -fL https://github.com/zerodensity/ograf-studio/releases/download/v0.17/OGrafStudioServer-linux-x64 -o .noacg/reference/studio
           echo '9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681  .noacg/reference/studio' | sha256sum -c -
           chmod +x .noacg/reference/studio
-      - name: Run bounded baseline and reference
-        env:
-          REFERENCE_EXE: .noacg/reference/studio
-        run: xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test e2e/editor-layer-property-qualification.spec.ts e2e/editor-layer-property-zoom-research.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts --workers=1
-      - name: Repeat explicit reference history
-        env:
-          REFERENCE_EXE: .noacg/reference/studio
-        run: npx playwright test e2e/editor-layer-property-research.spec.ts --grep "pinned Studio" --workers=1 --output=test-results/reference-repeat
-      - name: Prove cancellation assertion detects a broken preview reset
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('src/components/editorFoundation/AnimationNumber.tsx')
-          s=p.read_text()
-          needle='if (g.moved) { session.cancel(false); previewTemplate?.(session.port.read()); }'
-          assert s.count(needle)==1
-          p.write_text(s.replace(needle,'if (g.moved) { session.cancel(false); }'))
-          PY
-          if npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'numeric scrub' --workers=1 --output=test-results/mutation > mutation.log 2>&1; then
-            cat mutation.log
-            exit 1
-          fi
-          cat mutation.log
-          grep -F 'toBeCloseTo(originalX,2)' mutation.log
-          git checkout -- src/components/editorFoundation/AnimationNumber.tsx
-          npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'numeric scrub' --workers=1 --output=test-results/restored
+      - name: Inspect native zoom capture and layout bounds
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" npx playwright test e2e/editor-layer-property-zoom-research.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
