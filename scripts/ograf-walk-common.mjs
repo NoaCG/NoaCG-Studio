@@ -75,7 +75,7 @@ export function startChild(command, commandArgs, options) {
 }
 
 /**
- * Stop what this run started, before this process exits.
+ * Stop a child this run started.
  *
  * SYNCHRONOUSLY, which is the whole point: `process.exit()` follows immediately, and an async
  * `spawn('taskkill')` never gets to run - measured on 2026-09-09, when three runs in a row each
@@ -86,15 +86,21 @@ export function startChild(command, commandArgs, options) {
  * server running. Windows takes the tree with `taskkill /T`; elsewhere the child is its own
  * process group (`detached`) and the group is signalled by negating the pid.
  */
-export function stopChildren() {
-  for (const child of children.splice(0)) {
-    try {
-      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-      else process.kill(-child.pid, 'SIGTERM');
-    } catch {
-      /* the walk is over either way */
-    }
+export function stopChild(child) {
+  if (!child) return;
+  const at = children.indexOf(child);
+  if (at !== -1) children.splice(at, 1);
+  try {
+    if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    else process.kill(-child.pid, 'SIGTERM');
+  } catch {
+    /* the walk is over either way */
   }
+}
+
+/** Stop everything this run started, before this process exits. */
+export function stopChildren() {
+  for (const child of [...children]) stopChild(child);
 }
 
 export const isUp = (url) => fetch(url).then((res) => res.ok, () => false);
@@ -107,20 +113,26 @@ export async function waitFor(url, what, timeoutMs = 90_000) {
   }
 }
 
-/** The app's dev server, pinned OFFLINE exactly as playwright.config.ts pins it, so the walk
- *  never touches a developer's real backend and the import road behaves as the suite's does. */
+/**
+ * The app's dev server, pinned OFFLINE exactly as playwright.config.ts pins it, so the walk never
+ * touches a developer's real backend and the import road behaves as the suite's does. Answers the
+ * child it started, or null when it reused one, so a walk can stop it (`stopChild`) as soon as
+ * its packages are built: the renderer beats never touch the app, and 640 MB of Vite is better
+ * spent on the renderer's pages.
+ */
 export async function startDevServer() {
   if (await isUp(`${appOrigin}/app`)) {
     say(`app: reusing the dev server already on ${appOrigin}`);
-    return;
+    return null;
   }
   say(`app: starting the dev server on ${appOrigin}`);
-  startChild('npm', ['run', 'dev'], {
+  const child = startChild('npm', ['run', 'dev'], {
     cwd: root,
     shell: true,
     env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '', VITE_PREVIEW_DEBOUNCE_MS: '50' },
   });
   await waitFor(`${appOrigin}/app`, 'the app dev server');
+  return child;
 }
 
 // ── packages ────────────────────────────────────────────────────────────────
@@ -185,9 +197,9 @@ export function readGraphic(host) {
  * Answers the last reading and whether it settled, so a graphic that never stops moving is
  * reported rather than hung on.
  */
-export async function settledReading(page, host, timeoutMs = 8_000) {
+export async function settledReading(page, host) {
   await page.bringToFront();
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + 8_000;
   let last = await readGraphic(host);
   for (;;) {
     await page.waitForTimeout(300);

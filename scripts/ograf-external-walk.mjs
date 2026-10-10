@@ -48,13 +48,13 @@
 // Exit 1 if any beat fails. A failure here is a NoaCG defect until the transcript says
 // otherwise - the platform owns OGraf compatibility.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 import { GRAPHIC_BODY_SCRIPT } from '../e2e/_graphicBody.ts';
 import { shadowOgraf } from '../e2e/_ografMount.ts';
 import {
   appOrigin, designTemplate, differences, flag, has, isUp, mountArg, ografZip, prepareOut, root, say, settledReading,
-  startChild, startDevServer, stopChildren, waitFor,
+  startChild, startDevServer, stopChild, stopChildren, waitFor,
 } from './ograf-walk-common.mjs';
 
 const serverDir = resolve(flag('--server') ?? process.env.OGRAF_SERVER_DIR ?? '');
@@ -185,7 +185,7 @@ async function hairlinePackage(page) {
  */
 async function uploadPackage(zipPath) {
   const body = new FormData();
-  body.set('graphic', new Blob([readFileSync(zipPath)], { type: 'application/zip' }), zipPath.split(/[\\/]/).pop());
+  body.set('graphic', new Blob([readFileSync(zipPath)], { type: 'application/zip' }), basename(zipPath));
   const res = await fetch(`${ograf}/api/serverApi/internal/graphics/graphic`, { method: 'POST', body });
   const text = await res.text();
   transcript.push({ step: 'upload', method: 'POST', url: '/api/serverApi/internal/graphics/graphic', status: res.status, body: text.slice(0, 2000) });
@@ -229,16 +229,25 @@ async function api(step, method, path, body) {
  */
 /* global graphicBody -- the renderer page's, from GRAPHIC_BODY_SCRIPT */
 async function litRoles(page, layer) {
-  return (await onLayer(page, layer)).evaluate((host) => {
-    if (!host) return { stamped: 0, lit: [] };
-    const roots = graphicBody(host).querySelectorAll('[data-noacg-role]');
+  const host = await onLayer(page, layer);
+  try {
+    return await litOn(host);
+  } finally {
+    await host.dispose();
+  }
+}
+
+/** The drawn states stamped in the Graphic `host` holds, and which of them are lit. */
+const litOn = (host) =>
+  host.evaluate((el) => {
+    if (!el) return { stamped: 0, lit: [] };
+    const roots = graphicBody(el).querySelectorAll('[data-noacg-role]');
     const lit = [];
-    for (const el of roots) {
-      if (el.classList.contains('imported-design-on')) lit.push(el.getAttribute('data-noacg-role'));
+    for (const role of roots) {
+      if (role.classList.contains('imported-design-on')) lit.push(role.getAttribute('data-noacg-role'));
     }
     return { stamped: roots.length, lit };
   });
-}
 
 /**
  * The NoaCG Graphic on the renderer's layer `layer`, or null. The renderer names its element
@@ -268,7 +277,7 @@ async function frame(page, name, layer) {
 // ── the walk ─────────────────────────────────────────────────────────────────
 
 async function main() {
-  await Promise.all([startDevServer(), startOgrafServer()]);
+  const [devServer] = await Promise.all([startDevServer(), startOgrafServer()]);
 
   const browser = await chromium.launch({ headless: !headed });
   // Closed in the `finally` at the bottom rather than here: every `throw` in this walk would
@@ -281,6 +290,8 @@ async function main() {
   const zipPath = await exportOgrafPackage(appPage);
   const hairlineZip = await hairlinePackage(appPage);
   await appPage.close();
+  // Nothing below touches the app.
+  stopChild(devServer);
 
   const graphicId = await uploadPackage(zipPath);
   const hairlineId = await uploadPackage(hairlineZip);
@@ -365,7 +376,7 @@ async function main() {
   say(`renderer: the served manifest declares ${fields.length} fields and ` +
     `${(manifest.customActions ?? []).length} custom actions`);
 
-  const data = Object.fromEntries(fields.map((f) => [f, props[f]?.default ?? '']));
+  const data = defaults(props);
   // THE ANSWER KEY IS SET TO C, so the reveal has something to say: the walk then picks B, which
   // is wrong, and the frames show three rows taking the wrong treatment while C lights. Leaving
   // the key on its default A and picking A would prove the same code path and show nothing.
@@ -471,10 +482,14 @@ async function main() {
   };
   /** What a layer shows once it has stopped moving, with its lit drawn states. */
   const shows = async (layer) => {
-    const reading = await settledReading(rendererPage, await onLayer(rendererPage, layer));
-    return { ...reading, lit: (await litRoles(rendererPage, layer)).lit };
+    const host = await onLayer(rendererPage, layer);
+    try {
+      return { ...(await settledReading(rendererPage, host)), lit: (await litOn(host)).lit };
+    } finally {
+      await host.dispose();
+    }
   };
-  /** Nothing about `layer` changed between two readings. */
+  /** `now` reads as `before` did, lit drawn states included. */
   const unchanged = (now, before, what) => {
     const diff = differences(now, before);
     if (now.lit.join() !== before.lit.join()) diff.push(`lit ${now.lit.join(', ') || '(none)'} against ${before.lit.join(', ') || '(none)'}`);
@@ -507,7 +522,7 @@ async function main() {
   // The board and a different design, the catalog's Hairline, on the second layer.
   const hairline = (await api('read Hairline manifest', 'GET', `/api/ograf/v1/graphics/${hairlineId}`)).payload?.graphic;
   const hairlineProps = hairline?.schema?.properties ?? {};
-  const hairlineData = Object.fromEntries(Object.keys(hairlineProps).map((f) => [f, hairlineProps[f]?.default ?? '']));
+  const hairlineData = defaults(hairlineProps);
   const board = await loadAndPlay('board', renderTarget, graphicId, data);
   const boardAlone = await shows(firstLayer);
   await loadAndPlay('Hairline', secondTarget, hairlineId, hairlineData);
@@ -523,6 +538,9 @@ async function main() {
 
   return failures;
 }
+
+/** Every field of a manifest's `schema.properties` at its default, as an operator's first take. */
+const defaults = (props) => Object.fromEntries(Object.keys(props).map((f) => [f, props[f]?.default ?? '']));
 
 /**
  * What to send with a custom action, read off the manifest's own declaration for it.
