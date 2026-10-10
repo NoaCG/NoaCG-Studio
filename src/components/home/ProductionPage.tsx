@@ -2175,7 +2175,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           )
           .filter((e): e is LogEntry => !!e);
         setWireLog((l) => appendLogEntries(l, entries));
-        return { ok: true, skipped: [], superseded: [] };
+        return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
       }
       // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the
       // same countdown from the Take's own row (control/cueArmWire.ts). Every Take leaves here,
@@ -3001,9 +3001,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setNote(sent.note);
       return;
     }
+    const stands = leftAlone(sent);
     setLiveCue((m) => {
-      let lc = out ? withLiveCue(m, graphic, null) : m;
-      if (next && nextGraphic) lc = withLiveCue(lc, nextGraphic, next.id);
+      let lc = out && !stands.includes(graphic) ? withLiveCue(m, graphic, null) : m;
+      if (next && nextGraphic && !stands.includes(nextGraphic)) lc = withLiveCue(lc, nextGraphic, next.id);
       return lc;
     });
     if (next) {
@@ -3889,7 +3890,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // keeps the two in step, and a press that failed on the way to the log must not leave every
     // other bound graphic showing a figure this one never took.
     const sent = await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`);
-    if (sent && !leftAlone(sent).includes(selectedGraphic)) await patchBoundValues(tree);
+    // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
+    if (sent && ![...sent.skipped, ...sent.superseded].includes(selectedGraphic)) await patchBoundValues(tree);
   };
 
   /** Snap the live graphic straight to a state — recovery, never an animation. A null group
