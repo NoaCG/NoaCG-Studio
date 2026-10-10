@@ -92,7 +92,7 @@ test('a dead shard does not lift the edited-spec refusal for a spec that failed 
 // Exercise the workflow's actual expression and shell, so a planner-only pass cannot hide
 // a skipped retry or a final gate that still rejects its successful verdict.
 const workflow = readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const retryIf = workflow.match(/^  e2e-retry:\n[\s\S]*?^    if: \$\{\{ (.*) \}\}$/m)?.[1];
+const retryIf = workflow.match(/^ {2}e2e-retry:\n[\s\S]*?^ {4}if: \$\{\{ (.*) \}\}$/m)?.[1];
 assert.ok(retryIf, 'retry eligibility must be present in the workflow');
 const canRetry = (result, event = 'push', ref = 'refs/heads/main', cancelled = false) => runInNewContext(retryIf, {
   cancelled: () => cancelled,
@@ -112,7 +112,7 @@ test('main and merge groups can retry a failed or cancelled matrix, never a manu
   for (const result of ['success', 'skipped']) assert.equal(canRetry(result), false, result);
 });
 
-const gateBody = workflow.match(/      - name: Require every gate\n[\s\S]*?        run: \|\n((?: {10}[^\n]*\n|\n)*)/)?.[1];
+const gateBody = workflow.match(/ {6}- name: Require every gate\n[\s\S]*? {8}run: \|\n((?: {10}[^\n]*\n|\n)*)/)?.[1];
 assert.ok(gateBody, 'the final gate shell must be present in the workflow');
 const gateScript = gateBody.replace(/^ {10}/gm, '');
 const bash = process.platform === 'win32' ? join(process.env.ProgramFiles || 'C:/Program Files', 'Git/bin/bash.exe') : 'bash';

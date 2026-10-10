@@ -54,3 +54,10 @@ through a junction: both complete package-lock.json files have SHA-256
 D6BE32275270A9618AA2FC7F3C597CEC5B36EC7CDAFE92D3E2F9DD2138737AA5.
 No full app build or browser suite ran locally for this CI-only repair. Cloud PR,
 merge-group and actual main outcomes are recorded in the landing PR comment.
+
+PR repair attempt 1: Actions run 38008297611 executed the full build's 2,591
+tests with zero failures, then ESLint rejected two literal indentation runs in
+the new regexes (no-regex-spaces at lines 95 and 115). The complete failed log
+was inspected: these and the resulting gate failure were its only errors.
+Indentation now uses identical {2}/{4}/{6}/{8} quantifiers, with no matching or
+assertion change. Targeted ESLint is included in the final verification.
