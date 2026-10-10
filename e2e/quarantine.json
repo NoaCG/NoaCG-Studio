@@ -2,11 +2,6 @@
   "$comment": "Specs that failed and then passed on the same commit (scripts/e2e-quarantine.mjs). They run on every push to main (quarantine.yml; configured-suite.yml for e2e/configured/) and leave after RELEASE_AFTER consecutive passes. Entries are written by ci.yml and configured-suite.yml through the merge queue; edit by hand only to release early.",
   "version": 1,
   "specs": {
-    "e2e/configured/dashboard-hosted-walk.spec.ts": {
-      "since": "2026-10-10",
-      "count": 3,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38008677375"
-    },
     "e2e/editor-arrangement.spec.ts": {
       "since": "2026-10-09",
       "count": 1,
@@ -19,6 +14,10 @@
     }
   },
   "released": {
+    "e2e/configured/dashboard-hosted-walk.spec.ts": {
+      "count": 2,
+      "last": "2026-10-10"
+    },
     "e2e/cross-tab.spec.ts": {
       "count": 1,
       "last": "2026-10-03"
