@@ -148,6 +148,10 @@ function neutralStandardDesign(type: GraphicType, o: ResolvedOptions): StandardD
     .filter(({ field }) => field.role !== 'line');
   const hasAccent = type.structure.parts.some((part) => part.selector === `.${p}-accent`);
   const emittedClasses = new Set([`${p}-box`, `${p}-mask`, `${p}-accent`, `${p}-stack`, `${p}-logo`, `${p}-data`]);
+  // A type that requires a media part (the logo-only bug) gets its logo INSIDE that part, over a
+  // worded placeholder: with no text beside it, an empty slot would put nothing on air at all.
+  const wantsMedia = type.structure.parts.some((part) => part.required && part.selector === `.${p}-media`);
+  let media = false;
 
   const lines: string[] = [];
   const holders: string[] = [];
@@ -155,6 +159,14 @@ function neutralStandardDesign(type: GraphicType, o: ResolvedOptions): StandardD
     if (field.role === 'hidden') {
       holders.push(`    <!-- ${field.label} (${f.field}) — input only: SPX writes it here, the runtime reads it. -->\n` +
         `    <div id="${f.field}" class="${DATA_SOURCE_CLASS}">${escapeText(f.value)}</div>`);
+    } else if (field.role === 'logo' && wantsMedia && !media) {
+      media = true;
+      emittedClasses.add(`${p}-media`);
+      lines.push(`        <!-- ${field.label} (${f.field}) over its placeholder; a picked file adds .has-image, which hides the placeholder. -->\n` +
+        `        <div class="${p}-media">\n` +
+        `          <div class="${p}-mark">${escapeText(field.label.toUpperCase())}</div>\n` +
+        `          <img id="${f.field}" class="${p}-logo" style="display: none" alt="" />\n` +
+        `        </div>`);
     } else if (field.role === 'logo') {
       lines.push(`        <!-- ${field.label} (${f.field}) — an image path; empty hides the element. -->\n` +
         `        <img id="${f.field}" class="${p}-logo" alt="" />`);
@@ -185,7 +197,7 @@ function neutralStandardDesign(type: GraphicType, o: ResolvedOptions): StandardD
 
   return {
     html,
-    css: neutralCss(p, { accent: hasAccent, holders: holders.length > 0 }),
+    css: neutralCss(p, { accent: hasAccent, holders: holders.length > 0, media }),
     hasAccent,
     extraFields: rest.map(({ spx: f }) => f),
   };
@@ -193,7 +205,7 @@ function neutralStandardDesign(type: GraphicType, o: ResolvedOptions): StandardD
 
 /** The plain stylesheet: every colour through the :root vars, every size through --scale and
  *  --type-scale, readable sizes, no composition beyond a stack in a panel. */
-function neutralCss(p: string, has: { accent: boolean; holders: boolean }): string {
+function neutralCss(p: string, has: { accent: boolean; holders: boolean; media?: boolean }): string {
   return `/* NEUTRAL SCAFFOLD - plain and valid, not a look. Replace freely; keep the class names the
    structure contract names (.${p}-box, .${p}-mask${has.accent ? `, .${p}-accent` : ''}) and the
    :root variables above, and the editor, the Style panel and the timeline keep working. */
@@ -244,7 +256,25 @@ ${has.accent ? `.${p}-accent {
   height: calc(64px * var(--scale));
   width: auto;
 }
-${has.holders ? `\n${dataSourceCss}\n` : ''}`;
+${has.media ? `.${p}-media {
+  display: grid;                   /* the placeholder and the logo share one cell */
+  place-items: center;
+}
+.${p}-media > * {
+  grid-area: 1 / 1;
+}
+.${p}-mark {
+  padding: calc(14px * var(--scale)) calc(20px * var(--scale));
+  border: calc(2px * var(--scale)) dashed var(--text-dim);  /* a slot waiting for its file */
+  font-size: calc(20px * var(--scale) * var(--type-scale));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.${p}-media.has-image .${p}-mark {
+  display: none;                   /* a picked logo replaces the placeholder */
+}
+` : ''}${has.holders ? `\n${dataSourceCss}\n` : ''}`;
 }
 
 // ── Scoreboards ──────────────────────────────────────────────────────────────
