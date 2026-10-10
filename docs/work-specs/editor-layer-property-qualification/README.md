@@ -23,8 +23,6 @@ Baseline: fetched `C:/claude/NoaCG-Studio` main `d0a8ce1272c300fbf5fa5c192a6a37f
 ## Verification and rollback
 Write focused normal-route regressions for confirmed gaps, retain CLI/transform regressions, run targeted lint/type/gates and browser checks through the scheduler, inspect screenshots and console/network. Refusals and stale/cancel cases must leave source/history unchanged. Revert the bounded feature commits if their acceptance fails; do not weaken existing checks.
 
-Engineering qualification is pending. Independent comparison and owner acceptance remain separate.
+Engineering functionality is qualified by the [receipts](receipts.md); final reconciled checks pass; queue/served-version results are recorded in the landing comment. Desktop/laptop and actual 125% captures were inspected. The zoomed task completes through scrolling, with horizontal overflow and a shallow canvas; comfortable layout acceptance remains open. Independent comparison [#967](https://github.com/NoaCG/NoaCG-Studio/issues/967) and owner acceptance remain separate.
 
-## Current handoff
-[Source inspection and execution status](research.md) distinguishes candidates from reproduced defects. Spec commit: `51f40005e`. Local browser job `j-4203` was cancelled while held below the shared 4 GB RAM floor. The user approved the separate non-landing CI probe, now executing on `codex/editor-layer-property-probe`. Corrections have deliberately not started before the required reference/runtime reproduction. No acceptance, /check, landing or deployment verdict is claimed.
-
+[Research](research.md) records source pins, baseline reproduction and executed reference matches/shortfalls before correction design. The approved disposable CI branch keeps its workflow and research/zoom probes outside the product branch. Preserve #950/#960 and the unchanged CLI/transform regressions.
