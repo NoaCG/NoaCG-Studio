@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
-import {writeFileSync} from 'node:fs';
+import {readFileSync,writeFileSync} from 'node:fs';
+import JSZip from 'jszip';
 test('landed normal import label eye scrub history text save reopen',async({page:p})=>{
  const errors:string[]=[],network:string[]=[]; p.on('pageerror',e=>errors.push(e.message));p.on('requestfailed',r=>network.push(r.url()+': '+r.failure()?.errorText));
  const version=async()=> (await (await p.request.get('/version.json?qualification='+Date.now())).json());const initial=await version();expect(initial.commit).toBe(process.env.EXPECTED_SHA);
@@ -18,5 +19,20 @@ test('landed normal import label eye scrub history text save reopen',async({page
  await p.getByRole('textbox',{name:'Artwork text',exact:true}).fill('Elena Marquez');await p.getByRole('button',{name:'Apply text',exact:true}).click();await expect((await frame()).locator('#f0')).toHaveText('Elena Marquez');
  await p.getByTestId('save-graphic').click();await p.getByTestId('save-name').fill('Layer property landed check');await p.getByTestId('save-confirm').click();await expect(p.getByTestId('save-status')).toHaveText('Saved');await p.reload();await ready();await ruler.focus();await ruler.press('Home');for(let i=0;i<2;i++)await ruler.press('Shift+ArrowRight');for(let i=0;i<5;i++)await ruler.press('ArrowRight');await row.locator('.ef-layer').click();await expect((await frame()).locator('#f0')).toHaveText('Elena Marquez');await expect((await frame()).locator('#f0')).toHaveAttribute('data-noacg-label','Presenter');await expect(x).toHaveValue('10');
  const f=await frame(),style=await f.addStyleTag({content:'*{will-change:auto!important}'});const settle=()=>f.evaluate(()=>new Promise<void>(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r()))));await settle();await style.evaluate(el=>el.remove());await settle();await p.screenshot({path:test.info().outputPath('landed.png')});
- expect(errors).toEqual([]);expect(network).toEqual([]);const final=await version();expect(final.commit).toBe(initial.commit);writeFileSync(test.info().outputPath('landed.json'),JSON.stringify({initial,final,text:'Elena Marquez',selector:'#f0',label:'Presenter',x:10,errors,network},null,2));
+ const outputs=[];
+ await p.getByTestId('open-home').click();await p.getByTestId('home-nav-graphics').click();
+ const savedRow=p.locator('.lib-row',{hasText:'Layer property landed check'});await savedRow.getByTestId('row-menu').click();await savedRow.getByTestId('export-graphic').click();const win=p.getByTestId('export-window');await expect(win).toBeVisible();
+ for(const target of ['SPX export','CasparCG export','OGraf (EBU) export']){
+  await win.getByRole('radio',{name:target,exact:false}).check();
+  const waiting=p.waitForEvent('download');await win.getByRole('button',{name:'Validate & download ('+target+')',exact:true}).click();const download=await waiting;
+  expect(await download.failure()).toBeNull();const zip=await JSZip.loadAsync(readFileSync((await download.path())!));
+  const files:Record<string,Buffer>={};for(const name of Object.keys(zip.files))if(!zip.files[name].dir)files[name.slice(name.indexOf('/')+1)]=await zip.file(name)!.async('nodebuffer');
+  const output=await p.context().newPage(),outputErrors:string[]=[];output.on('pageerror',e=>outputErrors.push(e.message));
+  await output.route('http://landed-output.local/**',route=>{const name=new URL(route.request().url()).pathname.slice(1),body=files[name];return route.fulfill({status:body?200:name?404:200,contentType:/\.m?js$/.test(name)?'application/javascript':/\.css$/.test(name)?'text/css':/\.svg$/.test(name)?'image/svg+xml':/\.png$/.test(name)?'image/png':/\.woff2$/.test(name)?'font/woff2':'text/html',body:body??'<html><body></body></html>'});});
+  if(target.startsWith('OGraf')){await output.goto('http://landed-output.local/');await output.evaluate(async()=>{const mod=await import('http://landed-output.local/graphic.mjs');customElements.define('landed-graphic',mod.default);const el=document.createElement('landed-graphic') as HTMLElement&{load(p:unknown):Promise<unknown>;playAction(p:unknown):Promise<unknown>};document.body.append(el);await el.load({data:{}});await el.playAction({});});}
+  else{const html=Object.keys(files).find(name=>name.endsWith('.html')&&!name.includes('controlpanel'));expect(html).toBeTruthy();await output.goto('http://landed-output.local/'+html);await output.evaluate(()=>(window as unknown as {play:()=>void}).play());}
+  await expect(output.locator('#f0')).toHaveText('Elena Marquez');await expect(output.locator('#f0')).toHaveAttribute('data-noacg-label','Presenter');await expect.poll(()=>output.locator('.graphic').evaluate(el=>getComputedStyle(el).opacity)).toBe('1');await expect(output.locator('#festival-config')).toHaveText('{"slug":"riverlight","season":2026}');expect(await output.locator('#festival-mark').evaluate(el=>(el as HTMLImageElement).naturalWidth)).toBe(72);expect(outputErrors).toEqual([]);
+  outputs.push({target,download:download.suggestedFilename(),text:'Elena Marquez',label:'Presenter',errors:outputErrors});await output.close();
+ }
+ expect(errors).toEqual([]);expect(network).toEqual([]);const final=await version();expect(final.commit).toBe(initial.commit);writeFileSync(test.info().outputPath('landed.json'),JSON.stringify({initial,final,text:'Elena Marquez',selector:'#f0',label:'Presenter',x:10,outputs,errors,network},null,2));
 });
