@@ -112,14 +112,15 @@ async function installPackages(appPage) {
     if (!manifest) throw new Error(`the ${design.id} package has no manifest`);
     const json = JSON.parse(readFileSync(join(templatesDir, manifest), 'utf8'));
     const slugDir = dirname(manifest);
+    const url = `/templates/${folder}/${slugDir}`;
     out[design.key] = {
       ...design,
-      name: template.name,
       dir: join(templatesDir, slugDir),
       manifestFile: manifest.slice(slugDir.length + 1),
       manifest: json,
       tag: `${json.id}-v${json.version}`,
-      graphicPath: `/templates/${folder}/${slugDir}/${json.main}`,
+      url,
+      graphicPath: `${url}/${json.main}`,
     };
     say(`package: ${template.name} (${mount}) -> ASSETS/templates/${folder}/${slugDir}`);
   }
@@ -139,7 +140,8 @@ async function installPackages(appPage) {
 
 // ── the project, through SPX's own endpoints ────────────────────────────────
 
-/** A form post as SPX's own pages send it. They answer with a redirect, which is success. */
+/** A form post as SPX's own pages send it. They answer with a redirect, which is success unless
+ *  it carries `ERR=` (a template SPX could not import redirects to `config?ERR=...`). */
 async function spxPost(path, form) {
   const res = await fetch(`${spx}${path}`, {
     method: 'POST',
@@ -147,8 +149,9 @@ async function spxPost(path, form) {
     body: new URLSearchParams(form).toString(),
     redirect: 'manual',
   });
-  transcript.push({ step: 'spx', method: 'POST', url: path, form, status: res.status });
-  if (res.status >= 400) throw new Error(`SPX answered ${res.status} to ${path}`);
+  const location = res.headers.get('location') ?? '';
+  transcript.push({ step: 'spx', method: 'POST', url: path, form, status: res.status, location });
+  if (res.status >= 400 || location.includes('ERR=')) throw new Error(`SPX answered ${res.status} ${location} to ${path}`);
 }
 
 async function makeProject(pkgs) {
@@ -161,7 +164,7 @@ async function makeProject(pkgs) {
   }
   // The project's "Javascript function library": the handler SPX's custom-action buttons call,
   // which the package carries (docs/SPX_ON_A_REAL_SERVER.md §10).
-  const handler = `/templates/${folder}/${dirname(pkgs.quiz.graphicPath.slice(`/templates/${folder}/`.length))}/spx-custom-actions.js`;
+  const handler = `${pkgs.quiz.url}/spx-custom-actions.js`;
   await spxPost(`/show/${project}/config`, { command: 'addshowextrascript', customscript: handler, showFolder: project });
   await spxPost(`/show/${project}`, { filebasename: rundown });
   say(`spx: project ${project}, rundown ${rundown}, handler ${handler}`);
@@ -180,21 +183,19 @@ const rowCall = (controller, index, body) =>
     return new Function('row', body)(row);
   }, { index, body });
 
-const play = async (controller, index) => {
-  const sent = controller.waitForResponse((r) => r.url().endsWith('/gc/playout'));
-  await rowCall(controller, index, 'playItem(row)');
-  await sent;
-};
-const next = async (controller, index) => {
-  const sent = controller.waitForResponse((r) => r.url().endsWith('/gc/playout'));
-  await rowCall(controller, index, 'nextItem(row)');
-  await sent;
-};
-const stop = async (controller, index) => {
-  const sent = controller.waitForResponse((r) => r.url().endsWith('/gc/playout'));
-  await rowCall(controller, index, "playItem(row, 'stop')");
-  await sent;
-};
+/**
+ * Run a row's Play, Continue or Stop and wait until SPX has answered THAT command. Focusing a row
+ * also posts a `preview` command to the same route when SPX's preview mode is "selected" (as
+ * the 1.4.1 install here is set), and that answer must not count as the press.
+ */
+async function press(controller, index, call) {
+  const answered = controller.waitForResponse((r) => r.url().endsWith('/gc/playout') && !/"command":"preview"/.test(r.request().postData() ?? ''));
+  await rowCall(controller, index, call);
+  await answered;
+}
+const play = (controller, index) => press(controller, index, 'playItem(row)');
+const next = (controller, index) => press(controller, index, 'nextItem(row)');
+const stop = (controller, index) => press(controller, index, "playItem(row, 'stop')");
 
 /** Type values into a row's fields and press its Save, as an operator does. */
 async function saveFields(controller, index, values) {

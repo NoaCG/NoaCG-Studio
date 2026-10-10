@@ -153,6 +153,8 @@ export async function ografZip(appPage, template, mount) {
 /* global graphicBody -- the page's, from GRAPHIC_BODY_SCRIPT */
 export function readGraphic(host) {
   return host.evaluate((el) => {
+    // A handle that found no Graphic reads as absent, so a beat fails rather than the walk.
+    if (!el) return { text: '', boxes: [], absent: true };
     const body = graphicBody(el);
     const origin = body.getBoundingClientRect();
     const text = [];
@@ -199,6 +201,7 @@ export async function settledReading(page, host, timeoutMs = 8_000) {
 /** How two readings differ: nothing when they agree, else the count and the first difference. */
 export function differences(a, b) {
   const out = [];
+  if (a.absent || b.absent) out.push(`no graphic mounted (${a.absent ? 'shown' : 'reference'})`);
   if (a.text !== b.text) out.push(`text "${a.text.slice(0, 80)}" against "${b.text.slice(0, 80)}"`);
   const lines = Math.max(a.boxes.length, b.boxes.length);
   let differing = 0;

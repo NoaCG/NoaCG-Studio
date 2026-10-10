@@ -20,9 +20,9 @@
 //      and requires each to keep its own data and drawn states while the other plays, acts and
 //      is cleared.
 //
-// IN EITHER MOUNT. `--mount light` (the default) exports through the dialog as before; `--mount
-// shadow` builds the same graphic in the app page with the shadow-root mount, which the dialog
-// does not offer until the flip (docs/work-specs/ograf-shadow-root/spec.md, AC-9). Every read
+// IN EITHER MOUNT. `--mount light` (the default) downloads from the export window; `--mount
+// shadow` builds the same graphic in the app page with the shadow-root mount, which the export
+// window does not offer until the flip (docs/work-specs/ograf-shadow-root/spec.md, AC-9). Every read
 // inside a mounted graphic goes through `graphicBody`, so the beats are the same in both.
 //
 // WHY THE PACKAGE IS BUILT THROUGH THE APP rather than by calling `ografTarget.build()` in a
@@ -122,7 +122,8 @@ async function exportOgrafPackage(page) {
   const modal = page.locator('.wz-modal');
   // The wizard's own Next, scoped to it as e2e/_svg-import.ts scopes it.
   const next = modal.getByRole('button', { name: 'Next' });
-  const onStep = (n) => page.getByTestId('wz-stepcount').filter({ hasText: String(n) }).waitFor({ timeout: 30_000 });
+  // "Step 4 / 5": match the step, not any digit, or step 4 already satisfies a wait for 5.
+  const onStep = (n) => page.getByTestId('wz-stepcount').filter({ hasText: new RegExp(`Step ${n} /`) }).waitFor({ timeout: 30_000 });
   await modal.waitFor({ state: 'visible', timeout: 30_000 });
   await page.locator('[data-entry="import-graphic"]').click();
   await page.locator('.wz-drop input[type="file"]').setInputFiles(sample);
@@ -227,7 +228,7 @@ async function api(step, method, path, body) {
  * carries the runtime's on-class.
  */
 /* global graphicBody -- the renderer page's, from GRAPHIC_BODY_SCRIPT */
-async function litRoles(page, layer = 0) {
+async function litRoles(page, layer) {
   return (await onLayer(page, layer)).evaluate((host) => {
     if (!host) return { stamped: 0, lit: [] };
     const roots = graphicBody(host).querySelectorAll('[data-noacg-role]');
@@ -248,7 +249,7 @@ async function litRoles(page, layer = 0) {
 const onLayer = (page, layer) =>
   page.evaluateHandle((z) => [...document.querySelectorAll('[data-noacg-graphic]')].find((el) => el.parentElement?.style.zIndex === String(z)) ?? null, layer);
 
-async function frame(page, name, layer = 0) {
+async function frame(page, name, layer) {
   frameNo += 1;
   const file = join(framesDir, `${String(frameNo).padStart(2, '0')}-${name}.png`);
   // THE RENDERER'S OWN PAGE, not ours. Waiting on the graphic's animation is the only place a
@@ -342,6 +343,11 @@ async function main() {
   const renderTarget = info.payload?.renderer?.renderTargetSchema?.default ?? { layerId: '1' };
   say(`renderer: render target ${JSON.stringify(renderTarget)}`);
 
+  // The renderer's layers, in its own order; a layer's z-index is its place in that list
+  // (LayersManager.ts), which is how `onLayer` finds what is on it.
+  const layerIds = info.payload?.renderer?.renderTargetSchema?.properties?.layerId?.enum ?? [];
+  const firstLayer = Math.max(0, layerIds.indexOf(renderTarget.layerId));
+
   const target = `/api/ograf/v1/renderers/${rendererId}/target/graphicInstance`;
   const failures = [];
   const expect = (ok, what) => {
@@ -373,13 +379,13 @@ async function main() {
   });
   expect(load.status === 200 && load.payload?.statusCode === 200, `load answered ${load.status}/${load.payload?.statusCode}`);
   const graphicInstanceId = load.payload?.graphicInstanceId;
-  const shadowed = await (await onLayer(rendererPage, 0)).evaluate((host) => (host ? Boolean(host.shadowRoot) : null));
+  const shadowed = await (await onLayer(rendererPage, firstLayer)).evaluate((host) => (host ? Boolean(host.shadowRoot) : null));
   expect(shadowed === (mount === 'shadow'), `the graphic is in the ${mount} mount (shadow root: ${shadowed})`);
-  await frame(rendererPage, 'loaded');
+  await frame(rendererPage, 'loaded', firstLayer);
 
   const play = await api('playAction', 'POST', `${target}/playAction`, { renderTarget, graphicInstanceId, params: {} });
   expect(play.status === 200 && play.payload?.statusCode === 200, `playAction answered ${play.status}/${play.payload?.statusCode}`);
-  await frame(rendererPage, 'on-air');
+  await frame(rendererPage, 'on-air', firstLayer);
 
   // THE OPERATOR VERBS THE BOARD DREW. Names come off the manifest rather than from here,
   // because the whole claim is that the renderer reads them out of the package.
@@ -401,7 +407,7 @@ async function main() {
       params,
     });
     expect(res.status === 200 && res.payload?.statusCode === 200, `customAction ${action} answered ${res.status}/${res.payload?.statusCode}`);
-    const roles = await frame(rendererPage, `action-${action}`);
+    const roles = await frame(rendererPage, `action-${action}`, firstLayer);
     if (roles.lit.length) {
       painted = true;
       lighting ??= action;
@@ -422,7 +428,7 @@ async function main() {
 
   const stop = await api('stopAction', 'POST', `${target}/stopAction`, { renderTarget, graphicInstanceId, params: {} });
   expect(stop.status === 200 && stop.payload?.statusCode === 200, `stopAction answered ${stop.status}/${stop.payload?.statusCode}`);
-  await frame(rendererPage, 'off-air');
+  await frame(rendererPage, 'off-air', firstLayer);
 
   // `clear` is the renderer's own verb for dropping the instance, and it takes a list of
   // FILTERS rather than one target - a controller clears "everything matching this" in one call.
@@ -436,15 +442,12 @@ async function main() {
   // element class per graphic id, so two copies of one design are two elements of one class on
   // one page. Each layer is judged by what it shows - its text, its boxes and its lit drawn
   // states - before and after the other one plays, acts and is cleared.
-  const layerIds = info.payload?.renderer?.renderTargetSchema?.properties?.layerId?.enum ?? [];
   const secondId = layerIds.find((id) => id !== renderTarget.layerId);
   if (!secondId || !lighting) {
     expect(false, `the layer beats need a second layer (${layerIds.join(', ')}) and an action that lights a state (${lighting})`);
     return failures;
   }
   const secondTarget = { layerId: secondId };
-  // A layer's z-index is its place in the renderer's list (LayersManager.ts).
-  const firstLayer = Math.max(0, layerIds.indexOf(renderTarget.layerId));
   const secondLayer = layerIds.indexOf(secondId);
 
   const loadAndPlay = async (step, onTarget, id, withData) => {
