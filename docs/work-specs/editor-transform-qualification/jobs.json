@@ -1,0 +1,75 @@
+[
+  {
+    "id": "j-4163",
+    "command": "node .noacg/transform-reference/run.mjs",
+    "branch": "codex/editor-transform-qualification",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": 1791613786757,
+    "finishedAt": 1791613789716
+  },
+  {
+    "id": "j-4167",
+    "command": "npx playwright test e2e/editor-canvas-transforms.spec.ts e2e/editor-typography.spec.ts e2e/editor-cli-round-trip.spec.ts --workers=1",
+    "branch": "codex/editor-transform-qualification",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": 1791614288546,
+    "finishedAt": 1791614421447
+  },
+  {
+    "id": "j-4172",
+    "command": "npx playwright test e2e/editor-transform-qualification.spec.ts --workers=1 --trace=on",
+    "branch": "codex/editor-transform-qualification",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": 1791614549299,
+    "finishedAt": 1791614593032
+  },
+  {
+    "id": "j-4173",
+    "command": "npx playwright test --config=.noacg/walk.config.ts --workers=1",
+    "branch": "codex/editor-transform-qualification",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": 1791614599636,
+    "finishedAt": 1791614618953
+  },
+  {
+    "id": "j-4174",
+    "command": "npm run gates -- run --changed origin/main",
+    "branch": "codex/editor-transform-qualification",
+    "state": "failed",
+    "exitCode": null,
+    "startedAt": 1791614685985,
+    "finishedAt": 1791614691192,
+    "reapedAsDead": true
+  },
+  {
+    "id": "j-4175",
+    "command": "npx eslint src/components/editorFoundation/Canvas.tsx src/components/editorFoundation/useArtworkGesture.ts src/components/editorFoundation/transformGestures.ts e2e/editor-canvas-transforms.spec.ts e2e/editor-transform-qualification.spec.ts",
+    "branch": "codex/editor-transform-qualification",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": 1791614694973,
+    "finishedAt": 1791614699465
+  },
+  {
+    "id": "j-4176",
+    "command": "npx tsc --noEmit -p tsconfig.json",
+    "branch": "codex/editor-transform-qualification",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": 1791614694982,
+    "finishedAt": 1791614714767
+  },
+  {
+    "id": "j-4178",
+    "command": "npm run gates -- run --changed origin/main",
+    "branch": "codex/editor-transform-qualification",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": 1791615169420,
+    "finishedAt": 1791615178248
+  }
+]
