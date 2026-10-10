@@ -209,6 +209,15 @@ export-time reflow, stretching, or cropping.
   Which `document` members `scopedDocument` answers is not hand-kept:
   `scripts/ograf-document-members.test.mjs` fails on a member a template runtime reads that is
   neither scoped nor a decided pass-through.
+  **A shadow mount is being built beside it** (docs/work-specs/ograf-shadow-root/spec.md): the
+  internal `addOgrafPackage(..., { mount: 'shadow' })`, default `'light'`, set only by specs and
+  the renderer walks until the flip. It mounts one stylesheet (with a `:host` box) and one canvas
+  element carrying the attribute in an open shadow root, answers `document.head` with that root,
+  and lifts the design's `@font-face` and `@property` rules, which a shadow tree ignores, into one
+  `<style data-noacg-fonts>` in the renderer's head for as long as a copy of the design is
+  mounted. In both mounts `dispose()` also kills every tween, timeline and delayed call
+  `scopedGsap` started, so a step's calls stop with the graphic. The OGraf specs run in both
+  mounts, and `e2e/catalog/ograf-parity.spec.ts` compares the two over the whole catalog.
   The broadcaster-facing summary is `docs/OGRAF.md` - keep it in agreement with this target.
   Non-real-time seeks rebuild an isolated document and replay the OGraf action schedule through
   `render/runtimeScript.ts`'s virtual clock, so timestamp order cannot leak state. The target's

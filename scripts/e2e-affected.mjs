@@ -291,6 +291,10 @@ const CATALOG_TRIGGERS = [
   // gate. `occlusion.ts` is the first of those; anything the bench comes to import for a
   // catalog-visible finding belongs here beside it.
   /^src\/validation\/occlusion\.ts$/,
+  // The OGraf wrapper every exported Graphic runs in. e2e/catalog/ograf-parity.spec.ts mounts
+  // every catalog design in it, light and shadow, so a change to how a Graphic mounts is measured
+  // over the whole catalog before it lands (docs/work-specs/ograf-shadow-root/spec.md, AC-3).
+  /^src\/export\/targets\/ograf\.ts$/,
 ];
 
 /**

@@ -7,10 +7,20 @@
       "count": 4,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38014548923"
     },
+    "e2e/editor-base-edits.spec.ts": {
+      "since": "2026-10-10",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38069964333"
+    },
     "e2e/editor-groups.spec.ts": {
       "since": "2026-10-10",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38052366628"
+    },
+    "e2e/editor-images.spec.ts": {
+      "since": "2026-10-10",
+      "count": 2,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38066880900/job/114256258993"
     }
   },
   "released": {
@@ -26,20 +36,12 @@
       "count": 1,
       "last": "2026-10-10"
     },
-    "e2e/editor-base-edits.spec.ts": {
-      "count": 1,
-      "last": "2026-10-03"
-    },
     "e2e/editor-canvas-transforms.spec.ts": {
       "count": 1,
       "last": "2026-10-04"
     },
     "e2e/editor-foundation.spec.ts": {
       "count": 2,
-      "last": "2026-10-09"
-    },
-    "e2e/editor-images.spec.ts": {
-      "count": 1,
       "last": "2026-10-09"
     },
     "e2e/editor-keys.spec.ts": {

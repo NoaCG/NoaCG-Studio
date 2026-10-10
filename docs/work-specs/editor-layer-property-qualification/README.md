@@ -26,4 +26,5 @@ Write focused normal-route regressions for confirmed gaps, retain CLI/transform 
 Engineering qualification is pending. Independent comparison and owner acceptance remain separate.
 
 ## Current handoff
-[Source inspection and execution status](research.md) distinguishes candidates from reproduced defects. Spec commit: `51f40005e`. Local browser job `j-4203` is waiting for the shared scheduler's 4 GB RAM floor. The alternative disposable remote probe needs the user's pending approval after automatic approval review rejected it. Corrections have deliberately not started before the required reference/runtime reproduction. No acceptance, /check, landing or deployment verdict is claimed.
+[Source inspection and execution status](research.md) distinguishes candidates from reproduced defects. Spec commit: `51f40005e`. Local browser job `j-4203` was cancelled while held below the shared 4 GB RAM floor. The user approved the separate non-landing CI probe, now executing on `codex/editor-layer-property-probe`. Corrections have deliberately not started before the required reference/runtime reproduction. No acceptance, /check, landing or deployment verdict is claimed.
+

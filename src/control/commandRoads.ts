@@ -184,6 +184,8 @@ export interface AppliedOnce {
    * A command with no id is always applied.
    */
   claim(msg: unknown): boolean;
+  /** Whether this command's id is remembered, without remembering it. */
+  has(msg: unknown): boolean;
   /** How many ids are remembered. For tests and for reasoning about the bound. */
   readonly size: number;
 }
@@ -203,6 +205,10 @@ export function createAppliedOnce(): AppliedOnce {
         if (!oldest.done) seen.delete(oldest.value);
       }
       return true;
+    },
+    has(msg: unknown): boolean {
+      const oid = oidOf(msg);
+      return oid !== null && seen.has(oid);
     },
     get size() {
       return seen.size;

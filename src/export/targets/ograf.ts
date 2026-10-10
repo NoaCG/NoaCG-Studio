@@ -854,6 +854,92 @@ function scopeChecked(css: string, self: string): string {
   return assertScopedCss(css, scopeCssToGraphic(css, self), self);
 }
 
+/** How graphic.mjs mounts the design in the renderer's element: as the element's own children, or
+ *  in an open shadow root on it (docs/work-specs/ograf-shadow-root/spec.md). */
+export type OgrafMount = 'light' | 'shadow';
+
+/** The at-rules Chromium applies only from the document's own stylesheets, never from a shadow tree's. */
+const DOCUMENT_AT_RULES = new Set(['font-face', 'property']);
+
+/**
+ * A stylesheet split in two: its `@font-face` and `@property` rules, and everything else. Inside a
+ * shadow tree Chromium ignores both (measured: the face never registers and the text airs in the
+ * fallback, the property keeps no initial value), so a shadow-mounted graphic hands them to the
+ * renderer's `<head>`. A rule inside a grouping at-rule (`@supports`, `@media`) is lifted with its
+ * group around it; comments and the rest of the sheet stay where they were.
+ */
+function liftDocumentRules(css: string): { css: string; lifted: string } {
+  let kept = '';
+  const lifted: string[] = [];
+  let i = 0;
+  while (i < css.length) {
+    const stop = indexOutside(css, i, '{;');
+    if (stop === -1) {
+      kept += css.slice(i);
+      break;
+    }
+    if (css[stop] === ';') {
+      kept += css.slice(i, stop + 1);
+      i = stop + 1;
+      continue;
+    }
+    const close = matchingBrace(css, stop);
+    const head = css.slice(i, stop);
+    const lead = /^(?:\s|\/\*[\s\S]*?\*\/)*/.exec(head)![0];
+    const prelude = head.slice(lead.length);
+    const name = (/^@([\w-]+)/.exec(prelude)?.[1] ?? '').toLowerCase();
+    if (DOCUMENT_AT_RULES.has(name)) {
+      kept += lead;
+      lifted.push(css.slice(i + lead.length, close + 1));
+    } else if (GROUPING_AT_RULES.has(name)) {
+      const inner = liftDocumentRules(css.slice(stop + 1, close));
+      if (inner.lifted) lifted.push(`${prelude}{${inner.lifted}}`);
+      kept += head + '{' + inner.css + css.slice(close, close + 1);
+    } else {
+      kept += css.slice(i, close + 1);
+    }
+    i = close + 1;
+  }
+  return { css: kept, lifted: lifted.join('\n') };
+}
+
+/** A stylesheet's rules as the browser's own parser reads them: the ones a shadow tree ignores,
+ *  and every other rule (style rules and their nested rules, keyframes); grouping wrappers apart. */
+function ruleKinds(css: string): { document: number; other: number } {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  const out = { document: 0, other: 0 };
+  const walk = (rules: CSSRuleList) => {
+    for (const rule of Array.from(rules)) {
+      if (rule instanceof CSSFontFaceRule || rule instanceof CSSPropertyRule) out.document += 1;
+      else if (rule instanceof CSSStyleRule) {
+        out.other += 1;
+        walk(rule.cssRules);
+      } else if (rule instanceof CSSGroupingRule) walk(rule.cssRules);
+      else out.other += 1;
+    }
+  };
+  walk(sheet.cssRules);
+  return out;
+}
+
+/**
+ * The export's FAIL-CLOSED gate on the lift, as `assertScopedCss` is on the rewrite: read by the
+ * browser's own parser, what stays holds no @font-face or @property rule and every other rule it
+ * had, and what is lifted holds exactly those rules. A sheet the lift splits wrongly would air
+ * in the fallback face with no error anywhere, so the export refuses instead.
+ */
+function assertLifted(original: string, split: { css: string; lifted: string }): { css: string; lifted: string } {
+  if (typeof CSSStyleSheet === 'undefined') {
+    throw new Error('OGraf export: the lifted stylesheet can only be verified where a CSS parser exists (a browser).');
+  }
+  const [before, kept, lifted] = [original, split.css, split.lifted].map(ruleKinds);
+  if (kept.document || lifted.other || lifted.document !== before.document || kept.other !== before.other) {
+    throw new Error(`OGraf export: lifting @font-face and @property for the shadow mount changed the stylesheet (${JSON.stringify({ before, kept, lifted })}).`);
+  }
+  return split;
+}
+
 /**
  * The design's markup and stylesheet as graphic.mjs injects them, every document-wide carrier
  * kept to the graphic's own element.
@@ -868,18 +954,31 @@ function scopeChecked(css: string, self: string): string {
  * the template's stylesheet is. The markup is PARSED for this, the way the renderer parses it,
  * so a sheet's entities, CDATA and comments and a self-closing `<style/>` in SVG mean what they
  * mean on air. Markup with neither a style nor a renamed id comes back byte for byte.
+ *
+ * In the shadow mount the `@font-face` and `@property` rules of the stylesheet and of every markup
+ * `<style>`, in document order, come back on their own as `head` (`liftDocumentRules`); in the
+ * light mount `head` is empty and the rules stay where they are.
  */
-export function graphicSources(template: SpxTemplate): { html: string; css: string } {
+export function graphicSources(template: SpxTemplate, mount: OgrafMount = 'light'): { html: string; css: string; head: string } {
   const self = graphicSelfSelector(template);
   const markup = bodyContent(templateHtmlForModule(template));
   const holder = document.createElement('template');
   holder.innerHTML = markup;
   const renames = isolateMarkupIds(holder.content, template, ografGraphicId(template.name));
+  const head: string[] = [];
+  const lift = (css: string) => {
+    if (mount === 'light') return css;
+    const split = assertLifted(css, liftDocumentRules(css));
+    if (split.lifted) head.push(split.lifted);
+    return split.css;
+  };
+  const css = lift(scopeChecked(renameUrlRefs(template.css, renames), self));
   const styles = Array.from(holder.content.querySelectorAll('style'));
-  for (const style of styles) style.textContent = scopeChecked(style.textContent ?? '', self);
+  for (const style of styles) style.textContent = lift(scopeChecked(style.textContent ?? '', self));
   return {
     html: styles.length || renames.size ? holder.innerHTML : markup,
-    css: scopeChecked(renameUrlRefs(template.css, renames), self),
+    css,
+    head: head.join('\n'),
   };
 }
 
@@ -893,7 +992,7 @@ export function graphicSources(template: SpxTemplate): { html: string; css: stri
  * calling the wrong function. Keep this in step with the declarations in `graphicModule`.
  */
 const WRAPPER_BINDINGS = new Set([
-  'ensureGsap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
+  'ensureGsap', 'ensureFlexGap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
   'scopedDocument', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
 ]);
 
@@ -945,7 +1044,8 @@ function timelineFunctionNames(template: SpxTemplate): string[] {
 }
 
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
-function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB): string {
+function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB, mount: OgrafMount = 'light'): string {
+  const shadow = mount === 'shadow';
   const stepCount = Math.max(1, Number(template.settings.steps) || 1);
   const machine = parseAnimData(template.js)?.machine;
   const timelineNames = timelineFunctionNames(template);
@@ -964,7 +1064,7 @@ function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB):
   const self = graphicSelfSelector(template);
   // The markup and stylesheet, re-addressed to the element and checked by the browser's parser -
   // the export refuses rather than ship a rule that would reach the renderer's page.
-  const sources = graphicSources(template);
+  const sources = graphicSources(template, mount);
   const usesLottie = templateUsesLottie(template);
   const ensureLottieFn = usesLottie
     ? `
@@ -1027,9 +1127,16 @@ const TEMPLATE_HTML = ${JSON.stringify(sources.html)};
 // ARE this element), so a Graphic never restyles the renderer's page it is a component of.
 const GRAPHIC_ID = ${JSON.stringify(graphicId)};
 
-// The element IS the canvas: the box the template's \`html, body\` rule describes, made a block
+${
+    shadow
+      ? `// The canvas is the element in the shadow root that carries the attribute (see _claimCanvas):
+// the box the template's \`html, body\` rule describes, made a block (all: initial makes it
+// display:inline, where width and height do nothing) and the containing block its design
+// positions against, clipped like the page it was authored on.`
+      : `// The element IS the canvas: the box the template's \`html, body\` rule describes, made a block
 // (a custom element is display:inline by default, where width and height do nothing) and the
-// containing block its design positions against, clipped like the page it was authored on.
+// containing block its design positions against, clipped like the page it was authored on.`
+  }
 // Injected ahead of the template's own rules, which then re-state the canvas exactly as the
 // non-real-time document's <head> does for its own body - and at zero specificity, so a
 // renderer that sizes its layers itself overrides it with any rule of its own.
@@ -1048,7 +1155,29 @@ const GRAPHIC_BOX_CSS = ${JSON.stringify(
       `${self} :where(*) { box-sizing: revert; margin: revert; padding: revert; }\n` +
       `${self} :where(:not(svg, svg *)) { overflow: revert; }`,
   )};
+${
+    shadow
+      ? `
+// The element itself, seen from inside its shadow root: a block of the authored size, the
+// containing block, clipped. Any rule of the renderer's own on the element beats this one whatever
+// its specificity, a universal reset included, so a renderer that sizes or hides its layers still
+// does; nothing of the renderer's reaches the canvas inside but what the canvas inherits, and it
+// starts from initial values.
+const HOST_CSS = ${JSON.stringify(
+          `:host { display: block; position: relative; width: ${template.resolution.width}px; height: ${template.resolution.height}px; overflow: hidden; }`,
+        )};
 
+// The design's @font-face and @property rules, lifted at export out of the stylesheet and the
+// markup's own <style> blocks: Chromium applies neither from inside a shadow tree. They go in the
+// renderer's <head>, in one <style data-noacg-fonts>, put there by the first copy of this design
+// to load and taken out with the last copy to be disposed - the span over which they were
+// document-wide in the light DOM too. The module is one per design, so its count is the design's.
+const HEAD_CSS = ${JSON.stringify(sources.head)};
+let headStyle = null;
+let headHolders = 0;
+`
+      : ''
+  }
 const TEMPLATE_CSS = ${JSON.stringify(sources.css)};
 
 // The package's own base URL. A Graphic is a COMPONENT inside the renderer's page, not the
@@ -1124,22 +1253,27 @@ const MAIN_PATH = ${JSON.stringify(mainPath)};
  *
  * The template's code is still what the editor shows: only the \`document\` it sees is scoped,
  * by being a parameter of the function its body runs in. Lookups resolve inside this Graphic,
- * and its \`body\` and \`documentElement\` ARE this Graphic's element - where the stylesheet's
- * canvas box and \`:root\` variables now live, so a template that measures \`body.clientWidth\`
+ * and its \`body\` and \`documentElement\` ARE this Graphic's canvas (the element itself in the
+ * light mount) - where the stylesheet's canvas box and \`:root\` variables now live, so a
+ * template that measures \`body.clientWidth\`
  * or reads \`--scale\` off the root element gets its own canvas and its own contract, not the
  * renderer's page (and a measuring probe it appends to \`body\` lands inside the graphic, in
- * the graphic's font). Everything else on document (readyState, addEventListener, fonts,
- * createElement) passes straight through to the real one. Which is which is not a hand-kept
- * list: scripts/ograf-document-members.test.mjs reads every member the template runtimes use and
- * fails on one that is neither scoped here nor decided as a pass-through there.
+ * the graphic's font). Its \`head\` is where the template's own document-level additions go: the
+ * renderer's <head> in the light mount, where they were document-wide already, and the shadow
+ * root in the shadow mount, so a <style> the template appends there styles its own tree, as it
+ * styled its own page under SPX. Everything else on document (readyState, addEventListener,
+ * fonts, createElement) passes straight through to the real one. Which is which is not a
+ * hand-kept list: scripts/ograf-document-members.test.mjs reads every member the template
+ * runtimes use and fails on one that is neither scoped here nor decided as a pass-through there.
  */
-function scopedDocument(root) {
+function scopedDocument(root, head) {
   const scoped = {
     getElementById: (id) => root.querySelector('[id="' + String(id).replace(/"/g, '\\\\"') + '"]'),
     querySelector: (sel) => root.querySelector(sel),
     querySelectorAll: (sel) => root.querySelectorAll(sel),
     body: root,
     documentElement: root,
+    head: head,
   };
   return new Proxy(document, {
     get(target, key) {
@@ -1213,7 +1347,7 @@ function scopedWindow(names, doc) {
  * renderer the second Graphic's Play killed the first one's entrance and left it half drawn on
  * air - measured in SPX 1.4.1 with a quiz and a scorebug played 0.8 s apart
  * (docs/SPX_ON_A_REAL_SERVER.md §10). So a string target given to GSAP's own target-taking
- * calls is resolved inside this Graphic (the element itself included, being the template's
+ * calls is resolved inside this Graphic (the canvas itself included, being the template's
  * \`html\` and \`body\`), and so is each string in an array target, which the competition
  * reveals pass (\`gsap.set(['.reveal-subject', '.reveal-note'], ...)\`); element targets and
  * everything else are GSAP itself.
@@ -1223,8 +1357,12 @@ function scopedWindow(names, doc) {
  * \`tl.fromTo('.x-box', ...)\`. Two imported designs share their class names (\`imported-design\`),
  * so the second one's entrance also drove the first one's root (issue #789). So a timeline this
  * gsap makes resolves its string targets inside this Graphic too.
+ *
+ * Every tween, timeline and delayed call it starts is recorded in \`made\`, so dispose() can stop
+ * them: a step's timeline goes on firing its calls after its elements' tweens are killed, into a
+ * graphic that is no longer there.
  */
-function scopedGsap(root) {
+function scopedGsap(root, made) {
   const real = window.gsap;
   const own = (targets) => {
     if (Array.isArray(targets)) return targets.flatMap(own);
@@ -1232,13 +1370,21 @@ function scopedGsap(root) {
     const inside = Array.from(root.querySelectorAll(targets));
     return root.matches(targets) ? [root].concat(inside) : inside;
   };
+  const mine = (animation) => {
+    made.add(animation);
+    return animation;
+  };
   const tweens = ['to', 'from', 'fromTo', 'set'];
   const scoped = Object.create(null);
-  for (const name of [...tweens, 'killTweensOf', 'getTweensOf', 'isTweening', 'quickSetter', 'quickTo']) {
+  for (const name of tweens) {
+    scoped[name] = (targets, ...rest) => mine(real[name](own(targets), ...rest));
+  }
+  for (const name of ['killTweensOf', 'getTweensOf', 'isTweening', 'quickSetter', 'quickTo']) {
     scoped[name] = (targets, ...rest) => real[name](own(targets), ...rest);
   }
+  scoped.delayedCall = (...args) => mine(real.delayedCall(...args));
   scoped.timeline = (...args) => {
-    const tl = real.timeline(...args);
+    const tl = mine(real.timeline(...args));
     for (const name of tweens) {
       const method = tl[name];
       tl[name] = function (targets, ...rest) { return method.call(this, own(targets), ...rest); };
@@ -1316,6 +1462,7 @@ class Graphic extends HTMLElement {
     this._schedule = [];
     this._step = -1;
     this._disposed = false;
+    this._made = null;${shadow ? '\n    this._holdsHead = false;' : ''}
   }
 
   // Queue one action and report its outcome as a ReturnPayload. A thrown error becomes a 500
@@ -1375,15 +1522,93 @@ class Graphic extends HTMLElement {
     });
   }
 
-  // The element becomes the canvas: the attribute every scoped rule keys on, and ONE stylesheet
+${
+    shadow
+      ? `  // The element hosts the canvas. It is stamped with the attribute, and its open shadow root -
+  // attached by the first load() and reused by every later one - gets ONE stylesheet, holding the
+  // element's box and the canvas box the design lays out against followed by whatever the caller
+  // injects, then ONE canvas element carrying the same attribute, which every scoped rule keys
+  // on. Both mount paths (real-time and non-real-time) claim it the same way, so neither can
+  // drift. Returns the canvas.
+  _claimCanvas(css) {
+    this.setAttribute('data-noacg-graphic', GRAPHIC_ID);
+    const root = this.shadowRoot || this.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = HOST_CSS + '\\n' + GRAPHIC_BOX_CSS + (css ? '\\n' + css : '');
+    root.appendChild(style);
+    const canvas = document.createElement('div');
+    canvas.setAttribute('data-noacg-graphic', GRAPHIC_ID);
+    root.appendChild(canvas);
+    return canvas;
+  }
+
+  // Everything this Graphic put on the page: its shadow root, none before the first load().
+  _tree() {
+    return this.shadowRoot;
+  }
+
+  // HEAD_CSS goes into the renderer's <head> with the first copy of this design to load, and out
+  // with the last one.
+  _holdHeadCss() {
+    if (this._holdsHead || !HEAD_CSS) return;
+    this._holdsHead = true;
+    if (headHolders++ === 0) {
+      headStyle = document.createElement('style');
+      headStyle.setAttribute('data-noacg-fonts', GRAPHIC_ID);
+      headStyle.textContent = withPackageUrls.css(HEAD_CSS);
+      document.head.appendChild(headStyle);
+    }
+  }
+
+  _releaseHeadCss() {
+    if (!this._holdsHead) return;
+    this._holdsHead = false;
+    if (--headHolders === 0) {
+      headStyle.remove();
+      headStyle = null;
+    }
+  }`
+      : `  // The element becomes the canvas: the attribute every scoped rule keys on, and ONE stylesheet
   // holding the box the design lays out against followed by whatever the caller injects. Both
-  // mount paths claim it the same way, so neither can drift.
+  // mount paths (real-time and non-real-time) claim it the same way, so neither can drift.
+  // Returns the canvas, which is this element.
   _claimCanvas(css) {
     this.setAttribute('data-noacg-graphic', GRAPHIC_ID);
     const style = document.createElement('style');
     style.textContent = GRAPHIC_BOX_CSS + (css ? '\\n' + css : '');
     this.appendChild(style);
+    return this;
   }
+
+  // Everything this Graphic put on the page: its own children.
+  _tree() {
+    return this;
+  }`
+  }
+
+${shadow ? `  // Inject the template's style + markup into this element's shadow root (the template's own
+  // getElementById lookups keep working exactly as in SPX, through the scoped document). The
+  // stylesheet is scoped to the attribute _claimCanvas() stamps, and the canvas is the page it was
+  // authored for. The markup becomes the canvas's own children, as it was the body's, with no
+  // wrapper, so a \`body > .x\` rule and a read of \`document.body.children\` find the design's
+  // top-level elements, and only them. Returns the canvas and the template's scoped document.
+  _mountTemplate() {
+    const canvas = this._claimCanvas(withPackageUrls.css(TEMPLATE_CSS));
+    this._holdHeadCss();
+    canvas.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
+    return { canvas, doc: scopedDocument(canvas, this.shadowRoot) };
+  }` : `  // Inject the template's style + markup into this element (light DOM: the template's own
+  // getElementById lookups keep working exactly as in SPX). The stylesheet is scoped to the
+  // attribute _claimCanvas() stamps, and the element is the canvas it was authored for. The markup
+  // becomes the element's own children, as it was the body's: the stylesheet is the first child and
+  // the design's elements follow it, with no wrapper, so a \`body > .x\` rule and a read of
+  // \`document.body.children\` find the design's top-level elements. Returns the canvas and the
+  // template's scoped document.
+  _mountTemplate() {
+    const canvas = this._claimCanvas(withPackageUrls.css(TEMPLATE_CSS));
+    canvas.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
+    return { canvas, doc: scopedDocument(canvas, document.head) };
+  }`}
 
   async _load(params) {
     if (this._runtime || this._frame) await this._dispose();
@@ -1397,18 +1622,11 @@ class Graphic extends HTMLElement {
     }
     await ensureGsap();
     await ensureFlexGap();${usesLottie ? '\n    await ensureLottie();' : ''}
-    // Inject the template's style + markup into this element (light DOM: the template's
-    // own getElementById lookups keep working exactly as in SPX). The stylesheet is scoped to
-    // the attribute _claimCanvas() stamps, and the element is the canvas it was authored for.
-    // The markup becomes the element's own children, as it was the body's: the stylesheet is
-    // the first child and the design's elements follow it, with no wrapper, so a \`body > .x\`
-    // rule and a read of \`document.body.children\` find the design's top-level elements.
-    this._claimCanvas(withPackageUrls.css(TEMPLATE_CSS));
-    this.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
-
-    const doc = scopedDocument(this);
-    this._runtime = initTemplate(doc, scopedWindow(TIMELINE_FUNCTIONS, doc), scopedGsap(this));
+    // A load that fails anywhere past this point takes down what it mounted and answers 500.
     try {
+      const { canvas, doc } = this._mountTemplate();
+      this._made = new WeakSet();
+      this._runtime = initTemplate(doc, scopedWindow(TIMELINE_FUNCTIONS, doc), scopedGsap(canvas, this._made));
       if (this._runtime.soundPrepare) await this._runtime.soundPrepare();
       const audioError = this._runtime.soundStatus && this._runtime.soundStatus();
       if (audioError) throw new Error(audioError);
@@ -1423,12 +1641,21 @@ class Graphic extends HTMLElement {
 
   async _dispose() {
     if (this._runtime && this._runtime.soundDispose) this._runtime.soundDispose();
-    // Only this Graphic's own elements: '*' is document-wide, and a renderer mounts every
-    // layer in one document, so clearing layer 1 froze the graphic still on air on layer 0.
-    if (window.gsap) window.gsap.killTweensOf(this.querySelectorAll('*'));
+    const tree = this._tree();
+    const gsap = window.gsap;
+    if (gsap) {
+      // Everything this Graphic's runtime started on GSAP's clock: a step's timeline would go on
+      // firing its calls into a graphic that is no longer there.
+      const made = this._made;
+      if (made) gsap.globalTimeline.getChildren(true, true, true).forEach((animation) => { if (made.has(animation)) animation.kill(); });
+      // Only this Graphic's own elements: '*' is document-wide, and a renderer mounts every
+      // layer in one document, so clearing layer 1 froze the graphic still on air on layer 0.
+      if (tree) gsap.killTweensOf(tree.querySelectorAll('*'));
+    }
     if (this._frame) { this._frame.remove(); this._frame = null; }
-    this.innerHTML = '';
-    this.removeAttribute('data-noacg-graphic');
+    if (tree) tree.innerHTML = '';
+    this.removeAttribute('data-noacg-graphic');${shadow ? '\n    this._releaseHeadCss();' : ''}
+    this._made = null;
     this._runtime = null;
     this._schedule = [];
     this._step = -1;
@@ -1459,9 +1686,10 @@ class Graphic extends HTMLElement {
     var frame = document.createElement('iframe');
     frame.setAttribute('title', 'OGraf non-real-time frame');
     frame.style.cssText = 'display:block;border:0;width:100%;height:100%;background:transparent';
-    this.innerHTML = '';
-    this._claimCanvas(); // the same canvas box as the real-time path, so the 100% x 100% frame has a size to fill
-    this.appendChild(frame);
+    var tree = this._tree();
+    if (tree) tree.innerHTML = '';
+    // The same canvas box as the real-time path, so the 100% x 100% frame has a size to fill.
+    this._claimCanvas().appendChild(frame);
     this._frame = frame;
     var ready = new Promise(function (resolve, reject) {
       frame.onload = resolve;
@@ -1629,6 +1857,10 @@ export interface OgrafPackageOptions {
   /** A preview raster to ship as the manifest's `thumbnails[0]` - the bridge's bench shot.
    *  `data` is the image bytes (a Blob, raw bytes, or a base64 string). */
   thumbnail?: { file: string; data: Blob | Uint8Array | string; width: number; height: number };
+  /** How graphic.mjs mounts the design: 'light' (the default) or 'shadow'. Internal, and set only
+   *  by the specs and the renderer walks until the shadow mount becomes the only one
+   *  (docs/work-specs/ograf-shadow-root/spec.md, decision 4); no UI, CLI flag or manifest field. */
+  mount?: OgrafMount;
 }
 
 export async function addOgrafPackage(
@@ -1662,7 +1894,7 @@ export async function addOgrafPackage(
   };
 
   write(`${slug(template.name)}.ograf.json`, JSON.stringify(manifest, null, 2));
-  write('graphic.mjs', graphicModule(template, lib));
+  write('graphic.mjs', graphicModule(template, lib, opts.mount));
   // The ID table travels with every package (LiveOS inherits it here too): an OGraf host's
   // data keys ARE these field ids, and only the package can say what each one means.
   write(
