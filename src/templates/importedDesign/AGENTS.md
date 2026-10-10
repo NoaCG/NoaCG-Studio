@@ -124,9 +124,7 @@ measured defect; §3 holds the evidence:
   carry the same rotation, and then it is exact.
 - **Wrap only into room already drawn**, keeping the designer's own gaps: line to the nearest thing
   below it inside its panel, re-asked at every size, dropping a LINE rather than printing through
-  the layer below. Every bound is measured off the rest pose, never a constant. **The greedy fill
-  picks the line COUNT; an operator's breaks are then evened out** (`svgBalanceLines`), never
-  changing the count, the size or the overflow report. The drawn value is painted as before.
+  the layer below. Every bound is measured off the rest pose, never a constant.
 - **Past 55% a value is reported too long; type shrinks to a 30% floor, then is SQUEEZED no narrower than 70%**
   (`svgSqueeze`), only what no size can hold, because nothing may ever paint outside the panel.
 - **Measure exactly, and from the DESIGN**: screen px convert through the element's CTM, never an

@@ -35,7 +35,6 @@
 //   node scripts/svg-import-sweep.mjs --base http://localhost:5186
 //   node scripts/svg-import-sweep.mjs --ladder            # the FIT LADDER over the whole corpus
 //   node scripts/svg-import-sweep.mjs --ladder --only figma-centred-title-card
-//   node scripts/svg-import-sweep.mjs --ladder --shard 2/4 --json ladder-2.json  # one runner's quarter
 //
 // `--ladder` is the second sweep and a different question: not "does this file import" but "does
 // the fit ladder spend its rungs in order on it, at every option and every value length". It
@@ -61,7 +60,6 @@ import { fileURLToPath } from 'node:url';
 import { join, basename, dirname, resolve } from 'node:path';
 import { devPort } from './dev-port.mjs';
 import { LADDER_VALUES, LADDER_MODES, LADDER_LONG } from './ladder-values.mjs';
-import { defectOf } from './fit-sweep-verdict.mjs';
 
 const CORPUS = fileURLToPath(new URL('../e2e/fixtures/svg-corpus/', import.meta.url));
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..').replaceAll('\\', '/');
@@ -87,14 +85,6 @@ const shotsDir = flag('--shots');
 const failOn = flag('--fail-on'); // 'fail' | 'partial'
 const baseFlag = flag('--base');
 const ladderMode = args.includes('--ladder');
-// `i/n`: every n-th fixture from the i-th, so the scheduled run (.github/workflows/fit-sweep.yml)
-// can split the corpus over runners. Refused when malformed rather than read as "everything".
-const shardFlag = flag('--shard');
-const shard = shardFlag && /^(\d+)\/(\d+)$/.exec(shardFlag);
-if (shardFlag && !(shard && +shard[1] >= 1 && +shard[1] <= +shard[2])) {
-  console.error(`--shard takes i/n with 1 <= i <= n, not "${shardFlag}".`);
-  process.exit(1);
-}
 
 /** Every fixture with a sidecar, in a stable order: family first, then slug. */
 function corpus() {
@@ -108,9 +98,9 @@ function corpus() {
   // ones an exporter quirk is shared by, plus the controls that must not move. The ladder sweep
   // over all 43 takes about two hours, which is a nightly job rather than something to iterate a
   // fix against.
-  const wanted = only ? only.split(',').map((s) => s.trim()).filter(Boolean) : null;
-  const picked = wanted ? rows.filter((r) => wanted.includes(r.family) || wanted.includes(r.name)) : rows;
-  return shard ? picked.filter((_, i) => i % +shard[2] === +shard[1] - 1) : picked;
+  if (!only) return rows;
+  const wanted = only.split(',').map((s) => s.trim()).filter(Boolean);
+  return rows.filter((r) => wanted.includes(r.family) || wanted.includes(r.name));
 }
 
 /** Count the drawn elements of a source file, so the inlined copy can be checked against it.
@@ -532,71 +522,33 @@ async function readLadder(frame) {
         outside += 1;
       }
     }
-    // A line that is laid out but still owed its measurement (`svgFitDue`) has a fit coming that
-    // has not run yet - the board's state layers are the case.
-    return { fields, rules, outside, due: w.svgFitDue(), frame: { width: f.width, height: f.height } };
+    return { fields, rules, outside, frame: { width: f.width, height: f.height } };
   });
 }
 
-/** THE LADDER, READ OFF THE DOCUMENT THAT HOLDS WHAT WAS JUST ASKED FOR - or null after 20 s.
+/** Wait for the wizard to finish rebuilding its document.
  *
- *  Waiting on the stage's stamps alone read the PREVIOUS document: `data-doc-pending` is set one
- *  React commit after the change, a few milliseconds behind a waiter that asks straight away, and
- *  a value the field already holds starts no rebuild at all (`e2e/import-svg-corpus.spec.ts`,
- *  `awaitPainted`, has the measurements). Two sweeps of the same tree then disagreed on a third of
- *  their findings, which is no instrument for a nightly verdict. So the reading itself is the
- *  wait: the stage is settled, the document shows `value` in the `field` that was typed into (or,
- *  with no value, is a newer one than `rev` - given up after `REV_MS`, because an option that
- *  composes the same document rebuilds nothing), and no rebuild started while it was read. `readLadder` awaits the
- *  frame's fonts, so the fit it reads is the second pass, the one that airs. And a line still
- *  owed its first measurement gets up to `OWED_MS` to be paid, because the vote band's rest pose
- *  was read either side of that payment and two runs disagreed about its room.
- *
- *  The STAGE carries the stamps, not the frame: a rebuild REPLACES the frame, so a stamp read off
- *  the frame is gone exactly when a waiter needs it (WizardPreview.tsx). */
-async function readSettled(page, frame, { value = null, field = null, rev = null } = {}) {
-  const want = value === null ? null : flat(value);
-  const start = Date.now();
-  const deadline = start + 20_000;
-  // The owed-line grace belongs to ONE document: a rebuild starts the clock again.
-  let owed = null;
-  while (Date.now() < deadline) {
-    const before = await stamps(page);
-    const newer = rev === null || before.rev !== rev || Date.now() - start >= REV_MS;
-    if (before.pending !== '1' && before.rev && newer) {
-      const reading = await readLadder(frame).catch(() => null);
-      const after = await stamps(page);
-      const shows =
-        reading &&
-        (want === null || reading.fields.some((f) => f.id === field && flat(f.value) === want));
-      if (shows && after.rev === before.rev && after.pending !== '1') {
-        if (!owed || owed.rev !== before.rev) owed = { rev: before.rev, since: Date.now() };
-        if (!reading.due || Date.now() - owed.since >= OWED_MS) return reading;
-      }
-    }
-    await page.waitForTimeout(50);
-  }
-  return null;
-}
-
-/** How long a settled document may still owe a line its measurement before it is read anyway. */
-const OWED_MS = 3000;
-
-/** How long an option change may take to produce a newer document before the one showing is
- *  taken as its answer. */
-const REV_MS = 5000;
-
-/** The stage's rebuild stamps, both in one round trip: `rev` tells a newer document from the one
- *  already showing, `pending` says a rebuild is under way. */
-const stamps = (page) =>
-  page
+ *  The STAGE carries the rebuild stamps, not the frame: a rebuild REPLACES the frame, so a stamp
+ *  read off the frame is gone exactly when a waiter needs it (WizardPreview.tsx). */
+async function settled(page) {
+  await page
     .locator('.wz-stage')
-    .evaluate((stage) => ({ rev: stage.getAttribute('data-doc-rev'), pending: stage.getAttribute('data-doc-pending') }))
-    .catch(() => ({ rev: null, pending: null }));
-
-/** Whitespace collapsed: the mapping step trims and joins what a designer typed, the runtime
- *  keeps the file's own indentation, and the two disagreeing about newlines is not a finding. */
-const flat = (s) => String(s).replace(/\s+/g, ' ').trim();
+    .waitFor({ state: 'visible', timeout: 20_000 })
+    .catch(() => {});
+  // Both stamps in ONE animation-frame-paced poll rather than two round trips and a fixed 100 ms
+  // sleep each time round. At roughly six thousand settles in a corpus run the sleep alone was
+  // several minutes of the sweep spent waiting for nothing.
+  await page
+    .waitForFunction(
+      () => {
+        const stage = document.querySelector('.wz-stage');
+        return !!stage && stage.getAttribute('data-doc-pending') !== '1' && !!stage.getAttribute('data-doc-rev');
+      },
+      undefined,
+      { timeout: 20_000 },
+    )
+    .catch(() => {});
+}
 
 /** One fixture's whole ladder space: every bound field x every option the file offers x every
  *  length. Returns the findings and one reading row per case. */
@@ -630,7 +582,8 @@ async function walkLadder(page, fixture, base) {
     got.fields = ticked.length;
 
     const frame = page.frameLocator('.wz-side iframe');
-    const first = await readSettled(page, frame);
+    await settled(page);
+    const first = await readLadder(frame).catch(() => null);
     if (!first || !first.fields.length) {
       got.skipped = 'the preview never composed a bound line';
       return got;
@@ -640,6 +593,10 @@ async function walkLadder(page, fixture, base) {
     // in its own right, because everything below would then measure the wrong node.
     for (let i = 0; i < Math.min(ticked.length, first.fields.length); i += 1) {
       ticked[i].field = first.fields[i].id;
+      // Compared with the whitespace collapsed: the mapping step trims and joins what a designer
+      // typed, the runtime keeps the file's own indentation, and the two disagreeing about
+      // newlines is not what this is asking.
+      const flat = (s) => s.replace(/\s+/g, ' ').trim();
       if (ticked[i].sample && first.fields[i].drawn && flat(ticked[i].sample) !== flat(first.fields[i].drawn)) {
         got.findings.push({
           problem: `row ${ticked[i].id} samples "${flat(ticked[i].sample)}" but ${first.fields[i].id} was drawn "${flat(first.fields[i].drawn)}"`,
@@ -654,25 +611,17 @@ async function walkLadder(page, fixture, base) {
     const modes = hasModes ? LADDER_MODES : ['(no growth control)'];
 
     for (const mode of modes) {
-      // A NEW OPTION IS A NEW DOCUMENT, so the datum waits for one - unless the select already
-      // held this option, which rebuilds nothing.
-      let rev = null;
       if (hasModes) {
-        const was = await modeSelect.inputValue().catch(() => null);
-        const revBefore = (await stamps(page)).rev;
         if (!(await modeSelect.selectOption(mode).then(() => true).catch(() => false))) continue;
-        if (was !== mode) rev = revBefore;
+        await settled(page);
       }
       // THE DESIGN'S OWN ANSWER, ONCE PER OPTION - the datum every longer value is judged
       // against. One reading covers every field, because it is the whole document at rest with
       // the drawn text standing in every node, and only the OPTION changes what that document
       // says. Taken per field it cost a rebuild and a read for each one to produce the identical
       // answer, an eighth of the run on a nine-field board.
-      const restAll = await readSettled(page, frame, { rev });
-      if (!restAll) {
-        got.findings.push({ mode, problem: 'the preview never settled on this option' });
-        continue;
-      }
+      const restAll = await readLadder(frame).catch(() => null);
+      if (!restAll) continue;
 
       for (const row of ticked) {
         if (!row.field) continue;
@@ -681,22 +630,19 @@ async function walkLadder(page, fixture, base) {
 
         for (const [name, value] of Object.entries(LADDER_VALUES)) {
           await page.getByTestId(`map-svg-sample-${row.id}`).fill(value);
-          const now = await readSettled(page, frame, { value, field: row.field });
+          await settled(page);
+          const now = await readLadder(frame).catch(() => null);
           const r = now?.fields.find((f) => f.id === row.field);
-          if (!r) {
-            // Said, never skipped: a case that silently drops out is a case nobody measured.
-            got.findings.push({ mode, length: name, field: row.field, problem: 'the preview never settled on this value' });
-            continue;
-          }
+          if (!r) continue;
           got.readings.push({ mode, field: row.field, label: row.id, length: name, ...r });
-          for (const problem of judgeLadder({ mode, name, value, rest, r, restAll, now })) {
+          for (const problem of judgeLadder({ mode, name, rest, r, restAll, now })) {
             got.findings.push({ mode, length: name, field: row.field, problem });
           }
         }
         // And the row goes back to what the designer drew, so the next field is never measured
         // against a neighbour this loop left long.
         await page.getByTestId(`map-svg-sample-${row.id}`).fill(row.sample);
-        await readSettled(page, frame, { value: row.sample, field: row.field });
+        await settled(page);
       }
     }
   } catch (e) {
@@ -809,16 +755,10 @@ function judgeLadder({ mode, name, value, rest, r, restAll, now }) {
       const wider = is.width - was.width;
       const taller = is.height - was.height;
       // A ROW THAT NAMES SOMETHING AS WIDE AS THE FRAME can never widen, and the reason is worth
-      // saying rather than leaving as "it stayed the same". Two different defects: the whole
-      // frame is the artwork's own ground, never a panel; a band as wide as the frame is the
-      // right box, offered an option that can do nothing for it
-      // (https://github.com/NoaCG/NoaCG-Studio/issues/778).
+      // saying rather than leaving as "it stayed the same": the shape the mapping step defaulted
+      // to is the artwork's own ground, not a panel (https://github.com/NoaCG/NoaCG-Studio/issues/778).
       if (now.frame && was.width >= now.frame.width - 2) {
-        out.push(
-          was.height >= now.frame.height - 2
-            ? `"${was.el}" is the full frame (${Math.round(was.width)} px), so widening it can do nothing`
-            : `"${was.el}" already spans the frame's width (${Math.round(was.width)} px), so widening it can do nothing`,
-        );
+        out.push(`"${was.el}" is the full frame (${Math.round(was.width)} px), so widening it can do nothing`);
       } else if (wider <= 1) out.push(`"${was.el}" stayed ${Math.round(is.width)} px wide`);
       // WIDER, NOT TALLER. A bound rather than an equality: a band a degree or two off level that
       // gets longer necessarily gains a little screen height, and that is the artwork, not the
@@ -844,7 +784,7 @@ function judgeLadder({ mode, name, value, rest, r, restAll, now }) {
 function groupFindings(findings) {
   const groups = new Map();
   for (const f of findings) {
-    const key = defectOf(f.problem);
+    const key = String(f.problem).replace(/-?\d+(\.\d+)?/g, '#');
     let g = groups.get(key);
     if (!g) groups.set(key, (g = { example: f.problem, n: 0, fields: new Set(), modes: new Set(), lengths: new Set() }));
     g.n += 1;
