@@ -24,9 +24,10 @@ jobs:
       - name: Run bounded baseline and reference
         env:
           REFERENCE_EXE: .noacg/reference/studio
-        run: npx playwright test e2e/editor-layer-property-research.spec.ts --workers=1
+        run: npx playwright test e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: layer-property-research
           path: test-results/
+
