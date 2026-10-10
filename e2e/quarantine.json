@@ -7,11 +7,6 @@
       "count": 4,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38014548923"
     },
-    "e2e/editor-arrangement.spec.ts": {
-      "since": "2026-10-09",
-      "count": 1,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37999855026"
-    },
     "e2e/editor-groups.spec.ts": {
       "since": "2026-10-10",
       "count": 1,
@@ -26,6 +21,10 @@
     "e2e/docs.spec.ts": {
       "count": 1,
       "last": "2026-10-08"
+    },
+    "e2e/editor-arrangement.spec.ts": {
+      "count": 1,
+      "last": "2026-10-10"
     },
     "e2e/editor-base-edits.spec.ts": {
       "count": 1,
