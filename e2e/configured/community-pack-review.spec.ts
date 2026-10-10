@@ -226,6 +226,35 @@ test.describe('community pack review (configured)', () => {
     await visitor.goto('/app#/home/productions');
     await expect(visitor.getByText(PACK).first()).toBeVisible();
 
+    // A LATE PRE-FILL (#923): the maker's earlier name arrives only after they are in the author
+    // field, as it can at hosted latency. It must not land under their cursor, so what they type
+    // is the whole name rather than an addition to it. A name other than the earlier one, so a
+    // pre-fill that swallowed the typing could not pass either.
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    const answered: Promise<void>[] = [];
+    await page.route('**/rest/v1/rpc/community_pack_mine*', (route) => {
+      const sent = held.then(async () => route.fulfill({ response: await route.fetch() }));
+      answered.push(sent);
+      return sent;
+    });
+    await page.getByTestId('submit-pack-open').click();
+    const early = page.getByTestId('submit-pack');
+    const earlyAuthor = early.getByTestId('submit-pack-author');
+    await earlyAuthor.click();
+    await expect.poll(() => answered.length).toBeGreaterThan(0);
+    answer();
+    await Promise.all(answered);
+    // What is checked is an ABSENCE, which no event announces, so the page gets a fixed moment
+    // to apply the answer (the dev server's StrictMode sends a second request, awaited after it).
+    await page.waitForTimeout(500);
+    await Promise.all(answered);
+    await earlyAuthor.pressSequentially('Someone New');
+    await expect(earlyAuthor).toHaveValue('Someone New');
+    await page.unroute('**/rest/v1/rpc/community_pack_mine*');
+    await early.getByRole('button', { name: 'Cancel' }).click();
+    await expect(early).toHaveCount(0);
+
     // WITHDRAW: the maker sends the folder again and takes it back before anyone decides.
     await page.getByTestId('submit-pack-open').click();
     const again = page.getByTestId('submit-pack');

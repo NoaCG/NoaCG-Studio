@@ -75,12 +75,18 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
   }, []);
 
   // The name this maker chose on their previous pack is the only pre-fill allowed (D15). It never
-  // overwrites what the maker has typed meanwhile.
+  // overwrites what the maker has typed, and never lands in the field while they are in it: there
+  // it would appear under their cursor, and what they type next would be added to it (#923).
+  const authorField = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (updating) return;
     let live = true;
     listMyPacks()
-      .then((mine) => live && setAuthor((typed) => typed || mine[0]?.author || ''))
+      .then((mine) => {
+        if (live && document.activeElement !== authorField.current) {
+          setAuthor((typed) => typed || mine[0]?.author || '');
+        }
+      })
       .catch(() => {});
     return () => {
       live = false;
@@ -198,6 +204,7 @@ export default function SubmitPackSheet({ from, updating, onClose, onSent }: Pro
               value={author}
               maxLength={60}
               placeholder="Any name; it appears on the card"
+              ref={authorField}
               onChange={(e) => setAuthor(e.target.value)}
               data-testid="submit-pack-author"
             />
