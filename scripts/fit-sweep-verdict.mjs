@@ -29,9 +29,10 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-/** The problem with its numbers taken out, so a reading that moved a pixel is the same defect. */
+/** The problem with its MEASUREMENTS taken out, so a reading that moved a pixel is the same
+ *  defect. Digits inside a name stay: "g0" and "g1" are two shapes, and t3 and f2 two rows. */
 export function defectOf(problem) {
-  return String(problem).replace(/-?\d+(\.\d+)?/g, '#');
+  return String(problem).replace(/(?<![\w.])-?\d+(\.\d+)?/g, '#');
 }
 
 /** Every defect on the files, keyed `file|field|defect`, with what it fired on. */
@@ -91,7 +92,7 @@ export function summary({ current, verdict, missing, accepted }) {
   const swept = current.filter((f) => !f.skipped);
   const cases = current.reduce((n, f) => n + (Array.isArray(f.readings) ? f.readings.length : f.cases ?? 0), 0);
   const lines = [];
-  const failing = !accepted && (verdict.regressions.length || verdict.lost.length || missing.length);
+  const failing = !current.length || missing.length || (!accepted && (verdict.regressions.length || verdict.lost.length));
   lines.push(`## Fit sweep: ${failing ? 'regressions' : accepted ? 'baseline recorded' : 'no regressions'}`);
   lines.push('');
   lines.push(

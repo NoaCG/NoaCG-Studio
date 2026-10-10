@@ -1419,11 +1419,9 @@ function measureSvgRoom() {
 }
 
 /** Break a value into at most "max" lines no wider than "budget", at the current size. A word
- *  longer than the budget stays whole and simply overflows - the shrink answers that. The greedy
- *  fill decides HOW MANY lines; svgBalanceLines then decides where they break - for an operator's
- *  value. The DRAWN value is painted exactly as before: evening it out would change the artwork
- *  at rest, before anybody typed anything (measured on the corpus's multi-line quiz board, whose
- *  question the designer broke after its first clause). */
+ *  longer than the budget stays whole and simply overflows - the shrink answers that. This greedy
+ *  fill decides HOW MANY lines; where they break is evened out once the ladder has settled
+ *  (svgEvenOut). */
 function svgWrapLines(el, value, budget, max) {
   var words = value.split(/\\s+/);
   var lines = [];
@@ -1439,7 +1437,27 @@ function svgWrapLines(el, value, budget, max) {
     }
   }
   if (line) lines.push(line);
-  return lines.length > 1 && value !== svgFitDrawn[el.id] ? svgBalanceLines(el, lines, budget) : lines;
+  return lines;
+}
+
+/** EVEN OUT A SETTLED BLOCK, once, after the ladder: the size, the line count and the overflow
+ *  report are decided by then and the breaks cannot move any of them (svgBalanceLines). Run
+ *  once rather than inside every trial of the size search, because it measures every word.
+ *
+ *  Not for the DRAWN value: evening it out would change the artwork at rest, before anybody typed
+ *  anything (the corpus's multi-line quiz board, whose question the designer broke after its
+ *  first clause). Compared word for word, since a repainted block reads back single-spaced.
+ *  And not where a growth rule widened the panel for this line: the panel grew to hold the
+ *  first line, and narrower lines would leave the width it was given standing empty. */
+function svgEvenOut(el, budget, size, lineHeight, room) {
+  var painted = el.querySelectorAll('tspan[data-noacg-line]');
+  if (painted.length < 2 || svgFitOver[el.id] || (svgFitExtra[el.id] || 0) > 0) return;
+  var words = function (s) { return String(s).split(/\\s+/).filter(Boolean).join(' '); };
+  var lines = [];
+  for (var i = 0; i < painted.length; i++) lines.push(painted[i].textContent);
+  if (words(lines.join(' ')) === words(svgFitDrawn[el.id])) return;
+  var even = svgBalanceLines(el, lines, budget);
+  svgPaintLines(el, even, size, lineHeight, room);
 }
 
 /** EVEN LINES, NOT A FULL ONE OVER A STRANDED WORD (issue #778). A greedy fill puts whatever is
@@ -1773,6 +1791,7 @@ function fitSvgText() {
     }
     // The ladder has settled, so where the block actually STANDS can be measured rather than
     // predicted - and a block that is centred in its box goes back onto the middle.
+    svgEvenOut(el, budget, size, lineHeight, room);
     svgRecentre(el, room);
     el.classList.toggle('${PREFIX}-overflow', !!svgFitOver[el.id]);
   }

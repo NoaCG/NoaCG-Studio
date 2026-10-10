@@ -544,32 +544,38 @@ async function readLadder(frame) {
  *  a value the field already holds starts no rebuild at all (`e2e/import-svg-corpus.spec.ts`,
  *  `awaitPainted`, has the measurements). Two sweeps of the same tree then disagreed on a third of
  *  their findings, which is no instrument for a nightly verdict. So the reading itself is the
- *  wait: the stage is settled, the document shows `value` in a bound line (or, with no value, is
- *  a newer one than `rev`), and no rebuild started while it was read. `readLadder` awaits the
+ *  wait: the stage is settled, the document shows `value` in the `field` that was typed into (or,
+ *  with no value, is a newer one than `rev` - given up after `REV_MS`, because an option that
+ *  composes the same document rebuilds nothing), and no rebuild started while it was read. `readLadder` awaits the
  *  frame's fonts, so the fit it reads is the second pass, the one that airs. And a line still
  *  owed its first measurement gets up to `OWED_MS` to be paid, because the vote band's rest pose
  *  was read either side of that payment and two runs disagreed about its room.
  *
  *  The STAGE carries the stamps, not the frame: a rebuild REPLACES the frame, so a stamp read off
  *  the frame is gone exactly when a waiter needs it (WizardPreview.tsx). */
-async function readSettled(page, frame, { value = null, rev = null } = {}) {
+async function readSettled(page, frame, { value = null, field = null, rev = null } = {}) {
   const stage = page.locator('.wz-stage');
   const stamps = async () => ({
     rev: await stage.getAttribute('data-doc-rev').catch(() => null),
     pending: await stage.getAttribute('data-doc-pending').catch(() => null),
   });
   const want = value === null ? null : flat(value);
-  const deadline = Date.now() + 20_000;
-  let owedSince = null;
+  const start = Date.now();
+  const deadline = start + 20_000;
+  // The owed-line grace belongs to ONE document: a rebuild starts the clock again.
+  let owed = null;
   while (Date.now() < deadline) {
     const before = await stamps();
-    if (before.pending !== '1' && before.rev && (rev === null || before.rev !== rev)) {
+    const newer = rev === null || before.rev !== rev || Date.now() - start >= REV_MS;
+    if (before.pending !== '1' && before.rev && newer) {
       const reading = await readLadder(frame).catch(() => null);
       const after = await stamps();
-      const shows = reading && (want === null || reading.fields.some((f) => flat(f.value) === want));
+      const shows =
+        reading &&
+        (want === null || reading.fields.some((f) => (field === null || f.id === field) && flat(f.value) === want));
       if (shows && after.rev === before.rev && after.pending !== '1') {
-        owedSince ??= Date.now();
-        if (!reading.due || Date.now() - owedSince >= OWED_MS) return reading;
+        if (!owed || owed.rev !== before.rev) owed = { rev: before.rev, since: Date.now() };
+        if (!reading.due || Date.now() - owed.since >= OWED_MS) return reading;
       }
     }
     await page.waitForTimeout(50);
@@ -579,6 +585,10 @@ async function readSettled(page, frame, { value = null, rev = null } = {}) {
 
 /** How long a settled document may still owe a line its measurement before it is read anyway. */
 const OWED_MS = 3000;
+
+/** How long an option change may take to produce a newer document before the one showing is
+ *  taken as its answer. */
+const REV_MS = 5000;
 
 /** The stage's current rebuild stamp, to tell a newer document from the one already showing. */
 const docRev = (page) => page.locator('.wz-stage').getAttribute('data-doc-rev').catch(() => null);
@@ -670,7 +680,7 @@ async function walkLadder(page, fixture, base) {
 
         for (const [name, value] of Object.entries(LADDER_VALUES)) {
           await page.getByTestId(`map-svg-sample-${row.id}`).fill(value);
-          const now = await readSettled(page, frame, { value });
+          const now = await readSettled(page, frame, { value, field: row.field });
           const r = now?.fields.find((f) => f.id === row.field);
           if (!r) {
             // Said, never skipped: a case that silently drops out is a case nobody measured.
@@ -678,14 +688,14 @@ async function walkLadder(page, fixture, base) {
             continue;
           }
           got.readings.push({ mode, field: row.field, label: row.id, length: name, ...r });
-          for (const problem of judgeLadder({ mode, name, rest, r, restAll, now })) {
+          for (const problem of judgeLadder({ mode, name, value, rest, r, restAll, now })) {
             got.findings.push({ mode, length: name, field: row.field, problem });
           }
         }
         // And the row goes back to what the designer drew, so the next field is never measured
         // against a neighbour this loop left long.
         await page.getByTestId(`map-svg-sample-${row.id}`).fill(row.sample);
-        await readSettled(page, frame, { value: row.sample });
+        await readSettled(page, frame, { value: row.sample, field: row.field });
       }
     }
   } catch (e) {

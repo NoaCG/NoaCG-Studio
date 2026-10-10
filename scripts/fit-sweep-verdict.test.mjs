@@ -8,6 +8,10 @@ const finding = (field, problem, mode = 'grow-x', length = 'over3') => ({ field,
 test('a defect is its problem with the numbers taken out', () => {
   assert.equal(defectOf('block 812 wider than budget 790'), defectOf('block 815.5 wider than budget 790'));
   assert.notEqual(defectOf('block 812 wider than budget 790'), defectOf('block 812 taller than ceiling 90'));
+  // A name is not a measurement: two shapes are two defects.
+  assert.equal(defectOf('"g0" stayed 600 px wide'), '"g0" stayed # px wide');
+  assert.notEqual(defectOf('"g0" stayed 600 px wide'), defectOf('"g1" stayed 600 px wide'));
+  assert.equal(defectOf('drifted -5.8 down its box (drawn at 0.0)'), 'drifted # down its box (drawn at #)');
 });
 
 test('the same defect at other numbers, options or lengths is not a regression', () => {
