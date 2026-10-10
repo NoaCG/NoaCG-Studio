@@ -422,7 +422,7 @@ ${
 }
 .starting-soon-mask > span {
   display: inline-block;           /* so the line can move inside its mask */
-  overflow-wrap: break-word;       /* break very long unbroken words */
+  overflow-wrap: anywhere;         /* a word too long for its mask breaks: break-word cannot narrow the line, so the mask cut its end off */
   text-wrap: balance;              /* wrapped rows get even lengths */
 }
 

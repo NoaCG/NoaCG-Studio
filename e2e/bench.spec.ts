@@ -270,20 +270,50 @@ test.describe('runtime bench detection fixtures', () => {
     expect(warnings.filter((w) => w.message.includes('cut off by its mask') && w.message.includes('default field values'))).toEqual([]);
   });
 
-  test('no untouched neutral scaffold is told its text runs past its panel (#770)', async ({ page }) => {
+  test('no untouched neutral scaffold cuts its text at a mask or runs it past its panel (#770, #928)', async ({ page }) => {
     // Six scaffolds said "extends past ... the nearest thing painted behind it" under the stress
-    // values about text their own mask had cut off - text nowhere in the picture.
+    // values about text their own mask had cut off - text nowhere in the picture. Then the cut
+    // itself (#928): a flex row squeezed the scoreboard's score mask to "18" of 188, and the
+    // station bug's mask cut one long word to "Konstantopou". Every type with a neutral scaffold
+    // is benched, so a new one starts clean too.
+    test.setTimeout(240_000);
     await toApp(page);
     const told = await page.evaluate(async () => {
       const bridge = await import('/src/bridge/bridgeApi.ts');
       const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
       const out: string[] = [];
-      for (const type of ['scoreboard', 'station-bug', 'sponsor-bug', 'match-board']) {
+      const types = (await bridge.types()).filter((t) => t.neutral).map((t) => t.id);
+      if (types.length < 10) out.push(`only ${types.length} neutral scaffolds found`);
+      for (const type of types) {
         const { template } = await bridge.scaffold({ type, design: 'neutral' });
         const res = await benchTemplateRuntime(template, { fieldPaints: true });
         for (const w of [...res.errors, ...res.warnings]) {
-          if (w.message.includes('the nearest thing painted behind it')) out.push(`${type}: ${w.message}`);
+          if (w.message.includes('the nearest thing painted behind it') || w.message.includes('cut off by its mask')) {
+            out.push(`${type}: ${w.message}`);
+          }
         }
+      }
+      return out;
+    });
+    expect(told).toEqual([]);
+  });
+
+  test('the catalog designs that cut a long name at a mask now wrap it (#928)', async ({ page }) => {
+    // Under the stress name these cut their line's end off at a reveal mask: a flex row shrank
+    // the mask below its text, a capped panel could not wrap one long word (overflow-wrap:
+    // break-word never narrows an inline-block line), or a nowrap label had nowhere to go.
+    test.setTimeout(120_000);
+    await toApp(page);
+    const told = await page.evaluate(async () => {
+      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const { benchTemplateRuntime } = await import('/src/validation/runtimeBench.ts');
+      const ids = ['lt60', 'ls03', 'ls07', 'ls20', 'card48', 'al09', 'gt08', 'sb27', 'bug33', 'bug34', 'vs02'];
+      const out: string[] = [];
+      for (const id of ids) {
+        const variant = Object.values(CATALOG).flat().find((v) => v?.id === id);
+        if (!variant) { out.push(`${id}: not in the catalog`); continue; }
+        const res = await benchTemplateRuntime(variant.create({}), { fieldPaints: true });
+        for (const w of res.warnings) if (w.message.includes('cut off by its mask')) out.push(`${id}: ${w.message}`);
       }
       return out;
     });
