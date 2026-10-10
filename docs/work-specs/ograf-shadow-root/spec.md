@@ -29,7 +29,7 @@ Chromium. Method, numbers and limits: `evidence/spikes.md`.
 
 | Question | Measured | So |
 |---|---|---|
-| Do the animation interpreter and the catalog's presets work in a shadow root? | 48 designs (two per catalog category, plus `aw01`, `aw02`): settled frames pixel-identical to the light mount (one sweep reading was an artefact of a shared page; fresh pages agree); every action answered 200 | No GSAP context, no change to `animRuntime.ts` or the presets |
+| Do the animation interpreter and the catalog's presets work in a shadow root? | 48 designs (two per catalog category, plus `aw01`, `aw02`): settled frames pixel-identical to the light mount (one sweep reading was an artefact of a shared page; fresh pages agree); `load()` and `playAction()` answered 200 | No GSAP context, no change to `animRuntime.ts` or the presets |
 | Selector strings in an ARRAY target | `aw01`, `aw02` log "GSAP target .reveal-subject,... not found" without the fix, nothing with it | `scopedGsap` resolves arrays too |
 | `@font-face` in the shadow stylesheet | Never registers: `document.fonts` empty, text in the fallback face (4 designs, 1,607 to 16,039 px); lifted to the head, 0 px | Lift the rules (decision 3) |
 | `@property`, `@keyframes` in the shadow stylesheet | `@property` ignored (23px light, 0px shadow); `@keyframes` works | Lift `@property` with the fonts |
@@ -68,17 +68,19 @@ code only, and the document-members test already forbids it in the runtimes.
   matches the canvas, which carries the attribute.
 - The host element is still stamped `data-noacg-graphic` at load and unstamped at dispose, and
   gets the authored box from a `:host` rule (`display: block; position: relative`, authored size,
-  clipped). A renderer's own rule on the
-  element still wins, as today. The canvas starts from initial values as the element does today, so
-  a renderer's inherited text settings (SPX's `font-size: 3em`) stop at it.
+  clipped). Any renderer rule on the element beats a `:host` rule whatever its specificity, a
+  universal reset included (the spike's renderer-rules page carried SPX's `*` reset), so a
+  renderer that sizes its layers still does. The canvas starts from initial values as the element
+  does today, so a renderer's inherited text settings (SPX's `font-size: 3em`) stop at it.
 - `scopedDocument`, `scopedWindow` and `scopedGsap` are handed the canvas. In addition:
   `document.head` answers with the shadow root, so a template that appends a `<style>` styles its
   own tree, as it styled its own page under SPX; `window.document` answers with the scoped
   document; a selector string inside an array target resolves inside the graphic.
 - Every `@font-face` and `@property` rule, from the stylesheet and from the markup's `<style>`
-  blocks, is lifted at export into one `<style data-noacg-fonts="<id>">` that `load()` adds to the
-  renderer's `<head>` once per design id and leaves in place after `dispose()`. Its URLs are
-  resolved against the package, as today. Chromium applies neither rule from inside a shadow tree.
+  blocks, is lifted at export into one `<style data-noacg-fonts="<id>">` in the renderer's
+  `<head>`: added by the first copy of the design to load, removed when its last copy is disposed.
+  Its URLs are resolved against the package, as today. Chromium applies neither rule from inside a
+  shadow tree.
 - `dispose()` empties the shadow root and kills the tweens of its descendants. The non-real-time
   frame sits in the canvas.
 
@@ -87,7 +89,8 @@ code only, and the document-members test already forbids it in the runtimes.
 - **SPX, CasparCG, HTML overlay and H2R output, byte for byte.** None of their targets imports
   `targets/ograf.ts` (its importers are `registry.ts`, `liveos.ts`, `noacgPackage.ts`,
   `ografImport.ts`, `ExportSurface.tsx`, `src/ograf/main.ts` and `scripts/ograf-starters-emit.mjs`),
-  and no phase changes code under `src/` other than `src/export/targets/ograf.ts`. So no template
+  and no phase changes code under `src/` other than `src/export/targets/ograf.ts` and, at the
+  flip, the starter guide in `src/ograf/`. So no template
   generator, animation or behaviour block, shared runtime (`animRuntime.ts`, `stretch.ts`, the text
   fit, the sound runtime), bundled asset (GSAP, Lottie, the flex-gap shim) or preview changes.
 - The manifest, the package's file list, the dual package's SPX half and its `sourceHash`.
@@ -106,6 +109,9 @@ code only, and the document-members test already forbids it in the runtimes.
   would hide the graphic from the renderers', the walks' and the specs' own inspection.
 - Scaling the canvas from `renderCharacteristics` ([#791](https://github.com/NoaCG/NoaCG-Studio/issues/791)).
 - The flex-gap shim inside a shadow root (decision 6).
+- `@font-face` inside an `@import`ed sheet. The app emits no `@import` (the SVG sanitiser strips it
+  and the AI paths refuse it); a hand-written one keeps its faces inside the shadow tree, where they
+  do not load. Recorded as a known limit at the flip.
 - Foreign OGraf packages hosted by NoaCG (`ografHost.ts`, `foreignOgraf.ts`): other people's
   graphics, untouched.
 - Any change to SPX, CasparCG or HTML5 packages, to the shared runtimes, or to the app's previews.
@@ -117,23 +123,29 @@ code only, and the document-members test already forbids it in the runtimes.
    so O1 holds by construction: there is no shared change for the existing render checks to prove
    inert, and they run as they always do. Each phase shows it by its changed-file list (AC-8).
 2. **A canvas element inside the shadow root, not the host as the canvas.** The template's
-   `body` must be an element inside the tree: the text fit and the stretch runtime append probes
-   to it and walk `offsetParent` up to it, and a probe appended to the host would land in its light
-   DOM and never render. As a bonus, the stylesheet is no longer the canvas's first child, so
-   `:first-child` and `body.children` see only the design (the cost #924 documented goes away).
-3. **Document-level rules move to the head, once per design.** The head is the only place
-   Chromium applies `@font-face` and `@property`. In the light DOM both were document-wide while
-   mounted anyway, so this keeps today's behaviour. Leaving the style after `dispose()` avoids a
-   refetch on the next take and a race with another copy still on air.
+   `body` must be an element inside the tree: the stage fit appends its measuring probe to it
+   (`stageFit.ts`) and the stretch runtime walks `offsetParent` up to it, and a probe appended to
+   the host would land in its light DOM and never render. As a bonus, the stylesheet is no longer
+   the canvas's first child, so `:first-child` and `body.children` see only the design (the cost
+   #924 documented goes away).
+3. **Document-level rules move to the head, for as long as the design is mounted.** The head is
+   the only place Chromium applies `@font-face` and `@property`. In the light DOM both were
+   document-wide while the design was mounted and left with its last copy, so the style is counted
+   per design (the module is per design, so a module-level count serves) and removed with the last
+   copy: two designs that name one family with different files collide only while both are on air,
+   as today.
 4. **The transition runs on an internal option.** `addOgrafPackage(..., { mount: 'light' |
    'shadow' })`, default `'light'` until the flip, set only by specs and the renderer walks; no UI,
    CLI flag or manifest field. The flip makes `'shadow'` the only mount and deletes the light path
    and the option in the same pull request, so one revert is the whole rollback.
 5. **Parity is measured against the light mount, on a virtual clock.** Phase 2's sweep builds
    every catalog design in both mounts and compares the settled frame and frames during the
-   entrance at the same timeline time: GSAP's ticker detached and driven by `gsap.updateRoot`, as
-   the non-real-time document already does (`GSAP_DETACH_JS`), and CSS animations paused at the
-   same time. Wall-clock frames of designs with continuous motion differ between any two mounts.
+   entrance at the same timeline time: Playwright's page clock for `Date` and the timers (clocks,
+   countdowns, game timers), GSAP's ticker detached and driven by `gsap.updateRoot` as the
+   non-real-time document already does (`GSAP_DETACH_JS`), and CSS animations paused at the same
+   time. Wall-clock frames of designs with continuous motion differ between any two mounts, and the
+   spikes did not establish what still moved under the page clock alone, so the sweep mounts the
+   light build twice first and trusts a design's comparison only when those two agree.
    The sweep also records each design's light frame against the studio's own document. At the flip
    its reference becomes the studio document, the frame `e2e/ograf-conformance.spec.ts` already
    requires for Hairline, and any design Phase 2 found different there is listed as a known
@@ -144,8 +156,10 @@ code only, and the document-members test already forbids it in the runtimes.
    NoaCG's oldest supported CasparCG is 2.4 (CEF 117, docs/PLAYOUT_INTEGRATION.md), and changing
    the shim would change the CasparCG single-file output O1 protects. Recorded as a known limit.
 7. **Readers go through one helper.** Specs and walks read a mounted graphic through
-   `graphicRoot(el)` (`el.shadowRoot ?? el`), so they pass in either mount and the flip needs no
-   second edit to them.
+   `graphicBody(el)`: the template's `body`, which is the element itself in the light mount and the
+   canvas in the shadow mount. Markup lookups, attributes the template sets on its body and the
+   canvas box all answer there in either mount; only a read of the graphic's own stylesheet needs
+   `el.shadowRoot ?? el`. So the flip needs no second edit to them.
 8. **The SPX 1.4.1 walk becomes a script.** `scripts/ograf-external-walk.mjs` already makes the
    SuperFly walk repeatable; SPX's has only ever been driven by hand (docs/SPX_ON_A_REAL_SERVER.md
    §10). O4 needs both repeatable, on light packages as the baseline and on shadow packages as the
@@ -166,18 +180,18 @@ code only, and the document-members test already forbids it in the runtimes.
 | Bridge as an OGraf client (`cli/src/playout/adapters/ograf.ts`) | No: drives packages already on a server | `bridge-ograf.spec.ts` |
 | Editor and wizard previews, thumbnails, validation benches, `/output`, the control page, production monitors, rundown | No: all render `composeDocument` in an iframe | Their own specs, untouched |
 | Foreign OGraf hosting (`ografHost.ts`, `foreignOgraf.ts`) | No: other people's packages | `ograf-contract`, `foreign-ograf-sandbox` |
-| `/ograf` page and starters (`src/ograf/main.ts`, `scripts/ograf-starters-emit.mjs`) | The downloads follow the flip (built at click time); the previews do not | `ograf-starters.spec.ts` (file list, manifest); the starters are catalog designs, so the parity sweep covers them |
+| `/ograf` page and starters (`src/ograf/main.ts`, `scripts/ograf-starters-emit.mjs`) | The downloads follow the flip (built at click time); the previews do not; the guide's font paragraph is rewritten | `ograf-starters.spec.ts` (file list, manifest); the starters are catalog designs, so the parity sweep covers them |
 | OGraf import and the control contract (`ografImport.ts`, `control/ografContract.ts`) | No: manifest and sources only | Their specs |
 | Fonts, bundled and imported | Lifted to the head (decision 3) | AC-4 |
 | Imported SVG designs | Markup and its rewrites unchanged; its ids become tree-scoped | `ograf-isolation` (two designs, two copies), the parity sweep over the SVG corpus |
 | Lottie | Player and bootstrap unchanged; lookups go through the scoped document | The parity sweep includes a Lottie design |
 | `scripts/ograf-document-members.test.mjs` | Learns `head`, and the new reason `fonts` passes through | Itself |
-| 12 specs that read a mounted graphic in page JS: `editor-base-edits`, `editor-cross-cue`, `editor-ease`, `editor-fidelity-trim`, `editor-keys`, `editor-out-step`, `editor-out`, `editor-steps`, `exports`, `graphic-sound`, `ograf-conformance`, `ograf-isolation` | Read through `graphicRoot` (phase 1); four assertions encode the light structure and get a shadow form (phase 2) | Themselves: the OGraf ones in both mounts from phase 2, the editor ones on the flip branch's CI |
+| 12 specs that read a mounted graphic in page JS: `editor-base-edits`, `editor-cross-cue`, `editor-ease`, `editor-fidelity-trim`, `editor-keys`, `editor-out-step`, `editor-out`, `editor-steps`, `exports`, `graphic-sound`, `ograf-conformance`, `ograf-isolation` | Read through `graphicBody` (phase 1); the assertions that encode the light structure get a shadow form (phase 2) | Themselves: the OGraf ones in both mounts from phase 2, the editor ones on the flip branch's CI |
 | 9 editor specs that read a mounted graphic only through Playwright locators | No: locators pierce an open shadow root | Themselves |
 | SuperFly's OGraf server | Hosts the change | AC-9 |
 | SPX 1.4.1, OGraf project | Hosts the change | AC-10 |
 | The ograf.dev community checker (its X-08, `@font-face` portability, is the shadow-DOM advisory) | Its verdict on a starter | Re-run by hand after the flip if the tool is reachable; evidence, not a gate |
-| `docs/OGRAF.md`, `src/export/AGENTS.md`, docs/SPX_ON_A_REAL_SERVER.md §10, the starter guide | Rewritten at the flip; the guide's `TEMPLATE_CSS` pointer stays true | Review |
+| `docs/OGRAF.md`, `src/export/AGENTS.md`, docs/SPX_ON_A_REAL_SERVER.md §10, the starter guide (`src/ograf/guide.ts`) | Rewritten at the flip; the guide's `TEMPLATE_CSS` pointer stays true, its font paragraph does not | Review |
 
 ## Phases
 
@@ -188,51 +202,66 @@ to `## Phase notes` below.
    `scopedGsap` resolves the selector strings inside an array target; `scopedWindow` answers
    `document` with the scoped document. Both change OGraf packages only, and only for code that
    uses them: the competition reveal designs (`competition/reveal/shared.ts` passes arrays) and
-   hand-written templates. Add `graphicRoot` and route the 12 specs and the SuperFly walk's
+   hand-written templates. Add `graphicBody` and route the 12 specs and the SuperFly walk's
    `litRoles` through it. The light mount stays the only mount.
 2. **The shadow mount, behind the internal option** (AC-3 to AC-8). The mount, the `:host` rule,
    `document.head`, the lift, dispose and the non-real-time frame. The OGraf specs
    (`ograf-conformance`, `ograf-isolation`, and the OGraf cases of `exports` and `graphic-sound`)
-   run in both mounts, and the four assertions that encode the light-DOM structure get a shadow
-   form. New: the parity sweep, the two-copies case and the renderer-rules case.
-   `scripts/ograf-document-members.test.mjs` learns `head` and the new reason for `fonts`.
+   run in both mounts; their shadow run builds the same template in the page through
+   `addOgrafPackage(..., { mount: 'shadow' })`, because the export dialog has no mount. The
+   assertions that encode the light-DOM structure get a shadow form: the body's children starting
+   with the stylesheet (`ograf-isolation`), both graphics' `#f0` found document-wide and the
+   `@font-face` read out of the element's stylesheet (`ograf-conformance`), and the three dispose
+   checks that the element is empty (`exports`, `ograf-conformance`, `graphic-sound`), which a
+   shadow mount passes vacuously and which become "the shadow root is empty". New: the parity
+   sweep, the two-copies case and the renderer-rules case. `scripts/ograf-document-members.test.mjs`
+   learns `head` and the new reason for `fonts`, and `src/export/targets/ograf.ts` joins the catalog
+   triggers in `scripts/e2e-affected.mjs` (AC-3).
 3. **Both renderer walks, scripted, on both mounts** (AC-9, AC-10). The SuperFly walk gets
    `--mount`, building the same template through `addOgrafPackage` with that mount, plus a
    two-copies beat and a two-designs beat. The SPX 1.4.1 walk is new. Each runs on light
    (baseline) and shadow (proof), and the transcripts go in `evidence/`.
 4. **The flip** (AC-11, AC-8, and AC-9 and AC-10 again). Shadow becomes the only mount; the light
    path and the option go. Both walks run again on this branch's packages before it is queued.
-   `docs/OGRAF.md` (Known limits, the Web Component section), `src/export/AGENTS.md` and §10 of
-   docs/SPX_ON_A_REAL_SERVER.md are rewritten for the shadow mount. Rollback is a revert.
+   `docs/OGRAF.md` (Known limits, the Web Component section), `src/export/AGENTS.md`, §10 of
+   docs/SPX_ON_A_REAL_SERVER.md and the starter guide's font paragraph (`src/ograf/guide.ts`, which
+   says the `@font-face` rules are in the embedded CSS) are rewritten for the shadow mount.
+   Rollback is a revert.
 
 ### AC-1: Array targets and `window.document` stay inside the graphic
 
 Light mount, two graphics on one renderer page: two reveal designs whose code passes arrays of
 selector strings each move and clear only their own elements, and a hand-written template that
-reads `window.document.getElementById('f0')` writes its own field, not the neighbour's. Both cases
-fail on the code before phase 1.
+reads `window.document.getElementById('f0')`, mounted after a neighbour that also has an `#f0`,
+writes its own field, not the neighbour's. Both cases fail on the code before phase 1.
 
 ### AC-2: Every reader of a mounted graphic works in either mount
 
-No spec or walk reads inside a mounted NoaCG graphic other than through `graphicRoot` (`git grep`
-in the phase's review finds none). In phase 2 the OGraf specs pass in the shadow mount with no
-further change to how they read.
+No spec or walk reads inside a mounted NoaCG graphic other than through `graphicBody`, or
+`el.shadowRoot ?? el` for a stylesheet read (`git grep` in the phase's review finds none). In phase
+2 the OGraf specs pass in the shadow mount with no further change to how they read; only the
+structural assertions phase 2 lists change.
 
 ### AC-3: The shadow mount paints the light mount's frame, across the catalog
 
 Every catalog design, the SVG corpus (`e2e/fixtures/svg-corpus`), a stretch design and a Lottie
 design, built in both mounts: the settled frame and frames during the entrance, at the same
-virtual-clock time, each differ by fewer than 1,000 pixels (the conformance spec's bound). The
-whole sweep runs in the catalog battery (`e2e/catalog/`, which `catalog-gates.yml` runs for a
-branch and the nightly runs on main); one design per category runs in the default suite. The
-sweep's record of light against the studio document is kept in `evidence/`.
+virtual-clock time, each differ by fewer than 1,000 pixels (the conformance spec's bound), and
+two light mounts of each design agree within the same bound before that comparison counts. The
+sweep lives in `e2e/catalog/`, and `src/export/targets/ograf.ts` joins the catalog triggers in
+`scripts/e2e-affected.mjs`, so CI's catalog job runs it on every change to the wrapper, the flip
+included, as well as the nightly on main. It fits that job's 25-minute cap beside the existing
+catalog specs (measured in phase 2, and split if it does not). One design per category also runs
+in the default suite. The sweep's record of light against the studio document goes in
+`evidence/`.
 
 ### AC-4: A design's own fonts load in the shadow mount
 
 A design on a bundled face and one on an imported face: each face is in `document.fonts` as
 loaded, the text is painted in it (AC-3), and the font URLs resolve inside the package (the
 conformance spec's "resolves its own fonts" case, in both mounts). A second copy adds no second
-style; disposing every copy leaves the face registered. A registered `@property` applies.
+style, disposing one of two copies keeps it, and disposing the last removes it. A registered
+`@property` applies.
 
 ### AC-5: Two copies of one design stay independent
 
@@ -253,15 +282,17 @@ the frame they paint on a clean page (fewer than 1,000 differing pixels). The ex
 `ograf-conformance`, `ograf-isolation` and the OGraf cases of `exports` and `graphic-sound` pass
 in both mounts, covering `skipAnimation`; concurrent, early and late actions; `load()` again on the
 same element after `dispose()` (one shadow root, no second `attachShadow`); non-real-time
-`goToTime`; custom actions; file-list paths; and sound. A template that appends a `<style>` to
+`goToTime`; custom actions; file-list paths; and sound. Their shadow run builds its package in
+the page through `addOgrafPackage(..., { mount: 'shadow' })`. A template that appends a `<style>` to
 `document.head` styles itself and leaves the renderer page as it was. `noacg validate` on a shadow
 package benches it and shoots its frame (by hand, once, recorded in `evidence/`).
 
 ### AC-8: SPX, CasparCG and HTML5 output cannot change
 
-In every phase, `git diff --name-only origin/main...HEAD -- src` lists only
-`src/export/targets/ograf.ts` and `src/export/AGENTS.md`, `node scripts/check-catalog-emit.mjs`
-passes, and the SPX, CasparCG, HTML overlay and H2R cases of `e2e/exports.spec.ts` pass unchanged.
+In every phase, `git diff --name-only origin/main...HEAD -- src` lists nothing outside
+`src/export/targets/ograf.ts`, `src/export/AGENTS.md` and the OGraf starter page `src/ograf/`, none
+of which the SPX, CasparCG, HTML overlay or H2R targets import; `node scripts/check-catalog-emit.mjs`
+passes; and the SPX, CasparCG, HTML overlay and H2R cases of `e2e/exports.spec.ts` pass unchanged.
 
 ### AC-9: Proven on SuperFly's OGraf server
 

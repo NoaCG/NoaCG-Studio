@@ -29,8 +29,8 @@ the imported raster and SVG designs among them, plus the reveal designs `aw01` a
 - Settled frame (`playAction({ skipAnimation: true })`), shadow against light: **0 differing pixels
   for 47 designs**. `ig01` read 1,692. In that sweep all three variants shared one renderer page,
   one after another. Mounted again in three fresh pages per variant, `ig01` settled identically in
-  both mounts, at load and 1.5 s later (0 pixels, all 12 comparisons). Its sweep reading is an
-  artefact of the shared page, not of the mount.
+  both mounts, at load and 1.5 s later (0 pixels in all 11 comparisons against the first light
+  frame). Its sweep reading is an artefact of the shared page, not of the mount.
 - Every `load()` and `playAction()` answered 200 in all three variants.
 - GSAP's "target ... not found" warning naming a selector appeared only in the **no fixes**
   variant, and only for `aw01` and `aw02`: `.reveal-subject,.reveal-note,.reveal-logo,.reveal-accent`.
@@ -38,10 +38,11 @@ the imported raster and SVG designs among them, plus the reveal designs `aw01` a
   passes through to GSAP, and GSAP resolves it against the document. With arrays resolved inside
   the graphic, the warning is gone. (Unnamed "target not found" warnings, from selectors that match
   nothing in a design, appear in light and shadow alike.)
-- No fixes against light: `lt11` 7,172, `card01` 16,039, `gt02` 8,924, `sb01` 1,607 differing pixels,
-  the text in the fallback face. The other designs matched only because an earlier **shadow** mount
-  in the same page had already lifted the same face into the head. The reach probe below is the
-  clean reading.
+- No fixes against light: `lt11` 7,172, `card01` 16,039, `gt02` 8,924, `sb01` 1,607 differing pixels.
+  For `sb01` the difference was looked at: the score digits in the fallback face. The other three
+  were not saved as images; the same cause is inferred. The other designs matched, by inference,
+  because an earlier **shadow** mount in the same page had already lifted the same face into the
+  head. The reach probe below is the clean reading.
 - Wall-clock frames 3.5 s after a real `playAction()`: 16 designs differ by more than 1,000 pixels,
   all with motion that runs on the clock (credits rolls, tickers, clocks, pulsing accents).
 
@@ -49,9 +50,10 @@ the imported raster and SVG designs among them, plus the reveal designs `aw01` a
 Playwright's clock installed (light, light again, shadow), sampled 0.4, 1.5 and 4 s after Play.
 Light against shadow differs by the same order as light against light for every design (`lt01`
 0/0/0 for both; `cr02` 0/11,262/35,325 against 0/10,860/16,571; `aw01` 6,012/0/0 against
-1,664/6,477/6,477). The page clock does not hold the compositor's CSS animations, so wall-clock
-frames are not a usable comparison. A parity check needs GSAP driven by a virtual clock and CSS
-animations paused at the same time.
+1,664/6,477/6,477). What still moves under the page clock was not established; CSS animations,
+which run on the compositor's time, are the likely part. Either way these frames are not a usable
+comparison: a parity check needs `Date`, the timers and GSAP on a virtual clock, CSS animations
+paused at the same time, and two light mounts that agree before light is compared with shadow.
 
 **Reach probe** (`isolation-probes.json`, `reach`). A Hairline with code that reads
 `window.document.getElementById(...)` and appends a `<style>` to `document.head`, one fresh page per
