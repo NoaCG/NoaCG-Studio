@@ -1,0 +1,58 @@
+diff --git a/.github/workflows/deploy-verify.yml b/.github/workflows/deploy-verify.yml
+index ead808310..63ba1800b 100644
+--- a/.github/workflows/deploy-verify.yml
++++ b/.github/workflows/deploy-verify.yml
+@@ -252,7 +252,15 @@ jobs:
+ 
+       # PRODUCTION_URL is the workflow-level env above, which is what the config reads.
+       - name: Open the printed link on the deployed app
+-        run: npm run test:e2e:production
++        run: npx playwright test --config=cloud-transform.config.ts
++
++      - name: Retain bounded transform evidence
++        if: always()
++        uses: actions/upload-artifact@v4
++        with:
++          name: editor-transform-production
++          path: .noacg/cloud-production-results/
++          retention-days: 14
+ 
+   drift:
+     name: Drift check (live vs main)
+diff --git a/cloud-transform.config.ts b/cloud-transform.config.ts
+new file mode 100644
+index 000000000..d41d9fe2f
+--- /dev/null
++++ b/cloud-transform.config.ts
+@@ -0,0 +1,2 @@
++import { defineConfig, devices } from '@playwright/test';
++export default defineConfig({testDir:'./docs/work-specs/editor-transform-qualification',testMatch:'cloud-production.spec.ts',outputDir:'.noacg/cloud-production-results',timeout:120000,expect:{timeout:15000},workers:1,retries:0,reporter:'list',use:{baseURL:'https://noacg.studio',trace:'retain-on-failure'},projects:[{name:'production',use:{...devices['Desktop Chrome']}}]});
+diff --git a/docs/work-specs/editor-transform-qualification/cloud-production.spec.ts b/docs/work-specs/editor-transform-qualification/cloud-production.spec.ts
+new file mode 100644
+index 000000000..5dc1c0351
+--- /dev/null
++++ b/docs/work-specs/editor-transform-qualification/cloud-production.spec.ts
+@@ -0,0 +1,23 @@
++import { test, expect, type Page } from '@playwright/test';
++import { writeFileSync } from 'node:fs';
++async function ready(p: Page) { await expect(p.getByTestId('foundation-canvas')).toHaveAttribute('data-pending','false'); await expect(p.locator('.ef-stage-error')).toHaveCount(0); }
++async function value(p: Page,name: string) { return Number(await p.locator('.ef-animation-properties').getByRole('textbox',{name,exact:true}).inputValue()); }
++async function type(p: Page,name: string,n: number) { const f=p.locator('.ef-animation-properties').getByRole('textbox',{name,exact:true});await f.fill(String(n));await f.press('Enter');await ready(p); }
++async function point(p: Page,selector: string) { const b=(await p.locator('.ef-selection '+selector).boundingBox())!;return{x:b.x+b.width/2,y:b.y+b.height/2}; }
++async function drag(p: Page,q:{x:number;y:number},dx:number,dy:number) {await p.mouse.move(q.x,q.y);await p.mouse.down();await p.mouse.move(q.x+dx,q.y+dy,{steps:8});await p.mouse.up();await ready(p);}
++test('normal import, create, linked side, text-box layout, rotate, save and reopen',async({page:p,baseURL})=>{
++ test.setTimeout(120000);await p.setViewportSize({width:1366,height:768});const errors:string[]=[],network:string[]=[];
++ p.on('pageerror',e=>errors.push(e.message));p.on('console',m=>{if(m.type()==='error')errors.push(m.text());});p.on('requestfailed',r=>{if(!r.failure()?.errorText.includes('ERR_ABORTED'))network.push(r.url());});
++ const expected=baseURL?.includes('noacg.studio')?'0c355905f5f059a454daa802fdce221d32ac7616':null; if(expected)expect((await(await p.request.get('/version.json')).json()).commit).toBe(expected);
++ await p.goto('/app?editor=foundation#/new'); if(await p.getByTestId('analytics-consent').isVisible())await p.getByTestId('analytics-consent').getByRole('button',{name:'No thanks',exact:true}).click();await p.locator('[data-entry="import-graphic"]').click();await p.locator('.wz-drop input[type="file"]').setInputFiles('e2e/fixtures/cli-round-trip/riverlight.zip');await expect(p.getByTestId('import-template-card')).toContainText('Riverlight festival');await p.locator('.wz-next').click();await p.getByTestId('wz-finish-edit-artwork').click();await ready(p);if(await p.getByTestId('analytics-consent').isVisible())await p.getByTestId('analytics-consent').getByRole('button',{name:'No thanks',exact:true}).click();
++ const board=(await p.locator('.ef-artboard').boundingBox())!;await p.getByRole('button',{name:'rectangle tool',exact:true}).click();await drag(p,{x:board.x+board.width*.5,y:board.y+board.height*.2},90,36);
++ await p.getByRole('button',{name:'select tool',exact:true}).click();await p.locator('.ef-track[data-selector="#rectangle-1"] .ef-layer').first().click();await ready(p);
++ const link=p.getByRole('checkbox',{name:'Link proportions'});await link.uncheck();await type(p,'Scale X %',150);await type(p,'Scale Y %',75);await link.check();await type(p,'Scale X %',180);expect(await value(p,'Scale Y %')).toBe(90);
++ await drag(p,await point(p,'[data-edge="1"]'),25,0);const scale=[await value(p,'Scale X %'),await value(p,'Scale Y %')];expect(scale[0]/scale[1]).toBeCloseTo(2,4);await p.getByRole('button',{name:'Undo',exact:true}).click();await ready(p);expect(await value(p,'Scale X %')).toBe(180);await p.getByRole('button',{name:'Redo',exact:true}).click();await ready(p);expect(await value(p,'Scale X %')).toBe(scale[0]);
++ await p.getByRole('button',{name:'text tool',exact:true}).click();await drag(p,{x:board.x+board.width*.35,y:board.y+board.height*.35},120,55);await p.getByRole('button',{name:'select tool',exact:true}).click();await p.locator('.ef-track[data-selector]').last().locator('.ef-layer').first().click();await ready(p);const textSelector=await p.locator('.ef-track.is-selected').last().getAttribute('data-selector');
++ await p.getByRole('textbox',{name:'Artwork text',exact:true}).fill('Transform qualification wraps text inside its box');await p.getByRole('button',{name:'Apply text',exact:true}).click();await ready(p);const font=await p.getByRole('textbox',{name:'Font size',exact:true}).inputValue(),width=Number(await p.getByTestId('artwork-box-width').inputValue());
++ await drag(p,await point(p,'[data-edge="1"]'),30,0);expect(Number(await p.getByTestId('artwork-box-width').inputValue())).toBeGreaterThan(width);expect(await value(p,'Scale X %')).toBe(100);expect(await p.getByRole('textbox',{name:'Font size',exact:true}).inputValue()).toBe(font);await drag(p,await point(p,'[data-handle="2"]'),20,8);expect(await value(p,'Scale X %')).toBeGreaterThan(100);
++ await type(p,'Rotation',30);const a=await point(p,'[data-anchor]'),k=await point(p,'[data-rotate]'),start=Math.atan2(k.y-a.y,k.x-a.x),radius=Math.hypot(k.x-a.x,k.y-a.y);await p.mouse.move(k.x,k.y);await p.mouse.down();for(let i=1;i<=12;i++){const t=start+Math.PI/6*i/12;await p.mouse.move(a.x+radius*Math.cos(t),a.y+radius*Math.sin(t));}await p.mouse.up();await ready(p);const rotation=await value(p,'Rotation');expect(rotation).toBeCloseTo(60,0);
++ await p.getByTestId('save-graphic').click();await p.getByTestId('save-name').fill('Transform public route');await p.getByTestId('save-confirm').click();await expect(p.getByTestId('save-status')).toHaveText('Saved');await p.reload();await ready(p);await p.locator(`.ef-track[data-selector="${textSelector}"] .ef-layer`).first().click();await ready(p);expect(await value(p,'Rotation')).toBe(rotation);await p.screenshot({path:test.info().outputPath('walk.png')});
++ const version=baseURL?.includes('noacg.studio')?await(await p.request.get('/version.json')).json():null;if(expected)expect(version.commit).toBe(expected);writeFileSync(test.info().outputPath('walk.json'),JSON.stringify({baseURL,scale,textSelector,rotation,font,errors,network,version},null,2));expect(errors).toEqual([]);expect(network).toEqual([]);
++});
