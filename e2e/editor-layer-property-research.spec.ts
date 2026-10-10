@@ -70,10 +70,12 @@ test('current-main ordinary layer property baseline', async ({ page }) => {
   await rows.nth(0).press('Delete'); const deleted=await source();
   await rows.nth(0).dblclick(); const rename=await page.getByRole('textbox',{name:/Layer name/}).count();
   await rows.nth(0).press('Escape'); await rows.nth(0).click({button:'right'}); const menu=await page.getByRole('menu').count(); await page.keyboard.press('Escape');
+  await rows.nth(2).click();
   const field=page.locator('.ef-animation-properties').getByRole('textbox',{name:/offset X|Position X/}).first();
   const controls=await page.locator('.ef-key-controls button').evaluateAll(els=>els.map(el=>({name:el.getAttribute('aria-label'),title:el.getAttribute('title')})));
   const box=await field.boundingBox(); const before=await field.inputValue(); await page.mouse.move(box!.x+15,box!.y+10); await page.mouse.down(); await page.mouse.move(box!.x+55,box!.y+10,{steps:5}); await page.mouse.up();
   writeFileSync(test.info().outputPath('baseline.json'),JSON.stringify({selectors,shift,additive,deleteChanged:JSON.stringify(initial)!==JSON.stringify(deleted),count,afterCount:await history(),rename,menu,controls,before,after:await field.inputValue(),visibility:await page.getByRole('button',{name:/Hide .*layer|Show .*layer/}).count()},null,2));
   writeFileSync(test.info().outputPath('main-ui.txt'),await page.locator('body').ariaSnapshot()); await page.screenshot({path:test.info().outputPath('main-baseline.png')});
 });
+
 
