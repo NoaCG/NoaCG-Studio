@@ -88,11 +88,18 @@ const list = (s) => [...s].join(', ') || '-';
 const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
 /** The run's summary as markdown, written to the job page. */
+/** THE ONE PASS/FAIL RULE, read by the heading and the exit code alike. `missing` is how many
+ *  shards sent nothing. */
+export function fails({ current, verdict, missing, accepted }) {
+  if (!current.length || missing > 0) return true;
+  return !accepted && (verdict.regressions.length > 0 || verdict.lost.length > 0);
+}
+
 export function summary({ current, verdict, missing, accepted }) {
   const swept = current.filter((f) => !f.skipped);
   const cases = current.reduce((n, f) => n + (Array.isArray(f.readings) ? f.readings.length : f.cases ?? 0), 0);
   const lines = [];
-  const failing = !current.length || missing.length || (!accepted && (verdict.regressions.length || verdict.lost.length));
+  const failing = fails({ current, verdict, missing, accepted });
   lines.push(`## Fit sweep: ${failing ? 'regressions' : accepted ? 'baseline recorded' : 'no regressions'}`);
   lines.push('');
   lines.push(
@@ -103,7 +110,7 @@ export function summary({ current, verdict, missing, accepted }) {
         : ' No earlier green run to compare with, so tonight is the baseline.'),
   );
   if (accepted) lines.push('', 'Dispatched with `accept`: tonight is recorded as the baseline and not judged.');
-  if (missing.length) lines.push('', `**Shards that sent no results:** ${missing.join(', ')}.`);
+  if (missing > 0) lines.push('', `**Shards that sent no results:** ${missing}.`);
   if (verdict.lost.length) {
     lines.push('', `**Swept last time, not tonight:** ${verdict.lost.join(', ')}.`);
     for (const name of verdict.lost) {
@@ -139,7 +146,7 @@ function main(argv) {
   const accepted = argv.includes('--accept');
 
   const current = files.flatMap((p) => JSON.parse(readFileSync(p, 'utf8')));
-  const missing = shards > files.length ? [`${shards - files.length} of ${shards}`] : [];
+  const missing = Math.max(0, shards - files.length);
   const baselines = baselinePaths.map((p) => JSON.parse(readFileSync(p, 'utf8')));
   const verdict = judge(current, baselines);
   const text = summary({ current, verdict, missing, accepted });
@@ -148,9 +155,7 @@ function main(argv) {
   if (summaryPath) appendFileSync(summaryPath, text);
   const out = one('--out');
   if (out) writeFileSync(out, `${JSON.stringify(slim(current), null, 2)}\n`);
-  if (missing.length || !current.length) return 1;
-  if (accepted) return 0;
-  return verdict.regressions.length || verdict.lost.length ? 1 : 0;
+  return fails({ current, verdict, missing, accepted }) ? 1 : 0;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

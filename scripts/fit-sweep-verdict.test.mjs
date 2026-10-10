@@ -58,7 +58,7 @@ test('the baseline keeps the findings and the case count, not the readings', () 
 test('the summary names the regression and the case it fired on', () => {
   const baseline = [file('a', [])];
   const tonight = [file('a', [finding('f2', 'shrank to 20.0 of 40.0 with room for another line', 'shrink', 'over2')])];
-  const text = summary({ current: tonight, verdict: judge(tonight, [baseline]), missing: [], accepted: false });
+  const text = summary({ current: tonight, verdict: judge(tonight, [baseline]), missing: 0, accepted: false });
   assert.match(text, /## Fit sweep: regressions/);
   assert.match(text, /\| a \| f2 \| shrank to 20\.0 of 40\.0 with room for another line \| 1 \| shrink \| over2 \|/);
 });

@@ -1449,15 +1449,15 @@ function svgWrapLines(el, value, budget, max) {
  *  first clause). Compared word for word, since a repainted block reads back single-spaced.
  *  And not where a growth rule widened the panel for this line: the panel grew to hold the
  *  first line, and narrower lines would leave the width it was given standing empty. */
-function svgEvenOut(el, budget, size, lineHeight, room) {
+function svgEvenOut(el, value, budget, size, lineHeight, room) {
   var painted = el.querySelectorAll('tspan[data-noacg-line]');
   if (painted.length < 2 || svgFitOver[el.id] || (svgFitExtra[el.id] || 0) > 0) return;
   var words = function (s) { return String(s).split(/\\s+/).filter(Boolean).join(' '); };
+  if (words(value) === words(svgFitDrawn[el.id])) return;
   var lines = [];
   for (var i = 0; i < painted.length; i++) lines.push(painted[i].textContent);
-  if (words(lines.join(' ')) === words(svgFitDrawn[el.id])) return;
-  var even = svgBalanceLines(el, lines, budget);
-  svgPaintLines(el, even, size, lineHeight, room);
+  // Measuring writes over the block, so it is painted again whatever the answer.
+  svgPaintLines(el, svgBalanceLines(el, lines, budget), size, lineHeight, room);
 }
 
 /** EVEN LINES, NOT A FULL ONE OVER A STRANDED WORD (issue #778). A greedy fill puts whatever is
@@ -1791,7 +1791,7 @@ function fitSvgText() {
     }
     // The ladder has settled, so where the block actually STANDS can be measured rather than
     // predicted - and a block that is centred in its box goes back onto the middle.
-    svgEvenOut(el, budget, size, lineHeight, room);
+    svgEvenOut(el, value, budget, size, lineHeight, room);
     svgRecentre(el, room);
     el.classList.toggle('${PREFIX}-overflow', !!svgFitOver[el.id]);
   }

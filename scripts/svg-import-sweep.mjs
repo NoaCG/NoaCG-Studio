@@ -61,6 +61,7 @@ import { fileURLToPath } from 'node:url';
 import { join, basename, dirname, resolve } from 'node:path';
 import { devPort } from './dev-port.mjs';
 import { LADDER_VALUES, LADDER_MODES, LADDER_LONG } from './ladder-values.mjs';
+import { defectOf } from './fit-sweep-verdict.mjs';
 
 const CORPUS = fileURLToPath(new URL('../e2e/fixtures/svg-corpus/', import.meta.url));
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..').replaceAll('\\', '/');
@@ -554,25 +555,20 @@ async function readLadder(frame) {
  *  The STAGE carries the stamps, not the frame: a rebuild REPLACES the frame, so a stamp read off
  *  the frame is gone exactly when a waiter needs it (WizardPreview.tsx). */
 async function readSettled(page, frame, { value = null, field = null, rev = null } = {}) {
-  const stage = page.locator('.wz-stage');
-  const stamps = async () => ({
-    rev: await stage.getAttribute('data-doc-rev').catch(() => null),
-    pending: await stage.getAttribute('data-doc-pending').catch(() => null),
-  });
   const want = value === null ? null : flat(value);
   const start = Date.now();
   const deadline = start + 20_000;
   // The owed-line grace belongs to ONE document: a rebuild starts the clock again.
   let owed = null;
   while (Date.now() < deadline) {
-    const before = await stamps();
+    const before = await stamps(page);
     const newer = rev === null || before.rev !== rev || Date.now() - start >= REV_MS;
     if (before.pending !== '1' && before.rev && newer) {
       const reading = await readLadder(frame).catch(() => null);
-      const after = await stamps();
+      const after = await stamps(page);
       const shows =
         reading &&
-        (want === null || reading.fields.some((f) => (field === null || f.id === field) && flat(f.value) === want));
+        (want === null || reading.fields.some((f) => f.id === field && flat(f.value) === want));
       if (shows && after.rev === before.rev && after.pending !== '1') {
         if (!owed || owed.rev !== before.rev) owed = { rev: before.rev, since: Date.now() };
         if (!reading.due || Date.now() - owed.since >= OWED_MS) return reading;
@@ -590,8 +586,13 @@ const OWED_MS = 3000;
  *  taken as its answer. */
 const REV_MS = 5000;
 
-/** The stage's current rebuild stamp, to tell a newer document from the one already showing. */
-const docRev = (page) => page.locator('.wz-stage').getAttribute('data-doc-rev').catch(() => null);
+/** The stage's rebuild stamps, both in one round trip: `rev` tells a newer document from the one
+ *  already showing, `pending` says a rebuild is under way. */
+const stamps = (page) =>
+  page
+    .locator('.wz-stage')
+    .evaluate((stage) => ({ rev: stage.getAttribute('data-doc-rev'), pending: stage.getAttribute('data-doc-pending') }))
+    .catch(() => ({ rev: null, pending: null }));
 
 /** Whitespace collapsed: the mapping step trims and joins what a designer typed, the runtime
  *  keeps the file's own indentation, and the two disagreeing about newlines is not a finding. */
@@ -658,7 +659,7 @@ async function walkLadder(page, fixture, base) {
       let rev = null;
       if (hasModes) {
         const was = await modeSelect.inputValue().catch(() => null);
-        const revBefore = await docRev(page);
+        const revBefore = (await stamps(page)).rev;
         if (!(await modeSelect.selectOption(mode).then(() => true).catch(() => false))) continue;
         if (was !== mode) rev = revBefore;
       }
@@ -843,7 +844,7 @@ function judgeLadder({ mode, name, value, rest, r, restAll, now }) {
 function groupFindings(findings) {
   const groups = new Map();
   for (const f of findings) {
-    const key = String(f.problem).replace(/-?\d+(\.\d+)?/g, '#');
+    const key = defectOf(f.problem);
     let g = groups.get(key);
     if (!g) groups.set(key, (g = { example: f.problem, n: 0, fields: new Set(), modes: new Set(), lengths: new Set() }));
     g.n += 1;

@@ -150,7 +150,7 @@ jobs:
           ACCEPT: ${{ inputs.accept && '--accept' || '' }}
         run: |
           node scripts/fit-sweep-verdict.mjs --shards 4 \
-            --current shards/ladder-1.json shards/ladder-2.json shards/ladder-3.json shards/ladder-4.json \
+            --current shards/ladder-*.json \
             --baseline $(cat baselines.txt) \
             --out fit-sweep-findings.json --summary "$GITHUB_STEP_SUMMARY" $ACCEPT
 
