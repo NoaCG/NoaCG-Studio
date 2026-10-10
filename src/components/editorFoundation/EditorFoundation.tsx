@@ -34,7 +34,7 @@ export default function EditorFoundation() {
   const selection = useTemplateStore(state => state.selectedParts);
   const setSelection = useTemplateStore(state => state.setSelectedParts);
   const session = activeEditorSession();
-  const [layerMenu, setLayerMenu] = useState<LayerMenuRequest | null>(null), [layerError, setLayerError] = useState('');
+  const [layerMenu, setLayerMenu] = useState<(LayerMenuRequest & { instance: string }) | null>(null), [layerError, setLayerError] = useState('');
   const [drawingSpace, setDrawingSpace] = useState<import('./protocol').PreviewReply['drawingSpace']>(null);
   const images = useImageImport(session, drawingSpace);
   const openAssets = () => setProjectOpen(true);
@@ -133,7 +133,7 @@ export default function EditorFoundation() {
   const history = (redo: boolean) => { setLayerMenu(null); pause(); preview.current?.stopExit(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time, session.port.view().cue); };
   const commandView = useRef<import('./commands').CommandView>(null!);
   commandView.current = {
-    select: selectors => { pause(); setPathEditing(null); setSelection(selectors); },
+    select: selectors => { pause(); setPathEditing(null); setLayerMenu(null); setSelection(selectors); },
     seek: (to, cue) => { pause(); preview.current?.stopExit(); seek(to, cue); },
     afterWrite: () => { pause(); preview.current?.stopExit(); seek(session.port.view().time, session.port.view().cue); },
   };
@@ -211,10 +211,10 @@ export default function EditorFoundation() {
         {template.fields.map(field => <p className="ef-field" key={field.field}>{field.title || field.field}<code>{field.field}</code></p>)}
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
-      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID() })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
+      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID(), instance: session.instanceId })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
       {assistantOpen ? <ProposalPanel key={session.instanceId} close={() => { setAssistantOpen(false); assistantButton.current?.focus(); }} /> : <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />}
     </div>
-    <Timeline key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
+    <Timeline key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); setLayerMenu(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu?.instance === session.instanceId ? layerMenu : null} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
     <footer className="ef-status">{layerError && <span role="alert">{layerError}</span>}<span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;
