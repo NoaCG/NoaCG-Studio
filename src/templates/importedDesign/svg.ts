@@ -1419,7 +1419,11 @@ function measureSvgRoom() {
 }
 
 /** Break a value into at most "max" lines no wider than "budget", at the current size. A word
- *  longer than the budget stays whole and simply overflows - the shrink answers that. */
+ *  longer than the budget stays whole and simply overflows - the shrink answers that. The greedy
+ *  fill decides HOW MANY lines; svgBalanceLines then decides where they break - for an operator's
+ *  value. The DRAWN value is painted exactly as before: evening it out would change the artwork
+ *  at rest, before anybody typed anything (measured on the corpus's multi-line quiz board, whose
+ *  question the designer broke after its first clause). */
 function svgWrapLines(el, value, budget, max) {
   var words = value.split(/\\s+/);
   var lines = [];
@@ -1435,7 +1439,68 @@ function svgWrapLines(el, value, budget, max) {
     }
   }
   if (line) lines.push(line);
-  return lines;
+  return lines.length > 1 && value !== svgFitDrawn[el.id] ? svgBalanceLines(el, lines, budget) : lines;
+}
+
+/** EVEN LINES, NOT A FULL ONE OVER A STRANDED WORD (issue #778). A greedy fill puts whatever is
+ *  left on the last line, so a question just over one line long aired as a full line over "made
+ *  of?", which reads as a layout mistake. This keeps the greedy LINE COUNT and moves the breaks
+ *  so the lines come out as close to equal as the words allow - what CSS text-wrap: balance does
+ *  for HTML, which SVG text cannot use because SVG lays out no lines of its own.
+ *
+ *  Nothing the ladder decides can move: only lines that already fit are balanced, the count is
+ *  the same, and no line gets wider than the greedy fill's widest - so the size, the height and
+ *  the overflow report are what the greedy fill would have given. Word widths are measured once,
+ *  and the answer is measured again whole: a line that comes out over the budget (kerning across
+ *  a space the sum missed) keeps the greedy lines instead. */
+function svgBalanceLines(el, lines, budget) {
+  var measure = function (s) { el.textContent = s; return el.getComputedTextLength(); };
+  var greedyWidest = 0;
+  for (var g = 0; g < lines.length; g++) {
+    var gw = measure(lines[g]);
+    if (gw > budget + 0.5) return lines;        // already over: the shrink owns this, not the breaks
+    if (gw > greedyWidest) greedyWidest = gw;
+  }
+  var words = lines.join(' ').split(' ');
+  var widths = [];
+  for (var i = 0; i < words.length; i++) widths.push(measure(words[i]));
+  var space = measure(words[0] + ' ' + words[1]) - widths[0] - widths[1];
+  var n = words.length;
+  var k = lines.length;
+  var start = [0];
+  for (var s = 0; s < n; s++) start.push(start[s] + widths[s]);
+  // Words a..b-1 set as one line.
+  var span = function (a, b) { return start[b] - start[a] + space * (b - a - 1); };
+  // THE MOST EVEN k LINES: the split with the smallest sum of squared widths, which for a fixed
+  // total is the one whose lines are closest to equal. No line may be wider than the greedy
+  // fill's widest, so nothing the ladder measured can grow. cost[j][i]: the first i words on j
+  // lines; from[j][i]: where that split's last line starts.
+  var cost = [[0]];
+  var from = [[0]];
+  for (var j = 1; j <= k; j++) {
+    cost.push([]);
+    from.push([]);
+    for (var i = 0; i <= n; i++) {
+      cost[j][i] = Infinity;
+      // From a one-word last line backwards, only as far as one line can reach.
+      for (var a = i - 1; a >= j - 1; a--) {
+        var w = span(a, i);
+        if (w > greedyWidest + 0.5) break;
+        if (!(cost[j - 1][a] < Infinity)) continue;
+        if (cost[j - 1][a] + w * w < cost[j][i]) { cost[j][i] = cost[j - 1][a] + w * w; from[j][i] = a; }
+      }
+    }
+  }
+  if (!(cost[k][n] < Infinity)) return lines;
+  var even = [];
+  for (var line = k, end = n; line > 0; line--) {
+    var begin = from[line][end];
+    var row = words.slice(begin, end).join(' ');
+    if (measure(row) > budget + 0.5) return lines;
+    even.unshift(row);
+    end = begin;
+  }
+  return even;
 }
 
 /** IS THIS NODE A BLOCK OF LINES - one value spread over several tspans?
