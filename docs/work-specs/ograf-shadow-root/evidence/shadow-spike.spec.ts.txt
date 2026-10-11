@@ -1,0 +1,512 @@
+// THROWAWAY SPIKE for docs/work-specs/ograf-shadow-root (issue #922). Not committed.
+// Builds real OGraf packages, patches graphic.mjs into shadow-root variants, and compares.
+
+import { test, expect, type Page, type Browser } from '@playwright/test';
+import { writeFileSync, mkdirSync } from 'node:fs';
+
+const ORIGIN = 'http://ograf-shadow-spike.local';
+const OUT = process.env.SPIKE_OUT || 'test-results/shadow-spike';
+mkdirSync(OUT, { recursive: true });
+
+type Files = Record<string, string>;
+type Mode = 'light' | 'raw' | 'shadow';
+
+const CLEAN_CSS = `html, body { margin: 0; overflow: hidden; background: rgb(10, 20, 30); }
+  #stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  #stage > * { position: absolute; inset: 0; }`;
+const HOSTILE_CSS = `${CLEAN_CSS}
+  html, body { font-size: 3em; font-family: serif; color: rgb(0, 255, 0); line-height: 3; }
+  * { box-sizing: border-box; overflow: hidden; margin: 0; padding: 0; }
+  div, span, p, h1, h2, h3 { color: rgb(255, 0, 255) !important; letter-spacing: 12px !important; text-transform: uppercase; }
+  rect, path, .st0 { fill: rgb(0, 255, 0) !important; }
+  img { opacity: 0.2 !important; }`;
+const page = (css: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="dark"><title>Renderer</title><style>${css}</style></head><body><div id="stage"></div></body></html>`;
+
+/** The shadow-root mount, as text patches over the generated module. `raw` = shadow only. */
+function patch(mjs: string, mode: Mode): string {
+  if (mode === 'light') return mjs;
+  const full = mode === 'shadow';
+  let out = mjs;
+  const rep = (from: string | RegExp, to: string) => {
+    const next = out.replace(from, to);
+    if (next === out) throw new Error(`patch did not apply: ${String(from).slice(0, 80)}`);
+    out = next;
+  };
+  rep(/  _claimCanvas\(css\) \{[\s\S]*?\n  \}\n/, `  _claimCanvas(css) {
+    this.setAttribute('data-noacg-graphic', GRAPHIC_ID);
+    const root = this.shadowRoot || this.attachShadow({ mode: 'open' });
+    const size = /width: (\\d+)px; height: (\\d+)px/.exec(GRAPHIC_BOX_CSS);
+    const style = document.createElement('style');
+    style.textContent = ':host { display: block; position: relative; width: ' + size[1] + 'px; height: ' + size[2] + 'px; overflow: hidden; }\\n' + GRAPHIC_BOX_CSS + (css ? '\\n' + css : '');
+    root.appendChild(style);
+    const canvas = document.createElement('div');
+    canvas.setAttribute('data-noacg-graphic', GRAPHIC_ID);
+    root.appendChild(canvas);
+    this._canvas = canvas;
+    ${full ? `const faces = ((css || '') + '\\n' + withPackageUrls.html(TEMPLATE_HTML)).match(/@font-face\\s*\\{[^}]*\\}/g) || [];
+    if (faces.length && !document.head.querySelector('style[data-noacg-fonts="' + GRAPHIC_ID + '"]')) {
+      const f = document.createElement('style');
+      f.setAttribute('data-noacg-fonts', GRAPHIC_ID);
+      f.textContent = faces.join('\\n');
+      document.head.appendChild(f);
+    }` : ''}
+  }
+`);
+  rep("this.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));", "this._canvas.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));");
+  rep(
+    'initTemplate(scopedDocument(this), scopedWindow(TIMELINE_FUNCTIONS), scopedGsap(this));',
+    `initTemplate(scopedDocument(this._canvas), scopedWindow(TIMELINE_FUNCTIONS${full ? ', this._canvas' : ''}), scopedGsap(this._canvas));`,
+  );
+  rep("window.gsap.killTweensOf(this.querySelectorAll('*'));", "window.gsap.killTweensOf((this.shadowRoot || this).querySelectorAll('*'));");
+  out = out.split("this.innerHTML = '';").join("this.innerHTML = ''; if (this.shadowRoot) this.shadowRoot.innerHTML = '';");
+  rep('this.appendChild(frame);', 'this._canvas.appendChild(frame);');
+  if (full) {
+    rep("function scopedWindow(names) {\n  const own = Object.create(null);", "function scopedWindow(names, root) {\n  const own = Object.create(null);\n  if (root) own.document = scopedDocument(root);");
+    rep("    if (typeof targets !== 'string') return targets;", "    if (Array.isArray(targets) && targets.some((t) => typeof t === 'string')) return targets.flatMap((t) => (typeof t === 'string' ? own(t) : [t]));\n    if (typeof targets !== 'string') return targets;");
+    // document.head answers with the graphic's own tree
+    rep("    documentElement: root,\n  };", "    documentElement: root,\n    head: root.getRootNode() instanceof ShadowRoot ? root.getRootNode() : document.head,\n  };");
+  }
+  return out;
+}
+
+type Source =
+  | { kind: 'variant'; id: string; name?: string }
+  | { kind: 'svg'; name: string; source: string }
+  | { kind: 'probe'; name: string; html: string; css: string; js: string };
+
+async function build(p: Page, from: Source): Promise<Files> {
+  return p.evaluate(async (from) => {
+    const { ografTarget } = await import('/src/export/targets/ograf.ts');
+    let template;
+    if (from.kind === 'svg') {
+      const { importSvgMarkup } = await import('/src/assets/svgImport.ts');
+      const { IMPORTED_SVG } = await import('/src/templates/importedDesign/svg.ts');
+      const svg = importSvgMarkup(from.source);
+      const designSvg = { markup: svg.markup, width: svg.width, height: svg.height, fields: [], images: [], outlines: [], fonts: [] };
+      template = { ...IMPORTED_SVG.create({ designSvg } as never), name: from.name };
+    } else {
+      const { variantById } = await import('/src/templates/catalog.ts');
+      const base = variantById(from.kind === 'variant' ? from.id : 'lt01')!.create({} as never);
+      template = from.kind === 'variant'
+        ? { ...base, name: from.name ?? base.name }
+        : { ...base, name: from.name, html: base.html.replace(/<body([^>]*)>/i, (o: string) => o + from.html), css: `${base.css}\n${from.css}`, js: `${base.js}\n${from.js}` };
+    }
+    const zip = await ografTarget.build(template);
+    const out: Record<string, string> = {};
+    for (const name of Object.keys(zip.files)) {
+      if (zip.files[name].dir) continue;
+      out[name.slice(name.indexOf('/') + 1)] = await zip.file(name)!.async('base64');
+    }
+    return out;
+  }, from);
+}
+
+function withVariants(files: Files): Files {
+  const mjs = Buffer.from(files['graphic.mjs'], 'base64').toString('utf8');
+  return {
+    ...files,
+    'raw.mjs': Buffer.from(patch(mjs, 'raw')).toString('base64'),
+    'shadow.mjs': Buffer.from(patch(mjs, 'shadow')).toString('base64'),
+  };
+}
+
+async function renderer(browser: Browser, packages: Record<string, Files>, css = CLEAN_CSS) {
+  const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const p = await context.newPage();
+  const logs: string[] = [];
+  p.on('console', (m) => { if (m.type() === 'warning' || m.type() === 'error') logs.push(`${m.type()}: ${m.text()}`); });
+  p.on('pageerror', (e) => logs.push(`pageerror: ${e.message}`));
+  await p.route(`${ORIGIN}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\//, '');
+    if (path === '') return route.fulfill({ status: 200, contentType: 'text/html', body: page(css) });
+    const [folder, ...rest] = path.split('/');
+    const body = packages[folder]?.[rest.join('/')];
+    if (body == null) return route.fulfill({ status: 404, body: 'not found' });
+    return route.fulfill({
+      status: 200,
+      contentType: /\.m?js$/.test(path) ? 'application/javascript' : /\.woff2$/.test(path) ? 'font/woff2' : /\.png$/.test(path) ? 'image/png' : 'text/plain',
+      body: Buffer.from(body, 'base64'),
+    });
+  });
+  await p.goto(`${ORIGIN}/`);
+  return { p, logs, close: () => context.close() };
+}
+
+const modFile = (mode: Mode) => (mode === 'light' ? 'graphic.mjs' : `${mode}.mjs`);
+
+async function mount(p: Page, folder: string, mode: Mode, opts: { skip?: boolean; wait?: number; left?: number; key?: string } = {}) {
+  return p.evaluate(async ({ origin, folder, file, tag, skip, wait, left, key }) => {
+    const mod = await import(`${origin}/${folder}/${file}`);
+    if (!customElements.get(tag)) customElements.define(tag, mod.default);
+    type Driver = HTMLElement & { load(p: unknown): Promise<{ statusCode: number; statusMessage?: string }>; playAction(p: unknown): Promise<{ statusCode: number; statusMessage?: string }> };
+    const el = document.createElement(tag) as Driver;
+    el.dataset.key = key ?? folder;
+    if (left != null) el.style.left = `${left}px`;
+    document.getElementById('stage')!.appendChild(el);
+    const loaded = await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
+    if (loaded.statusCode !== 200) return `load ${loaded.statusCode} ${loaded.statusMessage ?? ''}`;
+    const played = await el.playAction(skip ? { skipAnimation: true } : {});
+    if (played.statusCode !== 200) return `play ${played.statusCode} ${played.statusMessage ?? ''}`;
+    await document.fonts.ready;
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return 'ok';
+  }, { origin: ORIGIN, folder, file: modFile(mode), tag: `spike-${folder}-${mode}`.toLowerCase().replace(/[^a-z0-9-]/g, '-'), skip: opts.skip ?? true, wait: opts.wait ?? 0, left: opts.left, key: opts.key });
+}
+
+async function unmountAll(p: Page) {
+  await p.evaluate(async () => {
+    for (const el of Array.from(document.getElementById('stage')!.children) as Array<HTMLElement & { dispose(p: unknown): Promise<unknown> }>) {
+      await el.dispose({});
+      el.remove();
+    }
+  });
+}
+
+const shot = async (p: Page) => (await p.screenshot()).toString('base64');
+
+/** Differing pixels between two PNGs, and how many the first painted off the ground. */
+async function diff(p: Page, a: string, b: string): Promise<{ differing: number; painted: number }> {
+  return p.evaluate(async ({ a, b }) => {
+    const decode = (b64: string) => new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = `data:image/png;base64,${b64}`; });
+    const px = (img: HTMLImageElement) => { const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const x = c.getContext('2d')!; x.drawImage(img, 0, 0); return x.getImageData(0, 0, c.width, c.height).data; };
+    const [ia, ib] = await Promise.all([decode(a), decode(b)]);
+    const pa = px(ia); const pb = px(ib);
+    const bg = [10, 20, 30];
+    let differing = 0; let painted = 0;
+    for (let i = 0; i < pa.length; i += 4) {
+      if ([0, 1, 2].some((c) => Math.abs(pa[i + c] - bg[c]) > 3)) painted += 1;
+      if ([0, 1, 2].some((c) => Math.abs(pa[i + c] - pb[i + c]) > 24)) differing += 1;
+    }
+    return { differing, painted };
+  }, { a, b });
+}
+
+test.describe.configure({ mode: 'serial' });
+
+test('catalog sample: shadow mount paints the light mount frame, settled and in real time', async ({ page, browser }) => {
+  test.setTimeout(45 * 60_000);
+  await page.goto('/app');
+  const ids: string[] = await page.evaluate(async () => {
+    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const per = Number((window as unknown as { SPIKE_PER?: number }).SPIKE_PER ?? 2);
+    return Object.values(CATALOG).flatMap((vs) => (vs ?? []).slice(0, per).map((v) => v.id));
+  });
+  const extra = ['aw01', 'aw02'];
+  const all = [...new Set([...ids, ...extra])].slice(0, Number(process.env.SPIKE_LIMIT || 999));
+  const packages: Record<string, Files> = {};
+  const buildErrors: Record<string, string> = {};
+  for (const id of all) {
+    try { packages[id] = withVariants(await build(page, { kind: 'variant', id })); } catch (e) { buildErrors[id] = String(e).slice(0, 200); }
+  }
+  const rows: Array<Record<string, unknown>> = [];
+  const r = await renderer(browser, packages);
+  const cmp = page; // diff in the app page
+  for (const id of Object.keys(packages)) {
+    const row: Record<string, unknown> = { id };
+    const frames: Record<string, string> = {};
+    for (const mode of ['light', 'raw', 'shadow'] as Mode[]) {
+      r.logs.length = 0;
+      row[`${mode}Mount`] = await mount(r.p, id, mode, { skip: true });
+      frames[mode] = await shot(r.p);
+      row[`${mode}Warn`] = r.logs.filter((l) => /GSAP target|pageerror|Error/.test(l)).slice(0, 3);
+      await unmountAll(r.p);
+    }
+    for (const mode of ['light', 'shadow'] as Mode[]) {
+      r.logs.length = 0;
+      row[`${mode}RtMount`] = await mount(r.p, id, mode, { skip: false, wait: 3500 });
+      frames[`${mode}Rt`] = await shot(r.p);
+      row[`${mode}RtWarn`] = r.logs.filter((l) => /GSAP target|pageerror|Error/.test(l)).slice(0, 3);
+      await unmountAll(r.p);
+    }
+    const s = await diff(cmp, frames.light, frames.shadow);
+    const raw = await diff(cmp, frames.light, frames.raw);
+    const rt = await diff(cmp, frames.lightRt, frames.shadowRt);
+    Object.assign(row, { painted: s.painted, shadowDiff: s.differing, rawDiff: raw.differing, rtPainted: rt.painted, rtDiff: rt.differing });
+    if (s.differing > 1000 || rt.differing > 1000) {
+      for (const [k, v] of Object.entries(frames)) writeFileSync(`${OUT}/${id}-${k}.png`, Buffer.from(v, 'base64'));
+    }
+    rows.push(row);
+  }
+  await r.close();
+  writeFileSync(`${OUT}/catalog.json`, JSON.stringify({ buildErrors, rows }, null, 1));
+  const bad = rows.filter((x) => (x.shadowDiff as number) > 1000 || (x.rtDiff as number) > 1000 || x.shadowMount !== 'ok');
+  console.log(`designs ${rows.length}, build errors ${Object.keys(buildErrors).length}, shadow differs ${bad.length}: ${bad.map((b) => `${b.id}(${b.shadowDiff}/${b.rtDiff}/${b.shadowMount})`).join(', ')}`);
+  console.log(`raw (no font lift, no array/window fix) differs: ${rows.filter((x) => (x.rawDiff as number) > 1000 || x.rawMount !== 'ok').map((b) => `${b.id}(${b.rawDiff}/${b.rawMount})`).join(', ')}`);
+});
+
+function illustratorArt(side: 'A' | 'B'): string {
+  const x = side === 'A' ? 100 : 1400;
+  const own = side === 'A' ? { st0: '#FF0000', gradient: '#00FF00' } : { st0: '#0000FF', gradient: '#FF00FF' };
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1920 1080" width="1920" height="1080">
+<style type="text/css">.st0{fill:${own.st0};}</style>
+<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="${x}" y1="0" x2="${x + 200}" y2="0">
+	<stop offset="0" style="stop-color:${own.gradient}"/><stop offset="1" style="stop-color:${own.gradient}"/>
+</linearGradient>
+<g id="Board"><rect x="${x}" y="100" class="st0" width="200" height="200"/><rect x="${x}" y="400" style="fill:url(#SVGID_1_);" width="200" height="200"/></g>
+</svg>`;
+}
+
+async function pixels(p: Page, points: Record<string, [number, number]>) {
+  const png = await shot(p);
+  return p.evaluate(async ({ png, points }) => {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = `data:image/png;base64,${png}`; });
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const x = c.getContext('2d')!; x.drawImage(img, 0, 0);
+    return Object.fromEntries(Object.entries(points).map(([n, [px, py]]) => [n, Array.from(x.getImageData(px, py, 1, 1).data.slice(0, 3)).join(',')]));
+  }, { png, points });
+}
+
+test('two copies of one design: a per-copy change to a referenced gradient', async ({ page, browser }) => {
+  await page.goto('/app');
+  const a = withVariants(await build(page, { kind: 'svg', source: illustratorArt('A'), name: 'Quiz Board' }));
+  const result: Record<string, unknown> = {};
+  for (const mode of ['light', 'shadow'] as Mode[]) {
+    const r = await renderer(browser, { a });
+    await mount(r.p, 'a', mode, { key: 'one' });
+    await mount(r.p, 'a', mode, { key: 'two', left: 960 });
+    // Each copy recolours ITS OWN gradient, as a colour field or a picture swap would.
+    await r.p.evaluate(() => {
+      const colour = { one: '#FFFFFF', two: '#0000FF' } as Record<string, string>;
+      for (const el of Array.from(document.querySelectorAll<HTMLElement>('#stage > *'))) {
+        const root = el.shadowRoot ?? el;
+        for (const stop of Array.from(root.querySelectorAll('linearGradient stop'))) (stop as SVGElement).style.stopColor = colour[el.dataset.key!];
+      }
+    });
+    await r.p.evaluate(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))));
+    result[mode] = await pixels(r.p, { oneGradient: [200, 500], twoGradient: [1160, 500] });
+    // Take copy one off air: copy two keeps painting.
+    await r.p.evaluate(async () => {
+      const el = document.querySelector('[data-key="one"]') as HTMLElement & { dispose(p: unknown): Promise<unknown> };
+      await el.dispose({}); el.remove();
+      await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    });
+    result[`${mode}AfterOneOff`] = await pixels(r.p, { twoGradient: [1160, 500] });
+    await r.close();
+  }
+  console.log('two copies', JSON.stringify(result));
+  writeFileSync(`${OUT}/two-copies.json`, JSON.stringify(result, null, 1));
+});
+
+test('renderer page styles reaching in', async ({ page, browser }) => {
+  test.setTimeout(10 * 60_000);
+  await page.goto('/app');
+  const packages: Record<string, Files> = {};
+  for (const id of ['lt01', 'lt02', 'sb01', 'tk01']) {
+    try { packages[id] = withVariants(await build(page, { kind: 'variant', id })); } catch { /* not every id exists */ }
+  }
+  packages.svg = withVariants(await build(page, { kind: 'svg', source: illustratorArt('A'), name: 'Quiz Board' }));
+  const clean = await renderer(browser, packages);
+  const hostile = await renderer(browser, packages, HOSTILE_CSS);
+  const out: Record<string, unknown> = {};
+  for (const id of Object.keys(packages)) {
+    for (const mode of ['light', 'shadow'] as Mode[]) {
+      await mount(clean.p, id, mode); const a = await shot(clean.p); await unmountAll(clean.p);
+      await mount(hostile.p, id, mode); const b = await shot(hostile.p); await unmountAll(hostile.p);
+      out[`${id}-${mode}`] = await diff(page, a, b);
+      writeFileSync(`${OUT}/hostile-${id}-${mode}.png`, Buffer.from(b, 'base64'));
+    }
+  }
+  await clean.close(); await hostile.close();
+  console.log('hostile vs clean', JSON.stringify(out));
+  writeFileSync(`${OUT}/hostile.json`, JSON.stringify(out, null, 1));
+});
+
+test('a template that reaches the page directly: window.document, document.head, @font-face', async ({ page, browser }) => {
+  await page.goto('/app');
+  const probe = withVariants(await build(page, {
+    kind: 'probe',
+    name: 'Reach Probe',
+    html: '<div class="probe-head" id="probe-target"></div>',
+    css: '.probe-head { position: absolute; left: 0; top: 0; height: 5px; }',
+    js: [
+      "window.document.getElementById('probe-target').setAttribute('data-window-document', 'found');",
+      "var probeStyle = document.createElement('style'); probeStyle.textContent = '.probe-head { width: 41px; }'; document.head.appendChild(probeStyle);",
+    ].join('\n'),
+  }));
+  const out: Record<string, unknown> = {};
+  for (const mode of ['light', 'raw', 'shadow'] as Mode[]) {
+    const r = await renderer(browser, { probe });
+    out[`${mode}Mount`] = await mount(r.p, 'probe', mode);
+    out[mode] = await r.p.evaluate(() => {
+      const el = document.querySelector('#stage > *') as HTMLElement;
+      const root = el.shadowRoot ?? el;
+      const t = root.querySelector('#probe-target') as HTMLElement | null;
+      const fam = root.querySelector('[id="f0"]');
+      return {
+        windowDocument: t?.getAttribute('data-window-document') ?? null,
+        headStyleWidth: t ? getComputedStyle(t).width : null,
+        f0Font: fam ? getComputedStyle(fam).fontFamily : null,
+        fontsInDocument: Array.from(document.fonts).map((f) => `${f.family}:${f.status}`).slice(0, 6),
+        headStyles: document.head.querySelectorAll('style').length,
+      };
+    });
+    out[`${mode}Logs`] = r.logs.slice(0, 4);
+    await r.close();
+  }
+  console.log('reach', JSON.stringify(out));
+  writeFileSync(`${OUT}/reach.json`, JSON.stringify(out, null, 1));
+});
+
+test('real time on a fake clock, fresh pages', async ({ page, browser }) => {
+  test.setTimeout(30 * 60_000);
+  await page.goto('/app');
+  const ids = (process.env.SPIKE_RT || 'lt12,cr01,cr02,tk05,ss01,gt01,gt02,sb01,bug02,vs02,rs01,rs02,nm01,pl01,pl02,aw01,lt01,qz01,tk07').split(',');
+  const packages: Record<string, Files> = {};
+  for (const id of ids) packages[id] = withVariants(await build(page, { kind: 'variant', id }));
+  const out: Record<string, unknown> = {};
+  for (const id of ids) {
+    const frames: Record<string, string[]> = {};
+    for (const runMode of ['light', 'light2', 'shadow']) {
+      const mode = (runMode === 'light2' ? 'light' : runMode) as Mode;
+      const r = await renderer(browser, { [id]: packages[id] });
+      await r.p.clock.install({ time: new Date('2026-10-10T12:00:00Z') });
+      await r.p.reload();
+      const status = await r.p.evaluate(async ({ origin, folder, file, tag }) => {
+        const mod = await import(`${origin}/${folder}/${file}`);
+        customElements.define(tag, mod.default);
+        type D = HTMLElement & { load(p: unknown): Promise<{ statusCode: number }>; playAction(p: unknown): Promise<{ statusCode: number }> };
+        const el = document.createElement(tag) as D;
+        document.getElementById('stage')!.appendChild(el);
+        const l = await el.load({ data: {}, renderType: 'realtime', renderCharacteristics: {} });
+        await document.fonts.ready;
+        const p = await el.playAction({});
+        return `${l.statusCode}/${p.statusCode}`;
+      }, { origin: ORIGIN, folder: id, file: modFile(mode), tag: `rt-${id}-${runMode}` });
+      frames[runMode] = [];
+      for (const step of [400, 1100, 2500]) {
+        await r.p.clock.runFor(step);
+        frames[runMode].push(await shot(r.p));
+      }
+      out[`${id}-${runMode}-status`] = status;
+      await r.close();
+    }
+    const d: number[] = [];
+    const n: number[] = [];
+    for (let i = 0; i < frames.light.length; i++) d.push((await diff(page, frames.light[i], frames.shadow[i])).differing);
+    for (let i = 0; i < frames.light.length; i++) n.push((await diff(page, frames.light[i], frames.light2[i])).differing);
+    const painted = (await diff(page, frames.light[2], frames.light[2])).painted;
+    out[id] = { lightVsShadow: d, lightVsLight: n, painted };
+    if (d.some((x) => x > 1000)) frames.light.forEach((f, i) => { writeFileSync(`${OUT}/clock-${id}-light-${i}.png`, Buffer.from(f, 'base64')); writeFileSync(`${OUT}/clock-${id}-shadow-${i}.png`, Buffer.from(frames.shadow[i], 'base64')); });
+  }
+  console.log('clock', JSON.stringify(out));
+  writeFileSync(`${OUT}/clock.json`, JSON.stringify(out, null, 1));
+});
+
+test('a masked Lottie animation in both mounts', async ({ page, browser }) => {
+  await page.goto('/app');
+  const lottieJson = JSON.stringify({
+    v: '5.7.0', fr: 30, ip: 0, op: 60, w: 512, h: 512, nm: 'burst', ddd: 0, assets: [],
+    layers: [{
+      ddd: 0, ind: 1, ty: 1, nm: 'solid', sr: 1,
+      ks: { o: { a: 0, k: 100 }, r: { a: 0, k: 0 }, p: { a: 0, k: [256, 256, 0] }, a: { a: 0, k: [256, 256, 0] }, s: { a: 0, k: [100, 100, 100] } },
+      hasMask: true,
+      masksProperties: [{ inv: false, mode: 'a', pt: { a: 0, k: { i: [[0, 0], [0, 0], [0, 0], [0, 0]], o: [[0, 0], [0, 0], [0, 0], [0, 0]], v: [[0, 0], [256, 0], [256, 512], [0, 512]], c: true } }, o: { a: 0, k: 100 }, x: { a: 0, k: 0 }, nm: 'Mask 1' }],
+      sw: 512, sh: 512, sc: '#ff0000', ip: 0, op: 60, st: 0,
+    }],
+  });
+  const files = await page.evaluate(async (json) => {
+    const { ografTarget } = await import('/src/export/targets/ograf.ts');
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { insertLottieElement } = await import('/src/blocks/lottieInsert.ts');
+    const base = variantById('lt01')!.create({} as never);
+    const data = `data:application/json;base64,${btoa(json)}`;
+    const withAsset = { ...base, name: 'Lottie Probe', assets: [...base.assets, { path: 'lottie/burst.json', data }] };
+    const { template } = insertLottieElement(withAsset as never, { assetPath: 'lottie/burst.json', x: 960, y: 540, naturalW: 512, naturalH: 512 });
+    const zip = await ografTarget.build(template);
+    const out: Record<string, string> = {};
+    for (const name of Object.keys(zip.files)) {
+      if (zip.files[name].dir) continue;
+      out[name.slice(name.indexOf('/') + 1)] = await zip.file(name)!.async('base64');
+    }
+    return out;
+  }, lottieJson);
+  const pkg = withVariants(files);
+  const out: Record<string, unknown> = {};
+  for (const mode of ['light', 'shadow'] as Mode[]) {
+    const r = await renderer(browser, { lot: pkg });
+    out[`${mode}Mount`] = await mount(r.p, 'lot', mode, { wait: 800 });
+    out[mode] = await pixels(r.p, { leftHalf: [840, 540], rightHalf: [1080, 540] });
+    out[`${mode}Svg`] = await r.p.evaluate(() => {
+      const el = document.querySelector('#stage > *') as HTMLElement;
+      const root = el.shadowRoot ?? el;
+      return { svgs: root.querySelectorAll('[data-lottie] svg').length, refs: Array.from(root.querySelectorAll('[data-lottie] [clip-path], [data-lottie] [mask]')).map((n) => n.getAttribute('clip-path') || n.getAttribute('mask')).slice(0, 3) };
+    });
+    out[`${mode}Logs`] = r.logs.slice(0, 3);
+    await r.close();
+  }
+  console.log('lottie', JSON.stringify(out));
+});
+
+test('ig01 settle repeatability, fresh pages', async ({ page, browser }) => {
+  test.setTimeout(10 * 60_000);
+  await page.goto('/app');
+  const pkg = withVariants(await build(page, { kind: 'variant', id: 'ig01' }));
+  const frames: Record<string, string> = {};
+  for (const run of ['a', 'b', 'c']) {
+    for (const mode of ['light', 'shadow'] as Mode[]) {
+      const r = await renderer(browser, { ig01: pkg });
+      await mount(r.p, 'ig01', mode, { skip: true });
+      frames[`${mode}-${run}`] = await shot(r.p);
+      await r.p.waitForTimeout(1500);
+      frames[`${mode}-${run}-later`] = await shot(r.p);
+      await r.close();
+    }
+  }
+  const out: Record<string, number> = {};
+  const keys = Object.keys(frames);
+  for (const k of keys) out[`light-a~${k}`] = (await diff(page, frames['light-a'], frames[k])).differing;
+  console.log('ig01', JSON.stringify(out));
+});
+
+test('@property and @keyframes inside a shadow root', async ({ page, browser }) => {
+  await page.goto('/app');
+  const probe = withVariants(await build(page, {
+    kind: 'probe',
+    name: 'Prop Probe',
+    html: '<div class="probe-prop" id="probe-prop"></div><div class="probe-kf" id="probe-kf"></div>',
+    css: "@property --probe-w { syntax: '<length>'; inherits: false; initial-value: 23px; }\n.probe-prop { position: absolute; width: var(--probe-w); height: 4px; }\n@keyframes probe-grow { from { width: 1px } to { width: 1px } }\n.probe-kf { position: absolute; height: 4px; width: 9px; animation: probe-grow 100s linear; }",
+    js: '',
+  }));
+  const out: Record<string, unknown> = {};
+  for (const mode of ['light', 'shadow'] as Mode[]) {
+    const r = await renderer(browser, { probe });
+    await mount(r.p, 'probe', mode);
+    out[mode] = await r.p.evaluate(() => {
+      const el = document.querySelector('#stage > *') as HTMLElement;
+      const root = el.shadowRoot ?? el;
+      return {
+        property: getComputedStyle(root.querySelector('#probe-prop')!).width,
+        keyframes: getComputedStyle(root.querySelector('#probe-kf')!).width,
+      };
+    });
+    await r.close();
+  }
+  console.log('props', JSON.stringify(out));
+});
+
+test('non-real-time inside a shadow root', async ({ page, browser }) => {
+  await page.goto('/app');
+  const pkg = withVariants(await build(page, { kind: 'variant', id: 'lt01' }));
+  const out: Record<string, unknown> = {};
+  for (const mode of ['light', 'shadow'] as Mode[]) {
+    const r = await renderer(browser, { lt: pkg });
+    out[mode] = await r.p.evaluate(async ({ origin, file, tag }) => {
+      const mod = await import(`${origin}/lt/${file}`);
+      customElements.define(tag, mod.default);
+      type D = HTMLElement & { load(p: unknown): Promise<{ statusCode: number; statusMessage?: string }>; setActionsSchedule(p: unknown): Promise<{ statusCode: number }>; goToTime(p: unknown): Promise<{ statusCode: number; statusMessage?: string }> };
+      const el = document.createElement(tag) as D;
+      document.getElementById('stage')!.appendChild(el);
+      const l = await el.load({ data: {}, renderType: 'non-realtime', renderCharacteristics: {} });
+      await el.setActionsSchedule({ schedule: [{ timestamp: 0, action: { type: 'playAction', params: {} } }] });
+      const g = await el.goToTime({ timestamp: 3000 });
+      return { load: l.statusCode, goToTime: g.statusCode, msg: g.statusMessage ?? '' };
+    }, { origin: ORIGIN, file: modFile(mode), tag: `nrt-${mode}` });
+    out[`${mode}Shot`] = (await diff(page, await shot(r.p), await shot(r.p))).painted;
+    await r.close();
+  }
+  console.log('nrt', JSON.stringify(out));
+  expect(out.shadow).toBeTruthy();
+});

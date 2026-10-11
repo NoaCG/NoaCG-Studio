@@ -106,7 +106,7 @@ const cliEnv = () => {
 function noacg(args, { json = true } = {}) {
   return new Promise((resolve) => {
     const started = Date.now();
-    const child = spawn(process.execPath, [cli, ...args, ...(json ? ['--json'] : [])], { env: cliEnv() });
+    const child = spawn(process.execPath, [cli, ...args, ...(json ? ['--json'] : [])], { env: cliEnv(), windowsHide: true });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8');
@@ -174,7 +174,7 @@ try {
 
   // ── The interactive login, consent pressed in this browser. `--no-browser` because the page
   //    is opened here rather than in whatever browser the machine would launch. ──
-  const login = spawn(process.execPath, [cli, 'login', '--no-browser', '--wait', '120'], { env: cliEnv() });
+  const login = spawn(process.execPath, [cli, 'login', '--no-browser', '--wait', '120'], { env: cliEnv(), windowsHide: true });
   let loginOut = '';
   let loginErr = '';
   const loginStarted = Date.now();

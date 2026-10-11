@@ -126,9 +126,10 @@ function mergeBlobReports(dir) {
 /**
  * What the change touched, from the planner's own reader. An unusable base is "nothing known", and
  * says so, because it switches the edited-spec refusal off: run 37118148332 hit that silently, on
- * a one-commit checkout with no base to diff against (ci.yml now fetches the history).
+ * a one-commit checkout with no base to diff against (ci.yml now fetches the history). Exported
+ * for scripts/configured-verdict.mjs, whose quarantine makes the same refusal.
  */
-function changedSince(base) {
+export function changedSince(base) {
   if (!base || /^0{40}$/.test(base)) return [];
   try {
     return changedFilesSince(base);

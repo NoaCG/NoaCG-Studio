@@ -26,34 +26,26 @@
     <!-- The site's top bar and footer (scripts/site-nav.mjs) and their look, before this page's own. -->
     <link rel="stylesheet" href="/src/site-chrome.css" />
     <style>
-      :root {
-        --bg: #0a0c10;
-        --bg-panel: #12151c;
-        --border: #232833;
-        --text: #e8eaf0;
-        --text-dim: #aab0bf;
-        --accent: #f6a623;
-      }
       * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+      html, body { margin: 0; padding: 0; background: var(--void); color: var(--paper); }
       body {
         font-family: 'Space Grotesk', system-ui, sans-serif;
         line-height: 1.6;
         -webkit-text-size-adjust: 100%;
       }
-      a { color: var(--accent); }
+      a { color: var(--amber); }
       .hero { padding: 40px 0 10px; max-width: 720px; }
       .hero h1 { font-size: clamp(28px, 5vw, 42px); line-height: 1.15; margin: 0 0 14px; }
-      .hero h1 em { color: var(--accent); font-style: normal; }
-      .hero p { color: var(--text-dim); margin: 0 0 10px; }
+      .hero h1 em { color: var(--amber); font-style: normal; }
+      .hero p { color: var(--dim); margin: 0 0 10px; }
       .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; font-size: 12.5px; }
-      .badges li { border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; color: var(--text-dim); }
+      .badges li { border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; color: var(--dim); }
       .grid {
         display: grid; gap: 18px; margin: 34px 0 10px;
         grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
       }
       article.starter {
-        border: 1px solid var(--border); border-radius: 12px; background: var(--bg-panel);
+        border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
         display: flex; flex-direction: column; overflow: hidden;
       }
       .preview {
@@ -66,23 +58,23 @@
       .preview iframe { position: absolute; top: 50%; left: 50%; border: 0; transform-origin: center; }
       .starter .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
       .starter h2 { margin: 0; font-size: 17px; }
-      .starter .cat { color: var(--accent); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; }
-      .starter p { margin: 0; color: var(--text-dim); font-size: 13.5px; }
+      .starter .cat { color: var(--amber); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; }
+      .starter p { margin: 0; color: var(--dim); font-size: 13.5px; }
       .starter p.teaches { font-size: 12.5px; }
-      .starter p.teaches strong { color: var(--text); font-weight: 600; }
+      .starter p.teaches strong { color: var(--paper); font-weight: 600; }
       .starter .row { display: flex; gap: 10px; margin-top: auto; padding-top: 10px; align-items: center; }
       button.dl {
         font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
-        background: var(--accent); color: #16130a; border: 0; border-radius: 8px; padding: 9px 14px;
+        background: var(--amber); color: #16130a; border: 0; border-radius: 8px; padding: 9px 14px;
       }
       button.dl:disabled { opacity: .55; cursor: default; }
       .starter .row a { font-size: 13px; }
-      .note { font-size: 12px; color: var(--text-dim); min-height: 16px; }
-      section.about { border-top: 1px solid var(--border); margin-top: 44px; padding: 30px 0 10px; }
+      .note { font-size: 12px; color: var(--dim); min-height: 16px; }
+      section.about { border-top: 1px solid var(--line); margin-top: 44px; padding: 30px 0 10px; }
       section.about h2 { font-size: 20px; }
       section.about .cols { display: grid; gap: 26px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-      section.about p, section.about li { color: var(--text-dim); font-size: 14px; }
-      .starter-terms { margin: 40px 0 0; padding-bottom: 22px; font-size: 13px; color: var(--text-dim); }
+      section.about p, section.about li { color: var(--dim); font-size: 14px; }
+      .starter-terms { margin: 40px 0 0; padding-bottom: 22px; font-size: 13px; color: var(--dim); }
     </style>
   </head>
   <body>

@@ -164,8 +164,8 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
   await page.goto('/bridge');
   await page.waitForFunction(() => (window as unknown as { __noacgBridgeReady?: boolean }).__noacgBridgeReady === true);
   const base64 = await page.evaluate(async () => {
-    const bridge = (window as unknown as { noacgBridge: { scaffold(req: unknown): { template: unknown }; exportPackage(t: unknown): Promise<Uint8Array> } }).noacgBridge;
-    const { template } = bridge.scaffold({ type: 'scoreboard', design: 'neutral', name: 'Football scoreboard' });
+    const bridge = (window as unknown as { noacgBridge: { scaffold(req: unknown): Promise<{ template: unknown }>; exportPackage(t: unknown): Promise<Uint8Array> } }).noacgBridge;
+    const { template } = await bridge.scaffold({ type: 'scoreboard', design: 'neutral', name: 'Football scoreboard' });
     const bytes = await bridge.exportPackage(template);
     let bin = '';
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

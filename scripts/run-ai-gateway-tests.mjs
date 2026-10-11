@@ -37,6 +37,7 @@ const sources = [
   'api/_lib/me/agentKeys.test.ts',
   'api/_lib/me/graphics.test.ts',
   'api/_lib/me/packages.test.ts',
+  'api/_lib/me/communityPacks.test.ts',
 ];
 
 // The suite this runner is. `node --test` with an empty file list runs nothing and exits 0, so a
@@ -72,11 +73,13 @@ try {
     path.join(runtime.outputDir, 'api/_lib/me/agentKeys.test.js'),
     path.join(runtime.outputDir, 'api/_lib/me/graphics.test.js'),
     path.join(runtime.outputDir, 'api/_lib/me/packages.test.js'),
+    path.join(runtime.outputDir, 'api/_lib/me/communityPacks.test.js'),
   ];
   const result = spawnSync(process.execPath, ['--test', ...testFiles], {
     cwd: projectRoot,
     env: isolatedTestEnvironment(),
     stdio: 'inherit',
+    windowsHide: true,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exitCode = result.status ?? 1;

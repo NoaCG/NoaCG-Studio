@@ -391,8 +391,8 @@
 .ai-brief .hint { flex: 1; margin: 0; }
 
 /* ---------- .wz-modal borrower sheets ---------- */
-/* The sheets built on .wz-modal that are NOT the wizard — the community gallery, both
-   moderation queues, Settings — borrow its frame but not its job. The wizard is a full-screen
+/* The sheets built on .wz-modal that are NOT the wizard — the show-chat
+   moderation panel, Settings — borrow its frame but not its job. The wizard is a full-screen
    workspace (`.wz-wizard`) because it carries a live preview beside the step; these are lists
    and forms, so they size to their content and only CAP their height. Left fixed, Settings'
    short form and a gallery still loading each opened a near-full-screen sheet of dead space.

@@ -217,7 +217,7 @@ drawing replacing the default per moment - reads correctly beside it, which is t
 ladder makes. Rung 0's silence is the finding that started this, confirmed.
 
 **Decision 3, the vocabulary, was NOT put back to him**, under the ruling he made the same day
-(`docs/acceptance/OWNER_QUEUE.md`, "A design default is NOT a taste question"). It has a
+([`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md), "A design default is NOT a taste question"). It has a
 defensible general answer, so here it is with the reasoning, to be overruled rather than
 adjudicated:
 

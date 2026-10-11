@@ -14,7 +14,7 @@ Codex 0.155.0-alpha.16, Antigravity 1.2.5, `gh` 2.93.0.
 **Stacked pull requests: no as a wave mechanism, yes as a guard.** Keep `--base main` and keep
 `START on <branch> landing` as the way dependent rows are sequenced. Adopt only the read side of
 the feature - the `stack` field now on GitHub's pull request API - to close the finding in
-`docs/backlog/a-stacked-branch-queues-its-parents-commits.md`, which native stacks turn from a
+[issue #804](https://github.com/NoaCG/NoaCG-Studio/issues/804), which native stacks turn from a
 containment heuristic into a first-class query.
 
 **Harness releases: two things to change, the rest already covered.** The Claude-hosted

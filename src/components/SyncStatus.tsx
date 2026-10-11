@@ -68,7 +68,7 @@ export interface TeamSave {
  * (playout-workflow-simplification AC-12). A save failure also raises AccountSaveNotice, so the
  * chip is never the only place a failure shows.
  */
-export default function SyncStatus({ team }: { compact?: boolean; team?: TeamSave } = {}) {
+export default function SyncStatus({ team }: { team?: TeamSave } = {}) {
   const [state, setState] = useState<SyncState>(getSyncState());
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());

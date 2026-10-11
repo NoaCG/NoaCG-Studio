@@ -212,5 +212,5 @@ finds something, that is worth more.
 
 ## Related
 
-`docs/OGRAF.md` (what we emit and where the limits are), `docs/backlog/ograf-ecosystem-watch.md`
+`docs/OGRAF.md` (what we emit and where the limits are), [`docs/backlog/ograf-ecosystem-watch.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-ecosystem-watch.md)
 (the standing ledger of who else is adopting OGraf), `docs/AGENT_CLI.md` (the CLI and MCP server).

@@ -1,0 +1,51 @@
+{
+  "checkedAt": "2026-10-09T21:58:29.046Z",
+  "repository": "https://github.com/storytold/vectorcraft",
+  "release": "https://github.com/storytold/vectorcraft/releases/tag/v0.4.0",
+  "tag": "v0.4.0",
+  "revision": "a26aa5b203c901979eb447d28e34e7357138c789",
+  "assets": [
+    {
+      "name": "SHA256SUMS.txt",
+      "url": "https://github.com/storytold/vectorcraft/releases/download/v0.4.0/SHA256SUMS.txt",
+      "digest": "sha256:926a8a3e570288ed843bf60f9f49c0e556161ef4e85f47d5c1564176a587cf81"
+    },
+    {
+      "name": "vectorcraft-0.4.0-windows-x64-portable.zip",
+      "url": "https://github.com/storytold/vectorcraft/releases/download/v0.4.0/vectorcraft-0.4.0-windows-x64-portable.zip",
+      "digest": "sha256:fa8d7dc5590ebf1adb93d040dd7420441a2e55db2971f33c05c0c0e5edde0fec"
+    }
+  ],
+  "sources": [
+    {
+      "path": "apps/vectorcraft/src/control_server.rs",
+      "blob": "ec67c14220f040d1a5c869ea1f24145884eb8bd2",
+      "url": "https://github.com/storytold/vectorcraft/blob/a26aa5b203c901979eb447d28e34e7357138c789/apps/vectorcraft/src/control_server.rs",
+      "raw": "https://raw.githubusercontent.com/storytold/vectorcraft/a26aa5b203c901979eb447d28e34e7357138c789/apps/vectorcraft/src/control_server.rs"
+    },
+    {
+      "path": "crates/ui-egui/src/control.rs",
+      "blob": "abc6984839afb8c268388604781daffcf1cb1840",
+      "url": "https://github.com/storytold/vectorcraft/blob/a26aa5b203c901979eb447d28e34e7357138c789/crates/ui-egui/src/control.rs",
+      "raw": "https://raw.githubusercontent.com/storytold/vectorcraft/a26aa5b203c901979eb447d28e34e7357138c789/crates/ui-egui/src/control.rs"
+    },
+    {
+      "path": "crates/engine/src/cmd/typecmd.rs",
+      "blob": "f8d044e57499269b099f99e3e2cfd02b62da48ef",
+      "url": "https://github.com/storytold/vectorcraft/blob/a26aa5b203c901979eb447d28e34e7357138c789/crates/engine/src/cmd/typecmd.rs",
+      "raw": "https://raw.githubusercontent.com/storytold/vectorcraft/a26aa5b203c901979eb447d28e34e7357138c789/crates/engine/src/cmd/typecmd.rs"
+    },
+    {
+      "path": "crates/engine/src/cmd/object.rs",
+      "blob": "2e675eefbda991f0a37d729d91c84913d77aeb41",
+      "url": "https://github.com/storytold/vectorcraft/blob/a26aa5b203c901979eb447d28e34e7357138c789/crates/engine/src/cmd/object.rs",
+      "raw": "https://raw.githubusercontent.com/storytold/vectorcraft/a26aa5b203c901979eb447d28e34e7357138c789/crates/engine/src/cmd/object.rs"
+    },
+    {
+      "path": "crates/engine/src/cmd/edit.rs",
+      "blob": "3c070f6c3743fece238c5c91c51108a195af53da",
+      "url": "https://github.com/storytold/vectorcraft/blob/a26aa5b203c901979eb447d28e34e7357138c789/crates/engine/src/cmd/edit.rs",
+      "raw": "https://raw.githubusercontent.com/storytold/vectorcraft/a26aa5b203c901979eb447d28e34e7357138c789/crates/engine/src/cmd/edit.rs"
+    }
+  ]
+}

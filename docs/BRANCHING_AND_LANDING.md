@@ -92,8 +92,8 @@ instruction that still names one.
   `VITE_SUPABASE_URL` names and needs nobody, because the judgement a human was being asked for is
   made on the STATEMENTS - and it fails CLOSED, so a shape it does not recognise stops rather than
   guesses. **A REFUSAL is the only thing that still reaches you**, answered per version
-  (`npm run db:push -- --allow 0052`) and filed under `docs/acceptance/owner-queue/` by the
-  branch's own session; the landing itself succeeds either way. **It also refuses onto a DRIFTED
+  (`npm run db:push -- --allow 0052`) and filed as a `needs owner` issue by the branch's own
+  session; the landing itself succeeds either way. **It also refuses onto a DRIFTED
   ledger** - waiting was never the safe option: the old rule left 0051 unapplied for hours, and a
   ledger out of step stays silent until the next push and then fails partway through, so the
   refusal is what turns that into an error you can see. **Which statements pass, which stop, and
@@ -111,5 +111,9 @@ instruction that still names one.
   folder, so each is classified. Rebuildable output goes; a secret goes **unread**, and only while
   the primary checkout still holds one; **anything unrebuildable is archived outside the repo and
   the copy verified file by file BEFORE anything is deleted**, an unprovable copy refusing with no
-  override. Locked, dirty, mid-operation or with a live session: left alone. Full contract in
+  override. Locked, dirty, mid-operation, in use by any process or with a live session: left
+  alone. **Nobody has to run it** (owner, 2026-10-08): session start and every landing start an
+  unattended sweep that removes landed worktrees under `.claude/worktrees/` once quiet (agent
+  worktrees 2 hours, desktop chats 24 hours, no-commit worktrees 3 days), and GitHub deletes the
+  branch at merge (`delete_branch_on_merge`). Full contract in
   `.agent-workflows/cleanup-worktrees.md`; `scripts/cleanup-worktrees.mjs` is dry-run by default.

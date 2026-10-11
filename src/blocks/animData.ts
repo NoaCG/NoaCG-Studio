@@ -292,7 +292,7 @@ export interface AnimData {
 }
 
 import { locateAnimData } from '../assets/animationLiteral';
-export { locateAnimData } from '../assets/animationLiteral';
+export { ANIM_DECLARATION, locateAnimData } from '../assets/animationLiteral';
 
 /** Parse the animation data out of template.js. Returns null when the block is absent or
  *  not valid strict JSON / not a recognizable shape — the timeline then treats the

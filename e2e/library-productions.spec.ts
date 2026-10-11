@@ -9,7 +9,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 
-// WHICH GRAPHICS BELONG TO WHICH PRODUCTION (docs/backlog/browse-a-productions-graphics.md).
+// WHICH GRAPHICS BELONG TO WHICH PRODUCTION (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/browse-a-productions-graphics.md).
 //
 // The library used to say a graphic's type, folder and edited date and nothing about the unit
 // that airs it, so "is this strap in the Friday show?" was a question you answered by opening

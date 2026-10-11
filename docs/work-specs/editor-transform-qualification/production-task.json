@@ -1,0 +1,19 @@
+{
+  "baseURL": "https://noacg.studio",
+  "scale": [
+    207.778,
+    103.889
+  ],
+  "textSelector": "#f2",
+  "rotation": 60,
+  "font": "48",
+  "errors": [],
+  "network": [],
+  "version": {
+    "commit": "0c355905f5f059a454daa802fdce221d32ac7616",
+    "ref": "main",
+    "builtAt": "2026-10-10T07:12:39.361Z",
+    "lastDeployAffectingCommit": "0c355905f5f059a454daa802fdce221d32ac7616",
+    "deployedCommitIsCurrent": true
+  }
+}

@@ -406,7 +406,7 @@ export default function WizardPreview({
   // had loaded, waited for its fonts and started its entrance. On an idle laptop that is the
   // entrance's own fade and nothing else (measured 2026-09-22: about 300 ms, the new document
   // playing within 100 ms of the commit). On a starved one it was three to five seconds on the
-  // live site (docs/handoffs/2026-09-21-e-demo-rehearsal.md), which a student reads as "my
+  // live site (https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-21-e-demo-rehearsal.md), which a student reads as "my
   // artwork is gone". So the frame being replaced is HELD, still painting its last picture,
   // until the new document reports its first frame - the `spx-preview-box` it posts right after
   // `play()` or `settle` - and only then is it dropped. What the new document then shows is

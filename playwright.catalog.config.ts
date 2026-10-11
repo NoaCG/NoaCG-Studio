@@ -23,7 +23,7 @@ export default defineConfig({
   // work it can take, and its load is not shared with anyone trying to use the machine.
   workers: process.env.CI ? 4 : localWorkers(),
   retries: 0,
-  reporter: [['list']],
+  reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
   // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than
   // sharing it, and this one overlapping anything else is the worst case of that.
   globalSetup: './e2e/_offline-guard.ts',
@@ -35,7 +35,8 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    // The port is passed so the server reserves exactly the number this config waits on.
+    command: `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,

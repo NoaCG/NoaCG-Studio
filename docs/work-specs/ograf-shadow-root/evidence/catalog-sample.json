@@ -1,0 +1,585 @@
+{
+ "buildErrors": {},
+ "rows": [
+  {
+   "id": "lt11",
+   "painted": 74238,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 7172,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "lt12",
+   "painted": 164433,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 3400,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "card05",
+   "painted": 149941,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "card01",
+   "painted": 15702,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 16039,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "cr01",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 7915,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "cr02",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 6521,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "tk05",
+   "painted": 169332,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 5347,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "tk07",
+   "painted": 169332,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "al01",
+   "painted": 363244,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "al02",
+   "painted": 425926,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 303,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "pi01",
+   "painted": 311394,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "pi02",
+   "painted": 395760,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "ss04",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "ss01",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 3641,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "gt01",
+   "painted": 6313,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 1317,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "gt02",
+   "painted": 63678,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 8924,
+   "wallClock3500msShadowVsLight": 1002,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "sb01",
+   "painted": 98171,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 1607,
+   "wallClock3500msShadowVsLight": 1531,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "sb02",
+   "painted": 3378,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "bug02",
+   "painted": 9848,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 1634,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "bug01",
+   "painted": 24782,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 377,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "ig01",
+   "painted": 19373,
+   "settledShadowVsLight": 1692,
+   "settledShadowNoFixesVsLight": 1692,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "ig02",
+   "painted": 247519,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "vs01",
+   "painted": 2064919,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "vs02",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 2410,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "qz01",
+   "painted": 439858,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 331,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "qz02",
+   "painted": 449291,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 986,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "fr01",
+   "painted": 60737,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "fr02",
+   "painted": 179709,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "tr03",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "tr01",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "es01",
+   "painted": 186825,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "es02",
+   "painted": 220412,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "mu01",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "mu02",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 279,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "rs01",
+   "painted": 508000,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 1828,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "rs02",
+   "painted": 572723,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 1836,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "nm01",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 1339,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "nm02",
+   "painted": 1918848,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 651,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "pl01",
+   "painted": 439806,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 1047,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "pl02",
+   "painted": 365943,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 1713,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "aq01",
+   "painted": 240977,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 900,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "aq02",
+   "painted": 212308,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 238,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "sn01",
+   "painted": 176456,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "sn02",
+   "painted": 16920,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "imp01",
+   "painted": 259200,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "svg01",
+   "painted": 259200,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 0,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [],
+    "shadow": []
+   }
+  },
+  {
+   "id": "aw01",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 2362,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [
+     "warning: GSAP target .reveal-subject,.reveal-note,.reveal-logo,.reveal-accent not found. https://gsap.com"
+    ],
+    "shadow": []
+   }
+  },
+  {
+   "id": "aw02",
+   "painted": 2073600,
+   "settledShadowVsLight": 0,
+   "settledShadowNoFixesVsLight": 0,
+   "wallClock3500msShadowVsLight": 836,
+   "namedTargetWarnings": {
+    "light": [],
+    "noFixes": [
+     "warning: GSAP target .reveal-subject,.reveal-note,.reveal-logo,.reveal-accent not found. https://gsap.com"
+    ],
+    "shadow": []
+   }
+  }
+ ]
+}

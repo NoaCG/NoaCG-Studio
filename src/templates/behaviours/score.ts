@@ -1,5 +1,5 @@
 // THE SCORE TRACKER, as a recipe: a point, a flash, a correction, full time, on artwork somebody
-// else drew (docs/backlog/scoreboard-behaviour.md; the module it replaces is recorded in
+// else drew (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md; the module it replaces is recorded in
 // docs/GRAPHIC_BEHAVIOUR_PLAN.md and docs/SCORE_CONTROL_SURVEY.md).
 //
 // TWO OR MORE TEAMS, NEVER TWO (owner, 2026-09-03). A row is a team's name and its figure, both

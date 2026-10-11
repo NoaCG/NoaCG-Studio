@@ -19,6 +19,16 @@
 import { test, expect } from '@playwright/test';
 import { FAKE_JOIN_ROUTE, TEAM } from './_teams';
 import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';
+import { signUpOutcome } from '../src/backend/signUpOutcome';
+
+// WHAT A SIGN-UP SAYS NEXT (issue #794), decided from the server's reply. No page: this is the
+// decision alone. e2e/configured/anonymous.spec.ts walks both replies through the real dialog.
+test('sign-up: a reply with a session is signed in, and only a reply without one waits on an email', () => {
+  // Confirmations off: GoTrue returns the user and a session.
+  expect(signUpOutcome({ session: { access_token: 'a', refresh_token: 'r' } })).toBe('signed-in');
+  // Confirmations on: the user and no session; the email is on its way.
+  expect(signUpOutcome({ session: null })).toBe('confirm-email');
+});
 
 // Era 5.6: the editor is open to everyone — there is no login wall anywhere. And with no Supabase
 // backend configured (the default, and always the case in this test's env) the app must grow NO
@@ -60,7 +70,7 @@ test('offline / no-backend: the production page grows no auth UI and says why pu
   await expect(page.getByTestId('auth-state')).toHaveCount(0);
 });
 
-// The password-reset ROUTE (docs/backlog/password-reset-link-lands-nowhere.md). It renders
+// The password-reset ROUTE (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md). It renders
 // INSTEAD of the studio in hosted mode, which makes it the surface most likely to break the
 // offline posture: a component that returned an empty card here would hand a self-hoster a black
 // screen, and one that returned its form would grow auth UI on a build with no accounts. So both

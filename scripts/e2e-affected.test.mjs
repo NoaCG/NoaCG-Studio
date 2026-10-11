@@ -23,8 +23,10 @@ import {
   MAX_SHARDS,
   branchBase,
   changedFilesSince,
+  copyContext,
   headIsMainMerge,
   integrationBase,
+  localRunPolicy,
   packShards,
   parseArgs,
   planFor,
@@ -34,6 +36,7 @@ import {
   specFilterArg,
   summariseRuns,
 } from './e2e-affected.mjs';
+import { copyEdit, cssEditClasses, phraseMeets, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import {
   budgetMinutes,
   predictShardMinutes,
@@ -44,6 +47,13 @@ import {
 } from './e2e-durations.mjs';
 
 const E2E_DIR = fileURLToPath(new URL('../e2e/', import.meta.url));
+
+// The CLI reads the nightly's traced map (scripts/e2e-traced.mjs), and a map older than its limit
+// escalates. The CLI tests here pin the CURATED behaviour, so they hand it a fresh, empty map
+// rather than the committed one, whose age depends on the day the build runs.
+const FRESH_EMPTY_MAP = join(mkdtempSync(join(tmpdir(), 'e2e-traced-')), 'map.json');
+writeFileSync(FRESH_EMPTY_MAP, JSON.stringify({ version: 1, sha: 'test', tracedAt: new Date().toISOString(), specs: 0, files: {} }));
+const CLI_ENV = { ...process.env, NOACG_E2E_TRACED_MAP: FRESH_EMPTY_MAP };
 
 /**
  * Specs that ENUMERATE a catalog collection - `CATALOG`, `TYPES`, `KITS` or `PACKS` - rather
@@ -378,14 +388,14 @@ test('a merge commit plans from the fork point, so the catalog gate is not skipp
   // stderr is swallowed on purpose: git narrates every checkout and every CRLF conversion, and
   // this test's output should be its assertions, not a second git log.
   const git = (...args) =>
-    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
   const write = (rel, body) => {
     mkdirSync(dirname(join(repo, rel)), { recursive: true });
     writeFileSync(join(repo, rel), body);
   };
   const cli = fileURLToPath(new URL('./e2e-affected.mjs', import.meta.url));
   const plan = (...args) =>
-    JSON.parse(execFileSync(process.execPath, [cli, ...args], { cwd: repo, encoding: 'utf8' }));
+    JSON.parse(execFileSync(process.execPath, [cli, ...args], { cwd: repo, encoding: 'utf8', windowsHide: true, env: CLI_ENV }));
 
   try {
     git('init', '-b', 'main');
@@ -825,7 +835,7 @@ test('the base resolvers answer for the repository they are given, before and af
   // stderr swallowed on purpose: git narrates every checkout, and this test's output should be
   // its assertions rather than a second git log.
   const git = (...args) =>
-    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
   const write = (rel, text) => {
     mkdirSync(dirname(join(repo, rel)), { recursive: true });
     writeFileSync(join(repo, rel), text);
@@ -869,6 +879,68 @@ test('the base resolvers answer for the repository they are given, before and af
     assert.equal(integrationBase(repo), forkPoint);
     assert.ok(changedFilesSince(forkPoint, repo).includes('src/model/fonts.ts'));
     assert.ok(!changedFilesSince(mainTip, repo).includes('src/model/fonts.ts'));
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// A STALE LOCAL MAIN. The merge queue moves `origin/main` and nothing moves the local ref, so a
+// branch cut from a fresh `origin/main` in a checkout whose `main` is behind used to diff from the
+// stale ref and be charged with everything that landed in between - on 2026-09-15 a seven-file
+// branch was planned as the whole suite. The two refs have to DISAGREE for a test to see this.
+test('a stale local main plans only the changed specs, whichever main ref is fresh', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'e2e-affected-stale-'));
+  const git = (...args) =>
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
+  const write = (rel, text) => {
+    mkdirSync(dirname(join(repo, rel)), { recursive: true });
+    writeFileSync(join(repo, rel), text);
+  };
+  const plan = () => planFor(changedFilesSince(branchBase(repo), repo));
+
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+    write('README.md', 'base\n');
+    git('add', '-A');
+    git('commit', '-m', 'base');
+    const stale = git('rev-parse', 'HEAD');
+
+    // Another branch lands: a change that alone would escalate to the whole suite.
+    write('package.json', '{}\n');
+    git('add', '-A');
+    git('commit', '-m', 'someone else landed');
+    const fresh = git('rev-parse', 'HEAD');
+
+    // This branch, cut from the fresh tip, changes one spec.
+    git('checkout', '-b', 'feature');
+    write('e2e/wizard-preview.spec.ts', '// changed\n');
+    git('add', '-A');
+    git('commit', '-m', 'one spec');
+
+    // The fixture's precondition: what the old base produced.
+    assert.equal(planFor(changedFilesSince(stale, repo)).mode, 'full');
+
+    // Local `main` stale, `origin/main` fresh: the worktree case the merge queue makes.
+    git('update-ref', 'refs/heads/main', stale);
+    git('update-ref', 'refs/remotes/origin/main', fresh);
+    assert.equal(branchBase(repo), fresh);
+    const planned = plan();
+    assert.equal(planned.mode, 'subset');
+    assert.deepEqual(planned.specs, ['wizard-preview.spec.ts']);
+
+    // The other way round: pulled but not fetched.
+    git('update-ref', 'refs/heads/main', fresh);
+    git('update-ref', 'refs/remotes/origin/main', stale);
+    assert.equal(branchBase(repo), fresh);
+    assert.equal(plan().mode, 'subset');
+
+    // And with no local `main` at all, the CI checkout.
+    git('update-ref', '-d', 'refs/heads/main');
+    git('update-ref', 'refs/remotes/origin/main', fresh);
+    assert.equal(branchBase(repo), fresh);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -1062,7 +1134,7 @@ test('the build refuses a spec with no covers, a glob that matches nothing and a
 
 // The same three refusals over the REAL repository: this is the line that makes `npm run build`
 // go red when a spec lands without a covers header, a glob goes stale, or a central rule names a
-// spec that is gone. It closed docs/backlog/unmapped-spec-never-runs-on-its-gate.md.
+// spec that is gone. It closed https://github.com/NoaCG/NoaCG-Studio/blob/c04a559267144447c33564a3b0fac126a32189fa/docs/backlog/unmapped-spec-never-runs-on-its-gate.md.
 test('every spec header in the repository passes the refusals', () => {
   const problems = auditSpecHeaders({
     headers: SPEC_HEADERS,
@@ -1154,6 +1226,8 @@ test('--files maps a covered path through the same index a ref diff would use', 
     execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', 'src/legal.css'], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
+      env: CLI_ENV,
+      windowsHide: true,
     }),
   );
   const direct = planFor(['src/legal.css']);
@@ -1171,6 +1245,8 @@ test('--files reports an unmapped path exactly like the ref mode does', () => {
     execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', unknown], {
       encoding: 'utf8',
       cwd: REPO_ROOT,
+      env: CLI_ENV,
+      windowsHide: true,
     }),
   );
   assert.equal(out.mode, 'full');
@@ -1188,7 +1264,319 @@ test('--files prints the CONFIGURED-deployment notice, exactly like the ref mode
   const out = execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--list', '--files', file], {
     encoding: 'utf8',
     cwd: REPO_ROOT,
+    env: CLI_ENV,
+    windowsHide: true,
   });
   assert.match(out, /CONFIGURED deployment/);
   assert.match(out, /test:e2e:live:queued/);
+});
+
+// ── The copy path (scripts/e2e-affected-copy.mjs) ────────────────────────────
+//
+// A wording-only edit is planned by the specs that name the wording, not by every spec that
+// covers the file. The 2026-10-07 wizard copy rows ran 43-51 spec files (652 tests) to prove two
+// paragraphs had gone. The fixtures below are cut from those rows' real diffs. The half that
+// matters most is the other one: anything that could change behaviour falls back to the normal
+// plan, so every "falls back" case here is a hole the copy path must never open.
+
+const STEP = (body, extra = '') => `import Thing from './Thing';
+${extra}
+export default function Step({ cond, onPick }: Props) {
+  const reason = cond ? 'Sign in to use AI - describe any animation.' : 'Nothing to do here.';
+  return (
+    <div className="wz-step" data-testid="video-step">
+      <h3>Describe your video</h3>
+${body}
+      <Thing reason={reason} description="Video or animation with AI" onPick={onPick} />
+    </div>
+  );
+}
+`;
+const HINT = `      <p className="hint" style={{ marginTop: 6 }}>
+        What is it, how should it move? You get <b>real</b>, editable code.
+      </p>`;
+const VIDEO_STEP = 'src/components/wizard/steps/VideoStep.tsx';
+
+test('copy path: changed JSX text is a wording edit, and both versions are its terms', () => {
+  const edit = copyEdit(VIDEO_STEP, STEP(HINT), STEP(HINT.replace('editable code', "editable code{' '}- previewed live")));
+  assert.equal(edit?.kind, 'text');
+  assert.ok(edit.terms.some((t) => t.includes('previewed live')), JSON.stringify(edit.terms));
+});
+
+test('copy path: removing a static hint paragraph, a prose prop or a sentence is wording', () => {
+  // f8f18bade: "Cut the explanatory lines left on the Video step".
+  const base = STEP(HINT);
+  assert.equal(copyEdit(VIDEO_STEP, base, STEP(''))?.kind, 'text');
+  assert.equal(copyEdit(VIDEO_STEP, base, base.replace(' description="Video or animation with AI"', ''))?.kind, 'text');
+  assert.equal(copyEdit(VIDEO_STEP, base, base.replace('Sign in to use AI - describe any animation.', 'Sign in to use AI.'))?.kind, 'text');
+  // A sentence split over a concatenation collapses to one (ViewingControls in cb740d569).
+  const before = "const FLOORS = [{ id: 'relaxed', permits:\n  'Permits text below the broadcast sizes. Nothing is hidden, '\n  + 'and the AI is told.' }];";
+  const after = "const FLOORS = [{ id: 'relaxed', permits: 'Permits text below the broadcast sizes.' }];";
+  assert.equal(copyEdit(VIDEO_STEP, STEP(HINT, before), STEP(HINT, after))?.kind, 'text');
+});
+
+test('copy path: anything that could change behaviour falls back to the normal plan', () => {
+  const base = STEP(HINT);
+  const pairs = {
+    'a new condition around a hint': [base, STEP(`{cond && (\n${HINT}\n)}`)],
+    'a changed class': [base, base.replace('className="hint"', 'className="hint warn"')],
+    'a changed test id': [base, base.replace('data-testid="video-step"', 'data-testid="video-steps"')],
+    'a changed handler': [base, base.replace('onPick={onPick}', 'onPick={() => onPick(1)}')],
+    'a hint gaining a test id': [base, base.replace('<p className="hint"', '<p className="hint" data-testid="x"')],
+    'a hint gaining an expression': [base, base.replace('editable code.', 'editable code {cond}.')],
+    'prose turned into a value word': [base, base.replace("'Nothing to do here.'", "'nothing'")],
+    'prose emptied': [base, base.replace("'Nothing to do here.'", "''")],
+    'a compared sentence': [
+      STEP(HINT, "const same = (x: string) => x === 'Nothing to do here.';"),
+      STEP(HINT, "const same = (x: string) => x === 'Nothing to do now.';"),
+    ],
+    'a sentence passed to a call': [STEP(HINT, "setError('Saving failed here.');"), STEP(HINT, "setError('Saving failed now.');")],
+    'a selector-shaped string': [STEP(HINT, "const sel = '.wz-step .hint';"), STEP(HINT, "const sel = '.wz-step .note';")],
+    'a class-list string': [STEP(HINT, "const cls = 'wz-step hint';"), STEP(HINT, "const cls = 'wz-step note';")],
+    'an edit the scanner cannot follow': [base, base.replace('</div>', '')],
+    // The review of 2026-10-08 found each of these classified as copy; each one changes behaviour.
+    'a label moving out of its button': [
+      STEP('<button onClick={f}><span>Save show</span></button>'),
+      STEP('<button onClick={f}></button><span>Save show</span>'),
+    ],
+    'a symbol label': [STEP('<button onClick={f}>+</button>'), STEP('<button onClick={f}>×</button>')],
+    'a style value on a static element': [
+      STEP(`<span className="x" style={{ display: 'none' }}>Hi there</span>`),
+      STEP(`<span className="x" style={{ display: 'block' }}>Hi there</span>`),
+    ],
+    'an indexed key': [STEP(HINT, "const c = COLORS['Lower third.'];"), STEP(HINT, "const c = COLORS['Lower thirds.'];")],
+    'an allowlist entry': [
+      STEP(HINT, "const ok = ['Draft mode.', 'Live mode.'].includes(s);"),
+      STEP(HINT, "const ok = ['Draft mode.', 'Live now.'].includes(s);"),
+    ],
+    'a concatenation compared': [
+      STEP(HINT, "const ok = s === P + 'Saved here.';"),
+      STEP(HINT, "const ok = s === P + 'Saved now.';"),
+    ],
+    'a concatenation that ends in a comparison': [
+      STEP(HINT, "const ok = 'Saved ' + 'Here now.' === s;"),
+      STEP(HINT, "const ok = 'Saved ' + 'There now.' === s;"),
+    ],
+    'a storage key': [
+      STEP(HINT, "const KEY = 'NoaCG Studio: last project';"),
+      STEP(HINT, "const KEY = 'NoaCG Studio: last projects';"),
+    ],
+    'an id value': [STEP(HINT, "f({ id: 'Lower Third.' });"), STEP(HINT, "f({ id: 'Lower Thirds.' });")],
+    'a behaviour prop appearing': [base, base.replace('onPick={onPick} />', 'onPick={onPick} confirm="Delete this show?" />')],
+  };
+  for (const [what, [from, to]] of Object.entries(pairs)) {
+    assert.notEqual(from, to, `${what}: the fixture must actually change`);
+    assert.equal(copyEdit(VIDEO_STEP, from, to), null, `${what} must fall back`);
+  }
+  // Words that trade PLACES are wording too, but every word that moved is a term, so the specs
+  // that click either label run. Compared as a bag of words, this used to plan nothing at all.
+  const swaps = [
+    [
+      STEP('<button onClick={f}>Save show</button><button onClick={g}>Delete show</button>'),
+      STEP('<button onClick={f}>Delete show</button><button onClick={g}>Save show</button>'),
+    ],
+    [STEP('{s && <p>First hint.</p>}{g && <p>Second hint.</p>}'), STEP('{s && <p>Second hint.</p>}{g && <p>First hint.</p>}')],
+  ];
+  for (const [from, to] of swaps) assert.equal(copyEdit(VIDEO_STEP, from, to)?.terms.length, 2);
+});
+
+test('copy path: only UI sources outside the catalog take it, and a new or deleted file never does', () => {
+  const [a, b] = [STEP(HINT), STEP('')];
+  assert.equal(copyEdit('src/templates/lower-third/Card.tsx', a, b), null, 'catalog text is measured output');
+  assert.equal(copyEdit('src/model/prompts.ts', "export const P = 'Make it bold.';", "export const P = 'Make it loud.';"), null, 'plain .ts may be a prompt');
+  assert.equal(copyEdit(VIDEO_STEP, null, b), null);
+  assert.equal(copyEdit(VIDEO_STEP, a, null), null);
+});
+
+test('copy path: HTML text and labels are wording, scripts and links are not', () => {
+  const page = (h1, href = '/app', script = 'go()') => `<!doctype html><html><head><title>NoaCG</title><script>${script}</script></head>
+<body><h1 class="hero">${h1}</h1><a href="${href}" title="Start creating now">Start</a></body></html>`;
+  assert.equal(copyEdit('whats-new.html', page('Create live graphics.'), page('Create <b>live</b> graphics. Run the show.'))?.kind, 'text');
+  assert.equal(copyEdit('whats-new.html', page('Hi there.'), page('Hi there.', '/app/new')), null);
+  assert.equal(copyEdit('whats-new.html', page('Hi there.'), page('Hi there.', '/app', 'stop()')), null);
+  // A `>` inside a quoted value does not end the tag, so the link after it is still code.
+  const quoted = (href) => `<p><a title="A > B" href="${href}">Go there</a></p>`;
+  assert.equal(copyEdit('whats-new.html', quoted('/old'), quoted('/new')), null);
+  assert.equal(copyEdit('whats-new.html', '<p><i class="icon">now</i></p>', '<p><i class="icon hidden">now</i></p>'), null, 'a class on inline formatting');
+});
+
+test('copy path: a CSS edit that only repaints classes is copy; size, place, visibility and tokens are not', () => {
+  const css = (decl, sel = '.wz-hero h1, .wz-hero p') =>
+    `:root { --gap: 4px; }\n${sel} { margin: 0; ${decl} }\n@media (max-width: 600px) { .wz-card { color: red; } }\n`;
+  assert.deepEqual(cssEditClasses(css('color: red;'), css('color: blue;')), ['wz-hero']);
+  assert.deepEqual(cssEditClasses(css(''), css('').replace('color: red', 'color: blue')), ['wz-card']);
+  assert.equal(copyEdit('src/styles/home.css', css('color: red;'), css('color: blue;'))?.kind, 'class');
+  const notPaint = {
+    'visibility': ['display: block;', 'display: none;'],
+    'size': ['height: 20px;', 'height: 0;'],
+    'spacing': ['padding: 2px;', 'padding: 4px;'],
+    'a prefixed move': ['-webkit-transform: none;', '-webkit-transform: translateX(-9999px);'],
+    'a filter': ['filter: none;', 'filter: opacity(0);'],
+  };
+  for (const [what, [from, to]] of Object.entries(notPaint)) assert.equal(cssEditClasses(css(from), css(to)), null, what);
+  assert.equal(cssEditClasses(css(''), css('').replace('--gap: 4px', '--gap: 8px')), null, 'a token fans out');
+  assert.equal(cssEditClasses(css('color: red;', 'h1'), css('color: blue;', 'h1')), null, 'an unclassed element');
+  assert.equal(cssEditClasses(css('color: red;', ':not(.x)'), css('color: blue;', ':not(.x)')), null, 'a negation matches unclassed elements');
+  assert.equal(cssEditClasses('.a { color: red; }\n.b { color: red; }', '.b { color: red; }\n.a { color: red; }'), null, 'the cascade is order');
+  assert.equal(cssEditClasses('.a { color: red; color: blue; }', '.a { color: blue; color: red; }'), null, 'so is a rule\'s own order');
+});
+
+test('copy path: a spec names wording by a distinctive phrase, and a single word only whole', () => {
+  assert.ok(phraseMeets('rows here are content', 'rows here are content, not fields: on air you edit them.'));
+  assert.ok(phraseMeets('sign in to use ai. and more', 'sign in to use ai.'), 'the wording inside a longer assertion');
+  assert.ok(phraseMeets('save', 'save'));
+  assert.ok(!phraseMeets('image', 'your first image is placed automatically.'), 'one word is not the sentence');
+  assert.ok(!phraseMeets('on air', 'what reads on air at the distance above.'), 'too short to be distinctive');
+  assert.ok(!phraseMeets('editable preview', 'an editable previewed live'), 'not inside a longer word');
+  const specs = new Map([
+    ['a.spec.ts', "await expect(page.getByTestId('field-plan-hint')).toContainText('Rows here are CONTENT');"],
+    ['b.spec.ts', "await expect(page.locator('h1')).toHaveText(/^\\s*Create live graphics\\.\\s+Run the show\\.\\s*$/);"],
+    ['c.spec.ts', "await page.getByText('image').click(); await page.locator('.wz-hero').isVisible();"],
+  ]);
+  assert.deepEqual(specsNaming({ kind: 'text', terms: ['Rows here are CONTENT, not fields: edit them.'] }, specs), ['a.spec.ts']);
+  // A regex reads as its literal runs; the old wording is a term too, so its spec is found.
+  assert.deepEqual(specsNaming({ kind: 'text', terms: ['Create live graphics. Run the show.', 'Create live graphics. Run it all.'] }, specs), ['b.spec.ts']);
+  assert.deepEqual(specsNaming({ kind: 'class', terms: ['wz-hero'] }, specs), ['c.spec.ts']);
+  assert.deepEqual(specsNaming({ kind: 'class', terms: ['wz'] }, specs), [], 'a class is matched whole');
+});
+
+test('copy path: a wording edit plans only the specs that name it, while a logic edit still plans its coverage', () => {
+  const coverage = [
+    { spec: 'wizard-a.spec.ts', test: (f) => f.startsWith('src/components/wizard/') },
+    { spec: 'wizard-b.spec.ts', test: (f) => f.startsWith('src/components/wizard/') },
+    { spec: 'shots.spec.ts', test: (f) => f.startsWith('src/components/') },
+  ];
+  const specTexts = new Map([
+    ['wizard-a.spec.ts', "toContainText('Describe your video')"],
+    ['wizard-b.spec.ts', "click('Create')"],
+    ['names-it.spec.ts', "toContainText('real, editable code')"],
+    ['shots.spec.ts', 'toHaveScreenshot()'],
+  ]);
+  const edit = copyEdit(VIDEO_STEP, STEP(HINT), STEP(''));
+  const copy = planFor([VIDEO_STEP], { coverage, copyEdits: new Map([[VIDEO_STEP, edit]]), specTexts, baselined: ['shots.spec.ts'] });
+  assert.deepEqual(copy.specs, ['names-it.spec.ts', 'shots.spec.ts'], 'the naming spec, plus the screenshot spec that covers the file');
+  assert.deepEqual(copy.copyOnly, [VIDEO_STEP]);
+  // Longer wording can break a fit without naming it, so the covering specs that measure stay.
+  const longer = copyEdit(VIDEO_STEP, STEP(''), STEP(HINT));
+  assert.equal(longer.grew, true);
+  assert.equal(edit.grew, false);
+  const opts = { coverage, specTexts, baselined: [], measuring: ['wizard-b.spec.ts'] };
+  assert.deepEqual(planFor([VIDEO_STEP], { ...opts, copyEdits: new Map([[VIDEO_STEP, longer]]) }).specs, ['names-it.spec.ts', 'wizard-b.spec.ts']);
+  assert.deepEqual(planFor([VIDEO_STEP], { ...opts, copyEdits: new Map([[VIDEO_STEP, edit]]) }).specs, ['names-it.spec.ts']);
+  const logic = planFor([VIDEO_STEP], { coverage, specTexts, baselined: ['shots.spec.ts'] });
+  assert.deepEqual(logic.specs, ['shots.spec.ts', 'wizard-a.spec.ts', 'wizard-b.spec.ts'], 'a file absent from copyEdits plans as before');
+  // A class-only restyle of a CORE stylesheet no longer escalates; any other stylesheet edit still does.
+  const sheet = 'src/styles/wizard-entry.css';
+  const restyle = copyEdit(sheet, '.wz-hero { color: red; }\n', '.wz-hero { color: blue; }\n');
+  assert.equal(planFor([sheet], { coverage, copyEdits: new Map([[sheet, restyle]]), specTexts }).mode, 'none');
+  assert.equal(planFor([sheet], { coverage }).mode, 'full');
+});
+
+test('copy path: a branch reads each edit from its merge-base and its working tree', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'e2e-affected-copy-'));
+  const git = (...args) =>
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).trim();
+  const write = (rel, text) => {
+    mkdirSync(dirname(join(repo, rel)), { recursive: true });
+    writeFileSync(join(repo, rel), text);
+  };
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+    write(VIDEO_STEP, STEP(HINT));
+    write('src/components/Other.tsx', STEP(HINT));
+    write('e2e/names-it.spec.ts', "toContainText('real, editable code')");
+    write('e2e/_helper.ts', "export const go = (p) => p.getByText('Describe your video');");
+    write('e2e/via-helper.spec.ts', "import { go } from './_helper';\nconst r = el.getBoundingClientRect();");
+    write('e2e/shots.spec.ts-snapshots/a.png', 'png');
+    git('add', '-A');
+    git('commit', '-m', 'base');
+    git('checkout', '-b', 'feature');
+    write(VIDEO_STEP, STEP(''));
+    git('commit', '-am', 'cut a hint');
+    write('src/components/Other.tsx', STEP(HINT).replace('className="hint"', 'className="note"')); // uncommitted, and logic
+    write('src/components/New.tsx', STEP(HINT)); // untracked: no old side
+    const changed = [VIDEO_STEP, 'src/components/Other.tsx', 'src/components/New.tsx'];
+    const { copyEdits, specTexts, baselined, measuring } = copyContext('main', changed, repo);
+    assert.deepEqual([...copyEdits.keys()], [VIDEO_STEP]);
+    assert.deepEqual([...specTexts.keys()].sort(), ['names-it.spec.ts', 'via-helper.spec.ts']);
+    assert.deepEqual(baselined, ['shots.spec.ts']);
+    assert.deepEqual(measuring, ['via-helper.spec.ts']);
+    // The video step's heading is unchanged, so the helper that reads it is not named; the
+    // removed hint is.
+    assert.deepEqual(specsNaming(copyEdits.get(VIDEO_STEP), specTexts), ['names-it.spec.ts']);
+    assert.match(specTexts.get('via-helper.spec.ts'), /Describe your video/, 'a helper\'s wording counts as its spec\'s');
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// The scanner is hand-written so the planner stays dependency-free (CI's plan job installs
+// nothing). Its one dangerous failure is reading CODE as words, which would let a code change
+// through as copy. So it is held to the TypeScript parser on every component in the repository:
+// the same JSX text, the same string literals, the same template chunks and the same elements.
+test('copy path: the scanner reads every .tsx in src exactly as the TypeScript parser does', async () => {
+  const ts = (await import('typescript')).default;
+  const files = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (p.endsWith('.tsx')) files.push(p);
+    }
+  };
+  walk(join(REPO_ROOT, 'src'));
+  assert.ok(files.length > 100, `found only ${files.length} components`);
+  const norm = (s) => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\s+/g, ' ').trim();
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+    const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const want = [];
+    const visit = (node) => {
+      const jsxChild = () => ts.isJsxExpression(node.parent) && (ts.isJsxElement(node.parent.parent) || ts.isJsxFragment(node.parent.parent));
+      if (ts.isJsxText(node)) {
+        if (norm(node.text)) want.push(`text ${norm(node.text)}`);
+      } else if (ts.isStringLiteral(node)) {
+        if (!jsxChild()) want.push(`str ${node.getText(sf).slice(1, -1)}`);
+        else if (norm(node.text)) want.push(`text ${norm(node.text)}`);
+      } else if (ts.isNoSubstitutionTemplateLiteral(node)) {
+        want.push(`chunk ${node.getText(sf).slice(1, -1)}`);
+      } else if (ts.isTemplateExpression(node)) {
+        want.push(`chunk ${node.head.getText(sf).slice(1, -2)}`);
+        for (const s of node.templateSpans) want.push(`chunk ${s.literal.getText(sf).slice(1, ts.isTemplateTail(s.literal) ? -1 : -2)}`);
+      } else if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+        want.push(`el ${node.tagName.getText(sf)}`);
+      } else if (ts.isJsxOpeningFragment(node)) want.push('el ');
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+    const got = [];
+    for (const t of scanScript(src)) {
+      if (t.t === 'jsxtext') { if (norm(t.v)) got.push(`text ${norm(t.v)}`); }
+      else if (t.t === 'str') got.push(`str ${t.v}`);
+      else if (t.t === 'chunk') got.push(`chunk ${t.v}`);
+      else if (t.t === 'jsxopen') got.push(`el ${t.name}`);
+    }
+    assert.deepEqual(got.sort(), want.sort(), file);
+  }
+});
+
+test('off CI a whole-suite plan is refused, and a one- or two-spec plan runs', () => {
+  const two = { mode: 'subset', specs: ['project.spec.ts', 'wizard.spec.ts'], catalog: false };
+  for (const plan of [{ ...two, specs: ['project.spec.ts'] }, two]) {
+    const here = localRunPolicy(plan);
+    assert.equal(here.refusal, null);
+    assert.deepEqual(runsFor({ ...plan, catalog: here.catalog }), [
+      { name: 'suite', args: ['playwright', 'test', ...plan.specs] },
+    ]);
+  }
+  // The whole suite, and the focus set an escalation collapses to, go to GitHub Actions.
+  for (const plan of [{ mode: 'full', specs: [], catalog: true }, { mode: 'subset', specs: ['a.spec.ts'], focusApplied: true }]) {
+    assert.match(localRunPolicy(plan).refusal, /runs on GitHub Actions/);
+  }
+  // The catalog gate is a whole-catalog run: left to CI here, kept on CI.
+  assert.equal(localRunPolicy({ ...two, catalog: true }).catalog, false);
+  assert.deepEqual(localRunPolicy({ mode: 'full', specs: [], catalog: true }, { ci: true }), { refusal: null, catalog: true });
 });

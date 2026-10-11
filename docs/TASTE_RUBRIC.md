@@ -21,7 +21,7 @@ confident that the surface is clear, intentional and functional, but it would no
 pass my eye. The rubric currently checks product UX much more than visual graphic design. Keep it,
 but don't use it as proof of visual quality."* Never present a rubric pass as a visual-quality
 verdict. The separate, very small screenshot-based GRAPHIC-taste review - hierarchy, composition,
-restraint, coherence, overall on-air quality - is `docs/backlog/visual-taste-review.md` until it
+restraint, coherence, overall on-air quality - is [`docs/backlog/visual-taste-review.md`](https://github.com/NoaCG/NoaCG-Studio/blob/37ea09db16312f806052a29614bf6e53cef1ebb3/docs/backlog/visual-taste-review.md) until it
 exists.
 
 ---

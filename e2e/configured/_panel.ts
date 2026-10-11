@@ -114,10 +114,11 @@ export async function pairPanel(op: Page) {
   return deck;
 }
 
-/** Switch "Answer the panel on this page" on in the open Panel dialog. */
+/** Make the page with the open Panel dialog answer the panel (docs/work-specs/panel-ownership-lease):
+ *  the production page takes a free one by itself; the hosted page takes it with "Use here". */
 export async function answerPanel(op: Page) {
-  await op.getByTestId('panel-answer').locator('input').check();
-  await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.');
+  if (!(await op.getByTestId('production-page').count())) await op.getByTestId('panel-use-here').click();
+  await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.', { timeout: 15_000 });
   // The header says so without opening anything: the hosted page's door turns green, and the
   // production page shows "Panel ✓" beside Setup.
   if (await op.getByTestId('production-page').count()) {

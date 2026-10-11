@@ -47,7 +47,8 @@ export interface AssetPanelActions {
 
 /** Soft per-asset size warning — big data-URL assets weigh on share/render budgets. */
 const WARN_ASSET_BYTES = 1_500_000;
-/** The community-publish gate's totals (validation/templateBench.ts) — shown as context. */
+/** The publish gate's asset totals (validation/templateBench.ts) — shown as context. They bind a
+ *  community pack, a hosted production and a production export. */
 const PUBLISH_MAX_ASSETS = 24;
 const PUBLISH_MAX_TOTAL = 12 * 1024 * 1024 * 0.75; // the bench caps data-URL chars; ~real bytes
 
@@ -558,7 +559,7 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
           ))}
           {assets.length > 0 && (
             <p className="hint asset-totals">
-              {assets.length} / {PUBLISH_MAX_ASSETS} assets · {fmtBytes(totalBytes)} of {fmtBytes(PUBLISH_MAX_TOTAL)} (community-publish limits)
+              {assets.length} / {PUBLISH_MAX_ASSETS} assets · {fmtBytes(totalBytes)} of {fmtBytes(PUBLISH_MAX_TOTAL)} (share limits)
             </p>
           )}
         </div>

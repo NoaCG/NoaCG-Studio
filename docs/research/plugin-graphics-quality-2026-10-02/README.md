@@ -212,7 +212,7 @@ the cause it comes from, so the plan can aim at it.
    (power play, intermission, reveal, timer), no background but transparent-on-white, so dark
    plates and cream cards are judged on the wrong ground and the two behaviour-heavy briefs spent
    most of their 20.5 and 13.5 minutes building private harnesses. *Cause:* the CLI. Both gaps
-   were filed on 2026-09-20 (`docs/backlog/a-first-cli-session-as-good-as-working-in-the-repo.md`,
+   were filed on 2026-09-20 ([issue #769](https://github.com/NoaCG/NoaCG-Studio/issues/769),
    items 1 and 3) and are still open in 0.7.0.
 3. **The operator surface is shaped for setup, not for the show.** Live actions sit below every
    field; setup-only words and colours look like live inputs; a score has three controls; machine

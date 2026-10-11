@@ -8,6 +8,8 @@
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
+import { inMount, shadowOgraf, OGRAF_MOUNTS, type OgrafMount, type OgrafUsageLabel } from './_ografMount';
 import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import JSZip from 'jszip';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -32,6 +34,16 @@ async function downloadTarget(page: Page, label: string, ografUsage?: 'Live' | '
     page.getByRole('button', { name: /Validate & download/ }).click(),
   ]);
   return JSZip.loadAsync(readFileSync(await download.path()));
+}
+
+/**
+ * The open graphic's OGraf package for `mount`: the export dialog's download in the light mount,
+ * the same template built in the page in the shadow mount, which the dialog has no option for
+ * (e2e/_ografMount.ts).
+ */
+async function downloadOgraf(page: Page, mount: OgrafMount, usage?: OgrafUsageLabel): Promise<JSZip> {
+  if (mount === 'light') return downloadTarget(page, 'OGraf (EBU) export', usage);
+  return shadowOgraf(page, usage);
 }
 
 test("a saved graphic's control entries ride into its own export, not just the show's", async ({ page }) => {
@@ -86,7 +98,7 @@ test('h2r: GDD fields embedded, and the play() toggle drives entrance then exit'
   // The GDD block H2R parses into editable inputs — property keys match the element ids.
   // The script tag MUST carry name="graphics-data-definition": without it H2R never finds
   // the block and shows no editable fields (the bug the real-app test surfaced).
-  const gddMatch = html.match(/<script name="graphics-data-definition" type="application\/json\+gdd">\s*([\s\S]*?)\s*<\/script>/);
+  const gddMatch = html.match(/<script name="graphics-data-definition" type="application\/json\+gdd"[^>]*>\s*([\s\S]*?)\s*<\/script>/);
   expect(gddMatch).toBeTruthy();
   const gdd = JSON.parse(gddMatch![1]);
   expect(gdd.properties.f0.label).toBe('Name');
@@ -109,6 +121,52 @@ test('h2r: GDD fields embedded, and the play() toggle drives entrance then exit'
   await expect
     .poll(async () => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity))
     .toBe('0');
+  await view.close();
+});
+
+test('a single file imported and exported again carries its target scripts once', async ({ page }) => {
+  // Issue #901: the composer put each target's scripts in the template's own block, the import
+  // door moved that block into the JS pane, and every round trip added one more copy. Two H2R
+  // toggles cancel out: the second take after a round trip ran the exit.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const files = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { importHtmlTemplate } = await import('/src/model/importTemplate.ts');
+    const { casparTarget } = await import('/src/export/targets/casparcg.ts');
+    const { h2rTarget } = await import('/src/export/targets/h2r.ts');
+    const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+    const graphicFile = async (zip: Awaited<ReturnType<typeof casparTarget.build>>) =>
+      zip.file('hairline/hairline.html')!.async('string');
+    const out: Record<string, { imported: string; again: string }> = {};
+    for (const target of [casparTarget, h2rTarget, htmlOverlayTarget]) {
+      const first = await graphicFile(await target.build(variantById('lt01')!.create({})));
+      const { template } = importHtmlTemplate('hairline.html', first);
+      const again = await graphicFile(await target.build(template));
+      out[target.id] = { imported: `${template.html}\n${template.js}`, again };
+    }
+    return out;
+  });
+  const marks = {
+    casparcg: ['CasparCG data shim'],
+    h2r: ['H2R on/off toggle'],
+    'html-overlay': ['LOCAL RELAY (NoaCG)', 'Autoplay for browser sources'],
+  } as const;
+  for (const [id, texts] of Object.entries(marks)) {
+    for (const text of texts) {
+      expect(files[id].imported, `${id}: ${text} in the imported graphic`).not.toContain(text);
+      expect(files[id].again.split(text).length - 1, `${id}: ${text} after a round trip`).toBe(1);
+    }
+  }
+
+  // The round-tripped H2R file still toggles: on, off, and on again.
+  const view = await page.context().newPage();
+  await view.setContent(files.h2r.again, { waitUntil: 'load' });
+  const opacity = () => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
+  for (const shown of ['1', '0', '1']) {
+    await view.evaluate(() => (window as unknown as { play(): void }).play());
+    await expect.poll(opacity).toBe(shown);
+  }
   await view.close();
 });
 
@@ -389,9 +447,9 @@ test('liveos: the OGraf package with LiveOS instructions — same graphic, LiveO
   );
 });
 
-test('ograf: a valid v1 Graphic whose Web Component passes the action contract', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: a valid v1 Graphic whose Web Component passes the action contract', mount), async ({ page }) => {
   await createHairline(page);
-  const zip = await downloadTarget(page, 'OGraf (EBU) export');
+  const zip = await downloadOgraf(page, mount);
 
   // The manifest carries the spec's required fields + the field-driven data schema.
   const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
@@ -423,6 +481,7 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
     });
   });
 
+  await installGraphicBody(page);
   const result = await page.evaluate(async () => {
     const mod = await import('http://ograf-test.local/graphic.mjs');
     customElements.define('ograf-under-test', mod.default);
@@ -436,15 +495,16 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
     document.body.appendChild(el);
     const loaded = await el.load({ data: { f0: 'OGraf Works', f1: 'Contract Test' } });
     const gsapType = typeof (window as { gsap?: unknown }).gsap;
-    const afterLoad = el.querySelector('#f0')?.textContent;
+    const afterLoad = graphicBody(el).querySelector('#f0')?.textContent;
     await el.updateAction({ data: { f0: 'Updated Name' } });
-    const afterUpdate = el.querySelector('#f0')?.textContent;
+    const afterUpdate = graphicBody(el).querySelector('#f0')?.textContent;
     const played = await el.playAction({});
     await new Promise((r) => setTimeout(r, 700));
-    const opacity = getComputedStyle(el.querySelector('.lower-third')!).opacity;
+    const opacity = getComputedStyle(graphicBody(el).querySelector('.lower-third')!).opacity;
     await el.stopAction({});
     await el.dispose();
-    const cleared = el.innerHTML === '';
+    // Nothing of the graphic left: its shadow root in the shadow mount, else its own children.
+    const cleared = el.innerHTML === '' && !el.shadowRoot?.innerHTML;
     return { statusCode: loaded.statusCode, gsapType, afterLoad, afterUpdate, currentStep: played.currentStep, opacity, cleared };
   });
 
@@ -457,7 +517,7 @@ test('ograf: a valid v1 Graphic whose Web Component passes the action contract',
   expect(result.cleared).toBe(true);
 });
 
-test('ograf: non-real-time schedule seeks are deterministic in shuffled order', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: non-real-time schedule seeks are deterministic in shuffled order', mount), async ({ page }) => {
   await createHairline(page);
   const capabilities = await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -474,7 +534,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
     [true, true],
   ]);
 
-  const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Both');
+  const zip = await downloadOgraf(page, mount, 'Both');
   const manifest = JSON.parse(await zip.file('hairline/hairline.ograf.json')!.async('string'));
   expect(manifest.supportsRealTime).toBe(true);
   expect(manifest.supportsNonRealTime).toBe(true);
@@ -499,6 +559,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
     });
   });
 
+  await installGraphicBody(page);
   const result = await page.evaluate(async () => {
     const mod = await import('http://ograf-offline.local/graphic.mjs');
     customElements.define('ograf-offline-under-test', mod.default);
@@ -523,7 +584,7 @@ test('ograf: non-real-time schedule seeks are deterministic in shuffled order', 
     });
     const snapshot = async (timestamp: number) => {
       await el.goToTime({ timestamp });
-      const doc = el.querySelector('iframe')!.contentDocument!;
+      const doc = graphicBody(el).querySelector('iframe')!.contentDocument!;
       const root = doc.querySelector('.lower-third')!;
       return {
         timestamp,
@@ -562,9 +623,9 @@ test('ograf: post-production intent is blocked for non-deterministic code', asyn
   await expect(page.getByRole('button', { name: /Validate & download/ })).toBeDisabled();
 });
 
-test('ograf: scheduled custom actions reconstruct branching machine state', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: scheduled custom actions reconstruct branching machine state', mount), async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
-  const zip = await downloadTarget(page, 'OGraf (EBU) export', 'Post-production');
+  const zip = await downloadOgraf(page, mount, 'Post-production');
   const files = new Map<string, Buffer>();
   for (const name of Object.keys(zip.files)) {
     if (!zip.files[name].dir) files.set(name.replace(/^arena_quiz\//, ''), await zip.file(name)!.async('nodebuffer'));
@@ -581,6 +642,7 @@ test('ograf: scheduled custom actions reconstruct branching machine state', asyn
     });
   });
 
+  await installGraphicBody(page);
   const frames = await page.evaluate(async () => {
     const mod = await import('http://ograf-branch.local/graphic.mjs');
     customElements.define('ograf-branch-under-test', mod.default);
@@ -602,7 +664,7 @@ test('ograf: scheduled custom actions reconstruct branching machine state', asyn
     const out = [];
     for (const timestamp of [2200, 400, 1400, 2200]) {
       await el.goToTime({ timestamp });
-      const frame = el.querySelector('iframe')!;
+      const frame = graphicBody(el).querySelector('iframe')!;
       const win = frame.contentWindow as Window & { noacgMachineState(): { groups: Record<string, string> } };
       out.push({
         timestamp,
@@ -617,9 +679,9 @@ test('ograf: scheduled custom actions reconstruct branching machine state', asyn
   expect(frames[2].selected).toBe('C');
 });
 
-test('ograf: the machine\'s operator events are custom actions, guarded like every surface', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('ograf: the machine\'s operator events are custom actions, guarded like every surface', mount), async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
-  const zip = await downloadTarget(page, 'OGraf (EBU) export');
+  const zip = await downloadOgraf(page, mount);
 
   // The manifest declares the machine's events with their control labels + payload schemas.
   const manifest = JSON.parse(await zip.file('arena_quiz/arena_quiz.ograf.json')!.async('string'));
@@ -651,6 +713,7 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
     });
   });
 
+  await installGraphicBody(page);
   const result = await page.evaluate(async () => {
     const mod = await import('http://ograf-quiz.local/graphic.mjs');
     customElements.define('ograf-quiz-under-test', mod.default);
@@ -666,12 +729,12 @@ test('ograf: the machine\'s operator events are custom actions, guarded like eve
 
     // `select` carries its payload atomically; a branch move keeps the walk pointer.
     const selected = await el.customAction({ id: 'select', payload: { f6: 'C' } });
-    const f6 = el.querySelector('#f6')?.textContent;
+    const f6 = graphicBody(el).querySelector('#f6')?.textContent;
     const locked = await el.customAction({ id: 'lock' });
     // After Lock, `select` is STRUCTURALLY illegal — the guard drops the event AND its
     // payload (no arrow leaves `locked` for it), exactly like every other surface.
     const late = await el.customAction({ id: 'select', payload: { f6: 'D' } });
-    const f6AfterLate = el.querySelector('#f6')?.textContent;
+    const f6AfterLate = graphicBody(el).querySelector('#f6')?.textContent;
     // From `locked`, `judge` rejoins the walk at the reveal waypoint — the pointer follows.
     const judged = await el.customAction({ id: 'judge' });
     const unknown = await el.customAction({ id: 'nonsense' });

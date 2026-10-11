@@ -92,11 +92,10 @@ const ACCEPTED_CLASSES = {
     'rather than the append-only log: it patches control_shows.data. Accepted on the same ' +
     'reachability ground - operating a production needs no account, and the slug is what says you ' +
     'may - with the unrestricted apply beneath it, control_data_apply, kept to service_role. ' +
-    'ACCEPTING THE REACHABILITY IS NOT A CLAIM THAT ITS GUARD IS TIGHT: measured on staging ' +
-    '2026-09-16, that guard reads the path and never the value, so `{"drivers":[]}` still deletes ' +
-    'a whole bound branch through the array carve-out. That is tracked as its own work in ' +
-    'docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md and the fix is migration ' +
-    '0061; it is a bug in the guard, not a reason to revoke a grant the product needs. ' +
+    'Its guard (0088, issue #795) checks the value as well as the path: a bound path takes only a ' +
+    'field value over a field value or nothing, and an array over an indexed binding moves only the ' +
+    'bound leaves of the stored array. A hand-made patch can therefore move bound values (as any ' +
+    'press can) but not delete branches, truncate an indexed array or erase a value silently. ' +
     'The numbered-log RPCs of 0071 (control_send_seq, control_output_report_seq, ' +
     'control_show_resolve, control_output_resolve, control_tail_seq, control_output_tail_seq) are ' +
     'the same slug doors with the same guards: the send and the report write only the log and the ' +
@@ -109,12 +108,24 @@ const ACCEPTED_CLASSES = {
     'doors of the same kind: the page ones take the control slug, and the panel ones take a panel ' +
     'key, a capability of its own that can only ask the answering page to run a named verb. None ' +
     'writes the command log; each is bounded (presses per key, wants per key, failed pairings). ' +
+    'panel_lease and panel_renew (0081, the panel ownership lease) are page doors of the same kind: ' +
+    'they take the control slug, run through the same panel_room_for_slug guard as panel_claim, and ' +
+    'write only that production\'s panel_rooms row (who answers the panel, and until when). Like ' +
+    'panel_claim they have no burst cap: a slug holder can move the panel between pages in a loop, ' +
+    'which is less than the same slug already allows (operating the production). ' +
     'control_cue_arm and control_cue_arms_for (0075, timed cues) are the same slug door again: the ' +
     'read answers only that production\'s countdowns, and the write moves only its arm row, its head ' +
-    'and its log, under the head lock and the burst cap of control_send_seq.',
+    'and its log, under the head lock and the burst cap of control_send_seq. ' +
+    'community_pack_shelf and community_pack_file (0079, community packs) are a different door with ' +
+    'the same reason to be anon-callable: approved packs are on the wizard shelf for everyone, signed ' +
+    'in or not (owner, 2026-10-08). Signed out, both answer only packs in state live; the table ' +
+    'itself grants clients nothing.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
-    'are what let a policy read a table the caller cannot.',
+    'are what let a policy read a table the caller cannot. The community_pack_* functions (0079, ' +
+    '0080, 0086) are the only door to community_packs and community_pack_reports: each checks ' +
+    'auth.uid() or is_moderator() inside. ' +
+    'The panel_* RPCs (0073, 0081) are the anon slug and panel-key doors reached by a signed-in caller.',
   auth_leaked_password_protection:
     'HaveIBeenPwned checking requires a paid plan. Revisit when the project moves to Pro. ' +
     '(Enabled on 2026-08-13, so this class should stay empty - a member returning means it was ' +
@@ -131,8 +142,9 @@ const ACCEPTED_CLASSES = {
     'Indexes for features production has not exercised yet. "Never used" here means no traffic, ' +
     'not a bad index.',
   multiple_permissive_policies:
-    'community_templates deliberately grants owner and moderator access through separate ' +
-    'policies; merging them would obscure two different reasons for access.',
+    'No members since 0085 dropped community_templates (2026-10-09), whose owner and moderator ' +
+    'policies were kept apart as two different reasons for access. A new member is accepted only ' +
+    'for that kind of reason; otherwise merge the policies.',
 };
 
 /**
@@ -150,13 +162,45 @@ const ACCEPTED_CLASSES = {
 export const WARN_ONLY_CLASSES = new Set(['unused_index']);
 
 /**
+ * A finding key with Postgres's own spelling of each argument type. The advisors key a function
+ * by `pg_get_function_identity_arguments`, which writes `timestamp with time zone`; a baseline
+ * entry written by hand before its migration applied is likely to say `timestamptz`, as the one
+ * for 0086's community_pack_reports_dismiss did, and then the live finding reads as new and the
+ * hand-written one as gone. Only an alias that stands as a whole argument type is rewritten, and
+ * a length or precision after a type is dropped, as the identity arguments drop it. Both sides of
+ * the comparison go through this, so it cannot create a mismatch the advisors did not.
+ */
+const TYPE_ALIASES = {
+  timestamptz: 'timestamp with time zone',
+  timetz: 'time with time zone',
+  timestamp: 'timestamp without time zone',
+  time: 'time without time zone',
+  decimal: 'numeric',
+  int: 'integer',
+  int4: 'integer',
+  int8: 'bigint',
+  int2: 'smallint',
+  bool: 'boolean',
+  varchar: 'character varying',
+  float8: 'double precision',
+  float4: 'real',
+};
+const ALIAS_PATTERN = new RegExp(
+  `(?<= )(${Object.keys(TYPE_ALIASES).join('|')}|character varying|numeric)(?:\\(\\d+(?:, ?\\d+)?\\))?(?=\\[|,|$)`,
+  'g',
+);
+export const canonicalKey = (key) => key.replace(ALIAS_PATTERN, (_, type) => TYPE_ALIASES[type] ?? type);
+
+/**
  * Compare a live report against the baseline. Pure, so the rule that decides the exit code is
  * tested without the Management API (scripts/supabase-advisors.test.mjs).
  *
  * `seen` maps each finding's `cache_key` to `{ name, level, detail }`; `accepted` is the set of
- * baseline keys. Returns the sorted key lists and the exit code the header's table defines.
+ * baseline keys, compared in `canonicalKey` spelling. Returns the sorted key lists and the exit
+ * code the header's table defines.
  */
-export function judge(seen, accepted) {
+export function judge(seen, acceptedKeys) {
+  const accepted = new Set([...acceptedKeys].map(canonicalKey));
   const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
   const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
   const warnings = added.filter((k) => WARN_ONLY_CLASSES.has(seen.get(k).name));
@@ -370,7 +414,7 @@ const main = async () => {
     // `cache_key` is the advisors' own stable identity for a finding - it survives rewording of
     // the human-facing detail, which a hash of the message would not.
     const seen = new Map();
-    for (const l of lints) seen.set(l.cache_key, { name: l.name, level: l.level, detail: l.detail });
+    for (const l of lints) seen.set(canonicalKey(l.cache_key), { name: l.name, level: l.level, detail: l.detail });
     measured.optional(
       seen.size,
       'advisor findings',

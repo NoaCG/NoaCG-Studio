@@ -217,16 +217,36 @@ export async function saveGraphic(origin: string, key: string, doc: Record<strin
   return (await response.json()) as SaveResult;
 }
 
-/** POST a whole graphics package to the package door (`noacg pack --save`). It waits on the
- *  user's Home → Productions until they press Install. */
-export async function savePackageToHome(origin: string, key: string, pack: Record<string, unknown>): Promise<SaveResult> {
-  const response = await fetch(`${origin}/api/me/packages`, {
+/** POST a JSON body to one of the agent doors under /api/me as this key, naming the CLI version. */
+async function postAsAgent<T>(origin: string, key: string, door: string, body: unknown): Promise<T> {
+  const response = await fetch(`${origin}/api/me/${door}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, 'x-noacg-cli-version': cliVersion() },
-    body: JSON.stringify(pack),
+    body: JSON.stringify(body),
   });
   if (!response.ok) throw new ApiError(await failureOf(response));
-  return (await response.json()) as SaveResult;
+  return (await response.json()) as T;
+}
+
+/** POST a whole graphics package to the package door (`noacg pack --save`). It waits on the
+ *  user's Home → Productions until they press Install. */
+export function savePackageToHome(origin: string, key: string, pack: Record<string, unknown>): Promise<SaveResult> {
+  return postAsAgent(origin, key, 'packages', pack);
+}
+
+export interface ShareResult {
+  id: string;
+  state: 'in_review';
+}
+
+/** POST a pack to the share door (`noacg pack --save --share`, docs/AGENT_SAVE.md §8): it waits
+ *  for review on Community packs under the user's Your packs. Only ever on the user's request. */
+export function shareCommunityPack(
+  origin: string,
+  key: string,
+  body: { name: string; description: string; author: string; license: string; pack: Record<string, unknown> },
+): Promise<ShareResult> {
+  return postAsAgent(origin, key, 'community-packs', body);
 }
 
 /** The error table of docs/AGENT_SAVE.md, in the CLI's words. */

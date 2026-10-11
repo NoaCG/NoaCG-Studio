@@ -13,7 +13,7 @@
 // exhaustion is not bounded here.
 
 // TYPE-ONLY, deliberately. Evaluating `playwright-core` costs 69 MB of RSS (measured 2026-09-02,
-// docs/backlog/cli-mcp-startup-weight.md), and this module is reached at STARTUP by `mcp.ts` and
+// https://github.com/NoaCG/NoaCG-Studio/blob/4e81a1225298f48fd6a80d45d83e3f9f64e26536/docs/backlog/cli-mcp-startup-weight.md), and this module is reached at STARTUP by `mcp.ts` and
 // `index.ts` for `closeBrowser` alone. A value import here made every MCP session - including
 // every session that never opens a browser - pay for Chromium's driver before serving a request.
 // Types are erased at compile time; the module itself is loaded in `launchBrowser`, where it is

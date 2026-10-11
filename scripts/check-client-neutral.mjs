@@ -117,7 +117,7 @@ function stripComments(text) {
 function scan() {
   // git ls-files resolves the globs the same way the repo tracks them, so an untracked scratch
   // file can never fail somebody\'s build.
-  const listed = execFileSync('git', ['ls-files', '--', ...SCANNED], { cwd: projectRoot, encoding: 'utf8' })
+  const listed = execFileSync('git', ['ls-files', '--', ...SCANNED], { cwd: projectRoot, encoding: 'utf8', windowsHide: true })
     .split('\n')
     .map((f) => f.trim())
     .filter(Boolean)

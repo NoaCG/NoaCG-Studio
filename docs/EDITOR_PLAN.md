@@ -1,6 +1,6 @@
 # Editor plan
 
-Owner direction through 2026-10-06; implementation evidence updated 2026-10-07.
+Owner direction through 2026-10-06; implementation evidence updated 2026-10-08.
 R1 is underway; the earlier planning hold is
 superseded. See the outcome checkpoints below for what is usable. This is the single authority for
 scope, order and completion; it replaces the earlier delivery/professional-direction documents.
@@ -11,18 +11,24 @@ Review of d5e8c1db: ready with named corrections, recorded below. Mockups are no
 Owner review 2026-10-06: [feedback and phase mapping](research/editor-owner-feedback-2026-10-06.md).
 The group journey mostly made sense; R1.2b.7 has since landed folders/bins and clearer
 root/Composition navigation ([receipt](work-specs/editor-folders-bins/evidence/landing-and-handoff.md)).
-Drawing/transform/layer/property usability and save-state corrections remain named
-follow-ups in their existing scopes. Lottie and alpha image sequences remain R2.1; native
+Persistent drawing is addressed by the [bounded R1.2b slice](work-specs/editor-persistent-drawing/README.md).
+Transform qualification is merged/live with its independent comparison complete (#950/#960).
+The [bounded layer/property qualification](work-specs/editor-layer-property-qualification/README.md)
+adds source-backed label/eye, Shift ranges, context/Delete and transactional numeric scrubbing.
+Its actual 125% journey completes with a shallow canvas; fresh independent
+comparison #967, layout usability and broader owner acceptance remain open. Save-state corrections remain named follow-ups
+in their existing scopes. Lottie and alpha image sequences remain R2.1; native
 visual authoring remains required. This feedback does not expand folders/bins into a general
 editor rewrite or close whole-row acceptance.
 
 Evidence checkpoint 2026-10-07: [Crafting Apps research](research/crafting-apps-editor-2026-10-07/README.md)
 compares pinned source and released artifacts with current NoaCG main. Keep the source-backed
-editor, fields, cue model and output adapters. Next, finish persistent drawing in the existing
-R1.2b usability follow-up; its completion-to-Select behavior is reproduced. At the start of
-R1.3b, qualify shared command discovery/runtime schemas and a deterministic human/agent task
-before model-driven edits, over the existing operation/session handlers. Paired live MCP stays
-R3.2. Reproduce the remaining transform/layer/property feedback as bounded tasks before R1.5;
+editor, fields, cue model and output adapters. The persistent-drawing R1.2b follow-up
+retains chosen tools across completion and cancellation, with whole-path undo and the
+existing creation scope. R1.3b now has qualified shared command discovery/runtime
+schemas and a deterministic human/agent task. The [reviewed proposal slice](work-specs/editor-model-proposals/README.md)
+adds bounded model edits over the same operation/session handlers. Paired live MCP stays
+R3.2. Qualify the remaining layer/property feedback as bounded tasks before R1.5;
 save/sync stays with its current ownership. The research does not authorize an engine/UI
 replacement or advanced vector scope. A focused Rust/WASM path kernel remains a later option
 only with an accepted task, source/output compatibility and measured benefit.
@@ -58,6 +64,7 @@ Embedded help and bounded edits use the same revision-checked operations as visu
 Offer a budgeted free basic helper and existing BYO-key routes; ground models in current docs,
 tools and selected artwork. Keep independent CLI/MCP authoring and editable round-trips; add
 paired live-document MCP later. No AI draft edit silently changes on-air output. Monaco is optional.
+Shared-authoring evidence against OGraf Studio: [2026-10-03 comparison](research/agent-toolkit-2026-10-03.md).
 
 ### Portable production
 A saved graphic reopens exactly as it was and can reach every supported target from one saved
@@ -249,7 +256,7 @@ prove the transforms, timing and source transactions they use; R1.1d broadens th
 
 At each slice exit, provide a runnable route/fixture, a short numbered walkthrough with expected
 results, screenshots or a recording, exact branch/commit, automated evidence and known limits.
-Put product-visible work in its own owner-queue file. Invite review of team-proven usable tasks; record
+Ask for the owner's look at product-visible work in its pull request comment. Invite review of team-proven usable tasks; record
 "engineering verified", "ready for workflow review" and "owner accepted" separately. Feedback is welcome whenever
 the owner is available, but the team must catch ordinary defects without relying on the owner.
 Independent work may continue after implementation authorization; dependent work cannot rely on
@@ -270,13 +277,16 @@ New sessions resume these records and the actual branch state.
 | R1.1a | Base placement, creation and scaling implemented and locally verified from handoff merge `15b8f3fc`; [walkthrough, screenshots and measurements](research/editor-r1-1a/README.md). Engineering progress only; usable static authoring and owner acceptance remain open. Verified slices land without waiting for owner review. |
 | R1.1b-R1.1d | Key/bar, Out and fidelity/trim engineering portions are implemented on current main; broader user/fidelity acceptance remains open. Use the ordered receipts and acceptance register, not the former R1.1a-only checkpoint. |
 | R1.2a | Animation phases through R1.2a.6 are engineering-verified in the receipts above; whole-row owner/workflow acceptance remains open. |
-| R1.2b | Everyday-tool phases .1-.7 are implemented and engineering-verified; folders/bins are merged/live. October 6 drawing/transform/layer/property feedback remains open; the current-main research reran 58 focused tests. |
+| R1.2b | Everyday-tool phases .1-.7 are implemented and engineering-verified; folders/bins are merged/live. Persistent drawing has its [bounded implementation receipt](work-specs/editor-persistent-drawing/README.md). The bounded transform qualification is merged/live; the [bounded layer/property slice](work-specs/editor-layer-property-qualification/README.md) has functional receipts including physical 125% zoom, with shallow-stage limits. Fresh independent #967, broader conventions and whole-row owner acceptance stay open. |
+| R1.3b CLI-generated source round-trip | The [bounded package journey](work-specs/editor-cli-round-trip/README.md) qualifies local CLI scaffold/validate/inspect, normal ZIP import, supported visual edits, durable reopen and SPX/CasparCG/OGraf browser execution, with an independent scoreboard and preserved unsupported source. Broader B17/B18/E23 and receiving-host acceptance remain open. |
+| R1.3b reviewed model proposals | The [bounded review/apply task](work-specs/editor-model-proposals/README.md) adds grounded proposals, atomic validation and context/lifetime guards, with separate paid-model receipts. Broader CLI scenarios, funding and broader B17/B18 acceptance remain open. |
+| R1.3b shared command qualification | The [bounded task and receipts](work-specs/editor-command-qualification/README.md) qualify schemas, capability/refusal discovery and deterministic UI/shared-handler source/history/pose parity. Model, CLI, transport and broader release acceptance remain open. |
 | Further R1.2c-R1.5 / P-COMP | Remain separate planned work; this checkpoint does not close them or the default switch. P-COMP follows R1.5. |
 | R2.1-R2.2 | Not started |
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 
-Next: correct persistent drawing-tool completion on fetched main, using the [bounded prompt and acceptance](research/crafting-apps-editor-2026-10-07/README.md#pasteable-next-implementation-prompt). Remaining October 6 usability corrections stay in their existing R1.2b follow-ups before R1.5. At the start of R1.3b, qualify the shared command contract before model-driven edits; retain the ordered trains above. Keep engineering slices bounded; demonstrate cumulative import/create, ordinary editing, editable text, animation, save/reopen and output tasks before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
+The bounded shared-command qualification at the start of R1.3b now has [direct and cumulative browser task evidence](work-specs/editor-command-qualification/README.md), over the existing operation/session handlers. This closes only that qualification task. The [bounded model-proposal slice](work-specs/editor-model-proposals/README.md) retains these schemas, capabilities, refusals and source/history/preview receipts. The [bounded CLI-generated source round-trip](work-specs/editor-cli-round-trip/README.md) now covers the normal import, visual editing, persistence and executable browser-output journey. The [bounded transform qualification](work-specs/editor-transform-qualification/README.md) is merged/live through #949 with an actual production transform/save/reopen receipt. Its [independent post-landing reference/main comparison](work-specs/editor-transform-qualification/independent/README.md) passed the bounded task (#950); the [layer/property implementation receipts](work-specs/editor-layer-property-qualification/receipts.md) retain a fresh independent check (#967) and measured 125% layout limits; grounded general help and broader real-model tasks stay separate. Paired live MCP remains R3.2; broader R1.3b acceptance stays open. The [persistent-drawing receipt](work-specs/editor-persistent-drawing/README.md) preserves the cumulative authoring task. Remaining October 6 usability corrections stay in their existing R1.2b follow-ups before R1.5; retain the ordered trains above. Keep engineering slices bounded; demonstrate cumulative import/create, ordinary editing, editable text, animation, save/reopen and output tasks before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

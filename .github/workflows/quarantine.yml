@@ -32,13 +32,16 @@ permissions:
 
 jobs:
   # What is in quarantine right now, read off the store at this commit. Node builtins only, no
-  # install: seconds, and the matrix below is skipped entirely when the store is empty.
+  # install: seconds, and the matrix below is skipped entirely when the store is empty. `specs` is
+  # what this workflow can run; `all` adds the configured suite's specs, which only
+  # configured-suite.yml can run (it posts their status), but which this release job still counts.
   list:
     name: Quarantined specs
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
       specs: ${{ steps.list.outputs.specs }}
+      all: ${{ steps.list.outputs.all }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,7 +50,9 @@ jobs:
             e2e/quarantine.json
           sparse-checkout-cone-mode: false
       - id: list
-        run: echo "specs=$(node scripts/e2e-quarantine.mjs matrix)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "specs=$(node scripts/e2e-quarantine.mjs matrix)" >> "$GITHUB_OUTPUT"
+          echo "all=$(node scripts/e2e-quarantine.mjs matrix --all)" >> "$GITHUB_OUTPUT"
 
   spec:
     name: Quarantine (${{ matrix.spec }})
@@ -108,7 +113,7 @@ jobs:
   release:
     name: Quarantine release
     needs: [list, spec]
-    if: ${{ always() && needs.list.outputs.specs != '[]' }}
+    if: ${{ always() && needs.list.outputs.all != '[]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true

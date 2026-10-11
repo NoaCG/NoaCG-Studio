@@ -1,0 +1,68 @@
+[
+  {
+    "path": "reference-independent-render.png",
+    "bytes": 19725,
+    "sha256": "f7734f89e308d6bde9a6242290fad38ac87c87eba2e9b783e7ba68e28f922123",
+    "inspected": true
+  },
+  {
+    "path": "reference-independent-ui.png",
+    "bytes": 229853,
+    "sha256": "fdd0ec2523d6b772c7432ec6c5abd43030c8106b92a5a33707147e6ec4316427",
+    "inspected": true
+  },
+  {
+    "path": "main-desktop.png",
+    "bytes": 125711,
+    "sha256": "acb0a6c868122016b8f4583d013a22161b7e339706b5604ab1df1f86856517a6",
+    "inspected": true
+  },
+  {
+    "path": "main-laptop.png",
+    "bytes": 94971,
+    "sha256": "5e86e2859720d1e2d8c1473de7bc807c0655a29a4a0593cd27c7ff82e7923f7b",
+    "inspected": true
+  },
+  {
+    "path": "main-zoom-proxy.png",
+    "bytes": 82716,
+    "sha256": "55d6d7ab6b3125a9716f60ebf7774e5852378e15539d8ed0ca08819d7645c384",
+    "inspected": true
+  },
+  {
+    "path": "main-spx-live-update.png",
+    "bytes": 21915,
+    "sha256": "1a8d17cdb6b6bc15c5579a6400217c7f017d0bcaf712ea99d532a5e828a7cb19",
+    "inspected": true
+  },
+  {
+    "path": "main-casparcg-live-update.png",
+    "bytes": 21915,
+    "sha256": "1a8d17cdb6b6bc15c5579a6400217c7f017d0bcaf712ea99d532a5e828a7cb19",
+    "inspected": true
+  },
+  {
+    "path": "main-ograf-live-update.png",
+    "bytes": 21902,
+    "sha256": "87d62c30b18f5d15e918fed7b08f7fddd97ba6e684819949e397c9bf79e7ac14",
+    "inspected": true
+  },
+  {
+    "path": "production-desktop.png",
+    "bytes": 149777,
+    "sha256": "a7ef05a3fd4b2e06160ef248a00b36cea3f9545fd5779073188cf000a9a051e1",
+    "inspected": true
+  },
+  {
+    "path": "production-laptop.png",
+    "bytes": 119049,
+    "sha256": "a3497af32d174fab7a3679d92fa76ffa960f40bfb0b0cd073d40c3114b91ee19",
+    "inspected": true
+  },
+  {
+    "path": "production-zoom-proxy.png",
+    "bytes": 105245,
+    "sha256": "ab06319a8a9fb9efbba9a5ad7e664497a9bcdaa2814ae9ee8199adb3dcfe774f",
+    "inspected": true
+  }
+]

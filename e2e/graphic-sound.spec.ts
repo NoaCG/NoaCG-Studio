@@ -5,6 +5,8 @@
 // focus
 
 import { test, expect } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
+import { inMount, OGRAF_MOUNTS } from './_ografMount';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
@@ -199,7 +201,7 @@ test('save/reopen, publication gate and output payload retain sound settings and
   expect(r.bytes).toContain('data:audio/wav;base64,');
 });
 
-test('dual package preserves the attachment on import, OGraf isolates audio and skips historical one-shots', async ({ page }) => {
+for (const mount of OGRAF_MOUNTS) test(inMount('dual package preserves the attachment on import, OGraf isolates audio and skips historical one-shots', mount), async ({ page }) => {
   await page.goto('/app');
   const files = await page.evaluate(`(async()=>{ ${HARNESS}
     const {buildGraphicPackage}=await import('/src/export/noacgPackage.ts');
@@ -214,6 +216,13 @@ test('dual package preserves the attachment on import, OGraf isolates audio and 
     if(!imported.template || parseAnimData(imported.template.js).steps[0].sound.asset!=='sounds/tone.wav')throw Error('Import lost attachment');
     if(imported.template.assets.find(a=>a.path==='sounds/tone.wav').data!==t.assets[0].data)throw Error('Import changed sound bytes');
     if(validateOgrafOfflineCompatibility(t).compatible)throw Error('Enabled sounds advertised as offline compatible');
+    if(${JSON.stringify(mount)}==='shadow'){
+      // The same template's OGraf half again, mounted in a shadow root (e2e/_ografMount.ts).
+      const {addOgrafPackage}=await import('/src/export/targets/ograf.ts');
+      const folder=Object.keys(files).find(p=>p.endsWith('graphic.mjs')).replace('graphic.mjs','');
+      await addOgrafPackage(zip.folder(folder.slice(0,-1)),t,'live',{mount:'shadow'});
+      for(const [name,file] of Object.entries(zip.files))if(!file.dir)files[name]=await file.async('base64');
+    }
     return files;
   })()`);
   const folder = Object.keys(files).find(p=>p.endsWith('graphic.mjs'))!.replace('graphic.mjs','');
@@ -241,10 +250,11 @@ test('dual package preserves the attachment on import, OGraf isolates audio and 
   expect(r.loadA.statusCode).toBe(200); expect(r.loadB.statusCode).toBe(200);
   expect(r).toMatchObject({skipped:0,skippedAnswer:0,before:2,isolated:'running',closed:['closed','closed']});
   failOnce = true;
+  await installGraphicBody(page);
   const recovery = await page.evaluate(`(async()=>{
     const {default:Graphic}=await import('/sound-package/graphic.mjs');const g=new Graphic();document.body.append(g);
-    const failed=await g.load({renderType:'realtime'}),empty=g.childNodes.length===0;
-    const retry=await g.load({renderType:'realtime'}),copies=g.querySelectorAll('#box').length;
+    const failed=await g.load({renderType:'realtime'}),empty=g.childNodes.length===0&&!(g.shadowRoot&&g.shadowRoot.childNodes.length);
+    const retry=await g.load({renderType:'realtime'}),copies=graphicBody(g).querySelectorAll('#box').length;
     await g.dispose();return{failed:failed.statusCode,empty,retry:retry.statusCode,copies};
   })()`);
   expect(recovery).toEqual({failed:500,empty:true,retry:200,copies:1});

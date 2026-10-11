@@ -132,7 +132,7 @@ test('a rename out of the bundle is seen, not hidden behind the destination', ()
   // than trusting the flag.
   const repo = mkdtempSync(join(tmpdir(), 'noacg-rename-'));
   try {
-    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore', windowsHide: true });
     git('init', '-q', '.');
     git('config', 'user.email', 'gate@noacg.studio');
     git('config', 'user.name', 'gate');
@@ -159,8 +159,8 @@ test('lastAffectingCommit walks back over a run of docs-only landings', () => {
   // not to the tip - otherwise every deliberate skip reads as a failed deployment.
   const repo = mkdtempSync(join(tmpdir(), 'noacg-drift-'));
   try {
-    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
-    const sha = (rev) => execFileSync('git', ['rev-parse', rev], { cwd: repo, encoding: 'utf8' }).trim();
+    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore', windowsHide: true });
+    const sha = (rev) => execFileSync('git', ['rev-parse', rev], { cwd: repo, encoding: 'utf8', windowsHide: true }).trim();
     git('init', '-q', '.');
     git('config', 'user.email', 'gate@noacg.studio');
     git('config', 'user.name', 'gate');
@@ -192,7 +192,7 @@ test('lastAffectingCommit walks back over a run of docs-only landings', () => {
 test('lastAffectingCommit returns null when nothing in reach was ever deployable', () => {
   const repo = mkdtempSync(join(tmpdir(), 'noacg-drift-none-'));
   try {
-    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+    const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'ignore', windowsHide: true });
     git('init', '-q', '.');
     git('config', 'user.email', 'gate@noacg.studio');
     git('config', 'user.name', 'gate');

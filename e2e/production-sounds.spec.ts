@@ -212,8 +212,8 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
   expect(await monitor.locator('body').evaluate(()=> (window as unknown as {noacgSoundContext?: unknown}).noacgSoundContext ?? null)).toBeNull();
   await page.getByTestId('verb-out').click();
   await sounds.scrollIntoViewIfNeeded();
-  await page.screenshot({path:'docs/work-specs/playout-shared-sounds/built/quiz-expanded.png',fullPage:true});
-  await sounds.locator('summary').click();await page.screenshot({path:'docs/work-specs/playout-shared-sounds/built/quiz-collapsed.png',fullPage:true});
+  await page.screenshot({path: test.info().outputPath('quiz-expanded.png'),fullPage:true});
+  await sounds.locator('summary').click();await page.screenshot({path: test.info().outputPath('quiz-collapsed.png'),fullPage:true});
   await page.reload();await awaitDurableReady(page);await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('production-sounds').locator('summary')).toHaveText('Sounds · 2 attached');
   const config=await page.evaluate(async sid=>{const {loadShows}=await import('/src/model/shows.ts');return loadShows().find(s=>s.id===sid)!.graphics[0].soundConfig!;},id);
@@ -221,7 +221,7 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
   await page.setViewportSize({width:1093,height:768});await page.getByTestId('production-sounds').locator('summary').click();await expect(actions).toBeVisible();
   await expect(sounds.locator('.sound-attachment').first()).toBeVisible();
   await sounds.scrollIntoViewIfNeeded();
-  await page.screenshot({path:'docs/work-specs/playout-shared-sounds/built/quiz-narrow.png',fullPage:true});
+  await page.screenshot({path: test.info().outputPath('quiz-narrow.png'),fullPage:true});
   for(const label of ['Correct','In']) {
     await sounds.locator('.sound-attachment').filter({hasText:label}).click();await sounds.getByRole('button',{name:'Remove attachment'}).click();
   }

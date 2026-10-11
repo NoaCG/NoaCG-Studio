@@ -93,7 +93,7 @@ All three now refuse an empty target list (`process.exit(2)`), which was the 202
 The residual hole is shared and is NOT fixed here: none of them asserts that a single element was
 ever examined. A catalog that rendered blank without throwing would print
 `PASS - no text renders under its category floor` over 502 empty frames. Filed as
-`docs/backlog/catalog-gates-do-not-assert-they-measured-an-element.md`.
+[issue #803](https://github.com/NoaCG/NoaCG-Studio/issues/803).
 
 ## The compiler
 
@@ -136,7 +136,7 @@ nothing". The five worth naming:
 - **`readiness.ts`** is the counter-example and the model: `unclaimedFindings` surfaces any finding
   no row claims, and a `live` row reports `untested` rather than `pass` when the bench did not run.
 
-Filed as `docs/backlog/validators-that-are-silent-when-they-measure-nothing.md`. They are a
+Filed as [issue #803](https://github.com/NoaCG/NoaCG-Studio/issues/803). They are a
 different layer from the gates - a validator returns findings to a caller rather than an exit code
 - so the `measured()` contract does not fit them as written.
 

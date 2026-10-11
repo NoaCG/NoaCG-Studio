@@ -33,7 +33,7 @@ asset, anim-engine and inspector regressions after integrating landed main.
 The build exposed a missing npm entry for the already verified mutation bench;
 script discovery passed after registering it. Exact-tip build, queue and
 production observations are tracked separately in the acceptance ledger.
-The [desktop item](../../acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
+The [desktop item](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
 asks for product judgment only after the complete task passed.
 
 Full B02/B04, final owner judgment and physical receiving-host acceptance remain open.

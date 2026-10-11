@@ -1,6 +1,6 @@
 ---
-description: Walk what is built and not yet confirmed by a human - the owner queue, one route at a time
-argument-hint: [optional filter - an item's subject, "hardware" for the blocked list, or "agent" for the ones an agent settles]
+description: Go through what waits on the owner - the open needs-owner issues, one at a time
+argument-hint: [optional filter - a subject or an area label]
 ---
 
 Argument: $ARGUMENTS

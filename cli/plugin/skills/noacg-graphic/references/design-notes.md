@@ -15,7 +15,9 @@ catalog designs follow; nothing here is checked by the validator beyond what `va
 - **Typography.** Name lines 44-92px at 600-800 weight (the upper half for flagship and
   entertainment shows, news straps in the lower half); heading-to-secondary ratio about
   1.8-2.2 : 1. Secondary text a viewer must read - a role line, "ON AIR", a sponsor wordmark - is
-  at least 28px, and text read at a glance is weight 500 or heavier. Kickers and small labels
+  at least 28px, and text read at a glance is weight 500 or heavier. The validator's supporting-text
+  warning sits lower on purpose, under about 24px at 1080p: it reports where text stops reading on
+  air, and this guideline is the catalog's look, so a 24-27px line passes it and is still under 28. Kickers and small labels
   that only introduce the line beside them ("HOSTED BY" before a name, a category tag) are 20-22px
   with 0.08-0.2em tracking. Nothing below 20px at 1080p (16px for a persistent corner
   bug). Thin grey on black does not read on air. Live numbers set in a face with even digits

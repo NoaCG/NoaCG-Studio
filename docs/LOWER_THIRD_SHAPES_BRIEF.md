@@ -3,7 +3,7 @@
 **A standing BRIEF, not a handoff.** It lived in `docs/handoffs/` until 2026-08-30 and was swept
 with that folder, which is what the folder's contract says happens to everything in it - while
 three live docs went on citing it. Moved here so it survives: `docs/CATALOG_WORK_QUEUE.md`,
-`docs/CATALOG_VARIETY.md` and `docs/backlog/template-variety-and-dedup.md` all point at it, and
+`docs/CATALOG_VARIETY.md` and [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776) all point at it, and
 the queue item it briefs is still open.
 
 Paste it into a fresh session. It is self-contained; everything it claims is measured and the

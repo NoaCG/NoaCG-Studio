@@ -33,7 +33,7 @@ ownership. Those planning refinements are not product passes. The R1.0 implement
 | B15 | Gradient stops/geometry, mask/source, ordered effects and animated supported parameters; undo/save/reopen/export parity; reject cyclic/dangling masks | R2.2 | Unverified for the replacement editor |
 | B16 | Bind text/image/colour to object/array values; grow/shrink/reorder collection by stable item ID; missing fields and empty/overflow states; stale feed/reconnect and deterministic replay; target compatibility | R3.1 | Unverified for the replacement editor |
 | B17 | CLI-generated graphic -> visual edit -> MCP edit -> save/reopen -> three exports/internal rehearsal; exact unrelated source preservation; stale concurrent edit refused | R1.3 core; R3.2 paired bridge | Unverified for the replacement editor |
-| B18 | Free helper explanation/basic edit, BYOK and external tool equivalence; selection context; cancel, invalid tools, stale revision, undo, quota/timeout and offline fallback; real model task quality separately measured | R1.3 core; R3.2 full | Unverified for the replacement editor |
+| B18 | Free helper explanation/basic edit, BYOK and external tool equivalence; selection context; cancel, invalid tools, stale revision, undo, quota/timeout and offline fallback; real model task quality separately measured | R1.3 core; R3.2 full | [Bounded reviewed proposals](../work-specs/editor-model-proposals/README.md) verify shared-handler edits, cancel/stale/lifetime/failure guards and six separate configured-provider model requests; full funding/BYOK, help, external-tool equivalence and broader quality acceptance remain open |
 | B19 | One project holds lower third + intro; edit/switch/undo independently, reload both drafts, save, find on Home, bulk add to two rundowns and open playout. Master edits leave existing/on-air copies unchanged. Failed save/install, rename, project removal and legacy migration preserve documents | R1.0 ownership boundary; R1.4a/c/d | Isolated document-port harness verified; product project journey open |
 
 ## Current usable-authoring checkpoint
@@ -212,7 +212,7 @@ Cold catalog/SVG openings showed artwork. The reproduced zero-time hot-update de
 retired-session defect are fixed with regressions. The owner's historical blank-stage
 condition is not universally claimed resolved.
 
-**Historical handoff at R1.0 delivery:** R1.0 is merged/live; use the [fresh-session handoff](../handoffs/2026-09-19-editor-r1.1a.md) from updated main for R1.1a only: optional Finish -> Edit, D03
+**Historical handoff at R1.0 delivery:** R1.0 is merged/live; use the [fresh-session handoff](https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-19-editor-r1.1a.md) from updated main for R1.1a only: optional Finish -> Edit, D03
 Position/Layout offset, Text/Rectangle/Ellipse creation and basic scaling, with single
 source transactions, unchanged existing motion/fields, cancel/undo/save/reopen/export
 checks and measured drag feedback. No R1.1b key/bar authoring is included.
@@ -442,7 +442,7 @@ of the frame and always adds a layer. New anchors start centered.
 E06/B04 gain only this bounded engineering evidence. Pen, alignment/distribution,
 grouping, bins, canvas typing, owner workflow and physical receiving-host acceptance
 remain open. No whole row is closed. The desktop product-judgment item is
-[Add a sponsor image and replace a logo](../acceptance/owner-queue/2026-10-03-editor-images.md).
+[Add a sponsor image and replace a logo](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-03-editor-images.md).
 
 ## R1.2b.4 scoped Pen receipt, 2026-10-03
 
@@ -460,7 +460,7 @@ E06/B04 gain this bounded engineering evidence. Unsupported geometry retains
 source with a specific refusal. Alignment/distribution, grouping, bins, canvas
 typing, owner workflow and physical receiving-host acceptance remain open. No
 whole row is closed. The desktop judgment item is
-[Draw a custom badge and adjust its points](../acceptance/owner-queue/2026-10-03-editor-pen.md).
+[Draw a custom badge and adjust its points](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-03-editor-pen.md).
 
 ## R1.2b.5 scoped arrangement and keyboard receipt, 2026-10-05
 
@@ -479,7 +479,7 @@ executes SPX, CasparCG and OGraf exports.
 E07/E17 and the specified portions of B02-B04 gain engineering evidence. Groups,
 bins, canvas typing, owner judgment and physical receiving-host acceptance
 remain open; no whole row is closed. The desktop judgment item is
-[Arrange a badge and two accents](../acceptance/owner-queue/2026-10-05-editor-arrangement.md).
+[Arrange a badge and two accents](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-05-editor-arrangement.md).
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.
@@ -501,7 +501,7 @@ scoped evidence. Unsupported commands explain an exact refusal.
 
 This advances E07 and G08's group portion only. Full B02/B04, folders/bins,
 reusable P-COMP instances, owner judgment and physical receiving-host acceptance
-remain open. [Group a badge and edit its members](../acceptance/owner-queue/2026-10-05-editor-groups.md)
+remain open. [Group a badge and edit its members](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-05-editor-groups.md)
 asks for asynchronous desktop product judgment after the complete task worked.
 
 ## R1.2b.7 scoped folders, bins and navigation receipt, 2026-10-07
@@ -519,5 +519,34 @@ SPX/CasparCG/OGraf appearance have scoped engineering evidence.
 This advances the specified folders/bins portion of B02 and navigation only.
 Full B02/B04, reusable P-COMP instances, owner judgment, actual desktop zoom
 and physical receiving-host acceptance remain open. No whole row is closed.
-[Organize a badge and its assets](../acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
+[Organize a badge and its assets](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
 asks for asynchronous desktop product judgment after the complete task worked.
+
+## R1.3b bounded shared command qualification, 2026-10-08
+
+The [bounded spec and receipts](../work-specs/editor-command-qualification/README.md)
+qualify six existing source handlers with stable command IDs, runtime/discovery
+schemas, source-owned target capabilities and actionable refusals. Guarded
+inspect/apply/history/view calls retain revision, selection/playhead/sample,
+session-liveness and active-gesture ownership. Commit receipts remain separate
+from correlated preview acknowledgements.
+
+A fresh nested/masked SVG task runs through actual UI authoring and deterministic
+browser semantic calls at desktop, laptop and the documented 125% viewport proxy.
+Exact source patches, identities, fields/assets, history and held poses agree;
+public defaults preserve live samples and excluded static text remains excluded.
+Draft cancellation, atomic refusals, history, save/reopen, local rehearsal and
+browser execution of SPX/CasparCG/OGraf packages have scoped engineering evidence.
+Creation replays measured UI parent-space arguments. This is handler parity with
+DOM parsing, not independent coordinate conversion, Node-pure or model parity.
+
+This advances E23 and the shared-handler portion of B17 only. B18 model quality,
+CLI round-trip, WebMCP, physical receiving-host, owner workflow and broader R1.3b
+acceptance stay open. Paired live MCP remains R3.2. No whole acceptance row closes.
+
+
+## R1.2b bounded layer/property qualification, 2026-10-10
+
+[Spec and engineering receipts](../work-specs/editor-layer-property-qualification/README.md) advance B02/B03/B05/E02/E04/E08/E17 with ordered layer ranges, source label/eye metadata, canvas/row Delete/context actions, unkeyed transform discovery, aligned distinct key controls and transactional numeric scrubbing. Existing passes were reproduced before correction; pinned Studio source/runtime matches, shortfalls and deliberate differences are recorded. The cumulative ordinary import/create/text/artwork/animate/history/cancel/save/reopen/output task retains fields, masks, assets and stable IDs. #950/#960 independent transform evidence and CLI round-trip regressions are unchanged.
+
+Native 125% zoom was measured, not proxied: a 1366x768 outer window yields 1093x545 CSS content, a 94px canvas. The task completes through scrolling; comfortable zoomed layout acceptance remains open. [#967](https://github.com/NoaCG/NoaCG-Studio/issues/967) requires a fresh independent reference/landed-main repeat and a bounded next correction if the layout shortfall is confirmed. Broader property shortcuts/conventions, whole B02/B03/B05, owner acceptance, R1.5/default switch, receiving hosts and paired MCP remain open. Save/leave/cloud-status remains with its separate owner.

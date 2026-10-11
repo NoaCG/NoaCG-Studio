@@ -4,7 +4,7 @@
 // role could take, and on a vote board an empty gauge role pools every plain rectangle in the
 // file. A full-bleed plate, a rule and a panel behind the rows are all counted, so the reader is
 // told the file has layers nothing is using and sent hunting for layers that do not exist
-// (docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
+// (https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md).
 //
 // Excluding a plate needs a number, and a guessed number is how you get a rule that throws away
 // somebody's bar. This prints the DISTRIBUTION the number has to come out of: for every drawing

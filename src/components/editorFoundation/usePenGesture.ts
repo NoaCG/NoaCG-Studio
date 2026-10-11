@@ -12,7 +12,7 @@ interface Draft {
   pressed?: { index: number; kind: 'point' | 'in' | 'out'; start: PathPosition };
 }
 export function usePenGesture(template: SpxTemplate, session: EditorSession, drawingSpace: PreviewReply['drawingSpace'],
-  target: RenderedPart | null, scale: number, completed: () => void) {
+  target: RenderedPart | null, scale: number, finishEditing: () => void) {
   const current = useRef<Draft | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null), [error, setError] = useState('');
   const selector = target?.selector;
@@ -31,7 +31,7 @@ export function usePenGesture(template: SpxTemplate, session: EditorSession, dra
       fresh(value);
       const geometry = { ...value.geometry, closed }; validatePath(geometry);
       session.execute({ documentId: session.documentId, expected: value.expected, transactionId: crypto.randomUUID(), operations: [{ kind: 'path.create', geometry, time: value.time }] });
-      current.current = null; setDraft(null); setError(''); completed();
+      current.current = null; setDraft(null); setError('');
     } catch (cause) { if (value.geometry.points.length < (closed ? 3 : 2)) setError(cause instanceof Error ? cause.message : String(cause)); else fail(cause); }
   };
   const begin = (screen: PathPosition) => {
@@ -97,7 +97,7 @@ export function usePenGesture(template: SpxTemplate, session: EditorSession, dra
     } catch (cause) { fail(cause); }
   };
   const key = (key: string) => {
-    if (key === 'Escape') { cancel(); completed(); return true; }
+    if (key === 'Escape') { cancel(); if (target) finishEditing(); return true; }
     if (!current.current || current.current.selector) return false;
     if (key === 'Enter') { finish(false); return true; }
     if (key === 'Backspace') {

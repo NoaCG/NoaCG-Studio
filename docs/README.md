@@ -11,8 +11,7 @@ fails the build when a `docs/*.md` file has no row here, when a row names a file
 there, or when two rows name the same file. So absence from these tables IS evidence that a doc
 does not exist - which is the only reading that makes the map worth consulting. Add the row in
 the same commit as the doc. Subdirectories are exempt on purpose and described at the bottom
-instead: `backlog/` has its own README contract, `handoffs/` is one file per session, and
-`acceptance/owner-queue/` is transient by design.
+instead: `backlog/` holds only a README that points at GitHub Issues.
 
 Layers of documentation, top to bottom:
 
@@ -50,7 +49,7 @@ Layers of documentation, top to bottom:
 | `LOWER_THIRD_SHAPES_BRIEF.md` | The standing drawing brief behind the catalog queue's missing-silhouette item: the measurement (99 of 103 lower thirds are one silhouette), the owner ruling that sameness is a defect rather than a house style, and the six shapes to draw. |
 | `KIT_MATRIX_GAPS.md` | The standing kit gap report: the (type × family) matrix as it resolves, the core six a kit owes a show, and which designs no kit can reach. |
 | `CATALOG_VARIETY.md` | INVESTIGATION, unscheduled (2026-08-09): where the catalog's sameness actually comes from, measured off the emitted code — the style family predicts 3 of 14 visible decisions and the graphic category predicts the rest; the 119 kit-unreachable designs triaged; what is missing entirely; a proposal for design DIRECTIONS scoped to a kit, with a distinctness gate and a cost per direction; and the palette-freedom measurement (148 designs cannot take a light palette). |
-| `CATALOG_BY_PROGRAMME.md` | THE DRAWING QUEUE BY SHOW (2026-09-04): what six kinds of show (news, sports, game show, talk show, podcast, film and entertainment) conventionally put on screen, joined to what the catalog has, as a genre x kind gap table and a ranked list of twelve named absences a drawing session takes in order; the measured look of every category (footprint, backdrop, accent, position); the conventional default palette and entrance per genre; and a PROPOSED weekly drawing slot that feeds on the list, with the mechanisms that would register it named and not built. Answers `backlog/catalog-variety-by-programme-type.md` items 1 and 2. |
+| `CATALOG_BY_PROGRAMME.md` | THE DRAWING QUEUE BY SHOW (2026-09-04): what six kinds of show (news, sports, game show, talk show, podcast, film and entertainment) conventionally put on screen, joined to what the catalog has, as a genre x kind gap table and a ranked list of twelve named absences a drawing session takes in order; the measured look of every category (footprint, backdrop, accent, position); the conventional default palette and entrance per genre; and a PROPOSED weekly drawing slot that feeds on the list, with the mechanisms that would register it named and not built. Answers [issue #776](https://github.com/NoaCG/NoaCG-Studio/issues/776) items 1 and 2. |
 | `CATALOG_WORK_QUEUE.md` | THE QUEUE (2026-08-21): what the catalog still owes, ordered, with the measurement under each item — the missing lower-third SHAPES (99 of 103 designs are one silhouette), the first-page ordering that is already built, the `ig01` re-file, and the standing debts. Carries the owner's binding position that sameness is a defect, not a house style. Its drawing brief is `LOWER_THIRD_SHAPES_BRIEF.md`. |
 | `LOOKS_AND_PALETTES.md` | NOTE, unscheduled: measured evidence that the catalog reads as one product (four families, four palettes, four faces, almost all dark-panel), what more looks would cost, and the anti-slop rules any new look is held to. **Superseded on the measurement by `CATALOG_VARIETY.md`** — the declared axes are not where the sameness lives. |
 | `PRODUCT_AND_MAP.md` | What NoaCG Studio is in one paragraph, pointers to direction and taste, the commands, and where the code lives. Orientation a reader takes in once - the rules that bind are compiled into `AGENTS.md` files from `contracts/rules/`. |
@@ -63,7 +62,7 @@ Layers of documentation, top to bottom:
 | `ADMIN.md` | The private admin surface and the entitlement system: the resolver and its precedence, plans/grants/overrides, roles, the 404-not-403 gate, the audit log, the internal-account usage scope, the beta feedback inbox, migrations 0017+. |
 | `MODEL_ROUTE_AUDITS.md` | The register of hand-performed audits behind `APPROVED_MODEL_CATALOG` - how a ZDR audit is done, and one section per audited route. A `zdrAvailable: true` entry with nothing here is an unbacked privacy claim. |
 | `DATA_API.md` | The Production Data API, for the external integrator: per-production data key, `POST /api/data/update`, field-label mapping, ordering guarantees, rate limits, curl examples. The server-side ingress of `CLOUD_PLAYOUT.md` §7. |
-| `AGENT_CLI.md` | The agent door: the `noacg` CLI + MCP server, the `/bridge` page it drives, the dual graphic package (SPX sources + generated OGraf half), the contract-only skill, containment. |
+| `AGENT_CLI.md` | The agent door: the `noacg` CLI + MCP server, the `/bridge` page it drives, the dual graphic package (SPX sources + generated OGraf half), the contract-only skill, containment, and the editing boundary. Shared-authoring and directory evidence: `research/agent-toolkit-2026-10-03.md`. |
 | `AGENT_DOOR_AUDIT.md` | The agent door walked as a stranger on 2026-09-16 against the published 0.3.3: the install, the authoring chain leg by leg with timings, the SVG road, the one-sentence road, the MCP entrance and Codex, each claim carrying the command that produced it and each gap marked UNVERIFIED. A DATED measurement, not a standing contract - re-walk it rather than trusting it once the CLI or the plugin moves. |
 | `AGENT_SAVE.md` | How an agent's CLI saves into a user's library: scoped agent keys + the permission vocabulary, the loopback one-time-code handoff, `POST /api/me/graphics` (the server never executes template code), the error table, and the library->air gates at publish and export. |
 | `SPORTSDB.md` | The TheSportsDB connector: what the free V1 API actually offers (verified, incl. why it is NOT a real-time scoring feed), the normalized sports contract, the production-data patch it emits, and the one write call still blocked on the production-data contract. |
@@ -152,7 +151,7 @@ Layers of documentation, top to bottom:
 | `BEHAVIOUR_AUTHORING_RESEARCH.md` | The P2 standing research thread, round 1 (2026-09-01): why the node editor failed as a non-programmer authoring surface, six candidate interaction models with a shortlist of two, the eight-brief challenge-graphic set every candidate is proven against, and the round-2 protocol with its evidence gate. Mockups in `docs/design/behaviour-authoring/`. |
 | `JOB_RUNNER_PLAN.md` | One queue per machine for browser-driving work and merges. Steps 1, 3 and 5 BUILT (2026-08-25); step 2 revised on contact; step 4 not started. The queue IS the merge lock. |
 | `ORCHESTRATION_NEXT.md` | RATIFIED 2026-09-01 with corrections: the master stays `opus high` and Opus is also a major worker pool; Fable consults; both Antigravity pools exploited, Codex availability-routed; verification layers by risk; a ledger routes delegation. Three phases, evidence-gated. |
-| `ORCHESTRATOR_SIMPLIFICATION.md` | The review after the 2026-09-04 night wave: what carried eleven landings and is protected, why the loop stopped with 40 percent of the night unused, and the architecture that replaces it - one thin live session, a planner run as a subagent, workers owning a unit end to end, an event-driven refilling loop, and the landing queue unchanged. |
+| `ORCHESTRATOR_SIMPLIFICATION.md` | The 2026-10-08 rethink: what the 2026-10-07 night actually spent, why the docs keep growing, which safeguards are mechanisms, and the thin design that replaces the contract - one short skill for both harnesses, native agents, the backlog in GOALS rank, a short report and a retro that edits instead of adding files. |
 | `ORCHESTRATION_REVIEW.md` | The 2026-09-02 fresh-eyes review of the modular orchestrator: the Phase A verdict written before any edit (the common path is ~590 lines, not 170; four more cached facts), the comparison against Pocock's agent-writing principles, and the before/after behavioural evaluation. |
 | `ORCHESTRATOR_SPEC_REVIEW.md` | Symphony, Spec Kit and context/harness review; preserved orchestration invariants, bounded specs/tasks, evidence convergence, implementation and rollout limits. |
 | `ORCHESTRATOR_STACKS_AND_HARNESS_REVIEW.md` | 2026-09-17: GitHub's native stacked pull requests refused as a wave mechanism and adopted as a queue guard, with the measured cost of a chained wave; the September harness releases judged feature by feature - background sessions instead of Agent-tool rows, schema-enforced delegated results, and what is already covered. |
@@ -215,9 +214,9 @@ Layers of documentation, top to bottom:
   graphics as layered Illustrator files, the SVGs Illustrator's Save a Copy writes from them,
   and state previews. Rebuilt by `scripts/illustrator/build-talk-show-set.jsx`.
 
-## The shelf
+## The backlog
 
-- `backlog/` - the shelf: one file per unscheduled idea, a mandatory `## Why`, graduate-into-GOALS-or-die, and the drain order that puts it LAST behind owner feedback, handoffs and the current push. Its own `README.md` is the contract.
+- `backlog/` - only a README: the backlog is GitHub Issues, by priority (`P1`, `P2`, `P3`) and area, with `owner ask`, `needs owner` and `later` labels.
 
 ## Where the roadmap lives
 

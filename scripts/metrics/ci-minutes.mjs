@@ -13,7 +13,7 @@ import { execFileSync } from 'node:child_process';
 
 /** `gh api --jq` prints one JSON value per line when paginating; read them all. */
 function gh(args) {
-  const out = execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).trim();
+  const out = execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsHide: true }).trim();
   const lines = out.split('\n').filter(Boolean).map((line) => JSON.parse(line));
   return lines.length === 1 && Array.isArray(lines[0]) ? lines[0] : lines;
 }
@@ -32,7 +32,7 @@ function median(values) {
 function main() {
   const args = process.argv.slice(2);
   const limit = args.includes('--limit') ? Number(args[args.indexOf('--limit') + 1]) : 200;
-  const repo = execFileSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { encoding: 'utf8' }).trim();
+  const repo = execFileSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { encoding: 'utf8', windowsHide: true }).trim();
   const pages = Math.max(1, Math.ceil(limit / 100));
   const list = [];
   for (let page = 1; page <= pages && list.length < limit; page += 1) {

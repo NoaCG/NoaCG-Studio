@@ -94,7 +94,7 @@ Every claim below was checked against the repository or a command run today.
    verify both at plan time".** False since the temporary-worktree carve-out landed
    (`scripts/auto-merge.mjs` line 245, "NO WORKTREE IS NOT A REFUSAL ANY MORE").
    `queue-merge.md` says the opposite and is right. A planner following `grounding.md` would hold
-   a closed session's branch for no reason. `docs/backlog/auto-merge-needs-the-temporary-worktree.md`
+   a closed session's branch for no reason. [`docs/backlog/auto-merge-needs-the-temporary-worktree.md`](https://github.com/NoaCG/NoaCG-Studio/blob/e1f3d37d3a866c751a0c067fb95032e7f099c5eb/docs/backlog/auto-merge-needs-the-temporary-worktree.md)
    is the same fact one step staler: it asks for what already exists.
 3. **The wave-state file is not what the core says it is.** Exception 3 says it holds "the wave
    table and every prompt verbatim at wave start, one heartbeat line per watch tick, nothing

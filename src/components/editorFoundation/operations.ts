@@ -5,7 +5,7 @@ import { locateAnimData, parseAnimData, serializeAnimData, spliceAnimData } from
 import { applySound, type SoundOperation } from '../../blocks/soundEdit';
 import { setKeyframe } from '../../blocks/animEdit';
 import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
-import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../blocks/artworkEdits';
+import { editArtworkText, editArtworkStyle, editArtworkMetadata, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
 import { applyAnimation, applyKeyEase, applyKeyMove, type AnimationOperation, type KeyEaseOperation, type KeyMoveOperation } from '../../blocks/editorAnimation';
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
@@ -40,6 +40,8 @@ export type EditorOperation =
   | { kind: 'base.set'; selector: string; values: BasePatch }
   | { kind: 'text.set'; selector: string; text: string }
   | { kind: 'style.set'; selector: string; values: ArtworkStyle }
+  | { kind: 'layer.rename'; selector: string; label: string }
+  | { kind: 'layer.visibility'; selector: string; hidden: boolean }
   | { kind: 'layer.duplicate' | 'layer.delete'; selector: string }
   | { kind: 'layer.reorder'; selector: string; direction: 'forward' | 'backward' }
   | { kind: 'layer.create'; geometry: Creation };
@@ -138,6 +140,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = editArtworkText(next, operation.selector, operation.text); targets.add(operation.selector);
     } else if (operation.kind === 'style.set') {
       next = editArtworkStyle(next, operation.selector, operation.values); targets.add(operation.selector);
+    } else if (operation.kind === 'layer.rename' || operation.kind === 'layer.visibility') {
+      next = editArtworkMetadata(next, operation.selector, operation.kind === 'layer.rename' ? { label: operation.label } : { hidden: operation.hidden }); targets.add(operation.selector);
     } else if (operation.kind === 'layer.duplicate' || operation.kind === 'layer.delete') {
       const result = changeArtworkLayer(next, operation.selector, operation.kind === 'layer.duplicate' ? 'duplicate' : 'delete');
       next = result.template; targets.add(result.selector);

@@ -54,6 +54,39 @@ file, a central rule naming a spec that does not exist, and a malformed header, 
 line. Sixteen specs say `covers: none` today: they were selected by no source path before the move
 either, and their headers say why.
 
+## The traced half: what each spec really executes
+
+The headers are what a person believes a spec depends on. Since 2026-10-10 the plan also asks what
+the browser actually ran. Each nightly records, per spec, which source files had a function
+execute (V8 function coverage, `e2e/_trace.ts`), and lands the result as
+`scripts/e2e-traced.json` through a bot pull request (`bot/e2e-traced`, regenerated and
+force-pushed each night, never merged by hand). `scripts/e2e-traced.mjs` has the mechanism.
+
+The planner adds the specs the map names for a changed file to those the headers name. It never
+removes one, and it never makes an unknown file look mapped: an unmapped path still escalates.
+
+| the map | what the plan does |
+|---|---|
+| fresh, file executed by fewer than half the traced specs | adds those specs, and says which ones it added |
+| fresh, file executed by more than half (`BROAD_SHARE`) | keeps the covers selection and names the file (`BROAD_ESCALATES` switches this to a core-style escalation) |
+| missing, unreadable, or older than `MAX_AGE_DAYS` (3) | escalates every file that would have asked it, and the CI plan annotates the run with the reason |
+| `cli/` and other CENTRAL source | never asked: the browser cannot see it |
+
+Why it exists: #927 changed `src/templates/importedDesign/svg.ts`, which
+`editor-fidelity-trim.spec.ts` runs through its SVG drop, and the spec's header did not list it. Its
+plan never ran the spec and `main` went red. With the headers as they were then, the traced map adds
+that spec (`docs/work-specs/e2e-traced-selection/evidence/`).
+
+Why executed, not loaded: the app imports most of `src/` eagerly, so every spec loads 600 or more
+of its files. A load map would select nearly the whole suite for any change.
+
+Why broad files keep their headers: 276 of 1190 files are executed by most specs, because most
+specs walk the wizard and open the editor. Replayed over 150 landings with sprint focus, the narrow
+union costs +13% planned test-minutes, escalating broad files +25%, and a plain union +65%.
+
+What the map cannot see stays the headers' job: files a spec reads from Node (a baseline, a
+fixture), what the dev server's own handlers run, and pages a spec opens in a context of its own.
+
 ## What runs, per kind of change
 
 Measured against today's table (147 specs, 99.7 minutes) with sprint focus on, which is how CI runs
@@ -73,6 +106,7 @@ it. "Focus set" is the specs whose header says `// focus` (55 specs and 36.9 min
 | one catalog design | 46 specs, 45.6 min, plus the catalog calibration gate | the pack specs ITERATE the catalog, so a design added, renamed or re-declared changes what they assert. Six of them were reachable from no template path at all until 2026-08-08, and ten designs landed green because of it. |
 | a shared foundation (`src/store`, `src/model`, `src/preview`, `src/validation`, the app shell, the router, `src/styles`, `package-lock.json`) | the focus set (55 specs, 36.9 min) under sprint focus; the full suite otherwise | genuine fan-out. Each is imported by most of the app, so no smaller claim can be made honestly. |
 | a path no rule recognises | the focus set under sprint focus; the full suite otherwise | the safe direction. It is also a REPORT: the plan names every unmapped file, and a file that keeps appearing there is a missing `covers:` line, not a fact of life. |
+| only the WORDING of a `.tsx`, `.jsx` or `.html` file, or only the PAINT of classes in a `.css` file | the specs whose source or helpers name the old or new wording (or the class), plus covering specs with screenshot baselines, plus covering specs that measure geometry when the wording grew | words can only break a spec that reads them, or a fit when they get longer. `scripts/e2e-affected-copy.mjs` takes this path only when the code left once the words are set aside is token-for-token identical and every word kept its place; a changed condition, handler, test id, class, compared, indexed or called-with string, a moved label, a non-paint CSS property, or anything its scanner cannot follow plans as before. Never for `src/templates`, `src/blocks`, `src/assets` or plain `.ts`. Measured on the 2026-10-07 wizard copy rows: `claude/i-wizard-leftovers` (cuts only) went from 43 spec files (544 tests) to 1 (3 tests); `ba939f4c7` (one FinishStep sentence made longer) from 47 (635) to 33 (536). `claude/e-wizard-copy`'s commit also changed conditions in eight files and still plans 51. |
 
 ## What the audit found
 
@@ -120,7 +154,7 @@ because 71 of the last 120 merge commits would have been planned differently wit
 reporting `mode: none` on a combination nothing had run. And its safety rests entirely on MY side's
 map having no holes, where the union's extra coverage is exactly the belt against such a hole. That
 is a call worth making with its own evidence and its own gate, not as a side effect of a timing fix.
-Filed as `docs/backlog/integration-plans-run-both-sides-of-a-merge.md`.
+Filed as [`docs/backlog/integration-plans-run-both-sides-of-a-merge.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/integration-plans-run-both-sides-of-a-merge.md).
 
 ## The configured tier
 
@@ -199,7 +233,7 @@ catalog chunk (1.7 MB, 93 ids) through `await import(...)` shortly after boot, a
 So the answer to *will more graphics make the site heavier* is: not for the pages a visitor lands
 on, and yes for `/ograf` and `/bridge`, at about 7 KB per design. That is a chunking fault on two
 pages rather than a reason to draw fewer graphics - filed as
-`docs/backlog/ograf-and-bridge-ship-the-whole-catalog.md`. The lesson for the check itself is in
+[issue #793](https://github.com/NoaCG/NoaCG-Studio/issues/793). The lesson for the check itself is in
 its own header: a hardcoded page list answers for the pages somebody remembered.
 
 ## Where the numbers come from

@@ -264,6 +264,7 @@ test('template search, UI-created shapes and Pen, group and member motion, save/
   }
   await page.getByRole('button',{name:'pen tool',exact:true}).click();await point(950,550);await point(1070,550);await point(1010,630);await point(950,550);await page.keyboard.press('Enter');await ready(page);
   ids.push((await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
+  await page.getByRole('button',{name:'select tool',exact:true}).click();
   for(const [i,id] of ids.entries())await page.locator('.ef-track[data-selector="'+id+'"] .ef-layer').click(i?{modifiers:['Control']}:{});
 
   await page.getByRole('button',{name:'Group selection',exact:true}).click();await ready(page);
@@ -285,7 +286,7 @@ test('template search, UI-created shapes and Pen, group and member motion, save/
   await expect(page.getByTestId('foundation-parent-bar')).toHaveAttribute('data-selector',groupId);
   await expect(page.getByTestId('foundation-local-ruler')).toBeVisible();
   const beforeSave=await source(page);
-  await page.screenshot({path:'docs/research/editor-r1-2b-6/desktop.png',fullPage:true});
+  await page.screenshot({path: test.info().outputPath('desktop.png'),fullPage:true});
   for(const [width,height,label] of [[1366,768,'laptop'],[1093,614,'laptop-125']] as const){
     await page.setViewportSize({width,height});await expect(page.getByRole('button',{name:'Group selection',exact:true})).toBeVisible();
     expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(150);
@@ -293,7 +294,7 @@ test('template search, UI-created shapes and Pen, group and member motion, save/
     expect(timeline.y+timeline.height).toBeLessThanOrEqual(footer.y+1);
     const member=(await page.locator('.ef-track[data-selector="'+ids[0]+'"]').boundingBox())!,tracks=(await page.locator('.ef-track-scroll').boundingBox())!;
     expect(member.y+member.height).toBeLessThanOrEqual(tracks.y+tracks.height+1);
-    await page.screenshot({path:'docs/research/editor-r1-2b-6/'+label+'.png',fullPage:true});
+    await page.screenshot({path: test.info().outputPath(label + '.png'),fullPage:true});
   }
   await page.setViewportSize({width:1920,height:1080});
   await page.getByTestId('save-graphic').click();await page.getByTestId('save-name').fill('Grouped Hairline');await page.getByTestId('save-confirm').click();

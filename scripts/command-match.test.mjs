@@ -12,18 +12,18 @@ import assert from 'node:assert/strict';
 import {
   branchCreations,
   commitCheckouts,
+  endlessWait,
   enqueuesWork,
   invokesE2e,
   invokesSweep,
   commandSegments,
+  mainPushes,
   pollsQueue,
-  pushedUpdates,
-  pushesAndDispatches,
-  unfinishedRun,
-  pushReplacedNotice,
   requiresRunningDevServer,
+  runsWholeSuite,
   startsDevServer,
   SWEEP_SCRIPTS,
+  WAIT_LIMIT_MAX_SECONDS,
 } from './command-match.mjs';
 
 /** Either matcher firing means "this command starts heavy browser work". */
@@ -109,7 +109,6 @@ test('the CHROMIUM-launching -sweep scripts count, and the ones that open no bro
     'node scripts/occlusion-sweep.mjs',
     'node scripts/occlusion-sweep.mjs --category=lower-third --stress',
     'node scripts/design-rules-audit-sweep.mjs',
-    'node scripts/plate-legibility-sweep.mjs',
   ]) {
     assert.ok(invokesSweep(cmd), cmd);
   }
@@ -611,136 +610,175 @@ test('reading, searching or quoting a commit is not making one', () => {
   }
 });
 
-test('a push and a workflow dispatch in one command are the coin flip, in every spelling used here', () => {
-  // Four handoffs over 2026-09-04 and 2026-09-05; the PowerShell spelling is this machine's
-  // ordinary one, since `&&` is a parser error there.
+test('a push that names main is a main push, in every spelling used here', () => {
+  // The agents run as an admin GitHub lets bypass the merge queue, so nothing downstream refuses
+  // these. The PowerShell block form is this machine's ordinary spelling, since `&&` is a parser
+  // error there.
   for (const cmd of [
-    'git push && gh workflow run ci.yml --ref claude/x',
-    'git push origin HEAD; gh workflow run ci.yml --ref claude/x',
-    'git push -u origin claude/x; if ($?) { gh workflow run ci.yml --ref claude/x }',
-    'cd /c/wt && git push && sleep 20 && gh workflow run ci.yml --ref claude/x',
-    'gh workflow run ci.yml --ref claude/x && git push',
+    'git push origin main',
+    'git push origin HEAD:main',
+    'git push origin claude/x:main',
+    'git push origin +main',
+    'git push --force origin main',
+    'git push origin :main',
+    'git push origin --delete main',
+    'git push origin refs/heads/main',
+    'git push origin HEAD:refs/heads/main',
+    'git push origin "HEAD:main"',
+    "git push origin 'main'",
+    'git push -o ci.skip origin main',
+    'git push origin main 2>&1 | tail -5',
+    'git push origin claude/x main',
+    'git push --all origin',
+    'git push --mirror',
+    'git push --branches origin',
+    'npm run build; if ($?) { git push origin main }',
+    'git fetch origin && git push origin HEAD:main',
+    'bash -c "git push origin main"',
+    // git resolves these to main too: a `heads/` short form, a glob over every branch, and the
+    // matching push `:`, which sends every branch both sides have.
+    'git push origin HEAD:heads/main',
+    "git push origin 'refs/heads/*:refs/heads/*'",
+    'git push origin :',
+    'git push origin +:',
+    // The splitter is not quote-aware, so the push arrives as `main"` or `main)`.
+    "bash -c 'cd /c/repo && git push origin main'",
+    'powershell -NoProfile -Command "git fetch; git push origin main"',
+    '(cd /c/repo && git push origin main)',
+    // Checking main out and then pushing the current branch is pushing main, whatever the
+    // checkout was on when the command was typed.
+    'git switch main && git merge --ff-only claude/x && git push',
+    'git checkout main; if ($?) { git push origin HEAD }',
+    'git switch main 2>&1; git push',
   ]) {
-    assert.ok(pushesAndDispatches(cmd), cmd);
+    assert.deepEqual(mainPushes(cmd), [{ dir: '', how: 'named' }], cmd);
   }
+  // `-C` names the checkout, and is reported so the guard judges the tree the push runs in.
+  assert.deepEqual(mainPushes('git -C C:/claude/NoaCG-Studio push origin main'), [
+    { dir: 'C:/claude/NoaCG-Studio', how: 'named' },
+  ]);
 });
 
-test('a push alone, a dispatch alone, a dry run, and the pair as text are not the coin flip', () => {
+test('a push that names no branch, or HEAD, depends on what is checked out', () => {
+  // These push whichever branch the checkout has, so the guard has to ask git which that is.
   for (const cmd of [
     'git push',
-    'git push -u origin claude/x',
-    'gh workflow run ci.yml --ref claude/x',
-    'git push && gh run list --branch claude/x --limit 1',
-    'git push --dry-run && gh workflow run ci.yml --ref claude/x',
-    'git push -n && gh workflow run ci.yml --ref claude/x',
-    'echo "git push && gh workflow run ci.yml"',
-    'grep -rn "gh workflow run" docs/ && git push',
-    'git log --oneline -3; gh workflow run ci.yml --ref claude/x',
+    'git push origin',
+    'git push -u origin',
+    'git push origin HEAD',
+    'git push -u origin HEAD',
+    'git push --force-with-lease origin +HEAD',
+    'git push 2>&1',
+    'git push origin 2>&1',
+    'git push origin > push.log',
+    'git push --push-option ci.skip origin',
+    'git add -A; if ($?) { git push }',
+    'git push origin @',
+    // A variable could name any branch, the checked-out one included.
+    'git push origin $branch',
+    'git push origin "$(git branch --show-current)"',
+    'bash -c "cd /c/repo && git push"',
+    // Restoring a file from main moves nothing, so the push is still of the current branch.
+    'git checkout main -- package.json && git push',
   ]) {
-    assert.ok(!pushesAndDispatches(cmd), cmd);
+    assert.deepEqual(mainPushes(cmd), [{ dir: '', how: 'current' }], cmd);
+  }
+  assert.deepEqual(mainPushes('git -C ../wt push'), [{ dir: '../wt', how: 'current' }]);
+});
+
+test('a push to another branch, a dry run, and a push as text are not main pushes', () => {
+  for (const cmd of [
+    'git push -u origin claude/x',
+    'git push origin HEAD:claude/x',
+    'git push origin HEAD:refs/heads/claude/x',
+    'git push origin main:claude/x',
+    'git push origin claude/main-menu',
+    'git push origin --tags',
+    'git push origin tag v1.2.0',
+    'git push --dry-run origin main',
+    'git push -n origin main',
+    'echo "git push origin main"',
+    'grep -rn "push origin main" docs/',
+    'git log --oneline origin/main..HEAD',
+    'git fetch origin main && git reset --hard origin/main',
+    'git checkout -b claude/x main && git push -u origin claude/x',
+  ]) {
+    assert.deepEqual(mainPushes(cmd), [], cmd);
   }
 });
 
-test('pushedUpdates reads the branches a push updated off the report git printed', () => {
-  // Git prints the report on stderr; the tool response carries both streams as fields.
-  const stderr =
-    'To github.com:NoaCG/NoaCG-Studio.git\n' +
-    '   1765fcfe..2a3b4c5d  claude/r-mistake-triggers -> claude/r-mistake-triggers\n';
-  assert.deepEqual(pushedUpdates('git push', { stdout: '', stderr, interrupted: false, exit_code: 0 }), [
-    { from: '1765fcfe', to: '2a3b4c5d', branch: 'claude/r-mistake-triggers' },
-  ]);
-  // A forced update is still an update, and a string response is read the same way.
-  assert.deepEqual(
-    pushedUpdates('git push --force-with-lease', ' + 1765fcfe...2a3b4c5d claude/x -> claude/x (forced update)\r\n'),
-    [{ from: '1765fcfe', to: '2a3b4c5d', branch: 'claude/x' }],
-  );
-});
-
-test('pushedUpdates is empty for a first push, a no-op, a rejection, a dry run and a non-push', () => {
-  const cases = [
-    ['git push -u origin claude/x', ' * [new branch]      claude/x -> claude/x\n'],
-    ['git push', 'Everything up-to-date\n'],
-    ['git push', ' ! [rejected]        claude/x -> claude/x (fetch first)\nerror: failed to push some refs\n'],
-    ['git push --dry-run', '   1765fcfe..2a3b4c5d  claude/x -> claude/x\n'],
-    ['git log --oneline -3', '   1765fcfe..2a3b4c5d  claude/x -> claude/x\n'],
-    ['git push', null],
-    ['git push', { stdout: 42 }],
-    ['git push', undefined],
-  ];
-  for (const [cmd, response] of cases) assert.deepEqual(pushedUpdates(cmd, response), [], cmd);
-});
-
-test('a refspec push reports the branch gh knows, not refs/heads/', () => {
-  assert.deepEqual(pushedUpdates('git push origin HEAD:refs/heads/claude/x', '   1765fcfe..2a3b4c5d  HEAD -> refs/heads/claude/x\n'), [
-    { from: '1765fcfe', to: '2a3b4c5d', branch: 'claude/x' },
-  ]);
-});
-
-test('unfinishedRun speaks only when no run for the old tip reached a verdict', () => {
-  // Both sets are real, read with gh run list on 2026-09-05. The first was the first event the
-  // notice was ever fed and it must be SILENT: the cancelled push run has a green dispatch beside
-  // it, so the delta at 43c9d60b was covered.
-  const twoRuns = [
-    { conclusion: 'success', databaseId: 33925755805, headSha: '83468df6d98352a895da6adbb6a52bf5160d53ae', status: 'completed' },
-    { conclusion: 'success', databaseId: 33924695227, headSha: '43c9d60b1b5dc51fb53725e156f9c4936efc7cf5', status: 'completed' },
-    { conclusion: 'cancelled', databaseId: 33924688365, headSha: '43c9d60b1b5dc51fb53725e156f9c4936efc7cf5', status: 'completed' },
-  ];
-  assert.equal(unfinishedRun(twoRuns, '43c9d60b'), null);
-  // The real 2026-09-04 follow-up push on claude/b-gate-covers-what-it-claims: one cancelled run
-  // for a8ce0d1b and nothing else, so nothing that finished covers it.
-  const oneCancelled = [
-    { conclusion: 'success', databaseId: 33920462610, headSha: '70c3a9776e866138fe5ea842b7956d309764f984', status: 'completed' },
-    { conclusion: 'cancelled', databaseId: 33920380841, headSha: 'a8ce0d1bd1529ed9fd30d5881d2c4457a5105f78', status: 'completed' },
-  ];
-  assert.equal(unfinishedRun(oneCancelled, 'a8ce0d1b')?.databaseId, 33920380841);
-  // Still going counts as unfinished - it is about to be cancelled.
-  assert.equal(unfinishedRun([{ conclusion: '', databaseId: 1, headSha: 'a8ce0d1bffff', status: 'in_progress' }], 'a8ce0d1b')?.databaseId, 1);
-  // A run that stopped at its own timeout-minutes is not a verdict either (root AGENTS.md).
-  assert.equal(unfinishedRun([{ conclusion: 'timed_out', databaseId: 2, headSha: 'a8ce0d1bffff', status: 'completed' }], 'a8ce0d1b')?.databaseId, 2);
-  // A red run IS a verdict: the delta was tested, and the colour says so.
-  assert.equal(unfinishedRun([{ conclusion: 'failure', databaseId: 3, headSha: 'a8ce0d1bffff', status: 'completed' }], 'a8ce0d1b'), null);
-  // No run for the tip, or nothing to read, is nothing to say.
-  assert.equal(unfinishedRun(oneCancelled, 'deadbeef'), null);
-  assert.equal(unfinishedRun(null, 'a8ce0d1b'), null);
-});
-
-test('pushReplacedNotice tells a cancelled push and a cancelled dispatch opposite things', () => {
-  const where = { branch: 'claude/x', from: 'a8ce0d1bffffffff', to: 'b1b1b1b1ffffffff' };
-  const push = pushReplacedNotice({
-    ...where,
-    run: { databaseId: 42, conclusion: 'cancelled', status: 'completed', event: 'push' },
-  });
-  const dispatch = pushReplacedNotice({
-    ...where,
-    run: { databaseId: 43, conclusion: 'cancelled', status: 'completed', event: 'workflow_dispatch' },
-  });
-
-  // Both name the branch, the two tips and the run, because that is what the reader is looking for.
-  for (const notice of [push, dispatch]) {
-    assert.match(notice, /claude\/x/);
-    assert.match(notice, /a8ce0d1b/);
-    assert.match(notice, /b1b1b1b1/);
-    assert.match(notice, /gh run view <id> --json jobs/);
+test('the job queue refuses the WHOLE default suite and lets one or two named specs through', () => {
+  // The whole suite runs on GitHub Actions; on this machine it starved the memory another row's
+  // Docker needed. These are the plain spellings of it, as a queued job's command.
+  for (const cmd of [
+    'npm run test:e2e',
+    'npm run test:e2e --',
+    'npm run test:e2e:queued',
+    'npm run test:e2e -- --reporter=list',
+    'npx playwright test',
+    'playwright test --workers=2',
+    'npx playwright test --reporter list --retries 0',
+    'yarn run test:e2e',
+    'set E2E_WORKERS=3&& npm run test:e2e',
+    'bash -c "npm run test:e2e"',
+  ]) {
+    assert.ok(runsWholeSuite(cmd), `whole suite: ${cmd}`);
   }
-  assert.match(push, /\b42\b/);
-  assert.match(dispatch, /\b43\b/);
+  // A targeted run is what verification on this machine is now, so it must never be caught.
+  for (const cmd of [
+    'npm run test:e2e -- e2e/project.spec.ts',
+    'npm run test:e2e -- e2e/project.spec.ts e2e/wizard.spec.ts',
+    'npm run test:e2e:queued -- e2e/project-format.spec.ts',
+    'npx playwright test competition-pack.spec.ts',
+    'npx playwright test --grep "saves a project"',
+    'npx playwright test -g=autosave',
+    'npx playwright test --last-failed',
+    'npx playwright test --list',
+    'npm run test:e2e:catalog',
+    'npm run test:e2e:live:queued -- imported-quiz-output',
+    'npx playwright test --config=playwright.catalog.config.ts',
+    // The planner is not judged by its command line: it refuses its own whole-suite plans.
+    'npm run test:e2e:affected',
+    'grep -n "npm run test:e2e" AGENTS.md',
+  ]) {
+    assert.ok(!runsWholeSuite(cmd), `targeted or not a suite: ${cmd}`);
+  }
+});
 
-  // THE SPLIT THAT MATTERS. A cancelled PUSH run is covered by its replacement, so the notice says
-  // so and says a full suite is not the answer. A cancelled DISPATCH lost an override nothing
-  // replaces, so the notice must NOT claim coverage and must ask for the dispatch again.
-  assert.match(push, /cannot be narrower than the push run it replaced/);
-  assert.match(push, /A full suite is no longer the answer/);
-  assert.doesNotMatch(push, /DISPATCH, which has no diff base/);
-
-  assert.match(dispatch, /DISPATCH, which has no diff base/);
-  assert.match(dispatch, /Ask for the full suite again/);
-  assert.doesNotMatch(dispatch, /cannot be narrower/);
-  assert.doesNotMatch(dispatch, /A full suite is no longer the answer/);
-
-  // A run gh reported without an event is not a dispatch as far as this is concerned: the common
-  // case is a push, and claiming a lost override that nothing lost would send the reader to buy a
-  // suite for no reason. A still-running run has no conclusion, so the status stands in.
-  const noEvent = pushReplacedNotice({ ...where, run: { databaseId: 44, status: 'in_progress' } });
-  assert.match(noEvent, /cannot be narrower than the push run it replaced/);
-  assert.match(noEvent, /never finished \(in_progress\)/);
+// docs/work-specs/agent-lifecycle AC-1: a polling loop with no end is refused, one with a limit of
+// up to an hour is not, and a loop that is only mentioned is not a loop.
+test('a polling loop needs a time limit of up to an hour', () => {
+  for (const cmd of [
+    'until docker info >/dev/null 2>&1; do sleep 5; done',
+    'while true; do if curl -s localhost:5173; then break; fi; sleep 5; done',
+    'bash -c "until test -f ready; do sleep 1; done"',
+    'for ((;;)); do sleep 5; done',
+    'while (-not (Test-Path ready)) { Start-Sleep 5 }',
+    'do { Start-Sleep 2 } until (Test-Path ready)',
+    // A timeout on another command, or a word that only looks like a clock, bounds nothing.
+    'timeout 5 curl x; until docker info; do sleep 5; done',
+    'until docker info; do sleep 5; echo seconds; done',
+  ]) {
+    assert.deepEqual(endlessWait(cmd), { why: 'unbounded' }, cmd);
+  }
+  assert.deepEqual(endlessWait("timeout 2h bash -c 'until docker info; do sleep 5; done'"), { why: 'too-long', seconds: 7200 });
+  for (const cmd of [
+    "timeout 60 bash -c 'until docker info >/dev/null 2>&1; do sleep 5; done'",
+    'timeout -k 5 3600 bash -c "while ! curl -s x; do sleep 1; done"',
+    'i=0; while [ $i -lt 30 ]; do i=$((i+1)); sleep 1; done',
+    '$deadline = (Get-Date).AddMinutes(5); while (-not (Test-Path x)) { if ((Get-Date) -gt $deadline) { throw "t" }; Start-Sleep 5 }',
+    'grep -n "while true; do sleep" notes.md',
+    'for f in a b; do echo $f; sleep 1; done',
+    'while read line; do echo "$line"; done < list.txt',
+    "cat > wait.sh <<'EOF'\nuntil ready; do sleep 1; done\nEOF",
+    // Finite loops: over input, counting down, counting in steps; and a loop only mentioned.
+    'gh pr list --json number -q .[].number | while read n; do gh pr view $n; sleep 1; done',
+    'n=30; while [ $n -gt 0 ]; do curl -sf x && break; n=$((n-1)); sleep 1; done',
+    'i=0; while [ $i -lt 60 ]; do sleep 5; i=$((i+5)); done',
+    'git commit -m "Retry the probe; while Docker starts we sleep"',
+    'timeout 7200 npm run build; i=0; while [ $i -lt 3 ]; do i=$((i+1)); sleep 1; done',
+  ]) {
+    assert.equal(endlessWait(cmd), null, cmd);
+  }
+  assert.equal(WAIT_LIMIT_MAX_SECONDS, 3600);
 });

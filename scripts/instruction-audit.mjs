@@ -45,7 +45,7 @@ const claudeGlobal = read(path.join(HOME, '.claude', 'CLAUDE.md'));
 // Claude keys a project's memory by the primary checkout's path with every `:`, `\`, `/` and `.`
 // turned into `-`, so a worktree shares the primary checkout's memory.
 const primaryCheckout = path.dirname(execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-  { cwd: ROOT, encoding: 'utf8' }).trim());
+  { cwd: ROOT, encoding: 'utf8', windowsHide: true }).trim());
 const memoryIndex = path.join(HOME, '.claude', 'projects', primaryCheckout.replace(/[:\\/.]/g, '-'), 'memory', 'MEMORY.md');
 const rulesDir = path.join(ROOT, '.claude', 'rules');
 const unscopedRules = existsSync(rulesDir)

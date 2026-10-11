@@ -164,10 +164,12 @@
 .pd-setup-menu .pd-target-dot { margin: 0 4px; }
 .pd-setup-note { margin-left: auto; padding-left: 14px; font-size: 12px; color: var(--text-dim); }
 .pd-setup-sep { height: 1px; margin: 4px 6px; background: var(--border); }
-/* A panel this page answers, said without opening Setup: green answering, amber connecting. */
+/* Who answers the panel, said without opening Setup: green this page, amber taking it, and a quiet
+   "Use panel here" while another page has it. */
 .pd-panel-status { font-size: 12px; font-weight: 700; padding: 4px 9px; white-space: nowrap; }
 .pd-panel-status--ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.45); }
 .pd-panel-status--idle { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
+.pd-panel-status--held { color: var(--text-dim); font-weight: 600; }
 /* THE LAPTOP TIERS: the production's NAME must fit a two-word name ("Quiz Night") at 1366x768
    and 1280x720, the school laptops a class runs productions on. Measured 2026-09-27 on "Quiz
    Night" before these tiers: 49 of its 67px at 1366 and 0px at 1280 offline; published with
@@ -2207,6 +2209,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* The foot is how graphics get in: the library picker, a new graphic, pictures. */
 .pd-rail-foot { flex: none; border-top: 1px solid var(--border); padding: 9px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .pd-new-graphic { width: 100%; }
+/* A community pack's credit (spec AC-5): the foot's last line, quiet. */
+.pd-credit { margin: 0; font-size: 11px; color: var(--text-dim); }
 
 /* ── Phone (docs/PLAYOUT_DASHBOARD.md §3) ──────────────────────────────────────
    One column: header, the two monitors STILL SIDE BY SIDE (seeing preview and air together is
@@ -2262,6 +2266,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      Export and the wizard door are AUTHORING actions and stand down at this width. */
   .pd-header { height: 46px; padding: 0 8px; gap: 6px; }
   .pd-header h1 { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; }
+  /* The name's icon stands down: squeezed by a due action, the name gave way and left the icon
+     alone in the row. */
+  .pd-header h1 > svg { display: none; }
   .pd-clock,
   .pd-status,
   .pd-back,
@@ -2285,7 +2292,16 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-mode { font-size: 9.5px; padding: 3px 7px; letter-spacing: 0.06em; flex: none; }
   /* The playout status stays, narrower: it is the one way a phone operator learns the screens are
      not hearing them. The production's name is the one that truncates. */
-  .pd-status-control { width: 9.5em; padding: 4px 8px; font-size: 11px; }
+  .pd-status-control { width: 9.5em; max-width: 100%; min-width: 3em; padding: 4px 8px; font-size: 11px; }
+  /* With an action due beside it, the status is what gives way (its text ends in an ellipsis; the
+     panel says it whole), never ■ All out. */
+  .pd-header > .pd-ready-host.pd-status-host { flex: 0 1 auto; min-width: 3em; }
+  /* The action slot reserves its width only where Setup and ■ All out sit right of it; here Setup
+     stands down and the spacer pins All out to the edge, so an empty slot gives its room back. */
+  .pd-action-slot { min-width: 0; }
+  /* The cloud chip keeps its dot and drops its word, which its tooltip and accessible name carry:
+     a late or failed save still shows, in the room of one icon. */
+  .pd-header .sync-status { min-width: 0; min-height: 0; width: 30px; height: 30px; padding: 0; gap: 0; font-size: 0; justify-content: center; }
   /* ...except before the first publish, where "Not published" costs 110px to repeat what Publish
      beside it already says, and the production's NAME was paying for it (0px wide at 390). The
      monitor still reads PROGRAM · NOT PUBLISHED. */

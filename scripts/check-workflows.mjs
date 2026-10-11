@@ -94,7 +94,7 @@ try {
 let failed = 0;
 for (const rel of files) {
   const target = path.join(repoRoot, rel);
-  const result = spawnSync(process.execPath, [cli, target], { cwd: repoRoot, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [cli, target], { cwd: repoRoot, encoding: 'utf8', windowsHide: true });
   if (result.error) {
     console.error(`Could not run action-validator: ${result.error.message}`);
     console.error('Is @action-validator/cli installed? Try `npm install`.');

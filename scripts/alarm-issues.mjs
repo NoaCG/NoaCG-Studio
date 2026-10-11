@@ -151,7 +151,7 @@ const CACHE_FILE = 'noacg-alarm-issues.json';
  * already outside the working tree, so nothing can commit this by accident.
  */
 function cachePath(cwd) {
-  const res = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd, encoding: 'utf8', windowsHide: true });
   if (res.status !== 0 || typeof res.stdout !== 'string') return null;
   const dir = res.stdout.trim();
   return dir ? join(resolve(cwd, dir), CACHE_FILE) : null;

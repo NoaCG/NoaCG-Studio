@@ -56,8 +56,8 @@ The cost and capacity policy for the Pro account is
 
 1. **`nightly` (`.github/workflows/nightly.yml`)** is the **exhaustive tier**, at 02:00 UTC
    (04:00-05:00 Helsinki, so a red result is filed before the day starts): the **whole** E2E
-   suite in eight shards, plus the three catalog-wide gates that nothing else schedules - the
-   calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. It also carries
+   suite on as many shards as keep each inside its 20-minute budget, plus the three catalog-wide
+   gates that nothing else schedules - the calibration tripwire, `type-floor.mjs` and `overflow-sweep.mjs --baseline`. It also carries
    the **E2E time budget** (`scripts/e2e-budget.mjs`), because the nightly is the only run whose
    aggregate is comparable night to night - everything else tests a subset. The budget enforces
    the MEAN per test and only reports the total: shipping a spec with a new pack is healthy
@@ -448,10 +448,9 @@ programme and nobody reloads them. Deploying every landing is safe for them; the
   e2e spec at all, and four template packs landed in a row that each passed it while leaving
   `main` red for two hours on `catalog-baseline.spec.ts`. A gate that cannot fail the way
   production fails is not a gate.
-- **That verification now happens in CI, not on the developer's machine.** `ci.yml` triggers
-  on every branch push (not just `main`), so safe-merge's Phase 3 waits for the run whose head
-  SHA is exactly the commit being promoted and cites it, falling back to the local
-  `npm run build` + `npm run test:e2e:focus:queued` pair only when no such run exists. This is
+- **That verification now happens in CI, not on the developer's machine.** `ci.yml` runs
+  on every pull request (not just `main`), and the merge queue requires its `CI gate` on the
+  pull request and again on the merge group. This is
   more coverage, not less: CI adds the factory gates and runs the affected plan across up to
   nine shards on a clean checkout, in about ten minutes of somebody else's compute. The local
   pair was costing far longer than that and taking the machine out of service while it ran -

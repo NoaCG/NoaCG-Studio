@@ -1,7 +1,7 @@
 # The control-panel road
 
 **Status: a PLAN, rewritten 2026-08-28 from the owner's brief
-(`docs/backlog/control-panel-road-v2-brief.md`, verbatim, 2026-08-28). It builds nothing.** The
+([`docs/backlog/control-panel-road-v2-brief.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/control-panel-road-v2-brief.md), verbatim, 2026-08-28). It builds nothing.** The
 first version (2026-08-27) answered "how does a user's own graphic get a control panel"; the
 brief widens the question to "can these foundations grow into professional broadcast-scale
 operation - sports, esports, elections, automated newsrooms, multi-operator productions - without
@@ -293,7 +293,7 @@ cloud, dashboard AND offline export:
 5. Pin the walk as a spec; file the owner-queue item - "operable" is a judgement a person makes by
    operating it.
 
-Order from `docs/backlog/playout-logic-for-all-common-graphics.md`; credits first (the exemplar:
+Order from [`docs/backlog/playout-logic-for-all-common-graphics.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-logic-for-all-common-graphics.md); credits first (the exemplar:
 **end credits = paste a list** - the "backend" is one textarea field, the roll and its pause are
 the machine, the speed nudge is a control).
 

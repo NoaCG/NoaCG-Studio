@@ -1,0 +1,24 @@
+{
+  "viewport": [
+    1920,
+    1080
+  ],
+  "spxCasparPixelEqual": true,
+  "spxNonWhiteBounds": [
+    120,
+    775,
+    598,
+    961
+  ],
+  "ografNonWhiteBounds": [
+    128,
+    783,
+    606,
+    969
+  ],
+  "ografHostOffset": [
+    8,
+    8
+  ],
+  "graphicPixelsEqualAfterHostOffset": true
+}

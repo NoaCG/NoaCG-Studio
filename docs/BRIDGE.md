@@ -552,7 +552,7 @@ the browser and the Bridge, or between the Bridge and CasparCG.
 
 ## 5. The playout server's own library, cued from the rundown
 
-**The pain this answers** (`docs/backlog/video-through-playout-wrapper.md`): a show is graphics
+**The pain this answers** ([`docs/backlog/video-through-playout-wrapper.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/video-through-playout-wrapper.md)): a show is graphics
 AND clips, and the moment a clip had to roll the operator left NoaCG for the CasparCG Client.
 The model is SPX's `filelist`, copied exactly: the operator picks a NAME from what is already on
 the server, and the machine that owns the file plays it. Nothing is uploaded, ever.
@@ -591,7 +591,7 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   lives on the item beside the layer, so every cue of one server item shares its slot, the way
   every cue of one graphic shares its layer. The production's own graphics stay on the graphics
   channel with the output URL; a second output page on another channel is a later slice
-  (`docs/backlog/noacg-graphics-on-several-channels.md`).
+  ([issue #767](https://github.com/NoaCG/NoaCG-Studio/issues/767)).
 - **No purpose names (2026-10-01, docs/work-specs/studio-day-playout).** Settings calls the two
   defaults what they are: **NoaCG output** (the slot the output URL plays on, stored as
   `channel`/`layer`) and **New media** (the channel a new video, still or audio file starts on,
@@ -666,7 +666,7 @@ What CasparCG 2.3-2.5 does natively for a clip on a layer:
 | Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | **2026-09-28**: At the end, Play next, run by the Bridge (§3) |
 | Clear the layer when the clip ends | `LOADBG c-l EMPTY AUTO` | **2026-09-28**: At the end, Clear |
 | Level | `AF "volume=<gain>"` on the clip (`MIXER c-l VOLUME` is a layer gain that outlives the clip, and is not used) | **2026-09-28**: Level in dB, applied at the next Take |
-| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | **2026-10-02**: the Bridge's `ending` verb changes a playing clip's ending without playing it again (feature `ending`, not yet released); the page does not send it yet ([backlog](backlog/looping-clip-end-change-while-playing.md)) |
+| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | **2026-10-02**: the Bridge's `ending` verb changes a playing clip's ending without playing it again (feature `ending`, not yet released); the page does not send it yet ([backlog](https://github.com/NoaCG/NoaCG-Studio/issues/763)) |
 | Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | **2026-09-28**: Start at and End at under Advanced, as `IN`/`OUT` |
 
 **Built 2026-09-28** (phase 3 of [`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md), NoaCG Bridge
@@ -732,8 +732,10 @@ channel, never shared:
 Each card on the Downloads page shows the version of the file it links to, so a CLI release with
 no new exe simply shows two different numbers. `noacg bridge` still runs the Bridge for a
 developer who has the CLI; that is the one place the shared package shows. A Bridge
-release is `git tag bridge-vX.Y.Z <commit on main> && git push origin bridge-vX.Y.Z`; the
-workflow refuses a commit that is not on main, a tag that disagrees with the package version, a
+release happens when a version with its own section in `cli/BRIDGE_CHANGELOG.md` lands on `main`
+(owner, 2026-10-08): the workflow builds the exe from that commit and creates the Release and its
+`bridge-vX.Y.Z` tag. Pushing that tag by hand re-drives a release; the workflow refuses a commit
+that is not on main, a tag that disagrees with the package version, a
 version already released, and a version with no section in `cli/BRIDGE_CHANGELOG.md`, written
 for the operator deciding whether to download again. The Release page is that section placed
 into `cli/BRIDGE_RELEASE.md` (what it is, what changed, how to install, where the guide is), and
@@ -874,7 +876,7 @@ Stated plainly, because this doc's whole purpose is to not overstate.
 - **Clip playback** (`CLIP_PLAYBACK_PLAN.md` §11) is built through its phase 4, folders, with
   Loop the folder in 0.6.0. What is left there is later work: frame-exact All together, a live
   fader, Load and preloading, and the timed graphics cues.
-- **A hardware panel** (`docs/backlog/companion-and-stream-deck.md`): Bitfocus Companion and a
+- **A hardware panel** ([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809)): Bitfocus Companion and a
   Stream Deck driving the same named verbs and showing the same state the page draws, through this
   Bridge's local HTTP.
 - **Milestone 3 - remote operators and more adapters.** `noacg bridge follow --production
@@ -886,6 +888,6 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   proved against a fake server by `e2e/bridge-ograf.spec.ts`. Still to come: a playout target of
   kind OGraf in Settings, a cue's "Plays on" pick of renderer and render target built from the
   renderer's schema, and a real round against a pinned SuperFly.tv `ograf-server`
-  (`docs/backlog/bridge-ograf-adapter.md`).
+  ([issue #790](https://github.com/NoaCG/NoaCG-Studio/issues/790)).
 - **Not part of this**: uploading or syncing files to the server's folders. AMCP has no upload;
   that is a helper on the server box or a share the Bridge writes to, a separate design.

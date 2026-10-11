@@ -69,7 +69,7 @@ function clockWords(c: ClockData): { label?: string; number: string; then: strin
  *
  * It reads the store's two parts and nothing else, so it is the one thing on the page that redraws
  * as the clip plays. What it shows is `clipClock` in control/serverState.ts - plain data a hardware
- * panel can read the same way (docs/backlog/companion-and-stream-deck.md).
+ * panel can read the same way (https://github.com/NoaCG/NoaCG-Studio/issues/809).
  *
  * The last ten seconds turn it red and the last five pulse it; the digits count too, so colour is
  * never the only signal. At the end of a clip that holds it turns amber and counts up. `estimated`

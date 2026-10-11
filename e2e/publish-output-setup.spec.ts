@@ -162,14 +162,20 @@ test('Setup › Links… holds the people links, marked private or public; the p
 test('Setup and All out keep their place while the status and its action change',async({page})=>{
   const b=backend();await account(page,b);const id=await seed(page);
   const places=async()=>page.evaluate(()=>['production-setup','verb-out-all'].map(t=>Math.round(document.querySelector(`[data-testid="${t}"]`)!.getBoundingClientRect().x)));
-  for(const [pass,width] of [1920,1366,1280].entries()){
+  // The header clips rather than scrolls, so a page-width check cannot see All out pushed off the edge.
+  const allOutOnScreen=async(width:number,state:string)=>expect(await page.evaluate(()=>Math.round(document.querySelector('[data-testid="verb-out-all"]')!.getBoundingClientRect().right)),`${width}: All out off screen ${state}`).toBeLessThanOrEqual(width);
+  // 390 is the phone, where Setup stands down and the sync chip is a dot.
+  for(const [pass,width] of [1920,1366,1280,390].entries()){
     await page.setViewportSize({width,height:800});
     const unpublished=await places();
+    await allOutOnScreen(width,'before the first publish');
     await publishProduction(page);
     expect(await places(),`${width}: publishing moved Setup or All out`).toEqual(unpublished);
+    await allOutOnScreen(width,'once published');
     await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const {variantsFor}=await import('/src/templates/catalog.ts');S.addGraphicToShow(key.id,variantsFor('lower-third')[key.pass+1].create({}));await (await import('/src/model/durableStore.ts')).commitDurableWrites();},{id,pass});
     await expect(page.getByTestId('production-publish-changes')).toBeVisible();
     expect(await places(),`${width}: Publish changes moved Setup or All out`).toEqual(unpublished);
+    await allOutOnScreen(width,'with Publish changes due');
     await page.getByTestId('production-publish-changes').click();
     await expect(page.getByTestId('production-publish-changes')).toHaveCount(0,{timeout:30_000});
     // Back to a never-published copy for the next width.
@@ -287,6 +293,10 @@ test('the rundown badge reads the layer, with the CasparCG slot only when Caspar
   await setCasparSwitch(page,false);
   await expect(graphic).toHaveText(/^G\d+$/);
   await expect(clip.getByTestId('cue-caspar-off')).toHaveText('CasparCG off');
+  // Its greyed TAKE says the same, rather than nothing.
+  await clip.getByTestId('select-cue').click();
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toHaveAttribute('title','CasparCG is off for this production.');
   expect(bridge.actions).toEqual([]);
   await page.unrouteAll({behavior:'ignoreErrors'});
 });
@@ -340,4 +350,50 @@ test('the panel opens Playout settings with CasparCG off and on',async({page})=>
   await page.getByTestId('production-status').click();
   await panel.getByTestId('panel-playout-settings').click();
   await expect(dialog.getByTestId('settings-playout')).toBeVisible();
+});
+
+// THE OFFLINE CLEAR (docs/work-specs/offline-clear/spec.md AC-1, AC-3, AC-4): All out that cannot
+// clear NoaCG graphics through the cloud takes this production's renderer off CasparCG through the
+// Bridge, and only then. AC-2 (the outputs still saying a graphic is on) is not driven here: it needs
+// a live sequence head, and it shares the one unload call with AC-1.
+test('All out unloads the NoaCG renderer from CasparCG through the Bridge when the cloud does not answer',async({page})=>{
+  test.setTimeout(90_000);
+  const b=backend();b.defaults[A]=choice('browser',true);await account(page,b);await seedSettings(page);const bridge=await fakeBridge(page);await seed(page);
+  // The fake backend takes every send until the cloud is cut; then no send gets an answer.
+  let cloud=true;
+  await page.route('https://noacg-test.supabase.co/rest/v1/rpc/control_send*',r=>cloud?r.fallback():r.abort('failed'));
+  await publishProduction(page);
+  // Publish loaded the renderer on 1-20, and the Bridge reads it there. The first publish opened
+  // the panel; a press on the status would close it again.
+  const panel=page.getByTestId('production-status-panel');
+  if(!(await panel.isVisible()))await page.getByTestId('production-status').click();
+  await expect(panel.getByTestId('caspar-take-off-air')).toBeVisible({timeout:20_000});
+  await expect(panel.getByTestId('caspar-put-on-air')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  const unloads=()=>bridge.actions.filter(a=>a.verb==='out'&&a.slot.channel===1&&a.slot.layer===20).length;
+  const allOut=page.getByTestId('verb-out-all');
+  const note=page.getByTestId('production-note');
+
+  // AC-3: the cloud clears it, so the renderer stays where it is.
+  await allOut.click();
+  await expect(allOut).not.toHaveAttribute('data-clearing','true',{timeout:20_000});
+  expect(unloads(),'All out that reached the outputs unloaded nothing').toBe(0);
+  await expect(note.filter({hasText:'Unloaded'})).toHaveCount(0);
+
+  // AC-1: the cloud stops answering. All out fails, and unloads the renderer through the Bridge.
+  cloud=false;
+  await allOut.click();
+  await expect(note).toContainText('Unloaded NoaCG graphics from 1-20. When the connection is back, press All out before Load on 1-20.',{timeout:20_000});
+  expect(unloads()).toBe(1);
+  expect(bridge.runs['1-20'],'the slot is empty').toBeUndefined();
+  await page.screenshot({path:test.info().outputPath('offline-clear-note.png')});
+
+  // AC-4: nothing of this production is on the slot now, so a second All out touches no slot.
+  if(!(await panel.isVisible()))await page.getByTestId('production-status').click();
+  await expect(panel.getByTestId('caspar-put-on-air')).toBeVisible({timeout:20_000});
+  await page.keyboard.press('Escape');
+  await allOut.click();
+  await expect(allOut).not.toHaveAttribute('data-clearing','true',{timeout:20_000});
+  await expect(note).not.toContainText('Unloaded',{timeout:20_000});
+  expect(unloads(),'All out left the empty slot alone').toBe(1);
 });

@@ -16,7 +16,7 @@ const GENERATED = [/\.ograf\.json$/i, /^graphic\.mjs$/, /^FIELDS\.md$/, /^README
 // JSZip is loaded on FIRST ZIP, not at import. `mcp.ts` pulls this module in at startup for
 // `isEmptyDir`, and a static import made every session pay 4 MB for a zip library most never
 // use - the same reason `browser.ts` defers `playwright-core`, which costs far more
-// (docs/backlog/cli-mcp-startup-weight.md). Cached after the first call, so repeated packaging
+// (https://github.com/NoaCG/NoaCG-Studio/blob/4e81a1225298f48fd6a80d45d83e3f9f64e26536/docs/backlog/cli-mcp-startup-weight.md). Cached after the first call, so repeated packaging
 // pays the resolve once.
 type JSZipCtor = typeof import('jszip');
 let jszip: JSZipCtor | undefined;

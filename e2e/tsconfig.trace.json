@@ -1,0 +1,7 @@
+{
+  "//": "Loaded by playwright.config.ts only when NOACG_E2E_TRACE is set: maps the specs' '@playwright/test' import to e2e/_trace.ts, which adds the trace fixture (scripts/e2e-traced.mjs).",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@playwright/test": ["./_trace.ts"] }
+  }
+}

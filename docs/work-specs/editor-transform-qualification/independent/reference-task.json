@@ -1,0 +1,6052 @@
+{
+  "startedAt": "2026-10-10T13:24:40.027Z",
+  "reference": "VectorCraft v0.4.0",
+  "revision": "a26aa5b203c901979eb447d28e34e7357138c789",
+  "archiveSha256": "fa8d7dc5590ebf1adb93d040dd7420441a2e55db2971f33c05c0c0e5edde0fec",
+  "executableSha256": "19d93588ae034e38084be17e626a7f2174bd626059723c93d4681e752a72ffba",
+  "publishedChecksumMatches": true,
+  "sources": [
+    {
+      "path": "apps_vectorcraft_src_control_server.rs",
+      "sha256": "ba2ce4028fedadb592da60e7978f252ff9d5f56603a3dc2203af2f9ef8c6311f"
+    },
+    {
+      "path": "crates_engine_src_cmd_object.rs",
+      "sha256": "6a918420a51ec39e0acc9f56e51d3881f83bf449aec82a5b3ca39add0057969d"
+    },
+    {
+      "path": "crates_engine_src_cmd_typecmd.rs",
+      "sha256": "c08c613ad1d1ab825902732a4edd6f58958ab92e9dc4760eb03d68140534f018"
+    },
+    {
+      "path": "crates_tools_src_bbox.rs",
+      "sha256": "1622b6cc207005a76456d768cf02eaf00ff27625ce41b9fd9a484d92088f376c"
+    },
+    {
+      "path": "crates_tools_src_select.rs",
+      "sha256": "b716e4da926cc605f5cf32d32f6ee53d4933775a222b6fb5d050741940e5caf8"
+    },
+    {
+      "path": "crates_ui-egui_src_control.rs",
+      "sha256": "d1177643ebd6d00d0a83b3770e4e489c5e26ffb02949461e9af4e1dc5b2fe77b"
+    },
+    {
+      "path": "crates_ui-egui_src_panels_transform.rs",
+      "sha256": "5299b26402248a3a1892a98f2c29759617d77f463ebcf5f649b2aee4f8a4f919"
+    }
+  ],
+  "steps": [
+    {
+      "task": "unequal numeric scale then proportional width",
+      "unequal": {
+        "height": 96,
+        "width": 480,
+        "x": 310,
+        "y": 312
+      },
+      "relinked": {
+        "height": 120,
+        "width": 600,
+        "x": 310,
+        "y": 300
+      }
+    },
+    {
+      "task": "numeric proportional",
+      "bounds": {
+        "height": 144,
+        "width": 360,
+        "x": 400,
+        "y": 288
+      }
+    },
+    {
+      "task": "numeric independent",
+      "bounds": {
+        "height": 120,
+        "width": 360,
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "task": "Shift proportional side",
+      "bounds": {
+        "height": 150,
+        "width": 375,
+        "x": 400,
+        "y": 285
+      },
+      "history": [
+        "Scale"
+      ]
+    },
+    {
+      "task": "unmodified independent side",
+      "bounds": {
+        "height": 120,
+        "width": 375,
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "task": "Shift proportional corner",
+      "bounds": {
+        "height": 150,
+        "width": 375,
+        "x": 400,
+        "y": 300
+      }
+    },
+    {
+      "task": "pointer/numeric rotation",
+      "pointerRotation": -30.000000000000004,
+      "numericRotation": -29.999999999999996,
+      "bounds": {
+        "height": 253.92304845413264,
+        "width": 319.8076211353315,
+        "x": 390.0961894323342,
+        "y": 233.03847577293368
+      }
+    },
+    {
+      "task": "text side frame resize",
+      "before": {
+        "columns": 1,
+        "firstBaseline": "ascent",
+        "firstBaselineMin": 0,
+        "gutter": 18,
+        "height": 120,
+        "inset": 0,
+        "rows": 1,
+        "width": 300
+      },
+      "after": {
+        "columns": 1,
+        "firstBaseline": "ascent",
+        "firstBaselineMin": 0,
+        "gutter": 18,
+        "height": 120,
+        "inset": 0,
+        "rows": 1,
+        "width": 380
+      }
+    },
+    {
+      "task": "text corner frame resize",
+      "area": {
+        "columns": 1,
+        "firstBaseline": "ascent",
+        "firstBaselineMin": 0,
+        "gutter": 18,
+        "height": 150,
+        "inset": 0,
+        "rows": 1,
+        "width": 420.00000000000006
+      }
+    },
+    {
+      "task": "Escape active area drag",
+      "before": 380,
+      "after": 430,
+      "cancelled": false
+    },
+    {
+      "task": "native save/reopen",
+      "exactNodeIdentityBoundsText": true,
+      "area": {
+        "columns": 1,
+        "firstBaseline": "ascent",
+        "firstBaselineMin": 0,
+        "gutter": 18,
+        "height": 120,
+        "inset": 0,
+        "rows": 1,
+        "width": 380
+      }
+    }
+  ],
+  "calls": [
+    {
+      "method": "ui.resize",
+      "params": {
+        "width": 1366,
+        "height": 768
+      },
+      "response": {
+        "id": 1,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "app.open",
+      "params": {
+        "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg"
+      },
+      "response": {
+        "id": 2,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "ui.set",
+      "params": {
+        "smartGuides": false,
+        "boundingBox": true
+      },
+      "response": {
+        "id": 3,
+        "ok": true,
+        "result": false
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "view.actualSize",
+        "params": {}
+      },
+      "response": {
+        "id": 4,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 5,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 1,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "select.set",
+        "params": {
+          "ids": [
+            2
+          ]
+        }
+      },
+      "response": {
+        "id": 6,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "ui.tool.select",
+      "params": {
+        "tool": "selection"
+      },
+      "response": {
+        "id": 7,
+        "ok": true,
+        "result": {
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.scale",
+        "params": {
+          "sx": 160,
+          "sy": 80
+        }
+      },
+      "response": {
+        "id": 8,
+        "ok": true,
+        "result": {
+          "ids": [
+            2
+          ]
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 9,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 543.93359375,
+                "width": 507.15625,
+                "x": 310,
+                "y": 312
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 96,
+                    "width": 480,
+                    "x": 310,
+                    "y": 312
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 3,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 96,
+            "width": 480,
+            "x": 310,
+            "y": 312
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.setBounds",
+        "params": {
+          "width": 600,
+          "reference": 3,
+          "proportional": true
+        }
+      },
+      "response": {
+        "id": 10,
+        "ok": true,
+        "result": {
+          "ids": [
+            2
+          ]
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 11,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale",
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 600,
+                "x": 310,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 600,
+                    "x": 310,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 4,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 600,
+            "x": 310,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 12,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 13,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale",
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 600,
+                "x": 310,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 600,
+                    "x": 310,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 4,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 600,
+            "x": 310,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 14,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 543.93359375,
+                "width": 507.15625,
+                "x": 310,
+                "y": 312
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 96,
+                    "width": 480,
+                    "x": 310,
+                    "y": 312
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Transform"
+          ],
+          "revision": 5,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 96,
+            "width": 480,
+            "x": 310,
+            "y": 312
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 15,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 16,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 543.93359375,
+                "width": 507.15625,
+                "x": 310,
+                "y": 312
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 96,
+                    "width": 480,
+                    "x": 310,
+                    "y": 312
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Transform"
+          ],
+          "revision": 5,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 96,
+            "width": 480,
+            "x": 310,
+            "y": 312
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 17,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Scale",
+            "Transform"
+          ],
+          "revision": 6,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.setBounds",
+        "params": {
+          "width": 360,
+          "reference": 3,
+          "proportional": true
+        }
+      },
+      "response": {
+        "id": 18,
+        "ok": true,
+        "result": {
+          "ids": [
+            2
+          ]
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 19,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 567.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 288
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 144,
+                    "width": 360,
+                    "x": 400,
+                    "y": 288
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 7,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 144,
+            "width": 360,
+            "x": 400,
+            "y": 288
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 20,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 21,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 567.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 288
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 144,
+                    "width": 360,
+                    "x": 400,
+                    "y": 288
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 7,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 144,
+            "width": 360,
+            "x": 400,
+            "y": 288
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 22,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Transform"
+          ],
+          "revision": 8,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.setBounds",
+        "params": {
+          "width": 360,
+          "reference": 3,
+          "proportional": false
+        }
+      },
+      "response": {
+        "id": 23,
+        "ok": true,
+        "result": {
+          "ids": [
+            2
+          ]
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 24,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 360,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 9,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 360,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 25,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 26,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 360,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 9,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 360,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 27,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Transform"
+          ],
+          "revision": 10,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 700,
+            "y": 360,
+            "space": "doc",
+            "mods": {
+              "shift": true
+            }
+          },
+          {
+            "kind": "drag",
+            "x": 775,
+            "y": 360,
+            "space": "doc",
+            "mods": {
+              "shift": true
+            }
+          },
+          {
+            "kind": "up",
+            "x": 775,
+            "y": 360,
+            "space": "doc",
+            "mods": {
+              "shift": true
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": 28,
+        "ok": true,
+        "result": {
+          "selection": [
+            2
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 29,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 570.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 285
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 150,
+                    "width": 375,
+                    "x": 400,
+                    "y": 285
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 12,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 150,
+            "width": 375,
+            "x": 400,
+            "y": 285
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.render",
+      "params": {
+        "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-linked.png",
+        "scale": 0.5
+      },
+      "response": {
+        "id": 30,
+        "ok": true,
+        "result": {
+          "height": 540,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-linked.png",
+          "width": 960
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 31,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 32,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 570.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 285
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 150,
+                    "width": 375,
+                    "x": 400,
+                    "y": 285
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 12,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 150,
+            "width": 375,
+            "x": 400,
+            "y": 285
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 33,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Scale"
+          ],
+          "revision": 13,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true,
+        "shift": true
+      },
+      "response": {
+        "id": 34,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 35,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Scale"
+          ],
+          "revision": 13,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 36,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 570.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 285
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 150,
+                    "width": 375,
+                    "x": 400,
+                    "y": 285
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 14,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 150,
+            "width": 375,
+            "x": 400,
+            "y": 285
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 37,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 38,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 570.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 285
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 150,
+                    "width": 375,
+                    "x": 400,
+                    "y": 285
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 14,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 150,
+            "width": 375,
+            "x": 400,
+            "y": 285
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 39,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Scale"
+          ],
+          "revision": 15,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 700,
+            "y": 360,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "drag",
+            "x": 775,
+            "y": 360,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "up",
+            "x": 775,
+            "y": 360,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": 40,
+        "ok": true,
+        "result": {
+          "selection": [
+            2
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 41,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 375,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 17,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 375,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 42,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 43,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 375,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 17,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 375,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 44,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Scale"
+          ],
+          "revision": 18,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 700,
+            "y": 420,
+            "space": "doc",
+            "mods": {
+              "shift": true
+            }
+          },
+          {
+            "kind": "drag",
+            "x": 775,
+            "y": 450,
+            "space": "doc",
+            "mods": {
+              "shift": true
+            }
+          },
+          {
+            "kind": "up",
+            "x": 775,
+            "y": 450,
+            "space": "doc",
+            "mods": {
+              "shift": true
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": 45,
+        "ok": true,
+        "result": {
+          "selection": [
+            2
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 46,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 150,
+                    "width": 375,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 20,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 150,
+            "width": 375,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 47,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 48,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Scale"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 150,
+                    "width": 375,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 20,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 150,
+            "width": 375,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 49,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Scale"
+          ],
+          "revision": 21,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 710,
+            "y": 290,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "drag",
+            "x": 723.5640646055102,
+            "y": 379.3782217350893,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "up",
+            "x": 723.5640646055102,
+            "y": 379.3782217350893,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": 50,
+        "ok": true,
+        "result": {
+          "selection": [
+            2
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 51,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Rotate"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 622.8951179770663,
+                "width": 427.0600605676658,
+                "x": 390.0961894323342,
+                "y": 233.03847577293368
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 253.92304845413264,
+                    "width": 319.8076211353315,
+                    "x": 390.0961894323342,
+                    "y": 233.03847577293368
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "rotation": -30.000000000000004,
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 23,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 253.92304845413264,
+            "width": 319.8076211353315,
+            "x": 390.0961894323342,
+            "y": 233.03847577293368
+          },
+          "selectionRotation": -30.000000000000004,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 52,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 53,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Rotate"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 622.8951179770663,
+                "width": 427.0600605676658,
+                "x": 390.0961894323342,
+                "y": 233.03847577293368
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 253.92304845413264,
+                    "width": 319.8076211353315,
+                    "x": 390.0961894323342,
+                    "y": 233.03847577293368
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "rotation": -30.000000000000004,
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 23,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 253.92304845413264,
+            "width": 319.8076211353315,
+            "x": 390.0961894323342,
+            "y": 233.03847577293368
+          },
+          "selectionRotation": -30.000000000000004,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 54,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Rotate"
+          ],
+          "revision": 24,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.rotate",
+        "params": {
+          "angle": -30
+        }
+      },
+      "response": {
+        "id": 55,
+        "ok": true,
+        "result": {
+          "ids": [
+            2
+          ]
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 56,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Rotate"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 622.8951179770663,
+                "width": 427.0600605676658,
+                "x": 390.0961894323342,
+                "y": 233.03847577293368
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 253.92304845413264,
+                    "width": 319.8076211353316,
+                    "x": 390.0961894323342,
+                    "y": 233.03847577293368
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "rotation": -29.999999999999996,
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 25,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 253.92304845413264,
+            "width": 319.8076211353316,
+            "x": 390.0961894323342,
+            "y": 233.03847577293368
+          },
+          "selectionRotation": -29.999999999999996,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.render",
+      "params": {
+        "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-rotated.png",
+        "scale": 0.5
+      },
+      "response": {
+        "id": 57,
+        "ok": true,
+        "result": {
+          "height": 540,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-rotated.png",
+          "width": 960
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 58,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 59,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Rotate"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 622.8951179770663,
+                "width": 427.0600605676658,
+                "x": 390.0961894323342,
+                "y": 233.03847577293368
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 253.92304845413264,
+                    "width": 319.8076211353316,
+                    "x": 390.0961894323342,
+                    "y": 233.03847577293368
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "rotation": -29.999999999999996,
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 25,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 253.92304845413264,
+            "width": 319.8076211353316,
+            "x": 390.0961894323342,
+            "y": 233.03847577293368
+          },
+          "selectionRotation": -29.999999999999996,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 60,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 3,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Rotate"
+          ],
+          "revision": 26,
+          "selection": [
+            2
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 300
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.create",
+        "params": {
+          "x": 400,
+          "y": 500,
+          "text": "Independent comparison makes text reflow across its frame",
+          "size": 32,
+          "area": {
+            "width": 300,
+            "height": 120
+          }
+        }
+      },
+      "response": {
+        "id": 61,
+        "ok": true,
+        "result": {
+          "id": 4
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 62,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Type"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 500
+                  },
+                  "fill": "#000000",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "Independent comparison makes tex",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent comparison makes text reflow across its frame",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [],
+          "revision": 27,
+          "selection": [
+            4
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 300,
+            "x": 400,
+            "y": 500
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.setProps",
+        "params": {
+          "id": 4,
+          "name": "independent-area"
+        }
+      },
+      "response": {
+        "id": 63,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "select.set",
+        "params": {
+          "ids": [
+            4
+          ]
+        }
+      },
+      "response": {
+        "id": 64,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.areaOptions",
+        "params": {}
+      },
+      "response": {
+        "id": 65,
+        "ok": true,
+        "result": {
+          "columns": 1,
+          "firstBaseline": "ascent",
+          "firstBaselineMin": 0,
+          "gutter": 18,
+          "height": 120,
+          "inset": 0,
+          "rows": 1,
+          "width": 300
+        }
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 700,
+            "y": 560,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "drag",
+            "x": 780,
+            "y": 560,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "up",
+            "x": 780,
+            "y": 560,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": 66,
+        "ok": true,
+        "result": {
+          "selection": [
+            4
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.areaOptions",
+        "params": {}
+      },
+      "response": {
+        "id": 67,
+        "ok": true,
+        "result": {
+          "columns": 1,
+          "firstBaseline": "ascent",
+          "firstBaselineMin": 0,
+          "gutter": 18,
+          "height": 120,
+          "inset": 0,
+          "rows": 1,
+          "width": 380
+        }
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 780,
+            "y": 620,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "drag",
+            "x": 820,
+            "y": 650,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "up",
+            "x": 820,
+            "y": 650,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": 68,
+        "ok": true,
+        "result": {
+          "selection": [
+            4
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.areaOptions",
+        "params": {}
+      },
+      "response": {
+        "id": 69,
+        "ok": true,
+        "result": {
+          "columns": 1,
+          "firstBaseline": "ascent",
+          "firstBaselineMin": 0,
+          "gutter": 18,
+          "height": 150,
+          "inset": 0,
+          "rows": 1,
+          "width": 420.00000000000006
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 70,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.areaOptions",
+        "params": {}
+      },
+      "response": {
+        "id": 71,
+        "ok": true,
+        "result": {
+          "columns": 1,
+          "firstBaseline": "ascent",
+          "firstBaselineMin": 0,
+          "gutter": 18,
+          "height": 120,
+          "inset": 0,
+          "rows": 1,
+          "width": 380
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 72,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Type",
+            "Object Properties",
+            "Resize Type Area"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 120,
+                    "width": 380,
+                    "x": 400,
+                    "y": 500
+                  },
+                  "fill": "#000000",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-area",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent comparison makes text reflow across its frame",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Resize Type Area"
+          ],
+          "revision": 34,
+          "selection": [
+            4
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 380,
+            "x": 400,
+            "y": 500
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "down",
+            "x": 780,
+            "y": 560,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          },
+          {
+            "kind": "drag",
+            "x": 830,
+            "y": 560,
+            "space": "doc",
+            "mods": {
+              "shift": false
+            }
+          }
+        ]
+      },
+      "response": {
+        "id": 73,
+        "ok": true,
+        "result": {
+          "selection": [
+            4
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Escape"
+      },
+      "response": {
+        "id": 74,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "ui.pointer",
+      "params": {
+        "events": [
+          {
+            "kind": "up",
+            "x": 830,
+            "y": 560,
+            "space": "doc"
+          }
+        ]
+      },
+      "response": {
+        "id": 75,
+        "ok": true,
+        "result": {
+          "selection": [
+            4
+          ],
+          "tool": "selection"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.areaOptions",
+        "params": {}
+      },
+      "response": {
+        "id": 76,
+        "ok": true,
+        "result": {
+          "columns": 1,
+          "firstBaseline": "ascent",
+          "firstBaselineMin": 0,
+          "gutter": 18,
+          "height": 120,
+          "inset": 0,
+          "rows": 1,
+          "width": 430
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 77,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.areaOptions",
+        "params": {}
+      },
+      "response": {
+        "id": 78,
+        "ok": true,
+        "result": {
+          "columns": 1,
+          "firstBaseline": "ascent",
+          "firstBaselineMin": 0,
+          "gutter": 18,
+          "height": 120,
+          "inset": 0,
+          "rows": 1,
+          "width": 380
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 79,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Type",
+            "Object Properties",
+            "Resize Type Area"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 120,
+                    "width": 380,
+                    "x": 400,
+                    "y": 500
+                  },
+                  "fill": "#000000",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-area",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent comparison makes text reflow across its frame",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg",
+          "redo": [
+            "Resize Type Area"
+          ],
+          "revision": 37,
+          "selection": [
+            4
+          ],
+          "selectionBounds": {
+            "height": 120,
+            "width": 380,
+            "x": 400,
+            "y": 500
+          },
+          "selectionRotation": 0,
+          "target": null,
+          "title": "reference-input.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "file.saveAs",
+        "params": {
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\.noacg\\transform-independent\\reference\\independent-1791638682466.vectorcraft",
+          "format": "vectorcraft"
+        }
+      },
+      "response": {
+        "id": 80,
+        "ok": true,
+        "result": {
+          "background": true,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\.noacg\\transform-independent\\reference\\independent-1791638682466.vectorcraft",
+          "status": "Saving independent-1791638682466.vectorcraft…"
+        }
+      }
+    },
+    {
+      "method": "ui.inspect",
+      "params": {},
+      "response": {
+        "id": 81,
+        "ok": true,
+        "result": {
+          "activeDocument": 0,
+          "background": [
+            "Saving independent-1791638682466.vectorcraft"
+          ],
+          "canvasRect": [
+            76,
+            84,
+            956,
+            635
+          ],
+          "documents": [
+            {
+              "dirty": true,
+              "title": "reference-input.svg"
+            }
+          ],
+          "perf": {
+            "fps": 165.79608591373167,
+            "frameMs": 1.5234375,
+            "renderMs": 3.435546875
+          },
+          "tool": "selection",
+          "toolOptions": null,
+          "ui": {
+            "about": false,
+            "action_sets": [
+              {
+                "actions": [
+                  {
+                    "name": "Duplicate and Offset 10 pt",
+                    "steps": [
+                      [
+                        "object.move",
+                        {
+                          "copy": true,
+                          "dx": 10,
+                          "dy": 10
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Unite and Simplify",
+                    "steps": [
+                      [
+                        "object.pathfinder.unite",
+                        {}
+                      ],
+                      [
+                        "object.path.simplify",
+                        {
+                          "tolerance": 0.5
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Center on Artboard",
+                    "steps": [
+                      [
+                        "object.align",
+                        {
+                          "horizontal": "center",
+                          "to": "artboard",
+                          "vertical": "center"
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Outline Text",
+                    "steps": [
+                      [
+                        "type.createOutlines",
+                        {}
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Rotate 90° CW",
+                    "steps": [
+                      [
+                        "object.rotate",
+                        {
+                          "angle": -90
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Reflect Horizontal",
+                    "steps": [
+                      [
+                        "object.reflect",
+                        {
+                          "axis": "vertical"
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                "name": "Default Actions"
+              }
+            ],
+            "brightness": "MediumDark",
+            "color_guide": {
+              "amount": 50,
+              "steps": 4,
+              "variation": "tintsShades"
+            },
+            "color_guide_limit": "",
+            "control_bar": false,
+            "custom_workspaces": [],
+            "dialog": null,
+            "dock": true,
+            "dock_tab": "Properties",
+            "draw_mode": 0,
+            "dxf_import": null,
+            "dxf_options": null,
+            "engine_prefs": null,
+            "eps_options": null,
+            "flattener_preview": {
+              "highlight": "none",
+              "options": {
+                "antiAlias": true,
+                "balance": 75,
+                "clipComplexRegions": false,
+                "gradientPpi": 300,
+                "lineArtPpi": 300,
+                "preserveAlpha": false,
+                "preserveOverprints": true,
+                "strokesToOutlines": false,
+                "textToOutlines": false
+              },
+              "overprints": "preserve",
+              "preset": "Medium Resolution",
+              "showOptions": false
+            },
+            "flyout": null,
+            "group_tool": [
+              "selection",
+              "directSelection",
+              "magicWand",
+              "lasso",
+              "pen",
+              "curvature",
+              "type",
+              "lineSegment",
+              "rectangle",
+              "paintbrush",
+              "shaper",
+              "eraser",
+              "rotate",
+              "scale",
+              "width",
+              "freeTransform",
+              "shapeBuilder",
+              "perspectiveGrid",
+              "mesh",
+              "gradient",
+              "eyedropper",
+              "blend",
+              "symbolSprayer",
+              "columnGraph",
+              "artboard",
+              "hand",
+              "zoom"
+            ],
+            "last_selection_tool": "selection",
+            "library_panel": null,
+            "open_panel": null,
+            "palette_open": false,
+            "palette_query": "",
+            "place_link": true,
+            "recent_files": [
+              "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg"
+            ],
+            "recent_fonts": [],
+            "screen_mode": 0,
+            "shortcut_overrides": {},
+            "shortcut_set": "VectorCraft Defaults",
+            "slot_tool": {
+              "selection": "selection"
+            },
+            "status": "Saving independent-1791638682466.vectorcraft…",
+            "status_bar": true,
+            "svg_options": null,
+            "task_bar": true,
+            "toolbar": true,
+            "toolbar_advanced": false,
+            "toolbar_double": false,
+            "view": {
+              "artboards": true,
+              "bounding_box": true,
+              "corner_widgets": true,
+              "edges": true,
+              "gradient_annotator": true,
+              "grid": false,
+              "guides": true,
+              "hidden_chars": false,
+              "outline": false,
+              "pixel_preview": false,
+              "rulers": false,
+              "smart_guides": false,
+              "snap_to_grid": false,
+              "snap_to_pixel": false,
+              "snap_to_point": true,
+              "text_threads": true,
+              "trim_view": false
+            },
+            "window": {
+              "maximized": false,
+              "pos": [
+                152,
+                152
+              ],
+              "size": [
+                1366,
+                768
+              ]
+            },
+            "workspace": "Essentials"
+          },
+          "view": {
+            "artboard": 0,
+            "center": {
+              "x": 960,
+              "y": 540
+            },
+            "fitted": true,
+            "rotation": 0,
+            "zoom": 1
+          },
+          "window": [
+            1366,
+            768
+          ]
+        }
+      }
+    },
+    {
+      "method": "ui.inspect",
+      "params": {},
+      "response": {
+        "id": 82,
+        "ok": true,
+        "result": {
+          "activeDocument": 0,
+          "background": [],
+          "canvasRect": [
+            76,
+            84,
+            956,
+            635
+          ],
+          "documents": [
+            {
+              "dirty": false,
+              "title": "independent-1791638682466.vectorcraft"
+            }
+          ],
+          "perf": {
+            "fps": 151.30929338047807,
+            "frameMs": 0.95458984375,
+            "renderMs": 3.435546875
+          },
+          "tool": "selection",
+          "toolOptions": null,
+          "ui": {
+            "about": false,
+            "action_sets": [
+              {
+                "actions": [
+                  {
+                    "name": "Duplicate and Offset 10 pt",
+                    "steps": [
+                      [
+                        "object.move",
+                        {
+                          "copy": true,
+                          "dx": 10,
+                          "dy": 10
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Unite and Simplify",
+                    "steps": [
+                      [
+                        "object.pathfinder.unite",
+                        {}
+                      ],
+                      [
+                        "object.path.simplify",
+                        {
+                          "tolerance": 0.5
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Center on Artboard",
+                    "steps": [
+                      [
+                        "object.align",
+                        {
+                          "horizontal": "center",
+                          "to": "artboard",
+                          "vertical": "center"
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Outline Text",
+                    "steps": [
+                      [
+                        "type.createOutlines",
+                        {}
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Rotate 90° CW",
+                    "steps": [
+                      [
+                        "object.rotate",
+                        {
+                          "angle": -90
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Reflect Horizontal",
+                    "steps": [
+                      [
+                        "object.reflect",
+                        {
+                          "axis": "vertical"
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                "name": "Default Actions"
+              }
+            ],
+            "brightness": "MediumDark",
+            "color_guide": {
+              "amount": 50,
+              "steps": 4,
+              "variation": "tintsShades"
+            },
+            "color_guide_limit": "",
+            "control_bar": false,
+            "custom_workspaces": [],
+            "dialog": null,
+            "dock": true,
+            "dock_tab": "Properties",
+            "draw_mode": 0,
+            "dxf_import": null,
+            "dxf_options": null,
+            "engine_prefs": null,
+            "eps_options": null,
+            "flattener_preview": {
+              "highlight": "none",
+              "options": {
+                "antiAlias": true,
+                "balance": 75,
+                "clipComplexRegions": false,
+                "gradientPpi": 300,
+                "lineArtPpi": 300,
+                "preserveAlpha": false,
+                "preserveOverprints": true,
+                "strokesToOutlines": false,
+                "textToOutlines": false
+              },
+              "overprints": "preserve",
+              "preset": "Medium Resolution",
+              "showOptions": false
+            },
+            "flyout": null,
+            "group_tool": [
+              "selection",
+              "directSelection",
+              "magicWand",
+              "lasso",
+              "pen",
+              "curvature",
+              "type",
+              "lineSegment",
+              "rectangle",
+              "paintbrush",
+              "shaper",
+              "eraser",
+              "rotate",
+              "scale",
+              "width",
+              "freeTransform",
+              "shapeBuilder",
+              "perspectiveGrid",
+              "mesh",
+              "gradient",
+              "eyedropper",
+              "blend",
+              "symbolSprayer",
+              "columnGraph",
+              "artboard",
+              "hand",
+              "zoom"
+            ],
+            "last_selection_tool": "selection",
+            "library_panel": null,
+            "open_panel": null,
+            "palette_open": false,
+            "palette_query": "",
+            "place_link": true,
+            "recent_files": [
+              "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\.noacg\\transform-independent\\reference\\independent-1791638682466.vectorcraft",
+              "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-input.svg"
+            ],
+            "recent_fonts": [],
+            "screen_mode": 0,
+            "shortcut_overrides": {},
+            "shortcut_set": "VectorCraft Defaults",
+            "slot_tool": {
+              "selection": "selection"
+            },
+            "status": "Saved C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\.noacg\\transform-independent\\reference\\independent-1791638682466.vectorcraft",
+            "status_bar": true,
+            "svg_options": null,
+            "task_bar": true,
+            "toolbar": true,
+            "toolbar_advanced": false,
+            "toolbar_double": false,
+            "view": {
+              "artboards": true,
+              "bounding_box": true,
+              "corner_widgets": true,
+              "edges": true,
+              "gradient_annotator": true,
+              "grid": false,
+              "guides": true,
+              "hidden_chars": false,
+              "outline": false,
+              "pixel_preview": false,
+              "rulers": false,
+              "smart_guides": false,
+              "snap_to_grid": false,
+              "snap_to_pixel": false,
+              "snap_to_point": true,
+              "text_threads": true,
+              "trim_view": false
+            },
+            "window": {
+              "maximized": false,
+              "pos": [
+                152,
+                152
+              ],
+              "size": [
+                1366,
+                768
+              ]
+            },
+            "workspace": "Essentials"
+          },
+          "view": {
+            "artboard": 0,
+            "center": {
+              "x": 960,
+              "y": 540
+            },
+            "fitted": true,
+            "rotation": 0,
+            "zoom": 1
+          },
+          "window": [
+            1366,
+            768
+          ]
+        }
+      }
+    },
+    {
+      "method": "app.open",
+      "params": {
+        "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\.noacg\\transform-independent\\reference\\independent-1791638682466.vectorcraft"
+      },
+      "response": {
+        "id": 83,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 84,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 555.93359375,
+                "width": 417.15625,
+                "x": 400,
+                "y": 300
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 120,
+                    "width": 380,
+                    "x": 400,
+                    "y": 500
+                  },
+                  "fill": "#000000",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-area",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent comparison makes text reflow across its frame",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 417.15625,
+                    "x": 400,
+                    "y": 824.65234375
+                  },
+                  "fill": "#18384c",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "independent-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Independent transform check 950",
+                  "visible": true
+                },
+                {
+                  "anchors": 4,
+                  "bounds": {
+                    "height": 120,
+                    "width": 300,
+                    "x": 400,
+                    "y": 300
+                  },
+                  "closed": true,
+                  "fill": "#18384c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "independent-panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\.noacg\\transform-independent\\reference\\independent-1791638682466.vectorcraft",
+          "redo": [],
+          "revision": 1,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "independent-1791638682466.vectorcraft",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "select.set",
+        "params": {
+          "ids": [
+            4
+          ]
+        }
+      },
+      "response": {
+        "id": 85,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.areaOptions",
+        "params": {}
+      },
+      "response": {
+        "id": 86,
+        "ok": true,
+        "result": {
+          "columns": 1,
+          "firstBaseline": "ascent",
+          "firstBaselineMin": 0,
+          "gutter": 18,
+          "height": 120,
+          "inset": 0,
+          "rows": 1,
+          "width": 380
+        }
+      }
+    },
+    {
+      "method": "ui.render",
+      "params": {
+        "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-reopened.png",
+        "scale": 0.5
+      },
+      "response": {
+        "id": 87,
+        "ok": true,
+        "result": {
+          "height": 540,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-reopened.png",
+          "width": 960
+        }
+      }
+    },
+    {
+      "method": "ui.screenshot",
+      "params": {
+        "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-ui.png"
+      },
+      "response": {
+        "id": 88,
+        "ok": true,
+        "result": {
+          "height": 1152,
+          "path": "C:\\Users\\ahonemi\\.codex\\worktrees\\editor-transform-independent\\NoaCG-Studio\\docs\\work-specs\\editor-transform-qualification\\independent\\reference-ui.png",
+          "width": 2049
+        }
+      }
+    }
+  ],
+  "finishedAt": "2026-10-10T13:24:42.934Z"
+}

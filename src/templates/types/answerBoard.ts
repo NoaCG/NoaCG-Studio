@@ -130,8 +130,8 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
  * in the cue plus Select answer, and has a lock beat; a show board (quizShow.ts) picks in one press
  * per letter and has none. Both stay, because they are two show formats rather than one drifted
  * into two: the lock is a beat the designer drew (the sealed pick, the audience result after the
- * verdict), and a buzzer-speed show would only be slowed by it (docs/backlog/
- * quiz-control-questions-the-answer-key-fix-left-open.md, 2026-09-27). So the first section's
+ * verdict), and a buzzer-speed show would only be slowed by it (
+ * https://github.com/NoaCG/NoaCG-Studio/issues/783, 2026-09-27). So the first section's
  * heading says which model this is - "Pick, then lock" here, "Pick, one press" there - and the
  * reveal sits under the same "Reveal" heading on both.
  */

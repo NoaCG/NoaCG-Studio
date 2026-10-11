@@ -107,7 +107,8 @@ ${alertLineMasks(o)}
   font-weight: 800;                /* heavy caps carry at a distance */
   letter-spacing: var(--label-tracking);  /* tracked caps breathe */
   text-transform: uppercase;       /* reads as a stamp, whatever the operator types */
-  white-space: nowrap;             /* the kicker never wraps */
+  max-width: calc(420px * var(--scale)); /* a kicker is a word; a far longer one wraps here
+                                      instead of taking the band from the headline */
   color: var(--accent-ink);        /* the family's ink on an accent-filled block */
 }
 

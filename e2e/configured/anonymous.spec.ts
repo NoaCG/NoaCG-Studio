@@ -1,7 +1,7 @@
 // CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
 // (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
 //
-// PASSWORD RECOVERY (docs/backlog/password-reset-link-lands-nowhere.md): the same shape as
+// PASSWORD RECOVERY (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md): the same shape as
 // agent access. Offline the route is INERT by design and e2e/auth.spec.ts can only pin that
 // it stays inert; the expired-link card, the resend door and the pre-route fragment key are
 // only reachable against a real project (e2e/configured/anonymous.spec.ts). A change here
@@ -15,9 +15,14 @@
 // auth.spec.ts can only pin that it says neither.
 // covers: src/components/auth/{accountCopy.ts,SignInDialog.tsx,SignInPrompt.tsx}
 // covers: src/components/save/SaveDialogs.tsx
+//
+// SIGNING UP: what the dialog says after "Create account" is decided from the server's reply, and
+// only a real project can give the reply with a session (the "signing up" block at the end).
+// covers: src/backend/{auth,signUpOutcome}.ts
 
-import { test, expect } from '@playwright/test';
-import { dismissWizard, SUPABASE_URL } from './_helpers';
+import { test, expect, type Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, mintAccount, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { chooseNoacgAgent } from '../_ai-step';
@@ -113,9 +118,9 @@ test.describe('anonymous visitor (open editor)', () => {
   });
 
   test('account features prompt for sign-in instead of walling the app', async ({ page }) => {
-    // An old-EDITOR subject (the AI panel, the Community button). That editor is closed, so
+    // An old-EDITOR subject (the AI panel). That editor is closed, so
     // enableAdvancedMode skips this test until it is rewritten
-    // (docs/backlog/specs-that-still-open-the-old-editor.md).
+    // (https://github.com/NoaCG/NoaCG-Studio/issues/800).
     await enableAdvancedMode(page);
     await page.goto('/app');
     await dismissWizard(page); // reach the topbar + panels underneath
@@ -145,16 +150,9 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(page.getByTestId('signin-prompt')).toBeVisible();
     await expect(page.getByTestId('signin-prompt').getByTestId('signin-prompt-for')).toHaveText(ACCOUNT_IS_FOR);
 
-    // Community opens the sign-in dialog, not an empty gallery. Through a door the door's own
-    // reason leads and the sentence follows it, so a reader who came for the gallery still
-    // learns what the account buys beyond the gallery.
-    await page.getByRole('button', { name: /Community/ }).click();
-    await expect(card).toBeVisible();
-    await expect(card.getByTestId('auth-reason')).toContainText('community');
-    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
-    await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
-
     // Esc closes the dialog — signing in is always optional.
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(card).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(card).toHaveCount(0);
   });
@@ -192,7 +190,7 @@ test.describe('anonymous visitor (open editor)', () => {
     // The EDITOR's bar, which is the heavy one - it carries the panel toggles, Reset and the
     // beta door that Home does not. Measuring the light Home bar would prove nothing about the
     // width claim below. That editor is closed, so enableAdvancedMode skips this test until it
-    // is rewritten (docs/backlog/specs-that-still-open-the-old-editor.md).
+    // is rewritten (https://github.com/NoaCG/NoaCG-Studio/issues/800).
     await enableAdvancedMode(page);
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.goto('/app');
@@ -291,7 +289,7 @@ test.describe('anonymous visitor (open editor)', () => {
   });
 
   test('a dead reset link says so, and offers a new one', async ({ page }) => {
-    // docs/backlog/password-reset-link-lands-nowhere.md. Supabase hands a rejected link back in
+    // https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md. Supabase hands a rejected link back in
     // the FRAGMENT (measured 2026-09-04 against the hosted project:
     // `?recovery=1#error=access_denied&error_code=otp_expired&error_description=...`), and until
     // this route existed both an expired link and a wrong destination were the same blank page.
@@ -316,5 +314,126 @@ test.describe('anonymous visitor (open editor)', () => {
     await page.goto('/app#access_token=not-a-real-token&expires_in=3600&token_type=bearer&type=recovery');
     await expect(page.getByTestId('password-recovery-page')).toBeVisible();
     await expect(page.getByTestId('recovery-expired')).toBeVisible();
+  });
+});
+
+// SIGNING UP (issue #794). What the dialog says after "Create account" is decided by the server's
+// reply (src/backend/signUpOutcome.ts): a reply with a session is a working account, so the visitor
+// is signed in and told nothing about email; only a reply without one says to check the inbox.
+// Every sign-up used to be told to confirm an email, though this project sends none.
+
+/** Open the dialog's create-account half from Home, and log every note the dialog ever puts in
+ *  the DOM - however briefly, and across the reload a sign-in makes onto the account's library -
+ *  so a note that flashes before the dialog closes is caught, not only one that stays. */
+async function openSignUp(page: Page): Promise<string[]> {
+  const notes: string[] = [];
+  page.on('console', (message) => {
+    const text = message.text();
+    if (text.startsWith('auth-note: ')) notes.push(text.slice('auth-note: '.length));
+  });
+  await page.addInitScript(() => {
+    const seen = new Set<string>();
+    new MutationObserver(() => {
+      for (const note of document.querySelectorAll('.auth-note')) {
+        const text = note.textContent ?? '';
+        if (!seen.has(text)) console.info(`auth-note: ${text}`);
+        seen.add(text);
+      }
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
+  await page.locator('.auth-signin').click();
+  await page.locator('.auth-card').getByRole('button', { name: 'New here? Create a free account' }).click();
+  await expect(page.locator('.auth-submit')).toHaveText('Create account');
+  return notes;
+}
+
+test.describe('signing up (configured)', () => {
+  test.skip(!SUPABASE_URL, 'set VITE_SUPABASE_URL to run the configured-mode suite');
+
+  test('a new account that works at once is signed in, and never told to check an email', async ({ page }) => {
+    test.skip(!SERVICE_ROLE_KEY, 'needs SUPABASE_SERVICE_ROLE_KEY to delete the account it makes');
+    const settings = (await (
+      await fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SERVICE_ROLE_KEY } })
+    ).json()) as { mailer_autoconfirm?: boolean };
+
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const email = `e2e-sign-up@${E2E_EMAIL.split('@')[1] || 'noacg.local'}`;
+    const password = 'noacg-e2e-sign-up-pw';
+    await deleteAccountByEmail(admin, email); // a leftover from a run that died before its cleanup
+
+    try {
+      const notes = await openSignUp(page);
+      // The reply itself, so the walk below is known to be the session case it claims to be.
+      let repliedWithSession = false;
+      if (settings.mailer_autoconfirm === true) {
+        // Confirmations off, as on the hosted project: the real sign-up, and its real reply.
+        await page.route('**/auth/v1/signup*', async (route) => {
+          const response = await route.fetch();
+          repliedWithSession = Boolean(((await response.json()) as { access_token?: string }).access_token);
+          await route.fulfill({ response });
+        });
+      } else {
+        // This project confirms addresses, or does not say (the staging project behind
+        // hosted-latency.yml skipped here on 2026-10-09), so a real sign-up could send an email. Serve the reply confirmations off would give instead: the account,
+        // made through the admin API, and a real session for it.
+        await mintAccount(admin, email, password);
+        const anon = createClient(SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY ?? '', { auth: { persistSession: false } });
+        const { data, error } = await anon.auth.signInWithPassword({ email, password });
+        if (error || !data.session) throw new Error(`could not open a session for ${email}: ${error?.message}`);
+        const session = data.session;
+        await page.route('**/auth/v1/signup*', async (route) => {
+          repliedWithSession = true;
+          await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) });
+        });
+      }
+      await page.locator('#auth-email').fill(email);
+      await page.locator('#auth-pass').fill(password);
+      await page.locator('.auth-card').getByRole('button', { name: 'Create account', exact: true }).click();
+
+      // Signed in: the topbar names the new account and the dialog is gone.
+      await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId('auth-state')).toHaveText('e2e-sign-up');
+      await expect(page.locator('.auth-card')).toHaveCount(0);
+      expect(repliedWithSession, 'the server answered the sign-up with a session').toBe(true);
+      // And at no point did it say to go and confirm an email.
+      expect(notes, 'notes the dialog showed').toEqual([]);
+    } finally {
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await deleteAccountByEmail(admin, email);
+    }
+  });
+
+  test('a sign-up that waits on a confirmation says to check the email, and signs nobody in', async ({ page }) => {
+    // What GoTrue answers when the project confirms addresses: the new user, no session. Served
+    // here so no account is made and no email is sent.
+    await page.route('**/auth/v1/signup*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: '00000000-0000-4000-8000-000000000794',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email: 'e2e-unconfirmed@noacg.local',
+          confirmation_sent_at: new Date().toISOString(),
+          app_metadata: { provider: 'email', providers: ['email'] },
+          user_metadata: {},
+          identities: [{ id: '00000000-0000-4000-8000-000000000794', provider: 'email' }],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_anonymous: false,
+        }),
+      }),
+    );
+    await openSignUp(page);
+    await page.locator('#auth-email').fill('e2e-unconfirmed@noacg.local');
+    await page.locator('#auth-pass').fill('noacg-e2e-sign-up-pw');
+    await page.locator('.auth-card').getByRole('button', { name: 'Create account', exact: true }).click();
+    await expect(page.locator('.auth-note')).toHaveText('Check your email to confirm your account, then sign in.');
+    await expect(page.locator('.auth-card')).toBeVisible();
+    await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
   });
 });

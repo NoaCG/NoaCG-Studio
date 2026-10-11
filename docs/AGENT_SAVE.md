@@ -241,3 +241,56 @@ install, the rundown - is `e2e/configured/agent-access.spec.ts` step 4b.
 **No account.** `noacg pack --out <file>` writes the same package; Home → Productions →
 **Import a package** installs it. The MCP tool's `pack` verb sends when the machine holds a key
 and writes `out` when given one.
+
+## 8. The share door: `POST /api/me/community-packs`
+
+Community packs (`docs/work-specs/community-packs/spec.md` AC-12) can be given from the CLI and
+the plugins as well as from the studio's shelf, and only when the user asks for it:
+
+```
+ noacg pack ./a ./b --name "Show" --description "One line" --save \
+   --share --license cc-by-4.0 --shown-as "Quizmaster K"
+   §7's gate first: validate, packEntry
+   bridge.communityCheck: the shelf's own checks (words, share gate per graphic, then each
+     graphic played with outside requests refused) over the templates the gate validated
+   -> POST /api/me/community-packs (Bearer key) { name, description, author, license, pack }
+   -> community_pack_submit_for(user, ...) -> 201 { id, state: "in_review" }
+   then §7's POST /api/me/packages -> the Home copy waits for Install
+ studio: the pack is In review under Your packs; a NoaCG admin reviews it like any other
+```
+
+**Decided 2026-10-09 (the owner's three yeses on issue #797).** Each can be reverted on its own:
+
+- **It rides `graphics:create`; no new scope.** The share happens only on the user's explicit
+  request, a human reviews every pack before anyone sees it, and the maker withdraws it at once.
+  A separate scope would put a sharing line on every CLI login's consent page and make every
+  existing key log in again before its first share.
+- **One submit gate for both doors.** An agent key is not a session, so the door cannot call the
+  session function `community_pack_submit`. Migration 0087 moved its body into
+  `community_pack_submit_for(p_uid, ...)`, granted to the service role only, with every check
+  naming the account explicitly (the `community.publish` and suspension checks through the
+  service-only `feature_denied_for`). The session function is now a wrapper passing
+  `auth.uid()`. A change to who may submit is one function for both doors.
+- **The user confirms the shown name and the licence once.** The skill's
+  `references/share.md` has the agent say both in one message before the first share, unless
+  the request already gave them, and the command line carries them: `--license cc-by-4.0`,
+  `--shown-as` and `--description` are required and are never filled from the account (D15).
+  The door refuses a body without the licence.
+- **Never offered.** The skill section is OFF unless the user asks to share; the MCP schema's
+  only trace is the `share` argument pointing at that reference.
+- **The share comes first (#876).** `--share` needs `--save`, and the community checks and the
+  share door run before the Home copy is sent, so a refused share sends nothing and the retry
+  after a fix adds no second package to Home. With the Home copy first, as it was at first, each
+  refused attempt left one more package on Home. The cost of this order is a share with no Home
+  copy when the package door refuses after the share went through (the 25-package waiting cap,
+  a rate limit); the CLI says so and says to pack it again without sharing, because a retry with
+  the share would put a duplicate in the review queue. The shared copy carries no cues; a
+  `--rundown` stays on the Home copy.
+
+The door's checks are the package door's (§7) in the same order, then the shape (the three words,
+the licence, a `noacg-pack` with no cues; the code inside is never run on the server), then the
+submit gate. A refusal of the gate - ten packs waiting, an account that cannot submit, a size -
+comes back as 409 with the database's own sentence, which the CLI prints as it is. The body cap
+is the same 4 MB, below the shelf's 8 MB; a larger pack is shared from the studio. The bridge
+check is additive (`BRIDGE_V` stays 1): a deployment without it gets a plain "cannot check a
+pack for Community packs yet" rather than a late failure.

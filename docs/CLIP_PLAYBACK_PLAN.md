@@ -7,7 +7,7 @@ server model, the record and the guards. **Every finding and what was done with 
 lists every file each phase touches, §17 where the plan meets the repository's standing rules, and
 §18 every failure case with the test that guards it. Once approved it replaces §3 ("Build 2: basic
 media") of [`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) and closes the open half of
-[`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md).
+[`backlog/video-through-playout-wrapper.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/video-through-playout-wrapper.md).
 
 The mockups are drawn, not built. They live beside the research in
 [`research/clip-playback-2026-09-27/`](research/clip-playback-2026-09-27/), with `mockup.html` as
@@ -54,7 +54,7 @@ carried out by the playout server itself, and a countdown the operator can trust
 **Non-goals, deliberately:**
 
 - **No video through the web.** The file stays on the server; only its name travels
-  (`backlog/video-through-playout-wrapper.md`).
+  ([`docs/backlog/video-through-playout-wrapper.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/video-through-playout-wrapper.md)).
 - **No timer in the page that fires a clip.** The server switches clips (`LOADBG … AUTO`); the
   Bridge queues the next file (§6.10); the page only asks and shows. This is `BRIDGE.md` §5a's rule.
 - **No live level changes while a clip is on air** in these phases (§6.6, and §19 finding 2).
@@ -84,7 +84,7 @@ carried out by the playout server itself, and a countdown the operator can trust
   two lines: the name, then the cue's note or its kind and graphic, a layer badge that turns into a
   clash warning when two graphics share a layer, and `AIR`/`PVW` tags (`ProductionPage.tsx:3566-3641`).
 - **The production page is 4,165 lines in one component**, and a split is already planned
-  (`backlog/production-page-phases.md`), with the rule that `liveCue` and `selectedCueId` never move.
+  ([issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)), with the rule that `liveCue` and `selectedCueId` never move.
 - **The layout has an owner-set contract** (`PLAYOUT_DASHBOARD.md`, 2026-08-21): the minimum
   supported window is 1366×768, the class laptops' size. The verb bar sits beside PROGRAM down to
   that width, the monitors never change size with the selected cue, only the control area scrolls,
@@ -568,7 +568,7 @@ Additive in protocol v2 (`src/control/playoutProtocol.ts`, mirrored byte for byt
 - **Pin today's behaviour first** (phase 0): the exact action of every verb on a clip and a
   template, All out, reload behaviour, the hosted page's lists, and baseline screenshots at 1920 and
   1366.
-- **Split the page along its seams**, as `backlog/production-page-phases.md` plans, behaviour
+- **Split the page along its seams**, as [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) plans, behaviour
   unchanged, `liveCue` and `selectedCueId` staying where they are. No general playout framework is
   built during the split (§19, question 4).
 - **Two kinds of server state, two update speeds** (§19, finding 10). The clock and the rows'
@@ -694,7 +694,7 @@ split between Bridge and target; the phone surfaces frozen and pinned.
 
 **Later:** a live fader per slot; graphics attached to a clip; frame-exact All together; Load and
 preloading, if measured; Invoke; a second-channel preview; Bitfocus Companion and a Stream Deck
-with live feedback, through the Bridge (`backlog/companion-and-stream-deck.md`: every action is a
+with live feedback, through the Bridge ([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809): every action is a
 named verb and every state plain data from one store, kept so from phase 2).
 
 **Not built:** a clip end that takes a graphic; a NOW / NEXT strip; state and ends columns; mixer,
@@ -742,7 +742,7 @@ the same commit, as `root/give-any-new-flow-playwright-spec` requires (`cli/` se
 
 ### Phase 0 - safety net and seams (no visible change)
 
-It runs the first two phases of [`backlog/production-page-phases.md`](backlog/production-page-phases.md)
+It runs the first two phases of [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)
 as written, plus the server-playout module. **`liveCue` and `selectedCueId` do not move.**
 
 | File | Change |
@@ -757,7 +757,7 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
 | `e2e/playout-cues.spec.ts` | characterisation: every verb's exact action after a reorder and after a reload; All out across two channels |
 | `e2e/playout-baseline.spec.ts` (new) | screenshots of a graphics-only and a mixed production at 1920×1080 and 1366×768 |
 | `e2e/hosted-control.spec.ts` | the hosted page lists server cues disabled with their address (nothing asserts it today, 1261-1292) |
-| `docs/backlog/production-page-phases.md` | its phases 1 and 2 marked done |
+| [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) | its phases 1 and 2 marked done |
 
 **Built 2026-09-27**, as the table says, with three differences worth knowing:
 
@@ -847,7 +847,7 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
   the row by instance rather than by the item alone.
 - **Pause and Resume became named verbs** (`pause`, `resume` in `components/playoutKeys.ts`) with no
   key yet, dispatched by `onVerb` like the rest, for the hardware panel filed in
-  `backlog/companion-and-stream-deck.md`.
+  [issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809).
 - `src/components/home/serverThumbnail.ts` (new) is the one thumbnail cache the picker, PREVIEW and
   PROGRAM share. PROGRAM's still sits under the output stage, and with no picture PROGRAM names the
   clip rather than saying nothing is on air.
@@ -1064,7 +1064,7 @@ renderer (`/output`); the database and its migrations; the Presenter page.
    the production page leads, the hosted page is a best-effort companion that may look different or
    lack controls, a control that needs the Bridge lives only on the production page, and **no change
    may break what the hosted page already does** (§8).
-2. **`backlog/production-page-phases.md`**: phase 0 runs its phases 1 and 2 as written; `liveCue`
+2. **[issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766)**: phase 0 runs its phases 1 and 2 as written; `liveCue`
    and `selectedCueId` never move.
 3. **The Bridge keeps no state** (`BRIDGE.md` §3), with two exceptions, both in memory: since phase
    2 each slot's generation and instance (§6.7), recorded in `BRIDGE.md` §3; from phase 3 the

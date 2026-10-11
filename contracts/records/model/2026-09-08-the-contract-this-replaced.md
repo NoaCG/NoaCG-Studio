@@ -27,7 +27,7 @@ written. Each is quoted with the code that disagrees.
    production page shows a per-graphic layer badge and warns when two entries SHARE a layer; the
    editor's Productions block renders a count and no list at all. `moveShowGraphic` is dead code -
    nothing outside its own definition calls it - so the sentence describes a gesture that cannot be
-   made. Filed as `docs/backlog/dead-move-show-graphic-and-its-contract.md`.
+   made. Filed as [`docs/backlog/dead-move-show-graphic-and-its-contract.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/dead-move-show-graphic-and-its-contract.md).
 3. **"The alias table is THREE declared tables - `ALIASES_EN` / `ALIASES_SV` / `ALIASES_FI`."**
    Four. `ALIASES_OCCASION`, built from every occasion's declared phrases, goes through the same
    merge loop - which is the mechanism behind the file's own neighbouring claim that an occasion's

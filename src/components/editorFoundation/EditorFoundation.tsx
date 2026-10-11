@@ -10,6 +10,8 @@ import { imageCapability } from '../../blocks/editorImages';
 import { activatableFocus, editorShortcutsLive, modalOpen } from '../spaceKey';
 import Canvas, { recordFoundationInput } from './Canvas';
 import Timeline from './Timeline';
+import type { LayerMenuRequest } from './LayerActions';
+import { selectedLayerOperations } from './layerCommands';
 import Inspector from './Inspector';
 import { activeEditorSession, setSessionTime } from './documentAdapter';
 import { onFlag, readTimeline, segmentAt } from './timelineView';
@@ -20,6 +22,8 @@ import type { SpxTemplate } from '../../model/types';
 import { groupHierarchy } from '../../blocks/editorGroups';
 import { assetBinDirs } from '../../blocks/editorOrganization';
 import { inspectOrganization } from '../../model/editorOrganization';
+import { connectEditorCommands } from './commandAdapter';
+import ProposalPanel from './ProposalPanel';
 import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
@@ -30,6 +34,7 @@ export default function EditorFoundation() {
   const selection = useTemplateStore(state => state.selectedParts);
   const setSelection = useTemplateStore(state => state.setSelectedParts);
   const session = activeEditorSession();
+  const [layerMenu, setLayerMenu] = useState<(LayerMenuRequest & { instance: string }) | null>(null), [layerError, setLayerError] = useState('');
   const [drawingSpace, setDrawingSpace] = useState<import('./protocol').PreviewReply['drawingSpace']>(null);
   const images = useImageImport(session, drawingSpace);
   const openAssets = () => setProjectOpen(true);
@@ -40,10 +45,13 @@ export default function EditorFoundation() {
   const groupPath = groupLocation.document === session.documentId ? groupLocation.path.filter(selector => hierarchy.groups.has(selector)) : [];
   const groupScope = groupPath[groupPath.length - 1] ?? null;
   const [projectOpen, setProjectOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const assistantButton = useRef<HTMLButtonElement>(null);
   const [linked, setLinked] = useState(true);
   const [pathEditing, setPathEditing] = useState<string | null>(null);
   const [appearance, setAppearance] = useState<Record<string, RenderedPart['appearance']>>({});
   const preview = useRef<PreviewController | null>(null);
+
   const connectPreview = useCallback((controller: PreviewController | null) => { preview.current = controller; }, []);
   const previewCss = useCallback((css: string) => { preview.current?.previewCss(css, 'appearance'); }, []);
   const previewTemplate = useCallback((template: SpxTemplate) => { preview.current?.previewTemplate(template, 'appearance'); }, []);
@@ -107,7 +115,7 @@ export default function EditorFoundation() {
     return () => cancelAnimationFrame(frame);
   }, [playing, playbackRun, session, seek, pause]);
   const select = useCallback((selector: string | null, toggle: boolean) => {
-    setPathEditing(null);
+    setPathEditing(null); setLayerMenu(null);
     recordFoundationInput('selection');
     const selection = useTemplateStore.getState().selectedParts;
     const next = selector === null ? [] : toggle
@@ -116,15 +124,27 @@ export default function EditorFoundation() {
     setSelection(next);
   }, [setSelection, setPathEditing]);
   const navigateGroup = (selector: string | null) => {
-    pause(); session.cancel(); setPathEditing(null);
+    pause(); session.cancel(); setPathEditing(null); setLayerMenu(null);
     const path: string[] = [];
     for (let current: string | undefined = selector ?? undefined; current; current = hierarchy.parent[current]) path.unshift(current);
     setGroupLocation({ document: session.documentId, path });
     setSelection(selector ? [] : groupScope ? [groupScope] : []);
   };
-  const history = (redo: boolean) => { pause(); preview.current?.stopExit(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time, session.port.view().cue); };
+  const history = (redo: boolean) => { setLayerMenu(null); pause(); preview.current?.stopExit(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time, session.port.view().cue); };
+  const commandView = useRef<import('./commands').CommandView>(null!);
+  commandView.current = {
+    select: selectors => { pause(); setPathEditing(null); setLayerMenu(null); setSelection(selectors); },
+    seek: (to, cue) => { pause(); preview.current?.stopExit(); seek(to, cue); },
+    afterWrite: () => { pause(); preview.current?.stopExit(); seek(session.port.view().time, session.port.view().cue); },
+  };
+  useEffect(() => connectEditorCommands(session, () => preview.current, {
+    select: selectors => commandView.current.select(selectors),
+    seek: (to, cue) => commandView.current.seek(to, cue),
+    afterWrite: () => commandView.current.afterWrite(),
+  }), [session]);
   return <main className={'ef-shell' + (projectOpen ? ' ef-project-open' : '') + (groupScope ? ' ef-group-open' : '')} data-testid="editor-foundation"
     onKeyDown={event => {
+      if (event.defaultPrevented) return;
       const historyKey = (event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase());
       // A select has no undo of its own, so undo and redo also work from one (the timeline's key
       // ease dropdown keeps focus after it edits).
@@ -133,6 +153,16 @@ export default function EditorFoundation() {
         event.preventDefault(); history(event.shiftKey || event.key.toLowerCase() === 'y');
       }
       if (event.key === 'Escape') { pause(); session.cancel(); }
+      const target = event.target as HTMLElement, canvas = target.closest<HTMLElement>('[data-testid=foundation-canvas]');
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !event.ctrlKey && !event.metaKey && !event.altKey &&
+        (target.closest('.ef-layer') || canvas && canvas.dataset.tool === 'select' && !pathEditing)) {
+        event.preventDefault(); pause(); preview.current?.stopExit(); session.cancel(false);
+        try {
+          const operations = selectedLayerOperations(session.port.read(), selection, 'delete');
+          if (operations.length) session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations });
+          setLayerError('');
+        } catch (cause) { setLayerError(cause instanceof Error ? cause.message : String(cause)); }
+      }
     }}>
     <header className="ef-header">
       <BrandLogo size={26} />
@@ -140,6 +170,7 @@ export default function EditorFoundation() {
       <NewGraphicButton />
       <span className="ef-document-name">{template.name}</span><span className="ef-spacer" />
       <span className="ef-release">Editor Alpha</span>
+      <button ref={assistantButton} aria-expanded={assistantOpen} onClick={() => setAssistantOpen(!assistantOpen)}>Assistant</button>
       <SaveControls />
       {/* No "Existing editor" door: nothing links to the old code editor (owner, 2026-09-21 and
           2026-09-24). Home, beside the brand, is the way out. */}
@@ -180,11 +211,11 @@ export default function EditorFoundation() {
         {template.fields.map(field => <p className="ef-field" key={field.field}>{field.title || field.field}<code>{field.field}</code></p>)}
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
-      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
-      <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />
+      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID(), instance: session.instanceId })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
+      {assistantOpen ? <ProposalPanel key={session.instanceId} close={() => { setAssistantOpen(false); assistantButton.current?.focus(); }} /> : <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />}
     </div>
-    <Timeline key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
+    <Timeline key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); setLayerMenu(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu?.instance === session.instanceId ? layerMenu : null} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
-    <footer className="ef-status"><span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
+    <footer className="ef-status">{layerError && <span role="alert">{layerError}</span>}<span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;
 }

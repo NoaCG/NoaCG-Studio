@@ -7,7 +7,7 @@ import { copyLink } from '../../../home/copyLink';
  *
  * Owner, 2026-08-26: "steer users to their own Claude Code - better and cheaper - before any
  * key entry"; re-confirmed 2026-09-03: "That is the preferred way of using AI with NoaCG."
- * The receipt is docs/backlog/byo-key-and-create-with-ai-guidance.md. Owner, 2026-09-27: the
+ * The receipt is https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/byo-key-and-create-with-ai-guidance.md. Owner, 2026-09-27: the
  * one-line card was too small, so the four steps and the install lines are always on screen.
  * Owner, 2026-09-28: the step still said too much, so this card is now its whole first screen
  * and the NoaCG agent (the built-in generator) waits behind one secondary button under it
@@ -61,7 +61,7 @@ async function copyCommand(text: string): Promise<boolean> {
 /**
  * A labelled command block with a Copy button. Select-then-copy is two motions and the second
  * has no feedback, so on a phone a partial selection looks exactly like a whole one until the
- * paste fails in a terminal (docs/backlog/install-lines-need-a-copy-control.md). The block stays
+ * paste fails in a terminal (https://github.com/NoaCG/NoaCG-Studio/blob/0a6fdab63c9854b1e4bf63f251016781d1a8919e/docs/backlog/install-lines-need-a-copy-control.md). The block stays
  * selectable in one click for anyone who prefers that; the button says whether the copy landed.
  */
 function CopyableCommand({ label, text, testId }: { label: string; text: string; testId: string }) {

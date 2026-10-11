@@ -20,6 +20,11 @@ one of the two opt-in tools at the end of this file.
 
 ## The loop
 
+Before calling the CLI, follow `references/setup.md`: check Node, browser, deployment and
+the installed CLI version against this package's reviewed pin. Use the pinned npm command
+when the existing installation differs. This is a local workflow; ordinary Claude Chat
+cannot execute the CLI.
+
 1. **Start a package.** Either author from scratch against the contract below, or take a
    scaffold when it saves work or brings behaviour you need:
    - `noacg types` lists the graphic TYPES NoaCG knows (fields, operator events, designs). A type
@@ -104,7 +109,7 @@ noacg pack ./opener ./name-strap ./scorebug ./endboard --name "Friday Fight Nigh
   "rundown": [ … ] }` - sent to Home when this machine holds a key; `out` also writes the file.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli <command>` when nothing is installed; `npm i -g @noacg/cli` once makes every
+(`npx -y @noacg/cli@0.10.1 <command>` when nothing is installed; `npm i -g @noacg/cli@0.10.1` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the
@@ -179,12 +184,12 @@ does not apply to a fixed broadcast frame.
   authors resolve it.
 - `references/control.md` - how NoaCG derives the operator surface; the two markup conventions
   the control layer reads; the OGraf contract (`schema`, `customActions`, `stepCount`).
-- `references/critique.md` and `references/design-notes.md` - the two opt-in tools below. Do not
-  read them unless one is switched on.
+- `references/critique.md`, `references/design-notes.md` and `references/share.md` - the three
+  opt-in tools below. Do not read them unless one is switched on.
 
-## Two opt-in tools (both OFF unless the user asks)
+## Three opt-in tools (all OFF unless the user asks)
 
-By default NoaCG asks nothing of the design beyond the fixed list above. Two tools exist for
+By default NoaCG asks nothing of the design beyond the fixed list above. Three tools exist for
 users who want more, and you use one only when it is asked for:
 
 - **Critique and improve** (`references/critique.md`): a taste check on the graphic you made.
@@ -197,6 +202,10 @@ users who want more, and you use one only when it is asked for:
   NoaCG's design guidelines or the NoaCG look, passes `--guidelines` to `/noacg:graphic`, or
   their project instructions (`CLAUDE.md`, `AGENTS.md`) contain the line
   `NoaCG design guidelines: on`. When it is on, read it before you design and follow it.
+- **Share to Community packs** (`references/share.md`): sends a finished package for review to
+  NoaCG's public Community packs shelf. It is ON only when the user asks in this conversation to
+  share, publish or submit the pack for others. Never offer it, mention it, suggest it or ask
+  about it otherwise, not even when a package is finished.
 
-When neither is on, do not open either file: the look is yours, judged the way you normally
-judge your own work.
+When none is on, do not open their files: the look is yours, judged the way you normally judge
+your own work, and the package goes only where the user said.

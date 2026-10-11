@@ -5,7 +5,7 @@
 // WHY THIS IS A HOOK AND NOT A SENTENCE SOMEWHERE. The rule already existed three times over -
 // the owner said it on 2026-08-30 ("Autonomous work less Mirko!"), `launch.md` says a chip is
 // minted only when starting the work is genuinely his call, and `collisions.md` says work a wave
-// surfaces becomes a `docs/backlog/` file and never a chip. It still did not fire, because it
+// surfaces becomes a backlog item and never a chip. It still did not fire, because it
 // fires at a MOMENT: the instant a session reaches for the chip tool. `docs/MISTAKE_TRIGGERS.md`
 // is the routing rule and this is what it prescribes - a lesson with a tool shape belongs at the
 // tool call. It passes all four tests there: the call's own arguments decide it, no facts beyond
@@ -76,9 +76,9 @@ Mirko!"). Drop the chip and take one of these two routes instead.
 
   IN SCOPE      Fix it now, on this branch. Mention it in the commit message.
 
-  OUT OF SCOPE  File it as docs/backlog/<slug>.md - one file per idea, "## Why" mandatory, the
-                shape is in docs/backlog/README.md. The orchestrator plans from that folder, so
-                a filed idea is tracked; a chip nobody clicks is lost.
+  OUT OF SCOPE  File it as a GitHub issue (gh issue create) with a priority, an area label and
+                why it matters; the labels are in docs/backlog/README.md. The orchestrator plans
+                from Issues, so a filed idea is tracked; a chip nobody clicks is lost.
 
 THE ONE EXCEPTION. A chip is right when STARTING the work is genuinely the owner's call rather
 than yours - it costs real money, it needs a model pick worth his judgement, or it is a scope
@@ -86,7 +86,7 @@ decision only he can make. Say which, in the prompt, on a line of its own:
 
   OWNER-DECISION: <why this start is his call and not yours>
 
-and this call goes through. Contract: .agent-workflows/orchestrator/launch.md.
+and this call goes through. Contract: .agent-workflows/orchestrator.md.
 Guard: scripts/hooks/spawn-task-guard.mjs - its header says how to turn it off.`;
 
 const EMPTY_REASON = `OWNER-DECISION: needs a reason you wrote, on the same line - not an empty marker, and not the
@@ -96,8 +96,8 @@ just this guard switched off. Write the reason out, for example:
 
   OWNER-DECISION: picks between two pricing shapes, and either one costs real money.
 
-If you cannot finish that sentence, it is not his call: fix it on this branch, or file it as
-docs/backlog/<slug>.md.`;
+If you cannot finish that sentence, it is not his call: fix it on this branch, or file it as a
+GitHub issue.`;
 
 const input = await readHookInput();
 

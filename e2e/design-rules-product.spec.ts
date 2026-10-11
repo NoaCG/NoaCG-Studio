@@ -136,7 +136,7 @@ test('the wizard viewing settings persist with the project across a reload', asy
   // carried the same control until 2026-09-02 and no longer does: measured there, moving the
   // target from TV to Mobile or the floor from standard to safe left the composed document
   // byte-identical, so on that path it was an input with no visible effect
-  // (docs/backlog/size-questionnaire-purpose.md). Here it is the opposite of decorative - the
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/59380da0d370dd6418e84a8bac9f34c776e227cf/docs/backlog/size-questionnaire-purpose.md). Here it is the opposite of decorative - the
   // two tests below prove it reaches the request - and this one is about what the CREATE does
   // with it, which is the half neither of those sees.
   await rawAiConfig(page);

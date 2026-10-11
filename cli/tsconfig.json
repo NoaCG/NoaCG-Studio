@@ -18,6 +18,6 @@
     "resolveJsonModule": true
   },
   "//": "ES2022 + NodeNext: the CLI is plain Node 24 ESM. `DOM` is in lib only so the page.evaluate callbacks that run INSIDE the bridge browser can name window/document; the Node side never touches them.",
-  "// allowJs": "For src/npmLatest.mjs alone: it is copied verbatim into cli/plugin-mcp/, a folder with no build step and no node_modules, so it has to BE plain JS. tsc emits it to dist/ beside the compiled TS and infers its types from its JSDoc.",
+  "// allowJs": "For src/npmLatest.mjs alone, plain JS since it was once copied into the MCP plugin. tsc emits it to dist/ beside the compiled TS and infers its types from its JSDoc.",
   "include": ["src"]
 }

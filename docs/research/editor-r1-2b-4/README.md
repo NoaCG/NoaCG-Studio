@@ -145,7 +145,7 @@ is included in the passing final run above.
 The [desktop](catalog-path.png) and [laptop](laptop-path.png) captures were
 inspected for handle visibility, alignment, contrast, panel spacing and usable
 canvas/timeline space. The completed Hairline task qualifies the
-[desktop judgment item](../../acceptance/owner-queue/2026-10-03-editor-pen.md).
+[desktop judgment item](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-03-editor-pen.md).
 Engineering verification does not close full B04, owner acceptance or physical
 playout-host acceptance.
 

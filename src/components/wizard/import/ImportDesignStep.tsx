@@ -42,8 +42,8 @@ const importFileKind = (file: File): ImportFileKind | 'unsupported' => {
 };
 
 /**
- * SEVERAL FILES DROPPED AT ONCE, AND ONE OF THEM TAKEN (docs/backlog/dropping-several-files-at-
- * once.md). The owner dropped a handful of boards, watched one import, and was told nothing about
+ * SEVERAL FILES DROPPED AT ONCE, AND ONE OF THEM TAKEN (
+ * https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/dropping-several-files-at-once.md). The owner dropped a handful of boards, watched one import, and was told nothing about
  * the other four - the worst of the available behaviours, because it looks like it worked.
  *
  * One graphic is still built from ONE design: everything from here to Finish asks about a single
@@ -378,7 +378,7 @@ export default function ImportDesignStep({
                 <li>
                   {/* Save a Copy, not Export As: measured on Illustrator 30.1, Export As writes
                       no hidden layer at all, so every drawn moment is lost on the way in
-                      (docs/backlog/illustrator-export-as-drops-hidden-layers.md). */}
+                      (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/illustrator-export-as-drops-hidden-layers.md). */}
                   <strong>Illustrator</strong> &middot; File &gt; Save a Copy&hellip; &gt; SVG,
                   with <strong>Use Artboards</strong> ticked. Fonts: <strong>SVG</strong>,
                   Subsetting <strong>None</strong>. Images: <strong>Embed</strong>. Not Export As:
@@ -525,7 +525,7 @@ export default function ImportDesignStep({
               Stated as a FACT about SVG walks rather than as an event, because the same card is
               on screen for a reader who walked back into a saved SVG draft and never saw six. */}
           <p className="hint" data-testid="import-svg-rail-note">
-            {/* THE OUTCOME, NOT THE MECHANISM (docs/backlog/import-step-copy-a-kid-can-read.md).
+            {/* THE OUTCOME, NOT THE MECHANISM (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/import-step-copy-a-kid-can-read.md).
                 This used to explain why the step counter changed ("Five steps now, not six: an
                 SVG needs no erasing and no placing, so Prepare and Text became the one Fields
                 step"), which is the wizard reading its own source out loud. A student needs to

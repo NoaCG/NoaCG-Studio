@@ -8,6 +8,7 @@
 //   node scripts/jobs.mjs wait j-0007                       # bounded: gives up after 30 min
 //   node scripts/jobs.mjs log j-0007                        # that job's output
 //   node scripts/jobs.mjs cancel j-0007
+//   node scripts/jobs.mjs failed                            # landings that failed in the last 24 h
 //   node scripts/jobs.mjs --runner                          # the drain loop (started for you)
 //
 // WHY (docs/JOB_RUNNER_PLAN.md carries the measurements): a foreground `--wait` outlives the
@@ -21,23 +22,25 @@
 // exactly one runner.
 
 import { spawn, spawnSync } from 'node:child_process';
-import { closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync } from 'node:fs';
-import { freemem } from 'node:os';
+import { appendFileSync, closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
+import { freemem, homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { activeRuns, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
+import { activeRuns, allProcesses, browserWorkBelow, descendantsOf, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
-import { requiresRunningDevServer } from './command-match.mjs';
+import { readInventory } from './claude-agents.mjs';
+import { sessionLastActiveMs } from './session-liveness.mjs';
+import { requiresRunningDevServer, runsWholeSuite, WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
-import { changedBacklogFiles, receiptsFor, servesVerdict } from './owner-receipts.mjs';
-import { isGeneratedBody, pullRequestBody, pullRequestTitle } from './pr-description.mjs';
+import { closedIssues, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody } from './pr-description.mjs';
 import { reviveReviewed } from './cloud-queue.mjs';
 import { spawnRunner } from './queue-pr.mjs';
 import { RECLAIM_AFTER_MS, describeReclaim, planReclaim } from './ram-reclaim.mjs';
 import { hasUnread, readRelayText } from './relay.mjs';
 import { syncLandings } from './landings.mjs';
 import {
+  BROWSER_MEMORY_MS,
   COST,
   FOREGROUND_WAIT_CAP_MS,
   MAX_LANDING_RETRIES,
@@ -49,8 +52,11 @@ import {
   ORDER_BLOCKED_REFUSAL,
   POLICY,
   PRESENCE,
+  SESSION_ACTIVE_MS,
   addJob,
   adoptOrphanedLandings,
+  agentSessions,
+  budgetMode,
   budgetShareOf,
   cancelVerdict,
   classifyRefusal,
@@ -76,14 +82,23 @@ import {
   readLandings,
   reapDead,
   refusalGuidance,
+  rememberBrowserCommand,
+  repricedAsBrowser,
   requeueDecision,
   schedule,
   timedOutRecord,
   waitVerdict,
+  watchedForBrowser,
   writeJob,
 } from './jobs-store.mjs';
 
 const POLL_MS = 5_000;
+/**
+ * How often a running light job's process tree is read for a browser. A full process table costs
+ * about three quarters of a second of PowerShell here, so not every poll; a Playwright run spends
+ * longer than this starting its dev server before the first browser opens.
+ */
+const BROWSER_WATCH_MS = 15_000;
 /** How long a verified auto-start waits for the runner to appear, and how often it looks. */
 const RUNNER_START_WAIT_MS = 3_000;
 const RUNNER_START_POLL_MS = 1_000;
@@ -169,6 +184,7 @@ async function main() {
   else if (args[0] === 'log') cmdLog();
   else if (args[0] === 'cancel') cmdCancel();
   else if (args[0] === 'presence') cmdPresence();
+  else if (args[0] === 'failed') await cmdFailed();
   else await cmdList();
 }
 
@@ -179,9 +195,17 @@ async function cmdAdd() {
   if (!command || command.startsWith('-')) {
     console.error('Usage: node scripts/jobs.mjs add "<command>" [--kind gate|merge|sweep] [--after <id>,<id>] [--branch <name>] [--cap <minutes>] [--cost <suite-equivalents>]');
     console.error('  --cost says what this job weighs when you know better than the classifier: 1 is a');
-    console.error('  Playwright suite or a catalog battery, 0.5 one browser page, 0.4 a build, and 0.15');
-    console.error('  - a landing - is the least anything may claim. It sets both the budget share and');
-    console.error('  the free RAM the job demands before it may start.');
+    console.error('  Playwright run or a catalog battery, and work the queue knows opens a browser is never');
+    console.error('  priced lower; 0.75 a build, 0.4 tests or lint, and 0.15 - a landing - is the least');
+    console.error('  anything may claim. It sets both the budget share and the free RAM the job demands');
+    console.error('  before it may start.');
+    process.exit(1);
+  }
+  // THE WHOLE SUITE RUNS ON GITHUB ACTIONS. Every pull request and every merge group runs it there,
+  // and here it took free memory to 0.6 GB beside other sessions. CI never enqueues, so this only
+  // ever refuses a laptop. The affected planner refuses its own whole-suite plans when it runs.
+  if (runsWholeSuite(command)) {
+    console.error(WHOLE_SUITE_ON_GITHUB);
     process.exit(1);
   }
   ensureJobsDir(dir);
@@ -222,7 +246,7 @@ async function cmdAdd() {
     command,
     checkout: process.cwd(),
     branch: valueOf('--branch') ?? currentBranch(),
-    kind: valueOf('--kind') ?? 'gate',
+    kind: valueOf('--kind'),
     after: (valueOf('--after') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     capMinutes: Number(valueOf('--cap') ?? POLICY.capMinutes),
     cost: declaredCost === undefined ? null : Number(declaredCost),
@@ -230,7 +254,16 @@ async function cmdAdd() {
   });
   await ensureRunner();
   console.log(`${job.id} queued: ${job.command}`);
-  const { waiting } = snapshot();
+  if (job.caughtBrowser) {
+    console.log(`  as browser work${declaredCost === undefined ? '' : ', not at the declared --cost'}: ${job.caughtBrowser.job} ran this command and launched a browser on ${new Date(job.caughtBrowser.at).toISOString().slice(0, 10)} (--kind gate says it no longer does)`);
+  }
+  const priced = costOf(job);
+  if (typeof job.cost === 'number' && priced > job.cost) {
+    console.log(`  priced ${priced}, not the declared --cost ${job.cost}: browser work is never priced below one browser run`);
+  }
+  // A prediction for the line below, not a decision, so it skips the session inventory: a wave
+  // queues dozens of jobs, and a spawn each to word one line is not worth it.
+  const { waiting } = snapshot({ readSessions: false });
   const mine = waiting.find((w) => w.job.id === job.id);
   console.log(mine ? `  ${mine.reason}` : '  starting now');
   console.log(`  output: node scripts/jobs.mjs log ${job.id}`);
@@ -320,19 +353,8 @@ function rememberRefusal(job) {
  * the queue treats specially" - and the safe one, since every null keeps the old behaviour exactly.
  */
 function readRefusal(job) {
-  const WINDOW = 8192;
-  let fd = null;
-  try {
-    fd = openSync(job.logPath, 'r');
-    const size = fstatSync(fd).size;
-    const buffer = Buffer.alloc(Math.min(size, WINDOW));
-    readSync(fd, buffer, 0, buffer.length, Math.max(0, size - WINDOW));
-    return classifyRefusal(buffer.toString('utf8'), { attemptMark: `${LOG_ATTEMPT_MARK} ${job.id} ` });
-  } catch {
-    return null;
-  } finally {
-    if (fd !== null) try { closeSync(fd); } catch { /* already gone */ }
-  }
+  const tail = tailOf(job.logPath);
+  return tail ? classifyRefusal(tail, { attemptMark: `${LOG_ATTEMPT_MARK} ${job.id} ` }) : null;
 }
 
 /**
@@ -394,7 +416,7 @@ async function cmdAddMerge() {
   const named = Boolean(args[1] && !args[1].startsWith('-'));
   const target = named ? args[1] : currentBranch();
   if (!target || target === 'main' || target === 'HEAD') {
-    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--why "<reason>"] [--unreviewed "<reason>"]');
+    console.error('Usage: node scripts/jobs.mjs add-merge [branch] [--risk "<what could break>"] [--why "<reason>"] [--unreviewed "<reason>"]');
     console.error('  With no branch it queues this worktree\'s. It refuses main and a detached HEAD.');
     process.exit(1);
   }
@@ -417,19 +439,6 @@ async function cmdAddMerge() {
   // cover is queueing unreviewed work, so it is refused - with the one honest way past named:
   // `--unreviewed "<reason>"`, which lands with the reason on the job record where the report and
   // the landing ledger can see it, instead of silently.
-  // OWNER RECEIPTS THIS BRANCH OWNS ARE ANSWERED BEFORE IT LANDS. A receipt in docs/backlog/ that
-  // names this branch is a claim on a piece of work, and the landing is the last moment the session
-  // that knows what happened to it is still here: after that the shelf says a branch owns something
-  // it never touched, and every wave plan after it spends judgement re-deriving what the shelf
-  // should have known. The four ways out are all one line, and the message names them.
-  //
-  // It lived in the retired landing preflight until now, which is why nothing has enforced it since
-  // 2026-09-06. Here it sits with the other two refusals that mean "this branch is not finished
-  // yet" - unread relay mail and a missing /check stamp - because that is the same claim.
-  //
-  // A question git cannot answer is skipped rather than refused: this must never stop a landing
-  // because a diff would not run.
-  refuseUnansweredReceipts(target, named);
   const tipForReview = branchTip(target);
   const stamp = readReviewStamp(dir, target);
   const gap = stampGap(stamp, tipForReview);
@@ -474,7 +483,11 @@ async function cmdAddMerge() {
   // Optional on purpose - a description that names what changed and how it was checked is already
   // worth reading, and a required field nobody fills gets filled with noise.
   const why = sentenceFlag('--why', 'the old field could not hold two scores');
-  const queued = queueOnGitHub(target, tipForReview, description, why ?? '');
+  // `--risk` is the pull request's one Risk line, in the queuing session's words: what could break.
+  // Optional for the same reason; without it the line is kept from an earlier queueing, derived
+  // when the changed paths make it certain, or left out (scripts/pr-description.mjs `riskText`).
+  const risk = sentenceFlag('--risk', 'low, copy only');
+  const queued = queueOnGitHub(target, tipForReview, description, { why: why ?? '', risk: risk ?? '' });
   // The local shadow: a merge job whose command only WATCHES the pull request (scripts/land-watch.mjs),
   // so the branch is frozen while it is queued, the tick reports QUEUED and LANDED, and the ledger
   // gets the landing with this checkout as its session - every local reader keeps its one shape.
@@ -500,44 +513,10 @@ async function cmdAddMerge() {
 }
 
 /**
- * Refuse the landing while an owner receipt this branch claims goes unanswered.
- *
- * `receiptsFor` reads the shelf as it stands here PLUS the receipts this branch deleted, recovered
- * from `main` - without that second half a branch that correctly CLOSED its receipt has no file
- * left to read, and its success reads as somebody else's file.
- */
-function refuseUnansweredReceipts(branch, named) {
-  // ONLY THIS WORKTREE'S OWN BRANCH. `receiptsFor` reads the shelf as it stands in this working
-  // tree, which is the branch's shelf only while the branch is the one checked out here. Queueing
-  // somebody else's branch would judge it against a shelf it never carried - refusing it for a
-  // receipt only this tree holds, and missing one only that branch holds. Skipping says so rather
-  // than answering from the wrong tree. `named` is the caller's own answer, so this asks git
-  // nothing: an unnamed target IS this worktree's branch, because that is where it came from.
-  if (named && branch !== currentBranch()) {
-    console.log(`  note: owner receipts were not checked - ${branch} is not this worktree's branch, so its shelf is not the one here.`);
-    return;
-  }
-  let verdict;
-  try {
-    const changed = changedBacklogFiles(branch);
-    if (changed === null) return;
-    verdict = servesVerdict({ branch, receipts: receiptsFor(changed), changed });
-  } catch {
-    console.log('  note: the owner receipts could not be read, so they were not checked.');
-    return;
-  }
-  if (verdict.problems.length === 0) return;
-  console.error(`add-merge refused: ${branch} owns an owner receipt this landing does not answer.`);
-  for (const problem of verdict.problems) console.error(`  ${problem}`);
-  console.error('  Answer it in the same commit, then queue again - it is one line in one file.');
-  process.exit(1);
-}
-
-/**
  * Push, open or reuse the pull request, post the reviewed status, add the label. Every step is
  * idempotent, so queueing twice is harmless. Returns { number, url }.
  */
-function queueOnGitHub(branch, tip, description, why = '') {
+function queueOnGitHub(branch, tip, description, { why = '', risk = '' } = {}) {
   const ghRun = (ghArgs) => {
     const result = spawnSync('gh', ghArgs, { cwd: process.cwd(), encoding: 'utf8', windowsHide: true });
     if (result.status !== 0) {
@@ -583,7 +562,17 @@ function queueOnGitHub(branch, tip, description, why = '') {
   // what the pull request was titled with before there was a description at all.
   const subjects = commitSubjects(`origin/main..${tip}`);
   if (subjects.length === 0) subjects.push(...commitSubjects(`${tip}~1..${tip}`));
-  const body = pullRequestBody({ subjects, tested: description, why });
+  // The main commit is the first one; its body is where the two plain sentences come from.
+  const mainBody = (range) => (spawnSync('git', ['log', '--no-merges', '--reverse', '--format=%b%x1e', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
+    .stdout.split('\x1e')[0] ?? '').trim();
+  const message = mainBody(`origin/main..${tip}`) || mainBody(`${tip}~1..${tip}`);
+  // Every commit's message, for the issues the branch closes (`Closes #12` in any of them).
+  const messages = (range) => spawnSync('git', ['log', '--no-merges', '--format=%B', range], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true }).stdout ?? '';
+  const closes = closedIssues(messages(`origin/main..${tip}`) || messages(`${tip}~1..${tip}`));
+  // The changed paths only ever derive a risk nobody gave, so an unanswerable diff simply derives none.
+  const paths = spawnSync('git', ['diff', '--name-only', `origin/main...${tip}`], { cwd: process.cwd(), encoding: 'utf8', windowsHide: true })
+    .stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const body = pullRequestBody({ subjects, message, tested: description, why, risk: risk || riskFromBody(pr?.body), paths, closes });
   const prExisted = Boolean(pr);
   if (!pr) {
     const url = ghRun(['pr', 'create', '--base', 'main', '--head', branch, '--title', pullRequestTitle(subjects, branch), '--body', body]);
@@ -645,10 +634,12 @@ async function cmdRequeue() {
 }
 
 async function cmdList() {
-  const { jobs, start, waiting, dead, running, slots } = snapshot();
+  const { jobs, start, waiting, dead, running, slots, budget, sessions } = snapshot();
   const holderDiagnostics = await sampleHolderDiagnostics();
   if (flag('--json')) {
     process.stdout.write(`${JSON.stringify({
+      budget,
+      sessions,
       running,
       holderDiagnostics,
       waiting: waiting.map((w) => ({ ...w.job, reason: w.reason })),
@@ -704,6 +695,14 @@ async function cmdList() {
     console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()}${machine.setBy ? ` (set by ${machine.setBy})` : ''}`
       + ` - the RAM floor is ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB. \`npm run jobs -- presence present\` if you are at it.`);
   }
+  // WHICH BUDGET AND WHY, in one line and on every read, because it now moves with the clock and
+  // with the other sessions on the machine - a wait reading "budget 1/1 used" means nothing to a
+  // reader who cannot see that it is a weekday morning with three sessions live.
+  // Only a modest budget is explained by the sessions: a full one already says why in `budget.why`.
+  const sessionNote = !sessions || budget.mode === 'full' ? ''
+    : sessions.known ? `, ${sessions.why}` : `, agent sessions unknown (${sessions.why})`;
+  console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`
+    + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state})`);
 
   if (pending(jobs).length === 0) {
     console.log('Job queue empty.');
@@ -778,7 +777,8 @@ function printOutstanding(jobs) {
   try {
     const result = JSON.parse(res.stdout);
     ranked = result.order ?? [];
-    notReady = result.notReady ?? [];
+    // A stale branch is local and has a worktree; without this it would read as remote-only below.
+    notReady = [...(result.notReady ?? []), ...(result.stale ?? [])];
   } catch {
     // merge-order could not answer - list everything unranked rather than listing nothing.
   }
@@ -910,6 +910,41 @@ function cmdLog() {
   process.stdout.write(readFileSync(job.logPath, 'utf8'));
 }
 
+/**
+ * The queued pull requests whose landing failed in the last 24 hours, and where to read why: the
+ * one read an orchestrator makes when a row finishes, to send that row its CI failure. Reads the
+ * queue's own files, so it costs no `gh` call; the CI link is what the watcher wrote as it refused.
+ */
+async function cmdFailed() {
+  const { FAILED_WINDOW_HOURS, failedLandings } = await import('./land-watch.mjs');
+  const failed = failedLandings(readJobs(dir), { logOf: (job) => tailOf(job.logPath), git: gitFacts() });
+  if (failed.length === 0) {
+    console.log(`No landing failed in the last ${FAILED_WINDOW_HOURS} h.`);
+    return;
+  }
+  console.log(`Failed landings, last ${FAILED_WINDOW_HOURS} h (${failed.length}):`);
+  for (const f of failed) {
+    console.log(`  ${f.pr ? `#${f.pr}` : '(no PR)'}  ${f.branch}  ${f.reason}`);
+    console.log(`        ${f.ciLog ? `CI log: ${f.ciLog}   ·   ` : ''}watcher log: node scripts/jobs.mjs log ${f.id}`);
+  }
+}
+
+/** The last 8 KB of a log, where a landing's outcome is; '' when it cannot be read. */
+function tailOf(path, bytes = 8192) {
+  let fd = null;
+  try {
+    fd = openSync(path, 'r');
+    const size = fstatSync(fd).size;
+    const buffer = Buffer.alloc(Math.min(size, bytes));
+    readSync(fd, buffer, 0, buffer.length, Math.max(0, size - bytes));
+    return buffer.toString('utf8');
+  } catch {
+    return '';
+  } finally {
+    if (fd !== null) try { closeSync(fd); } catch { /* already gone */ }
+  }
+}
+
 function cmdCancel() {
   const job = readJobs(dir).find((j) => j.id === args[1]);
   if (!job) {
@@ -1010,6 +1045,7 @@ async function runner() {
   let starvedSince = null;
   let diagnosticSample = null;
   let diagnosticAt = 0;
+  let browserWatchAt = 0;
 
   for (;;) {
     const now = Date.now();
@@ -1047,6 +1083,45 @@ async function runner() {
         : `  ${job.id} timed out after ${job.capMinutes} min - killed`);
     }
 
+    // A LIGHT JOB THAT LAUNCHED A BROWSER IS BROWSER WORK, whatever its command says. Its price
+    // came from the command text, so a wrapper script that starts Playwright was admitted without
+    // the browser slot or the full floor. Stopped and re-queued as browser work, it waits for both.
+    // The pass reuses the holder diagnostics' table whenever they read one, so the watch adds at
+    // most one query of its own in their 30 s.
+    const watched = jobs.filter(watchedForBrowser);
+    if (watched.length && (now - browserWatchAt >= BROWSER_WATCH_MS || diagnosticAt === now)) {
+      browserWatchAt = now;
+      const table = diagnosticAt === now ? diagnosticSample.processes : allProcesses();
+      for (const job of watched) {
+        const seen = browserWorkBelow(job.pid, job.startedAt, table);
+        if (seen.length === 0) continue;
+        const caught = `${job.id} launched ${seen[0].name || 'a browser'} (pid ${seen[0].pid}) while priced as light work`;
+        // Stopped FIRST, and re-queued only once it is: a record that says waiting over a job
+        // still running would let the scheduler start it a second time beside itself.
+        killTree(job.pid);
+        if (isAlive(job.pid)) {
+          console.log(`  ${caught} - could not stop it, trying again`);
+          continue;
+        }
+        writeJob(dir, repricedAsBrowser(job));
+        // And for next time: the same command queued again starts as browser work (#904).
+        let remembered = `queued again within ${BROWSER_MEMORY_MS / 86_400_000} days, the same command starts as browser work`;
+        try {
+          rememberBrowserCommand(dir, { command: job.command, job: job.id, now });
+        } catch (error) {
+          // Without the note the next run is caught again, as before; the runner goes on.
+          remembered = `could not remember the command (${error.message}), so its next run is priced light again`;
+        }
+        const said = `${caught} - stopped and re-queued as browser work; ${remembered}`;
+        try {
+          appendFileSync(job.logPath, `\n--- ${said}\n`);
+        } catch {
+          // The note is for whoever reads the log; a missing log must not stop the runner.
+        }
+        console.log(`  ${said}`);
+      }
+    }
+
     // ADOPT anything whose landing died without a verdict - the one this poll just killed, and
     // equally one that died last night while no runner was watching. A sweep and not a hook on
     // each of those writes, because a hook only ever saves the NEXT victim, and the branches
@@ -1061,8 +1136,10 @@ async function runner() {
 
     jobs = readJobs(dir);
     const { start, dead, released, waiting, running } = schedule(jobs, {
-      hour: new Date(now).getHours(),
       freeMemMb: freeMb(),
+      // Asked only when something the budget governs is waiting; a landing is exempt from it.
+      alone: jobs.some((j) => j.state === 'waiting' && j.kind !== 'merge')
+        && (machineSessions(jobs, now)?.alone ?? false),
       // Re-read every pass, deliberately. Presence is the one input that changes while the runner
       // is alive - somebody sits down - and a value cached at runner start would be exactly the
       // stale environment variable this replaced.
@@ -1127,6 +1204,7 @@ function spawnJob(job) {
     shell: true,
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
   });
   // `{ end: false }`, and the stream is closed once below. Two sources piping into one destination
   // otherwise means the FIRST of them to finish calls `out.end()`, and whatever the other writes
@@ -1148,7 +1226,7 @@ function spawnJob(job) {
   // while the stdio pipes are still draining and the file stream still holds a buffer - and the
   // REFUSAL-KIND line is the last thing a landing writes, so reading on `exit` would miss exactly
   // the ordering block this is all for, intermittently and with no sign that it had.
-  child.on('close', (code) => out.end(() => finishJob(job, code)));
+  child.on('close', (code) => out.end(() => finishJob(job, code, child.pid)));
 }
 
 /**
@@ -1178,10 +1256,11 @@ function giveUpReasonFor(code, refusal, branch = '<branch>') {
 }
 
 /** Record what a finished job did: park it, defer it, or write the verdict down. */
-function finishJob(job, code) {
+function finishJob(job, code, pid) {
   const current = readJobs(dir).find((j) => j.id === job.id);
-  // Cancelled or timed out while running: that verdict wins, do not overwrite it.
-  if (!current || current.state !== 'running') return;
+  // Cancelled or timed out while running: that verdict wins, do not overwrite it. Nor may an
+  // attempt stopped for launching a browser write over the attempt that replaced it.
+  if (!current || current.state !== 'running' || current.pid !== pid) return;
 
   // NOT MY TURN YET (auto-merge exit 3): the branch is blocked by another that is itself still
   // waiting, so this resolves the moment that one lands. Send it to the BACK of the queue
@@ -1405,6 +1484,65 @@ function outsideRuns(jobs) {
   return activeRuns({}).filter((run) => !ours.has(normalize(run.root))).length;
 }
 
+/**
+ * The agent sessions live on this machine (`agentSessions` decides; this reads), or null when the
+ * answer cannot change the budget: outside the modest hours the budget is full whoever is live.
+ *
+ * Re-read at most once a minute. The runner polls every five seconds, and spawning Claude Code's
+ * inventory that often would make the queue one of the heavier things on the laptop it spares.
+ */
+const SESSIONS_TTL_MS = 60_000;
+let sessionsRead = null;
+function machineSessions(jobs, now = Date.now()) {
+  if (budgetMode({ now }).mode !== 'modest') return null;
+  if (sessionsRead && now - sessionsRead.at < SESSIONS_TTL_MS) return sessionsRead.value;
+  // A short timeout: this runs on the runner's poll, and a stalled inventory is "cannot tell".
+  const claude = readInventory({ timeoutMs: 5_000 });
+  // The queue's own sessions are found by ancestry, and the process table is read only when a
+  // job is running and there is a session it could have started.
+  const running = jobs.filter((j) => j.state === 'running' && j.pid && j.kind !== 'merge').map((j) => j.pid);
+  const queuePids = claude.rows.length > 0 && running.length > 0
+    ? new Set(descendantsOf(running, allProcesses()).map((p) => p.pid))
+    : new Set();
+  const value = agentSessions({
+    claude,
+    lastActiveMs: (row) => (row.sessionId && row.cwd ? sessionLastActiveMs(row.cwd, row.sessionId) : null),
+    codexActive: codexSessionsActive(now),
+    queuePids,
+    now,
+  });
+  sessionsRead = { at: now, value };
+  return value;
+}
+
+/**
+ * Codex session logs written inside `SESSION_ACTIVE_MS`. Codex appends each turn to
+ * `<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-*.jsonl`, filed by the day the session started, so
+ * the last week of day folders covers any session still being used. Unreadable means none.
+ */
+function codexSessionsActive(now) {
+  const root = join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'sessions');
+  let count = 0;
+  for (let back = 0; back < 7; back += 1) {
+    const day = new Date(now - back * 86_400_000);
+    const dir = join(root, String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
+    let names;
+    try {
+      names = readdirSync(dir).filter((n) => n.endsWith('.jsonl'));
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      try {
+        if (now - statSync(join(dir, name)).mtimeMs < SESSION_ACTIVE_MS) count += 1;
+      } catch {
+        // gone between the listing and the stat
+      }
+    }
+  }
+  return count;
+}
+
 // Function declarations, not const arrows. The dispatch runs after the whole module body now, so
 // a `const` here is initialised by the time any command reads it - but a declaration still reads
 // better beside its siblings, and the habit costs nothing.
@@ -1437,13 +1575,15 @@ function sleep(ms) {
   return new Promise((done) => setTimeout(done, ms));
 }
 
-function snapshot() {
+function snapshot({ readSessions = true } = {}) {
   const jobs = readJobs(dir);
+  const sessions = readSessions ? machineSessions(jobs) : null;
   return {
     jobs,
+    sessions,
     ...schedule(jobs, {
-      hour: new Date().getHours(),
       freeMemMb: freeMb(),
+      alone: sessions?.alone ?? false,
       presence: readPresence(dir).state,
       outsideRuns: outsideRuns(jobs),
       aheadOfMain,

@@ -23,7 +23,7 @@ import { scanActivity } from './worktree-activity.mjs';
 import { samePath, worktreeEntries } from './worktree-cleanup-lib.mjs';
 
 function runGit(cwd, ...args) {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   assert.equal(
     result.status,
     0,

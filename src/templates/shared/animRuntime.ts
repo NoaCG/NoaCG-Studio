@@ -7,7 +7,7 @@
 // and write raw GSAP (the timeline UI then steps aside).
 
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
-import { animSounds, locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
+import { ANIM_DECLARATION, animSounds, locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
 import { SOUND_RUNTIME_V1_JS } from '../../assets/graphicSoundRuntimeV1';
 import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
@@ -1027,7 +1027,7 @@ const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order —
 export function emitAnimRegion(data: AnimData): string {
   return `${ANIMATION_MARK_OPEN}
 ${DATA_HEADER}
-var NOACG_ANIM = ${serializeAnimData(data)};
+${ANIM_DECLARATION} = ${serializeAnimData(data)};
 
 ${ANIM_INTERPRETER_JS}
 ${ANIMATION_MARK_CLOSE}`;
@@ -1130,7 +1130,7 @@ export function writeOutData(js: string, data: AnimData): string | null {
   const location = locateAnimData(text), start = text.indexOf(ANIMATION_MARK_OPEN), end = text.indexOf(ANIMATION_MARK_CLOSE);
   if (!location || start < 0 || end < location.end) return null;
   const prefix = text.slice(start, location.start).trim();
-  if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\nvar NOACG_ANIM =`.replace(/\r\n/g, '\n')) return null;
+  if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\n${ANIM_DECLARATION} =`.replace(/\r\n/g, '\n')) return null;
   const body = text.slice(location.end, end).replace(/^;\s*/, '').trim();
   if (body === ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim()) return spliceAnimData(js, data);
   if (body === ANIM_INTERPRETER_JS.replace(SOUND_RUNTIME_JS, SOUND_RUNTIME_V1_JS).replace(/\r\n/g, '\n').trim()) return replaceRegionWithAnimData(js, data);

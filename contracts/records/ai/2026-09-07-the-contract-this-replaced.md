@@ -8,7 +8,7 @@ nothing.
 **It is history, not a contract.** Where it disagrees with a rule in the store, the rule is right.
 
 **What was deliberately NOT migrated**, and why, is the interesting part - it is the answer to the
-owner ask in `docs/backlog/are-the-big-contracts-still-worth-loading.md`, and it is written up in
+owner ask in [`docs/backlog/are-the-big-contracts-still-worth-loading.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/are-the-big-contracts-still-worth-loading.md), and it is written up in
 `docs/metrics/2026-09-07-ai-migrated.md`.
 
 ---

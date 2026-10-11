@@ -3,8 +3,8 @@
 **Run:** 2026-09-05, before the fourth behaviour was chosen
 (`src/templates/importedDesign/timerBehaviour.ts`). **Why it exists:** the owner's method, stated
 twice. *"We just need to follow how other programs do them"* (2026-09-03,
-`docs/backlog/more-behaviours-than-poll-and-quiz.md`), and the standing rule behind it - a design
-default is NOT a taste question (`docs/acceptance/OWNER_QUEUE.md`). So this page is the derivation
+[`docs/backlog/more-behaviours-than-poll-and-quiz.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/more-behaviours-than-poll-and-quiz.md)), and the standing rule behind it - a design
+default is NOT a taste question ([`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md)). So this page is the derivation
 the fourth behaviour was picked from, kept so the fifth is not argued from scratch.
 
 "Behaviour" is used in the sense of `docs/GRAPHIC_BEHAVIOUR_PLAN.md` §3: a state machine, the
@@ -35,7 +35,7 @@ that came out of it holds here: a product whose controls are not published gets 
 `docs/CONTROL_PANEL_RESEARCH.md` §2 (MXMZ end to end), §3 (Singular's control-node model and its
 thirteen node types), §4 (the OGraf v1 manifest and what it cannot express);
 `docs/COMPETITORS.md` (Zero Density, Loopic, Rive); and
-`docs/backlog/playout-logic-for-all-common-graphics.md`, which already names six uncovered
+[`docs/backlog/playout-logic-for-all-common-graphics.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-logic-for-all-common-graphics.md), which already names six uncovered
 behaviours from the owner's own ruling. The frequency table below is the market evidence that
 list was missing.
 
@@ -366,7 +366,7 @@ Checked against the shipped code rather than against the plan documents, which u
 | Paged list or table | **Gap.** No next-page verb anywhere |
 | Time of day clock | **Gap** as a behaviour |
 | Count to a time of day | **Gap.** The catalog clock runtime can, but a timer ARROW's duration is authored, not read from a field |
-| Adjust a running clock | **Gap**, filed: `docs/backlog/adjust-a-running-clock.md` |
+| Adjust a running clock | **Gap**, filed: [issue #786](https://github.com/NoaCG/NoaCG-Studio/issues/786) |
 | Credits roll with pause | **Gap** |
 | Social or chat moderation queue | Partly covered by the audience plane; no graphic type with approve and send |
 | Alert queue with auto-dismiss | **Gap** - `types/eventNotification.ts` is a design with no machine |
@@ -431,7 +431,7 @@ self-describing FIELD KINDS, not a language.
 
 1. **It is the highest-ranked behaviour NoaCG could not put on a student's own artwork.** Rank 2 in
    §1, ten of seventeen products - and rank 3, the score board, had shipped two days earlier.
-2. **The owner's own list puts it first.** `docs/backlog/playout-logic-for-all-common-graphics.md`
+2. **The owner's own list puts it first.** [`docs/backlog/playout-logic-for-all-common-graphics.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-logic-for-all-common-graphics.md)
    opens with "a clock or countdown that pauses, resumes and can be corrected mid-run", and its
    fifth item is "a timer with a limit that changes appearance as it runs out".
 3. **Half of it already existed and was unreachable.** The shared clock runtime, the countdown
@@ -444,7 +444,7 @@ self-describing FIELD KINDS, not a language.
    (the clock runtime's own paint hook) needed nothing added to `behaviour.ts`.
 
 **What was considered and not chosen.** A ranking that reorders itself by score is the one the
-owner called "amazing" (`docs/backlog/graphics-need-their-own-logic.md`) - and he parked it in the
+owner called "amazing" ([issue #787](https://github.com/NoaCG/NoaCG-Studio/issues/787)) - and he parked it in the
 same breath, and its paint is a kind nothing here has done: moving drawn layers rather than showing
 them. A paged results board is the biggest gap in §4 and needs the bounded-counter field kind in
 §5 before its Next button can be honest. A ticker's binding problem is "which layer, repeated",

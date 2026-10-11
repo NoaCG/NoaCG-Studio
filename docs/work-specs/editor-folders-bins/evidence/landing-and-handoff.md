@@ -65,7 +65,7 @@ The [bounded ledger](../work.json) accounts for all seven criteria against the
 immutable merged tree and hashed receipts. It closes this slice only.
 Full B02/B04, owner workflow/taste judgment, actual OS/browser 125% zoom,
 reusable precomposition instances and physical receiving-host acceptance
-remain open. The [desktop judgment item](../../../acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
+remain open. The [desktop judgment item](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
 remains unanswered. The configured authenticated suite was not run here.
 The full integration's fixture logs are not a blanket zero-console-error claim.
 

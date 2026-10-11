@@ -131,7 +131,7 @@ names the layer that causes it.
 1. **The live operator still scrolls for action-heavy graphics, whatever the arm.** In the six
    hockey and quiz cells, 8 to 18 live controls sit below the fold at 1600x900. *Cause:* the
    control panel model, fields before actions. This is
-   `docs/backlog/operator-page-buries-live-actions-under-setup-fields.md` (AC-5, AC-6). No skill
+   [`docs/backlog/operator-page-buries-live-actions-under-setup-fields.md`](https://github.com/NoaCG/NoaCG-Studio/blob/56f3b3f14146c2a40806f4326eac2e8b7c726f12/docs/backlog/operator-page-buries-live-actions-under-setup-fields.md) (AC-5, AC-6). No skill
    arm can fix it.
 2. **The guidelines switch does what it says, and what it says does not lift the look.** Six
    faithful builds gave 0 "yes" and four last places. The guidelines enforce restraint and

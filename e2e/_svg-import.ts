@@ -25,7 +25,7 @@ export const VOTE_SVG = fileURLToPath(
   new URL('./fixtures/svg-corpus/illustrator-live-vote-band.svg', import.meta.url),
 );
 
-/** The FOUR-TEAM score board (docs/backlog/scoreboard-behaviour.md), in the corpus for the vote
+/** The FOUR-TEAM score board (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md), in the corpus for the vote
  *  band's reason and one of its own: the shipped `scorebug.svg` sample has two teams and names
  *  them Home and Away, which is the shape the score behaviour deliberately does NOT propose for.
  *  A class quiz with four groups is the graphic the 2026-09-12 production actually needs. */

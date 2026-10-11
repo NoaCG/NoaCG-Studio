@@ -1,6 +1,6 @@
 // THE TWO ROADS A PUBLISHED VERB TRAVELS, and the id that stops it arriving twice.
 //
-// Measured on 2026-09-10 (docs/backlog/playout-lag-when-working-the-queue.md): a published Take
+// Measured on 2026-09-10 (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md): a published Take
 // paints in 515 ms and Out in 397 ms, against 30 ms for the same production unpublished in the
 // same browser a minute later. The RPC is the smaller half - 220 to 350 ms of every published
 // verb is the Realtime fan-out of the inserted row, which `postgres_changes` delivers bimodally
@@ -184,6 +184,8 @@ export interface AppliedOnce {
    * A command with no id is always applied.
    */
   claim(msg: unknown): boolean;
+  /** Whether this command's id is remembered, without remembering it. */
+  has(msg: unknown): boolean;
   /** How many ids are remembered. For tests and for reasoning about the bound. */
   readonly size: number;
 }
@@ -203,6 +205,10 @@ export function createAppliedOnce(): AppliedOnce {
         if (!oldest.done) seen.delete(oldest.value);
       }
       return true;
+    },
+    has(msg: unknown): boolean {
+      const oid = oidOf(msg);
+      return oid !== null && seen.has(oid);
     },
     get size() {
       return seen.size;

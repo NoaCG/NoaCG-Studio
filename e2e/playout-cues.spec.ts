@@ -214,6 +214,8 @@ async function productionPage(page: Page, options: { saved?: boolean } = {}): Pr
     const m = await import('/src/model/shows.ts');
     const show = m.loadShows().find(s => s.name === 'Evening News')!;
     m.setShowOutputSetup(show.id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
+    // The page re-renders behind this write: answer from a later task (openProductionWithCurrent).
+    await new Promise((resolve) => setTimeout(resolve));
   });
   await settleDurableWrites(page);
 }

@@ -182,7 +182,7 @@ died at hello: a stage with no graphic on his screen (still unreproduced anywher
 never reported finished. His remembered verdict IS the Space key. First impressions were made
 of defects, not of the interaction model. *Evidence:* the 2026-08-27 report; `docs/
 EDITOR_RESEARCH.md` §1b defects 1-3; the Space and run-report fixes landed only 2026-08-29
-(`docs/acceptance/owner-queue/2026-08-29-space-over-the-stage-plays.md`), the blank stage is
+([`docs/acceptance/owner-queue/2026-08-29-space-over-the-stage-plays.md`](https://github.com/NoaCG/NoaCG-Studio/blob/c5606a330fc51f2df39b5e91d83f8cc651416646/docs/acceptance/owner-queue/2026-08-29-space-over-the-stage-plays.md)), the blank stage is
 still open. *Counter-evidence:* "Tried once and it did not land" was ruled 2026-08-22, BEFORE
 the blank-stage session - the defects deepened the verdict but did not create it.
 

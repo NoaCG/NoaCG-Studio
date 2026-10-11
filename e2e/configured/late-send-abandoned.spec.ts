@@ -16,7 +16,7 @@
 import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, lastAppliedRow, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, lastAppliedRow, signIn, watchLogReads, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -58,6 +58,8 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   expect(await airPlays()).toBe('0');
 
   const op = await context.newPage();
+  // Each held press waits for the page to be level with the log, or its monitor would not move.
+  const followerLevel = watchLogReads(op);
   await op.goto(`/app?control=${encodeURIComponent(slugs.hosted as string)}`);
   await expect(op.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
   const chip = op.getByTestId('hosted-live-chip');
@@ -91,6 +93,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // A Take held with no Out behind it: both attempts inside the window are abandoned, and within
   // the window (not at a statement timeout, 3 s to 8 s per attempt before) the page says that the
   // graphic on its monitor is on no other screen.
+  await followerLevel();
   const takenAt = Date.now();
   await op.getByTestId('hosted-take-cue').click();
   await expect(chip).toContainText('on air:');
@@ -108,6 +111,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // ── The late Take of §5.6. ──────────────────────────────────────────────────────────────────
   held.length = 0;
   abandoned.length = 0;
+  await followerLevel();
   await op.getByTestId('hosted-take-cue').click();
   await expect(chip).toContainText('on air:');
   // The scenario's interval, not a wait for a state: the Out is pressed while the Take is held.

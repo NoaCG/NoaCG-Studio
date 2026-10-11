@@ -1,0 +1,80 @@
+# The Claude directory validates a GitHub repository, and this one is over its 50 MiB archive
+# limit (#842). What it validates instead is the small distribution `npm run toolkit:dist`
+# generates and the CLI release pushes to `agent-toolkit-dist`
+# (docs/work-specs/agent-toolkit-distribution/release.md). This job generates that distribution
+# from the change and runs on it the directory's pre-submission checks that can run here:
+#   - the generator itself refuses archive and file sizes, file counts, nonportable or forbidden
+#     file names, attribute files, drift from the canonical skill, and stale or floating CLI pins;
+#   - the distribution branch is built as a real commit and its `git archive` is measured, the
+#     same archive GitHub serves the directory;
+#   - `claude plugin validate --strict` on the marketplace and on every Claude plugin folder.
+# The portal's own security scan and reviewer hold can only run in the portal.
+#
+# Only on changes that can move the distribution, and without installing the app: about a minute.
+name: Toolkit distribution
+
+on:
+  pull_request:
+    paths:
+      - 'cli/skill/**'
+      - 'cli/plugin/**'
+      - 'cli/plugin-mcp/**'
+      - 'cli/scripts/build-skill.mjs'
+      - 'cli/scripts/toolkit-distribution.mjs'
+      - 'cli/scripts/publish-toolkit-distribution.mjs'
+      - 'cli/package.json'
+      - 'cli/package-lock.json'
+      - 'cli/LICENSE'
+      - 'cli/NOTICE'
+      - '.claude-plugin/marketplace.json'
+      - '.github/workflows/toolkit-distribution.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toolkit-distribution-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portal-checks:
+    name: Directory checks on the generated distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Pinned like everything else this repository runs: a new Claude Code that judges plugins
+      # differently should arrive as a reviewed change to this line, not as a red pull request.
+      CLAUDE_CODE_VERSION: 2.1.287
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Generate the distribution (sizes, counts, names, pins, drift)
+        run: npm run toolkit:dist -- "$RUNNER_TEMP/toolkit"
+
+      - name: Build the distribution branch commit and measure its archive
+        run: node cli/scripts/publish-toolkit-distribution.mjs
+
+      - name: Install Claude Code ${{ env.CLAUDE_CODE_VERSION }}
+        run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CODE_VERSION" && claude --version
+
+      # A throwaway profile: validation reads no account and needs no sign-in.
+      - name: claude plugin validate --strict
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-profile
+        run: |
+          for dir in repository repository/plugins/noacg repository/plugins/noacg-mcp claude claude-mcp; do
+            claude plugin validate --strict "$RUNNER_TEMP/toolkit/$dir"
+          done
+
+      - name: Record the measurements
+        run: |
+          {
+            echo '### Generated toolkit distribution'
+            echo '```json'
+            cat "$RUNNER_TEMP/toolkit/measurements.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

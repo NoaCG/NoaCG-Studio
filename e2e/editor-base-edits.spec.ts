@@ -4,6 +4,7 @@
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { readFileSync } from 'node:fs';
 import { pickDesign } from './_browse';
 import { addToProductionFromFinish } from './_create';
@@ -406,6 +407,7 @@ test('B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular
   const stage = (await page.locator('.ef-artboard').boundingBox())!;
   await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
   await page.mouse.click(stage.x + stage.width * .5, stage.y + stage.height * .5); await ready(page);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   const original = await rect(page, '#rectangle-1');
   await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   await numeric(page, 'Scale X %', -150);
@@ -481,7 +483,9 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   expect(preserved.current).toBe(true);
   const root = await page.evaluate(async () => (await import('/src/blocks/baseEdits.ts')).creationParent((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
   const relative = (element: Element, root: string) => {
-    const a = element.getBoundingClientRect(), b = element.ownerDocument.querySelector(root)!.getBoundingClientRect();
+    // In the OGraf package the root is inside the Graphic, read through its body.
+    const graphic = element.ownerDocument.querySelector('edited-graphic');
+    const a = element.getBoundingClientRect(), b = (graphic ? graphicBody(graphic) : element.ownerDocument).querySelector(root)!.getBoundingClientRect();
     return { x: a.x - b.x, y: a.y - b.y, width: a.width, height: a.height };
   };
   const expected = await (await preview(page)).locator('#f0').evaluate(relative, root);
@@ -499,6 +503,7 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
     if (target === 'ograf') {
       const manifest = JSON.parse(Buffer.from(files[Object.keys(files).find(n => n.endsWith('.ograf.json'))!], 'base64').toString());
       expect(manifest.schema.properties[field]).toBeTruthy();
+      await installGraphicBody(view);
       await view.goto('http://edited-output.local/');
       await view.evaluate(async ({ field }) => {
         const mod = await import('http://edited-output.local/graphic.mjs');
@@ -544,6 +549,7 @@ test('B04 point text and canceled creation; base scale agrees with handles at zo
   await page.getByRole('button', { name: 'text tool', exact: true }).click();
   await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2); await ready(page);
   expect((await source(page)).fields.length).toBe(initial.fields.length + 1);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   await numeric(page, 'Scale X %', 150);
   await expect(page.getByRole('textbox', { name: 'Base Scale Y %', exact: true })).toHaveValue('150');
   const scaled = await source(page);

@@ -3,9 +3,9 @@
 //
 // READY (Phase 6 Step 3: docs/work-specs/playout-ready/spec.md AC-1 to AC-7). An output decides for
 // itself whether it is ready and says so in its Presence entry; both operator surfaces read one line
-// from those entries: the plan's words, a broken graphic named, an older version called behind, and
-// an output that was there and is gone in red. None of it exists offline: there is no production to
-// resolve and no topic to join.
+// from those entries: the plan's words, a broken graphic named, a newer version taken a graphic at
+// a time, and an output that was there and is gone in red. None of it exists offline: there is no
+// production to resolve and no topic to join.
 // covers: src/control/readiness.ts, src/control/payloadVersion.ts, src/components/control/OutputHealth.tsx, src/output/main.ts, src/output/stage.ts, src/preview/composeDocument.ts, src/model/readyMemory.ts
 
 import { publishProduction } from '../_publish';
@@ -129,15 +129,20 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await page.waitForTimeout(1_500);
   await expect(scorebug()).toContainText('READY TEST');
 
-  // ── AC-4: after a publish, an open output with a graphic ON AIR keeps the version before, and
-  //    says so. (With nothing on air every publish now moves it onto the new version by itself:
-  //    docs/work-specs/studio-day-playout AC-10, e2e/configured/playout-status.spec.ts.) ──
+  // ── AC-4, since per-graphic replacement (docs/work-specs/per-graphic-replacement AC-1, D4): a
+  //    publish that adds a graphic while another is ON AIR moves the output onto the new version
+  //    at once, the graphic on air untouched and nothing reloaded. A change OF the graphic on air
+  //    waits for clear, which e2e/configured/per-graphic-replacement.spec.ts walks. ──
+  const playsBefore = await air.evaluate(() => document.body.getAttribute('data-plays'));
   await addCatalogGraphic(page, showId, 'Hairline');
   await page.getByTestId('production-publish-changes').click();
   await expect.poll(async () => (await stampOf())?.n, { timeout: 30_000 }).toBe(2);
-  await expect(desk).toHaveAttribute('data-ready-label', /Behind: showing v1/, { timeout: 30_000 });
-  await expect(phoneLine.locator('.pd-health-full')).toContainText('Behind: showing v1', { timeout: 30_000 });
-  await page.screenshot({ path: shot('desk-behind'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
+  await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 60_000 }).toBe(2);
+  await expect(desk).not.toHaveAttribute('data-ready-label', /Behind|Waiting for clear/, { timeout: 30_000 });
+  await expect(phoneLine.locator('.pd-health-full')).not.toContainText('Behind', { timeout: 30_000 });
+  await expect(scorebug()).toContainText('READY TEST');
+  expect(await air.evaluate(() => document.body.getAttribute('data-plays')), 'the graphic on air was not played again').toBe(playsBefore);
+  await page.screenshot({ path: shot('desk-after-publish'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
   await page.getByTestId('verb-out').click();
   await air.reload();
   await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 60_000 }).toBe(2);

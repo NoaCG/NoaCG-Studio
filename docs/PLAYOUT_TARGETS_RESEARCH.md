@@ -42,7 +42,7 @@ From `src/export/registry.ts`, `docs/PLAYOUT_INTEGRATION.md` and
 | Target | Route today | Who operates | Proven |
 |---|---|---|---|
 | vMix | Web Browser input on the cloud output URL, or on the HTML overlay export (plays on page load; a localhost relay and control panel for live control) | NoaCG's operator page, or the bundled control panel | No. "Exports exist but are unproven in vMix" |
-| SPX | Native SPX template export (one graphic); a production-wide SPX template `.html` that wraps the cloud output URL; the OGraf export, which SPX 1.4 reads | SPX's rundown for the native export; NoaCG's page for the wrapper | No real SPX server yet (`docs/backlog/spx-gc-ograf-round.md`) |
+| SPX | Native SPX template export (one graphic); a production-wide SPX template `.html` that wraps the cloud output URL; the OGraf export, which SPX 1.4 reads | SPX's rundown for the native export; NoaCG's page for the wrapper | No real SPX server yet ([`docs/backlog/spx-gc-ograf-round.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/spx-gc-ograf-round.md)) |
 | OBS | Browser Source on the cloud output URL or the HTML overlay export; the control panel as a Custom Browser Dock | NoaCG's operator page, or the bundled control panel | Yes: cloud output on real OBS, 2026-08-03 |
 
 NoaCG Bridge speaks a playout protocol whose vocabulary was chosen so that OBS and vMix adapters
@@ -453,12 +453,12 @@ item; unfiled routes are recorded here so nobody re-derives them.
 
 The operator's hardware already talks to all three hosts through Companion. Routes vMix 1 and
 OBS 2 make a NoaCG graphic answer to the host's own controls, which complements
-`docs/backlog/companion-and-stream-deck.md` (hardware driving NoaCG's page through the Bridge)
+[issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809) (hardware driving NoaCG's page through the Bridge)
 rather than replacing it: both end in the same named verbs.
 
 ## 5. Facts in existing docs that this research contradicts
 
-Not edited here; filed as `docs/backlog/playout-engine-facts-and-guide-corrections.md`.
+Not edited here; filed as [issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760).
 
 - `src/validation/engineSupport.ts` `PLAYOUT_ENGINES` and `docs/PLAYOUT_COMPATIBILITY.md` §1 list
   "vMix 27+" at Chromium 103. vMix's release notes put 103 in vMix 26 and 115 in vMix 27. 115 is

@@ -118,10 +118,10 @@ for the suites and gates.
 ends with `npm run stamp` (`scripts/check-stamp.mjs`), which writes a stamp for the exact tip into
 the shared job store. The verdict is derived from the legs, so a leg that did not run is a fail.
 
-Only what needs human judgment reaches the owner: one file per item under
-`docs/acceptance/owner-queue/`, of kind `decision`, `phone` or `desktop`
-(`docs/acceptance/OWNER_QUEUE.md`). Work an agent can verify never goes there, and a technical
-problem is never the owner's.
+Only what needs human judgment reaches the owner: a look at the change in its pull request
+comment, and a decision or a step only he can take asked at once, never filed for later
+(`.agent-workflows/verify.md`, step 5). Work an agent can verify never reaches him, and a technical
+problem is never the owner's. The backlog is GitHub Issues (`docs/backlog/README.md`).
 
 ## 5. Landing
 
@@ -132,9 +132,9 @@ session that owns the branch runs it, because queueing declares the work finishe
 2. `git fetch origin && git merge-tree --write-tree origin/main HEAD` shows no conflict, and
    `node scripts/merge-order.mjs --branch <branch>` finds no unlanded branch inside this one.
 3. `npm run queue:merge -- --why "<reason>"` (`scripts/jobs.mjs add-merge`) refuses a tip the
-   stamp does not cover, an unanswered owner receipt or unread relay mail. It then pushes the
-   branch, opens or reuses the pull request, posts the verdict as the `noacg/reviewed` commit
-   status, adds the `land` label and turns auto-merge on.
+   stamp does not cover or unread relay mail. It then pushes the branch, opens or reuses the pull
+   request (carrying each `Closes #n` from the branch's commit messages), posts the verdict as the
+   `noacg/reviewed` commit status, adds the `land` label and turns auto-merge on.
 4. GitHub queues the pull request once its two required checks pass: `CI gate`, and `Reviewed`
    (the `ci.yml` job that reads `noacg/reviewed`). It builds a temporary merge of up to five queued
    pull requests on top of `main`, runs `ci.yml` on that merge group, and merges them when
@@ -153,8 +153,8 @@ and forbids deleting or rewriting the branch; the repository admin is the only b
 
 **A refusal goes back to the owning session.** A red check is fixed on the branch. A conflict with
 `main` is reconciled in the branch's own worktree: merge `origin/main`, regenerate generated files
-with their generators (the contracts and `package.json` have merge drivers), build, run
-`npm run test:e2e:integration`, `/check`, and queue again. A landing that reached no verdict is
+with their generators (the contracts and `package.json` have merge drivers), `/check` with
+targeted checks, and queue again; CI plans the e2e run from the fork point. A landing that reached no verdict is
 retried once automatically; one that reached a verdict never is. Another session, usually the
 orchestrator, may queue a branch only when no live session holds it. A cloud session without `gh`
 queues through `.github/workflows/cloud-queue-merge.yml`, as `queue-merge.md` describes.
@@ -168,7 +168,7 @@ Each tier answers a different question. All of them live in `.github/workflows/`
 
 | When | Workflow | What runs |
 |---|---|---|
-| Every branch push and pull request | `ci.yml` | `npm run build` (the gates `scripts/gates.mjs` discovers from file headers, typecheck, lint, dependency rules, the bundle) and the CLI package; the factory-tier gates, which need a browser or servers; the E2E specs this change can affect, planned by `scripts/e2e-affected.mjs` from the merge-base with `main` and sharded by measured duration; the catalog calibration gate when the plan flags it; `Reviewed` on pull requests |
+| Every pull request, once per commit (a branch push alone runs nothing) | `ci.yml` | `npm run build` (the gates `scripts/gates.mjs` discovers from file headers, typecheck, lint, dependency rules, the bundle) and the CLI package; the factory-tier gates, which need a browser or servers; the E2E specs this change can affect, planned by `scripts/e2e-affected.mjs` from the pull request's base on `main` and sharded by measured duration; the catalog calibration gate when the plan flags it; `Reviewed` on pull requests |
 | The merge group | `ci.yml` | the same, planned from the group's base; its `CI gate` is what lets the group merge |
 | Every push to `main` | `ci.yml` | the full E2E suite (a run whose commit `main` has already moved past cancels itself), a check that Vercel accepted the commit, and the red-main answers below |
 | Every push to `main` | `post-land.yml`, `quarantine.yml`, `configured-suite.yml` | migrations for production and staging, then the Supabase advisors; each quarantined spec in its own job, reported as a commit status; the suite that needs a real backend, against a local Supabase stack |
@@ -181,7 +181,7 @@ base plans the full suite. `docs/VERIFICATION.md`, "E2E is TIERED", has the deta
 focus set that stands in for a full escalation on branches during the current sprint.
 
 **A red main answers itself first.** When E2E shards fail on `main` or in the merge group, the
-`E2E retry` job runs exactly the failed spec files once more on the same commit (branch pushes get
+`E2E retry` job runs exactly the failed spec files once more on the same commit (pull requests get
 no second run). Fail then pass is a flake: the gate passes, and the `after-gate` job writes the
 specs into `e2e/quarantine.json` through the merge queue (`scripts/e2e-quarantine.mjs`). A
 quarantined spec leaves the blocking shards and is released after twenty consecutive passes. A
@@ -201,12 +201,13 @@ so every worktree of the repository sees the same queue (`scripts/jobs-store.mjs
 lists running and waiting jobs with the reason each one waits; `node scripts/jobs.mjs wait`, `log`
 and `cancel` take a job id.
 
-- **One browser-driving budget per machine.** Jobs are costed in suite-equivalents: an E2E suite
-  or catalog battery is 1, an unrecognised command (assumed to open one browser) 0.5, a known cheap
-  command such as the build 0.4. The machine runs one suite-equivalent at a time by day and two
-  between 00:00 and 07:00 local time, and browser work the queue did not start counts against it.
+- **One budget per machine.** Jobs are costed in suite-equivalents: an E2E run or catalog battery
+  is 1, the build 0.75, an unrecognised command (assumed to open one browser) 0.5, a known cheap
+  command such as a test run 0.4. The machine runs one suite-equivalent on weekdays 08:00-16:00
+  Helsinki and two at every other hour, or whenever at most one agent session is live; browser
+  work the queue did not start counts against it, and only one browser-driving job runs at a time.
   A landing watcher is not charged against the budget. `--cost` and `--kind sweep` declare a cost
-  the guess would get wrong.
+  the guess would get wrong. `npm run jobs` prints the budget in effect and why.
 - **One E2E run per machine.** `scripts/hooks/guard-command.mjs` refuses to start an E2E suite
   while another checkout on the machine runs one; the `:queued` script forms wait their turn.
 - **RAM admission.** A job starts only when free memory covers its share of a per-suite floor:
@@ -222,29 +223,31 @@ and `cancel` take a job id.
 
 ## 8. The orchestrator
 
-`/orchestrator` (`.agent-workflows/orchestrator.md`, with its modules in
-`.agent-workflows/orchestrator/`) is a planning session: it plans a wave, launches its rows and
-watches them land, and it never edits product code, merges or pushes.
+`/orchestrator` (`.agent-workflows/orchestrator.md`, one file for both harnesses) runs a wave
+through a time window: it plans, launches its rows, reads their results and reports, and it never
+edits product code, merges or pushes.
 
 It has two authorities and only two: the unsatisfied outcomes marked `(now)` in `docs/GOALS.md`,
 with their done criteria, and the owner's current feedback. Handoffs, backlog items, owner
 receipts, bugs and red CI are inventory; they supply tasks, not priority.
 
-A wave is a table of rows. Each row is one session in its own worktree, with a goal, the files it
-will touch, any scarce shared slot it takes (a migration number, a re-recorded baseline), a worker
-pool, and whether it drives a browser. Rows are planned so they can land in any order, because
-the merge queue decides the order; a row that depends on another starts when that one lands.
-Every row's prompt ends by queueing its branch. In Claude Code a row is launched as one of the
-agent definitions in `.claude/agents/`, which carry the model, the effort and worktree isolation.
-`node scripts/wave-plan-check.mjs` must pass before a wave launches. A night wave then runs a
-watch loop (`scripts/wave-watch.mjs` over `scripts/wave-tick.mjs`) until its rows have landed.
+The work list is the prompt's items first, then the backlog in GOALS rank. Each row is one native
+subagent in its own worktree with a goal, a why, acceptance and the files it expects to touch; two
+items on one file or one user flow become one row. Every row ends by queueing its branch, so the
+merge queue decides the order. In Claude Code a row is one of the agent definitions in
+`.claude/agents/`, which carry the model, the effort and worktree isolation; in Codex it is a
+spawned subagent in a `git worktree add` worktree. A finished row wakes the coordinator, which
+launches the next item while the window still fits one. `node scripts/wave-plan-store.mjs --open`
+refuses a second open wave and a window over 24 hours.
 
-Handoffs in `docs/handoffs/` are continuation records only: a session writes one when it leaves
-work unfinished, and the session that finishes the work deletes it. A running wave asks nothing.
+Leftover work goes into the backlog, linked from the pull request; a session writes a handoff only
+when it is interrupted and the branch, pull request and backlog cannot carry the rest. A row and an
+unattended wave ask nothing; with the owner present, the orchestrator may ask him.
 It defers only a decision that materially changes direction, costs significantly or unusually,
 changes an important external, security or privacy boundary, or is hard to reverse
 (`docs/GOALS.md`, "Autonomous work"), records it, and continues with other work.
-`/orchestrator-week` is the weekly session with the owner.
+Each wave ends with a short report and a retro of at most three findings, closed by a fix or by
+an edit to existing text. `/orchestrator-week` is the weekly alignment read with the owner.
 
 ## 9. Measurements
 

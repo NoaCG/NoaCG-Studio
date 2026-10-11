@@ -354,7 +354,7 @@ export default function App() {
   // fragment, offers the set-a-new-password form, and SAYS SO when the link is expired. Before
   // it, recovery had no destination of its own: the mail landed wherever the request had been
   // made from and hoped a dialog would catch one event
-  // (docs/backlog/password-reset-link-lands-nowhere.md).
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md).
   //
   // THE HASH IS THE SECOND KEY, and it is the one that cannot be lost. `?recovery=1` reaches us
   // only if Supabase's redirect allow-list accepts the query, and every mail ALREADY SENT points

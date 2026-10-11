@@ -1,0 +1,19 @@
+{
+  "zoom": 1.25,
+  "finalZoom": 1.25,
+  "metrics": {
+    "innerWidth": 1093,
+    "innerHeight": 545,
+    "outerWidth": 1366,
+    "outerHeight": 768,
+    "devicePixelRatio": 1.25,
+    "visualScale": 1
+  },
+  "errors": [],
+  "canvas": {
+    "x": 0,
+    "y": 160.8000030517578,
+    "width": 812.7999877929688,
+    "height": 94
+  }
+}

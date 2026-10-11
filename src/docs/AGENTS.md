@@ -45,7 +45,7 @@ code that implements it. Where something is expected rather than measured, the p
   `src/templates/behaviours/words.json` and `naming.ts`, and the drawn layer panel has to match
   the example file. Change the three together.
 - **Anchors are addresses.** `#end-credits`, `#tickers`, `#data-api` and the rest are linked from
-  owner-queue notes, handoffs and the app itself, so an id survives a restructure even when its
+  pull requests, issues and the app itself, so an id survives a restructure even when its
   heading level changes.
 - `e2e/docs.spec.ts` pins the load-bearing line of each guide. **The page and the spec move in the
   same commit**, and a nav link is checked against a `section[id]` that must exist.

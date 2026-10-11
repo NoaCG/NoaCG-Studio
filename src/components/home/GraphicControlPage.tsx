@@ -62,6 +62,7 @@ import { openNewEditor } from '../editorFoundation/openNewEditor';
 import ProductionPicker from './ProductionPicker';
 import { IconControl } from '../icons';
 import { slug } from '../../model/slug';
+import { designLocked } from '../../model/graphicDoc';
 
 /** The speed knob's three stops — the wizard's Animation step offers the same three
  *  (model/wizard.ts AnimSpeed: ±33% read as "no change" on the owner's walk, ±80% does not). */
@@ -196,6 +197,9 @@ export default function GraphicControlPage({ id }: { id: string }) {
   // keystroke, and recomposing the document there only to hand React an identical string is
   // work done to be thrown away.
   const template = doc?.template ?? null;
+  // A community pack's graphic is played and filled here, never redesigned (spec AC-5): no editor
+  // door, no motion picker, no sound edit.
+  const locked = designLocked(doc);
   const srcdoc = useMemo(() => (template ? composeDocument(template, { liveControl: true }) : ''), [template]);
 
   /** Post a command into the live preview (no-op if the iframe hasn't loaded one yet). */
@@ -659,7 +663,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
           onAdd={addToProduction}
           onCreate={addToNewProduction}
         />
-        <button
+        {!locked && <button
           onClick={() =>
             requestSwitch(() => {
               openGraphicById(doc.id);
@@ -673,7 +677,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
           data-testid="control-open-editor"
         >
           ✎ Edit graphic
-        </button>
+        </button>}
         <button onClick={downloadPanel} title="A standalone operator page for the exported graphic (entries included)">
           ⬇ controlpanel.html
         </button>
@@ -814,7 +818,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
               shorter for a control they did not ask for. Open, it sits beside ▶ and ■ so a pick
               can be watched at once (the rebuilt document plays it). Absent entirely only when
               the graphic has no NOACG_ANIM block - hand-written motion is the editor's. */}
-          {anim && (
+          {anim && !locked && (
             <details
               className="control-motion"
               open={motionOpen}
@@ -908,14 +912,14 @@ export default function GraphicControlPage({ id }: { id: string }) {
               </div>
             </details>
           )}
-          <SoundsControls key={doc.id} template={doc.template} onEdit={async (operation, expectedJs) => {
+          {!locked && <SoundsControls key={doc.id} template={doc.template} onEdit={async (operation, expectedJs) => {
             const result = patch(cur => {
               if (cur.template.js !== expectedJs) throw new Error('This graphic changed while the sound was loading. Choose it again.');
               return { template: applySound(cur.template, operation) };
             });
             if (!result?.doc || result.error) throw new Error(result?.error ?? 'This graphic is no longer available.');
             const failure = await commitDurableWrites(); if (failure) throw new Error(failure);
-          }} />
+          }} />}
         </section>
 
         <aside className="control-page-side">

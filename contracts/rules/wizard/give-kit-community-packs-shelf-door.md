@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/steps/BrowseStep.tsx, src/components/wizard/steps/CommunityPacks.tsx, src/components/wizard/KitTray.tsx, src/templates/kit.ts
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-10-02
 supersedes: wizard/give-kit-door-top-browse-swaps
 record: contracts/records/wizard/2026-10-02-give-kit-community-packs-shelf-door.md

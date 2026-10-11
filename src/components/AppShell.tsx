@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useTemplateStore } from '../store/templateStore';
 import PreviewFrame from './PreviewFrame';
 import PlayoutSimulator from './timeline/PlayoutSimulator';
@@ -12,8 +12,6 @@ import AssetsPanel from './AssetsPanel';
 import AIPromptPanel from './AIPromptPanel';
 import ExportPanel from './ExportPanel';
 import WorkspaceDock from './WorkspaceDock';
-import CommunityGallery from './CommunityGallery';
-import ModerationQueue from './ModerationQueue';
 import BrandLogo from './BrandLogo';
 import NewGraphicButton from './NewGraphicButton';
 import SaveControls from './save/SaveControls';
@@ -22,11 +20,7 @@ import { BetaFeedbackButton } from './feedback/BetaFeedback';
 import InsertTemplateDialog from './InsertTemplateDialog';
 import { useRouter } from '../app/router';
 import AuthStatus from './auth/AuthStatus';
-import { useAuthState } from './auth/useAuthState';
-import { useAuthUi } from './auth/authUi';
 import SyncStatus from './SyncStatus';
-import { isBackendConfigured } from '../backend/config';
-import { useIsModerator } from '../community/useIsModerator';
 import { SystemNoticeBar } from './SystemNoticeBar';
 import { useIsMobile } from './useIsMobile';
 import { useSplitter, type Splitter } from './useSplitter';
@@ -85,39 +79,6 @@ export default function AppShell() {
   // The topbar Reset control uses a two-step inline confirm (arm, then confirm).
   const [resetArmed, setResetArmed] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Community gallery (Era 5.5) — only offered when a backend is configured (offline shows nothing).
-  // Browsing needs an account (the RPCs are authenticated-only), so signed-out visitors get the
-  // sign-in dialog instead of an empty gallery. A `?template=<slug>` share link auto-opens the
-  // gallery focused on that item once signed in.
-  const backendConfigured = isBackendConfigured();
-  const { signedIn, needsSignIn } = useAuthState();
-  const openSignIn = useAuthUi((s) => s.openSignIn);
-  const initialTemplateSlug = useMemo(
-    () => (backendConfigured ? new URLSearchParams(window.location.search).get('template') : null),
-    [backendConfigured],
-  );
-  const [communityOpen, setCommunityOpen] = useState(false);
-  const openCommunity = () => {
-    if (needsSignIn) openSignIn('Sign in to browse the community gallery.');
-    else setCommunityOpen(true);
-  };
-  // Share-link deep link: open the gallery as soon as we know the visitor's auth state — signed
-  // in opens it directly; signed out asks for sign-in first, then opens it (once).
-  const deepLinkDone = useRef(false);
-  useEffect(() => {
-    if (!initialTemplateSlug || deepLinkDone.current) return;
-    if (signedIn && backendConfigured) {
-      deepLinkDone.current = true;
-      setCommunityOpen(true);
-    } else if (needsSignIn) {
-      openSignIn('Sign in to view this shared template.');
-    }
-  }, [initialTemplateSlug, signedIn, needsSignIn, backendConfigured, openSignIn]);
-
-  // Moderator takedown queue — the button appears only for users in the moderators table.
-  const isModerator = useIsModerator();
-  const [moderationOpen, setModerationOpen] = useState(false);
 
   // On a phone the app reflows to a single column (preview + panels first); the code editor is
   // collapsed and mounted on demand (Monaco is heavy and secondary on mobile).
@@ -374,16 +335,6 @@ export default function AppShell() {
             ◨ Inspector
           </button>
         )}
-        {backendConfigured && (
-          <button onClick={openCommunity} title="Browse and reuse templates shared by other users">
-            🌐 Community
-          </button>
-        )}
-        {isModerator && (
-          <button onClick={() => setModerationOpen(true)} title="Review and remove published community templates">
-            🛡 Moderate
-          </button>
-        )}
         <button
           className={resetArmed ? 'reset-btn reset-armed' : 'reset-btn'}
           onClick={() => {
@@ -493,14 +444,6 @@ export default function AppShell() {
           (first-save naming + the unsaved-changes guard) mount once in App.tsx, over every
           surface including the wizard. */}
       <InsertTemplateDialog />
-
-      {/* Community gallery overlay — browse + import shared templates (hosted mode only). */}
-      {communityOpen && (
-        <CommunityGallery onClose={() => setCommunityOpen(false)} initialSlug={initialTemplateSlug} />
-      )}
-
-      {/* Moderator takedown queue overlay — only reachable when the button is shown (a moderator). */}
-      {moderationOpen && <ModerationQueue onClose={() => setModerationOpen(false)} />}
     </div>
   );
 }

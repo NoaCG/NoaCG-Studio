@@ -24,7 +24,7 @@
 // same settle, the same instruments, the same blocking/advisory routing the owner's blind reads
 // calibrated (docs/NOACG_PRO_PLAN.md §22.1, §23.1). It is a copy, stated as one: the two runners
 // answer different questions (one-shot-then-iterate vs the tool loop) and the shared-rig item
-// (docs/backlog/taste-review-shared-rig.md) is where the copies get folded into one.
+// (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/taste-review-shared-rig.md) is where the copies get folded into one.
 //
 // The bank is the CUSTOM type sweep's (benchmarks/pro/v1/custom/briefs.json): seven types, three
 // briefs each, the same 21 the §22 and §23 rounds were read on - so a harness round can be held

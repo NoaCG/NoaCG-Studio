@@ -87,8 +87,18 @@ export function validateVercelConfig(config) {
  *
  * The routing library cannot see this: the pattern is valid, and whether the destination exists
  * is a fact about the build output, not about the route table. So it is checked here.
+ *
+ * ONE BOOLEAN DECIDES WHETHER THIS HALF CHECKS ANYTHING, so it has to be written down. A missing
+ * key reads as "off" and the half returns nothing - an edit that drops the line would disarm it
+ * while every page is still served the way it was. The key must state its value either way.
  */
 function internalHtmlDestinations(config) {
+  if (typeof config.cleanUrls !== 'boolean') {
+    return [
+      `cleanUrls is ${JSON.stringify(config.cleanUrls)}, not true or false. Whether an internal .html ` +
+        'destination 404s depends on it, so write it explicitly or this check cannot tell.',
+    ];
+  }
   if (!config.cleanUrls) return [];
   const problems = [];
   for (const [kind, rules] of [

@@ -607,7 +607,7 @@ export function invocationPreflight({ prompt, write, model, effort, roots, insta
 
 /** `'linked'`, `'primary'`, or null when the directory is not inside a git repository. */
 function worktreeKind(cwd) {
-  const run = spawnSync('git', ['rev-parse', '--git-dir'], { cwd, encoding: 'utf8' });
+  const run = spawnSync('git', ['rev-parse', '--git-dir'], { cwd, encoding: 'utf8', windowsHide: true });
   if (run.status !== 0) return null;
   // A linked worktree's git dir is `<common>/worktrees/<name>`; the primary checkout's is `.git`.
   return /[\\/]worktrees[\\/]/.test(String(run.stdout ?? '').trim()) ? 'linked' : 'primary';
@@ -615,20 +615,20 @@ function worktreeKind(cwd) {
 
 /** `git status --porcelain`, or null when git could not answer. Null never reads as "clean". */
 function porcelain(cwd) {
-  const run = spawnSync('git', ['status', '--porcelain'], { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  const run = spawnSync('git', ['status', '--porcelain'], { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, windowsHide: true });
   return run.status === 0 ? String(run.stdout ?? '') : null;
 }
 
 function currentBranch(cwd) {
-  const run = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd, encoding: 'utf8' });
+  const run = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd, encoding: 'utf8', windowsHide: true });
   const name = String(run.stdout ?? '').trim();
   return run.status === 0 && name ? name : null;
 }
 
 /** `{ worktree, primary }` roots for the preflight, or null when git cannot answer. */
 function repoRoots(cwd) {
-  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf8' });
-  const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd, encoding: 'utf8' });
+  const top = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf8', windowsHide: true });
+  const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd, encoding: 'utf8', windowsHide: true });
   if (top.status !== 0 || common.status !== 0) return null;
   const worktree = String(top.stdout ?? '').trim();
   const commonDir = path.resolve(cwd, String(common.stdout ?? '').trim());
@@ -789,6 +789,8 @@ export function main(argv = process.argv.slice(2), { env = process.env, home = h
     cwd,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    // Shares the terminal console so Ctrl+C stops it too: scripts/windows-hide.test.mjs.
+    windowsHide: false,
   });
   const durationMs = Date.now() - startedAt;
 

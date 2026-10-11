@@ -92,7 +92,7 @@ test('the sheet has no tier chooser and shows the hosted note plus one own-accou
 });
 
 test("the user's own coding agent is the recommended route, first and above the built-in generator", async ({ page }) => {
-  // Owner, 2026-08-26 and 2026-09-03 (docs/backlog/byo-key-and-create-with-ai-guidance.md):
+  // Owner, 2026-08-26 and 2026-09-03 (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/byo-key-and-create-with-ai-guidance.md):
   // steer users to their own Claude Code before any key entry. Owner, 2026-09-27: it is the
   // RECOMMENDED route, so it is the step's first block, always open, above the built-in
   // generator - never a one-line disclosure the generator outranks. Owner, 2026-09-28: and on
@@ -145,7 +145,7 @@ test("the user's own coding agent is the recommended route, first and above the 
 });
 
 test('each install block copies its lines whole, and says so', async ({ page, context }) => {
-  // docs/backlog/install-lines-need-a-copy-control.md: select-then-copy is two motions and the
+  // https://github.com/NoaCG/NoaCG-Studio/blob/0a6fdab63c9854b1e4bf63f251016781d1a8919e/docs/backlog/install-lines-need-a-copy-control.md: select-then-copy is two motions and the
   // second has no feedback, so a partial copy looks whole until the paste fails in a terminal.
   // The button puts the WHOLE block on the clipboard and says it did.
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);

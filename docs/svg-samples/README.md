@@ -9,7 +9,7 @@ read and what a finished design looks like, and their layer trees predate the on
 The files to copy are `public/docs/examples/` and the SVG examples package
 (`docs/tutorials/svg-examples/`, offered at `/downloads#svg-examples`), one per graphic type,
 each with the three layers `Text`, `Moments` and `Board` and the spellings the public docs teach
-(`docs/backlog/one-layer-naming-system-for-every-graphic.md`). Import them, learn from them,
+([`docs/backlog/one-layer-naming-system-for-every-graphic.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md)). Import them, learn from them,
 but copy a layer tree from the docs examples. `npm run check:example-layers` holds the docs
 examples to the system in every build and deliberately does not read this folder. Pointed at it
 (`node scripts/check-example-layers.mjs docs/svg-samples`, 2026-09-24), all 24 files fail: none

@@ -14,7 +14,7 @@ on air with a bound quiz - only what an UNBOUND moment shows.
 plain-stepper scoreboard, the live vote, the score tracker, the countdown - and every one of them is
 a hand-written module: its own pickers in the mapping step, its own name matcher, its own paint JS,
 its own class pair, its own draft type. That is the shelf of ready-made cells the owner argued
-against on 2026-09-03 (`docs/backlog/graphics-without-a-ready-made-template.md`): the space of
+against on 2026-09-03 ([`docs/backlog/graphics-without-a-ready-made-template.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/graphics-without-a-ready-made-template.md)): the space of
 graphics a show needs has no bound, so a shelf always runs out. This plan replaces the five modules
 with ONE binding format, ONE paint runtime and a table of declarations, so that a graphic nobody
 anticipated - a poll, an award, a lineup, an election board, a map - gets its controls from the
@@ -308,7 +308,7 @@ What each key is for:
 
 - `recipe` and `options` are the SOURCE, so the wizard can reopen the binding and the sentence board
   can show it as the recipe it came from. `"custom"` is what the sentence board writes once the
-  machine no longer matches any recipe. This also gives `docs/backlog/back-to-the-wizard.md` its
+  machine no longer matches any recipe. This also gives [`docs/backlog/back-to-the-wizard.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md) its
   second half for imported graphics: the draft is reconstructed from this table.
 - `rows`, `fields`, `kinds` and `paint` are the RUNTIME's whole input. The paint runtime needs
   nothing else, and a hand edit to any of them is honoured on the next `update()`.
@@ -679,7 +679,7 @@ recipes on one graphic. Each recipe is its own branch with its own spec and owne
 survey order.
 
 **Phase 6 - back to the wizard.** Reconstruct the mapping step's draft from the table so an
-imported graphic reopens where it was made (`docs/backlog/back-to-the-wizard.md`, entry point 2).
+imported graphic reopens where it was made ([`docs/backlog/back-to-the-wizard.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md), entry point 2).
 
 **Phase 7 - the sentence board.** Reads and writes the same table and machine; P2's round-2 gate
 applies in full and this plan does not start it.
@@ -859,8 +859,8 @@ that declaration obvious. Recorded, not designed. **Designed the next day, and t
 that the premise was wrong** - see "The two-row-set question, dissolved rather than answered"
 below.
 
-**The two import traps are filed** (`docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md`,
-`docs/backlog/decorative-numerals-arrive-as-fields.md`).
+**The two import traps are filed** ([`docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md`](https://github.com/NoaCG/NoaCG-Studio/blob/ea01a688e0102db9051d77f82ac7ceb47150d776/docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md),
+[`docs/backlog/decorative-numerals-arrive-as-fields.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/decorative-numerals-arrive-as-fields.md)).
 
 ### The two-row-set question, dissolved rather than answered (2026-09-07)
 

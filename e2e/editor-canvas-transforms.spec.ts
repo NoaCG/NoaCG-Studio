@@ -267,11 +267,11 @@ test('rotation handle keys an animated Rotation at the playhead; a raw transform
 
 // ---- Edge handles ----
 
-test('edge handles scale one axis about the opposite side, Shift both, Alt about the anchor; a rotated layer scales along its own sides', async ({ page }) => {
+test('unlinked edge handles scale one axis about the opposite side, Shift both, Alt about the anchor; a rotated layer scales along its own sides', async ({ page }) => {
   const t = await withRectangle(page);
   await editorWith(page, t);
   await select(page, t.rect);
-  await page.getByRole('checkbox', { name: 'Link proportions' }).check();
+  await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   const original = await source(page), steps = await history(page), before = await bounds(page, t.rect), f = await fit(page);
   await expect(page.locator('.ef-selection [data-edge]')).toHaveCount(4);
 
@@ -310,7 +310,7 @@ test('edge handles scale one axis about the opposite side, Shift both, Alt about
   await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   await type(page, transform, 'Scale X %', b.scaleX * 100);
   expect((await source(page)).css).toBe(alt.css);
-  await undo(page); await page.getByRole('checkbox', { name: 'Link proportions' }).check();
+  await undo(page); await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
 
   // Rotated 30 degrees, the right handle still scales the layer's own X and its left side stays.
   await type(page, transform, 'Rotation', 30);
@@ -342,6 +342,7 @@ test('catalog edges: the accent keys scaleX from its side and refuses its top; F
   await editorWith(page, steps);
   await seekFrames(page, Math.round(.3 * steps.fps), steps.fps);
   await select(page, '.info-card-accent');
+  await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   let original = await source(page), count = await history(page);
   const accent = (await dataOf(page, original.js)).steps[0].layers['.info-card-accent'].scaleX;
   await drag(page, await edge(page, 1), 4, 0); await ready(page);
@@ -359,6 +360,7 @@ test('catalog edges: the accent keys scaleX from its side and refuses its top; F
   const frames = Math.round(.28 * frosted.fps), time = frames / frosted.fps;
   await seekFrames(page, frames, frosted.fps);
   await select(page, '.info-card-box');
+  await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   original = await source(page); count = await history(page);
   await drag(page, await edge(page, 1), 30, 0); await ready(page);
   await expect(page.locator('.ef-stage-error')).toContainText('share one');
@@ -368,6 +370,15 @@ test('catalog edges: the accent keys scaleX from its side and refuses its top; F
   expect(box.scaleX).toBeUndefined();
   expect(box.scale.some(k => near(k.time, time, 1e-3))).toBe(true);
   expect(await history(page)).toBe(count + 1);
+  // Linking the side uses the same shared Scale channel; Shift now requests the refused single axis.
+  const linked = await source(page); await undo(page);
+  await page.getByRole('checkbox', { name: 'Link proportions' }).check();
+  await drag(page, await edge(page, 1), 30, 0); await ready(page);
+  expect(await source(page)).toEqual(linked); expect(await history(page)).toBe(count + 1);
+  await undo(page);
+  await drag(page, await edge(page, 1), 30, 0, { shift: true }); await ready(page);
+  await expect(page.locator('.ef-stage-error')).toContainText('share one');
+  expect(await source(page)).toEqual(original); expect(await history(page)).toBe(count);
 });
 
 // ---- Anchor point ----
@@ -561,6 +572,7 @@ test('a layer’s own CSS transform: a side handle scales outside it about the o
   // rotate, then scale, then transform). Its base Rotation still reads 0.
   await editorWith(page, { ...t, css: t.css.replace(/(#rectangle-1 \{[^}]*background: #8bd5f6;)/, '$1\n  transform: rotate(30deg);') });
   await select(page, t.rect);
+  await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   const own = await bounds(page, t.rect), pivot = await edge(page, 3), f = await fit(page), count = await history(page);
   // A base scale acts along the parent's X, so the side handle measures there, about the opposite side.
   await drag(page, await edge(page, 1), 50, 0); await ready(page);
@@ -596,6 +608,7 @@ test('a layer’s own CSS transform: a side handle scales outside it about the o
   await editorWith(page, keyed);
   await seekFrames(page, 12, 25);
   await select(page, t.rect);
+  await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
   const opposite = await edge(page, 3), angle = Math.PI / 6;
   await drag(page, await edge(page, 1), 50 * Math.cos(angle), 50 * Math.sin(angle)); await ready(page);
   const scaled = (await data(page)).steps[0].layers[t.rect].scaleX;

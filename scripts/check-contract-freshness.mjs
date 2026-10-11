@@ -114,7 +114,7 @@ function trackedFiles(files) {
 function ignoredRefs(refs) {
   if (refs.length === 0) return new Set();
   try {
-    const out = execFileSync('git', ['check-ignore', '--stdin'], { cwd: ROOT, input: refs.join('\n'), encoding: 'utf8' });
+    const out = execFileSync('git', ['check-ignore', '--stdin'], { cwd: ROOT, input: refs.join('\n'), encoding: 'utf8', windowsHide: true });
     return new Set(out.split('\n').map((line) => line.trim()).filter(Boolean));
   } catch {
     // git check-ignore exits 1 when NONE of the paths are ignored - that is not an error here.

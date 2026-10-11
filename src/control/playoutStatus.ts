@@ -69,7 +69,7 @@ export interface StatusFacts {
   /** This session saw this production on its slot, and the slot no longer holds it. */
   slotLost?: boolean;
   /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known. */
-  ready: Pick<ReadySummary, 'tone' | 'label' | 'outputs' | 'ready' | 'lead' | 'preparing' | 'broken' | 'lost'> | null;
+  ready: Pick<ReadySummary, 'tone' | 'label' | 'outputs' | 'ready' | 'lead' | 'leadShort' | 'preparing' | 'broken' | 'lost'> | null;
   /** A graphic Take was sent while nothing that could air it was reporting. */
   noOutputTake?: boolean;
   fileCheck?: StatusCheck | null;
@@ -87,14 +87,6 @@ export function casparOutputTarget(settings: Pick<PlayoutSettings, 'host' | 'amc
  *  browser-only production never polls, reads or warns about a Bridge paired in this browser. */
 export function relevantPlayout(input: { configured: boolean; casparOn: boolean }): { bridge: boolean; slot: boolean } {
   return { bridge: input.casparOn, slot: input.configured && input.casparOn };
-}
-
-/** The renderer's own words for an output that is reporting but not quite well, in the short form
- *  the header has room for. READY keeps its longer line for the panel. */
-function outputShort(lead: string): string {
-  if (lead.startsWith('Behind')) return 'Waiting for clear';
-  if (lead.startsWith('Commands may arrive')) return 'Commands slow';
-  return lead;
 }
 
 function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
@@ -158,7 +150,8 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     if (ready.lost) checks.push({ key: 'outputs', tone: 'bad', label: ready.lead ?? `${ready.lost} lost`, short: `${ready.lost} lost` });
     else if (broken) checks.push({ key: 'outputs', tone: 'bad', label: broken.line, short: broken.short });
     else if (ready.tone === 'bad') checks.push({ key: 'outputs', tone: 'bad', label: ready.lead ?? 'Output not responding', short: ready.ready === 0 ? 'Output not responding' : `${ready.ready} of ${ready.outputs} outputs ready` });
-    else if (ready.tone === 'warn') checks.push({ key: 'outputs', tone: 'warn', label: ready.lead ?? '', short: outputShort(ready.lead ?? '') });
+    // The header has room for READY's short form ("Waiting for clear: Scorebug"); the panel keeps the line.
+    else if (ready.tone === 'warn') checks.push({ key: 'outputs', tone: 'warn', label: ready.lead ?? '', short: ready.leadShort ?? ready.lead ?? '' });
     else if (ready.preparing) checks.push({ key: 'outputs', tone: 'idle', label: ready.lead ?? 'Preparing', short: ready.lead ?? 'Preparing…' });
     else if (ready.tone === 'ok') checks.push({ key: 'outputs', tone: 'ok', label: ready.lead ?? 'Ready', short: 'Connected' });
     else checks.push({ key: 'outputs', tone: 'idle', label: ready.lead ?? 'Not connected', short: 'Not connected' });

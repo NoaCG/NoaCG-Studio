@@ -1,5 +1,5 @@
 // THE MAPPING STEP EXPLAINS ITSELF, AND OFFERS TO DO THE REST
-// (docs/backlog/the-mapping-step-should-explain-and-offer-to-do-it.md).
+// (https://github.com/NoaCG/NoaCG-Studio/issues/768).
 //
 // Three things the step needs from one place, all of them read off the SAME matcher that fills
 // the pickers at drop (templates/behaviours/naming.ts over words.json), never off a hand-written
@@ -120,7 +120,7 @@ function emptyAndClaimed(roles: RecipeRole[], pickers: FillPicker[], taken: stri
  * them. On a vote board that is the whole defect: three empty bar boxes made the notice fire, and
  * the number it fired with counted the full-bleed plate behind the rows as a layer the author had
  * forgotten to name. The account of it lives in the acceptance walk,
- * `docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md`.
+ * `https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-09-c-the-unmatched-count-stops-naming-plates.md`.
  *
  * MEASURED, not guessed - `scripts/svg-plate-share-spike.mjs` prints the table this came from.
  * Over the 77 artwork files in `e2e/fixtures/svg-corpus/`, `docs/svg-samples/` and
@@ -160,7 +160,7 @@ function emptyAndClaimed(roles: RecipeRole[], pickers: FillPicker[], taken: stri
  * what a picker may be filled from. Moving them onto the ink is a measurement nobody has made, and
  * it would move the checklist's grouping and the growth proposal on every lower third in the
  * catalog - so it is filed rather than smuggled in here
- * (docs/backlog/one-rule-for-what-a-backplate-is.md).
+ * (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-rule-for-what-a-backplate-is.md).
  */
 const PLATE_SHARE_OF_ARTWORK = 0.95;
 

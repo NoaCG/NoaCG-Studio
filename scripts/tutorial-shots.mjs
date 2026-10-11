@@ -85,7 +85,7 @@ const playwrightCli = createRequire(import.meta.url).resolve('@playwright/test/c
 const child = spawn(
   process.execPath,
   [playwrightCli, 'test', pack.spec, '-g', pack.grep],
-  { cwd: ROOT, stdio: 'inherit', env: { ...process.env, NOACG_TUTORIAL_SHOTS: frames } },
+  { cwd: ROOT, stdio: 'inherit', env: { ...process.env, NOACG_TUTORIAL_SHOTS: frames }, windowsHide: true },
 );
 
 // A spawn that fails outright (a missing executable, a security hook) emits `error` and never

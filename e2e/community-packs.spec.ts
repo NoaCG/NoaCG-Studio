@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{CommunityPacks,BrowseStep}.tsx, {packs/community/**,public/packs/community/**,scripts/build-production-pack.mjs}
+// covers: src/components/wizard/steps/{CommunityPacks,BrowseStep}.tsx, src/components/community/SubmitPackSheet.tsx, src/community/{packChecks,packSources}.ts, src/validation/{networkBench,networkGuard}.ts, {packs/community/**,public/packs/community/**,scripts/build-production-pack.mjs}
 //
 // COMMUNITY PACKS (docs/work-specs/community-packs/spec.md): the template wizard's third
 // category. Browse offers One graphic, A whole kit and Community packs; the shelf lists the
@@ -18,6 +18,8 @@ async function openShelf(page: Page): Promise<void> {
   await expect(modes.locator('[data-build-mode]')).toHaveText([/One graphic/, /A whole kit/, /Community packs/]);
   await modes.locator('[data-build-mode="community"]').click();
   await expect(page.getByTestId('community-packs')).toBeVisible();
+  // Offline there is no account, so the giving half of the shelf is absent, not disabled.
+  await expect(page.getByTestId('submit-pack-open')).toHaveCount(0);
 }
 
 test('the shelf lists the seeded pub quiz, and Install opens a production whose graphic takes, reveals and goes out', async ({ page }) => {
@@ -63,7 +65,114 @@ test('the shelf lists the seeded pub quiz, and Install opens a production whose 
   await page.getByTestId('verb-out').first().click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
 
+  // Install stamped where the graphic came from, so the submit picker never offers it as the
+  // maker's own work (spec D7).
+  const stamp = await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { packSources } = await import('/src/community/packSources.ts');
+    return {
+      fromPack: loadGraphics().find((g) => g.name === 'Pub Quiz')?.fromPack ?? null,
+      offered: packSources().flatMap((s) => s.graphics.map((g) => g.name)),
+    };
+  });
+  expect(stamp.fromPack).toEqual({ id: 'pub-quiz', version: 1, author: 'NoaCG', name: 'Pub Quiz' });
+  expect(stamp.offered).not.toContain('Pub Quiz');
+
   expect(errors).toEqual([]);
+});
+
+test('a pack of graphics: the checks refuse an outside font, placeholder text and a shared name, and an install gets one starter cue per graphic', async ({ page }) => {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const result = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { checkPack, buildCommunityPack } = await import('/src/community/packChecks.ts');
+    const { parsePack, installPack } = await import('/src/packs/graphicsPack.ts');
+    const [first, second] = variantsFor('lower-third');
+    const a = first.create({});
+    const b = second.create({});
+    const meta = { name: 'Two thirds', description: 'Two lower thirds', author: 'Someone' };
+    const clean = checkPack({ ...meta, graphics: [{ name: 'A', template: a }, { name: 'B', template: b }] });
+    const font = `@import url("https://fonts.googleapis.com/css2?family=Inter");\n`;
+    const refused = checkPack({
+      ...meta,
+      description: ' ',
+      graphics: [
+        { name: 'A', template: { ...a, css: font + a.css } },
+        { name: 'B', template: { ...b, html: `${b.html}<!-- Lorem ipsum -->` } },
+        { name: 'b', template: b },
+      ],
+    });
+    const file = await buildCommunityPack({ ...meta, graphics: [{ name: 'A', template: a }, { name: 'B', template: b }] });
+    const { pack, error } = parsePack(JSON.stringify(file));
+    if (!pack) throw new Error(error ?? 'unparsed');
+    const show = await installPack(pack);
+    return {
+      clean,
+      refused,
+      license: file.license,
+      author: file.author,
+      rundown: pack.rundown ?? null,
+      cues: (show.cues ?? []).length,
+      graphics: show.graphics.map((g) => g.name),
+    };
+  });
+  expect(result.clean).toEqual([]);
+  expect(result.refused).toContainEqual({ message: 'Describe the pack in one line.' });
+  expect(result.refused).toContainEqual(
+    expect.objectContaining({ graphic: 'A', message: expect.stringContaining('fonts.googleapis.com') }),
+  );
+  expect(result.refused).toContainEqual({ graphic: 'B', message: 'It still holds placeholder text (lorem ipsum).' });
+  expect(result.refused).toContainEqual({ graphic: 'b', message: 'Two graphics share this name. Rename one first.' });
+  // A set of graphics, no rundown: the installed production seeds one starter cue per graphic.
+  expect(result.license).toBe('CC-BY-4.0');
+  expect(result.author).toBe('Someone');
+  expect(result.rundown).toBeNull();
+  expect(result.graphics).toEqual(['A', 'B']);
+  expect(result.cues).toBe(2);
+});
+
+test('the request check plays each graphic with outside requests refused and names what it asked for, and when (D5)', async ({ page }) => {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const found = await page.evaluate(async () => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const { checkPackRequests } = await import('/src/community/packChecks.ts');
+    const clean = variantsFor('lower-third')[0].create({});
+    // Two URLs built at runtime, which the static share screen cannot read: an image a CDN serves
+    // when the graphic plays, and a call its code makes on Continue.
+    const wrap = (name: string, before: string) =>
+      `\n;(function () { var own = window.${name}; window.${name} = function () { ${before} return own && own.apply(this, arguments); }; })();`;
+    const cdn = { ...clean, js: clean.js + wrap('play', "new Image().src = 'https://cdn.example.invalid/' + 'logo.png';") };
+    const later = {
+      ...clean,
+      js: clean.js + wrap('next', "window['fe' + 'tch']('https://api.example.invalid/' + 'scores').catch(function () {});"),
+    };
+    // Two that no policy refuses: a peer-to-peer connection, and a page sent somewhere else.
+    const peer = { ...clean, js: clean.js + wrap('play', 'try { new RTCPeerConnection(); } catch (e) {}') };
+    const away = { ...clean, js: clean.js + wrap('next', "location.href = 'https:' + '//away.example.invalid/';") };
+    return checkPackRequests([
+      { name: 'Clean', template: clean },
+      { name: 'From a CDN', template: cdn },
+      { name: 'On Continue', template: later },
+      { name: 'Peer to peer', template: peer },
+      { name: 'Away', template: away },
+    ]);
+  });
+  // A catalog graphic asks for nothing outside itself: its bundled font is the one allowed file.
+  // Each finding is a `securitypolicyviolation`, the browser saying it refused the request.
+  expect(found).toEqual([
+    {
+      graphic: 'From a CDN',
+      message: expect.stringContaining('It asks for https://cdn.example.invalid/logo.png (an image) when it plays.'),
+    },
+    {
+      graphic: 'On Continue',
+      message: expect.stringContaining('It asks for https://api.example.invalid/scores (a request from its code) on Continue.'),
+    },
+    { graphic: 'Peer to peer', message: expect.stringContaining('It asks for a peer-to-peer connection (WebRTC) when it plays.') },
+    { graphic: 'Away', message: expect.stringContaining('It asks for another page (a navigation) on Continue.') },
+  ]);
 });
 
 test('the shelf reads on a phone', async ({ page }) => {

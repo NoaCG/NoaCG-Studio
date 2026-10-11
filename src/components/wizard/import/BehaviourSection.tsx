@@ -73,7 +73,7 @@ function roleLabel(recipeId: string, roleId: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-/** THE LINE UNDER A PICKER (docs/backlog/the-mapping-step-should-explain-and-offer-to-do-it.md,
+/** THE LINE UNDER A PICKER (https://github.com/NoaCG/NoaCG-Studio/issues/768,
  *  ask 1): under an EMPTY box, the layer name that would have filled it, read off the matcher;
  *  under a box the fill-them-in press chose, why it chose that layer. Nothing under a box the
  *  reader filled or the drop matched - those need no explaining. */
@@ -241,7 +241,7 @@ export default function BehaviourSection({
   const poll = behaviour?.kind === 'poll' ? behaviour : null;
   // THE SCORE BOARD'S PICKERS WORK ON THE ROWS THAT ARE ON, like the quiz's and unlike the poll's:
   // a team's name and figure are things the OPERATOR types and bumps, so each has to be a real
-  // field before it can be a row (docs/backlog/scoreboard-behaviour.md).
+  // field before it can be a row (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md).
   const score = behaviour?.kind === 'score' ? behaviour : null;
   // THE COUNTDOWN'S PICKERS ARE ALL DRAWN LAYERS, so none of them reads the field rows at all: the
   // clock itself is chosen one section up, by setting a clock-shaped row's kind to Countdown, and
@@ -609,7 +609,7 @@ export default function BehaviourSection({
             </select>
           </label>
           {/* THE HIDDEN LAYERS DID NOT ARRIVE. Illustrator's Export As writes no hidden layer at
-              all (measured on 30.1, docs/backlog/illustrator-export-as-drops-hidden-layers.md), so
+              all (measured on 30.1, https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/illustrator-export-as-drops-hidden-layers.md), so
               a quiz drawn with twelve moments arrives as a quiz with none and every picker reads
               "NoaCG's own look" - and nothing said a thing. Said once, on a file that is a type
               with drawn moments and holds NO hidden layer, in the words the docs use. A file whose

@@ -1,0 +1,158 @@
+{
+  "startedAt": "2026-10-09T22:55:21.809Z",
+  "finishedAt": "2026-10-09T22:55:42.085Z",
+  "mode": "main",
+  "checkedMain": "2e164047f30ac1594144e82a55dcc91a6e727bda",
+  "url": "http://127.0.0.1:5258/app?editor=foundation#/editor-foundation",
+  "input": {
+    "path": "e2e/fixtures/cli-round-trip/riverlight.zip",
+    "sha256": "f03ed74c585cad7e0b46ba1fec16e314d73b986d2e969d688aa35ba7f0fb4311"
+  },
+  "task": "Import CLI package; change both public text defaults; edit panel fill and 64px typography; typography undo/redo; draft cancellation; UI save/reopen; rehearsal In/Out",
+  "captures": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "label": "desktop"
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "label": "laptop"
+    },
+    {
+      "width": 1093,
+      "height": 614,
+      "label": "zoom-proxy"
+    }
+  ],
+  "held": {
+    "opacity": "1",
+    "transform": "none",
+    "panelOpacity": "1",
+    "nameOpacity": "1",
+    "roleOpacity": "1"
+  },
+  "typography": {
+    "imported": "48px",
+    "edited": "64px",
+    "history": [
+      "undo typography",
+      "redo typography",
+      "cancel 90px draft"
+    ]
+  },
+  "preservation": {
+    "js": true,
+    "assets": true,
+    "fieldKeys": [
+      "f0",
+      "f1"
+    ],
+    "sourceHashes": {
+      "html": "c79765a3a741d447fd06f14e734f3724d599fcf2480d9fd92d8e53a88fbd0f9e",
+      "css": "d5fa108fa6b9e32b2108778752b4f059172cd3b5bcccc8f1b52c13c73aeb4d81",
+      "js": "208df14233e949b1538885feffccb899b7a720ad628e744a3fa437b49cbaf702"
+    }
+  },
+  "outputs": [
+    {
+      "target": "spx",
+      "actions": [],
+      "pose": {
+        "opacity": "1",
+        "transform": "none",
+        "panelOpacity": "1",
+        "nameOpacity": "1",
+        "roleOpacity": "1"
+      },
+      "files": [
+        "independent_interview_main.html",
+        "css/template.css",
+        "js/template.js",
+        "README.md",
+        "FIELDS.md",
+        "controlpanel.shtml",
+        "js/gsap.min.js",
+        "js/flex-gap-shim.js",
+        "fonts/FONT_LICENSES.md",
+        "fonts/inter.woff2",
+        "images/festival-mark.svg",
+        "thumbnail.png",
+        "GETTING-ON-AIR.md"
+      ],
+      "liveUpdate": {
+        "f0": "LIVE MINA",
+        "f1": "On-air producer"
+      },
+      "errors": []
+    },
+    {
+      "target": "casparcg",
+      "actions": [],
+      "pose": {
+        "opacity": "1",
+        "transform": "none",
+        "panelOpacity": "1",
+        "nameOpacity": "1",
+        "roleOpacity": "1"
+      },
+      "files": [
+        "independent_interview_main.html",
+        "README.md",
+        "FIELDS.md",
+        "controlpanel.html",
+        "GETTING-ON-AIR.md"
+      ],
+      "liveUpdate": {
+        "f0": "LIVE MINA",
+        "f1": "On-air producer"
+      },
+      "errors": []
+    },
+    {
+      "target": "ograf",
+      "actions": [
+        {
+          "statusCode": 200
+        },
+        {
+          "statusCode": 200,
+          "currentStep": 0
+        },
+        {
+          "statusCode": 200
+        },
+        {
+          "statusCode": 200
+        }
+      ],
+      "pose": {
+        "opacity": "1",
+        "transform": "none",
+        "panelOpacity": "1",
+        "nameOpacity": "1",
+        "roleOpacity": "1"
+      },
+      "files": [
+        "independent_interview_main.ograf.json",
+        "graphic.mjs",
+        "FIELDS.md",
+        "lib/gsap.min.js",
+        "lib/flex-gap-shim.js",
+        "fonts/FONT_LICENSES.md",
+        "fonts/inter.woff2",
+        "images/festival-mark.svg",
+        "thumbnail.png",
+        "README.md"
+      ],
+      "liveUpdate": {
+        "f0": "LIVE MINA",
+        "f1": "On-air producer"
+      },
+      "errors": []
+    }
+  ],
+  "errors": [],
+  "consoleErrors": []
+}

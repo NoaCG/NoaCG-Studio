@@ -37,7 +37,9 @@ export const bug34: TemplateVariant = defineBugVariant(
 ${bugLineMasks(o)}
     </div>`,
 
-    css: `/* The pill — translucent glass, heavy blur, hairline keyline, one soft lift. */
+    css: `/* The pill — translucent glass, heavy blur, hairline keyline, one soft lift. A place and a
+   status fit it on one row; words longer than the bug's width cap wrap inside their own masks
+   rather than being cut. */
 .corner-bug-box {
   display: flex;                   /* the two words sit side by side */
   align-items: center;             /* both on one baseline */
@@ -57,7 +59,6 @@ ${bugLineMasks(o)}
   line-height: 1.15;               /* tight */
   letter-spacing: var(--display-tracking);  /* the family's display tracking */
   color: var(--text-color);        /* primary text */
-  white-space: nowrap;             /* the chip is one row: neither word wraps */
 }
 
 /* The divider — an accent dot between the place and what is happening there. It is drawn on
@@ -85,7 +86,6 @@ ${bugLineMasks(o)}
   letter-spacing: var(--label-tracking);  /* the family's label tracking */
   text-transform: uppercase;       /* label voice */
   color: var(--label-color);       /* glass carries the accent in the label */
-  white-space: nowrap;             /* the chip is one row: neither word wraps */
 }`,
 
     hasAccent: false, // the accent moment is the divider dot, drawn on the second line's mask

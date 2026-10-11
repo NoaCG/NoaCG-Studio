@@ -213,7 +213,7 @@ await page.evaluate(
       await new Promise((r) => setTimeout(r, 2400));
 
       return frames.map(({ id, f }) => {
-        const out = { id, err: f.dataset.err || null, offFrame: [], selfClip: [] };
+        const out = { id, err: f.dataset.err || null, offFrame: [], selfClip: [], measured: 0 };
         try {
           const w = f.contentWindow;
           const label = (el) =>
@@ -228,6 +228,7 @@ await page.evaluate(
             if (!(parseFloat(cs.opacity) > 0.03)) continue;
             const r = el.getBoundingClientRect();
             if (r.width < 1 && r.height < 1) continue; // a zero-box paints nothing
+            out.measured++;
 
             // Off-frame: the painted box crosses the frame edge. We ignore elements that are
             // themselves overflow-hidden clippers here — their own children can legitimately sit
@@ -304,6 +305,9 @@ for (let i = 0; i < plan.length; i += 12) {
   res.forEach((r, k) => rows.push({ ...slice[k].t, ...r, id: slice[k].key }));
 }
 await browser.close();
+// Every frame rendering blank without throwing would paint nothing outside the frame and print
+// PASS - or record an empty baseline - so the gate says how many painted elements it read.
+measured(rows.reduce((n, r) => n + r.measured, 0), 'painted elements');
 
 if (jsonOut) {
   writeFileSync(jsonOut, JSON.stringify(rows, null, 1));

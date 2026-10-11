@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
-import { variantById, variantsFor } from '../../templates/catalog';
+import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   armTimerClock,
   brandClearPatch,
@@ -39,24 +39,23 @@ import {
   MapSvgFieldsStep,
 } from './import';
 import TemplateStep from './steps/TemplateStep';
-import BrowseStep, { type BuildMode } from './steps/BrowseStep';
-import { defaultSelectionFor } from './steps/KitPicker';
+import type { BuildMode } from './steps/BrowseStep';
 import KitTray from './KitTray';
 import KitFinishStep from './steps/KitFinishStep';
 import {
   applyStyleToKit,
   buildKit,
   commitKitGraphic,
+  defaultSelectionFor,
   kitKeys,
   rebrandKit,
   reconcileKit,
   type KitPlan,
 } from './kitPlan';
-import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../templates/search';
-import FieldsStep from './steps/FieldsStep';
+import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../templates/browseFilters';
+import { IMPORTED_VARIANTS } from '../../templates/importedDesign/variants';
 import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
-import AiStep from './steps/AiStep';
 import VideoStep from './steps/VideoStep';
 import FinishStep, {
   aiSummaryRows,
@@ -78,7 +77,7 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
-import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
+import { saveCurrentGraphic, saveGraphicAs, useSaveUi } from '../../store/saveActions';
 import { graphicById, graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
@@ -93,7 +92,12 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
 import type { TemplatePack } from '../../templates/packs';
-import { kitSelection } from '../../templates/kit';
+
+// The steps that list or build on catalog designs load with the catalog, never with the wizard:
+// the Entry step must open without it (components/catalogOnDemand.tsx).
+const BrowseStep = lazyStep(() => import('./steps/BrowseStep'));
+const FieldsStep = lazyStep(() => import('./steps/FieldsStep'));
+const AiStep = lazyStep(() => import('./steps/AiStep'));
 
 // The catalog flow browses ONE faceted step (search + programme + category + refinements —
 // docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
@@ -217,8 +221,8 @@ type AiResultState = {
 } | null;
 
 /**
- * THE WALK JUST FINISHED — everything needed to step back INTO it (docs/backlog/
- * back-to-the-wizard.md, entry point 1: "the draft is still in memory; this is undo the last
+ * THE WALK JUST FINISHED — everything needed to step back INTO it (
+ * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md, entry point 1: "the draft is still in memory; this is undo the last
  * screen").
  *
  * The wizard wipes itself on every open ("Fresh wizard every time"), which is right for the
@@ -268,7 +272,23 @@ export default function CreationWizard() {
   // Mounted for the session, rendering null when closed — so the gate keys on `open`, not on
   // mount, or every editor shortcut in the app would be dead from first paint.
   useModalGate(open);
-  const closeGallery = useTemplateStore((s) => s.closeGallery);
+  // ── A WALK LEFT MID-WAY ──
+  // Every close the wizard makes ITSELF (a door that made something, ✕ on the front page, a
+  // declined walk-back) goes through this wrapper, so a close it did not make is the reader
+  // LEAVING: a Home door (which calls the store's own close on purpose) or browser Back. Such
+  // a walk is held, and the guard asks before a door opens the wizard fresh over it
+  // (saveActions `heldWalk`).
+  const closedByWizard = useRef(false);
+  const leaveGallery = useTemplateStore((s) => s.closeGallery);
+  const closeGallery = useCallback(() => {
+    closedByWizard.current = true;
+    leaveGallery();
+  }, [leaveGallery]);
+  /** The draft this walk started from, so "has work" means the reader changed something. */
+  const startDraft = useRef<WizardDraft | null>(null);
+  /** The furthest step this walk reached: where Continue returns. Not the step at close, which
+   *  browser Back has already rewound through every step to the front page. */
+  const lastStep = useRef(0);
   // Has the created graphic been touched since the door saved it? The app's own answer, so the
   // walk-back warning promises to write over hand edits only when there are some. A door that
   // saved nothing (the editor one) reads dirty from birth, which is the right answer there too.
@@ -459,6 +479,14 @@ export default function CreationWizard() {
   useEffect(() => {
     if (stepRef.current) stepRef.current.scrollTop = 0;
   }, [step, mode]);
+  // A new mode is a new walk, with other steps; declared first, so a mode pick that also moves
+  // the step resets before the step is counted.
+  useEffect(() => {
+    lastStep.current = 0;
+  }, [mode]);
+  useEffect(() => {
+    if (open && step > lastStep.current) lastStep.current = step;
+  }, [open, step]);
   useEffect(() => {
     if (!open) return;
     const el = stepRef.current;
@@ -501,10 +529,37 @@ export default function CreationWizard() {
     finishedWalk.current = null;
   }
 
+  /** Has the reader done anything in this walk that a fresh open would wipe? The same rule as
+   *  the working document's guard (saveActions `hasUnsavedWork`): compared with what the walk
+   *  started from. The project format alone is not work - ✕ keeps it over a discarded draft,
+   *  and it is one select to set again. */
+  const walkHasWork = () => {
+    // A door already made something of it (the export door keeps the wizard open).
+    if (madeThisOpen.current) return false;
+    if (aiResult || importedFile || kit || kitPack) return true;
+    const base = startDraft.current ?? initialDraft();
+    const { aspectId, resolutionId, fps, formatTouched } = base;
+    return JSON.stringify({ ...draft, aspectId, resolutionId, fps, formatTouched }) !== JSON.stringify(base);
+  };
+  // Read by the open effect through a ref, as `leaveStepRef` is, so that effect keeps its
+  // `[open]` dependencies rather than re-running on every keystroke.
+  const walkHasWorkRef = useRef(walkHasWork);
+  walkHasWorkRef.current = walkHasWork;
+
   // Fresh wizard every time it opens; reload the brand (it may have just been saved).
   useEffect(() => {
     if (open) {
       const opening = useRouter.getState().route;
+      // ── BACK INTO A WALK THE READER LEFT ── The guard's Continue (saveActions `heldWalk`):
+      // everything is still in state, because a closed wizard renders null rather than
+      // unmounting, so only the step it was left on is put back.
+      closedByWizard.current = false;
+      const { resumeWalk } = useSaveUi.getState();
+      useSaveUi.setState({ heldWalk: false, resumeWalk: false });
+      if (resumeWalk) {
+        setStep(lastStep.current);
+        return;
+      }
       // ── BACK INTO THE WALK, NOT A FRESH ONE ──
       // A re-open onto a STEP url with a finished walk still in memory is the reader coming
       // BACK: browser Back off the production page (or the editor) lands on the step entry the
@@ -542,7 +597,7 @@ export default function CreationWizard() {
         setStretchDemo(null);
         resetKit();
         // The step the walk ENDED on, not the one the history entry happens to name: the
-        // reader wants the last screen back (docs/backlog/back-to-the-wizard.md), and leaving
+        // reader wants the last screen back (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md), and leaving
         // the URL on an earlier step would make the rail and the address bar disagree.
         useRouter.getState().replace({
           view: 'new',
@@ -566,8 +621,9 @@ export default function CreationWizard() {
           ? stepTitlesFor('template', false).findIndex((t) => stepSlug(t) === opening.step)
           : -1;
       setStep(named > 0 ? named : 0);
+      lastStep.current = 0;
       setMode('template');
-      setDraft(initialDraft());
+      let start = initialDraft();
       setBrowseFilters(NO_BROWSE_FILTERS);
       setAiResult(null);
       acceptedAiGeneration.current = null;
@@ -599,10 +655,16 @@ export default function CreationWizard() {
         if (chosen) {
           if (!named) setBrandChoices([chosen, ...saved]);
           setBrandId(chosen.id);
-          setDraft((d) => mergeDraft(d, brandPatch(chosen.brand)));
+          start = mergeDraft(start, brandPatch(chosen.brand));
         }
       }
+      setDraft(start);
+      startDraft.current = start;
     } else {
+      // Left with work in it (see `closedByWizard`)? Then hold it.
+      const left = !closedByWizard.current;
+      closedByWizard.current = false;
+      useSaveUi.setState({ heldWalk: left && walkHasWorkRef.current() });
       // BACK TO STEP 0 ON CLOSE TOO. This component stays mounted and renders null when it is
       // closed, so a closed wizard still holds the step its last walk ended on. The route sync
       // above would read that stale step at the NEXT open and push it into the URL - so "+ New
@@ -621,9 +683,18 @@ export default function CreationWizard() {
   // it runs, so it fires exactly once per deep link and never re-applies after the user has
   // moved on.
   const pendingDesignId = useTemplateStore((s) => s.pendingDesignId);
+  // The catalog loads once a step lists designs, the draft names a catalog design, or a deep
+  // link does (which holds Entry until it resolves, so nothing done there is overwritten). The AI
+  // step (lazy, so it brings its own), the import doors (their own variants resolve without it)
+  // and video never wait for it. Until it arrives the step area shows CatalogLoading.
+  const importedVariant = IMPORTED_VARIANTS.find((v) => v.id === draft.variantId);
+  const listsDesigns = (mode === 'template' && step >= 1) || (mode === 'import' && step >= 2);
+  const needsCatalog =
+    listsDesigns || Boolean(pendingDesignId) || (step > 0 && Boolean(draft.variantId) && !importedVariant);
+  const catalog = useCatalog(open && needsCatalog);
   useEffect(() => {
-    if (!open || !pendingDesignId) return;
-    const pending = variantById(pendingDesignId);
+    if (!open || !pendingDesignId || !catalog) return;
+    const pending = catalog.variantById(pendingDesignId);
     useTemplateStore.setState({ pendingDesignId: null });
     // Imported-design designs create BARE through a dedicated setup flow (mode 'design'),
     // never through the Browse pick path — excluded here for the same reason Browse never
@@ -631,21 +702,21 @@ export default function CreationWizard() {
     // URL) leaves the wizard exactly where the reset effect above put it: Entry.
     if (!pending || pending.category === 'imported-design') return;
     setMode('template');
-    setDraft(
-      mergeDraft(initialDraft(), {
-        category: pending.category,
-        variantId: pending.id,
-        lines: pending.suggestedLines.map((l) => ({ ...l })),
-        zone: null,
-        logoEnabled: null,
-        animation: { presetId: null, outPresetId: null },
-        paletteId: null,
-        customPalette: null,
-        fontId: null,
-      }),
-    );
+    // The link chose this design, not the reader in this walk: it is where the walk starts.
+    startDraft.current = mergeDraft(initialDraft(), {
+      category: pending.category,
+      variantId: pending.id,
+      lines: pending.suggestedLines.map((l) => ({ ...l })),
+      zone: null,
+      logoEnabled: null,
+      animation: { presetId: null, outPresetId: null },
+      paletteId: null,
+      customPalette: null,
+      fontId: null,
+    });
+    setDraft(startDraft.current);
     setStep(2);
-  }, [open, pendingDesignId]);
+  }, [open, pendingDesignId, catalog]);
 
   useEffect(() => {
     if (open || !aiResult?.generationId || acceptedAiGeneration.current === aiResult.generationId) return;
@@ -677,7 +748,7 @@ export default function CreationWizard() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const variant = draft.variantId ? variantById(draft.variantId) : undefined;
+  const variant = importedVariant ?? (draft.variantId && catalog ? catalog.variantById(draft.variantId) : undefined);
 
   // The live preview always renders the draft as real template code. Design mode's preview
   // may additionally carry the stretch-demo line (preview-only; create() builds without it),
@@ -822,6 +893,10 @@ export default function CreationWizard() {
     });
     setMode('template');
     setStep(0);
+    // A rewind is a fresh start: what it keeps (the format) is not work, and nor is a brand the
+    // open had pre-applied, which it drops.
+    startDraft.current = null;
+    lastStep.current = 0;
     setBrowseFilters(NO_BROWSE_FILTERS);
     setAiResult(null);
     setAiThread(null);
@@ -879,7 +954,7 @@ export default function CreationWizard() {
    * The KIT and Pro-PACKAGE endings reach neither applier (`openKitProduction`, `exportKit`,
    * `openAiPackage`, `exportAiPackage` save a SET, not a document), so they still leave the
    * wizard with no way back in. Deliberately out of scope here and recorded in
-   * docs/backlog/back-to-the-wizard.md rather than half-wired.
+   * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md rather than half-wired.
    */
   const rememberWalk = () => {
     finishedWalk.current = {
@@ -1029,8 +1104,10 @@ export default function CreationWizard() {
    * Kit step → the hub, with the whole set built. The same kit coming back from the Kit step
    * keeps every graphic it still holds exactly as edited (`reconcileKit`); a different kit starts
    * over. The kit's palette leads each graphic it is drawn for, and the footer brand outranks it.
+   * The kit module is already loaded by the Kit step that asks for this, so the await is a tick.
    */
-  const buildKitAndOpenHub = (pack: TemplatePack, keys: string[], target: number = finishStep) => {
+  const buildKitAndOpenHub = async (pack: TemplatePack, keys: string[], target: number = finishStep) => {
+    const { kitSelection } = await import('../../templates/kit');
     const items = kitSelection(pack, keys);
     if (items.length === 0) return;
     let plan: KitPlan;
@@ -1053,7 +1130,7 @@ export default function CreationWizard() {
   const buildFromKitStep = (target: number = finishStep) => {
     if (!kitPack) return;
     if (kit && kit.pack.id !== kitPack.id && kit.edited) setKitSwitchAsk(true);
-    else buildKitAndOpenHub(kitPack, kitSelected, target);
+    else void buildKitAndOpenHub(kitPack, kitSelected, target);
   };
 
   /** "Apply this Style to all", once confirmed: the open graphic's Style reaches every other
@@ -1421,6 +1498,14 @@ export default function CreationWizard() {
     return useTemplateStore.getState().template;
   };
 
+  const createFromFileAndEditArtwork = () => {
+    const template = applyImportedFile();
+    if (!template) return;
+    noteMade(template.name, null, { view: 'editor-foundation' });
+    openNewEditor({ replace: true });
+    closeGallery();
+  };
+
   const createFromFileAndExport = () => {
     if (!applyImportedFile()) return;
     void (async () => {
@@ -1626,7 +1711,7 @@ export default function CreationWizard() {
 
   // Ordering: imported images put logo-slot designs first; a matched brand puts its
   // style family first (so the package's siblings lead).
-  const orderedVariants = [...variantsFor(draft.category)].sort((a, b) => {
+  const orderedVariants = [...(catalog?.variantsFor(draft.category) ?? [])].sort((a, b) => {
     if (draft.importedImages.length > 0) {
       const logo = Number(b.logo !== 'none') - Number(a.logo !== 'none');
       if (logo !== 0) return logo;
@@ -1669,7 +1754,7 @@ export default function CreationWizard() {
               data-testid="wz-home"
               title="Home: your graphics, productions, control panels and videos"
               onClick={() => {
-                closeGallery();
+                leaveGallery();
                 useRouter.getState().navigate({ view: 'home', section: null });
               }}
             >
@@ -1812,6 +1897,8 @@ export default function CreationWizard() {
             />
           )}
           <div className="wz-step" ref={stepRef} data-overflow={stepOverflow || undefined}>
+            {/* A step that builds on catalog designs waits for them here (see needsCatalog). */}
+            {needsCatalog && !catalog ? <CatalogLoading /> : <>
             {step === 0 && (
               <EntryStep
                 onTemplates={() => { setMode('template'); setStep(1); }}
@@ -1831,7 +1918,7 @@ export default function CreationWizard() {
                   setStep(1);
                 }}
                 onHome={(section = null) => {
-                  closeGallery();
+                  leaveGallery();
                   useRouter.getState().navigate({ view: 'home', section });
                 }}
                 onOpenPlayout={(productionId) => {
@@ -1879,6 +1966,7 @@ export default function CreationWizard() {
                 or the refinement history — none of which is lifted into the draft. */}
             {mode === 'ai' && (step === 1 || step === finishStep) && (
               <div hidden={step === finishStep}>
+                <Suspense fallback={<CatalogLoading />}>
                 <AiStep
                   format={draftFormatSelection(draft)}
                   onFormat={(selection) => patch(formatDraftPatch(selection))}
@@ -1909,6 +1997,7 @@ export default function CreationWizard() {
                     setMode('import');
                   }}
                 />
+                </Suspense>
               </div>
             )}
             {step === 1 && (mode === 'design' || mode === 'svg' || mode === 'file') && (
@@ -2128,6 +2217,7 @@ export default function CreationWizard() {
               />
             )}
             {step === 1 && mode === 'template' && (
+              <Suspense fallback={<CatalogLoading />}>
               <BrowseStep
                 draft={draft}
                 filters={browseFilters}
@@ -2169,6 +2259,7 @@ export default function CreationWizard() {
                   useRouter.getState().navigate({ view: 'production', id: show.id });
                 }}
               />
+              </Suspense>
             )}
             {step === 3 && mode === 'design' && draft.designArt && (
               <PlaceFieldsStep
@@ -2262,7 +2353,7 @@ export default function CreationWizard() {
             {/* The catalog flow's later steps — one index earlier in the Browse flow;
                 design mode has its own step 3/4 above. */}
             {step === (mode === 'template' ? 2 : 3) && (mode === 'template' || mode === 'import') && variant && (
-              <FieldsStep variant={variant} draft={draft} onDraft={patch} />
+              <Suspense fallback={<CatalogLoading />}><FieldsStep variant={variant} draft={draft} onDraft={patch} /></Suspense>
             )}
             {step === (mode === 'template' ? 3 : 4) && (mode === 'template' || mode === 'import') && variant && (
               <StyleStep variant={variant} draft={draft} onDraft={patch} builtCss={previewTemplate?.css ?? null} markWarning={markWarning} />
@@ -2307,6 +2398,7 @@ export default function CreationWizard() {
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
                 onAddToProduction={createFromFileAndAddToProduction}
+                onEditArtwork={createFromFileAndEditArtwork}
                 onExport={createFromFileAndExport}
                 busy={false}
               />
@@ -2371,6 +2463,7 @@ export default function CreationWizard() {
                 busy={!aiResult.valid}
               />
             )}
+            </>}
             <div className="wz-step-fade" aria-hidden="true" />
           </div>
           {wizardFooter}
@@ -2429,7 +2522,7 @@ export default function CreationWizard() {
           cancelLabel={`Keep ${kit.pack.name}`}
           onConfirm={() => {
             setKitSwitchAsk(false);
-            buildKitAndOpenHub(kitPack, kitSelected);
+            void buildKitAndOpenHub(kitPack, kitSelected);
           }}
           onCancel={() => {
             // Keeping the edited kit puts the picker back on it, as it was built.

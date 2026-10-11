@@ -383,7 +383,10 @@ wrong* — so only the transition declares one.
 
 - **Data charts / maps** (weather, election maps, finance charts, heatmaps) — a real data-viz
   surface, out of scope for the current model; revisit with external data feeds (master goals
-  §1.5). The location cards above deliberately do NOT approach this.
+  §1.5). The location cards above deliberately do NOT approach this. The smallest map that would
+  serve (boundaries baked into the graphic at authoring time, regions coloured from data lines) is
+  parked as [#978](https://github.com/NoaCG/NoaCG-Studio/issues/978), with research in
+  `docs/research/election-night-2026-10-10/`.
 - **Chat / alert overlays** — ~~show-chat territory more than template territory~~ **SHIPPED**
   as the `chat-highlight` type (src/templates/audience). The product decision it was waiting on
   turned out to be a false choice: the graphic never needed a chat integration, because the

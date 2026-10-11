@@ -17,9 +17,9 @@ function fixture(t) {
   });
   const primary = path.join(directory, 'primary');
   const cwd = path.join(directory, 'worker');
-  assert.equal(spawnSync('git', ['init', '--initial-branch=main', primary]).status, 0);
-  assert.equal(spawnSync('git', ['-C', primary, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--allow-empty', '-m', 'Initialize test repository']).status, 0);
-  assert.equal(spawnSync('git', ['-C', primary, 'worktree', 'add', '-b', 'feature/test', cwd]).status, 0);
+  assert.equal(spawnSync('git', ['init', '--initial-branch=main', primary], { windowsHide: true }).status, 0);
+  assert.equal(spawnSync('git', ['-C', primary, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--allow-empty', '-m', 'Initialize test repository'], { windowsHide: true }).status, 0);
+  assert.equal(spawnSync('git', ['-C', primary, 'worktree', 'add', '-b', 'feature/test', cwd], { windowsHide: true }).status, 0);
   const promptFile = path.join(cwd, 'prompt.txt');
   writeFileSync(promptFile, 'Review literal `$() & |` text without shell expansion.');
   const fake = path.join(cwd, 'fake.mjs');
@@ -59,7 +59,7 @@ test('an agent definition passes through and a read-only review keeps its narrow
   const receipt = JSON.parse(readFileSync(path.join(result.directory, 'result.json')));
   assert.deepEqual(receipt.result.argv, ['--print', '--output-format', 'json', '--permission-prompts', 'none', '--tools', 'Read,Grep,Glob', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--agent', 'wave-row-mechanical']);
   await assert.rejects(runWorker({ ...f, agent: '--dangerously-skip-permissions' }, f), /Invalid value/);
-  const cli = spawnSync(process.execPath, ['scripts/claude-run.mjs', 'run', '--agent', '--read-only'], { encoding: 'utf8' });
+  const cli = spawnSync(process.execPath, ['scripts/claude-run.mjs', 'run', '--agent', '--read-only'], { encoding: 'utf8', windowsHide: true });
   assert.equal(cli.status, 1);
   assert.match(cli.stderr, /incomplete option/);
 });
@@ -68,13 +68,13 @@ test('main, unbounded runs, and shell launchers are refused before launch', asyn
   const f = fixture(t);
   await assert.rejects(runWorker({ ...f, timeoutSeconds: 86401 }, f), /Timeout/);
   await assert.rejects(runWorker({ ...f, model: '--dangerously-skip-permissions' }, f), /Invalid value/);
-  const cli = spawnSync(process.execPath, ['scripts/claude-run.mjs', 'run', '--model', '--read-only'], { encoding: 'utf8' });
+  const cli = spawnSync(process.execPath, ['scripts/claude-run.mjs', 'run', '--model', '--read-only'], { encoding: 'utf8', windowsHide: true });
   assert.equal(cli.status, 1);
   assert.match(cli.stderr, /incomplete option/);
   await assert.rejects(runWorker(f, { launcher: { command: 'claude.cmd', shell: false } }), /shell launchers/);
-  spawnSync('git', ['-C', f.primary, 'symbolic-ref', 'HEAD', 'refs/heads/feature/primary']);
+  spawnSync('git', ['-C', f.primary, 'symbolic-ref', 'HEAD', 'refs/heads/feature/primary'], { windowsHide: true });
   await assert.rejects(runWorker({ ...f, cwd: f.primary }, f), /feature branch/);
-  spawnSync('git', ['-C', f.cwd, 'symbolic-ref', 'HEAD', 'refs/heads/main']);
+  spawnSync('git', ['-C', f.cwd, 'symbolic-ref', 'HEAD', 'refs/heads/main'], { windowsHide: true });
   await assert.rejects(runWorker(f, f), /feature branch/);
 });
 

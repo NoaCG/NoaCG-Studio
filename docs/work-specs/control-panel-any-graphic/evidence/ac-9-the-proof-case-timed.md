@@ -29,8 +29,8 @@ therefore cannot see.
 | **Published** | walk 2 |
 | **The operator's minute (§3c) driven from the hosted control page** | walk 2 |
 | Each step timed | walk 1's stopwatch; walk 2's four wall clocks below |
-| The numbers in an owner-queue item with the route | `docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md` and `2026-09-16-a-profile-driven-where-the-show-is-run.md` |
-| What the walk finds is fixed if small or filed if not | walk 1 fixed migration 0060 and filed the scrolling defect; walk 2 filed `docs/backlog/a-renamed-control-still-wears-its-section-in-a-combined-step.md` |
+| The numbers in an owner-queue item with the route | [`docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md`](https://github.com/NoaCG/NoaCG-Studio/blob/1a017c93652405537d8d2d327c6d6ccaed4fe935/docs/acceptance/owner-queue/2026-09-16-the-proof-case-with-the-profile-in-use.md) and `2026-09-16-a-profile-driven-where-the-show-is-run.md` |
+| What the walk finds is fixed if small or filed if not | walk 1 fixed migration 0060 and filed the scrolling defect; walk 2 filed [`docs/backlog/a-renamed-control-still-wears-its-section-in-a-combined-step.md`](https://github.com/NoaCG/NoaCG-Studio/blob/811c09c95746abc7c17506f40ab4a29e776e3d9b/docs/backlog/a-renamed-control-still-wears-its-section-in-a-combined-step.md) |
 
 ## Walk 2's numbers
 

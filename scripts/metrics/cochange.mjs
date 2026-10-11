@@ -47,7 +47,7 @@ function commits(days) {
   const out = execFileSync(
     'git',
     ['log', 'origin/main', '--no-merges', `--since=${days}.days`, '--name-only', '--format=@@%h'],
-    { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 },
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsHide: true },
   );
   const result = [];
   let current = null;

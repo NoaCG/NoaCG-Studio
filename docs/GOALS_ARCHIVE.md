@@ -1885,7 +1885,7 @@ The 2026-09-01 North Star ratification confirmed the ~200-line budget on `GOALS.
 file was condensed to it: the item and the link stay there, the argument moves here or to the doc
 that already carries it. Blocks below are VERBATIM as they stood in the live file. The "Who we
 are replacing" paragraphs moved to `COMPETITORS.md`; the agent door's future-directions list
-moved to `docs/backlog/cli-roadmap.md`; everything else removed was already recorded in this
+moved to [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772); everything else removed was already recorded in this
 archive or in the plan doc its pointer names.
 
 ### NEXT - AI that anyone can afford (as it stood)
@@ -2004,7 +2004,7 @@ the bench's eight-event cap. Both are rows of
 The live-file item as it stood, verbatim:
 
 > - [ ] **Two Space-key modes, as an operator setting** (owner, ALIGN-2026-09-10-3; build before the
->       25th). `docs/backlog/space-sends-to-preview-then-to-program.md`.
+>       25th). [`docs/backlog/space-sends-to-preview-then-to-program.md`](https://github.com/NoaCG/NoaCG-Studio/blob/6150d0baf0f2bac87a3b7d07785ba12b706e7fa3/docs/backlog/space-sends-to-preview-then-to-program.md).
 
 Closed by a checkbox in the verb bar, **`SPACE` previews first**, on all three dashboard surfaces
 (`docs/PLAYOUT_DASHBOARD.md` §2f holds the contract and his words). Unchecked is the toggle the
@@ -2255,7 +2255,7 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 > - [ ] **the code editor shows OGraf, not only SPX** - a target switch on the code view, read-only
 >       to start, so a person can see how the graphic is built for the format they care about. Owner
 >       2026-09-10, explicitly unhurried: *"a little bit of a vanity thing"*. Blocked by no rung
->       above it. `docs/backlog/monaco-shows-ograf-not-only-spx.md`
+>       above it. [`docs/backlog/monaco-shows-ograf-not-only-spx.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/monaco-shows-ograf-not-only-spx.md)
 > - then: the controller speaking the Server API outward; the desktop client, which waits a little
 >   behind the editor and the control panel (ALIGN-2026-09-14-3); the native SDI renderer.
 > - [ ] **GSAP licence**: obtain written clarification from Webflow/GSAP on the prohibited-uses
@@ -2271,7 +2271,7 @@ OGraf sequencing argument and the dashed-card device, and the parking lot's prov
 >
 > **Shipped 2026-08-22** (`docs/AGENT_CLI.md`, `docs/AGENT_SAVE.md`; archive has the detail); the
 > measured 25-cell round: all airable, skill stays contract-only (`benchmarks/agent/rounds/
-> 2026-08-22/VERDICT.md`). **Programme P5**; the direction pool is `docs/backlog/cli-roadmap.md`.
+> 2026-08-22/VERDICT.md`). **Programme P5**; the direction pool is [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
 >
 > - [ ] **Publish - past `main`, so the owner's.** `@noacg/cli` 0.3.0 is on npm (published by hand,
 >       2026-09-05) and the marketplace entry is live. `npm run release:cli` is the road for every

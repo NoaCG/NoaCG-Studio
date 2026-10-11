@@ -608,6 +608,121 @@ test('pack --save with no key refuses before it starts a browser, and keeps the 
   assert.ok(Date.now() - started < 15000, 'the no-key refusal must not wait on a browser');
 });
 
+test('pack --share refuses before any browser without --save, the licence, a shown name or a description', async () => {
+  // Sharing to Community packs is the user's grant, so every word of it is theirs and is checked
+  // before anything starts (docs/AGENT_SAVE.md §8). Nothing here can reach a server: NOACG_URL is
+  // a closed port and there is no key.
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'graphic', 'graphic.html'), '<h1/>');
+  const graphic = path.join(dir, 'graphic');
+  const full = ['--name', 'Quiz', '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--shown-as', 'Quizmaster K', '--json'];
+  const cases = [
+    [['pack', graphic, '--share', '--out', path.join(dir, 'q.noacgpack.json'), ...full], /needs --save/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--shown-as', 'K', '--json'], /--license cc-by-4\.0/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'mit', '--shown-as', 'K', '--json'], /--license cc-by-4\.0/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--json'], /--shown-as/],
+    [['pack', graphic, '--save', '--share', '--name', 'Quiz', '--license', 'cc-by-4.0', '--shown-as', 'K', '--json'], /--description/],
+    [['pack', graphic, '--save', '--share', '--name', 'Q'.repeat(81), '--description', 'A pub quiz', '--license', 'cc-by-4.0', '--shown-as', 'K', '--json'], /--name is at most 80/],
+  ];
+  for (const [args, said] of cases) {
+    const r = await run(args);
+    assert.equal(r.code, 2, `${args.join(' ')} should be a usage error`);
+    assert.match(JSON.parse(r.stdout).error, said);
+  }
+  // `--share ./a` hands the package to the flag; it comes back as a package, and with every word
+  // given the run reaches the next refusal: no key.
+  const r = await run(['pack', '--share', graphic, '--save', ...full]);
+  assert.equal(r.code, 1);
+  assert.equal(JSON.parse(r.stdout).reason, 'not-logged-in');
+});
+
+/** A NoaCG with both agent doors, answering each POST with the status the test sets, and recording
+ *  every POST so a test can say what was sent. */
+function stubDoors(status = { packages: 201, 'community-packs': 201 }) {
+  const posts = [];
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      req.resume();
+      req.on('end', () => {
+        const door = req.url.replace('/api/me/', '');
+        posts.push(door);
+        const code = status[door] ?? 404;
+        res.writeHead(code, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(code === 201
+          ? (door === 'packages' ? { id: 'p1', url: 'https://example.test/home' } : { id: 'c1', state: 'in_review' })
+          : { error: { code: 'limit_exceeded', message: 'Refused by the stub.' } }));
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, posts, origin: `http://127.0.0.1:${server.address().port}` }));
+  });
+}
+
+/** `makePack` with a bridge that reads one graphic and returns `findings` from the community check. */
+async function sharePack(origin, findings) {
+  const { makePack } = await import('../dist/commands/pack.js');
+  const dir = await tmpdir();
+  await fs.mkdir(path.join(dir, 'strap'), { recursive: true });
+  await fs.writeFile(path.join(dir, 'strap', 'strap.html'), '<h1/>');
+  const bridge = {
+    readPackage: async () => ({ imported: { template: { name: 'Strap' } } }),
+    normalize: async (template) => ({ template }),
+    validate: async () => ({ ok: true, merged: { errors: [] } }),
+    packEntry: async (template) => ({ name: template.name }),
+    communityCheck: async () => findings,
+  };
+  return withEnv({ NOACG_URL: origin, NOACG_AGENT_KEY: `${AGENT_KEY_PREFIX}${'s'.repeat(32)}` }, () => makePack([path.join(dir, 'strap')], {
+    name: 'Quiz',
+    save: true,
+    share: { license: 'cc-by-4.0', shownAs: 'Quizmaster K', description: 'A pub quiz' },
+    description: 'A pub quiz',
+  }, bridge, () => {}));
+}
+
+test('pack --save --share sends nothing to Home when the share is refused, so a retry adds no copy', async (t) => {
+  // #876: the Home copy used to go first, so each refused share left one more package on Home.
+  const { describePack } = await import('../dist/commands/pack.js');
+
+  const checked = await stubDoors();
+  t.after(() => checked.server.close());
+  const byChecks = await sharePack(checked.origin, [{ graphic: 'Strap', message: 'It still says "Lorem ipsum".' }]);
+  assert.equal(byChecks.ok, false);
+  assert.equal(byChecks.share.reason, 'checks');
+  assert.deepEqual(checked.posts, [], 'a check refusal sends nothing anywhere');
+  assert.equal(byChecks.reason, 'refused', 'a --json reader sees the refusal at the top level too');
+  assert.equal(byChecks.error, byChecks.share.error);
+  assert.match(describePack(byChecks), /Strap: It still says/);
+  assert.match(describePack(byChecks), /Not sent: Community packs refuses/);
+
+  const door = await stubDoors({ packages: 201, 'community-packs': 409 });
+  t.after(() => door.server.close());
+  const byDoor = await sharePack(door.origin, []);
+  assert.equal(byDoor.ok, false);
+  assert.equal(byDoor.share.reason, 'refused');
+  assert.deepEqual(door.posts, ['community-packs'], 'a refusal at the share door leaves no Home copy');
+  assert.equal(byDoor.url, undefined);
+  assert.match(describePack(byDoor), /Refused by the stub\./);
+
+  const both = await stubDoors();
+  t.after(() => both.server.close());
+  const sent = await sharePack(both.origin, []);
+  assert.equal(sent.ok, true);
+  assert.deepEqual(both.posts, ['community-packs', 'packages']);
+  assert.equal(sent.share.id, 'c1');
+  assert.equal(sent.id, 'p1');
+
+  // Shared, then the Home door refuses: say so, and how to send the Home copy without a second share.
+  const full = await stubDoors({ packages: 409, 'community-packs': 201 });
+  t.after(() => full.server.close());
+  const homeRefused = await sharePack(full.origin, []);
+  assert.equal(homeRefused.ok, false);
+  assert.equal(homeRefused.share.id, 'c1');
+  const said = describePack(homeRefused);
+  assert.match(said, /for review under CC BY 4\.0/);
+  assert.match(said, /Not sent to your Home: Refused by the stub\./);
+  assert.match(said, /without sharing/);
+});
+
 test('pack --rundown refuses a file that is not a list of cues naming a graphic', async () => {
   const dir = await tmpdir();
   await fs.mkdir(path.join(dir, 'graphic'), { recursive: true });
@@ -981,14 +1096,16 @@ test('the default skill names no house look: no palette, face, size or timing ru
   assert.doesNotMatch(frame, /\d(\.\d+)?\s?-\s?\d(\.\d+)?\s?s\b/, 'the contract states a motion duration range again');
 });
 
-test('the two opt-in tools exist, are off by default, and are reachable in both hosts', async () => {
+test('the opt-in tools exist, are off by default, and are reachable in both hosts', async () => {
   const skill = await shippedSkill();
   const optIn = [...sectionsOf(skill)].find(([title]) => /opt-in/i.test(title))?.[1];
   assert.ok(optIn, 'SKILL.md lost its opt-in section');
-  assert.match(optIn, /OFF unless the user asks/, 'the opt-in section no longer says both tools are off by default');
-  assert.match(optIn, /When neither is on, do not open either file/, 'the default no longer keeps the opt-in files closed');
+  assert.match(optIn, /OFF unless the user asks/, 'the opt-in section no longer says the tools are off by default');
+  assert.match(optIn, /When none is on, do not open their files/, 'the default no longer keeps the opt-in files closed');
+  // Sharing is never offered: only the user's own request switches it on (docs/AGENT_SAVE.md §8).
+  assert.match(optIn, /Never offer it, mention it, suggest it or ask\s+about it otherwise/, 'the share tool may be offered');
 
-  for (const [file, word] of [['critique.md', 'critique'], ['design-notes.md', 'guidelines']]) {
+  for (const [file, word] of [['critique.md', 'critique'], ['design-notes.md', 'guidelines'], ['share.md', 'share']]) {
     const text = (await fs.readFile(path.join(skillDir(), 'references', file), 'utf8')).replace(/\r\n/g, '\n');
     assert.match(text.split('\n')[0], /OPT-IN/, `references/${file} no longer says on its first line that it is opt-in`);
     assert.ok(optIn.includes(`references/${file}`), `the opt-in section no longer points at references/${file} (${word})`);

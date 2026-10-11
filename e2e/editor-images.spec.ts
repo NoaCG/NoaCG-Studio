@@ -117,9 +117,9 @@ test('catalog opened through template search offers image creation', async ({ pa
   await page.getByRole('button', { name: 'image tool' }).click();
   await page.locator('[data-testid=asset-row][data-path="images/sponsor.png"]').click();
   await page.locator('.ef-inspector').evaluate(el => { el.scrollTop = 0; });
-  await page.screenshot({ path: 'docs/research/editor-r1-2b-3/catalog-created-image.png', fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('catalog-created-image.png'), fullPage: true });
   await page.setViewportSize({ width: 1366, height: 900 });
-  await page.screenshot({ path: 'docs/research/editor-r1-2b-3/laptop-assets.png', fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('laptop-assets.png'), fullPage: true });
   expect(await page.getByRole('alert').count()).toBe(0);
   expect(errors).toEqual([]);
 });

@@ -37,7 +37,8 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SWEEP_SCRIPTS } from './command-match.mjs';
+import { SWEEP_SCRIPTS, isPlanOnly } from './command-match.mjs';
+import { listProcesses } from './windows-processes.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -117,7 +118,7 @@ function msFromCimDate(value) {
 }
 
 function posixNodeProcesses() {
-  const res = spawnSync('ps', ['-eo', 'pid=,ppid=,etimes=,args='], { encoding: 'utf8' });
+  const res = spawnSync('ps', ['-eo', 'pid=,ppid=,etimes=,args='], { encoding: 'utf8', windowsHide: true });
   if (res.status !== 0 || !res.stdout) return [];
   return res.stdout
     .split('\n')
@@ -133,47 +134,24 @@ function posixNodeProcesses() {
 }
 
 /**
- * EVERY process on this machine, as `{ pid, ppid, name, command }` - not only node ones.
+ * EVERY process on this machine, as `{ pid, ppid, name, command, createdMs, cpuSeconds, ... }` -
+ * not only node ones. The shared `listProcesses` (windows-processes.mjs), failing OPEN: a list
+ * that could not be read is an empty table, which every caller here reads as "unknown".
  *
  * `nodeProcesses` is enough to find runs, because a run IS a node process. Finding whether a dev
  * server still has an OWNER is not: its chain runs through `cmd.exe` shims, so a node-only table
- * shows a broken chain for a perfectly healthy server. Only the orphan check needs this, and it
- * is a rare manual command, so the heavier query costs nothing that matters.
+ * shows a broken chain for a perfectly healthy server. The orphan check, the holder diagnostics and
+ * the Codex reaper (`codex-rescue.mjs`, before every delegation launch) read it, so keep it cheap.
  *
  * Windows only, like `browserShells` - and for the same reason. On POSIX an orphaned process is
  * REPARENTED to init rather than left with a dead parent, so "the chain ended in a dead parent"
  * never fires there and would quietly report nothing. Returning an empty table says that
  * honestly instead of guessing.
  */
-export function allProcesses() {
-  if (process.platform !== 'win32') return [];
-  const script =
-    '@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,KernelModeTime,UserModeTime) | ' +
-    'ConvertTo-Json -Depth 3 -Compress';
-  const res = spawnSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    encoding: 'utf8',
-    windowsHide: true,
-    maxBuffer: 64 * 1024 * 1024,
-    timeout: 10_000, // A diagnostic must return unknown if the OS query stalls.
-  });
-  if (res.status !== 0 || res.stderr?.trim() || !res.stdout?.trim()) return [];
-  try {
-    const rows = JSON.parse(res.stdout);
-    return (Array.isArray(rows) ? rows : [rows]).map((r) => ({
-      pid: Number(r.ProcessId),
-      ppid: Number(r.ParentProcessId),
-      name: String(r.Name ?? ''),
-      command: typeof r.CommandLine === 'string' ? r.CommandLine : '',
-      // WHEN it started, which is half of a process's IDENTITY on a system that reuses pids.
-      // `orphanedCodexTrees` refuses to kill a pid whose start time is not the one that was
-      // recorded, so this field is what makes a recorded kill safe hours after the recording.
-      createdMs: msFromCimDate(r.CreationDate),
-      cpuSeconds: r.KernelModeTime != null && r.UserModeTime != null
-        ? (Number(r.KernelModeTime) + Number(r.UserModeTime)) / 10_000_000 : null,
-    }));
-  } catch {
-    return [];
-  }
+export function allProcesses({ list = listProcesses } = {}) {
+  // 10 s: a diagnostic must answer unknown if the OS query stalls.
+  const listed = list({ timeoutMs: 10_000, cwd: false });
+  return listed.ok ? listed.processes : [];
 }
 
 /** The top-level Playwright test CLI - one process per run, whatever config it was handed. */
@@ -586,7 +564,7 @@ const DESKTOP_CODEX_NAME = /^chatgpt\.exe$/i;
  * times fall back to trusting the link, which is the direction that keeps a real family together;
  * every kill is separately gated on a start time that matches the record.
  */
-function believableParent(parent, child) {
+export function believableParent(parent, child) {
   if (!parent || !child) return false;
   if (!Number.isFinite(parent.createdMs) || !Number.isFinite(child.createdMs)) return true;
   return parent.createdMs <= child.createdMs;
@@ -643,6 +621,32 @@ export function descendantsOf(pids, processes) {
     }
   }
   return [...found.values()];
+}
+
+/** A job's start is recorded just after its shell is created; this covers the gap and clock grain. */
+const ROOT_START_SLACK_MS = 5_000;
+
+/**
+ * The browser work running below the process `pid`, started at `startedAt`: a browser, or a
+ * Playwright test CLI doing more than listing. What the job queue asks of a job it priced as
+ * light work.
+ *
+ * A COMMAND'S TEXT CANNOT SAY WHAT IT WILL LAUNCH. `node scripts/before-after.mjs` that spawns
+ * `npx playwright test` reads as an ordinary node script, and on 2026-10-09 one was admitted as
+ * light work at 1.7 GB free, under the 4 GB a browser job is held to. Its process tree tells the
+ * truth whatever the wrapper is called. Matching what is RUNNING also keeps ordinary node scripts
+ * out: one that opens no browser has nothing here to find, and a command line that merely names
+ * a sweep script (a lint run over it) is not one.
+ *
+ * THE PID MUST STILL BE THE JOB'S. Windows reuses pids, and the caller kills what this finds, so a
+ * root that started after the job did is somebody else - the owner's own Chrome, say - and has
+ * nothing below it as far as this answer goes. An unknown start time is treated the same way.
+ */
+export function browserWorkBelow(pid, startedAt, processes) {
+  const root = processes.find((p) => p.pid === pid);
+  if (!Number.isFinite(root?.createdMs) || !(root.createdMs <= startedAt + ROOT_START_SLACK_MS)) return [];
+  return descendantsOf([pid], processes).filter((p) =>
+    BROWSER.test(p.name ?? '') || (RUNNER.test(p.command ?? '') && !isPlanOnly(p.command)));
 }
 
 /**

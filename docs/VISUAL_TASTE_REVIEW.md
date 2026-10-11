@@ -42,7 +42,7 @@ so they go through the queue.
 
 Then **open every frame** and answer the nine questions below in writing, YES or NO, each NO with
 what you saw. The answers go where the work is reported, which is the `/check` report (phase 5),
-the handoff, or the owner-queue item. **A NO is a defect. Fix it, or say why not. A NO on axis 5
+or the pull request. **A NO is a defect. Fix it, or say why not. A NO on axis 5
 or on T2 means the graphic does not ship.**
 
 ## The five axes

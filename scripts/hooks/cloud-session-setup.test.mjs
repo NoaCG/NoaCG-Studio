@@ -74,7 +74,7 @@ test('a pinned build the image really has is left alone, and a missing folder is
 // app leaves a scheduled run in.
 
 const run = (cwd, ...args) => {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   if (res.status !== 0) throw new Error(`git ${args.join(' ')}: ${res.stderr}`);
   return res.stdout.trim();
 };

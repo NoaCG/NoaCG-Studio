@@ -1,0 +1,31 @@
+{
+  "receipts": [
+    {
+      "target": "spx",
+      "hidden": true,
+      "text": "Elena Marquez",
+      "errors": []
+    },
+    {
+      "target": "casparcg",
+      "hidden": true,
+      "text": "Elena Marquez",
+      "errors": []
+    },
+    {
+      "target": "ograf",
+      "hidden": true,
+      "text": "Elena Marquez",
+      "errors": []
+    }
+  ],
+  "fields": [
+    "f0",
+    "f1"
+  ],
+  "assets": [
+    "fonts/inter.woff2",
+    "images/festival-mark.svg",
+    "thumbnail.png"
+  ]
+}

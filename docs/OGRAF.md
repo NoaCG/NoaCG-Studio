@@ -24,9 +24,11 @@ schema gate below on its way out. The one addition over an ordinary export is **
 (`src/ograf/guide.ts`): the modification walkthrough - how to load it, drive its data, restyle
 the `:root` contract, and edit the `NOACG_ANIM` motion - generated from the template itself.
 The starters are exported with LIVE intent (the post-production gate rightly refuses
-content-driven motion such as the ticker's crawl). Pinned by `e2e/ograf-starters.spec.ts`,
-including that every named card still resolves against the catalog - a design rename must
-break that spec, not the page.
+content-driven motion such as the ticker's crawl). The page imports its six designs one by one
+(`src/ograf/starters.ts`), not the whole catalog, and loads the exporter on the first download.
+Pinned by `e2e/ograf-starters.spec.ts`, including that every named card still resolves against
+the catalog and builds the same graphic as the catalog design of that name - a design rename
+must break that spec, not the page.
 
 - Specification: <https://ograf.ebu.io/v1/specification/docs/Specification.html>
 - Manifest schema: <https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json>
@@ -275,22 +277,38 @@ disagree with each other.
   become the element, `*` its subtree, every other rule is nested under it at zero specificity -
   and the export refuses (browser-parsed, fail-closed) if any rule would still address the
   document. So a graphic's stylesheet never restyles the renderer's page, and two designs on two
-  layers no longer fight over `body` or `--accent` through it. NOT covered yet: a `<style>`
-  block inside the MARKUP (an imported SVG carries the artwork's own, with Illustrator's shared
-  `.st0` names) is injected as written and stays document-global -
-  `docs/backlog/ograf-markup-inline-styles.md`. The element is authored-size: a block of the
+  layers no longer fight over `body` or `--accent` through it. The MARKUP's own carriers get the
+  same treatment ([issue #789](https://github.com/NoaCG/NoaCG-Studio/issues/789)): every
+  `<style>` block inside it (an imported SVG carries the artwork's own, with Illustrator's shared
+  `.st0` names) is re-addressed and checked the same way, and the ids the markup references -
+  Illustrator's `SVGID_1_` gradients, clip paths, patterns, `<use>` targets - are renamed to the
+  design's own unless a field, its code or a selector names them. Every imported design shares
+  the same class names, so the timelines a Graphic's `gsap` makes resolve their string targets
+  inside it as well. So two imported designs on two layers no longer recolour, hide or animate
+  each other (`e2e/ograf-isolation.spec.ts`). The markup becomes the
+  element's own children after ONE stylesheet, which is the element's first child: a `body > .x`
+  rule reaches the design's top-level elements, and `document.body.children` lists the stylesheet
+  and then the design. The element is authored-size: a block of the
   authored resolution, `position: relative` so px-positioned designs lay out against it as
   against the SPX page (viewport units - `vw`, `vh`, `vmax` - still resolve against the
   renderer's viewport, as they always did), and it is `body` and `documentElement` for the
-  template's own code. A renderer must place and scale that box itself; `load()` does not read
-  `renderCharacteristics` yet (`docs/backlog/ograf-render-characteristics-box.md`). Pinned by
-  `e2e/ograf-conformance.spec.ts` ("leaves the renderer's page as it was").
+  template's own code, so a measurement that walks up to the body stops at the canvas wherever
+  the renderer puts its stage. Which `document` members answer for the graphic is decided in
+  `scripts/ograf-document-members.test.mjs`, which fails on a member a template runtime reads
+  that nobody decided. A renderer must place and scale that box itself; `load()` does not read
+  `renderCharacteristics` yet ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)). Pinned by
+  `e2e/ograf-conformance.spec.ts` ("leaves the renderer's page as it was"). A shadow root per
+  graphic closes the inbound direction and the one-instance limit below. The owner decided on it
+  on 2026-10-10 ([issue #922](https://github.com/NoaCG/NoaCG-Studio/issues/922)), and
+  `docs/work-specs/ograf-shadow-root/spec.md` is the phased plan; until its last phase lands,
+  packages mount in the light DOM as described here.
 - **One instance of a given DESIGN per document.** Several *different* graphics in one document
   are fine, which is the arrangement a Web Component renderer actually uses: each Graphic runs
   against a `document` scoped to itself, so its `getElementById('fN')` lookups cannot reach a
   neighbour's identically-named field, and disposing one leaves the others running. Two instances
-  of the *same* design still collide, because the design's motion is keyed on its own class names
-  and those are shared by both copies. Give the second copy its own document or frame.
+  of the *same* design still collide: the copies share one manifest id, which a renderer that
+  registers the element by id cannot define twice, and the ids their artwork references. Give the
+  second copy its own document or frame.
 - **In SPX 1.4.1** the package plays as imported, on the layer its `v_spx` names, with SPX's own
   controls. Custom actions fire only once the project loads `spx-custom-actions.js` as its
   function library, because SPX's controller calls a `customActionHandler` it never defines; the
@@ -474,9 +492,14 @@ node scripts/jobs.mjs wait <id>
 ```
 
 It writes the zip, one PNG per beat and a transcript of every request and response into
-`ograf-external-out/`, which is gitignored: the frames are a run's output and are rebuilt by
-re-running it. Built here at version 1.0.0 of `ograf-server`, main branch, on Node 24 and
+`ograf-external-out/<mount>/`, which is gitignored: the frames are a run's output and are rebuilt
+by re-running it. Built here at version 1.0.0 of `ograf-server`, main branch, on Node 24 and
 yarn 4.9.1.
+
+`--mount shadow` builds the same graphic with the shadow-root mount, which the export dialog does
+not offer yet. In either mount the walk then puts two copies of the board, and the board beside a
+Hairline, on two layers. SPX 1.4.1 has the same walk, `scripts/ograf-spx-walk.mjs --spx
+<SPX_1_4_1_source>` (docs/SPX_ON_A_REAL_SERVER.md §10).
 
 Two things about the server that cost an hour and are written down so they do not again: the
 renderer page is **`/renderer/default/`**, not `/renderer/renderer-layer/` - its route matcher
@@ -599,7 +622,7 @@ The EBU schema is the gate; the community's de-facto bar for a *complete* packag
 checker at <https://ograf.dev/check>, which goes well past the schema into README/LICENSE/preview
 presence, font licensing, shadow-DOM portability and 14 sandboxed runtime rules. All six `/ograf`
 starters were put through it, plus a post-production package for the two rules gated on
-`supportsNonRealTime`. **The per-rule record is `docs/backlog/ograf-checker-83-rules.md`** - every
+`supportsNonRealTime`. **The per-rule record is [`docs/backlog/ograf-checker-83-rules.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-checker-83-rules.md)** - every
 one of the 83 with a verdict, and an argument for each finding not acted on. It is a hand check:
 the tool is browser-only, so it cannot join CI.
 

@@ -32,7 +32,7 @@ export default defineConfig({
   fullyParallel: false,
   // The public internet, from a CI runner: one retry, so a dropped request is not an alarm.
   retries: 1,
-  reporter: [['list']],
+  reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
   use: {
     baseURL: process.env.PRODUCTION_URL || 'https://noacg.studio',
     trace: 'on-first-retry',

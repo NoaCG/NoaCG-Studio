@@ -102,6 +102,7 @@ for (let run = 1; run <= RUNS; run++) {
       {
         stdio: 'inherit',
         env: { ...process.env, NOACG_LITE_EVAL_FIXTURES: FIXTURE_IDS.join(',') },
+        windowsHide: true,
       },
     );
     child.once('exit', resolve);

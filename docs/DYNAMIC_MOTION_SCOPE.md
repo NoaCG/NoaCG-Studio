@@ -392,6 +392,6 @@ be lucky.
 the same finite-end seek, but it changes the emitted JavaScript of every template in the catalog,
 so it moves both catalog baselines and wants the five catalog gates behind it. That is its own
 branch, not a rider on a branch fixing a visible zero. Backlog:
-`docs/backlog/settle-emitted-runtime-finite-end.md`. **Revisit the moment a machine-bearing design
+[issue #774](https://github.com/NoaCG/NoaCG-Studio/issues/774). **Revisit the moment a machine-bearing design
 carries an endless child in a state entrance whose coverage is not phase-independent** - that is
 the trigger, and it is a design review question, not something a gate can ask.

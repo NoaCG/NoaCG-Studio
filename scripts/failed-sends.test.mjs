@@ -194,3 +194,30 @@ test('a notice stays until every graphic it was about has been sent again', () =
   assert.equal(settle('Take of Quiz: 1 of 2 on air. Take failed: A.'), null, 'inside a folder summary too');
   assert.equal(settle('✓ Published.'), '✓ Published.', 'a line that moved on is left alone');
 });
+
+test('a failed send whose own row comes back after all takes its notice down', () => {
+  const debts = createSendDebts();
+  const shown = 'That is on this monitor only.';
+  const take = [{ graphic: 'quiz', msg: { t: 'play', oid: 'a1' } }, { graphic: 'quiz', msg: { t: 'cue', oid: 'a2' } }];
+  debts.failed(take, shown);
+  assert.equal(debts.heard([{ graphic: 'quiz', msg: { t: 'play', oid: 'other' } }]), null, 'another send of the graphic is not this one');
+  assert.equal(debts.heard([{ graphic: 'quiz', msg: { t: 'play' } }]), null, 'a row with no id settles nothing');
+  assert.equal(debts.heard([{ graphic: 'quiz', msg: { t: 'cue', oid: 'a2' } }])(shown), null);
+  assert.equal(debts.heard([{ graphic: 'quiz', msg: { t: 'play', oid: 'a1' } }]), null, 'settled once');
+});
+
+test('only the newest failure of a graphic is settled by its row', () => {
+  const debts = createSendDebts();
+  debts.failed([{ graphic: 'quiz', msg: { oid: 'old' } }], 'Take failed: A.');
+  debts.failed([{ graphic: 'quiz', msg: { oid: 'new' } }], 'Out failed: B.');
+  assert.equal(debts.heard([{ graphic: 'quiz', msg: { oid: 'old' } }]), null, 'the older press landing late leaves the later one owed');
+  assert.equal(debts.heard([{ graphic: 'quiz', msg: { oid: 'new' } }])('Out failed: B.'), null);
+});
+
+test('a row settles its graphic but not another one still owed', () => {
+  const debts = createSendDebts();
+  debts.failed([{ graphic: 'quiz', msg: { oid: 'q' } }], 'Take failed: A.');
+  debts.failed([{ graphic: 'score', msg: { oid: 's' } }], 'Update failed: B.');
+  assert.equal(debts.heard([{ graphic: 'quiz', msg: { oid: 'q' } }])('Update failed: B.'), 'Update failed: B.', 'the score is still owed');
+  assert.equal(debts.landed([{ graphic: 'score' }])('Update failed: B.'), null);
+});

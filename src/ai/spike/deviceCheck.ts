@@ -25,7 +25,8 @@
 // novelty theatre. It reports `present`, the channels that distinguish, and the raw numbers,
 // beside the frame - the human read stays the verdict.
 
-import { paints, parseColor } from './brand';
+import { paintsSurface } from '../../validation/surface';
+import { paints } from './brand';
 import { round2 } from './spacingCheck';
 
 /** Two carriers' pill-ness (corner radius over half the box height, clamped to 1) further
@@ -71,19 +72,13 @@ function describe(el: Element): string {
   return `${el.tagName.toLowerCase()}${id}${cls}`;
 }
 
-/** A surface of its own: a background, gradient or border the viewer sees as a box. Text and
- *  shadows are not surfaces here - `paints` answers "is this visible at all", this asks "is
- *  this a container". */
+/** A box the viewer sees: a painted surface (surface.ts, the predicate the ticker check and the
+ *  runtime bench share, which counts frosted glass such as the catalog's lt08) or an outline
+ *  border. Text and shadows are not boxes here - `paints` answers "is this visible at all", this
+ *  asks "is this a container". */
 function hasSurface(style: CSSStyleDeclaration): boolean {
-  const bg = parseColor(style.backgroundColor);
-  if (bg && bg.alpha > 0.15) return true;
-  if (style.backgroundImage && style.backgroundImage !== 'none') return true;
-  if ((parseFloat(style.borderTopWidth) || 0) > 0 && style.borderTopStyle !== 'none') return true;
-  // Frosted glass: a near-transparent fill over a backdrop blur still reads as a box - the
-  // catalog's lt08 is exactly this and the control run read it as "no carrier" without it.
-  const backdrop = style.backdropFilter || (style as unknown as { webkitBackdropFilter?: string }).webkitBackdropFilter;
-  if (backdrop && backdrop !== 'none') return true;
-  return false;
+  if (paintsSurface(style)) return true;
+  return (parseFloat(style.borderTopWidth) || 0) > 0 && style.borderTopStyle !== 'none';
 }
 
 /** Wider than this a surface is a backdrop, not a carrier - the same cut spacingCheck and

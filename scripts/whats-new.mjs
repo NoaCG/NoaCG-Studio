@@ -334,7 +334,7 @@ export function groupLanded(changes) {
 }
 
 function git(args) {
-  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
 }
 
 /** The first-parent changes on `ref` since `since`, each with its title and changed files. */

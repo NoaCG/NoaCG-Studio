@@ -1,0 +1,79 @@
+[
+  {
+    "id": "j-4032",
+    "command": "node .noacg/independent-check/reference-check.mjs",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": "2026-10-09T20:14:58.989Z",
+    "finishedAt": "2026-10-09T20:15:00.757Z",
+    "checkout": "<dedicated-checker-worktree>",
+    "logPath": "<shared-jobs>/logs/j-4032.log",
+    "classification": "pre-merge reference preparation"
+  },
+  {
+    "id": "j-4067",
+    "command": "node .noacg/independent-check/archive-check.mjs",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": "2026-10-09T22:01:41.618Z",
+    "finishedAt": "2026-10-09T22:01:43.747Z",
+    "checkout": "<dedicated-checker-worktree>",
+    "logPath": "<shared-jobs>/logs/j-4067.log",
+    "classification": "pre-merge archive and executable verification"
+  },
+  {
+    "id": "j-4097",
+    "command": "node .noacg/independent-check/reference-check.mjs",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": "2026-10-09T22:50:33.044Z",
+    "finishedAt": "2026-10-09T22:50:36.216Z",
+    "checkout": "<dedicated-checker-worktree>",
+    "logPath": "<shared-jobs>/logs/j-4097.log",
+    "classification": "post-merge reference repeat"
+  },
+  {
+    "id": "j-4098",
+    "command": "node node_modules/@playwright/test/cli.js test --config .noacg/independent-check/playwright.main.config.ts --workers=1",
+    "state": "failed",
+    "exitCode": 1,
+    "startedAt": "2026-10-09T22:50:40.966Z",
+    "finishedAt": "2026-10-09T22:51:11.443Z",
+    "checkout": "<dedicated-checker-worktree>",
+    "logPath": "<shared-jobs>/logs/j-4098.log",
+    "classification": "private harness wrong animation target"
+  },
+  {
+    "id": "j-4099",
+    "command": "node node_modules/@playwright/test/cli.js test --config .noacg/independent-check/playwright.main.config.ts --workers=1",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": "2026-10-09T22:53:10.692Z",
+    "finishedAt": "2026-10-09T22:53:41.200Z",
+    "checkout": "<dedicated-checker-worktree>",
+    "logPath": "<shared-jobs>/logs/j-4099.log",
+    "classification": "functional pass; capture setup superseded"
+  },
+  {
+    "id": "j-4100",
+    "command": "node node_modules/@playwright/test/cli.js test --config .noacg/independent-check/playwright.main.config.ts --workers=1",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": "2026-10-09T22:55:06.326Z",
+    "finishedAt": "2026-10-09T22:55:43.208Z",
+    "checkout": "<dedicated-checker-worktree>",
+    "logPath": "<shared-jobs>/logs/j-4100.log",
+    "classification": "final main task and captures"
+  },
+  {
+    "id": "j-4101",
+    "command": "node node_modules/@playwright/test/cli.js test --config .noacg/independent-check/playwright.production.config.ts --workers=1",
+    "state": "done",
+    "exitCode": 0,
+    "startedAt": "2026-10-09T22:55:50.701Z",
+    "finishedAt": "2026-10-09T22:56:09.091Z",
+    "checkout": "<dedicated-checker-worktree>",
+    "logPath": "<shared-jobs>/logs/j-4101.log",
+    "classification": "final production task and captures"
+  }
+]

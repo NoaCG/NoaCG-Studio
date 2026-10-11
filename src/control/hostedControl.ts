@@ -16,7 +16,7 @@ import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/sho
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import type { ResolvedValues } from '../model/productionData';
-import { loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { designEditedAt, loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
@@ -27,14 +27,16 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, createAppliedOnce, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { allOutWaves, BURST_WINDOW_MS } from './allOut';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
 import { noteSend, withSender } from './livePath';
-import { graphicDigest, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
+import { graphicDigest, olderDesigns, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
 import {
   createGraphicFifo,
+  createPressBook,
   createSeqSession,
   learnHead,
   readSendAnswer,
@@ -499,7 +501,7 @@ const libraryDigestMemo = new Map<string, string>();
  * A graphic that falls back to the snapshot embedded in the production record is left out: that
  * copy changes only with the record, whose own timestamp already says so. In a team production a
  * member without the publisher's library record therefore never reads the publisher's newer design
- * as a change of their own to publish over it (docs/backlog/a-team-productions-output-depends-on-who-publishes.md).
+ * as a change of their own to publish over it (https://github.com/NoaCG/NoaCG-Studio/issues/779).
  */
 export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
   const digests: Record<string, string> = {};
@@ -536,12 +538,24 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   if (!sb) return null;
   const raw = await buildOutputPayload(show, library);
   const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
-  // THE VERSION STAMP (payloadVersion.ts): the previous stamp's number, read as ONE field so the
+  // THE VERSION STAMP (payloadVersion.ts): the previous stamp, read as ONE field so the
   // multi-megabyte payload is not downloaded to learn it. A production published for the first
-  // time, or last published before stamps existed, starts at 1. A read that fails decides nothing
-  // worse than the label.
+  // time, or last published before stamps existed, starts at 1. The write below lands only on this
+  // same version (the publish guard, docs/work-specs/publish-guard/spec.md G4), so a read that
+  // fails stops the publish.
   const previous = await sb.from('control_shows').select('ver:output->ver').eq('id', show.id).maybeSingle();
-  const version = await stampPayload(built, readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver));
+  if (previous.error) throw new Error(previous.error.message);
+  const held = readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver);
+  const edited = Object.fromEntries(show.graphics.map((g) => [g.name, designEditedAt(g, library)]));
+  const version = await stampPayload(built, held, undefined, edited);
+  // NEVER AN OLDER DESIGN (G3): this page's copy of a graphic is older than the one on air - a
+  // second device not yet synced, or a teammate whose production has not received the newer copy.
+  const older = olderDesigns(version, held);
+  if (older.length) {
+    const one = older.length === 1;
+    throw new PublishBehind(`${older.join(', ')} on air ${one ? 'is' : 'are'} newer than this page's copy. Reload this page to get ${one ? 'it' : 'them'}.`);
+  }
+  const expected: ExpectedVersion = { exists: !!previous.data, n: held?.n ?? null };
   const output: OutputPayload = { ...built, ver: version };
   // The upsert names only the columns it owns, which is what keeps `audience_state` (0035) —
   // open/mode/prompt/round/rev, all of it live operator state — from being reset by a
@@ -579,7 +593,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // the SET makes Postgres lock the existing row FOR UPDATE, which blocks every Take's KEY SHARE on
   // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
   // KEY UPDATE, which a Take passes (migration 0071, review finding ordering:F1).
-  const error = await writeControlShow(sb, published);
+  const error = await writeControlShow(sb, published, expected);
   // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
   // would take the panel, the payload and the bindings down with it — every publish failing for
@@ -588,9 +602,11 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // already follows, stated there as "publishing a production must not start failing because an
   // instance has not run the latest migration", and the retry is the cheapest way to hold it: one
   // extra round trip, only on the instances that need it, and only until they are migrated.
+  if (error === 'moved') throw new PublishBehind(RACED);
   if (error) {
     const { profile: _dropped, ...withoutProfile } = published;
-    const retry = await writeControlShow(sb, withoutProfile);
+    const retry = await writeControlShow(sb, withoutProfile, expected);
+    if (retry === 'moved') throw new PublishBehind(RACED);
     // The retry failing means the error was never about this column — report the ORIGINAL, which
     // is the one that describes what is actually wrong.
     if (retry) throw new Error(error.message);
@@ -648,27 +664,47 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   };
 }
 
+/** The published version is ahead of what this page built from: another page published between
+ *  this publish's read and its write (G4), or holds a newer design than this page's copy (G3).
+ *  Nothing was written. The caller pulls the latest record and publishes once more, which settles
+ *  both when the newer copy has reached the record; the message is for when it has not. */
+export class PublishBehind extends Error {}
+
+const RACED = 'Another page published at the same moment. Publish again.';
+
+/** The published version a write may land on: no row yet, or the row as read, by its stamp's
+ *  number (null: published before stamps). */
+interface ExpectedVersion {
+  exists: boolean;
+  n: number | null;
+}
+
 /**
- * Write a published row by id: update it where it exists, insert it where it does not, and update
- * again if another publish inserted it in between (unique violation). Answers the error that
- * describes the failure, or null. The columns are exactly the ones given; `id` is the address and
- * is never in the update's SET, so the row lock is NO KEY UPDATE.
+ * Write a published row by id, only over the version `expected` names: update it where it exists,
+ * insert it where it does not. Answers the error that describes the failure, `'moved'` when the
+ * row is no longer the version read (another publish landed first), or null. The columns are
+ * exactly the ones given; `id` is the address and is never in the update's SET, so the row lock is
+ * NO KEY UPDATE. The condition is a filter on the stamp inside the payload, so no migration.
  */
 async function writeControlShow(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   row: { id: string } & Record<string, unknown>,
-): Promise<{ message: string; code?: string } | null> {
+  expected: ExpectedVersion,
+): Promise<{ message: string; code?: string } | 'moved' | null> {
   const { id, ...columns } = row;
-  const update = async () => sb.from('control_shows').update(columns).eq('id', id).select('id');
-  const first = await update();
-  if (first.error) return first.error;
-  if ((first.data ?? []).length > 0) return null;
+  if (expected.exists) {
+    const update = sb.from('control_shows').update(columns).eq('id', id);
+    const landed = await (expected.n === null ? update.is('output->ver', null) : update.eq('output->ver->>n', String(expected.n))).select('id');
+    if (landed.error) return landed.error;
+    return (landed.data ?? []).length > 0 ? null : 'moved';
+  }
   const inserted = await sb.from('control_shows').insert(row);
   if (!inserted.error) return null;
   if (inserted.error.code !== '23505') return inserted.error;
-  const again = await update();
-  if (again.error) return again.error;
-  return (again.data ?? []).length > 0 ? null : inserted.error;
+  // Taken: by a publish that inserted first, or by a row this account cannot see, which no retry
+  // can fix, so that one keeps its own error.
+  const seen = await sb.from('control_shows').select('id').eq('id', id).maybeSingle();
+  return seen.data ? 'moved' : inserted.error;
 }
 
 /**
@@ -1178,7 +1214,7 @@ const recovering = new Set<string>();
  * The same interleaving ACROSS DEVICES is not fixed by this and cannot be from one sender: an
  * event from one operator and a Take from another, inside one fan-out window, can still land in
  * different orders on different renderers. The durable log remains the record of what was asked
- * for; docs/backlog/playout-lag-when-working-the-queue.md carries it as a known limit.
+ * for; https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-lag-when-working-the-queue.md carries it as a known limit.
  */
 const SLOW_AFTER_EVENT_MS = 1200;
 /** Keyed by SHOW and graphic: a graphic key is a per-production layer name and collides freely
@@ -1190,6 +1226,12 @@ const slowKey = (showId: string | null, graphic: string) => `${showId ?? '-'}:${
  *  again after a later press of the same graphic (failedSends.ts `sendWithResend`). An entry
  *  leaves when its send settles, so the map holds only sends in flight. */
 const newestSend = new Map<string, object>();
+
+/** Every command this page's log follow has heard back from the server, on either road, by the id
+ *  its press minted: how a send abandoned on a slow link is known to have landed after all, when
+ *  its own row came back before the send gave up (`sendControlVerb`, failedSends.ts
+ *  ATTEMPT_TIMEOUT_MS). Bounded like any applied set (commandRoads.ts REMEMBERED). */
+const heard = createAppliedOnce();
 
 /** One item as `control_send_many` receives it: the command, plus the transport-only mark that
  *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
@@ -1244,7 +1286,8 @@ export async function sendControlVerb(opts: {
   // has pressed again since: that later press is what stands, on air and here (the server leaves
   // it too, per graphic). Applied, the older batch put the graphic back on the monitor while air
   // kept the later press, and nothing ever corrected it (review 3 client:F1).
-  const overtaken = (graphic: string) => !!sender && (newestPress.get(`${opts.slug}:${graphic}`) ?? 0) > sender.press;
+  const pressedBefore = new Set(sender ? presses.since(opts.slug, sender) : []);
+  const overtaken = (graphic: string) => pressedBefore.has(graphic);
   const wire: WireItem[] = [];
   const fast: ControlSendItem[] = [];
   const held: string[] = [];
@@ -1278,12 +1321,14 @@ export async function sendControlVerb(opts: {
   const keys = [...new Set(opts.items.map((item) => `${opts.slug}:${item.graphic}`))];
   for (const key of keys) newestSend.set(key, send);
   const resend = { deadline: now + RESEND_WINDOW_MS, stillNewest: () => keys.every((key) => newestSend.get(key) === send) };
-  const sent: VerbSent = { skipped: [], superseded: [] };
+  const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
   try {
     if (session && sender) {
       const settled = await sendSeqVerb(opts.slug, wire, session, sender, resend, !!opts.allOut);
       sent.skipped = settled.skipped;
       if (settled.superseded) sent.superseded = Object.keys(sender.base);
+      // Read at the answer: a press made while this one was on its way stands over it.
+      sent.pressedAgain = presses.since(opts.slug, sender);
     } else {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
@@ -1293,11 +1338,23 @@ export async function sendControlVerb(opts: {
     }
     noteSend(true);
   } catch (e) {
+    // ABANDONED, AND LANDED ANYWAY. Every attempt gave up without an answer, but the server
+    // committed one of them and its row is already back: the send landed, and saying it had not
+    // would tell the operator a Take that is on air is on their monitor only (#917). A row that
+    // comes back only after this is settled by the page (failedSends.ts `heard`).
+    if (wire.some((item) => heard.has(item.msg))) {
+      noteSend(true);
+      if (session && sender) sent.pressedAgain = presses.since(opts.slug, sender);
+      return sent;
+    }
     noteSend(false);
     // THE PICTURE MOVED HERE AND NOWHERE ELSE. The surfaces word their notice off this flag,
     // because "Take failed" is a lie to an operator looking at the graphic on their own monitor.
-    const failed = e as Error & { aired?: boolean };
+    // The items go with it as they were sent, minted ids and all, so the page can recognise the
+    // row if this send commits after all.
+    const failed = e as Error & { aired?: boolean; sent?: ControlSendItem[] };
     failed.aired = fast.length > 0;
+    failed.sent = wire.map(({ graphic, msg }) => ({ graphic, msg }));
     throw failed;
   } finally {
     // THE HOLD-BACK RUNS FROM WHEN THE ROW EXISTS, not from when the press left. The 1200 ms is
@@ -1315,30 +1372,33 @@ export async function sendControlVerb(opts: {
 }
 
 /**
- * WHAT A VERB'S SEND CAME TO, beyond landing (protocol 2 only; both lists are empty on protocol 1).
+ * WHAT A VERB'S SEND CAME TO, beyond landing (protocol 2 only; every list is empty on protocol 1).
  * A caller that writes a picture after the answer (a chip, a cue marked on or off air) must not
- * write it for either list (`leftAlone`): what stands there is this page's LATER press, whose own
- * handler has already written it, and a write now would overwrite it with this older one.
+ * write it for any list (`leftAlone`): what stands there is this page's LATER press, which moved
+ * the picture when it was pressed, and a write now would overwrite it with this older one.
  */
 export interface VerbSent {
   /** Graphics the server left as this page's later press left them, the rest of the batch applied. */
   skipped: string[];
   /** Graphics of a batch refused whole: this page pressed it before its own All out. */
   superseded: string[];
+  /** Graphics this page pressed again while the send was on its way: the batch landed, and the
+   *  later press, applied after it, is what stands (seqSend.ts `createPressBook`). */
+  pressedAgain: string[];
 }
 
 /** Every graphic a send left alone, for a caller about to write what the send changed. */
 export function leftAlone(sent: VerbSent): string[] {
-  return [...sent.skipped, ...sent.superseded];
+  return [...sent.skipped, ...sent.superseded, ...sent.pressedAgain];
 }
 
-/** Per control slug and graphic, the newest press number this page has given it. */
-const newestPress = new Map<string, number>();
+/** Per control slug and graphic, the newest press this page has numbered. */
+const presses = createPressBook();
 
 /** One batch's number and base, read now. */
 function pressSender(slug: string, session: SeqSession, items: readonly ControlSendItem[], allOut: boolean): SenderBody {
   const body = senderBody(session, SENDER_ID, (lastPress += 1), [...new Set(items.map((item) => item.graphic))], allOut);
-  for (const graphic of Object.keys(body.base)) newestPress.set(`${slug}:${graphic}`, body.press);
+  presses.pressed(slug, body);
   return body;
 }
 
@@ -1357,11 +1417,28 @@ export async function sendControlVerbs(
   const { batches, ...one } = opts;
   const session = seqSessions.get(one.slug);
   const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
-  const sent: VerbSent = { skipped: [], superseded: [] };
+  const sent: VerbSent = { skipped: [], superseded: [], pressedAgain: [] };
+  // ALL OUT IS PACED to the server's burst cap: a press clearing more graphics than one window's
+  // share leaves in waves a window apart, rather than being refused halfway with the rest of the
+  // allowance spent. Numbered at the press, a later wave still skips what this page pressed since
+  // (the server does), and it leaves out what another screen pressed since (here: the head moved
+  // past the press's base), which the panic control was pressed before.
+  const waves = one.allOut ? allOutWaves(batches.map((batch) => batch.length)) : [];
+  let waveLanded = 0;
   let landed = 0;
   try {
     for (const [index, batch] of batches.entries()) {
-      const each = await sendControlVerb({ ...one, items: batch, sender: senders[index] });
+      let items = batch;
+      if (waves[index] > 0) {
+        if (waves[index] !== waves[index - 1]) {
+          await new Promise((resolve) => setTimeout(resolve, Math.max(0, waveLanded + BURST_WINDOW_MS - Date.now())));
+        }
+        const base = senders[index]?.base;
+        if (session && base) items = batch.filter((item) => (session.revs.get(item.graphic) ?? 0) <= (base[item.graphic] ?? 0));
+        sent.skipped.push(...new Set(batch.filter((item) => !items.includes(item)).map((item) => item.graphic)));
+      }
+      const each = items.length ? await sendControlVerb({ ...one, items, sender: senders[index] }) : { skipped: [], superseded: [], pressedAgain: [] };
+      waveLanded = Date.now();
       sent.skipped.push(...each.skipped);
       sent.superseded.push(...each.superseded);
       landed += 1;
@@ -1369,6 +1446,8 @@ export async function sendControlVerbs(
   } catch (e) {
     throw Object.assign(e as Error, { landed });
   }
+  // Over the whole press, not per batch: a batch is not pressed again by this press's own next one.
+  sent.pressedAgain = presses.since(one.slug, ...senders.filter((s): s is SenderBody => !!s));
   return sent;
 }
 
@@ -1376,6 +1455,13 @@ export async function sendControlVerbs(
 export function verbsLanded(e: unknown): number {
   const landed = (e as { landed?: unknown } | null)?.landed;
   return typeof landed === 'number' ? landed : 0;
+}
+
+/** The items a failed send carried, as sent: their minted ids are how its row is recognised if it
+ *  commits after all (failedSends.ts `heard`). Null when the error is not a send's. */
+export function verbSentItems(e: unknown): ControlSendItem[] | null {
+  const sent = (e as { sent?: unknown } | null)?.sent;
+  return Array.isArray(sent) ? (sent as ControlSendItem[]) : null;
 }
 
 /** Did this send put commands on THIS surface's screen before failing? Read off the thrown
@@ -1545,11 +1631,20 @@ const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;
  * single Take does it any more. One batch per four layers, so a production bigger than that
  * clears in log order rather than not at all.
  */
-/** The graphics the server's heads last called on, as this page heard them; null where it follows
- *  no head (the id road, or not resolved yet). */
-export function headsOnAir(slug: string): string[] | null {
+/** Per graphic, whether the server's heads last called it on, as this page heard them; null where
+ *  it follows no head (the id road, or not resolved yet). */
+export function headsSay(slug: string): ReadonlyMap<string, boolean> | null {
   const session = seqSessions.get(slug);
-  return session ? [...session.on].filter(([, on]) => on).map(([graphic]) => graphic) : null;
+  return session ? new Map(session.on) : null;
+}
+
+/** All out's confirmation: wait until the heads say none of `graphics` is on, or `ms` passes, and
+ *  answer which still are. A page that follows no head has nothing to wait for. */
+export async function headsStillOn(slug: string, graphics: readonly string[], ms: number): Promise<string[]> {
+  const stillOn = () => graphics.filter((graphic) => headsSay(slug)?.get(graphic) === true);
+  const deadline = Date.now() + ms;
+  while (stillOn().length > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
+  return stillOn();
 }
 
 export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] {
@@ -1672,7 +1767,10 @@ export async function followControlLog(opts: {
       tail: plan.tail,
       onRows: (rows, replayed) => {
         if (replayed && rows.length) opts.onReplay?.(true);
-        rows.forEach((row) => opts.onRow(row));
+        rows.forEach((row) => {
+          heard.claim(row.msg);
+          opts.onRow(row);
+        });
         if (replayed && rows.length) opts.onReplay?.(false);
       },
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
@@ -1698,7 +1796,10 @@ export async function followControlLog(opts: {
   const follower = createLogFollower<ControlEventRow>({
     from: opts.from,
     tail: opts.tail,
-    onRow: opts.onRow,
+    onRow: (row) => {
+      heard.claim(row.msg);
+      opts.onRow(row);
+    },
     onReplay: opts.onReplay,
     onWalk: (walking) => (walking ? recovering.add(opts.showId) : recovering.delete(opts.showId)),
     onHole: opts.onHole,
@@ -1725,6 +1826,7 @@ export async function followControlLog(opts: {
     }
     report();
   }, onCommand && ((items) => {
+    for (const item of items) heard.claim(item.msg);
     if (!follower.walking) onCommand(items);
   }), opts.onCommandStatus);
   return () => {

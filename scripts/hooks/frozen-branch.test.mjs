@@ -18,7 +18,7 @@ const COMMIT = new URL('./guard-command.mjs', import.meta.url);
 const EDIT = new URL('./guard-edit.mjs', import.meta.url);
 
 const git = (cwd, ...args) => {
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   assert.equal(r.status, 0, `git ${args.join(' ')}: ${r.stderr}`);
   return r.stdout.trim();
 };

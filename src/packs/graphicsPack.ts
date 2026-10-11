@@ -30,7 +30,8 @@ import {
   setGraphicSounds,
   type Show,
 } from '../model/shows';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../model/library';
+import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, packStampFor } from '../model/library';
+import { readPackStamp, type PackStamp } from '../model/graphicDoc';
 import { isProductionSounds } from '../assets/productionSounds';
 import { rememberSound, soundBlob, materializeSoundAssets, isSoundAssetRef } from '../assets/soundAssets';
 import { fileToDataUrl as blobToDataUrl, dataUrlToBlob } from '../assets/assetUtils';
@@ -62,6 +63,9 @@ export interface PackGraphic {
   layer?: number;
   /** Prepared cues. The first REPLACES the auto-seeded default cue; the rest append. */
   cues: PackCue[];
+  /** The community pack the graphic was installed from, carried through an export so the
+   *  import stays locked (spec AC-5). */
+  fromPack?: PackStamp;
 }
 
 /**
@@ -84,6 +88,8 @@ export interface PackGraphicFile {
   resolution?: { width: number; height: number };
   fps?: number;
   cues?: PackCue[];
+  /** The library record's community pack stamp (spec D7), written by a production export. */
+  fromPack?: PackStamp;
 }
 
 /** One row of a pack's WHOLE-SHOW rundown: a cue addressing a graphic by pool name. */
@@ -252,8 +258,10 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
       });
     }
 
+    const stamp = readPackStamp(entry.fromPack);
     graphics.push({
       template,
+      ...(stamp ? { fromPack: stamp } : {}),
       ...(entry.sounds ? { sounds: { ...entry.sounds as ProductionSounds, assets: (entry.sounds as ProductionSounds).assets.map(a=>{ const {storageKey:_cloud,...ref}=a; return ref; }) } } : {}),
       ...(Number.isFinite(layerNum) && layerNum >= 1 && layerNum <= 100
         ? { layer: Math.round(layerNum) }
@@ -328,7 +336,13 @@ export function validatePack(pack: GraphicsPack): string | null {
  * Returns the production, THROWS with a user-readable message on any failure. Callers show
  * the message and navigate on the returned show — nothing here touches the editor.
  */
-export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Promise<Show> {
+export async function installPack(
+  pack: GraphicsPack,
+  dest?: ProductionDest,
+  /** Where the pack came from, stamped on every graphic it creates (community shelf, spec D7).
+   *  Without it, each graphic keeps the stamp its file entry carries. */
+  fromPack?: PackStamp,
+): Promise<Show> {
   const failure = validatePack(pack);
   if (failure) throw new Error(failure);
   for (const a of pack.soundAssets ?? []) {
@@ -343,6 +357,7 @@ export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Pr
     templates,
     pack.name,
     dest ?? { kind: 'new', name: pack.name },
+    pack.graphics.map((g) => fromPack ?? g.fromPack),
   );
 
   // The pack's playout intent, applied over the defaults the pool assign gave. Pool entries
@@ -460,6 +475,9 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
   for (const g of show.graphics) {
     const template = g.soundConfig ? resolveSavedGraphicDoc(g,library)?.template ?? g.template : templateForSavedGraphic(g, library);
     const entry = await packGraphicEntry(template, { name: g.name, layer: graphicLayer(g) });
+    // A graphic installed from the community shelf stays one through Export and Import.
+    const stamp = packStampFor(g, library);
+    if (stamp) entry.fromPack = stamp;
     if (g.soundConfig) {
       if (!isProductionSounds(g.soundConfig)) throw new Error(`Unreadable sounds: ${g.name}`);
       entry.sounds = g.soundConfig;

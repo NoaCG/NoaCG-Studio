@@ -1,6 +1,6 @@
 # Feature acceptance and evidence
 
-For substantial work only. Procedure: [shared spec module](../../.agent-workflows/orchestrator/specs.md).
+For substantial work only; this file is the procedure.
 Small fixes retain GOAL/WHY/GATE. Existing goals/programmes/rulings retain product authority;
 existing plans, waves, jobs and landings retain execution authority. No retrospective conversion.
 
@@ -25,6 +25,9 @@ Task decomposition, size, dependencies, worker IDs and next work belong in the e
 wave/job/landing records. Oversized work is autonomously split there, never sent to the owner
 unless it reveals a real product/intent decision. `SPEC <record> AC-1,AC-2` and `SIZE standard`
 bind a wave row to acceptance without giving this ledger execution authority.
+A plan built phase by phase keeps a `## Phase notes` section: the pull request that lands a phase
+adds there what the next phase must allow for, decisions, traps and the check's findings
+(`docs/EDITOR_REBUILD_PLAN.md`). A note anywhere else does not survive the worktree.
 
 A reviewer records `review` with a full Git `revision`, `specSha256`, review-receipt `evidence`
 and one `criteria` entry per AC:
@@ -75,4 +78,4 @@ the parent from worker confidence, and it never extends an expired authorized wi
 Parallel workers write distinct evidence/handoff files. One assigned consolidation row updates
 the acceptance ledger after landing; its file is allocated in TOUCHES. Production/owner acceptance
 remain separate evidence rungs. The broader instruction/context audit is tracked explicitly in
-[the post-pilot follow-up](../backlog/instruction-context-rot-after-spec-pilot.md).
+[the post-pilot follow-up](https://github.com/NoaCG/NoaCG-Studio/issues/805).

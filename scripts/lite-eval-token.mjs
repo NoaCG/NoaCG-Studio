@@ -29,7 +29,7 @@ export function defaultEvalEmail() {
   if (fromEnv) return fromEnv.trim();
   let fromGit;
   try {
-    fromGit = execFileSync('git', ['config', 'user.email'], { encoding: 'utf8' }).trim();
+    fromGit = execFileSync('git', ['config', 'user.email'], { encoding: 'utf8', windowsHide: true }).trim();
   } catch {
     fromGit = '';
   }

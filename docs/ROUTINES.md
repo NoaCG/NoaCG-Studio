@@ -22,25 +22,22 @@ draft it opens. That is the shape to keep.
 ## The two rules
 
 **Routines report; sessions write.** A routine that finds something says what to do and stops. It
-does not start the work, and it never edits a tracked file in the primary checkout - `auto-merge.mjs`
-refuses every queued landing while `git status --porcelain` is non-empty there, so one stray
-untracked file jams the merge queue for the whole morning. The three files routines are allowed to
-write all end in `.local.md`, which `.gitignore` carries for exactly this reason.
+writes no file, files no issue and starts no work. When it has something worth doing, it ends with
+ONE fenced block the owner can paste as the prompt of his next `/orchestrator` wave (owner,
+2026-10-08): he decides at once, the wave does it, and nothing is left on disk to go stale. A
+finding he does not paste is not lost: the next run measures again, and what still matters comes
+back on its own. Agents write new files readily and almost never delete them, so a routine that
+files nothing is the only kind that cannot pile up.
 
-**The two exceptions, written here so they cannot widen quietly:**
+**The one exception, written here so it cannot widen quietly:**
 
-- The monthly quality review files its findings under `docs/backlog/` on a BRANCH, through the
-  ordinary landing flow, and only when the primary checkout is clean and on `main`. It is an
-  exception because a ranked finding that exists only in a chat log is gone by Tuesday, and because
-  the shelf is how `/orchestrator` picks up spare capacity. It may not write anything outside
-  `docs/backlog/`.
 - The What's new draft writes one new note under `docs/whats-new/`, in its own worktree on a
   branch, and opens a pull request for the owner. It never queues it, never enables auto-merge and
   never runs `/queue-merge`: he reviews and lands it (owner, 2026-10-02). It is an exception
   because the public `/whats-new` page only stays alive if a note appears about twice a week. It
   may not write anything outside `docs/whats-new/`.
 
-No other routine may write a tracked file.
+No other routine writes anything.
 
 **Silence is the default on a daily.** A routine that speaks every morning is a routine that gets
 skimmed and then ignored. The morning brief says nothing on a clean night, and that is not a bug to
@@ -70,7 +67,7 @@ It answers three questions that arrive at the same moment and used to be three s
 1. **What is still broken now**, after the night's noise settled - the CI verdict. GitHub already
    emails when a run fails, so a break that went red at 21:00 and was fixed by 04:00 is never
    repeated here. Resolved is silent.
-2. **What the queue did overnight** - `npm run night:report -- --write` over the last twelve hours:
+2. **What the queue did overnight** - `npm run night:report` over the last twelve hours:
    what landed, what refused and under which refusal kind, what the queue repaired by itself, and
    what still needs a person, each with the command that answers it. It groups by the kinds
    `refusalGuidance` (`scripts/jobs-store.mjs`) already owns rather than inventing a second
@@ -85,11 +82,9 @@ configured-suite cron check was a standing task created for a specific investiga
 its finding has long since resolved and what remains of it is one line inside silence detection. Two
 of the three had also drifted out of existence - see "What the table used to claim" below.
 
-It writes `docs/handoffs/night-report.local.md` every run and
-`docs/handoffs/ci-morning-report.local.md` only when it speaks, deleting that second file on a clean
-morning. Deleting is what keeps it honest: the file's whole meaning is *this was true at 07:00
-today*, so yesterday's must never survive into today. `npm run night:report` on demand answers the
-same question over any window (`-- --hours 24`, `-- --since 2026-09-04T18:00`, `-- --json`).
+It writes nothing. When it speaks, it ends with one prompt per problem for the next wave.
+`npm run night:report` on demand answers the same question over any window (`-- --hours 24`,
+`-- --since 2026-09-04T18:00`, `-- --json`).
 
 **Since 2026-10-02 it also reads the capability re-probe.** The brief runs
 `node scripts/harness-usage.mjs --landed --hours 1` and speaks when that prints a `FAILED RE-PROBE`
@@ -123,7 +118,7 @@ sits on: measured the same day, this repo's orchestrator worktree was eight comm
 reported eleven unverified observations that had just been measured, off the same installed builds.
 If that flag is ever rejected as an unknown argument, the checkout predates it and the routine says
 so rather than reporting a number
-(`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
+([`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md)).
 
 **Since 2026-09-30 an unverified observation can be re-probed, and a failed re-probe is printed.**
 `npm run harness:reprobe -- run` re-runs each observation that has a cheap bounded probe, one at a
@@ -159,26 +154,11 @@ can revert them.
 toward it. Nothing in NoaCG waits on this page. That is the property that makes "the rest we can
 automate" safe rather than merely optimistic.
 
-**What he answers gets recorded, and not by remembering to.** This is the half that makes the check
-worth having: an answer that stays in a chat window is a ruling the repository never learned. The
-routine writes each question into its own gitignored file under an id (`ALIGN-<date>-<n>`) and fills
-the answer in beside it when he gives one, which is capture a routine is allowed to do. From there
-`scripts/alignment-answers.mjs` checks whether a tracked doc records each answer by its id, and
-`wave-plan-check.mjs` **refuses a wave plan that does not mention an answered id which is not yet
-recorded**. So the next `/orchestrator` plans the row that writes the ruling, and the refusal comes
-back every morning until it has landed. `npm run alignment:pending` prints what is outstanding and
-the exact block to append.
-
-**Why the plan check and not `npm run build`.** The weekly file is gitignored and per-machine, so a
-build gate would be blind in CI and, on this laptop, would block every unrelated feature branch over
-a ruling that belongs to the orchestrator. The plan check is where the actor who can fix it already
-stands. An alignment answer is also the one thing a plan may not defer: an owner ask can be held or
-deferred in writing, but a ruling he has already given only has to be written down.
-
-The session's second half is the machine reviewing itself - spend by model and harness, decisions
-taken against asks made, what the orchestrator skill changed about itself, what other orchestrators
-do now, and at most three improvements as candidate wave rows. That half is written to the file and
-not read out.
+**What he answers gets recorded, and not by remembering to.** An answer that stays in a chat window
+is a ruling the repository never learned. So when he answers, the session ends with one prompt for
+his next wave holding each question, his answer in his own words, and where it belongs. The wave
+records it: direction in `docs/GOALS.md`, a rule or a plan in its scoped doc, private context in
+`docs/private/`. No file holds the answers in between, and no script has to parse one.
 
 Feedback and freshness ride here too, and they used to be their own Monday routine. Feedback,
 because `/admin` has a real inbox that only works for somebody who opens it - the owner's ruling,
@@ -188,28 +168,13 @@ admin login as a property of the query rather than of the printing. Freshness, b
 `docs/STACK_FRESHNESS.md` is time-driven and nothing else mentions it; it reports weekly and nothing
 auto-upgrades.
 
-**It writes one gitignored file**, `docs/handoffs/<date>-orchestrator-week.local.md` in the main
-checkout, and prints only the owner-facing sections in chat. The next `/orchestrator` invocation
-turns its candidate rows into a wave, or says why not.
+**It also shows him the week** (owner, 2026-10-08): anything serious - red on `main`, a `P1` bug,
+an ask waiting three weeks, a routine missing from the scheduler - and at most three numbers about
+how the week went, each kept only because it suggests something he would do. Token totals and
+session counts usually do not, so they stay out. Fixing the machine itself is each wave's retro.
 
-**That last sentence is now counted rather than trusted.** It was prose here and in
-`orchestrator/grounding.md` and nothing measured it: the 2026-09-08 review emitted three well-formed
-candidate rows, both of that day's wave plans were written afterwards without lifting one or naming
-the file, and nothing recorded the miss. `npm run weekly:candidates` lists the rows with a
-`WEEK-<date>-<n>` id each - reading the main checkout from whatever checkout it runs in, and naming
-the folder it read either way - and for a week after the review `scripts/wave-plan-check.mjs`
-refuses a plan that leaves one unmentioned. Planning it, deferring it and rejecting it pass, with
-two limits on deferring. Silence fails. Nothing is forced into a wave, by the same ruling that keeps
-the owner queue from expiring - the ask is that a skipped row is skipped on purpose and says so.
-
-**Two deferrals are refused.** (1) A deferral whose reason hands the work to a routine ("next
-orchestrator-week session", "for the morning brief"). Routines report and never write, so that
-deferral has no actor: WEEK-2026-09-15-1 was deferred to the weekly session and never landed. A
-routine named as evidence ("the morning brief showed Codex at its cap") still passes; name the wave
-that will carry the row, or reject it with the reason. (2) A third consecutive deferral of one WEEK
-id, counted over the earlier plans in the wave-plan store. Two plans running may defer a row; the
-third plans it as a row or drops it in writing as `rejected: <id> - <why>`. WEEK-2026-09-22-3 was
-deferred four plans running.
+**It writes no file** and prints only the owner-facing sections in chat, ending with one prompt for
+his next wave: his answers to record and at most three pieces of work the week turned up.
 
 Tuesday and not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday, and
 he reads the weekly percentage off his account page himself, so the routine never computes or asks
@@ -223,12 +188,11 @@ switch**. That third section is the point; the first two exist to earn it. It is
 `docs/GOALS.md` NOW so it proposes against the real road, a quiet month is reported as one, and
 `docs/COMPETITORS.md` + `docs/COMPETITOR_MXMZ.md` are the background it starts from.
 
-**Its OGraf findings get a written destination, and the routine still does not write.** The
-OGraf-leads bet is decided by OTHER PEOPLE's adoption accumulating over months, so a finding said in
-chat and nowhere else is gone when the session closes - which is what had been happening. The ledger
-is `docs/backlog/ograf-ecosystem-watch.md`, and the routine's job is to end its run by printing the
-block to append: a date heading, one bullet per item with a date, what it means for us, and a source
-URL, or the words for a quiet month. The append itself is made by a session working on a branch.
+**Its OGraf findings reach a wave, and the routine still does not write.** The OGraf-leads bet is
+decided by OTHER PEOPLE's adoption over months, so each run re-reads the dated releases from the
+sources rather than a ledger, and anything that should become work goes in its closing prompt. The
+ledger it used to append to is
+[`docs/backlog/ograf-ecosystem-watch.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-ecosystem-watch.md) at 745c6f2.
 
 ## Monthly - quality and refactor review
 
@@ -238,15 +202,14 @@ suppressions, oversized modules, duplication, dead code, verification gaps, the 
 with a measured cost, a size, and what would prove it did not break. Every run covers all four
 areas, because the point of a fixed set is that a quiet area proves itself quiet.
 
-**Deliberately NOT the coherence session.** That one (`.agent-workflows/orchestrator/coherence.md`)
-owns the written surface - cold-read test, contract contradictions, the byte ratchet, GOALS drift.
-This one owns code and hands any doc defect over. Two reviews that overlap get read as one, then
-neither.
+**Deliberately code only.** The written surface - stale docs, contradictions, instructions that did
+nothing - is each wave's retro (`.agent-workflows/orchestrator.md`, step 6). This one owns code and
+hands any doc defect over. Two reviews that overlap get read as one, then neither.
 
-It is also deliberately not merged with the competitor review, though both are monthly and both
-produce ranked findings. They keep different write permissions - the competitor review prints a
-block for a session to append, this one files to `docs/backlog/` on a branch - and fusing two
-permission regimes into one prompt is how a routine quietly gains access it should not have.
+It ends with one ranked prompt for the owner's next wave and files nothing; a month with nothing
+worth a branch says so and prints no prompt. It is deliberately not merged with the competitor
+review, though both are monthly and both produce ranked findings: two reviews in one prompt get
+read as one, then neither.
 
 ## Twice weekly - the What's new draft
 

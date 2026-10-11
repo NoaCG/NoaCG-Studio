@@ -345,7 +345,7 @@ export default function AiStep({
   const proHosted = Boolean(proStatus?.available);
   /*
    * THE WIZARD OFFERS ONE HOSTED PATH AND THE USER'S OWN KEY. Hosted Pro's DOOR is closed
-   * pending the measured comparison in docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md;
+   * pending the measured comparison in https://github.com/NoaCG/NoaCG-Studio/issues/771;
    * its PIPELINE is untouched, and every `proMode` branch below is left intact rather than
    * deleted, because deleting them is the half that decision has not made yet.
    *

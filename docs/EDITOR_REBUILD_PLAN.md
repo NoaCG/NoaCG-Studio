@@ -7,6 +7,25 @@ Independent review of d5e8c1db is accepted with the corrections below.
 The old rebuild plan is archived with the consolidation evidence; its mode and phase order
 are superseded. Existing application behavior remains the source of truth until replaced.
 
+## Reference editors in every phase
+
+The open-source editors are working evidence, not background reading.
+[Zero Density OGraf Studio](https://github.com/zerodensity/ograf-studio) is the editor to match or
+beat; [Eyevinn ograf-editor](https://github.com/Eyevinn/ograf-editor) is the smaller second example.
+Their inspected revisions are in the
+[research inventory](research/editor-consolidation-2026-09-17/OGRAF_STUDIO_RESEARCH.md).
+
+- **Each phase starts there.** Before designing a feature, inspect how the reference does it:
+  trace the UI event through its source mutation and preview update, read its tests, and try the
+  same interaction in the running reference editor. Never guess from screenshots. The phase's
+  receipt names the upstream revision and files inspected, the behaviour to reproduce, what NoaCG
+  adapts, and each deliberate difference with its user-facing reason.
+- **Each phase is checked against them.** After the phase lands, a checker that did not build it
+  does the phase's task in NoaCG on `main` and the same task in the reference editor, and records
+  in the phase notes below where NoaCG matches, falls short or does better.
+- Inspecting and trying them needs no owner approval. Reusing their code is a separate question,
+  settled by the [licensing boundary](#licensing-and-reuse-boundaries).
+
 ## Workflow additions, 2026-09-19
 
 [Workflow decisions](research/editor-workflow-review-2026-09-19/README.md) specify timeline-owned
@@ -672,3 +691,61 @@ R1.5 owns fuller unaided user tasks, licence clarification, default switch and n
 R2/R3 and P-COMP own their added fixtures. The
 [acceptance register](research/editor-acceptance-register-2026-09-17.md) retains every B identity.
 Builds or screenshots cannot substitute for correctness, usability or real-host evidence.
+
+## Phase notes
+
+The pull request that lands a phase adds its notes here for the next phase, newest first: what
+changed that the next phase must allow for, decisions taken, traps found, and what the check
+against the reference editors found. Only what the next phase needs; order and acceptance stay in
+[EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
+
+### 2026-10-10: bounded layer/property qualification
+
+- [Spec/research/receipts](work-specs/editor-layer-property-qualification/README.md): ordinary current-main and pinned Studio interactions preceded correction design. Existing additive selection, Composition return, persistent tools and pre-key inspector transforms already worked; do not replace them. Add visible-row Shift ranges, label-only double-click/Enter rename, eye, canvas/row context/Delete and unkeyed timeline transforms through existing source/session handlers.
+- Transform scrubbing previews transient source, releases once and exactly cancels. Keep Shift 10x and Ctrl/Cmd 0.1x, armed/base routing and input keyboard ownership. Studio uses Alt fine adjustment, has no layer-list Shift range/inline rename/context menu, and its active-drag Escape retains the changed value. Its explicit Edit Undo/Redo restored the deleted row in the final repeat; an earlier rapid sequence coalesced with preceding edits under its 500 ms history burst. NoaCG transactions deliberately isolate completed operations. Do not copy these shortfalls.
+- Desktop/laptop and native 125% cumulative tasks cover text/artwork/animation/history/save/reopen and browser-executable outputs, preserving fields, masks, assets and IDs. Actual 1366x768 outer window at zoom 1.25 gives 1093x545 content, a 94px canvas. Functional completion through scrolling is not comfortable layout acceptance. Keep this limit visible for the fresh independent checker [#967](https://github.com/NoaCG/NoaCG-Studio/issues/967).
+- Label and hidden state are reserved source metadata; eye does not overwrite animated opacity. Show a hidden group before Ungroup, preserving the existing extra-attribute refusal. Anchor/base controls retain their semantics. Broader conventions/property shortcuts, layout/owner acceptance, save/leave/cloud-status work, loops, R1.5/default switch, receiving hosts and paired MCP remain separate. Preserve the completed #950/#960 independent transform evidence and unchanged CLI regressions.
+
+### 2026-10-10: independent landed-transform comparison (#950)
+
+- [Independent receipt](work-specs/editor-transform-qualification/independent/README.md): a fresh checker repeated fetched main `a67891ae` (including `0c355905`) and independently downloaded/hash-verified VectorCraft v0.4.0. The unchanged 28 transform/canvas/typography/CLI cases and a separate normal-route task passed in CI, one worker, zero retries. Local browser jobs were cancelled before starting at the scheduler's RAM floor; the fresh native reference job completed locally through the scheduler.
+- Both editors preserve constrained ratios, independent side scaling, text-side reflow, pointer/numeric rotation and native reopen. Preserve deliberate NoaCG differences: Link plus Shift inversion, text corners scaling appearance, clockwise values and 15-degree snapping. Reference area corners resize the frame; its active-drag Escape again committed, while NoaCG cancellation retained exact source/history.
+- No product correction was needed. Retain CLI/source/channel/context regressions. Inspected three fresh NoaCG viewport captures; the 1093x614 200%-of-Fit proxy still clips the artboard vertically and needs panel/timeline scrolling. Broader workflow/owner acceptance, R1.5/default switch, real receiving hosts and paired live MCP remain separate.
+
+### 2026-10-10: bounded linked scale, text-box handles and rotation (#910)
+
+- [Spec and receipts](work-specs/editor-transform-qualification/README.md): current-main reproduction found linked ordinary side handles ignored Link proportions. Sides now use the same link/Shift inversion as corners, through the existing handler. Collapsed sides keep a usable hit area for the existing zero-scale refusal and numeric recovery.
+- Text-box sides still resize/reflow; corners scale appearance. Rotation already agreed with typed values. Preserve source IDs, owned CSS, channel arming, history and context guards; retain the CLI round-trip regression cases.
+- Pinned VectorCraft v0.4.0 executed proportional/independent side and corner scaling, rotation, area resize, undo and native reopen. Its pointer constraint, type-area corner semantics and rotation units differ deliberately; active-drag Escape did not cancel in the recorded reference run. Do not claim whole-editor parity.
+- Three viewport captures were inspected, including the established 1093x614 / 200% Fit proxy. Broader workflow acceptance, R1.5 and paired live MCP remain separate. The [post-landing receipt](work-specs/editor-transform-qualification/post-landing.md) records actual queue landing and the passing anonymous task on production at 0c355905. The independent reference/main repeat remains separate and is not claimed by the implementer's receipt.
+
+### 2026-10-09: bounded CLI-generated source round-trip
+
+- [Receipt](work-specs/editor-cli-round-trip/README.md): local CLI scaffold/validate/inspect,
+  normal ZIP import, visual text/panel/typography edits, durable reopen, history/context
+  guards and executed SPX/CasparCG/OGraf browser outputs. Independent scoreboard retains
+  its operator machine. Three viewport captures remain engineering evidence.
+- Preserve non-executable script tags in HTML. Imported file Finish now reuses the existing
+  artwork editor door and byte-preserving applier. Existing CSS declarations are edited
+  where effective across repeats, retaining important priority; new declarations stay in
+  the first owned rule for anchor/group readers. Nested/unrelated rules stay intact.
+  OGraf retains inert head/body data inside its scoped DOM, using the import classifier.
+- Custom non-field HTML spans remain outside visual target discovery. Retain their source
+  and refuse edits honestly; no general HTML conversion or new document model.
+- Pinned VectorCraft v0.4.0 executed comparable import/edit/history/native reopen. It has no
+  equivalent CLI broadcast package or output contract. Compare interaction/rendering only
+  for that subset; retain the NoaCG-specific regressions and post-landing independent check.
+- [Independent post-landing check](work-specs/editor-cli-round-trip/independent/README.md)
+  passed on merged main and production at 2e164047, with a post-merge pinned reference
+  repeat. Text, typography, history and durable reopen match their contracts; panel
+  translation and fill were different artwork tasks. Browser exports agree, including
+  a measured OGraf test-host offset. Small-view timeline/artboard limits and production
+  consent occlusion remain explicit; no broadcast-reference or whole-editor parity claim.
+- Next: reproduce the existing linked-scale/corner/rotation feedback before R1.5. Paired MCP
+  stays R3.2; general help, funding/BYOK, WebMCP and broader release acceptance stay separate.
+
+### 2026-10-09: the reference check moved into this plan (no phase built)
+
+- The reference check above binds every phase and its checker from now on; until today it lived
+  only in the archived research copy.
+- The next work is as [EDITOR_PLAN.md](EDITOR_PLAN.md#completion-and-continuation) states it.

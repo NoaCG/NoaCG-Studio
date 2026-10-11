@@ -80,7 +80,7 @@
       "measuredAt": "2026-09-09",
       "claim": "An Agent call with isolation: \"remote\" is ACCEPTED and runs on this laptop anyway, in an ordinary local worktree (hostname Legion-001, win32, .claude/worktrees/agent-<id>). The launch reports success and nothing says the isolation was dropped, so a wave routing rows to \"cloud\" spends the local RAM it meant to save while the plan still reads as honoured.",
       "reprobe": "Launch any agent with isolation: \"remote\" whose first step is `node scripts/agent-isolation.mjs --expect remote`. Exit 1 with ISOLATION MISMATCH confirms it; exit 0 refutes it and this entry moves.",
-      "source": "docs/backlog/cloud-sessions-for-stateless-rows.md, \"The blocker found by probe\""
+      "source": "https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/cloud-sessions-for-stateless-rows.md, \"The blocker found by probe\""
     },
     {
       "id": "claude-no-permission-prompts-flag",
@@ -90,7 +90,7 @@
       "measuredAt": "2026-09-09",
       "claim": "REFUTED as of 2.1.263: `claude --help` now lists --permission-prompts, with the description of who answers a permission prompt (a person, a configured tool, or \"none\" for auto-deny recorded). Previously measured true on 2.1.251 (2026-09-03): claude --help offered --permission-mode and no --permission-prompts; the flag that would turn a headless stall into a recorded denial was said to land in 2.1.259.",
       "reprobe": "claude --help | grep permission-prompts; no match confirms the original claim, a match confirms the refutation.",
-      "source": "the 2026-09-03 harness-followups handoff, drained (git show 0c8941bd^:docs/handoffs/2026-09-03-b-harness-followups.md); docs/acceptance/owner-queue/2026-09-03-upgrade-claude-code-and-clear-the-stale-binary.md; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
+      "source": "the 2026-09-03 harness-followups handoff, drained (git show 0c8941bd^:docs/handoffs/2026-09-03-b-harness-followups.md); https://github.com/NoaCG/NoaCG-Studio/blob/7fc1016a9d58a8e7bcaad68274c4ac1c91d27f8b/docs/acceptance/owner-queue/2026-09-03-upgrade-claude-code-and-clear-the-stale-binary.md; refuted by the 2026-09-09 capability re-probe, commit 1a51192f"
     },
     {
       "id": "claude-launched-session-gets-no-subagent-notifications",

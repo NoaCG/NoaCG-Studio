@@ -75,19 +75,19 @@ export const SWEEP_SCRIPTS =
   // rule AGENTS.md states.
   + '|pro-taste-rejudge'
   // THE `-sweep` SCRIPTS THAT LAUNCH CHROMIUM THEMSELVES, listed one by one because the family
-  // is NOT safely name-shaped: of the nine scripts here whose name ends in `-sweep`, two
+  // is NOT safely name-shaped: of the scripts here whose name ends in `-sweep`, two
   // (`reference-companion-sweep`, `spx-corpus-sweep`) open no browser at all, so a
   // `[\w-]*-sweep` entry beside the `*bench*` and `*spike*` families would queue two scripts
-  // that cost nothing - the "too eager" failure this module exists to avoid. All four below
+  // that cost nothing - the "too eager" failure this module exists to avoid. All three below
   // render the catalog at 1920x1080 through the app: `occlusion-sweep` is the calibration the
-  // occlusion rule is read off, `design-rules-audit-sweep` and `plate-legibility-sweep` were
-  // already doing it unlisted, and `footprint-stability-sweep` was listed the day it was written.
+  // occlusion rule is read off, `design-rules-audit-sweep` was already doing it unlisted, and
+  // `footprint-stability-sweep` was listed the day it was written.
   // `footprint-stability-sweep` renders the whole registry TWICE (short text, then long), so it
-  // is the heaviest of the four and the one that would hurt most sitting beside a live suite.
+  // is the heaviest of the three and the one that would hurt most sitting beside a live suite.
   // `text-containment-sweep` renders the whole registry once, drives every text field to a long
   // value and freezes the motion before reading, so it holds the machine for as long as its
   // siblings and belongs here for the same reason they do.
-  + '|occlusion-sweep|design-rules-audit-sweep|plate-legibility-sweep|footprint-stability-sweep'
+  + '|occlusion-sweep|design-rules-audit-sweep|footprint-stability-sweep'
   // `card-look-sweep` renders every design in a category full-frame and screenshots each one,
   // which is the same workload as its siblings above under a name none of them share.
   // `card-pair-sweep` renders the same set through the same rig and then compares every
@@ -135,7 +135,9 @@ export const SWEEP_SCRIPTS =
   // opens a SECOND browser page on somebody else's renderer and drives it there. Two pages and
   // two servers for the length of a wizard walk plus a graphic's whole lifecycle - the same
   // workload as the shots scripts above, under a name that matches no family here.
-  + '|ograf-external-walk'
+  // `ograf-spx-walk` is its SPX 1.4.1 sibling: four pages (app, renderer, controller and a bare
+  // reference page) and two servers.
+  + '|ograf-external-walk|ograf-spx-walk'
   + `|render-smoke[\\w-]*|(?!(?:${SERVER_SCRIPTS})\\.)[\\w-]*bench[\\w-]*`
   + '|[\\w-]*spike[\\w-]*';
 
@@ -190,7 +192,7 @@ export function commandSegments(text) {
  * list for the same reason and one more: it is what a session types after the planner has just
  * REFUSED an unrecognised flag, so blocking it would answer a refusal with a second refusal.
  */
-function isPlanOnly(segment) {
+export function isPlanOnly(segment) {
   return /(?:^|\s)--(?:list|json|help)(?:\s|$)/.test(segment);
 }
 
@@ -239,6 +241,46 @@ function startsE2e(part) {
  */
 export function invokesE2e(text) {
   return invocationParts(text).some(startsE2e);
+}
+
+/**
+ * Why a whole-suite run is refused on this machine, and what to run instead. One text for both
+ * refusals: the job queue's (`runsWholeSuite` below) and the planner's (`localRunPolicy` in
+ * scripts/e2e-affected.mjs).
+ */
+export const WHOLE_SUITE_ON_GITHUB = [
+  'Refused: the whole browser suite runs on GitHub Actions, not on this machine. CI runs it on the',
+  'pull request and again on the merge group, and the machine has to stay responsive for everything',
+  'else running on it.',
+  '  Run the one or two specs that cover your change:  npm run queue -- "npm run test:e2e -- e2e/<name>.spec.ts"',
+  '  Candidates:  node scripts/e2e-affected.mjs --list --files <changed paths>',
+  '  A risky change or a CI failure to reproduce may name a larger set of specs, never the whole suite.',
+].join('\n');
+
+/** The two package scripts and the bare Playwright call that run the default config. */
+const DEFAULT_SUITE_ENTRY = /^(?:(?:npm|pnpm|yarn)\s+(?:run\s+)?test:e2e(?::queued)?|(?:npx\s+)?playwright\s+test)(?=\s|$)/;
+/** Flags that narrow a run, or point it at another config, so it is not the whole default suite. */
+const NARROWS_RUN = /^(?:-g|--grep|--last-failed|--only-changed|-c|--config|--list|--help)(?:=|$)/;
+/** Playwright flags whose value may follow as its own token, which is then not a file filter. */
+const TAKES_VALUE = /^(?:--reporter|--retries|--timeout|--global-timeout|--repeat-each|--workers|-j|--project|--max-failures|--output|--trace|--shard)$/;
+
+/**
+ * Does this command run the WHOLE offline suite: Playwright on its default config with nothing
+ * naming specs or narrowing it? `npm run test:e2e`, `npm run test:e2e:queued` and
+ * `npx playwright test` with no file, grep or config argument. The job queue and the command
+ * guard refuse these; the affected planner refuses its own whole-suite plans at run time, because
+ * only it knows what a diff escalates to.
+ *
+ * Any other token that is not a flag or a flag's value is a file filter: the refusal is for the
+ * plain spellings, not an adversary.
+ */
+export function runsWholeSuite(text) {
+  return invocationParts(text).some((part) => {
+    const entry = DEFAULT_SUITE_ENTRY.exec(part);
+    if (!entry) return false;
+    const rest = part.slice(entry[0].length).trim().split(/\s+/).filter((t) => t && t !== '--');
+    return !rest.some((t, i) => NARROWS_RUN.test(t) || (!t.startsWith('-') && !TAKES_VALUE.test(rest[i - 1] ?? '')));
+  });
 }
 
 /**
@@ -416,7 +458,7 @@ export function startableSegments(text) {
  * ordinary `cd <worktree> && npm run queue -- "…"` was not recognised as an enqueue - the first
  * segment is the `cd` - and the guard then refused the one action it exists to recommend, at the
  * one moment queueing is most obviously right: something else is already running (measured
- * 2026-08-29, docs/handoffs/2026-08-29-dd-svg-fitting-two.md).
+ * 2026-08-29, https://github.com/NoaCG/NoaCG-Studio/blob/0eec5a83382bfa79c8593939690fa86de12372db/docs/handoffs/2026-08-29-dd-svg-fitting-two.md).
  *
  * What the first-segment rule was really protecting is that a REAL run does not get a free pass
  * by mentioning the queue after it, and that is stated directly instead: an enqueue exempts the
@@ -451,7 +493,7 @@ export const DEV_SERVER_DEPENDENT_SCRIPTS =
   + '|ai-lite-calibrate|ai-lite-regress|ai-vision-dataset|catalog-geometry|catalog-sameness|engine-floor'
   + '|factory|field-coverage|footprint-stability-sweep|import-suggest-audit|lite-on-pro-bank'
   + '|make-render-manifest|numerals|occlusion-sweep|overflow-sweep|pack8-shots|palette-freedom'
-  + '|plate-legibility-sweep|pro-harness-spike|pro-iterate-spike|pro-spike|pro-taste-rejudge|pro-type-calibrate|probe-composition'
+  + '|pro-harness-spike|pro-iterate-spike|pro-spike|pro-taste-rejudge|pro-type-calibrate|probe-composition'
   + '|reference-companion-sweep|reference-select-check|reference-select-simulate|svg-import-sweep'
   + '|render-smoke|render-smoke-hyperframes|render-smoke-video|spike-axis-calibrate'
   + '|spike-checkpoint-probe|spike-countdown-calibrate|spike-device-mutation-check'
@@ -531,6 +573,119 @@ export function pollsQueue(text) {
   return false;
 }
 
+/** The longest one wait may be given. An agent that needs longer starts a new wait. */
+export const WAIT_LIMIT_MAX_SECONDS = 60 * 60;
+
+/** What the agent is told when `endlessWait` finds `wait`: why, and how to add a limit. */
+export function endlessWaitRefusal(wait) {
+  return (wait.why === 'too-long'
+    ? `Blocked: this polling loop is given ${Math.round(wait.seconds / 60)} minutes. One wait gets at most an hour; ` +
+      'when it runs out, find out why, then start a new one.\n'
+    : 'Blocked: this is a polling loop with no time limit (an `until`/`while` around a sleep, with no ' +
+      '`timeout` and no deadline). A wait that cannot end never tells anyone it failed: on 2026-10-09 ' +
+      '`until docker info; do sleep 5; done` polled for 14 hours because Docker was not running.\n') +
+    'Give it a limit of up to an hour, so that running out ends it with a failure you are told about:\n' +
+    "  timeout 600 bash -c 'until docker info >/dev/null 2>&1; do sleep 5; done'   (exits 124 when the time runs out)\n" +
+    '  PowerShell: $deadline = (Get-Date).AddMinutes(10); while (-not (<check>)) { if ((Get-Date) -gt $deadline) ' +
+    "{ throw 'timed out' }; Start-Sleep 5 }\n" +
+    'When it runs out, find out why, fix the cause and start a new wait, or change course.';
+}
+
+/**
+ * Is this command a POLLING LOOP THAT CANNOT END - an `until`/`while` (or PowerShell `while (…)` /
+ * `do { } until`, or `for (;;)`) around a sleep, with no `timeout` and no deadline or counter?
+ * docs/work-specs/agent-lifecycle/spec.md point 1: on 2026-10-09 `until docker info; do sleep 5;
+ * done` polled for 14 hours because Docker was not running, and nothing ever said so. A loop with
+ * an end fails when it runs out, and that failure is what tells its agent it is stuck.
+ *
+ * Returns null, `{ why: 'unbounded' }`, or `{ why: 'too-long', seconds }` for a `timeout` over
+ * WAIT_LIMIT_MAX_SECONDS. Pure, so any harness can ask it: the Claude Code command guard and the
+ * Codex one (`hooks/codex-guard-command.mjs`) both do, and refuse with `endlessWaitRefusal`.
+ *
+ * Each loop is judged on its own text, from its keyword to its `done` (or the end of the command):
+ * the sleep, the counter or the clock has to be IN it, and a `timeout` counts only when the loop
+ * runs inside that timeout's command. Quoted text is data unless it is a shell's `-c` / `-Command`
+ * payload, so a commit message or a grep pattern that mentions a loop is not one. A `while read`
+ * loop ends with its input.
+ */
+export function endlessWait(text) {
+  // Most commands sleep nowhere, and a polling loop has to: nothing more to read for those.
+  if (!SLEEP.test(String(text ?? ''))) return null;
+  const body = stripHeredocBodies(String(text ?? ''));
+  const code = maskQuotedData(body);
+  for (const match of code.matchAll(/(?:^|[;&|\n({'"])\s*((?:while|until)\b|do\s*\{|for\s*\(\(?\s*;\s*;)/gi)) {
+    const at = match.index + match[0].length - match[1].length;
+    const rest = code.slice(at);
+    if (/^(?:while|until)\s+(?:IFS=\S*\s+)?read\b/i.test(rest)) continue;
+    const done = /\bdone\b/.exec(rest);
+    const loop = done ? rest.slice(0, done.index) : rest;
+    if (!SLEEP.test(loop)) continue;
+    if (CLOCK.test(loop) || COUNTER.test(loop)) continue;
+    const limit = timeoutSeconds(code.slice(commandStart(body, at), at));
+    if (limit === null) return { why: 'unbounded' };
+    if (limit > WAIT_LIMIT_MAX_SECONDS) return { why: 'too-long', seconds: limit };
+  }
+  return null;
+}
+
+/** What a polling loop waits with. */
+const SLEEP = /(?:^|[^\w$-])(?:sleep|Start-Sleep)\b|\btimeout\s+\/t\b/i;
+
+/** A clock in a loop is a deadline: `$SECONDS`, `date +%s`, `Get-Date`, a stopwatch. */
+const CLOCK = /\$SECONDS\b|\bdate\s+\+%s|Get-Date|\[datetime\]|Stopwatch|\$deadline\b|\.Elapsed\b/;
+
+/** A counter that moves in a loop bounds it: `i++`, `n=$((n-1))`, `i+=5`, `$i = $i + 1`, `seq`. */
+const COUNTER =
+  /\+\+|[a-z_]\w*--(?![\w-])|[-+]=\s*\d|\$\(\(\s*[a-z_]\w*\s*[-+]\s*\d+\s*\)\)|\(\(\s*[a-z_]\w*\s*[-+]=|\blet\s+\w+|\bseq\b|\$[a-z_]\w*\s*=\s*\$[a-z_]\w*\s*[-+]\s*\d/i;
+
+/**
+ * The text with every quoted string blanked out (same length, so indexes still line up), except a
+ * string handed to a shell to run - the payload of `-c`, `-lc`, `-Command`.
+ */
+function maskQuotedData(text) {
+  return text.replace(/("(?:[^"\\]|\\.)*"|'[^']*')/g, (quoted, _q, offset) =>
+    /(?:^|\s)-(?:[a-z]*c|Command)\s+$/i.test(text.slice(Math.max(0, offset - 16), offset))
+      ? quoted
+      : quoted[0] + ' '.repeat(quoted.length - 2) + quoted.at(-1),
+  );
+}
+
+/** Where the command containing `index` starts: just after the last separator outside quotes. */
+function commandStart(text, index) {
+  let start = 0;
+  let quote = null;
+  for (let i = 0; i < index; i += 1) {
+    const c = text[i];
+    if (quote) {
+      if (c === quote && text[i - 1] !== '\\') quote = null;
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === ';' || c === '&' || c === '|' || c === '\n') start = i + 1;
+  }
+  return start;
+}
+
+/**
+ * The duration a coreutils `timeout` in the command is given, in seconds, or null when there is
+ * none. Its options come first (`-k 5`, `--signal=KILL`, `-s TERM`), then the duration.
+ */
+function timeoutSeconds(command) {
+  for (const match of command.matchAll(/(?:^|[\s({'"])timeout\s+([^\n;&|]*)/g)) {
+    const tokens = match[1].trim().split(/\s+/);
+    for (let i = 0; i < tokens.length; i += 1) {
+      const token = tokens[i];
+      if (/^(?:-k|-s|--kill-after|--signal)$/.test(token)) {
+        i += 1;
+        continue;
+      }
+      if (token.startsWith('-')) continue;
+      const duration = /^(\d+(?:\.\d+)?)([smhd]?)$/.exec(token);
+      if (!duration) break;
+      return Number(duration[1]) * { '': 1, s: 1, m: 60, h: 3600, d: 86_400 }[duration[2]];
+    }
+  }
+  return null;
+}
+
 /**
  * Does this command CREATE A BRANCH, and in which checkout does it say to do it?
  *
@@ -601,16 +756,27 @@ export function commitCheckouts(text) {
  * holding spaces is deliberately not reassembled: it yields a `-C` value git cannot resolve, and
  * the caller then falls back to the checkout the command line implies, which is the safe way to
  * be wrong.
+ *
+ * Each token loses its quotes and any closing paren. The splitter is not quote-aware, so the last
+ * piece of `bash -c "cd x && git push origin main"` or `(cd x && git push)` arrives as `main"` or
+ * `push)`, and read as written it named no branch and no subcommand at all. Redirections are the
+ * shell's, not git's, so they are dropped: `2>/dev/null`, the `2>` the splitter leaves of `2>&1`,
+ * and a bare `>` with the file after it. Read as arguments, `git push origin 2>&1` named a branch.
  */
 function parseGit(part) {
   const rest = /^git\s+(.+)$/s.exec(part);
   if (!rest) return null;
-  const tokens = rest[1].trim().split(/\s+/);
+  const words = rest[1].trim().split(/\s+/);
+  const tokens = [];
+  for (let at = 0; at < words.length; at += 1) {
+    if (/^[\d*&]?>>?$/.test(words[at])) at += 1;
+    else if (!/^[\d*&]?>/.test(words[at])) tokens.push(words[at].replace(/^['"]+|['")]+$/g, ''));
+  }
   let dir = '';
   let at = 0;
   while (at < tokens.length && tokens[at].startsWith('-')) {
     if (tokens[at] === '-C' || tokens[at] === '--work-tree') {
-      dir = (tokens[at + 1] ?? '').replace(/^(['"])(.*)\1$/s, '$2');
+      dir = tokens[at + 1] ?? '';
       at += 2;
       continue;
     }
@@ -639,36 +805,9 @@ function branchCreationIn(git) {
   return at === -1 ? null : { dir: git.dir, branch: options[at + 1] ?? '' };
 }
 
-/**
- * Does this command line PUSH a branch and DISPATCH a workflow run in the same breath?
- *
- * `ci.yml` keeps every run of one ref in one concurrency group with `cancel-in-progress`, so a
- * push run and a dispatched run for the same branch cannot both live: whichever registers second
- * cancels the first, and the order two webhooks register in is not stable. Measured four times
- * over 2026-09-04 and 2026-09-05 ("Pushing and dispatching in one breath is a coin flip, and I
- * lost it once" - four handoffs of those two days, all drained since;
- * docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the dispatch loses,
- * what survives is the push run, which plans only the
- * delta since the previous push - the narrow plan the dispatch was issued to avoid.
- *
- * Positional on both halves, like every matcher here: a `git push` INVOCATION and a `gh workflow
- * run` INVOCATION, so a lone `echo` or `grep` naming the pair is not the pairing. A `--dry-run`
- * push registers nothing and is not one either.
- *
- * KNOWN LIMIT, the same one `startableSegments` states: the splitter is not quote-aware, so a
- * push beside a quoted string that carries `&& gh workflow run` reads as the pair - measured in
- * review, 2026-09-05: `git push; echo "done && gh workflow run ci.yml is next"` is refused. A
- * commit message that discusses the pairing, committed and pushed in ONE command, hits it; the
- * way past is the one the refusal already prescribes, two commands. Closing it needs a quote-aware
- * splitter, which every matcher here would then have to share.
- */
-export function pushesAndDispatches(text) {
-  return pushes(text) && invocationParts(text).some((part) => /^gh\s+workflow\s+run\b/.test(part));
-}
-
-/** Does this command line push to a remote for real? Shared by both push rules so they cannot drift. */
-function pushes(text) {
-  return gitInvocations(text).some((git) => git.subcommand === 'push' && !isDryRun(git));
+/** A push that writes a remote. */
+function isRealPush(git) {
+  return git.subcommand === 'push' && !isDryRun(git);
 }
 
 /** A push that reports what it WOULD do and touches no remote: `--dry-run`, or `-n` in a cluster. */
@@ -677,118 +816,68 @@ function isDryRun(git) {
 }
 
 /**
- * The branches a `git push` in this command just UPDATED, read off git's own report of it.
+ * The pushes in this command line that could WRITE `main` on the remote, as `{ dir, how }`.
  *
- * Only an UPDATE of a branch the remote already had is listed - `<old>..<new> local -> remote` -
- * because that is the only push that leaves a run behind: the run for `<old>`, which this push
- * cancels if it is still going. (The new run does NOT plan from `<old>`; since 2026-09-06 ci.yml
- * measures a branch push from the merge-base with main. That is why the notice this feeds is
- * belt-and-braces rather than a hole - see `hooks/warn-command.mjs`.)
- * A first push (`[new branch]`) had nothing in flight; `Everything up-to-date` moved nothing; a
- * rejected push moved nothing either. A forced update (`+ <old>...<new>`) is still an update.
+ * Only GitHub's merge queue writes `main` (`root/land-finished-work-only-reconciles-current`), and
+ * GitHub enforces that for everyone except a repository admin - which is what the agents run as,
+ * with the ruleset's bypass set to "always". A direct push would land unreviewed and unverified,
+ * and nothing would say so.
  *
- * Read from the RESPONSE rather than by asking git afterwards, because the response is the one
- * record of what the remote held BEFORE this push, and it is already in the hook's hands. Git
- * prints the report on stderr, so both streams are read.
+ * `how` says how much the command line itself settles:
+ *   - 'named': a refspec's DESTINATION is main (`main`, `HEAD:main`, `+main`, `:main`,
+ *     `refs/heads/main`, `heads/main`, a `refs/heads/*` glob), the push sends every branch
+ *     (`--all`, `--mirror`, `--branches`, or the matching push `:`), or the same line checked
+ *     `main` out before a push of the current branch.
+ *   - 'current': no refspec, `HEAD`/`@`, or a `$variable`, so it pushes whatever branch `dir`'s
+ *     checkout has checked out. Only git can say which that is, so the caller asks.
+ * `main:claude/x` writes `claude/x` and is not listed; neither is a dry run, which writes nothing.
+ * Positional like every matcher here, so `echo "git push origin main"` is not a push.
+ *
+ * A MIS-TYPING GUARD, like `startableSegments` says of the rest: a push placed after an enqueue on
+ * the same line is read as that enqueue's argument and missed, and so is a push to main inside a
+ * queued payload, which the job runner later runs outside every hook.
  */
-export function pushedUpdates(text, response) {
-  if (!pushes(text)) return [];
-  const report = responseText(response);
-  const line = /^\s*\+?\s*([0-9a-f]{7,40})\.\.\.?([0-9a-f]{7,40})\s+(\S+)\s+->\s+(\S+)(?:\s+\(.*\))?\s*$/gm;
-  // A refspec push reports `refs/heads/<branch>`, which `gh run list --branch` answers with nothing.
-  return [...report.matchAll(line)].map((match) => ({
-    from: match[1],
-    to: match[2],
-    branch: match[4].replace(/^refs\/heads\//, ''),
-  }));
+export function mainPushes(text) {
+  const found = [];
+  let onMain = false;
+  for (const git of gitInvocations(text)) {
+    onMain ||= checksOutMain(git);
+    if (!isRealPush(git)) continue;
+    const how = mainPushKind(git.args);
+    if (how) found.push({ dir: git.dir, how: how === 'current' && onMain ? 'named' : how });
+  }
+  return found;
 }
 
-/**
- * The run the push notice should speak about, given the runs for the OLD tip, or null when the
- * old tip's delta is covered. Pure, so both directions are pinned in the tests with the two real
- * run sets they were measured on (2026-09-05).
- *
- * ONE FINISHED RUN IS ENOUGH, whichever it was. A sha routinely has two runs - the push's,
- * cancelled, and the dispatch that cancelled it, green - and reading only the newest would have
- * been right by luck there and wrong the other way round. "Finished" is a run that reached a
- * verdict: `success` or `failure`. A `cancelled` run never reached one, and neither did a run that
- * stopped at its own `timeout-minutes` (`timed_out`) - the root AGENTS.md says so in as many words
- * - so those count as unfinished too, and a run still going counts the same as one about to be
- * cancelled, because in the seconds after the push it is.
- */
-export function unfinishedRun(runs, from) {
-  if (!Array.isArray(runs)) return null;
-  const forTip = runs.filter((run) => typeof run?.headSha === 'string' && run.headSha.startsWith(from));
-  if (forTip.length === 0) return null;
-  if (forTip.some((run) => run.conclusion === 'success' || run.conclusion === 'failure')) return null;
-  return forTip[0];
+/** Push options that take the NEXT token as their value, so it is neither a remote nor a refspec. */
+const PUSH_VALUE_OPTIONS = ['-o', '--push-option', '--repo', '--receive-pack', '--exec'];
+
+/** Push options that send every branch, main among them. */
+const PUSH_EVERY_BRANCH = ['--all', '--mirror', '--branches'];
+
+/** 'named', 'current' or null for one push's arguments - see `mainPushes`. */
+function mainPushKind(args) {
+  const positional = [];
+  for (let at = 0; at < args.length; at += 1) {
+    if (PUSH_EVERY_BRANCH.includes(args[at])) return 'named';
+    if (PUSH_VALUE_OPTIONS.includes(args[at])) at += 1;
+    else if (!args[at].startsWith('-')) positional.push(args[at]);
+  }
+  const refspecs = positional.slice(1); // the first positional is the remote
+  const writesMain = (spec) =>
+    /^\+?:$/.test(spec) || /^(?:(?:refs\/)?heads\/)?(?:main|\*)$/.test(spec.replace(/^\+/, '').split(':').pop());
+  if (refspecs.some(writesMain)) return 'named';
+  // `--tags` with no refspec pushes the tags alone, not the checked-out branch.
+  if (refspecs.length === 0) return args.includes('--tags') ? null : 'current';
+  return refspecs.some((spec) => /^\+?(?:HEAD|@)$/.test(spec) || spec.includes('$')) ? 'current' : null;
 }
 
-/**
- * What to tell a session whose push replaced the unfinished run `unfinishedRun` just found.
- *
- * THE TWO CASES OWE OPPOSITE ADVICE, which is the whole reason this is a function rather than one
- * string. A cancelled PUSH run is covered by its replacement: since 2026-09-06 `ci.yml` measures a
- * branch push from the merge-base with `main`, an ancestor of both tips, so the new plan is the
- * branch's whole work and cannot be narrower. A cancelled DISPATCH is a real loss - a dispatch has
- * no diff base and runs the full suite, and the concurrency group keys on the ref with no event in
- * it (`ci-${github.ref}`), so a push cancels one and the narrower push plan replaces it. Telling
- * that session not to re-dispatch would throw away the override it had just bought.
- *
- * IT LIVES HERE SO IT CAN BE TESTED. `hooks/warn-command.mjs` reads stdin at module top level and
- * cannot be imported, exactly as this file's header says of `guard-command.mjs`. The claim that
- * went wrong before - a message asserting the plan had been narrowed, ten days after the workflow
- * stopped narrowing it - was wrong in prose that nothing checked.
- *
- * @param {object} input
- * @param {string} input.branch the branch this push moved
- * @param {string} input.from the tip the remote held before the push
- * @param {string} input.to the tip it holds now
- * @param {{ databaseId: number|string, conclusion?: string, status?: string, event?: string }} input.run
- *   the unfinished run for `from`, as `unfinishedRun` returned it
- */
-export function pushReplacedNotice({ branch, from, to, run }) {
-  const wasDispatch = run?.event === 'workflow_dispatch';
-  const head =
-    `Heads up: this push moved ${branch} from ${from.slice(0, 8)} to ${to.slice(0, 8)}, and CI run ` +
-    `${run.databaseId} for ${from.slice(0, 8)} never finished (${run.conclusion || run.status}). ` +
-    'The concurrency group cancelled it.';
-  const situation = wasDispatch
-    ? 'That run was a DISPATCH, which has no diff base and so runs the FULL suite; the run for ' +
-      'this push plans from the merge-base with main instead, which is narrower on purpose and ' +
-      'is not what the dispatch was bought for. The override is gone, not the coverage of your ' +
-      'own change.'
-    : 'The run for THIS push covers the delta it owed: since 2026-09-06 ci.yml measures a branch ' +
-      'push from the merge-base with main, which is an ancestor of both tips, so the new plan is ' +
-      "this branch's whole work and cannot be narrower than the push run it replaced.";
-  const suite = wasDispatch
-    ? 'Ask for the full suite again as its OWN command once the push run is listed:'
-    : 'A full suite is no longer the answer to a cancelled push run. Ask for one only to ' +
-      'override the plan itself, as its OWN command once the push run is listed:';
-  // Both cases say the same four things in the same order - what happened, what it means for
-  // coverage, whether to buy a full suite, and how to check - so they differ only in the two
-  // middle strings rather than in the shape of the message.
-  return [
-    `${head} ${situation}`,
-    `${suite}\n  gh workflow run ci.yml --ref ${branch}`,
-    '(pushed and dispatched in one breath, one of the two is cancelled and which one is not ' +
-      'stable; the shell guard refuses that pairing).',
-    'Read WHICH JOBS RAN before believing the colour - a skipped shard means the plan found ' +
-      'nothing that reaches the E2E surface, and it is worth knowing which:\n' +
-      `  gh run list --branch ${branch} --limit 3\n` +
-      `  gh run view <id> --json jobs -q '.jobs[] | "\\(.conclusion)\\t\\(.name)"'`,
-  ].join('\n');
-}
-
-/**
- * The text of a tool response, whatever shape it arrives in. A PostToolUse event carries the
- * shell tool's response as an object (`stdout`, `stderr`, `interrupted`, `exit_code`); a string
- * is accepted too, and anything else reads as empty, which every caller treats as nothing to say.
- */
-export function responseText(response) {
-  if (typeof response === 'string') return response;
-  if (!response || typeof response !== 'object') return '';
-  return Object.values(response)
-    .filter((value) => typeof value === 'string')
-    .join('\n');
+/** Does this invocation leave `main` checked out (`git switch main`, `git checkout -B main …`)? */
+function checksOutMain(git) {
+  if (!BRANCH_CREATE_FLAGS[git.subcommand] || git.args.includes('--detach')) return false;
+  const created = branchCreationIn(git);
+  if (created) return created.branch === 'main';
+  // `git checkout main <path>` and `git checkout main -- <path>` restore files and move nothing.
+  const named = git.args.filter((arg) => !arg.startsWith('-'));
+  return !git.args.includes('--') && named.length === 1 && named[0] === 'main';
 }

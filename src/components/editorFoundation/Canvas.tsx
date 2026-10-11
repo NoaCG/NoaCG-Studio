@@ -33,6 +33,7 @@ interface Props {
   linked: boolean;
   groupScope: string | null; enterGroup: (selector: string) => void;
   setSelection: (selection: string[]) => void;
+  openLayerMenu: (selector: string, x: number, y: number) => void;
   onAppearance: (appearance: Record<string, RenderedPart['appearance']>) => void;
   onDrawingSpace: (space: PreviewReply['drawingSpace']) => void;
   rootSelector?: string;
@@ -41,7 +42,7 @@ interface Props {
   openAssets: () => void;
   pathEditing: string | null; onPathEditing: (selector: string | null) => void;
 }
-export default function Canvas({ template, sampleData, session, time, selection, select, linked, groupScope, enterGroup, setSelection, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets, pathEditing, onPathEditing }: Props) {
+export default function Canvas({ template, sampleData, session, time, selection, select, linked, groupScope, enterGroup, setSelection, openLayerMenu, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets, pathEditing, onPathEditing }: Props) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const controller = useRef<PreviewController | null>(null);
@@ -78,7 +79,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
     // Keep a draggable centre even when Fit makes a small layer narrower than the normal hit area:
     // measured on the layer's own sides, since a turned layer's bounds are wider than it is.
     const [c0, c1, , c3] = single.corners!, side = (q: { x: number; y: number }) => Math.hypot(q.x - c0.x, q.y - c0.y) * scale / 4;
-    const radius = Math.min(8, side(c1), side(c3)), near = (q: { x: number; y: number }, r: number) => Math.hypot(q.x - p.x, q.y - p.y) * scale <= r;
+    const radius = Math.min(8, ...[side(c1), side(c3)].filter(length => length > .01)), near = (q: { x: number; y: number }, r: number) => Math.hypot(q.x - p.x, q.y - p.y) * scale <= r;
     const corner = single.corners!.findIndex(q => near(q, radius));
     if (corner >= 0) return { kind: 'corner', index: corner };
     const edge = edges.findIndex(q => near(q, radius));
@@ -119,7 +120,13 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const parkedCue = useRef(cue);
   parkedCue.current = cue;
   parkedTime.current = time;
-  useEffect(() => { if (pathEditing) viewport.current?.focus(); }, [pathEditing]);
+  const previousPathEditing = useRef(pathEditing);
+  useEffect(() => {
+    if (previousPathEditing.current === pathEditing) return;
+    previousPathEditing.current = pathEditing;
+    pen.cancel(); gesture.cancel();
+    if (pathEditing) viewport.current?.focus();
+  }, [pathEditing, pen, gesture]);
 
   useEffect(() => {
     const observer = new ResizeObserver(entries => {
@@ -162,6 +169,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
     if (previousScope.current === groupScope) return;
     previousScope.current = groupScope;
     keyboard.cancel(); pen.cancel(); gesture.cancel();
+    // Creation belongs to Composition. Do not leave a disabled drawing tool active in a group.
+    if (groupScope && gesture.tool !== 'select' && gesture.tool !== 'anchor') gesture.setTool('select');
     marqueeStart.current = null; setMarquee(null); drag.current = null;
     space.current = false; spaceTap.current = false; setEditing(null);
   }, [groupScope, keyboard, pen, gesture]);
@@ -195,6 +204,16 @@ export default function Canvas({ template, sampleData, session, time, selection,
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
       data-testid="foundation-canvas" data-tool={tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
       data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
+      onContextMenu={event => {
+        if (pending || tool !== 'select' || pathEditing || (event.target as HTMLElement).closest('.ef-inline-text')) return;
+        event.preventDefault(); pause(); keyboard.cancel(); gesture.cancel();
+        const point = pointerPoint(event, size, pan, scale, width, height);
+        const hits = visibleParts.filter(part => part.selector !== rootSelector && point.x >= part.x && point.x <= part.x + part.width && point.y >= part.y && point.y <= part.y + part.height)
+          .sort((a, b) => Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || a.width * a.height - b.width * b.height);
+        const hit = hits[0]; if (!hit) return;
+        if (!selection.includes(hit.selector)) select(hit.selector, false);
+        openLayerMenu(hit.selector, event.clientX, event.clientY);
+      }}
       onDragOver={event => {
         if (event.dataTransfer.types.includes('Files') || event.dataTransfer.types.includes(ASSET_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }
       }}

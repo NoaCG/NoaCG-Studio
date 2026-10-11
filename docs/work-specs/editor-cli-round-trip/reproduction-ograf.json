@@ -1,0 +1,6 @@
+{
+  "boundary": "OGraf bodyContent",
+  "metadataInSource": true,
+  "metadataInOutput": false,
+  "outputExcerpt": "<!-- Graphic root — zone-positioned; opacity 0 until play() runs the entrance. -->\n  <div class=\"graphic\">\n    <!-- NEUTRAL SPINE: a valid graphic with the fields you declared. The structure is the\n         contract (the box, one mask per line, the ids); how it looks is yours. -->\n    <div class=\"gr"
+}

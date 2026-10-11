@@ -197,7 +197,7 @@ function flatten(text) {
  * a way to fail open. NUL-separated output is the literal path, always.
  */
 function trackedFiles() {
-  const out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' });
+  const out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   return out
     .split('\0')
     .map((line) => line.trim().replace(/\\/g, '/'))

@@ -228,55 +228,64 @@ function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Body of the rule whose selector list exactly equals `selector` (comments stripped). */
-export function findRuleBody(css: string, selector: string): { body: string; start: number; end: number } | null {
-  let i = 0;
-  let ruleStart = 0;
+type CssRuleBody = { body: string; start: number; end: number };
+
+/** Exact top-level rules, preserving the scanner used by the source readers. */
+function* ruleBodies(css: string, selector: string): Generator<CssRuleBody> {
+  let i = 0, ruleStart = 0;
   while (i < css.length) {
     if (css[i] === '{') {
       const sel = css.slice(ruleStart, i).replace(/\/\*[\s\S]*?\*\//g, '').trim();
-      let depth = 1;
-      let j = i + 1;
+      let depth = 1, j = i + 1;
       while (j < css.length && depth > 0) {
         if (css[j] === '{') depth++;
         else if (css[j] === '}') depth--;
         j++;
       }
-      if (sel === selector) return { body: css.slice(i + 1, j - 1), start: i + 1, end: j - 1 };
+      if (sel === selector) yield { body: css.slice(i + 1, j - 1), start: i + 1, end: j - 1 };
       i = j;
       ruleStart = j;
       continue;
     }
     i++;
   }
-  return null;
+}
+
+/** Body of the first exact top-level selector (comments stripped from the selector). */
+export function findRuleBody(css: string, selector: string): CssRuleBody | null {
+  return ruleBodies(css, selector).next().value ?? null;
 }
 
 /**
- * Insert/replace a single `prop: value` declaration inside the rule for `selector`, creating the
- * rule if it doesn't exist. Deterministic; preserves the rest of the stylesheet. Used by the
- * Blocks panel's suggested-property chips.
+ * Set the effective declaration among repeated exact top-level rules, or append to the first
+ * rule when absent. Keep unrelated and nested rules intact, and retain important priority.
  */
 export function setCssDeclaration(css: string, selector: string, prop: string, value: string): string {
-  const rule = findRuleBody(css, selector);
-  if (rule) {
-    // A declaration may be preceded by the PREVIOUS line's trailing comment (generated rules
-    // annotate every declaration — zoneCssText, the imported-design placement rules), so a
-    // closing `*/` counts as a boundary too. Without it the replace never matched such a
-    // declaration and this fell through to append — a silent duplicate whose stale twin
-    // stayed in the rule forever.
-    const re = new RegExp(`(^|;|\\{|\\*\\/)(\\s*)${escapeRe(prop)}\\s*:[^;}]*`, 'i');
-    let body = rule.body;
-    if (re.test(body)) {
-      body = body.replace(re, `$1$2${prop}: ${value}`);
-    } else {
-      const trimmed = body.replace(/\s*$/, '');
-      // A trailing comment annotates the declaration before it, so that declaration decides
-      // whether a separator is missing; otherwise `/* note */;` lands after every such rule.
-      const last = trimmed.replace(/(?:\s*\/\*(?:[^*]|\*(?!\/))*\*\/)+$/, '');
-      const sep = last.endsWith(';') || last === '' ? '' : ';';
-      body = `${trimmed}${sep}\n  ${prop}: ${value};\n`;
+  let rule: CssRuleBody | undefined;
+  let chosen: { rule: CssRuleBody; match: RegExpMatchArray; important: boolean } | undefined;
+  // A trailing comment on the previous declaration also counts as a boundary.
+  const re = new RegExp(`(^|;|\\{|\\*\\/)(\\s*)${escapeRe(prop)}\\s*:[^;}]*`, 'gi');
+  for (const candidate of ruleBodies(css, selector)) {
+    // New properties stay in the first owned rule, which anchor/group readers inspect.
+    rule ??= candidate;
+    for (const match of candidate.body.matchAll(re)) {
+      const important = /!\s*important\s*$/i.test(match[0].replace(/\/\*[\s\S]*?\*\//g, ''));
+      if (!chosen || important || !chosen.important) chosen = { rule: candidate, match, important };
     }
+  }
+  if (chosen) {
+    const { match, important } = chosen;
+    rule = chosen.rule;
+    const priority = important && !/!\s*important\s*$/i.test(value) ? ' !important' : '';
+    const body = rule.body.slice(0, match.index) + match[1] + match[2] + prop + ': ' + value + priority + rule.body.slice(match.index! + match[0].length);
+    return css.slice(0, rule.start) + body + css.slice(rule.end);
+  }
+  if (rule) {
+    const trimmed = rule.body.replace(/\s*$/, '');
+    // A trailing comment annotates the declaration before it, which decides the separator.
+    const last = trimmed.replace(/(?:\s*\/\*(?:[^*]|\*(?!\/))*\*\/)+$/, '');
+    const sep = last.endsWith(';') || last === '' ? '' : ';';
+    const body = `${trimmed}${sep}\n  ${prop}: ${value};\n`;
     return css.slice(0, rule.start) + body + css.slice(rule.end);
   }
   return `${css.replace(/\s*$/, '')}\n\n${selector} {\n  ${prop}: ${value};\n}\n`;

@@ -1,0 +1,27 @@
+[
+  {
+    "path": "apps/vectorcraft/src/control_server.rs",
+    "ref": "a26aa5b203c901979eb447d28e34e7357138c789",
+    "blob": "ec67c14220f040d1a5c869ea1f24145884eb8bd2"
+  },
+  {
+    "path": "crates/ui-egui/src/control.rs",
+    "ref": "a26aa5b203c901979eb447d28e34e7357138c789",
+    "blob": "abc6984839afb8c268388604781daffcf1cb1840"
+  },
+  {
+    "path": "crates/engine/src/cmd/typecmd.rs",
+    "ref": "a26aa5b203c901979eb447d28e34e7357138c789",
+    "blob": "f8d044e57499269b099f99e3e2cfd02b62da48ef"
+  },
+  {
+    "path": "crates/engine/src/cmd/object.rs",
+    "ref": "a26aa5b203c901979eb447d28e34e7357138c789",
+    "blob": "2e675eefbda991f0a37d729d91c84913d77aeb41"
+  },
+  {
+    "path": "crates/engine/src/cmd/edit.rs",
+    "ref": "a26aa5b203c901979eb447d28e34e7357138c789",
+    "blob": "3c070f6c3743fece238c5c91c51108a195af53da"
+  }
+]

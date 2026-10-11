@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "2d85ef3bfee82ba7745fba25b320fbeb3007a1934f8b08d672a4dea5143e7bc4",
+  "authority": {
+    "status": "agreed",
+    "source": "the owner's answers of 2026-10-08 to the per-graphic replacement grill: an on-air graphic keeps its version until it is cleared or replaced (Out, All out, Stop/Clear, a replacing Take), with live content still reaching it and no Apply button, the same on browser outputs and CasparCG, a compact waiting status shown only when relevant; each output swaps on its own with no protocol change; shared fields keep updating live, new fields appear after the swap, renames keep identity and removed fields never break live controls, with no versioned panels"
+  },
+  "review": null
+}

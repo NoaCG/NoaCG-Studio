@@ -1,0 +1,249 @@
+{
+ "lt12": {
+  "lightVsShadow": [
+   19767,
+   1926,
+   1926
+  ],
+  "lightVsLight": [
+   25635,
+   869,
+   869
+  ],
+  "painted": 164143
+ },
+ "cr01": {
+  "lightVsShadow": [
+   0,
+   3093,
+   11400
+  ],
+  "lightVsLight": [
+   0,
+   2820,
+   13666
+  ],
+  "painted": 2073600
+ },
+ "cr02": {
+  "lightVsShadow": [
+   0,
+   11262,
+   35325
+  ],
+  "lightVsLight": [
+   0,
+   10860,
+   16571
+  ],
+  "painted": 2073600
+ },
+ "tk05": {
+  "lightVsShadow": [
+   0,
+   15367,
+   6977
+  ],
+  "lightVsLight": [
+   0,
+   17669,
+   12450
+  ],
+  "painted": 169332
+ },
+ "ss01": {
+  "lightVsShadow": [
+   2813,
+   2533,
+   2382
+  ],
+  "lightVsLight": [
+   5881,
+   4793,
+   4663
+  ],
+  "painted": 2073600
+ },
+ "gt01": {
+  "lightVsShadow": [
+   298,
+   0,
+   0
+  ],
+  "lightVsLight": [
+   448,
+   961,
+   955
+  ],
+  "painted": 6243
+ },
+ "gt02": {
+  "lightVsShadow": [
+   1772,
+   1201,
+   1231
+  ],
+  "lightVsLight": [
+   1090,
+   1201,
+   1231
+  ],
+  "painted": 63837
+ },
+ "sb01": {
+  "lightVsShadow": [
+   0,
+   0,
+   0
+  ],
+  "lightVsLight": [
+   54,
+   0,
+   0
+  ],
+  "painted": 98171
+ },
+ "bug02": {
+  "lightVsShadow": [
+   459,
+   366,
+   363
+  ],
+  "lightVsLight": [
+   1692,
+   1542,
+   1561
+  ],
+  "painted": 10140
+ },
+ "vs02": {
+  "lightVsShadow": [
+   8614,
+   3603,
+   3603
+  ],
+  "lightVsLight": [
+   7180,
+   1573,
+   1573
+  ],
+  "painted": 2073600
+ },
+ "rs01": {
+  "lightVsShadow": [
+   1828,
+   1605,
+   1605
+  ],
+  "lightVsLight": [
+   1346,
+   2374,
+   2374
+  ],
+  "painted": 508000
+ },
+ "rs02": {
+  "lightVsShadow": [
+   1405,
+   1947,
+   1947
+  ],
+  "lightVsLight": [
+   3577,
+   2007,
+   2007
+  ],
+  "painted": 573664
+ },
+ "nm01": {
+  "lightVsShadow": [
+   2109,
+   3681,
+   3681
+  ],
+  "lightVsLight": [
+   5189,
+   3290,
+   3290
+  ],
+  "painted": 2073600
+ },
+ "pl01": {
+  "lightVsShadow": [
+   4140,
+   814,
+   814
+  ],
+  "lightVsLight": [
+   4140,
+   1056,
+   1056
+  ],
+  "painted": 439806
+ },
+ "pl02": {
+  "lightVsShadow": [
+   2424,
+   258,
+   258
+  ],
+  "lightVsLight": [
+   1809,
+   2184,
+   2184
+  ],
+  "painted": 365951
+ },
+ "aw01": {
+  "lightVsShadow": [
+   6012,
+   0,
+   0
+  ],
+  "lightVsLight": [
+   1664,
+   6477,
+   6477
+  ],
+  "painted": 2073600
+ },
+ "lt01": {
+  "lightVsShadow": [
+   0,
+   0,
+   0
+  ],
+  "lightVsLight": [
+   0,
+   0,
+   0
+  ],
+  "painted": 10291
+ },
+ "qz01": {
+  "lightVsShadow": [
+   7452,
+   633,
+   633
+  ],
+  "lightVsLight": [
+   5906,
+   710,
+   710
+  ],
+  "painted": 439858
+ },
+ "tk07": {
+  "lightVsShadow": [
+   0,
+   0,
+   5129
+  ],
+  "lightVsLight": [
+   0,
+   0,
+   5671
+  ],
+  "painted": 169332
+ }
+}

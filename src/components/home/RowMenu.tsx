@@ -25,16 +25,34 @@ export interface RowMenuItem {
  * it opens: the last row of a long library is at the bottom of the viewport, where a downward
  * menu has nowhere to go.
  */
-export default function RowMenu({ items, label = 'More actions' }: { items: RowMenuItem[]; label?: string }) {
-  const [open, setOpen] = useState(false);
+export default function RowMenu({
+  items,
+  label = 'More actions',
+  open: openProp,
+  onOpenChange,
+  testid = 'row-menu',
+}: {
+  items: RowMenuItem[];
+  label?: string;
+  /** Controlled open state, for a host with a second way to open it (a folder card's right-click). */
+  open?: boolean;
+  onOpenChange?: (next: boolean) => void;
+  testid?: string;
+}) {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    if (openProp === undefined) setOpenState(next);
+    onOpenChange?.(next);
+  };
   return (
     <div className="lib-menu-host">
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         title={label}
         aria-label={label}
         aria-expanded={open}
-        data-testid="row-menu"
+        data-testid={testid}
       >
         <IconDots />
       </button>

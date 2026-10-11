@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from '../../app/router';
-import { useTemplateStore } from '../../store/templateStore';
+import { startNewGraphic } from '../NewGraphicButton';
 import {
   addPlayoutItems,
   addShowCue,
@@ -13,6 +12,7 @@ import {
 } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { GraphicDoc } from '../../model/library';
+import { productionCredits } from '../../community/packStamp';
 import { graphicKindLabel } from '../../model/types';
 import { accentColor, routeColor } from '../../model/outputSetup';
 import { CueAccentControl } from './RundownColors';
@@ -92,7 +92,7 @@ interface Aim {
 /**
  * THE CUE RUNDOWN of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2 and §4): the rows, the
  * drag reorder, each row's ⋯ menu, and the rail foot, which is how graphics, pictures and server
- * items get in. Moved out of ProductionPage by phase 1 of docs/backlog/production-page-phases.md.
+ * items get in. Moved out of ProductionPage by phase 1 of https://github.com/NoaCG/NoaCG-Studio/issues/766.
  *
  * It owns only its own menus and pickers, where the list is scrolled, and where a drag is aimed. What
  * it changes goes to the record through `setShows` or through the page's callbacks, and what is ON
@@ -266,10 +266,11 @@ export default function CueRundown({
   refreshRundown: () => Promise<void>;
   refreshing: boolean;
 }) {
-  const navigate = useRouter((s) => s.navigate);
   const [addPick, setAddPick] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const libraryPick = useRef<HTMLSelectElement>(null);
+  // Where the production's community pack graphics came from, said once (spec AC-5).
+  const credits = useMemo(() => productionCredits(show, library), [show, library]);
   const serverPick = useRef<HTMLButtonElement>(null);
   /** The hidden file input behind "＋ Add pictures…". */
   const pictureInput = useRef<HTMLInputElement>(null);
@@ -453,10 +454,9 @@ export default function CueRundown({
   const rangeCount = range.size;
   const selectedCue = cues.find((c) => c.id === selectedCueId);
   const folderCueIds = rangeCount ? [...range] : selectedCue && !selectedCue.folderId ? [selectedCue.id] : [];
-  const createGraphic = () => {
-    useTemplateStore.setState({ pendingProductionId: show.id });
-    navigate({ view: 'new' });
-  };
+  // The bar's + New graphic press, so this door asks before it discards a wizard walk left
+  // mid-way, or unsaved work, exactly as the bar's does (e2e/wizard-draft-guard.spec.ts).
+  const createGraphic = () => startNewGraphic(show.id);
   const pickAdd = (run: () => void) => () => {
     setAddOpen(false);
     run();
@@ -1152,6 +1152,9 @@ export default function CueRundown({
           }}
           data-testid="add-pictures-input"
         />
+        {credits.map((credit) => (
+          <p key={credit} className="pd-credit" data-testid="pack-credit">{credit}</p>
+        ))}
       </div>
       {shortcutCue && cues.find(c => c.id === shortcutCue) && <CueShortcutDialog key={shortcutCue} show={show} cue={cues.find(c => c.id === shortcutCue)!} setShows={setShows} onClose={() => setShortcutCue(null)} />}
     </aside>

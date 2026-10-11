@@ -24,4 +24,4 @@ One run per cell; a near-stranger, not a stranger; this machine's command guards
 time; stills only, so motion is judged where a still catches it; the opt-in reviewer was not
 blind. AC-10 passing means the benchmark ran and was judged as specified. It does not mean the
 plugin passes the bar: the verdicts feed AC-4, AC-5, AC-6, AC-7, AC-12 and AC-13, and those stay
-open here. The next run is scheduled in `docs/backlog/plugin-quality-benchmark-judged-from-frames.md`.
+open here. The next run is scheduled in [issue #770](https://github.com/NoaCG/NoaCG-Studio/issues/770).

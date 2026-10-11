@@ -30,7 +30,7 @@ const cases = [
 const originals = new Map(cases.map(([, file]) => [file, readFileSync(file)]));
 const delay = () => new Promise(resolve => setTimeout(resolve, 2000));
 const run = grep => spawnSync(process.execPath, grep.startsWith('native:') ? ['--test', '--test-name-pattern', grep.slice(7), 'scripts/editor-organization.test.mjs'] : [resolve('node_modules/@playwright/test/cli.js'), 'test', 'e2e/editor-folders-bins.spec.ts', '--grep', grep], {
-  encoding: 'utf8', timeout: 240000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, E2E_WORKERS: '3' },
+  encoding: 'utf8', timeout: 240000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, E2E_WORKERS: '3' }, windowsHide: true,
 });
 const nativeControl = run('native:a metadata-shaped string');
 if (nativeControl.status !== 0) { process.stdout.write(nativeControl.stdout + nativeControl.stderr); throw new Error('The unmodified source header control failed.'); }

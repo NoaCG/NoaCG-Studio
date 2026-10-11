@@ -20,6 +20,7 @@ import {
   setShowOutputSlug,
   setShowOutputSetup,
   setShowProfile,
+  refreshGraphicCopies,
   updateShowCue,
   updateShowCueChecked,
   playoutItemOf,
@@ -173,7 +174,8 @@ import {
 import { withLiveLabels } from '../../blocks/controlLabels';
 import {
   clearAllCueBatches,
-  headsOnAir,
+  headsSay,
+  headsStillOn,
   clearCueItems,
   controlOutputSeenAt,
   controlPageUrl,
@@ -186,6 +188,7 @@ import {
   controlPingSeq,
   outputPageUrl,
   publishControlShow,
+  PublishBehind,
   sendControlVerbs,
   staleSentence,
   takeCueItems,
@@ -193,6 +196,7 @@ import {
   verbAired,
   verbStale,
   verbsLanded,
+  verbSentItems,
   leftAlone,
   withLiveCue,
   type ControlEventRow,
@@ -228,7 +232,7 @@ import ProductionExportDialog from './ProductionExportDialog';
 import { BrowserSourceRow, CasparSection, DueActions, PanelProblems, RendererRows, type CasparFacts } from './PlayoutPanel';
 import { ProductionLinksDialog } from './ProductionLinks';
 import { PlayoutStatusControl } from './PlayoutStatusControl';
-import { allOutTargets } from '../../control/allOut';
+import { ALL_OUT_CONFIRM_MS, allOutTargets } from '../../control/allOut';
 import CueRundown, { nameList } from './CueRundown';
 import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGate';
 import ServerDiagnostics from './ServerDiagnostics';
@@ -317,10 +321,6 @@ const LOG_HISTORY_SPAN = 400;
 
 /** One empty rundown, so a production without cues hands the shortcut hook a stable list. */
 const NO_CUES: readonly ShowCue[] = [];
-
-/** How long All out waits for the server's heads to say each graphic is off before it names the
- *  ones that are not (playout-workflow-simplification AC-13). */
-const ALL_OUT_CONFIRM_MS = 5000;
 
 /** How long a native cue's verb lets the local save run before it sends (AC-14). */
 const LOCAL_SAVE_HEAD_START_MS = 250;
@@ -1031,6 +1031,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // `setLiveCue` is stable (a useCallback with no deps), but it is no longer React's own
     // setter identity, so it is declared rather than assumed.
     [applyProgram, rememberAired, setLiveCue],
+  );
+  /** Commands the server sent back, on either road. One of a send that failed here landed after
+   *  all, so the notice about it comes down (failedSends.ts `heard`). */
+  const hearCommand = useCallback(
+    (items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
+      const settle = sendDebts.current.heard(items);
+      if (settle) {
+        setNote(settle);
+        // A folder Take keeps each member's failure beside its cue; one that landed is no miss.
+        setTakeMisses((m) => {
+          const kept = Object.entries(m).filter(([, missed]) => settle(missed) !== null);
+          return kept.length === Object.keys(m).length ? m : Object.fromEntries(kept);
+        });
+      }
+      applyCommand(items);
+    },
+    [applyCommand],
   );
 
   const cues = useMemo(() => show?.cues ?? [], [show]);
@@ -1802,14 +1819,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // THE FAST ROAD. The same verbs, broadcast by the database on the production's private
         // topic and here before their rows are - which is what moves this page's PROGRAM monitor
         // when the press came from another operator's phone.
-        onCommand: applyCommand,
+        onCommand: hearCommand,
         onRow: (row) => {
           const msg = row.msg;
           // Mirror air locally: the PROGRAM monitor follows the wire, not just this page's own
           // buttons, so a take from another operator's phone shows here too. It is the SAME
           // door the broadcast above comes through, and `applyCommand` drops whichever copy is
           // second - a duplicate entrance would leave no trace on screen.
-          applyCommand([{ graphic: row.graphic, msg }]);
+          hearCommand([{ graphic: row.graphic, msg }]);
           // A timed cue's countdown moves with its cue rows, and starts at a renderer's report.
           armWire.current?.row(row);
           // A 'live' row is the renderer REPORTING what it applied — machine state included,
@@ -2176,7 +2193,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           )
           .filter((e): e is LogEntry => !!e);
         setWireLog((l) => appendLogEntries(l, entries));
-        return { ok: true, skipped: [], superseded: [] };
+        return { ok: true, skipped: [], superseded: [], pressedAgain: [] };
       }
       // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the
       // same countdown from the Take's own row (control/cueArmWire.ts). Every Take leaves here,
@@ -2222,8 +2239,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           : verbAired(e)
             ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
             : `${label} failed: ${(e as Error).message}`;
-        // Owed: the batch that failed and those after it. The ones before it landed.
-        sendDebts.current.failed(marked.slice(verbsLanded(e)).flat(), note);
+        // Owed: the batch that failed, as it was sent, and those after it. The ones before it landed.
+        const landed = verbsLanded(e);
+        sendDebts.current.failed([...(verbSentItems(e) ?? marked[landed] ?? []), ...marked.slice(landed + 1).flat()], note);
         return { ok: false, note };
       }
     },
@@ -2269,7 +2287,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
   // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
   // hears that part directly; it publishes only when a key would show a difference.
-  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS });
+  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS, auto: true });
   const [panelOpen, setPanelOpen] = useState(false);
   const audienceInbox = useAudienceInbox(show);
   // While answering, the panel also hears the timing part, after the whole fold: a reading moves
@@ -2589,12 +2607,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     onAirChanged('air', result, casparOutputTarget(settings));
     if (result.state !== 'ok') setNote(`Load on ${where} failed: ${result.detail}`);
   });
-  const unloadFromSlot = (): Promise<void> => slotAction(async () => {
+  /** Take this production's renderer off its CasparCG slot through the Bridge: where, and the note
+   *  a failure leaves. */
+  const takeOffSlot = async (): Promise<{ where: string; failed: string | null }> => {
     const settings = loadPlayoutSettings();
+    const where = slotAddress(slotOf(settings));
     const result = await takeOutputOff(settings);
     onAirChanged('stop', result, casparOutputTarget(settings));
-    if (result.state !== 'ok') setNote(`Unload from ${slotAddress(slotOf(settings))} failed: ${result.detail}`);
+    return { where, failed: result.state === 'ok' ? null : `Unload from ${where} failed: ${result.detail}` };
+  };
+  const unloadFromSlot = (): Promise<void> => slotAction(async () => {
+    const { failed } = await takeOffSlot();
+    if (failed) setNote(failed);
   });
+  /** THE OFFLINE CLEAR (docs/work-specs/offline-clear/spec.md): All out did not clear NoaCG
+   *  graphics through the cloud, so this production's renderer comes off its CasparCG slot through
+   *  the Bridge, which needs no cloud. A renderer loaded again boots into what the cloud still says
+   *  is on air, which is why the note asks for All out before Load. Answers `base` with that said,
+   *  or `base` alone when the slot does not hold this production's renderer. */
+  const clearThroughBridge = async (base: string): Promise<string> => {
+    if (outputSlot?.holds !== 'ours') return base;
+    let said = '';
+    await slotAction(async () => {
+      const { where, failed } = await takeOffSlot();
+      said = failed ?? `Unloaded NoaCG graphics from ${where}. When the connection is back, press All out before Load on ${where}.`;
+    });
+    return said ? `${base.replace(/\.?$/, '.')} ${said}` : base;
+  };
 
   /** Publish; the version it wrote, or null when it did not (the note says why). `forPrepare`:
    *  The readiness flow owns preparation and reports the result in the status panel. */
@@ -2633,7 +2672,34 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
       // Started before this press: then this is a re-publish, and open outputs are asked to prepare.
       const wasStarted = !!current?.hostedSlug;
-      const published = current ? await publishControlShow(current) : null;
+      // THE PUBLISH GUARD (docs/work-specs/publish-guard/spec.md): a team production is pulled to
+      // its latest record, this page's newer designs are copied into the record and saved, and the
+      // payload is built from that. A published version ahead of it (a teammate who published in
+      // between, or a newer design than this page's copy) is pulled in once more.
+      const publishLatest = async () => {
+        for (let attempt = 0; ; attempt += 1) {
+          const team = !!loadShows().find((s) => s.id === show.id)?.teamId;
+          if (team) await refreshTeams();
+          const library = loadGraphics();
+          const refreshed = refreshGraphicCopies(show.id, (g) => resolveSavedGraphicDoc(g, library));
+          setShows(refreshed.shows);
+          if (refreshed.error) throw new Error(refreshed.error);
+          // A team save that fails does not stop the publish (G2): an older design is still refused.
+          if (team) await flushTeamProduction(show.id);
+          else {
+            const failure = await commitDurableWrites();
+            if (failure) throw new Error(failure);
+          }
+          const latest = loadShows().find((s) => s.id === show.id);
+          if (!latest) return null;
+          try {
+            return await publishControlShow(latest);
+          } catch (e) {
+            if (!(e instanceof PublishBehind) || attempt > 0) throw e;
+          }
+        }
+      };
+      const published = current ? await publishLatest() : null;
       if (published) {
         setShowHostedSlug(show.id, published.slug);
         // The audience capabilities are minted by the database and read back, never chosen
@@ -2800,7 +2866,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // the button and Re-take all come through here, so the check is made once, where it cannot be
     // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it.
     if (verb === 'take') {
-      if (!casparOn) return { ok: false, note: `${label} was not sent: CasparCG is off for this production.`, accepted: [] };
       const blocked = options.direct ? directBlocker(cue) : takeBlockerFor(cue);
       if (blocked) return { ok: false, note: `${label} was not sent: ${blocked}`, accepted: [] };
     }
@@ -2955,9 +3020,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setNote(sent.note);
       return;
     }
+    const stands = leftAlone(sent);
     setLiveCue((m) => {
-      let lc = out ? withLiveCue(m, graphic, null) : m;
-      if (next && nextGraphic) lc = withLiveCue(lc, nextGraphic, next.id);
+      let lc = out && !stands.includes(graphic) ? withLiveCue(m, graphic, null) : m;
+      if (next && nextGraphic && !stands.includes(nextGraphic)) lc = withLiveCue(lc, nextGraphic, next.id);
       return lc;
     });
     if (next) {
@@ -3173,7 +3239,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // marker went missing, or one a renderer kept across a republish, is cleared too.
     const cleared = allOutTargets({
       local: liveLayers.map((l) => l.graphic),
-      onServer: hostedSlug ? headsOnAir(hostedSlug) : null,
+      heads: hostedSlug ? headsSay(hostedSlug) : null,
       all: show.graphics.map((g) => g.name),
       published: !!hostedSlug,
     });
@@ -3182,7 +3248,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     try {
       const sent = await sendVerb(clearAllCueBatches(cleared), 'All out', true);
       if (!sent.ok) {
-        setNote(sent.note);
+        setNote(await clearThroughBridge(sent.note));
         return;
       }
       // A graphic this page pressed again while the All out was on its way stays as that later press
@@ -3190,13 +3256,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const off = cleared.filter((g) => !leftAlone(sent).includes(g));
       setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
       // Clearing… until the heads say each is off; one still on is named, never assumed gone.
-      if (hostedSlug && headsOnAir(hostedSlug) !== null) {
-        const stillOn = () => (headsOnAir(hostedSlug) ?? []).filter((g) => off.includes(g));
-        const deadline = Date.now() + ALL_OUT_CONFIRM_MS;
-        while (stillOn().length > 0 && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 200));
-        const still = stillOn();
-        if (still.length > 0) setNote(`All out did not clear ${nameList(still)}`);
-      }
+      const still = hostedSlug ? await headsStillOn(hostedSlug, off, ALL_OUT_CONFIRM_MS) : [];
+      if (still.length > 0) setNote(await clearThroughBridge(`All out did not clear ${nameList(still)}`));
     } finally {
       setClearing(false);
     }
@@ -3320,6 +3381,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       },
     ];
   };
+  /** A native cue is not taken while the production's CasparCG switch is off (AC-4): the one place
+   *  that says so, read by the TAKE button's title, the cue editor, a One-by-one step and the send.
+   *  An All-together folder still takes its other cues and marks such a member NOT TAKEN. */
+  const casparOffRefusal = (cue: ShowCue): string | null =>
+    cue.source === 'playout' && !casparOn ? 'CasparCG is off for this production.' : null;
   /**
    * WHY A TAKE OF THIS CUE - OR THIS FOLDER - WOULD NOT GO, or null (plan §6.9): a setting nobody here
    * can honour is never dropped on the way to air, a Play next whose clips cannot be found is never
@@ -3329,6 +3395,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => {
     if (!target) return null;
+    const off = 'source' in target ? casparOffRefusal(target) : null;
+    if (off) return off;
     const plans = takePlans(target);
     for (const plan of plans) {
       const onOutput = outputSlotRefusal(plan.slot, playoutSettings);
@@ -3346,6 +3414,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Direct cues use their own route and end action, independently of their folder or neighbours. */
   const directBlocker = (cue: ShowCue): string | null => {
     if (cue.source !== 'playout') return !cueGraphicName(cue) ? `${cue.label} has no graphic.` : null;
+    const off = casparOffRefusal(cue);
+    if (off) return off;
     const item = playoutItemFor(cue);
     if (!item) return `${cue.label} has no media file.`;
     const settings = loadPlayoutSettings();
@@ -3491,7 +3561,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setNote(outcome.note);
         return;
       }
-      const plan = togetherPlan(members, { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => takeBlockerFor(c) });
+      const plan = togetherPlan(members, { items: playoutItems, addressOf: addressOfItem, graphicOf: graphicOfCue, ability: playbackAbility, blockerOf: (c) => (casparOffRefusal(c) ? null : takeBlockerFor(c)) });
       if (!plan.ok) {
         setNote(`Take was not sent: ${plan.reason}`);
         return;
@@ -3839,7 +3909,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // keeps the two in step, and a press that failed on the way to the log must not leave every
     // other bound graphic showing a figure this one never took.
     const sent = await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`);
-    if (sent && !leftAlone(sent).includes(selectedGraphic)) await patchBoundValues(tree);
+    // Not `leftAlone`: an event that landed moves the tree even when a later press followed it.
+    if (sent && ![...sent.skipped, ...sent.superseded].includes(selectedGraphic)) await patchBoundValues(tree);
   };
 
   /** Snap the live graphic straight to a state — recovery, never an animation. A null group
@@ -4375,10 +4446,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
   const flowBusy = prepareFlow.phase === 'publishing' || prepareFlow.phase === 'preparing';
+  /** The CasparCG slot is this page's to show and act on: published, switched on, and the Bridge
+   *  paired and answering. The header's Load and the panel's slot row read the same gate. */
+  const slotInPlay = started && casparOn && playoutIsConfigured && bridgeOk;
   /** THE ONE ACTION SLOT (D1): Publish before the first publish, then whichever is due first -
    *  loading this production on its CasparCG slot, then publishing changes that renderers draw. The
    *  panel lists every due action. */
-  const loadDue = started && casparOn && playoutIsConfigured && bridgeOk && !!outputSlot && outputSlot.holds !== 'ours' && outputSlot.holds !== 'unreadable' && outputSlot.holds !== 'failed' && !replaceAsk;
+  const loadDue = slotInPlay && !!outputSlot && outputSlot.holds !== 'ours' && outputSlot.holds !== 'unreadable' && outputSlot.holds !== 'failed' && !replaceAsk;
   const headerAction: { label: string; testId: string; run: () => void; primary?: boolean; title?: string; unavailable?: boolean } | null = !started
     ? {
         label: 'Publish',
@@ -4417,24 +4491,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           host: bridgeCheckLine.tone === 'ok' ? playoutSettings.host : undefined,
         }
       : null,
-    slot:
-      started && casparOn && playoutIsConfigured && bridgeOk
-        ? {
-            where: slotWhere,
-            tone: slotCheckLine?.tone ?? 'idle',
-            text: !outputSlot
-              ? 'Checking…'
-              : {
-                  ours: slotCheckLine?.tone === 'ok' ? 'Loaded' : 'Loading…',
-                  other: 'Another production',
-                  failed: 'Cannot read',
-                  unreadable: slotLoadedHere ? 'Loaded' : 'Unknown',
-                  empty: 'Empty',
-                }[outputSlot.holds],
-            canLoad: !!outputSlot && outputSlot.holds !== 'ours' && !replaceAsk,
-            canUnload: outputSlot?.holds === 'ours' || outputSlot?.holds === 'unreadable',
-          }
-        : null,
+    slot: slotInPlay
+      ? {
+          where: slotWhere,
+          tone: slotCheckLine?.tone ?? 'idle',
+          text: !outputSlot
+            ? 'Checking…'
+            : {
+                ours: slotCheckLine?.tone === 'ok' ? 'Loaded' : 'Loading…',
+                other: 'Another production',
+                failed: 'Cannot read',
+                unreadable: slotLoadedHere ? 'Loaded' : 'Unknown',
+                empty: 'Empty',
+              }[outputSlot.holds],
+          canLoad: !!outputSlot && outputSlot.holds !== 'ours' && !replaceAsk,
+          canUnload: outputSlot?.holds === 'ours' || outputSlot?.holds === 'unreadable',
+        }
+      : null,
     replaceAsk: replaceAsk ? { where: slotWhere } : null,
     busy: busy || flowBusy || slotBusy,
   };
@@ -5534,15 +5607,27 @@ function ProductionShell({
             The cloud chip stays visible: an operator must not miss a save that is late or failed. */}
         {/* One chip for both kinds of production (playout-workflow-simplification AC-12): a team
             production reads its own save, in the same words. */}
-        <SyncStatus compact team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
-        {/* The panel's status, only while it is switched on: "Panel ✓" answering, "Panel …"
-            connecting. A press opens its dialog, as the Setup menu's item does. */}
-        {panelState !== 'off' && (
+        <SyncStatus team={show.teamId ? { productionId: show.id, saving, note: teamNote } : undefined} />
+        {/* WHO ANSWERS THE PANEL (panel lease L8), only with a panel paired or answering: "Panel ✓"
+            here and "Panel …" taking it, which open its dialog as the Setup menu's item does; on
+            another page, one quiet "Use panel here" that moves it, naming that page in its tooltip,
+            so a laptop header keeps its room for the production's name. */}
+        {panelState === 'held' ? (
+          <button
+            className="pd-panel-status pd-panel-status--held"
+            onClick={panel.useHere}
+            title={`${panel.holder} answers the Stream Deck panel. Press to answer it here.`}
+            data-testid="panel-header-use-here"
+          >
+            Use panel here
+          </button>
+        ) : panelState !== 'off' && (
           <button
             className={`pd-panel-status pd-panel-status--${panelState}`}
             onClick={onPanel}
             title={panelState === 'ok' ? 'This page answers the Stream Deck panel' : 'Connecting to the Stream Deck panel…'}
             data-testid="panel-header-status"
+            data-state={panelState}
           >
             Panel {panelState === 'ok' ? '✓' : '…'}
           </button>

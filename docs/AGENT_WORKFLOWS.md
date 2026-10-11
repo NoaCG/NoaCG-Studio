@@ -44,7 +44,7 @@ repository's `.codex/config.toml` is still used for trusted project configuratio
 ## Short aliases
 
 A workflow may have a short invocation alias - `/n` and `$n` for `next`, `/o` and `$o` for
-`orchestrator`. An alias is nothing but
+`orchestrator`, `/ask` and `$ask` for `walk`. An alias is nothing but
 a second pair of adapters (`.claude/commands/<alias>.md` and `.agents/skills/<alias>/SKILL.md`)
 pointing at the target's canonical workflow, so a shortcut can never grow its own copy of the
 procedure. `WORKFLOW_ALIASES` in `scripts/check-shared-instructions.mjs` is the registry; the
@@ -140,10 +140,8 @@ signal existed. Its header explains what a wait can and cannot tell you; the orc
 loop runs it each tick, and `scripts/session-liveness.mjs` uses the same inventory's POSITIVE
 verdict to stop the cleanup sweep touching a worktree somebody is sitting in.
 
-**Three more read-only reporters are allowlisted since 2026-09-02**, paired Bash + PowerShell like
-the rest: `owner-receipts.mjs` (the owner's asks and their age, from `docs/backlog/` front matter),
-`handoff-drain.mjs` (which handoff files the newest wave plan has classified) and
-`wave-plan-check.mjs` (whether a wave-state file is ready to launch from). Each reads files and
+**One more read-only reporter is allowlisted since 2026-09-02**, paired Bash + PowerShell like the
+rest: `wave-plan-check.mjs` (whether a wave-state file is ready to launch from). It reads files and
 git, and writes nothing.
 
 **A `Stop` and `SubagentStop` hook, `scripts/hooks/stop-wait.mjs`, refuses a turn that ends
@@ -155,10 +153,10 @@ interrupted; the patterns and the decision are in `scripts/stop-wait.mjs` with t
 
 **A `PreToolUse` hook on `mcp__ccd_session__spawn_task`, `scripts/hooks/spawn-task-guard.mjs`,
 refuses a background-task chip** and names the two places the work actually goes: fix it here on
-this branch, or file it as `docs/backlog/<slug>.md`. The tool stays ALLOWLISTED - the barrier is
+this branch, or file it as a GitHub issue. The tool stays ALLOWLISTED - the barrier is
 the hook, not the permission system, so a declared chip does not also collect a prompt the owner
 would have to answer. The declaration is an `OWNER-DECISION: <reason>` line in the prompt, for the
-one case `.agent-workflows/orchestrator/launch.md` keeps: a start that is genuinely his call,
+one case the orchestrator keeps for it: a start that is genuinely his call,
 meaning real money, a model pick worth his judgement, or a scope decision. `NOACG_ALLOW_TASK_CHIPS=1`
 turns it off for a session or a machine. Why it is a hook rather than a fourth restatement of the
 rule, and what it deliberately does not try to judge, are in `docs/MISTAKE_TRIGGERS.md`.
@@ -334,8 +332,8 @@ its step rules and its shell rules share `draft.ts`, `WizardPreview` and `Creati
 throughout, so every candidate section binds both in `wizard/` and in `wizard/steps/` - and the
 files are not loose, they are already in `steps/`, where moving them deeper buys nothing. That
 chain had 1470 bytes free on 2026-09-02 with no move left in it. When relocation is exhausted the
-next lever is a DELETION, which is the owner's ruling to make: file the proposed cuts and what
-each loses under `docs/acceptance/owner-queue/` rather than taking them.
+next lever is a DELETION, which is the owner's ruling to make: ask him about the proposed cuts and
+what each loses (`.agent-workflows/verify.md`, step 5) rather than taking them.
 
 ## Retiring one, and what a workflow actually costs
 

@@ -51,7 +51,7 @@ has no wrapper, because Claude Code loads the same rules from `.claude/rules/` b
 | 2 services | `render/` * | RenderManifest, schedule, tiers, job client | `manifest`, `schedule`, `limits` (the PURE trio), `client` |
 | 2 services | `control/` | ControlMessage protocol, 3 receivers, panel generators | `controlModel`, `receiverScript`, `controlPanelHtml`, `realtimeControl`, `hostedReceiver`, `hostedControl` |
 | 2 services | `video/` | video compile/validate/bridge pipeline | `compile`, `validate`, `playerBridge`, `videoFonts` |
-| 2 services | `community/`, `showchat/` | shared templates, audience send-in | `communityData`, `chatData` |
+| 2 services | `community/`, `showchat/` | community packs, audience send-in | `packs`, `packChecks`, `chatData` |
 | 2 services | `packs/` | the downloadable GRAPHICS PACK format (`.noacgpack.json`): parse/normalize, validate through the export gate, install as a production with layers + cues | `graphicsPack` |
 | 2 services | `audience/` | the AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5): ONE `AudienceBackend` interface, the in-memory rehearsal provider, the Supabase provider over migration 0035's slug-keyed RPCs, and the framework-free join renderer | `audienceTypes` (the interface + limits), `localAudience`, `audienceData` (`createSupabaseAudience`), `joinSurface` |
 | 3 app | `store/` * | editor UI state, undo, save link | `templateStore` (`applyTemplate`), `saveActions`, `videoProjectStore`, `docKindStore` |
@@ -96,7 +96,8 @@ here and not in §6 are wrong - fix the code, not the table.
 - `audience` -> backend (the Supabase provider is eleven slug-keyed RPCs through `getSupabase()`;
   it reaches no other domain, which is what keeps "nothing viewer-written airs without an
   operator" structural - there is nowhere for it to write a command)
-- `community` -> backend, validation
+- `community` -> backend, validation, packs (a community pack IS a `noacg-pack` file, so the shelf's
+  builder and the admin's re-check use the one pack format)
 - `packs` -> validation (a pack installs only through the ONE export gate - the importer refusing
   what export would refuse is the whole safety story of installing a file somebody handed you)
 - `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
@@ -115,7 +116,8 @@ here and not in §6 are wrong - fix the code, not the table.
   the exporter; it reads no store, no components, no backend)
 - `bridge` -> templates, blocks (`animData` - is the region data-shaped? - and `animationRegion`,
   which says WHY the importer refused one), model, validation,
-  community (`gate` only), preview, export, packs, control (the headless bridge page,
+  community (`packChecks` only: the shelf's own checks over a pack an agent shares), preview,
+  export, packs, control (the headless bridge page,
   docs/AGENT_CLI.md: it composes the studio's OWN functions - the type registry and neutral
   scaffold, the authored-region converter, `publishGate` + the runtime bench + readiness + the
   engine scan, `composeDocument`, the dual graphic package + the OGraf package reader, the pack

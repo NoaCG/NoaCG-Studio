@@ -25,7 +25,7 @@ import { outDir } from './out-dir.mjs';
 
 const out = outDir(process.argv[2], 'playout-shots', 'Usage: node scripts/playout-dashboard-shots.mjs [out-dir]');
 mkdirSync(out, { recursive: true });
-const port = execSync('node scripts/dev-port.mjs').toString().trim();
+const port = execSync('node scripts/dev-port.mjs', { windowsHide: true }).toString().trim();
 const base = `http://localhost:${port}`;
 
 /** The windows this surface is read on: the minimum supported, a scaled 1080p, and two big ones. */

@@ -232,7 +232,7 @@ test('the graphics topic has one page per type, each with its file, layers and n
     expect(res.status()).toBe(200);
     // The layer panel and the names list both name every layer the guide promises, and the
     // panel shows the one tree shape every type shares: Text on top, then Moments where the type
-    // has any, then Board (docs/backlog/one-layer-naming-system-for-every-graphic.md).
+    // has any, then Board (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md).
     await expect(type.locator('.layers')).toHaveCount(1);
     for (const name of names) await expect(type).toContainText(name);
     const layers = type.locator('.layers > ul > li > .lyr .nm');

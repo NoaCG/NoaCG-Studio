@@ -206,8 +206,8 @@ test('installing registers a worktree-independent command, and corrects a stale 
   // and a test of the installer must not rewrite the developer's real config.
   const dir = mkdtempSync(path.join(tmpdir(), 'package-merge-install-'));
   try {
-    execFileSync('git', ['init'], { cwd: dir, encoding: 'utf8' });
-    const configured = () => execFileSync('git', ['config', '--get', `merge.${DRIVER_NAME}.driver`], { cwd: dir, encoding: 'utf8' }).trim();
+    execFileSync('git', ['init'], { cwd: dir, encoding: 'utf8', windowsHide: true });
+    const configured = () => execFileSync('git', ['config', '--get', `merge.${DRIVER_NAME}.driver`], { cwd: dir, encoding: 'utf8', windowsHide: true }).trim();
     assert.equal(install(dir), true);
     assert.equal(configured(), DRIVER_COMMAND);
     assert.match(configured(), /package-merge-driver\.mjs" %O %A %B %P$/);
@@ -217,7 +217,7 @@ test('installing registers a worktree-independent command, and corrects a stale 
     assert.ok(!path.isAbsolute(DRIVER_COMMAND.split('"')[1]), 'the registered path is relative to the worktree git runs it in');
     assert.equal(isInstalled(dir), true);
 
-    execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, 'node "C:/gone/package-merge-driver.mjs" %O %A %B %P'], { cwd: dir, encoding: 'utf8' });
+    execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, 'node "C:/gone/package-merge-driver.mjs" %O %A %B %P'], { cwd: dir, encoding: 'utf8', windowsHide: true });
     assert.equal(
       isInstalled(dir),
       false,
@@ -237,7 +237,7 @@ test('a key that has somehow collected two values is replaced, not refused', () 
   // does git when it runs the driver, so a doubled key is a stale command nothing reports.
   const dir = mkdtempSync(path.join(tmpdir(), 'package-merge-doubled-'));
   try {
-    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', windowsHide: true });
     g('init');
     g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-one.mjs" %O %A %B %P');
     g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-two.mjs" %O %A %B %P');

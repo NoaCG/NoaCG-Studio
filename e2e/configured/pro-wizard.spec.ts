@@ -16,7 +16,7 @@ import { startNewProject } from '../_create';
 import { chooseNoacgAgent } from '../_ai-step';
 
 // The wizard door to hosted profile `pro` closed on 2026-09-10. The decision receipt is
-// docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md. Tests that drove the removed radio
+// https://github.com/NoaCG/NoaCG-Studio/issues/771. Tests that drove the removed radio
 // were deleted; the configured deployment's server gate remains covered independently here.
 //
 // WHAT WENT WITH THEM, so the comparison row that reopens the door knows to restore it: the two

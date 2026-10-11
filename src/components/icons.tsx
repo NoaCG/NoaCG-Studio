@@ -147,16 +147,6 @@ export function IconTrash(props: IconProps) {
   );
 }
 
-/** Community / published online. */
-export function IconGlobe(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
-    </Svg>
-  );
-}
-
 /** Copy a URL. */
 export function IconLink(props: IconProps) {
   return (

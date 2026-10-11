@@ -239,7 +239,7 @@ The flows:
   already pasted in a class chat. Joining asks one
   thing: the display name teammates will see, which a member can change later in the member
   list. Owner can rotate the code. No email invitations yet
-  (`docs/backlog/teams-invite-join-code-and-what-a-new-member-sees.md`).
+  ([issue #799](https://github.com/NoaCG/NoaCG-Studio/issues/799)).
 - **Team productions in Home.** The productions section lists team productions after personal
   ones, each wearing a team chip (team name, amber-outlined) and "edited by <name>" in the
   meta line. Opening one is the same production page.
@@ -445,9 +445,9 @@ graphics through the PUBLISHER's library.
   republish must be refused.
 - **Not proven, still open.** A graphic's saved entries and any library edit made after it was
   added still resolve through whoever publishes, so the hosted panel and the design on air depend
-  on which member pressed Publish (`docs/backlog/a-team-productions-output-depends-on-who-publishes.md`).
+  on which member pressed Publish ([issue #779](https://github.com/NoaCG/NoaCG-Studio/issues/779)).
   Two members' graphics with one name replace each other
-  (`docs/backlog/two-members-graphics-with-one-name-replace-each-other.md`); the walk names them
+  ([issue #779](https://github.com/NoaCG/NoaCG-Studio/issues/779)); the walk names them
   apart. The run is on a local stack, so latency-shaped defects need `hosted-latency.yml`. The
   output is asserted by text and counters, not by picture, and stage 6's owner walk remains.
 
@@ -482,5 +482,5 @@ OR-branch named in §3.
 4. **Team bytes count against the team owner's quota** (§5 stands) - decided now so the schema
    never blocks it; enforcement itself arrives whenever storage enforcement does.
 5. **SMTP + Google OAuth provisioning starts THIS WEEK** (owner action - tracked in
-   `docs/acceptance/owner-queue/2026-09-01-smtp-oauth-provisioning.md`); DNS verification is the
+   [issue #811](https://github.com/NoaCG/NoaCG-Studio/issues/811)); DNS verification is the
    weeks-long step and the class is this autumn.

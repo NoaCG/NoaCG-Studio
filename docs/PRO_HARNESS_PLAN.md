@@ -40,7 +40,7 @@ table is what a session must know before adding anything; each row is reused, no
 | The agent door's compact design notes | `cli/skill/noacg-graphic/references/design-notes.md` | opt-in for external agents |
 | What a graphic IS: fields, machine, controls, parts, per type | `src/templates/types/` (60+ types) | binding registry |
 | Operational notes per AI category (how a scoreboard is driven on air) | `src/ai/spec/categories.ts` `workflowNotes` | live |
-| Deterministic gate | `validation/validateTemplate.ts` + `runtimeBench.ts` (+ `occlusion`, `fieldPaint`, `markLegibility`, `plateLegibility`, `readabilityCheck`, `tickerCheck`, `typeFloor`, `safety`, `assetIntegrity`) | live, the export gate |
+| Deterministic gate | `validation/validateTemplate.ts` + `runtimeBench.ts` (+ `occlusion`, `fieldPaint`, `markLegibility`, `readabilityCheck`, `tickerCheck`, `typeFloor`, `safety`, `assetIntegrity`) | live, the export gate |
 | Geometry instruments (spacing, proportion, alignment near-miss, device, mark, taste rules) | `src/ai/spike/*Check.ts` | bench-only, calibrated on the catalog |
 | The fail-closed iterate loop (findings + screenshot fed back, max 4 rounds) | `src/ai/pro/custom/loop.ts`, `src/ai/spike/iterate.ts`, `scripts/pro-iterate-spike.mjs` | productised behind `AI_PRO_CUSTOM_ENABLED`, off |
 | The one-call design-language composer | `src/ai/pro/language/` | LIVE Pro tier, four composed types |

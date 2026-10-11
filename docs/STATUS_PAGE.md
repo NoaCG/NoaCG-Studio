@@ -4,7 +4,7 @@
 went wrong before. It is hosted outside our own hosting on purpose: a page served by Vercel would
 go down with the studio it reports on (owner, 2026-10-02). Spec:
 [`docs/work-specs/status-page/spec.md`](work-specs/status-page/spec.md). Until the owner's
-account steps are done (`docs/acceptance/owner-queue/2026-10-02-bw-status-page-account.md`), the
+account steps are done ([issue #810](https://github.com/NoaCG/NoaCG-Studio/issues/810)), the
 address does not serve a status page yet.
 
 ## The service: Better Stack, free plan
@@ -158,4 +158,4 @@ ends.
    happen again, to the report itself.
 
 **The landing page** gets a status indicator once the account exists:
-`docs/backlog/status-indicator-on-the-landing-page.md`.
+[issue #810](https://github.com/NoaCG/NoaCG-Studio/issues/810).

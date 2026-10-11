@@ -85,7 +85,7 @@ it. The skill text a session actually loads is 96 lines against the repository's
 about this, and the plugin reports itself enabled and healthy either way. Codex on the same machine
 holds 0.3.3, so this is specific to the Claude Code install.
 
-Filed: `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md`. The one-line
+Filed: [`docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md). The one-line
 repair for this laptop is `claude plugin marketplace update noacg-studio`, and I
 have deliberately not run it: it would swap the skill text under other sessions working tonight.
 
@@ -152,7 +152,7 @@ and never asks for a pseudo-element, so every ancestor reads transparent and the
 stranger's first scoreboard tells them, and it drops the readiness row *Reads where it will be
 watched* to WARN on a package that deserves PASS.
 
-Filed: `docs/backlog/the-legibility-check-cannot-see-a-slab-painted-on-a-pseudo-element.md`.
+Filed: [`docs/backlog/the-legibility-check-cannot-see-a-slab-painted-on-a-pseudo-element.md`](https://github.com/NoaCG/NoaCG-Studio/blob/9d4b8b1a02eb8c2f653e81d541d48f78916312ea/docs/backlog/the-legibility-check-cannot-see-a-slab-painted-on-a-pseudo-element.md).
 Smallest fix named there: have `resolveBacking` also read `::before` / `::after` when the element's
 own background is transparent.
 
@@ -227,7 +227,7 @@ graphic - which is precisely what the import module's own header says it exists 
 a verbatim import "the user's exact graphic". A wrong answer that passes the gate is worse than a
 refusal.
 
-Filed: `docs/backlog/the-agent-door-has-no-answer-for-here-is-my-svg.md`. Smallest fix named there
+Filed: [issue #768](https://github.com/NoaCG/NoaCG-Studio/issues/768). Smallest fix named there
 is text, not code: teach the skill to say "I cannot import your SVG here, use the studio's Import
 door" instead of improvising.
 
@@ -372,9 +372,9 @@ cannot say it.
 
 | Defect | Smallest fix named | File |
 |---|---|---|
-| The legibility check misses a slab painted on `::before`, so a shipped scoreboard chassis is warned about twice, wrongly | `resolveBacking` reads `::before` / `::after` when the element's own background is transparent | `docs/backlog/the-legibility-check-cannot-see-a-slab-painted-on-a-pseudo-element.md` |
-| Nothing tells a user their installed plugin is stale; this laptop runs 0.2.0 | one row in `noacg doctor` comparing the running skill against the shipped version - **done 2026-09-17**, the file now holds only the marketplace re-point | `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md` |
-| The agent door has no answer for "here is my SVG", so an agent will redraw it | a section in `SKILL.md` telling the agent to send the user to the studio's Import door | `docs/backlog/the-agent-door-has-no-answer-for-here-is-my-svg.md` |
+| The legibility check misses a slab painted on `::before`, so a shipped scoreboard chassis is warned about twice, wrongly | `resolveBacking` reads `::before` / `::after` when the element's own background is transparent | [`docs/backlog/the-legibility-check-cannot-see-a-slab-painted-on-a-pseudo-element.md`](https://github.com/NoaCG/NoaCG-Studio/blob/9d4b8b1a02eb8c2f653e81d541d48f78916312ea/docs/backlog/the-legibility-check-cannot-see-a-slab-painted-on-a-pseudo-element.md) |
+| Nothing tells a user their installed plugin is stale; this laptop runs 0.2.0 | one row in `noacg doctor` comparing the running skill against the shipped version - **done 2026-09-17**, the file now holds only the marketplace re-point | [`docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md) |
+| The agent door has no answer for "here is my SVG", so an agent will redraw it | a section in `SKILL.md` telling the agent to send the user to the studio's Import door | [issue #768](https://github.com/NoaCG/NoaCG-Studio/issues/768) |
 
 Nothing was fixed in code tonight. Nothing found was a broken link or a wrong command in a README -
 the documented commands all ran as written - so there was nothing trivially safe to repair.

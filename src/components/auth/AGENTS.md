@@ -31,7 +31,7 @@ what Supabase itself appends to every reset link including the ones already sent
 read by `backend/recoveryLink.ts` **at module load**, before any Supabase client can strip the
 fragment - never from an effect, and never by waiting for the PASSWORD_RECOVERY event, which is
 emitted while the client is being constructed and is not replayed to a later subscriber. That
-race is why a working link showed no dialog at all (docs/backlog/password-reset-link-lands-nowhere.md).
+race is why a working link showed no dialog at all ([docs/backlog/password-reset-link-lands-nowhere.md](https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/password-reset-link-lands-nowhere.md)).
 A link that does not work must SAY WHICH, and the page keeps three cases apart rather than
 calling everything expired: the provider REFUSED it (`kind: 'error'`, quote its own sentence), a
 real token produced no session (say the check did not complete and offer a retry - `getSession`

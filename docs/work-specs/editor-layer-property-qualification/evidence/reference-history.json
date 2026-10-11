@@ -1,0 +1,78 @@
+{
+  "created": [
+    "Text",
+    "Ellipse",
+    "Rectangle"
+  ],
+  "single": [
+    "Text"
+  ],
+  "additive": [
+    "Text",
+    "Rectangle"
+  ],
+  "shift": [
+    "Rectangle"
+  ],
+  "doubleClickInputs": 0,
+  "rename": {
+    "beforeIds": [
+      "layer-8073d1ee-85cc-4dd9-92d2-902aa9eab58d",
+      "layer-3e20eb8e-a3b3-4185-8891-2df7a936f6e8",
+      "layer-63bbc089-3900-4f7b-bb9d-bdecd77241a7"
+    ],
+    "afterIds": [
+      "layer-8073d1ee-85cc-4dd9-92d2-902aa9eab58d",
+      "layer-3e20eb8e-a3b3-4185-8891-2df7a936f6e8",
+      "layer-63bbc089-3900-4f7b-bb9d-bdecd77241a7"
+    ],
+    "name": "Reference headline"
+  },
+  "transformFields": [
+    "X",
+    "Y",
+    "W",
+    "H",
+    "Rotation",
+    "Line height",
+    "Tracking",
+    "Baseline",
+    "Minimum size",
+    "HorizontalLeftRightLeft + RightCenterScale",
+    "VerticalTopBottomTop + BottomCenterScale"
+  ],
+  "normal": {
+    "start": 100,
+    "during": 110,
+    "after": 110
+  },
+  "shiftScrub": {
+    "start": 110,
+    "during": 210,
+    "after": 210
+  },
+  "altScrub": {
+    "start": 210,
+    "during": 211,
+    "after": 211
+  },
+  "escape": {
+    "start": 211,
+    "during": 221,
+    "after": 221
+  },
+  "hide": {
+    "before": 3,
+    "after": 2,
+    "rowRetained": 3
+  },
+  "contextMenus": 0,
+  "delete": {
+    "before": 3,
+    "after": 2
+  },
+  "undoCount": 2,
+  "redoCount": 2,
+  "explicitUndo": 3,
+  "explicitRedo": 2
+}

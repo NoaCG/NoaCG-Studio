@@ -19,7 +19,7 @@ import type { ProjectLegibility } from './designRules';
 import { firstIndexById, loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
 import { durable } from './durableStore';
 import { uuid } from './id';
-import { newGraphicDoc, type GraphicDocBase } from './graphicDoc';
+import { designLocked, newGraphicDoc, type GraphicDocBase, type PackStamp } from './graphicDoc';
 
 // The record SHAPE and its pure builder live in model/graphicDoc.ts (DOM-free, storage-free,
 // so the /bridge page and the save API mint the identical record); this module binds the AI
@@ -93,6 +93,8 @@ export interface LibraryNameEntry {
   updatedAt: string;
   /** Its operator fields, so a replacement can NAME the cue values it strands. */
   fields: { field: string; title: string }[];
+  /** A community pack's graphic (spec AC-5): never written over by a save under its name. */
+  locked?: boolean;
 }
 
 /** Every live graphic, reduced to that. In library order - the same derive-from-the-data shape
@@ -107,6 +109,7 @@ export function graphicNameIndex(): LibraryNameEntry[] {
     // Every wizard save reads this index, so one malformed record would otherwise throw inside
     // a door's promise and leave the reader with nothing saved and nothing said.
     fields: (g.template.fields ?? []).map((f) => ({ field: f.field, title: f.title || f.field })),
+    ...(designLocked(g) ? { locked: true } : {}),
   }));
 }
 
@@ -118,7 +121,7 @@ export function graphicNameIndex(): LibraryNameEntry[] {
  * whichever happened to be stored first. It is a tie-break, not a discriminator - if a
  * production pooled the OLDER twin, this picks the newer one and that production keeps airing
  * the old artwork. The tie-break is only ever consulted when twins ALREADY EXIST:
- * docs/backlog/two-doors-still-mint-a-twin-under-a-taken-name.md names the doors that make them.
+ * https://github.com/NoaCG/NoaCG-Studio/issues/779 names the doors that make them.
  */
 function holderIn<T extends { name: string; updatedAt: string }>(list: T[], name: string): T | undefined {
   const wanted = name.trim();
@@ -193,7 +196,7 @@ export function librarySaveEffect(
       sharesWith: holderIn(index.filter((g) => g.id !== mine.id), wanted) ?? null,
     };
   }
-  const holder = holderIn(index, wanted);
+  const holder = holderIn(index.filter((g) => !g.locked), wanted);
   return holder ? { kind: 'over', targetId: holder.id, holder } : { kind: 'mint', targetId: null };
 }
 
@@ -234,6 +237,7 @@ export function createGraphic(
     aiSpec?: GenerationSpec | null;
     aiThread?: AiThread | null;
     legibility?: ProjectLegibility | null;
+    fromPack?: GraphicDoc['fromPack'];
   },
 ): { doc: GraphicDoc; error: string | null } {
   // ONE shape, minted by the pure builder every other writer uses (the bridge, the save API).
@@ -273,6 +277,8 @@ export function duplicateGraphic(id: string): { doc: GraphicDoc | null; error: s
     baseline: src.baseline,
     entries: src.entries.map((e) => ({ ...e, id: uuid() })),
     activeEntryId: null,
+    // A copy of a graphic installed from the community shelf is still not the maker's own.
+    fromPack: src.fromPack ?? null,
   });
 }
 
@@ -413,6 +419,12 @@ export function resolveSavedGraphicDoc(graphic: SavedGraphic, library: GraphicDo
   return byName.length === 1 ? byName[0] : undefined;
 }
 
+/** The community pack stamp of a pool graphic's own library record. Only by its link: the name
+ *  fallback above could credit a pack for a user's own graphic that happens to share its name. */
+export function packStampFor(graphic: SavedGraphic, library: GraphicDoc[]): PackStamp | null {
+  return graphic.graphicId ? library.find((d) => d.id === graphic.graphicId)?.fromPack ?? null : null;
+}
+
 export function entriesForSavedGraphic(graphic: SavedGraphic, library: GraphicDoc[]): ControlEntry[] {
   const doc = resolveSavedGraphicDoc(graphic, library);
   return (doc?.entries ?? []).map((e) => ({ ...e, values: { ...e.values } }));
@@ -429,4 +441,11 @@ export function entriesForSavedGraphic(graphic: SavedGraphic, library: GraphicDo
  */
 export function templateForSavedGraphic(graphic: SavedGraphic, library: GraphicDoc[]): SpxTemplate {
   return withProductionSounds(resolveSavedGraphicDoc(graphic, library)?.template ?? graphic.template, graphic.soundConfig);
+}
+
+/** When the design `templateForSavedGraphic` resolves was last edited: the library record's save
+ *  time, else the embedded copy's. A publish never puts an older one over a newer one
+ *  (docs/work-specs/publish-guard/spec.md G3). */
+export function designEditedAt(graphic: SavedGraphic, library: GraphicDoc[]): string {
+  return resolveSavedGraphicDoc(graphic, library)?.updatedAt ?? graphic.savedAt;
 }

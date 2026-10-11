@@ -1,7 +1,7 @@
 # Re-measured 2026-09-07, after `src/blocks` migrated
 
 The seventh area to compile, and the third read under
-`docs/backlog/are-the-big-contracts-still-worth-loading.md`, which asks not only "is this paragraph
+[`docs/backlog/are-the-big-contracts-still-worth-loading.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/are-the-big-contracts-still-worth-loading.md), which asks not only "is this paragraph
 true" but "is it still worth anybody's first tokens". `src/blocks/AGENTS.md` was the largest
 hand-written contract left once `src/ai` had gone.
 

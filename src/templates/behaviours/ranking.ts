@@ -1,4 +1,4 @@
-// THE STANDINGS: a ranking that sorts itself (docs/backlog/graphics-need-their-own-logic.md, level
+// THE STANDINGS: a ranking that sorts itself (https://github.com/NoaCG/NoaCG-Studio/issues/787, level
 // 1 - the owner's "a ranking that would also reorder the names and the position number just by
 // adding or subtracting points").
 //

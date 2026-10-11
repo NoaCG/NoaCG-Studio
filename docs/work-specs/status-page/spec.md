@@ -17,7 +17,7 @@ what a user's studio needs, with a written process for maintenance and incidents
 - A status page on our own hosting: it would fail together with the thing it reports on (owner,
   2026-10-02). That ruled out building one.
 - A paid plan, and creating the account: the owner does both.
-- The landing-page status indicator: filed as `docs/backlog/status-indicator-on-the-landing-page.md`,
+- The landing-page status indicator: filed as [issue #810](https://github.com/NoaCG/NoaCG-Studio/issues/810),
   to be built once the account exists.
 - Probing AI generation or video render: each real check would spend money. They are posted by
   hand when they fail.
@@ -66,7 +66,7 @@ incident process, including what reads as an outage.
 
 ### AC-4: The owner's steps are filed
 
-`docs/acceptance/owner-queue/2026-10-02-bw-status-page-account.md` lists only the steps that need
+[issue #810](https://github.com/NoaCG/NoaCG-Studio/issues/810) lists only the steps that need
 his account: sign-up, the DNS record, the monitors. `npm run build` accepts it.
 
 ### AC-5: The page is live (after the owner's steps)

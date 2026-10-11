@@ -589,11 +589,7 @@ export type TemplateVisibility = 'public' | 'beta' | 'internal' | 'hidden';
 export interface AdminTemplateEntry {
   key: string;
   source: 'catalog' | 'community';
-  name: string;
-  category: string;
   visibility: TemplateVisibility;
-  /** Community rows only: the moderation status the gallery already tracks. */
-  status: string | null;
   /** Times this template was used to create a graphic, from the funnel ledger. */
   uses: number;
   note: string;

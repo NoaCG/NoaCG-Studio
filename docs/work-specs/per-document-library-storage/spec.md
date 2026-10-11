@@ -2,7 +2,7 @@
 
 ## Problem and authority
 
-The owner's ask of 2026-09-30 (docs/backlog/per-document-library-storage.md): "I hope we have a
+The owner's ask of 2026-09-30 ([issue #796](https://github.com/NoaCG/NoaCG-Studio/issues/796)): "I hope we have a
 long-term solution for this ... a spec for per-document storage later, after the bridge
 connection." This is that spec. It changes no code.
 

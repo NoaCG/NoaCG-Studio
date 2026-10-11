@@ -91,3 +91,36 @@ test('module scope covers named, default and aliased imports as well as declarat
   }
   assert.ok(!names.has('reportGraphicBox'), 'an aliased import is bound under the alias only');
 });
+
+test('module scope survives layout: shapes a line-anchored reading of the text dropped are still bound', () => {
+  // Each of these left the old regex table while the hazard stayed in the file, so the gate
+  // skipped a real violation and passed.
+  const shapes = [
+    ["import gsap, { killAllTimelines } from './a';", 'killAllTimelines'],
+    ["import * as runtime from './a';", 'runtime'],
+    ['  function indented(w) { return w; }', 'indented'],
+    ['@sealed\nclass Decorated {}', 'Decorated'],
+    ['const first = 1, second = () => 0;', 'second'],
+    ['const { picked } = helpers;', 'picked'],
+    ['export default function named() {}', 'named'],
+    // TS-only angle brackets before the declaration: read as TSX they end the statement list.
+    ['const id = <T>(x: T) => x;\nconst v = <HTMLElement>document.body;\nfunction afterCast() {}', 'afterCast'],
+  ];
+  for (const [declaration, name] of shapes) {
+    const file = fixture(`shape-${name}.ts`, [declaration, `const tag = \`\${${name}.toString()}\`;`]);
+    assert.equal(findViolations([file]).length, 1, `${JSON.stringify(declaration)} binds ${name} at module scope`);
+  }
+});
+
+test('the resolved table is counted only over files that interpolate a toString()', () => {
+  const stats = {};
+  const plain = fixture('plain.ts', ['export const a = 1;']);
+  findViolations([plain], stats);
+  assert.equal(stats.resolved, 0, 'a file with nothing to judge adds nothing');
+  const door = fixture('door-count.ts', [
+    "import { x } from './x';",
+    'function serializeHelper(fn) { return `${fn.toString()}`; }',
+  ]);
+  findViolations([plain, door], stats);
+  assert.equal(stats.resolved, 2);
+});

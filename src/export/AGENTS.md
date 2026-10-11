@@ -15,7 +15,10 @@ export-time reflow, stretching, or cropping.
   for a project that was never saved. Only the two targets that bundle an operator page - SPX
   and the HTML overlay - consume them).
 - **selfContained.ts** - single-file composer: inline CSS/GSAP/JS/assets/FONTS + extra body
-  scripts. ASYNC, because the fonts are fetched to be embedded.
+  scripts. ASYNC, because the fonts are fetched to be embedded. Each extra script (a
+  `TargetScript`: CasparCG's data shim, H2R's toggle, the overlay's relay receiver and autoplay)
+  is its own tag with an id that the import door strips, never part of the template's block: the
+  door moves that block into the JS pane, so a shim inside it stacked on every round trip (#901).
 - **bundledFonts.ts** - the one place that knows how a builder font leaves the app. Generated CSS
   always says `url("fonts/<file>")`; there are exactly two ways to honour that, and the package
   shape picks one. A FOLDER package ships the file beside the HTML (common.ts
@@ -42,7 +45,8 @@ export-time reflow, stretching, or cropping.
   noacgPackage.ts keeps `controlpanel.html`, which its CLI documents); and a stepped graphic
   carries `spxStepGuardScript`, which turns the Continue after the last step into stop(), because
   SPX 1.2.1 sends one more `next` there and shows the item as stopped. The guard is stripped on
-  import by its id.
+  import by its id. The panel name is the only difference `forSpx` makes: the dual package is
+  the same SPX layout, so it carries the guard and the text script too (#900).
 - **outputEmbed.ts** - the OUTPUT EMBED: one standalone .html that frames a published production's
   `/output?production=<slug>` URL, downloaded from the production page's Links block beside the URL
   itself (never from the export dialog - it packages no graphics, it IS that link in another
@@ -196,6 +200,24 @@ export-time reflow, stretching, or cropping.
   with the element for the same reason - the studio's `--scale` reads and `body.clientWidth`
   measure the canvas, not the host page. Pinned by `e2e/ograf-conformance.spec.ts` (host page
   untouched, frame pixel-identical to the studio document, every catalog sheet scoped).
+  The MARKUP's own carriers are re-addressed at export too (`graphicSources`, issue #789): it is
+  parsed as a renderer parses it, its `<style>` blocks go through the same rewrite and gate, and
+  the ids it references (Illustrator's `SVGID_1_`) are renamed to the design's own, references in
+  `template.css` with them, unless a field, the code or a selector names them. `load()` makes the
+  markup the element's own children after its one
+  stylesheet, with no wrapper, so `body > .x` matches. Pinned by `e2e/ograf-isolation.spec.ts`.
+  Which `document` members `scopedDocument` answers is not hand-kept:
+  `scripts/ograf-document-members.test.mjs` fails on a member a template runtime reads that is
+  neither scoped nor a decided pass-through.
+  **A shadow mount is being built beside it** (docs/work-specs/ograf-shadow-root/spec.md): the
+  internal `addOgrafPackage(..., { mount: 'shadow' })`, default `'light'`, set only by specs and
+  the renderer walks until the flip. It mounts one stylesheet (with a `:host` box) and one canvas
+  element carrying the attribute in an open shadow root, answers `document.head` with that root,
+  and lifts the design's `@font-face` and `@property` rules, which a shadow tree ignores, into one
+  `<style data-noacg-fonts>` in the renderer's head for as long as a copy of the design is
+  mounted. In both mounts `dispose()` also kills every tween, timeline and delayed call
+  `scopedGsap` started, so a step's calls stop with the graphic. The OGraf specs run in both
+  mounts, and `e2e/catalog/ograf-parity.spec.ts` compares the two over the whole catalog.
   The broadcaster-facing summary is `docs/OGRAF.md` - keep it in agreement with this target.
   Non-real-time seeks rebuild an isolated document and replay the OGraf action schedule through
   `render/runtimeScript.ts`'s virtual clock, so timestamp order cannot leak state. The target's
@@ -266,7 +288,9 @@ export-time reflow, stretching, or cropping.
   ships none). Beside it sits `v_spx`, SPX's own vendor keys (root layer and out mode, each
   property's SPX field type), and the `ograf` target adds `spx-custom-actions.js` to a graphic
   with custom actions, the controller function SPX 1.4.1 lacks. The Graphic also hands its
-  template a `gsap` that resolves selector strings inside itself (`scopedGsap`) and starts its
+  template a `gsap` that resolves selector strings inside itself, in array targets and in the
+  timelines it makes too (`scopedGsap`), a `window` whose `document` is the scoped one
+  (`scopedWindow`), and starts its
   element from initial values against the host's styles. Why, measured: docs/SPX_ON_A_REAL_SERVER.md §10.
 - **targets/ografImport.ts** - the READER: `readOgrafPackage(files)` finds the shallowest
   manifest, validates manifest + package, reads `v_noacg` (`readNoacgVendorBlock`), compares the

@@ -37,7 +37,7 @@ export interface SvgTextCandidate {
    *  (`isLetterTile`). The row is still offered, unticked, and the words stay as drawn:
    *  a top ten's rank numerals and a bingo grid's numbers are drawing the operator should
    *  never be handed twenty-five boxes for
-   *  (docs/backlog/decorative-numerals-arrive-as-fields.md). */
+   *  (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/decorative-numerals-arrive-as-fields.md). */
   drawing: boolean;
   /** True when this layer's own name was its own words, so the label came from the group
    *  around it. The mapping step says so under the box, because otherwise a slot the designer
@@ -308,7 +308,7 @@ function holdsSeveralTextLayers(node: Element, peers?: readonly Element[]): bool
  *  nothing else. A group holding EIGHT text layers cannot be the name of one of them, so a
  *  bracket's `<text id="Champion">Champion</text>` inside `<g id="Words">` keeps the name its
  *  author typed rather than arriving as "Words"
- *  (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). With nothing named above
+ *  (https://github.com/NoaCG/NoaCG-Studio/blob/ea01a688e0102db9051d77f82ac7ceb47150d776/docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). With nothing named above
  *  it at all, its own words are the only name there is - better than "Text 7". */
 function candidateName(
   el: Element,
@@ -338,7 +338,7 @@ function candidateName(
 /** A text that is ONE LETTER is a tile's label - the A to D down a quiz board's rows, the
  *  letters of a puzzle - and never something the operator retypes. It starts unticked, like a
  *  `static:` layer, so a student who draws the letters and forgets the prefix gets the same
- *  graphic as the docs example (docs/backlog/one-layer-naming-system-for-every-graphic.md).
+ *  graphic as the docs example (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md).
  *  A single DIGIT is a score and stays a field. */
 function isLetterTile(sample: string): boolean {
   return /^\p{L}$/u.test(sample.trim());
@@ -508,7 +508,7 @@ function sameNumber(a: number, b: number): boolean {
  * CorelDRAW) defaults to millimetres or points, so a full 1280 × 720 page arrives as
  * `width="338.66666mm" viewBox="0 0 338.66666 190.5"` — the same numbers twice, because the
  * user unit IS the millimetre. Read as pixels that page is 339 × 191 and a whole design lands
- * on the frame as a postage stamp (sweep finding 3, docs/backlog/svg-import-sweep-findings.md).
+ * on the frame as a postage stamp (sweep finding 3, https://github.com/NoaCG/NoaCG-Studio/issues/778).
  *
  * The conversion is deliberately narrow: it fires only when the viewBox's extent MATCHES the
  * physical number, which is what says "one user unit is one millimetre". A designer who drew in
@@ -1551,7 +1551,7 @@ function fontInventory(svg: Element): SvgFontRef[] {
  * document — it has already located the damage exactly. The refusal used to throw all of that
  * away and say "damaged, or not an SVG at all", which points at the export rather than the file
  * and sends someone back to Illustrator to re-make something that was never the problem
- * (measured on `geometry-unescaped-ampersand`, docs/backlog/svg-import-sweep-findings.md).
+ * (measured on `geometry-unescaped-ampersand`, https://github.com/NoaCG/NoaCG-Studio/issues/778).
  *
  * The AMPERSAND is named because it is far and away the most common cause: an SVG is XML, a
  * bare `&` opens an entity reference, and one arrives every time a web address with a query

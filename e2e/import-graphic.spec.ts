@@ -106,7 +106,7 @@ async function dropFiles(page: Page, names: string[]) {
   }, names);
 }
 
-// SEVERAL PICTURES AT ONCE (docs/backlog/dropping-several-files-at-once.md). One is imported and
+// SEVERAL PICTURES AT ONCE (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/dropping-several-files-at-once.md). One is imported and
 // the rest are dropped on the floor, which is fine as a rule and was a defect as behaviour: the
 // step used to read as a complete success. What is guarded here is the SENTENCE, because the
 // import itself never changed - a green import is exactly what made the old bug invisible.

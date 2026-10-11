@@ -7,11 +7,11 @@
 //
 //   - `npm run test:e2e:integration:queued` was refused four times because the guard checked port
 //     5174, the MAIN checkout's port, while the run it was about to allow would have used 5202,
-//     this worktree's (docs/handoffs/2026-08-29-cc-playout-polish.md). A session whose own
+//     this worktree's (https://github.com/NoaCG/NoaCG-Studio/blob/0eec5a83382bfa79c8593939690fa86de12372db/docs/handoffs/2026-08-29-cc-playout-polish.md). A session whose own
 //     directory is the main checkout gets that refusal for as long as anybody has a dev server up
 //     there, which is most of the time.
 //   - the code-review skill reviewed a DIFFERENT worktree's branch three times, reporting findings
-//     about somebody else's diff (docs/handoffs/2026-08-29-dd-svg-fitting-two.md).
+//     about somebody else's diff (https://github.com/NoaCG/NoaCG-Studio/blob/0eec5a83382bfa79c8593939690fa86de12372db/docs/handoffs/2026-08-29-dd-svg-fitting-two.md).
 //   - `preview_start` serves whichever checkout the session sits in, so a sweep needing a dev
 //     server could not be run from a session sitting elsewhere.
 //

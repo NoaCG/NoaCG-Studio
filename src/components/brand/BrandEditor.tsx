@@ -5,7 +5,7 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { fileToDataUrl } from '../../assets/assetUtils';
 import { importSvgMarkup } from '../../assets/svgImport';
 import { slug } from '../../model/slug';
-import { variantById } from '../../templates/catalog';
+import { CatalogLoading, useCatalog } from '../catalogOnDemand';
 import { brandPatch, buildDraftTemplate, initialDraft, mergeDraft } from '../wizard/draft';
 import MiniPreview from '../wizard/MiniPreview';
 import FontPicker from '../wizard/FontPicker';
@@ -41,11 +41,12 @@ export default function BrandEditor({ initial, onSaved, onCancel }: {
   const record = useRef(initial);
   const persisted = useRef(initial);
   const logoRequest = useRef(0);
-  const previews = useMemo(() => PREVIEWS.flatMap((id) => {
-    const variant = variantById(id);
+  const catalog = useCatalog();
+  const previews = useMemo(() => !catalog ? [] : PREVIEWS.flatMap((id) => {
+    const variant = catalog.variantById(id);
     return variant ? [{ name: variant.name,
       template: buildDraftTemplate(variant, mergeDraft(initialDraft(), brandPatch(previewBrand))) }] : [];
-  }), [previewBrand]);
+  }), [catalog, previewBrand]);
 
   const uploadLogo = async (file?: File) => {
     if (!file) return;
@@ -157,6 +158,7 @@ export default function BrandEditor({ initial, onSaved, onCancel }: {
         <aside className="brand-editor-previews" aria-label="Brand previews">
           <h3>Your brand in use</h3>
           <p className="hint">Live examples. Logos appear only in designs with a logo slot.</p>
+          {!catalog && <CatalogLoading />}
           {previews.map(({ name: title, template }) => <div className="brand-preview-card" key={title}>
             <MiniPreview template={template} /><strong>{title}</strong>
           </div>)}

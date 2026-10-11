@@ -178,10 +178,10 @@ export function decide({ text, refusals = 0, landingState = null } = {}) {
     '  - a CI run: read it to a verdict - `gh run view <id> --json jobs`, and check WHICH jobs ran;',
     '  - a landing or queued job: read it - `node scripts/jobs.mjs log <id>`, or the bounded',
     '    `node scripts/jobs.mjs wait <id>` (30 minutes, then it tells you what to do);',
-    '  - a background task: stop it, and take what it was holding into the handoff file.',
-    'Then write the handoff file the prompt names and run /queue-merge as your LAST action - or, if',
-    'you are a helper agent with no branch of your own, report the state you found to the session',
-    'that launched you. If you are genuinely blocked on a person, say so and stop without a wait.',
+    '  - a background task: stop it, and put what it was holding in a backlog item or your report.',
+    'Then run /queue-merge as your LAST action - or, if you are a helper agent with no branch of',
+    'your own, report the state you found to the session that launched you. If you are genuinely',
+    'blocked on a person, say so and stop without a wait.',
   ].join('\n');
 }
 

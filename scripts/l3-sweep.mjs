@@ -29,6 +29,7 @@ const results = await page.evaluate(async (CATEGORY) => {
   const LOWER_THIRDS = CATALOG[CATEGORY] || [];
   const { composeDocument } = await import('/src/preview/composeDocument.ts');
   const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+  const { ANIM_DECLARATION } = await import('/src/assets/animationLiteral.ts');
 
   const runInFrame = (tpl, fn) => new Promise((resolve) => {
     const f = document.createElement('iframe');
@@ -119,7 +120,7 @@ const results = await page.evaluate(async (CATEGORY) => {
         const t2 = v.create({ animation: { presetId: p, easing } });
         // Timeline v2 categories emit the data block ("ease" fields inside NOACG_ANIM);
         // legacy categories still carry the knob variables.
-        const easingPresent = t2.js.includes('var NOACG_ANIM')
+        const easingPresent = t2.js.includes(ANIM_DECLARATION)
           ? /"ease":\s*"/.test(t2.js)
           : t2.js.includes("var easeIn = '") && t2.js.includes("var easeOut = '");
         if (!easingPresent) {

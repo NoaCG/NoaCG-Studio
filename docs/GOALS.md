@@ -26,7 +26,6 @@ There are two ways in, and both end in the same production and playout workflow:
   into the production.
 
 **The two end-to-end scenarios every outcome serves:**
-
 1. Need -> import, template or editor -> production -> on air.
 2. Need -> agent -> graphics package in a production, rundown ready -> on air.
 
@@ -40,11 +39,13 @@ controlling, self-hosting, and the built-in AI. There is no paid surface and non
 around monetization. The goal is to be useful, excellent and widely used.
 
 **Standing non-goals.**
-
 - Native SDI/NDI playout, until it can come through an OGraf-compatible runtime or server.
 - Recreating After Effects. The editor is a focused broadcast tool.
 - A code editor as a product goal.
 - A second cue or control system beside the production workflow.
+- An elaborate multi-user editing or version-control system. Rank work by reliability and broadcast
+  safety, then a fast predictable Take, then simple operation, then flexibility; collaboration grows
+  only from shown need, and a real risk gets the smallest safe fix (owner, 2026-10-09).
 
 ## How done works
 
@@ -86,7 +87,7 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
 - **Current state:** SVG import v1 and text-to-box binding are built and machine-verified. Brands
   have a model, a wizard chooser and a creator on Home; applying one across a production is still
   to build. The catalog has visual quality gates. The Community packs shelf installs finished
-  packages as they are; NoaCG seeded one, and sharing a pack for review is still to build.
+  packages; NoaCG admins submit and review there, and every maker waits on the design lock.
 - **Done for this phase:** someone unfamiliar imports a layered SVG that is not one of our samples,
   binds its fields, applies a brand and plays it through the standard workflow; text fits its box
   for short and long values; catalog templates pass the visual quality gates.
@@ -101,15 +102,15 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   by the shortest path the user wants, straight into a production with its rundown ready or into
   the library -> on air. Through the CLI, the plugin and MCP. Built-in creation (simple template
   and brand automation, and a more capable generator) is a separate, later track, and free.
-- **Current state:** CLI 0.7.1 is on npm and the MCP Registry. Agents make graphics, render each
+- **Current state:** CLI 0.9.0 is on npm and the MCP Registry. Agents make graphics, render each
   state and save to the library; `noacg pack --save` sends a package and rundown to Home, where one
   Install press opens the production. The agent designs the look and NoaCG owns everything around
-  it; critique and design guide are opt-in (owner, 2026-10-02). Listings need the owner's accounts.
+  it; critique and design guide are opt-in (owner, 2026-10-02). Listings need the owner's accounts; Claude's waits on [#842](https://github.com/NoaCG/NoaCG-Studio/issues/842).
 - **Done for this phase:** on a fresh machine, a user installs the published CLI or plugin, asks an
   agent for a package from a brief nobody has seen before, and receives it where they asked,
   including straight into a production, with valid fields and behaviour; it plays on CasparCG and
   in a browser source; the recurring novel-brief benchmark passes.
-- **Plans:** `AGENT_CLI.md`, `AGENT_SAVE.md`, `backlog/cli-roadmap.md`.
+- **Plans:** `AGENT_CLI.md`, `AGENT_SAVE.md`, [issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
 
 ### 3. Editor (now; rank 3)
 
@@ -145,9 +146,8 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
 
 ### 5. Production, rundown and playout (now; rank 1)
 
-- **Why:** a graphic is worth something only on air, wherever the production runs, and a group
-  must be able to prepare and run one production without one person being a single point of
-  failure.
+- **Why:** a graphic is worth something only on air, wherever the production runs, and a group must
+  be able to prepare and run one production without one person being a single point of failure.
 - **Desired state:** one reliable production workflow (rundown, cues, control panel, basic media)
   that plays out to every environment the production uses. No player is preferred forever. A
   production and its rundown belong to the team, not to one account.

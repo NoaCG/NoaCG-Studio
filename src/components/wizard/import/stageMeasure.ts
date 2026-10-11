@@ -180,7 +180,7 @@ export function proposeFollowers(
  * `full-frame-offering.spec.ts` and the shipped samples at this number. Moving them onto the ink
  * would change the checklist's grouping and the growth proposal on every lower third in the
  * catalog, which is a measurement of its own and nobody has made it
- * (docs/backlog/one-rule-for-what-a-backplate-is.md).
+ * (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-rule-for-what-a-backplate-is.md).
  */
 const BACKPLATE_SHARE_OF_FRAME = 0.7;
 
@@ -195,7 +195,7 @@ const BACKPLATE_SHARE_OF_FRAME = 0.7;
  * question. It can't live depending on how long the text is."*
  *
  * The axis is not the graphic's shape and it is emphatically not its CATEGORY
- * (docs/backlog/growth-rule-geometry-and-purpose.md, owner 2026-08-30) - it is whether the same
+ * (https://github.com/NoaCG/NoaCG-Studio/issues/778, owner 2026-08-30) - it is whether the same
  * artwork comes back with new copy in it. What says so on the artwork itself is a REPEATED ROW:
  * two or more plates of the same size, standing apart from each other, each holding its own
  * editable line. That is what a quiz board, a poll board and a scoreboard look like, and it is
@@ -848,7 +848,7 @@ function isReadableBoxName(label: string): boolean {
   const trimmed = label.trim();
   if (trimmed === '' || /^(Panel|Rectangle)\s+\d+$/.test(trimmed)) return false;
   // Three letters is a word: the docs examples once named their row plates `Row A` to `Row D`
-  // (docs/backlog/one-layer-naming-system-for-every-graphic.md; they are `Answer box A` since
+  // (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md; they are `Answer box A` since
   // 2026-09-24), and at four the checklist headed them "Black plate 1" to "Black plate 4" beside a
   // file that had named every one. A designer's own short plate name must still read as a name.
   return /[A-Za-z]{3,}/.test(trimmed);

@@ -147,6 +147,13 @@ if (!targets.length) {
   process.exit(2);
 }
 measured(targets.length, 'catalog variants');
+// The TABLE guard above covers `default`; this covers each lookup. A category whose
+// `typeFloorFor` answers undefined while `default` stays positive would compare `px < undefined`,
+// which is false for every element, and its designs would pass unmeasured.
+const unfloored = [...new Set(targets.filter((t) => !(t.floor > 0)).map((t) => t.cat))];
+if (unfloored.length) {
+  throw new Error(`typeFloorFor gives no usable floor for ${unfloored.join(', ')} - those designs would pass without being measured.`);
+}
 
 // Renders a batch of variants off-screen at full size, plays them, then reads back every
 // text-bearing element whose computed size is under the floor.
@@ -178,7 +185,7 @@ await page.evaluate(() => {
     await new Promise((r) => setTimeout(r, 2400));
 
     return frames.map(({ id, floor, f }) => {
-      const out = { id, err: f.dataset.err || null, hits: [] };
+      const out = { id, err: f.dataset.err || null, hits: [], measured: 0 };
       try {
         const w = f.contentWindow;
         for (const el of f.contentDocument.body.querySelectorAll('*')) {
@@ -188,6 +195,7 @@ await page.evaluate(() => {
           // Only elements that render their OWN text — a wrapper inherits a size it never paints.
           const own = Array.from(el.childNodes).some((n) => n.nodeType === 3 && n.textContent.trim());
           if (!own) continue;
+          out.measured++;
           const px = parseFloat(cs.fontSize);
           if (!(px < floor)) continue;
           out.hits.push({
@@ -214,6 +222,9 @@ for (let i = 0; i < targets.length; i += 12) {
   res.forEach((r, k) => rows.push({ ...slice[k], ...r }));
 }
 await browser.close();
+// The SUBJECT guard. Every frame rendering blank without throwing would find no text under the
+// floor and print PASS, so the gate says how many text elements it actually read.
+measured(rows.reduce((n, r) => n + r.measured, 0), 'rendered text elements');
 
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(rows, null, 1));
 

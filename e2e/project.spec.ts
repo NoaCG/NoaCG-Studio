@@ -24,7 +24,7 @@ import * as rules from '../scripts/rules.mjs';
 // Era 5.2b: the working graphic autosaves locally and survives a reload. Startup follows
 // from it: only a first-ever visit (no autosaved project) opens the wizard, and a returning
 // user lands on Home. The reload test below edited the old code editor, which is closed, so it
-// skips until it is rewritten (docs/backlog/specs-that-still-open-the-old-editor.md).
+// skips until it is rewritten (https://github.com/NoaCG/NoaCG-Studio/issues/800).
 
 test('project autosave: the working graphic survives a reload', async ({ page }) => {
   await enableAdvancedMode(page);

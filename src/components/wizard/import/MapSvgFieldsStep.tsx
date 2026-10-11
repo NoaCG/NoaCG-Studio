@@ -1205,7 +1205,7 @@ export default function MapSvgFieldsStep({
             // it highlight in the preview, typed, and nothing happened). `draftToOptions` drops
             // these layers from the field list, so a name and a sample typed here reach nothing at
             // all - and a control that cannot change the graphic in front of you must not be
-            // offered (docs/backlog/offer-nothing-that-cannot-work.md). The row stays, because the
+            // offered (https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/offer-nothing-that-cannot-work.md). The row stays, because the
             // reader still needs to see that their layer was recognised and by what.
             const driven = f.on && pollDriven.has(f.candidateId);
             /** The box this line sits in and what was measured about it - absent for a line on
@@ -1405,7 +1405,7 @@ export default function MapSvgFieldsStep({
                   its own words is Figma's default naming, so the label came from the group
                   around it - right for a Figma board, and baffling for a designer who named a
                   slot after its placeholder on purpose
-                  (docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The row
+                  (https://github.com/NoaCG/NoaCG-Studio/blob/ea01a688e0102db9051d77f82ac7ceb47150d776/docs/backlog/text-layer-named-after-its-own-copy-loses-its-name.md). The row
                   says which happened rather than leaving them to guess; the field name is
                   theirs to retype either way. */}
               {textLayers.find((c) => c.id === f.candidateId)?.namedByGroup && (

@@ -8,7 +8,7 @@ one phase of work would close. Nothing here is scheduled; it proposes, the owner
 
 Grounding: `docs/STATE_MACHINE_SCHEMA.md` (the model), `docs/SVG_IMPORT_PLAN.md` (how artwork
 arrives), `docs/DYNAMIC_MOTION_SCOPE.md` §11 (how endless motion settles),
-`docs/backlog/settle-emitted-runtime-finite-end.md` (the known open edge this direction
+[issue #774](https://github.com/NoaCG/NoaCG-Studio/issues/774) (the known open edge this direction
 triggers), `docs/EDITOR_RESEARCH.md` (the market read on looping).
 
 ---
@@ -77,7 +77,7 @@ Three facts currently collide, and all three are the same fact:
 2. **Snap and step-finish seek with `progress(1, true)`** - a `repeat: -1` child makes GSAP
    report ~1e10s, so the emitted runtime snaps an endless entrance to an arbitrary phase, in
    exports, under SPX, in the browser-output renderer
-   (`docs/backlog/settle-emitted-runtime-finite-end.md`). Currently harmless by luck (a
+   ([issue #774](https://github.com/NoaCG/NoaCG-Studio/issues/774)). Currently harmless by luck (a
    marquee covers its strip at any phase); the first ambient glow on a quiz board is exactly
    the design that stops being lucky. **This direction is the trigger that backlog item
    names** - the MVP starts with it.
@@ -166,7 +166,7 @@ difference is what each surface is willing to write for you.
 
 1. **`noacgFiniteEnd` in the emitted runtime** at the three seek sites and the timer-arming
    call; `validateMachine`'s endless guard narrowed to measured `dynamics` only. This
-   graduates `docs/backlog/settle-emitted-runtime-finite-end.md` - its fixture demand holds:
+   graduates [issue #774](https://github.com/NoaCG/NoaCG-Studio/issues/774) - its fixture demand holds:
    a machine-bearing template with an endless child in a state entrance, snapped, must land
    where the finite motion put it, and no such design exists yet, so the fixture is most of
    the test work.
@@ -238,7 +238,7 @@ timeline. Each is filed (§8, backlog).
 ## 11. The four decisions, settled 2026-09-03 - and why they did not go to the owner
 
 Section 9 put four items to the owner. Under his ruling the same day
-(`docs/acceptance/OWNER_QUEUE.md`, "A design default is NOT a taste question") a question with a
+([`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md), "A design default is NOT a taste question") a question with a
 defensible general answer is answered rather than escalated. All four have one. They are settled
 here, with the reasoning, so he can overrule a decision that exists rather than adjudicate one
 that does not.
@@ -247,7 +247,7 @@ that does not.
 definition. A timeline whose child repeats forever has no `progress(1)`, so every question the
 runtime asks of an end - when does a timer arm, when is a step finished, where does snap land,
 where does settle seek - currently has no answer, and the code already treats that as a defect
-(`docs/backlog/settle-emitted-runtime-finite-end.md`; `validateMachine` refuses to arm a timer on
+([issue #774](https://github.com/NoaCG/NoaCG-Studio/issues/774); `validateMachine` refuses to arm a timer on
 an endless child; settle seeks ten billion seconds into a loop). Every animation system that
 supports looping children defines end this way for the same reason. Fixing it removes a bug and
 makes ambient an ordinary track property instead of a special case.
@@ -267,7 +267,7 @@ ambient - a glow that pulses only while an answer is locked in - is a real need 
 it needs a rule about what happens to a running loop when a state exits, and inventing that rule
 before any preset exists would be designing against nothing. Graphic-lifetime is the cheap case,
 reverses cleanly, and the preset bank can grow under it. Revisit when the bank has more than two
-entries, which `docs/backlog/svg-ambient-state-scope.md` already tracks.
+entries, which [issue #774](https://github.com/NoaCG/NoaCG-Studio/issues/774) already tracks.
 
 **What is still genuinely his, later:** which ambient presets ship and whether they look right on
 air. That is a walk item once something moves, not a question now.

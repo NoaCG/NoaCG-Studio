@@ -13,7 +13,7 @@ baseline.** Product implementation is paused by the owner pending clarity and re
 - NoaCG source inspected: `d2f11efe` (freshly fetched `origin/main`, containing PR #323).
 - Studio comparison revision: `3142fc7d02934494931eb14e7dc255393e4110d0` throughout the gate.
 - Prior source research: [Studio evidence](ograf-2026-09-13.md), not a browser trial.
-- Prior NoaCG integrated verification: [PR #323 receipt](../handoffs/2026-09-17-editor-rebuild-review-followup.md),
+- Prior NoaCG integrated verification: [PR #323 receipt](https://github.com/NoaCG/NoaCG-Studio/blob/285c936ebb0b8b7ab0761501e64e434d27c1876e/docs/handoffs/2026-09-17-editor-rebuild-review-followup.md),
   at `8376987d`: build passed, 1,122 integration checks and 35 catalog checks passed.
   These prove regression coverage on that revision, not first-time usability or Studio parity.
 - Current narrow regression run: queue job `j-1297`, existing timeline, inspector, canvas

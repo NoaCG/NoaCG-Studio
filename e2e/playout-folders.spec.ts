@@ -1189,7 +1189,7 @@ test('a Bridge restart mid-loop says the folder stopped, by its name', async ({ 
   await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-sequence-stopped')).toHaveText('Block A stopped: NoaCG Bridge restarted', { timeout: 10_000 });
   await expect(page.getByTestId('server-sequence-stopped')).toBeVisible();
-  await page.screenshot({ path: 'docs/work-specs/studio-evening-reliability/built/studio-sequence-stopped.png' });
+  await page.screenshot({ path: test.info().outputPath('studio-sequence-stopped.png') });
 });
 
 // ── All together, seeded ─────────────────────────────────────────────────────────────────────

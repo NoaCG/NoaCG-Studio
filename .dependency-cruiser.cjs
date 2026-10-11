@@ -252,17 +252,28 @@ module.exports = {
         '§3: the /bridge page entry (docs/AGENT_CLI.md) - the platform\'s headless surface for the ' +
         '`noacg` CLI / MCP server. It composes the studio\'s OWN functions for a driver: the type ' +
         'registry + neutral scaffold (templates), the gate + bench + readiness + engine scan ' +
-        '(validation), the share-safety gate (community/gate), the preview document (preview), the ' +
+        '(validation), the preview document (preview), the ' +
         'dual package + OGraf reader (export), the pack wire entry (packs), and the operator-surface ' +
         'generator + OGraf contract adapter (control). It reads no store, no components, no backend: ' +
         'it holds no account and no key, and answers questions about bytes it is handed.',
       from: { path: '^src/bridge/' },
-      to: { path: '^src/(templates|blocks|model|validation|community|preview|export|packs|control)/' },
+      to: { path: '^src/(templates|blocks|model|validation|preview|export|packs|control)/' },
     },
     {
-      comment: '§3: community -> backend, validation',
+      comment:
+        '§3: bridge -> community, the pack checks only. An agent sharing a pack to Community packs ' +
+        '(docs/AGENT_SAVE.md §8) is checked by the shelf\'s own pure checks, not a copy of them; ' +
+        'the rest of community/ talks to the backend, which the bridge never reaches.',
+      from: { path: '^src/bridge/' },
+      to: { path: '^src/community/packChecks\\.ts$' },
+    },
+    {
+      comment:
+        '§3: community -> backend, validation, packs. A community pack IS a noacg-pack file ' +
+        '(docs/work-specs/community-packs/spec.md D2), so the shelf builds and re-checks it through ' +
+        'the one pack format rather than a second copy of it.',
       from: { path: '^src/community/' },
-      to: { path: '^src/(backend|validation)/' },
+      to: { path: '^src/(backend|validation|packs)/' },
     },
     {
       comment:

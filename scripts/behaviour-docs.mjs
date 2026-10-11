@@ -9,7 +9,7 @@
 //
 // docs/SVG_AUTHORING.md §5b tells a designer what to name their layers so a behaviour arrives
 // bound. On 2026-09-05 that page said `Answer 1` worked for a live vote and it did not
-// (docs/backlog/answer-n-is-documented-as-a-vote-row-word-but-always-reads-as-a-quiz.md): the page
+// (https://github.com/NoaCG/NoaCG-Studio/blob/68a33969e44b82026ba220e196493bf48e00cc7a/docs/backlog/answer-n-is-documented-as-a-vote-row-word-but-always-reads-as-a-quiz.md): the page
 // was prose, the matcher was code, and nothing held the two together. Now the words live once, in
 // src/templates/behaviours/words.json, the recipes and the proposal read them from there, and this
 // script writes the tables between `<!-- behaviour:<id>:start -->` / `:end -->` markers on that
@@ -100,8 +100,8 @@ export function render(page, words) {
 }
 
 // THE PUBLIC PAGE CARRIES THE SAME WORDS. docs.html's "Layer names" page opens with the naming
-// system and a table of every name the importer reads (docs/backlog/one-layer-naming-system-for-
-// every-graphic.md): the taught spelling, the synonyms and what the layer does, for every
+// system and a table of every name the importer reads (
+// https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/one-layer-naming-system-for-every-graphic.md): the taught spelling, the synonyms and what the layer does, for every
 // behaviour. Written between one pair of markers by the same script, for the same reason as the
 // authoring page: a student copies a name off the public docs, and a name the docs print that the
 // matcher would not read is the defect this script exists to stop.

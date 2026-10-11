@@ -2317,10 +2317,10 @@ missing was anything that measured the other end.
 
 **Two instruments, because there are two situations.**
 
-`src/validation/plateLegibility.ts` measures an ARBITRARY rendered graphic: it composites every
-painted ancestor over each of three plates - a night exterior, a mid-tone shot, a blown-out sky -
-and reports text that misses its WCAG floor. It has to infer the surface from the DOM, and it
-under-detects: a panel drawn as a positioned SIBLING is invisible to an ancestor walk, which is
+`src/validation/plateLegibility.ts` (removed 2026-10-09, see the end of this section) measured
+an ARBITRARY rendered graphic: it composited every painted ancestor over each of three plates - a
+night exterior, a mid-tone shot, a blown-out sky - and reported text that missed its WCAG floor.
+It had to infer the surface from the DOM, and it under-detected: a panel drawn as a positioned SIBLING is invisible to an ancestor walk, which is
 why `lt49` reads as surface-less when its frame plainly is not. **Its numbers are an upper bound
 on findings, and it reports rather than gates.**
 
@@ -2357,6 +2357,13 @@ sibling-panel blind spot above rather than real. **A large part of the catalog q
 the footage being dark**, which is a fact nobody had measured and not, by itself, a defect: glass
 and panel-less designs are deliberate compositions. Nothing is gated on this. The number that
 would justify gating does not exist yet.
+
+**Removed 2026-10-09 (#840).** `plateLegibility.ts` and its sweep were deleted. Nothing imported
+the instrument and no workflow ran the sweep, so it was a rule enforced nowhere. Wiring it into a
+product surface would have warned on about half the catalog's lower thirds, some of them the
+sibling-panel blind spot above: the kind of gate authors learn to ignore. `platePlan` keeps the
+exact Pro measurement. The numbers above stay in `benchmarks/pro/evidence/plate-legibility.json`,
+and the last commit carrying the instrument is `b3b2fd090`.
 
 ### 17.9 ls17's dead space - 2026-08-16
 

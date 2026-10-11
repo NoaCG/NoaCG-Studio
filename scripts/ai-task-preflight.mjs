@@ -66,6 +66,7 @@ export async function runTaskPreflight(plan) {
       // The real environment is passed as DATA (plan.ambient), not inherited, so the
       // preflight reports on .env rather than on whatever this shell happens to carry.
       env: { PATH: process.env.PATH, NODE_ENV: 'test' },
+      windowsHide: true,
     });
     if (result.status !== 0) {
       throw new Error(result.stderr || 'The preflight failed to run.');

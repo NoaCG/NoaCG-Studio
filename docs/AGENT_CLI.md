@@ -28,7 +28,7 @@ surface read as four products. There is one of each, and everything else is pack
 | **the `noacg-graphic` skill** | the CONTRACT TEXT the door teaches: what a graphic must expose, and the loop. Every entrance carries the same copy, generated from one source. | not an entrance of its own, and not design guidance |
 
 So: "install the NoaCG CLI" (or the plugin, which brings it), "the MCP server exposes one tool
-with seven verbs", "the skill teaches the contract", "the agent door works" - and never "the CLI
+with eight verbs", "the skill teaches the contract", "the agent door works" - and never "the CLI
 and the MCP server" as though they were two things to choose between.
 
 **The plugin runs nothing until a graphic is being made** (since 2026-09-02). It is the skill and
@@ -38,6 +38,28 @@ is enabled and cannot be made to start later - the measurements, the design and 
 open are in "What a session pays" below.
 
 ## The shape
+
+### The editing boundary
+
+The CLI and MCP reuse command helpers and the deployment's validators, preview and exporters.
+They do not expose the editor's semantic commands (`editorFoundation/commands.ts`, the R1.3b
+catalog the reviewed proposals use) or its live session. Agents edit package files; the editor
+interprets supported source. Terminal and MCP dispatch are wired separately, with no gate tying
+the two verb lists ([issue #770](https://github.com/NoaCG/NoaCG-Studio/issues/770)). Bringing
+the editor's commands to the CLI reuses that catalog over `operations.ts`, block transforms and
+`EditorSession` (which today sit under a UI directory, so an import seam is part of the work); it
+does not add a second command catalog, a parallel AI scene or an edit engine. Independent package authoring stays,
+including source the visual controls cannot edit: report the supported regions and preserve the
+rest. Order: [EDITOR_PLAN.md](EDITOR_PLAN.md) R1.3b and R3.2, and
+[issue #772](https://github.com/NoaCG/NoaCG-Studio/issues/772).
+
+The [2026-10-03 research](research/agent-toolkit-2026-10-03.md) compares this with OGraf Studio
+and the Claude and Codex directories. A directory listing needs packaging first
+([issue #842](https://github.com/NoaCG/NoaCG-Studio/issues/842)). Installing the skill in
+ordinary Claude chat does not make the local CLI reachable there; that route needs a hosted,
+authenticated authoring MCP ([issue #843](https://github.com/NoaCG/NoaCG-Studio/issues/843)).
+
+### Topology
 
 ```
  user's machine                                            the NoaCG deployment (NOACG_URL)
@@ -143,7 +165,7 @@ install script would turn `npx @noacg/cli` into a package that installs half-bui
 | `noacg validate <dir\|zip> [--no-bench] [--no-house-contract] [--screenshots <dir> [--background <bg>]] [--json]` | For a NoaCG package: the static gate (`publishGate`), the live runtime bench (binding, pre-play, entrance, overlap/overflow, doubled-text stress, exit, replay, editability, field paint, type floor), readiness rows, engine compatibility - then REGENERATES the OGraf half from the sources and warns when it was stale. For a third-party OGraf package: manifest + package conformance, then the OGraf host drives load / update / custom actions / play / stop and reports every ReturnPayload. `--screenshots` writes `off.png`, `onair.png`, `stress.png` - the agent's eyes - and then one frame per machine state the graphic's events reach, named `<group>-<state>.png` (`pp-b.png`, `result-final.png`, `timer-running.png`): the walk starts from the Take, tries every declared event (and Next while there are steps) up to three presses deep and at most 40 renders, and prints, for each frame, the `--event` list that reproduces it with `screenshot` (`stateFrames` in `--json`). Declared states the walk did not reach are named after the frames (`unshotStates`), and frames that fail part way keep the report and every frame before them, with exit 2. A graphic without a machine gets `step-<n>.png` per extra step. `--background` paints every frame over a ground (see `screenshot`); the package thumbnail stays transparent. |
 | `noacg inspect <dir\|zip> [--json]` | The operator surface NoaCG derives from the graphic's own contract: one input per field, one button per action/event, the step semantics - for a NoaCG template from its definition + machine, for any OGraf manifest from `schema` + `customActions` + `stepCount`. No category is consulted, ever. |
 | `noacg screenshot <dir\|zip> [--state off\|onair\|stress] [--data k=v ...] [--event <op> ...] [--at <time>] [--background <bg>] --out <png>` | One frame of the graphic. Without `--event`/`--at`: the settled frame for the state (default `onair`) or the data. With `--event` (repeatable, run in order after a Take with the state's data plus `--data`), the graphic is driven the way an operator drives it: `<event>` is a declared button, sent with the payload its press carries (a goal's +1 counts from the previous press); `next`, `out` and `take`; `<field>=<value>` changes a field and sends Update; `wait:<time>` lets time pass; `event:<name>` for an event named like one of those words. Each op is followed by 1.5 s; `--at` is the time from the last op to the shutter (default 1.5 s; `4s`, `800ms`, `2m`, `1:30`). Time runs on a paused clock that only the run moves, so a frame is the same every time and `--at 2m` takes seconds. The result names the ops, the offset and the machine state at the shutter, and notes any event that did not move the machine. `--background`: `transparent` (default), `checker`, `video` (a built-in defocused video-like plate with bright and dark areas), a CSS colour (`#101010`), or a `.png`/`.jpg`/`.webp` file; it is painted behind the graphic. Examples: `noacg screenshot ./quiz --event startTimer --at 4s --out shots/timer.png`, `noacg screenshot ./hockey --event clockStart --event goalA --event ppB --background video --out shots/pp.png`. |
-| `noacg pack <dir\|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...` | Several graphics as one package, with their layers and an optional `--rundown` of cues. `--out` writes a production file for the studio's Import door (`docs/GRAPHICS_PACKS.md`); `--save` sends it to your NoaCG Home to Install, as `save` does for one graphic. |
+| `noacg pack <dir\|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...` | Several graphics as one package, with their layers and an optional `--rundown` of cues. `--out` writes a production file for the studio's Import door (`docs/GRAPHICS_PACKS.md`); `--save` sends it to your NoaCG Home to Install, as `save` does for one graphic. Only on the user's request, `--share --license cc-by-4.0 --shown-as S --description D` with `--save` also sends it for review to Community packs (`docs/AGENT_SAVE.md` §8). |
 | `noacg docs [contract\|package\|validator\|ograf]` | Prints the skill's reference texts (the same files the skill ships). |
 | `noacg login [--name N] [--no-browser] [--key <noacg_ak_…>]` / `logout [--local]` / `whoami` | Obtain, end and show this machine's SCOPED AGENT KEY (docs/AGENT_SAVE.md): `login` opens the consent page in your browser and receives a one-time code on a loopback listener - the key is minted at redeem and never transits the browser; it can only create graphics in your library. `--key` stores a key minted elsewhere. |
 | `noacg save <dir\|zip> [--name N] [--folder F] [--no-bench]` | Validate (gate + bench) in the bridge, refuse on errors, then POST the library record to `/api/me/graphics` with the key; prints the `#/graphic/<id>` link, which opens at once (a miss while signed in runs one sync pass). SAVE is the library - never publish, never a production. |
@@ -183,7 +205,9 @@ The CLI opens `${NOACG_URL}/bridge` in its own headless browser, waits for
 (`src/bridge/bridgeApi.ts`, `BRIDGE_V`). The CLI declares the `v` range it speaks; a deployment
 speaking a newer `v` is refused with *"this NoaCG speaks bridge v2 - update noacg"*, an older one
 with the reverse - the pack format's refuse-with-upgrade idiom, because a human can act on it.
-Additive fields on any result never bump `v`; a breaking change does.
+Additive fields on any result never bump `v`; a breaking change does. Ready means callable: the type
+registry loads after the ready flag, so `types()` and `scaffold()` answer through a promise,
+which `page.evaluate` awaits.
 
 ### Containment (the bench executes the agent's code)
 
@@ -229,7 +253,7 @@ everything about it lived in `smoke.test.mjs`, which skips itself whenever no br
 the surface an installed plugin actually talks to could change shape and every green run in this
 repository would have said nothing. It drives a real MCP client against `noacg mcp` over stdio,
 with `NOACG_URL` pointed at a closed port, and asserts: the server exposes one tool, `noacg`,
-whose `command` enum is exactly the seven authoring verbs; **`caspar` is not among them**, which
+whose `command` enum is exactly the eight authoring verbs; **`caspar` is not among them**, which
 was a rule stated only in prose; the tool's title, description and argument list, and a
 character ceiling on the rendered schema (since 2026-09-02, when the seven tools became one to
 cut what every session pays); the server's own name and version; that a verb missing its
@@ -377,7 +401,7 @@ Three things, in the order a stranger meets them:
 3. **Three of six neutral scaffolds warn on their own bench.** STILL OPEN - it is a studio
    template fault rather than a CLI one, and the fix has to start from a reproduction because the
    obvious cause is already ruled out. Filed:
-   `docs/backlog/neutral-scaffolds-fail-their-own-stress-bench.md`.
+   [issue #770](https://github.com/NoaCG/NoaCG-Studio/issues/770).
 
 One documentation fix came out of it too: `cli/README.md` told the reader to edit
 `football-scoreboard.html`, and the file the scaffold writes is `football_scoreboard.html` - the
@@ -663,7 +687,7 @@ falling through to a real resolve. The cache write is write-then-rename, because
 `noacg-mcp` processes across this repo's own concurrent worktrees can race the same file past its
 day-old TTL, and `NOACG_CLI_LATEST_CACHE_FILE` lets a diagnostic run point at a scratch file instead
 of the one every session on the machine shares. What was
-`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md` is closed on that fix.
+[`docs/backlog/a-stale-global-cli-wins-over-npx-silently.md`](https://github.com/NoaCG/NoaCG-Studio/blob/d5a9a86b2d57970eec0946f8664757b163357c72/docs/backlog/a-stale-global-cli-wins-over-npx-silently.md) is closed on that fix.
 
 **Extended 2026-09-17 to the entrance people are actually told to run.** The registry read now
 lives in `cli/src/npmLatest.mjs`, and `cli/plugin-mcp/npm-latest.mjs` is a generated byte-identical
@@ -675,6 +699,15 @@ the CLI executing it is BEHIND `latest` - `isBehind`, not `!==`, so a checkout b
 published version says nothing. The launcher's own text, cache, timeout and its skip on the
 `NOACG_CLI` override are untouched.
 
+**Superseded 2026-10-09 for the launcher (#842).** A plugin in Claude's directory must run an
+exact, reviewed CLI version, so `mcp-server.mjs` no longer asks npm anything and the generated
+`npm-latest.mjs` copy is gone. The launcher imports an installed CLI only at exactly its plugin's
+version; a stale or newer one is named on stderr and skipped for `npx -y @noacg/cli@<that
+version>` (`docs/work-specs/agent-toolkit-distribution/spec.md`). So `doctor` (#863) tells a
+user with a `noacg` or `noacg-mcp` plugin installed to run `npm i -g @noacg/cli@<the plugin's
+version>`, the launcher's when both are installed, and names a newer plugin on its own line. The
+`latest` advice above is kept only for a machine with no plugin.
+
 `doctor` still does not separately name what `resolveCli()` would pick; that half of the file's
 proposal is still undecided, not done. What it DOES now name is the skill - below.
 
@@ -685,7 +718,7 @@ auto-update on only for Anthropic's own marketplaces; a user can turn it on for 
 `/plugin`, **Marketplaces**), and a plugin installed once keeps the skill text it shipped with. Measured on this laptop 2026-09-16: `noacg@noacg-studio` at **0.2.0**
 against a marketplace shipping 0.3.3, a `SKILL.md` eleven lines shorter than the repository's, and
 nothing anywhere saying so - the person most exposed being whoever installed earliest.
-`docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md` has the full reading.
+[`docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md) has the full reading.
 
 `noacg doctor` closes that on 2026-09-17 (`cli/src/skillVersion.ts`). It finds every installed copy
 of the skill on the machine and prints one that disagrees with the CLI running, with the exact
@@ -742,8 +775,13 @@ no `--provenance` flag).
    `cli/scripts/release-notes.mjs --check` runs in the build and at the top of the release
    workflow, and refuses a version with no section, a stub, a list of pull requests or a
    username.
-2. Commit, and land it on `main` the normal way (`/queue-merge`).
-3. Then one command, from any checkout:
+2. Commit, and land it on `main` the normal way (`/queue-merge`). **Landing it publishes it**
+   (owner, 2026-10-08): `release-cli.yml` runs on the push to `main`, sees a version npm does not
+   have yet, publishes it with provenance and to the MCP Registry, and tags the commit
+   `cli-vX.Y.Z`. A push that changes `cli/package.json` without a new version publishes nothing.
+   The version bump in a reviewed pull request is the release decision.
+3. Afterwards, prove what was published: `npm run release:cli -- --verify-only`. The full command
+   below stays for re-driving a release whose run failed:
    ```bash
    npm run release:cli
    ```
@@ -868,7 +906,7 @@ be reset before general availability. What reads it: aggregators, VS Code and Gi
 nothing documents Claude Code or Codex reading it. Which directories follow a release on their own,
 and which need a person each time, is in `docs/research/agent-marketplaces-2026-10-02/updates.md`.
 
-**The one thing only the owner can do** (`docs/acceptance/owner-queue/`), done once and needed again
+**The one thing only the owner can do** (a `needs owner` issue), done once and needed again
 after any repository move: on npmjs.com → the package → Settings → **Trusted publishing**, a GitHub
 Actions publisher with organisation **`NoaCG`**, repository `NoaCG-Studio`, workflow filename
 **`release-cli.yml`** (the filename only, not a path), environment left blank, and **allowed actions

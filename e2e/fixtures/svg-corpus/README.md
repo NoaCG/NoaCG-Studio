@@ -101,7 +101,7 @@ Playwright suite. It is an instrument and exits 0; `--fail-on fail` makes it a g
 ladder spend its rungs in order on it". Every bound field, times the four ladder options, times
 six value lengths - thousands of cases, which is what the owner asked for when he said he wished
 the testing would "try all the combinations until it works as intended"
-(`docs/backlog/fit-ladder-exhaustive-sweep.md`). It asserts the ladder's ORDER and its
+([issue #778](https://github.com/NoaCG/NoaCG-Studio/issues/778)). It asserts the ladder's ORDER and its
 independence from history, never a table of expected numbers, so a fixture needs no new sidecar
 field to join it.
 

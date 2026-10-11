@@ -8,6 +8,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
 import { loadBackendConfig } from './config';
 import { releaseLibrary } from './accountLibrary';
+import { signUpOutcome, type SignUpOutcome } from './signUpOutcome';
 import { OUTPUT_DEFAULT_KEY, readOutputSetup, type ProductionOutputSetup } from '../model/outputSetup';
 
 export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
@@ -80,13 +81,18 @@ export async function signInWithEmail(email: string, password: string): Promise<
 /**
  * Create an account with email + password. Signup is open (migration 0006); the server-side
  * Before-User-Created hook is the switch if it ever needs to re-close to the allowlist — any
- * rejection message it returns surfaces here.
+ * rejection message it returns surfaces here. `outcome` says whether the new account is signed in
+ * already or waits on a confirmation email (signUpOutcome.ts).
  */
-export async function signUpWithEmail(email: string, password: string): Promise<{ error: string | null }> {
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+): Promise<{ error: string } | { error: null; outcome: SignUpOutcome }> {
   const sb = await getSupabase();
   if (!sb) return { error: 'No backend configured.' };
-  const { error } = await sb.auth.signUp({ email, password });
-  return { error: error?.message ?? null };
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) return { error: error.message };
+  return { error: null, outcome: signUpOutcome(data) };
 }
 
 export async function signOut(): Promise<void> {

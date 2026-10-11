@@ -7,7 +7,7 @@
 // forget the durable-write claim (`components/never-report-save-storage-layer-has`).
 
 import { commitDurableWrites } from './durableStore';
-import { createGraphic } from './library';
+import { createGraphic, type GraphicDoc } from './library';
 import { captureLookFromTemplate } from './packets';
 import {
   addGraphicToShow,
@@ -39,14 +39,16 @@ export async function saveTemplateSetToProduction(
   templates: SpxTemplate[],
   fallbackName: string,
   dest: ProductionDest,
+  /** Each template's community pack stamp, by position (a community pack's install, D7). */
+  fromPacks?: ReadonlyArray<GraphicDoc['fromPack']>,
 ): Promise<Show> {
   if (!templates.length) throw new Error('There are no graphics to save.');
 
   // Library records first, so the production is only created once every graphic in it
   // saved — a quota failure mid-way never leaves an empty production on Home.
   const docs = [];
-  for (const template of templates) {
-    const { doc, error } = createGraphic(template, { name: template.name, packageId: null });
+  for (const [i, template] of templates.entries()) {
+    const { doc, error } = createGraphic(template, { name: template.name, packageId: null, fromPack: fromPacks?.[i] });
     const failure = error ?? (await commitDurableWrites());
     if (failure || !doc) throw new Error(failure ?? 'The graphic could not be saved.');
     docs.push(doc);

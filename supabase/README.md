@@ -178,19 +178,12 @@ resize does nothing for Auth).
 - `migrations/0002_auth_allowlist.sql` — the `allowlist` table and the `enforce_allowlist` auth
   hook. Add invitees with `insert into allowlist (email) values ('…');` (service_role / SQL editor).
 - `migrations/0003_show_chat.sql` — the show-chat send-in queue, moderation, and abuse trigger.
-- `migrations/0004_community_templates.sql` — Era 5.5 community sharing: the `community_templates`
-  table (author-owned rows, a status lifecycle, a URL-safe slug), the browse RPCs `community_list` /
-  `community_get` (SECURITY DEFINER, granted to `authenticated` only — the sole public read path), a
-  global `moderators` role + `is_moderator()`, a `community_reports` takedown path, and the public
-  `community-assets` Storage bucket (author-scoped writes). **Posture: self-service** — a clean
-  client gate publishes straight to `approved`. To switch on **human pre-review**, change the one
-  line in `community_moderation_guard` (INSERT branch) from `'approved'` to `'pending'` and ship the
-  moderator queue UI. Make someone a moderator with
-  `insert into moderators (user_id) values ('<their-auth-uid>');` (service_role / SQL editor).
-- `migrations/0005_community_moderator_read.sql` — a moderator SELECT policy on `community_templates`.
-  Required so a takedown works at all: Postgres applies SELECT policies to the rows an
-  `UPDATE ... WHERE` must locate, so without it a moderator's status change silently matches 0 rows
-  (found in live-verify). Also what a review/takedown queue reads.
+- `migrations/0004_community_templates.sql`, `0005_community_moderator_read.sql` — the Era 5.5
+  community gallery. It closed to publishing in `0078` and `0085` dropped its tables and browse RPCs
+  once they were proven empty. What remains of it: the global `moderators` role + `is_moderator()`,
+  which community packs use (make someone a moderator with
+  `insert into moderators (user_id) values ('<their-auth-uid>');` as service_role), and the
+  `community-assets` bucket, which refuses every upload and still holds what was uploaded before.
 - `migrations/0006_open_signup.sql` — **open signup** (Era 5.6): `enforce_allowlist` now allows
   every sign-up; the hook wiring and the allowlist table stay, so re-closing is a one-function
   migration. Abuse posture for public instances: require email confirmation (Auth → Sign In/Up)
@@ -242,19 +235,5 @@ logic, but the server paths below need a real project. Do these once after conne
    user's packets, and the `documents`/`assets` selects return only their own rows. (RLS, not the
    UI, is the boundary.)
 
-**Community sharing (5.5)** — apply `0004`, then with two signed-in users A and B:
-8. As A, open 📦 Packets → **Share to community** → **Publish this graphic**, add a summary, Publish →
-   "✓ Published". `community_templates` shows one `approved` row owned by A; `community-assets` holds
-   its font/image objects under `A-uid/…`.
-9. As B, open **🌐 Community** → A's graphic appears → **Use** → it loads into B's editor and its
-   fonts/images render (assets downloaded from the public bucket). Importing a **look** lands under
-   📦 Packets ▸ Brand looks.
-10. **RLS / moderation boundary (the security checks):** (a) as B, `PATCH` A's row's `status` (via the
-    REST API with B's token) → **rejected** by RLS. (b) Make B a moderator, have B set A's row to
-    `removed` → it vanishes from the gallery; then as A, `PATCH` your own row back to `approved` → it
-    must be **rejected** ("only a moderator may change moderation columns"). (c) As anon (no token),
-    call `community_list`/`community_get` → **rejected** (signed-in-only this cut). (d) Try to upload
-    a `community-assets` object under another uid's folder → **rejected**.
-
-If any of 3, 7, or 10 fail, stop and fix the policy/hook/trigger before inviting testers — those are
+If 3 or 7 fails, stop and fix the policy/hook/trigger before inviting testers — those are
 the security guarantees.

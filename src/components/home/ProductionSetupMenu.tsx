@@ -53,7 +53,7 @@ export function ProductionSetupMenu({
     run();
   };
   const tone = panelTone(panel);
-  const words = panelToneWords(tone);
+  const words = panelToneWords(tone, panel.holder);
   const view = (sub: 'data' | 'audience', label: string, testId: string, title: string) => (
     // A real link into the view's own browser tab, as the switcher's are: Playout stays on screen
     // here, and middle-click works.

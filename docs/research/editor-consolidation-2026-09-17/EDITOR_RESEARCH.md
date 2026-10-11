@@ -12,7 +12,7 @@ This adds evidence to the settled rulings below; it authorizes no implementation
 comparison before a major animation or agent-authoring architecture decision.
 
 **What this is.** The direction document for the NoaCG authoring system, written to the owner's
-master brief (`docs/backlog/editor-master-research-brief.md`, verbatim, 2026-08-28). It replaces
+master brief ([`docs/backlog/editor-master-research-brief.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/editor-master-research-brief.md), verbatim, 2026-08-28). It replaces
 the first edition of this file (2026-08-28, five products from their product pages) with what the
 brief ordered: a hands-on audit of our own editor under the brief's three-level test, competitive
 research grounded in actual workflows across ten systems, the major authoring problems named with
@@ -925,7 +925,7 @@ conversation away, and each could move a row above.
 ## 9b. The seven decisions, settled 2026-09-03
 
 Section 9 put seven items to the owner. Under his ruling the same day
-(`docs/acceptance/OWNER_QUEUE.md`, "A design default is NOT a taste question") a question with a
+([`docs/acceptance/OWNER_QUEUE.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/OWNER_QUEUE.md), "A design default is NOT a taste question") a question with a
 defensible general answer is answered rather than escalated. One of the seven he had already
 ruled; the other six are settled here with the reasoning, to be overruled rather than adjudicated.
 
@@ -944,13 +944,13 @@ needed recording against this doc, not deciding.
 **3. Step 1's content is ENDORSED as written.** The §1b defect list is the definition of "basic
 editing reliable", and the ordering argument is sound: a student meets a swallowed Space key before
 they meet any new capability. Current state, which §9 could not know: defects 1 and 2 are FIXED and
-awaiting his walk (`docs/acceptance/owner-queue/2026-08-29-space-over-the-stage-plays.md`); defect
+awaiting his walk ([`docs/acceptance/owner-queue/2026-08-29-space-over-the-stage-plays.md`](https://github.com/NoaCG/NoaCG-Studio/blob/c5606a330fc51f2df39b5e91d83f8cc651416646/docs/acceptance/owner-queue/2026-08-29-space-over-the-stage-plays.md)); defect
 3, his blank stage, remains unreproduced anywhere but his screen and is an environment fault to
 catch in the field; defect 4, align and distribute, is the one genuine capability gap left in the
 list.
 
 **4. The two animation slices are APPROVED to start**, with one ordering note that outranks them:
-`docs/backlog/scoreboard-behaviour.md` is the first row of the next wave, because it is half the
+[`docs/backlog/scoreboard-behaviour.md`](https://github.com/NoaCG/NoaCG-Studio/blob/01f6cfd26c21be5205177e7f2b540c7fb06f9bb4/docs/backlog/scoreboard-behaviour.md) is the first row of the next wave, because it is half the
 2026-09-12 goal and does not exist. A date is not a gate (owner, 2026-09-03) but a missing half of
 a dated goal is a fire, and his own test is "no other fires to put out first".
 

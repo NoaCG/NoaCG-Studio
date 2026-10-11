@@ -1,78 +1,70 @@
+// covers: src/components/home/{HomePage,GraphicRow}.tsx
+// covers: supabase/migrations/0078_community_gallery_closed.sql, supabase/migrations/0085_community_gallery_retired.sql
 import { test, expect } from '@playwright/test';
-import { createGraphic, haveCreds, settleSync, signIn, wipeMyGraphics, wipeMySubmissions } from './_helpers';
-import { startNewProject } from '../_create';
+import { settleDurableWrites } from '../_durable';
+import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
 
-// Authenticated community flows against the configured Supabase backend. Skips unless E2E_EMAIL /
-// E2E_PASSWORD are set (see playwright.live.config.ts). Each test cleans up the account's rows.
+// The Era 5.5 community gallery closed to publishing (owner, 2026-10-08: the community shares
+// reviewed packs only) and its tables are retired (0085). A signed-in account finds no publish
+// entry, and a publish sent around the UI is refused by the server - the boundary is the server,
+// not the missing button. The community-assets bucket stays, still refusing every upload.
 
-test.describe('community (configured / signed-in)', () => {
+test.describe('community gallery closed to publishing (configured / signed-in)', () => {
   test.skip(!haveCreds, 'set E2E_EMAIL + E2E_PASSWORD to run the authed community suite');
 
   test.beforeEach(async ({ page }) => {
     await signIn(page);
-    // The library syncs, so the account arrives carrying whatever earlier runs saved. Start from
-    // an empty one — every graphic below is addressed by NAME.
+    await dismissWizard(page);
     await settleSync(page);
     await wipeMyGraphics(page);
   });
 
   test.afterEach(async ({ page }) => {
-    await wipeMySubmissions(page);
     await wipeMyGraphics(page);
   });
 
-  test('publish a graphic, then import it back from the gallery', async ({ page }) => {
-    // Publish a lower third: save it into the library, then 🌐 from its Home row
-    // (publishing moved to Home with the packet manager's retirement).
-    await createGraphic(page, 'Lower thirds', 'Hairline');
-    await page.getByTestId('save-graphic').click();
-    await page.getByTestId('save-name').fill('Hairline');
-    await page.getByTestId('save-confirm').click();
-    await page.getByTestId('open-home').click();
-    await page.getByTestId('home-nav-graphics').click();
-    const hairlineRow = page.locator('.lib-row', { hasText: 'Hairline' });
-    await hairlineRow.getByTestId('row-menu').click();
-    await hairlineRow.getByTestId('publish-graphic').click();
-    await page.getByPlaceholder(/One-line description/).fill('E2E round-trip');
-    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+  test('a saved graphic offers no publish entry to a signed-in account', async ({ page }) => {
+    const seeded = await page.evaluate(async () => {
+      const { variantsFor } = await import('/src/templates/catalog.ts');
+      const { createGraphic } = await import('/src/model/library.ts');
+      const template = variantsFor('lower-third')[0].create({});
+      return createGraphic({ ...template, name: 'Closed gallery E2E' }, { name: 'Closed gallery E2E' }).error;
+    });
+    expect(seeded).toBeNull();
+    await settleDurableWrites(page);
+    await page.goto('/app#/home/graphics');
+    const row = page.locator('.lib-row', { hasText: 'Closed gallery E2E' });
+    await expect(row).toBeVisible();
+    await row.getByTestId('row-menu').click();
+    await expect(page.getByTestId('export-graphic')).toBeVisible(); // the menu IS open
+    await expect(page.getByTestId('publish-graphic')).toHaveCount(0);
     await expect(page.getByTestId('publish-sheet')).toHaveCount(0);
-    // "My community templates" shows it live.
-    await expect(page.locator('.pk-graphic', { hasText: 'Hairline' }).last()).toContainText('live');
-    await page.getByTestId('home-continue-editing').click();
-
-    // Switch the editor to a DIFFERENT graphic so the import is observable.
-    await startNewProject(page);
-    await createGraphic(page, 'Tickers', 'News Strip');
-    await expect(page.locator('.topbar .tpl-name')).toHaveText('News Strip');
-
-    // Import the published Hairline from the gallery — it replaces the editor content.
-    await page.getByRole('button', { name: /Community/ }).click();
-    const card = page.locator('.pk-modal .pk-graphic', { hasText: 'Hairline' }).first();
-    await expect(card).toBeVisible();
-    await card.getByRole('button', { name: 'Use' }).click();
-    await expect(page.locator('.pk-modal')).toBeHidden(); // gallery closes on a graphic import
-    await expect(page.locator('.topbar .tpl-name')).toHaveText('Hairline');
   });
 
-  test('the publish gate blocks a template that is not self-contained', async ({ page }) => {
-    await createGraphic(page, 'Lower thirds', 'Hairline');
-    // Inject an external CDN dependency — the gate must promote this to a blocking error.
-    await page.evaluate(async () => {
-      const { useTemplateStore } = await import('/src/store/templateStore.ts');
-      const st = useTemplateStore.getState();
-      st.setHtml(st.template.html + '\n<script src="https://cdn.jsdelivr.net/npm/x/y.js"></script>');
+  test('the server refuses a direct publish and a community-assets upload', async ({ page }) => {
+    const answer = await page.evaluate(async () => {
+      const sb = (await (await import('/src/backend/supabase.ts')).getSupabase())!;
+      const { data: who } = await sb.auth.getUser();
+      const uid = who.user!.id;
+      // Refused either way: by 0078's policy while the table exists, as an unknown table after 0085.
+      const insert = await sb
+        .from('community_templates')
+        .insert({ kind: 'graphic', name: 'Closed gallery E2E', summary: '', body: {} })
+        .select('id');
+      const upload = await sb.storage
+        .from('community-assets')
+        .upload(`${uid}/closed-gallery-e2e`, new Blob(['x'], { type: 'text/plain' }), { upsert: false });
+      return {
+        insertCode: insert.error?.code ?? null,
+        insertMessage: insert.error?.message ?? '',
+        uploadRefused: Boolean(upload.error),
+        uploadMessage: upload.error?.message ?? '',
+      };
     });
-    await page.getByTestId('save-graphic').click();
-    await page.getByTestId('save-name').fill('Hairline');
-    await page.getByTestId('save-confirm').click();
-    await page.getByTestId('open-home').click();
-    await page.getByTestId('home-nav-graphics').click();
-    const gateRow = page.locator('.lib-row', { hasText: 'Hairline' });
-    await gateRow.getByTestId('row-menu').click();
-    await gateRow.getByTestId('publish-graphic').click();
-
-    // The sheet shows the blocking error and disables Publish.
-    await expect(page.locator('[data-testid="publish-sheet"] .status-bad')).toContainText(/External dependency/i);
-    await expect(page.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled();
+    // 42501: 0078's policy refused it, on a database 0085 has not reached yet (hosted staging until
+    // it is pushed there). PGRST205: no such table. Keep only PGRST205 once 0085 is everywhere.
+    expect(['42501', 'PGRST205'], answer.insertMessage).toContain(answer.insertCode);
+    expect(answer.uploadRefused, 'an upload to the public community bucket must be refused').toBe(true);
+    expect(answer.uploadMessage).toMatch(/row-level security/i);
   });
 });

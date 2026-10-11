@@ -18,7 +18,7 @@
 // route and the sanctioned route served somebody else's tree. That is the "green gate on the
 // wrong tree" shape the root AGENTS.md calls worse than a red one, and it has already been paid
 // for - the 2026-08-29 SVG import sweep measured main's importer rather than the branch's and
-// said so in its own report (docs/backlog/svg-import-sweep-findings.md).
+// said so in its own report (https://github.com/NoaCG/NoaCG-Studio/issues/778).
 //
 // WHAT KEEPS THE REFUSAL HONEST. The guard refuses hand-started servers for a real reason:
 // Playwright runs with `reuseExistingServer: true`, so a stray server on a checkout's port is
@@ -100,13 +100,21 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { devPorts, writeLaunchConfig } from './dev-port.mjs';
+import { claimDevPorts, devPorts, writeLaunchConfig } from './dev-port.mjs';
 import { isPortBusy } from './port-probe.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 
-const record = devPorts();
+// `--print` only asks; anything else is about to start a server, so it RESERVES the port
+// (scripts/dev-port.mjs: asking never reserves, starting a server does).
+let record;
+try {
+  record = process.argv.includes('--print') ? devPorts() : claimDevPorts();
+} catch (error) {
+  console.error(error?.message ?? String(error));
+  process.exit(1);
+}
 const url = `http://localhost:${record.port}`;
 const servesBuild = process.argv.includes('--preview');
 
@@ -193,14 +201,15 @@ console.log(`${where()}\n`);
 // CI=1 is this repo's own switch for "do not pop a browser window" - vite.config.ts reads it for
 // exactly one thing, `server.open` - and a server started from a tool call must not steal the
 // desktop. An explicitly set CI is left alone.
-// `preview` takes the port explicitly: vite.config.ts pins `server.port` for the dev server and
-// says nothing about the preview one, and a preview server on a number nobody else derives would
-// break the single-source-of-port rule this file is built on.
-const viteArgs = servesBuild ? ['preview', '--port', String(record.port), '--strictPort'] : [];
+// Both modes take the port explicitly: it is the one reserved above, and vite.config.ts reserves
+// exactly the number it is told or refuses to start - a server on a number nobody else derives
+// would break the single-source-of-port rule this file is built on.
+const viteArgs = [...(servesBuild ? ['preview'] : []), '--port', String(record.port), '--strictPort'];
 const child = spawn(process.execPath, [viteBin, ...viteArgs], {
   cwd: repoRoot,
   stdio: 'inherit',
   env: { ...process.env, CI: process.env.CI ?? '1' },
+  windowsHide: true,
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

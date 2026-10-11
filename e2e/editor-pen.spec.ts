@@ -34,6 +34,7 @@ async function draw(page: Page, closed = true, curves = false) {
   if (closed) await point(page, 700, 300); else await page.keyboard.press('Enter');
   await expect.poll(async () => (await selection(page))[0]).toMatch(/^#pen-/);
   await ready(page);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   return (await selection(page))[0];
 }
 async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
@@ -108,8 +109,8 @@ test('real template search reaches a created path in Hairline drawing space', as
   const start = await f.locator(id + ' path').evaluate(el => { const path = el as SVGPathElement, p = path.getPointAtLength(0), m = path.getScreenCTM()!; return { x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f }; });
   expect(Math.abs(start.x - 700)).toBeLessThan(2); expect(Math.abs(start.y - 300)).toBeLessThan(2);
   await page.getByRole('button', { name: 'Edit points', exact: true }).click();
-  await page.screenshot({ path: 'docs/research/editor-r1-2b-4/catalog-path.png', fullPage: true });
-  await page.setViewportSize({ width: 1366, height: 900 }); await page.screenshot({ path: 'docs/research/editor-r1-2b-4/laptop-path.png', fullPage: true });
+  await page.screenshot({ path: test.info().outputPath('catalog-path.png'), fullPage: true });
+  await page.setViewportSize({ width: 1366, height: 900 }); await page.screenshot({ path: test.info().outputPath('laptop-path.png'), fullPage: true });
   expect(errors).toEqual([]);
 });
 
@@ -162,6 +163,7 @@ test('a horizontal open path can be selected and moved by its visible stroke', a
   await open(page); await page.getByRole('button', { name: 'pen tool', exact: true }).click();
   await point(page, 700, 300); await point(page, 1000, 300); await page.keyboard.press('Enter'); await ready(page);
   const id = (await selection(page))[0], before = await source(page);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
   await point(page, 1300, 700); expect(await selection(page)).toEqual([]);
   await point(page, 850, 302); expect(await selection(page)).toEqual([id]);
   await point(page, 850, 302, 40, 30); await ready(page); const moved = await source(page);

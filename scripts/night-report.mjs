@@ -22,14 +22,11 @@
 //   node scripts/night-report.mjs --hours 24      # a longer window
 //   node scripts/night-report.mjs --since 2026-09-04T18:00
 //   node scripts/night-report.mjs --json          # the same facts, structured
-//   node scripts/night-report.mjs --write         # also docs/handoffs/night-report.local.md
 
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { finishedSince, giveUpReason, jobsDir, readJobs, readLandings, refusalGuidance } from './jobs-store.mjs';
-import { mainCheckout } from './read-dotenv.mjs';
 
 /** The default window. A night is the evening's last queueing to the morning's first reading. */
 export const DEFAULT_WINDOW_HOURS = 12;
@@ -276,7 +273,6 @@ export function parseArgs(argv, now = Date.now()) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--json') options.json = true;
-    else if (arg === '--write') options.write = true;
     else if (arg === '--hours') {
       const hours = Number(argv[i += 1]);
       if (!Number.isFinite(hours) || hours <= 0) throw new Error('--hours wants a positive number of hours');
@@ -289,21 +285,6 @@ export function parseArgs(argv, now = Date.now()) {
   }
   return options;
 }
-
-/**
- * Where the morning report looks. Gitignored (`docs/handoffs/*.local.md`), so a dirty checkout can
- * never stop a landing - the same rule the CI morning verdict is written under.
- *
- * Resolved from THIS FILE, never from the working directory. A scheduled routine's cwd is not
- * something the script gets to assume, and a cwd-relative path fails two ways that are both worse
- * than being wrong loudly: run from `scripts/` it throws ENOENT, and run from another checkout it
- * writes the report where nothing will read it.
- */
-//
-// And into the MAIN checkout's docs/handoffs even when run from a linked worktree: the scheduled
-// morning brief now runs in a fresh worktree of origin/main that is thrown away afterwards, and
-// the report is for a person to open in one known place.
-export const REPORT_FILE = join(mainCheckout(fileURLToPath(new URL('..', import.meta.url))), 'docs', 'handoffs', 'night-report.local.md');
 
 async function main() {
   let options;
@@ -323,20 +304,6 @@ async function main() {
   const report = nightReport({ jobs: readJobs(dir), landings: readLandings(dir), ...options });
   const human = renderReport(report);
   console.log(options.json ? JSON.stringify(report, null, 1) : human);
-
-  // The FILE is always the human report, whatever stdout was asked for: it is written for a person
-  // reading it at 08:00, and `--json` is for whatever is piping the same facts somewhere else.
-  if (options.write) {
-    // Never fatal. The report has already been printed, and a routine that exits non-zero because
-    // it could not also save a copy is a routine somebody switches off.
-    try {
-      mkdirSync(dirname(REPORT_FILE), { recursive: true });
-      writeFileSync(REPORT_FILE, `${human}\n`);
-      console.log(`\n[night-report] written to ${REPORT_FILE}`);
-    } catch (err) {
-      console.log(`\n[night-report] could not write ${REPORT_FILE}: ${err.message}`);
-    }
-  }
 }
 
 // Only when run, never when imported by the tests.

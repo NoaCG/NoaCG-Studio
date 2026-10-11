@@ -38,7 +38,7 @@ function hashPaths(paths) {
 
 function gitCommit() {
   try {
-    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8' }).trim();
+    return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: projectRoot, encoding: 'utf8', windowsHide: true }).trim();
   } catch {
     return 'unknown';
   }

@@ -2,15 +2,20 @@
 // covers: src/blocks/{baseEdits,designLayout,artworkEdits,artworkLayers,svgIdentity,editorAnimation,editorOut,animData,animEdit}.ts
 // covers: src/model/structure.ts, src/templates/shared/{animRuntime,easeRuntime}.ts
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx, e2e/fixtures/interpreter-pre-g01.js
+// covers: docs/research/editor-r1-1d/baseline/**, src/templates/importedDesign/svg.ts
 
 import { test, expect, type Page } from '@playwright/test';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { installGraphicBody } from './_graphicBody';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dropSvg } from './_svg-import';
 import { settleDurableWrites } from './_durable';
 import type { EditorOperation } from '../src/components/editorFoundation/operations';
 
-const evidence = 'docs/research/editor-r1-1d';
+// The recorded wizard baseline is committed evidence and is only read here. This run's pictures
+// and measurements go to the test's own output folder (ignored), never into docs/.
+const baseline = 'docs/research/editor-r1-1d/baseline';
+const out = (name: string) => test.info().outputPath(name);
 async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
 async function ready(page: Page) {
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
@@ -48,18 +53,16 @@ test('actual wizard exposes nested artwork and independent trim handles', async 
   await page.setViewportSize({ width: 1920, height: 1080 });
   await imported(page);
   const original = await source(page);
-  mkdirSync(evidence + '/baseline', { recursive: true });
   // The baseline was recorded before G01 changed the emitted interpreter. Everything else must
   // match byte for byte; the interpreter must be exactly the recorded one's upgrade.
   const interpreter = await page.evaluate(async () => (await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS);
   const recorded = readFileSync(new URL('./fixtures/interpreter-pre-g01.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   for (const ext of ['html', 'css', 'js'] as const) {
-    const path = evidence + '/baseline/wizard.' + ext;
-    if (existsSync(path)) expect(original[ext].replace(/\r\n/g, '\n')).toBe(readFileSync(path, 'utf8').replace(/\r\n/g, '\n').replace(recorded, () => interpreter)); else writeFileSync(path, original[ext]);
+    expect(original[ext].replace(/\r\n/g, '\n')).toBe(readFileSync(baseline + '/wizard.' + ext, 'utf8').replace(/\r\n/g, '\n').replace(recorded, () => interpreter));
   }
-  if (!existsSync(evidence + '/baseline/wizard.png')) await page.screenshot({ path: evidence + '/baseline/wizard.png' });
+  await page.screenshot({ path: out('wizard.png') });
   const frame = (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
-  if (!existsSync(evidence + '/baseline/artwork.png')) await frame.locator('svg.imported-design-art').screenshot({ path: evidence + '/baseline/artwork.png' });
+  await frame.locator('svg.imported-design-art').screenshot({ path: out('artwork.png') });
   const layers = page.locator('.ef-track .ef-layer');
   await expect.soft(layers.filter({ hasText: 'Clipped card' })).toHaveCount(1);
   await expect.soft(layers.filter({ hasText: 'Unnamed badge' })).toHaveCount(1);
@@ -69,7 +72,7 @@ test('actual wizard exposes nested artwork and independent trim handles', async 
   await raster.setContent('<style>body{margin:0}</style>' + readFileSync(new URL('./fixtures/fidelity-nested.svg', import.meta.url), 'utf8'));
   await raster.evaluate(() => document.fonts.ready);
   const sourceText = await raster.locator('svg text').evaluate(el => ({ font: getComputedStyle(el).font, box: (() => { const b = (el as SVGGraphicsElement).getBBox(); return { x: b.x, y: b.y, width: b.width, height: b.height }; })(), html: el.outerHTML }));
-  await raster.locator('svg').screenshot({ path: evidence + '/baseline/source-raster.png' });
+  await raster.locator('svg').screenshot({ path: out('source-raster.png') });
   const html = await page.evaluate(async () => (await import('/src/export/selfContained.ts')).composeSelfContainedHtml((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
   await raster.setContent(html); await raster.evaluate(() => {
     const w = window as unknown as { buildInTimeline(): { pause(): void; progress(p: number, silent: boolean): void } };
@@ -77,14 +80,14 @@ test('actual wizard exposes nested artwork and independent trim handles', async 
   });
   await raster.evaluate(() => document.fonts.ready);
   const importedText = await raster.locator('svg text').evaluate(el => ({ font: getComputedStyle(el).font, box: (() => { const b = (el as SVGGraphicsElement).getBBox(); return { x: b.x, y: b.y, width: b.width, height: b.height }; })(), html: el.outerHTML }));
-  writeFileSync(evidence + '/baseline/text-geometry.json', JSON.stringify({ sourceText, importedText }, null, 2));
+  writeFileSync(out('text-geometry.json'), JSON.stringify({ sourceText, importedText }, null, 2));
   // Record the existing import limitation: runtime snaps this text, while the rotated
   // layout has no measured fit/nudge control in Fields. Editor edits preserve this result.
   // Arial may resolve to a different host font; compare each host with its own source raster.
   expect(importedText.box.x).toBe(sourceText.box.x);
   expect(importedText.box.width).toBe(sourceText.box.width);
   expect(importedText.box.height).toBe(sourceText.box.height);
-  await raster.locator('svg').screenshot({ path: evidence + '/baseline/wizard-raster.png' });
+  await raster.locator('svg').screenshot({ path: out('wizard-raster.png') });
   await raster.close();
 });
 
@@ -128,7 +131,7 @@ test('wizard group transforms compose with child keys and preserve source and ex
     await seek(page, time);
     samples.push({ time, pose: await (await preview(page)).locator('#f0').evaluate(el => { const s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!; return { visibility: s.visibility, opacity: Number(s.opacity), matrix: [m.a,m.b,m.c,m.d,m.e,m.f], text: el.textContent }; }) });
   }
-  mkdirSync(evidence + '/built', { recursive: true }); await seek(page, .6); await page.screenshot({ path: evidence + '/built/child-animation.png' });
+  await seek(page, .6); await page.screenshot({ path: out('child-animation.png') });
   for (const target of ['spx', 'casparcg', 'ograf']) {
     const files = await page.evaluate(async target => {
       const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
@@ -141,6 +144,7 @@ test('wizard group transforms compose with child keys and preserve source and ex
       return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.woff2') ? 'font/woff2' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
     });
     if (target === 'ograf') {
+      await installGraphicBody(output);
       await output.goto('http://fidelity-output.local/');
       await output.evaluate(async () => {
         document.body.style.margin = '0';
@@ -157,7 +161,7 @@ test('wizard group transforms compose with child keys and preserve source and ex
         if (target !== 'ograf') host.gsap.globalTimeline.clear();
         const timeline = target === 'ograf' ? host.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - .8) < .001)! : host.buildStepTimeline(0);
         timeline.pause(); timeline.time(time, true); if (time === 0) timeline.render(0, true, true);
-        const el = document.querySelector('#f0')!, s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!;
+        const el = (target === 'ograf' ? graphicBody(document.querySelector('fidelity-graphic')!) : document).querySelector('#f0')!, s = getComputedStyle(el), m = (el as SVGGraphicsElement).getScreenCTM()!;
         return { visibility: s.visibility, opacity: Number(s.opacity), matrix: [m.a,m.b,m.c,m.d,m.e,m.f], text: el.textContent };
       }, { time: sample.time, target });
       expect(actual.visibility, target + ':' + sample.time).toBe(sample.pose.visibility); expect(actual.opacity).toBeCloseTo(sample.pose.opacity, 3); expect(actual.text).toBe(sample.pose.text);
@@ -199,7 +203,7 @@ for (const width of [1920, 1366, 1093]) test('wizard nested identity, trim and h
   await trim.focus(); await trim.press('Shift+ArrowRight'); await expect(page.getByRole('alert')).toContainText('at least one frame'); expect((await source(page)).js).toBe(trimmed.js);
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect((await source(page)).js).toBe(moved.js);
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect((await source(page)).js).toBe(trimmed.js);
-  mkdirSync(evidence + '/built', { recursive: true }); await page.screenshot({ path: evidence + '/built/nested-' + width + '.png' });
+  await page.screenshot({ path: out('nested-' + width + '.png') });
   await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Nested fidelity ' + width); await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); const saved = await source(page);
   await page.reload(); await ready(page); expect((await source(page)).html).toBe(saved.html); expect((await source(page)).js).toBe(saved.js);
@@ -322,7 +326,7 @@ test('completed pointer trims keep clipped keys while the body moves them in one
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect((await source(page)).js).toBe(trimmed.js);
   const feedback = await page.evaluate(() => (window as unknown as { trimFeedback: { ms: number; x: number }[] }).trimFeedback);
   expect(feedback.length).toBeGreaterThan(10); expect(new Set(feedback.map(s => s.x)).size).toBeGreaterThan(5);
-  writeFileSync(evidence + '/built/trim-feedback.json', JSON.stringify({ method: 'Pointer event to handle geometry after two animation frames, allowing the React commit to paint. Dev server, 1920x1080; not photon timing.', samples: feedback }, null, 2));
+  writeFileSync(out('trim-feedback.json'), JSON.stringify({ method: 'Pointer event to handle geometry after two animation frames, allowing the React commit to paint. Dev server, 1920x1080; not photon timing.', samples: feedback }, null, 2));
 });
 
 test('nominated logo edits preserve image bytes and nested group canvas movement agrees with numbers', async ({ page }) => {
@@ -348,5 +352,5 @@ test('nominated logo edits preserve image bytes and nested group canvas movement
   (await pose('#artwork-1')).forEach((n, i) => expect(n).toBeCloseTo(expected[i], 1));
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect((await source(page)).css).toBe(before.css); expect((await source(page)).html).toBe(before.html);
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect((await source(page)).css).toBe(moved.css);
-  await page.screenshot({ path: evidence + '/built/logo-and-group.png' });
+  await page.screenshot({ path: out('logo-and-group.png') });
 });

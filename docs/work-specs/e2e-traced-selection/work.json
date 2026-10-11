@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "2d706a5498c801dd5ba6b2bbddc077ab353e4e3a252736b6d6ce4d6b3a7d38b8",
+  "authority": {
+    "status": "agreed",
+    "source": "owner task of 2026-10-10: stop real breakages landing green because a spec's hand-written file list missed a dependency; confirm the four red main runs from CI logs; have the nightly full run record per spec which source the browser actually loaded and generate a traced map scripts/e2e-affected.mjs unions with the covers headers; a missing or stale map escalates, never skips; regenerate rather than hand-merge; prove it on #927; land with /queue-merge"
+  },
+  "review": null
+}

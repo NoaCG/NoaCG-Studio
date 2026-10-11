@@ -6,13 +6,16 @@
 // a manifest with real versions. Until then this stamp stands in for one, written INSIDE the
 // payload at publish (an additive optional field of the v1 payload: no migration, no format bump):
 //
-//   n   the label, "v12": the previous stamp's n plus one. Only a label: two publishes racing can
-//       write the same n, which costs a confusing number, never a wrong verdict.
+//   n   the label, "v12": the previous stamp's n plus one. A publish lands only over the n it
+//       read (the publish guard), so two racing publishes cannot write the same one.
 //   g   per graphic, a digest of exactly what the output renders of it (html, css, js, assets,
 //       resolution, fps, layer). Preparing a newer version builds only the graphics whose digest
 //       moved (R3).
 //   h   one digest over the stage resolution and every `g`: THE identity. Two payloads with the
 //       same h render the same, so a cue-only publish moves n and makes no output behind.
+//   t   per graphic, when its DESIGN was last edited (the publisher's library record, or the copy
+//       the production embeds). A publish never puts an older design over a newer one
+//       (docs/work-specs/publish-guard/spec.md G3, `olderDesigns`). Absent before 2026-10.
 //
 // Only the publisher digests, from the object it just built; everyone else reads the stamp. That
 // matters: Postgres stores jsonb with its keys re-ordered, so a payload read back from the server
@@ -28,6 +31,8 @@ export interface PayloadVersion {
   at: string;
   h: string;
   g: Record<string, string>;
+  /** Per graphic, when its design was last edited, ISO. */
+  t?: Record<string, string>;
 }
 
 /** The part of a graphic spec the digest covers: what the output renders, nothing else. */
@@ -95,17 +100,31 @@ export function graphicDigest(spec: VersionedGraphic): Promise<string> {
 }
 
 /** The stamp for a payload about to be published, `previous` being the stamp it replaces (or
- *  null: none, or published before stamps existed). */
+ *  null: none, or published before stamps existed). `edited`: per graphic, when its design was
+ *  last edited. */
 export async function stampPayload(
   payload: { resolution: { width: number; height: number }; graphics: VersionedGraphic[] },
   previous: PayloadVersion | null,
   now: Date = new Date(),
+  edited?: Record<string, string>,
 ): Promise<PayloadVersion> {
   const g: Record<string, string> = {};
   for (const spec of payload.graphics) g[spec.key] = await graphicDigest(spec);
   const keys = Object.keys(g).sort();
   const h = await digestText(JSON.stringify([payload.resolution.width, payload.resolution.height, keys.map((k) => [k, g[k]])]));
-  return { n: (previous?.n ?? 0) + 1, at: now.toISOString(), h, g };
+  return { n: (previous?.n ?? 0) + 1, at: now.toISOString(), h, g, ...(edited ? { t: edited } : {}) };
+}
+
+/** The string values of a wire map, the rest dropped. */
+function strings(value: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (value && typeof value === 'object') {
+    for (const key of Object.keys(value)) {
+      const item = (value as Record<string, unknown>)[key];
+      if (typeof item === 'string') out[key] = item;
+    }
+  }
+  return out;
 }
 
 /** A stamp read off the wire, or null: absent (published before this step) or not one. */
@@ -113,14 +132,25 @@ export function readPayloadVersion(value: unknown): PayloadVersion | null {
   const v = value as Partial<PayloadVersion> | null;
   if (!v || typeof v !== 'object') return null;
   if (typeof v.n !== 'number' || !isFinite(v.n) || typeof v.h !== 'string' || !v.h) return null;
-  const g: Record<string, string> = {};
-  if (v.g && typeof v.g === 'object') {
-    for (const key of Object.keys(v.g)) {
-      const digest = (v.g as Record<string, unknown>)[key];
-      if (typeof digest === 'string') g[key] = digest;
-    }
-  }
-  return { n: v.n, at: typeof v.at === 'string' ? v.at : '', h: v.h, g };
+  return { n: v.n, at: typeof v.at === 'string' ? v.at : '', h: v.h, g: strings(v.g), ...(v.t && typeof v.t === 'object' ? { t: strings(v.t) } : {}) };
+}
+
+/**
+ * The graphics a publish of `next` would put an OLDER design over (docs/work-specs/publish-guard
+ * spec G3): `published` renders them differently and names a later edit than `next` does. A
+ * graphic either side gives no edit time for is not counted (published before edit times, or new).
+ * Times compare as instants, so two clocks' ISO spellings cannot mislead.
+ */
+export function olderDesigns(next: { g: Record<string, string>; t?: Record<string, string> }, published: PayloadVersion | null): string[] {
+  const theirs = published?.t;
+  const mine = next.t;
+  if (!published || !theirs || !mine) return [];
+  return Object.keys(next.g).filter((key) => {
+    if (published.g[key] === undefined || published.g[key] === next.g[key]) return false;
+    const was = Date.parse(theirs[key] ?? '');
+    const now = Date.parse(mine[key] ?? '');
+    return isFinite(was) && isFinite(now) && was > now;
+  });
 }
 
 /**

@@ -4,7 +4,7 @@ Base: R1.2a.5 (cross-cue moves and the Out flag) landed through PR #582 as `8481
 (`/version.json` reports it); the close-flag-labels backlog item landed as PR #583 (`05ddeacb`).
 This worktree branch `claude/editor-r1-2a-6-transforms-dca229` started from fetched `origin/main`
 `05ddeacb`. The owner-queue items for R1.2a.4 and R1.2a.5
-(`docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md`, `2026-09-30-editor-cross-cue.md`)
+([`docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md), `2026-09-30-editor-cross-cue.md`)
 have no answer yet, so nothing is folded in from them.
 
 Why: the new editor refuses every layer that animates a transform or visibility channel it does

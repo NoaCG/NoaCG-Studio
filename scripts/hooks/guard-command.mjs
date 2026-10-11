@@ -11,9 +11,8 @@
 //     and `root/work-feature-branch-own-worktree-made`): no Co-Authored-By trailers, no
 //     AI/agent/chat-session language, no internal plan codenames.
 //  3. Commits never include dist/ or the generated .claude/launch.json.
-//  3b. Nobody polls the job queue in the foreground.
-//  3c. A push and a workflow dispatch never share one command - ci.yml's concurrency group makes
-//     the pair a coin flip over which run survives.
+//  3b. Nobody polls the job queue in the foreground, and no polling loop runs without a time limit.
+//  3d. Nothing pushes to `main` - only the merge queue writes it.
 //  4. The e2e suites only start when (a) no OTHER checkout of this repo is already running one -
 //     several worktrees are normally live and each config asks for 4 workers, so two overlapping
 //     runs exhaust a 16 GB laptop rather than sharing it - and (b) their port is free, since
@@ -24,21 +23,29 @@
 // -m / heredoc / here-string), so it is quoting-style agnostic.
 
 import { isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readHookInput, deny, gitOutput, checkoutKind } from './lib.mjs';
 import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
+import { sameRoot } from '../port-registry.mjs';
+import { gitCommonDir } from '../primary-checkout.mjs';
 import { isPortBusy } from '../port-probe.mjs';
 import { activeRuns, describeRuns } from '../e2e-runs.mjs';
 import {
   branchCreations,
+  endlessWait,
+  endlessWaitRefusal,
   enqueuesWork,
   invokesE2e,
   invokesSweep,
+  mainPushes,
   pollsQueue,
-  pushesAndDispatches,
+  runsWholeSuite,
   startsDevServer,
+  WHOLE_SUITE_ON_GITHUB,
 } from '../command-match.mjs';
 import { checkoutRoot, commandCheckout, devPortOverride } from '../command-target.mjs';
+import { jobsDir, rememberedAsBrowser } from '../jobs-store.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
@@ -230,30 +237,39 @@ if (pollsQueue(command)) {
   );
 }
 
-// --- 3c. A push and a workflow dispatch never share one command --------------------------------
+// --- 3b'. Every wait has a time limit ----------------------------------------------------------
 //
-// `ci.yml` keeps every run of one ref in one concurrency group with cancel-in-progress, so the
-// push's run and the dispatched run cannot both live: the one that registers second cancels the
-// first, and the order two webhooks register in is not stable ("Pushing and dispatching in one
-// breath is a coin flip, and I lost it once" - measured on 2026-09-04 across four handoffs, all
-// drained since; docs/backlog/ci-concurrency-group-per-event.md carries the finding). When the
-// dispatch loses, the push run survives and
-// plans only the delta since the previous push - the narrow plan the dispatch was issued to avoid -
-// and it reports green. A refusal because the check is exact: no reading of the pair in one
-// command is reliable, and the sanctioned shape is two commands. The matcher is positional
-// (`pushesAndDispatches` in command-match.mjs), so quoting the pair in an echo is not the pair.
-if (pushesAndDispatches(command)) {
+// docs/work-specs/agent-lifecycle/spec.md point 1. A polling loop with no end never tells anyone it
+// failed: on 2026-10-09 one polled `docker info` for 14 hours, and kept its session from being
+// archived. With a limit, running out is a failure the agent is told about, in the foreground and
+// in the background alike, and it can find the cause, fix it and wait again.
+// Codex runs the same rule through its own hook (codex-guard-command.mjs), with the same words.
+const wait = endlessWait(command);
+if (wait) deny(endlessWaitRefusal(wait));
+
+// --- 3d. Nothing pushes to `main`: only the merge queue writes it ------------------------------
+//
+// `root/land-finished-work-only-reconciles-current`. GitHub would not stop such a push, because the
+// agents run as an admin it lets bypass the queue (see `mainPushes` in command-match.mjs); a person
+// in their own terminal never passes through this hook. Only a checkout of THIS repository counts -
+// a fixture repo in a temp folder has a `main` of its own - and git that cannot answer fails open,
+// like every git check here.
+const pushesToMain = mainPushes(command);
+const thisRepo = pushesToMain.length > 0 ? gitCommonDir(fileURLToPath(new URL('../..', import.meta.url))) : null;
+const toMain = pushesToMain.find(({ dir, how }) => {
+  const root = namedCheckout(dir);
+  const repo = root && gitCommonDir(root);
+  if (!repo || !thisRepo || !sameRoot(repo, thisRepo)) return false;
+  return how === 'named' || gitOutput(root, ['branch', '--show-current'])?.trim() === 'main';
+});
+if (toMain) {
   deny(
-    'Blocked: this pushes and dispatches a CI run in one breath. ci.yml holds every run of a ref in ' +
-      'one concurrency group with cancel-in-progress, so whichever of the two registers second ' +
-      'cancels the first - and which one that is is a coin flip (lost for real on 2026-09-04). When ' +
-      'the dispatch loses, the push run survives and plans only the delta since the previous push, ' +
-      'which is the narrow plan you dispatched to avoid, and it reports green.\n' +
-      'Do it as two commands:\n' +
-      '  git push\n' +
-      '  gh workflow run ci.yml --ref <branch>   once `gh run list --branch <branch> --limit 1` lists ' +
-      "the push's run; the dispatch then cancels that run and the full suite runs in its place.\n" +
-      'A push on its own is fine; so is a dispatch on its own.',
+    'Blocked: this push would write `main`, and only the merge queue writes main ' +
+      '(`root/land-finished-work-only-reconciles-current`). GitHub would not stop it: this account ' +
+      'may bypass the branch rules.\n' +
+      'Land work with `/queue-merge` from a feature branch - it reconciles with current main, ' +
+      'requires the verification and lands through the merge queue.\n' +
+      'A person who truly means to push main can still do it from their own terminal.',
   );
 }
 
@@ -268,7 +284,13 @@ if (pushesAndDispatches(command)) {
 //     session can see it from inside its own checkout.
 //     Serialising costs nothing: two jobs sharing one box do not finish sooner than two run
 //     back to back, they only make everything else unusable while they do it.
-if (invokesE2e(command) || invokesSweep(command)) {
+//     A command the job runner caught launching a browser is browser work here too (#920): its
+//     text says nothing, but the queue already knows (`rememberedAsBrowser` in jobs-store.mjs).
+const namedBrowserWork = invokesE2e(command) || invokesSweep(command);
+if (namedBrowserWork || rememberedAsBrowser(jobsDir(), command)) {
+  //   The whole default suite runs on GitHub Actions, never here: the job queue refuses it as a
+  //   job, and this refuses it typed straight into the shell.
+  if (runsWholeSuite(command)) deny(WHOLE_SUITE_ON_GITHUB);
   //   A command that already routes through the waiter serialises itself, so it is exempt:
   //   blocking it would be refusing the very fix this rule recommends.
   //   ENQUEUING is the strongest form of that fix and starts nothing at all - see
@@ -282,10 +304,14 @@ if (invokesE2e(command) || invokesSweep(command)) {
   if (others.length > 0 && !/NOACG_ALLOW_PARALLEL_E2E\s*=\s*1/.test(command)) {
     deny(
       `Blocked: browser-driving work is already running on this machine:\n${describeRuns(others)}\n` +
+        (namedBrowserWork
+          ? ''
+          : 'The job queue caught this command opening a browser, so it counts as browser work; ' +
+            '`npm run queue -- "<this command>"` runs it after.\n') +
         'A suite, a catalog sweep and a bench all cost the same memory, and two at once exhaust it ' +
         'rather than sharing it (see `root/enqueue-browser-driving-work-rather-than`).\n' +
         'Wait for it with `node scripts/e2e-runs.mjs --wait` (it blocks until clear, then exits 0), ' +
-        'or queue an e2e run behind it with `npm run test:e2e:queued` / `npm run test:e2e:focus:queued`.\n' +
+        'or queue the specs you need behind it: `npm run queue -- "npm run test:e2e -- e2e/<name>.spec.ts"`.\n' +
         'If the overlap is genuinely wanted, include NOACG_ALLOW_PARALLEL_E2E=1 in the command.',
     );
   }

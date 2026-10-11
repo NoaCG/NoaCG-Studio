@@ -56,8 +56,8 @@ export const snapRotation = (value: number, step = 15) => Math.round(value / ste
 /**
  * The scale ratios a handle drag asks for, measured in the layer's own axes (`local`, from
  * `localFrame`), so a rotated layer scales along its own sides. `axes` names what the handle moves: a
- * corner both, a side one. `linked` gives both axes the larger change: a corner's linked proportions, a
- * side's Shift (its other axis is unchanged, so its own ratio wins). A handle on the pivot's own line
+ * corner both, a side one. `linked` gives both axes the larger change. A side has no change on its other
+ * axis, so its own ratio wins. A handle on the pivot's own line
  * leaves that axis alone.
  */
 export function handleRatios(local: Linear, handle: Point, pivot: Point, delta: Point, axes: 'x' | 'y' | 'xy', linked: boolean): Point {

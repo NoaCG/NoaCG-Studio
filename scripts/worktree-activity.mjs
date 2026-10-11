@@ -214,7 +214,7 @@ export function formatActivity(activity, { fileLimit = DEFAULT_FILE_LIMIT } = {}
  */
 async function git(args, cwd) {
   try {
-    const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 32 * 1024 * 1024 });
+    const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 32 * 1024 * 1024, windowsHide: true });
     return { ok: true, stdout };
   } catch {
     return { ok: false, stdout: '' };

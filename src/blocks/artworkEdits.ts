@@ -164,3 +164,27 @@ export function removeArtworkFields(template: SpxTemplate, ids: string[]): SpxTe
   return { ...template, fields, html: replaceDefinitionInHtml(template.html, template.settings, fields),
     layers: template.layers.filter(layer => !ids.includes(layer.id)) };
 }
+
+
+/** Editor labels and eye state live on the source node, never in its stable identity or data field. */
+export function editArtworkMetadata(template: SpxTemplate, selector: string, patch: { label?: string; hidden?: boolean }): SpxTemplate {
+  if (patch.label !== undefined && (typeof patch.label !== 'string' || !patch.label.trim() || patch.label.trim().length > 120)) throw new Error('Use a layer name from 1 to 120 characters.');
+  if (patch.hidden !== undefined && typeof patch.hidden !== 'boolean') throw new Error('Choose a layer visibility.');
+  const node = artworkNode(template, selector), range = artworkRange(template.html, node);
+  const attrs = /\s+([^\s=/>]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g;
+  let opening = template.html.slice(range.start, range.content);
+  for (const [name, value] of [['data-noacg-label', patch.label?.trim()], ['data-noacg-hidden', patch.hidden === undefined ? undefined : patch.hidden ? 'true' : null]] as const) {
+    if (value === undefined) continue;
+    if ((node.getAttribute(name) ?? null) === value) continue;
+    opening = opening.replace(attrs, (token, key: string) => key.toLowerCase() === name ? '' : token);
+    if (value !== null) {
+      const escaped = value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      opening = opening.replace(/\s*\/?>(?=$)/, end => ' ' + name + '="' + escaped + '"' + end);
+    }
+  }
+  let css = template.css;
+  // Display suppression is separate from animated opacity/autoAlpha and keeps source rows addressable.
+  const rule = '[data-noacg-hidden="true"] { display: none !important; }';
+  if (patch.hidden && !css.includes(rule)) css += '\n/* Layer eye visibility */\n' + rule + '\n';
+  return { ...template, html: template.html.slice(0, range.start) + opening + template.html.slice(range.content), css };
+}

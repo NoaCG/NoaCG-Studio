@@ -1,14 +1,13 @@
 // THE PUBLISH GATE - the ONE pure function that decides whether a template may leave the
-// author's own editor for somewhere it will be trusted: the community gallery, a hosted
+// author's own editor for somewhere it will be trusted: a community pack, a hosted
 // production (publish), a production export, the agent save door's re-gate on open. It
 // composes the two automated checks - validateTemplate (SPX-contract correctness) and
 // templateBench (share-safety) - into a single pass/fail with a merged issue list.
 //
-// It began life as src/community/gate.ts (Era 5.5, the gallery's publish/import gate), and
-// moved here when it became the LIBRARY->AIR gate too (docs/AGENT_SAVE.md): the hosted publish
-// path (control/hostedControl.ts) and the production exporter (export/showExport.ts) run it,
-// and a processing domain reaching into the community feature for its gate read wrong. The
-// community module re-exports it, so nothing there changed.
+// It began life as src/community/gate.ts (Era 5.5, the closed gallery's publish/import gate),
+// and moved here when it became the LIBRARY->AIR gate too (docs/AGENT_SAVE.md): the hosted
+// publish path (control/hostedControl.ts) and the production exporter (export/showExport.ts)
+// run it, and a processing domain reaching into the community feature for its gate read wrong.
 //
 // Why templateBench's unsafe-JS findings are ERRORS rather than warnings: with no reviewer
 // downstream, a warning is a note nobody reads. It is a screen, not a sandbox (a determined

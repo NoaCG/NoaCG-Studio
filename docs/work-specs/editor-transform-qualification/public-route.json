@@ -1,0 +1,13 @@
+{
+  "baseURL": "http://127.0.0.1:5222",
+  "scale": [
+    207.778,
+    103.889
+  ],
+  "textSelector": "#f2",
+  "rotation": 60,
+  "font": "48",
+  "errors": [],
+  "network": [],
+  "version": null
+}

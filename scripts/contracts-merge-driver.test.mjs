@@ -30,7 +30,7 @@ const run = (args, cwd = ROOT, env = process.env) => {
 // the developer's git config. Returns its path; the caller removes it.
 function scratchRepo(prefix) {
   const dir = mkdtempSync(path.join(tmpdir(), prefix));
-  const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+  const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', windowsHide: true });
   g('init', '-q', '-b', 'main');
   g('config', 'user.email', 'contracts-driver-test@example.invalid');
   g('config', 'user.name', 'contracts driver test');
@@ -121,7 +121,7 @@ const STUB = [
 // line of it - the case plain git cannot settle, so a clean merge proves the driver ran.
 function repoWithDriverAttribute(prefix) {
   const dir = scratchRepo(prefix);
-  const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+  const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', windowsHide: true });
   mkdirSync(path.join(dir, 'scripts'), { recursive: true });
   mkdirSync(path.join(dir, 'sub'), { recursive: true });
   writeFileSync(path.join(dir, 'scripts', 'contracts-merge-driver.mjs'), STUB, 'utf8');
@@ -166,7 +166,7 @@ test('a stale command left by an older version is rewritten, not left standing',
     // Verbatim what this clone carried on 2026-09-16, pointing into a worktree long since deleted.
     const stale =
       'node "C:\\claude\\NoaCG-Studio\\.claude\\worktrees\\agent-ae47713a44213dee3\\scripts\\contracts-merge-driver.mjs" %O %A %B %P';
-    execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, stale], { cwd: dir, encoding: 'utf8' });
+    execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, stale], { cwd: dir, encoding: 'utf8', windowsHide: true });
     assert.equal(registeredCommand(dir), stale);
     assert.equal(
       isInstalled(dir),
@@ -187,7 +187,7 @@ test('a key that has somehow collected two values is replaced, not refused', () 
     // `git config <key> <value>` exits 5 on a multi-valued key - "cannot overwrite multiple values
     // with a single value" - and leaves both in place. `--get` answers with the LAST of them, and
     // so does git when it runs the driver, so a doubled key is a stale command nothing reports.
-    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+    const g = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8', windowsHide: true });
     g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-one.mjs" %O %A %B %P');
     g('config', '--add', `merge.${DRIVER_NAME}.driver`, 'node "gone-two.mjs" %O %A %B %P');
     assert.equal(install(dir), true);
@@ -248,7 +248,7 @@ test('git runs the relative command from the worktree top, including a merge sta
       'git runs the driver from the top of the working tree it is merging into',
     );
 
-    execFileSync('git', ['reset', '-q', '--hard', 'ours'], { cwd: dir, encoding: 'utf8' });
+    execFileSync('git', ['reset', '-q', '--hard', 'ours'], { cwd: dir, encoding: 'utf8', windowsHide: true });
 
     // The same merge started from a subdirectory. A relative command would be worthless if git
     // resolved it against the caller's directory, so this is the measurement the design rests on.
@@ -275,6 +275,7 @@ test('a second worktree of the same clone runs its OWN copy of the driver', () =
     execFileSync('git', ['worktree', 'add', '-q', '-b', 'ours-again', second, 'ours'], {
       cwd: dir,
       encoding: 'utf8',
+      windowsHide: true,
     });
     const result = mergeTheirs(second);
     assert.equal(result.status, 0, `the driver ran in a worktree that never registered - git said: ${result.out}`);
@@ -294,11 +295,11 @@ test('a command git cannot run leaves ours unmarked - the failure the relative f
   const dir = repoWithDriverAttribute('merge-driver-dead-');
   try {
     const dead = `node "${path.join(dir, 'gone', 'contracts-merge-driver.mjs')}" %O %A %B %P`;
-    execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, dead], { cwd: dir, encoding: 'utf8' });
+    execFileSync('git', ['config', `merge.${DRIVER_NAME}.driver`, dead], { cwd: dir, encoding: 'utf8', windowsHide: true });
     const result = mergeTheirs(dir);
     assert.equal(result.status, 1, 'git does stop the merge');
     assert.match(
-      execFileSync('git', ['status', '--short', 'rules.md'], { cwd: dir, encoding: 'utf8' }),
+      execFileSync('git', ['status', '--short', 'rules.md'], { cwd: dir, encoding: 'utf8', windowsHide: true }),
       /^UU /,
       'and it does mark the file unmerged',
     );

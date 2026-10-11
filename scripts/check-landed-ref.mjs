@@ -39,7 +39,7 @@
 //   - an ABSENT ref. `git log --format=… -- docs/backlog` with no revision walks HEAD, which on a
 //     feature branch stops at the fork point. `closedReceipts` had exactly that bug and no
 //     scanner can catch it, because there is no token to match. Only a reader finds those, and one
-//     did: `docs/backlog/the-weekly-report-walks-head-not-what-landed.md`.
+//     did: `https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/the-weekly-report-walks-head-not-what-landed.md`.
 //   - a ref built at a distance: `const ref = 'main'` twenty lines above the git call.
 //   - `merge`, `rebase`, `checkout`, `switch` and `reset`, deliberately left out of the verb list.
 //     They take a revision, but naming the local branch to them is usually the point - `git merge
@@ -131,6 +131,16 @@ export const ALLOWED = [
     fragment: "'rev-parse', '--verify', '--quiet', 'refs/heads/main^{commit}'",
     why: 'reads the local `main` BRANCH itself because that ref is what step 4 repairs: a stale local main that is not an ancestor of origin/main is moved to origin/main, so tools that still compare against it stop breaking.',
   },
+  {
+    file: 'scripts/worktree-cleanup-lib.mjs',
+    fragment: "'rev-list', '--count', `main..origin/main`",
+    why: 'advanceLocalMain asks how far the local `main` BRANCH lags because fast-forwarding that branch is its whole job - the primary checkout is brought level with origin/main, as the handoff workflow does by hand.',
+  },
+  {
+    file: 'scripts/worktree-cleanup-lib.mjs',
+    fragment: "'merge-base', '--is-ancestor', 'main', 'origin/main'",
+    why: 'advanceLocalMain checks the local `main` BRANCH is strictly behind origin/main before it fast-forwards it; anything else and it leaves the branch alone.',
+  },
 ];
 
 /** Every revision-shaped use of the bare local `main` in one file, with the line and the text. */
@@ -199,8 +209,8 @@ function main() {
     console.error(
       '\nThe local `main` branch stopped moving when landings moved to GitHub\'s merge queue, so it\n' +
         'answers a question about a repository that no longer exists. Import `mainRef` from\n' +
-        '`scripts/main-ref.mjs` and ask it which ref means landed - `jobs.mjs`, `merge-order.mjs`,\n' +
-        '`worktree-activity.mjs` and `owner-receipts.mjs` all do.\n' +
+        '`scripts/main-ref.mjs` and ask it which ref means landed - `jobs.mjs`, `merge-order.mjs`\n' +
+        'and `worktree-activity.mjs` all do.\n' +
         'If the bare ref is genuinely the right question here, add it to ALLOWED with the reason.\n',
     );
     return 1;

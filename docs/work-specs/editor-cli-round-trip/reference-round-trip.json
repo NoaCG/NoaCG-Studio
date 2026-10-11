@@ -1,0 +1,2074 @@
+{
+  "version": "VectorCraft 0.4.0",
+  "source": "a26aa5b203c901979eb447d28e34e7357138c789",
+  "calls": [
+    {
+      "method": "ui.inspect",
+      "params": {},
+      "response": {
+        "id": 1,
+        "ok": true,
+        "result": {
+          "activeDocument": null,
+          "background": [],
+          "canvasRect": null,
+          "documents": [],
+          "perf": {
+            "fps": 16.764914097318048,
+            "frameMs": 0,
+            "renderMs": 0
+          },
+          "tool": "selection",
+          "toolOptions": null,
+          "ui": {
+            "about": false,
+            "action_sets": [
+              {
+                "actions": [
+                  {
+                    "name": "Duplicate and Offset 10 pt",
+                    "steps": [
+                      [
+                        "object.move",
+                        {
+                          "copy": true,
+                          "dx": 10,
+                          "dy": 10
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Unite and Simplify",
+                    "steps": [
+                      [
+                        "object.pathfinder.unite",
+                        {}
+                      ],
+                      [
+                        "object.path.simplify",
+                        {
+                          "tolerance": 0.5
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Center on Artboard",
+                    "steps": [
+                      [
+                        "object.align",
+                        {
+                          "horizontal": "center",
+                          "to": "artboard",
+                          "vertical": "center"
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Outline Text",
+                    "steps": [
+                      [
+                        "type.createOutlines",
+                        {}
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Rotate 90° CW",
+                    "steps": [
+                      [
+                        "object.rotate",
+                        {
+                          "angle": -90
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Reflect Horizontal",
+                    "steps": [
+                      [
+                        "object.reflect",
+                        {
+                          "axis": "vertical"
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                "name": "Default Actions"
+              }
+            ],
+            "brightness": "MediumDark",
+            "color_guide": {
+              "amount": 50,
+              "steps": 4,
+              "variation": "tintsShades"
+            },
+            "color_guide_limit": "",
+            "control_bar": false,
+            "custom_workspaces": [],
+            "dialog": null,
+            "dock": true,
+            "dock_tab": "Properties",
+            "draw_mode": 0,
+            "dxf_import": null,
+            "dxf_options": null,
+            "engine_prefs": null,
+            "eps_options": null,
+            "flattener_preview": {
+              "highlight": "none",
+              "options": {
+                "antiAlias": true,
+                "balance": 75,
+                "clipComplexRegions": false,
+                "gradientPpi": 300,
+                "lineArtPpi": 300,
+                "preserveAlpha": false,
+                "preserveOverprints": true,
+                "strokesToOutlines": false,
+                "textToOutlines": false
+              },
+              "overprints": "preserve",
+              "preset": "Medium Resolution",
+              "showOptions": false
+            },
+            "flyout": null,
+            "group_tool": [
+              "selection",
+              "directSelection",
+              "magicWand",
+              "lasso",
+              "pen",
+              "curvature",
+              "type",
+              "lineSegment",
+              "rectangle",
+              "paintbrush",
+              "shaper",
+              "eraser",
+              "rotate",
+              "scale",
+              "width",
+              "freeTransform",
+              "shapeBuilder",
+              "perspectiveGrid",
+              "mesh",
+              "gradient",
+              "eyedropper",
+              "blend",
+              "symbolSprayer",
+              "columnGraph",
+              "artboard",
+              "hand",
+              "zoom"
+            ],
+            "last_selection_tool": "selection",
+            "library_panel": null,
+            "open_panel": null,
+            "palette_open": false,
+            "palette_query": "",
+            "place_link": true,
+            "recent_files": [],
+            "recent_fonts": [],
+            "screen_mode": 0,
+            "shortcut_overrides": {},
+            "shortcut_set": "VectorCraft Defaults",
+            "slot_tool": {},
+            "status": "",
+            "status_bar": true,
+            "svg_options": null,
+            "task_bar": true,
+            "toolbar": true,
+            "toolbar_advanced": false,
+            "toolbar_double": false,
+            "view": {
+              "artboards": true,
+              "bounding_box": true,
+              "corner_widgets": true,
+              "edges": true,
+              "gradient_annotator": true,
+              "grid": false,
+              "guides": true,
+              "hidden_chars": false,
+              "outline": false,
+              "pixel_preview": false,
+              "rulers": false,
+              "smart_guides": true,
+              "snap_to_grid": false,
+              "snap_to_pixel": false,
+              "snap_to_point": true,
+              "text_threads": true,
+              "trim_view": false
+            },
+            "window": {
+              "maximized": false,
+              "pos": [
+                104,
+                104
+              ],
+              "size": [
+                1440,
+                900
+              ]
+            },
+            "workspace": "Essentials"
+          },
+          "view": null,
+          "window": [
+            1440,
+            900
+          ]
+        }
+      }
+    },
+    {
+      "method": "ui.resize",
+      "params": {
+        "width": 1366,
+        "height": 768
+      },
+      "response": {
+        "id": 2,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "app.open",
+      "params": {
+        "path": "<worktree>\\.noacg\\reference\\community.svg"
+      },
+      "response": {
+        "id": 3,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 4,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 324.2373046875,
+                    "x": 163.9208984375,
+                    "y": 791.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Amira Solano",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [],
+          "revision": 1,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "text.setText",
+        "params": {
+          "id": 3,
+          "text": "Elena Marquez"
+        }
+      },
+      "response": {
+        "id": 5,
+        "ok": true,
+        "result": {
+          "ids": [
+            3
+          ]
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 6,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 164,
+                    "y": 791.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [],
+          "revision": 2,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "object.transform",
+        "params": {
+          "ids": [
+            3
+          ],
+          "matrix": [
+            1,
+            0,
+            0,
+            1,
+            70,
+            30
+          ]
+        }
+      },
+      "response": {
+        "id": 7,
+        "ok": true,
+        "result": {
+          "ids": [
+            3
+          ]
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 8,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing",
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 234,
+                    "y": 821.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [],
+          "revision": 3,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true
+      },
+      "response": {
+        "id": 9,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 10,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing",
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 234,
+                    "y": 821.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [],
+          "revision": 3,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 11,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 164,
+                    "y": 791.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [
+            "Transform"
+          ],
+          "revision": 4,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 12,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 164,
+                    "y": 791.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [
+            "Transform"
+          ],
+          "revision": 4,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.key",
+      "params": {
+        "key": "Z",
+        "cmd": true,
+        "shift": true
+      },
+      "response": {
+        "id": 13,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 14,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 164,
+                    "y": 791.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [
+            "Transform"
+          ],
+          "revision": 4,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 15,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing",
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 234,
+                    "y": 821.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [],
+          "revision": 5,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 16,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": true,
+          "history": [
+            "Typing",
+            "Transform"
+          ],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 234,
+                    "y": 821.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\community.svg",
+          "redo": [],
+          "revision": 5,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "community.svg",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "engine.execute",
+      "params": {
+        "command": "file.saveAs",
+        "params": {
+          "path": "<worktree>\\.noacg\\reference\\edited.vectorcraft",
+          "format": "vectorcraft"
+        }
+      },
+      "response": {
+        "id": 17,
+        "ok": true,
+        "result": {
+          "background": true,
+          "path": "<worktree>\\.noacg\\reference\\edited.vectorcraft",
+          "status": "Saving edited.vectorcraft…"
+        }
+      }
+    },
+    {
+      "method": "ui.inspect",
+      "params": {},
+      "response": {
+        "id": 18,
+        "ok": true,
+        "result": {
+          "activeDocument": 0,
+          "background": [],
+          "canvasRect": [
+            76,
+            84,
+            956,
+            635
+          ],
+          "documents": [
+            {
+              "dirty": false,
+              "title": "edited.vectorcraft"
+            }
+          ],
+          "perf": {
+            "fps": 52.14928852761893,
+            "frameMs": 1.073486328125,
+            "renderMs": 13.2939453125
+          },
+          "tool": "selection",
+          "toolOptions": null,
+          "ui": {
+            "about": false,
+            "action_sets": [
+              {
+                "actions": [
+                  {
+                    "name": "Duplicate and Offset 10 pt",
+                    "steps": [
+                      [
+                        "object.move",
+                        {
+                          "copy": true,
+                          "dx": 10,
+                          "dy": 10
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Unite and Simplify",
+                    "steps": [
+                      [
+                        "object.pathfinder.unite",
+                        {}
+                      ],
+                      [
+                        "object.path.simplify",
+                        {
+                          "tolerance": 0.5
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Center on Artboard",
+                    "steps": [
+                      [
+                        "object.align",
+                        {
+                          "horizontal": "center",
+                          "to": "artboard",
+                          "vertical": "center"
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Outline Text",
+                    "steps": [
+                      [
+                        "type.createOutlines",
+                        {}
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Rotate 90° CW",
+                    "steps": [
+                      [
+                        "object.rotate",
+                        {
+                          "angle": -90
+                        }
+                      ]
+                    ]
+                  },
+                  {
+                    "name": "Reflect Horizontal",
+                    "steps": [
+                      [
+                        "object.reflect",
+                        {
+                          "axis": "vertical"
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                "name": "Default Actions"
+              }
+            ],
+            "brightness": "MediumDark",
+            "color_guide": {
+              "amount": 50,
+              "steps": 4,
+              "variation": "tintsShades"
+            },
+            "color_guide_limit": "",
+            "control_bar": false,
+            "custom_workspaces": [],
+            "dialog": null,
+            "dock": true,
+            "dock_tab": "Properties",
+            "draw_mode": 0,
+            "dxf_import": null,
+            "dxf_options": null,
+            "engine_prefs": null,
+            "eps_options": null,
+            "flattener_preview": {
+              "highlight": "none",
+              "options": {
+                "antiAlias": true,
+                "balance": 75,
+                "clipComplexRegions": false,
+                "gradientPpi": 300,
+                "lineArtPpi": 300,
+                "preserveAlpha": false,
+                "preserveOverprints": true,
+                "strokesToOutlines": false,
+                "textToOutlines": false
+              },
+              "overprints": "preserve",
+              "preset": "Medium Resolution",
+              "showOptions": false
+            },
+            "flyout": null,
+            "group_tool": [
+              "selection",
+              "directSelection",
+              "magicWand",
+              "lasso",
+              "pen",
+              "curvature",
+              "type",
+              "lineSegment",
+              "rectangle",
+              "paintbrush",
+              "shaper",
+              "eraser",
+              "rotate",
+              "scale",
+              "width",
+              "freeTransform",
+              "shapeBuilder",
+              "perspectiveGrid",
+              "mesh",
+              "gradient",
+              "eyedropper",
+              "blend",
+              "symbolSprayer",
+              "columnGraph",
+              "artboard",
+              "hand",
+              "zoom"
+            ],
+            "last_selection_tool": "selection",
+            "library_panel": null,
+            "open_panel": null,
+            "palette_open": false,
+            "palette_query": "",
+            "place_link": true,
+            "recent_files": [
+              "<worktree>\\.noacg\\reference\\edited.vectorcraft",
+              "<worktree>\\.noacg\\reference\\community.svg"
+            ],
+            "recent_fonts": [],
+            "screen_mode": 0,
+            "shortcut_overrides": {},
+            "shortcut_set": "VectorCraft Defaults",
+            "slot_tool": {},
+            "status": "Saved <worktree>\\.noacg\\reference\\edited.vectorcraft",
+            "status_bar": true,
+            "svg_options": null,
+            "task_bar": true,
+            "toolbar": true,
+            "toolbar_advanced": false,
+            "toolbar_double": false,
+            "view": {
+              "artboards": true,
+              "bounding_box": true,
+              "corner_widgets": true,
+              "edges": true,
+              "gradient_annotator": true,
+              "grid": false,
+              "guides": true,
+              "hidden_chars": false,
+              "outline": false,
+              "pixel_preview": false,
+              "rulers": false,
+              "smart_guides": true,
+              "snap_to_grid": false,
+              "snap_to_pixel": false,
+              "snap_to_point": true,
+              "text_threads": true,
+              "trim_view": false
+            },
+            "window": {
+              "maximized": false,
+              "pos": [
+                104,
+                104
+              ],
+              "size": [
+                1366,
+                768
+              ]
+            },
+            "workspace": "Essentials"
+          },
+          "view": {
+            "artboard": 0,
+            "center": {
+              "x": 960,
+              "y": 540
+            },
+            "fitted": true,
+            "rotation": 0,
+            "zoom": 0.4666666666666667
+          },
+          "window": [
+            1366,
+            768
+          ]
+        }
+      }
+    },
+    {
+      "method": "app.open",
+      "params": {
+        "path": "<worktree>\\.noacg\\reference\\edited.vectorcraft"
+      },
+      "response": {
+        "id": 19,
+        "ok": true,
+        "result": null
+      }
+    },
+    {
+      "method": "document.inspect",
+      "params": {},
+      "response": {
+        "id": 20,
+        "ok": true,
+        "result": {
+          "artboards": [
+            {
+              "height": 1080,
+              "name": "Artboard 1",
+              "width": 1920,
+              "x": 0,
+              "y": 0
+            }
+          ],
+          "colorMode": "Rgb",
+          "currentLayer": 1,
+          "dirty": false,
+          "history": [],
+          "isolation": null,
+          "layers": [
+            {
+              "bounds": {
+                "height": 210.0000000000001,
+                "width": 1000,
+                "x": 120,
+                "y": 759.9999999999999
+              },
+              "children": [
+                {
+                  "bounds": {
+                    "height": 31.28125,
+                    "width": 168.02734375,
+                    "x": 164,
+                    "y": 889.65234375
+                  },
+                  "fill": "#9dd8c4",
+                  "id": 4,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "static-note",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "RIVERLIGHT",
+                  "visible": true
+                },
+                {
+                  "bounds": {
+                    "height": 60.328125,
+                    "width": 363.2080078125,
+                    "x": 234,
+                    "y": 821.115234375
+                  },
+                  "fill": "#ffffff",
+                  "id": 3,
+                  "kind": "Type",
+                  "locked": false,
+                  "name": "f0",
+                  "stroke": "None",
+                  "strokeOptions": {
+                    "align": "center",
+                    "alignDashes": false,
+                    "arrowAlign": "extend",
+                    "cap": "butt",
+                    "dash": null,
+                    "dashOffset": 0,
+                    "endArrow": null,
+                    "gradientMode": "within",
+                    "join": "miter",
+                    "miterLimit": 10,
+                    "profile": "uniform",
+                    "startArrow": null,
+                    "widthPoints": null
+                  },
+                  "strokeWidth": 0,
+                  "text": "Elena Marquez",
+                  "visible": true
+                },
+                {
+                  "anchors": 8,
+                  "bounds": {
+                    "height": 210.0000000000001,
+                    "width": 1000,
+                    "x": 120,
+                    "y": 759.9999999999999
+                  },
+                  "closed": true,
+                  "fill": "#12243c",
+                  "id": 2,
+                  "kind": "Path",
+                  "locked": false,
+                  "name": "panel",
+                  "stroke": "None",
+                  "strokeWidth": 0,
+                  "visible": true
+                }
+              ],
+              "id": 1,
+              "kind": "Layer",
+              "locked": false,
+              "name": "Layer 1",
+              "visible": true
+            }
+          ],
+          "objects": 4,
+          "paint": {
+            "appearanceItem": null,
+            "fill": "#ffffff",
+            "fillActive": true,
+            "stroke": "#000000",
+            "strokeWidth": 1
+          },
+          "pasteRemembersLayers": false,
+          "path": "<worktree>\\.noacg\\reference\\edited.vectorcraft",
+          "redo": [],
+          "revision": 1,
+          "selection": [],
+          "selectionBounds": null,
+          "selectionRotation": 0,
+          "target": null,
+          "title": "edited.vectorcraft",
+          "tool": "selection",
+          "units": "Pixels"
+        }
+      }
+    },
+    {
+      "method": "ui.render",
+      "params": {
+        "path": "<worktree>\\docs\\work-specs\\editor-cli-round-trip\\reference-edited.png",
+        "scale": 0.5
+      },
+      "response": {
+        "id": 21,
+        "ok": true,
+        "result": {
+          "height": 540,
+          "path": "<worktree>\\docs\\work-specs\\editor-cli-round-trip\\reference-edited.png",
+          "width": 960
+        }
+      }
+    },
+    {
+      "method": "ui.screenshot",
+      "params": {
+        "path": "<worktree>\\docs\\work-specs\\editor-cli-round-trip\\reference-ui.png"
+      },
+      "response": {
+        "id": 22,
+        "ok": true,
+        "result": {
+          "height": 768,
+          "path": "<worktree>\\docs\\work-specs\\editor-cli-round-trip\\reference-ui.png",
+          "width": 1366
+        }
+      }
+    }
+  ]
+}

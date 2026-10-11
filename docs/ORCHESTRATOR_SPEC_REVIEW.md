@@ -149,7 +149,7 @@ reach the same procedure on both runtimes.
 - Kept relay, recovery, claim guards, candidate ordering, serialized browser jobs and queue
   watchers. Native capability does not justify deletion until a same-invariant live trial passes.
 - Do not migrate the generated root instruction corpus in this change. Its 72 KB deepest chains
-  have an explicit owner follow-up, `backlog/instruction-context-rot-after-spec-pilot.md`, with
+  have an explicit owner follow-up, [issue #805](https://github.com/NoaCG/NoaCG-Studio/issues/805), with
   compiler/ratchet safeguards that a quick rewrite risks. This pilot does not close that concern.
 
 ## Verification and rollout limits

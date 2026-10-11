@@ -7,7 +7,7 @@
 // two kinds of client, as the real parties are: an ANONYMOUS client holding only a panel key (the
 // Companion module), and an anonymous client holding only the control slug (an operator page).
 // The page's own half (running a press through onVerb, publishing feedback) has its own spec.
-// covers: supabase/migrations/{0073_panel_relay,0077_direct_cue_trigger}.sql
+// covers: supabase/migrations/{0073_panel_relay,0077_direct_cue_trigger,0081_panel_lease}.sql
 
 import { test, expect } from '@playwright/test';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
@@ -257,27 +257,64 @@ test('the relay refuses foreign verbs, malformed presses, wrong keys and bursts'
   expect(answers.filter((r) => r === 'slow-down').length).toBeGreaterThanOrEqual(10);
 });
 
-test('the last page to answer wins, and only the current claim lets go', async () => {
+test('the panel lease: taken when free, never taken from a live page, kept on reload, moved by Use here, renewed, and lapsing', async () => {
+  // docs/work-specs/panel-ownership-lease/spec.md L1, L4 to L6, L9; supabase/migrations/0081_panel_lease.sql.
+  test.setTimeout(90_000);
   const slug = await production();
   const { key } = await pair(slug, 'Deck');
-  const first = client();
-  const a = await rpc(first, 'panel_claim', { p_slug: slug, p_page: 'pagepagepage000a', p_where: 'production', p_label: 'Production page' });
-  const heardByFirst = await listen(first, a.press_topic as string);
-  const b = await rpc(client(), 'panel_claim', { p_slug: slug, p_page: 'pagepagepage000b', p_where: 'control', p_label: 'Phone' });
-  expect(Number(b.claim)).toBeGreaterThan(Number(a.claim));
-  const claim = await heardByFirst.next('claim');
-  expect(claim.payload).toEqual({ v: 1, claim: b.claim, page: 'pagepagepage000b', where: 'control', label: 'Phone' });
-  expect((await rpc(first, 'panel_list', { p_slug: slug })).answering).toMatchObject({ page: 'pagepagepage000b', where: 'control', label: 'Phone' });
+  const lease = (page: string, where: string, label: string, move = false) =>
+    rpc(client(), 'panel_lease', { p_slug: slug, p_page: page, p_where: where, p_label: label, p_move: move });
 
-  // Presses carry the newer claim, so only the second page runs them.
-  expect(await rpc(client(), 'panel_press', { p_key: key, p_press: press('abcdef:1') })).toEqual({ ok: true, claim: b.claim });
+  // Free: the first page takes it.
+  const first = client();
+  const a = await rpc(first, 'panel_lease', { p_slug: slug, p_page: 'pagepagepage000a', p_where: 'production', p_label: 'Production page', p_move: false });
+  expect(a.ok).toBe(true);
+  const heardByFirst = await listen(first, a.press_topic as string);
+  // Held: another page takes nothing, and hears who has it.
+  expect(await lease('pagepagepage000b', 'control', 'Phone')).toMatchObject({ ok: false, refused: 'held', answering: { page: 'pagepagepage000a', label: 'Production page' } });
+  // A page from before leases cannot take it either.
+  await expect(rpc(client(), 'panel_claim', { p_slug: slug, p_page: 'pagepagepage000c', p_where: 'production', p_label: 'Old page' })).rejects.toThrow(/answers on Production page/);
+  // The same page again (a reload of its tab): the same claim.
+  expect(await lease('pagepagepage000a', 'production', 'Production page')).toMatchObject({ ok: true, claim: a.claim });
+  expect(await rpc(client(), 'panel_press', { p_key: key, p_press: press('lease1:1') })).toEqual({ ok: true, claim: a.claim });
+
+  // Use here: moved, under a newer claim, and the first page hears it.
+  const b = await lease('pagepagepage000b', 'control', 'Phone', true);
+  expect(Number(b.claim)).toBeGreaterThan(Number(a.claim));
+  expect((await heardByFirst.next('claim')).payload).toEqual({ v: 1, claim: b.claim, page: 'pagepagepage000b', where: 'control', label: 'Phone' });
+  expect((await rpc(first, 'panel_list', { p_slug: slug })).answering).toMatchObject({ page: 'pagepagepage000b', where: 'control', label: 'Phone' });
+  // The first page's renewal is refused: its claim moved on. The second's renews.
+  expect(await rpc(first, 'panel_renew', { p_slug: slug, p_page: 'pagepagepage000a', p_claim: a.claim })).toMatchObject({ ok: false, refused: 'lost', answering: { label: 'Phone' } });
+  expect(await rpc(client(), 'panel_renew', { p_slug: slug, p_page: 'pagepagepage000b', p_claim: b.claim })).toEqual({ ok: true, claim: b.claim });
+  expect(await rpc(client(), 'panel_press', { p_key: key, p_press: press('lease1:2') })).toEqual({ ok: true, claim: b.claim });
 
   // The replaced page letting go changes nothing; the answering one letting go stops presses.
   expect(await rpc(first, 'panel_release', { p_slug: slug, p_claim: a.claim })).toEqual({ ok: true, released: false });
-  expect((await rpc(client(), 'panel_press', { p_key: key, p_press: press('abcdef:2') })).ok).toBe(true);
   expect(await rpc(client(), 'panel_release', { p_slug: slug, p_claim: b.claim })).toEqual({ ok: true, released: true });
   await heardByFirst.next('released');
-  expect((await rpc(client(), 'panel_press', { p_key: key, p_press: press('abcdef:3') })).refused).toBe('no-page');
+  expect((await rpc(client(), 'panel_press', { p_key: key, p_press: press('lease1:3') })).refused).toBe('no-page');
+
+  // A lease nobody renews lapses in 15 s: no page answers, and another page may take it. Until
+  // someone does, the page whose claim it was keeps it by renewing (it was only cut off).
+  const c = await lease('pagepagepage000c', 'production', 'Laptop');
+  await new Promise((r) => setTimeout(r, 16_000));
+  expect((await rpc(client(), 'panel_press', { p_key: key, p_press: press('lease1:4') })).refused).toBe('no-page');
+  expect((await rpc(client(), 'panel_list', { p_slug: slug })).answering).toBeNull();
+  expect((await rpc(client(), 'panel_hello', { p_key: key })).answering).toBe(false);
+  expect(await rpc(client(), 'panel_renew', { p_slug: slug, p_page: 'pagepagepage000c', p_claim: c.claim })).toEqual({ ok: true, claim: c.claim });
+  expect((await rpc(client(), 'panel_press', { p_key: key, p_press: press('lease1:5') })).ok).toBe(true);
+});
+
+test('two pages taking a free panel at once: exactly one gets it', async () => {
+  const slug = await production();
+  await pair(slug, 'Deck');
+  const takes = await Promise.all(
+    ['pagepagepage00x1', 'pagepagepage00x2', 'pagepagepage00x3'].map((page) =>
+      rpc(client(), 'panel_lease', { p_slug: slug, p_page: page, p_where: 'production', p_label: page, p_move: false }),
+    ),
+  );
+  expect(takes.filter((t) => t.ok).length).toBe(1);
+  expect(takes.filter((t) => t.refused === 'held').length).toBe(2);
 });
 
 test('revoking a panel stops it at once, moves the feedback topic, and leaves the others working', async () => {

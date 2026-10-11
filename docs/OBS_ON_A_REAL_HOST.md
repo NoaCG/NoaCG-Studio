@@ -33,7 +33,7 @@ where a statement rests on something else, it says so.
 - **OBS's engine is Chromium 127** (`127.0.6533.120`, CEF 127.145.7, obs-browser 2.26.9), as
   the engine table already said.
 - **Recommendation:** no OBS script and no native plugin. Operate from a Custom Browser Dock now,
-  and build the obs-websocket route (`docs/backlog/bridge-obs-adapter.md`) for Companion and the
+  and build the obs-websocket route ([issue #761](https://github.com/NoaCG/NoaCG-Studio/issues/761)) for Companion and the
   Bridge. §7 has the reasons.
 
 ## 1. The host and how it was driven
@@ -191,7 +191,7 @@ was not measured.
   without the relay, a dock pairs with a browser source on the same address. What is missing is
   that the exported guide and the export contract still say the panel can never reach a graphic
   inside OBS, and nothing tells an OBS operator to add the dock. That was filed and is done: §10.
-- **obs-websocket is the next route**, as `docs/backlog/bridge-obs-adapter.md` proposes: this
+- **obs-websocket is the next route**, as [issue #761](https://github.com/NoaCG/NoaCG-Studio/issues/761) proposes: this
   walk proves its two load-bearing assumptions (`emit_event` reaches the page, and a page can tell
   it is on air). It serves Companion and a Stream Deck with no NoaCG module, and it is the only
   route that could also create and show sources, which a dock page cannot do: docks get no
@@ -214,7 +214,7 @@ was not measured.
 - `docs/PLAYOUT_INTEGRATION.md` §4: the refresh-when-active workaround, the dock as a way to
   operate, the measured same-address dock pairing, and the local-file address; §8 lists this
   walk.
-- `docs/backlog/playout-engine-facts-and-guide-corrections.md` now holds only what is left: the
+- [issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760) now holds only what is left: the
   vMix facts, the OBS 33 row, and the SPX route guidance.
 - New: a backlog item for the dock guidance, closed on 2026-10-01 (§10).
 
@@ -273,7 +273,7 @@ from recordings of the program output, with hardware acceleration off and with a
 `src/export/AGENTS.md` now say what §5 measured: the panel reaches a graphic in OBS from a Custom
 Browser Dock on the same http address, and with the relay the dock takes the page the launcher
 opened. vMix and CasparCG keep the relay and their own controls. The panel's own no-listener
-banner is in `src/control` and is `docs/backlog/control-panel-banner-names-the-obs-dock.md`.
+banner is in `src/control` and is [issue #761](https://github.com/NoaCG/NoaCG-Studio/issues/761).
 
 Afterwards OBS was switched back to `Untitled` and closed normally (no crash sentinel, zero
 leaks), the test collection's files were moved out of `%APPDATA%\obs-studio\basic\scenes`, and

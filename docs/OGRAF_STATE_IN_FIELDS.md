@@ -44,7 +44,7 @@ endpoint. The Graphic never speaks unasked.
 
 ### 1a. The correction this round makes - "unspecified", not "dropped"
 
-`docs/CONTROL_PANEL_RESEARCH.md` §4c and `docs/backlog/ograf-graphic-state-return.md` both say the
+`docs/CONTROL_PANEL_RESEARCH.md` §4c and [`docs/backlog/ograf-graphic-state-return.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-graphic-state-return.md) both say the
 Server API **drops** `result`. Checked against the de-facto reference implementation, that is too
 strong, and the difference matters enough to write down:
 
@@ -123,7 +123,7 @@ So there is nothing to report and nothing to approximate. The counts ride the `O
 `array` is a legal JSON-Schema `type` with no array `gddType` and no specified GUI. A stranger's
 generated form has nothing to draw for "four options, each with a count", so the operator gets a
 textarea of pipe-delimited text. That is a hole in the standard, not something we failed to read -
-`docs/backlog/tally-field-shape.md` owns the improvement, and it is an editor change with the
+[`docs/backlog/tally-field-shape.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/tally-field-shape.md) owns the improvement, and it is an editor change with the
 storage staying a string, so it does not touch this design.
 
 ### 4b. Open / closed - served WELL, at the price of one prohibition
@@ -159,7 +159,7 @@ independent reasons, either of which is sufficient:
 
 1. **Legality is a function of the CURRENT state**, and current state is precisely what does not
    cross. A static manifest field can carry the *graph* - that is what
-   `docs/backlog/ograf-legality-vendor-block.md` proposes, and it is worth doing for our own
+   [`docs/backlog/ograf-legality-vendor-block.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-legality-vendor-block.md) proposes, and it is worth doing for our own
    round trip - but never the *position* to evaluate it at.
 2. **`customActions` has nowhere to put the answer.** It is a flat array of `{id, name,
    description?, schema?}`; every action is a peer of every other, always available, with no
@@ -229,7 +229,7 @@ Two shapes fell out of it that are the pattern for the next behaviour, not incid
 The catalog board (`src/templates/types/livePoll.ts`) is a different case and still open: its badge
 is a keyframe track on the machine's states, so it never read a status back and never had this
 defect - what it has is no way for a data-only controller to close it at all.
-`docs/backlog/behaviour-state-as-fields.md` owns that.
+[`docs/backlog/behaviour-state-as-fields.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/behaviour-state-as-fields.md) owns that.
 
 ### 5b. `Live figures`, the second field to take the same shape - and where it differs
 
@@ -288,9 +288,9 @@ default.
   for the tally, because a tally is data and always was.
 - **If GDD gains an array presentation**: the pipe-line string can become an `array`-of-`object`
   property with a real widget. Independent of everything above, and owned by
-  `docs/backlog/tally-field-shape.md`; the storage stays a string until a real third-party form has
-  been observed drawing an array (`docs/backlog/ograf-form-oracle.md` is that instrument).
-- **If we ever ship the manifest legality block** (`docs/backlog/ograf-legality-vendor-block.md`):
+  [`docs/backlog/tally-field-shape.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/tally-field-shape.md); the storage stays a string until a real third-party form has
+  been observed drawing an array ([`docs/backlog/ograf-form-oracle.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-form-oracle.md) is that instrument).
+- **If we ever ship the manifest legality block** ([`docs/backlog/ograf-legality-vendor-block.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-legality-vendor-block.md)):
   a NoaCG package re-imported into NoaCG greys correctly again. It changes nothing for a stranger's
   renderer and nothing in this design - it restores the map, not the position.
 - **If nothing changes at all**: this design is permanent and correct. It costs one hidden field per
@@ -313,7 +313,7 @@ default.
 - `src/templates/types/livePoll.ts` - the catalog board the arc is derived from.
 - `src/export/targets/ograf.ts` - `dataSchema()` turns each field into a GDD property; the emitted
   actions return status and step only (returning `result` is the small in-house half of
-  `docs/backlog/ograf-graphic-state-return.md`, still unbuilt and still worth doing per §7).
+  [`docs/backlog/ograf-graphic-state-return.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-graphic-state-return.md), still unbuilt and still worth doing per §7).
 - `src/control/controlModel.ts` - `eventLegality` / `isEventLegal`, and the "no answer yet means
   every button live" rule R5 depends on.
 - `src/control/ografContract.ts` - the import side, which already degrades honestly.

@@ -102,20 +102,30 @@ Jobs are weighted in **suite-equivalents**, because counting them was the crude 
 
 | job | cost | why |
 |---|---|---|
-| e2e suite, sweep, bench, or anything queued `--kind sweep` | **1.0** | a dev server plus four browser workers; two at once measured 34 browser processes, 93% CPU, under 2 GB free |
-| anything unrecognised | **0.5** | assumed to be a dev server and ONE browser page - see the asymmetry below |
-| `npm run build`, `node --test`, lint, `tsc`, `check:*` | **0.4** | CPU, little RAM, no browser |
+| e2e suite, sweep, bench, anything queued `--kind sweep`, or any job seen launching a browser | **1.0** | a dev server plus four browser workers; two at once measured 34 browser processes, 93% CPU, under 2 GB free |
+| anything unrecognised | **0.5** | assumed to be a dev server at most, never free; one that opens a browser is re-queued at 1.0 - see the asymmetry below |
+| `npm run build` | **0.75** | no browser, but measured at 2.8 GB peak against a browser run's 3.8 (2026-10-09) |
+| `node --test`, lint, `tsc`, `check:*` | **0.4** | CPU, little RAM, no browser |
 | a landing (`auto-merge`) | **0.15** | almost entirely `gh run watch`, waiting on GitHub's network |
 
 A job may also declare its own cost - `npm run queue -- "<command>" --cost 0.5` - anywhere between
-a landing's 0.15 and a whole suite. The number is written onto the job record, so the listing, the
+a landing's 0.15 and a whole suite, except that a job holding the browser slot is never priced
+below 1.0 (#931). The number is written onto the job record, so the listing, the
 budget and the RAM floor all read the same figure and a retry inherits it. It is the only way to
 price work the classifier has no way to recognise, and the floor of 0.15 is there because the same
 number is the RAM admission threshold: left open, a job could waive that check on itself.
 
 Heavy work is classified by `command-match.mjs` - the repo's ONE named list of what starts
 browser work, read by the guard hook and the process detector too, so a script that is heavy here
-is heavy everywhere rather than in a second opinion that can drift.
+is heavy everywhere rather than in a second opinion that can drift. Command text cannot see
+through a wrapper, so on Windows the runner also reads each running light job's process tree
+every 15 s: a job with a browser or a Playwright test run below it is stopped and re-queued as
+`--kind sweep`, keeping its place, so the browser slot and the full floor apply. Its command is
+remembered in `browser-commands.json` beside the jobs (the newest 50, each for 7 days), and the
+same command queued again without a `--kind` starts as browser work, and the guard hook treats it
+as browser work typed into a shell too; once its entry runs out it is
+light and watched again, so a script that stopped opening a browser is not held to the slot for
+ever, and `--kind gate` says so sooner.
 
 **The asymmetry decides the default, and it cuts both ways.** Charging an expensive job too little
 puts two dev servers and eight browser workers on a 16 GB laptop. Charging a cheap one too much
@@ -134,14 +144,27 @@ the logs say otherwise.
 
 Budget, recomputed before every start and never cached:
 
-- **Day (07:00-24:00 Helsinki): 1.0.** Never two suites while someone is using the machine.
-- **Night (00:00-07:00 Helsinki): 2.0.** Two suites, or one suite plus a night's worth of
-  landings draining beside it rather than behind it.
+- **Modest (weekdays 08:00-16:00 Helsinki): 1.0.** The owner's working day, when he uses the
+  laptop for light work and other agent sessions (owner, 2026-10-09).
+- **Full (every other hour, weekends included): 2.0.** The one browser job with a build beside it,
+  or two builds, as far as the RAM floor lets them in.
+- **Alone: full, whatever the clock.** When at most one agent session is live - whoever is
+  driving the queue - nobody else is competing for the machine. Live means Claude Code's own
+  session inventory lists it and it is busy, or it or its subagents wrote a turn in the last 15
+  minutes, or a Codex session log moved in that window. A session whose process descends from a
+  running queue job is the queue's own. An inventory that does not answer, or lists nothing,
+  means "cannot tell", which gets the modest budget. The clock
+  and the session signal are injected into `schedule`, so the tests pin both; `npm run jobs`
+  prints the budget in effect and why on one line.
+- **One browser-driving job per machine, whatever the budget.** A job `command-match.mjs` knows
+  drives a browser, or one queued `--kind sweep`, waits while another runs in the queue or
+  outside it. Before 2026-10-09 the night budget admitted two Playwright runs at once; a
+  `:queued` one then waited inside its slot for the other.
 - **A free-RAM floor overrides the clock in both directions.** Below the floor nothing new starts,
   however many slots the schedule allows. The floor scales with the job's cost, and one scheduling
   pass subtracts what it has already let through, so two jobs cannot both be admitted against the
   same free-memory reading. **Since 2026-09-16 there are two floors and presence picks one**:
-  3.0 GB while nobody is at the machine, 4.0 GB while somebody may be - see "What a job actually
+  3.5 GB while nobody is at the machine, 4.0 GB while somebody may be - see "What a job actually
   costs in RAM" below for where those numbers come from and "Presence" for how it is declared.
   `NOACG_JOBS_FREE_MB` still overrides, and pins both.
 - **Work started outside the queue still counts.** Another coding agent - Codex, or a hand-run
@@ -156,9 +179,9 @@ Budget, recomputed before every start and never cached:
   takes NO share of the budget, whether it is being admitted or already running
   (`budgetShareOf`), so a running `land-watch` never holds a suite out.
 
-Night = 2.0 is a starting point, not a promise, and it is probably already at the memory wall
-rather than conservative: past it a RAM-bound box pages, and every job slows down together, so
-more parallel stops being more throughput. Raise it only against measurements.
+Full = 2.0 is at the memory wall rather than conservative: past it a RAM-bound box pages, and
+every job slows down together, so more parallel stops being more throughput. Raise it only
+against measurements ("What a job actually costs in RAM" below).
 
 ### Per-job cap
 
@@ -324,7 +347,7 @@ laptop is not - `ram-reclaim.mjs` established that much, since `MainWindowHandle
 apps with a visible window. So presence is DECLARED:
 
 ```
-npm run jobs -- presence away      # nobody at the keyboard: the floor drops to 3.0 GB
+npm run jobs -- presence away      # nobody at the keyboard: the floor drops to 3.5 GB
 npm run jobs -- presence present   # back at the desk: 4.0 GB again, at once
 npm run jobs -- presence           # what the scheduler currently believes, and until when
 ```
@@ -348,11 +371,29 @@ answerable rather than silent:
             gigabyte free; `npm run jobs -- presence away` starts it now
 ```
 
-Presence moves the floor and nothing else. The concurrency budget above is still the clock's: an
-away day runs the one suite the clock allows, and an away night the two - never more because
-nobody is home.
+Presence moves the floor and nothing else. The concurrency budget above is the clock's and the
+live sessions': an away working day runs the modest budget, never more because nobody is home.
 
 ## What a job actually costs in RAM
+
+**Measured 2026-10-09, 12:30-13:10 Helsinki**, after whole suites stopped running locally (#852),
+on the same laptop with the owner working and other agent sessions live. Each job ran through
+the queue while a sampler read its process tree every 3 s (`Get-CimInstance Win32_Process`:
+working set and private bytes summed over the tree). Durations are the queue's own records for
+the 14 days to 2026-10-09.
+
+| Job | Peak working set | Peak private | Processes | Duration (this run; 14-day median, p90) |
+| --- | --- | --- | --- | --- |
+| Targeted e2e, one spec (14 tests, 3 workers) | **3.8 GB** | 4.4 GB | 24, 12 browser | 1.0 min; 0.7, 2.9 min over 660 runs |
+| `npm run build` | **2.8 GB** | 2.9 GB | 62 | 6.6 min; 5.4, 9.2 min over 175 runs |
+| `node --test`, three script test files | 0.2 GB | 0.1 GB | 6 | 10 s |
+| Landing (`land-watch`) | 0.1 GB | 0.1 GB | 6 | 29 min this one; 9.6, 30.1 min over 335 |
+
+The targeted run took free memory from 4.1 GB to 1.3 GB, which is why the modest budget is one
+suite-equivalent and a build is priced at 0.75. The playwright worker count follows free memory
+(`scripts/e2e-workers.mjs`), so with more free memory the same run uses more of it. At the 3.5 GB
+away floor it now picks two workers, which took 2.0-2.1 GB on 2026-10-10 and so leave about 1.4 GB
+free (#855).
 
 **Measured 2026-09-16, 13:30-13:45 UTC**, on the 15.9 GB laptop (16236 MB visible), with six agent
 sessions live and the owner away. Taken with `Get-CimInstance Win32_OperatingSystem` for free
@@ -370,8 +411,8 @@ point and nothing had measured what a run costs.
 | Desktop apps that are not agent work | 3114 MB - the Codex/ChatGPT app 1020, Wispr Flow 583, Antigravity, WD Discovery, the scanners |
 
 **What that says about the floor.** The floor times the job's cost should be what the job takes.
-A walk measured 1.4 GB at 0.5, so a suite-equivalent is about 3 GB - which is the away floor,
-3072 MB. Every cost class then lands on its own measurement rather than a guess: a walk is charged
+A walk measured 1.4 GB at 0.5, so a suite-equivalent is about 3 GB - which was the away floor then,
+3072 MB (3584 MB since). Every cost class then lands on its own measurement rather than a guess: a walk is charged
 1536 MB against a measured 1.4 GB, and a landing 461 MB against the few hundred megabytes
 `gh run watch` uses. The 2026-09-09 reading of two suites leaving "under 2 GB free" on a box that
 idles near 6.5 GB agrees - about 2.3 GB a suite, so 3072 keeps a margin.

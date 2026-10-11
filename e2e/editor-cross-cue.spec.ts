@@ -9,6 +9,7 @@
 // decisions densely in Node.
 
 import { test, expect, type Locator, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { readFileSync } from 'node:fs';
 import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
@@ -90,6 +91,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
     });
     if (target === 'ograf') {
+      await installGraphicBody(output);
       await output.goto('http://cue-package.local/');
       await output.evaluate(async () => {
         const mod = await import('http://cue-package.local/graphic.mjs'); customElements.define('cue-graphic', mod.default);
@@ -102,6 +104,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number };
     const w = window as unknown as Record<string, () => unknown> & { gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('cue-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
+    const body: ParentNode = target === 'ograf' ? graphicBody(element) : document;
     const command = async (action: 'play' | 'next' | 'stop') => {
       if (target === 'simulator') window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-' + action, data: '{}' } }));
       else if (target === 'ograf') { if (action === 'stop') await element.stopAction({}); else await element.playAction({}); }
@@ -114,7 +117,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       return found;
     };
     const seen = (style: CSSStyleDeclaration) => style.visibility === 'hidden' || style.display === 'none' ? 0 : Number(style.opacity);
-    const pose = () => layers.flatMap(s => { const e = document.querySelector(s)!; return props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(getComputedStyle(e))); });
+    const pose = () => layers.flatMap(s => { const e = body.querySelector(s)!; return props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(getComputedStyle(e))); });
     const poses: Record<string, number[]> = {};
     await command('play');
     let cue = timeline(seconds[0]);

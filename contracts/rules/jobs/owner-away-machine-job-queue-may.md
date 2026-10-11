@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: scripts/jobs-store.mjs, scripts/jobs.mjs, .agent-workflows/orchestrator/**
+scope: scripts/jobs-store.mjs, scripts/jobs.mjs, .agent-workflows/orchestrator.md
 kind: rule
 fires: contract
 status: active

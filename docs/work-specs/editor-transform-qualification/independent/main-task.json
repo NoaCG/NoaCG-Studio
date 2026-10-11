@@ -1,0 +1,106 @@
+{
+  "checkedAt": "2026-10-10T13:29:36.284Z",
+  "baseURL": "http://127.0.0.1:5174",
+  "steps": [
+    {
+      "task": "typed unequal linked scale",
+      "scale": [
+        200,
+        100
+      ]
+    },
+    {
+      "task": "linked corner",
+      "scale": [
+        240,
+        120
+      ]
+    },
+    {
+      "task": "linked side and exact undo/redo",
+      "scale": [
+        224,
+        112
+      ]
+    },
+    {
+      "task": "unlinked and Shift inversion",
+      "shifted": [
+        224,
+        100
+      ],
+      "independent": [
+        224,
+        100
+      ]
+    },
+    {
+      "task": "Escape active side drag",
+      "sourceAndHistoryUnchanged": true
+    },
+    {
+      "task": "text side reflow",
+      "boxBefore": 533.597,
+      "boxAfter": 683.004,
+      "font": "48",
+      "scale": [
+        100,
+        100
+      ]
+    },
+    {
+      "task": "text corner appearance scale",
+      "box": 683.004,
+      "font": "48",
+      "scale": [
+        114.546,
+        114.546
+      ]
+    },
+    {
+      "task": "typed/pointer rotation equivalence",
+      "rotation": 60
+    }
+  ],
+  "textSelector": "#f2",
+  "rotation": 60,
+  "sourceExactAfterReload": true,
+  "preservedImportedJsAssetsFields": true,
+  "captures": [
+    {
+      "width": 1920,
+      "height": 1080,
+      "label": "desktop",
+      "canvas": {
+        "x": 0,
+        "y": 161,
+        "width": 1640,
+        "height": 534.203125
+      }
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "label": "laptop",
+      "canvas": {
+        "x": 0,
+        "y": 161,
+        "width": 1086,
+        "height": 317
+      }
+    },
+    {
+      "width": 1093,
+      "height": 614,
+      "label": "zoom-proxy",
+      "canvas": {
+        "x": 0,
+        "y": 161,
+        "width": 813,
+        "height": 163
+      }
+    }
+  ],
+  "errors": [],
+  "failedRequests": []
+}

@@ -78,7 +78,7 @@ test('finish: the production door saves, pools with a seeded cue, and lands on t
 
 // ── LEAVING THE WIZARD ON PURPOSE ────────────────────────────────────────────────────────
 // Two halves of one bad minute the owner walked into on 2026-09-02; the half still to build is
-// scoped in docs/backlog/back-to-the-wizard.md.
+// scoped in https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md.
 // The production door used to hand a graphic to a rundown chosen in a
 // dropdown and leave the wizard behind, silently, while the door beside it opened a window and
 // asked something — so the quiet one was pressed by mistake, and there was no way back.

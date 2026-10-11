@@ -8,6 +8,7 @@
 .pd-target-ok .pd-target-dot { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.6); }
 .pd-target-idle .pd-target-dot { background: #f59e0b; }
 .pd-target-off .pd-target-dot { background: transparent; border: 1px solid var(--text-dim); }
+.pd-target-held .pd-target-dot { background: var(--text-dim); }
 .pd-target-state { font-size: 12px; color: var(--text-dim); }
 /* Under 1600px the words stand down to the tooltip; the header needs the width for the name. */
 @media (max-width: 1600px) {
@@ -16,6 +17,9 @@
 
 .wz-modal.settings-modal.panel-modal { width: min(560px, 94vw); max-width: 560px; height: auto; max-height: 88vh; }
 .panel-modal .settings-content { flex: 1; overflow: auto; }
+
+/* Who answers the panel, and Use here when it is not this page. */
+.panel-answer-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; }
 
 .panel-code-line { display: flex; flex-direction: column; gap: 6px; margin: 0; }
 .panel-code {

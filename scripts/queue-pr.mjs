@@ -19,8 +19,8 @@
 //   2. A push made with the workflow token starts NO workflow run (GitHub's rule for
 //      GITHUB_TOKEN), so the branch would sit on its pull request with no `CI gate` and no
 //      `Reviewed` on its tip, and a pull request without its required checks never enters the
-//      queue. The fix is the bot's GitHub App token (`botTokenIsApp`): its push and pull request
-//      start their own runs, and GitHub holds none of them for approval. Until the App is set up,
+//      queue. The fix is the bot's GitHub App token (`botTokenIsApp`): its pull request starts its
+//      own run, and GitHub does not hold it for approval. Until the App is set up,
 //      the workflow token is used, and the branch's run is asked for by dispatch, with
 //      `require_review` so the Reviewed job runs on it and `diff_base` so it plans the change
 //      rather than the whole suite. Measured on 2026-09-26 (#438): checks from a dispatched run
@@ -52,8 +52,8 @@ const BOT_IDENTITY = {
 
 /**
  * Whether this workflow queues with the bot's GitHub App token. The workflows set
- * NOACG_BOT_TOKEN=app when their App token step ran. An App's push and pull request start their
- * own CI, as a session's do, so nothing needs dispatching; without the App the workflow token is
+ * NOACG_BOT_TOKEN=app when their App token step ran. An App's pull request starts its own CI, as
+ * a session's does, so nothing needs dispatching; without the App the workflow token is
  * used and the run is dispatched as described above.
  */
 export const botTokenIsApp = () => process.env.NOACG_BOT_TOKEN === 'app';

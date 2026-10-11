@@ -1,11 +1,5 @@
-// PostToolUse notice for the Write tool. Says two things:
-//
-//   THIS NEW MIGRATION'S NUMBER IS ALREADY CLAIMED SOMEWHERE ELSE IN THIS REPOSITORY.
-//
-//   THIS WRITE REPLACED A HANDOFF THAT LISTED OPEN ITEMS with one that does not, and no wave plan
-//   records where they went. The reasoning is in scripts/handoff-trace.mjs, and the deletion half
-//   of the same rule is in warn-command.mjs next door. Both gates are a path match, so an ordinary
-//   Write pays one `relative()` call for each.
+// PostToolUse notice for the Write tool: THIS NEW MIGRATION'S NUMBER IS ALREADY CLAIMED SOMEWHERE
+// ELSE IN THIS REPOSITORY. The gate is a path match, so an ordinary Write pays one `relative()` call.
 //
 // WHY THAT NEEDS A HOOK. A migration number is a scarce slot with no allocator, and two branches
 // that both mint 0053 collide in a way every downstream mechanism is blind to: they touch no
@@ -31,14 +25,12 @@
 //
 // COST. Measured 2026-09-02 on this laptop: 50 ms on an ordinary Write, which is node starting up,
 // because the only unconditional work is a path match. The all-refs traversal costs about 170 ms
-// with 97 local branches, and runs only for a file under supabase/migrations. Writing a handoff
-// costs about 140 ms, once per session, and writing a NEW one stops at the first git call.
+// with 97 local branches, and runs only for a file under supabase/migrations.
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { readHookInput, warn, gitOutput } from './lib.mjs';
 import { collisions, migrationVersion, nextFreeVersion, parseAddedPaths } from '../migration-collision.mjs';
-import { isHandoff } from '../handoff-trace.mjs';
 
 const input = await readHookInput();
 const filePath = input?.tool_input?.file_path;
@@ -46,24 +38,6 @@ if (typeof filePath !== 'string' || filePath.length === 0) process.exit(0);
 
 const root = typeof input?.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
 const rel = relative(root, resolve(root, filePath)).replaceAll('\\', '/');
-
-// --- A handoff overwritten so that its open items are gone -------------------------------------
-//
-// The other half of the notice in warn-command.mjs next door: a `Write` replaces a file whole, so
-// it can destroy a handoff as completely as `rm` does. What makes it safe to run on the tool a
-// session uses to write its OWN handoff is that the previous text has to have listed open items
-// and the new text must not - an update that keeps them says nothing (scripts/handoff-trace.mjs).
-if (isHandoff(rel)) {
-  const before = gitOutput(root, ['show', `HEAD:${rel}`]);
-  // No committed version means this Write created the file, so nothing was there to lose.
-  if (before) {
-    const { handoffNotices } = await import('../handoff-trace.mjs');
-    const after = readFileSync(resolve(root, rel), 'utf8');
-    const [message] = await handoffNotices(root, [{ rel, before, after }]);
-    if (message) warn(message); // exits
-  }
-  process.exit(0);
-}
 
 const version = migrationVersion(rel);
 if (!version) process.exit(0);
@@ -98,7 +72,7 @@ warn(
     'refuses onto the drifted ledger, with both already on `main`.\n' +
     `Renumber this one to ${nextFreeVersion(claimed)} (the lowest free number across every branch, not ` +
     'just this worktree), unless the other claim is the one that should move - in which case say so ' +
-    'in the handoff, because whoever lands second inherits the problem.',
+    'in the pull request, because whoever lands second inherits the problem.',
 );
 
 /** The migration filenames in this checkout's working tree, or [] when there are none. */

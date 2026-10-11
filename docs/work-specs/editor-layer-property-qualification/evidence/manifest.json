@@ -1,0 +1,38 @@
+{
+  "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38080386750",
+  "probeCommit": "6dc7fc8e3",
+  "sourceTip": "379b1674e00af86ea1c29f31e14080653cb0584f",
+  "reconciledMain": "1442117acdc7518c4f2672f92551a4a590f4a666",
+  "sourceDiffFromProduct": [],
+  "protectedBlobs": {
+    "e2e/editor-cli-round-trip.spec.ts": "25919d0fcfc3195359d85b2a507d9a52f421afdf",
+    "e2e/editor-transform-qualification.spec.ts": "71c63b4add2547c31a6a4d85e645cda7ceaa9e4b"
+  },
+  "nativeCaptureFollowup": {
+    "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38081276368",
+    "probeCommit": "16caa8283",
+    "nativePixels": [
+      1366,
+      681
+    ],
+    "cssContent": [
+      1093,
+      545
+    ],
+    "documentHorizontalOverflow": false
+  },
+  "filesSha256NormalizedLfForJson": {
+    "actual-125.png": "a1691cf4fcbe3d1f63c929cf689b086abb6036ea0f0ce39ea991c12c1557908c",
+    "baseline.json": "8dc26c6894b40f04ccd0b7da7f757b993c3d49931ff9ae085db32ac5f9888153",
+    "baseline.png": "e3be4a3fac6be5f2d5b05ccdc84b570a78bd83aa24eea9dbdf7916b0a3148ab6",
+    "browser-zoom.json": "13e77ffd4c4dd96d77b70089a56cbb3ba282217f21683b215b4fb5a1a1be4dfa",
+    "desktop.png": "1d4cdb747f83b2e5702a6cafbba9c21bf57f7fc813c0faf14a8d2ac09de6323d",
+    "journey.json": "0e7d319086911b5d39679218c6fe1a991297935c0696782f22b7fd742095fc60",
+    "laptop.png": "16d30f6df5162efab2841fab7dacf2e35faeac6ad5a993c36a5c57626af719a8",
+    "reference-history.json": "7aceb838a730ac339664454986f6a64aa0bcb41bfcb45950d6ded29fff54e6c1",
+    "reference-properties.png": "f13a2747ec5c932590737d8df7bcb0e11fe40a663c097726f258425cd5fa0f04",
+    "reference.json": "61751ac45ba6bab7d6cf25e75a7778a11923f51eeac47fbed5a073c3881f5395",
+    "scrub-preview.png": "cede6cc53092e19663c0edc91b19485e3fb8e3a73ae25eb8b7cfeb63b1b969d0",
+    "zoom-bounds.json": "47490ed7d36d8c1bff43aedbeb5d5fac88d67e34d3e80d888852402a395b231a"
+  }
+}

@@ -68,7 +68,17 @@ export default defineConfig({
   // Blob reports make independently sharded runs mergeable. Keep a line reporter too so a
   // failure is readable in the live Actions log without downloading the combined report,
   // and the github reporter so each failing test lands as an annotation on the commit/PR.
-  reporter: isCi ? [['line'], ['github'], blobReporter] : [['list']],
+  // The integrity reporter fails a run that cannot be a verdict - a full disk, a truncated run -
+  // even when every test it saw passed (scripts/e2e-run-integrity.mjs).
+  // A run that sets NOACG_E2E_TRACE (the nightly) records which source each spec executed: the
+  // tsconfig maps the specs' Playwright import to e2e/_trace.ts, and the reporter gathers what it
+  // wrote (scripts/e2e-traced.mjs).
+  ...(process.env.NOACG_E2E_TRACE ? { tsconfig: './e2e/tsconfig.trace.json' } : {}),
+  reporter: [
+    ...(isCi ? [['line'], ['github'], blobReporter] : [['list']]),
+    ...(process.env.NOACG_E2E_TRACE ? [['./scripts/e2e-trace-reporter.mjs']] : []),
+    ['./scripts/e2e-run-integrity.mjs'],
+  ] as ReporterDescription[],
   // Refuses to run against an already-running dev server that is not offline-pinned. The
   // webServer.env below only applies when Playwright STARTS the server; reuseExistingServer
   // adopts an existing one as-is, silently skipping every pin. See e2e/_offline-guard.ts.
@@ -103,7 +113,9 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    // The port is passed, not left to vite.config.ts: the server then reserves exactly the number
+    // this config is waiting on, or fails loudly (scripts/dev-port.mjs, "asking never reserves").
+    command: `npm run dev -- --host 127.0.0.1 --port ${devPort()} --strictPort`,
     url: base,
     reuseExistingServer: true,
     timeout: 60_000,

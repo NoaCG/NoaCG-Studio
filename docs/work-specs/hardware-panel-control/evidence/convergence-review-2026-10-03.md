@@ -4,8 +4,8 @@ Reviewed at the revision `work.json` names (branch `claude/cz-hardware-panel-con
 2026-10-02 (digest d3d162be...). Each criterion was judged by reading its receipts beside the spec's
 wording, not by their existence: a pass needs a run that observed the behaviour. What only rests on
 reasoning or on a unit test of a part is unverified. The open items are filed in
-`docs/backlog/hardware-panel-acceptance-gaps.md` (AC-3, AC-7, AC-10) and
-`docs/backlog/hardware-panel-operator-docs.md` (AC-11).
+[`docs/backlog/hardware-panel-acceptance-gaps.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/hardware-panel-acceptance-gaps.md) (AC-3, AC-7, AC-10) and
+[issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809) (AC-11).
 
 ## Commands
 

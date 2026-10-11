@@ -125,7 +125,7 @@ export function stampPath(dir, branch) {
 }
 
 function git(args) {
-  const run = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+  const run = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8', windowsHide: true });
   if (run.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${(run.stderr || '').trim()}`);
   return run.stdout.trim();
 }
@@ -140,6 +140,7 @@ function readScope() {
   const run = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'review-request.mjs'), '--json'], {
     cwd: ROOT,
     encoding: 'utf8',
+    windowsHide: true,
   });
   if (run.status !== 0) throw new Error(`review-request.mjs --json failed: ${(run.stderr || '').trim()}`);
   const scope = JSON.parse(run.stdout);

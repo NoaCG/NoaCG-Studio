@@ -17,9 +17,10 @@
 //   are not, and the stamp of the last Prepare for Live.
 //
 // The words are the plan's (§9.3): "Preparing 18 of 24", "Ready for playout", "Ready · 1 change
-// preparing", "Ready · 1 change not prepared: Frost Quiz (script error)", the Degraded lines, and
-// "CasparCG 1-20 not answering (40 s)". Green is only ever "all of it holds"; amber is degraded,
-// never green; red is an output that should be there and is not.
+// preparing", the Degraded lines, and "CasparCG 1-20 not answering (40 s)"; per-graphic replacement
+// added "Waiting for clear: Scorebug" and "Change failed: Frost Quiz (script error)". Green is only
+// ever "all of it holds"; amber is degraded, never green; red is an output that should be there and
+// is not.
 //
 // Pure, with type-only imports: scripts/readiness.test.mjs runs it in Node, and the output renderer
 // loads it in CasparCG 2.3's Chromium 71 (no `Array.prototype.at`, no `Object.fromEntries`).
@@ -63,6 +64,10 @@ export interface ChangePrep {
   is?: ReadyIssue[];
   /** For `waiting`, how many graphics are on air. */
   air?: number;
+  /** The graphics whose change waits because they are on air here (per-graphic replacement,
+   *  docs/work-specs/per-graphic-replacement/spec.md D3). Present, maybe empty, from every output
+   *  that swaps one graphic at a time; absent from one that reloads whole. */
+  w?: string[];
   /** The Prepare for Live request this answers (prepareLive.ts `PrepRequest.id`), so a run never
    *  takes the last run's answer for its own. */
   id?: string;
@@ -96,6 +101,28 @@ export interface GraphicCheck {
   fontsFailed: string[];
   fontsLoading: string[];
   imagesBroken: string[];
+}
+
+/** A warm pass's answer as far as READY reads it (the output's `PreviewReadyMessage`). */
+export interface WarmAnswer {
+  error: string | null;
+  scriptError?: string | null;
+  sounds?: { n: number; of: number; bytes: number; error: string | null };
+  fonts: { failed: string[]; loading: string[] };
+  images: { broken: string[] };
+}
+
+/**
+ * WHETHER A NEW FRAME IS PREPARED (per-graphic replacement D1): what its document reported while
+ * loading (`docError`) and its warm pass's answer (null: it never answered), as its check, or as
+ * the reason it is not prepared. A sound that failed alone is an `audio` issue, not a script error.
+ */
+export function warmVerdict(graphic: string, docError: string | null | undefined, answer: WarmAnswer | null): GraphicCheck | ReadyIssue {
+  const error = docError ?? (answer ? answer.error : null);
+  if (answer?.sounds?.error && !answer.scriptError && error === answer.sounds.error) return { k: 'audio', g: graphic, d: error.slice(0, 120) };
+  if (error !== null && error !== undefined) return { k: 'script', g: graphic, d: error.slice(0, 120) };
+  if (!answer) return { k: 'silent', g: graphic };
+  return { done: true, error: null, audio: answer.sounds, silent: false, fontsFailed: answer.fonts.failed, fontsLoading: answer.fonts.loading, imagesBroken: answer.images.broken };
 }
 
 /**
@@ -210,6 +237,7 @@ function readChange(value: unknown): ChangePrep | undefined {
     n: c.n,
     ...(c.s === 'failed' ? { is: readIssues(c.is) } : {}),
     ...(typeof c.air === 'number' ? { air: c.air } : {}),
+    ...(Array.isArray(c.w) ? { w: c.w.filter((g): g is string => typeof g === 'string').slice(0, MAX_ISSUES).map((g) => g.slice(0, 80)) } : {}),
     ...(typeof c.id === 'string' ? { id: c.id.slice(0, 40) } : {}),
   };
 }
@@ -226,6 +254,11 @@ function reasonOf(issue: ReadyIssue): string {
   if (issue.k === 'image') return 'image not loaded';
   if (issue.k === 'font') return 'font not loaded';
   return 'not prepared';
+}
+
+/** The graphics a compact line names: "Scorebug", "Scorebug and Clock", "Scorebug +2". */
+function graphicNames(graphics: readonly string[]): string {
+  return graphics.length <= 2 ? listWords(graphics) : `${graphics[0]} +${graphics.length - 1}`;
 }
 
 /** "A", "A and B", "A, B and C". */
@@ -333,6 +366,9 @@ export interface OutputLine {
    *  Hairline"). READY reads it amber, because the output's other graphics still air; the
    *  production page's status reads it red (control/playoutStatus.ts). */
   broken?: string;
+  /** An amber headline's own short form, for the production page's one status ("Waiting for
+   *  clear: Scorebug", "Commands slow"); absent where the headline is already short. */
+  short?: string;
 }
 
 export interface ReadySummary {
@@ -356,6 +392,8 @@ export interface ReadySummary {
   preparing?: boolean;
   /** The first output naming a graphic that cannot play: its headline, and the short form. */
   broken?: { line: string; short: string } | null;
+  /** The deciding amber line's short form (`OutputLine.short`), when it has one. */
+  leadShort?: string;
   /** The name of the first expected output gone long enough to count as lost. */
   lost?: string;
 }
@@ -481,7 +519,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   }
   // Everything that is wrong, most serious first, one line per kind: the first is the headline and
   // the others follow it in the panel ("Also: ..."), each with what to do.
-  const problems: { line: string; advice: string[] }[] = [];
+  const problems: { line: string; advice: string[]; short?: string }[] = [];
   // A graphic that cannot play: named, amber, never green.
   const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio');
   let brokenShort: string | undefined;
@@ -491,54 +529,73 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     brokenShort = `Not ready: ${first.g ?? 'a graphic'}${more}`;
     problems.push({ line: `Not ready: ${first.g ?? 'a graphic'} (${reasonOf(first)})${more}`, advice: broken.map(adviceOf) });
   }
-  // A newer version did not prepare: the running one stays, and says which change failed.
+  // A change of the published version did not prepare: its graphic keeps the frame it has, and
+  // the line says which. The status reads it red, like a graphic that cannot play.
   const chg = ready.chg;
-  if (chg && chg.s === 'failed' && published && chg.v.h === published.h) {
-    const failed = chg.is ?? [];
-    const first = failed[0];
-    const named = first ? `: ${first.g ?? 'a graphic'} (${reasonOf(first)})` : '';
+  /** The change this output reports, if it is about the published version; one about an older
+   *  publish says nothing a newer one has not replaced. */
+  const pubChg = chg && published && chg.v.h === published.h ? chg : undefined;
+  if (pubChg && pubChg.s === 'failed' && published) {
+    const failed = pubChg.is ?? [];
+    const names = graphicNames(failed.map((i) => i.g ?? 'a graphic'));
+    const changeShort = `Change failed: ${names || 'a graphic'}`;
+    brokenShort = brokenShort ?? changeShort;
     problems.push({
-      line: `Ready · ${plural(failed.length || 1, 'change')} not prepared${named}`,
-      advice: failed.map(adviceOf).concat([`It keeps running v${ready.v?.n ?? '?'} until the change is fixed.`]),
+      line: failed.length === 1 ? `${changeShort} (${reasonOf(failed[0])})` : changeShort,
+      // Not `adviceOf`: the graphic still plays here, in the version it had before v<n>.
+      advice: failed.map((i) => `${i.g ?? 'A graphic'}: v${published.n} ${reasonOf(i)}${i.d ? ` (${i.d})` : ''}. It keeps playing its previous version here. Fix it in the editor and publish again.`),
+    });
+  }
+  // A change of the published version waits because its graphic is on air here (G1): named, and
+  // only while it waits.
+  const waitingFor = pubChg && pubChg.w && pubChg.w.length > 0 && published ? pubChg.w : null;
+  if (waitingFor && published) {
+    const line = `Waiting for clear: ${graphicNames(waitingFor)}`;
+    problems.push({
+      line,
+      short: line,
+      advice: [`${listWords(waitingFor)} ${waitingFor.length === 1 ? 'takes' : 'take'} v${published.n} after ${waitingFor.length === 1 ? 'its' : 'their'} Out or next Take.`],
     });
   }
   // Degraded: reachable, but a guarantee fails.
-  const degraded: { line: string; advice: string }[] = [];
+  const degraded: { line: string; advice: string; short?: string }[] = [];
   if (entry.log === false) {
     degraded.push({
       line: 'Commands may arrive up to 30 s late',
+      short: 'Commands slow',
       advice: 'It is not on the live channel, so what you take reaches it through the 30 s poll. Check its network, or reload it.',
     });
   } else if (entry.cmd === false) {
-    degraded.push({ line: 'Commands may arrive late', advice: 'Its fast road has not joined, so commands come by the log, a few hundred ms slower.' });
+    degraded.push({ line: 'Commands may arrive late', short: 'Commands slow', advice: 'Its fast road has not joined, so commands come by the log, a few hundred ms slower.' });
   }
   degraded.push(...degradedLines(ready.is));
   // Preparing the published version is the one way of being behind that is on its way to being
   // fixed: it reads as the plan's "Ready · 1 change preparing", green, below.
-  const preparingPublished = !!(chg && chg.s === 'preparing' && published && chg.v.h === published.h);
+  const preparingPublished = pubChg?.s === 'preparing';
   // A change that failed for the published version already says why this output is behind, and
   // pressing Prepare for Live again would not fix it: no second line for it.
-  const failedPublished = !!(chg && chg.s === 'failed' && published && chg.v.h === published.h);
+  const failedPublished = pubChg?.s === 'failed';
   const behind =
-    !preparingPublished && !failedPublished && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
+    !preparingPublished && !failedPublished && !waitingFor && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
   if (behind) {
     degraded.push({
       line: ready.v ? `Behind: showing v${ready.v.n}` : 'Behind: showing an older version',
+      short: 'Waiting for clear',
       advice:
         chg && chg.s === 'waiting'
           ? `v${published.n} is prepared, but ${plural(chg.air ?? 1, 'graphic')} ${chg.air === 1 ? 'is' : 'are'} on air here. Preparation resumes automatically after all graphics are off air. Keep running the current prepared cues while output and connection checks stay green.`
           : `v${published.n} is published. A deferred preparation retries automatically. Check now asks again.`,
     });
   }
-  for (const d of degraded) problems.push({ line: d.line, advice: [d.advice] });
+  for (const d of degraded) problems.push({ line: d.line, short: d.short, advice: [d.advice] });
   if (problems.length > 0) {
     // What to do first, then what else is wrong, then who it is.
     const also = problems.length > 1 ? [`Also: ${problems.slice(1).map((p) => p.line).join('; ')}.`] : [];
     const line = warn(problems[0].line, problems[0].advice.concat(also, ...problems.slice(1).map((p) => p.advice)));
-    return brokenShort ? { ...line, broken: brokenShort } : line;
+    return { ...line, ...(brokenShort ? { broken: brokenShort } : {}), ...(problems[0].short ? { short: problems[0].short } : {}) };
   }
-  if (preparingPublished && chg) {
-    return { ...base, tone: 'ok', state: `Ready · ${plural(chg.of, 'change')} preparing`, detail: [`Preparing v${chg.v.n}: ${chg.n} of ${chg.of} done.`].concat(detail) };
+  if (preparingPublished && pubChg) {
+    return { ...base, tone: 'ok', state: `Ready · ${plural(pubChg.of, 'change')} preparing`, detail: [`Preparing v${pubChg.v.n}: ${pubChg.n} of ${pubChg.of} done.`].concat(detail) };
   }
   return { ...base, tone: 'ok', state: 'Ready for playout', detail };
 }
@@ -647,7 +704,10 @@ export function describeReadiness(input: {
   const bad = lines.filter((l) => l.tone === 'bad');
   if (bad.length > 0) return summary('bad', headline(bad[0]), `${readyCount}/${total} ready`, { suffix: ` · ${of} ready` });
   const warn = lines.filter((l) => l.tone === 'warn');
-  if (warn.length > 0) return summary('warn', headline(warn[0]), `${readyCount}/${total} ready`);
+  if (warn.length > 0) {
+    const view = summary('warn', headline(warn[0]), `${readyCount}/${total} ready`);
+    return warn[0].short ? { ...view, summary: { ...view.summary, leadShort: warn[0].short } } : view;
+  }
   const preparing = present
     .filter((o) => o.ready && o.ready.n < o.ready.of)
     .sort((a, b) => a.ready!.n / Math.max(1, a.ready!.of) - b.ready!.n / Math.max(1, b.ready!.of));

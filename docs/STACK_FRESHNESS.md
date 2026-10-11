@@ -59,7 +59,8 @@ verification attached.
 |---|---|---|
 | Root dependencies, advisories | `npm audit --audit-level=high` | yes |
 | Root dependencies, staleness | `npm outdated` | no — a new release is news, not a fault |
-| `render-worker/`, `player-host/` | `npm --prefix … outdated` | no |
+| `render-worker/`, `player-host/`, advisories | `npm --prefix … audit --audit-level=high` (reads the lockfile, no install) | yes |
+| `render-worker/`, `player-host/`, staleness | `npm --prefix … outdated` | no |
 | Playwright browser binaries | follows the `@playwright/test` bump | n/a |
 
 The audit threshold is `high` on purpose. Low and moderate advisories that have been read and
@@ -89,11 +90,14 @@ worth more than the fix: **the audit does not gate the merge queue, which reads 
 so a red weekly survives every landing until a person reads it.
 
 **The `dompurify` override, and what it does NOT do (2026-08-04).** `package.json` pins
-`overrides: { "dompurify": "3.4.13" }`. Upgrading `monaco-editor` could never have closed those
+`overrides: { "dompurify": "3.4.16" }`. Upgrading `monaco-editor` could never have closed those
 advisories — monaco pins dompurify exactly, so its version moves only when monaco's does (0.55.1
 carried 3.2.7, 0.56.0 carries 3.4.8, the advisory covers `<=3.4.11`, the fix landed in 3.4.12,
 and `npm audit fix --force` "solves" it by DOWNGRADING monaco to 0.53.0). The override was taken
-deliberately, for audit hygiene rather than for a live exposure.
+deliberately, for audit hygiene rather than for a live exposure. It was raised from 3.4.13 to
+3.4.16 on 2026-10-08 for two low advisories in the `IN_PLACE` mode (GHSA-p98j-92pf-mc4p,
+GHSA-6688-9rhm-gjv2, `<=3.4.15`). Monaco's sanitizer passes a string and never sets `IN_PLACE`,
+so neither reaches it, and monaco 0.57.0 carries 3.4.15, so no monaco release closes them yet.
 
 Be precise about its effect, because it is easy to overstate: **it changes the dependency graph
 npm audits, not the code we ship.** `monaco-editor`'s ESM build — the one Vite bundles — imports
@@ -112,7 +116,7 @@ Nothing in `src/` imports dompurify directly. **Recheck those three call-site fa
 advisory text, if monaco's sanitizer is ever rewritten** — that is the assumption that would
 break.
 
-**Remove the override when monaco vendors 3.4.12 or newer**, or it silently holds a future
+**Remove the override when monaco vendors a copy no open advisory covers**, or it silently holds a future
 dompurify back. Nothing enforces that; it is why it is written here.
 
 **The `path-to-regexp` override (2026-08-13).** `package.json` pins
@@ -151,6 +155,14 @@ unnoticed behind two moderates, which means the blocking gate was genuinely fail
 merely reporting accepted noise. Both copies were fixable inside the ranges their parents already
 declared.
 
+The same ordinary kind came back on 2026-10-08: `brace-expansion` 5.0.9 (under `minimatch`) and
+`source-map-js` 1.2.1 (under `postcss`), both high, both dev-only, closed by lockfile bumps to
+5.0.12 and 1.2.2 inside their parents' ranges. `render-worker/` and `player-host/` keep their own
+lockfiles, which this job did not audit then. They carried the same `source-map-js`, and the worker
+four more high and two moderate advisories in its bundler toolchain, all closed then by patch or
+minor bumps in those lockfiles. Since 2026-10-09 the audit step reads all three lockfiles, each
+one even when an earlier one is red.
+
 Playwright gets no separate check. The actionable signal is the package bump, which `npm
 outdated` already reports; the browser revision follows from it.
 
@@ -180,7 +192,7 @@ too: `esm/vs/base/browser/dompurify/dompurify.js`, currently 3.4.8, imported by 
 from `domSanitize.js`. It is the sanitizer that actually runs in the editor — hover tooltips and
 suggest documentation — and **no tool here has an opinion about it.** `npm audit` reads the
 declared dependency graph, where the `dompurify` entry is a different artefact that monaco's ESM
-never imports; since 2026-08-04 an override pins that entry to 3.4.13, so audit reports zero
+never imports; since 2026-08-04 an override pins that entry (3.4.16 since 2026-10-08), so audit reports zero
 while the vendored 3.4.8 keeps running (Group 1 above says why that was accepted).
 
 `scripts/check-vendored-versions.mjs` reads it, as a third entry beside GSAP and Lottie — same
@@ -199,11 +211,11 @@ two in three ways, each written into the entry:
 Advisory does NOT mean unmonitored: a file that is present but whose banner no longer matches
 is a hard finding, because that means the upstream layout moved and the row has silently
 stopped measuring anything. Today it reports
-`fyi dompurify vendored 3.4.8 latest 3.4.13`.
+`fyi dompurify vendored 3.4.8 latest 3.4.16`.
 
 What it still cannot do is decide for you. On the next monaco upgrade, read that row and the
 advisories against the version it names rather than trusting a green `npm audit` — and drop the
-`dompurify` override once the vendored copy reaches 3.4.12 or newer.
+`dompurify` override once the vendored copy reaches a version no open advisory covers.
 
 ### Pinned model ids — `scripts/check-model-ids.mjs`
 
@@ -317,7 +329,27 @@ absence and ran on the apply), so it is deny-all like `control_heads`. `control_
 `control_cue_arms_for`, each reported for `anon` and for `authenticated`, are the same slug doors
 as 0071's, with the same `feature_denied_for` guard; the one that writes touches only that
 production's arm row, its head and its log, under the head lock and the burst cap. The anon
-reason in `ACCEPTED_CLASSES` names them. The last full breakdown was taken at 70 on
+reason in `ACCEPTED_CLASSES` names them. It holds **178** as of 2026-10-08: the 11 new ones are
+all migration 0079's (`0079_community_packs.sql`, community packs), which post-land reported on
+every landing after #745 applied it, and 4 unused-index entries had gone. `community_packs` is
+deny-all (RLS on, no policy, no client grant; 0079's self-check asserts it), its decider foreign
+key is unindexed on a small table, and its seven functions are the only door: the two anon ones
+answer only live packs, which the owner made visible signed out, and the rest check the caller
+inside. It holds **186** as of 2026-10-09: 4 are migration 0086's (community pack reports),
+recorded with that migration before it applied, and 4 are migration 0081's (`0081_panel_lease.sql`,
+the panel ownership lease), reported by every post-land run from 37901349091 (the landing of #846,
+which applied 0081) on, and so by each landing after it that did not cause them. `panel_lease` and
+`panel_renew`, each for `anon` and `authenticated`, take the control slug through the same
+`panel_room_for_slug` guard as 0073's `panel_claim` and write only that production's `panel_rooms`
+row; the operator page calls them signed out as well as signed in. It holds **180** as of
+2026-10-09, re-recorded once 0085 to 0087 had applied: 0085 retired the old gallery, taking 9
+entries with it (`community_templates`' two overlapping policies, three unused indexes and an
+unindexed foreign key, `community_reports`' unindexed foreign key, `community_list` and
+`community_get`). 0086's three new indexes read as unused, a class that never fails. 0086's
+`community_pack_reports_dismiss` had been recorded by hand as `timestamptz`, while the advisors
+write `timestamp with time zone`, so it read as new and post-land stayed red. The script now
+compares both sides in Postgres's spelling (`canonicalKey`), so a hand-recorded entry matches.
+The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.
@@ -436,8 +468,8 @@ in `ACCEPTED_CLASSES` now names them. The 22 `unused_index` warnings in the same
 out of the baseline, as on 2026-09-29.
 
 Accepting that reachability is not a claim that the door's own guard is tight, and on this
-occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured
-the hole the same day, and migration 0061 is the fix. The two judgements are separate on purpose:
+occasion it was not: [issue #795](https://github.com/NoaCG/NoaCG-Studio/issues/795) measured
+the hole the same day, and migration 0088 is the fix. The two judgements are separate on purpose:
 the advisors ask who can call a function, and a bug inside the function is not answered by
 revoking a grant the product needs.
 

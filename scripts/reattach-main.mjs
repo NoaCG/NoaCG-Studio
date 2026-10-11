@@ -39,7 +39,7 @@ const MAIN_BRANCH = 'main';
 
 /** Run git in `cwd`; return { ok, stdout (trimmed), stderr (trimmed) }. */
 function git(args, cwd) {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   return {
     ok: res.status === 0,
     stdout: typeof res.stdout === 'string' ? res.stdout.trim() : '',

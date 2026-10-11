@@ -1,9 +1,9 @@
 # Rundown automation and basic media - the plan
 
 **Plan, 2026-09-26. Build 2 is built (2026-09-28, `CLIP_PLAYBACK_PLAN.md` phases 0 to 4). Build 1's phases 1 and 2 are built (2026-10-03): timed graphic cues on unpublished and published productions (§2.0). Phase 3, server cue markers, is a separate later item.** It answers two owner asks at once:
-[`backlog/rundown-cue-timing-and-automation.md`](backlog/rundown-cue-timing-and-automation.md)
+[issue #764](https://github.com/NoaCG/NoaCG-Studio/issues/764)
 (cue durations, auto-advance and the rest of rundown automation, planned before anything is built)
-and the unplanned half of [`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md)
+and the unplanned half of [`backlog/video-through-playout-wrapper.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/video-through-playout-wrapper.md)
 (the clip attributes a show needs, which `BRIDGE.md` §5a left open on 2026-09-25). They are one
 plan because a clip ending is the most natural auto-advance trigger there is.
 
@@ -84,7 +84,7 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
   (`src/components/HostedControlPage.tsx:1190-1219`).
 - **The Bridge protocol is adapter-neutral**: target, item, slot, verb (`src/control/playoutProtocol.ts:15-49`),
   and an adapter declares its verbs (`cli/src/playout/adapters/casparcg.ts:146-151`). An OGraf
-  adapter is planned beside CasparCG (`docs/backlog/bridge-ograf-adapter.md`).
+  adapter is planned beside CasparCG ([issue #790](https://github.com/NoaCG/NoaCG-Studio/issues/790)).
 - **The verb keys** are Space, R, U, N and 0 plus the arrows (`src/components/playoutKeys.ts:43-68`).
   H is free.
 - **"No second clock"** (owner, 2026-08-09, `docs/PLAYOUT_DASHBOARD.md:812`) forbids a per-play
@@ -670,7 +670,7 @@ folders, never a second "link" concept beside them.
 **11. Switcher automation (ATEM).** *What:* the rundown also cuts the vision mixer or fires its DSK.
 *Who:* Pixla, Cuez, Sofie, Rundown Creator Pro (`docs/LANDSCAPE.md:219`, verdict "gap-wrong").
 *Does OGraf change it?* No. The OGraf Server API drives graphics renderers
-(`docs/backlog/bridge-ograf-adapter.md`); it has no switcher in it, and being an OGraf client makes
+([issue #790](https://github.com/NoaCG/NoaCG-Studio/issues/790)); it has no switcher in it, and being an OGraf client makes
 NoaCG a better graphics source, not a switcher controller. *Size:* weeks per switcher family.
 *For:* a TV station. **Recommendation: no.** Companion (item 7) already speaks to ATEM, so a
 Stream Deck key can fire a NoaCG Take and the switcher's DSK in one press without NoaCG owning the

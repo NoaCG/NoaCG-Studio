@@ -204,7 +204,7 @@ so.
    (`lottie_light`, injected on use). "Import a Lottie whose `_layers` become fields and whose
    markers map onto the default path" is conceptually one adapter inside our existing stance -
    an AE ingestion road at a fraction of Ferryman's surface. Backlog, with its why
-   (`docs/backlog/ograf-lottie-ferryman-conventions.md`).
+   ([`docs/backlog/ograf-lottie-ferryman-conventions.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-lottie-ferryman-conventions.md)).
 3. **The codebase: no.** Embedding it buys a React/CRA/Electron stack and - the real cost - a
    second *authoring* model whose steps can never join `NOACG_ANIM`'s groups, guards or snap.
    Licence is compatible (AGPL, same as ours); architecture is not.
@@ -407,7 +407,7 @@ NoaCG graphics load exactly as before. What each part does:
   out. It sends `Access-Control-Allow-Origin: *`, because the frame's origin is opaque and sends
   no credentials, and it never redirects, because a redirect relaxes the policy's path match. The spec serves the fixtures this way. The in-app scope that stores
   and serves an imported package is part of the library item
-  (`docs/backlog/import-foreign-ograf-packages.md`).
+  ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)).
 - **The proof.** `e2e/foreign-ograf-sandbox.spec.ts` checks two fixtures on the real `/output`
   shell. A benign package with three steps, a custom action, a sub-module, an image and a data
   file loads, plays, updates, steps and stops. A hostile one tries each escape, and the spec
@@ -517,4 +517,4 @@ Five dedicated research passes, 2026-08-29, reading repositories, package manife
 issue trackers; URLs inline throughout. In-repo grounding: `docs/OGRAF_FIRST_REVIEW.md`,
 `docs/OGRAF.md`, `docs/CLOUD_PLAYOUT.md`, `docs/NATIVE_PLAYOUT_RESEARCH.md`,
 `src/control/ografContract.ts`, `src/export/targets/ografImport.ts`, `src/control/ografHost.ts`,
-`src/output/stage.ts`, `docs/backlog/ograf-ecosystem-watch.md`.
+`src/output/stage.ts`, [`docs/backlog/ograf-ecosystem-watch.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/ograf-ecosystem-watch.md).

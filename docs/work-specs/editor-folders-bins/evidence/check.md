@@ -44,7 +44,7 @@ Reviewed revision: `99398353619d172b6f85409755a85de143893d42`.
   "mergeBase": "297591f7262164c62e2d08cd897a4b35cdbe60ca",
   "files": [
     "docs/EDITOR_PLAN.md",
-    "docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md",
+    "[docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-07-editor-folders-bins.md)",
     "docs/research/editor-acceptance-register-2026-09-17.md",
     "docs/research/editor-r1-2b-7/README.md",
     "docs/research/editor-r1-2b-7/desktop-bins.png",

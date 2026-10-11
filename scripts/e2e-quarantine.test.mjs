@@ -15,6 +15,7 @@ import {
   dueForRelease,
   emptyStore,
   enter,
+  matrixOf,
   passHistories,
   quarantinedSpecs,
   queueStoreChange,
@@ -148,4 +149,16 @@ test('identities convert both ways and the branch slug is stable', () => {
   assert.equal(slugOf([A, B]), slugOf([B, A]));
   assert.notEqual(slugOf([A]), slugOf([B]));
   assert.match(slugOf([A]), /^[0-9a-f]{8}$/);
+});
+
+// A configured spec cannot run in quarantine.yml (it needs configured-suite.yml's local Supabase
+// stack), so that workflow's jobs leave it out, while the release job still sees it and counts it.
+test('quarantine.yml runs only the specs it can, and still releases the configured ones', () => {
+  const C = 'e2e/configured/teams.spec.ts';
+  const store = enter(emptyStore(), [A, C], { date: '2026-10-09', run: 'r' }).store;
+  assert.deepEqual(matrixOf(store), [A]);
+  assert.deepEqual(matrixOf(store, { all: true }), [A, C]);
+  const onlyConfigured = enter(emptyStore(), [C], { date: '2026-10-09', run: 'r' }).store;
+  assert.deepEqual(matrixOf(onlyConfigured), []);
+  assert.deepEqual(matrixOf(onlyConfigured, { all: true }), [C], 'so the release job is not skipped');
 });

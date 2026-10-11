@@ -26,9 +26,11 @@
 // shared core (store, model, preview composer, validation, the shell, the e2e helpers, build
 // config) runs the full suite, because those files feed every flow.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIGURED_TRIGGERS, COVERAGE, FOCUS } from './e2e-lists.mjs';
+import { COPY_PATH_FILE, copyEdit, specsNaming } from './e2e-affected-copy.mjs';
 import { measured } from './measured.mjs';
 import {
   budgetMinutes,
@@ -40,6 +42,8 @@ import {
 } from './e2e-durations.mjs';
 import { quarantinedSpecs, readStore as readQuarantine } from './e2e-quarantine.mjs';
 import { editedSpecs, planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
+import { WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
+import { BROAD_ESCALATES, readTracedMap } from './e2e-traced.mjs';
 
 /**
  * THE QUARANTINE, applied to a plan. A spec in e2e/quarantine.json failed and then passed on one
@@ -219,7 +223,7 @@ const CORE = [
 // 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
 // 759-spec run.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists';
+  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists|e2e-trace';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
 // it ran 53 specs to prove nothing. It already has a real gate in `npm run build`:
@@ -252,7 +256,7 @@ const SUITE_CRITICAL_SCRIPTS =
 // that makes a clean tree read as dirty.
 const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
-const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/svg-examples\/)/, /^(?!docs\/tutorials\/svg-examples\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
+const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/svg-examples\/)/, /^(?!docs\/tutorials\/svg-examples\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
@@ -287,6 +291,10 @@ const CATALOG_TRIGGERS = [
   // gate. `occlusion.ts` is the first of those; anything the bench comes to import for a
   // catalog-visible finding belongs here beside it.
   /^src\/validation\/occlusion\.ts$/,
+  // The OGraf wrapper every exported Graphic runs in. e2e/catalog/ograf-parity.spec.ts mounts
+  // every catalog design in it, light and shadow, so a change to how a Graphic mounts is measured
+  // over the whole catalog before it lands (docs/work-specs/ograf-shadow-root/spec.md, AC-3).
+  /^src\/export\/targets\/ograf\.ts$/,
 ];
 
 /**
@@ -305,18 +313,39 @@ const CATALOG_TRIGGERS = [
  * names in `e2e/` (`specFilesOnDisk()`); the function stays pure because the caller supplies it,
  * and leaving it out keeps the old behaviour for callers that only reason about names.
  *
+ * A FILE WHOSE EDIT IS ONLY COPY is planned by the specs that name what changed
+ * (scripts/e2e-affected-copy.mjs), not by its covers lines or the core escalation. `copyEdits`
+ * maps such a file to its edit, as `copyEdit` classified it from the two versions; a file absent
+ * from it is planned exactly as before, and with no map at all nothing changes. `specTexts` is
+ * every spec's source with the e2e helpers it imports, which the naming search reads. Of the
+ * file's normal coverage two kinds stay: `baselined`, the specs with screenshot baselines, since a
+ * picture compares every pixel; and, when the wording GREW, `measuring`, the specs that measure
+ * geometry, since longer words are how a fit breaks. The catalog and configured flags are asked
+ * first either way.
+ *
  * @param {string[]} changed        repo-relative paths, forward slashes
- * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null }} [opts]
+ * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
+ *           copyEdits?: Map<string, { kind: 'text'|'class', terms: string[], grew?: boolean }>,
+ *           specTexts?: Map<string, string>, baselined?: string[], measuring?: string[],
+ *           traced?: { files: Map<string, string[]>, broad: Set<string>, problem: string | null } | null }} [opts]
+ *   `traced` is the nightly's map (`readTracedMap`); null leaves it out, which only tests do.
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
- *             unmapped: string[], focusApplied: boolean }}
+ *             unmapped: string[], focusApplied: boolean, copyOnly: string[] }}
  */
-export function planFor(changed, { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE } = {}) {
+export function planFor(
+  changed,
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null } = {},
+) {
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
   let full = false;
   let catalog = false;
   let configured = false;
   const unmapped = [];
+  const copyOnly = [];
+  const fromTrace = new Set();
+  const tracedEscalated = [];
+  const tracedBroad = [];
 
   for (const file of changed) {
     // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` is ignored for the
@@ -337,12 +366,39 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null, cove
       if (!onDisk || onDisk.has(baselineOf)) specs.add(baselineOf);
       continue;
     }
+    const copy = copyEdits.get(file);
+    if (copy) {
+      copyOnly.push(file);
+      for (const s of specsNaming(copy, specTexts)) specs.add(s);
+      for (const c of coverage) {
+        const kept = baselined.includes(c.spec) || (copy.grew && measuring.includes(c.spec));
+        if (kept && c.test(file)) specs.add(c.spec);
+      }
+      continue;
+    }
     if (CORE.some((r) => r.test(file))) {
       full = true;
       continue;
     }
     const covering = coverage.filter((c) => c.test(file));
     const central = CENTRAL.filter(([r]) => r.test(file));
+    // THE TRACED HALF: the specs whose browser executed this file on the last nightly
+    // (scripts/e2e-traced.mjs), added to whatever the curated headers name. A map that cannot be
+    // trusted escalates the file instead of being skipped. A file most of the suite executes is
+    // BROAD: it keeps its curated selection and the plan names it, unless `BROAD_ESCALATES` says
+    // to escalate it like CORE (the cost of each is measured there). CENTRAL source is known to
+    // be invisible to the browser, so it never asks.
+    if (traced && central.length === 0) {
+      if (traced.problem) {
+        tracedEscalated.push(file);
+        full = true;
+      } else if (traced.broad.has(file)) {
+        tracedBroad.push(file);
+        if (traced.broadEscalates) full = true;
+      } else {
+        for (const s of traced.files.get(file) ?? []) if (!onDisk || onDisk.has(s)) fromTrace.add(s);
+      }
+    }
     if (covering.length === 0 && central.length === 0) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
       full = true;
@@ -351,6 +407,10 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null, cove
       for (const [, list] of central) for (const s of list) specs.add(s);
     }
   }
+
+  // Only what the curated rules did not already name, so the plan can say what tracing added.
+  const traceOnly = [...fromTrace].filter((s) => !specs.has(s)).sort();
+  for (const s of traceOnly) specs.add(s);
 
   // Under sprint focus, the escalation that would have run everything runs the focus set
   // (union with whatever the mapped rules already named). The full->catalog coupling below is
@@ -371,7 +431,13 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null, cove
   // reported rather than run (scripts/e2e-lists.mjs). A change that touches ONLY its territory
   // still reports 'none' for this gate, and the printed line is what says otherwise.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
-  return { mode, specs: list, catalog, configured, unmapped, focusApplied };
+  return {
+    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly,
+    traced: full ? [] : traceOnly,
+    tracedProblem: tracedEscalated.length > 0 ? traced.problem : null,
+    tracedEscalated,
+    tracedBroad,
+  };
 }
 
 /**
@@ -639,6 +705,27 @@ export function runPlan(plan, runOne) {
   return { status, runs };
 }
 
+/**
+ * WHAT A RUN MAY DO ON THIS MACHINE. The whole suite runs on GitHub Actions: CI plans every pull
+ * request and every merge group from this same file and runs the plan there, sharded. So off CI a
+ * plan that is the whole suite (`full`, `--all`) or its stand-in (the sprint focus set an
+ * escalation collapses to) is refused, and the catalog gate, a whole-catalog run, is left to CI.
+ * A mapped subset runs as before, whatever its size: it is targeted, and a risky change or a CI
+ * failure to reproduce may need a large one.
+ *
+ * @param {{ mode: 'none'|'subset'|'full', focusApplied?: boolean, catalog?: boolean }} plan
+ * @param {{ ci?: boolean }} where  `ci` is true on GitHub Actions
+ * @returns {{ refusal: string|null, catalog: boolean }} the refusal to print, or null, and whether
+ *   the catalog gate runs here
+ */
+export function localRunPolicy({ mode, focusApplied = false, catalog = false }, { ci = false } = {}) {
+  if (ci) return { refusal: null, catalog };
+  return { refusal: mode === 'full' || focusApplied ? WHOLE_SUITE_ON_GITHUB : null, catalog: false };
+}
+
+/** True on GitHub Actions, the one place the whole suite runs. Not `CI`: local tools set that too. */
+const onCi = () => process.env.GITHUB_ACTIONS === 'true';
+
 /** The one-line verdict, naming each run - so a red overall status says WHICH run went red. */
 export function summariseRuns(runs, status) {
   const parts = runs.map((r) => `${r.name} ${r.status === 0 ? 'passed' : `FAILED (exit ${r.status})`}`);
@@ -651,7 +738,7 @@ export function summariseRuns(runs, status) {
  * git call there rather than to wherever the process was started.
  */
 function gitIn(cwd, ...cmd) {
-  return execFileSync('git', cmd, { encoding: 'utf8', ...(cwd ? { cwd } : {}) }).trim();
+  return execFileSync('git', cmd, { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true }).trim();
 }
 
 /**
@@ -669,7 +756,7 @@ function gitIn(cwd, ...cmd) {
  * @returns {string[]} repo-relative paths, forward slashes, deduplicated
  */
 export function changedFilesSince(base, cwd = undefined) {
-  const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}) };
+  const opts = { encoding: 'utf8', ...(cwd ? { cwd } : {}), windowsHide: true };
   const committed = execFileSync('git', ['diff', '--name-only', `${base}...HEAD`], opts).trim().split('\n');
   const working = execFileSync('git', ['status', '--porcelain'], opts)
     .split('\n')
@@ -678,23 +765,85 @@ export function changedFilesSince(base, cwd = undefined) {
 }
 
 /**
- * The main refs this checkout actually has, most local first.
+ * WHAT THE COPY PATH NEEDS FROM THE REPOSITORY: each changed file's edit, read from the file at
+ * the diff's own old side (the merge-base `changedFilesSince` diffs from) and from the working
+ * tree, plus every spec's source and which specs carry screenshot baselines. A file either side
+ * cannot be read for - added, deleted, renamed - gets no entry, which is the normal plan.
  *
- * A worktree's local `main` is routinely stale here - several are live at once and only one of
- * them pulls - and a CI checkout of a feature branch has NO local `main` at all, because
- * `actions/checkout` creates a branch only for the ref it checked out. Both callers below have to
- * survive each case, so the question is asked once.
+ * @param {string} base the ref `changedFilesSince` was given
+ * @param {string[]} changed its answer
+ * @param {string} [cwd]
+ */
+export function copyContext(base, changed, cwd = undefined) {
+  const root = cwd ?? gitIn(cwd, 'rev-parse', '--show-toplevel');
+  const old = gitIn(cwd, 'merge-base', base, 'HEAD');
+  const read = (f) => {
+    try {
+      return readFileSync(join(root, f), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  const copyEdits = new Map();
+  for (const file of changed) {
+    if (!COPY_PATH_FILE.test(file)) continue;
+    let before;
+    try {
+      before = execFileSync('git', ['show', `${old}:${file}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 << 20, ...(cwd ? { cwd } : {}), windowsHide: true });
+    } catch {
+      continue;
+    }
+    const edit = copyEdit(file, before, read(file));
+    if (edit) copyEdits.set(file, edit);
+  }
+  const specTexts = new Map();
+  const baselined = [];
+  const measuring = [];
+  if (copyEdits.size > 0) {
+    const names = readdirSync(join(root, 'e2e'));
+    // A spec reads the wording its helpers read: `_video.ts` clicks a button by its name for
+    // every spec that imports it, so the helper's text counts as the spec's own.
+    const helpers = new Map(names.filter((n) => /^_.*\.ts$/.test(n)).map((n) => [n.replace(/\.ts$/, ''), read(`e2e/${n}`) ?? '']));
+    const withHelpers = (text) => {
+      const seen = new Set();
+      const queue = [text];
+      let all = '';
+      while (queue.length) {
+        const t = queue.pop();
+        all += `\n${t}`;
+        for (const m of t.matchAll(/from\s+['"]\.\/(_[\w-]+)(?:\.ts)?['"]/g)) {
+          if (helpers.has(m[1]) && !seen.has(m[1])) { seen.add(m[1]); queue.push(helpers.get(m[1])); }
+        }
+      }
+      return all;
+    };
+    for (const name of names) {
+      if (name.endsWith('.spec.ts')) {
+        const own = read(`e2e/${name}`) ?? '';
+        specTexts.set(name, withHelpers(own));
+        if (MEASURES_GEOMETRY.test(own)) measuring.push(name);
+      } else if (name.endsWith('.spec.ts-snapshots')) baselined.push(name.replace(/-snapshots$/, ''));
+    }
+  }
+  return { copyEdits, specTexts, baselined, measuring };
+}
+
+/** A spec that measures layout - the kind longer wording can break without naming it. */
+const MEASURES_GEOMETRY = /scrollHeight|scrollWidth|clientHeight|clientWidth|offsetHeight|offsetWidth|getBoundingClientRect|boundingBox\(|toBeInViewport/;
+
+/**
+ * The main refs this checkout actually has.
  *
- * LOCAL FIRST IS DELIBERATE, AND IS NOT THE BUG `scripts/main-ref.mjs` EXISTS FOR. That module
- * answers "has this LANDED?", where a stale ref invents work that is already done. The question
- * here is a merge-base - a DIFF BASE - and a stale `main` is an ancestor of the fresh one, so it
- * can only push the base EARLIER and the plan WIDER. The failure direction is a slower suite,
- * never a missed test, which is the direction this planner is built to fail in.
+ * A worktree's local `main` is routinely stale here - the merge queue moves `origin/main` and
+ * nothing moves the local ref - while a checkout that was pulled but not fetched has the opposite,
+ * and a CI checkout of a feature branch has NO local `main` at all, because `actions/checkout`
+ * creates a branch only for the ref it checked out. Every caller below has to survive each case,
+ * so the question is asked once, and each caller decides which of the refs to trust.
  */
 function mainRefs(cwd) {
   return ['main', 'origin/main'].filter(
     (ref) =>
-      spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore', cwd }).status === 0,
+      spawnSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore', cwd, windowsHide: true }).status === 0,
   );
 }
 
@@ -705,11 +854,19 @@ function mainRefs(cwd) {
  * `cwd` for the same reason `changedFilesSince` takes one: catalog-affected pins every git call
  * to the repository root rather than to wherever it was invoked from, and a base resolved in one
  * repository and diffed in another is not a smaller answer, it is a crash.
+ *
+ * THE NEWEST MERGE-BASE WINS. A stale ref is an ancestor of the fresh one, so its merge-base with
+ * HEAD is older, and diffing from it charges this branch with everything that landed since: a
+ * seven-file branch was planned as the whole suite on 2026-09-15 because its local `main` was
+ * behind `origin/main`. Whichever ref is fresh, its merge-base contains the other's, so that one
+ * is taken. Two merge-bases neither of which contains the other (a HEAD that merged both) take the
+ * first, which can only plan wider.
  */
 export function branchBase(cwd = undefined) {
-  const ref = mainRefs(cwd)[0];
-  if (!ref) throw new Error('neither main nor origin/main exists in this checkout - cannot compute a base');
-  return gitIn(cwd, 'merge-base', 'HEAD', ref);
+  const refs = mainRefs(cwd);
+  if (refs.length === 0) throw new Error('neither main nor origin/main exists in this checkout - cannot compute a base');
+  const bases = refs.map((ref) => gitIn(cwd, 'merge-base', 'HEAD', ref));
+  return bases.find((b) => bases.every((other) => other === b || isAncestor(other, b, cwd))) ?? bases[0];
 }
 
 /**
@@ -723,7 +880,7 @@ export function headIsMainMerge(cwd = undefined) {
 
 /** True when `maybeAncestor` is contained in `ref`. Exit status, so no output to parse. */
 function isAncestor(maybeAncestor, ref, cwd) {
-  return spawnSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], { stdio: 'ignore', cwd }).status === 0;
+  return spawnSync('git', ['merge-base', '--is-ancestor', maybeAncestor, ref], { stdio: 'ignore', cwd, windowsHide: true }).status === 0;
 }
 
 /**
@@ -783,6 +940,15 @@ export function integrationBase(cwd = undefined) {
   return null;
 }
 
+/**
+ * What the traced map did to a plan, for the JSON: the specs it added, and the reason and files
+ * when it escalated instead. ci.yml turns a `problem` into a run annotation, because CI reads the
+ * JSON and never sees the narration that says it locally.
+ */
+function tracedReport({ traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }) {
+  return { added: traced, problem: tracedProblem, escalated: tracedEscalated, broad: tracedBroad };
+}
+
 /** The plan, as CI consumes it. `mode` covers the specs to run; `catalog` is independent of it,
  *  because a catalog change can need the calibration gate while needing no feature spec.
  *
@@ -791,7 +957,7 @@ export function integrationBase(cwd = undefined) {
  *  size and the assignment cannot disagree. For mode 'full' the suite comes from the directory
  *  rather than from `specs`, which stays `[]` because that is what the rest of the CLI means by
  *  "no filter"; the two are consistent because every runner is now handed its files explicitly. */
-function emitJson({ mode, specs, catalog, base, changedFiles }) {
+function emitJson({ mode, specs, catalog, base, changedFiles, traced = null }) {
   const changed = changedFiles === null ? null : changedFiles.length;
   const onDisk = specFilesOnDisk();
   const planned = mode === 'full' ? onDisk : specs;
@@ -867,7 +1033,7 @@ function emitJson({ mode, specs, catalog, base, changedFiles }) {
   }
 
   process.stdout.write(
-    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed })}\n`,
+    `${JSON.stringify({ mode: effectiveMode, specs: mode === 'full' ? specs : suite, catalog, shards, shardSpecs, predicted, overCap, unmeasured, quarantined, base, changed, traced })}\n`,
   );
 }
 
@@ -992,7 +1158,26 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied }, { count, noun, hypothetical }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }, { count, noun, hypothetical, catalogHere = true }) {
+  // What made the plan escalate, so the line that says so names the cause the reader has to fix.
+  const why = tracedProblem ? 'core/unmapped/untraced' : 'core/unmapped';
+  if (tracedProblem) {
+    log(`e2e-affected: ${tracedProblem} - so these escalate instead of trusting it (scripts/e2e-traced.mjs):`);
+    for (const f of tracedEscalated) log('  -', f);
+  }
+  if (tracedBroad.length > 0) {
+    log(
+      `e2e-affected: the last nightly saw most of the suite execute these, so ${BROAD_ESCALATES ? 'they escalate like core' : 'they keep their covers selection'} (BROAD_ESCALATES, scripts/e2e-traced.mjs):`,
+    );
+    for (const f of tracedBroad) log('  -', f);
+  }
+  if (traced.length > 0) {
+    log(`e2e-affected: the traced map added ${traced.length} spec(s) the covers headers do not name: ${traced.join(', ')}`);
+  }
+  if (copyOnly.length > 0) {
+    log(`e2e-affected: ${copyOnly.length} file(s) changed only wording or class styling - planned by the specs that name what changed (scripts/e2e-affected-copy.mjs):`);
+    for (const f of copyOnly) log('  -', f);
+  }
   // Printed before mode 'none' returns: a change confined to hosted Pro's wire contract or to
   // e2e/configured/ leaves this gate with nothing to run, and that verdict on its own reads as
   // "covered" when the covering suite is the one that never ran.
@@ -1004,13 +1189,13 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
     for (const f of unmapped) log('  -', f);
   }
   if (focusApplied) {
-    log(`e2e-affected: SPRINT FOCUS - a core/unmapped ${hypothetical ? 'path' : 'change'} would run the full suite (${specFilesOnDisk().length} files); running the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
+    log(`e2e-affected: SPRINT FOCUS - a ${why} ${hypothetical ? 'path' : 'change'} would run the full suite (${specFilesOnDisk().length} files); the plan is the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
   }
   if (mode === 'full') {
     log(
       hypothetical
-        ? `e2e-affected: core/unmapped path(s) detected - the FULL suite would run (${count} path(s)).`
-        : `e2e-affected: core/unmapped change detected - running the FULL suite (${count} changed files).`,
+        ? `e2e-affected: ${why} path(s) detected - the FULL suite would run (${count} path(s)).`
+        : `e2e-affected: ${why} change detected - the plan is the FULL suite (${count} changed files).`,
     );
   } else if (mode === 'none') {
     log(
@@ -1023,11 +1208,10 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
     for (const s of plan) log('  -', s);
   }
   if (catalogAffected) {
-    log(
-      hypothetical
-        ? 'e2e-affected: catalog/bench-affecting path detected - would also run npm run test:e2e:catalog.'
-        : 'e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.',
-    );
+    let catalogLine = 'e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.';
+    if (hypothetical) catalogLine = 'e2e-affected: catalog/bench-affecting path detected - would also run npm run test:e2e:catalog.';
+    else if (!catalogHere) catalogLine = 'e2e-affected: catalog/bench-affecting change detected - the catalog gate runs on GitHub Actions; here, run the battery `node scripts/catalog-affected.mjs` prints.';
+    log(catalogLine);
   }
 }
 
@@ -1083,10 +1267,10 @@ function main() {
   // identical `planFor` result differently.
   if (has('--files')) {
     const changed = [...new Set(parsed.files)].map((f) => f.replace(/\\/g, '/'));
-    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk() });
+    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap() });
     narratePlan(log, plan, { count: changed.length, noun: 'path(s)', hypothetical: true });
     if (asJson) {
-      emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed });
+      emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed, traced: tracedReport(plan) });
       return 0;
     }
     // --files answers a planning question, not "run this now": it has no branch to run Playwright
@@ -1104,10 +1288,14 @@ function main() {
       emitJson({ mode: 'full', specs: [], catalog: true, base: null, changedFiles: null });
       return 0;
     }
-    log('e2e-affected: --all - running the FULL suite and the catalog gate, with no diff.');
+    log('e2e-affected: --all - the FULL suite and the catalog gate, with no diff.');
     if (listOnly) return 0;
+    if (!onCi()) {
+      console.error(WHOLE_SUITE_ON_GITHUB);
+      return 2;
+    }
     const { status, runs } = runPlan({ mode: 'full', specs: [], catalog: true }, ({ args: a }) =>
-      spawnSync('npx', a, { stdio: 'inherit', shell: true }).status,
+      spawnSync('npx', a, { stdio: 'inherit', shell: true, windowsHide: true }).status,
     );
     log(summariseRuns(runs, status));
     return status;
@@ -1149,7 +1337,7 @@ function main() {
     return 0;
   }
 
-  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk() });
+  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk(), traced: readTracedMap(), ...copyContext(base, changed) });
   const { mode, specs: plan, catalog: catalogAffected } = planResult;
   const full = mode === 'full';
 
@@ -1162,7 +1350,8 @@ function main() {
     emitJson({ mode: 'none', specs: [], catalog: false, base, changedFiles: changed });
     return 0;
   }
-  narratePlan(log, planResult, { count: changed.length, noun: 'changed files', hypothetical: false });
+  const here = localRunPolicy(planResult, { ci: onCi() });
+  narratePlan(log, planResult, { count: changed.length, noun: 'changed files', hypothetical: false, catalogHere: here.catalog });
   if (mode === 'none') return 0;
 
   if (asJson) {
@@ -1171,7 +1360,7 @@ function main() {
     // is exactly why the empty plan must report 'none' rather than 'subset'. An empty spec list
     // handed to Playwright is not "no tests", it is EVERY test, so a mislabelled subset would
     // quietly run the whole suite.
-    emitJson({ mode, specs: plan, catalog: catalogAffected, base, changedFiles: changed });
+    emitJson({ mode, specs: plan, catalog: catalogAffected, base, changedFiles: changed, traced: tracedReport(planResult) });
     return 0;
   }
 
@@ -1185,10 +1374,14 @@ function main() {
     log(`e2e-affected: skipping ${plan.length - local.specs.length} quarantined spec(s) (e2e/quarantine.json): ${plan.filter((s) => !local.specs.includes(s)).join(', ')}`);
   }
   if (listOnly) return 0;
+  if (here.refusal) {
+    console.error(here.refusal);
+    return 2;
+  }
 
   const { status, runs } = runPlan(
-    { ...local, catalog: catalogAffected },
-    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true }).status,
+    { ...local, catalog: here.catalog },
+    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true, windowsHide: true }).status,
   );
   if (runs.length > 1 || status !== 0) log(summariseRuns(runs, status));
   return status;

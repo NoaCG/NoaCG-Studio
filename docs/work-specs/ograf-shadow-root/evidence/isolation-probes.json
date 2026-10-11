@@ -1,0 +1,93 @@
+{
+ "twoCopies": {
+  "light": {
+   "oneGradient": "255,255,255",
+   "twoGradient": "255,255,255"
+  },
+  "lightAfterOneOff": {
+   "twoGradient": "0,0,255"
+  },
+  "shadow": {
+   "oneGradient": "255,255,255",
+   "twoGradient": "0,0,255"
+  },
+  "shadowAfterOneOff": {
+   "twoGradient": "0,0,255"
+  }
+ },
+ "rendererRules": {
+  "lt01-light": {
+   "differing": 18041,
+   "painted": 10291
+  },
+  "lt01-shadow": {
+   "differing": 0,
+   "painted": 10291
+  },
+  "lt02-light": {
+   "differing": 13333,
+   "painted": 7843
+  },
+  "lt02-shadow": {
+   "differing": 0,
+   "painted": 7843
+  },
+  "sb01-light": {
+   "differing": 12474,
+   "painted": 98171
+  },
+  "sb01-shadow": {
+   "differing": 0,
+   "painted": 98171
+  },
+  "tk01-light": {
+   "differing": 22177,
+   "painted": 151200
+  },
+  "tk01-shadow": {
+   "differing": 0,
+   "painted": 151200
+  },
+  "svg-light": {
+   "differing": 40000,
+   "painted": 80000
+  },
+  "svg-shadow": {
+   "differing": 0,
+   "painted": 80000
+  }
+ },
+ "reach": {
+  "lightMount": "ok",
+  "light": {
+   "windowDocument": "found",
+   "headStyleWidth": "41px",
+   "f0Font": "Inter, Arial, sans-serif",
+   "fontsInDocument": [
+    "Inter:loaded"
+   ],
+   "headStyles": 2
+  },
+  "lightLogs": [],
+  "rawMount": "load 500 Cannot read properties of null (reading 'setAttribute')",
+  "raw": {
+   "windowDocument": null,
+   "headStyleWidth": "0px",
+   "f0Font": "Inter, Arial, sans-serif",
+   "fontsInDocument": [],
+   "headStyles": 1
+  },
+  "rawLogs": [],
+  "shadowMount": "ok",
+  "shadow": {
+   "windowDocument": "found",
+   "headStyleWidth": "41px",
+   "f0Font": "Inter, Arial, sans-serif",
+   "fontsInDocument": [
+    "Inter:loaded"
+   ],
+   "headStyles": 2
+  },
+  "shadowLogs": []
+ }
+}

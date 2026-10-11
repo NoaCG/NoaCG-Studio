@@ -65,7 +65,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   'ai.byo-key': 'Bring-your-own AI provider key',
   'render.cloud': 'Cloud video rendering',
   'sync.cloud': 'Cloud sync of saved work',
-  'community.publish': 'Publish to the community gallery',
+  'community.publish': 'Submit community packs',
   'control.hosted': 'Hosted control pages',
   showchat: 'Audience send-in and show chat',
   audience: 'Audience participation in a production',
@@ -99,7 +99,8 @@ export const ENFORCED_FEATURE_KEYS: ReadonlySet<FeatureKey> = new Set([
   'templates.beta',
   'templates.internal',
   // These three have no endpoint - they write straight from the browser - so their enforcement
-  // is RLS rather than an allows() call: supabase/migrations/0022_entitlement_absolutes.sql.
+  // is in the database rather than an allows() call: supabase/migrations/0022_entitlement_absolutes.sql,
+  // and for community.publish the community_pack_submit check in 0080.
   // Only the precedence-free absolutes reach them; see the note beside each one below.
   'community.publish',
   'control.hosted',
@@ -129,8 +130,10 @@ export const FEATURE_ENFORCEMENT_NOTES: Partial<Record<FeatureKey, string>> = {
   // on a page an operator reads during an incident: only the ABSOLUTES reach the database (a plan
   // that withholds one of these does not bite), and nothing already published or already saved is
   // withdrawn - reads stay open by design, so a takedown remains a moderation action.
+  // Since the gallery closed (0078), what this switch stops is a community pack submission or
+  // update (community_pack_submit, 0080); the 0022 gates on the closed gallery still stand.
   'community.publish':
-    'stops new and edited publishes in the database; already-published templates stay up, and moderators can still act',
+    'stops new community packs and pack updates in the database; packs already on the shelf stay up, and moderators can still act',
   'control.hosted':
     'stops creating pages and stops every operator command on existing ones; the pages stay readable',
   showchat: 'stops new send-ins and moderation; messages already on air stay on air',

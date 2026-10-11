@@ -11,7 +11,7 @@ import { commitDurableWrites } from '../../model/durableStore';
 import GraphicThumb from './GraphicThumb';
 import ProductionPicker from './ProductionPicker';
 import RowMenu, { type RowMenuItem } from './RowMenu';
-import { IconControl, IconCopy, IconDownload, IconFolder, IconGlobe, IconPencil, IconTrash, IconTv } from '../icons';
+import { IconControl, IconCopy, IconDownload, IconFolder, IconPencil, IconTrash, IconTv } from '../icons';
 
 /** A saved graphic's thumbnail shows the data an operator last selected, when there is one.
  *  Exported because the dashboard's shelf renders the same graphic and must show it the same
@@ -67,14 +67,13 @@ const productionNames = (productions: { name: string }[]): string =>
  * One library row (docs/GOALS_ARCHIVE.md "Student release" step 8). THREE visible actions — Open,
  * "+ Production" (the popover below), and the ⋯ overflow menu — because the row's job is the
  * student workflow: open it, or put it in the production that airs it. Export, rename,
- * duplicate, publish and delete are real but rarer, so they live behind ⋯ where they cannot
+ * duplicate and delete are real but rarer, so they live behind ⋯ where they cannot
  * crowd the two that matter. The two-step delete stays two-step inside the menu.
  */
 export default function GraphicRow({
   g,
   onOpen,
   onChanged,
-  onPublish,
   selected,
   onToggleSelect,
   view = 'list',
@@ -86,8 +85,6 @@ export default function GraphicRow({
   g: GraphicDoc;
   onOpen: (g: GraphicDoc) => void;
   onChanged: () => void;
-  /** Present only when community publishing is available (backend + signed in). */
-  onPublish?: (g: GraphicDoc) => void;
   /** Multi-select (the Graphics section's bulk bar). Present = the row offers a checkbox;
    *  shift-click range logic lives with the LIST, which knows the visible order. */
   selected?: boolean;
@@ -192,9 +189,6 @@ export default function GraphicRow({
     },
     { label: 'Rename', icon: <IconPencil />, onClick: () => { setName(g.name); setRenaming(true); }, testid: 'rename-graphic' },
     { label: 'Duplicate', icon: <IconCopy />, onClick: () => { duplicateGraphic(g.id); onChanged(); }, testid: 'duplicate-graphic' },
-    ...(onPublish
-      ? [{ label: 'Publish to community…', icon: <IconGlobe />, onClick: () => onPublish(g), testid: 'publish-graphic' }]
-      : []),
     {
       label: deleteArmed ? 'Delete? (click to confirm)' : 'Delete',
       icon: <IconTrash />,

@@ -1,0 +1,19 @@
+{
+  "selector": "#rectangle-1",
+  "target": "#rectangle-1",
+  "mode": "absolute",
+  "offsetPosition": false,
+  "scaleReason": null,
+  "axisResizeReason": null,
+  "rotationReason": null,
+  "scaled": false,
+  "originX": 0,
+  "originY": 0,
+  "anchor": null,
+  "anchorReason": null,
+  "x": 745.93759346,
+  "y": -560,
+  "scaleX": 2.029687967,
+  "scaleY": 0.9,
+  "rotation": 0
+}

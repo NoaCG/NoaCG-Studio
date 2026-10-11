@@ -1,7 +1,7 @@
 # Re-measured 2026-09-07, after `src/components` migrated
 
 The fourth area, and the first read under the owner's question from
-`docs/backlog/are-the-big-contracts-still-worth-loading.md`: not only "is this paragraph true", but
+[`docs/backlog/are-the-big-contracts-still-worth-loading.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/are-the-big-contracts-still-worth-loading.md): not only "is this paragraph true", but
 "is it still worth anybody's first tokens". `src/components/AGENTS.md` was chosen for its
 multiplier: ten instruction chains load it, the largest one left after `src/ai`.
 

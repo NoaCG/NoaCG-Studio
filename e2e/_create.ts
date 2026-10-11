@@ -9,7 +9,7 @@ import { expect, test, type Page } from '@playwright/test';
  * or the new editor, and this reason disappears with the last of them.
  */
 export const OLD_EDITOR_SKIP =
-  'Reaches the old code editor (AppShell), which no route opens any more - docs/backlog/specs-that-still-open-the-old-editor.md';
+  'Reaches the old code editor (AppShell), which no route opens any more - https://github.com/NoaCG/NoaCG-Studio/issues/800';
 
 /** Skip the running test for the reason above. Call it from a test body or a beforeEach. */
 export function skipOldEditor(): void {
@@ -183,6 +183,11 @@ export async function openProductionWithCurrent(page: Page, name: string): Promi
     const failure = error ?? (await commitDurableWrites());
     if (failure) throw new Error(`openProductionWithCurrent: ${failure}`);
     useRouter.getState().navigate({ view: 'production', id: show.id });
+    // ANSWER FROM A LATER TASK. The page mounts in the microtasks behind `navigate`, and V8 holds
+    // an async evaluate's settled promise only weakly until it replies: a garbage collection in
+    // those microtasks drops the answer ("Promise was collected"), which Playwright reports as
+    // "Execution context was destroyed" with no navigation at all (rule e2e/async-whose-last-act-starts-work).
+    await new Promise((resolve) => setTimeout(resolve));
     return show.id;
   }, name);
   await expect(page.getByTestId('production-page')).toBeVisible();

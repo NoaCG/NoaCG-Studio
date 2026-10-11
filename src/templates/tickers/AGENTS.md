@@ -40,7 +40,7 @@ the builders read that one function only. **A rotate design emits no speed field
 is a machine timer (`edge.after / NOACG_ANIM.speed`, in `templates/shared/animRuntime.ts`), so a
 percentage typed on the control page would move only the strip's fade-in, and a field the graphic
 cannot honour is a promise broken in front of an operator. Do not "finish the set" by adding one -
-`docs/backlog/a-rotating-ticker-holds-at-a-rate-nobody-can-change.md` says what has to change
+[`docs/backlog/a-rotating-ticker-holds-at-a-rate-nobody-can-change.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/a-rotating-ticker-holds-at-a-rate-nobody-can-change.md) says what has to change
 first. **The field's id comes from the design's MARKUP, not from the field count**
 (`nextFreeFieldId`): a `maxLines: 3` design draws its `id="f2"` cap whether or not a third line
 was supplied, so counting fields hands the speed control an id that is already on screen and the

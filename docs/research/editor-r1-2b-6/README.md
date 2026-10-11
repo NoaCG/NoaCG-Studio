@@ -68,7 +68,7 @@ new group anchors start at the center of the selected artwork.
    /queue-merge. Confirm actual queue entry, merge and deployed /version.json.
 
 Full B02/B04, owner judgment and physical receiving-host acceptance stay open.
-The asynchronous [desktop item](../../acceptance/owner-queue/2026-10-05-editor-groups.md) follows the complete working task.
+The asynchronous [desktop item](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-10-05-editor-groups.md) follows the complete working task.
 
 ## Evidence
 

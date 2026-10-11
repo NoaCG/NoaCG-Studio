@@ -472,7 +472,7 @@ The table's top three are on air / off air (all seventeen, and therefore not a f
 **countdown with start, pause and reset** (ten), and **score plus and minus** (eleven). The score
 board had shipped two days earlier. So the countdown is simply the highest-ranked thing a student
 could not put on their own artwork, and it is also the first item on the owner's own list in
-`docs/backlog/playout-logic-for-all-common-graphics.md`. Survey §6 records what was considered and
+[`docs/backlog/playout-logic-for-all-common-graphics.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/playout-logic-for-all-common-graphics.md). Survey §6 records what was considered and
 passed over, so the fifth is not argued from scratch either.
 
 **Half of it already existed and was unreachable**, which is why the build was small. The shared
@@ -544,7 +544,7 @@ held mark is the one that IS a state, because it is one: the operator pressed Pa
   has `AdjustCountdown` and H2R has "add/remove time", and both cheap versions here are wrong - an
   `adjust` on the minutes field re-arms the whole count, and shifting the deadline in the runtime
   would air a count the operator's own box no longer describes. Filed:
-  `docs/backlog/adjust-a-running-clock.md`.
+  [issue #786](https://github.com/NoaCG/NoaCG-Studio/issues/786).
 - **A board with no held mark shows nothing when the clock is paused**, where the catalog countdown
   dims its own clock part. Nothing can be done about that without painting on somebody else's
   artwork, which is the whole L2 answer from §4.

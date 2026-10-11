@@ -4,8 +4,8 @@
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
+import { installGraphicBody } from './_graphicBody';
 import { settleDurableWrites } from './_durable';
-import { mkdirSync } from 'node:fs';
 import { pickDesign } from './_browse';
 
 test('Quiz source-controlled animation is preserved and explains the base editing path', async ({ page }) => {
@@ -135,8 +135,7 @@ for (const width of [1920, 1366, 1093]) test('text and box second keys, cancel, 
     const bounds = await (await preview(page)).locator(selector).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; });
     expect(bounds.x).toBeGreaterThan(0); expect(bounds.y).toBeGreaterThan(0); expect(bounds.right).toBeLessThan(1920); expect(bounds.bottom).toBeLessThan(1080);
   }
-  mkdirSync('docs/research/editor-r1-1b/built', { recursive: true });
-  await page.screenshot({ path: `docs/research/editor-r1-1b/built/keys-${width}.png` });
+  await page.screenshot({ path: test.info().outputPath(`keys-${width}.png`) });
   expect(errors).toEqual([]);
 });
 
@@ -359,6 +358,7 @@ test('visibility intervals and numeric poses match executable SPX, CasparCG and 
       return route.fulfill({ status: body == null ? 404 : 200, body: body == null ? '' : Buffer.from(body, 'base64'), contentType: /\.(m?js)$/.test(path) ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.woff2') ? 'font/woff2' : 'text/html', headers: { 'access-control-allow-origin': '*' } });
     });
     if (target === 'ograf') {
+      await installGraphicBody(output);
       await output.goto('http://keys-output.local/');
       await output.evaluate(async () => {
         const mod = await import('http://keys-output.local/graphic.mjs');
@@ -375,7 +375,7 @@ test('visibility intervals and numeric poses match executable SPX, CasparCG and 
         if (target !== 'ograf') host.gsap.globalTimeline.clear();
         const timeline = target === 'ograf' ? host.gsap.globalTimeline.getChildren(false, false, true).find(t => t.duration() === 3)! : host.buildStepTimeline(0);
         timeline.pause(); timeline.time(time, true); if (time === 0) timeline.render(0, true, true);
-        const style = getComputedStyle(document.querySelector(selector)!);
+        const style = getComputedStyle((target === 'ograf' ? graphicBody(document.querySelector('keys-graphic')!) : document).querySelector(selector)!);
         return { visible: style.visibility, opacity: style.opacity, transform: style.transform };
       }, { selector, time: sample.time, target });
       expect(actual, target + ' at ' + sample.time).toEqual({ visible: sample.visible, opacity: sample.opacity, transform: sample.transform });

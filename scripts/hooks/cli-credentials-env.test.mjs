@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { CLI_CREDENTIALS_ENV, MARKER, writeCliCredentialsEnv } from './cli-credentials-env.mjs';
 
-const bash = spawnSync('bash', ['-c', 'exit 0']).status === 0;
+const bash = spawnSync('bash', ['-c', 'exit 0'], { windowsHide: true }).status === 0;
 
 /** What the CLI (a node process) sees when a Bash command starts in `cwd`, after Claude Code
  *  has sourced the env file. */
@@ -15,7 +15,7 @@ function seen(envFile, cwd, env = {}) {
   const base = { ...process.env, ...env };
   if (!('NOACG_CREDENTIALS_DIR' in env)) delete base.NOACG_CREDENTIALS_DIR;
   const script = `source "${envFile.replaceAll('\\', '/')}"; node -e "process.stdout.write(process.env.NOACG_CREDENTIALS_DIR || '')"`;
-  const r = spawnSync('bash', ['-c', script], { cwd, env: base, encoding: 'utf8' });
+  const r = spawnSync('bash', ['-c', script], { cwd, env: base, encoding: 'utf8', windowsHide: true });
   assert.equal(r.status, 0, r.stderr);
   return r.stdout.replaceAll('\\', '/').toLowerCase();
 }

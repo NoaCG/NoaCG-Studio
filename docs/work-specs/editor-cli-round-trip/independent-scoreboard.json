@@ -1,0 +1,64 @@
+{
+  "fields": [
+    {
+      "field": "f0",
+      "ftype": "textfield",
+      "title": "Team A",
+      "value": "HARBOR"
+    },
+    {
+      "field": "f1",
+      "ftype": "number",
+      "title": "Score A",
+      "value": "0"
+    },
+    {
+      "field": "f2",
+      "ftype": "textfield",
+      "title": "Team B",
+      "value": "RIVERSIDE"
+    },
+    {
+      "field": "f3",
+      "ftype": "number",
+      "title": "Score B",
+      "value": "0"
+    }
+  ],
+  "sourceUnchanged": {
+    "js": true,
+    "assets": true
+  },
+  "outputs": [
+    {
+      "target": "spx",
+      "actions": [
+        "play",
+        "goalA",
+        "clearFlag",
+        "stop"
+      ],
+      "errors": []
+    },
+    {
+      "target": "casparcg",
+      "actions": [
+        "play",
+        "goalA",
+        "clearFlag",
+        "stop"
+      ],
+      "errors": []
+    },
+    {
+      "target": "ograf",
+      "actions": [
+        "play",
+        "goalA",
+        "clearFlag",
+        "stop"
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -35,7 +35,9 @@ ograf-starters-out/
 # The zip, the frames and the transcript scripts/ograf-external-walk.mjs writes when it drives an
 # imported-SVG graphic in SuperFly.tv's ograf-server. The frames worth keeping are copied into
 # docs/acceptance/ by hand; the rest is a run's working area and is rebuilt by re-running it.
+# scripts/ograf-spx-walk.mjs writes the same for SPX 1.4.1.
 ograf-external-out/
+ograf-spx-out/
 
 # Never commit API keys - copy .env.example to .env and fill it in locally.
 .env
@@ -124,7 +126,7 @@ shots-*/
 # What scripts/svg-import-sweep.mjs writes when asked for a report (--json) or a picture of
 # every created graphic (--shots). Both are MEASUREMENTS of a moment, regenerated on demand and
 # meaningless once the code moves; the verdicts worth keeping go to
-# docs/backlog/svg-import-sweep-findings.md, and the answers worth keeping become assertions in
+# https://github.com/NoaCG/NoaCG-Studio/issues/778, and the answers worth keeping become assertions in
 # e2e/import-svg-corpus.spec.ts.
 .sweep-shots/
 sweep-*.json
@@ -156,16 +158,19 @@ sweep-*.json
 .agents/*
 !.agents/skills/
 .agents/skills/*
+!.agents/skills/ask/
 !.agents/skills/check/
 !.agents/skills/cleanup-worktrees/
 !.agents/skills/handoff/
 !.agents/skills/n/
 !.agents/skills/next/
 !.agents/skills/noacg-graphic-local/
+!.agents/skills/now/
 !.agents/skills/orchestrator-week/
 !.agents/skills/o/
 !.agents/skills/ograf-expert/
 !.agents/skills/orchestrator/
+!.agents/skills/plan-run/
 !.agents/skills/queue-merge/
 !.agents/skills/so/
 !.agents/skills/spx-html-template-expert/
@@ -251,15 +256,6 @@ pro-iterate-blind/
 pro-typesweep-blind/
 pro-spike-out-*.log
 pro-iterate-out-*.log
-
-# Machine-written handoffs. A scheduled task that finds a problem drops one file here so the
-# orchestrator reads it with the session handoffs, instead of the owner having to paste an alert
-# it produced hours earlier. They are deliberately NOT committed: they restate what CI already
-# knows, they go stale the moment the break is fixed, and - the reason this pattern is an ignore
-# rule rather than a convention - docs/handoffs/ is tracked, so an untracked file here shows up in
-# `git status --porcelain` and auto-merge.mjs refuses EVERY queued landing while it sits there.
-# An ignored file is invisible to that check, so the queue keeps running on a morning with an alert.
-docs/handoffs/*.local.md
 
 # The owner's private context: dated events, partners, teaching, demos. The repository is public,
 # so this never reaches git. It lives once, in the main checkout; agents read it there.

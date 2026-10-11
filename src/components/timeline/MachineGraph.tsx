@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import {
+  ANIM_DECLARATION,
   parseAnimData,
   serializeAnimData,
   TRANSITION_STYLES,
@@ -640,7 +641,7 @@ export default function MachineGraph({ iframeRef, data, onOpenStep, onOpenStateT
         // parse round trip is the honest way to know where the new arrow landed.
         const group = next.machine!.groups.find((g) => g.id === box.groupId)!;
         const minted = group.transitions[group.transitions.length - 1];
-        const applied = parseAnimData(`var NOACG_ANIM = ${serializeAnimData(next)};`);
+        const applied = parseAnimData(`${ANIM_DECLARATION} = ${serializeAnimData(next)};`);
         const sorted = applied?.machine?.groups.find((g) => g.id === box.groupId)?.transitions ?? [];
         const tIndex = sorted.findIndex(
           (t) => t.from === minted.from && t.to === minted.to && t.trigger === 'operator' && t.event === minted.event,

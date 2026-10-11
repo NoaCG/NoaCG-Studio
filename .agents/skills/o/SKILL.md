@@ -1,15 +1,8 @@
 ---
 name: o
-description: Alias for orchestrator - turn finished sessions' handoffs and build feedback into ordered, pasteable prompts
+description: Alias for orchestrator - run a wave of autonomous work through a time window - the prompt's work, then the backlog in GOALS rank, each row landed through the merge queue, with a short report
 ---
 
 Short alias for `$orchestrator`. Read `.agent-workflows/orchestrator.md` (relative to the repo
-root) now and follow it in full - that file is the canonical procedure, shared with the Claude
-Code command `/orchestrator`. Nothing here overrides it. Any text the user typed after `$o` in the
-invoking message is the pasted input the workflow refers to: handoff blocks from finished
-sessions, owner feedback from testing the newest build, or both. If there was none, plan from
-repository state alone and say so.
-
-Then read `.agents/skills/orchestrator/SKILL.md` for the host capability and launch adapter.
-It lives in that one file rather than being copied here, so `$o` and `$orchestrator` use the
-same launch, ownership and overnight continuation mechanisms.
+root) now and follow it in full, with the Codex notes in `.agents/skills/orchestrator/SKILL.md`.
+Text after `$o` is the owner's prompt and time window.

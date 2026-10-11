@@ -58,7 +58,7 @@ export function loadEnvFile(root, file = '.env') {
  * non-checkout (a tarball, a CI copy) simply answers with `root`.
  */
 export function mainCheckout(root) {
-  const result = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: root, encoding: 'utf8' });
+  const result = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: root, encoding: 'utf8', windowsHide: true });
   const raw = result.status === 0 ? result.stdout.trim() : '';
   return raw ? dirname(resolve(root, raw)) : resolve(root);
 }

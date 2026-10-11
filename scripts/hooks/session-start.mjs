@@ -17,7 +17,7 @@ import { readHookInput } from './lib.mjs';
 import { HOME_RELATIVE_PATH } from '../orchestrator-home.mjs';
 import { reattachMainIfSafe } from '../reattach-main.mjs';
 import { formatActivity, formatBranches, scanActivity } from '../worktree-activity.mjs';
-import { sweepEmptyLeftoverFolders } from '../worktree-cleanup-lib.mjs';
+import { cleanupStateDir, sweepEmptyLeftoverFolders, triggerUnattendedSweep, worktreeRoots } from '../worktree-cleanup-lib.mjs';
 
 const input = await readHookInput();
 const sessionCwd = normalize(input?.cwd ?? process.cwd());
@@ -25,9 +25,7 @@ const sessionCwd = normalize(input?.cwd ?? process.cwd());
 // All registered checkouts, primary first (git worktree list order). Run from the session
 // cwd: in an unregistered stub git walks up to the primary checkout, which is exactly the
 // fall-through this hook exists to detect.
-const roots = gitLines(['worktree', 'list', '--porcelain'], sessionCwd)
-  .filter((line) => line.startsWith('worktree '))
-  .map((line) => normalize(line.slice('worktree '.length)));
+let roots = worktreeRoots(sessionCwd);
 if (roots.length === 0) process.exit(0); // not a git checkout - nothing to check
 
 // Each checkout keeps its own `noacg login`, so one row's logout cannot sign its siblings out.
@@ -73,6 +71,65 @@ try {
   // Self-heal is best-effort and must never block session start.
 }
 
+// FINISHED WORK CLEANS ITSELF UP. Start the unattended worktree sweep in the background; it
+// throttles itself to one run per half hour and removes only what has landed (or has no commits
+// of its own) and has been quiet long enough (scripts/cleanup-worktrees.mjs, runUnattended).
+// `NOACG_NO_AUTO_CLEANUP=1` switches it off. It never throws.
+triggerUnattendedSweep({ primaryRoot: roots[0] });
+
+// Which branches have landed - the ledger the follow-up handling below and the job-queue summary
+// further down both read. Synced from GitHub once, here.
+let landedBranches = new Set();
+let landingsSynced = false;
+try {
+  const { jobsDir, readLandings } = await import('../jobs-store.mjs');
+  const { syncLandings } = await import('../landings.mjs');
+  const dir = jobsDir();
+  if (dir) {
+    syncLandings(dir);
+    landingsSynced = true;
+    landedBranches = new Set(readLandings(dir).map((entry) => entry?.branch).filter(Boolean));
+  }
+} catch {
+  // No ledger: nothing below treats a branch as landed.
+}
+
+// A RESUMED CHAT WHOSE WORKTREE WAS CLEANED UP. The sweep removes a landed desktop chat's
+// worktree after a day of quiet, and the owner often comes back to the same chat. When the
+// transcript says this session last worked in a worktree that is gone, make a fresh one at the
+// same path from origin/main, so the follow-up has somewhere to work with nothing to run.
+// Only on a RESUME: a compaction or a cleared conversation is not somebody coming back to it.
+try {
+  const { recoverRemovedWorktree } = await import('../worktree-followup.mjs');
+  const recovered = input?.source === 'resume'
+    ? recoverRemovedWorktree({
+        sessionCwd,
+        primaryRoot: roots[0],
+        transcriptPath: input?.transcript_path,
+        landed: landedBranches,
+        registeredRoots: roots,
+      })
+    : null;
+  if (recovered?.path) {
+    roots = [...roots, recovered.path];
+    console.log(
+      recovered.inside
+        ? `This chat's earlier worktree has been removed (finished work is cleaned up automatically). A fresh ` +
+            `worktree was made here (${recovered.path}) on branch ${recovered.branch}, cut from origin/main. ` +
+            'Dependencies are not installed yet: run `npm ci` before building or testing.'
+        : `This chat last worked in ${recovered.path}, which has since been removed (finished work is cleaned ` +
+            `up automatically). A fresh worktree is ready at that path on branch ${recovered.branch}, cut from ` +
+            `origin/main. Before doing anything else, switch into it with the EnterWorktree tool (path: ` +
+            `${recovered.path}) - it is under .claude/worktrees, so no approval is needed - then run \`npm ci\` ` +
+            'before building or testing.',
+    );
+  } else if (recovered?.error) {
+    console.log(`Note: this chat's earlier worktree is gone and a fresh one could not be made: ${recovered.error}`);
+  }
+} catch {
+  // Recovery is a convenience; a session that starts without it is no worse off than before.
+}
+
 const isUnder = (path, root) => path.toLowerCase() === root.toLowerCase() || path.toLowerCase().startsWith(root.toLowerCase() + '/');
 
 // An unregistered .claude/worktrees/<name> stub: the cwd names a worktree folder that git
@@ -98,8 +155,7 @@ if (stubRoot && !roots.some((root) => root.toLowerCase() === stubRoot.toLowerCas
 const root = roots.filter((r) => isUnder(sessionCwd, r)).sort((a, b) => b.length - a.length)[0];
 if (!root) process.exit(0); // cwd outside every checkout (shouldn't happen) - stay quiet
 
-const branch = gitLines(['rev-parse', '--abbrev-ref', 'HEAD'], root)[0] ?? 'unknown';
-const branchLabel = branch === 'HEAD' ? 'detached HEAD' : `branch ${branch}`;
+let branch = gitLines(['rev-parse', '--abbrev-ref', 'HEAD'], root)[0] ?? 'unknown';
 const orchestratorHome = normalize(join(roots[0], ...HOME_RELATIVE_PATH.split('/')));
 const isOrchestratorHome = root.toLowerCase() === orchestratorHome.toLowerCase();
 const kind = root.toLowerCase() === roots[0].toLowerCase()
@@ -107,12 +163,35 @@ const kind = root.toLowerCase() === roots[0].toLowerCase()
   : isOrchestratorHome
     ? 'orchestrator home'
     : 'linked worktree';
+
+// A FOLLOW-UP IN A WORKTREE WHOSE BRANCH HAS LANDED. New work on that branch would start from an
+// old main and re-land what is already in, so a clean worktree with nothing unlanded moves to a
+// fresh branch cut from origin/main (scripts/worktree-followup.mjs). Not on a compaction: that is
+// the same conversation carrying on, not somebody coming back.
+if (kind === 'linked worktree' && input?.source !== 'compact') {
+  try {
+    const { moveOffLandedBranch } = await import('../worktree-followup.mjs');
+    const moved = moveOffLandedBranch({ root, branch, landed: landedBranches });
+    if (moved?.to) {
+      console.log(
+        `This worktree's branch ${moved.from} has landed, so the worktree was moved to a fresh branch ` +
+          `${moved.to}, cut from origin/main - follow-up work starts from current main. If ` +
+          'package-lock.json changed since, run `npm ci` before building.',
+      );
+      branch = moved.to;
+    }
+  } catch {
+    // The old branch stays checked out; nothing is lost either way.
+  }
+}
+const branchLabel = branch === 'HEAD' ? 'detached HEAD' : `branch ${branch}`;
+
 let ports = '';
 try {
   // This checkout's copy resolves the port from its own location - correct per-worktree.
   const devPortModule = join(root, 'scripts', 'dev-port.mjs');
   if (existsSync(devPortModule)) {
-    const { devPorts, pruneStalePorts } = await import(pathToFileURL(devPortModule));
+    const { devPorts, pruneStalePorts, reservesPorts } = await import(pathToFileURL(devPortModule));
     // Reservations outlive the worktrees that took them (a removed worktree cannot give its
     // own port back). Session start is where the registry gets swept, same as the folders.
     const released = pruneStalePorts?.() ?? [];
@@ -120,17 +199,22 @@ try {
       console.log(`Released dev-port reservations left by removed worktrees: ${released.map((t) => t.port).join(', ')}.`);
     }
     if (isOrchestratorHome) {
-      // The orchestrator's permanent home runs no dev server, so it must not mint a ticket
-      // from the 5180-5298 block just because a session opened there - and it never gives one
-      // back, because it is never removed (docs/DEV_PORTS.md, .agent-workflows/orchestrator.md).
-      // `npm run dev` there would still resolve a port on demand; nothing is taken up front.
+      // The orchestrator's permanent home runs no dev server (docs/DEV_PORTS.md,
+      // .agent-workflows/orchestrator.md), so there is no port worth printing.
       ports = ' - no dev port (the orchestrator home runs no server)';
     } else {
+      // Asking reserves nothing: a server start does (scripts/dev-port.mjs).
       const record = devPorts();
       ports = ` - dev port ${record.port}, live e2e port ${record.livePort}`;
-      // Say so when the deterministic preference was taken: the number is still stable, but it
-      // is not the one the path hashes to, and that is worth seeing before debugging a URL.
-      if (record.preferred !== record.port) ports += ` (preferred ${record.preferred} was taken)`;
+      if (record.port === 0) {
+        ports = ' - no dev port free right now: every reservation is in use (node scripts/dev-port.mjs --list)';
+      } else if (!record.ticket && reservesPorts?.()) {
+        ports += ' (reserved when a server starts)';
+      } else if (record.preferred !== record.port) {
+        // Say so when the deterministic preference was taken: the number is still stable, but
+        // it is not the one the path hashes to, and that is worth seeing before debugging a URL.
+        ports += ` (preferred ${record.preferred} was taken)`;
+      }
     }
   }
 } catch {
@@ -230,7 +314,7 @@ try {
 // nobody. The landing queue gates on ci.yml alone, so a break in any other tier slows nothing
 // down: issue #56 stood for eight hours and forty-three minutes overnight on 2026-09-05 with
 // three landings stacked on top of it, and it was the owner who noticed. This is the cheapest
-// place that cannot be skipped, for the same reason the receipts line below is here.
+// place that cannot be skipped: it is in context before the first prompt.
 //
 // Answered from a cache shared by every worktree, so the ordinary session start pays nothing and
 // one fetch every ten minutes serves the whole machine. Silent when nothing is open.
@@ -252,57 +336,29 @@ if (isOrchestratorHome) {
   }
 }
 
-// --- Owner receipts and the handoff drain ----------------------------------------------------
+// --- What the unattended worktree cleanup could not do on its own ----------------------------
 //
-// An owner-raised task must be visible from the repository alone, in every session that could
-// plan it (docs/backlog/README.md, "Owner receipts"). One line here is the cheapest place that
-// cannot be skipped: it is in context before the first prompt. The handoff drain is the
-// orchestrator's own bookkeeping, so it prints only in the orchestrator home.
-//
-// Now the receipts print only there too, for the same reason as the alarms above: the
-// orchestrator plans from them and `/next` reads them when it looks for work.
+// The sweep never acts on anything that needs a person (a dirty landed worktree, a lone secret, an
+// output it could not archive); it writes them down. The orchestrator plans from that, so the line
+// prints there only, and only when the list is not empty.
 if (isOrchestratorHome) {
   try {
-    const { formatReceipts, isStanding, readReceipts, stillOpen } = await import('../owner-receipts.mjs');
-    const receipts = readReceipts(root).filter((receipt) => receipt.receipt && receipt.problems.length === 0);
-    // The asks that stand, which is what he is owed. Findings are real work and reach a session
-    // through the ordinary backlog drain, never under his name.
-    const standing = receipts.filter(isStanding);
-    if (standing.length > 0) {
-      const oldest = Math.max(...standing.map((receipt) => receipt.ageDays ?? 0));
-      console.log('');
-      console.log(
-        `Owner receipts: ${standing.length} standing ask(s) (oldest ${oldest} day(s)) - ` +
-          'node scripts/owner-receipts.mjs lists what the owner asked for and when.',
-      );
-      // The slugs, one line each and capped: this is context every turn will carry, and the full
-      // listing with the asks is one allowlisted command away.
-      const compact = formatReceipts(standing, { compact: true }).slice(1);
-      for (const line of compact.slice(0, 12)) console.log(line);
-      if (compact.length > 12) console.log(`  ... and ${compact.length - 12} more (node scripts/owner-receipts.mjs)`);
-    }
-    // Findings are counted separately and never named here: they are our bugs, not his requirements,
-    // and no plan has to account for one. But a defect he hit himself must not become invisible
-    // just because it stopped being printed as an ask.
-    const findings = receipts.filter((receipt) => stillOpen(receipt) && receipt.kind === 'finding');
-    if (findings.length > 0) {
-      console.log(`  plus ${findings.length} finding(s) raised while serving them - real work, never his requirement.`);
-    }
-    const { drain, handoffFiles, newestWavePlan, parseHandoffSection } = await import('../handoff-drain.mjs');
     const { readFileSync } = await import('node:fs');
-    const plan = newestWavePlan(root);
-    const classified = plan ? parseHandoffSection(readFileSync(plan, 'utf8')) : new Map();
-    const rows = drain(handoffFiles(root), classified);
-    const unclassified = rows.filter((row) => row.flag === 'UNCLASSIFIED');
-    if (rows.length > 0) {
+    const stateDir = cleanupStateDir(roots[0]);
+    const last = stateDir ? JSON.parse(readFileSync(join(stateDir, 'last.json'), 'utf8')) : null;
+    const asks = [...(last?.needsPerson ?? []), ...(last?.errors ?? [])];
+    if (last && last.ran === false) {
+      console.log('');
+      console.log(`Worktree cleanup: the last unattended run (${last.at}) did not run - ${last.why}.`);
+    } else if (asks.length > 0) {
       console.log('');
       console.log(
-        `Handoff drain: ${rows.length} file(s) in docs/handoffs/, ${unclassified.length} unclassified` +
-          `${plan ? ` against ${plan.split(/[\\/]/).pop()}` : ' (no fresh wave plan)'} - node scripts/handoff-drain.mjs lists them.`,
+        `Worktree cleanup (last unattended run ${last.at}): ${asks.length} item(s) need a person - ` +
+          `${join(stateDir, 'last.txt')} has the full report; run /cleanup-worktrees to act on them.`,
       );
     }
   } catch {
-    // Awareness only - a receipt that cannot be read must never stop a session from starting.
+    // No run yet, or an unreadable report: nothing to say.
   }
 }
 
@@ -359,10 +415,14 @@ try {
     const {
       SHARDS_SKIPPED_REFUSAL, readLandings, landingForWorktree, refusalForWorktree,
     } = await import('../jobs-store.mjs');
-    const { syncLandings } = await import('../landings.mjs');
-    syncLandings(dir);
+    if (!landingsSynced) {
+      const { syncLandings } = await import('../landings.mjs');
+      syncLandings(dir);
+    }
     const mine = landingForWorktree(readLandings(dir), root);
-    if (mine && (mine.at ?? 0) >= since) {
+    // Only while the branch that landed is the one checked out: a worktree moved to a fresh branch
+    // above (or recreated at this path) has said so already, and has nothing landed on it.
+    if (mine && (mine.at ?? 0) >= since && mine.branch === branch) {
       console.log('');
       console.log(`THIS WORKTREE'S BRANCH HAS LANDED: ${mine.branch} is in main as ${String(mine.sha).slice(0, 8)}.`);
       console.log('  Merged and pushed - nothing here is waiting to merge.');
@@ -406,8 +466,9 @@ try {
       // One read, used for both: the plan must be built on the same declaration this prints, or
       // the summary explains a wait with a floor the scheduler did not use.
       const machine = readPresence(dir);
+      // No `alone` here: reading the session inventory would slow every session start, and
+      // leaving it out can only understate what the runner will start, never overstate it.
       const plan = schedule(jobs, {
-        hour: new Date().getHours(),
         freeMemMb: Math.round(freemem() / (1024 * 1024)),
         presence: machine.state,
       });
@@ -442,7 +503,7 @@ process.exit(0);
 
 /** Run git with the given args in `cwd` and return stdout as trimmed lines. */
 function gitLines(args, cwd) {
-  const res = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const res = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
   if (res.status !== 0 || typeof res.stdout !== 'string') return [];
   return res.stdout.split('\n').map((l) => l.trim()).filter(Boolean);
 }

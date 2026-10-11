@@ -18,53 +18,19 @@ import {
   STRUCTURE_LABELS,
   type AliasTargets,
   type CapabilityId,
-  type CategoryGroupId,
   type GraphicCategoryId,
   type MotionIntensity,
   type OccasionId,
-  type PlacementId,
   type ProgrammeFamilyId,
   type ProgrammeFormatId,
   type StructureId,
 } from '../model/taxonomy';
 import { allTemplateMeta, type TemplateMeta } from './templateMeta';
+import type { BrowseFilters, FieldBucket } from './browseFilters';
 
 // ── Filters ─────────────────────────────────────────────────────────────────
 
-export type FieldBucket = '1' | '2' | '3' | '4-5' | '6+' | 'repeating';
-
-export interface BrowseFilters {
-  query: string;
-  /** Ranking facet — never hides (proposal §13.1). */
-  family: ProgrammeFamilyId | null;
-  format: ProgrammeFormatId | null;
-  /** Strict facets. `group` is the lead dropdown's shelf (model/taxonomy.ts
-   *  CATEGORY_GROUPS); `category` narrows further to one member category via the group's
-   *  refinement chips. A set category always implies its group's result or narrower, so the
-   *  two compose without ordering rules. */
-  group: CategoryGroupId | null;
-  category: GraphicCategoryId | null;
-  fieldBucket: FieldBucket | null;
-  style: StyleTag | null;
-  structures: StructureId[];
-  capabilities: CapabilityId[];
-  placement: PlacementId | null;
-  intensity: MotionIntensity | null;
-}
-
-export const NO_BROWSE_FILTERS: BrowseFilters = {
-  query: '',
-  family: null,
-  format: null,
-  group: null,
-  category: null,
-  fieldBucket: null,
-  style: null,
-  structures: [],
-  capabilities: [],
-  placement: null,
-  intensity: null,
-};
+export { NO_BROWSE_FILTERS, type BrowseFilters, type FieldBucket } from './browseFilters';
 
 const BUCKET_RANGES: Record<Exclude<FieldBucket, 'repeating'>, [number, number]> = {
   '1': [1, 1],

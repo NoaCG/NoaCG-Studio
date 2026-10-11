@@ -1,7 +1,7 @@
 # Re-measured 2026-09-07, after `src/ai` migrated - and the first answer to "is it still worth loading"
 
 `src/ai/AGENTS.md` was 42,259 bytes read by eight instruction chains. This is also the first row run
-under `docs/backlog/are-the-big-contracts-still-worth-loading.md`, which asks for three outcomes per
+under [`docs/backlog/are-the-big-contracts-still-worth-loading.md`](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/are-the-big-contracts-still-worth-loading.md), which asks for three outcomes per
 paragraph rather than two.
 
 | Metric | Before this row | After |

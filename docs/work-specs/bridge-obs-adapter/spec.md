@@ -10,7 +10,7 @@ control channel, obs-websocket 5 (bundled since OBS 28), and obs-browser's `emit
 reaches every browser source page (measured, `docs/OBS_ON_A_REAL_HOST.md` §4).
 
 Authority: `docs/GOALS.md` outcome 5 (one production workflow that plays out to every environment,
-OBS staying green) and `docs/backlog/bridge-obs-adapter.md` (serves NOW, needs-owner none). The
+OBS staying green) and [issue #761](https://github.com/NoaCG/NoaCG-Studio/issues/761) (serves NOW, needs-owner none). The
 setup is held to the CasparCG owner decisions of 2026-09-30 by analogy: connecting may happen by
 itself, putting on air never does, nothing is retyped. The decisions below marked **derived** are
 this spec's, open to the owner's overrule.
@@ -207,7 +207,7 @@ Preserved: every CasparCG and OGraf route and reply; the exported overlay outsid
 Non-goals: OBS on another computer (it needs a typed password the Bridge would keep; a later
 spec); OBS media sources as clip cues; adding the output to several scenes or a downstream keyer;
 reloading a page; creating a template source from the page; Companion and Stream Deck
-(`docs/backlog/companion-and-stream-deck.md`); an OBS script or plugin; reading OBS's command line
+([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809)); an OBS script or plugin; reading OBS's command line
 for `--websocket_port` or `--websocket_password`.
 
 ### Decisions (derived)

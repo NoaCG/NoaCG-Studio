@@ -2,31 +2,43 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PanelSnapshot, PanelVerb } from '../../control/panelFeedback';
 import { verbWords } from '../../control/panelFeedback';
 import {
+  PANEL_BEAT_MS,
   answerPanel,
   panelList,
   panelPairStart,
   panelRevoke,
+  tabPageId,
   type AnswerStatus,
   type PanelAnswer,
   type PanelKeyRow,
   type PanelList,
   type PanelPressReport,
 } from '../../control/panelRelay';
+import { workerInterval } from '../../control/workerTicker';
 import { useModalGate } from '../spaceKey';
 import './panel.css';
 
 /**
- * HARDWARE PANELS on an operator page (docs/work-specs/hardware-panel-control/spec.md): the
- * "Answer the panel on this page" switch, pairing a Companion panel with a one-time code, and the
- * list of paired panels with Revoke. One component for the production page and the hosted control
- * page; each page hands it what it shows and its own dispatcher, and nothing else changes there.
+ * HARDWARE PANELS on an operator page (docs/work-specs/hardware-panel-control/spec.md, and the
+ * lease of docs/work-specs/panel-ownership-lease/spec.md): which page answers the panel, "Use
+ * here", pairing a Companion panel with a one-time code, and the list of paired panels with Revoke.
+ * One component for the production page and the hosted control page; each page hands it what it
+ * shows and its own dispatcher, and nothing else changes there.
  */
 
 export interface PanelAnswerState {
+  /** This page answers the panel, or is taking it. */
   on: boolean;
   status: AnswerStatus | null;
   last: PanelPressReport | null;
-  setOn: (on: boolean) => void;
+  /** A panel is paired with this production (as this page last read it). */
+  paired: boolean;
+  /** The page that answers the panel when it is not this one, by its label; null when none does. */
+  holder: string | null;
+  /** Move the panel to this page, from whichever page has it ("Use here"). */
+  useHere: () => void;
+  /** Read who answers now rather than at the next beat (after pairing, say). */
+  refresh: () => void;
   /**
    * Hand the answer what the page shows and its dispatcher, in the render, once the page has
    * worked them out. A plain call, not a hook, so it can sit after a page's early returns.
@@ -43,6 +55,9 @@ export interface PanelAnswerState {
    */
   changed: () => void;
 }
+
+/** With no panel paired, a page reads who answers only every this many beats (about 30 s). */
+const IDLE_LOOKS = 8;
 
 /** What a page that has not fed anything yet shows: nothing to press. */
 const EMPTY: PanelSnapshot = {
@@ -61,38 +76,89 @@ const EMPTY: PanelSnapshot = {
 };
 
 /**
- * Run the answer while the switch is on. What the page feeds is read through refs, so a page
- * passes fresh closures every render without restarting anything; every render publishes what a
- * panel would see differently.
+ * WHICH PAGE ANSWERS (panel lease P1, L1 to L6). Every beat, on a timer a hidden tab cannot
+ * starve, a page that is not answering reads who is: with a panel paired and nobody answering, a
+ * page that takes a free panel by itself (`auto`: the production page) takes it; any page can move
+ * it here with `useHere`. A page answering keeps its lease on the same beat (panelRelay.ts). What
+ * the page feeds is read through refs, so a page passes fresh closures every render without
+ * restarting anything; every render publishes what a panel would see differently.
  */
 export function usePanelAnswer(opts: {
   slug: string | null;
   where: 'production' | 'control';
   label: string;
   runs: ReadonlySet<PanelVerb>;
+  /** Take a free panel by itself (the production page only, P1). */
+  auto: boolean;
 }): PanelAnswerState {
-  const [on, setOn] = useState(false);
+  /** Answer, taking a free panel (`take`) or moving it here (`move`); null: not answering. */
+  const [want, setWant] = useState<'take' | 'move' | null>(null);
   const [status, setStatus] = useState<AnswerStatus | null>(null);
   const [last, setLast] = useState<PanelPressReport | null>(null);
+  const [list, setList] = useState<PanelList | null>(null);
   const snapshot = useRef<() => PanelSnapshot>(() => EMPTY);
   const run = useRef<(verb: PanelVerb, target: string) => void>(() => {});
   const note = useRef<((text: string) => void) | undefined>(undefined);
   const answer = useRef<PanelAnswer | null>(null);
-  const { slug, where, label, runs } = opts;
+  const { slug, where, label, runs, auto } = opts;
+
+  /** Look now, rather than at the next beat (after pairing, say). */
+  const lookNow = useRef<() => void>(() => {});
+  // Who answers, while this page does not: and a free panel, taken where this page may take one.
+  // With no panel paired it looks every IDLE_LOOKS beats only: there is nothing to answer.
+  useEffect(() => {
+    if (!slug) return;
+    let alive = true;
+    let paired = false;
+    let beats = 0;
+    const look = () => {
+      if (answer.current) return;
+      panelList(slug).then(
+        (read) => {
+          if (!alive || answer.current) return;
+          paired = read.panels.length > 0;
+          // This tab held it before a reload (L4): carry on under it, whichever page this is.
+          const mine = read.answering?.page === tabPageId(slug);
+          setList(mine ? { ...read, answering: null } : read);
+          if (paired && (mine || (auto && !read.answering))) setWant('take');
+        },
+        () => {
+          // Not answered: the next beat asks again.
+        },
+      );
+    };
+    lookNow.current = look;
+    look();
+    const stop = workerInterval(PANEL_BEAT_MS, () => {
+      beats += 1;
+      if (paired || beats % IDLE_LOOKS === 0) look();
+    });
+    return () => {
+      alive = false;
+      lookNow.current = () => {};
+      stop();
+    };
+  }, [slug, auto]);
 
   useEffect(() => {
-    if (!on || !slug) return;
+    if (!want || !slug) return;
     const a = answerPanel({
       slug,
       where,
       label,
       runs,
+      move: want === 'move',
       snapshot: () => snapshot.current(),
       run: (verb, target) => run.current(verb, target),
       onStatus: (s) => {
         setStatus(s);
-        // Another page took the answer: this switch is off now, and says who has it.
-        if (s.kind === 'replaced' || s.kind === 'failed') setOn(false);
+        // Held elsewhere, taken by another page, or not reached: this page is not answering, and
+        // reads who is on its next look.
+        if (s.kind === 'held' || s.kind === 'replaced' || s.kind === 'failed') {
+          answer.current = null;
+          setWant(null);
+          if (s.kind !== 'failed') setList((cur) => (cur ? { ...cur, answering: { page: '', where: 'production', label: s.by, at: '' } } : cur));
+        }
       },
       onPress: (report) => {
         setLast(report);
@@ -103,24 +169,28 @@ export function usePanelAnswer(opts: {
     });
     answer.current = a;
     return () => {
-      answer.current = null;
+      if (answer.current === a) answer.current = null;
       a.stop();
     };
-  }, [on, slug, where, label, runs]);
+  }, [want, slug, where, label, runs]);
 
   // Every render: publish if what a key shows changed (cheap when nothing did).
   useEffect(() => {
     answer.current?.changed();
   });
 
+  const on = want !== null;
   return {
     on,
     status,
     last,
-    setOn: useCallback((next: boolean) => {
-      if (next) setStatus(null);
-      setOn(next);
+    paired: (list?.panels.length ?? 0) > 0,
+    holder: on ? null : (list?.answering?.label || (list?.answering ? 'Another page' : null)),
+    useHere: useCallback(() => {
+      setStatus(null);
+      setWant('move');
     }, []),
+    refresh: useCallback(() => lookNow.current(), []),
     feed: useCallback((snap: () => PanelSnapshot, dispatch: (verb: PanelVerb, target: string) => void, write?: (text: string) => void) => {
       note.current = write;
       snapshot.current = snap;
@@ -130,20 +200,25 @@ export function usePanelAnswer(opts: {
   };
 }
 
-/** Whether this page answers a panel: `ok` answering, `idle` switched on and connecting, `off`. */
-export function panelTone(answer: PanelAnswerState): 'ok' | 'idle' | 'off' {
-  return answer.on && answer.status?.kind === 'answering' ? 'ok' : answer.on ? 'idle' : 'off';
+export type PanelTone = 'ok' | 'idle' | 'held' | 'off';
+
+/** Whether this page answers a panel: `ok` answering, `idle` taking it, `held` another page
+ *  answers, `off` nobody does or no panel is paired. */
+export function panelTone(answer: PanelAnswerState): PanelTone {
+  if (answer.on) return answer.status?.kind === 'answering' ? 'ok' : 'idle';
+  return answer.holder ? 'held' : 'off';
 }
 
 /** The words for a tone, the same on every door. */
-export function panelToneWords(tone: 'ok' | 'idle' | 'off'): string {
+export function panelToneWords(tone: PanelTone, holder: string | null = null): string {
+  if (tone === 'held') return `On ${holder ?? 'another page'}`;
   return tone === 'ok' ? 'Answering here' : tone === 'idle' ? 'Connecting…' : 'Off';
 }
 
 /** The header door, beside Playout: "Panel" and a dot saying whether this page answers. */
 export function PanelButton({ answer, onClick }: { answer: PanelAnswerState; onClick: () => void }) {
   const tone = panelTone(answer);
-  const words = panelToneWords(tone);
+  const words = panelToneWords(tone, answer.holder);
   return (
     <button
       className={`pd-target pd-target-${tone}`}
@@ -172,10 +247,10 @@ function ago(iso: string | null, now: number): string {
 function statusWords(answer: PanelAnswerState, list: PanelList | null): string {
   const s = answer.status;
   if (answer.on) return s?.kind === 'answering' ? 'This page answers the panel.' : 'Connecting…';
-  if (s?.kind === 'replaced') return `${s.by} answers the panel now.`;
   if (s?.kind === 'failed') return `Could not answer the panel: ${s.why}`;
-  if (list?.answering) return `${list.answering.label || 'Another page'} answers the panel.`;
-  return 'No page answers the panel. Keys show "No operator page".';
+  const holder = answer.holder ?? (list?.answering ? list.answering.label || 'Another page' : null);
+  if (holder) return `${holder} answers the panel.`;
+  return 'No page answers the panel.';
 }
 
 /** The dialog: the switch, pairing, and the paired panels. */
@@ -218,7 +293,8 @@ export function PanelDialog({
     const ids = new Set(list.panels.map((p) => p.id));
     if (known.current && code && [...ids].some((id) => !known.current!.has(id))) setCode(null);
     known.current = ids;
-  }, [list, code]);
+    if (ids.size > 0 && !answer.paired) answer.refresh();
+  }, [list, code, answer]);
 
   const pair = async () => {
     if (!slug) return;
@@ -270,15 +346,14 @@ export function PanelDialog({
           ) : (
             <>
               <section>
-                <label className="dlg-check" data-testid="panel-answer">
-                  <input type="checkbox" checked={answer.on} onChange={(e) => answer.setOn(e.target.checked)} />
-                  <span className="dlg-check-text">
-                    <span className="dlg-check-title">Answer the panel on this page</span>
-                    <span className="dlg-check-desc" data-testid="panel-status">
-                      {statusWords(answer, list)}
-                    </span>
-                  </span>
-                </label>
+                <p className="panel-answer-line" data-testid="panel-answer">
+                  <span data-testid="panel-status">{statusWords(answer, list)}</span>
+                  {!answer.on && (
+                    <button className="pd-verb" onClick={answer.useHere} data-testid="panel-use-here">
+                      Use here
+                    </button>
+                  )}
+                </p>
                 {answer.last && (
                   <p className="hint" data-testid="panel-last">
                     Last press: {answer.last.panel}, {verbWords(answer.last.verb)}:{' '}

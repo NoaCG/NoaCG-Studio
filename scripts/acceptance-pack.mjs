@@ -38,7 +38,7 @@ const OUT = outDir(
 const ASKED = process.argv.slice(3).filter((a) => !a.startsWith('-'));
 const WANT = (name) => ASKED.length === 0 || ASKED.includes(name);
 mkdirSync(OUT, { recursive: true });
-const PORT = execSync('node scripts/dev-port.mjs').toString().trim();
+const PORT = execSync('node scripts/dev-port.mjs', { windowsHide: true }).toString().trim();
 const BASE = `http://localhost:${PORT}`;
 
 /**
@@ -484,6 +484,7 @@ async function sectionHosted(browser) {
       VITE_SUPABASE_URL: STUB_SUPABASE,
       VITE_SUPABASE_ANON_KEY: 'stub-anon-key-not-a-secret',
     },
+    windowsHide: true,
   });
   const files = readTree(HOSTED_BUILD);
   console.log(`  serving ${files.size} built files over ${STUB_ORIGIN}`);

@@ -299,6 +299,6 @@ once, and the selection's toggle and marquee union share one helper.
 Not checked: physical 125% displays, receiving-host fonts, a real OGraf host, the Windows Menu key
 in a headed Windows browser, and the two first-time-user trials, which stay pending as before. This
 is scoped engineering evidence, not owner acceptance; the default editor is unchanged. Two owner
-items are filed: [a decision](../../acceptance/owner-queue/2026-09-29-editor-key-ease-named-curves.md)
+items are filed: [a decision](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-29-editor-key-ease-named-curves.md)
 on the named-curve reading, answered the same day (keep it), and
-[a desktop look](../../acceptance/owner-queue/2026-09-29-editor-key-easing.md) at the workflow.
+[a desktop look](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-29-editor-key-easing.md) at the workflow.

@@ -31,7 +31,7 @@ const cases=[
 ];
 // The multiline effects guard needs its closing parenthesis changed as part of the same mutation.
 cases.find(row=>row[0]==='group effects refusal')[2]=source=>replace('if (opacity && Number(opacity) !== 1 || effects.some(property => {','if (false && (opacity && Number(opacity) !== 1 || effects.some(property => {')(source).replace("key.value !== 1)))) {","key.value !== 1))))) {");
-const run=grep=>spawnSync(process.execPath,[resolve('node_modules/@playwright/test/cli.js'),'test','e2e/editor-groups.spec.ts','--workers=1','--grep',grep],{encoding:'utf8',timeout:240000,maxBuffer:16*1024*1024,env:{...process.env,E2E_WORKERS:'3'}});
+const run=grep=>spawnSync(process.execPath,[resolve('node_modules/@playwright/test/cli.js'),'test','e2e/editor-groups.spec.ts','--workers=1','--grep',grep],{encoding:'utf8',timeout:240000,maxBuffer:16*1024*1024,env:{...process.env,E2E_WORKERS:'3'}, windowsHide: true});
 const control=run(cases.map(row=>row[3]).join('|'));if(control.status!==0){process.stdout.write(control.stdout+control.stderr);throw new Error('Unmodified control failed.');}
 console.log('Unmodified control passed.');
 let survived=0,restored;

@@ -43,4 +43,4 @@ export function activeEditorSession(): EditorSession {
   active = binding;
   return session;
 }
-export function setSessionTime(time: number, cue?: number) { if (active) { active.time = time; active.cue = cue; } }
+export function setSessionTime(time: number, cue?: number) { if (active) { active.time = time; active.cue = cue; active.session.observeView(); } }

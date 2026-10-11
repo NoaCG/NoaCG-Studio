@@ -17,7 +17,7 @@
 // THE NUMERALS ARE THE STUDENT'S OWN DRAWING. A tile's figure is a `write` role deriving the row's
 // own key, so a layer named `Number 7` is stamped and written by the board rather than arriving
 // as one of twenty-five operator fields to untick - the import trap the top ten walked into
-// (docs/backlog/decorative-numerals-arrive-as-fields.md). An unnamed numeral still does.
+// (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/decorative-numerals-arrive-as-fields.md). An unnamed numeral still does.
 
 import type { TypeControlEvent, TypeMachine } from '../types/graphicType';
 import type { BehaviourRecipe } from './recipe';

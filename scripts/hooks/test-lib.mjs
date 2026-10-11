@@ -25,6 +25,7 @@ export function runHook(hookUrl, event, env = {}, { cwd = process.cwd() } = {}) 
     encoding: 'utf8',
     env: { ...process.env, ...env },
     cwd,
+    windowsHide: true,
   });
   return { status: result.status, message: result.stderr ?? '' };
 }

@@ -24,8 +24,7 @@ import { REVEALS } from './competition/reveal';
 import { POLLS } from './poll';
 import { AUDIENCE } from './audience';
 import { STREAM_NOTIFICATIONS } from './streamNotifications';
-import { IMPORTED_DESIGNS } from './importedDesign/shared';
-import { IMPORTED_SVG } from './importedDesign/svg';
+import { IMPORTED_VARIANTS } from './importedDesign/variants';
 import { mergeCatalog, typeVariants } from './types/registry';
 
 /**
@@ -63,7 +62,7 @@ export const HAND_WRITTEN: Partial<Record<AssemblerId, TemplateVariant[]>> = {
   // Not browsable in the category grid — the Import Graphic entry is its only way in.
   // The raster variant (imp01) and the SVG variant (svg01) live in one list, because they
   // are one door: which one a drop creates is decided by the FILE (docs/SVG_IMPORT_PLAN.md).
-  'imported-design': [...IMPORTED_DESIGNS, IMPORTED_SVG],
+  'imported-design': IMPORTED_VARIANTS,
 };
 
 /**

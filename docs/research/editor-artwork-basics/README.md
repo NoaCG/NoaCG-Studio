@@ -144,7 +144,7 @@ viewing layout at 390x844, not touch editing or a physical device.
 | Stress fixture | [1920](f4-built-1920.png) | [1366](f4-built-1366.png) | [1093](f4-built-1093.png) |
 
 [Phone](phone-built.png), [Finish entry](wizard-finish-built.png), and the
-[short owner walkthrough](../../acceptance/owner-queue/2026-09-27-editor-artwork-basics.md).
+[short owner walkthrough](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-27-editor-artwork-basics.md).
 Engineering verification is complete for this bounded artwork task. It is ready
 for the owner's basic-customization workflow review; owner acceptance is open.
 These are local production-build receipts, not a claim that this branch has deployed.
@@ -188,7 +188,7 @@ not for a real playout installation. This remains the opt-in Alpha editor.
 PR #453 merged as `6d6a7051` on September 26 at 22:18 UTC. The owner subsequently
 tried Hairline and Quiz and reported clear improvements. The exact browser/deployed
 revision of that review was not captured. The original wording is retained in the
-[answered review item](../../acceptance/owner-queue/2026-09-27-editor-artwork-basics.md).
+[answered review item](https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/acceptance/owner-queue/2026-09-27-editor-artwork-basics.md).
 
 - Confirmed by the owner: changing title, colour and size; rectangle creation and
   duplication; opacity; Ctrl-selecting texts. Hairline selection/movement worked.

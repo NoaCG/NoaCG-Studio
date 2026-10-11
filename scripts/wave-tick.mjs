@@ -279,7 +279,7 @@ export function deltaBetween(previous, current, { quietMinutes = QUIET_MINUTES }
         // The line says what it did NOT measure, because on 2026-09-08 it fired three times and
         // was wrong three times: each row was reading its CI run before queueing, which from here
         // is indistinguishable from a session that ended. Whether that leg gets measured is filed
-        // in docs/backlog/finished-looking-needs-a-ci-leg.md; until then the reader confirms.
+        // in https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/finished-looking-needs-a-ci-leg.md; until then the reader confirms.
         events.push(`FINISHED-LOOKING AND UNQUEUED ${branch.name} - clean tree, no commit for `
           + `${Math.floor((current.at - branch.lastCommitMs) / 60_000)} min, nothing queued. Not checked: a CI run `
           + 'on its tip, or a live session - a row reading its CI before it queues looks exactly like this, so '
