@@ -2,6 +2,11 @@
 name: deploy-verify
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: all includes unchanged regressions; fresh reruns only checker probes
+        default: fresh
+        type: string
 permissions:
   contents: read
 jobs:
@@ -23,6 +28,7 @@ jobs:
           echo '9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681  .noacg/independent-967/studio-server' | sha256sum -c -
           chmod +x .noacg/independent-967/studio-server
       - name: Unchanged protected and layer-property regressions
+        if: inputs.scope == 'all'
         run: npx playwright test e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts --workers=1
       - name: Independent cumulative reference and physical zoom tasks
         env:

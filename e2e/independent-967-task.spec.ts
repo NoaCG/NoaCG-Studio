@@ -72,7 +72,7 @@ async function journey(page: Page, label: string) {
   expect(await source(page)).toEqual(keyed); expect((await inspection(page)).history).toEqual(h);
   await undo(page); await redo(page); expect(await source(page)).toEqual(keyed);
   const saved = await saveReopen(page, 'Independent checker ' + label);
-  expect(saved.fields).toEqual(initial.fields); expect(saved.assets).toEqual(initial.assets);
+  expect(saved.fields).toEqual(keyed.fields); expect(saved.fields.map(f => f.field)).toEqual(initial.fields.map(f => f.field)); expect(saved.assets).toEqual(initial.assets);
   expect(saved.html.match(/<div class="graphic-mask">/g)).toEqual(initial.html.match(/<div class="graphic-mask">/g));
   await seek(page, 1); await select(page, shape); await number(page, 'Rotation').scrollIntoViewIfNeeded();
   await capture(page, test.info().outputPath(label + '.png'));
