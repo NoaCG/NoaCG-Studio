@@ -1,0 +1,71 @@
+{
+  "label": "actual-125",
+  "shape": "#rectangle-1",
+  "duplicate": "#rectangle-1-copy-1",
+  "fields": [
+    "f0",
+    "f1"
+  ],
+  "assets": [
+    "fonts/inter.woff2",
+    "images/festival-mark.svg",
+    "thumbnail.png"
+  ],
+  "bounds": {
+    "innerWidth": 1093,
+    "innerHeight": 545,
+    "outerWidth": 1366,
+    "outerHeight": 768,
+    "devicePixelRatio": 1.25,
+    "visualScale": 1,
+    "html": {
+      "client": 1093,
+      "scroll": 1093
+    },
+    "controls": {
+      ".ef-shell": {
+        "x": 0,
+        "y": 0,
+        "width": 1092.800048828125,
+        "height": 544.7999877929688
+      },
+      ".ef-viewport": {
+        "x": 0,
+        "y": 160.8000030517578,
+        "width": 812.7999877929688,
+        "height": 94
+      },
+      ".ef-timeline": {
+        "x": 0,
+        "y": 280.8000183105469,
+        "width": 1092.800048828125,
+        "height": 240
+      },
+      ".ef-inspector": {
+        "x": 812.7999877929688,
+        "y": 84,
+        "width": 280,
+        "height": 196.8000030517578
+      }
+    }
+  },
+  "outputs": [
+    {
+      "target": "SPX export",
+      "errors": [],
+      "download": "independent_checker_actual_125_spx.zip"
+    },
+    {
+      "target": "CasparCG export",
+      "errors": [],
+      "download": "independent_checker_actual_125_casparcg.zip"
+    },
+    {
+      "target": "OGraf (EBU) export",
+      "errors": [],
+      "download": "independent_checker_actual_125_ograf.zip"
+    }
+  ],
+  "errors": [],
+  "failed": []
+}

@@ -1,0 +1,44 @@
+ok   load answered 200/200
+ok   the graphic is in its own shadow root (shadow root: true)
+frame: loaded - 13 drawn states, lit: (none)
+ok   playAction answered 200/200
+frame: on-air - 13 drawn states, lit: (none)
+renderer: custom actions declared - select, lock, revealChoice, judge
+ok   the manifest declares the board's operator actions
+ok   customAction select answered 200/200
+frame: action-select - 13 drawn states, lit: answer.selected/B
+ok   customAction lock answered 200/200
+frame: action-lock - 13 drawn states, lit: answer.selected/B, locked
+ok   customAction revealChoice answered 200/200
+frame: action-revealChoice - 13 drawn states, lit: answer.selected/B, locked
+ok   customAction judge answered 200/200
+frame: action-judge - 13 drawn states, lit: answer.correct/B, answer.wrong/A, answer.wrong/C, answer.wrong/D
+ok   the operator actions light the drawn states the designer named
+ok   an unknown custom action answered 400 - "This graphic defines no custom action "no-such-action"."
+ok   stopAction answered 200/200
+frame: off-air - 13 drawn states, lit: answer.correct/B, answer.wrong/A, answer.wrong/C, answer.wrong/D
+ok   clear answered 200
+ok   copy one: load and play answered 200/200
+ok   copy two: load and play answered 200/200
+frame: two-copies - 13 drawn states, lit: (none)
+ok   two copies on two layers each show their own question ("Copy one LOCKED IN Brisbane Doha Santiag" / "Copy two LOCKED IN Brisbane Doha Santiag")
+ok   copy one: customAction select answered 200
+ok   select on copy one lights its own drawn states (answer.selected/B)
+ok   copy one's action leaves copy two exactly as it was
+frame: copy-one-acted - 13 drawn states, lit: answer.selected/B
+ok   copy one: clear answered 200
+ok   clearing copy one leaves copy two exactly as it was
+frame: copy-two-alone - 13 drawn states, lit: (none)
+ok   copy two: clear answered 200
+ok   board: load and play answered 200/200
+ok   Hairline: load and play answered 200/200
+ok   the Hairline is on air on the second layer ("Alexandra Riva Chief Correspondent")
+ok   the Hairline arriving on another layer leaves the board as it was
+ok   board: customAction select answered 200
+ok   the board's action leaves the Hairline as it was
+frame: board-and-hairline - 13 drawn states, lit: answer.selected/B
+ok   board: clear answered 200
+ok   clearing the board leaves the Hairline as it was
+ok   Hairline: clear answered 200
+
+Every beat answered as the contract says it should.

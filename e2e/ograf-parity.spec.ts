@@ -1,10 +1,10 @@
 // covers: src/export/targets/ograf.ts
 // covers: src/templates/**
 //
-// THE SHADOW MOUNT PAINTS THE LIGHT MOUNT'S FRAME, in the default suite: the first design of every
+// THE OGRAF PACKAGE PAINTS THE STUDIO'S OWN FRAME, in the default suite: the first design of every
 // catalog category, the Lottie and stretch probes, and the shipped quiz-board SVG. The whole
 // catalog and the SVG corpus run in e2e/catalog/ograf-parity.spec.ts. How frames are taken and
-// compared, and why on a virtual clock: e2e/_ografParity.ts (AC-3 of
+// compared, and why on a virtual clock: e2e/_ografParity.ts (AC-3 and AC-11 of
 // docs/work-specs/ograf-shadow-root/spec.md).
 
 import { test } from '@playwright/test';
@@ -16,7 +16,7 @@ import { QUIZ_SVG } from './_svg-import';
 const UNITS = 3;
 
 for (let unit = 0; unit < UNITS; unit++) {
-  test(`the shadow mount paints the light mount's frame: one design per category, part ${unit + 1} of ${UNITS}`, async ({ page, browser }) => {
+  test(`the OGraf package paints the studio's frame: one design per category, part ${unit + 1} of ${UNITS}`, async ({ page, browser }) => {
     test.setTimeout(240_000);
     await page.goto('/app');
     const firsts = await page.evaluate(async () => {

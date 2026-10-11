@@ -1,22 +1,23 @@
 // covers: src/export/targets/ograf.ts, src/templates/importedDesign/{stretch,svg}.ts, src/assets/svgImport.ts
 //
 // TWO GRAPHICS, ONE RENDERER (issue #789). An OGraf renderer mounts every layer as a Web Component
-// in ONE document, in its light DOM, so anything a graphic carries that is document-wide reaches
-// the graphic beside it. e2e/ograf-conformance.spec.ts pins the template's own stylesheet, the
-// field ids and the host page. This file pins the carriers that were still open: the artwork's
-// own `<style>` and gradient ids inside an imported SVG's markup, a child-combinator rule off
-// `body`, and a stretch design measured on a renderer that does not put its stage at the origin.
+// in ONE document, so anything a graphic carries that is document-wide reaches the graphic beside
+// it. e2e/ograf-conformance.spec.ts pins the template's own stylesheet, the field ids and the host
+// page. This file pins the rest: the artwork's own `<style>` and gradient ids inside an imported
+// SVG's markup, a child-combinator rule off `body`, a stretch design measured on a renderer that
+// does not put its stage at the origin, and what the graphic's shadow root closes
+// (docs/work-specs/ograf-shadow-root/spec.md): two copies of one design, a renderer page's own
+// rules, the design's faces in the renderer's head, and a template's own `document.head`.
 //
 // Every package here is built by the real OGraf target from a template the real generators made,
 // and mounted the way a renderer mounts it: import graphic.mjs, define the element, append it,
-// load(), play. Each case runs in both mounts (e2e/_ografMount.ts); the cases that only the
-// shadow root can pass assert in the shadow run and record what the light run paints.
+// load(), play.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { installGraphicBody } from './_graphicBody';
-import { graphicTemplate, inMount, OGRAF_MOUNTS, ografPackages, type GraphicSource, type OgrafMount } from './_ografMount';
+import { graphicTemplate, ografFiles, type GraphicSource } from './_ografBuild';
 import { matches, paritySweep, PARITY_BOUND } from './_ografParity';
 
 const ORIGIN = 'http://ograf-isolation.local';
@@ -37,10 +38,10 @@ const HOST_PAGE = `<!doctype html>
 
 type Files = Map<string, Buffer>;
 
-/** Build `source`'s OGraf package in the app for `mount`, as package-relative files. */
-async function ografFiles(page: Page, source: GraphicSource, mount: OgrafMount): Promise<Files> {
-  const files = (await ografPackages(page, await graphicTemplate(page, source), [mount]))[mount];
-  if (typeof files !== 'object') throw new Error(`the ${mount} package did not build: ${files}`);
+/** Build `source`'s OGraf package in the app, as package-relative files. */
+async function packageOf(page: Page, source: GraphicSource): Promise<Files> {
+  const files = await ografFiles(page, await graphicTemplate(page, source));
+  if (typeof files !== 'object') throw new Error(`the package did not build: ${files}`);
   return files;
 }
 
@@ -141,10 +142,10 @@ function illustratorArt(side: 'A' | 'B'): string {
 </svg>`;
 }
 
-for (const mount of OGRAF_MOUNTS) test(inMount('two imported SVG designs on one renderer keep their own colours, gradients and hidden layers', mount), async ({ page }) => {
+test('two imported SVG designs on one renderer keep their own colours, gradients and hidden layers', async ({ page }) => {
   await page.goto('/app');
-  const a = await ografFiles(page, { kind: 'svg', source: illustratorArt('A'), name: 'Quiz Board' }, mount);
-  const b = await ografFiles(page, { kind: 'svg', source: illustratorArt('B'), name: 'Score Board' }, mount);
+  const a = await packageOf(page, { kind: 'svg', source: illustratorArt('A'), name: 'Quiz Board' });
+  const b = await packageOf(page, { kind: 'svg', source: illustratorArt('B'), name: 'Score Board' });
   await serveRenderer(page, { a, b });
   await place(page, 'a', 'ograf-isolation-a');
   await place(page, 'b', 'ograf-isolation-b');
@@ -169,16 +170,16 @@ for (const mount of OGRAF_MOUNTS) test(inMount('two imported SVG designs on one 
     .toEqual({ bClass: own.bClass, bGradient: own.bGradient, bShown: own.bShown });
 });
 
-for (const mount of OGRAF_MOUNTS) test(inMount("a child-combinator rule off `body` matches the design's own top-level elements, and `body.children` lists them", mount), async ({ page }) => {
+test("a child-combinator rule off `body` matches the design's own top-level elements, and `body.children` lists them", async ({ page }) => {
   await page.goto('/app');
-  const files = await ografFiles(page, {
+  const files = await packageOf(page, {
     kind: 'probe',
     name: 'Child Probe',
     html: '<div class="probe-card"></div>',
     css: 'body > .probe-card { position: absolute; left: 0; top: 0; width: 37px; height: 5px; }',
     // What a hand-written template reads off its own page: the top-level elements of its body.
     js: "document.body.setAttribute('data-probe-children', Array.prototype.map.call(document.body.children, function (c) { return c.className || c.tagName.toLowerCase(); }).join(' '));",
-  }, mount);
+  });
   await serveRenderer(page, { probe: files });
   await place(page, 'probe', 'ograf-isolation-probe');
   const read = await page.evaluate(() => {
@@ -189,21 +190,18 @@ for (const mount of OGRAF_MOUNTS) test(inMount("a child-combinator rule off `bod
     };
   });
   expect(read.width, '`body > .probe-card` matched nothing').toBe('37px');
-  // The design's markup exactly as authored - no wrapper between the body and its elements. In
-  // the light mount the graphic's own stylesheet comes first (the documented contract,
-  // docs/OGRAF.md); in the shadow mount it sits beside the canvas, so the body holds the design
-  // and nothing else.
-  const expected = mount === 'light' ? ['style', 'probe-card'] : ['probe-card'];
-  expect(read.children.slice(0, expected.length), "the template's top-level elements are not the children of its body").toEqual(expected);
-  if (mount === 'shadow') expect(read.children, "the stylesheet is among the design's own elements").not.toContain('style');
+  // The design's markup exactly as authored, and only it: no wrapper between the body and its
+  // elements, and the graphic's own stylesheet beside the canvas in its shadow root, not in it.
+  expect(read.children[0], "the template's top-level elements are not the children of its body").toBe('probe-card');
+  expect(read.children, "the stylesheet is among the design's own elements").not.toContain('style');
 });
 
-for (const mount of OGRAF_MOUNTS) test(inMount('a stretch design measures the same room whether or not the renderer offsets its stage', mount), async ({ page }) => {
+test('a stretch design measures the same room whether or not the renderer offsets its stage', async ({ page }) => {
   await page.goto('/app');
   // The stretch runtime as the importer emits it, over a box anchored 1400 px in: its stretch
   // line holds a 600 px run in a 300 px slot, so it asks for 301 px, and the frame edge (4%
   // inside 1920) caps it at 143.2.
-  const files = await ografFiles(page, {
+  const files = await packageOf(page, {
     kind: 'probe',
     name: 'Stretch Probe',
     stretch: true,
@@ -213,7 +211,7 @@ for (const mount of OGRAF_MOUNTS) test(inMount('a stretch design measures the sa
       '.probe-box [data-stretch] { width: calc(300px + var(--stretch-x, 0px)); overflow: hidden; white-space: nowrap; }',
       '.probe-box [data-fit] { display: inline-block; width: 600px; }',
     ].join('\n'),
-  }, mount);
+  });
   await serveRenderer(page, { stretch: files });
   const stretchAt = async (left: number) => {
     await page.evaluate((left) => { document.getElementById('stage')!.style.left = `${left}px`; }, left);
@@ -259,14 +257,14 @@ async function settled(page: Page, folder: string, selectors: string[]) {
   }, { folder, selectors }), { message: `${folder} never settled` }).toEqual({ shown: true, moving: 0 });
 }
 
-for (const mount of OGRAF_MOUNTS) test(inMount('two reveal designs on one renderer each move and clear only their own elements', mount), async ({ page }) => {
+test('two reveal designs on one renderer each move and clear only their own elements', async ({ page }) => {
   // The competition reveals hand GSAP ARRAYS of selector strings: every replay resets with
   // `gsap.set(['.reveal-subject', '.reveal-note', ...], { clearProps: 'all' })`, and the winner
   // card's press reveals with `gsap.fromTo(['.reveal-subject', '.reveal-runner'], ...)`. All of
   // them share those class names, so each selector must resolve inside its own graphic.
   await page.goto('/app');
-  const award = await ografFiles(page, { kind: 'design', id: 'aw01' }, mount);
-  const winner = await ografFiles(page, { kind: 'design', id: 'wn01' }, mount);
+  const award = await packageOf(page, { kind: 'design', id: 'aw01' });
+  const winner = await packageOf(page, { kind: 'design', id: 'wn01' });
   await serveRenderer(page, { award, winner });
   await place(page, 'award', 'ograf-isolation-award');
   await place(page, 'winner', 'ograf-isolation-winner');
@@ -299,18 +297,18 @@ for (const mount of OGRAF_MOUNTS) test(inMount('two reveal designs on one render
     .toEqual({ sealed: '0', award: opened, winner: shown });
 });
 
-for (const mount of OGRAF_MOUNTS) test(inMount("a template's `window.document` is its own, when a neighbour mounted first has the same field id", mount), async ({ page }) => {
+test("a template's `window.document` is its own, when a neighbour mounted first has the same field id", async ({ page }) => {
   // Hand-written code may reach the document through `window`. Every NoaCG design names its first
   // field #f0, and the real document answers with the FIRST #f0 in it: the neighbour's.
   await page.goto('/app');
-  const neighbour = await ografFiles(page, { kind: 'probe', name: 'Neighbour', html: '', css: '' }, mount);
-  const probe = await ografFiles(page, {
+  const neighbour = await packageOf(page, { kind: 'probe', name: 'Neighbour', html: '', css: '' });
+  const probe = await packageOf(page, {
     kind: 'probe',
     name: 'Window Probe',
     html: '',
     css: '',
     js: 'function update(raw) { var data = JSON.parse(raw); if (data.f0 != null) window.document.getElementById(\'f0\').textContent = data.f0; }',
-  }, mount);
+  });
   await serveRenderer(page, { neighbour, probe });
   await place(page, 'neighbour', 'ograf-isolation-neighbour');
   await place(page, 'probe', 'ograf-isolation-window-probe');
@@ -322,15 +320,16 @@ for (const mount of OGRAF_MOUNTS) test(inMount("a template's `window.document` i
     .toEqual({ neighbour: before.neighbour, probe: 'Written through window.document' });
 });
 
-// ── What only the shadow root closes (AC-4 to AC-7, docs/work-specs/ograf-shadow-root/spec.md) ──
+// ── What the shadow root closes (AC-4 to AC-7, docs/work-specs/ograf-shadow-root/spec.md) ──
 
-for (const mount of OGRAF_MOUNTS) test(inMount('two copies of one imported design each keep their own gradient and fields, and outlive each other', mount), async ({ page }) => {
-  // Two copies of one design share every id, so in the light DOM `url(#SVGID_1_--noacg-quiz-board)`
+test('two copies of one imported design each keep their own gradient and fields, and outlive each other', async ({ page }) => {
+  // Two copies of one design share every id, so in one tree `url(#SVGID_1_--noacg-quiz-board)`
   // resolves to the FIRST copy's gradient: recolouring it per copy, as a colour field or a picture
-  // swap does, paints both copies with the first one's colour.
+  // swap does, painted both copies with the first one's colour in the light DOM, before the shadow
+  // root gave each copy its own tree.
   await page.goto('/app');
   const art = illustratorArt('A').replace('</svg>', '<text id="Caption" x="100" y="1000" style="fill:#FFFFFF;font-size:40px">Copy</text>\n</svg>');
-  const board = await ografFiles(page, { kind: 'svg', source: art, name: 'Quiz Board' }, mount);
+  const board = await packageOf(page, { kind: 'svg', source: art, name: 'Quiz Board' });
   await serveRenderer(page, { board });
   await place(page, 'board', 'ograf-isolation-board', { key: 'one' });
   await place(page, 'board', 'ograf-isolation-board', { key: 'two', left: 960 });
@@ -353,15 +352,9 @@ for (const mount of OGRAF_MOUNTS) test(inMount('two copies of one imported desig
   const after = await pixels(page, { twoGradient: points.twoGradient, twoClass: points.twoClass });
   const afterFields = await fields();
 
-  // Each updateAction wrote only its own copy's field, in either mount: the scoped document did
-  // that before the shadow root.
+  // Each updateAction wrote only its own copy's field.
   expect(shownFields).toEqual({ one: 'One', two: 'Two' });
   expect(afterFields).toEqual({ two: 'Two' });
-  if (mount === 'light') {
-    // The light DOM's failure, recorded rather than asserted (AC-5).
-    test.info().annotations.push({ type: 'light mount', description: JSON.stringify({ shown, after }) });
-    return;
-  }
   expect(shown, "a copy painted with the other copy's gradient").toEqual({ oneGradient: [255, 255, 255], twoGradient: [0, 0, 255], twoClass: [255, 0, 0] });
   expect(after, 'taking the first copy off air changed the second').toEqual({ twoGradient: [0, 0, 255], twoClass: [255, 0, 0] });
 });
@@ -378,7 +371,7 @@ const RENDERER_RULES = `
   rect, path, .st0 { fill: rgb(0, 255, 0) !important; }
   img { opacity: 0.2 !important; }`;
 
-test("a renderer page's own rules do not reach into a shadow-mounted graphic", async ({ page, browser }) => {
+test("a renderer page's own rules do not reach into the graphic", async ({ page, browser }) => {
   test.setTimeout(180_000);
   await page.goto('/app');
   // A lower third, a scorebug, a ticker and an imported SVG design, each on a clean renderer page
@@ -390,26 +383,31 @@ test("a renderer page's own rules do not reach into a shadow-mounted graphic", a
     { kind: 'svg', name: 'Quiz Board', source: illustratorArt('A') },
   ], {
     variants: [
-      { name: 'shadow', mount: 'shadow' },
-      { name: 'shadowUnderRules', mount: 'shadow', rules: RENDERER_RULES },
-      { name: 'lightUnderRules', mount: 'light', rules: RENDERER_RULES },
+      { name: 'clean', mount: 'ograf' },
+      { name: 'underRules', mount: 'ograf', rules: RENDERER_RULES },
     ],
   });
-  // What the same rules do to the light mount, recorded: 12,000 to 40,000 pixels in the spikes.
-  test.info().annotations.push({ type: 'light mount under the rules', description: JSON.stringify(rows.map((row) => [row.key, row.against.lightUnderRules])) });
   expect(rows.filter((row) => row.error), 'a design did not mount').toEqual([]);
-  expect(rows.filter((row) => !matches(row, 'shadowUnderRules')).map((row) => [row.key, row.against.shadowUnderRules]),
-    `the renderer page's rules changed a shadow-mounted graphic's frame (bound ${PARITY_BOUND} pixels)`).toEqual([]);
-  expect(rows.some((row) => !matches(row, 'lightUnderRules')), 'the rules change no light-mounted frame either - nothing was proven').toBe(true);
+  expect(rows.filter((row) => !matches(row, 'underRules')).map((row) => [row.key, row.against.underRules]),
+    `the renderer page's rules changed a graphic's frame (bound ${PARITY_BOUND} pixels)`).toEqual([]);
+  // The control: the same rules restyle what they can reach, the renderer page's own elements.
+  // In the light DOM they changed these designs' frames by 12,000 to 40,000 pixels (the spikes).
+  await serveRenderer(page, {}, RENDERER_RULES);
+  const reached = await page.evaluate(() => {
+    const span = document.getElementById('stage')!.appendChild(document.createElement('span'));
+    const style = getComputedStyle(span);
+    return { color: style.color, letterSpacing: style.letterSpacing };
+  });
+  expect(reached, "the rules restyle nothing on the renderer's page either - nothing was proven").toEqual({ color: 'rgb(255, 0, 255)', letterSpacing: '12px' });
 });
 
-for (const mount of OGRAF_MOUNTS) test(inMount("a design's own faces and registered properties apply, for exactly as long as a copy is mounted", mount), async ({ page }) => {
-  // Chromium applies neither `@font-face` nor `@property` from inside a shadow tree, so the shadow
-  // mount lifts both into ONE `<style data-noacg-fonts>` in the renderer's head: put there by the
-  // first copy to load, kept while any copy is mounted, taken out with the last (AC-4).
+test("a design's own faces and registered properties apply, for exactly as long as a copy is mounted", async ({ page }) => {
+  // Chromium applies neither `@font-face` nor `@property` from inside a shadow tree, so the export
+  // lifts both into ONE `<style data-noacg-fonts>` in the renderer's head: put there by the first
+  // copy to load, kept while any copy is mounted, taken out with the last (AC-4).
   await page.goto('/app');
   const face = readFileSync(fileURLToPath(new URL('../public/fonts/space-grotesk.woff2', import.meta.url))).toString('base64');
-  const probe = await ografFiles(page, {
+  const probe = await packageOf(page, {
     kind: 'probe',
     name: 'Face Probe',
     html: '<div class="probe-face">Probe</div><div class="probe-prop"></div>',
@@ -420,7 +418,7 @@ for (const mount of OGRAF_MOUNTS) test(inMount("a design's own faces and registe
       '.probe-prop { position: absolute; left: 0; top: 0; width: var(--probe-w); height: 4px; background: #fff; }',
     ].join('\n'),
     assets: [{ path: 'fonts/probe-face.woff2', data: `data:font/woff2;base64,${face}` }],
-  }, mount);
+  });
   await serveRenderer(page, { probe });
   const read = () => page.evaluate(() => {
     const first = document.querySelector('#stage > *');
@@ -447,23 +445,21 @@ for (const mount of OGRAF_MOUNTS) test(inMount("a design's own faces and registe
   expect(two.families, 'a second copy changed which faces the page has').toEqual(one.families);
   expect(afterOne, 'disposing one of two copies took the faces away').toMatchObject({ families: one.families, loaded: one.loaded });
   expect(afterBoth.families, 'the faces outlived the last copy').toEqual([]);
-  // The light mount carries its faces in its own stylesheet and puts nothing in the head.
-  const expected = mount === 'shadow' ? [1, 1, 1, 0] : [0, 0, 0, 0];
-  expect([one, two, afterOne, afterBoth].map((r) => r.headStyles), "the renderer's head did not hold one style per design while it was mounted").toEqual(expected);
+  expect([one, two, afterOne, afterBoth].map((r) => r.headStyles), "the renderer's head did not hold one style per design while it was mounted").toEqual([1, 1, 1, 0]);
 });
 
-for (const mount of OGRAF_MOUNTS) test(inMount("a template's own `<style>` in `document.head` styles the template", mount), async ({ page }) => {
-  // Under SPX a template that appends a `<style>` to its head styles its own page. In the light
-  // mount that head is the renderer's, and the rule stays document-wide; in the shadow mount
-  // `document.head` is the graphic's shadow root, so the renderer's page is left as it was (AC-7).
+test("a template's own `<style>` in `document.head` styles the template", async ({ page }) => {
+  // Under SPX a template that appends a `<style>` to its head styles its own page. Here
+  // `document.head` is the graphic's shadow root, so the rule styles the template and the
+  // renderer's page is left as it was (AC-7). In the light DOM it was the renderer's head.
   await page.goto('/app');
-  const probe = await ografFiles(page, {
+  const probe = await packageOf(page, {
     kind: 'probe',
     name: 'Head Probe',
     html: '<div class="probe-head"></div>',
     css: '.probe-head { position: absolute; left: 0; top: 0; height: 5px; }',
     js: "var probeStyle = document.createElement('style'); probeStyle.textContent = '.probe-head { width: 41px; }'; document.head.appendChild(probeStyle);",
-  }, mount);
+  });
   await serveRenderer(page, { probe });
   const headBefore = await page.evaluate(() => document.head.querySelectorAll('style').length);
   await place(page, 'probe', 'ograf-isolation-head');
@@ -472,5 +468,5 @@ for (const mount of OGRAF_MOUNTS) test(inMount("a template's own `<style>` in `d
     headStyles: Array.from(document.head.querySelectorAll('style')).filter((s) => !s.hasAttribute('data-noacg-fonts')).length,
   }));
   expect(read.width, "the template's own head style does not reach its element").toBe('41px');
-  if (mount === 'shadow') expect(read.headStyles, "the template's style landed in the renderer's head").toBe(headBefore);
+  expect(read.headStyles, "the template's style landed in the renderer's head").toBe(headBefore);
 });

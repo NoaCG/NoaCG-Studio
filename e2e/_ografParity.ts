@@ -1,23 +1,23 @@
-// THE SHADOW MOUNT PAINTS THE LIGHT MOUNT'S FRAME, measured on a virtual clock.
+// THE OGRAF PACKAGE PAINTS THE STUDIO'S OWN FRAME, measured on a virtual clock.
 //
-// AC-3 of docs/work-specs/ograf-shadow-root/spec.md. Frames taken on the wall clock differ between
-// ANY two mounts of a design that moves, light against light as much as light against shadow (the
-// spikes measured it), so every frame here is taken at a stated time on a clock the harness owns
-// (decision 5):
+// AC-3 and AC-11 of docs/work-specs/ograf-shadow-root/spec.md. Frames taken on the wall clock
+// differ between ANY two mounts of a design that moves, one document against itself as much as
+// against another (the spikes measured it), so every frame here is taken at a stated time on a
+// clock the harness owns (decision 5):
 //
 //  - each renderer page runs on Playwright's page clock, paused, so `Date`, the timers and
 //    `requestAnimationFrame` move only when the harness runs it forward;
 //  - GSAP's ticker is detached (`GSAP_DETACH_JS`, as the non-real-time document detaches it) and
-//    `gsap.updateRoot` is driven from that clock's animation frames;
+//    `gsap.updateRoot` is driven from the renderer page's own animation frames and clock, for a
+//    studio document in an iframe too, whose timers, `Date` and `performance` are the renderer
+//    page's as well (`HOST_CLOCK_JS`): one clock for every variant;
 //  - every CSS animation in the graphic is paused at the sample's time before the frame is taken;
 //  - every face and picture is loaded before Play, and every frame is painted afresh (see `sample`).
 //
-// Each design is mounted in four pages, one per variant, which see the same designs in the same
-// order: the light build, the light build again, the shadow build, and the studio's own document
-// in an iframe. Light against light again says whether the design is deterministic here at all;
-// only then does light against shadow count. Light against the studio document is RECORDED, not
-// asserted: at the flip it becomes the reference, and a design that differs there today is an
-// OGraf defect older than the shadow root (decision 5).
+// Each design is mounted in three pages, one per variant, which see the same designs in the same
+// order: the studio's own document in an iframe, the same document again, and the OGraf package
+// the export builds, in its shadow root. The document against itself says whether the design is
+// deterministic here at all; only then does the package's frame count against it.
 //
 // Every package is built in the app by the real target from a template the real generators made.
 
@@ -27,16 +27,31 @@ import { fileURLToPath } from 'node:url';
 import { GSAP_DETACH_JS } from '../src/render/runtimeScript';
 import { decodePng } from '../scripts/png-decode.mjs';
 import { installGraphicBody } from './_graphicBody';
-import { graphicTemplate, ografPackages, type GraphicSource, type OgrafFiles, type OgrafMount } from './_ografMount';
+import { graphicTemplate, ografFiles, type GraphicSource, type OgrafFiles } from './_ografBuild';
 
 /**
- * Designs the light mount itself cannot show, an OGraf defect older than the shadow root: not
+ * Designs whose OGraf package cannot show them, an OGraf defect older than the shadow root: not
  * compared, each with its own issue (decision 5). One that shows again fails the sweep until it
  * leaves this list, so the list cannot go stale.
  */
-const KNOWN_LIGHT_FAILURES: Record<string, string> = {
+const KNOWN_OGRAF_FAILURES: Record<string, string> = {
   sb21: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
   sb22: 'https://github.com/NoaCG/NoaCG-Studio/issues/964',
+};
+
+/**
+ * Designs whose package paints a different entrance frame from the studio's on Linux in their
+ * whole-catalog unit, measured identically on main with the light mount before the shadow root:
+ * an OGraf defect older than it, with its own issue (decision 5). Their comparison is reported and
+ * excused, not enforced either way: the difference depends on which designs were mounted before
+ * on the same renderer page (`pl01` matches in the default slice), and on Windows all five match.
+ */
+const KNOWN_STUDIO_DIFFERENCES: Record<string, string> = {
+  pl01: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  pl02: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  tt01: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  tt02: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
+  ig04: 'https://github.com/NoaCG/NoaCG-Studio/issues/986',
 };
 
 /** Fewer differing pixels than this, a frame matches (the conformance spec's bound). */
@@ -86,20 +101,73 @@ ${rules}
 </style>
 <script src="/gsap.min.js"></script>
 <script>
-  // GSAP detached from real time, then driven from this window's (virtual) animation frames.
+  // GSAP detached from real time, then driven from THIS window's (virtual) animation frames and
+  // clock, for a studio document in an iframe too, until the iframe is taken off the page. The
+  // iframe's own frames fall on a grid whose phase against this page's clock differs from run to
+  // run, which put its timelines a frame ahead or behind the package's at a sample: thousands of
+  // pixels during an entrance, a ticker's whole frame, a different design odd out on each run.
   window.parityDriveGsap = function (win) {
     win.eval(${JSON.stringify(GSAP_DETACH_JS)});
-    var g = win.gsap, start = win.performance.now(), base = g.ticker.time;
+    var g = win.gsap, start = performance.now(), base = g.ticker.time;
     (function frame() {
-      g.updateRoot(base + (win.performance.now() - start) / 1000);
-      win.requestAnimationFrame(frame);
+      if (win !== window && !win.frameElement) return;
+      g.updateRoot(base + (performance.now() - start) / 1000);
+      requestAnimationFrame(frame);
     })();
   };
   window.parityDriveGsap(window);
 </script>
 </head><body><div id="stage"></div></body></html>`;
 
-/** What a design is built from: `e2e/_ografMount.ts`'s sources, the stretch probe among them. */
+/**
+ * Put a studio document on the renderer page's clock, its first script before anything else in
+ * it runs: its timers, animation frames, `Date` and `performance` become the host page's. The
+ * page clock installs a separate fake clock in an iframe, whose timers fall at a phase against the
+ * host's that differs from run to run, so a countdown's `setInterval` ticked a digit early in one
+ * page and late in another. The package runs on the host's clock, so the studio does too.
+ * `__parityStopClock` clears what the document left running when it is taken off the page.
+ */
+const HOST_CLOCK_JS = `(function () {
+  var host = parent, running = new Map();
+  function borrow(set, clear) {
+    window[set] = function (fn, ms) {
+      var extra = Array.prototype.slice.call(arguments, 2);
+      var run = typeof fn === 'function' ? fn : new Function(String(fn));
+      var key;
+      var id = host[set](function () {
+        if (set !== 'setInterval') running.delete(key);
+        return run.apply(window, extra.length ? extra : arguments);
+      }, ms);
+      key = set + ':' + id;
+      running.set(key, function () { host[clear](id); });
+      return id;
+    };
+    window[clear] = function (id) {
+      running.delete(set + ':' + id);
+      host[clear](id);
+    };
+  }
+  borrow('setTimeout', 'clearTimeout');
+  borrow('setInterval', 'clearInterval');
+  borrow('requestAnimationFrame', 'cancelAnimationFrame');
+  window.Date = host.Date;
+  Object.defineProperty(window, 'performance', { value: host.performance, configurable: true });
+  window.__parityStopClock = function () {
+    running.forEach(function (stop) { stop(); });
+    running.clear();
+  };
+})();`;
+
+/** `html` with `HOST_CLOCK_JS` as its first script: right after `<head>`, or after the doctype. */
+function onHostClock(html: string): string {
+  const tag = `<script>${HOST_CLOCK_JS}</script>`;
+  const at = /<head\b[^>]*>/i.exec(html) ?? /^\s*<!doctype[^>]*>/i.exec(html);
+  if (!at) return tag + html;
+  const end = at.index + at[0].length;
+  return html.slice(0, end) + tag + html.slice(end);
+}
+
+/** What a design is built from: `e2e/_ografBuild.ts`'s sources, the stretch probe among them. */
 export type ParitySource = GraphicSource;
 
 /** The Hairline with the importer's stretch runtime over a box whose line is wider than its slot. */
@@ -118,25 +186,24 @@ export const STRETCH_PROBE: ParitySource = {
 /** One way of putting a design on a renderer page: which build, on a page with which rules. */
 export interface ParityVariant {
   name: string;
-  mount: OgrafMount | 'studio';
+  /** The OGraf package the export builds, or the studio's own document in an iframe. */
+  mount: 'ograf' | 'studio';
   /** Added to the renderer page's stylesheet. */
   rules?: string;
 }
 
-/** The mount comparison: light, light again, shadow, and the studio's document. */
-const MOUNT_VARIANTS: ParityVariant[] = [
-  { name: 'light', mount: 'light' },
-  { name: 'lightAgain', mount: 'light' },
-  { name: 'shadow', mount: 'shadow' },
+/** The comparison: the studio's document, the same document again, and the OGraf package. */
+const PARITY_VARIANTS: ParityVariant[] = [
   { name: 'studio', mount: 'studio' },
+  { name: 'studioAgain', mount: 'studio' },
+  { name: 'ograf', mount: 'ograf' },
 ];
 
-/** One design, built for the mounts its variants use: each package as files, the studio's
- *  document as html, or why each could not be built. */
+/** One design, built for the variants that use it: the package as files, the studio's document
+ *  as html, or why each could not be built. */
 interface Built {
   key: string;
-  light?: OgrafFiles;
-  shadow?: OgrafFiles;
+  ograf?: OgrafFiles;
   studio?: { html: string } | string;
 }
 
@@ -160,7 +227,6 @@ function sourceKey(source: ParitySource): string {
 
 /** Build each source for `mounts` in the app page (on the app's origin). */
 async function build(app: Page, sources: ParitySource[], mounts: Set<ParityVariant['mount']>): Promise<Array<Built | { key: string; error: string }>> {
-  const packaged = (['light', 'shadow'] as const).filter((mount) => mounts.has(mount));
   const out: Array<Built | { key: string; error: string }> = [];
   for (const source of sources) {
     const key = sourceKey(source);
@@ -171,7 +237,8 @@ async function build(app: Page, sources: ParitySource[], mounts: Set<ParityVaria
       out.push({ key, error: `build: ${String((err as Error)?.message ?? err).slice(0, 300)}` });
       continue;
     }
-    const built: Built = { key, ...(packaged.length ? await ografPackages(app, template, packaged) : {}) };
+    const built: Built = { key };
+    if (mounts.has('ograf')) built.ograf = await ografFiles(app, template);
     if (mounts.has('studio')) {
       built.studio = await app.evaluate(async (template) => {
         try {
@@ -181,13 +248,14 @@ async function build(app: Page, sources: ParitySource[], mounts: Set<ParityVaria
           return `build: ${String((err as Error)?.message ?? err).slice(0, 300)}`;
         }
       }, template);
+      if (typeof built.studio === 'object') built.studio = { html: onHostClock(built.studio.html) };
     }
     out.push(built);
   }
   return out;
 }
 
-/** A renderer page on a paused clock, serving `served` under `/<key>/<mount>/`. */
+/** A renderer page on a paused clock, serving each package under `/<key>/ograf/`. */
 async function openRenderer(browser: Browser, served: Map<string, Built>, rules: string): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
   const page = await context.newPage();
@@ -208,7 +276,7 @@ async function openRenderer(browser: Browser, served: Map<string, Built>, rules:
       return face ? route.fulfill({ status: 200, contentType: 'font/woff2', body: face }) : route.fulfill({ status: 404, body: 'not found' });
     }
     const [key, mount, ...rest] = path.split('/');
-    const files = served.get(key)?.[mount as OgrafMount];
+    const files = mount === 'ograf' ? served.get(key)?.ograf : undefined;
     const body = typeof files === 'object' ? files.get(rest.join('/')) : undefined;
     if (body == null) return route.fulfill({ status: 404, body: 'not found' });
     const type = CONTENT_TYPES[/\.[a-z0-9]+$/i.exec(path)?.[0].toLowerCase() ?? ''] ?? 'application/octet-stream';
@@ -254,14 +322,14 @@ async function sample(page: Page, built: Built, mount: ParityVariant['mount'], t
     }
     // Every face the design declares and every picture it holds, in before Play. A face loads
     // when text first needs it, on the network's time and not the page clock's, so a fit that
-    // runs at Play would otherwise measure the fallback in one mount and the face in another.
+    // runs at Play would otherwise measure the fallback in one page and the face in another.
     await Promise.all(Array.from(doc.fonts, (face) => face.load().catch(() => undefined)));
     const holder = stage.firstElementChild!;
     const body = holder instanceof HTMLIFrameElement ? doc.documentElement : graphicBody(holder);
     await Promise.all(Array.from(body.querySelectorAll('img'), (img) => img.decode().catch(() => undefined)));
     await doc.fonts.ready;
     return 'ok';
-  }, { mount, url: `${ORIGIN}/${built.key}/${mount}/graphic.mjs`, tag, studio: 'html' in own ? own.html : '' });
+  }, { mount, url: `${ORIGIN}/${built.key}/ograf/graphic.mjs`, tag, studio: 'html' in own ? own.html : '' });
   if (mounted !== 'ok') {
     await unmountAll(page);
     return mounted;
@@ -299,9 +367,8 @@ async function sample(page: Page, built: Built, mount: ParityVariant['mount'], t
       // rendering switches (all compositor stages before draw, no threaded animation) did not do
       // it. The cost, the same in every variant: a CSS transition lands at its end, and a CSS
       // animation restarts and is then set to the sample's time below. In the studio's document it
-      // is that document's own root (hiding the iframe would resize its window and run a design's
-      // resize handling on the browser's time), and that is not yet enough there: the studio
-      // record still varies between runs.
+      // is that document's own root: hiding the iframe would resize its window and run a design's
+      // resize handling on the browser's time.
       const fresh = doc ? doc.documentElement : stage;
       const was = fresh.style.display;
       fresh.style.display = 'none';
@@ -349,6 +416,7 @@ async function unmountAll(page: Page): Promise<void> {
     for (const el of Array.from(stage.children)) {
       const graphic = el as Element & { dispose?: (p: unknown) => Promise<unknown> };
       if (typeof graphic.dispose === 'function') await graphic.dispose({});
+      if (el instanceof HTMLIFrameElement) (el.contentWindow as unknown as { __parityStopClock?: () => void })?.__parityStopClock?.();
       el.remove();
     }
   });
@@ -374,11 +442,11 @@ function differing(a: Buffer, b: Buffer): number {
 }
 
 /**
- * Build every source, mount it in each variant (by default `MOUNT_VARIANTS`), and compare every
+ * Build every source, mount it in each variant (by default `PARITY_VARIANTS`), and compare every
  * variant's frames with the first's.
  */
 export async function paritySweep(app: Page, browser: Browser, sources: ParitySource[], opts: { variants?: ParityVariant[] } = {}): Promise<ParityRow[]> {
-  const variants = opts.variants ?? MOUNT_VARIANTS;
+  const variants = opts.variants ?? PARITY_VARIANTS;
   const built = await build(app, sources, new Set(variants.map((v) => v.mount)));
   const served = new Map<string, Built>();
   for (const b of built) if (!('error' in b)) served.set(b.key, b);
@@ -420,36 +488,37 @@ export function matches(row: ParityRow, name: string): boolean {
 }
 
 /**
- * The rows of a `MOUNT_VARIANTS` sweep that fail parity: a design both light mounts agree on whose
- * shadow frame differs or does not exist. A design the two light mounts disagree on is not
- * compared (`unstable`), and the studio document is a record, never a failure here.
+ * The rows of a `PARITY_VARIANTS` sweep that fail parity: a design the studio's document paints
+ * the same way twice whose package frame differs or does not exist.
  */
 function parityFailures(rows: ParityRow[]): ParityRow[] {
-  return rows.filter((row) => matches(row, 'lightAgain') && !matches(row, 'shadow'));
+  return rows.filter((row) => matches(row, 'studioAgain') && !matches(row, 'ograf'));
 }
 
-/** The rows of a `MOUNT_VARIANTS` sweep whose two light mounts disagree, so nothing about them is proven. */
+/** The rows of a `PARITY_VARIANTS` sweep whose two studio documents disagree, so nothing about them is proven. */
 function unstable(rows: ParityRow[]): ParityRow[] {
-  return rows.filter((row) => !matches(row, 'lightAgain'));
+  return rows.filter((row) => !matches(row, 'studioAgain'));
 }
 
-/** What a `MOUNT_VARIANTS` sweep read, one line per design that is not a clean match. */
+/** What a `PARITY_VARIANTS` sweep read, one line per design that is not a clean match. */
 function report(label: string, rows: ParityRow[]): string {
-  const odd = rows.filter((row) => row.error || !matches(row, 'lightAgain') || !matches(row, 'shadow') || !matches(row, 'studio'));
+  const odd = rows.filter((row) => row.error || !matches(row, 'studioAgain') || !matches(row, 'ograf'));
+  const known = (row: ParityRow) => row.key in KNOWN_OGRAF_FAILURES || row.key in KNOWN_STUDIO_DIFFERENCES;
+  const failing = parityFailures(rows);
   return [
-    `[ograf-parity] ${label}: ${rows.length} designs, ${unstable(rows).length} not compared, ${parityFailures(rows).length} failing, ` +
-      `${rows.filter((row) => row.against.studio && !matches(row, 'studio')).length} differ from the studio document`,
+    `[ograf-parity] ${label}: ${rows.length} designs, ${unstable(rows).length} not compared, ` +
+      `${failing.filter((row) => !known(row)).length} failing, ${failing.filter(known).length} known exceptions`,
     ...odd.map((row) => `[ograf-parity]   ${row.key} ${JSON.stringify(row.against)}${row.error ? ` ${row.error}` : ''}`),
   ].join('\n');
 }
 
 /**
- * The verdict on a `MOUNT_VARIANTS` sweep of `expected` designs, printed and attached as well, so
+ * The verdict on a `PARITY_VARIANTS` sweep of `expected` designs, printed and attached as well, so
  * a job's log carries what it read. Every design builds (`refusable` lets the import road refuse
- * a source on purpose) and mounts in every variant but the studio's; no design both light mounts
- * agree on paints a different shadow frame; and a design whose light mounts disagree proves
- * nothing either way, which a few may, but a unit where many do has stopped measuring. The studio
- * document is a record, never a failure here.
+ * a source on purpose) and mounts in every variant; no design the studio's document paints the
+ * same way twice has a package that paints a different frame; and a design whose two studio
+ * documents disagree proves nothing either way, which a few may, but a unit where many do has
+ * stopped measuring.
  */
 export async function expectParity(label: string, rows: ParityRow[], expected: number, opts: { refusable?: boolean } = {}) {
   console.log(report(label, rows));
@@ -457,11 +526,11 @@ export async function expectParity(label: string, rows: ParityRow[], expected: n
   expect(rows.length, `${label} compared nothing`).toBe(expected);
   const refused = rows.filter((row) => /^build: /.test(row.error ?? ''));
   if (!opts.refusable) expect(refused, `${label}: a design did not build`).toEqual([]);
-  const known = rows.filter((row) => row.key in KNOWN_LIGHT_FAILURES);
-  const excused = known.filter((row) => /^light: /.test(row.error ?? ''));
-  expect(known.filter((row) => !excused.includes(row)).map((row) => row.key), `${label}: a known light-mount failure shows now - take it off KNOWN_LIGHT_FAILURES`).toEqual([]);
-  expect(rows.filter((row) => row.error && !refused.includes(row) && !excused.includes(row) && !/^studio: [^;]*$/.test(row.error)), `${label}: a design did not mount`).toEqual([]);
-  expect(parityFailures(rows), `${label}: the shadow mount paints a different frame (bound ${PARITY_BOUND} pixels)`).toEqual([]);
+  const known = rows.filter((row) => row.key in KNOWN_OGRAF_FAILURES);
+  const excused = known.filter((row) => /^ograf: [^;]*$/.test(row.error ?? ''));
+  expect(known.filter((row) => !excused.includes(row)).map((row) => row.key), `${label}: a known OGraf failure shows now - take it off KNOWN_OGRAF_FAILURES`).toEqual([]);
+  expect(rows.filter((row) => row.error && !refused.includes(row) && !excused.includes(row)), `${label}: a design did not mount`).toEqual([]);
+  expect(parityFailures(rows).filter((row) => !excused.includes(row) && !(row.key in KNOWN_STUDIO_DIFFERENCES)), `${label}: the OGraf package paints a different frame from the studio's (bound ${PARITY_BOUND} pixels)`).toEqual([]);
   const built = rows.filter((row) => !refused.includes(row) && !excused.includes(row));
-  expect(unstable(built).length, `${label}: too many designs painted two different frames from one build`).toBeLessThanOrEqual(Math.ceil(built.length / 10));
+  expect(unstable(built).length, `${label}: too many designs painted two different frames from one studio document`).toBeLessThanOrEqual(Math.ceil(built.length / 10));
 }

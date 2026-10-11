@@ -389,8 +389,13 @@ controller's own functions and buttons, with a second page on `/renderer` at 192
   attribute `revert` would drop). On a bare page that adds SPX's renderer rules, the six /ograf
   starters and the three graphics above now lay out identically to the bare page, every element
   to 0 px; before, they moved by up to 299 px, and the ticker's track changed width by 3106 px.
-  A Shadow DOM would isolate more, but the template's GSAP string selectors and SPX's own
-  `querySelector('iframe')` look into the light DOM, so it was not taken.
+  That was the guard while the design was mounted in the element's light DOM. Since the
+  shadow-root plan's last phase (docs/work-specs/ograf-shadow-root/spec.md) the design mounts in
+  the element's own shadow root, on a canvas that still starts from initial values, so SPX's
+  rules, and any rule a page adds, reach only the element. The two reasons first given against a
+  shadow root did not hold: the template's GSAP string selectors resolve inside the graphic
+  (`scopedGsap`, below), and SPX looks for an `iframe` inside the element only to wait for one to
+  load, which a real-time NoaCG graphic does not have.
 - **Custom actions, without leaving the standard.** SPX 1.4.1's controller button runs
   `customActionHandler('<id>', '<layer>')`, which SPX never defines, while its server already
   forwards a `customAction` playout command (`POST /gc/playout`) and its renderer calls the
@@ -437,12 +442,14 @@ bare test page); the project `DATAROOT\NoaCG_V_OGraf` with rundowns `Round` and 
 SPX put at the top of `config.json`'s recent list. The server was stopped afterwards.
 
 **The walk is a script now** (2026-10-10): `scripts/ograf-spx-walk.mjs --spx <SPX_1_4_1_source>
-[--mount light|shadow]` builds Hairline, Clean Quiz, House Scorebug and Glass Mark, makes the
+[--renderer-css <rules>]` builds Hairline, Clean Quiz, House Scorebug and Glass Mark, makes the
 project through the same endpoints, drives the controller's own functions, and judges each beat
 by comparing the graphic in `/renderer` with the same package after the same calls on SPX's blank
-`/templates/empty.html`. It writes `ASSETS\templates\noacg_walk_<mount>\` and the project
-`DATAROOT\NoaCG_Walk_<mount>`, both replaced on every run, and its frames and transcript into
-`ograf-spx-out/<mount>/` (gitignored).
+`/templates/empty.html`. It writes `ASSETS\templates\noacg_walk\` and the project
+`DATAROOT\NoaCG_Walk`, both replaced on every run, and its frames and transcript into
+`ograf-spx-out/plain/` or `ograf-spx-out/renderer-css/` (gitignored). On 2026-10-11, with the shadow root
+the only mount, every judged beat passed, also with a `letter-spacing: 12px !important` rule added
+to the renderer page (docs/work-specs/ograf-shadow-root/evidence/phase-4.md).
 
 ## 11. The production's rundown, walked on both servers (2026-10-02)
 

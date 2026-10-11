@@ -37,6 +37,8 @@ async function seed(page: Page, name = 'catalog', nested = false) {
       '<g id="test-parent" transform="translate(100,80) rotate(30) scale(2)">$1</g>');
     template.html += '\n<!-- preservation sentinel -->'; template.js += '\n// preservation sentinel';
     (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(template, { resetSampleData: true });
+    // Answer from a later task: the editor re-renders on that write (rule e2e/async-whose-last-act-starts-work).
+    await new Promise((resolve) => setTimeout(resolve));
   }, { template: fixture(name), nested });
   await ready(page);
   await expect((await preview(page)).locator('#f0')).toBeAttached();
@@ -92,7 +94,10 @@ test('B04 basic opacity preserves motion and survives history and reopening', as
 for (const name of ['catalog', 'svg']) test('B04 artwork content, appearance and structure on ' + name, async ({ page }) => {
   await seed(page, name);
   const initial = await source(page);
-  await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'Operator sample stays'));
+  await page.evaluate(async () => {
+    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSampleValue('f0', 'Operator sample stays');
+    await new Promise((resolve) => setTimeout(resolve));
+  });
   const text = page.getByRole('textbox', { name: 'Artwork text', exact: true });
   await text.fill('Evening report');
   await page.getByRole('button', { name: 'Apply text', exact: true }).click();
@@ -180,6 +185,7 @@ test('B04 solid fill and reference-sensitive refusal preserve source atomically'
   await page.evaluate(async () => {
     const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
     store.applyTemplate({ ...store.template, js: store.template.js + '\nfunction customReference() { return document.getElementById("rectangle-1"); }' });
+    await new Promise((resolve) => setTimeout(resolve));
   });
   await ready(page);
   const before = await source(page);

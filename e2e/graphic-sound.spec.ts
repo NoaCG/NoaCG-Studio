@@ -6,7 +6,6 @@
 
 import { test, expect } from '@playwright/test';
 import { installGraphicBody } from './_graphicBody';
-import { inMount, OGRAF_MOUNTS } from './_ografMount';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
@@ -201,7 +200,7 @@ test('save/reopen, publication gate and output payload retain sound settings and
   expect(r.bytes).toContain('data:audio/wav;base64,');
 });
 
-for (const mount of OGRAF_MOUNTS) test(inMount('dual package preserves the attachment on import, OGraf isolates audio and skips historical one-shots', mount), async ({ page }) => {
+test('dual package preserves the attachment on import, OGraf isolates audio and skips historical one-shots', async ({ page }) => {
   await page.goto('/app');
   const files = await page.evaluate(`(async()=>{ ${HARNESS}
     const {buildGraphicPackage}=await import('/src/export/noacgPackage.ts');
@@ -216,13 +215,6 @@ for (const mount of OGRAF_MOUNTS) test(inMount('dual package preserves the attac
     if(!imported.template || parseAnimData(imported.template.js).steps[0].sound.asset!=='sounds/tone.wav')throw Error('Import lost attachment');
     if(imported.template.assets.find(a=>a.path==='sounds/tone.wav').data!==t.assets[0].data)throw Error('Import changed sound bytes');
     if(validateOgrafOfflineCompatibility(t).compatible)throw Error('Enabled sounds advertised as offline compatible');
-    if(${JSON.stringify(mount)}==='shadow'){
-      // The same template's OGraf half again, mounted in a shadow root (e2e/_ografMount.ts).
-      const {addOgrafPackage}=await import('/src/export/targets/ograf.ts');
-      const folder=Object.keys(files).find(p=>p.endsWith('graphic.mjs')).replace('graphic.mjs','');
-      await addOgrafPackage(zip.folder(folder.slice(0,-1)),t,'live',{mount:'shadow'});
-      for(const [name,file] of Object.entries(zip.files))if(!file.dir)files[name]=await file.async('base64');
-    }
     return files;
   })()`);
   const folder = Object.keys(files).find(p=>p.endsWith('graphic.mjs'))!.replace('graphic.mjs','');

@@ -1,0 +1,115 @@
+{
+  "conclusion": "success",
+  "headSha": "04da6572a9ec1804dda578867648ef7fe06577e0",
+  "jobs": [
+    {
+      "completedAt": "2026-10-11T07:35:02Z",
+      "conclusion": "success",
+      "databaseId": 114417841880,
+      "name": "independent-check",
+      "startedAt": "2026-10-11T07:33:52Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-10-11T07:33:54Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-10-11T07:33:53Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:00Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@v5",
+          "number": 2,
+          "startedAt": "2026-10-11T07:33:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:03Z",
+          "conclusion": "success",
+          "name": "Run actions/setup-node@v4",
+          "number": 3,
+          "startedAt": "2026-10-11T07:34:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:12Z",
+          "conclusion": "success",
+          "name": "Run npm ci",
+          "number": 4,
+          "startedAt": "2026-10-11T07:34:03Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:40Z",
+          "conclusion": "success",
+          "name": "Run npx playwright install --with-deps chromium",
+          "number": 5,
+          "startedAt": "2026-10-11T07:34:12Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:43Z",
+          "conclusion": "success",
+          "name": "Fetch and verify official reference binary",
+          "number": 6,
+          "startedAt": "2026-10-11T07:34:40Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:43Z",
+          "conclusion": "skipped",
+          "name": "Unchanged protected and layer-property regressions",
+          "number": 7,
+          "startedAt": "2026-10-11T07:34:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:57Z",
+          "conclusion": "success",
+          "name": "Independent cumulative reference and physical zoom tasks",
+          "number": 8,
+          "startedAt": "2026-10-11T07:34:43Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:59Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@v4",
+          "number": 9,
+          "startedAt": "2026-10-11T07:34:57Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:34:59Z",
+          "conclusion": "success",
+          "name": "Post Run actions/setup-node@v4",
+          "number": 17,
+          "startedAt": "2026-10-11T07:34:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:35:00Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v5",
+          "number": 18,
+          "startedAt": "2026-10-11T07:34:59Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-10-11T07:35:00Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 19,
+          "startedAt": "2026-10-11T07:35:00Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38121789105/job/114417841880"
+    }
+  ],
+  "status": "completed",
+  "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38121789105"
+}

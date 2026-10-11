@@ -1,12 +1,12 @@
 // NOACG OGRAF PACKAGES, DRIVEN IN SPX 1.4.1 THROUGH SPX'S OWN CONTROLS.
 //
 // docs/SPX_ON_A_REAL_SERVER.md §10 walked OGraf packages on SPX 1.4.1 by hand on 2026-10-01. This
-// is that walk as a script, so it runs on light packages (the baseline) and on shadow packages (the
-// proof), and again on the branch that makes the shadow root the only mount
-// (docs/work-specs/ograf-shadow-root/spec.md, AC-10). It does what an operator does:
+// is that walk as a script (docs/work-specs/ograf-shadow-root/spec.md, AC-10): it proved the
+// shadow-root mount against the light one, and it proves every change to the OGraf wrapper since.
+// It does what an operator does:
 //
-//   1. builds Hairline, Clean Quiz, House Scorebug and Glass Mark with the real exporter in the
-//      mount `--mount` names, and copies them into SPX's templates folder,
+//   1. builds Hairline, Clean Quiz, House Scorebug and Glass Mark with the real exporter and
+//      copies them into SPX's templates folder,
 //   2. makes an OGRAF project and adds the packages, the custom-action handler and a rundown
 //      through SPX's own endpoints (the ones its project and template pages post),
 //   3. plays, continues, stops, saves fields, presses custom-action buttons and moves a layer
@@ -17,8 +17,9 @@
 //      (recorded on the renderer page as they happen, then replayed).
 //
 // `--renderer-css "<rules>"` adds rules to the renderer page, as a page that styles its own
-// layers would. A light package fails the layout beats under rules that reach into it; a shadow
-// package should pass them all.
+// layers would. A package should pass every beat under them: they reach the element SPX makes,
+// never the canvas in its shadow root. (Mounted in the light DOM, before the shadow root, a package
+// failed every layout beat under a letter-spacing rule.)
 //
 // SPX IS NOT VENDORED. Build 1.4.1 from its MIT source once (docs/SPX_ON_A_REAL_SERVER.md §1):
 //
@@ -27,13 +28,12 @@
 //
 // Usage (browser work - enqueue it, do not run it beside a suite; see AGENTS.md):
 //
-//   npm run queue -- "node scripts/ograf-spx-walk.mjs --spx <SPX_1_4_1_source> --mount shadow"
-//   node scripts/ograf-spx-walk.mjs --spx <dir> [--mount light|shadow] [--renderer-css <rules>]
-//     [--out <dir>] [--headed]
+//   npm run queue -- "node scripts/ograf-spx-walk.mjs --spx <SPX_1_4_1_source>"
+//   node scripts/ograf-spx-walk.mjs --spx <dir> [--renderer-css <rules>] [--out <dir>] [--headed]
 //
 // It starts SPX (port 5656, its default) and the app's dev server unless they are already up, and
-// writes into SPX only what it names: `ASSETS/templates/noacg_walk_<mount>/` and the project
-// `DATAROOT/NoaCG_Walk_<mount>/`, both replaced on every run. SPX also puts the rundown at the top
+// writes into SPX only what it names: `ASSETS/templates/noacg_walk/` and the project
+// `DATAROOT/NoaCG_Walk/`, both replaced on every run. SPX also puts the rundown at the top
 // of its `config.json` recent list.
 //
 // SPX's own gaps are recorded, not judged: Update does nothing for an OGraf item (the renderer
@@ -43,23 +43,22 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 import { GRAPHIC_BODY_SCRIPT } from '../e2e/_graphicBody.ts';
-import { ografPackages } from '../e2e/_ografMount.ts';
+import { ografFiles } from '../e2e/_ografBuild.ts';
 import { lowerThirdPng } from '../e2e/_png.ts';
 import {
-  appOrigin, designTemplate, differences, flag, has, isUp, mountArg, prepareOut, readGraphic, root, say, settledReading,
+  appOrigin, designTemplate, differences, flag, has, isUp, prepareOut, readGraphic, root, say, settledReading,
   startChild, startDevServer, stopChild, stopChildren, waitFor,
 } from './ograf-walk-common.mjs';
 
 const spxDir = resolve(flag('--spx') ?? process.env.SPX_DIR ?? '');
-const mount = mountArg();
 const rendererCss = flag('--renderer-css');
-const outDir = resolve(flag('--out') ?? join(root, 'ograf-spx-out', rendererCss ? `${mount}-renderer-css` : mount));
+const outDir = resolve(flag('--out') ?? join(root, 'ograf-spx-out', rendererCss ? 'renderer-css' : 'plain'));
 const headed = has('--headed');
 
 /** SPX's default port (`utils/spx_getconf.js`). */
 const spx = 'http://localhost:5656';
-const folder = `noacg_walk_${mount}`;
-const project = `NoaCG_Walk_${mount}`;
+const folder = 'noacg_walk';
+const project = 'NoaCG_Walk';
 const rundown = 'Walk';
 const LOGO = 'noacg_walk_logo.png';
 
@@ -103,12 +102,12 @@ let launched = null;
 
 // ── the packages, into SPX's templates folder ──────────────────────────────
 
-/** Build every design in the mount and write it where SPX's template browser would find it. */
+/** Build every design and write it where SPX's template browser would find it. */
 async function installPackages(appPage) {
   rmSync(templatesDir, { recursive: true, force: true });
   const out = {};
   for (const design of DESIGNS) {
-    const files = (await ografPackages(appPage, await designTemplate(appPage, design.id), [mount]))[mount];
+    const files = await ografFiles(appPage, await designTemplate(appPage, design.id));
     if (typeof files === 'string') throw new Error(`the ${design.id} package did not build: ${files}`);
     const dir = join(templatesDir, design.id);
     for (const [name, bytes] of files) {
@@ -120,7 +119,7 @@ async function installPackages(appPage) {
     const manifest = JSON.parse(files.get(manifestFile).toString('utf8'));
     const url = `/templates/${folder}/${design.id}`;
     out[design.key] = { dir, manifestFile, manifest, url, graphicPath: `${url}/${manifest.main}` };
-    say(`package: ${manifest.name} (${mount}) -> ASSETS/templates/${folder}/${design.id}`);
+    say(`package: ${manifest.name} -> ASSETS/templates/${folder}/${design.id}`);
   }
   // A picture in the Glass Mark's own images folder, for the file-list beat.
   mkdirSync(join(out.mark.dir, 'images'), { recursive: true });
@@ -374,7 +373,7 @@ async function main() {
     return { graphic: el?.getAttribute('data-noacg-graphic') ?? null, shadow: Boolean(el?.shadowRoot) };
   }), [2, 4, 5]);
   expect(onAir.map((g) => g.graphic).join() === [pkgs.lower, pkgs.quiz, pkgs.score].map((p) => p.manifest.id).join(), `the three are on air together on layers 2, 4 and 5 (${onAir.map((g) => g.graphic).join(', ')})`);
-  expect(onAir.every((g) => g.shadow === (mount === 'shadow')), `each graphic is in the ${mount} mount (shadow root: ${onAir.map((g) => g.shadow).join(', ')})`);
+  expect(onAir.every((g) => g.shadow), `each graphic is in its own shadow root (${onAir.map((g) => g.shadow).join(', ')})`);
   await frame(renderer, 'three-on-air');
 
   // 3. CUSTOM ACTIONS through SPX's buttons and the package's handler script.
@@ -481,9 +480,9 @@ try {
   await main();
   if (failures.length) {
     exitCode = 1;
-    console.error(`\n${failures.length} beat(s) failed (${mount} mount):`);
+    console.error(`\n${failures.length} beat(s) failed:`);
     for (const f of failures) console.error(`  - ${f}`);
-  } else say(`\nEvery judged beat passed on SPX 1.4.1 (${mount} mount).`);
+  } else say('\nEvery judged beat passed on SPX 1.4.1.');
 } catch (err) {
   exitCode = 1;
   console.error(`\nThe walk stopped: ${err instanceof Error ? err.stack : String(err)}`);

@@ -489,7 +489,7 @@ export interface OgrafLibPaths {
 }
 const DEFAULT_LIB: OgrafLibPaths = { gsap: 'lib/gsap.min.js', lottie: 'lib/lottie.min.js', flexGap: 'lib/flex-gap-shim.js' };
 
-// ── The stylesheet, re-addressed from the document to the graphic's element ──────────────────
+// ── The stylesheet, re-addressed from the document to the graphic's canvas ───────────────────
 
 /** The closing quote of the string that opens at `at` (escapes honoured); `css.length` if unclosed. */
 function closingQuote(css: string, at: number): number {
@@ -683,18 +683,19 @@ const GROUPING_AT_RULES = new Set(['media', 'supports', 'container', 'layer', 's
  * A template is written as a page: `html, body` sizes the canvas and sets the typeface every
  * heading inherits, `*` resets margins, `:root` carries the style contract. Under SPX and
  * CasparCG that is exactly right, because the template IS the document. An OGraf Graphic is a
- * component in a RENDERER's document, and its stylesheet is injected into the light DOM, so
- * those same rules restyled the host page - forced its body to 1920x1080, hid its overflow,
- * made it transparent, changed its font, zeroed every margin on it - and with two graphics on
- * two layers the last one loaded won. Same shape as the ids and the font paths before it
- * (docs/OGRAF.md): correct where the template owns the page, wrong the moment it is a
- * component. Pinned by e2e/ograf-conformance.spec.ts.
+ * component in a RENDERER's document. Injected into its light DOM, as graphic.mjs did before the
+ * shadow mount, those same rules restyled the host page - forced its body to 1920x1080, hid its
+ * overflow, made it transparent, changed its font, zeroed every margin on it - and with two
+ * graphics on two layers the last one loaded won. Inside the graphic's shadow root they match
+ * nothing at all, because `html`, `body` and `:root` are the renderer's. Same shape as the ids
+ * and the font paths before it (docs/OGRAF.md): correct where the template owns the page, wrong
+ * the moment it is a component. Pinned by e2e/ograf-conformance.spec.ts.
  *
- * So the document's elements become the graphic's element: `body`, `html` and `:root` are
- * rewritten to `self`, `*` to the element and its descendants, and every other selector is
+ * So the document's elements become the graphic's canvas: `body`, `html` and `:root` are
+ * rewritten to `self`, `*` to the canvas and its descendants, and every other selector is
  * nested under it. `self` is a `:where()` selector, which has NO specificity, so the cascade
  * inside the graphic is untouched (`p` still loses to `.x`, the reset still loses to
- * everything) and a renderer's own rule on the element still wins over the graphic's. Comments,
+ * everything). Comments,
  * strings, `@font-face`, `@keyframes` and block-less at-rules pass through verbatim; grouping
  * at-rules (`@media`, `@supports`, ...) are rewritten inside. The studio's code is untouched;
  * only what the package injects is re-addressed - the same treatment the font paths get.
@@ -734,7 +735,7 @@ export function scopeCssToGraphic(css: string, self: string): string {
   return out;
 }
 
-/** The selector a package's stylesheet is scoped under: this design's element, at zero specificity. */
+/** The selector a package's stylesheet is scoped under: this design's canvas, at zero specificity. */
 export function graphicSelfSelector(template: SpxTemplate): string {
   return `:where([data-noacg-graphic="${ografGraphicId(template.name)}"])`;
 }
@@ -854,18 +855,14 @@ function scopeChecked(css: string, self: string): string {
   return assertScopedCss(css, scopeCssToGraphic(css, self), self);
 }
 
-/** How graphic.mjs mounts the design in the renderer's element: as the element's own children, or
- *  in an open shadow root on it (docs/work-specs/ograf-shadow-root/spec.md). */
-export type OgrafMount = 'light' | 'shadow';
-
 /** The at-rules Chromium applies only from the document's own stylesheets, never from a shadow tree's. */
 const DOCUMENT_AT_RULES = new Set(['font-face', 'property']);
 
 /**
  * A stylesheet split in two: its `@font-face` and `@property` rules, and everything else. Inside a
  * shadow tree Chromium ignores both (measured: the face never registers and the text airs in the
- * fallback, the property keeps no initial value), so a shadow-mounted graphic hands them to the
- * renderer's `<head>`. A rule inside a grouping at-rule (`@supports`, `@media`) is lifted with its
+ * fallback, the property keeps no initial value), so graphic.mjs hands them to the renderer's
+ * `<head>`. A rule inside a grouping at-rule (`@supports`, `@media`) is lifted with its
  * group around it; comments and the rest of the sheet stay where they were.
  */
 function liftDocumentRules(css: string): { css: string; lifted: string } {
@@ -935,31 +932,34 @@ function assertLifted(original: string, split: { css: string; lifted: string }):
   }
   const [before, kept, lifted] = [original, split.css, split.lifted].map(ruleKinds);
   if (kept.document || lifted.other || lifted.document !== before.document || kept.other !== before.other) {
-    throw new Error(`OGraf export: lifting @font-face and @property for the shadow mount changed the stylesheet (${JSON.stringify({ before, kept, lifted })}).`);
+    throw new Error(`OGraf export: lifting @font-face and @property out of the shadow tree changed the stylesheet (${JSON.stringify({ before, kept, lifted })}).`);
   }
   return split;
 }
 
 /**
  * The design's markup and stylesheet as graphic.mjs injects them, every document-wide carrier
- * kept to the graphic's own element.
+ * kept to the graphic's own canvas.
  *
  * The stylesheet is re-addressed and checked (`scopeCssToGraphic`, `assertScopedCss`), and the
  * MARKUP's own carriers get the same treatment. An imported SVG carries the artwork's own `<style>` inside the inline `<svg>`, with
  * Illustrator's shared class names (`.st0`, `.cls-1`) and ids, and a hand-written template may
- * carry a `<style>` in its body. In a renderer's light DOM every such sheet and id is
- * document-wide wherever it sits, so two imported designs on two layers recoloured or hid each
- * other's shapes (issue #789). So the referenced ids become this design's own
- * (`isolateMarkupIds`), and every `<style>` is re-addressed to the element and checked exactly as
- * the template's stylesheet is. The markup is PARSED for this, the way the renderer parses it,
- * so a sheet's entities, CDATA and comments and a self-closing `<style/>` in SVG mean what they
- * mean on air. Markup with neither a style nor a renamed id comes back byte for byte.
+ * carry a `<style>` in its body. In a renderer's light DOM, where graphic.mjs mounted the design
+ * before the shadow root, every such sheet and id was document-wide wherever it sat, so two
+ * imported designs on two layers recoloured or hid each other's shapes (issue #789). So the
+ * referenced ids become this design's own (`isolateMarkupIds`), and every `<style>` is
+ * re-addressed to the canvas and checked exactly as the template's stylesheet is. Inside the
+ * shadow root both are tree-scoped already, so the two rewrites are redundant there but harmless,
+ * and dropping them is a separate simplification. The markup is PARSED for this, the way the
+ * renderer parses it, so a sheet's entities, CDATA and comments and a self-closing `<style/>` in
+ * SVG mean what they mean on air. Markup with neither a style nor a renamed id comes back byte
+ * for byte.
  *
- * In the shadow mount the `@font-face` and `@property` rules of the stylesheet and of every markup
- * `<style>`, in document order, come back on their own as `head` (`liftDocumentRules`); in the
- * light mount `head` is empty and the rules stay where they are.
+ * The `@font-face` and `@property` rules of the stylesheet and of every markup `<style>`, in
+ * document order, come back on their own as `head` (`liftDocumentRules`): a shadow tree applies
+ * neither.
  */
-export function graphicSources(template: SpxTemplate, mount: OgrafMount = 'light'): { html: string; css: string; head: string } {
+export function graphicSources(template: SpxTemplate): { html: string; css: string; head: string } {
   const self = graphicSelfSelector(template);
   const markup = bodyContent(templateHtmlForModule(template));
   const holder = document.createElement('template');
@@ -967,7 +967,6 @@ export function graphicSources(template: SpxTemplate, mount: OgrafMount = 'light
   const renames = isolateMarkupIds(holder.content, template, ografGraphicId(template.name));
   const head: string[] = [];
   const lift = (css: string) => {
-    if (mount === 'light') return css;
     const split = assertLifted(css, liftDocumentRules(css));
     if (split.lifted) head.push(split.lifted);
     return split.css;
@@ -1044,8 +1043,7 @@ function timelineFunctionNames(template: SpxTemplate): string[] {
 }
 
 /** graphic.mjs: a readable Web Component wrapping the template's own runtime. */
-function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB, mount: OgrafMount = 'light'): string {
-  const shadow = mount === 'shadow';
+function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB): string {
   const stepCount = Math.max(1, Number(template.settings.steps) || 1);
   const machine = parseAnimData(template.js)?.machine;
   const timelineNames = timelineFunctionNames(template);
@@ -1062,9 +1060,9 @@ function graphicModule(template: SpxTemplate, lib: OgrafLibPaths = DEFAULT_LIB, 
   const actionIds = customActions(template).map((a) => a.id as string);
   const graphicId = ografGraphicId(template.name);
   const self = graphicSelfSelector(template);
-  // The markup and stylesheet, re-addressed to the element and checked by the browser's parser -
+  // The markup and stylesheet, re-addressed to the canvas and checked by the browser's parser -
   // the export refuses rather than ship a rule that would reach the renderer's page.
-  const sources = graphicSources(template, mount);
+  const sources = graphicSources(template);
   const usesLottie = templateUsesLottie(template);
   const ensureLottieFn = usesLottie
     ? `
@@ -1122,62 +1120,51 @@ function ensureFlexGap() {
 
 const TEMPLATE_HTML = ${JSON.stringify(sources.html)};
 
-// This design's manifest id, stamped on the element at load() as data-noacg-graphic. Every
-// rule in TEMPLATE_CSS is scoped under that attribute (the studio's \`html, body\` and \`:root\`
-// ARE this element), so a Graphic never restyles the renderer's page it is a component of.
+// This design's manifest id, stamped at load() as data-noacg-graphic on the element and on the
+// canvas inside its shadow root. Every rule in TEMPLATE_CSS is scoped under that attribute (the
+// studio's \`html, body\` and \`:root\` ARE the canvas), so the design lays out against its own
+// canvas, and the renderer's page, which no rule inside a shadow tree reaches anyway, stays as it was.
 const GRAPHIC_ID = ${JSON.stringify(graphicId)};
 
-${
-    shadow
-      ? `// The canvas is the element in the shadow root that carries the attribute (see _claimCanvas):
+// The canvas is the element in the shadow root that carries the attribute (see _claimCanvas):
 // the box the template's \`html, body\` rule describes, made a block (all: initial makes it
 // display:inline, where width and height do nothing) and the containing block its design
-// positions against, clipped like the page it was authored on.`
-      : `// The element IS the canvas: the box the template's \`html, body\` rule describes, made a block
-// (a custom element is display:inline by default, where width and height do nothing) and the
-// containing block its design positions against, clipped like the page it was authored on.`
-  }
+// positions against, clipped like the page it was authored on.
 // Injected ahead of the template's own rules, which then re-state the canvas exactly as the
-// non-real-time document's <head> does for its own body - and at zero specificity, so a
-// renderer that sizes its layers itself overrides it with any rule of its own.
+// non-real-time document's <head> does for its own body, at zero specificity.
 // The same box also keeps the RENDERER's page out of the graphic. The template was authored as
-// a whole document, whose root inherits nothing; here it inherits the host's text settings, and
-// SPX's renderer sets \`body, html { font-size: 3em }\` and \`* { box-sizing: border-box;
-// overflow: hidden; margin: 0; padding: 0 }\`, which grew a scorebug's bar to four times its
-// height (docs/SPX_ON_A_REAL_SERVER.md §3). So the element starts from every property's initial
-// value, as a document root does, except the three a renderer uses to hide or disable a whole
-// layer; and its descendants get back the browser's own box model and overflow wherever a
-// zero-specificity host rule took them. Outside SVG only, for overflow: an SVG element's
-// \`overflow\` attribute is author-level and \`revert\` would discard it. Any rule of the
-// template's own comes later or weighs more, so it still wins.
+// a whole document, whose root inherits nothing; here the canvas would inherit the host's text
+// settings through the element, and SPX's renderer sets \`body, html { font-size: 3em }\`, which
+// grew a scorebug's bar to four times its height (docs/SPX_ON_A_REAL_SERVER.md §3). So the canvas
+// starts from every property's initial value, as a document root does, except the three a
+// renderer uses to hide or disable a whole layer; and its descendants keep the browser's own box
+// model and overflow wherever a zero-specificity rule would take them. Outside SVG only, for
+// overflow: an SVG element's \`overflow\` attribute is author-level and \`revert\` would discard
+// it. Any rule of the template's own comes later or weighs more, so it still wins.
 const GRAPHIC_BOX_CSS = ${JSON.stringify(
     `${self} { all: initial; visibility: inherit; pointer-events: inherit; cursor: inherit; display: block; position: relative; width: ${template.resolution.width}px; height: ${template.resolution.height}px; overflow: hidden; }\n` +
       `${self} :where(*) { box-sizing: revert; margin: revert; padding: revert; }\n` +
       `${self} :where(:not(svg, svg *)) { overflow: revert; }`,
   )};
-${
-    shadow
-      ? `
+
 // The element itself, seen from inside its shadow root: a block of the authored size, the
 // containing block, clipped. Any rule of the renderer's own on the element beats this one whatever
 // its specificity, a universal reset included, so a renderer that sizes or hides its layers still
 // does; nothing of the renderer's reaches the canvas inside but what the canvas inherits, and it
 // starts from initial values.
 const HOST_CSS = ${JSON.stringify(
-          `:host { display: block; position: relative; width: ${template.resolution.width}px; height: ${template.resolution.height}px; overflow: hidden; }`,
-        )};
+    `:host { display: block; position: relative; width: ${template.resolution.width}px; height: ${template.resolution.height}px; overflow: hidden; }`,
+  )};
 
 // The design's @font-face and @property rules, lifted at export out of the stylesheet and the
 // markup's own <style> blocks: Chromium applies neither from inside a shadow tree. They go in the
 // renderer's <head>, in one <style data-noacg-fonts>, put there by the first copy of this design
-// to load and taken out with the last copy to be disposed - the span over which they were
-// document-wide in the light DOM too. The module is one per design, so its count is the design's.
+// to load and taken out with the last copy to be disposed. The module is one per design, so its
+// count is the design's.
 const HEAD_CSS = ${JSON.stringify(sources.head)};
 let headStyle = null;
 let headHolders = 0;
-`
-      : ''
-  }
+
 const TEMPLATE_CSS = ${JSON.stringify(sources.css)};
 
 // The package's own base URL. A Graphic is a COMPONENT inside the renderer's page, not the
@@ -1253,15 +1240,13 @@ const MAIN_PATH = ${JSON.stringify(mainPath)};
  *
  * The template's code is still what the editor shows: only the \`document\` it sees is scoped,
  * by being a parameter of the function its body runs in. Lookups resolve inside this Graphic,
- * and its \`body\` and \`documentElement\` ARE this Graphic's canvas (the element itself in the
- * light mount) - where the stylesheet's canvas box and \`:root\` variables now live, so a
- * template that measures \`body.clientWidth\`
+ * and its \`body\` and \`documentElement\` ARE this Graphic's canvas - where the stylesheet's
+ * canvas box and \`:root\` variables now live, so a template that measures \`body.clientWidth\`
  * or reads \`--scale\` off the root element gets its own canvas and its own contract, not the
  * renderer's page (and a measuring probe it appends to \`body\` lands inside the graphic, in
  * the graphic's font). Its \`head\` is where the template's own document-level additions go: the
- * renderer's <head> in the light mount, where they were document-wide already, and the shadow
- * root in the shadow mount, so a <style> the template appends there styles its own tree, as it
- * styled its own page under SPX. Everything else on document (readyState, addEventListener,
+ * shadow root, so a <style> the template appends there styles its own tree, as it styled its own
+ * page under SPX. Everything else on document (readyState, addEventListener,
  * fonts, createElement) passes straight through to the real one. Which is which is not a
  * hand-kept list: scripts/ograf-document-members.test.mjs reads every member the template
  * runtimes use and fails on one that is neither scoped here nor decided as a pass-through there.
@@ -1462,7 +1447,8 @@ class Graphic extends HTMLElement {
     this._schedule = [];
     this._step = -1;
     this._disposed = false;
-    this._made = null;${shadow ? '\n    this._holdsHead = false;' : ''}
+    this._made = null;
+    this._holdsHead = false;
   }
 
   // Queue one action and report its outcome as a ReturnPayload. A thrown error becomes a 500
@@ -1522,9 +1508,7 @@ class Graphic extends HTMLElement {
     });
   }
 
-${
-    shadow
-      ? `  // The element hosts the canvas. It is stamped with the attribute, and its open shadow root -
+  // The element hosts the canvas. It is stamped with the attribute, and its open shadow root -
   // attached by the first load() and reused by every later one - gets ONE stylesheet, holding the
   // element's box and the canvas box the design lays out against followed by whatever the caller
   // injects, then ONE canvas element carrying the same attribute, which every scoped rule keys
@@ -1567,26 +1551,9 @@ ${
       headStyle.remove();
       headStyle = null;
     }
-  }`
-      : `  // The element becomes the canvas: the attribute every scoped rule keys on, and ONE stylesheet
-  // holding the box the design lays out against followed by whatever the caller injects. Both
-  // mount paths (real-time and non-real-time) claim it the same way, so neither can drift.
-  // Returns the canvas, which is this element.
-  _claimCanvas(css) {
-    this.setAttribute('data-noacg-graphic', GRAPHIC_ID);
-    const style = document.createElement('style');
-    style.textContent = GRAPHIC_BOX_CSS + (css ? '\\n' + css : '');
-    this.appendChild(style);
-    return this;
   }
 
-  // Everything this Graphic put on the page: its own children.
-  _tree() {
-    return this;
-  }`
-  }
-
-${shadow ? `  // Inject the template's style + markup into this element's shadow root (the template's own
+  // Inject the template's style + markup into this element's shadow root (the template's own
   // getElementById lookups keep working exactly as in SPX, through the scoped document). The
   // stylesheet is scoped to the attribute _claimCanvas() stamps, and the canvas is the page it was
   // authored for. The markup becomes the canvas's own children, as it was the body's, with no
@@ -1597,18 +1564,7 @@ ${shadow ? `  // Inject the template's style + markup into this element's shadow
     this._holdHeadCss();
     canvas.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
     return { canvas, doc: scopedDocument(canvas, this.shadowRoot) };
-  }` : `  // Inject the template's style + markup into this element (light DOM: the template's own
-  // getElementById lookups keep working exactly as in SPX). The stylesheet is scoped to the
-  // attribute _claimCanvas() stamps, and the element is the canvas it was authored for. The markup
-  // becomes the element's own children, as it was the body's: the stylesheet is the first child and
-  // the design's elements follow it, with no wrapper, so a \`body > .x\` rule and a read of
-  // \`document.body.children\` find the design's top-level elements. Returns the canvas and the
-  // template's scoped document.
-  _mountTemplate() {
-    const canvas = this._claimCanvas(withPackageUrls.css(TEMPLATE_CSS));
-    canvas.insertAdjacentHTML('beforeend', withPackageUrls.html(TEMPLATE_HTML));
-    return { canvas, doc: scopedDocument(canvas, document.head) };
-  }`}
+  }
 
   async _load(params) {
     if (this._runtime || this._frame) await this._dispose();
@@ -1654,7 +1610,8 @@ ${shadow ? `  // Inject the template's style + markup into this element's shadow
     }
     if (this._frame) { this._frame.remove(); this._frame = null; }
     if (tree) tree.innerHTML = '';
-    this.removeAttribute('data-noacg-graphic');${shadow ? '\n    this._releaseHeadCss();' : ''}
+    this.removeAttribute('data-noacg-graphic');
+    this._releaseHeadCss();
     this._made = null;
     this._runtime = null;
     this._schedule = [];
@@ -1857,10 +1814,6 @@ export interface OgrafPackageOptions {
   /** A preview raster to ship as the manifest's `thumbnails[0]` - the bridge's bench shot.
    *  `data` is the image bytes (a Blob, raw bytes, or a base64 string). */
   thumbnail?: { file: string; data: Blob | Uint8Array | string; width: number; height: number };
-  /** How graphic.mjs mounts the design: 'light' (the default) or 'shadow'. Internal, and set only
-   *  by the specs and the renderer walks until the shadow mount becomes the only one
-   *  (docs/work-specs/ograf-shadow-root/spec.md, decision 4); no UI, CLI flag or manifest field. */
-  mount?: OgrafMount;
 }
 
 export async function addOgrafPackage(
@@ -1894,7 +1847,7 @@ export async function addOgrafPackage(
   };
 
   write(`${slug(template.name)}.ograf.json`, JSON.stringify(manifest, null, 2));
-  write('graphic.mjs', graphicModule(template, lib, opts.mount));
+  write('graphic.mjs', graphicModule(template, lib));
   // The ID table travels with every package (LiveOS inherits it here too): an OGraf host's
   // data keys ARE these field ids, and only the package can say what each one means.
   write(

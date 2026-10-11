@@ -20,10 +20,8 @@
 //      and requires each to keep its own data and drawn states while the other plays, acts and
 //      is cleared.
 //
-// IN EITHER MOUNT. `--mount light` (the default) downloads from the export window; `--mount
-// shadow` builds the same graphic in the app page with the shadow-root mount, which the export
-// window does not offer until the flip (docs/work-specs/ograf-shadow-root/spec.md, AC-9). Every read
-// inside a mounted graphic goes through `graphicBody`, so the beats are the same in both.
+// Every read inside a mounted graphic goes through `graphicBody`: the canvas in the graphic's shadow
+// root (docs/work-specs/ograf-shadow-root/spec.md, AC-9).
 //
 // WHY THE PACKAGE IS BUILT THROUGH THE APP rather than by calling `ografTarget.build()` in a
 // bundle the way scripts/ograf-starters-emit.mjs does: the SVG import road is the wizard. The
@@ -42,8 +40,8 @@
 //
 // Usage (browser work - enqueue it, do not run it beside a suite; see AGENTS.md):
 //
-//   npm run queue -- "node scripts/ograf-external-walk.mjs --server <ograf-server-main> --mount shadow"
-//   node scripts/ograf-external-walk.mjs --server <dir> [--mount light|shadow] [--out <dir>] [--sample <file>] [--headed]
+//   npm run queue -- "node scripts/ograf-external-walk.mjs --server <ograf-server-main>"
+//   node scripts/ograf-external-walk.mjs --server <dir> [--out <dir>] [--sample <file>] [--headed]
 //
 // Exit 1 if any beat fails. A failure here is a NoaCG defect until the transcript says
 // otherwise - the platform owns OGraf compatibility.
@@ -51,15 +49,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { chromium } from '@playwright/test';
 import { GRAPHIC_BODY_SCRIPT } from '../e2e/_graphicBody.ts';
-import { shadowOgraf } from '../e2e/_ografMount.ts';
 import {
-  appOrigin, designTemplate, differences, flag, has, isUp, mountArg, ografZip, prepareOut, root, say, settledReading,
+  appOrigin, designTemplate, differences, flag, has, isUp, packageZip, prepareOut, root, say, settledReading,
   startChild, startDevServer, stopChild, stopChildren, waitFor,
 } from './ograf-walk-common.mjs';
 
 const serverDir = resolve(flag('--server') ?? process.env.OGRAF_SERVER_DIR ?? '');
-const mount = mountArg();
-const outDir = resolve(flag('--out') ?? join(root, 'ograf-external-out', mount));
+const outDir = resolve(flag('--out') ?? join(root, 'ograf-external-out'));
 const sample = resolve(flag('--sample') ?? join(root, 'docs', 'svg-samples', 'quiz-board.svg'));
 const headed = has('--headed');
 
@@ -112,9 +108,7 @@ async function startOgrafServer() {
  * "Export it" door, and export OGraf from the export window. Returns the zip's path.
  *
  * Nothing here reaches past the UI: the walk is only worth anything if the package is the one a
- * student would get by clicking the same buttons. The one exception is the shadow mount, which
- * the export window does not offer yet: that package is the same graphic built in the page by the
- * same exporter, told the mount (`shadowOgraf`, e2e/_ografMount.ts).
+ * student would get by clicking the same buttons.
  */
 async function exportOgrafPackage(page) {
   say(`app: dropping ${sample.replace(root + '\\', '').replace(root + '/', '')} on the Import door`);
@@ -148,27 +142,21 @@ async function exportOgrafPackage(page) {
   await page.getByTestId('export-window').waitFor({ state: 'visible', timeout: 60_000 });
 
   const zipPath = join(outDir, 'imported-quiz-ograf.zip');
-  if (mount === 'shadow') {
-    say('app: the shadow package, built in the page from the same graphic (the export window has no mount)');
-    const zip = await shadowOgraf(page, 'Live');
-    writeFileSync(zipPath, await zip.generateAsync({ type: 'nodebuffer' }));
-  } else {
-    say('app: OGraf (EBU) export -> Validate & download');
-    await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
-    const [download] = await Promise.all([
-      page.waitForEvent('download', { timeout: 60_000 }),
-      page.getByRole('button', { name: /Validate & download/ }).click(),
-    ]);
-    await download.saveAs(zipPath);
-  }
+  say('app: OGraf (EBU) export -> Validate & download');
+  await page.locator('.issue', { hasText: 'OGraf (EBU) export' }).click();
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 60_000 }),
+    page.getByRole('button', { name: /Validate & download/ }).click(),
+  ]);
+  await download.saveAs(zipPath);
   say(`app: package written to ${zipPath}`);
   return zipPath;
 }
 
-/** A second, different design for the two-designs beat: the catalog's Hairline, in the mount. */
+/** A second, different design for the two-designs beat: the catalog's Hairline. */
 async function hairlinePackage(page) {
   const zipPath = join(outDir, 'hairline-ograf.zip');
-  writeFileSync(zipPath, await ografZip(page, await designTemplate(page, 'lt01'), mount));
+  writeFileSync(zipPath, await packageZip(page, await designTemplate(page, 'lt01')));
   say(`app: Hairline package written to ${zipPath}`);
   return zipPath;
 }
@@ -253,7 +241,7 @@ const litOn = (host) =>
  * The NoaCG Graphic on the renderer's layer `layer`, or null. The renderer names its element
  * after the graphic id (`ograf-<id>`, `getCustomElementName` in renderer-layer's GraphicsCache.ts),
  * so this does not guess a tag: our Graphic stamps its element `data-noacg-graphic` while it is
- * loaded, in either mount, and each layer is a fixed div whose z-index is its number.
+ * loaded, and each layer is a fixed div whose z-index is its number.
  */
 const onLayer = (page, layer) =>
   page.evaluateHandle((z) => [...document.querySelectorAll('[data-noacg-graphic]')].find((el) => el.parentElement?.style.zIndex === String(z)) ?? null, layer);
@@ -391,7 +379,7 @@ async function main() {
   expect(load.status === 200 && load.payload?.statusCode === 200, `load answered ${load.status}/${load.payload?.statusCode}`);
   const graphicInstanceId = load.payload?.graphicInstanceId;
   const shadowed = await (await onLayer(rendererPage, firstLayer)).evaluate((host) => (host ? Boolean(host.shadowRoot) : null));
-  expect(shadowed === (mount === 'shadow'), `the graphic is in the ${mount} mount (shadow root: ${shadowed})`);
+  expect(shadowed === true, `the graphic is in its own shadow root (shadow root: ${shadowed})`);
   await frame(rendererPage, 'loaded', firstLayer);
 
   const play = await api('playAction', 'POST', `${target}/playAction`, { renderTarget, graphicInstanceId, params: {} });

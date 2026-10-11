@@ -278,3 +278,17 @@
 .ef-layer-cell .ef-layer { padding-inline: 5px; gap: 7px; }
 .ef-layer-number, .ef-layer-icon { flex-shrink: 0; }
 .ef-document-strip .ef-document-tab { display: block; max-width: 30%; min-width: 0; }
+
+/* Short desktop windows include 1366x768 at native 125% browser zoom.
+   Keep Properties full-width; tracks scroll inside the compact timeline. */
+@media (min-width: 901px) and (max-height: 600px) {
+  .ef-shell, .ef-shell.ef-group-open { grid-template-rows: 40px 32px minmax(170px, 1fr) 180px 24px; }
+  .ef-header { padding-block: 4px; }
+  .ef-document-strip { padding-block: 2px; }
+  .ef-timeline { min-height: 180px; }
+  .ef-canvas { grid-template-rows: 38px auto minmax(0, 1fr); }
+  .ef-canvas > .ef-caption { display: none; }
+  .ef-arrangement { padding: 2px 6px; overflow-x: auto; }
+  .ef-arrangement-row { flex-wrap: nowrap; width: max-content; min-width: 100%; gap: 4px 8px; }
+  .ef-group-controls { flex-wrap: nowrap; }
+}

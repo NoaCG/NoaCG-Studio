@@ -1,0 +1,82 @@
+{
+  "zoom": 1.25,
+  "finalZoom": 1.25,
+  "before": {
+    "innerWidth": 1093,
+    "innerHeight": 545,
+    "outerWidth": 1366,
+    "outerHeight": 768,
+    "devicePixelRatio": 1.25,
+    "visualScale": 1,
+    "html": {
+      "client": 1093,
+      "scroll": 1093
+    },
+    "controls": {
+      ".dock-workspace": {
+        "x": 0,
+        "y": 40,
+        "width": 1092.800048828125,
+        "height": 504.8000183105469
+      },
+      ".canvas-stage-viewport": {
+        "x": 383.8000183105469,
+        "y": 149.60000610351562,
+        "width": 405.20001220703125,
+        "height": 171.40000915527344
+      },
+      ".dock-region-bottom": {
+        "x": 0,
+        "y": 324.8000183105469,
+        "width": 1092.800048828125,
+        "height": 220
+      },
+      ".dock-region-right": {
+        "x": 792.7999877929688,
+        "y": 40,
+        "width": 300,
+        "height": 281.8000183105469
+      }
+    }
+  },
+  "after": {
+    "innerWidth": 1093,
+    "innerHeight": 545,
+    "outerWidth": 1366,
+    "outerHeight": 768,
+    "devicePixelRatio": 1.25,
+    "visualScale": 1,
+    "html": {
+      "client": 1093,
+      "scroll": 1093
+    },
+    "controls": {
+      ".dock-workspace": {
+        "x": 0,
+        "y": 40,
+        "width": 1092.800048828125,
+        "height": 504.8000183105469
+      },
+      ".canvas-stage-viewport": {
+        "x": 383.8000183105469,
+        "y": 149.60000610351562,
+        "width": 405.20001220703125,
+        "height": 211.40000915527344
+      },
+      ".dock-region-bottom": {
+        "x": 0,
+        "y": 364.8000183105469,
+        "width": 1092.800048828125,
+        "height": 180
+      },
+      ".dock-region-right": {
+        "x": 792.7999877929688,
+        "y": 40,
+        "width": 300,
+        "height": 321.8000183105469
+      }
+    }
+  },
+  "sourceCompositionsUnchanged": true,
+  "errors": []
+}

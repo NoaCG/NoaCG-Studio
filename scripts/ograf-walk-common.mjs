@@ -1,11 +1,10 @@
 // WHAT THE TWO OGRAF RENDERER WALKS SHARE.
 //
 // scripts/ograf-external-walk.mjs drives a NoaCG package in SuperFly.tv's ograf-server and
-// scripts/ograf-spx-walk.mjs drives packages in SPX 1.4.1. Each runs in one mount, light or
-// shadow (`--mount`, docs/work-specs/ograf-shadow-root/spec.md, phase 3): the packages are built
-// in the app page by the real exporter with that mount (`ografZips`, e2e/_ografMount.ts), and
-// every read inside a mounted graphic goes through `graphicBody` (e2e/_graphicBody.ts), so one
-// walk proves both mounts.
+// scripts/ograf-spx-walk.mjs drives packages in SPX 1.4.1. Packages the walk does not download
+// through the export window are built in the app page by the real exporter (`ografZip`,
+// e2e/_ografBuild.ts), and every read inside a mounted graphic goes through `graphicBody`
+// (e2e/_graphicBody.ts), the canvas in the graphic's shadow root.
 //
 // What lives here is plumbing: arguments, the app's dev server, the children a walk starts, the
 // output directory, a package as zip bytes, and a reading of a mounted graphic to compare.
@@ -14,7 +13,7 @@ import { mkdirSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { devPort } from './dev-port.mjs';
-import { graphicTemplate, installOgrafZips } from '../e2e/_ografMount.ts';
+import { graphicTemplate, ografZipBase64 } from '../e2e/_ografBuild.ts';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const appOrigin = `http://localhost:${devPort()}`;
@@ -26,16 +25,6 @@ export const flag = (name) => {
   return i !== -1 && args[i + 1] ? args[i + 1] : null;
 };
 export const has = (name) => args.includes(name);
-
-/** `--mount light|shadow`, light when absent; anything else stops the walk before it starts. */
-export function mountArg() {
-  const mount = flag('--mount') ?? 'light';
-  if (mount !== 'light' && mount !== 'shadow') {
-    console.error(`--mount is light or shadow (got ${mount})`);
-    process.exit(2);
-  }
-  return mount;
-}
 
 export function say(line) {
   console.log(line);
@@ -141,17 +130,11 @@ export async function startDevServer() {
 export const designTemplate = (appPage, id) => graphicTemplate(appPage, { kind: 'design', id });
 
 /**
- * `template`'s OGraf package in `mount` as zip bytes, laid out as the export dialog's download is
- * (`<slug>/...`): the target's own build, and for a shadow package the same zip written again by
- * the target's own writer told the mount.
+ * `template`'s OGraf package as zip bytes, laid out as the export dialog's download is
+ * (`<slug>/...`): the target's own build.
  */
-/* global ografZips -- the app page's, from installOgrafZips */
-export async function ografZip(appPage, template, mount) {
-  await installOgrafZips(appPage);
-  const zips = await appPage.evaluate(({ template, mount }) => ografZips(template, { mounts: [mount] }), { template, mount });
-  const zip = zips[mount];
-  if (!zip || !('b64' in zip)) throw new Error(`the ${mount} package of "${template?.name}" did not build: ${zip?.error}`);
-  return Buffer.from(zip.b64, 'base64');
+export async function packageZip(appPage, template) {
+  return Buffer.from(await ografZipBase64(appPage, template), 'base64');
 }
 
 // ── reading a mounted graphic ───────────────────────────────────────────────

@@ -59,14 +59,16 @@ graphic's own design.
 
 Open \`graphic.mjs\` and find the embedded CSS (\`TEMPLATE_CSS\`). The design reads its colors,
 type and spacing from CSS custom properties declared in one rule (the studio's \`:root\` block,
-re-addressed to the graphic's own element so it cannot restyle the renderer's page).
+re-addressed to the graphic's own canvas so it cannot restyle the renderer's page).
 Restyle by changing those values, not by hunting through rules${rootVars.length ? `. This graphic's knobs include:
 
 ${rootVars.map((v) => `- \`${v}\``).join('\n')}` : '.'}
 
-Fonts ship in \`fonts/\` with their licences beside them in \`fonts/FONT_LICENSES.md\`; \`@font-face\` rules in
-the CSS point at them relatively, so a swapped font file is picked up as long as the name
-matches.
+Fonts ship in \`fonts/\` with their licences beside them in \`fonts/FONT_LICENSES.md\`. Their
+\`@font-face\` rules are not in \`TEMPLATE_CSS\` but in \`HEAD_CSS\`, which the graphic adds to the
+renderer's page while it is loaded: a browser registers no font from inside the graphic's own
+shadow root. They point at the files relatively, so a swapped font file is picked up as long as
+the name matches.
 
 ## Change the motion
 

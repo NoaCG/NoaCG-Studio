@@ -39,7 +39,7 @@ const RUNTIME_SOURCES = ['src/templates/**/*.ts', 'src/blocks/**/*.ts'];
 const PASS_THROUGH = {
   readyState: "the page's loading state; a graphic is initialised after the renderer's page has loaded, so its DOM-ready wait runs at once",
   addEventListener: "only DOMContentLoaded is listened for, which has already fired; a graphic owns no document-level events",
-  fonts: "the page's font set, which is where a graphic's @font-face rules register: from its own stylesheet in the light mount, and lifted into the renderer's <head> in the shadow mount, because a shadow tree registers none; `fonts.ready` waits for the graphic's faces as well",
+  fonts: "the page's font set, which is where a graphic's @font-face rules register: lifted out of its shadow tree into the renderer's <head>, because a shadow tree registers none; `fonts.ready` waits for the graphic's faces as well",
   createElement: 'makes a detached node; the template appends it inside its own canvas',
   createElementNS: 'makes a detached SVG node; the template appends it inside its own canvas',
   createRange: 'makes a detached range the text fit measures one of its own elements with',
@@ -96,8 +96,8 @@ const { members, escapes, events } = readMembers();
 measured(members.size, 'document members the template runtimes read');
 
 test('scopedDocument scopes the lookups, the canvas and the head', () => {
-  // `head` is where a template's own document-level additions go: the shadow root in the shadow
-  // mount, so a <style> it appends styles its own tree and not the renderer's page.
+  // `head` is where a template's own document-level additions go: the graphic's shadow root, so a
+  // <style> it appends styles its own tree and not the renderer's page.
   for (const member of ['getElementById', 'querySelector', 'querySelectorAll', 'body', 'documentElement', 'head']) {
     assert.ok(scoped.has(member), `scopedDocument no longer scopes document.${member}`);
   }

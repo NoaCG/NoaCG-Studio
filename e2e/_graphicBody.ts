@@ -1,12 +1,12 @@
 // HOW A SPEC OR A WALK READS INSIDE A MOUNTED NOACG OGRAF GRAPHIC.
 //
 // An exported Graphic runs its template with a `document` whose `body` is the template's canvas
-// (`scopedDocument` in src/export/targets/ograf.ts). In the light mount that is the element
-// itself; in a shadow mount it is the canvas element in the element's shadow root, which
-// `document.querySelector` and `el.querySelector` do not reach. Reading through `graphicBody(el)`
-// keeps every reader working in either mount (docs/work-specs/ograf-shadow-root/spec.md, decision
-// 7): markup lookups, attributes the template sets on its body, and the canvas box all answer
-// there. A read of the graphic's own stylesheet uses `el.shadowRoot ?? el` instead.
+// (`scopedDocument` in src/export/targets/ograf.ts): the canvas element in the element's shadow
+// root, which `document.querySelector` and `el.querySelector` do not reach. Markup lookups,
+// attributes the template sets on its body, and the canvas box all answer at `graphicBody(el)`
+// (docs/work-specs/ograf-shadow-root/spec.md, decision 7). A read of the graphic's own stylesheet
+// goes to `el.shadowRoot`. A package exported before the shadow root has no shadow root, and
+// `graphicBody` answers its element.
 //
 // Page JS cannot import, so the function is a page global. scripts/ograf-external-walk.mjs
 // installs the same script with `addInitScript`.

@@ -1,0 +1,74 @@
+[
+  {
+    "path": "apps/editor/src/layout/AppShell.tsx",
+    "pinSha256": "aed89e9c6f18386bfa8ca2821162352a11e2da26bcfaec6ede3f2ed8b5a67c2b",
+    "releaseSha256": "aed89e9c6f18386bfa8ca2821162352a11e2da26bcfaec6ede3f2ed8b5a67c2b",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/AppShell.css",
+    "pinSha256": "613faec1b70d43015e920fc85fd443e36960ec4f9cbd78480bc5528f3cd6dbc7",
+    "releaseSha256": "613faec1b70d43015e920fc85fd443e36960ec4f9cbd78480bc5528f3cd6dbc7",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/DockWorkspace.tsx",
+    "pinSha256": "de0c68005872acf8dda0a6c1416020b7d62b3bebed7a04dad84720c4d262fb5f",
+    "releaseSha256": "de0c68005872acf8dda0a6c1416020b7d62b3bebed7a04dad84720c4d262fb5f",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/DockWorkspace.css",
+    "pinSha256": "274cde0e4c0bd75c3455658c9d67a27990eba27ce48e3a3fd009eb0f5d7010ef",
+    "releaseSha256": "274cde0e4c0bd75c3455658c9d67a27990eba27ce48e3a3fd009eb0f5d7010ef",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/ResizeHandle.tsx",
+    "pinSha256": "68816a350e909c312221d3d3fd26f6f605f5c20076e99499921a1941b6bbfdca",
+    "releaseSha256": "68816a350e909c312221d3d3fd26f6f605f5c20076e99499921a1941b6bbfdca",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/ResizeHandle.css",
+    "pinSha256": "52872ff443e9c1782cfb51343bfd7a94cf417835e751c5b92fd5aaad5b4c6c8a",
+    "releaseSha256": "52872ff443e9c1782cfb51343bfd7a94cf417835e751c5b92fd5aaad5b4c6c8a",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/useResizable.ts",
+    "pinSha256": "981e172d27b217e8f0312c2c0e21ea368f0d211bef2d6441ac713064c7030283",
+    "releaseSha256": "981e172d27b217e8f0312c2c0e21ea368f0d211bef2d6441ac713064c7030283",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/dockModel.ts",
+    "pinSha256": "0cc145a0240007d0c638a2ce79a790b457ebfe40b2cd6af4b38ba6998e86e6d6",
+    "releaseSha256": "0cc145a0240007d0c638a2ce79a790b457ebfe40b2cd6af4b38ba6998e86e6d6",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/layout/dockModel.test.ts",
+    "pinSha256": "1224b006c73c367bffbbe7e7823f5a70365befc8a3041c3d208bb4f906991adc",
+    "releaseSha256": "1224b006c73c367bffbbe7e7823f5a70365befc8a3041c3d208bb4f906991adc",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/canvas/Stage.tsx",
+    "pinSha256": "20dab164db68b8f81e175f1f5892fcf009915e6c55a1246fbcd20b9b23cd628f",
+    "releaseSha256": "20dab164db68b8f81e175f1f5892fcf009915e6c55a1246fbcd20b9b23cd628f",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/canvas/Stage.css",
+    "pinSha256": "cbc8699369b2776cb337f64c1d262ef8e3cd1e56e27315995008a0058cb0b3bd",
+    "releaseSha256": "cbc8699369b2776cb337f64c1d262ef8e3cd1e56e27315995008a0058cb0b3bd",
+    "identical": true
+  },
+  {
+    "path": "apps/editor/src/uiConfigurationLayout.test.ts",
+    "pinSha256": "d92e74b1405acae8cca3846649d14df459a4b0329625eb87b06a3e00ecd5b1b6",
+    "releaseSha256": "d92e74b1405acae8cca3846649d14df459a4b0329625eb87b06a3e00ecd5b1b6",
+    "identical": true
+  }
+]

@@ -186,38 +186,42 @@ export-time reflow, stretching, or cropping.
   resolved against `import.meta.url` (`withPackageUrls`) - a package-relative `fonts/x.woff2` was
   fetched from the RENDERER's directory, 404'd, and `font-display: swap` aired the graphic in the
   fallback face with no error anywhere. And the template's runtime is handed a `document` SCOPED
-  to its own element (`scopedDocument`, passed as the `document` parameter of `initTemplate`, so
+  to its own canvas (`scopedDocument`, passed as the `document` parameter of `initTemplate`, so
   the template's code text is still untouched) - the field convention is `getElementById('fN')`
   with the same ids in every design, so with two graphics on two layers of one renderer, updating
-  one rewrote the other. `dispose()` kills tweens on its own subtree for the same reason. And the
-  template's STYLESHEET is re-addressed from the document to the element before injection
-  (`scopeCssToGraphic`): `html, body` and `:root` become the element, `*` its subtree, every other
-  rule is nested under `:where([data-noacg-graphic=<id>])` at zero specificity - the attribute
-  `_claimCanvas()` stamps at load, beside `GRAPHIC_BOX_CSS`, which makes the element the canvas
-  (`display: block; position: relative`, the authored box, clipped). Injected as written, the
-  starters' `body` rule forced the RENDERER's page to 1920x1080, hid its overflow and changed its
-  font, and two layers fought over it. The scoped `document` answers `body` and `documentElement`
-  with the element for the same reason - the studio's `--scale` reads and `body.clientWidth`
-  measure the canvas, not the host page. Pinned by `e2e/ograf-conformance.spec.ts` (host page
-  untouched, frame pixel-identical to the studio document, every catalog sheet scoped).
+  one rewrote the other. **The design mounts in an open shadow root on the element**
+  (docs/work-specs/ograf-shadow-root/spec.md, the only mount since phase 4): `_claimCanvas()`
+  stamps the element with `data-noacg-graphic`, attaches the root once (a later `load()` reuses
+  it) and puts ONE stylesheet in it (`HOST_CSS`'s `:host` box, `GRAPHIC_BOX_CSS`, the scoped sheet)
+  and ONE canvas `div` carrying the same attribute, and the markup becomes the canvas's own
+  children with no wrapper, so `body > .x` matches and `body.children` lists only the design. A
+  renderer page's rules reach only the element, so its `body` font size, its `*` reset and its
+  `!important` rules leave the graphic alone, and two copies of one design keep their own ids
+  and gradients. The template's STYLESHEET is still re-addressed from the document to the canvas
+  before injection (`scopeCssToGraphic`), because `html, body` and `:root` match nothing inside
+  a shadow tree: they become the canvas, `*` its subtree, every other rule is nested under
+  `:where([data-noacg-graphic=<id>])` at zero specificity. `GRAPHIC_BOX_CSS` makes the canvas the
+  authored box (`display: block; position: relative`, clipped) from initial values. The scoped
+  `document` answers `body` and `documentElement` with the canvas and `head` with the shadow
+  root, so the studio's `--scale` reads and `body.clientWidth` measure the canvas and a `<style>`
+  a template appends styles its own tree. Chromium applies neither `@font-face` nor `@property`
+  from a shadow tree, so `graphicSources` lifts both out of the stylesheet and the markup's
+  `<style>` blocks (`liftDocumentRules`, checked by the parser in `assertLifted`) into `HEAD_CSS`,
+  one `<style data-noacg-fonts>` in the renderer's head counted per design: in with the first
+  copy, out with the last `dispose()`. `dispose()` kills every tween, timeline and delayed call
+  `scopedGsap` started, so a step's calls stop with the graphic, and empties the root. Pinned by
+  `e2e/ograf-conformance.spec.ts` (host page untouched, frame pixel-identical to the studio
+  document, every catalog sheet scoped and lifted) and `e2e/catalog/ograf-parity.spec.ts`, which
+  compares every catalog design's package with the studio's own document on a virtual clock.
   The MARKUP's own carriers are re-addressed at export too (`graphicSources`, issue #789): it is
   parsed as a renderer parses it, its `<style>` blocks go through the same rewrite and gate, and
   the ids it references (Illustrator's `SVGID_1_`) are renamed to the design's own, references in
-  `template.css` with them, unless a field, the code or a selector names them. `load()` makes the
-  markup the element's own children after its one
-  stylesheet, with no wrapper, so `body > .x` matches. Pinned by `e2e/ograf-isolation.spec.ts`.
+  `template.css` with them, unless a field, the code or a selector names them. Inside the shadow
+  root both are tree-scoped already, so dropping the two rewrites is a separate simplification.
+  Pinned by `e2e/ograf-isolation.spec.ts`.
   Which `document` members `scopedDocument` answers is not hand-kept:
   `scripts/ograf-document-members.test.mjs` fails on a member a template runtime reads that is
   neither scoped nor a decided pass-through.
-  **A shadow mount is being built beside it** (docs/work-specs/ograf-shadow-root/spec.md): the
-  internal `addOgrafPackage(..., { mount: 'shadow' })`, default `'light'`, set only by specs and
-  the renderer walks until the flip. It mounts one stylesheet (with a `:host` box) and one canvas
-  element carrying the attribute in an open shadow root, answers `document.head` with that root,
-  and lifts the design's `@font-face` and `@property` rules, which a shadow tree ignores, into one
-  `<style data-noacg-fonts>` in the renderer's head for as long as a copy of the design is
-  mounted. In both mounts `dispose()` also kills every tween, timeline and delayed call
-  `scopedGsap` started, so a step's calls stop with the graphic. The OGraf specs run in both
-  mounts, and `e2e/catalog/ograf-parity.spec.ts` compares the two over the whole catalog.
   The broadcaster-facing summary is `docs/OGRAF.md` - keep it in agreement with this target.
   Non-real-time seeks rebuild an isolated document and replay the OGraf action schedule through
   `render/runtimeScript.ts`'s virtual clock, so timestamp order cannot leak state. The target's
@@ -290,8 +294,8 @@ export-time reflow, stretching, or cropping.
   with custom actions, the controller function SPX 1.4.1 lacks. The Graphic also hands its
   template a `gsap` that resolves selector strings inside itself, in array targets and in the
   timelines it makes too (`scopedGsap`), a `window` whose `document` is the scoped one
-  (`scopedWindow`), and starts its
-  element from initial values against the host's styles. Why, measured: docs/SPX_ON_A_REAL_SERVER.md §10.
+  (`scopedWindow`), and mounts it in its own shadow root on a canvas that starts from initial
+  values. Why, measured: docs/SPX_ON_A_REAL_SERVER.md §10.
 - **targets/ografImport.ts** - the READER: `readOgrafPackage(files)` finds the shallowest
   manifest, validates manifest + package, reads `v_noacg` (`readNoacgVendorBlock`), compares the
   recorded `sourceHash` with the shipped sources (`stale`), and derives the operator contract for

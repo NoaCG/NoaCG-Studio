@@ -190,12 +190,12 @@ and maps the OGraf actions onto it.
 
 | OGraf | What happens |
 | --- | --- |
-| `load({data, renderType, renderCharacteristics})` | injects the CSS + markup into the element (light DOM), loads GSAP, runs the graphic's own script, applies `data`. Resolves when the graphic is ready for actions. |
+| `load({data, renderType, renderCharacteristics})` | puts the CSS + markup in the element's own open shadow root, adds the design's `@font-face` and `@property` rules to the renderer's head, loads GSAP, runs the graphic's own script, applies `data`. Resolves when the graphic is ready for actions. |
 | `playAction({goto, delta, skipAnimation})` | first call plays the entrance (step 0); further calls walk the default path with `next()`. Returns `currentStep`, or `undefined` once the graphic has gone to the end. |
 | `stopAction({skipAnimation})` | plays the exit. |
 | `updateAction({data, skipAnimation})` | writes the changed fields. Data never causes a state change - that is a house rule and an OGraf one. |
 | `customAction({id, payload, skipAnimation})` | fires that operator event through the graphic's own serial event queue. An unknown id answers `400`. |
-| `dispose()` | kills tweens, clears the element. |
+| `dispose()` | stops every tween, timeline and delayed call the graphic started, empties its shadow root, and takes its font rules out of the head with the last copy of the design. |
 | `goToTime({timestamp})` | non-real-time only - see below. |
 | `setActionsSchedule({schedule})` | non-real-time only - see below. |
 
@@ -265,50 +265,52 @@ disagree with each other.
   throw before the second graphic is ever mounted. Pinned by `e2e/ograf-conformance.spec.ts`.
 - **Custom action durations are `-1`.** Honest rather than wrong: the length depends on the
   machine's current state.
-- **Light DOM, not shadow DOM.** The graphic's markup is injected into the element directly so
-  its own `getElementById` lookups behave exactly as under SPX. Host page CSS that targets bare
-  element or class selectors could therefore reach into a graphic. What a host page sets on
-  itself no longer does: the element starts from initial values, as a document root does, and
-  its subtree gets the browser's box model and overflow back from a zero-specificity reset such
-  as SPX's `*` rule, so SPX's `body, html { font-size: 3em }` no longer grows a graphic four
-  times (docs/SPX_ON_A_REAL_SERVER.md §10). The other direction is closed for the TEMPLATE'S STYLESHEET:
-  `template.css` is re-addressed from the document to the graphic's own element before it is
-  injected (`scopeCssToGraphic` in `src/export/targets/ograf.ts`) - `html, body` and `:root`
-  become the element, `*` its subtree, every other rule is nested under it at zero specificity -
-  and the export refuses (browser-parsed, fail-closed) if any rule would still address the
-  document. So a graphic's stylesheet never restyles the renderer's page, and two designs on two
-  layers no longer fight over `body` or `--accent` through it. The MARKUP's own carriers get the
-  same treatment ([issue #789](https://github.com/NoaCG/NoaCG-Studio/issues/789)): every
-  `<style>` block inside it (an imported SVG carries the artwork's own, with Illustrator's shared
-  `.st0` names) is re-addressed and checked the same way, and the ids the markup references -
-  Illustrator's `SVGID_1_` gradients, clip paths, patterns, `<use>` targets - are renamed to the
-  design's own unless a field, its code or a selector names them. Every imported design shares
-  the same class names, so the timelines a Graphic's `gsap` makes resolve their string targets
-  inside it as well. So two imported designs on two layers no longer recolour, hide or animate
-  each other (`e2e/ograf-isolation.spec.ts`). The markup becomes the
-  element's own children after ONE stylesheet, which is the element's first child: a `body > .x`
-  rule reaches the design's top-level elements, and `document.body.children` lists the stylesheet
-  and then the design. The element is authored-size: a block of the
-  authored resolution, `position: relative` so px-positioned designs lay out against it as
-  against the SPX page (viewport units - `vw`, `vh`, `vmax` - still resolve against the
-  renderer's viewport, as they always did), and it is `body` and `documentElement` for the
-  template's own code, so a measurement that walks up to the body stops at the canvas wherever
-  the renderer puts its stage. Which `document` members answer for the graphic is decided in
-  `scripts/ograf-document-members.test.mjs`, which fails on a member a template runtime reads
-  that nobody decided. A renderer must place and scale that box itself; `load()` does not read
-  `renderCharacteristics` yet ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)). Pinned by
-  `e2e/ograf-conformance.spec.ts` ("leaves the renderer's page as it was"). A shadow root per
-  graphic closes the inbound direction and the one-instance limit below. The owner decided on it
-  on 2026-10-10 ([issue #922](https://github.com/NoaCG/NoaCG-Studio/issues/922)), and
-  `docs/work-specs/ograf-shadow-root/spec.md` is the phased plan; until its last phase lands,
-  packages mount in the light DOM as described here.
-- **One instance of a given DESIGN per document.** Several *different* graphics in one document
-  are fine, which is the arrangement a Web Component renderer actually uses: each Graphic runs
-  against a `document` scoped to itself, so its `getElementById('fN')` lookups cannot reach a
-  neighbour's identically-named field, and disposing one leaves the others running. Two instances
-  of the *same* design still collide: the copies share one manifest id, which a renderer that
-  registers the element by id cannot define twice, and the ids their artwork references. Give the
-  second copy its own document or frame.
+- **Each graphic lives in its own shadow root.** `load()` attaches an open shadow root to the
+  element and puts ONE stylesheet and ONE canvas element in it. The design's markup becomes the
+  canvas's own children, with no wrapper, so a `body > .x` rule reaches the design's top-level
+  elements and `document.body.children` lists the design and nothing else. For the template's
+  own code the canvas is `body` and `documentElement`, its `getElementById` lookups resolve
+  inside the graphic, and `document.head` is the shadow root, so a template behaves as it does
+  under SPX. Which `document` members answer for the graphic is decided in
+  `scripts/ograf-document-members.test.mjs`, which fails on a member a template runtime reads that
+  nobody decided. A renderer page's rules reach only the element, never the canvas, and the canvas
+  starts from initial values as a document root does, so neither SPX's
+  `body, html { font-size: 3em }` nor a page's bare or `!important` rules change a graphic
+  (docs/SPX_ON_A_REAL_SERVER.md §10). A renderer still places, sizes and hides its layers: any
+  rule of its own on the element beats the graphic's `:host` box. The other direction is closed
+  as well. `template.css` is re-addressed from the document to the canvas
+  (`scopeCssToGraphic` in `src/export/targets/ograf.ts`), and the export refuses (browser-parsed,
+  fail-closed) if any rule would still address the document. The markup's own `<style>` blocks
+  and the ids it references get the same treatment
+  ([issue #789](https://github.com/NoaCG/NoaCG-Studio/issues/789)), and the `gsap` a graphic gets
+  resolves selector strings inside it. So two designs on two layers leave each other alone, and so
+  do two copies of one design: each copy has its own tree, so its gradients and its fields are its
+  own, and SPX 1.4.1 and SuperFly.tv's server both define the element class once per graphic id
+  and make one element per layer. Pinned by `e2e/ograf-conformance.spec.ts` and
+  `e2e/ograf-isolation.spec.ts`, and walked on both renderers
+  (`docs/work-specs/ograf-shadow-root/`). A package exported before the shadow root, whose
+  `graphic.mjs` never calls `attachShadow`, still mounts in the light DOM; export it again.
+- **The canvas is the authored box.** It is a block of the authored resolution,
+  `position: relative`, so px-positioned designs lay out against it as against the SPX page.
+  Viewport units (`vw`, `vh`, `vmax`) still resolve against the renderer's viewport. A renderer
+  must place and scale that box itself; `load()` does not read `renderCharacteristics` yet
+  ([issue #791](https://github.com/NoaCG/NoaCG-Studio/issues/791)). A renderer that sizes the
+  element smaller than the canvas clips the canvas rather than resizing it.
+- **Fonts and registered properties go in the renderer's head.** Chromium applies neither
+  `@font-face` nor `@property` from inside a shadow tree, so the export lifts both, from the
+  stylesheet and from the markup's own `<style>` blocks, into one `<style data-noacg-fonts>` that
+  the first copy of a design puts in the renderer's head and its last copy takes out at
+  `dispose()`. Two designs that name one family with different files collide while both are on
+  air, as any two pages' fonts would. A renderer that drops the element without calling
+  `dispose()` leaves that style behind. A `@font-face` inside an `@import`ed sheet stays in the
+  shadow tree and does not load; the app never emits `@import`.
+- **`document.head` is the shadow root, not an element.** A template that appends a `<style>`
+  there styles itself. Hand-written code that calls an element-only method on it, such as
+  `insertAdjacentHTML`, throws. No generator reads `document.head`.
+- **No flex `gap` before Chromium 84.** The bundled shim that puts `gap` back as margins on an
+  older engine (CasparCG 2.3's CEF 71) cannot see into a shadow root, so a graphic there loses its
+  gaps. NoaCG's oldest supported CasparCG is 2.4, on CEF 117
+  (docs/PLAYOUT_INTEGRATION.md), and the CasparCG targets do not use this package.
 - **In SPX 1.4.1** the package plays as imported, on the layer its `v_spx` names, with SPX's own
   controls. Custom actions fire only once the project loads `spx-custom-actions.js` as its
   function library, because SPX's controller calls a `customActionHandler` it never defines; the
@@ -492,14 +494,13 @@ node scripts/jobs.mjs wait <id>
 ```
 
 It writes the zip, one PNG per beat and a transcript of every request and response into
-`ograf-external-out/<mount>/`, which is gitignored: the frames are a run's output and are rebuilt
-by re-running it. Built here at version 1.0.0 of `ograf-server`, main branch, on Node 24 and
+`ograf-external-out/`, which is gitignored: the frames are a run's output and are rebuilt by
+re-running it. Built here at version 1.0.0 of `ograf-server`, main branch, on Node 24 and
 yarn 4.9.1.
 
-`--mount shadow` builds the same graphic with the shadow-root mount, which the export dialog does
-not offer yet. In either mount the walk then puts two copies of the board, and the board beside a
-Hairline, on two layers. SPX 1.4.1 has the same walk, `scripts/ograf-spx-walk.mjs --spx
-<SPX_1_4_1_source>` (docs/SPX_ON_A_REAL_SERVER.md §10).
+The walk then puts two copies of the board, and the board beside a Hairline, on two layers.
+SPX 1.4.1 has the same walk, `scripts/ograf-spx-walk.mjs --spx <SPX_1_4_1_source>`
+(docs/SPX_ON_A_REAL_SERVER.md §10).
 
 Two things about the server that cost an hour and are written down so they do not again: the
 renderer page is **`/renderer/default/`**, not `/renderer/renderer-layer/` - its route matcher
