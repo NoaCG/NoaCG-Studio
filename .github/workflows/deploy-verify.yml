@@ -33,9 +33,9 @@ jobs:
       - name: Independent cumulative reference and physical zoom tasks
         env:
           REFERENCE_EXE: ${{ github.workspace }}/.noacg/independent-967/studio-server
-        run: xvfb-run -a npx playwright test e2e/independent-967-task.spec.ts e2e/independent-967-reference.spec.ts --workers=1
+        run: xvfb-run -a npx playwright test e2e/canvas-981-reference-workspace.spec.ts --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: canvas-short-height-981-baseline
+          name: canvas-short-height-981-reference
           path: test-results/
