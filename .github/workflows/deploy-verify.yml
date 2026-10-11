@@ -1,7 +1,12 @@
 # Disposable independent checker. Never land this workflow.
 name: deploy-verify
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      scope:
+        type: string
+        default: fresh
+        description: all also runs unchanged maintained regressions
 permissions:
   contents: read
 jobs:
@@ -23,6 +28,7 @@ jobs:
           echo '9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681  .noacg/independent-991/studio-server' | sha256sum -c -
           chmod +x .noacg/independent-991/studio-server
       - name: Unchanged layout layer property transform CLI and entry regressions
+        if: inputs.scope == 'all'
         run: npx playwright test e2e/editor-canvas-short-height.spec.ts e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-alpha-entry.spec.ts --workers=1
       - name: Fresh independent cumulative and actual native zoom checks
         env:

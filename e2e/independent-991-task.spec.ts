@@ -11,7 +11,14 @@ async function checkWorkspace(page: Page, label: string) {
   if(label==='actual-125') { expect(b['.ef-viewport'].height).toBeGreaterThanOrEqual(180); expect(b['.ef-timeline'].height).toBeCloseTo(180,0); }
   expect(b['.ef-inspector'].width).toBeCloseTo(280,0);
   for(const control of [page.getByTestId('open-home'),page.getByRole('button',{name:'Composition',exact:true}),page.getByRole('button',{name:'select tool',exact:true}),page.getByRole('slider',{name:'Playhead',exact:true})]) { await control.scrollIntoViewIfNeeded(); await expect(control).toBeInViewport(); }
-  for(const selector of ['[data-handle="2"]','[data-rotate]','[data-anchor]']) { const h=page.locator('.ef-selection '+selector); await expect(h).toBeInViewport({ratio:1}); const r=(await h.boundingBox())!; expect(await page.evaluate(p=>!!document.elementFromPoint(p.x,p.y)?.closest('[data-testid=foundation-canvas]'),{x:r.x+r.width/2,y:r.y+r.height/2})).toBe(true); }
+  const canvas=(await page.getByTestId('foundation-canvas').boundingBox())!;
+  for(const selector of ['[data-handle="2"]','[data-rotate]','[data-anchor]']) {
+    const h=page.locator('.ef-selection '+selector); await expect(h).toBeVisible(); const r=(await h.boundingBox())!;
+    // Bound the full handle to the canvas, avoiding IntersectionObserver's SVG area rounding.
+    expect(r.x).toBeGreaterThanOrEqual(canvas.x); expect(r.y).toBeGreaterThanOrEqual(canvas.y);
+    expect(r.x+r.width).toBeLessThanOrEqual(canvas.x+canvas.width); expect(r.y+r.height).toBeLessThanOrEqual(canvas.y+canvas.height);
+    expect(await page.evaluate(p=>!!document.elementFromPoint(p.x,p.y)?.closest('[data-testid=foundation-canvas]'),{x:r.x+r.width/2,y:r.y+r.height/2})).toBe(true);
+  }
 }
 async function journey(page: Page, label: string) {
   const errors: string[] = [], failed: string[] = [];
