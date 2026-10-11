@@ -51,11 +51,11 @@ test('short desktop layout recovers canvas while ordinary laptop and phone keep 
 test('compact canvas exposes movement resize and rotation and retains group navigation', async ({ page }, info) => {
   await page.setViewportSize({ width: 1093, height: 545 }); await open(page);
   const shapes = [];
-  for (const offset of [0, .08]) {
+  for (const offset of [0, .45]) {
     await page.getByRole('button', { name: 'rectangle tool', exact: true }).click();
     const art = (await page.locator('.ef-artboard').boundingBox())!;
-    await page.mouse.move(art.x + art.width * (.3 + offset), art.y + art.height * .35); await page.mouse.down();
-    await page.mouse.move(art.x + art.width * (.7 + offset), art.y + art.height * .65, { steps: 8 }); await page.mouse.up(); await ready(page);
+    await page.mouse.move(art.x + art.width * (.15 + offset), art.y + art.height * .35); await page.mouse.down();
+    await page.mouse.move(art.x + art.width * (.4 + offset), art.y + art.height * .65, { steps: 8 }); await page.mouse.up(); await ready(page);
     shapes.push((await selected(page))[0]);
   }
   await page.getByRole('button', { name: 'select tool', exact: true }).click(); await select(page, shapes[1]);

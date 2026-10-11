@@ -290,5 +290,4 @@
   .ef-canvas > .ef-caption { display: none; }
   .ef-arrangement { padding: 2px 6px; overflow-x: auto; }
   .ef-arrangement-row { flex-wrap: nowrap; width: max-content; min-width: 100%; gap: 4px 8px; }
-  .ef-group-controls { flex-wrap: nowrap; }
 }
