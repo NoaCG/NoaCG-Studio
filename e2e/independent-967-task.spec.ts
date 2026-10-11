@@ -34,14 +34,17 @@ async function journey(page: Page, label: string) {
     expect((await inspection(page)).history.undo).toBe(h + 1);
     await undo(page); expect(await source(page)).toEqual(before);
   }
+  await seek(page, 0);
   const shape = await draw(page, .42);
+  await seek(page, 1);
   await page.getByRole('button', { name: 'select tool', exact: true }).click();
   await select(page, shape); await row(page, shape).locator('.ef-layer').dblclick();
   await name.fill('Checker plate'); await name.press('Enter'); await ready(page);
+  const beforeDisclosure = await source(page);
   await page.getByRole('button', { name: 'Properties of Checker plate', exact: true }).click();
   expect(await page.locator(`.ef-property-track[data-selector="${shape}"]`).count()).toBeGreaterThanOrEqual(5);
   const beforeKeys = await source(page);
-  expect(beforeKeys.js).toBe(initial.js);
+  expect(beforeKeys).toEqual(beforeDisclosure);
   const x = number(page, 'Position X');
   await x.fill('137'); await x.press('Enter'); await ready(page);
   await number(page, 'Rotation').fill('8'); await number(page, 'Rotation').press('Enter'); await ready(page);
