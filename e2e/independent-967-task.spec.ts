@@ -40,6 +40,17 @@ async function journey(page: Page, label: string) {
   await page.getByRole('button', { name: 'select tool', exact: true }).click();
   await select(page, shape); await row(page, shape).locator('.ef-layer').dblclick();
   await name.fill('Checker plate'); await name.press('Enter'); await ready(page);
+  if (label === 'actual-125') {
+    expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThanOrEqual(180);
+    expect((await page.locator('.ef-timeline').boundingBox())!.height).toBeCloseTo(180, 0);
+    expect((await page.locator('.ef-inspector').boundingBox())!.width).toBeCloseTo(280, 0);
+    for (const selector of ['[data-handle="2"]', '[data-rotate]', '[data-anchor]']) {
+      const handle = page.locator('.ef-selection ' + selector); await expect(handle).toBeInViewport({ratio:1});
+      const box = (await handle.boundingBox())!;
+      expect(await page.evaluate(p => !!document.elementFromPoint(p.x,p.y)?.closest('[data-testid=foundation-canvas]'), {x:box.x+box.width/2,y:box.y+box.height/2})).toBe(true);
+    }
+    await capture(page,test.info().outputPath('native-handles.png'));
+  }
   const beforeDisclosure = await source(page);
   await page.getByRole('button', { name: 'Properties of Checker plate', exact: true }).click();
   expect(await page.locator(`.ef-property-track[data-selector="${shape}"]`).count()).toBeGreaterThanOrEqual(5);
