@@ -108,7 +108,7 @@ async function journey(page: Page, label: string) {
     }
     await cdp.detach();
     writeFileSync(test.info().outputPath('native-camera.json'), JSON.stringify({ zoom: 2, pan: [31, -13], outerWindows: [[1920,1080],[1366,768]], sourceUnchanged: true, historyUnchanged: true }, null, 2));
-    await page.getByRole('combobox', { name: 'Canvas zoom' }).selectOption('fit');
+    await page.getByRole('combobox', { name: 'Canvas zoom' }).selectOption('1');
   }
   const bounds = await page.evaluate(() => ({ innerWidth, innerHeight, outerWidth, outerHeight, devicePixelRatio, visualScale: visualViewport?.scale,
     html: { client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth },
