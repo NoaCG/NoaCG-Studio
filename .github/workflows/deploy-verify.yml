@@ -6,7 +6,7 @@ on:
       scope:
         type: string
         default: fresh
-        description: all includes maintained regressions; render collects layout and phone captures
+        description: all includes maintained; fresh runs journeys; render collects captures; production repeats served task
 permissions:
   contents: read
 jobs:
@@ -22,7 +22,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Fetch and verify official Studio v0.17
-        if: inputs.scope != 'render'
+        if: inputs.scope == 'fresh' || inputs.scope == 'all'
         run: |
           mkdir -p .noacg/independent-991
           curl -fL https://github.com/zerodensity/ograf-studio/releases/download/v0.17/OGrafStudioServer-linux-x64 -o .noacg/independent-991/studio-server
@@ -32,7 +32,7 @@ jobs:
         if: inputs.scope == 'all'
         run: npx playwright test e2e/editor-canvas-short-height.spec.ts e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-alpha-entry.spec.ts --workers=1
       - name: Fresh independent cumulative and actual native zoom checks
-        if: inputs.scope != 'render'
+        if: inputs.scope == 'fresh' || inputs.scope == 'all'
         env:
           REFERENCE_EXE: ${{ github.workspace }}/.noacg/independent-991/studio-server
         run: xvfb-run -a npx playwright test e2e/independent-991-task.spec.ts e2e/independent-991-reference.spec.ts e2e/independent-991-workspace.spec.ts --workers=1
@@ -42,8 +42,8 @@ jobs:
       - name: Fresh served production journey and executable outputs
         if: inputs.scope != 'render'
         env:
-          EXPECTED_SHA: 5896c25a819132112e4f1a53664d153afe4080a1
-          EXPECTED_IMPLEMENTATION: 0a04f77022b3e9f11d78615192956dca55edb549
+          EXPECTED_SHA: 8cee8ffc2519cffac9c87cd073a040c5a307a10b
+          EXPECTED_IMPLEMENTATION: 8cee8ffc2519cffac9c87cd073a040c5a307a10b
         run: npx playwright test --config e2e/independent-991-production.config.ts
       - uses: actions/upload-artifact@v4
         if: always()
