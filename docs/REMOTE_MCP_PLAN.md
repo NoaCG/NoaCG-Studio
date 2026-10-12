@@ -379,3 +379,35 @@ development. Allow and Deny are button clicks guarded by `busy`, and are not aff
 
 **Traps.** A double read that passes locally is no evidence that there is no race: GoTrue's answer
 depends on timing. Prove a concurrency fix with the HTTP-level pair, not only with page loads.
+
+### Phase 2 second check (after the repair): PASS
+
+On `main` at 8824cbf1, local stack (CLI 2.111.0) and this checkout's dev server with StrictMode on.
+
+- **The race is gone from the page, not from Auth.** 12 of 12 signed-in first loads and 5 of 5
+  signed-out first visits (fresh browser, sign in on the page) showed "Allow “Repro client”…" and
+  exactly the two labels, each with one `GET /oauth/authorizations/{id}` (200). GoTrue still
+  answers one of two overlapping reads 404 (5 of 5 pairs), so the in-flight sharing in
+  `readConnectorRequest` is what holds it. `connector-grants.spec.ts` passed first try on main's
+  configured suite twice: [38311447932](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38311447932)
+  (push) and [38312673116](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38312673116)
+  (dispatched), each 98 passed, 0 flaky. It stays in quarantine until its consecutive passes
+  release it.
+- **AC-2 held point by point.** 401 with the metadata pointer; metadata names the local issuer.
+  Deny returned `access_denied` and left no row; Allow wrote one grant with the two permissions,
+  the token carried `client_id` and role `noacg_connector`, a tool call reached the tool table and
+  stamped `last_used_at`; a first-party session at `/mcp` got 401. 12 other routes treated the
+  connector token exactly as no token. 43 tables x GET/POST/PATCH/DELETE, 51 RPCs and Storage
+  list, upload and buckets: 226 of 226 refused for the role. Revoke in Settings removed the row;
+  the next tool call 401, the refresh `400 refresh_token_not_found`.
+- **Off.** Against an Auth with no OAuth server, `/mcp`, the PRM and `/api/me/connectors` answer
+  503 `connector_disabled`, with or without a bearer; production `https://noacg.studio` answers
+  the same on all three today.
+- **#1083 constraint.** The API unit tests (343 pass) include "verified locally against the
+  issuer's JWKS, never by asking Auth who it is" and "verifyUser refuses a connector token before
+  asking Auth".
+- **AC-1 still holds:** `scripts/connector-oauth-spike.mjs` on the local stack, 11 of 11 required
+  checks; `connector-oauth.spec.ts` green in both runs above.
+- **For the next phases.** The 503 half of `connector-grants.spec.ts` skips on the local stack and
+  would run only in `hosted-latency.yml`, which has not run since 2026-10-11 (red then). Its
+  evidence today is the local stub, the unit test and production's answer.
