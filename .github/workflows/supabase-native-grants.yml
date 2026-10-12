@@ -56,12 +56,14 @@ jobs:
           source "$RUNNER_TEMP/h.sh"
           mv supabase/migrations "$RUNNER_TEMP/migrations"
           mkdir supabase/migrations
+          mv supabase/seed.sql "$RUNNER_TEMP/seed.sql"
           supabase start --runtime native --eager --exclude studio,functions >/dev/null
           q "alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role"
           q "alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated, service_role"
           q "alter default privileges for role postgres in schema public revoke all on functions from anon, authenticated, service_role"
           rmdir supabase/migrations
           mv "$RUNNER_TEMP/migrations" supabase/migrations
+          mv "$RUNNER_TEMP/seed.sql" supabase/seed.sql
           supabase migration up 2>&1 | tail -3
           psql "$(db)" -X -q -f supabase/seed.sql
           shape "B: bootstrap revoked before the migrations"
