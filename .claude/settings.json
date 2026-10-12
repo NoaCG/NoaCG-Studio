@@ -151,7 +151,9 @@
       "Bash(node scripts/wave-plan-check.mjs)",
       "Bash(node scripts/wave-plan-check.mjs *)",
       "PowerShell(node scripts/wave-plan-check.mjs)",
-      "PowerShell(node scripts/wave-plan-check.mjs *)"
+      "PowerShell(node scripts/wave-plan-check.mjs *)",
+      "Bash(node scripts/run-wake.mjs check)",
+      "PowerShell(node scripts/run-wake.mjs check)"
     ]
   },
   "pluginConfigs": {

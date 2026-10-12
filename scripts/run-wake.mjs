@@ -1,31 +1,37 @@
 #!/usr/bin/env node
 // THE RUN'S DURABLE WAKE-UP - what brings a plan run or a wave back after its coordinator is gone.
 //
-//   node scripts/run-wake.mjs arm <wave file> --resume "<command>"   # the scheduled task to create, as JSON
-//   node scripts/run-wake.mjs check <wave file>                      # alive | resume | over | unknown, one line
-//   node scripts/run-wake.mjs awake <wave file>                      # hold the machine awake until the window ends
+//   node scripts/run-wake.mjs arm <wave file> --resume "plan-run <plan> until <iso>"  # mark the run, print the task
+//   node scripts/run-wake.mjs check            # alive | resume | idle | unknown, for every marked run
+//   node scripts/run-wake.mjs awake <wave file> # hold the machine out of idle sleep until the window ends
 //
-// WHY. A coordinator's timers (`sleep 1800`, CronCreate) live in its session. When the session or
-// its process goes, nothing wakes the run, and it stops without a word until someone notices. A
-// desktop scheduled task lives in the app instead: it fires while the app is open and, if the app
-// was closed when it was due, on the next launch. `arm` prints that task (every 30 minutes, the
-// coordinator's own timer); each firing is a fresh session that runs `check` and does what it says.
+// WHY. A coordinator's timers (`sleep 1800`, CronCreate) live in its session. When its process goes,
+// nothing wakes the run and it stops without a word. A desktop scheduled task lives in the app: it
+// fires while the app is open and, if the app was closed when it was due, at the next launch. One
+// task, `noacg-run-wake`, every 30 minutes (the coordinator's own timer), serves every run: `arm`
+// writes a `Wake:` line into the run's wave file (the coordinator's desktop session, its Claude Code
+// session and the command that resumes it) and prints the task to create or re-enable.
 //
-// LIVENESS is the harness's own process inventory (`claude agents --json`, scripts/claude-agents.mjs)
-// against the `Session:` lines of the wave file: every session that opened or resumed the run
-// records itself there, and a row launched with the Agent tool runs under its coordinator's id. Any
-// recorded session still listed means the run has a coordinator: a second one is never started
-// beside it. None listed, while the inventory answered, means it is gone: `resume`. An inventory
-// that did not answer, or a run with no recorded session, is `unknown`, and nothing is done; the
-// next firing asks again. A transcript's age is not used: a coordinator stopped on the owner's
-// answer is silent for hours and still alive.
+// WHAT A FIRING DOES, measured on Claude Code 2.1.295 (2026-10-12). A task's run is a fresh session
+// in the primary checkout, and it starts in the default permission mode whatever mode its creator
+// had, so it can neither run a coordinator nor wait on prompts with nobody there. It runs `check`
+// (allowed in .claude/settings.json) and, for `resume`, sends the coordinator's own desktop session a
+// message: the app starts a dead session's process again on the same conversation, in that
+// session's own mode, and it carries on from its wave file. Only if that send fails does the firing
+// session take the run over itself. `idle`, when no marked run is open, pauses the task.
+//
+// LIVENESS is the harness's own process inventory (`claude agents --json`, scripts/claude-agents.mjs,
+// which drops a killed process) against the run's recorded sessions: the `Session:` lines and the
+// `Wake:` line. Any of them listed means the run has a coordinator, so nothing is done. None listed,
+// while the inventory answered, means it is gone: `resume`. An inventory that did not answer is
+// `unknown`, and the next firing asks again. A transcript's age is not used: a coordinator stopped
+// on the owner's answer is silent for hours and still alive.
 //
 // THE MACHINE stays awake through `awake`, not the app's request_keep_awake, which lets go after
-// about five idle minutes and when the app quits, while a coordinator sits idle up to 30 minutes
-// between timers. `awake` starts a detached process that asks Windows (SetThreadExecutionState) or
-// macOS (caffeinate) to stay out of idle sleep until the window ends or the report is written. It
-// outlives the session and an app restart; after a reboot the wake-up's resume runs the start
-// steps again, which start it again. A closed lid still sleeps.
+// about five idle minutes and when the app quits. It starts a detached holder that keeps Windows
+// (SetThreadExecutionState) or macOS (caffeinate) out of idle sleep until the window ends or the
+// report is written; it outlives the session and an app restart, and a restarted coordinator runs
+// the start steps again, which start it again after a reboot. A closed lid still sleeps.
 
 import { spawn } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -33,62 +39,90 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildIndex, readInventory } from './claude-agents.mjs';
-import { PLAN_SUFFIX, REPORT_HEADING, waveSessions } from './wave-plan-store.mjs';
+import { primaryCheckout } from './primary-checkout.mjs';
+import { advanceLocalMain } from './worktree-cleanup-lib.mjs';
+import { REPORT_HEADING, wavePlanFiles, wavePlansDir, waveSessions } from './wave-plan-store.mjs';
 
-/** The wake-up fires this often: the coordinator's own fallback timer. */
+export const WAKE_TASK_ID = 'noacg-run-wake';
 export const WAKE_CRON = '*/30 * * * *';
 
-function windowEnd(text) {
-  return Date.parse(/^Window ends: (\S+)/m.exec(text)?.[1] ?? '');
+const WAKE_LINE = /^Wake: (\S+) (\S+) (.+?)\s*$/m;
+const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
+
+/** The run's wake-up mark: `{ host, session, resume }`, or null when the run is not armed. */
+export function readWake(text) {
+  const match = WAKE_LINE.exec(text);
+  return match ? { host: match[1], session: match[2], resume: match[3] } : null;
+}
+
+/** The text with its `Wake:` line written (replaced if there was one) under the window lines. */
+export function writeWake(text, { host, session, resume }) {
+  const line = `Wake: ${host} ${session} ${resume}\n`;
+  if (WAKE_LINE.test(text)) return text.replace(/^Wake: [^\r\n]*\r?\n?/m, line);
+  const block = SESSION_BLOCK.exec(text);
+  if (!block) return null;
+  const at = block.index + block[0].length;
+  return `${text.slice(0, at)}${line}${text.slice(at)}`;
 }
 
 /**
- * What a firing does, from the wave file's text, its recorded sessions and the process inventory:
- *   { verdict: 'over' }     the report is written or the window ended: delete the wake-up
- *   { verdict: 'alive' }    a recorded session is running: do nothing
- *   { verdict: 'resume' }   the inventory answered and lists none of them: take over the run
- *   { verdict: 'unknown' }  it cannot be told: do nothing, the next firing asks again
- * each with `why`, one clause.
+ * One run's state from its wave file's text, its recorded sessions and the process inventory:
+ *   over (report written, window ended or not armed) | alive | resume | unknown, each with `why`.
  */
 export function wakeVerdict({ text, sessions, inventory, now = Date.now() }) {
+  const wake = readWake(text);
+  if (!wake) return { verdict: 'over', why: 'the run has no wake-up' };
   if (REPORT_HEADING.test(text)) return { verdict: 'over', why: 'the run wrote its report' };
-  const end = windowEnd(text);
-  if (Number.isNaN(end)) return { verdict: 'unknown', why: 'the wave file has no readable "Window ends:" line' };
-  if (now >= end) return { verdict: 'over', why: `the window ended at ${new Date(end).toISOString()}` };
-  if (sessions.length === 0) return { verdict: 'unknown', why: 'no session is recorded in the wave file' };
+  const end = Date.parse(/^Window ends: (\S+)/m.exec(text)?.[1] ?? '');
+  if (Number.isNaN(end) || now >= end) return { verdict: 'over', why: 'its window has ended' };
   const index = buildIndex(inventory?.rows);
   if (!inventory?.available || index.bySession.size === 0) {
     return { verdict: 'unknown', why: `the process inventory did not answer${inventory?.why ? ` (${inventory.why})` : ''}` };
   }
-  const live = sessions.find((id) => index.bySession.has(id));
+  const ids = [...new Set([...sessions, wake.session])];
+  const live = ids.find((id) => index.bySession.has(id));
   if (live) return { verdict: 'alive', why: `session ${live} is running (pid ${index.bySession.get(live).pid})` };
-  return { verdict: 'resume', why: `no recorded session is running (${sessions.join(', ')})` };
+  return { verdict: 'resume', why: `no recorded session is running (${ids.join(', ')})`, ...wake };
 }
 
-/** One scheduled task per run, named after its wave file. */
-export function wakeTaskId(file) {
-  return `run-wake-${path.basename(file, PLAN_SUFFIX)}`.toLowerCase().replace(/[^a-z0-9-]+/g, '-');
+/**
+ * What one firing does about every run in the store, as the lines it prints: the first resume (a
+ * second dead run is taken on the next firing), else `idle` when no run is armed and open, else
+ * what the open ones are.
+ */
+export function wakeReport(runs) {
+  const open = runs.filter((run) => run.verdict !== 'over');
+  const resume = open.find((run) => run.verdict === 'resume');
+  if (resume) {
+    return [
+      `resume: ${resume.why} for ${resume.file}`,
+      `session_id: ${resume.host}`,
+      `message: Wake-up: your process had stopped and this message started it again. Continue the run in ${resume.file} with ${resume.resume}: reconcile first, launch nothing twice.`,
+      `command: ${resume.resume}`,
+    ];
+  }
+  if (open.length === 0) return ['idle: no open run has a wake-up'];
+  const verdict = open.some((run) => run.verdict === 'unknown') ? 'unknown' : 'alive';
+  return [`${verdict}: ${open.map((run) => `${path.basename(run.file)} ${run.verdict} (${run.why})`).join('; ')}`];
 }
 
-/** The create_scheduled_task arguments for this run. `repo` is the checkout the coordinator runs in. */
-export function wakeTask({ file, resume, repo }) {
-  const taskId = wakeTaskId(file);
-  const script = path.join(repo, 'scripts', 'run-wake.mjs');
+/** The create_scheduled_task arguments; `repo` is the primary checkout, where its runs start. */
+export function wakeTask(repo) {
   return {
-    taskId,
-    title: `Wake-up: ${path.basename(file, PLAN_SUFFIX)}`,
-    description: `Resumes ${resume} if its coordinator session is gone`,
+    taskId: WAKE_TASK_ID,
+    title: 'NoaCG run wake-up',
+    description: 'Restarts a plan run or wave whose coordinator session stopped',
     cronExpression: WAKE_CRON,
     notifyOnCompletion: false,
     prompt: [
-      `Durable wake-up for a NoaCG run. Work in ${repo}. Do only this:`,
-      `1. Run: node "${script}" check "${file}"`,
-      '2. It prints one line. Act on its first word and nothing else:',
+      'Durable wake-up for NoaCG plan runs and waves. Do only this:',
+      `1. In ${repo}, run exactly: node scripts/run-wake.mjs check`,
+      '2. Act on the first word of its output and nothing else:',
       '   - alive or unknown: end here and do nothing more.',
-      `   - over: delete this scheduled task (${taskId}) with delete_scheduled_task, then end.`,
-      `   - resume: the run's coordinator is gone and you replace it. Invoke ${resume} with the Skill tool and`,
-      '     follow it in full from this session; it reopens the run, records this session, and reconciles',
-      '     what was running before it launches anything.',
+      `   - idle: pause this task with update_scheduled_task (taskId ${WAKE_TASK_ID}, enabled false), then end.`,
+      '   - resume: send the printed message to the printed session_id with mcp__ccd_session_mgmt__send_message;',
+      '     that restarts the run\'s own coordinator session. Only if the send fails, invoke the printed',
+      '     command with the Skill tool and follow it in full yourself.',
     ].join('\n'),
   };
 }
@@ -141,40 +175,62 @@ function hold(file, until) {
   return new Promise((resolve) => child.on('exit', resolve).on('error', resolve));
 }
 
-const USAGE = `Usage: node scripts/run-wake.mjs arm <wave file> --resume "<command, e.g. /plan-run editor until <iso>>"
-       node scripts/run-wake.mjs check <wave file>
+function arm(file, argv, env = process.env) {
+  const at = argv.indexOf('--resume');
+  // Given without its slash: Git Bash rewrites an argument that starts with one into a path.
+  const command = (at === -1 ? '' : argv[at + 1] ?? '').trim().replace(/^\/+/, '');
+  if (!command) return fail(`--resume names the command that continues the run\n\n${USAGE}`, 2);
+  const host = env.CLAUDE_CODE_HOST_SESSION_ID;
+  const session = env.CLAUDE_CODE_SESSION_ID;
+  if (!host || !session) return fail('arm from the coordinator\'s Claude desktop session: it has no desktop session to restart here', 1);
+  const text = writeWake(readFileSync(file, 'utf8'), { host, session, resume: `/${command}` });
+  if (!text) return fail(`${file} has no "Window ends:" line; open the run with wave-plan-store.mjs first`, 1);
+  writeFileSync(file, text, 'utf8');
+  // The task's runs start in the primary checkout and run its copy of this script.
+  const repo = primaryCheckout(path.dirname(fileURLToPath(import.meta.url)));
+  advanceLocalMain(repo);
+  if (!existsSync(path.join(repo, 'scripts', 'run-wake.mjs'))) {
+    process.stderr.write(`run-wake: ${repo} has no scripts/run-wake.mjs yet (its main is behind origin/main); the wake-up cannot run until it has\n`);
+  }
+  process.stdout.write(`${JSON.stringify(wakeTask(repo), null, 2)}\n`);
+  return 0;
+}
+
+function check(files) {
+  const inventory = readInventory();
+  const runs = files.map((file) => {
+    const text = readFileSync(file, 'utf8');
+    return { file, ...wakeVerdict({ text, sessions: waveSessions(file), inventory }) };
+  });
+  const lines = wakeReport(runs);
+  const resume = runs.find((run) => run.verdict === 'resume');
+  if (lines[0].startsWith('resume') && resume) {
+    appendFileSync(resume.file, `- ${new Date().toISOString()} wake-up: ${resume.why}; restarting its session ${resume.host}\n`, 'utf8');
+  }
+  process.stdout.write(`${lines.join('\n')}\n`);
+  return 0;
+}
+
+function fail(message, code) {
+  process.stderr.write(`run-wake: ${message}\n`);
+  return code;
+}
+
+const USAGE = `Usage: node scripts/run-wake.mjs arm <wave file> --resume "<command without its slash, e.g. plan-run editor until <iso>>"
+       node scripts/run-wake.mjs check [<wave file>...]
        node scripts/run-wake.mjs awake <wave file>`;
 
 export function main(argv = process.argv.slice(2)) {
   const [command, file] = argv;
   if (command === 'hold') return hold(file, argv[2]).then(() => 0);
-  if (!['arm', 'check', 'awake'].includes(command) || !file) {
-    process.stderr.write(`${USAGE}\n`);
-    return 2;
+  if (command === 'check') {
+    const folder = wavePlansDir();
+    return check(argv.length > 1 ? argv.slice(1) : wavePlanFiles().map((name) => path.join(folder, name)));
   }
-  if (!existsSync(file)) {
-    process.stdout.write(command === 'check' ? `over: the wave file ${file} is gone\n` : '');
-    if (command !== 'check') process.stderr.write(`run-wake: no wave file at ${file}\n`);
-    return command === 'check' ? 0 : 1;
-  }
-  if (command === 'arm') {
-    const at = argv.indexOf('--resume');
-    const resume = at === -1 ? '' : argv[at + 1] ?? '';
-    if (!resume.trim()) {
-      process.stderr.write(`run-wake: --resume names the command a fresh session resumes the run with\n\n${USAGE}\n`);
-      return 2;
-    }
-    const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-    process.stdout.write(`${JSON.stringify(wakeTask({ file: path.resolve(file), resume, repo }), null, 2)}\n`);
-    return 0;
-  }
-  if (command === 'awake') {
-    process.stdout.write(`${holdAwake(path.resolve(file))}\n`);
-    return 0;
-  }
-  const result = wakeVerdict({ text: readFileSync(file, 'utf8'), sessions: waveSessions(file), inventory: readInventory() });
-  if (result.verdict === 'resume') appendFileSync(file, `- ${new Date().toISOString()} wake-up: ${result.why}; a fresh session resumes the run\n`, 'utf8');
-  process.stdout.write(`${result.verdict}: ${result.why}\n`);
+  if (!['arm', 'awake'].includes(command) || !file) return fail(USAGE, 2);
+  if (!existsSync(file)) return fail(`no wave file at ${file}`, 1);
+  if (command === 'arm') return arm(path.resolve(file), argv);
+  process.stdout.write(`${holdAwake(path.resolve(file))}\n`);
   return 0;
 }
 
