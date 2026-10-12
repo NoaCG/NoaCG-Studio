@@ -171,7 +171,7 @@ export function holdAwake(file, { platform = process.platform, now = Date.now() 
 function hold(file, until) {
   const child = process.platform === 'win32'
     ? spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(holderScript({ file, until }), 'utf16le').toString('base64')], { stdio: 'ignore', windowsHide: true })
-    : spawn('caffeinate', ['-i', '-t', String(Math.max(1, Math.ceil((Date.parse(until) - Date.now()) / 1000)))], { stdio: 'ignore' });
+    : spawn('caffeinate', ['-i', '-t', String(Math.max(1, Math.ceil((Date.parse(until) - Date.now()) / 1000)))], { stdio: 'ignore', windowsHide: true });
   return new Promise((resolve) => child.on('exit', resolve).on('error', resolve));
 }
 
