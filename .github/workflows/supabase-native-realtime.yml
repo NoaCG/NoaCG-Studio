@@ -21,7 +21,6 @@ jobs:
       matrix:
         include:
           - { cli: 2.120.0, runtime: native }
-          - { cli: 2.121.0-beta.20, runtime: native }
           - { cli: 2.120.0, runtime: docker }
     env:
       E2E_EMAIL: e2e@noacg.local
@@ -79,8 +78,22 @@ jobs:
           process.exit(0);
           JS
           node .probe.mjs
-      - name: panel-relay.spec.ts alone
-        run: npx playwright test -c playwright.live.config.ts e2e/configured/panel-relay.spec.ts --reporter=list --retries=0 || true
+          cat > .probe2.mjs <<'JS'
+          // The spec's order: an HTTP call on the client, then a private join on the same client.
+          import { createClient } from '@supabase/supabase-js';
+          const join = (c, topic, priv) => { const ch = c.channel(topic, { config: { private: priv } });
+            return new Promise((r) => { const t = setTimeout(() => r('NO ANSWER'), 10000); ch.subscribe((st, err) => { clearTimeout(t); r(st + (err ? ' ' + err.message : '')); }); }); };
+          const mk = () => createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+          for (const [label, priv, waitMs] of [['rest then private join', true, 0], ['rest then public join', false, 0], ['rest, 6 s idle, private join', true, 6000]]) {
+            const c = mk();
+            const { error } = await c.from('allowlist').select('email').limit(1);
+            if (waitMs) await new Promise((r) => setTimeout(r, waitMs));
+            console.log(label, '(rest error:', error?.code ?? 'none', ') ->', await join(c, (priv ? 'pnp-' : 'pub-') + 'b'.repeat(32), priv));
+          }
+          { const c = mk(); console.log('fresh client private join ->', await join(c, 'pnp-' + 'c'.repeat(32), true)); }
+          process.exit(0);
+          JS
+          node .probe2.mjs
       - name: Realtime log
         if: ${{ always() }}
         run: |
