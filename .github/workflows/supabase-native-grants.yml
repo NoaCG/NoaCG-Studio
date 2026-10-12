@@ -1,0 +1,82 @@
+# TRIAL ONLY - lives on claude/supabase-native-trial-grants and is never landed.
+#
+# The native runtime grants every new table in `public` to anon, authenticated and service_role
+# through default privileges, as hosted Supabase does; the Docker stack does not. Can a CI job
+# take that bootstrap away before the migrations apply, so a missing grant still fails locally?
+
+name: supabase-native-grants
+
+on:
+  push:
+    branches: [claude/supabase-native-trial-grants]
+
+permissions:
+  contents: read
+
+jobs:
+  grants:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_EXPERIMENTAL_STACK: '1'
+      SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
+      SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Helpers
+        run: |
+          cat > "$RUNNER_TEMP/h.sh" <<'SH'
+          db() { supabase status --output-format json | jq -r '.env.DB_URL // .DB_URL'; }
+          q() { psql "$(db)" -X -tA -F '|' -c "$1"; }
+          shape() {
+            echo "### $1"
+            echo "default acl, postgres in public:"; q "select defaclobjtype, defaclacl::text from pg_default_acl where pg_get_userbyid(defaclrole) = 'postgres' and defaclnamespace = 'public'::regnamespace order by 1"
+            q "create table public.zz_probe(id int)" >/dev/null
+            echo "probe table grants:"; q "select grantee, string_agg(privilege_type, ',' order by privilege_type) from information_schema.role_table_grants where table_schema = 'public' and table_name = 'zz_probe' group by 1 order by 1"
+            q "drop table public.zz_probe" >/dev/null
+            echo "migrations applied: $(q 'select count(*) from supabase_migrations.schema_migrations' 2>&1)"
+            echo "who applies migrations: $(q "select tableowner from pg_tables where schemaname = 'public' and tablename = 'documents'" 2>&1)"
+          }
+          SH
+
+      - name: A - plain native start
+        run: |
+          source "$RUNNER_TEMP/h.sh"
+          supabase start --runtime native --eager --exclude studio,functions >/dev/null
+          shape "A: plain start"
+          supabase stack destroy --yes
+
+      - name: B - start with no migrations, revoke the bootstrap, then apply them
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/h.sh"
+          mv supabase/migrations "$RUNNER_TEMP/migrations"
+          mkdir supabase/migrations
+          supabase start --runtime native --eager --exclude studio,functions >/dev/null
+          q "alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role"
+          q "alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated, service_role"
+          q "alter default privileges for role postgres in schema public revoke all on functions from anon, authenticated, service_role"
+          rmdir supabase/migrations
+          mv "$RUNNER_TEMP/migrations" supabase/migrations
+          supabase migration up 2>&1 | tail -3
+          psql "$(db)" -X -q -f supabase/seed.sql
+          shape "B: bootstrap revoked before the migrations"
+          q "select grantee, table_name, string_agg(privilege_type, ',' order by privilege_type) from information_schema.role_table_grants where table_schema = 'public' and grantee in ('anon','authenticated','service_role','PUBLIC') group by 1,2 order by 2,1" > public-grants-B.txt
+          q "select has_table_privilege('authenticated','public.documents','select'), has_table_privilege('anon','public.documents','select')"
+
+      - name: C - does db reset bring the bootstrap back
+        run: |
+          source "$RUNNER_TEMP/h.sh"
+          supabase db reset 2>&1 | tail -3
+          shape "C: after supabase db reset"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: grants
+          path: public-grants-B.txt
+          if-no-files-found: ignore
