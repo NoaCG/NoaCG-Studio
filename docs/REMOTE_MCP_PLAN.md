@@ -467,10 +467,14 @@ designs, every design id is unique, and every design's palette and font are in t
   `graphic`, `look` (a brand is a saved look; the retired `brand` singleton is not listed) and
   `show`, not deleted; the user's `team_members` rows to `teams` to `team_productions`. A personal
   record of the same id as a team production (what a move leaves) is not listed. Lists are names,
-  types, folders and fields, newest first, 100 at most with `more`. A production's graphics and
-  cues come only with `production: <id>`, because a production body carries every template and
-  the listing should not read them. Values are repeated only when short and not a data URL; no
-  `html`, `css`, `js` or assets ever leave.
+  types and folders, newest first (own and team productions merged), 100 at most with `more`;
+  fields are read afterwards for the graphics answered, since a stored field can hold an inlined
+  file. The store reads at most 1,000 rows of each kind (PostgREST's row cap), and an answer says
+  `searched: "the newest 1000 of each kind"` when that limit was reached. A brand carries `font`
+  (a bundled font id) or `customFont` (an imported family's name), never one key for both. A
+  production's graphics and cues come only with `production: <id>`, because a production body
+  carries every template and the listing should not read them. Values are repeated only when
+  short and not a data URL; no `html`, `css`, `js` or assets ever leave.
 - *Permissions:* `graphics:read` is enforced (`ENFORCED_PERMISSION_KEYS`) by `noacg_library`;
   `noacg_catalog` needs none (public data) but is still only reachable as a connector.
 
@@ -488,6 +492,9 @@ designs, every design id is unique, and every design's palette and font are in t
 - *The catalog fetch is a request to the deployment itself.* A deployment behind Vercel Deployment
   Protection would answer it 401 and `noacg_catalog` would fail. Phase 5's staging switch-on must
   check the staging domain is reachable from its own functions (or send the automation bypass).
+  The origin comes from the request URL, which on Vercel is a routed domain; on the dev server it
+  follows the `Host` header. If either becomes a problem, ship the index inside the function
+  (`includeFiles`) instead of fetching it.
 
 **Traps.**
 

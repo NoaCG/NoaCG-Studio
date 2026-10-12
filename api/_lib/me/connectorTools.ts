@@ -39,7 +39,7 @@ export function wordsOf(text: string): string[] {
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .split(/[^a-z0-9]+/)
-    .filter((w) => w.length > 1)
+    .filter((w) => w.length > 1 || /\d/.test(w))
     .map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w));
 }
 
@@ -143,7 +143,6 @@ export interface LibraryGraphicRow {
   type: string | null;
   folder: string | null;
   updatedAt: string;
-  fields: unknown;
 }
 
 export interface LibraryBrandRow {
@@ -176,6 +175,8 @@ export interface LibraryRows {
   brands: LibraryBrandRow[];
   productions: LibraryProductionRow[];
   teams: LibraryTeamRow[];
+  /** Some list reached the store's scan limit, so older rows were neither listed nor searched. */
+  scanLimited?: boolean;
 }
 
 export interface ProductionDetailRow extends LibraryProductionRow {
@@ -188,12 +189,16 @@ export interface ProductionDetailRow extends LibraryProductionRow {
 /** The reads behind noacg_library. Every method is scoped by the user id it is given. */
 export interface LibraryStore {
   library(userId: string): Promise<LibraryRows>;
+  /** The stored SPX fields of the user's graphics with these ids (only the ones answered). */
+  graphicFields(userId: string, ids: readonly string[]): Promise<Map<string, unknown>>;
   /** One production the user owns or a team of theirs holds; null for anything else. */
   production(userId: string, id: string): Promise<ProductionDetailRow | null>;
 }
 
 /** Lists are answered newest first, this many at most; the rest are counted. */
 export const LIBRARY_MAX_ROWS = 100;
+/** Rows of each kind the store reads, newest first: PostgREST's own row cap on Supabase. */
+export const LIBRARY_SCAN_ROWS = 1000;
 /** A stored value longer than this is not repeated back (it is a paragraph, not a sample). */
 const MAX_VALUE_CHARS = 200;
 /** SPX field types that carry an operator value; buttons, captions, dividers and hidden
@@ -230,8 +235,10 @@ function cap<T>(rows: T[]): { rows: T[]; more: number } {
   return { rows: rows.slice(0, LIBRARY_MAX_ROWS), more: Math.max(0, rows.length - LIBRARY_MAX_ROWS) };
 }
 
-/** The library as the tool answers it. Pure: the rows in, the answer out. */
-export function libraryView(rows: LibraryRows, query = ''): Record<string, unknown> {
+export type LibraryView = Record<string, unknown> & { graphics: Array<Record<string, unknown> & { id: string }> };
+
+/** The library as the tool answers it, before the answered graphics' fields are read. Pure. */
+export function libraryView(rows: LibraryRows, query = ''): LibraryView {
   const asked = wordsOf(query);
   const wanted = (...texts: Array<string | null | undefined>) => {
     if (asked.length === 0) return true;
@@ -252,7 +259,6 @@ export function libraryView(rows: LibraryRows, query = ''): Record<string, unkno
         type: g.type ?? '',
         ...(g.folder ? { folder: g.folder } : {}),
         updatedAt: g.updatedAt,
-        fields: fieldsView(g.fields),
       })),
   );
   const brands = cap(
@@ -264,14 +270,15 @@ export function libraryView(rows: LibraryRows, query = ''): Record<string, unkno
           id: b.id,
           name: b.name ?? '',
           ...(p ? { palette: { name: p.name, accent: p.accent, text: p.text, panel: p.panel } } : {}),
-          ...(b.fontId || b.customFont ? { font: b.fontId ?? b.customFont } : {}),
+          ...(b.fontId ? { font: b.fontId } : b.customFont ? { customFont: b.customFont } : {}),
           logo: b.logo,
           ...(b.notes ? { notes: b.notes } : {}),
         };
       }),
   );
   const productions = cap(
-    rows.productions
+    [...rows.productions]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .filter((p) => (p.teamId || !teamIds.has(p.id)) && wanted(p.name, p.teamId ? teamName.get(p.teamId) : null))
       .map((p) => ({
         id: p.id,
@@ -288,6 +295,7 @@ export function libraryView(rows: LibraryRows, query = ''): Record<string, unkno
     productions: productions.rows,
     teams: rows.teams,
     ...(Object.values(more).some((n) => n > 0) ? { more } : {}),
+    ...(rows.scanLimited ? { searched: `the newest ${LIBRARY_SCAN_ROWS} of each kind` } : {}),
   };
 }
 
@@ -345,27 +353,39 @@ export function supabaseLibraryStore(): LibraryStore {
     async library(userId) {
       const db = await serviceRoleDb();
       const docs = (kind: string, columns: string) =>
-        db.from('documents').select(columns).eq('user_id', userId).eq('kind', kind).eq('deleted', false).order('updated_at', { ascending: false }).limit(1000);
-      const teams = await teamsOf(userId);
-      const [graphics, looks, shows, teamShows] = await Promise.all([
-        docs('graphic', 'id, updated_at, name:body->>name, type:body->>type, folder:body->>folder, fields:body->template->fields'),
+        db.from('documents').select(columns).eq('user_id', userId).eq('kind', kind).eq('deleted', false).order('updated_at', { ascending: false }).limit(LIBRARY_SCAN_ROWS);
+      const teamsRead = teamsOf(userId);
+      const [graphics, looks, shows, teamShows, teams] = await Promise.all([
+        docs('graphic', 'id, updated_at, name:body->>name, type:body->>type, folder:body->>folder'),
         docs('look', 'id, updated_at, name:body->>name, palette:body->brand->palette, fontId:body->brand->>fontId, customFont:body->brand->customFont->>family, logo:body->brand->logo->>path, notes:body->brand->>notes'),
         docs('show', 'id, updated_at, name:body->>name, brandId:body->>brandId'),
-        teams.length
-          ? db.from('team_productions').select('id, team_id, updated_at, name:doc->>name, brandId:doc->>brandId').in('team_id', teams.map((t) => t.id)).order('updated_at', { ascending: false }).limit(1000)
-          : Promise.resolve({ data: [], error: null }),
+        teamsRead.then(async (teams) =>
+          teams.length
+            ? await db.from('team_productions').select('id, team_id, updated_at, name:doc->>name, brandId:doc->>brandId').in('team_id', teams.map((t) => t.id)).order('updated_at', { ascending: false }).limit(LIBRARY_SCAN_ROWS)
+            : { data: [], error: null },
+        ),
+        teamsRead,
       ]);
       for (const r of [graphics, looks, shows, teamShows]) if (r.error) throw new Error(r.error.message);
       const rowsOf = (r: { data: unknown }) => (r.data ?? []) as Array<Record<string, unknown>>;
       return {
-        graphics: rowsOf(graphics).map((r) => ({ id: String(r.id), name: str(r.name), type: str(r.type), folder: str(r.folder), updatedAt: String(r.updated_at), fields: r.fields })),
+        graphics: rowsOf(graphics).map((r) => ({ id: String(r.id), name: str(r.name), type: str(r.type), folder: str(r.folder), updatedAt: String(r.updated_at) })),
         brands: rowsOf(looks).map((r) => ({ id: String(r.id), name: str(r.name), palette: r.palette, fontId: str(r.fontId), customFont: str(r.customFont), logo: Boolean(r.logo), notes: str(r.notes) })),
         productions: [
           ...rowsOf(teamShows).map((r) => ({ id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId), teamId: String(r.team_id) })),
           ...rowsOf(shows).map((r) => ({ id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId) })),
         ],
         teams,
+        scanLimited: [graphics, looks, shows, teamShows].some((r) => rowsOf(r).length >= LIBRARY_SCAN_ROWS),
       };
+    },
+
+    async graphicFields(userId, ids) {
+      if (ids.length === 0) return new Map();
+      const db = await serviceRoleDb();
+      const { data, error } = await db.from('documents').select('id, fields:body->template->fields').eq('user_id', userId).eq('kind', 'graphic').in('id', [...ids]);
+      if (error) throw new Error(error.message);
+      return new Map(((data ?? []) as Array<Record<string, unknown>>).map((r) => [String(r.id), r.fields]));
     },
 
     async production(userId, id) {
@@ -458,7 +478,10 @@ export function createReadTools(deps: ReadToolsDeps = {}): McpTool[] {
           if (!row) return refusal(`No production "${wanted}" in this user's library. noacg_library without arguments lists their productions.`);
           return result(productionView(row));
         }
-        return result(libraryView(await store().library(userId), text(args.query)));
+        // Fields are read for the answered graphics only: a stored field can hold an inlined file.
+        const view = libraryView(await store().library(userId), text(args.query));
+        const fields = await store().graphicFields(userId, view.graphics.map((g) => g.id));
+        return result({ ...view, graphics: view.graphics.map((g) => ({ ...g, fields: fieldsView(fields.get(g.id)) })) });
       },
     },
   ];

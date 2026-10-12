@@ -35,7 +35,8 @@ export function catalogIndexPlugin() {
     name: 'noacg-catalog-index',
     configureServer(server) {
       server.middlewares.use(INDEX_PATH, (req, res, next) => {
-        if (req.url !== '/' && req.url !== '') return next();
+        const rest = (req.url ?? '').split('?')[0];
+        if (rest !== '/' && rest !== '') return next();
         catalogIndexJson(server).then(
           (body) => {
             res.setHeader('content-type', 'application/json');

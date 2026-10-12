@@ -62,6 +62,7 @@ const INDEX: CatalogIndex = {
 test('words are lowercase, accent-free and singular, and a word matches by its start', () => {
   assert.deepEqual(wordsOf('Scoreboards, Café & a b'), ['scoreboard', 'cafe']);
   assert.deepEqual(wordsOf('class'), ['class']);
+  assert.deepEqual(wordsOf('3 lines'), ['3', 'line'], 'a lone digit is a word');
 });
 
 test('the catalog: an overview without arguments, palettes and fonts with every answer', () => {
@@ -116,54 +117,69 @@ test('the index is read from the deployment\'s own origin, kept, and refused whe
 const SOURCE = 'SECRET-TEMPLATE-SOURCE';
 const ROWS: LibraryRows = {
   graphics: [
-    {
-      id: 'g1',
-      name: 'Sunday names',
-      type: 'lower-third',
-      folder: 'Church',
-      updatedAt: '2026-10-12T10:00:00.000Z',
-      fields: [
-        { field: 'f0', ftype: 'textfield', title: 'Name', value: 'Anna' },
-        { field: 'f1', ftype: 'filelist', title: 'Logo', value: `data:image/png;base64,${SOURCE}` },
-        { field: 'f2', ftype: 'textarea', title: 'Notes', value: SOURCE.repeat(20) },
-        { field: 'f3', ftype: 'dropdown', title: 'Side', value: 'left', items: [{ text: 'Left', value: 'left' }, { text: 'Right', value: 'right' }] },
-        { field: 'f4', ftype: 'hidden', title: 'Clock', value: '0' },
-        { field: 'f5', ftype: 'instruction', title: 'Read me', value: SOURCE },
-      ],
-    },
-    { id: 'g2', name: 'Score', type: 'scoreboard', folder: null, updatedAt: '2026-10-11T10:00:00.000Z', fields: null },
+    { id: 'g1', name: 'Sunday names', type: 'lower-third', folder: 'Church', updatedAt: '2026-10-12T10:00:00.000Z' },
+    { id: 'g2', name: 'Score', type: 'scoreboard', folder: null, updatedAt: '2026-10-11T10:00:00.000Z' },
   ],
-  brands: [{ id: 'b1', name: 'Parish', palette: { id: 'custom', name: 'Parish', accent: '#123456', text: '#fff', panel: '#000', textDim: '#ccc' }, fontId: null, customFont: 'Gill Sans', logo: true, notes: null }],
+  brands: [
+    { id: 'b1', name: 'Parish', palette: { id: 'custom', name: 'Parish', accent: '#123456', text: '#fff', panel: '#000', textDim: '#ccc' }, fontId: null, customFont: 'Gill Sans', logo: true, notes: null },
+    { id: 'b2', name: 'House', palette: null, fontId: 'inter', customFont: null, logo: false, notes: 'Calm' },
+  ],
   productions: [
+    { id: 'p-old-team', name: 'Old team night', updatedAt: '2026-09-01T09:00:00.000Z', brandId: null, teamId: 't1' },
     { id: 'p-team', name: 'Youth night', updatedAt: '2026-10-12T09:00:00.000Z', brandId: null, teamId: 't1' },
-    { id: 'p-team', name: 'Youth night (moved)', updatedAt: '2026-10-01T09:00:00.000Z', brandId: null },
     { id: 'p-own', name: 'Sunday service', updatedAt: '2026-10-10T09:00:00.000Z', brandId: 'b1' },
+    { id: 'p-team', name: 'Youth night (moved)', updatedAt: '2026-10-01T09:00:00.000Z', brandId: null },
   ],
   teams: [{ id: 't1', name: 'Youth team', role: 'member' }],
 };
 
-test('the library: names and operator fields, never code, inlined files or paragraphs', () => {
-  const view = libraryView(ROWS) as { graphics: Array<{ id: string; fields: unknown[] }>; brands: unknown[]; productions: Array<{ id: string; name: string; team?: string }>; teams: unknown[] };
-  assert.ok(!JSON.stringify(view).includes(SOURCE), 'no template source, data URL or long value is repeated');
-  assert.deepEqual(view.graphics[0].fields, [
+/** What the store holds as g1's template fields: values worth repeating, and ones that are not. */
+const G1_FIELDS = [
+  { field: 'f0', ftype: 'textfield', title: 'Name', value: 'Anna' },
+  { field: 'f1', ftype: 'filelist', title: 'Logo', value: `data:image/png;base64,${SOURCE}` },
+  { field: 'f2', ftype: 'textarea', title: 'Notes', value: SOURCE.repeat(20) },
+  { field: 'f3', ftype: 'dropdown', title: 'Side', value: 'left', items: [{ text: 'Left', value: 'left' }, { text: 'Right', value: 'right' }] },
+  { field: 'f4', ftype: 'hidden', title: 'Clock', value: '0' },
+  { field: 'f5', ftype: 'instruction', title: 'Read me', value: SOURCE },
+];
+
+test('a graphic\'s fields: operator fields with short values only, never inlined files or paragraphs', () => {
+  const fields = fieldsView(G1_FIELDS);
+  assert.ok(!JSON.stringify(fields).includes(SOURCE));
+  assert.deepEqual(fields, [
     { id: 'f0', title: 'Name', type: 'textfield', value: 'Anna' },
     { id: 'f1', title: 'Logo', type: 'filelist' },
     { id: 'f2', title: 'Notes', type: 'textarea' },
     { id: 'f3', title: 'Side', type: 'dropdown', value: 'left', options: ['left', 'right'] },
   ]);
-  assert.deepEqual(view.graphics[1].fields, []);
-  assert.deepEqual(view.brands, [{ id: 'b1', name: 'Parish', palette: { name: 'Parish', accent: '#123456', text: '#fff', panel: '#000' }, font: 'Gill Sans', logo: true }]);
+  assert.deepEqual(fieldsView(null), []);
+  assert.deepEqual(fieldsView('not a list'), []);
+});
+
+test('the library: graphics, brands with a font id or a custom family, productions newest first', () => {
+  const view = libraryView(ROWS) as { graphics: unknown[]; brands: unknown[]; productions: Array<{ id: string }>; teams: unknown[]; searched?: string };
+  assert.deepEqual(view.graphics, [
+    { id: 'g1', name: 'Sunday names', type: 'lower-third', folder: 'Church', updatedAt: '2026-10-12T10:00:00.000Z' },
+    { id: 'g2', name: 'Score', type: 'scoreboard', updatedAt: '2026-10-11T10:00:00.000Z' },
+  ]);
+  assert.deepEqual(view.brands, [
+    { id: 'b1', name: 'Parish', palette: { name: 'Parish', accent: '#123456', text: '#fff', panel: '#000' }, customFont: 'Gill Sans', logo: true },
+    { id: 'b2', name: 'House', font: 'inter', logo: false, notes: 'Calm' },
+  ]);
   assert.deepEqual(view.productions, [
     { id: 'p-team', name: 'Youth night', updatedAt: '2026-10-12T09:00:00.000Z', team: 'Youth team' },
     { id: 'p-own', name: 'Sunday service', updatedAt: '2026-10-10T09:00:00.000Z', brandId: 'b1' },
-  ], 'the personal record a move left behind is not listed beside the team copy');
+    { id: 'p-old-team', name: 'Old team night', updatedAt: '2026-09-01T09:00:00.000Z', team: 'Youth team' },
+  ], 'own and team productions merged newest first; the personal record a move left behind is not listed');
   assert.deepEqual(view.teams, ROWS.teams);
+  assert.equal(view.searched, undefined);
+  assert.match(String((libraryView({ ...ROWS, scanLimited: true }) as { searched?: string }).searched), /newest 1000/);
 });
 
 test('the library: words narrow every list, and long lists are capped and counted', () => {
   const youth = libraryView(ROWS, 'youth') as { graphics: unknown[]; productions: Array<{ id: string }> };
   assert.deepEqual(youth.graphics, []);
-  assert.deepEqual(youth.productions.map((p) => p.id), ['p-team']);
+  assert.deepEqual(youth.productions.map((p) => p.id), ['p-team', 'p-old-team'], 'a team name finds its productions');
   const church = libraryView(ROWS, 'church') as { graphics: Array<{ id: string }> };
   assert.deepEqual(church.graphics.map((g) => g.id), ['g1'], 'a folder name finds its graphics');
   const big: LibraryRows = { ...ROWS, graphics: Array.from({ length: 105 }, (_, i) => ({ ...ROWS.graphics[1], id: `g${i}` })) };
@@ -171,6 +187,7 @@ test('the library: words narrow every list, and long lists are capped and counte
   assert.equal(capped.graphics.length, 100);
   assert.equal(capped.more.graphics, 5);
 });
+
 
 test('one production: its pool with fields, and its cues by graphic name with short values only', () => {
   const row: ProductionDetailRow = {
@@ -201,7 +218,6 @@ test('one production: its pool with fields, and its cues by graphic name with sh
       ],
     },
   });
-  assert.deepEqual(fieldsView('not a list'), []);
 });
 
 // ── through the endpoint, as a connector ────────────────────────────────────────────────
@@ -217,6 +233,10 @@ async function endpoint(permissions: string[]) {
     async library(userId) {
       asked.push(`library:${userId}`);
       return ROWS;
+    },
+    async graphicFields(userId, ids) {
+      asked.push(`fields:${userId}:${ids.join(',')}`);
+      return new Map([['g1', G1_FIELDS]]);
     },
     async production(userId, id) {
       asked.push(`production:${userId}:${id}`);
@@ -255,7 +275,9 @@ test('noacg_library reads only the connector user\'s library, and only with grap
   const listed = await granted.call('noacg_library');
   assert.notEqual(listed.isError, true);
   assert.deepEqual(JSON.parse(listed.content[0].text), listed.structuredContent);
-  assert.equal((listed.structuredContent!.graphics as unknown[]).length, 2);
+  const graphics = listed.structuredContent!.graphics as Array<{ id: string; fields: unknown[] }>;
+  assert.deepEqual(graphics.map((g) => [g.id, g.fields]), [['g1', fieldsView(G1_FIELDS)], ['g2', []]], 'fields are read for the answered graphics');
+  assert.ok(!listed.content[0].text.includes(SOURCE));
   const one = await granted.call('noacg_library', { production: PRODUCTION });
   assert.equal((one.structuredContent!.production as { name: string }).name, 'Sunday service');
   const unknown = await granted.call('noacg_library', { production: '00000000-0000-4000-8000-000000000000' });
@@ -263,7 +285,7 @@ test('noacg_library reads only the connector user\'s library, and only with grap
   assert.match(unknown.content[0].text, /No production/);
   const notAnId = await granted.call('noacg_library', { production: "'; drop table documents; --" });
   assert.equal(notAnId.isError, true);
-  assert.deepEqual(granted.asked, [`library:${USER}`, `production:${USER}:${PRODUCTION}`, `production:${USER}:00000000-0000-4000-8000-000000000000`], 'a non-id never reaches the store');
+  assert.deepEqual(granted.asked, [`library:${USER}`, `fields:${USER}:g1,g2`, `production:${USER}:${PRODUCTION}`, `production:${USER}:00000000-0000-4000-8000-000000000000`], 'a non-id never reaches the store');
 
   const createOnly = await endpoint(['graphics:create']);
   const refused = await createOnly.call('noacg_library');
