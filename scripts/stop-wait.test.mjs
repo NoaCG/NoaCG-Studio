@@ -3,9 +3,14 @@
 // is already the queue's. A false positive here interrupts every session's ordinary turn end, so
 // the negatives are the half that earns the hook its place.
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-import { decide, declaresWait, finishedProperly, lastAssistantText, MAX_REFUSALS } from './stop-wait.mjs';
+import { decide, declaresWait, finishedProperly, isCloudSession, lastAssistantText, MAX_REFUSALS } from './stop-wait.mjs';
 
 test('declaresWait catches the four observed shapes', () => {
   assert.ok(declaresWait('Pushed. I am now waiting for the CI run to finish before writing the handoff and queueing.'));
@@ -139,6 +144,44 @@ test('decide names the three things to do instead', () => {
   assert.match(message, /gh run view/);
   assert.match(message, /jobs\.mjs (log|wait)/);
   assert.match(message, /\/queue-merge as your LAST action/);
+});
+
+test('isCloudSession reads CLAUDE_CODE_REMOTE=true and nothing else', () => {
+  assert.equal(isCloudSession({ CLAUDE_CODE_REMOTE: 'true' }), true);
+  assert.equal(isCloudSession({}), false);
+  assert.equal(isCloudSession({ CLAUDE_CODE_REMOTE: 'false' }), false);
+  assert.equal(isCloudSession({ CLAUDE_CODE_REMOTE: '' }), false);
+});
+
+test('the hook refuses a wait on a laptop and lets a cloud session (CLAUDE_CODE_REMOTE=true) stop', () => {
+  // The /plan-run coordinator on 2026-10-11 was refused three times while waiting on a pull request
+  // it had a PR subscription and a `send_later` check-in armed for, and both woke it.
+  const hook = fileURLToPath(new URL('./hooks/stop-wait.mjs', import.meta.url));
+  const scratch = mkdtempSync(join(tmpdir(), 'stop-wait-'));
+  try {
+    const run = (remote, session) => {
+      const env = { ...process.env };
+      delete env.CLAUDE_CODE_REMOTE;
+      if (remote) env.CLAUDE_CODE_REMOTE = remote;
+      const event = {
+        hook_event_name: 'Stop',
+        session_id: session,
+        scratchpad_dir: scratch,
+        cwd: scratch, // not a git checkout, so the landing state reads as unknown
+        stop_hook_active: false,
+        last_assistant_message: 'Pushed and waiting for the CI run to wake me before I queue.',
+      };
+      return spawnSync(process.execPath, [hook], { input: JSON.stringify(event), env, encoding: 'utf8', windowsHide: true });
+    };
+    const laptop = run(null, 'laptop');
+    assert.equal(laptop.status, 2, laptop.stderr);
+    assert.match(laptop.stderr, /nothing can wake a stopped session/);
+    const cloud = run('true', 'cloud');
+    assert.equal(cloud.status, 0, cloud.stderr);
+    assert.equal(cloud.stderr, '');
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('lastAssistantText reads the newest assistant text out of a transcript tail', () => {

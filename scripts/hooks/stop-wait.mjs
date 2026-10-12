@@ -10,7 +10,10 @@ import { closeSync, mkdirSync, openSync, readFileSync, readSync, statSync, write
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readHookInput, warn, gitOutput } from './lib.mjs';
-import { decide, declaresWait, lastAssistantText, MAX_REFUSALS, REFUSAL_WINDOW_MS } from '../stop-wait.mjs';
+import { decide, declaresWait, isCloudSession, lastAssistantText, MAX_REFUSALS, REFUSAL_WINDOW_MS } from '../stop-wait.mjs';
+
+// A cloud session has real wake sources and is never refused (`isCloudSession`), so it reads nothing.
+if (isCloudSession()) process.exit(0);
 
 const input = await readHookInput();
 if (!input) process.exit(0);

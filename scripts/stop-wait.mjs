@@ -160,6 +160,24 @@ export const MAX_REFUSALS = 3;
 export const REFUSAL_WINDOW_MS = 30 * 60 * 1000;
 
 /**
+ * A CLOUD SESSION IS WOKEN, so it is never refused. "Nothing can wake a stopped session" was
+ * measured on laptop sessions; a Claude Code cloud session has real wake sources - a
+ * `subscribe_pr_activity` subscription, a `send_later` check-in, a background agent's completion
+ * notice - and no `gh` or local job store to follow this hook's advice with. On 2026-10-11 the
+ * `/plan-run` coordinator was refused three times in a row while waiting on a pull request that a
+ * subscription and an armed check-in both did wake it for. Its stopped wave rows report to that
+ * coordinator, which holds the same wake sources, so a row is let stop as well.
+ *
+ * The signal is `CLAUDE_CODE_REMOTE=true`, which the cloud harness sets in the container and its
+ * hook processes inherit - measured on 2026-10-12, where `cloud-session-setup.mjs`, which keys on
+ * it, printed its cloud-only "Cloud setup:" line from the SessionStart hook. A laptop session does
+ * not set it. The hook asks before it reads anything, so a cloud stop costs nothing.
+ */
+export function isCloudSession(env = process.env) {
+  return env.CLAUDE_CODE_REMOTE === 'true';
+}
+
+/**
  * The message the hook returns, or null when the stop is fine. `landingState` is the branch's
  * state from the job store (`queued`, `landed`, `not-queued`, ...): a queued or landed branch
  * needs no session awake for it, whatever the message says. `refusals` is how many times THIS
