@@ -244,6 +244,10 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+      - name: Fail the run when the suite was not a clean verdict
+        if: ${{ steps.assert.outputs.green != 'true' }}
+        run: exit 1
+
   # A cloud agent sandbox's conditions, emulated: Ubuntu 24.04 as root with no Docker daemon.
   # Two git worktrees of this commit, one native stack each, up at the same time.
   cloud-emulation:
