@@ -37,6 +37,12 @@ export class ScriptedClaude implements OAuthClientProvider {
   codeVerifier() { return this.verifier; }
 }
 
+/** Delete a client the spec registered, so the local stack does not collect them. */
+export async function deleteOAuthClient(supabaseUrl: string, serviceKey: string, clientId: string | undefined): Promise<void> {
+  if (!clientId) return;
+  await fetch(`${supabaseUrl.replace(/\/+$/, '')}/auth/v1/admin/oauth/clients/${clientId}`, { method: 'DELETE', headers: { apikey: serviceKey, authorization: `Bearer ${serviceKey}` } }).catch(() => undefined);
+}
+
 /** Connect; the first time this throws UnauthorizedError after sending the user to sign in. */
 export async function connect(mcpUrl: URL, provider: ScriptedClaude): Promise<{ client: Client; transport: StreamableHTTPClientTransport }> {
   const transport = new StreamableHTTPClientTransport(mcpUrl, { authProvider: provider });

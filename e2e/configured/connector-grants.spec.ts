@@ -21,7 +21,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
 import { mintAccount, shot, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
-import { connect, consentPath, REDIRECT, ScriptedClaude } from './_connector';
+import { connect, consentPath, deleteOAuthClient, REDIRECT, ScriptedClaude } from './_connector';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const CLIENT_NAME = 'Claude (scripted)';
@@ -168,10 +168,7 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
       expect((await grantsOf())[0].revoked_at).not.toBeNull();
       console.log(`connector grants: after Revoke the tool call answers ${after.status()} and the refresh ${refresh.status} ${refreshBody.slice(0, 120)}`);
     } finally {
-      const clientId = provider.info?.client_id;
-      if (clientId) {
-        await fetch(`${supabase}/auth/v1/admin/oauth/clients/${clientId}`, { method: 'DELETE', headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } }).catch(() => undefined);
-      }
+      await deleteOAuthClient(SUPABASE_URL, SERVICE_ROLE_KEY, provider.info?.client_id);
       await admin.auth.admin.deleteUser(userId).catch(() => undefined);
     }
   });

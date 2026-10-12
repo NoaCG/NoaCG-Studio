@@ -11,8 +11,27 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const INDEX_PATH = '/catalog-index.json';
+/** src/templates/catalogIndex.ts CATALOG_INDEX_PATH, which plain node cannot import; the test
+ *  pins the two equal. */
+export const INDEX_PATH = '/catalog-index.json';
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** Run `fn` with a middleware-mode Vite server over this project (no port), always closed. */
+export async function withSsrServer(fn) {
+  const { createServer } = await import('vite');
+  const server = await createServer({
+    root: projectRoot,
+    configFile: path.join(projectRoot, 'vite.config.ts'),
+    server: { middlewareMode: true },
+    appType: 'custom',
+    logLevel: 'warn',
+  });
+  try {
+    return await fn(server);
+  } finally {
+    await server.close();
+  }
+}
 
 /** The index as JSON text, from a Vite server's SSR loader. */
 export async function catalogIndexJson(server) {
@@ -54,19 +73,7 @@ export function catalogIndexPlugin() {
     // the bundle's work (and would be reported as a slow bundling plugin there).
     async closeBundle() {
       if (!outDir) return;
-      const { createServer } = await import('vite');
-      const server = await createServer({
-        root: projectRoot,
-        configFile: path.join(projectRoot, 'vite.config.ts'),
-        server: { middlewareMode: true },
-        appType: 'custom',
-        logLevel: 'warn',
-      });
-      try {
-        await writeFile(path.join(outDir, INDEX_PATH.slice(1)), await catalogIndexJson(server));
-      } finally {
-        await server.close();
-      }
+      await writeFile(path.join(outDir, INDEX_PATH.slice(1)), await withSsrServer(catalogIndexJson));
     },
   };
 }

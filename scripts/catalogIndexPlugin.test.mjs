@@ -7,20 +7,16 @@
 // ambiguous, and a type with no designs or no fields is one a chat client can name but not fill.
 
 import assert from 'node:assert/strict';
-import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { createServer } from 'vite';
-import { catalogIndexJson } from './catalogIndexPlugin.mjs';
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+import { catalogIndexJson, INDEX_PATH, withSsrServer } from './catalogIndexPlugin.mjs';
 
 test('the catalog index holds every registered type, and every name in it resolves', { timeout: 120_000 }, async () => {
-  const server = await createServer({ root, configFile: path.join(root, 'vite.config.ts'), server: { middlewareMode: true }, appType: 'custom', logLevel: 'warn' });
-  try {
+  await withSsrServer(async (server) => {
     const json = await catalogIndexJson(server);
     const index = JSON.parse(json);
     const { TYPES } = await server.ssrLoadModule('/src/templates/types/registry.ts');
+    const { CATALOG_INDEX_PATH } = await server.ssrLoadModule('/src/templates/catalogIndex.ts');
+    assert.equal(INDEX_PATH, CATALOG_INDEX_PATH, 'the plugin serves the index where the connector reads it');
 
     assert.equal(index.version, 1);
     assert.deepEqual(index.types.map((t) => t.id), TYPES.map((t) => t.id), 'every registered type, in registry order');
@@ -43,7 +39,5 @@ test('the catalog index holds every registered type, and every name in it resolv
     // Read by a serverless function on a cold start and cached per instance: it stays small.
     assert.ok(json.length < 400_000, `${json.length} bytes`);
     console.log(`catalog index: ${index.types.length} types, ${designIds.size} designs, ${palettes.size} palettes, ${fonts.size} fonts, ${json.length} bytes`);
-  } finally {
-    await server.close();
-  }
+  });
 });

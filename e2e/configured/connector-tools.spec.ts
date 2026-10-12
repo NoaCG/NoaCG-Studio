@@ -23,7 +23,7 @@ import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
 import { mintAccount, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
-import { connect, consentPath, ScriptedClaude } from './_connector';
+import { connect, consentPath, deleteOAuthClient, ScriptedClaude } from './_connector';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 /** Written into every template's code; it must never come back from a tool. */
@@ -127,7 +127,6 @@ test.describe('remote MCP connector: the read tools', () => {
     test.skip(!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY, 'needs VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
     test.skip(!isLocalUrl(SUPABASE_URL), 'local stack only: it registers OAuth clients');
     const origin = baseURL!.replace(/\/+$/, '');
-    const supabase = SUPABASE_URL.replace(/\/+$/, '');
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const stamp = Date.now();
     const accounts = ['a', 'b'].map((who) => ({ who, email: `connector-tools-${who}-${stamp}@noacg.local`, password: `pw-${randomBytes(9).toString('base64url')}`, provider: new ScriptedClaude(`Claude (scripted ${who.toUpperCase()})`) }));
@@ -204,12 +203,7 @@ test.describe('remote MCP connector: the read tools', () => {
       }
       console.log('connector tools: A and B each read only their own graphics, brands, productions and team production; no template source in any answer');
     } finally {
-      for (const { provider } of accounts) {
-        const clientId = provider.info?.client_id;
-        if (clientId) {
-          await fetch(`${supabase}/auth/v1/admin/oauth/clients/${clientId}`, { method: 'DELETE', headers: { apikey: SERVICE_ROLE_KEY, authorization: `Bearer ${SERVICE_ROLE_KEY}` } }).catch(() => undefined);
-        }
-      }
+      for (const { provider } of accounts) await deleteOAuthClient(SUPABASE_URL, SERVICE_ROLE_KEY, provider.info?.client_id);
       for (const id of userIds) await admin.auth.admin.deleteUser(id).catch(() => undefined);
     }
   });

@@ -32,12 +32,13 @@ function refusal(text: string): McpToolResult {
 }
 
 /** Lowercase words without accents; a trailing plural `s` dropped, so "scoreboards" finds
- *  "scoreboard". */
+ *  "scoreboard". The same folding as model/taxonomy.ts normalizeSearchText, which api/ cannot
+ *  import: its type imports reach model/fonts.ts and the DOM. */
 export function wordsOf(text: string): string[] {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length > 1 || /\d/.test(w))
     .map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w));
@@ -98,7 +99,7 @@ export function searchCatalog(index: CatalogIndex, { category = '', query = '' }
   if (cat) {
     const wanted = wordsOf(cat).join(' ');
     const ids = new Set(
-      index.categories.filter((c) => c.id === cat || wordsOf(c.name).join(' ') === wanted || wordsOf(c.id).join(' ') === wanted).map((c) => c.id),
+      index.categories.filter((c) => wordsOf(c.name).join(' ') === wanted || wordsOf(c.id).join(' ') === wanted).map((c) => c.id),
     );
     pool = pool.filter((t) => ids.has(t.category));
     if (pool.length === 0) {
@@ -206,6 +207,9 @@ const MAX_VALUE_CHARS = 200;
 const VALUE_FTYPES = new Set(['textfield', 'textarea', 'dropdown', 'filelist', 'number', 'checkbox', 'color']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const text = (v: unknown) => (typeof v === 'string' ? v : '');
+const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
 /** A value worth repeating to the model: short text, never an inlined file. */
 function sample(value: unknown): string | undefined {
   if (typeof value !== 'string' && typeof value !== 'number') return undefined;
@@ -223,7 +227,7 @@ export function fieldsView(stored: unknown): Array<Record<string, unknown>> {
       const options = Array.isArray(f.items) ? (f.items as Array<{ value?: unknown }>).map((i) => sample(i?.value)).filter((v) => v !== undefined) : [];
       return {
         id: f.field,
-        title: typeof f.title === 'string' ? f.title : '',
+        title: text(f.title),
         type: f.ftype,
         ...(value === undefined || value === '' ? {} : { value }),
         ...(options.length ? { options } : {}),
@@ -277,9 +281,9 @@ export function libraryView(rows: LibraryRows, query = ''): LibraryView {
       }),
   );
   const productions = cap(
-    [...rows.productions]
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    rows.productions
       .filter((p) => (p.teamId || !teamIds.has(p.id)) && wanted(p.name, p.teamId ? teamName.get(p.teamId) : null))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((p) => ({
         id: p.id,
         name: p.name ?? '',
@@ -302,7 +306,7 @@ export function libraryView(rows: LibraryRows, query = ''): LibraryView {
 /** One production: its graphics (pool order, with their fields) and its cues. */
 export function productionView(row: ProductionDetailRow): Record<string, unknown> {
   const pool = Array.isArray(row.graphics) ? (row.graphics as Array<Record<string, unknown>>) : [];
-  const nameOf = new Map(pool.map((g) => [g?.id, typeof g?.name === 'string' ? g.name : '']));
+  const nameOf = new Map(pool.map((g) => [g?.id, text(g?.name)]));
   const cues = Array.isArray(row.cues) ? (row.cues as Array<Record<string, unknown>>) : [];
   return {
     production: {
@@ -315,7 +319,7 @@ export function productionView(row: ProductionDetailRow): Record<string, unknown
         const template = g?.template && typeof g.template === 'object' ? (g.template as Record<string, unknown>) : {};
         return {
           id: g?.id,
-          name: typeof g?.name === 'string' ? g.name : '',
+          name: text(g?.name),
           type: g?.type,
           ...(typeof g?.graphicId === 'string' ? { graphicId: g.graphicId } : {}),
           ...(typeof g?.layer === 'number' ? { layer: g.layer } : {}),
@@ -325,9 +329,12 @@ export function productionView(row: ProductionDetailRow): Record<string, unknown
       cues: cues.map((c) => {
         const values = c?.values && typeof c.values === 'object' ? (c.values as Record<string, unknown>) : {};
         return {
-          label: typeof c?.label === 'string' ? c.label : '',
+          label: text(c?.label),
           graphic: c?.source === 'playout' ? null : (nameOf.get(c?.sourceId) ?? null),
-          values: Object.fromEntries(Object.entries(values).flatMap(([k, v]) => (sample(v) === undefined ? [] : [[k, sample(v)]]))),
+          values: Object.fromEntries(Object.entries(values).flatMap(([k, v]) => {
+            const short = sample(v);
+            return short === undefined ? [] : [[k, short]];
+          })),
         };
       }),
     },
@@ -336,7 +343,10 @@ export function productionView(row: ProductionDetailRow): Record<string, unknown
 
 // ── the Supabase store ──────────────────────────────────────────────────────────────────
 
-const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+/** A production row from either table; a team row carries its team. */
+function productionRow(r: Record<string, unknown>): LibraryProductionRow {
+  return { id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId), ...(r.team_id ? { teamId: String(r.team_id) } : {}) };
+}
 
 export function supabaseLibraryStore(): LibraryStore {
   async function teamsOf(userId: string): Promise<LibraryTeamRow[]> {
@@ -355,7 +365,7 @@ export function supabaseLibraryStore(): LibraryStore {
       const docs = (kind: string, columns: string) =>
         db.from('documents').select(columns).eq('user_id', userId).eq('kind', kind).eq('deleted', false).order('updated_at', { ascending: false }).limit(LIBRARY_SCAN_ROWS);
       const teamsRead = teamsOf(userId);
-      const [graphics, looks, shows, teamShows, teams] = await Promise.all([
+      const [graphics, looks, shows, teamShows] = await Promise.all([
         docs('graphic', 'id, updated_at, name:body->>name, type:body->>type, folder:body->>folder'),
         docs('look', 'id, updated_at, name:body->>name, palette:body->brand->palette, fontId:body->brand->>fontId, customFont:body->brand->customFont->>family, logo:body->brand->logo->>path, notes:body->brand->>notes'),
         docs('show', 'id, updated_at, name:body->>name, brandId:body->>brandId'),
@@ -364,19 +374,17 @@ export function supabaseLibraryStore(): LibraryStore {
             ? await db.from('team_productions').select('id, team_id, updated_at, name:doc->>name, brandId:doc->>brandId').in('team_id', teams.map((t) => t.id)).order('updated_at', { ascending: false }).limit(LIBRARY_SCAN_ROWS)
             : { data: [], error: null },
         ),
-        teamsRead,
       ]);
-      for (const r of [graphics, looks, shows, teamShows]) if (r.error) throw new Error(r.error.message);
+      const teams = await teamsRead;
+      const reads = [graphics, looks, shows, teamShows];
+      for (const r of reads) if (r.error) throw new Error(r.error.message);
       const rowsOf = (r: { data: unknown }) => (r.data ?? []) as Array<Record<string, unknown>>;
       return {
         graphics: rowsOf(graphics).map((r) => ({ id: String(r.id), name: str(r.name), type: str(r.type), folder: str(r.folder), updatedAt: String(r.updated_at) })),
         brands: rowsOf(looks).map((r) => ({ id: String(r.id), name: str(r.name), palette: r.palette, fontId: str(r.fontId), customFont: str(r.customFont), logo: Boolean(r.logo), notes: str(r.notes) })),
-        productions: [
-          ...rowsOf(teamShows).map((r) => ({ id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId), teamId: String(r.team_id) })),
-          ...rowsOf(shows).map((r) => ({ id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId) })),
-        ],
+        productions: [...rowsOf(teamShows), ...rowsOf(shows)].map(productionRow),
         teams,
-        scanLimited: [graphics, looks, shows, teamShows].some((r) => rowsOf(r).length >= LIBRARY_SCAN_ROWS),
+        scanLimited: reads.some((r) => rowsOf(r).length >= LIBRARY_SCAN_ROWS),
       };
     },
 
@@ -390,7 +398,17 @@ export function supabaseLibraryStore(): LibraryStore {
 
     async production(userId, id) {
       const db = await serviceRoleDb();
-      const teams = await teamsOf(userId);
+      const [teams, personal] = await Promise.all([
+        teamsOf(userId),
+        db
+          .from('documents')
+          .select('id, updated_at, name:body->>name, brandId:body->>brandId, graphics:body->graphics, cues:body->cues')
+          .eq('user_id', userId)
+          .eq('kind', 'show')
+          .eq('deleted', false)
+          .eq('id', id)
+          .maybeSingle(),
+      ]);
       // The team's copy first: a moved production leaves a personal record of the same id.
       if (teams.length) {
         const { data, error } = await db
@@ -402,22 +420,13 @@ export function supabaseLibraryStore(): LibraryStore {
         if (error) throw new Error(error.message);
         if (data) {
           const r = data as Record<string, unknown>;
-          const teamId = String(r.team_id);
-          return { id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId), teamId, teamName: teams.find((t) => t.id === teamId)?.name, graphics: r.graphics, cues: r.cues };
+          return { ...productionRow(r), teamName: teams.find((t) => t.id === r.team_id)?.name, graphics: r.graphics, cues: r.cues };
         }
       }
-      const { data, error } = await db
-        .from('documents')
-        .select('id, updated_at, name:body->>name, brandId:body->>brandId, graphics:body->graphics, cues:body->cues')
-        .eq('user_id', userId)
-        .eq('kind', 'show')
-        .eq('deleted', false)
-        .eq('id', id)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      if (!data) return null;
-      const r = data as Record<string, unknown>;
-      return { id: String(r.id), name: str(r.name), updatedAt: String(r.updated_at), brandId: str(r.brandId), graphics: r.graphics, cues: r.cues };
+      if (personal.error) throw new Error(personal.error.message);
+      if (!personal.data) return null;
+      const r = personal.data as Record<string, unknown>;
+      return { ...productionRow(r), graphics: r.graphics, cues: r.cues };
     },
   };
 }
@@ -425,7 +434,6 @@ export function supabaseLibraryStore(): LibraryStore {
 // ── the tools ───────────────────────────────────────────────────────────────────────────
 
 const READ_ONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
-const text = (v: unknown) => (typeof v === 'string' ? v : '');
 
 export interface ReadToolsDeps {
   library?: LibraryStore;
@@ -433,7 +441,7 @@ export interface ReadToolsDeps {
 }
 
 export function createReadTools(deps: ReadToolsDeps = {}): McpTool[] {
-  const store = (): LibraryStore => deps.library ?? supabaseLibraryStore();
+  const store = deps.library ?? supabaseLibraryStore();
   return [
     {
       name: 'noacg_catalog',
@@ -474,13 +482,13 @@ export function createReadTools(deps: ReadToolsDeps = {}): McpTool[] {
         const userId = principal.userId!;
         const wanted = text(args.production).trim();
         if (wanted) {
-          const row = UUID.test(wanted) ? await store().production(userId, wanted) : null;
+          const row = UUID.test(wanted) ? await store.production(userId, wanted) : null;
           if (!row) return refusal(`No production "${wanted}" in this user's library. noacg_library without arguments lists their productions.`);
           return result(productionView(row));
         }
         // Fields are read for the answered graphics only: a stored field can hold an inlined file.
-        const view = libraryView(await store().library(userId), text(args.query));
-        const fields = await store().graphicFields(userId, view.graphics.map((g) => g.id));
+        const view = libraryView(await store.library(userId), text(args.query));
+        const fields = await store.graphicFields(userId, view.graphics.map((g) => g.id));
         return result({ ...view, graphics: view.graphics.map((g) => ({ ...g, fields: fieldsView(fields.get(g.id)) })) });
       },
     },
