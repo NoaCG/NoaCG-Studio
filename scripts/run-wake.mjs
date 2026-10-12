@@ -39,42 +39,55 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildIndex, readInventory } from './claude-agents.mjs';
+import { processAlive } from './codex-rescue.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
 import { advanceLocalMain } from './worktree-cleanup-lib.mjs';
-import { REPORT_HEADING, wavePlanFiles, wavePlansDir, waveSessions } from './wave-plan-store.mjs';
+import { REPORT_HEADING, SESSION_BLOCK, sessionsIn, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
 
 export const WAKE_TASK_ID = 'noacg-run-wake';
 export const WAKE_CRON = '*/30 * * * *';
 
-const WAKE_LINE = /^Wake: (\S+) (\S+) (.+?)\s*$/m;
-const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
+/** The `Wake:` line is read only directly under the session lines, like they are. */
+const WAKE_LINE = /^Wake: (\S+) (\S+) ([^\r\n]+?)[ \t]*(?:\r?\n|$)/;
 
-/** The run's wake-up mark: `{ host, session, resume }`, or null when the run is not armed. */
-export function readWake(text) {
-  const match = WAKE_LINE.exec(text);
-  return match ? { host: match[1], session: match[2], resume: match[3] } : null;
-}
-
-/** The text with its `Wake:` line written (replaced if there was one) under the window lines. */
-export function writeWake(text, { host, session, resume }) {
-  const line = `Wake: ${host} ${session} ${resume}\n`;
-  if (WAKE_LINE.test(text)) return text.replace(/^Wake: [^\r\n]*\r?\n?/m, line);
+function wakeAt(text) {
   const block = SESSION_BLOCK.exec(text);
   if (!block) return null;
   const at = block.index + block[0].length;
-  return `${text.slice(0, at)}${line}${text.slice(at)}`;
+  return { at, match: WAKE_LINE.exec(text.slice(at)) };
+}
+
+/** The run's wake-up mark: `{ host, session, resume }`, or null when the run is not armed. */
+export function readWake(text) {
+  const match = wakeAt(text)?.match;
+  return match ? { host: match[1], session: match[2], resume: match[3] } : null;
+}
+
+/** The text with its `Wake:` line written (replaced if there was one) under the session lines. */
+export function writeWake(text, { host, session, resume }) {
+  const found = wakeAt(text);
+  if (!found) return null;
+  const { at, match } = found;
+  return `${text.slice(0, at)}Wake: ${host} ${session} ${resume}\n${text.slice(at + (match?.[0].length ?? 0))}`;
+}
+
+function windowEnd(text) {
+  return /^Window ends: (\S+)/m.exec(text)?.[1];
 }
 
 /**
- * One run's state from its wave file's text, its recorded sessions and the process inventory:
- *   over (report written, window ended or not armed) | alive | resume | unknown, each with `why`.
+ * One run's state from its wave file's text and the process inventory (or a function returning it,
+ * asked only for an open armed run): over (report written, window ended or not armed) | alive |
+ * resume | unknown, each with `why`.
  */
-export function wakeVerdict({ text, sessions, inventory, now = Date.now() }) {
+export function wakeVerdict({ text, inventory, now = Date.now() }) {
   const wake = readWake(text);
   if (!wake) return { verdict: 'over', why: 'the run has no wake-up' };
   if (REPORT_HEADING.test(text)) return { verdict: 'over', why: 'the run wrote its report' };
-  const end = Date.parse(/^Window ends: (\S+)/m.exec(text)?.[1] ?? '');
+  const end = Date.parse(windowEnd(text) ?? '');
   if (Number.isNaN(end) || now >= end) return { verdict: 'over', why: 'its window has ended' };
+  if (typeof inventory === 'function') inventory = inventory();
+  const sessions = sessionsIn(text);
   const index = buildIndex(inventory?.rows);
   if (!inventory?.available || index.bySession.size === 0) {
     return { verdict: 'unknown', why: `the process inventory did not answer${inventory?.why ? ` (${inventory.why})` : ''}` };
@@ -122,57 +135,61 @@ export function wakeTask(repo) {
       `   - idle: pause this task with update_scheduled_task (taskId ${WAKE_TASK_ID}, enabled false), then end.`,
       '   - resume: send the printed message to the printed session_id with mcp__ccd_session_mgmt__send_message;',
       '     that restarts the run\'s own coordinator session. Only if the send fails, invoke the printed',
-      '     command with the Skill tool and follow it in full yourself.',
+      '     command with the Skill tool (its name without the slash, the rest as arguments) and follow it.',
     ].join('\n'),
   };
 }
 
-/** The PowerShell that holds Windows out of idle sleep until `until` or the report. */
-export function holderScript({ file, until }) {
-  const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
+/** The PowerShell that holds Windows out of idle sleep until `until`; the node around it ends it sooner. */
+export function holderScript(until) {
   return [
-    `$end = [DateTimeOffset]::Parse(${quote(until)}); $file = ${quote(file)}`,
+    `$end = [DateTimeOffset]::Parse('${String(until).replaceAll("'", "''")}')`,
     "Add-Type -Namespace NoaCG -Name Power -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern uint SetThreadExecutionState(uint flags);'",
-    `while ([DateTimeOffset]::Now -lt $end -and (Test-Path -LiteralPath $file) -and -not (Select-String -LiteralPath $file -Pattern ${quote(REPORT_HEADING.source)} -CaseSensitive -Quiet)) {`,
+    'while ([DateTimeOffset]::Now -lt $end) {',
     '  [void][NoaCG.Power]::SetThreadExecutionState([uint32]2147483649)  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED',
     '  Start-Sleep -Seconds 60',
     '}',
   ].join('\n');
 }
 
-function processAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code === 'EPERM';
-  }
+/** Is the window in this text still to be held? The holder asks every minute. */
+export function holdable(text, now = Date.now()) {
+  const until = windowEnd(text);
+  if (!until || Number.isNaN(Date.parse(until)) || Date.parse(until) <= now) return { until, why: 'it has ended or is unreadable' };
+  if (REPORT_HEADING.test(text)) return { until, why: 'the run wrote its report' };
+  return { until };
 }
 
-/** Start the holder unless one from an earlier start is still running. Returns one line to print. */
+/** Start the holder unless one for this same window is still running. Returns one line to print. */
 export function holdAwake(file, { platform = process.platform, now = Date.now() } = {}) {
-  const text = readFileSync(file, 'utf8');
-  const until = /^Window ends: (\S+)/m.exec(text)?.[1];
-  if (!until || Number.isNaN(Date.parse(until)) || Date.parse(until) <= now) return 'no window to hold: it has ended or is unreadable';
-  if (REPORT_HEADING.test(text)) return 'no window to hold: the run wrote its report';
+  const { until, why } = holdable(readFileSync(file, 'utf8'), now);
+  if (why) return `no window to hold: ${why}`;
   const pidFile = `${file}.awake`;
-  const held = existsSync(pidFile) ? Number(readFileSync(pidFile, 'utf8').trim()) : 0;
-  if (held > 0 && processAlive(held)) return `already held awake by pid ${held} until ${until}`;
+  const [held, heldUntil] = existsSync(pidFile) ? readFileSync(pidFile, 'utf8').trim().split(' ') : [];
+  if (Number(held) > 0 && heldUntil === until && processAlive(Number(held))) return `already held awake by pid ${held} until ${until}`;
   if (platform !== 'win32' && platform !== 'darwin') return `no keep-awake holder for ${platform}: keep the machine awake by hand until ${until}`;
   // A detached PowerShell exits at once on Windows (it gets no console), so a detached node runs
   // the holder as its child and lives as long as it does; that node is what outlives the session.
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'hold', file, until], { detached: true, stdio: 'ignore', windowsHide: true });
+  // It runs beside the wave file, so it holds no worktree open against removal.
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'hold', file], {
+    cwd: path.dirname(file), detached: true, stdio: 'ignore', windowsHide: true,
+  });
   child.unref();
-  writeFileSync(pidFile, `${child.pid}\n`, 'utf8');
+  writeFileSync(pidFile, `${child.pid} ${until}
+`, 'utf8');
   return `held awake by pid ${child.pid} until ${until} or the report`;
 }
 
-/** The holder itself, run by the detached node `holdAwake` starts; resolves when it exits. */
-function hold(file, until) {
+/** The holder itself, run by the detached node `holdAwake` starts: ends with the window or the report. */
+function hold(file) {
+  const read = () => (existsSync(file) ? holdable(readFileSync(file, 'utf8')) : { why: 'the wave file is gone' });
+  const { until, why } = read();
+  if (why) return Promise.resolve();
   const child = process.platform === 'win32'
-    ? spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(holderScript({ file, until }), 'utf16le').toString('base64')], { stdio: 'ignore', windowsHide: true })
+    ? spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(holderScript(until), 'utf16le').toString('base64')], { stdio: 'ignore', windowsHide: true })
     : spawn('caffeinate', ['-i', '-t', String(Math.max(1, Math.ceil((Date.parse(until) - Date.now()) / 1000)))], { stdio: 'ignore', windowsHide: true });
-  return new Promise((resolve) => child.on('exit', resolve).on('error', resolve));
+  const poll = setInterval(() => { if (read().why) child.kill(); }, 60_000);
+  return new Promise((resolve) => child.on('exit', resolve).on('error', resolve)).finally(() => clearInterval(poll));
 }
 
 function arm(file, argv, env = process.env) {
@@ -197,15 +214,15 @@ function arm(file, argv, env = process.env) {
 }
 
 function check(files) {
-  const inventory = readInventory();
-  const runs = files.map((file) => {
-    const text = readFileSync(file, 'utf8');
-    return { file, ...wakeVerdict({ text, sessions: waveSessions(file), inventory }) };
-  });
+  let inventory;
+  const lazyInventory = () => (inventory ??= readInventory());
+  const runs = files.filter((file) => existsSync(file))
+    .map((file) => ({ file, ...wakeVerdict({ text: readFileSync(file, 'utf8'), inventory: lazyInventory }) }));
   const lines = wakeReport(runs);
   const resume = runs.find((run) => run.verdict === 'resume');
   if (lines[0].startsWith('resume') && resume) {
-    appendFileSync(resume.file, `- ${new Date().toISOString()} wake-up: ${resume.why}; restarting its session ${resume.host}\n`, 'utf8');
+    const text = readFileSync(resume.file, 'utf8');
+    appendFileSync(resume.file, `${text.endsWith('\n') || !text ? '' : '\n'}- ${new Date().toISOString()} wake-up: ${resume.why}; restarting its session ${resume.host}\n`, 'utf8');
   }
   process.stdout.write(`${lines.join('\n')}\n`);
   return 0;
@@ -222,7 +239,7 @@ const USAGE = `Usage: node scripts/run-wake.mjs arm <wave file> --resume "<comma
 
 export function main(argv = process.argv.slice(2)) {
   const [command, file] = argv;
-  if (command === 'hold') return hold(file, argv[2]).then(() => 0);
+  if (command === 'hold') return hold(file).then(() => 0);
   if (command === 'check') {
     const folder = wavePlansDir();
     return check(argv.length > 1 ? argv.slice(1) : wavePlanFiles().map((name) => path.join(folder, name)));

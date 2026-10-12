@@ -4,14 +4,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { holdAwake, holderScript, readWake, WAKE_CRON, WAKE_TASK_ID, wakeReport, wakeTask, wakeVerdict, writeWake } from './run-wake.mjs';
+import { holdable, holdAwake, holderScript, readWake, WAKE_CRON, WAKE_TASK_ID, wakeReport, wakeTask, wakeVerdict, writeWake } from './run-wake.mjs';
 
 const NOW = Date.parse('2026-10-12T20:00:00Z');
 const OPENED = '# Plan run editor 2026-10-12\n\nWindow starts: 2026-10-12T15:00:00Z\nWindow ends: 2026-10-13T06:30:00+03:00\nSession: aaa\n\nPrompt: x\n';
 const WAKE = { host: 'local_1', session: 'bbb', resume: '/plan-run editor until 2026-10-13T06:30:00+03:00' };
 const WAVE = writeWake(OPENED, WAKE);
 const inventory = (...ids) => ({ available: true, rows: ids.map((sessionId, pid) => ({ sessionId, pid: pid + 100 })) });
-const verdict = (overrides) => wakeVerdict({ text: WAVE, sessions: ['aaa'], inventory: inventory('wake'), now: NOW, ...overrides });
+const verdict = (overrides) => wakeVerdict({ text: WAVE, inventory: inventory('wake'), now: NOW, ...overrides });
 
 test('arming writes one Wake line under the session lines, and re-arming replaces it', () => {
   assert.match(WAVE, /^Session: aaa\nWake: local_1 bbb \/plan-run editor until 2026-10-13T06:30:00\+03:00\n\nPrompt: x/m);
@@ -20,6 +20,12 @@ test('arming writes one Wake line under the session lines, and re-arming replace
   assert.equal(again.match(/^Wake:/gm).length, 1);
   assert.equal(readWake(again).host, 'local_2');
   assert.equal(writeWake('# no window\n', WAKE), null);
+  // A Wake: line anywhere else, such as in a quoted prompt, arms nothing and is left alone.
+  const quoted = `${OPENED}Wake: local_x yyy /orchestrator\n`;
+  assert.equal(readWake(quoted), null);
+  const armed = writeWake(quoted, WAKE);
+  assert.deepEqual(readWake(armed), WAKE);
+  assert.ok(armed.endsWith('Prompt: x\nWake: local_x yyy /orchestrator\n'));
 });
 
 test('a recorded session that is still running keeps the run alive, and nothing is done', () => {
@@ -44,6 +50,15 @@ test('no recorded session running, with the inventory answering, restarts the co
 test('an inventory that did not answer, or answered empty, is unknown and does nothing', () => {
   assert.equal(verdict({ inventory: { available: false, rows: [], why: 'no claude' } }).verdict, 'unknown');
   assert.equal(verdict({ inventory: inventory() }).verdict, 'unknown');
+});
+
+test('the inventory is asked only for an open armed run', () => {
+  let asked = 0;
+  const ask = () => { asked += 1; return inventory('aaa'); };
+  assert.equal(verdict({ text: OPENED, inventory: ask }).verdict, 'over');
+  assert.equal(asked, 0);
+  assert.equal(verdict({ inventory: ask }).verdict, 'alive');
+  assert.equal(asked, 1);
 });
 
 test('a written report, an ended window or no Wake line is over, whatever is running', () => {
@@ -73,12 +88,14 @@ test('the one task fires every 30 minutes in the primary checkout, tells nobody,
   for (const tool of ['Bash', 'PowerShell']) assert.ok(settings.permissions.allow.includes(`${tool}(node scripts/run-wake.mjs check)`), tool);
 });
 
-test('the keep-awake holder quotes its paths and stops at the window end or the report', () => {
-  const script = holderScript({ file: "C:\\it's\\wave.md", until: '2026-10-13T06:30:00+03:00' });
-  assert.ok(script.includes("'C:\\it''s\\wave.md'"));
-  assert.ok(script.includes("Parse('2026-10-13T06:30:00+03:00')"));
+test('the keep-awake holder runs to the window end, and is released by the report or an ended window', () => {
+  const script = holderScript("2026-10-13T06:30:00+03:00'");
+  assert.ok(script.includes("Parse('2026-10-13T06:30:00+03:00''')"));
   assert.ok(script.includes('[uint32]2147483649'));
-  assert.ok(script.includes('[Rr]eport'));
+  assert.deepEqual(holdable(WAVE, NOW), { until: '2026-10-13T06:30:00+03:00' });
+  assert.match(holdable(`${WAVE}## Report\n`, NOW).why, /report/);
+  assert.match(holdable(WAVE, Date.parse('2026-10-14T00:00:00Z')).why, /ended/);
+  assert.equal(holdable(`${WAVE}## Earlier report\n`, NOW).why, undefined);
 });
 
 test('no holder is started for a window that has ended or a run that reported', () => {

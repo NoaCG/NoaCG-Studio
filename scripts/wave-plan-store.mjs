@@ -247,7 +247,7 @@ function unfinishedRun(kind, dir, now) {
  * The `Window ends:` line and the `Session:` lines directly under it. Sessions are written there and
  * read only there, so a `Session:` in the prompt, the log or the report can never name one.
  */
-const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
+export const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
 
 /**
  * The Claude Code sessions that opened or resumed this wave. A row the orchestrator launches with
@@ -255,7 +255,12 @@ const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
  * rows included, and nobody else's (scripts/hooks/guard-question.mjs).
  */
 export function waveSessions(file) {
-  const block = SESSION_BLOCK.exec(readFileSync(file, 'utf8'))?.[0] ?? '';
+  return sessionsIn(readFileSync(file, 'utf8'));
+}
+
+/** The same, from a wave file's text. */
+export function sessionsIn(text) {
+  const block = SESSION_BLOCK.exec(text)?.[0] ?? '';
   return [...block.matchAll(/^Session: (\S+)/gm)].map((match) => match[1]);
 }
 
