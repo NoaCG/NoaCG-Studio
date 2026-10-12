@@ -14,6 +14,7 @@ import GraphicControlPage from './components/home/GraphicControlPage';
 import ProductionPage from './components/home/ProductionPage';
 import PasswordRecoveryPage from './components/auth/PasswordRecoveryPage';
 import AgentAccessConsent from './components/auth/AgentAccessConsent';
+import ConnectorConsent from './components/auth/ConnectorConsent';
 import SignInDialog from './components/auth/SignInDialog';
 import BridgePairPage from './components/BridgePairPage';
 import StorageAlertDialog from './components/save/StorageAlertDialog';
@@ -23,6 +24,7 @@ import JoinTeamDialog from './components/teams/JoinTeamDialog';
 import TeamSync from './components/teams/TeamSync';
 import { isBackendConfigured } from './backend/config';
 import { isAgentRequestUrl } from './backend/agentAccess';
+import { isConnectorConsentUrl } from './backend/connectorAccess';
 import { isBridgePairUrl } from './control/playoutLink';
 import { arrivingRecoveryLink, isRecoveryRequestUrl } from './backend/recoveryLink';
 import { useDocKindStore } from './store/docKindStore';
@@ -344,6 +346,11 @@ export default function App() {
   // loopback listener (docs/AGENT_SAVE.md). A query route like the two above, rendered INSTEAD
   // of the studio: it is a question, not a surface.
   if (isAgentRequestUrl(params)) return <AgentAccessConsent params={params} />;
+
+  // Connector consent: <site>/?authorization_id=<id> (forwarded to /app by index.html) - Supabase
+  // Auth's OAuth server sends a person here when their chat client signs in to NoaCG
+  // (docs/REMOTE_MCP_PLAN.md). A question like the agent consent above, not a surface.
+  if (isConnectorConsentUrl(params)) return <ConnectorConsent params={params} />;
 
   // NoaCG Bridge pairing: <app-url>?bridge=<port>&code=<code> - the local playout helper opened
   // this (docs/BRIDGE.md §2); one click exchanges the one-time code for its token over loopback.

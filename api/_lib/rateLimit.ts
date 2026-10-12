@@ -266,3 +266,19 @@ export function checkAgentSavePrincipalRateLimit(userId: string): RateLimitDecis
   const decision = hitRateLimit(`agent-save-user:${userId}`, agentSavePrincipalRateLimitCaps(), Date.now());
   return decision.allowed ? null : decision;
 }
+
+// ── the remote MCP connector (docs/REMOTE_MCP_PLAN.md) ─────────────────────────────────────
+// Per IP, in front of the token check: every connector call verifies a token with Supabase Auth
+// and reads a grant row, so a flood is refused before either round trip.
+
+export function connectorRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('CONNECTOR_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('CONNECTOR_RATE_MAX', 120),
+  };
+}
+
+export function checkConnectorRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`connector:${ipHash(req)}`, connectorRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}

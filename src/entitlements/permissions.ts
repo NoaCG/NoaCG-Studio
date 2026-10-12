@@ -73,6 +73,14 @@ export const AGENT_KEY_PERMISSIONS: readonly PermissionKey[] = ['graphics:create
  *  CI runner holding a save key the power to clear the frame. */
 export const NEVER_ON_AGENT_KEYS: ReadonlySet<PermissionKey> = new Set(['playout:operate']);
 
+/** What a chat client's CONNECTOR grant carries (docs/REMOTE_MCP_PLAN.md, key decision 3): read
+ *  the library and send packages to Home. The OAuth token proves who the user is; this list is
+ *  what the consent page shows and what the `connector_grants` row stores. NEVER_ON_AGENT_KEYS
+ *  applies to grants too: a connector never operates live output. */
+export const CONNECTOR_PERMISSIONS: readonly PermissionKey[] = (['graphics:read', 'graphics:create'] as const).filter(
+  (key) => !NEVER_ON_AGENT_KEYS.has(key),
+);
+
 /** The account feature a permission rides on - the SECOND half of `permits()`. A permission
  *  never widens access: the credential may hold `graphics:create`, but if the account's
  *  entitlement withholds cloud sync (a suspended account, the instance-wide switch), the save
@@ -86,9 +94,9 @@ export const PERMISSION_FEATURE: Record<PermissionKey, FeatureKey | null> = {
 };
 
 /** How a request was authenticated. `session` = the user's own Supabase JWT (every permission
- *  the account has); `agent-key` = a scoped key (the named subset); `anonymous` = nothing. A
- *  future OAuth token is one more kind resolving through the same `permits`. */
-export type PrincipalKind = 'session' | 'agent-key' | 'anonymous';
+ *  the account has); `agent-key` = a scoped key (the named subset); `connector` = a chat client's
+ *  OAuth token, holding what its live `connector_grants` row lists; `anonymous` = nothing. */
+export type PrincipalKind = 'session' | 'agent-key' | 'connector' | 'anonymous';
 
 /** The resolved caller - who, what their account may do, and what THIS credential may do of it. */
 export interface Principal {
@@ -102,6 +110,9 @@ export interface Principal {
   granted: readonly PermissionKey[] | null;
   /** The agent key's row id when kind is 'agent-key' - for self-revocation and usage rows. */
   keyId?: string;
+  /** The OAuth client and its grant row when kind is 'connector'. */
+  clientId?: string;
+  grantId?: string;
 }
 
 /** The anonymous principal - what `resolvePrincipal` degrades to. */

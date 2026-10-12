@@ -70,7 +70,7 @@ export interface AgentKeySummary {
   lastUsedAt: string | null;
 }
 
-async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+export async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const token = await getAccessToken();
   if (!token) throw new Error('Not signed in.');
   return fetch(path, {
@@ -79,7 +79,7 @@ async function authedFetch(path: string, init: RequestInit = {}): Promise<Respon
   });
 }
 
-async function errorMessage(response: Response, fallback: string): Promise<string> {
+export async function errorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { error?: { message?: string } };
     return body.error?.message || fallback;

@@ -10,7 +10,7 @@ export interface AuthedUser {
   userId: string;
 }
 
-function supabaseEnv(): { url: string; anonKey: string } | null {
+export function supabaseEnv(): { url: string; anonKey: string } | null {
   // Vercel exposes env vars to functions verbatim; the VITE_ prefix only matters for
   // client baking, so the server reuses the same two vars (no duplication).
   const url = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim();
@@ -23,9 +23,41 @@ export function serverAuthConfigured(): boolean {
   return supabaseEnv() !== null;
 }
 
-/** Resolve a Bearer JWT to a user id; null = anonymous (absent/invalid token or no backend). */
+/** The OAuth client a JWT was issued to, read from its payload WITHOUT verifying it, or null for
+ *  a first-party session (no `client_id`) and for anything that is not a JWT. Only ever used to
+ *  REFUSE or to choose the stricter path; a verified token is still required to be admitted. */
+export function oauthClientOf(token: string | null): string | null {
+  const payload = token?.split('.')[1];
+  if (!payload) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { client_id?: unknown };
+    return typeof claims.client_id === 'string' && claims.client_id ? claims.client_id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve a Bearer JWT to a user id; null = anonymous (absent/invalid token or no backend).
+ *
+ *  A token issued to an OAuth client (a chat client's connector, docs/REMOTE_MCP_PLAN.md) is
+ *  REFUSED here: Supabase Auth answers getUser for it as for the user's own session, so without
+ *  this every signed-in route would serve a connector as the user. Only the connector path
+ *  admits such a token, through verifyConnectorToken and a live grant. */
 export async function verifyUser(token: string | null): Promise<AuthedUser | null> {
-  if (!token) return null;
+  if (!token || oauthClientOf(token)) return null;
+  return verifiedUser(token);
+}
+
+/** A connector's token: the user and the OAuth client it was issued to, or null when the token
+ *  is not an OAuth client's, does not verify, or its session has ended (a revoked grant). */
+export async function verifyConnectorToken(token: string | null): Promise<(AuthedUser & { clientId: string }) | null> {
+  const clientId = oauthClientOf(token);
+  if (!token || !clientId) return null;
+  const user = await verifiedUser(token);
+  return user ? { ...user, clientId } : null;
+}
+
+async function verifiedUser(token: string): Promise<AuthedUser | null> {
   const env = supabaseEnv();
   if (!env) return null;
   try {

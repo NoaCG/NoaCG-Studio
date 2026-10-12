@@ -12,7 +12,11 @@
     "api/status.ts": { "maxDuration": 10 }
   },
   "crons": [{ "path": "/api/render/cleanup", "schedule": "30 3 * * *" }],
-  "rewrites": [{ "source": "/join/:name", "destination": "/join" }],
+  "rewrites": [
+    { "source": "/join/:name", "destination": "/join" },
+    { "source": "/mcp", "destination": "/api/me/mcp" },
+    { "source": "/.well-known/oauth-protected-resource/mcp", "destination": "/api/me/oauth-protected-resource" }
+  ],
   "headers": [
     {
       "source": "/fonts/(.*)",

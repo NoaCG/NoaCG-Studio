@@ -3,6 +3,7 @@
   "minTests": 96,
   "allowedSkips": {
     "connector-oauth.spec.ts": "Runs on the local stack only: it registers OAuth clients, and hosted staging's Auth has no OAuth server until the owner enables it (docs/REMOTE_MCP_PLAN.md). Skips on hosted-latency.yml by design.",
+    "connector-grants.spec.ts": "Its consent walk runs on the local stack only (it registers OAuth clients, and hosted staging's Auth has no OAuth server until the owner enables it), and its 503 check runs on hosted staging only, where that is true. Each workflow skips the other half by design (docs/REMOTE_MCP_PLAN.md).",
     "bridge-real-server.spec.ts": "Drives a real NoaCG Bridge and a real CasparCG behind BRIDGE_REAL=1. A runner has neither, so its tests can only skip (issue #371).",
     "account.spec.ts": "Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted.",
     "anonymous.spec.ts": "Reaches the closed old code editor; https://github.com/NoaCG/NoaCG-Studio/issues/800 lists what it asserted.",
