@@ -349,6 +349,13 @@ unindexed foreign key, `community_reports`' unindexed foreign key, `community_li
 `community_pack_reports_dismiss` had been recorded by hand as `timestamptz`, while the advisors
 write `timestamp with time zone`, so it read as new and post-land stayed red. The script now
 compares both sides in Postgres's spelling (`canonicalKey`), so a hand-recorded entry matches.
+It holds **181** as of 2026-10-12: the one new entry is migration 0090's (`0090_connector_grants.sql`,
+the remote MCP connector's grants), which post-land run 38299878198 reported once the landing of
+#1089 had applied it. `connector_grants` has RLS on and no policy, and `anon` and `authenticated`
+hold no privilege on it (0090 revokes them and its self-check asserts it), so it is deny-all like
+`agent_keys`: only the service role behind `/api/me` reads and writes it, and its one lookup is the
+service-role-only `connector_grant_resolve`. A policy would only add a way in. Recorded by hand:
+that run listed 181 findings against 180 accepted, so this was the only difference.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
