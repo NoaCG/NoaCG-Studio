@@ -94,6 +94,8 @@ jobs:
           process.exit(0);
           JS
           node .probe2.mjs
+      - name: panel-relay.spec.ts first failing test, realtime client logging
+        run: RT_DEBUG=1 npx playwright test -c playwright.live.config.ts e2e/configured/panel-relay.spec.ts -g "with no answering page" --reporter=list --retries=0 2>&1 | grep -E "RT |topic|✓|✘|NO ANSWER" | head -80 || true
       - name: Realtime log
         if: ${{ always() }}
         run: |

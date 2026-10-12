@@ -20,7 +20,7 @@ test.skip(!canRun, 'set VITE_SUPABASE_URL/_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY a
 type Json = Record<string, unknown>;
 const clients: SupabaseClient[] = [];
 const client = () => {
-  const c = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const c = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false }, realtime: process.env.RT_DEBUG ? { logger: (kind: string, msg: string, data: unknown) => console.log('RT', kind, msg, JSON.stringify(data)?.slice(0, 300)) } : {} });
   clients.push(c);
   return c;
 };
@@ -67,6 +67,7 @@ async function listen(c: SupabaseClient, topic: string) {
   const got: { event: string; payload: Json; rid?: unknown; at: number }[] = [];
   let channel!: RealtimeChannel;
   let status = '';
+  if (process.env.RT_DEBUG) console.log('topic', topic);
   for (let attempt = 0; attempt < 3 && status !== 'SUBSCRIBED'; attempt++) {
     if (channel) await c.removeChannel(channel);
     channel = c.channel(topic, { config: { private: true, broadcast: { self: false } } });
