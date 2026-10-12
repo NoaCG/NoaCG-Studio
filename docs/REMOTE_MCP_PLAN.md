@@ -442,7 +442,10 @@ brand, production and A's team production (labelled "A team"), and B exactly B's
 answer held the other's ids or the template-source marker written into every seeded template,
 data URL and asset. A's team production came back with its pool graphic (`graphicId`, layer)
 and its cue by graphic name with its values; B's production and B's team production were refused
-to A. `connector-oauth.spec.ts` passed in the same run (AC-1). Unit tests:
+to A. `connector-oauth.spec.ts` passed in the same run (AC-1). The configured suite on this
+branch's final commit (CI's local stack): [run 38321190642](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38321190642),
+99 passed, 0 failed, 0 flaky, with `connector-tools`, `connector-grants` (consent page, 43
+tables refused, Revoke) and `connector-oauth` all green. Unit tests:
 `connectorTools.test.ts` and `mcp.test.ts` (the schema ceiling, the hints, permits), 354 pass;
 `scripts/catalogIndexPlugin.test.mjs` builds the real index and checks every type has fields and
 designs, every design id is unique, and every design's palette and font are in the index.
