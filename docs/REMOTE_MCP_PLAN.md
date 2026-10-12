@@ -361,10 +361,13 @@ same millisecond, but GoTrue answered them about 60 ms apart and both 200, so 10
 passed there before the fix too. The race depends on timing, which is why CI and the checker's
 machine lost it and this one did not.
 
-**Decision: read once per page, no retry.** `readConnectorRequest` in
-`src/backend/connectorAccess.ts` keeps one promise per authorization id for the page's lifetime,
-so a second effect run, a remount or a second caller shares the first read and overlapping reads
-cannot happen. A refusal is kept too: it is Auth's answer for that id, and a reload asks again. A
+**Decision: one read in flight per authorization, no retry.** `readConnectorRequest` in
+`src/backend/connectorAccess.ts` keeps one in-flight promise per authorization id, so a second
+effect run, a remount or a second caller during the read shares it and overlapping reads cannot
+happen. Once it settles the entry is dropped: a later read (after signing in again, or as another
+account) asks Auth afresh under the session the page has then, and sequential reads are answered
+alike. Keeping the answer for the page's lifetime was tried first and dropped in review: it would
+pin a transient 401 or network error past a sign-in, and show one account's answer to the next. A
 retry on 404 was not added, because it would hide a real 404 (an expired or already answered
 request) behind a second wait. `scripts/connector-request-once.test.mjs` pins it: it runs the
 real module against a counted Auth stub and fails on the old code. After the fix, 10 of 10 first

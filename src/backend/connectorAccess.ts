@@ -34,17 +34,17 @@ async function oauth() {
   return sb.auth.oauth;
 }
 
-const requests = new Map<string, Promise<ConnectorRequest>>();
+const reading = new Map<string, Promise<ConnectorRequest>>();
 
-/** What the client asks for, as Supabase Auth records it. Read ONCE per authorization per page,
- *  however often it is asked (React StrictMode runs the page's effect twice): Auth answers one of
- *  two overlapping reads of a fresh authorization with a 404, which the page would show as an
- *  expired request. The answer, a refusal included, stands until the page is loaded again. */
+/** What the client asks for, as Supabase Auth records it. Callers asking while a read of the same
+ *  authorization is in flight share it (React StrictMode runs the page's effect twice): Auth
+ *  answers one of two OVERLAPPING reads of a fresh authorization with a 404, which the page would
+ *  show as an expired request. A later read asks Auth again, under the session the page has then. */
 export function readConnectorRequest(authorizationId: string): Promise<ConnectorRequest> {
-  let request = requests.get(authorizationId);
+  let request = reading.get(authorizationId);
   if (!request) {
-    request = fetchConnectorRequest(authorizationId);
-    requests.set(authorizationId, request);
+    request = fetchConnectorRequest(authorizationId).finally(() => reading.delete(authorizationId));
+    reading.set(authorizationId, request);
   }
   return request;
 }
