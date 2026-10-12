@@ -14,62 +14,19 @@
 // Local stack only: it registers OAuth clients. On hosted staging, whose Auth runs no OAuth server,
 // the second test proves the other half of AC-2: every connector path answers 503.
 
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { UnauthorizedError, type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
-import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
+import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
 import { mintAccount, shot, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { connect, consentPath, REDIRECT, ScriptedClaude } from './_connector';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
-const REDIRECT = 'http://127.0.0.1:53682/callback';
 const CLIENT_NAME = 'Claude (scripted)';
 const ROLE_REFUSED = 'permission denied to set role "noacg_connector"';
 
-/** What Claude.ai keeps for one connection: its registration, its tokens, its PKCE verifier. */
-class ScriptedClaude implements OAuthClientProvider {
-  info: OAuthClientInformationMixed | undefined;
-  saved: OAuthTokens | undefined;
-  verifier = '';
-  authorizationUrl: URL | null = null;
-  readonly redirectUrl = REDIRECT;
-  readonly clientMetadata: OAuthClientMetadata = {
-    client_name: CLIENT_NAME,
-    redirect_uris: [REDIRECT],
-    grant_types: ['authorization_code', 'refresh_token'],
-    response_types: ['code'],
-    token_endpoint_auth_method: 'none',
-  };
-  state() { return randomBytes(12).toString('base64url'); }
-  clientInformation() { return this.info; }
-  saveClientInformation(info: OAuthClientInformationMixed) { this.info = info; }
-  tokens() { return this.saved; }
-  saveTokens(tokens: OAuthTokens) { this.saved = tokens; }
-  redirectToAuthorization(url: URL) { this.authorizationUrl = url; }
-  saveCodeVerifier(verifier: string) { this.verifier = verifier; }
-  codeVerifier() { return this.verifier; }
-}
-
-/** Connect; the first time this throws UnauthorizedError after sending the user to sign in. */
-async function connect(mcpUrl: URL, provider: ScriptedClaude): Promise<{ client: Client; transport: StreamableHTTPClientTransport }> {
-  const transport = new StreamableHTTPClientTransport(mcpUrl, { authProvider: provider });
-  const client = new Client({ name: 'scripted-claude', version: '1.0.0' });
-  await client.connect(transport);
-  return { client, transport };
-}
-
-/** Follow the authorization URL as a browser would, to the consent page on THIS dev server. Auth
- *  redirects to its configured site_url, which on the runner is another port. */
-async function consentPath(request: APIRequestContext, authorizationUrl: URL): Promise<string> {
-  const res = await request.get(authorizationUrl.href, { maxRedirects: 0 });
-  expect(res.status(), await res.text()).toBe(302);
-  const id = new URL(res.headers().location).searchParams.get('authorization_id');
-  expect(id).toBeTruthy();
-  return `/?authorization_id=${id}`;
-}
 
 /** Answer the consent page and return the callback URL the browser was sent to. */
 async function answerConsent(page: Page, path: string, button: 'connector-consent-allow' | 'connector-consent-deny'): Promise<URL> {
@@ -103,7 +60,7 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
     const email = `connector-grants-${Date.now()}@noacg.local`;
     const password = `pw-${randomBytes(9).toString('base64url')}`;
     const userId = await mintAccount(admin, email, password);
-    const provider = new ScriptedClaude();
+    const provider = new ScriptedClaude(CLIENT_NAME);
     const grantsOf = async () => {
       const { data, error } = await admin.from('connector_grants').select('client_id, client_name, permissions, last_used_at, revoked_at').eq('user_id', userId);
       if (error) throw new Error(error.message);
@@ -138,10 +95,11 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
       const token = provider.saved!.access_token;
       expect(token).toBeTruthy();
 
-      // 4. The next call is served as the connector: the handshake answers, and a tool call
-      //    resolves the grant (its last use is stamped) before it meets the empty tool table.
+      // 4. The next call is served as the connector: the handshake answers, the read tools are
+      //    listed (connector-tools.spec.ts calls them), and a tool call resolves the grant (its
+      //    last use is stamped) before it meets the tool table.
       const { client } = await connect(mcpUrl, provider);
-      expect((await client.listTools()).tools).toEqual([]);
+      expect((await client.listTools()).tools.map((t) => t.name)).toEqual(['noacg_catalog', 'noacg_library']);
       await expect(client.callTool({ name: 'noacg_probe', arguments: {} })).rejects.toThrow(/Unknown tool/);
       expect((await grantsOf())[0].last_used_at).not.toBeNull();
 

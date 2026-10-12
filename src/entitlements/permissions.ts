@@ -29,7 +29,8 @@ export const PERMISSION_KEYS = [
    *  whole graphics PACKAGE to wait on their Home (`noacg pack --save`, POST /api/me/packages).
    *  A package becomes a production only when the user presses Install in their own session. */
   'graphics:create',
-  /** Read the user's library (reserved). */
+  /** Read the user's library: names, fields, brands and productions, never code (the remote MCP
+   *  connector's `noacg_library`, api/_lib/me/connectorTools.ts). */
   'graphics:read',
   /** Replace a library graphic the credential created (reserved - `--replace <id>`). */
   'graphics:update',
@@ -56,10 +57,10 @@ export function isPermissionKey(value: string): value is PermissionKey {
   return (PERMISSION_KEYS as readonly string[]).includes(value);
 }
 
-/** The permissions a server path actually CHECKS today. v1 enforces exactly one - the save
- *  door - and says so, rather than listing five switches of which four stop nothing. Add a key
- *  here in the SAME change that adds its `permits()` call site. */
-export const ENFORCED_PERMISSION_KEYS: ReadonlySet<PermissionKey> = new Set(['graphics:create']);
+/** The permissions a server path actually CHECKS today: the save and package doors, and the
+ *  connector's library read - and says so, rather than listing five switches of which three stop
+ *  nothing. Add a key here in the SAME change that adds its `permits()` call site. */
+export const ENFORCED_PERMISSION_KEYS: ReadonlySet<PermissionKey> = new Set(['graphics:create', 'graphics:read']);
 
 /** What a scoped AGENT KEY minted through `noacg login` carries in this release. Authoring
  *  only: the key can put a graphic in the library and nothing else - it cannot read the

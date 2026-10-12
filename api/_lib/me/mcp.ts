@@ -27,14 +27,16 @@
 // while that row is live. A token minted for any other client of the same Auth project is
 // anonymous here.
 //
-// THE TOOLS come with phases 3 and 4 (noacg_catalog, noacg_library, noacg_send_package). Each
-// names the permission it needs, and `tools/call` asks `permits()` before running one.
+// THE TOOLS: the read tools (noacg_catalog, noacg_library) live in connectorTools.ts; phase 4 adds
+// noacg_send_package. Each names the permission it needs, and `tools/call` asks `permits()`
+// before running one.
 
 import { bearerToken, json, readJson } from '../http.js';
 import { authServerUrl, connectorEnabled } from '../connectorAuth.js';
 import { checkConnectorRateLimit } from '../rateLimit.js';
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { permits, type PermissionKey, type Principal } from '../../../src/entitlements/permissions.js';
+import { createReadTools } from './connectorTools.js';
 
 export const MCP_PATH = '/mcp';
 export const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource/mcp';
@@ -46,6 +48,9 @@ const SUPPORTED_VERSIONS: readonly string[] = [...MODERN_VERSIONS, ...LEGACY_VER
 
 const SERVER_INFO = { name: 'noacg', title: 'NoaCG Studio', version: '1.0.0' };
 const CAPABILITIES = { tools: { listChanged: false } };
+/** What a 2025-era client hands its model about this server beside the tools. Costs no schema. */
+const INSTRUCTIONS =
+  "NoaCG Studio makes broadcast graphics. Find ready-made designs with noacg_catalog, and the user's own graphics, brands and productions with noacg_library.";
 const META_VERSION = 'io.modelcontextprotocol/protocolVersion';
 
 /** Comfortably above any tool call the connector takes; a package is recipes and ids, not code. */
@@ -68,11 +73,16 @@ export interface McpTool {
   annotations: { readOnlyHint: boolean; destructiveHint: boolean; openWorldHint: boolean };
   /** What the principal must be permitted; null for public data. */
   permission: PermissionKey | null;
-  call(principal: Principal, args: Record<string, unknown>): Promise<McpToolResult>;
+  call(principal: Principal, args: Record<string, unknown>, ctx: McpToolContext): Promise<McpToolResult>;
 }
 
-/** The connector's tools. Empty until phase 3 adds the read tools. */
-export const TOOLS: readonly McpTool[] = [];
+export interface McpToolContext {
+  /** This deployment's origin, where its static files (the catalog index) are served. */
+  origin: string;
+}
+
+/** The connector's tools. */
+export const TOOLS: readonly McpTool[] = createReadTools();
 
 export interface McpDeps extends PrincipalDeps {
   enabled?: () => Promise<boolean>;
@@ -119,7 +129,7 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
   const enabled = deps.enabled ?? (() => connectorEnabled());
   const tools = deps.tools ?? TOOLS;
 
-  async function callTool(id: Id, principal: Principal, params: RpcRequest['params'], done: (result: object) => Response): Promise<Response> {
+  async function callTool(id: Id, principal: Principal, params: RpcRequest['params'], ctx: McpToolContext, done: (result: object) => Response): Promise<Response> {
     const name = typeof params?.name === 'string' ? params.name : '';
     const tool = tools.find((t) => t.name === name);
     if (!tool) return rpcError(id, -32602, `Unknown tool: ${name || '(none)'}`);
@@ -128,7 +138,7 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
     }
     const args = params?.arguments && typeof params.arguments === 'object' ? (params.arguments as Record<string, unknown>) : {};
     try {
-      return done(await tool.call(principal, args));
+      return done(await tool.call(principal, args, ctx));
     } catch {
       // A tool's own failure is a result the model can report, not a broken transport.
       return done({ isError: true, content: [{ type: 'text', text: `${tool.title} failed on the NoaCG side. Try again in a moment.` }] });
@@ -170,7 +180,7 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
       if (method === 'initialize') {
         const asked = msg.params?.protocolVersion;
         const protocolVersion = typeof asked === 'string' && (LEGACY_VERSIONS as readonly string[]).includes(asked) ? asked : LEGACY_VERSIONS[0];
-        return rpcResult(id, { protocolVersion, capabilities: CAPABILITIES, serverInfo: SERVER_INFO });
+        return rpcResult(id, { protocolVersion, capabilities: CAPABILITIES, serverInfo: SERVER_INFO, instructions: INSTRUCTIONS });
       }
     }
 
@@ -178,7 +188,7 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
     const modern = typeof bodyVersion === 'string';
     const done = (result: object) => rpcResult(id, modern ? { resultType: 'complete', ...result } : result);
     if (method === 'tools/list') return done({ tools: tools.map(toolView) });
-    if (method === 'tools/call') return callTool(id, principal, msg.params, done);
+    if (method === 'tools/call') return callTool(id, principal, msg.params, { origin: resourceUrls(req).origin }, done);
     if (method === 'ping') return done({});
     // A modern server answers an unknown method with 404, so a client can tell it from a legacy one.
     return rpcError(id, -32601, `Method not found: ${method}`, modern ? 404 : 200);
