@@ -60,11 +60,11 @@ The ledger refuses a step out of order or launched twice: then launch nothing an
   or paused and what remains, what was not checked, the retro); send it with a phone notification.
 
 Sessions get their own worktrees on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on a
-second check). Claude Code: the Agent tool, `run_in_background`, agent `wave-row` (it wakes you when
-it finishes), a background `node scripts/jobs.mjs wait <landing job>` per landing and, armed again
-after a restart, a one-shot `CronCreate` 45 minutes before the window ends plus a background
-`sleep 1800` as fallback. Codex: `spawn_agent` without your context, `wait_agent` with a timeout,
-the 30-minute thread heartbeat as the fallback; ask the owner in this thread.
+second check). Claude Code: a `run_in_background` `wave-row` agent (it wakes you), a background
+`jobs.mjs wait` per landing, and, re-armed after a restart, `CronCreate` 45 minutes before the end
+plus a background `sleep 1800`; in the cloud, harness-made worktrees (`orchestrator.md` step 3),
+`subscribe_pr_activity` per pull request and `send_later`. Codex: `spawn_agent` without your
+context, `wait_agent` with a timeout, the 30-minute heartbeat as fallback; ask the owner here.
 
 **The builder brief**: the row brief from `orchestrator.md` step 3, after these lines:
 
