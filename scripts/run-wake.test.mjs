@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { holdable, holdAwake, holderScript, readWake, WAKE_CRON, WAKE_TASK_ID, wakeReport, wakeTask, wakeVerdict, writeWake } from './run-wake.mjs';
+import { holdable, holdAwake, holderScript, readWake, WAKE_CRON, WAKE_TASK_ID, wakeRepo, wakeReport, wakeTask, wakeVerdict, writeWake } from './run-wake.mjs';
 
 const NOW = Date.parse('2026-10-12T20:00:00Z');
 const OPENED = '# Plan run editor 2026-10-12\n\nWindow starts: 2026-10-12T15:00:00Z\nWindow ends: 2026-10-13T06:30:00+03:00\nSession: aaa\n\nPrompt: x\n';
@@ -112,4 +112,23 @@ test('no holder is started for a window that has ended or a run that reported', 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('arm names the primary checkout, also when run from a linked worktree', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'run-wake-repo-'));
+  try {
+    const primary = path.join(dir, 'primary');
+    const admin = path.join(primary, '.git', 'worktrees', 'wt');
+    const linked = path.join(primary, '.claude', 'worktrees', 'wt');
+    mkdirSync(admin, { recursive: true });
+    mkdirSync(path.join(linked, 'scripts'), { recursive: true });
+    writeFileSync(path.join(admin, 'commondir'), '../..\n');
+    writeFileSync(path.join(linked, '.git'), `gitdir: ${admin}\n`);
+    assert.equal(wakeRepo(path.join(linked, 'scripts')), primary);
+    assert.equal(wakeRepo(path.join(primary, 'scripts')), primary);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // From this very checkout, the answer holds the script the task's runs will call.
+  assert.ok(existsSync(path.join(wakeRepo(), 'scripts', 'run-wake.mjs')));
 });

@@ -186,6 +186,15 @@ function hold(file) {
   return new Promise((resolve) => child.on('exit', resolve).on('error', resolve)).finally(() => clearInterval(poll));
 }
 
+/**
+ * The checkout the task's runs start in and whose copy of this script they run: the primary
+ * checkout of the checkout holding `scriptsDir`. Asked of the checkout root, which holds `.git`;
+ * asked of `scripts/` it would answer with that folder itself.
+ */
+export function wakeRepo(scriptsDir = path.dirname(fileURLToPath(import.meta.url))) {
+  return primaryCheckout(path.resolve(scriptsDir, '..'));
+}
+
 function arm(file, argv, env = process.env) {
   const at = argv.indexOf('--resume');
   // Given without its slash: Git Bash rewrites an argument that starts with one into a path.
@@ -197,8 +206,7 @@ function arm(file, argv, env = process.env) {
   const text = writeWake(readFileSync(file, 'utf8'), { host, session, resume: `/${command}` });
   if (!text) return fail(`${file} has no "Window ends:" line; open the run with wave-plan-store.mjs first`, 1);
   writeFileSync(file, text, 'utf8');
-  // The task's runs start in the primary checkout and run its copy of this script.
-  const repo = primaryCheckout(path.dirname(fileURLToPath(import.meta.url)));
+  const repo = wakeRepo();
   advanceLocalMain(repo);
   if (!existsSync(path.join(repo, 'scripts', 'run-wake.mjs'))) {
     process.stderr.write(`run-wake: ${repo} has no scripts/run-wake.mjs yet (its main is behind origin/main); the wake-up cannot run until it has\n`);
