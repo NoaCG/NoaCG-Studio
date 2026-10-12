@@ -411,3 +411,91 @@ On `main` at 8824cbf1, local stack (CLI 2.111.0) and this checkout's dev server 
 - **For the next phases.** The 503 half of `connector-grants.spec.ts` skips on the local stack and
   would run only in `hosted-latency.yml`, which has not run since 2026-10-11 (red then). Its
   evidence today is the local stub, the unit test and production's answer.
+
+### Phase 3: read tools (AC-3)
+
+**Last check's findings (phase 2 second check, #1096):** the race is fixed in the page (GoTrue
+still answers one of two overlapping reads 404; one read in flight per id holds it), 17 of 17
+loads showed the client and both labels, `connector-grants.spec.ts` green twice on main (still in
+quarantine from #1094), AC-1 and AC-2 hold locally (226 of 226 refusals, Revoke, 503 on the stub
+and on production, the JWKS unit tests). Gap: the 503 half of that spec runs only in
+`hosted-latency.yml`, which has not run since 2026-10-11 and was red then (#987).
+
+**What was built.** `tools/list` answers `noacg_catalog` and `noacg_library`
+(`api/_lib/me/connectorTools.ts`), each with a title and `readOnlyHint: true`,
+`destructiveHint: false`, `openWorldHint: false`; `initialize` gains a one-sentence
+`instructions`. The catalog index is `/catalog-index.json`, generated from the type registry by
+`scripts/catalogIndexPlugin.mjs`: the dev server answers it from its module graph, `vite build`
+writes it into `dist/` after the bundle with a middleware-mode server of its own, and the preview
+server serves the built file. Its shape is `src/templates/catalogIndex.ts`, its builder
+`catalogIndexBuild.ts`.
+
+**Evidence.** On a local stack on this machine (CLI 2.111.0, the dev server Playwright starts),
+`e2e/configured/connector-tools.spec.ts` passed first try: accounts A and B each signed in a
+scripted MCP client through registration, the authorization URL, Allow at `/api/me/connectors`
+with their own session, and the code exchange. `tools/list` returned both tools with all three
+hints (1,097 characters). `/catalog-index.json` served 69 types; `noacg_catalog` with category
+`scoreboard` returned 8 types all in that category, and "lower third name title" put
+`lower-third` first with its `name` and `title` fields, designs, and palette and font ids that
+resolve in the same answer. `noacg_library` gave A exactly A's graphic (fields Name, Title),
+brand, production and A's team production (labelled "A team"), and B exactly B's; neither
+answer held the other's ids or the template-source marker written into every seeded template,
+data URL and asset. A's team production came back with its pool graphic (`graphicId`, layer)
+and its cue by graphic name with its values; B's production and B's team production were refused
+to A. `connector-oauth.spec.ts` passed in the same run (AC-1). Unit tests:
+`connectorTools.test.ts` and `mcp.test.ts` (the schema ceiling, the hints, permits), 354 pass;
+`scripts/catalogIndexPlugin.test.mjs` builds the real index and checks every type has fields and
+designs, every design id is unique, and every design's palette and font are in the index.
+
+**Decisions.**
+
+- *No `noacg_guide`* (key decision 6). Reading needs no contract text. What a recipe looks like
+  belongs to the send tool's own schema; the guide earns its place only if that cannot fit under
+  the ceiling.
+- *Schema ceiling:* 3,500 characters of the `tools/list` JSON, which is under 1,000 tokens at 3.5
+  characters a token (JSON schemas measure more; the CLI's measured about 4.1). Pinned in
+  `mcp.test.ts` over every tool. The read tools use 1,097, leaving about 2,400 for the send tool.
+- *The index holds the type registry only:* 69 types, 317 designs, 20 palettes, 17 fonts, 95 KB.
+  Hand-written variants outside the registry (camera frames, sponsor strips, `card04`, `vs01`,
+  `ig01`-`ig07`) are not in it, because the scaffold that realizes a recipe takes a type and a
+  design.
+- *The tool reads the index over HTTP from the request's own origin*, cached ten minutes per warm
+  instance. Search: a category by id or name; words ranked by prefix match (two points for the
+  type's own text, one for a design's); at most eight types (9 to 17 KB an answer) with `more`;
+  palettes and fonts in every answer. No arguments: every category and type by name (9 KB).
+- *The library is read with the service role, scoped by `principal.userId`*: `documents` of kind
+  `graphic`, `look` (a brand is a saved look; the retired `brand` singleton is not listed) and
+  `show`, not deleted; the user's `team_members` rows to `teams` to `team_productions`. A personal
+  record of the same id as a team production (what a move leaves) is not listed. Lists are names,
+  types, folders and fields, newest first, 100 at most with `more`. A production's graphics and
+  cues come only with `production: <id>`, because a production body carries every template and
+  the listing should not read them. Values are repeated only when short and not a data URL; no
+  `html`, `css`, `js` or assets ever leave.
+- *Permissions:* `graphics:read` is enforced (`ENFORCED_PERMISSION_KEYS`) by `noacg_library`;
+  `noacg_catalog` needs none (public data) but is still only reachable as a connector.
+
+**What the next phase must allow for.**
+
+- *Two kinds of field key.* A catalog recipe fills the type's LOGICAL keys (`name`, `title`, the
+  scaffold's `values`); a library graphic and a cue use SPX field ids (`f0`, `f1`). The send tool
+  must take each on its own entry kind and refuse the other with an actionable error.
+- *Ids the send tool resolves:* type and design ids (design ids are unique catalog-wide, pinned),
+  palette and font ids from the index, a brand as a `look` document id, a library graphic id. It
+  reads the graphic's sources itself with the service role in the same user scope; the read tool
+  never returns them. A team production's `brandId` may name another member's look, which the
+  caller cannot use.
+- *Tool calls get a context* (`McpToolContext.origin`), the deployment origin.
+- *The catalog fetch is a request to the deployment itself.* A deployment behind Vercel Deployment
+  Protection would answer it 401 and `noacg_catalog` would fail. Phase 5's staging switch-on must
+  check the staging domain is reachable from its own functions (or send the automation bypass).
+
+**Traps.**
+
+- `tsconfig.api.json` compiles type-only imports transitively without the DOM lib, so api/
+  importing a type that imports the registry's types fails on DOM modules. That is why
+  `catalogIndex.ts` imports nothing and the builder is a second file.
+- Vite calls `closeBundle` when a dev server closes, not only after a build; the plugin writes
+  only for `vite build`.
+- Docker Desktop here: the first launch fails ("Docker Desktop is unable to start"). Killing only
+  `Docker Desktop.exe` leaves `com.docker.backend.exe` running and the relaunch fails again; quit
+  both, then relaunch (up in 9 s). A fresh worktree has no `node_modules`; run `npm ci` first.

@@ -49,8 +49,9 @@ const matches = (textWords: readonly string[], word: string) => textWords.some((
 
 // ── noacg_catalog ───────────────────────────────────────────────────────────────────────
 
-/** Types answered with fields and designs at most; the rest are counted. */
-export const CATALOG_MAX_TYPES = 12;
+/** Types answered with fields and designs at most (an answer is then 9 to 17 KB); the rest are
+ *  counted, and words or a category narrow them. */
+export const CATALOG_MAX_TYPES = 8;
 const INDEX_TTL_MS = 10 * 60_000;
 let indexCache: { origin: string; at: number; index: CatalogIndex } | null = null;
 
