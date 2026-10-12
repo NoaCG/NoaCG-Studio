@@ -131,7 +131,7 @@ export const MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
 const OPEN_WAVE_MS = 6 * 60 * 60 * 1000;
 
 /** The heading a finished wave's report sits under; older plans used "Morning report". */
-const REPORT_HEADING = /^## (?:Morning )?[Rr]eport\b/m;
+export const REPORT_HEADING = /^## (?:Morning )?[Rr]eport\b/m;
 
 /**
  * Plans in the store that look like a LIVE wave: written to in the last day, with no report yet.
@@ -164,7 +164,7 @@ export function openNightWave(dir = jobsDir(), now = Date.now()) {
 
 /** The window lines the store writes. The value alone is read and rewritten, so a trailing note survives. */
 const WINDOW_START = /^(Window starts: )(\S+)/m;
-const WINDOW_END = /^(Window ends: )(\S+)/m;
+export const WINDOW_END = /^(Window ends: )(\S+)/m;
 
 /**
  * Open a wave: refuse a window past the 24-hour ceiling and a second live wave, then create the
@@ -247,7 +247,7 @@ function unfinishedRun(kind, dir, now) {
  * The `Window ends:` line and the `Session:` lines directly under it. Sessions are written there and
  * read only there, so a `Session:` in the prompt, the log or the report can never name one.
  */
-const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
+export const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
 
 /**
  * The Claude Code sessions that opened or resumed this wave. A row the orchestrator launches with
@@ -255,7 +255,12 @@ const SESSION_BLOCK = /^Window ends: [^\r\n]*\r?\n(?:Session: [^\r\n]*\r?\n)*/m;
  * rows included, and nobody else's (scripts/hooks/guard-question.mjs).
  */
 export function waveSessions(file) {
-  const block = SESSION_BLOCK.exec(readFileSync(file, 'utf8'))?.[0] ?? '';
+  return sessionsIn(readFileSync(file, 'utf8'));
+}
+
+/** The same, from a wave file's text. */
+export function sessionsIn(text) {
+  const block = SESSION_BLOCK.exec(text)?.[0] ?? '';
   return [...block.matchAll(/^Session: (\S+)/gm)].map((match) => match[1]);
 }
 

@@ -30,6 +30,9 @@ checked by another, the next only after the check passed. Output: phases on `mai
   first day, the same `--until` resumes after a restart, a new one is a new window the owner named.
 - **First open only**: read the plan on `origin/main` (`git fetch origin main`) and copy the phases
   still to build, numbered, under `## Phases` in the wave file, each with where its acceptance is.
+- **Arm the wake-up** (Claude desktop, each start): create or re-enable the task printed by `node
+  scripts/run-wake.mjs arm <wave file> --resume "plan-run <plan> until <iso>"`; it restarts this
+  session if its process stops. `run-wake.mjs awake <wave file>` holds the machine awake to the end.
 
 ## 2. The loop
 
@@ -40,10 +43,9 @@ The ledger refuses a step out of order or launched twice: then launch nothing an
 - **launch build** (or **repair**): a builder with the brief below. Record `landed #<n> <merge sha>`
   once its pull request merged with every check green (`gh pr checks <n>`); a red check, required or
   not, or a red-on-main alarm on that sha (`npm run jobs`), goes back to that session (`resume`).
-- **launch check**: a checker with the brief below, once the phase is on `main`. Its final report
-  says PASS or FAIL with findings; it opens a pull request only when `next` said `land notes`.
-  Record `pass <findings>`, `fail product: <findings>` (next: a repair) or `fail blocked: <what
-  was missing>` (remove the obstacle, or `stop` and ask; next: the check again, once).
+- **launch check**: a checker with the brief below, once the phase is on `main`. Record `pass
+  <findings>`, `fail product: <findings>` (next: a repair) or `fail blocked: <what was missing>`
+  (remove the obstacle, or `stop` and ask; next: the check again, once).
 - **wait**: the step is running. After a restart reconcile first (`gh pr list --head <branch>`,
   `npm run jobs`): merged is recorded `landed`, queued is waited for, otherwise a fresh session
   starts in the recorded worktree with the same brief, and `resume` is recorded. No second branch.
@@ -60,14 +62,12 @@ The ledger refuses a step out of order or launched twice: then launch nothing an
   or paused and what remains, what was not checked, the retro); send it with a phone notification.
 
 Sessions get their own worktrees on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on a
-second check). Claude Code: a `run_in_background` `wave-row` agent (it wakes you), a background
-`jobs.mjs wait` per landing, and, re-armed after a restart, `CronCreate` 45 minutes before the end
-plus a background `sleep 1800`; in the cloud, harness-made worktrees (`orchestrator.md` step 3),
-`subscribe_pr_activity` per pull request and `send_later`. Codex: `spawn_agent` without your
-context, `wait_agent` with a timeout, the 30-minute heartbeat as fallback; ask the owner here.
+second check). Claude Code: `run_in_background` `wave-row` agents (they wake you), background
+`jobs.mjs wait` per landing and `sleep 1800`, the step 1 wake-up; in the cloud, harness worktrees
+(`orchestrator.md` step 3), `subscribe_pr_activity` per pull request and `send_later`. Codex:
+`spawn_agent` without context, `wait_agent` with a timeout, the 30-minute heartbeat; ask him here.
 
 **The builder brief**: the row brief from `orchestrator.md` step 3, after these lines:
-
 ```
 PHASE    <n> of <plan document>: <phase name>. Build it against its acceptance criteria and nothing
          else; read the plan's phase notes and the decisions it records first.
