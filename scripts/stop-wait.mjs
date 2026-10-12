@@ -169,9 +169,9 @@ export const REFUSAL_WINDOW_MS = 30 * 60 * 1000;
  * coordinator, which holds the same wake sources, so a row is let stop as well.
  *
  * The signal is `CLAUDE_CODE_REMOTE=true`, which the cloud harness sets in the container and its
- * hook processes inherit: `cloud-session-setup.mjs` keys its "Cloud setup:" line on it, and that
- * line appears in every cloud session's start-up output. A laptop session, Remote Control
- * included, does not set it. The hook asks before it reads anything, so a cloud stop costs nothing.
+ * hook processes inherit - measured on 2026-10-12, where `cloud-session-setup.mjs`, which keys on
+ * it, printed its cloud-only "Cloud setup:" line from the SessionStart hook. A laptop session does
+ * not set it. The hook asks before it reads anything, so a cloud stop costs nothing.
  */
 export function isCloudSession(env = process.env) {
   return env.CLAUDE_CODE_REMOTE === 'true';
