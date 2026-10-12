@@ -344,3 +344,35 @@ are unaffected: Allow (`/oauth/authorizations/{id}` and `/consent`) and Revoke
 - On this machine the job queue's RAM floor refuses any browser run while the local stack is up
   (about 1.3 GB free with the stack); the browser half is proven on CI. Stopping the stack through
   the queue deadlocks on the same floor; run `npx supabase@2.111.0 stop` directly.
+
+### Phase 2 repair: the consent page's double read
+
+**Last check's findings (phase 2 check):** the consent page showed "This sign-in request cannot
+continue" on 5 of 7 dev loads. React StrictMode runs `ConsentCard`'s effect twice, which sent two
+overlapping `GET /auth/v1/oauth/authorizations/{id}`, and GoTrue answers one of them 404 (5 of 5
+overlapping pairs; sequential pairs 200/200). `connector-grants.spec.ts` was red twice on main's
+configured suite (run 38301494935) and flaky on 38299878376. Everything else in AC-1 and AC-2 held
+(226/226 database refusals, 12 routes, Revoke, the 503 half, the #1083 constraint).
+
+**Reproduced.** On a local stack (CLI 2.111.0), two overlapping GETs of a fresh authorization with
+the user's session gave `404 oauth_authorization_not_found` and 200 in 5 of 5 pairs; two
+sequential GETs gave 200/200. In a local headless browser each load sent its two reads in the
+same millisecond, but GoTrue answered them about 60 ms apart and both 200, so 10 of 10 loads
+passed there before the fix too. The race depends on timing, which is why CI and the checker's
+machine lost it and this one did not.
+
+**Decision: read once per page, no retry.** `readConnectorRequest` in
+`src/backend/connectorAccess.ts` keeps one promise per authorization id for the page's lifetime,
+so a second effect run, a remount or a second caller shares the first read and overlapping reads
+cannot happen. A refusal is kept too: it is Auth's answer for that id, and a reload asks again. A
+retry on 404 was not added, because it would hide a real 404 (an expired or already answered
+request) behind a second wait. `scripts/connector-request-once.test.mjs` pins it: it runs the
+real module against a counted Auth stub and fails on the old code. After the fix, 10 of 10 first
+loads on the dev server (StrictMode on) sent one read and showed the client name and both labels.
+
+**What the next phases must allow for.** Anything else the page asks Auth about one
+authorization must be idempotent or deduplicated the same way: a page-level effect runs twice in
+development. Allow and Deny are button clicks guarded by `busy`, and are not affected.
+
+**Traps.** A double read that passes locally is no evidence that there is no race: GoTrue's answer
+depends on timing. Prove a concurrency fix with the HTTP-level pair, not only with page loads.
