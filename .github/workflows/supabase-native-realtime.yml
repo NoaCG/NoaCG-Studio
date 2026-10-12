@@ -1,0 +1,91 @@
+# TRIAL ONLY - lives on claude/supabase-native-trial-realtime and is never landed.
+# panel-relay.spec.ts failed every private-topic join on the native runtime; this runs it alone,
+# with the realtime service's own log, on the pinned candidate and on the newest beta.
+
+name: supabase-native-realtime
+
+on:
+  push:
+    branches: [claude/supabase-native-trial-realtime]
+
+permissions:
+  contents: read
+
+jobs:
+  relay:
+    name: panel-relay on ${{ matrix.runtime }} ${{ matrix.cli }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cli: 2.120.0, runtime: native }
+          - { cli: 2.121.0-beta.20, runtime: native }
+          - { cli: 2.120.0, runtime: docker }
+    env:
+      E2E_EMAIL: e2e@noacg.local
+      E2E_PASSWORD: noacg-e2e-local-pw
+      SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
+      SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: ./.github/actions/node-modules
+      - uses: ./.github/actions/playwright-chromium
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ matrix.cli }}
+      - name: Start
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.runtime }}" = native ]; then
+            export SUPABASE_EXPERIMENTAL_STACK=1
+            supabase start --runtime native --eager --exclude studio,functions | tail -25
+            status="$(supabase status --output-format json)"
+            pick() { printf '%s' "$status" | jq -r --arg k "$1" '(.env[$k] // .[$k]) // empty'; }
+            echo "SUPABASE_EXPERIMENTAL_STACK=1" >> "$GITHUB_ENV"
+          else
+            supabase start -x studio,edge-runtime >/dev/null
+            status="$(supabase status -o json)"
+            pick() { printf '%s' "$status" | jq -r --arg k "$1" '.[$k] // empty'; }
+          fi
+          {
+            echo "VITE_SUPABASE_URL=$(pick API_URL)"
+            echo "VITE_SUPABASE_ANON_KEY=$(pick ANON_KEY)"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$(pick SERVICE_ROLE_KEY)"
+            echo "SUPABASE_DB_URL=$(pick DB_URL)"
+          } >> "$GITHUB_ENV"
+      - name: Account
+        run: |
+          curl -s -o /dev/null -w '%{http_code}\n' -X POST "${VITE_SUPABASE_URL}/auth/v1/admin/users" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H 'Content-Type: application/json' -d "{\"email\":\"${E2E_EMAIL}\",\"password\":\"${E2E_PASSWORD}\",\"email_confirm\":true}"
+      - name: A private topic join, by hand
+        run: |
+          cat > .probe.mjs <<'JS'
+          import { createClient } from '@supabase/supabase-js';
+          const c = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+          for (const topic of ['pnp-' + '0'.repeat(32), 'pfb-' + 'a'.repeat(32), 'public-probe']) {
+            const priv = topic !== 'public-probe';
+            const ch = c.channel(topic, { config: { private: priv } });
+            const s = await new Promise((r) => { const t = setTimeout(() => r('NO ANSWER'), 10000); ch.subscribe((st, err) => { clearTimeout(t); r(st + (err ? ' ' + err.message : '')); }); });
+            console.log(topic, 'private', priv, '->', s);
+            await c.removeChannel(ch);
+          }
+          process.exit(0);
+          JS
+          node .probe.mjs
+      - name: panel-relay.spec.ts alone
+        run: npx playwright test -c playwright.live.config.ts e2e/configured/panel-relay.spec.ts --reporter=list --retries=0 || true
+      - name: Realtime log
+        if: ${{ always() }}
+        run: |
+          if [ "${{ matrix.runtime }}" = native ]; then
+            supabase stack logs --service realtime --tail 150 2>&1 || supabase stack logs --tail 150 2>&1 || true
+          else
+            docker logs --tail 150 "$(docker ps --filter name=supabase_realtime --format '{{.Names}}' | head -1)" 2>&1 || true
+          fi
