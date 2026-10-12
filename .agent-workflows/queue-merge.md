@@ -104,7 +104,8 @@ fix needs a product decision or a change well outside the pull request's scope.
    that moved past `sha`, posts `noacg/reviewed` and labels the pull request `land`; its log says if
    the `Reviewed` job needs a re-run.
 3. Once that run is green, turn auto-merge on from the session itself (set by a workflow token, it
-   never reaches the queue), then leave the next session its prompt (section 3).
+   never reaches the queue), then leave the next session its prompt (section 3) with
+   `mcp__github__add_issue_comment`.
 4. Confirm `added_to_merge_queue` then `merged` on the timeline. Green checks without a queue entry:
    toggle auto-merge off and on from the session, or re-run a red or cancelled `CI gate` or
    `Reviewed`.
