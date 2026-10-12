@@ -33,7 +33,8 @@ can see becomes a row.
 - **Open the wave**: `node scripts/wave-plan-store.mjs --open <date> <day|night> --until <iso>`.
   It refuses a second open wave and a window over 24 hours, and prints the wave file, which lives
   outside any checkout. The prompt, the work list, one line per launch and result, and the report
-  go there; nobody else has to read it. After a restart, open the same date and kind again.
+  go there; nobody else has to read it. After a restart, open the same date and kind again. Arm
+  the wake-up as `plan-run.md` step 1 does (`--resume "orchestrator <date> <kind> until <iso>"`).
 - **Read once**: the prompt; `docs/GOALS.md` headings and the `## Outcomes` rank line; the last
   retro (`## Report` in the last wave file, `node scripts/wave-plan-store.mjs --list`); the machine
   (step 3). Read code only to settle a planning question; each row does its own research.

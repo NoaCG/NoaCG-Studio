@@ -30,6 +30,11 @@ checked by another, the next only after the check passed. Output: phases on `mai
   first day, the same `--until` resumes after a restart, a new one is a new window the owner named.
 - **First open only**: read the plan on `origin/main` (`git fetch origin main`) and copy the phases
   still to build, numbered, under `## Phases` in the wave file, each with where its acceptance is.
+- **Arm the wake-up** (Claude desktop, each start): create or re-enable the task that `node
+  scripts/run-wake.mjs arm <wave file> --resume "plan-run <plan> until <iso>"` prints. Until the
+  window ends or the report is written, it restarts this session if its process is gone. Keep
+  the machine awake with `node scripts/run-wake.mjs awake <wave file>`; `request_keep_awake`
+  lets go after five idle minutes.
 
 ## 2. The loop
 
@@ -61,8 +66,8 @@ The ledger refuses a step out of order or launched twice: then launch nothing an
 
 Sessions get their own worktrees on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on a
 second check). Claude Code: a `run_in_background` `wave-row` agent (it wakes you), a background
-`jobs.mjs wait` per landing, and, re-armed after a restart, `CronCreate` 45 minutes before the end
-plus a background `sleep 1800`; in the cloud, harness-made worktrees (`orchestrator.md` step 3),
+`jobs.mjs wait` per landing, a background `sleep 1800` (one lands in the closing 45 minutes) and
+the wake-up from step 1; in the cloud, harness-made worktrees (`orchestrator.md` step 3),
 `subscribe_pr_activity` per pull request and `send_later`. Codex: `spawn_agent` without your
 context, `wait_agent` with a timeout, the 30-minute heartbeat as fallback; ask the owner here.
 
