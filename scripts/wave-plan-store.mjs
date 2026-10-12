@@ -131,7 +131,7 @@ export const MAX_WINDOW_MS = 24 * 60 * 60 * 1000;
 const OPEN_WAVE_MS = 6 * 60 * 60 * 1000;
 
 /** The heading a finished wave's report sits under; older plans used "Morning report". */
-const REPORT_HEADING = /^## (?:Morning )?[Rr]eport\b/m;
+export const REPORT_HEADING = /^## (?:Morning )?[Rr]eport\b/m;
 
 /**
  * Plans in the store that look like a LIVE wave: written to in the last day, with no report yet.
