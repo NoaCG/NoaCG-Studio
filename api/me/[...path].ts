@@ -25,6 +25,11 @@
 // resolve a principal through api/_lib/principal.ts and refuse an anonymous caller. They live
 // here because they are things a visitor does ABOUT THEMSELVES, and because this catch-all is
 // where they cost no function slot.
+//
+// The REMOTE MCP CONNECTOR (docs/REMOTE_MCP_PLAN.md) lives here for the same reason: `/mcp` and
+// `/.well-known/oauth-protected-resource/mcp` are vercel.json rewrites onto `mcp` and
+// `oauth-protected-resource`, and `connectors` is the consent page's and Settings' side of it. A
+// rewritten request may arrive under its public path or its destination, so both name the route.
 
 import { apiError } from '../_lib/http.js';
 import entitlement from '../_lib/me/entitlement.js';
@@ -33,6 +38,8 @@ import agentKeys from '../_lib/me/agentKeys.js';
 import graphics from '../_lib/me/graphics.js';
 import packages from '../_lib/me/packages.js';
 import communityPacks from '../_lib/me/communityPacks.js';
+import mcp, { MCP_PATH, PROTECTED_RESOURCE_PATH, protectedResource } from '../_lib/me/mcp.js';
+import connectors from '../_lib/me/connectors.js';
 
 interface Handler {
   fetch(req: Request): Promise<Response>;
@@ -45,12 +52,25 @@ const ROUTES: Record<string, Handler> = {
   graphics,
   packages,
   'community-packs': communityPacks,
+  mcp,
+  'oauth-protected-resource': protectedResource,
+  connectors,
 };
+
+/** The public paths vercel.json rewrites into this function, by the route that serves them. */
+const PUBLIC_PATHS: Record<string, string> = {
+  [MCP_PATH]: 'mcp',
+  [PROTECTED_RESOURCE_PATH]: 'oauth-protected-resource',
+};
+
+/** The route a request names: a public connector path, or the one segment under /api/me. */
+function routeOf(pathname: string): string {
+  return PUBLIC_PATHS[pathname] ?? pathname.replace(/^\/api\/me\/?/, '').split('/')[0];
+}
 
 export default {
   async fetch(req: Request): Promise<Response> {
-    const path = new URL(req.url).pathname.replace(/^\/api\/me\/?/, '').split('/')[0];
-    const handler = ROUTES[path];
+    const handler = ROUTES[routeOf(new URL(req.url).pathname)];
     return handler ? handler.fetch(req) : apiError('not_found', 'Not found', 404);
   },
 };

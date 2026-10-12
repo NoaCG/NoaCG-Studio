@@ -8,12 +8,31 @@
 // a second copy in the dev server would be a second thing to keep in step - which is how a
 // route ends up reachable in one environment and missing in the other. The same reasoning
 // adminDevPlugin already records.
+//
+// The same goes for the PUBLIC paths vercel.json rewrites into this function (the remote MCP
+// connector's `/mcp` and its protected resource metadata): they are read from vercel.json's own
+// `rewrites`, so a path is served here exactly when production rewrites it. The request reaches
+// the handler under its public path, and the catch-all names the route from either form.
+
+import { readFileSync } from 'node:fs';
+
+/** Literal rewrite sources whose destination is this function. */
+export function meRewriteSources(vercelJson) {
+  return (vercelJson.rewrites ?? [])
+    .filter((r) => typeof r.destination === 'string' && r.destination.startsWith('/api/me/') && !/[:(*]/.test(r.source))
+    .map((r) => r.source);
+}
 
 /** @returns {import('vite').Plugin} */
 export function meApiPlugin() {
   return {
     name: 'noacg-me-api',
     configureServer(server) {
+      const rewritten = new Set(meRewriteSources(JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))));
+      server.middlewares.use((req, res, next) => {
+        if (!rewritten.has((req.url ?? '/').split('?')[0])) return next();
+        void handle(server, req, res);
+      });
       server.middlewares.use('/api/me', (req, res) => {
         void handle(server, req, res);
       });
@@ -23,13 +42,11 @@ export function meApiPlugin() {
 
 async function handle(server, req, res) {
   try {
-    const [pathPart, query] = (req.url ?? '/').split('?');
-    const route = pathPart.replace(/^\/+|\/+$/g, '');
-
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
-    const url = `http://${req.headers.host ?? 'localhost'}/api/me/${route}${query ? '?' + query : ''}`;
+    // connect strips a mount path from req.url; originalUrl is the request as it arrived.
+    const url = `http://${req.headers.host ?? 'localhost'}${req.originalUrl ?? req.url ?? '/'}`;
     const request = new Request(url, {
       method: req.method,
       headers: Object.fromEntries(

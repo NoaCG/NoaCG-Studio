@@ -4,6 +4,7 @@ import { loadPrefs, savePrefs } from '../model/prefs';
 import { EXPORT_TARGETS } from '../export/registry';
 import { signOut, updatePassword } from '../backend/auth';
 import { listAgentKeys, revokeAgentKey, type AgentKeySummary } from '../backend/agentAccess';
+import { listConnectors, revokeConnector, type ConnectorSummary } from '../backend/connectorAccess';
 import { useModalGate } from './spaceKey';
 import { useAuthState } from './auth/useAuthState';
 import { useAuthUi } from './auth/authUi';
@@ -135,31 +136,36 @@ function AccountSection({ onClose }: { onClose: () => void }) {
 }
 
 /**
- * "Agent access" - the scoped keys a coding agent's CLI holds for this account
- * (docs/AGENT_SAVE.md): name, prefix, created, last used, and the one button that ends one. A key
- * is minted by `noacg login` in a terminal, never here; this list exists so the person can SEE
- * what may write into their library and stop it. Signed-in only (the section it lives in
- * already renders nothing offline).
+ * "Agent access" - what may act on this account from outside the studio: the scoped keys a coding
+ * agent's CLI holds (docs/AGENT_SAVE.md) and the chat clients connected by signing in
+ * (docs/REMOTE_MCP_PLAN.md). Each row has a name, when it was made and last used, and the one
+ * button that ends it. Nothing is created here; this list exists so the person can SEE what may
+ * act for them and stop it. Signed-in only (the section it lives in renders nothing offline).
  */
 function AgentAccessSection() {
   const [keys, setKeys] = useState<AgentKeySummary[] | null>(null);
+  const [connectors, setConnectors] = useState<ConnectorSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
+    const failed = (e: unknown) => { if (live) setError(e instanceof Error ? e.message : String(e)); };
     listAgentKeys()
       .then((list) => { if (live) setKeys(list); })
-      .catch((e: unknown) => { if (live) { setKeys([]); setError(e instanceof Error ? e.message : String(e)); } });
+      .catch((e: unknown) => { if (live) setKeys([]); failed(e); });
+    listConnectors()
+      .then((list) => { if (live) setConnectors(list); })
+      .catch((e: unknown) => { if (live) setConnectors([]); failed(e); });
     return () => { live = false; };
   }, []);
 
-  const revoke = async (id: string) => {
+  const revoke = async (id: string, end: (id: string) => Promise<void>, drop: () => void) => {
     setBusyId(id);
     setError(null);
     try {
-      await revokeAgentKey(id);
-      setKeys((list) => (list ?? []).filter((k) => k.id !== id));
+      await end(id);
+      drop();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -168,26 +174,39 @@ function AgentAccessSection() {
   };
 
   const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : 'never');
+  const revokeButton = (id: string, onClick: () => void, testId: string) => (
+    <button onClick={onClick} disabled={busyId === id} data-testid={testId}>
+      {busyId === id ? 'Revoking…' : 'Revoke'}
+    </button>
+  );
 
   return (
     <div className="agent-keys" data-testid="agent-keys">
       <p className="dlg-caption">Agent access</p>
       <p className="hint">
-        Keys a tool on your computer holds to save graphics into this library (<code>noacg login</code>).
-        Each can only create graphics - never control a production, use AI or delete anything.
+        Keys a tool on your computer holds to save graphics into this library (<code>noacg login</code>),
+        and apps you connected by signing in. None can control a production, use AI or delete anything.
       </p>
-      {keys === null && <p className="hint">Loading…</p>}
-      {keys && keys.length === 0 && <p className="hint" data-testid="agent-keys-empty">No agent keys. Run <code>noacg login</code> in a terminal to create one.</p>}
-      {keys && keys.length > 0 && (
+      {(keys === null || connectors === null) && <p className="hint">Loading…</p>}
+      {keys && connectors && keys.length === 0 && connectors.length === 0 && (
+        <p className="hint" data-testid="agent-keys-empty">No agent keys or connected apps. Run <code>noacg login</code> in a terminal to create a key.</p>
+      )}
+      {keys && connectors && keys.length + connectors.length > 0 && (
         <ul className="agent-keys-list">
+          {connectors.map((c) => (
+            <li key={c.id} className="agent-key-row" data-testid="connector-row">
+              <span className="agent-key-name">{c.name || 'Connected app'}</span>
+              <span className="hint agent-key-prefix">connected app</span>
+              <span className="hint agent-key-meta">connected {when(c.createdAt)} · last used {when(c.lastUsedAt)}</span>
+              {revokeButton(c.id, () => void revoke(c.id, revokeConnector, () => setConnectors((l) => (l ?? []).filter((x) => x.id !== c.id))), 'connector-revoke')}
+            </li>
+          ))}
           {keys.map((k) => (
             <li key={k.id} className="agent-key-row" data-testid="agent-key-row">
               <span className="agent-key-name">{k.name}</span>
               <code className="agent-key-prefix">{k.prefix}</code>
               <span className="hint agent-key-meta">created {when(k.createdAt)} · last used {when(k.lastUsedAt)}</span>
-              <button onClick={() => void revoke(k.id)} disabled={busyId === k.id} data-testid="agent-key-revoke">
-                {busyId === k.id ? 'Revoking…' : 'Revoke'}
-              </button>
+              {revokeButton(k.id, () => void revoke(k.id, revokeAgentKey, () => setKeys((l) => (l ?? []).filter((x) => x.id !== k.id))), 'agent-key-revoke')}
             </li>
           ))}
         </ul>

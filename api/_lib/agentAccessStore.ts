@@ -133,7 +133,8 @@ export function agentAccessConfigured(): boolean {
 
 let cached: SupabaseClient | null = null;
 
-async function db(): Promise<SupabaseClient> {
+/** The server's one service-role client (also the connector grant store's). */
+export async function serviceRoleDb(): Promise<SupabaseClient> {
   if (cached) return cached;
   const url = serviceUrl();
   const key = serviceKey();
@@ -177,7 +178,7 @@ const KEY_COLUMNS = 'id, user_id, name, prefix, scopes, created_at, last_used_at
 export function supabaseAgentAccessStore(): AgentAccessStore {
   return {
     async createCode(row) {
-      const { error } = await (await db()).from('agent_auth_codes').insert({
+      const { error } = await (await serviceRoleDb()).from('agent_auth_codes').insert({
         code_hash: row.codeHash,
         user_id: row.userId,
         name: row.name,
@@ -188,7 +189,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       if (error) throw new Error(error.message);
     },
     async consumeCode(codeHash) {
-      const { data, error } = await (await db()).rpc('agent_code_consume', { p_code_hash: codeHash });
+      const { data, error } = await (await serviceRoleDb()).rpc('agent_code_consume', { p_code_hash: codeHash });
       if (error) throw new Error(error.message);
       const row = (Array.isArray(data) ? data[0] : data) as
         | { user_id: string; name: string; scopes: string[] | null; challenge: string }
@@ -199,13 +200,13 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
     async purgeExpiredCodes(before) {
       // Best effort: hygiene must never fail a begin.
       try {
-        await (await db()).from('agent_auth_codes').delete().lt('expires_at', before);
+        await (await serviceRoleDb()).from('agent_auth_codes').delete().lt('expires_at', before);
       } catch {
         /* ignore */
       }
     },
     async createKey(row) {
-      const { data, error } = await (await db())
+      const { data, error } = await (await serviceRoleDb())
         .from('agent_keys')
         .insert({ user_id: row.userId, name: row.name, key_hash: row.keyHash, prefix: row.prefix, scopes: row.scopes })
         .select(KEY_COLUMNS)
@@ -214,19 +215,19 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       return toKeyRow(data as KeyRowDb);
     },
     async resolveKey(keyHash) {
-      const { data, error } = await (await db()).rpc('agent_key_resolve', { p_key_hash: keyHash });
+      const { data, error } = await (await serviceRoleDb()).rpc('agent_key_resolve', { p_key_hash: keyHash });
       if (error) throw new Error(error.message);
       const row = (Array.isArray(data) ? data[0] : data) as { id: string; user_id: string; scopes: string[] | null } | undefined;
       if (!row) return null;
       return { id: row.id, userId: row.user_id, scopes: row.scopes ?? [] };
     },
     async keyById(id) {
-      const { data, error } = await (await db()).from('agent_keys').select(KEY_COLUMNS).eq('id', id).maybeSingle();
+      const { data, error } = await (await serviceRoleDb()).from('agent_keys').select(KEY_COLUMNS).eq('id', id).maybeSingle();
       if (error) throw new Error(error.message);
       return data ? toKeyRow(data as KeyRowDb) : null;
     },
     async listKeys(userId) {
-      const { data, error } = await (await db())
+      const { data, error } = await (await serviceRoleDb())
         .from('agent_keys')
         .select(KEY_COLUMNS)
         .eq('user_id', userId)
@@ -236,7 +237,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       return ((data ?? []) as KeyRowDb[]).map(toKeyRow);
     },
     async revokeKey(userId, id) {
-      const { data, error } = await (await db())
+      const { data, error } = await (await serviceRoleDb())
         .from('agent_keys')
         .update({ revoked_at: new Date().toISOString() })
         .eq('id', id)
@@ -250,7 +251,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       // INSERT, never upsert: a service-role upsert keyed on a client-chosen id could overwrite
       // another user's row, and the sync engine's LWW reads body.updatedAt - so the id is the
       // server's own (newGraphicDoc minted it) and a collision is an error, not a merge.
-      const { error } = await (await db()).from('documents').insert({
+      const { error } = await (await serviceRoleDb()).from('documents').insert({
         id: doc.id,
         user_id: userId,
         kind: 'graphic',
@@ -261,7 +262,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       if (error) throw new Error(error.message);
     },
     async countWaitingPackages(userId) {
-      const { count, error } = await (await db())
+      const { count, error } = await (await serviceRoleDb())
         .from('agent_packages')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId);
@@ -269,7 +270,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       return count ?? 0;
     },
     async submitCommunityPack(userId, row) {
-      const { data, error } = await (await db()).rpc('community_pack_submit_for', {
+      const { data, error } = await (await serviceRoleDb()).rpc('community_pack_submit_for', {
         p_uid: userId,
         p_name: row.name,
         p_description: row.description,
@@ -282,7 +283,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
     },
     async insertPackage(userId, row) {
       // INSERT, never upsert, and the id is the database's own - the same rule as insertGraphic.
-      const { data, error } = await (await db())
+      const { data, error } = await (await serviceRoleDb())
         .from('agent_packages')
         .insert({
           user_id: userId,

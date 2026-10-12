@@ -26,13 +26,13 @@
   <meta property="og:image" content="https://noacg.studio/landing/shot-title.png" />
 
   <!-- Old share links point at the root with a query (?chat=<slug> send-in pages,
-       ?template=<slug> community deep links, ?control=<slug> hosted control pages).
-       The app now lives at /app, so forward them
-       before anything paints. -->
+       ?template=<slug> community deep links, ?control=<slug> hosted control pages), and
+       Supabase Auth sends a connecting chat client's user to ?authorization_id=<id>.
+       The app lives at /app, so forward them before anything paints. -->
   <script>
     (function () {
       var q = window.location.search;
-      if (/[?&](chat|template|control|recovery)=/.test(q)) {
+      if (/[?&](chat|template|control|recovery|authorization_id)=/.test(q)) {
         window.location.replace('/app' + q + window.location.hash);
         return;
       }
