@@ -164,7 +164,7 @@ export function openNightWave(dir = jobsDir(), now = Date.now()) {
 
 /** The window lines the store writes. The value alone is read and rewritten, so a trailing note survives. */
 const WINDOW_START = /^(Window starts: )(\S+)/m;
-const WINDOW_END = /^(Window ends: )(\S+)/m;
+export const WINDOW_END = /^(Window ends: )(\S+)/m;
 
 /**
  * Open a wave: refuse a window past the 24-hour ceiling and a second live wave, then create the

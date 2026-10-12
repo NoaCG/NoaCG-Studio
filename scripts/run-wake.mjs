@@ -38,11 +38,11 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { buildIndex, readInventory } from './claude-agents.mjs';
+import { buildIndex, inventory as harnessInventory } from './claude-agents.mjs';
 import { processAlive } from './codex-rescue.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
 import { advanceLocalMain } from './worktree-cleanup-lib.mjs';
-import { REPORT_HEADING, SESSION_BLOCK, sessionsIn, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
+import { REPORT_HEADING, SESSION_BLOCK, sessionsIn, WINDOW_END, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
 
 export const WAKE_TASK_ID = 'noacg-run-wake';
 export const WAKE_CRON = '*/30 * * * *';
@@ -71,10 +71,6 @@ export function writeWake(text, { host, session, resume }) {
   return `${text.slice(0, at)}Wake: ${host} ${session} ${resume}\n${text.slice(at + (match?.[0].length ?? 0))}`;
 }
 
-function windowEnd(text) {
-  return /^Window ends: (\S+)/m.exec(text)?.[1];
-}
-
 /**
  * One run's state from its wave file's text and the process inventory (or a function returning it,
  * asked only for an open armed run): over (report written, window ended or not armed) | alive |
@@ -83,9 +79,8 @@ function windowEnd(text) {
 export function wakeVerdict({ text, inventory, now = Date.now() }) {
   const wake = readWake(text);
   if (!wake) return { verdict: 'over', why: 'the run has no wake-up' };
-  if (REPORT_HEADING.test(text)) return { verdict: 'over', why: 'the run wrote its report' };
-  const end = Date.parse(windowEnd(text) ?? '');
-  if (Number.isNaN(end) || now >= end) return { verdict: 'over', why: 'its window has ended' };
+  const { why } = holdable(text, now);
+  if (why) return { verdict: 'over', why };
   if (typeof inventory === 'function') inventory = inventory();
   const sessions = sessionsIn(text);
   const index = buildIndex(inventory?.rows);
@@ -154,7 +149,7 @@ export function holderScript(until) {
 
 /** Is the window in this text still to be held? The holder asks every minute. */
 export function holdable(text, now = Date.now()) {
-  const until = windowEnd(text);
+  const until = WINDOW_END.exec(text)?.[2];
   if (!until || Number.isNaN(Date.parse(until)) || Date.parse(until) <= now) return { until, why: 'it has ended or is unreadable' };
   if (REPORT_HEADING.test(text)) return { until, why: 'the run wrote its report' };
   return { until };
@@ -175,8 +170,7 @@ export function holdAwake(file, { platform = process.platform, now = Date.now() 
     cwd: path.dirname(file), detached: true, stdio: 'ignore', windowsHide: true,
   });
   child.unref();
-  writeFileSync(pidFile, `${child.pid} ${until}
-`, 'utf8');
+  writeFileSync(pidFile, `${child.pid} ${until}\n`, 'utf8');
   return `held awake by pid ${child.pid} until ${until} or the report`;
 }
 
@@ -214,13 +208,11 @@ function arm(file, argv, env = process.env) {
 }
 
 function check(files) {
-  let inventory;
-  const lazyInventory = () => (inventory ??= readInventory());
   const runs = files.filter((file) => existsSync(file))
-    .map((file) => ({ file, ...wakeVerdict({ text: readFileSync(file, 'utf8'), inventory: lazyInventory }) }));
+    .map((file) => ({ file, ...wakeVerdict({ text: readFileSync(file, 'utf8'), inventory: harnessInventory }) }));
   const lines = wakeReport(runs);
   const resume = runs.find((run) => run.verdict === 'resume');
-  if (lines[0].startsWith('resume') && resume) {
+  if (resume) {
     const text = readFileSync(resume.file, 'utf8');
     appendFileSync(resume.file, `${text.endsWith('\n') || !text ? '' : '\n'}- ${new Date().toISOString()} wake-up: ${resume.why}; restarting its session ${resume.host}\n`, 'utf8');
   }
