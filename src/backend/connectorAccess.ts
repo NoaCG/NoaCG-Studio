@@ -34,8 +34,22 @@ async function oauth() {
   return sb.auth.oauth;
 }
 
-/** What the client asks for, as Supabase Auth records it. */
-export async function readConnectorRequest(authorizationId: string): Promise<ConnectorRequest> {
+const reading = new Map<string, Promise<ConnectorRequest>>();
+
+/** What the client asks for, as Supabase Auth records it. Callers asking while a read of the same
+ *  authorization is in flight share it (React StrictMode runs the page's effect twice): Auth
+ *  answers one of two OVERLAPPING reads of a fresh authorization with a 404, which the page would
+ *  show as an expired request. A later read asks Auth again, under the session the page has then. */
+export function readConnectorRequest(authorizationId: string): Promise<ConnectorRequest> {
+  let request = reading.get(authorizationId);
+  if (!request) {
+    request = fetchConnectorRequest(authorizationId).finally(() => reading.delete(authorizationId));
+    reading.set(authorizationId, request);
+  }
+  return request;
+}
+
+async function fetchConnectorRequest(authorizationId: string): Promise<ConnectorRequest> {
   const { data, error } = await (await oauth()).getAuthorizationDetails(authorizationId);
   if (error || !data) throw new Error('This sign-in request is unknown or has expired. Start again from the chat.');
   if (!('authorization_id' in data)) return { kind: 'redirect', url: webRedirect(data.redirect_url) };
