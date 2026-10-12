@@ -21,6 +21,7 @@ jobs:
       run:
         shell: bash
     env:
+      HOME: /root
       SUPABASE_EXPERIMENTAL_STACK: '1'
       SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
       SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
@@ -56,8 +57,10 @@ jobs:
       - name: Start both stacks as a named non-root Postgres user
         run: |
           set -euo pipefail
-          id pgrunner >/dev/null 2>&1 || useradd -m pgrunner
-          export SUPABASE_NATIVE_POSTGRES_USER=pgrunner
+          # A cloud VM runs as root with HOME=/root (0700); the Actions container hands root a shared HOME.
+          chmod 700 /root
+          id supabase-postgres >/dev/null 2>&1 || useradd --system --user-group supabase-postgres
+          export SUPABASE_NATIVE_POSTGRES_USER=supabase-postgres
           for wt in a b; do
             ( cd "/tmp/wt-$wt"; supabase stop >/dev/null 2>&1 || true
               start=$(date +%s); supabase start --runtime native --eager --exclude studio,functions 2>&1 | tail -5
