@@ -42,22 +42,9 @@ export function oauthClientOf(token: string | null): string | null {
  *  A token issued to an OAuth client (a chat client's connector, docs/REMOTE_MCP_PLAN.md) is
  *  REFUSED here: Supabase Auth answers getUser for it as for the user's own session, so without
  *  this every signed-in route would serve a connector as the user. Only the connector path
- *  admits such a token, through verifyConnectorToken and a live grant. */
+ *  admits such a token, verified locally (connectorAuth.ts) and only with a live grant. */
 export async function verifyUser(token: string | null): Promise<AuthedUser | null> {
   if (!token || oauthClientOf(token)) return null;
-  return verifiedUser(token);
-}
-
-/** A connector's token: the user and the OAuth client it was issued to, or null when the token
- *  is not an OAuth client's, does not verify, or its session has ended (a revoked grant). */
-export async function verifyConnectorToken(token: string | null): Promise<(AuthedUser & { clientId: string }) | null> {
-  const clientId = oauthClientOf(token);
-  if (!token || !clientId) return null;
-  const user = await verifiedUser(token);
-  return user ? { ...user, clientId } : null;
-}
-
-async function verifiedUser(token: string): Promise<AuthedUser | null> {
   const env = supabaseEnv();
   if (!env) return null;
   try {

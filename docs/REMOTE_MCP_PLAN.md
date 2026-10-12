@@ -231,3 +231,109 @@ one.
 - Migration 0089 creates a role. `db:push` classifies it as additive and the build gate passes,
   but a hosted project could still refuse `create role`; that is a `needs owner` refusal, not a
   reason to reshape the migration. The hook stays off on hosted until the owner enables it.
+
+### Phase 2: sign-in, grants and the closed database (AC-2)
+
+**Last check's findings (phase 1 check):** PASS on CI run 38286615002 (97 passed; Docker could not
+start on the checker's machine). The token carries `client_id`; the `noacg_connector` role is
+refused on read, write, RPC and Storage; first-party sessions are unaffected; loopback redirects
+match exactly. Asymmetric keys come from the CLI's built-in ES256 key, not `signing_keys_path`. A
+connector token was accepted by `/auth/v1/user` and by NoaCG's `verifyUser` (phase 2 must refuse
+it there). `aud` is `authenticated`. Path-inserted discovery 404s locally. Claude Code's
+per-port registration is unverified.
+
+**What was built.** `POST /mcp` and `/.well-known/oauth-protected-resource/mcp` are vercel.json
+rewrites into the `api/me` catch-all (routes `mcp` and `oauth-protected-resource`; the dispatcher
+also names them from the public path, since a rewritten request may arrive under either). The dev
+server reads the same rewrites from vercel.json (`scripts/meDevPlugin.mjs`). Migration 0090 adds
+`connector_grants` (RLS on, no policies, service role only, one live row per user and client,
+`playout:operate` refused by a check constraint) and `connector_grant_resolve`, which stamps
+`last_used_at`. The consent page is `ConnectorConsent.tsx` at `/app?authorization_id=` (the root
+forwards the query, as it does for `?control=`). Settings → Account → Agent access lists connected
+apps above keys. `api/_lib/me/connectors.ts` is Allow, list and Revoke.
+
+**Evidence.** On a local stack on this machine (Docker started once RAM allowed; CLI 2.111.0,
+dev server on the worktree's port), a scripted MCP client (`@modelcontextprotocol/sdk` 1.30.0,
+now a root dev dependency pinned to the CLI's version) met the 401, read the metadata, discovered
+Auth (the SDK falls back past the 404ing path-inserted URL on its own), registered, and was sent
+to sign in. Deny returned `error=access_denied` and left no row. Allow wrote one row
+(`graphics:read`, `graphics:create`, client name "Claude (scripted)"), the code bought a token
+(iss `http://127.0.0.1:54321/auth/v1`, role `noacg_connector`, aud `authenticated`), `tools/list`
+answered `[]`, a tool call reached the tool table (`-32602 Unknown tool`) and stamped
+`last_used_at`. `/api/me/agent-keys`, `/api/me/connectors` and `/api/me/graphics` answered 401 to
+the connector token. All 43 public tables, read and written, plus `storage.objects` and
+`rpc/control_show_by_slug`, answered `permission denied to set role "noacg_connector"`. Revoke
+answered 200; the next `/mcp` call 401; the refresh `400 refresh_token_not_found`. The browser
+half (the consent page itself, Settings' Revoke button) is `e2e/configured/connector-grants.spec.ts`
+on CI's local stack; the 503 half runs in the same file on hosted staging, whose Auth has no OAuth
+server. Unit tests: `api/_lib/me/mcp.test.ts`, `connectors.test.ts`.
+
+**Decisions.**
+
+- *Audience (MCP 2026-07-28).* The token's `aud` stays `authenticated`. The binding is the grant
+  row: a token is admitted only for the exact client the user approved on NoaCG's page, while that
+  row is live. Setting `aud` to the resource in the hook stays possible (GoTrue never checks `aud`,
+  per the #1083 research) but was not needed.
+- *Connector tokens are verified locally* (`verifyConnectorToken` in `api/_lib/connectorAuth.ts`):
+  asymmetric signature against the issuer's JWKS (refetched once for an unknown `kid`), `exp`, and
+  `iss` equal to the discovery document's issuer. Never `auth.getUser` or `/oauth/userinfo`, so the
+  #1083 hardening below cannot break `/mcp`. Revocation is the grant row, not the token's session.
+- *The user id is read in one place:* `connectorUserId(claims)` in `connectorAuth.ts`, today
+  `sub` (a UUID).
+- *Only a connector principal reaches `/mcp`.* A session or an agent key gets the same 401 as no
+  token, so a chat client is always sent to sign in. `resolvePrincipal` admits a connector token
+  only with `{ connector: true }`; every other path, and `verifyUser`, treats it as anonymous.
+- *Allow runs on the server, Deny does not.* Allow reads the client from Auth's own record of the
+  authorization (never from the page), writes the grant, then approves; a grant it made is dropped
+  if the approval fails. Deny goes from the page straight to Auth, so nothing in NoaCG can record
+  it. If Auth answers "already consented" (a redirect only), the page follows it; with no live grant
+  that token is anonymous at `/mcp` (fail closed).
+- *Revoke marks the row first*, then deletes Auth's grant (`DELETE /user/oauth/grants`) with the
+  user's session; if Auth does not answer, the call says so and can be repeated, and the connector
+  is already refused.
+- *Off.* "On" is read from Auth's discovery document (cached a minute per instance): without a
+  registration endpoint every connector path, `/api/me/connectors` included, answers 503
+  `connector_disabled`. Settings treats that as "no connected apps".
+- *Both protocol eras, stateless.* Requests carrying `_meta["io.modelcontextprotocol/protocolVersion"]`
+  are served by 2026-07-28 (headers checked against the body, `server/discover`, `resultType`);
+  `initialize` negotiates 2025-11-25, 2025-06-18 or 2025-03-26. No session ids; GET and DELETE 405;
+  a foreign `Origin` 403. PRM `scopes_supported` is `openid email`.
+
+**What the next phases must allow for.**
+
+- *The tool table is empty* (`TOOLS` in `api/_lib/me/mcp.ts`). Phase 3 adds tools with a
+  `permission`; `tools/call` already asks `permits()` and returns `isError` when it is withheld.
+  Add `graphics:read` to `ENFORCED_PERMISSION_KEYS` in the change that adds its call site.
+- *Tools must not forward the token.* Read and write with the service role and
+  `principal.userId`; `principal.clientId` and `principal.grantId` are there for the package's
+  `origin` and audit.
+- *Body cap* on `/mcp` is 1 MB; raise it in phase 4 only if a package needs more.
+- *The per-IP limit* is `CONNECTOR_RATE_MAX` (120/min). Phase 4 should add a per-principal budget
+  for `noacg_send_package`, as the save door has.
+- *Grants accumulate per connection.* DCR makes a new client per connection, so a user who
+  reconnects gets a second row and Settings shows the same name twice. Harmless; worth a "last
+  used" sort or a merge by name if it confuses.
+
+**For phase 5 and issue #1083 (owner decision pending; nothing decided here).** The research on
+#1083 proposes that the Custom Access Token hook rewrite `sub` to a non-UUID and `session_id` to a
+random nonexistent UUID on `client_id` tokens, moving the real values into NoaCG claims
+(for example `noacg_uid`, `noacg_sid`), so every authenticated GoTrue endpoint refuses connector
+tokens while refresh keeps working. Phase 2 is built to survive that: `/mcp` never asks Auth who
+a token is. If phase 5 builds it, it must also: point `connectorUserId` at the new claim (and keep
+the UUID check); keep `client_id` in the token (`oauthClientOf` and `verifyUser`'s refusal key on
+it); never use an empty or nil-UUID `session_id` (GoTrue treats that as no session and serves the
+user); pin in `connector-oauth.spec.ts` that `GET`/`PUT /auth/v1/user`, `/factors`, `/logout`,
+`/user/oauth/grants` and the consent endpoint refuse a connector token, refresh still works, and
+`connector-grants.spec.ts` still passes. Two phase 2 calls use the USER's first-party session and
+are unaffected: Allow (`/oauth/authorizations/{id}` and `/consent`) and Revoke
+(`DELETE /user/oauth/grants`). The consent page shows no text about Auth's account endpoints.
+
+**Traps.**
+
+- PostgREST's refusal message arrives JSON-escaped; compare against the parsed `message`, not the
+  raw body (`permission denied to set role \"noacg_connector\"` in the text).
+- `npm run dev:worktree` leaves vite running after its npm parent is stopped; kill the process on
+  the port.
+- On this machine the job queue's RAM floor refuses any browser run while the local stack is up
+  (about 1.3 GB free with the stack); the browser half is proven on CI. Stopping the stack through
+  the queue deadlocks on the same floor; run `npx supabase@2.111.0 stop` directly.

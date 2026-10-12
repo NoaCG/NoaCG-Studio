@@ -1,14 +1,23 @@
 // The connector's side of Supabase Auth's OAuth server (docs/REMOTE_MCP_PLAN.md, key decisions 1
-// and 2): is the server on at all, where it lives, and the three calls NoaCG makes to it with the
-// user's own session (read an authorization, approve it, end a client's sessions).
+// and 2): is the server on at all, where it lives, how a connector's token is verified, and the
+// three calls NoaCG makes to it with the user's own session (read an authorization, approve it,
+// end a client's sessions).
 //
 // OFF IS A STATE, NOT A FAULT. Production's Auth has no OAuth server today, and the connector
 // stays off there until the owner turns it on. So "on" is read from the authorization server's
 // own discovery document, never from a NoaCG setting that could disagree with it: while Auth
 // answers no metadata, every connector path answers 503 `connector_disabled` and nothing else
-// changes. The answer is cached per warm instance for a minute, so the check costs one fetch a
-// minute rather than one per call.
+// changes. The document is cached per warm instance for a minute.
+//
+// A CONNECTOR TOKEN IS VERIFIED HERE, LOCALLY, against the issuer's JWKS - never with Auth's
+// /user or /oauth/userinfo. Those endpoints are the account surface a connector token must not
+// reach (issue #1083), and the planned hardening makes them refuse such tokens outright. So the
+// MCP route trusts exactly three things: the signature (asymmetric only), the expiry and issuer,
+// and a live `connector_grants` row the caller checks next. Revocation is that row; the token's
+// session is not consulted. The user id is read through `connectorUserId`, the one place a
+// change to where the hook puts it has to touch.
 
+import { webcrypto } from 'node:crypto';
 import { supabaseEnv } from './auth.js';
 
 /** Supabase Auth's issuer, which the protected resource metadata names. Null without a backend. */
@@ -17,32 +26,106 @@ export function authServerUrl(): string | null {
   return env ? `${env.url.replace(/\/+$/, '')}/auth/v1` : null;
 }
 
-const ENABLED_TTL_MS = 60_000;
-let enabledCache: { at: number; enabled: boolean } | null = null;
+interface AuthServerMetadata {
+  issuer: string;
+  jwksUri: string;
+}
 
-/** Test seam: forget the cached answer. */
+const METADATA_TTL_MS = 60_000;
+const JWKS_TTL_MS = 10 * 60_000;
+let metadataCache: { at: number; meta: AuthServerMetadata | null } | null = null;
+let jwksCache: { at: number; uri: string; keys: webcrypto.JsonWebKey[] } | null = null;
+
+/** Test seam: forget the cached discovery document and keys. */
 export function resetConnectorEnabledCache(): void {
-  enabledCache = null;
+  metadataCache = null;
+  jwksCache = null;
+}
+
+/** The OAuth server's discovery document, or null while Auth runs none (dynamic registration is
+ *  what a chat client needs, so a server without it counts as off). */
+async function authServerMetadata(fetchFn: typeof fetch, nowMs: number): Promise<AuthServerMetadata | null> {
+  if (metadataCache && nowMs - metadataCache.at < METADATA_TTL_MS) return metadataCache.meta;
+  const base = authServerUrl();
+  let meta: AuthServerMetadata | null = null;
+  if (base) {
+    try {
+      const res = await fetchFn(`${base}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(5000) });
+      const doc = res.ok ? ((await res.json()) as { issuer?: unknown; jwks_uri?: unknown; registration_endpoint?: unknown }) : null;
+      if (typeof doc?.registration_endpoint === 'string' && doc.registration_endpoint && typeof doc.issuer === 'string') {
+        meta = { issuer: doc.issuer, jwksUri: typeof doc.jwks_uri === 'string' ? doc.jwks_uri : `${base}/.well-known/jwks.json` };
+      }
+    } catch {
+      // Auth unreachable: the connector cannot sign anyone in, so it is off - but do not cache a
+      // transient failure for the whole minute.
+      return null;
+    }
+  }
+  metadataCache = { at: nowMs, meta };
+  return meta;
 }
 
 /** True when this deployment's Auth runs the OAuth server with dynamic registration. */
 export async function connectorEnabled(fetchFn: typeof fetch = fetch, nowMs = Date.now()): Promise<boolean> {
-  if (enabledCache && nowMs - enabledCache.at < ENABLED_TTL_MS) return enabledCache.enabled;
-  const issuer = authServerUrl();
-  let enabled = false;
-  if (issuer) {
-    try {
-      const res = await fetchFn(`${issuer}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(5000) });
-      const meta = res.ok ? ((await res.json()) as { registration_endpoint?: unknown }) : null;
-      enabled = typeof meta?.registration_endpoint === 'string' && meta.registration_endpoint !== '';
-    } catch {
-      // Auth unreachable: the connector cannot sign anyone in, so it is off - but do not cache a
-      // transient failure for the whole minute.
-      return false;
-    }
+  return (await authServerMetadata(fetchFn, nowMs)) !== null;
+}
+
+async function signingKeys(uri: string, fetchFn: typeof fetch, nowMs: number, fresh: boolean): Promise<webcrypto.JsonWebKey[]> {
+  if (!fresh && jwksCache && jwksCache.uri === uri && nowMs - jwksCache.at < JWKS_TTL_MS) return jwksCache.keys;
+  const res = await fetchFn(uri, { signal: AbortSignal.timeout(5000) });
+  const keys = res.ok ? (((await res.json()) as { keys?: webcrypto.JsonWebKey[] }).keys ?? []) : [];
+  jwksCache = { at: nowMs, uri, keys };
+  return keys;
+}
+
+const ALGORITHMS: Record<string, [webcrypto.EcKeyImportParams | webcrypto.RsaHashedImportParams, webcrypto.EcdsaParams | webcrypto.AlgorithmIdentifier]> = {
+  ES256: [{ name: 'ECDSA', namedCurve: 'P-256' }, { name: 'ECDSA', hash: 'SHA-256' }],
+  RS256: [{ name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, { name: 'RSASSA-PKCS1-v1_5' }],
+};
+
+/** The user a connector token speaks for. Today Auth's `sub`; if the access token hook moves the
+ *  real user into a NoaCG claim (issue #1083), this is the line that follows it. */
+export function connectorUserId(claims: Record<string, unknown>): string | null {
+  const sub = claims.sub;
+  return typeof sub === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sub) ? sub : null;
+}
+
+export interface ConnectorVerifyOptions {
+  fetchFn?: typeof fetch;
+  nowMs?: number;
+}
+
+/** A connector's token, verified locally: the user and the OAuth client it was issued to, or
+ *  null when it is not an OAuth client's token, is not signed by the issuer's current keys with an
+ *  asymmetric algorithm, has expired, or names another issuer. The grant is the caller's check. */
+export async function verifyConnectorToken(
+  token: string | null,
+  { fetchFn = fetch, nowMs = Date.now() }: ConnectorVerifyOptions = {},
+): Promise<{ userId: string; clientId: string } | null> {
+  const [h, p, s, extra] = (token ?? '').split('.');
+  if (!h || !p || !s || extra !== undefined) return null;
+  try {
+    const header = JSON.parse(Buffer.from(h, 'base64url').toString('utf8')) as { alg?: unknown; kid?: unknown };
+    const claims = JSON.parse(Buffer.from(p, 'base64url').toString('utf8')) as Record<string, unknown>;
+    const algorithm = typeof header.alg === 'string' ? ALGORITHMS[header.alg] : undefined;
+    if (!algorithm || typeof header.kid !== 'string') return null;
+    const meta = await authServerMetadata(fetchFn, nowMs);
+    if (!meta) return null;
+    if (claims.iss !== meta.issuer || typeof claims.exp !== 'number' || claims.exp * 1000 <= nowMs) return null;
+    const clientId = typeof claims.client_id === 'string' && claims.client_id ? claims.client_id : null;
+    const userId = connectorUserId(claims);
+    if (!clientId || !userId) return null;
+    // An unknown kid may be a key Auth rotated in since the cache filled: look once more.
+    let jwk = (await signingKeys(meta.jwksUri, fetchFn, nowMs, false)).find((k) => (k as { kid?: string }).kid === header.kid);
+    jwk ??= (await signingKeys(meta.jwksUri, fetchFn, nowMs, true)).find((k) => (k as { kid?: string }).kid === header.kid);
+    if (!jwk) return null;
+    const { d: _private, ...publicJwk } = jwk;
+    const key = await webcrypto.subtle.importKey('jwk', publicJwk, algorithm[0], false, ['verify']);
+    const valid = await webcrypto.subtle.verify(algorithm[1], key, Buffer.from(s, 'base64url'), Buffer.from(`${h}.${p}`));
+    return valid ? { userId, clientId } : null;
+  } catch {
+    return null; // malformed, or the keys could not be read: fail closed
   }
-  enabledCache = { at: nowMs, enabled };
-  return enabled;
 }
 
 /** What the consent page approves, as Supabase Auth records it for this user's session. */

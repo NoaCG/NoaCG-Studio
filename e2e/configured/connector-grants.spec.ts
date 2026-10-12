@@ -22,7 +22,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { UnauthorizedError, type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
 import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
-import { mintAccount, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { mintAccount, shot, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const REDIRECT = 'http://127.0.0.1:53682/callback';
@@ -83,6 +83,7 @@ async function answerConsent(page: Page, path: string, button: 'connector-consen
   await expect(page.getByRole('heading', { level: 1 })).toContainText(CLIENT_NAME);
   const labels = page.getByTestId('connector-consent-permissions').locator('li');
   await expect(labels).toHaveText([/Read your library/, /Create graphics in your library and send graphics packages to your Home/]);
+  if (button === 'connector-consent-allow') await shot(page, 'connector-consent');
   await page.getByTestId(button).click();
   await expect.poll(() => callback?.href ?? '').toContain(REDIRECT);
   await page.unroute(`${REDIRECT}**`);
@@ -156,7 +157,16 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
       const tables = Object.keys(openapi.paths as Record<string, unknown>).filter((p) => p !== '/' && !p.startsWith('/rpc/')).map((p) => p.slice(1));
       expect(tables).toEqual(expect.arrayContaining(['documents', 'connector_grants', 'agent_keys']));
       const raw = { apikey: ANON_KEY, authorization: `Bearer ${token}`, 'content-type': 'application/json' };
-      const refusedFor = async (res: Response) => `${res.status} ${await res.text()}`;
+      /** Status and the error's own message (PostgREST and Storage both answer JSON). */
+      const refusedFor = async (res: Response) => {
+        const text = await res.text();
+        try {
+          const body = JSON.parse(text) as { message?: string };
+          return `${res.status} ${body.message ?? text}`;
+        } catch {
+          return `${res.status} ${text}`;
+        }
+      };
       const leaks: string[] = [];
       for (const table of tables) {
         for (const [verb, init] of [['GET', { headers: raw }], ['POST', { method: 'POST', headers: { ...raw, prefer: 'return=minimal' }, body: '{}' }]] as const) {
@@ -178,6 +188,7 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
       await expect(page.getByTestId('settings-account')).toBeVisible();
       const listed = page.getByTestId('connector-row').filter({ hasText: CLIENT_NAME });
       await expect(listed).toBeVisible();
+      await shot(page, 'settings-connected-app');
       await listed.getByTestId('connector-revoke').click();
       await expect(listed).toHaveCount(0);
       await expect(page.getByTestId('agent-keys-error')).toHaveCount(0);

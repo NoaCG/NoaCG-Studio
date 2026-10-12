@@ -14,7 +14,8 @@
 //                                               Supabase Auth OAuth server; its token carries
 //                                               `client_id`): ONLY where the caller passes
 //                                               `connector: true` (the MCP route). The token must
-//                                               verify, and the user must hold a LIVE
+//                                               verify LOCALLY against Auth's JWKS (never via
+//                                               Auth's /user), and the user must hold a LIVE
 //                                               `connector_grants` row for that client (migration
 //                                               0090): `granted` = the row's permissions. Every
 //                                               other path resolves such a token to ANONYMOUS,
@@ -30,7 +31,8 @@
 
 import { resolveUserEntitlement } from './entitlements.js';
 import { bearerToken, sha256 } from './http.js';
-import { oauthClientOf, verifyConnectorToken, verifyUser } from './auth.js';
+import { oauthClientOf, verifyUser } from './auth.js';
+import { verifyConnectorToken } from './connectorAuth.js';
 import { agentAccessConfigured, supabaseAgentAccessStore, type AgentAccessStore } from './agentAccessStore.js';
 import { supabaseConnectorStore, type ConnectorStore } from './connectorStore.js';
 import {

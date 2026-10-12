@@ -4,6 +4,7 @@
 // answer; a tool call asks permits(); verifyUser refuses a connector token outright.
 
 import assert from 'node:assert/strict';
+import { webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, test } from 'node:test';
 import {
   createMcpHandler,
@@ -16,7 +17,7 @@ import {
 import { memoryConnectorStore, type MemoryConnectorStore } from '../connectorStore.js';
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { oauthClientOf, verifyUser } from '../auth.js';
-import { resetConnectorEnabledCache } from '../connectorAuth.js';
+import { connectorUserId, resetConnectorEnabledCache, verifyConnectorToken } from '../connectorAuth.js';
 import { CONNECTOR_PERMISSIONS, NEVER_ON_AGENT_KEYS } from '../../../src/entitlements/permissions.js';
 
 const ENV = ['SUPABASE_URL', 'VITE_SUPABASE_URL', 'SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY', 'CONNECTOR_RATE_MAX'] as const;
@@ -91,7 +92,7 @@ test('a deployment with no OAuth server answers 503 connector_disabled on every 
   const off = async () => new Response(JSON.stringify({ error_code: 'feature_disabled' }), { status: 404 });
   assert.equal(await connectorEnabled(off as unknown as typeof fetch), false);
   resetConnectorEnabledCache();
-  const on = async () => new Response(JSON.stringify({ registration_endpoint: 'http://127.0.0.1:9/auth/v1/oauth/clients/register' }));
+  const on = async () => new Response(JSON.stringify({ issuer: 'http://127.0.0.1:9/auth/v1', registration_endpoint: 'http://127.0.0.1:9/auth/v1/oauth/clients/register' }));
   assert.equal(await connectorEnabled(on as unknown as typeof fetch), true);
 });
 
@@ -147,6 +148,46 @@ test('verifyUser refuses a connector token before asking Auth', async () => {
   assert.equal(oauthClientOf(SESSION_TOKEN), null);
   assert.equal(oauthClientOf('not.a-jwt'), null);
   assert.equal(await verifyUser(CONNECTOR_TOKEN), null);
+});
+
+test('a connector token is verified locally against the issuer\'s JWKS, never by asking Auth who it is', async () => {
+  process.env.SUPABASE_URL = 'http://auth.test';
+  process.env.SUPABASE_ANON_KEY = 'anon';
+  const issuer = 'http://auth.test/auth/v1';
+  const { publicKey, privateKey } = await webcrypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const jwk = { ...(await webcrypto.subtle.exportKey('jwk', publicKey)), kid: 'k1', alg: 'ES256' };
+  const asked: string[] = [];
+  const fetchFn = (async (input: string | URL | Request) => {
+    const url = String(input);
+    asked.push(url);
+    if (url.endsWith('/.well-known/oauth-authorization-server')) {
+      return new Response(JSON.stringify({ issuer, jwks_uri: `${issuer}/.well-known/jwks.json`, registration_endpoint: `${issuer}/oauth/clients/register` }));
+    }
+    if (url.endsWith('/.well-known/jwks.json')) return new Response(JSON.stringify({ keys: [jwk] }));
+    return new Response('{}', { status: 404 });
+  }) as typeof fetch;
+  const sign = async (claims: Record<string, unknown>, header: Record<string, unknown> = { alg: 'ES256', kid: 'k1' }) => {
+    const input = `${b64(header)}.${b64(claims)}`;
+    const sig = await webcrypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, Buffer.from(input));
+    return `${input}.${Buffer.from(sig).toString('base64url')}`;
+  };
+  const nowMs = Date.UTC(2026, 9, 12);
+  const claims = { iss: issuer, sub: USER, client_id: CLIENT, exp: nowMs / 1000 + 600, role: 'noacg_connector' };
+  const verify = (token: string) => verifyConnectorToken(token, { fetchFn, nowMs });
+
+  assert.deepEqual(await verify(await sign(claims)), { userId: USER, clientId: CLIENT });
+  assert.equal(await verify(await sign({ ...claims, exp: nowMs / 1000 - 1 })), null, 'expired');
+  assert.equal(await verify(await sign({ ...claims, iss: 'http://elsewhere/auth/v1' })), null, 'another issuer');
+  assert.equal(await verify(await sign({ ...claims, client_id: undefined })), null, 'a first-party token');
+  assert.equal(await verify(await sign(claims, { alg: 'ES256', kid: 'unknown' })), null, 'a key Auth never published');
+  const good = await sign(claims);
+  const [h, , s] = good.split('.');
+  assert.equal(await verify(`${h}.${b64({ ...claims, sub: '0b2c3d47-58cc-4372-a567-f47ac10be9d4' })}.${s}`), null, 'a tampered payload');
+  assert.equal(await verify(`${b64({ alg: 'HS256', kid: 'k1' })}.${b64(claims)}.${s}`), null, 'a symmetric algorithm');
+  assert.equal(await verify(`${b64({ alg: 'none' })}.${b64(claims)}.`), null, 'no signature');
+  assert.equal(connectorUserId({ sub: 'not-a-uuid' }), null);
+  // Only the discovery document and the keys were fetched: no /user, no /oauth/userinfo.
+  assert.ok(asked.every((url) => url.includes('/.well-known/')), asked.join(', '));
 });
 
 test('the connector permissions are exactly read and create, never a playout verb', () => {
