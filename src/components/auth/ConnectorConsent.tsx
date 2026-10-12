@@ -6,7 +6,7 @@ import {
   readConnectorRequest,
   type ConnectorRequest,
 } from '../../backend/connectorAccess';
-import { PERMISSION_LABELS } from '../../entitlements/permissions';
+import { CONNECTOR_PERMISSIONS, PERMISSION_LABELS } from '../../entitlements/permissions';
 import { useAuthState } from './useAuthState';
 import SignInDialog from './SignInDialog';
 import SignInPrompt from './SignInPrompt';
@@ -117,7 +117,7 @@ function ConsentCard({ authorizationId }: { authorizationId: string }) {
     <>
       <h1>Allow “{request.clientName}” to use your NoaCG account?</h1>
       <ul className="agent-consent-permissions" data-testid="connector-consent-permissions">
-        {request.permissions.map((key) => (
+        {CONNECTOR_PERMISSIONS.map((key) => (
           <li key={key}>✓ {PERMISSION_LABELS[key]}</li>
         ))}
       </ul>

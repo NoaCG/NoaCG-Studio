@@ -77,9 +77,7 @@ export const NEVER_ON_AGENT_KEYS: ReadonlySet<PermissionKey> = new Set(['playout
  *  the library and send packages to Home. The OAuth token proves who the user is; this list is
  *  what the consent page shows and what the `connector_grants` row stores. NEVER_ON_AGENT_KEYS
  *  applies to grants too: a connector never operates live output. */
-export const CONNECTOR_PERMISSIONS: readonly PermissionKey[] = (['graphics:read', 'graphics:create'] as const).filter(
-  (key) => !NEVER_ON_AGENT_KEYS.has(key),
-);
+export const CONNECTOR_PERMISSIONS: readonly PermissionKey[] = ['graphics:read', 'graphics:create'];
 
 /** The account feature a permission rides on - the SECOND half of `permits()`. A permission
  *  never widens access: the credential may hold `graphics:create`, but if the account's

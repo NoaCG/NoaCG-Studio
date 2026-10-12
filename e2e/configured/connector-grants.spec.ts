@@ -167,17 +167,17 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
           return `${res.status} ${text}`;
         }
       };
-      const leaks: string[] = [];
-      for (const table of tables) {
-        for (const [verb, init] of [['GET', { headers: raw }], ['POST', { method: 'POST', headers: { ...raw, prefer: 'return=minimal' }, body: '{}' }]] as const) {
-          const answer = await refusedFor(await fetch(`${supabase}/rest/v1/${table}${verb === 'GET' ? '?limit=1' : ''}`, init));
-          if (!answer.includes(ROLE_REFUSED)) leaks.push(`${verb} ${table}: ${answer.slice(0, 160)}`);
-        }
-      }
-      const rpc = await refusedFor(await fetch(`${supabase}/rest/v1/rpc/control_show_by_slug`, { method: 'POST', headers: raw, body: JSON.stringify({ p_slug: 'connector-grants' }) }));
-      if (!rpc.includes(ROLE_REFUSED)) leaks.push(`rpc control_show_by_slug: ${rpc.slice(0, 160)}`);
-      const objects = await refusedFor(await fetch(`${supabase}/storage/v1/object/list/user-assets`, { method: 'POST', headers: raw, body: JSON.stringify({ prefix: '', limit: 1 }) }));
-      if (!objects.includes(ROLE_REFUSED)) leaks.push(`storage.objects list: ${objects.slice(0, 160)}`);
+      const write = { method: 'POST', headers: { ...raw, prefer: 'return=minimal' }, body: '{}' };
+      const probes: Array<[string, string, RequestInit]> = [
+        ...tables.flatMap((table): Array<[string, string, RequestInit]> => [
+          [`GET ${table}`, `${supabase}/rest/v1/${table}?limit=1`, { headers: raw }],
+          [`POST ${table}`, `${supabase}/rest/v1/${table}`, write],
+        ]),
+        ['rpc control_show_by_slug', `${supabase}/rest/v1/rpc/control_show_by_slug`, { method: 'POST', headers: raw, body: JSON.stringify({ p_slug: 'connector-grants' }) }],
+        ['storage.objects list', `${supabase}/storage/v1/object/list/user-assets`, { method: 'POST', headers: raw, body: JSON.stringify({ prefix: '', limit: 1 }) }],
+      ];
+      const answers = await Promise.all(probes.map(async ([name, url, init]) => [name, await refusedFor(await fetch(url, init))] as const));
+      const leaks = answers.filter(([, answer]) => !answer.includes(ROLE_REFUSED)).map(([name, answer]) => `${name}: ${answer.slice(0, 160)}`);
       console.log(`connector grants: ${tables.length} public tables read and written, storage.objects and rpc control_show_by_slug refused for the connector role`);
       expect(leaks).toEqual([]);
 

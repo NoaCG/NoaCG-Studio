@@ -18,7 +18,7 @@
 // change to where the hook puts it has to touch.
 
 import { webcrypto } from 'node:crypto';
-import { supabaseEnv } from './auth.js';
+import { oauthClientOf, supabaseEnv } from './auth.js';
 
 /** Supabase Auth's issuer, which the protected resource metadata names. Null without a backend. */
 export function authServerUrl(): string | null {
@@ -32,7 +32,12 @@ interface AuthServerMetadata {
 }
 
 const METADATA_TTL_MS = 60_000;
+/** An unreachable Auth is retried sooner than a minute, but not on every request. */
+const METADATA_FAILURE_TTL_MS = 10_000;
 const JWKS_TTL_MS = 10 * 60_000;
+/** A token naming a key not in the cache forces a refetch at most this often, so made-up `kid`s
+ *  cannot turn every request into a fetch against Auth. */
+const JWKS_REFRESH_MIN_MS = 30_000;
 let metadataCache: { at: number; meta: AuthServerMetadata | null } | null = null;
 let jwksCache: { at: number; uri: string; keys: webcrypto.JsonWebKey[] } | null = null;
 
@@ -56,8 +61,9 @@ async function authServerMetadata(fetchFn: typeof fetch, nowMs: number): Promise
         meta = { issuer: doc.issuer, jwksUri: typeof doc.jwks_uri === 'string' ? doc.jwks_uri : `${base}/.well-known/jwks.json` };
       }
     } catch {
-      // Auth unreachable: the connector cannot sign anyone in, so it is off - but do not cache a
-      // transient failure for the whole minute.
+      // Auth unreachable: the connector cannot sign anyone in, so it is off - remembered for a few
+      // seconds rather than the whole minute.
+      metadataCache = { at: nowMs - (METADATA_TTL_MS - METADATA_FAILURE_TTL_MS), meta: null };
       return null;
     }
   }
@@ -71,7 +77,8 @@ export async function connectorEnabled(fetchFn: typeof fetch = fetch, nowMs = Da
 }
 
 async function signingKeys(uri: string, fetchFn: typeof fetch, nowMs: number, fresh: boolean): Promise<webcrypto.JsonWebKey[]> {
-  if (!fresh && jwksCache && jwksCache.uri === uri && nowMs - jwksCache.at < JWKS_TTL_MS) return jwksCache.keys;
+  const age = jwksCache && jwksCache.uri === uri ? nowMs - jwksCache.at : Infinity;
+  if (age < (fresh ? JWKS_REFRESH_MIN_MS : JWKS_TTL_MS)) return jwksCache!.keys;
   const res = await fetchFn(uri, { signal: AbortSignal.timeout(5000) });
   const keys = res.ok ? (((await res.json()) as { keys?: webcrypto.JsonWebKey[] }).keys ?? []) : [];
   jwksCache = { at: nowMs, uri, keys };
@@ -112,7 +119,7 @@ export async function verifyConnectorToken(
     const meta = await authServerMetadata(fetchFn, nowMs);
     if (!meta) return null;
     if (claims.iss !== meta.issuer || typeof claims.exp !== 'number' || claims.exp * 1000 <= nowMs) return null;
-    const clientId = typeof claims.client_id === 'string' && claims.client_id ? claims.client_id : null;
+    const clientId = oauthClientOf(token);
     const userId = connectorUserId(claims);
     if (!clientId || !userId) return null;
     // An unknown kid may be a key Auth rotated in since the cache filled: look once more.

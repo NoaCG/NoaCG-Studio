@@ -7,7 +7,7 @@
 // (`connector_grant_resolve`) so it stamps last_used_at in the same statement and never puts its
 // values in a logged query string.
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { serviceRoleDb as db } from './agentAccessStore.js';
 
 export interface ConnectorGrantRow {
   id: string;
@@ -33,8 +33,6 @@ export interface ConnectorStore {
   /** Record a grant. A live grant for the same user and client is returned as it is, with
    *  `created: false`. */
   createGrant(row: NewConnectorGrant): Promise<{ row: ConnectorGrantRow; created: boolean }>;
-  /** End a grant. Used when the consent that followed it failed. */
-  dropGrant(id: string): Promise<void>;
   /** The user's live grants, newest first. */
   listGrants(userId: string): Promise<ConnectorGrantRow[]>;
   /** Revoke one of the user's grants (idempotent). Its client id, or null when the user has no
@@ -43,18 +41,6 @@ export interface ConnectorStore {
 }
 
 // ── the Supabase implementation ───────────────────────────────────────────────────────────
-
-let cached: SupabaseClient | null = null;
-
-async function db(): Promise<SupabaseClient> {
-  if (cached) return cached;
-  const url = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? '').trim();
-  const key = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim();
-  if (!url || !key) throw new Error('connector grants: SUPABASE_URL + SUPABASE_SECRET_KEY required');
-  const { createClient } = await import('@supabase/supabase-js');
-  cached = createClient(url, key, { auth: { persistSession: false } });
-  return cached;
-}
 
 interface GrantRowDb {
   id: string;
@@ -112,10 +98,6 @@ export function supabaseConnectorStore(): ConnectorStore {
       const existing = error.code === '23505' ? await liveGrant(row.userId, row.clientId) : null;
       if (!existing) throw new Error(error.message);
       return { row: existing, created: false };
-    },
-    async dropGrant(id) {
-      const { error } = await (await db()).from('connector_grants').update({ revoked_at: new Date().toISOString() }).eq('id', id);
-      if (error) throw new Error(error.message);
     },
     async listGrants(userId) {
       const { data, error } = await (await db())
@@ -175,10 +157,6 @@ export function memoryConnectorStore(now: () => string = () => new Date().toISOS
       };
       store.grants.push(grant);
       return { row: grant, created: true };
-    },
-    async dropGrant(id) {
-      const grant = store.grants.find((g) => g.id === id);
-      if (grant && !grant.revokedAt) grant.revokedAt = now();
     },
     async listGrants(userId) {
       return store.grants.filter((g) => g.userId === userId && !g.revokedAt).slice().reverse();

@@ -289,8 +289,15 @@ server. Unit tests: `api/_lib/me/mcp.test.ts`, `connectors.test.ts`.
   it. If Auth answers "already consented" (a redirect only), the page follows it; with no live grant
   that token is anonymous at `/mcp` (fail closed).
 - *Revoke marks the row first*, then deletes Auth's grant (`DELETE /user/oauth/grants`) with the
-  user's session; if Auth does not answer, the call says so and can be repeated, and the connector
-  is already refused.
+  user's session; if Auth does not answer, the call says so and can be repeated while the dialog is
+  open, and the connector is already refused. Once Settings is closed the revoked row is no longer
+  listed, so Auth's half cannot be retried from the UI; a client that kept its `client_id` would
+  then be auto-approved by Auth and get tokens `/mcp` refuses. Rare and fail-closed; revisit if it
+  is ever seen.
+- *The consent page navigates only to http(s)* (`webRedirect`): clients register their own
+  redirect URIs.
+- *`last_used_at` is written at most once a minute per grant* (`connector_grant_resolve`), so a
+  chatty client does not write a row per message.
 - *Off.* "On" is read from Auth's discovery document (cached a minute per instance): without a
   registration endpoint every connector path, `/api/me/connectors` included, answers 503
   `connector_disabled`. Settings treats that as "no connected apps".

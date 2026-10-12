@@ -68,9 +68,9 @@ export function createConnectorsHandler(deps: ConnectorsDeps = {}): { fetch(req:
       clientName: request.clientName,
       permissions: [...CONNECTOR_PERMISSIONS],
     });
-    const redirectUrl = await approve(token, authorizationId);
+    const redirectUrl = await approve(token, authorizationId).catch(() => null);
     if (!redirectUrl) {
-      if (created) await store.dropGrant(row.id);
+      if (created) await store.revokeGrant(userId, row.id);
       return apiError('unavailable', 'Supabase Auth did not accept the approval. Start again from the chat.', 502);
     }
     return json({ redirectUrl });
@@ -80,44 +80,52 @@ export function createConnectorsHandler(deps: ConnectorsDeps = {}): { fetch(req:
     if (!UUID.test(id)) return apiError('invalid', '`id` must be a connector id.', 400);
     const revoked = await storeOf().revokeGrant(userId, id);
     if (!revoked) return apiError('not_found', 'No such connector.', 404);
-    if (!(await endSessions(token, revoked.clientId))) {
+    if (!(await endSessions(token, revoked.clientId).catch(() => false))) {
       return apiError('unavailable', 'The connector can no longer use NoaCG, but its sign-in could not be ended. Try Revoke again.', 502);
     }
     return json({ revoked: true });
   }
 
+  async function route(req: Request): Promise<Response> {
+    if (!(await enabled())) return connectorDisabled();
+    const limited = checkAgentKeysRateLimit(req);
+    if (limited) return apiError('rate_limited', 'Too many requests - slow down.', 429, {}, { 'retry-after': String(limited.retryAfterSec) });
+    const token = bearerToken(req);
+    const who = await user(token);
+    if (!token || !who) return apiError('unauthorized', 'Sign in to manage connectors.', 401);
+
+    if (req.method === 'GET') {
+      const grants = await storeOf().listGrants(who.userId);
+      const connectors: ConnectorView[] = grants.map((g) => ({
+        id: g.id,
+        name: g.clientName,
+        permissions: g.permissions,
+        createdAt: g.createdAt,
+        lastUsedAt: g.lastUsedAt,
+      }));
+      return json({ connectors });
+    }
+    if (req.method === 'DELETE') return revoke(token, who.userId, new URL(req.url).searchParams.get('id') ?? '');
+    if (req.method === 'POST') {
+      let body: Record<string, unknown>;
+      try {
+        body = await readJson<Record<string, unknown>>(req, MAX_BODY_BYTES);
+      } catch {
+        return apiError('invalid', 'The body must be JSON.', 400);
+      }
+      if (body?.action === 'allow') return allow(token, who.userId, body);
+      return apiError('invalid', 'Unknown action.', 400);
+    }
+    return apiError('invalid', `${req.method} not allowed`, 405);
+  }
+
   return {
     async fetch(req) {
-      if (!(await enabled())) return connectorDisabled();
-      const limited = checkAgentKeysRateLimit(req);
-      if (limited) return apiError('rate_limited', 'Too many requests - slow down.', 429, {}, { 'retry-after': String(limited.retryAfterSec) });
-      const token = bearerToken(req);
-      const who = await user(token);
-      if (!token || !who) return apiError('unauthorized', 'Sign in to manage connectors.', 401);
-
-      if (req.method === 'GET') {
-        const grants = await storeOf().listGrants(who.userId);
-        const connectors: ConnectorView[] = grants.map((g) => ({
-          id: g.id,
-          name: g.clientName,
-          permissions: g.permissions,
-          createdAt: g.createdAt,
-          lastUsedAt: g.lastUsedAt,
-        }));
-        return json({ connectors });
+      try {
+        return await route(req);
+      } catch {
+        return apiError('internal', 'Something went wrong. Try again.', 500);
       }
-      if (req.method === 'DELETE') return revoke(token, who.userId, new URL(req.url).searchParams.get('id') ?? '');
-      if (req.method === 'POST') {
-        let body: Record<string, unknown>;
-        try {
-          body = await readJson<Record<string, unknown>>(req, MAX_BODY_BYTES);
-        } catch {
-          return apiError('invalid', 'The body must be JSON.', 400);
-        }
-        if (body?.action === 'allow') return allow(token, who.userId, body);
-        return apiError('invalid', 'Unknown action.', 400);
-      }
-      return apiError('invalid', `${req.method} not allowed`, 405);
     },
   };
 }

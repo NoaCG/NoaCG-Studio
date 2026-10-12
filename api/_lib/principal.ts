@@ -62,6 +62,31 @@ export interface PrincipalDeps {
 export async function resolvePrincipal(req: Request, deps: PrincipalDeps = {}): Promise<Principal> {
   const token = bearerToken(req);
 
+  // The connector path admits nothing else, and every other path admits no connector.
+  if (deps.connector || oauthClientOf(token)) {
+    const configured = deps.configured ?? agentAccessConfigured;
+    try {
+      const verified = deps.connector && configured() ? await (deps.verifyConnector ?? verifyConnectorToken)(token) : null;
+      if (!verified) return anonymousPrincipal(await resolveUserEntitlement(null));
+      const [grant, entitlement] = await Promise.all([
+        (deps.grants ?? supabaseConnectorStore()).resolveGrant(verified.userId, verified.clientId),
+        resolveUserEntitlement(verified.userId),
+      ]);
+      if (!grant) return anonymousPrincipal(await resolveUserEntitlement(null));
+      const granted = grant.permissions.filter(isPermissionKey).filter((key) => !NEVER_ON_AGENT_KEYS.has(key));
+      return {
+        kind: 'connector',
+        userId: verified.userId,
+        entitlement,
+        granted,
+        clientId: verified.clientId,
+        grantId: grant.id,
+      };
+    } catch {
+      return anonymousPrincipal(await resolveUserEntitlement(null));
+    }
+  }
+
   if (isAgentKeyToken(token)) {
     const configured = deps.configured ?? agentAccessConfigured;
     if (!configured()) return anonymousPrincipal(await resolveUserEntitlement(null));
@@ -76,27 +101,6 @@ export async function resolvePrincipal(req: Request, deps: PrincipalDeps = {}): 
         entitlement: await resolveUserEntitlement(key.userId),
         granted,
         keyId: key.id,
-      };
-    } catch {
-      return anonymousPrincipal(await resolveUserEntitlement(null));
-    }
-  }
-
-  if (oauthClientOf(token)) {
-    if (!deps.connector) return anonymousPrincipal(await resolveUserEntitlement(null));
-    const configured = deps.configured ?? agentAccessConfigured;
-    try {
-      const verified = configured() ? await (deps.verifyConnector ?? verifyConnectorToken)(token) : null;
-      const grant = verified ? await (deps.grants ?? supabaseConnectorStore()).resolveGrant(verified.userId, verified.clientId) : null;
-      if (!verified || !grant) return anonymousPrincipal(await resolveUserEntitlement(null));
-      const granted = grant.permissions.filter(isPermissionKey).filter((key) => !NEVER_ON_AGENT_KEYS.has(key));
-      return {
-        kind: 'connector',
-        userId: verified.userId,
-        entitlement: await resolveUserEntitlement(verified.userId),
-        granted,
-        clientId: verified.clientId,
-        grantId: grant.id,
       };
     } catch {
       return anonymousPrincipal(await resolveUserEntitlement(null));

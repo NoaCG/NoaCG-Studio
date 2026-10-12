@@ -49,36 +49,7 @@ measured(sources.length, 'ai gateway test files');
 const runtime = await buildApiRuntime(sources);
 
 try {
-  const testFiles = [
-    path.join(runtime.outputDir, 'api/_lib/aiGateway.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/aiGenerate.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/aiModelDiscovery.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/aiTaskRegistry.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/aiBenchPreflight.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/aiLite.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/aiLiteCapacity.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/proCostCeiling.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/pro/managedCall.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/pro/reservationAccounting.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/funnelEvents.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/dataIngest.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/rateLimit.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/statusProbe.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/outputAudio.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/feedbackStore.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/entitlements.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/adminAuth.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/templateVisibility.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/admin/periods.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/admin/eligibility.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/admin/usage.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/me/agentKeys.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/me/graphics.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/me/packages.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/me/communityPacks.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/me/mcp.test.js'),
-    path.join(runtime.outputDir, 'api/_lib/me/connectors.test.js'),
-  ];
+  const testFiles = sources.map((source) => path.join(runtime.outputDir, source.replace(/\.ts$/, '.js')));
   const result = spawnSync(process.execPath, ['--test', ...testFiles], {
     cwd: projectRoot,
     env: isolatedTestEnvironment(),

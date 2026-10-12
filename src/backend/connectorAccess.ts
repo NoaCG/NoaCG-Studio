@@ -9,7 +9,14 @@
 
 import { getSupabase } from './supabase';
 import { authedFetch, errorMessage } from './agentAccess';
-import { CONNECTOR_PERMISSIONS, type PermissionKey } from '../entitlements/permissions';
+
+/** Where Auth sends the browser next, refused unless it is a web address: a client registers its
+ *  own redirect URIs, and this page must never navigate the studio's origin to anything else. */
+export function webRedirect(url: string): string {
+  const { protocol } = new URL(url);
+  if (protocol !== 'https:' && protocol !== 'http:') throw new Error('The app asked to return to an address this page will not open.');
+  return url;
+}
 
 /** Is this page load a connector consent request? */
 export function isConnectorConsentUrl(params: URLSearchParams): boolean {
@@ -17,7 +24,7 @@ export function isConnectorConsentUrl(params: URLSearchParams): boolean {
 }
 
 export type ConnectorRequest =
-  | { kind: 'ask'; clientName: string; returnsTo: string; permissions: readonly PermissionKey[] }
+  | { kind: 'ask'; clientName: string; returnsTo: string }
   /** The user approved this client before; Auth answers with where to go and asks nothing. */
   | { kind: 'redirect'; url: string };
 
@@ -31,14 +38,14 @@ async function oauth() {
 export async function readConnectorRequest(authorizationId: string): Promise<ConnectorRequest> {
   const { data, error } = await (await oauth()).getAuthorizationDetails(authorizationId);
   if (error || !data) throw new Error('This sign-in request is unknown or has expired. Start again from the chat.');
-  if (!('authorization_id' in data)) return { kind: 'redirect', url: data.redirect_url };
+  if (!('authorization_id' in data)) return { kind: 'redirect', url: webRedirect(data.redirect_url) };
   let returnsTo = '';
   try {
     returnsTo = new URL(data.redirect_uri).host;
   } catch {
     /* shown without it */
   }
-  return { kind: 'ask', clientName: data.client.name || 'An app', returnsTo, permissions: CONNECTOR_PERMISSIONS };
+  return { kind: 'ask', clientName: data.client.name || 'An app', returnsTo };
 }
 
 /** Allow: NoaCG records the grant, then approves the sign-in. Returns where to send the browser. */
@@ -50,14 +57,14 @@ export async function allowConnector(authorizationId: string): Promise<string> {
   if (!response.ok) throw new Error(await errorMessage(response, `Could not allow the connector (${response.status}).`));
   const body = (await response.json()) as { redirectUrl?: unknown };
   if (typeof body.redirectUrl !== 'string') throw new Error('The server returned nowhere to go.');
-  return body.redirectUrl;
+  return webRedirect(body.redirectUrl);
 }
 
 /** Deny: Auth tells the client no. Nothing is written in NoaCG. */
 export async function denyConnector(authorizationId: string): Promise<string> {
   const { data, error } = await (await oauth()).denyAuthorization(authorizationId, { skipBrowserRedirect: true });
   if (error || !data) throw new Error('Could not answer the sign-in request. Close this tab; nothing was allowed.');
-  return data.redirect_url;
+  return webRedirect(data.redirect_url);
 }
 
 export interface ConnectorSummary {

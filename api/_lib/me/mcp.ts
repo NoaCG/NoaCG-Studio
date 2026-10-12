@@ -30,7 +30,7 @@
 // THE TOOLS come with phases 3 and 4 (noacg_catalog, noacg_library, noacg_send_package). Each
 // names the permission it needs, and `tools/call` asks `permits()` before running one.
 
-import { bearerToken, json } from '../http.js';
+import { bearerToken, json, readJson } from '../http.js';
 import { authServerUrl, connectorEnabled } from '../connectorAuth.js';
 import { checkConnectorRateLimit } from '../rateLimit.js';
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
@@ -119,16 +119,20 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
   const enabled = deps.enabled ?? (() => connectorEnabled());
   const tools = deps.tools ?? TOOLS;
 
-  async function callTool(id: Id, principal: Principal, params: RpcRequest['params'], modern: boolean): Promise<Response> {
+  async function callTool(id: Id, principal: Principal, params: RpcRequest['params'], done: (result: object) => Response): Promise<Response> {
     const name = typeof params?.name === 'string' ? params.name : '';
     const tool = tools.find((t) => t.name === name);
     if (!tool) return rpcError(id, -32602, `Unknown tool: ${name || '(none)'}`);
-    const done = (result: McpToolResult) => rpcResult(id, modern ? { resultType: 'complete', ...result } : result);
     if (tool.permission && !permits(principal, tool.permission)) {
       return done({ isError: true, content: [{ type: 'text', text: 'This connector is not allowed to do that. The user can review it in NoaCG Settings → Account → Agent access.' }] });
     }
     const args = params?.arguments && typeof params.arguments === 'object' ? (params.arguments as Record<string, unknown>) : {};
-    return done(await tool.call(principal, args));
+    try {
+      return done(await tool.call(principal, args));
+    } catch {
+      // A tool's own failure is a result the model can report, not a broken transport.
+      return done({ isError: true, content: [{ type: 'text', text: `${tool.title} failed on the NoaCG side. Try again in a moment.` }] });
+    }
   }
 
   async function answer(req: Request, principal: Principal, msg: RpcRequest): Promise<Response> {
@@ -156,27 +160,28 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
           _meta: { 'io.modelcontextprotocol/serverInfo': SERVER_INFO },
         });
       }
-      if (method === 'tools/list') return rpcResult(id, { resultType: 'complete', tools: tools.map(toolView) });
-      if (method === 'tools/call') return callTool(id, principal, msg.params, true);
-      if (method === 'ping') return rpcResult(id, { resultType: 'complete' });
-      return rpcError(id, -32601, `Method not found: ${method}`, 404);
+    } else {
+      // The 2025 revisions: `initialize` negotiates, and later requests name it in the header.
+      if (headerVersion && !(LEGACY_VERSIONS as readonly string[]).includes(headerVersion) && method !== 'initialize') {
+        return (MODERN_VERSIONS as readonly string[]).includes(headerVersion)
+          ? rpcError(id, -32020, `Header mismatch: the body carries no ${META_VERSION}`, 400)
+          : rpcError(id, -32600, `Unsupported protocol version: ${headerVersion}`, 400);
+      }
+      if (method === 'initialize') {
+        const asked = msg.params?.protocolVersion;
+        const protocolVersion = typeof asked === 'string' && (LEGACY_VERSIONS as readonly string[]).includes(asked) ? asked : LEGACY_VERSIONS[0];
+        return rpcResult(id, { protocolVersion, capabilities: CAPABILITIES, serverInfo: SERVER_INFO });
+      }
     }
 
-    // The 2025 revisions: `initialize` negotiates, and later requests name it in the header.
-    if (headerVersion && !(LEGACY_VERSIONS as readonly string[]).includes(headerVersion) && method !== 'initialize') {
-      return (MODERN_VERSIONS as readonly string[]).includes(headerVersion)
-        ? rpcError(id, -32020, `Header mismatch: the body carries no ${META_VERSION}`, 400)
-        : rpcError(id, -32600, `Unsupported protocol version: ${headerVersion}`, 400);
-    }
-    if (method === 'initialize') {
-      const asked = msg.params?.protocolVersion;
-      const protocolVersion = typeof asked === 'string' && (LEGACY_VERSIONS as readonly string[]).includes(asked) ? asked : LEGACY_VERSIONS[0];
-      return rpcResult(id, { protocolVersion, capabilities: CAPABILITIES, serverInfo: SERVER_INFO });
-    }
-    if (method === 'tools/list') return rpcResult(id, { tools: tools.map(toolView) });
-    if (method === 'tools/call') return callTool(id, principal, msg.params, false);
-    if (method === 'ping') return rpcResult(id, {});
-    return rpcError(id, -32601, `Method not found: ${method}`);
+    // The methods both eras share; 2026-07-28 marks every result complete.
+    const modern = typeof bodyVersion === 'string';
+    const done = (result: object) => rpcResult(id, modern ? { resultType: 'complete', ...result } : result);
+    if (method === 'tools/list') return done({ tools: tools.map(toolView) });
+    if (method === 'tools/call') return callTool(id, principal, msg.params, done);
+    if (method === 'ping') return done({});
+    // A modern server answers an unknown method with 404, so a client can tell it from a legacy one.
+    return rpcError(id, -32601, `Method not found: ${method}`, modern ? 404 : 200);
   }
 
   async function post(req: Request): Promise<Response> {
@@ -200,13 +205,11 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
 
     let msg: unknown;
     try {
-      const declared = Number(req.headers.get('content-length'));
-      if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return rpcError(null, -32600, 'Request too large', 413);
-      const text = await req.text();
-      if (text.length > MAX_BODY_BYTES) return rpcError(null, -32600, 'Request too large', 413);
-      msg = JSON.parse(text);
-    } catch {
-      return rpcError(null, -32700, 'Parse error', 400);
+      msg = await readJson<unknown>(req, MAX_BODY_BYTES);
+    } catch (e) {
+      return (e as { code?: string }).code === 'too_large'
+        ? rpcError(null, -32600, 'Request too large', 413)
+        : rpcError(null, -32700, 'Parse error', 400);
     }
     if (!msg || typeof msg !== 'object' || Array.isArray(msg) || (msg as RpcRequest).jsonrpc !== '2.0') {
       return rpcError(null, -32600, 'Invalid request: one JSON-RPC 2.0 message per POST', 400);

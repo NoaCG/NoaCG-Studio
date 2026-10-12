@@ -46,20 +46,27 @@ revoke all on table public.connector_grants from public, anon, authenticated;
 grant select, insert, update on table public.connector_grants to service_role;
 
 -- A presented connector token -> its live grant, and the last-used stamp. A revoked grant
--- resolves to nothing: that is how a revoke takes effect on the next call.
+-- resolves to nothing: that is how a revoke takes effect on the next call. The stamp is display
+-- only ("last used" in Settings), so it is written at most once a minute per grant, however many
+-- messages a chat client sends.
 create or replace function public.connector_grant_resolve(p_user_id uuid, p_client_id text)
 returns table (id uuid, permissions text[])
 language plpgsql security definer set search_path = '' as $$
 begin
+  update public.connector_grants g
+     set last_used_at = now()
+   where g.user_id = p_user_id
+     and g.client_id = p_client_id
+     and g.revoked_at is null
+     and (g.last_used_at is null or g.last_used_at < now() - interval '1 minute');
   return query
-    update public.connector_grants g
-       set last_used_at = now()
+    select g.id, g.permissions
+      from public.connector_grants g
      where g.user_id = p_user_id
        and g.client_id = p_client_id
        and p_user_id is not null
        and p_client_id is not null
-       and g.revoked_at is null
-    returning g.id, g.permissions;
+       and g.revoked_at is null;
 end $$;
 revoke execute on function public.connector_grant_resolve(uuid, text) from public, anon, authenticated;
 grant execute on function public.connector_grant_resolve(uuid, text) to service_role;

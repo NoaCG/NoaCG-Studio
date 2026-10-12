@@ -264,9 +264,13 @@ test('a tool call asks permits() for the tool\'s permission', async () => {
       return { content: [{ type: 'text', text: 'ok' }] };
     },
   });
-  const { handler, grants } = setup([tool('t_read', 'graphics:read'), tool('t_operate', 'playout:operate')]);
+  const broken: McpTool = { ...tool('t_broken', null), async call() { throw new Error('store down'); } };
+  const { handler, grants } = setup([tool('t_read', 'graphics:read'), tool('t_operate', 'playout:operate'), broken]);
   await grant(grants);
   const call = (name: string) => handler.fetch(rpc({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name, arguments: {} } }));
+  const failed = await call('t_broken');
+  assert.equal(failed.status, 200, 'a tool that throws is a tool result, not a broken transport');
+  assert.equal(((await failed.json()) as { result: { isError?: boolean } }).result.isError, true);
   const read = (await (await call('t_read')).json()) as { result: { isError?: boolean } };
   assert.notEqual(read.result.isError, true);
   const operate = (await (await call('t_operate')).json()) as { result: { isError?: boolean } };

@@ -30,24 +30,23 @@ export function meApiPlugin() {
     configureServer(server) {
       const rewritten = new Set(meRewriteSources(JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'))));
       server.middlewares.use((req, res, next) => {
-        const [pathPart, query] = (req.url ?? '/').split('?');
-        if (!rewritten.has(pathPart)) return next();
-        void handle(server, req, res, `${pathPart}${query ? '?' + query : ''}`);
+        if (!rewritten.has((req.url ?? '/').split('?')[0])) return next();
+        void handle(server, req, res);
       });
       server.middlewares.use('/api/me', (req, res) => {
-        const [pathPart, query] = (req.url ?? '/').split('?');
-        void handle(server, req, res, `/api/me/${pathPart.replace(/^\/+|\/+$/g, '')}${query ? '?' + query : ''}`);
+        void handle(server, req, res);
       });
     },
   };
 }
 
-async function handle(server, req, res, path) {
+async function handle(server, req, res) {
   try {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
-    const url = `http://${req.headers.host ?? 'localhost'}${path}`;
+    // connect strips a mount path from req.url; originalUrl is the request as it arrived.
+    const url = `http://${req.headers.host ?? 'localhost'}${req.originalUrl ?? req.url ?? '/'}`;
     const request = new Request(url, {
       method: req.method,
       headers: Object.fromEntries(
