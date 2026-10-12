@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       max-parallel: 3
       matrix:
-        attempt: [1]
+        attempt: [2, 3, 4, 5]
         arm: [docker-2.111, docker-2.120, native-2.120]
         include:
           - { arm: docker-2.111, cli: 2.111.0, runtime: docker }
@@ -79,6 +79,10 @@ jobs:
           else
             supabase start -x studio,edge-runtime
             docker ps --format '{{.Names}}\t{{.Image}}'
+          fi
+          free -m
+          if [ "${{ matrix.runtime }}" = docker ]; then
+            docker stats --no-stream --format '{{.Name}}\t{{.MemUsage}}'
           fi
 
       - name: Export the local stack's URL and keys
@@ -239,3 +243,79 @@ jobs:
             db-shape.txt
           retention-days: 30
           if-no-files-found: ignore
+
+  # A cloud agent sandbox's conditions, emulated: Ubuntu 24.04 as root with no Docker daemon.
+  # Two git worktrees of this commit, one native stack each, up at the same time.
+  cloud-emulation:
+    name: root container, no Docker, two worktrees
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: ubuntu:24.04
+    env:
+      SUPABASE_EXPERIMENTAL_STACK: '1'
+      SUPABASE_AUTH_GOOGLE_CLIENT_ID: local-e2e-unused
+      SUPABASE_AUTH_GOOGLE_SECRET: local-e2e-unused
+    steps:
+      - name: Base tools
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl ca-certificates tar xz-utils jq postgresql-client procps >/dev/null
+          id; ldd --version | head -1; command -v docker || echo "no docker"
+
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Two worktrees, fixed ports removed
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory '*'
+          for wt in a b; do
+            git worktree add --detach "/tmp/wt-$wt" HEAD
+            # Fixed ports are exact requests; two stacks need the CLI to allocate them.
+            sed -i -E '/^(port|shadow_port) *=/d' "/tmp/wt-$wt/supabase/config.toml"
+          done
+          grep -n port /tmp/wt-a/supabase/config.toml || echo "no port lines left"
+
+      - name: Start as root with no Postgres user named
+        continue-on-error: true
+        working-directory: /tmp/wt-a
+        run: timeout 300 supabase start --runtime native --eager --exclude studio,functions 2>&1 | tail -20
+
+      - name: Start both stacks as a named non-root Postgres user
+        run: |
+          set -euo pipefail
+          id pgrunner >/dev/null 2>&1 || useradd -m pgrunner
+          export SUPABASE_NATIVE_POSTGRES_USER=pgrunner
+          for wt in a b; do
+            ( cd "/tmp/wt-$wt"; supabase stop >/dev/null 2>&1 || true
+              start=$(date +%s); supabase start --runtime native --eager --exclude studio,functions 2>&1 | tail -5
+              echo "wt-$wt started in $(( $(date +%s) - start )) s" )
+          done
+          supabase stack list
+          free -m
+
+      - name: Assert schema and grants in both
+        run: |
+          set -euo pipefail
+          expected="$(find /tmp/wt-a/supabase/migrations -maxdepth 1 -type f | grep -cE '/[0-9]+_.*\.sql$')"
+          for wt in a b; do
+            cd "/tmp/wt-$wt"
+            status="$(supabase status --output-format json)"
+            db="$(printf '%s' "$status" | jq -r '.env.DB_URL // .DB_URL')"
+            api="$(printf '%s' "$status" | jq -r '.env.API_URL // .API_URL')"
+            anon="$(printf '%s' "$status" | jq -r '.env.ANON_KEY // .ANON_KEY')"
+            applied="$(psql "$db" -X -tAc 'select count(*) from supabase_migrations.schema_migrations')"
+            grant="$(psql "$db" -X -tAc "select has_table_privilege('authenticated','public.documents','select')")"
+            anon_docs="$(psql "$db" -X -tAc "select has_table_privilege('anon','public.documents','select')")"
+            auth="$(curl -s -o /dev/null -w '%{http_code}' "$api/auth/v1/health" -H "apikey: $anon")"
+            echo "wt-$wt: api ${api}, migrations ${applied}/${expected}, authenticated reads documents: ${grant}, anon reads documents: ${anon_docs}, auth health ${auth}"
+            [ "$applied" = "$expected" ] && [ "$grant" = t ] && [ "$anon_docs" = f ] && [ "$auth" = 200 ]
+          done
+          # Isolation: a row written in a is not in b.
+          dba="$(cd /tmp/wt-a && supabase status --output-format json | jq -r '.env.DB_URL // .DB_URL')"
+          dbb="$(cd /tmp/wt-b && supabase status --output-format json | jq -r '.env.DB_URL // .DB_URL')"
+          psql "$dba" -X -qc "insert into public.allowlist (email, note) values ('only-in-a@example.com', 'isolation probe')"
+          echo "row in a: $(psql "$dba" -X -tAc "select count(*) from public.allowlist where email = 'only-in-a@example.com'"), in b: $(psql "$dbb" -X -tAc "select count(*) from public.allowlist where email = 'only-in-a@example.com'")"
