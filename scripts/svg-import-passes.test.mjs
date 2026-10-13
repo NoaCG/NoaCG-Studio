@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/assets/svgImport.ts, src/templates/importedDesign/**, src/templates/behaviours/**, src/components/wizard/import/**, src/preview/composeDocument.ts, src/model/fonts.ts, e2e/fixtures/svg-corpus/**, scripts/fixtures/svg-corpus-passes.json, scripts/ladder-values.mjs
+// guards: src/assets/svgImport.ts, src/templates/importedDesign/**, src/templates/behaviours/**, src/components/wizard/import/**, src/components/wizard/CreationWizard.tsx, public/fonts/**, src/preview/composeDocument.ts, src/model/fonts.ts, e2e/fixtures/svg-corpus/**, scripts/fixtures/svg-corpus-passes.json, scripts/ladder-values.mjs
 //
 // EVERY CORPUS FILE THROUGH EVERY PASS OF THE SVG IMPORT, IN ONE BLANK PAGE, AGAINST A RECORD.
 //
@@ -44,6 +44,8 @@
 //   UPDATE_SVG_CORPUS_PASSES=1 node --test scripts/svg-import-passes.test.mjs   # re-record; name the reason in the pull request
 //   UPDATE_SVG_CORPUS_PASSES=1 SVG_CORPUS_RUNTIME_FROM=<saved CI job log> node --test scripts/svg-import-passes.test.mjs
 //                                                   # off Linux: the runtime records a failing CI run printed
+//   SVG_CORPUS_RUNTIME_LOCAL=<file outside the repo> node --test scripts/svg-import-passes.test.mjs
+//                                                   # off Linux: compare the runtime with this machine's own baseline
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -73,6 +75,10 @@ const VOLATILE_TOLERANCE = 4;
  *  SVG_CORPUS_RUNTIME_FROM names a saved CI job log, whose `runtime-record` lines it takes. */
 const RUNTIME_PINNED = process.platform === 'linux';
 const RUNTIME_FROM = process.env.SVG_CORPUS_RUNTIME_FROM ?? null;
+/** Off Linux, a runtime baseline of THIS machine (a JSON file outside the repository): written by
+ *  the first run that names it, say on main, and compared against by every later one, so a
+ *  Windows builder sees a runtime change before CI does. Same machine, same hinting. */
+const RUNTIME_LOCAL = RUNTIME_PINNED ? null : process.env.SVG_CORPUS_RUNTIME_LOCAL ?? null;
 
 const SPECS = [
   ['assets/svgImport.ts', 'NOACG_SVG'],
@@ -89,11 +95,11 @@ const PASSES = ['inventory', 'proposal', 'fieldList', 'step', 'bind', 'layout', 
 
 const corpus = readdirSync(CORPUS)
   .filter((f) => f.endsWith('.svg') && existsSync(`${CORPUS}${f.replace(/\.svg$/, '.expect.json')}`))
-  .sort()
   .map((f) => {
     const name = f.replace(/\.svg$/, '');
     return { name, markup: readFileSync(`${CORPUS}${f}`, 'utf8'), sidecar: JSON.parse(readFileSync(`${CORPUS}${name}.expect.json`, 'utf8')) };
-  });
+  })
+  .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
 /** Runs in the browser: one corpus file through every pass, as the wizard runs them at drop. */
 const RECORD = async ({ markup, origin, ladder }) => {
@@ -114,26 +120,39 @@ const RECORD = async ({ markup, origin, ladder }) => {
 
   // Every family the file names, on a bundled face: its own where the draft matched one, Inter
   // where nothing did. Declared for the step's stage here, and inside the graphic below.
-  const fileOf = (id) => FONTS.FONTS.find((f) => f.id === id)?.file;
-  const inter = FONTS.FONTS.find((f) => f.id === 'inter').file;
+  const inter = FONTS.fontById('inter').file;
   const face = (family, file) =>
     `@font-face{font-family:"${family}";src:url("${origin}/fonts/${file}") format("woff2");font-weight:100 900;}`;
-  const stageFaces = draft.svgFonts.map((f) => face(f.family, fileOf(f.fontId) ?? inter)).join('\n');
+  const stageFaces = draft.svgFonts.map((f) => face(f.family, f.fontId ? FONTS.fontById(f.fontId).file : inter)).join('\n');
   const unresolvedFaces = draft.svgFonts.filter((f) => !f.fontId).map((f) => face(f.family, inter)).join('\n');
 
-  // MEASURE ON THE STEP: its off-screen stage (`MapSvgFieldsStep.tsx`, `.map-svg-stage`), the
-  // growth default its effect proposes, and the fill gap `BehaviourSection.tsx` counts.
+  // MEASURE ON THE STEP: its off-screen stage (`MapSvgFieldsStep.tsx`, with the two rules of
+  // `mapSvgFields.css` its measurements rely on), then in the step's order: text it finds outside
+  // the frame taken off, the growth default its effect proposes, and the fill gap
+  // `BehaviourSection.tsx` counts.
   const style = document.createElement('style');
-  style.textContent = `${stageFaces}\n.hx-stage svg{display:block;width:100%;height:auto;}`;
+  style.textContent = `${stageFaces}
+.map-svg-stage svg{display:block;width:100%;height:auto;}
+.map-svg-stage[data-reveal] svg *{display:inline !important;visibility:visible !important;}`;
   document.head.appendChild(style);
   const stage = document.createElement('div');
-  stage.className = 'hx-stage';
+  stage.className = 'map-svg-stage';
   stage.style.cssText = `position:absolute;left:-20000px;top:0;width:${draft.designSvg.width}px;`;
   stage.innerHTML = draft.designSvg.markup;
   document.body.appendChild(stage);
   stage.getBoundingClientRect();
   await document.fonts.ready;
   const dsvg = draft.designSvg;
+  const ids = [...new Set([...dsvg.groups, ...dsvg.shapes, ...dsvg.candidates, ...dsvg.images, ...dsvg.outlines].map((c) => c.id))];
+  const boxes = S.measureBoxes(stage, ids);
+  const frame = stage.querySelector('svg')?.getBoundingClientRect();
+  const outside = new Set(frame ? dsvg.candidates.filter((c) => {
+    const b = boxes.get(c.id);
+    return b && (b.right <= 0 || b.bottom <= 0 || b.left >= frame.width || b.top >= frame.height);
+  }).map((c) => c.id) : []);
+  if (draft.svgFields.some((f) => f.on && outside.has(f.candidateId))) {
+    draft.svgFields = draft.svgFields.map((f) => (outside.has(f.candidateId) ? { ...f, on: false, whenOff: 'keep' } : f));
+  }
   const onIds = draft.svgFields.filter((f) => f.on).map((f) => f.candidateId);
   const banner = S.proposeBannerGrowth(stage, dsvg, onIds);
   const holders = S.panelsHoldingText(stage, dsvg, onIds, []);
@@ -143,8 +162,6 @@ const RECORD = async ({ markup, origin, ladder }) => {
     : { on: false, shapeId: banner ?? dsvg.shapes[0]?.id ?? null };
   let fillGap = null;
   if (behaviour) {
-    const ids = [...new Set([...dsvg.groups, ...dsvg.shapes, ...dsvg.candidates, ...dsvg.images, ...dsvg.outlines].map((c) => c.id))];
-    const boxes = S.measureBoxes(stage, ids);
     const ink = F.artworkInk([...boxes.values()]);
     const kind = behaviour.kind;
     const text = kind === 'quiz' || kind === 'score'
@@ -175,8 +192,8 @@ const RECORD = async ({ markup, origin, ladder }) => {
       w.__advance(1000);
     }
   };
-  // Read through the runtime's own globals, called plainly: a renamed one throws and fails the
-  // file loudly rather than reading nothing.
+  // Read through the runtime's own globals, called plainly: a renamed one throws, and the run
+  // fails naming the file rather than reading nothing.
   const read = () => {
     const r = (n) => Math.round(n);
     const lines = w.svgFitNodes().map((el) => {
@@ -186,7 +203,8 @@ const RECORD = async ({ markup, origin, ladder }) => {
         id: el.id,
         lines: el.querySelectorAll('tspan[data-noacg-line]').length || 1,
         sizePct: drawnSize ? r((100 * size) / drawnSize) : null,
-        over: !!w.svgFitOver[el.id],      };
+        over: !!w.svgFitOver[el.id],
+      };
     });
     const rules = ((w.NOACG_LAYOUT && w.NOACG_LAYOUT.rules) || []).map((rule) => {
       const el = w.svgLayoutEl(rule.el);
@@ -195,21 +213,16 @@ const RECORD = async ({ markup, origin, ladder }) => {
     });
     return { lines, rules };
   };
-  let runtime;
-  try {
+  await settle();
+  if (typeof w.play === 'function') w.play();
+  await settle();
+  const runtime = { rest: read() };
+  const text = template.fields.filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea').map((f) => f.field);
+  runtime.textFields = text.length;
+  for (const [key, value] of Object.entries(ladder)) {
+    w.update(JSON.stringify(Object.fromEntries(text.map((id) => [id, value]))));
     await settle();
-    if (typeof w.play === 'function') w.play();
-    await settle();
-    runtime = { rest: read() };
-    const text = template.fields.filter((f) => f.ftype === 'textfield' || f.ftype === 'textarea').map((f) => f.field);
-    runtime.textFields = text.length;
-    for (const [key, value] of Object.entries(ladder)) {
-      w.update(JSON.stringify(Object.fromEntries(text.map((id) => [id, value]))));
-      await settle();
-      runtime[key] = read();
-    }
-  } catch (e) {
-    runtime = { error: String(e && e.message ? e.message : e) };
+    runtime[key] = read();
   }
   document.getElementById('fx')?.remove();
 
@@ -287,7 +300,9 @@ function crossCheck(name, sidecar, rec) {
   const growth = rec.step.growth;
   const mode = growth.on ? `grow-${growth.axis}` : 'shrink';
   if (want.growth && on > 0 && mode !== want.growth) say(`growth default ${mode}, sidecar ${want.growth}`);
-  if (want.growthShape && growth.label !== want.growthShape) say(`growing shape "${growth.label}", sidecar "${want.growthShape}"`);
+  // Read off the shape that GROWS, as the corpus gate reads the box that grows: none, if nothing does.
+  const grown = growth.on ? growth.label : null;
+  if (want.growthShape && grown !== want.growthShape) say(`growing shape "${grown ?? '(none)'}", sidecar "${want.growthShape}"`);
   return out;
 }
 
@@ -318,6 +333,7 @@ function diff(before, after, tol, path = '', out = []) {
 }
 
 const started = Date.now();
+const fontBytes = new Map();
 const raws = await withBundledPage(SPECS, async (page) => {
   // Offline and the same everywhere: the harness origin serves the bundled faces, nothing else
   // leaves the page.
@@ -325,13 +341,17 @@ const raws = await withBundledPage(SPECS, async (page) => {
     const url = route.request().url();
     const file = url.startsWith(`${ORIGIN}/fonts/`) ? url.slice(`${ORIGIN}/fonts/`.length) : null;
     if (file && /^[a-z0-9-]+\.woff2$/.test(file) && existsSync(`${FONTS_DIR}${file}`)) {
-      return route.fulfill({ status: 200, contentType: 'font/woff2', headers: { 'access-control-allow-origin': '*' }, body: readFileSync(`${FONTS_DIR}${file}`) });
+      if (!fontBytes.has(file)) fontBytes.set(file, readFileSync(`${FONTS_DIR}${file}`));
+      return route.fulfill({ status: 200, contentType: 'font/woff2', headers: { 'access-control-allow-origin': '*' }, body: fontBytes.get(file) });
     }
     return route.abort();
   });
   await installDrivenPage(page);
   const out = {};
-  for (const file of corpus) out[file.name] = await page.evaluate(RECORD, { markup: file.markup, origin: ORIGIN, ladder: LADDER_VALUES });
+  for (const file of corpus) {
+    out[file.name] = await page.evaluate(RECORD, { markup: file.markup, origin: ORIGIN, ladder: LADDER_VALUES })
+      .catch((e) => { throw new Error(`${file.name}: ${e.message}`); });
+  }
   return out;
 });
 const seconds = ((Date.now() - started) / 1000).toFixed(1);
@@ -344,30 +364,44 @@ console.log(`[svg-import-passes] ${corpus.length} files, ${recordCount} records 
 console.log(`[svg-import-passes] ${findings.length} findings against the sidecars:\n  ${findings.join('\n  ')}`);
 
 const before = existsSync(SNAPSHOT) ? JSON.parse(readFileSync(SNAPSHOT, 'utf8')) : null;
+let snapshot = before;
 if (UPDATE || !before) {
   // Off Linux the runtime record is not this machine's to write: it keeps the committed one, or
   // takes the lines a CI run printed (RUNTIME_FROM, a saved job log).
   const fromLog = RUNTIME_FROM
     ? Object.fromEntries([...readFileSync(RUNTIME_FROM, 'utf8').matchAll(/\[svg-import-passes\] runtime-record (\S+) (\{.*\})\s*$/gm)].map((m) => [m[1], JSON.parse(m[2])]))
     : {};
+  const owed = [];
   const files = Object.fromEntries(Object.entries(records).map(([name, rec]) => {
     if (RUNTIME_PINNED || !rec.runtime) return [name, rec];
-    const runtime = fromLog[name] ?? before?.files?.[name]?.runtime ?? rec.runtime;
-    return [name, { ...rec, runtime }];
+    const runtime = fromLog[name] ?? before?.files?.[name]?.runtime;
+    if (runtime) return [name, { ...rec, runtime }];
+    owed.push(name);
+    const rest = { ...rec };
+    delete rest.runtime;
+    return [name, rest];
   }));
-  writeFileSync(
-    SNAPSHOT,
-    `${JSON.stringify({
-      $comment:
-        'Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review. The runtime records are Linux (CI) measurements.',
-      findings,
-      volatile: before?.volatile ?? {},
-      files,
-    }, null, 1)}\n`,
-  );
+  // A file with no Linux runtime yet is written without one: CI then fails on it and prints it.
+  if (owed.length) console.log(`[svg-import-passes] no runtime record for ${owed.join(', ')}: take it from a CI run's log`);
+  snapshot = {
+    $comment:
+      'Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review. The runtime records are Linux (CI) measurements.',
+    findings,
+    volatile: before?.volatile ?? {},
+    files,
+  };
+  writeFileSync(SNAPSHOT, `${JSON.stringify(snapshot, null, 1)}\n`);
   console.log(`[svg-import-passes] recorded ${SNAPSHOT}${RUNTIME_PINNED ? '' : ` (runtime records kept from the snapshot${RUNTIME_FROM ? ` or taken from ${RUNTIME_FROM}` : ''})`}`);
 }
-const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));
+
+let localRuntime = null;
+if (RUNTIME_LOCAL) {
+  if (!existsSync(RUNTIME_LOCAL)) {
+    writeFileSync(RUNTIME_LOCAL, JSON.stringify(Object.fromEntries(Object.entries(records).map(([name, r]) => [name, r.runtime ?? null]))));
+    console.log(`[svg-import-passes] wrote this machine's runtime baseline to ${RUNTIME_LOCAL}`);
+  }
+  localRuntime = JSON.parse(readFileSync(RUNTIME_LOCAL, 'utf8'));
+}
 
 test('the corpus is the files with a sidecar, and the record holds each of them', () => {
   assert.ok(corpus.length >= 49, `only ${corpus.length} corpus files`);
@@ -384,20 +418,22 @@ function changedIn(pass) {
   for (const { name } of corpus) {
     const volatile = snapshot.volatile?.[name]?.[pass];
     const tol = pass === 'runtime' ? (volatile ? VOLATILE_TOLERANCE : TOLERANCE) : 0;
-    const lines = diff(snapshot.files[name]?.[pass], records[name][pass], tol);
+    const was = pass === 'runtime' && localRuntime ? localRuntime[name] ?? undefined : snapshot.files[name]?.[pass];
+    const lines = diff(was, records[name][pass], tol);
     if (lines.length) changed.push({ name, lines });
   }
   return changed;
 }
 
 for (const pass of PASSES) {
-  // Measured everywhere; compared only where it was recorded (see RUNTIME_PINNED), and said so.
-  const skip = pass === 'runtime' && !RUNTIME_PINNED
-    ? `the runtime record is Linux's (CI) and this is ${process.platform}: ${changedIn(pass).length} file(s) lay text out differently here, which is font hinting rather than a change`
+  // Measured everywhere; compared against Linux's record or this machine's own baseline, and
+  // where there is neither, said so (see RUNTIME_PINNED).
+  const skip = pass === 'runtime' && !RUNTIME_PINNED && !localRuntime
+    ? `not compared on ${process.platform}: the record is Linux's (CI), and ${changedIn(pass).length} file(s) differ from it here; CI compares it, or set SVG_CORPUS_RUNTIME_LOCAL=<file> on main to compare against this machine`
     : false;
   test(`${pass}: every corpus file matches its record`, { skip }, () => {
     const changed = changedIn(pass);
-    if (pass === 'runtime') {
+    if (pass === 'runtime' && !localRuntime) {
       // The fresh records, one line each, so a re-record off Linux can take them from this log.
       for (const { name } of changed) console.log(`[svg-import-passes] runtime-record ${name} ${JSON.stringify(records[name].runtime)}`);
     }

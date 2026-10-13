@@ -664,6 +664,8 @@ presentation attributes; a value that already carries a unit is untouched.
   overflow and grown panels at every `LADDER_VALUES` length. Each pass is compared with its own
   record in `scripts/fixtures/svg-corpus-passes.json`, so a change names the pass and the files
   it moved; the sidecars stay the truth, and every disagreement with them is a listed finding.
+  The runtime record is compared on Linux (CI) only, because Windows lays the same fonts out a
+  fraction of a pixel differently; elsewhere it is measured and its differences counted.
   Re-record with `UPDATE_SVG_CORPUS_PASSES=1` and say why in the pull request. Why and how far
   it goes: `docs/work-specs/svg-import-engine/spec.md`.
 - **P3 (opt-in):** AI label proposals; Figma-specific niceties; SVG *export* of a NoaCG graphic

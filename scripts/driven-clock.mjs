@@ -49,9 +49,9 @@ export const DRIVEN_CLOCK = `<script id="test-clock">
  *  the page) into a fresh iframe of its own size with the driven clock and `head` (optional
  *  markup, such as a test's font faces) ahead of everything, and hands back its window.
  *
- *  `__importDraft(svg, behaviour, resolution)` is the draft the wizard builds when a file is
- *  dropped (`CreationWizard.tsx`, the import step's `onSvg`), for building an imported design
- *  without the wizard: fitted to the frame; every text a field and ON except furniture (`static:`,
+ *  `__importDraft(svg, behaviour)` is the draft the wizard builds when a file is dropped
+ *  (`CreationWizard.tsx`, the import step's `onSvg`), for building an imported design without
+ *  the wizard: fitted to the default 1920x1080 frame; every text a field and ON except furniture (`static:`,
  *  or a letter tile no behaviour writes) and text outside the canvas; furniture listed last; a
  *  proposed countdown's clock armed; pictures and outlined text OFF unless marked `f:`; the extras
  *  the names declare; growth off on the widest shape; fonts matched to the bundled faces by lookup
@@ -72,7 +72,8 @@ const PAGE_HELPERS = (clock) => {
     await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
     return frame.contentWindow;
   };
-  window.__importDraft = (svg, behaviour, resolution = { width: 1920, height: 1080 }) => {
+  window.__importDraft = (svg, behaviour) => {
+    const resolution = { width: 1920, height: 1080 };
     const D = window.NOACG_DRAFT;
     const fonts = window.NOACG_FONTS;
     const fit = svg.width > resolution.width || svg.height > resolution.height
