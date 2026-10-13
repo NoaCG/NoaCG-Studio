@@ -21,6 +21,24 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Prove input ownership detects a missing guard
+        if: inputs.scope == 'mutation'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/components/editorFoundation/EditorFoundation.tsx')
+          text=p.read_text()
+          guard="if (!editorShortcutsLive(event.target) && !(historyKey && event.target instanceof HTMLSelectElement)) return;"
+          assert guard in text
+          p.write_text(text.replace(guard, '// Deliberate probe mutation: remove input ownership guard.'))
+          PY
+          set +e
+          npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'keyboard duplicate select all' --workers=1 --output=.noacg/results/mutation > .noacg/mutation.log 2>&1
+          result=$?
+          cat .noacg/mutation.log
+          test "$result" -ne 0
+          grep -q 'toEqual' .noacg/mutation.log
       - name: Focused interactions
         if: inputs.scope == 'reproduce' || inputs.scope == 'changed'
         run: npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'modifier drag|keyboard duplicate|property reveal' --workers=1 --output=.noacg/results/changed
