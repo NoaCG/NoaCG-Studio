@@ -1,0 +1,114 @@
+{
+  "ctrl": [
+    "Text",
+    "Ellipse"
+  ],
+  "shift": [
+    "Ellipse"
+  ],
+  "inlineInputs": 0,
+  "rename": {
+    "before": [
+      "layer-0b2bcb85-d239-4282-9fa9-6ef1960d036b",
+      "layer-a5eaad29-40ee-43c6-9c9d-5c8448b1d127",
+      "layer-a99194de-8cb2-4e48-9598-fd8f8157e2b0"
+    ],
+    "after": [
+      "layer-0b2bcb85-d239-4282-9fa9-6ef1960d036b",
+      "layer-a5eaad29-40ee-43c6-9c9d-5c8448b1d127",
+      "layer-a99194de-8cb2-4e48-9598-fd8f8157e2b0"
+    ],
+    "label": "Independent reference presenter"
+  },
+  "scrub": {
+    "normal": {
+      "start": 100,
+      "during": 113,
+      "after": 113
+    },
+    "coarse": {
+      "start": 113,
+      "during": 243,
+      "after": 243
+    },
+    "fine": {
+      "start": 243,
+      "during": 244,
+      "after": 244
+    },
+    "cancel": {
+      "start": 244,
+      "during": 261,
+      "after": 261
+    }
+  },
+  "eye": {
+    "before": [
+      "layer-0b2bcb85-d239-4282-9fa9-6ef1960d036b",
+      "layer-a5eaad29-40ee-43c6-9c9d-5c8448b1d127",
+      "layer-a99194de-8cb2-4e48-9598-fd8f8157e2b0"
+    ],
+    "hidden": [
+      "layer-a5eaad29-40ee-43c6-9c9d-5c8448b1d127",
+      "layer-a99194de-8cb2-4e48-9598-fd8f8157e2b0"
+    ],
+    "rows": 3
+  },
+  "contextMenus": 0,
+  "properties": [
+    "X",
+    "Y",
+    "W",
+    "H",
+    "Rotation",
+    "Line height",
+    "Tracking",
+    "Baseline",
+    "Minimum size",
+    "HorizontalLeftRightLeft + RightCenterScale",
+    "VerticalTopBottomTop + BottomCenterScale"
+  ],
+  "history": {
+    "deleted": 2,
+    "explicitUndo": 3,
+    "explicitRedo": 2,
+    "burstWaitMs": 600
+  },
+  "cumulative": {
+    "text": "Leila Moreno",
+    "frames": [
+      0,
+      12
+    ],
+    "frameZero": 261,
+    "frame12": 300,
+    "sourceSha256": "051b309923dd5dc7b14d94a5e62f9208591e07e5dd5890b339359833612d1d74",
+    "download": "Untitled Template.ogs",
+    "nativeLayerIds": [
+      "layer-a5eaad29-40ee-43c6-9c9d-5c8448b1d127",
+      "layer-a99194de-8cb2-4e48-9598-fd8f8157e2b0",
+      "layer-0b2bcb85-d239-4282-9fa9-6ef1960d036b"
+    ],
+    "xTracks": [
+      {
+        "id": "layer-keyframe-a934779a-ebb0-4bdc-9bc0-6cf13deae5c4:x",
+        "frame": 0,
+        "value": 261,
+        "easing": "linear"
+      },
+      {
+        "id": "layer-keyframe-21f4a06d-6b85-4471-81b9-4aed8ba31c15:x",
+        "frame": 12,
+        "value": 300,
+        "easing": "linear"
+      },
+      {
+        "id": "layer-keyframe-0b50dc7c-49bb-4fc0-9bb5-55c228201266:x",
+        "frame": 24,
+        "value": 261,
+        "easing": "linear"
+      }
+    ],
+    "picker": "documented download/input fallback; native picker APIs unavailable in automation"
+  }
+}
