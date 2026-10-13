@@ -1,5 +1,6 @@
 // covers: src/store/saveActions.ts, src/components/NewGraphicButton.tsx, src/components/save/SaveDialogs.tsx
 // covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
+// covers: src/app/router.ts, src/components/editorFoundation/EditorFoundation.tsx
 //
 // + NEW GRAPHIC FROM HOME, ACROSS THE WHOLE HOME -> WIZARD FLOW: the unsaved-changes dialog
 // speaks only when something the user did could be lost.
@@ -19,6 +20,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
 import { addToProductionFromFinish } from './_create';
 import { settleDurableWrites } from './_durable';
+import { open, draw, source, ready, inspection } from './_layerProperty';
 
 /** Walk the wizard to Finish on a catalog design (Entry -> Browse -> pick -> Skip to finish). */
 async function toFinish(page: Page) {
@@ -80,20 +82,24 @@ test('an untouched graphic from the Edit door: + New graphic on Home opens the w
 });
 
 test('real changes still ask: an edited never-saved graphic, and a saved graphic edited since its save', async ({ page }) => {
-  // A never-saved graphic, once edited: the dialog appears over Home, and Cancel keeps the work.
+  // A never-saved graphic, once edited: ask BEFORE Home and keep the editor on Cancel.
   await editFromFinish(page);
   await editWorkingGraphic(page);
   await page.getByTestId('open-home').click();
-  await pressNewFromHome(page);
   const guard = page.getByTestId('confirm-switch');
   await expect(guard).toBeVisible();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('home-page')).toHaveCount(0);
+  await expect(page).toHaveURL(/#\/editor-foundation$/);
   await guard.getByTestId('switch-cancel').click();
   await expect(guard).toBeHidden();
   await expect(page.getByTestId('creation-wizard')).toBeHidden();
   expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.css)).toContain('/* an edit */');
   // Discard is the way through, and it lands in the wizard.
-  await page.locator('[data-door="new-graphic"]').click();
+  await page.getByTestId('open-home').click();
   await guard.getByTestId('switch-discard').click();
+  await pressNewFromHome(page);
+  await expect(guard).toHaveCount(0);
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
 
   // A SAVED graphic (the production door saves first) edited since that save also asks.
@@ -112,4 +118,87 @@ test('real changes still ask: an edited never-saved graphic, and a saved graphic
   });
   await pressNewFromHome(page);
   await expect(guard).toBeVisible();
+});
+
+test('leave-editor naming cancellation keeps edits; Save first keeps one exact library copy', async ({ page }) => {
+  await open(page); await draw(page, .3);
+  const edited = await source(page), history = (await inspection(page)).history;
+  await page.getByTestId('open-home').click();
+  await page.getByTestId('switch-save').click();
+  await page.getByTestId('save-dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('home-page')).toHaveCount(0);
+  expect(await source(page)).toEqual(edited);
+  expect((await inspection(page)).history).toEqual(history);
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await page.getByTestId('save-name').fill('Kept experiment');
+  // Two synchronous submit events exercise the in-flight guard, not Playwright's disabled wait.
+  await page.getByTestId('save-confirm').evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const saved = await page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts'); return loadGraphics();
+  });
+  expect(saved).toHaveLength(1); expect(saved[0].name).toBe('Kept experiment');
+  await page.getByTestId('home-nav-graphics').click();
+  await page.locator('.lib-row', { hasText: 'Kept experiment' }).getByTestId('open-graphic').click();
+  await page.getByTestId('control-open-editor').click(); await ready(page);
+  expect(await source(page)).toEqual(saved[0].template);
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+});
+
+test('discard restores the saved copy and never retains a discarded experiment across reload', async ({ page }) => {
+  await open(page); await draw(page, .3);
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Original'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved');
+  const saved = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+  await draw(page, .55); await page.getByTestId('open-home').click();
+  await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  expect(await source(page)).toEqual(saved[0].template);
+  await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(await source(page)).toEqual(saved[0].template);
+  await pressNewFromHome(page); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  await page.locator('[data-entry="template"]').click(); await pickDesign(page, 'Hairline');
+  await page.getByTestId('wz-skip-to-finish').click(); await page.getByTestId('wz-finish-edit-artwork').click(); await ready(page);
+  await draw(page, .3); const experiment = await source(page);
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
+  await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(await source(page)).not.toEqual(experiment);
+  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  await pressNewFromHome(page); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+});
+
+test('browser Back and hash navigation ask before changing surfaces, with Cancel preserving history', async ({ page }) => {
+  await open(page); await draw(page, .3); const edited = await source(page);
+  await page.goBack(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page).toHaveURL(/#\/editor-foundation$/);
+  await page.keyboard.press('Escape'); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  expect(await source(page)).toEqual(edited);
+  await page.goBack(); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-cancel').click();
+  await page.evaluate(() => { window.location.hash = '#/home/graphics'; });
+  await expect(page.getByTestId('confirm-switch')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
+  await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page).toHaveURL(/#\/home\/graphics$/); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+});
+
+test('a refused save stays in the editor with its draft and can be retried', async ({ page }) => {
+  await open(page); await draw(page, .3); await settleDurableWrites(page);
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-graphics') {
+        IDBObjectStore.prototype.put = put;
+        throw new DOMException('Injected quota refusal', 'QuotaExceededError');
+      }
+      return put.call(this, value, key);
+    };
+  });
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-save').click();
+  await page.getByTestId('save-name').fill('Retry keeps work'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-dialog').locator('.status-bad')).toBeVisible();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
+  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toHaveLength(0);
+  await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toHaveLength(1);
 });
