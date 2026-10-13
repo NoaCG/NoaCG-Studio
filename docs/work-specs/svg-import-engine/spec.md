@@ -12,9 +12,11 @@ Restructure, narrowly, and build the measuring instrument before moving a line. 
 one program but two held in one file: about 740 lines of TypeScript that turn a `DesignSvg` into a
 template, and about 2,450 lines of browser runtime (the fit ladder and the growth rules) written as
 template strings inside that TypeScript, where no type checker, linter or unit test reaches them.
-The runtime strings carry most of the change: of the 40 most recent commits to `svg.ts`, 28 touched
-only those strings, and 68 of the 82 commits in 90 days also edited an e2e spec, because the wizard
-walk is the only test the runtime has. That is the cost: every rung of the ladder is proved by a
+The runtime strings carry most of the change: of the 40 most recent non-merge commits to `svg.ts`,
+28 touched only those strings (judged by where each hunk fell against today's section boundaries,
+so a hunk near a boundary may be misread, and the figure is a reading rather than a count), and 68
+of the 82 non-merge commits in 90 days also edited an e2e spec, because the wizard walk is the only
+test the runtime has. That is the cost: every rung of the ladder is proved by a
 five-minute Playwright walk through the mapping step, and a change to one rule can only be seen by
 walking the UI on every file by hand or waiting for the nightly sweep.
 
@@ -45,8 +47,8 @@ and what stays browser-only.
 
 ## Why
 
-`src/templates/importedDesign/svg.ts` is 3,228 lines, created 2026-08-20, 84 commits in 90 days
-(80 distinct commits in today's blame); `src/assets/svgImport.ts` 1,896 lines, 48 commits;
+`src/templates/importedDesign/svg.ts` is 3,228 lines, created 2026-08-20, 84 commits in 90 days,
+82 of them non-merge (80 distinct commits in today's blame); `src/assets/svgImport.ts` 1,896 lines, 48 commits;
 `src/components/wizard/import/MapSvgFieldsStep.tsx` 1,832 lines, 30 commits;
 `src/components/wizard/import/draft.ts` 1,502 lines, 13 commits. All verified on `dba61b8e1`.
 
@@ -57,14 +59,14 @@ section it touched):
 |---|---|---|---|---|
 | 1-135 | header, exported tolerances, `NO_SVG`, stamp tokens | TS | 135 | 17 |
 | 136-185 | `layoutRules`, `candidateLabel` | TS (DOM read) | 50 | 5 |
-| 186-331 | `normalizePictureHref`, `setIdKeepingRefs`, `bindSvgMarkup` | TS (DOM pass) | 146 | 20 |
-| 332-409 | `aliasFontFaceCss`, `svgFontCss` | TS, pure | 78 | 6 |
+| 186-331 | `normalizePictureHref`, `setIdKeepingRefs`, `bindSvgMarkup` | TS (DOM pass) | 146 | 18 |
+| 332-409 | `aliasFontFaceCss`, `svgFontCss`; 387-409 is the fit runtime's doc comment | TS, pure | 78 | 6 |
 | 410-710 | `SVG_FIT_JS`: measure, squeeze, budgets | runtime string | 301 | 21 |
 | 711-1424 | `SVG_FIT_JS`: container, local box, alignment, neighbour, room | runtime string | 714 | 30 |
 | 1425-1667 | `SVG_FIT_JS`: wrap, balance, paint, rise, recentre | runtime string | 243 | 13 |
 | 1668-1800 | `SVG_FIT_JS`: `fitSvgText`, the ladder | runtime string | 133 | 19 |
-| 1801-1916 | refit, reread alignment, `SVG_FIT_BOOT` | runtime string | 116 | 13 |
-| 1917-2020 | `saidLines`, `layoutDataJs`, the table's comment | TS, pure | 104 | 13 |
+| 1801-1916 | refit, reread alignment, `SVG_FIT_BOOT` | runtime string | 116 | 11 |
+| 1917-2020 | `saidLines`, `layoutDataJs`, the table's comment | TS, pure | 104 | 10 |
 | 2021-2092 | `SHAPE_SHIFT_JS` | runtime string | 72 | 2 |
 | 2093-2410 | growth: base, axis, direction, cap, room, rest | runtime string | 318 | 17 |
 | 2411-2585 | growth: followers, spanners, sided followers | runtime string | 175 | 10 |
@@ -75,8 +77,8 @@ section it touched):
 | 3208-3228 | `IMPORTED_SVG` | TS | 21 | 3 |
 
 Runtime strings: 2,455 lines (76%). TypeScript: 773 lines, of which the DOM-touching part is
-`candidateLabel` and `bindSvgMarkup` (DOMParser in, XMLSerializer out, 196 lines) and the rest is
-plain data to text. The hottest section is the room and alignment measurement (714 lines, 30
+`candidateLabel` with the bind helpers and `bindSvgMarkup` (141-331, DOMParser in, XMLSerializer
+out, 191 lines) and the rest is plain data to text. The hottest section is the room and alignment measurement (714 lines, 30
 commits), followed by `growOneRule` and its neighbours (23) and the ladder itself (19).
 
 How a change is proved today: `e2e/import-svg.spec.ts` (4,657 lines, 100 tests, 5.1 minutes on
@@ -508,10 +510,12 @@ On each phase's pull request the snapshot is unchanged (phases 1 and 2 excepted 
 harness, the catalog gate, CI.
 
 ### AC-3: One door from the wizard
-`CreationWizard.tsx` holds no import-draft assembly; the §5 command prints exactly
+`CreationWizard.tsx` holds no import-draft assembly; the §5 command, which matches text and so
+also lists names that appear only inside comments (today `armTimerClock` in
+`templates/behaviours/naming.ts:194` and `DesignFieldSpec`), prints as code references exactly
 `svgDraftFromImport`, `svgDraftCleared`, `svgDesignOptions`, `withSvgImportPasses`,
 `behaviourSummary` and `SvgImportDraft`; ARCHITECTURE §5 carries the command and the numbers.
-Layer: the command, read by the checker.
+Layer: the command, read by the checker, who opens each listed line.
 
 ### AC-4: Named passes in named files
 `svg.ts`, `svgBind.ts`, `svgLayout.ts`, `svgFonts.ts` exist with the contents §2.1 states;
