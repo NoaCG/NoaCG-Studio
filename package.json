@@ -36,6 +36,7 @@
     "check:example-layers": "node scripts/check-example-layers.mjs",
     "write:layer-cheat-sheet": "node scripts/check-example-layers.mjs --write",
     "check:function-budget": "node scripts/check-function-budget.mjs",
+    "check:file-budgets": "node scripts/check-file-budgets.mjs",
     "check:api-route-depth": "node scripts/check-api-route-depth.mjs",
     "check:client-neutral": "node scripts/check-client-neutral.mjs",
     "check:copy": "node scripts/check-copy.mjs",
