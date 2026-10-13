@@ -1032,7 +1032,7 @@ on every account endpoint locally and hosted); the lock was spot-checked again o
   answers 503).
 - **The runbook works as written for the project `REF` names**, taken from this file by a
   script with only `REF` swapped for the branch, in Git Bash with the token line from a CRLF
-  `.env` (the trailing CR reaches curl, which drops it; every call answered). Step 1's
+  `.env` (the token keeps its trailing CR, and curl accepted every call with it). Step 1's
   signing-key line printed `"algorithm":"ES256","status":"in_use"` on the branch, production and
   staging; `check:migration-drift` says both hosted projects hold all 89 migrations. Steps 2, 3
   and 4 printed every setting `true` (and the hook URI, the path `"/"`), exit 0.
