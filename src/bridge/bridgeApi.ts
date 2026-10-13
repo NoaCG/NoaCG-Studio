@@ -35,6 +35,7 @@ import { composeDocument } from '../preview/composeDocument';
 import { ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
 import { convertToDataRegion } from '../templates/shared/standard';
 import { typeFieldsToSpx, variantFromType, variantsFromType, type GraphicType } from '../templates/types/graphicType';
+import { designValueOptions, nameTemplate } from '../templates/types/recipeTemplate';
 import { hasNeutralDesign, neutralDesignFor, neutralSpineFor, type NeutralFieldSpec } from '../templates/types/neutralDesign';
 import { engineHeadline, engineReports, scanEngineSupport, type EngineReport } from '../validation/engineSupport';
 import { readinessRows, unclaimedFindings, type ReadinessRow } from '../validation/readiness';
@@ -251,18 +252,7 @@ export async function scaffold(req: ScaffoldRequest): Promise<ScaffoldResult> {
     }
     notes.push(`Catalog chassis "${variant.name}": a proven composition to restyle or to keep.`);
   }
-  const values = req.values ?? {};
-  const lineFields = type.fields.filter((f) => f.role === 'line');
-  const anyLine = lineFields.some((f) => f.key in values);
-  const content: Record<string, string> = {};
-  for (const f of type.fields) {
-    if (f.role !== 'line' && f.key in values) content[f.key] = values[f.key];
-  }
-  const options: WizardOptions = {
-    ...styleOptions(req.style),
-    ...(anyLine ? { lines: lineFields.map((f) => ({ title: f.label, sample: values[f.key] ?? f.value })) } : {}),
-    ...(Object.keys(content).length ? { content } : {}),
-  };
+  const options: WizardOptions = { ...styleOptions(req.style), ...designValueOptions(type, req.values ?? {}) };
   const template = variant.create(options);
   const events = [...declaredEvents(type.machine)];
   if (events.length) {
@@ -271,26 +261,7 @@ export async function scaffold(req: ScaffoldRequest): Promise<ScaffoldResult> {
     notes.push('No explicit machine: the implicit lifecycle machine (Take/Update/Next/Out) drives it.');
   }
   notes.push('Keep every `id="fN"` the SPX definition declares, the `.<prefix>-box` / `-mask` structure and the :root variables; restyle everything else.');
-  return { template: req.name ? withName(template, req.name) : template, notes };
-}
-
-/**
- * Name a scaffolded template IN ITS SOURCES, not only on the record. The package's name is read
- * back from the html (`<title>`, then the SPX definition's `description`) every time the bridge
- * re-reads the folder - `noacg validate` regenerates from exactly that read - so a name that sat
- * only on `template.name` was lost on the first round trip: the regenerated package took the
- * design's own name, wrote a SECOND `<slug>.html` + `<slug>.ograf.json` beside the first, and the
- * folder stopped being one graphic. Found by walking a scaffolded package through validate
- * (2026-08-22); pinned by e2e/bridge.spec.ts.
- */
-function withName(template: SpxTemplate, name: string): SpxTemplate {
-  const settings = { ...template.settings, description: name };
-  const titleText = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  let html = replaceDefinitionInHtml(template.html, settings, template.fields);
-  html = /<title[^>]*>[^<]*<\/title>/i.test(html)
-    ? html.replace(/(<title[^>]*>)[^<]*(<\/title>)/i, `$1${titleText}$2`)
-    : html.replace(/<head([^>]*)>/i, `<head$1>\n  <title>${titleText}</title>`);
-  return { ...template, name, settings, html };
+  return { template: req.name ? nameTemplate(template, req.name) : template, notes };
 }
 
 // ── Normalize (an authored ANIMATION region -> NoaCG's keyframe data) ────────

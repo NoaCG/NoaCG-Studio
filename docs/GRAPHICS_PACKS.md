@@ -81,6 +81,25 @@ survive Export then Import. Install from the shelf stamps every graphic with the
 whatever a file entry says. The stamp lives on the record and in this file, never inside the
 template: the SPX, OGraf and CasparCG exports stay plain templates.
 
+**Recipe entries and a brand (optional, additive).** A graphic entry may name a catalog design
+instead of carrying code, and a pack may carry one brand as data:
+
+```jsonc
+"graphics": [
+  { "name": "Speaker", "recipe": { "type": "lower-third", "design": "lt11", "palette": "ivory", "font": "inter",
+    "values": { "name": "Anna Andersson", "title": "Pastor" } }, "layer": 20 }
+],
+"cues": [{ "graphic": "Speaker", "label": "Anna", "values": { "f0": "Anna Andersson", "f1": "Pastor" } }],
+"brand": { "id": "<look id>", "name": "Church", "look": { "palette": { … }, "fontId": "inter", "customFont": null, "logo": { "path": "images/mark.png", "data": "data:image/png;base64,…" } } }
+```
+
+`values` use the type's LOGICAL keys (the catalog index's field keys); cues use SPX ids as
+everywhere else (a type's keys compile to `f0..fN` in declaration order). `installPack` builds
+each recipe with `templates/types/recipeTemplate.ts` (the bridge scaffold's own function), applies
+the brand to every graphic with `applyLookToTemplate`, points the production at the look when the
+installing account has one of that id, then validates as for any graphic. This is what the remote
+MCP connector sends (docs/REMOTE_MCP_PLAN.md, key decision 5): the server never runs graphic code.
+
 ## The three pieces
 
 - **`src/packs/graphicsPack.ts`** — the owner: `parsePack` (refuse-with-reason, never coerce),

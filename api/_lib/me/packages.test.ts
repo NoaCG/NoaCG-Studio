@@ -106,6 +106,34 @@ test('the shape guard admits a pack file and refuses what is not one', () => {
   assert.deepEqual(shaped.pack.cues, [{ graphic: 'A', label: 'Go', values: {} }]);
 });
 
+test('a RECIPE entry and a BRAND are part of the format, narrowed like the rest', () => {
+  const recipe = { name: 'Speaker', recipe: { type: 'lower-third', design: 'lt01', palette: 'ivory', values: { name: 'Anna' }, evil: 1 }, layer: 20, html: '<script>x</script>' };
+  const brand = {
+    id: 'look-1',
+    name: 'Church',
+    evil: 1,
+    look: { styleTag: 'minimal', palette: { id: 'custom', name: 'Blue', accent: '#1d4ed8', text: '#fff', textDim: '#ccc', panel: '#012' }, fontId: 'inter', customFont: null, logo: { path: 'images/l.png', data: 'data:image/png;base64,AA' }, notes: 'x' },
+  };
+  const shaped = packageSaveShape(pack({ graphics: [recipe, entry('Round card')], cues: [{ graphic: 'Speaker', label: 'Anna', values: { f0: 'Anna' } }], brand }));
+  assert.ok(shaped.ok, shaped.ok ? '' : shaped.reason);
+  // A recipe carries no code: what is not the recipe's own never reaches the stored body.
+  assert.deepEqual(shaped.pack.graphics[0], { name: 'Speaker', recipe: { type: 'lower-third', design: 'lt01', palette: 'ivory', values: { name: 'Anna' } }, layer: 20 });
+  assert.equal('evil' in shaped.pack.brand!, false);
+  assert.equal('notes' in shaped.pack.brand!.look, false);
+  assert.deepEqual(shaped.pack.brand!.look.logo, { path: 'images/l.png', data: 'data:image/png;base64,AA' });
+
+  const refused = (graphics: unknown[], extra: Record<string, unknown> = {}) => packageSaveShape(pack({ graphics, cues: [], ...extra })).ok;
+  assert.equal(refused([{ name: 'A', recipe: { type: 'lower-third' } }]), false, 'a recipe needs a design');
+  assert.equal(refused([{ name: 'A', recipe: { type: 'lower third!', design: 'lt01' } }]), false, 'ids are catalog ids');
+  assert.equal(refused([{ name: 'A', recipe: { type: 'lower-third', design: 'lt01', values: { name: 1 } } }]), false, 'values are strings');
+  assert.equal(refused([{ name: 'A', recipe: { type: 'lower-third', design: 'lt01' } }], { brand: { name: 'B', look: { palette: {} } } }), false, 'a brand has a palette');
+  assert.equal(
+    refused([{ name: 'A', recipe: { type: 'lower-third', design: 'lt01' } }], { brand: { ...brand, look: { ...brand.look, logo: { path: 'l.png', data: 'https://x/l.png' } } } }),
+    false,
+    'a brand logo is inlined',
+  );
+});
+
 test('an anonymous caller is 401, a key without the permission is 403, a revoked key is 401', async () => {
   const store = await seeded();
   const handler = createPackagesHandler({ store, configured: () => true });

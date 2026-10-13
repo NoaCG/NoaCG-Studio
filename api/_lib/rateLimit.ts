@@ -282,3 +282,18 @@ export function checkConnectorRateLimit(req: Request): RateLimitDecision | null 
   const decision = hitRateLimit(`connector:${ipHash(req)}`, connectorRateLimitCaps(), Date.now());
   return decision.allowed ? null : decision;
 }
+
+/** Per PRINCIPAL on `noacg_send_package`, every call counted (a refused one too), so a chat
+ *  client stuck in a loop of sends is slowed whatever it sends. Ten a minute is far above a
+ *  person asking for a show and far below a loop filling their Home. */
+export function connectorSendRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('CONNECTOR_SEND_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('CONNECTOR_SEND_RATE_MAX', 10),
+  };
+}
+
+export function checkConnectorSendRateLimit(userId: string): RateLimitDecision | null {
+  const decision = hitRateLimit(`connector-send:${userId}`, connectorSendRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}

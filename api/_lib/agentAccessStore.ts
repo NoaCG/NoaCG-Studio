@@ -106,8 +106,10 @@ export interface NewWaitingPackage {
   name: string;
   description: string;
   graphicCount: number;
-  /** Provenance, never proof - the tool that uploaded it (`noacg-cli`). */
-  origin: { tool: string; version?: string };
+  /** Provenance, never proof - the tool that uploaded it: `noacg-cli` with its version, or
+   *  `noacg-connector` with the chat client's OAuth client id and the grant it came through
+   *  (docs/REMOTE_MCP_PLAN.md key decision 8). */
+  origin: { tool: string; version?: string; client?: string; grant?: string };
   /** The pack file itself (`noacg-pack` v1), already narrowed by packageSaveShape. */
   body: unknown;
 }

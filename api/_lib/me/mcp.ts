@@ -27,9 +27,9 @@
 // while that row is live. A token minted for any other client of the same Auth project is
 // anonymous here.
 //
-// THE TOOLS: the read tools (noacg_catalog, noacg_library) live in connectorTools.ts; phase 4 adds
-// noacg_send_package. Each names the permission it needs, and `tools/call` asks `permits()`
-// before running one.
+// THE TOOLS: the read tools (noacg_catalog, noacg_library) live in connectorTools.ts, the send
+// tool (noacg_send_package) in connectorSend.ts. Each names the permission it needs, and
+// `tools/call` asks `permits()` before running one.
 
 import { bearerToken, json, readJson } from '../http.js';
 import { authServerUrl, connectorEnabled } from '../connectorAuth.js';
@@ -37,6 +37,7 @@ import { checkConnectorRateLimit } from '../rateLimit.js';
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { permits, type PermissionKey, type Principal } from '../../../src/entitlements/permissions.js';
 import { createReadTools } from './connectorTools.js';
+import { createSendTool } from './connectorSend.js';
 
 export const MCP_PATH = '/mcp';
 export const PROTECTED_RESOURCE_PATH = '/.well-known/oauth-protected-resource/mcp';
@@ -50,7 +51,7 @@ const SERVER_INFO = { name: 'noacg', title: 'NoaCG Studio', version: '1.0.0' };
 const CAPABILITIES = { tools: { listChanged: false } };
 /** What a 2025-era client hands its model about this server beside the tools. Costs no schema. */
 const INSTRUCTIONS =
-  "NoaCG Studio makes broadcast graphics. Find ready-made designs with noacg_catalog, and the user's own graphics, brands and productions with noacg_library.";
+  "NoaCG Studio makes broadcast graphics. Find ready-made designs with noacg_catalog and the user's own graphics, brands and productions with noacg_library, then put a production's graphics and rundown on their Home with noacg_send_package.";
 const META_VERSION = 'io.modelcontextprotocol/protocolVersion';
 
 /** Comfortably above any tool call the connector takes; a package is recipes and ids, not code. */
@@ -82,7 +83,7 @@ export interface McpToolContext {
 }
 
 /** The connector's tools. */
-export const TOOLS: readonly McpTool[] = createReadTools();
+export const TOOLS: readonly McpTool[] = [...createReadTools(), createSendTool()];
 
 export interface McpDeps extends PrincipalDeps {
   enabled?: () => Promise<boolean>;

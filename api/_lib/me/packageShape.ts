@@ -22,7 +22,15 @@ export const PACKAGE_LIMITS = {
   cueLabel: 120,
   cueValues: 200,
   cueNote: 500,
+  /** A recipe's ids (type, design, palette, font) and a value's key. */
+  recipeId: 80,
+  recipeValue: 5000,
+  brandColor: 100,
+  brandTokens: 40,
 } as const;
+
+/** A catalog id as the index writes them. */
+const CATALOG_ID = /^[a-z0-9][a-z0-9-]*$/i;
 
 /** The one thing a template's HTML must visibly carry - tested by PRESENCE, never by parsing. */
 const DEFINITION_MARKER = /SPXGCTemplateDefinition\s*=/;
@@ -52,14 +60,31 @@ interface ShapedGraphic {
   cues?: ShapedCue[];
 }
 
+/** A RECIPE entry (src/packs/graphicsPack.ts PackRecipeFile): a catalog design named by ids,
+ *  built by the studio at install. No code travels, so there is none to size. */
+interface ShapedRecipe {
+  name: string;
+  recipe: { type: string; design: string; palette?: string; font?: string; values?: Record<string, string> };
+  layer?: number;
+  cues?: ShapedCue[];
+}
+
+/** The pack's brand (src/packs/graphicsPack.ts PackBrand): a saved look as data. */
+interface ShapedBrand {
+  id?: string;
+  name: string;
+  look: Record<string, unknown>;
+}
+
 /** The narrowed pack, ready to store as the row's body. */
 export interface ShapedPackage {
   format: 'noacg-pack';
   version: 1;
   name: string;
   description: string;
-  graphics: ShapedGraphic[];
+  graphics: Array<ShapedGraphic | ShapedRecipe>;
   cues?: ShapedCue[];
+  brand?: ShapedBrand;
 }
 
 export type PackageShapeResult = { ok: true; pack: ShapedPackage } | { ok: false; reason: string };
@@ -105,7 +130,7 @@ export function packageSaveShape(body: unknown): PackageShapeResult {
   if (!Array.isArray(rawGraphics) || rawGraphics.length === 0) return { ok: false, reason: 'The package holds no graphics.' };
   if (rawGraphics.length > PACKAGE_LIMITS.graphics) return { ok: false, reason: `A package holds at most ${PACKAGE_LIMITS.graphics} graphics.` };
 
-  const graphics: ShapedGraphic[] = [];
+  const graphics: Array<ShapedGraphic | ShapedRecipe> = [];
   const names = new Set<string>();
   let perGraphicCues = 0;
   for (const [i, g] of rawGraphics.entries()) {
@@ -116,6 +141,27 @@ export function packageSaveShape(body: unknown): PackageShapeResult {
     // The production pool keys on the name, so two graphics sharing one would collapse into one.
     if (names.has(gName)) return { ok: false, reason: `Two graphics are both named "${gName}".` };
     names.add(gName);
+    if (g.layer !== undefined && (typeof g.layer !== 'number' || !Number.isInteger(g.layer) || g.layer < 1 || g.layer > 100)) {
+      return { ok: false, reason: `"${gName}": \`layer\` must be a whole number from 1 to 100.` };
+    }
+    const cues: ShapedCue[] = [];
+    if (g.cues !== undefined) {
+      if (!Array.isArray(g.cues)) return { ok: false, reason: `"${gName}": \`cues\` must be an array.` };
+      for (const [j, c] of g.cues.entries()) {
+        const cue = shapeCue(c, `"${gName}" cue ${j + 1}`, false);
+        if (typeof cue === 'string') return { ok: false, reason: cue };
+        cues.push(cue);
+      }
+      perGraphicCues += cues.length;
+    }
+    const playout = { ...(typeof g.layer === 'number' ? { layer: g.layer } : {}), ...(cues.length ? { cues } : {}) };
+
+    if (g.recipe !== undefined) {
+      const recipe = shapeRecipe(g.recipe, gName);
+      if (typeof recipe === 'string') return { ok: false, reason: recipe };
+      graphics.push({ name: gName, recipe, ...playout });
+      continue;
+    }
     if (!isTemplateType(g.type)) return { ok: false, reason: `"${gName}" has an unknown graphic type.` };
     const html = typeof g.html === 'string' ? g.html : '';
     const css = typeof g.css === 'string' ? g.css : '';
@@ -125,13 +171,7 @@ export function packageSaveShape(body: unknown): PackageShapeResult {
       return { ok: false, reason: `"${gName}" exceeds the template size limits.` };
     }
 
-    const shaped: ShapedGraphic = { name: gName, type: g.type, html, css, js };
-    if (g.layer !== undefined) {
-      if (typeof g.layer !== 'number' || !Number.isInteger(g.layer) || g.layer < 1 || g.layer > 100) {
-        return { ok: false, reason: `"${gName}": \`layer\` must be a whole number from 1 to 100.` };
-      }
-      shaped.layer = g.layer;
-    }
+    const shaped: ShapedGraphic = { name: gName, type: g.type, html, css, js, ...playout };
     if (g.assets !== undefined) {
       if (!Array.isArray(g.assets) || g.assets.length > SHAPE_LIMITS.assetCount) return { ok: false, reason: `"${gName}": at most ${SHAPE_LIMITS.assetCount} assets.` };
       let bytes = 0;
@@ -155,17 +195,6 @@ export function packageSaveShape(body: unknown): PackageShapeResult {
       if (typeof g.fps !== 'number' || !Number.isFinite(g.fps) || g.fps <= 0 || g.fps > 240) return { ok: false, reason: `"${gName}": \`fps\` must be a positive number.` };
       shaped.fps = g.fps;
     }
-    if (g.cues !== undefined) {
-      if (!Array.isArray(g.cues)) return { ok: false, reason: `"${gName}": \`cues\` must be an array.` };
-      const cues: ShapedCue[] = [];
-      for (const [j, c] of g.cues.entries()) {
-        const cue = shapeCue(c, `"${gName}" cue ${j + 1}`, false);
-        if (typeof cue === 'string') return { ok: false, reason: cue };
-        cues.push(cue);
-      }
-      perGraphicCues += cues.length;
-      if (cues.length) shaped.cues = cues;
-    }
     graphics.push(shaped);
   }
 
@@ -184,6 +213,13 @@ export function packageSaveShape(body: unknown): PackageShapeResult {
   }
   if (perGraphicCues + (rundown?.length ?? 0) > PACKAGE_LIMITS.cues) return { ok: false, reason: `A package carries at most ${PACKAGE_LIMITS.cues} cues.` };
 
+  let brand: ShapedBrand | undefined;
+  if (body.brand !== undefined) {
+    const shaped = shapeBrand(body.brand);
+    if (typeof shaped === 'string') return { ok: false, reason: shaped };
+    brand = shaped;
+  }
+
   return {
     ok: true,
     pack: {
@@ -193,6 +229,97 @@ export function packageSaveShape(body: unknown): PackageShapeResult {
       description,
       graphics,
       ...(rundown?.length ? { cues: rundown } : {}),
+      ...(brand ? { brand } : {}),
+    },
+  };
+}
+
+/** A recipe of catalog ids and string values, or the reason it is not one. Whether the ids exist
+ *  is answered where the catalog is: the connector checks them against the index before it
+ *  stores a package, and the studio's build refuses an unknown one at install. */
+function shapeRecipe(raw: unknown, gName: string): ShapedRecipe['recipe'] | string {
+  if (!isRecord(raw)) return `"${gName}": \`recipe\` must be an object.`;
+  const id = (v: unknown) => typeof v === 'string' && v.length <= PACKAGE_LIMITS.recipeId && CATALOG_ID.test(v);
+  if (!id(raw.type) || !id(raw.design)) return `"${gName}": a recipe needs a catalog \`type\` and \`design\` id.`;
+  for (const key of ['palette', 'font'] as const) {
+    if (raw[key] !== undefined && !id(raw[key])) return `"${gName}": the recipe's \`${key}\` must be a catalog id.`;
+  }
+  const recipe: ShapedRecipe['recipe'] = { type: raw.type as string, design: raw.design as string };
+  if (typeof raw.palette === 'string') recipe.palette = raw.palette;
+  if (typeof raw.font === 'string') recipe.font = raw.font;
+  if (raw.values !== undefined) {
+    if (!isRecord(raw.values)) return `"${gName}": the recipe's \`values\` must be an object of strings.`;
+    const entries = Object.entries(raw.values);
+    if (
+      entries.length > PACKAGE_LIMITS.cueValues ||
+      entries.some(([k, v]) => k.length > PACKAGE_LIMITS.recipeId || typeof v !== 'string' || v.length > PACKAGE_LIMITS.recipeValue)
+    ) {
+      return `"${gName}": the recipe's \`values\` must hold at most ${PACKAGE_LIMITS.cueValues} strings of at most ${PACKAGE_LIMITS.recipeValue} characters.`;
+    }
+    if (entries.length) recipe.values = Object.fromEntries(entries) as Record<string, string>;
+  }
+  return recipe;
+}
+
+const isDataAsset = (v: unknown): v is { path: string; data: string } =>
+  isRecord(v) &&
+  typeof v.path === 'string' &&
+  v.path.length > 0 &&
+  v.path.length <= SHAPE_LIMITS.assetPath &&
+  !v.path.includes('..') &&
+  !v.path.startsWith('/') &&
+  typeof v.data === 'string' &&
+  v.data.startsWith('data:');
+
+/** The pack's brand narrowed to a look's own keys (model/brand.ts ProjectBrand), or the reason
+ *  it is not one. Its font file and logo are data URLs and count against the assets cap. */
+function shapeBrand(raw: unknown): ShapedBrand | string {
+  const bad = "The package's `brand` must be { name, look } with a look's palette, font and logo.";
+  if (!isRecord(raw) || !isRecord(raw.look)) return bad;
+  const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+  if (!name || name.length > SHAPE_LIMITS.name) return bad;
+  if (raw.id !== undefined && (typeof raw.id !== 'string' || raw.id.length > PACKAGE_LIMITS.recipeId)) return bad;
+  const look = raw.look;
+  const p = look.palette;
+  const color = (v: unknown) => typeof v === 'string' && v.length <= PACKAGE_LIMITS.brandColor;
+  if (!isRecord(p) || ![p.accent, p.text, p.textDim, p.panel].every(color)) return bad;
+  const palette = {
+    id: typeof p.id === 'string' ? p.id.slice(0, PACKAGE_LIMITS.recipeId) : 'custom',
+    name: typeof p.name === 'string' ? p.name.slice(0, SHAPE_LIMITS.name) : 'Brand',
+    styleTags: Array.isArray(p.styleTags) ? p.styleTags.filter((t) => typeof t === 'string' && t.length <= 40).slice(0, 10) : [],
+    accent: p.accent,
+    text: p.text,
+    textDim: p.textDim,
+    panel: p.panel,
+  };
+  let bytes = 0;
+  let customFont: Record<string, unknown> | null = null;
+  if (look.customFont !== undefined && look.customFont !== null) {
+    const f = look.customFont;
+    if (!isRecord(f) || typeof f.family !== 'string' || f.family.length > SHAPE_LIMITS.name || typeof f.format !== 'string' || f.format.length > 20 || !isDataAsset(f.asset)) return bad;
+    customFont = { family: f.family, format: f.format, asset: { path: f.asset.path, data: f.asset.data }, ...(typeof f.tabularFigures === 'boolean' ? { tabularFigures: f.tabularFigures } : {}) };
+    bytes += f.asset.data.length;
+  }
+  if (look.logo !== undefined && !isDataAsset(look.logo)) return bad;
+  if (isDataAsset(look.logo)) bytes += look.logo.data.length;
+  if (bytes > SHAPE_LIMITS.assetsTotal) return `The brand's font and logo exceed ${SHAPE_LIMITS.assetsTotal} characters.`;
+  let tokens: Record<string, string> | undefined;
+  if (look.tokens !== undefined) {
+    if (!isRecord(look.tokens)) return bad;
+    const entries = Object.entries(look.tokens).filter(([k, v]) => k.length <= 40 && typeof v === 'string' && v.length <= 200);
+    if (entries.length > PACKAGE_LIMITS.brandTokens) return bad;
+    if (entries.length) tokens = Object.fromEntries(entries) as Record<string, string>;
+  }
+  return {
+    ...(typeof raw.id === 'string' && raw.id ? { id: raw.id } : {}),
+    name,
+    look: {
+      styleTag: typeof look.styleTag === 'string' ? look.styleTag.slice(0, 40) : 'minimal',
+      palette,
+      fontId: typeof look.fontId === 'string' && look.fontId.length <= PACKAGE_LIMITS.recipeId ? look.fontId : null,
+      customFont,
+      ...(tokens ? { tokens } : {}),
+      ...(isDataAsset(look.logo) ? { logo: { path: look.logo.path, data: look.logo.data } } : {}),
     },
   };
 }
