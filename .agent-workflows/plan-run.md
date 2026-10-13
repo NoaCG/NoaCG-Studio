@@ -8,8 +8,8 @@ checked by another, the next only after the check passed. Output: phases on `mai
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
 - `guided-mod`: `docs/work-specs/guided-mod/spec.md`; phases, acceptance and phase notes are in it.
 - `production-page`: `docs/work-specs/production-page-refactor/spec.md`; the same.
-- `ci-plan`: `docs/work-specs/ci-plan-reliability/spec.md`; the same.
-- `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; the same.
+- `ci-plan`: `docs/work-specs/ci-plan-reliability/spec.md`; `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; the same.
+- `wizard-shell`: `docs/work-specs/wizard-structure/spec.md`; `wizard-ai`: `docs/work-specs/wizard-ai/spec.md` (its child); the same, and the two may run beside each other.
 
 ## Boundaries
 

@@ -1,0 +1,320 @@
+# Create with AI step: a thin step over a Node-tested run module
+
+Child of `docs/work-specs/wizard-structure/spec.md` (the parent; its sections are cited as
+"parent section N"). Baseline: main `dba61b8e1`, 2026-10-13; every line number below is of that
+revision and, unless a path is given, of `src/components/wizard/steps/AiStep.tsx`. Authority:
+owner, 2026-10-13 (see `work.json`). Plan for `/plan-run wizard-ai`: five sequential phases, each
+built by one session and checked by another on `main`, runnable beside `wizard-shell` on
+disjoint files (parent section 8). Inherits AC-1, AC-2, AC-3, AC-9, AC-10, AC-11, AC-12 and
+AC-15 from the parent as written there; AC-13 and AC-14 are this plan's own.
+
+## Verdict
+
+Extract the step's React-free orchestration into `src/ai/creation.ts` behind injected IO,
+quarantine the Pro-only code without deleting it, and bring the step's run chain back under
+test first. Nothing the user sees changes: the coding-agent route, the one composer, the three
+directions, refine, undo, fix, the settings sheet, the result card and the Finish hand-off stay
+as they are. What changes is that the tier dispatch, refinement and chassis rebuild run and are
+tested in Node with a stub provider and deferred answers, and that the 2,152-line step loses the
+roughly 400 lines that cannot run today.
+
+Not promised: a decision on which engine survives (issue #771, the owner's), or that the step
+becomes small; the markup (999 lines) stays where it is.
+
+Biggest risk: a pending generation that completes after the reader left or reset the walk. The
+step stays mounted hidden on Finish (`CreationWizard.tsx:1964-1968`) and the shell renders null
+when closed, so today a late answer still runs `showChange` and `onResult`
+(`CreationWizard.tsx:1977`); A1 pins what happens, and the module's contract keeps it.
+
+## Why
+
+`AiStep.tsx` is 2,152 lines (68 commits in 90 days; 299 lines on 2026-07-08): imports 1-101 (51
+statements, 64 symbols from 22 `src/ai/` paths, one through `src/ai/index.ts`, which exports only
+`getAiProvider`), props 102-140, React-free helpers 141-268, hooks and handlers 287-1153 (29
+`useState`, 9 `useEffect`, 6 refs, no `useCallback`), markup 1154-2152. About 415 lines are
+Pro-only and cannot run: `proMode` is always false (363) because the door is closed pending
+#771 and the branches were deliberately left intact (346-357). About 600 to 650 lines have no
+JSX and no hook: `generate` 854-1068 (five tier branches), `run` 718-747, `applyRefinement`
+1092-1114, `rebuildOnChassis` 769-793, `sendChat` 576-595, `contextFor` 801-822, the tier
+derivations 332-402 and three policy effects 375-382, 449-461, 464-469; none of it needs
+`WizardDraft` (the step's props do not take the draft). The `AIProvider` interface
+(`src/ai/provider.ts`) is used for five calls; `brainstorm`, the Pro flow (`pro/session`,
+`pro/language/*`, `pro/brief`), `lite/pipeline.assembleGroundedTemplate` and `lite/client`
+bypass it, and seven Pro functions have no caller but this file. The run chain (create, three
+directions, apply, refine, undo, fix, thread, Finish) has no live offline test: 31 of the 33
+tests in `e2e/ai.spec.ts` skip in `beforeEach` (213-231) because they finish through the retired
+editor door (`finishInEditor`, 205-208; issue #800).
+
+## Goal
+
+The step becomes a thin component over `src/ai/creation.ts`: it owns the composer, the
+thread, uploads, settings and the result card; the module owns which provider call runs for
+which tier with which checks, how a result is refined or rebuilt, and what a result carries back.
+Every moved rule is pinned by a test that existed or was written before the move. The Pro code
+compiles and is reachable by the two edits the code names, from a file of its own.
+
+## Non-goals
+
+Deciding the engine or deleting Pro code (#771); changing `src/ai/lite/pipeline.ts`,
+`src/ai/pro/language/pipeline.ts` or any provider; the editor's AI panel
+(`src/components/AIPromptPanel.tsx`, the other consumer of `getAiProvider`); the shell
+(`CreationWizard.tsx`, the parent's); copy, test ids, the settings sheet's behaviour, the
+coding-agent route, consent; the `MoreControlPanel` beyond lifting one import.
+
+## 1. Decisions
+
+### 1.1 Owner decisions (2026-10-13)
+
+1. **Both tracks** (parent 1.1): this plan is authorised beside the shell plan.
+2. **Pro code is preserved, not deleted.** The branches are quarantined and keep compiling.
+
+### 1.2 Derived decisions (revertible; each says how)
+
+- **D1 The run module lives in `src/ai/creation.ts`.** It is harness orchestration
+  (`docs/ARCHITECTURE.md` section 4: prompt, harness, provider work lives in `ai/`), it needs
+  `GenerateContext`, `DesignSpec`, `AiTemplateChange`, `SpxValidator` and
+  `StructuralIntentChecker` from `src/ai/`, `ImportedTemplateResult` and `AssetFile` from
+  `model/`, and nothing from `components/`; `ai -> validation` is an existing edge, so no table
+  change. Plan width for a change there is 15 to 21 specs against 43 for the step, and the
+  harness benches can drive the same tier switch. The injection shape already exists:
+  `GenerateOptions.validate/structuralCheck/onProgress` (`src/ai/provider.ts:85-111`) and
+  `generateProGraphic(input, route, { session, validate, onStage })`
+  (`src/ai/pro/language/pipeline.ts:98`). Revert: move the file under `wizard/ai/run.ts`.
+- **D2 The IO shape.** `runCreation(input, io)` takes `{ provider: (profile?) => AIProvider,
+  validate, structuralCheck, probeMark, onProgress, now }`; the step constructs `validate` as
+  today (`productionSpxValidator` at 657-660 wrapped by `withSpecChecks` at 661) and passes it.
+  Revert: inline.
+- **D3 Validation is preserved per route, as today.** The routes that forward `validate` keep
+  forwarding it: the Lite `generate` (1028-1035, with `profile: 'lite'`), `generateAlternatives`
+  (1044-1052, with `structuralCheck`), `convertImport` (871-889, through `run`), `modify`
+  (1092-1114, with the spec when refining at spec level). The raw route (1037-1043, harness off)
+  passes `onProgress` only and its output is screened afterwards in `showChange` (663-683:
+  `validation ?? validateTemplate(template)` merged through `mergeSafety`). The guard is a Node
+  test of `creation.ts` at these boundaries: forwarding per route, the raw screen, and the
+  step still constructing the validator. `scripts/ai-lite-bench.test.mjs:83-87`, which asserts
+  the text `productionSpxValidator(` in `AiStep.tsx`, is updated in the same pull request to the
+  boundary that holds the guarantee after the move; the test follows the architecture. The
+  literal wording of `wizard/inject-harness-validator-every-provider-call` against the raw route
+  is recorded for A5's rule pass, not changed here. Revert: none, the behaviour is unchanged.
+- **D4 Pro quarantine.** The Pro generate branch (890-1027) becomes the `'pro'` tier of
+  `creation.ts` that the step never selects; the Pro markup (1743-1824, 1935-2021, 1336-1342,
+  2106-2111) becomes `wizard/ai/ProPanel.tsx` rendered behind the existing `proMode &&`; the Pro
+  state and effects (305-330, 338-345, 462-469, 486-497) move with it. The disabled implementation
+  is preserved and compiles; reopening it is what the comment at 352-357 says (restore
+  `proOffered` and give `tier` a branch to `'pro'`) plus the server's eligibility, not one flag.
+  The dollar cost at 2017 (it contradicts `wizard/show-money-result-card-prices-codebase`) and
+  the stale records `contracts/records/ai/2026-09-07-*` (they cite `TIER_OPTIONS` and
+  `proOffered` at lines that no longer exist) are noted for A5. Revert: inline the panel.
+- **D5 The step-to-step edge goes.** `steps/ai/MoreControlPanel.tsx:39` imports `pickerHex`
+  from `../StyleStep`; A3 lifts it to a leaf (`model/cssVars` if it is a pure colour helper,
+  else `wizard/colour.ts`) so the AI folder never imports a template step. Revert: keep it.
+- **D6 Folder move by shim.** A4 moves `AiStep.tsx` and `steps/ai/*` under
+  `src/components/wizard/ai/` and leaves `steps/AiStep.tsx` as a one-line re-export, so the shell's
+  lazy import (`CreationWizard.tsx:100`) is untouched by this track; the parent's S7 retargets it
+  and deletes the shim. The move is needed so that Codex loads the rules scoped
+  `src/components/wizard/steps/ai/**` for the step itself once they are rescoped to
+  `wizard/ai/**` (Claude loads by path and is unaffected). Covers headers (11 specs name
+  `steps/{AiStep.tsx,ai/**}`), `contracts/index.md:523`, `scripts/e2e-affected.test.mjs:261` and
+  the cochange prefixes (`scripts/metrics/cochange.mjs:31` already lists `wizard/ai/`) are updated
+  in the same pull request. Revert: `git mv` back.
+- **D7 No new ARCHITECTURE edge, no new seam promise.** `src/ai/index.ts` keeps exporting
+  `getAiProvider`; `creation.ts` is a named module the step imports directly, as the step imports
+  the pipelines today. Widening the index is a later decision when a second consumer exists.
+- **D8 Markers and rule edits only in A4 and A5**, in the order parent section 8 fixes.
+- **D9 Never weaken, defects apart:** parent D9 and D10 apply unchanged.
+
+### 1.3 Suspected existing behaviour to pin (A1 decides on evidence)
+
+- **A1 Late completion.** A routed `/api/ai/generate` answer released after the reader pressed
+  the close control, Home, or "+ New graphic" (held walk) while `busy`: today `run` resolves on a
+  still-mounted component and calls `showChange`, which calls `onResult`; the discard telemetry
+  (`CreationWizard.tsx:721-728`) fires on close only for a result that existed at close. A1
+  records what the shell holds afterwards (`aiResult` after a fresh open; the thread) as today's
+  behaviour; any change is its own fix.
+- **A2 The dead doors.** The AI package doors (`CreationWizard.tsx:1242-1266`) and the cost line
+  (2017) are unreachable; they move with the quarantine and are not behaviour.
+
+## 2. Module boundaries
+
+| Module | Responsibility | Owns | Runtime imports / injected IO | Interface | Benefit |
+|---|---|---|---|---|---|
+| `src/ai/creation.ts` | the tier dispatch, refinement and chassis rebuild | nothing | `ai/provider` (types), `ai/lite/pipeline` (`assembleGroundedTemplate`), `ai/pro/*` (the quarantined tier), `ai/spec/*`, `ai/brainstorm`, `model/*` types / `provider`, `validate`, `structuralCheck`, `probeMark`, `onProgress` | `runCreation(input, io)`, `refineResult(result, instruction, level, io)`, `rebuildOnChassis(spec, designId, io)`, `chat(turns, io)`; results are `AiTemplateChange` values with their metadata (section 4) | about 600 React-free lines leave the component; Node tests with a stub provider and deferred answers; the benches reuse the dispatch |
+| `src/components/wizard/ai/AiStep.tsx` (A4; before that `steps/AiStep.tsx`) | the step's screen state and markup | prompt, thread, uploads, settings, result card state, busy, error | react; `creation.ts`; `validation/*` for the validator it constructs | today's ten props, unchanged | the component holds screen state and rendering only |
+| `src/components/wizard/ai/ProPanel.tsx` | the Pro markup, quarantined | nothing | react | today's values as props | the live file loses the markup that cannot render; nothing is deleted |
+| `scripts/ai-creation.test.mjs` | the Node guard | nothing | rolldown `load()` as `scripts/field-auto-map.test.mjs:30-40` | `// guards: src/ai/creation.ts` | the first test of the run chain outside Playwright |
+
+Not made: a widened `src/ai/index.ts`; a generic "AI session" object; a change to the Lite or
+Pro pipelines; a store for the thread.
+
+## 3. Safety net
+
+### 3.1 Environments
+
+Offline Playwright with routed provider answers, the pattern `e2e/ai.spec.ts` already uses
+(`page.route('/api/ai/generate', ...)` at 238-241 answering `toolUse('emit_template', ...)`); a
+held answer is a route that resolves on a deferred promise. Node tests load `creation.ts`
+through rolldown with a stub `provider` whose calls return deferred promises.
+
+### 3.2 Inventory (reconciled against `origin/main` on 2026-10-13)
+
+Live: `ai.spec.ts` 2 of 33 (arrival on the coding-agent route, a template dropped before the
+choice), `ai-tiers` (8: settings sheet, route card, install copy, own-key providers, credential
+naming, own-account route), `ai-depth` (2: example prompts, brainstorm chat), `ai-consent` (1 of
+2), `pro` (2: the tier is absent when it cannot run). Skipped at runtime (#800): `ai.spec.ts`
+31 of 33, `ai-lite` 2, `ai-more-control` 3, `adapt-first` 3, `design-rules-product` 10,
+`image-purpose` 5 of 6. Configured only: `configured/pro-wizard.spec.ts` (skips without
+credentials). Sixteen specs drive the step through `e2e/_ai-step.ts chooseNoacgAgent`. Node:
+`scripts/ai-lite-bench.test.mjs:83-87` reads `AiStep.tsx` as text.
+
+### 3.3 What A1 brings back and adds
+
+| Behaviour (step code) | Proved today | A1 |
+|---|---|---|
+| Create: one raw call with the harness off (1037-1043) | ai.spec 233 (skipped) | revived through the export door: the routed tool list and the result card's verdict |
+| Create: three directions, pass or fail marks, first passing selected (1044-1067) | ai.spec (skipped) | revived; `data-*` of the direction cards and the verdict class |
+| Pick a direction, refine in place, undo (750-754, 1092-1114, 1144-1150) | ai.spec (skipped) | revived |
+| Fix the findings (1132-1141) | ai.spec (skipped) | revived |
+| Thread, archive, restore a past generation (563-574, 1071-1081) | ai.spec (skipped) | revived |
+| Convert an imported template (871-889) | ai.spec (skipped) | revived |
+| Lite status, allowance, unsupported brief (1028-1035, `LiteUnsupportedError`) | ai-lite (skipped) | revived |
+| Finish from the AI result through export and the production door | ai.spec (skipped, editor door) | revived through `wz-finish-export` and the production door; the editor door assertion is replaced by the library record's name |
+| Late completion (1.3 A1) | none | new: hold the routed answer, close the wizard, release; assert what a fresh open shows |
+
+Revivals rewrite setup and the final assertion only (export window or library record instead of
+the old editor's topbar), never the behaviour assertions in between (parent D9); each revived
+section is a `## Test maintenance` entry if a section is retired instead.
+
+## 4. The run contract (reconciled against the code)
+
+| Route | Selected when (332-402, 854-1068) | Provider call and options | Result shape | Progress and errors |
+|---|---|---|---|---|
+| Convert | an imported template, confirmed, own key (871-889) | `convertImport(brief, template, context, { validate, structuralCheck, onProgress })` through `run` | one `AiTemplateChange`; replaces the directions; `clearStagedSelection` | `busy` from `onProgress`; errors to `error`; `LiteUnsupportedError.suggestedBrief` appended |
+| Lite | `liteActive` (1028-1035) | `getAiProvider('lite').generate(brief, context, { validate, structuralCheck, onProgress, profile: 'lite' })` through `run`; Lite status reloaded after | as Convert | as Convert |
+| Raw | own key, harness off (1037-1043) | `generateRaw(brief, context, { onProgress })` through `run`; the output is screened in `showChange` with `validateTemplate` + `mergeSafety` | as Convert | as Convert |
+| Three directions | own key, harness on (1044-1067) | `generateAlternatives(brief, context, { validate, structuralCheck, onProgress })` | the list as `alternatives` and `originals`; first passing selected; `stagePick`; `recordSpend` | `busy` set by the step; errors to `error` |
+| Pro | never (`proMode` false) | `generateProGraphic` and the package loop (890-1027) | kept as written, quarantined | kept |
+| Refine, fix | a result stands (1092-1114) | `getAiProvider(lite ? 'lite' : undefined).modify(instruction, result, context, { validate, onProgress, profile?, spec? })` | replaces the selected direction in place; `originals` untouched; `stagePick`; `recordSpend` | as Convert |
+| Rebuild on another design | a shortlist entry picked (769-793) | no model call: `assembleGroundedTemplate` with the same spec | replaces the selected direction; no spend | none |
+| Talk | the composer in talk mode (576-595) | `brainstorm(turns)` (bypasses the provider today; stays so) | a talk turn | `chatBusy` |
+
+What every result carries back to the shell (663-683, `CreationWizard.tsx:1977`): the template,
+the merged validation verdict, the spec, the generation id, the path and, for a Pro result, the
+package read from the WeakMap (497). The shell stores it as `AiResultState`
+(`CreationWizard.tsx:208-221`) and `applyAiProject` (1276-1302) commits the staged pick,
+records the Lite outcome and sets spec and thread on the store. Late completion: parent of 1.3
+A1; the module returns the result to whoever awaits it and never touches React state, so the
+component decides what to do with a result that arrives after a reset, pinned by A1's test.
+Every row becomes a Node test in A2 with a stub provider whose call answers late, throws, or
+answers after the caller abandoned the run.
+
+## 5. Verification matrix
+
+Every phase runs `/check`, `npm run depcruise`, `node scripts/gates.mjs run --changed
+origin/main`, AC-9's scope fence and the Node files it adds; local targeted specs through the
+browser queue (`node scripts/e2e-runs.mjs --wait && npx playwright test <files>`); broad
+affected suites on GitHub Actions. Assessment A as parent section 6.
+
+| Phase | Local targeted specs | Node | Assessment | Measurement |
+|---|---|---|---|---|
+| A1 | ai, ai-tiers, ai-depth, ai-consent, ai-lite, pro, wizard-finish | ai-lite-bench | none | budget 2,152 installed; plan widths recorded |
+| A2 | the eleven specs whose covers name the step, the sixteen that drive it | ai-creation (every section 4 row, late and thrown answers), ai-lite-bench (updated) | A | none |
+| A3 | ai, ai-tiers, pro, ai-more-control (revived if cheap) | ai-creation extended | none | budget lowered |
+| A4 | the affected plan for the moved files | e2e-affected (pins updated) | none | plan widths, chain sizes after the marker |
+| A5 | the affected plan | all of the above | none | chain sizes, recorded in `docs/metrics/<date>-wizard-ai.md` |
+
+Evidence (`evidence/phase-<n>.md`) and revalidation as parent section 6.
+
+## 6. Parallel execution rules
+
+As parent section 8: this track writes only this spec and its `work.json`; owns
+`steps/AiStep.tsx`, `steps/ai/*`, the future `wizard/ai/`, `src/ai/*`, `e2e/_ai-step.ts`,
+`e2e/ai*.spec.ts`, `e2e/pro*.spec.ts`, `scripts/ai-lite-bench.test.mjs`,
+`scripts/ai-creation.test.mjs`; never edits `CreationWizard.tsx` (the shim keeps the lazy import
+valid); recompiles contracts only in A4 and A5, after the parent's S1a and before its S7; the
+coordinator reads `wizard-shell`'s ledger before A4 and records a `stop` if S1a has not landed.
+`scripts/e2e-affected.test.mjs` is edited in A4 only; the budgets directory takes one JSON for
+the step; `package.json` is not touched.
+
+## 7. Execution settings and how the owner starts this plan
+
+`/plan-run wizard-ai`, sequential, `wave-row` (Opus, high) builders, `wave-row-deciding` for
+A2's assessment; the same preflight as parent section 9 with this spec's `work.json`; the start
+template:
+
+```
+/plan-run wizard-ai until <date and time with UTC offset>
+```
+
+Continuation, expiry and the report follow the parent's section 10. This plan is never restarted
+from A1.
+
+## 8. Acceptance criteria
+
+Inherited as written in the parent: AC-1 (A1 on main before A2), AC-2, AC-3, AC-9, AC-10 (the
+step's budget installed at 2,152 and lowered by A3 and A4), AC-11 (A5), AC-12 (1.3), AC-15.
+
+### AC-13: The run module runs in Node and holds its contract
+`src/ai/creation.ts` has `scripts/ai-creation.test.mjs` with `// guards:`; every section 4 row
+is tested with a stub provider answering late, throwing, and answering after the caller
+abandoned the run; validation is forwarded per route exactly as section 4 says and the raw
+route's screen is tested; `AiStep.tsx` still constructs the validator; `npm run depcruise`
+passes with no config change; the step's eleven covering specs and the sixteen driving specs
+pass unchanged.
+
+### AC-14: The disabled Pro implementation is preserved
+Every Pro function the step called is still called from the quarantined tier or panel; the
+build type-checks with `proMode` false; a diff of the quarantined code against the original is
+a move, not a rewrite; nothing under `src/ai/pro/` changed.
+
+### AC-16: The run chain is live again
+The `ai.spec.ts` sections of section 3.3 run and pass on the offline gate (no runtime skip), and
+the late-completion test exists, before A2 lands.
+
+## Phases
+
+Each phase runs `/check` and the section 5 matrix and lands with `/queue-merge`; the builder
+adds the next phase's notes under `## Phase notes`. Allowed `src` files are exactly those named.
+
+1. **A1. Baseline on the existing step** (AC-1, AC-16, AC-10). Files: `e2e/ai.spec.ts`,
+   `e2e/ai-lite.spec.ts`, `e2e/_ai-step.ts`, the budget JSON for the step, `evidence/*`. No
+   `src/`. Revivals through the export door or the production door with routed answers; the
+   late-completion case added; nothing else.
+2. **A2. `src/ai/creation.ts`: the tier dispatch** (AC-2, AC-3, AC-13, AC-9). Files:
+   `src/ai/creation.ts`, `src/components/wizard/steps/AiStep.tsx` (calls the module; constructs
+   the validator), `scripts/ai-creation.test.mjs`, `scripts/ai-lite-bench.test.mjs` (the guard
+   points at the new boundary). Temporary interface: `refine`, `rebuild` and `chat` stay in the
+   step until A3.
+3. **A3. Refine, rebuild and chat into the module; the Pro quarantine; the lifted import**
+   (AC-2, AC-13, AC-14, AC-10). Files: `src/ai/creation.ts`, `steps/AiStep.tsx`,
+   `steps/ai/ProPanel.tsx`, `steps/ai/MoreControlPanel.tsx` (the `pickerHex` import), the leaf
+   that receives `pickerHex` (`src/model/cssVars.ts` or `src/components/wizard/colour.ts`),
+   `scripts/ai-creation.test.mjs`. Budget lowered.
+4. **A4. Folder move** (AC-2, AC-9, AC-11). After the parent's S1a. Files: `git mv` of
+   `steps/AiStep.tsx` and `steps/ai/*` to `src/components/wizard/ai/`, the one-line
+   `steps/AiStep.tsx` re-export, `src/components/wizard/ai/AGENTS.md` (marker), the eleven
+   covers headers, `scripts/e2e-affected.test.mjs`, `scripts/metrics/cochange.mjs` (the
+   prefixes), the rule scopes `steps/ai/** -> ai/**` and `steps/AiStep.tsx -> ai/AiStep.tsx`
+   through their rule files, the regenerated contracts. No logic change.
+5. **A5. Close-out** (AC-11). Files: `docs/metrics/<date>-wizard-ai.md`, the stale records
+   `contracts/records/ai/2026-09-07-*` (citations fixed), the rule pass through `npm run learn`
+   (the validator rule's wording against the raw route; retirements the quarantine allows), the
+   regenerated contracts, `evidence/*`. Lands before the parent's S7.
+
+## What the plan can demonstrate, and what stays uncertain
+
+Demonstrable: the run chain live on the offline gate again; every route's provider call and
+options pinned in Node; the same results under late and thrown answers; the step's size under
+a gate; the Pro code compiling from its own file. Uncertain: the engine decision (#771) and
+whether the quarantined code ever returns; the hosted Pro route, which no offline test reaches.
+
+## Readiness
+
+Before A1: this spec and `work.json` on `main`, `work-spec.mjs status` clean, the "Runnable
+plans" line present; `origin/main` CI green; the browser queue idle; `gh auth status` ok; no
+open plan run on these files; the owner's window supplied. Before A4: the parent's S1a landed.
+
+## Phase notes
+
+Each phase's pull request adds here what the next phase must allow for, newest first: the
+previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
+and the check's findings.
