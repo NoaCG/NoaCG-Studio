@@ -855,3 +855,65 @@ server. Test accounts were minted by the specs and deleted by them.
   the status from the branch list instead.
 - The job queue asked 4 GB free for the browser specs with about 2 GB free (Docker not running),
   so they were run directly, one worker, as phase 4 did.
+
+### Phase 5 check: FAIL (product), the runbook's off switch
+
+On `main` at f7facccb, 2026-10-13: a fresh local stack (CLI 2.111.0, volume recreated, 0091
+applied), this checkout's dev server, then one throwaway preview branch of production.
+
+- **The off command does not turn the connector off.** "Turning it off" sends
+  `{"oauth_server_enabled":false,"oauth_server_allow_dynamic_registration":false}`; the Management
+  API answers `400 "Both OAUTH_SERVER_ENABLED and OAUTH_SERVER_AUTHORIZATION_PATH must be provided
+  together when updating OAuth configuration"` and changes nothing. The `patch` helper only greps
+  for the key, so it prints nothing and the owner sees no error; on the branch the dev server
+  still served a connector token 80 s later and discovery still offered registration. With
+  `"oauth_server_authorization_path":"/"` added the call answered 200, and `/mcp`, the PRM and
+  `/api/me/connectors` answered 503 `connector_disabled` within 35 s. To fix: that body in
+  "Turning it off", and a `patch` that prints the error when its key is not in the answer
+  (the same silence would hide a failed step 2, 3 or 4).
+- **The rest of the runbook holds, run verbatim on the branch** (ref `ttncixlmgvdjkekfnxvx`):
+  step 1's signing-key grep printed its line on production, staging and the branch;
+  `check:migration-drift` says both hosted projects hold all 89 migrations; steps 2, 3 and 4
+  each printed `true`, and the dev server's `/mcp` then answered 401. The hook-off rollback
+  `{"hook_custom_access_token_enabled":false}` answered 200 on its own. The order is right
+  (emails, hook, OAuth server; OAuth off before hook off). The field names match production's
+  and staging's config, which were only read: OAuth server, hook and notifications off on both.
+- **#1083 lock, on evidence of my own** (an independent probe, not the spike; token from NoaCG's
+  own Allow), locally and on the branch alike: `GET`/`PUT /user` (metadata, password, email),
+  `POST /factors`, `DELETE /factors/{id}`, `/reauthenticate`, `/user/identities/authorize`,
+  `GET` and `DELETE /user/oauth/grants`, another client's request read and approved, and
+  `POST /logout?scope=global` each answered `400 bad_jwt - sub claim must be a UUID`; metadata,
+  email and factors unchanged, the own password and first-party session still worked, the
+  tools still answered. A refresh kept the lock. An `openid` request got 403 at Allow with no
+  grant; the consent page shows the reason in red above its buttons once Allow is pressed. A
+  request with no scope is recorded by Auth as `email` and gets no ID token. An ID token obtained by
+  approving `openid` straight at Auth is refused by `/mcp` and `/api/me/*` (401), while Auth's
+  `/user` accepts it (200), which is why Allow refuses `openid`. The spike: 14 of 14 locally
+  and on the branch (PostgREST and Storage refused there too).
+- **AC-1 to AC-4 in one scripted run:** the four connector specs together, one worker, no
+  retries, on the fresh local stack: 4 passed, 1 skipped (the 503 half, by design locally).
+  Screenshots looked at: the consent page (client name, the two labels), the Home row ("4
+  graphics · sent from a connected app"), and "Anna Andersson / PASTOR" on air in the brand's
+  blue.
+- **Off in production:** `POST` and `GET https://noacg.studio/mcp` (with and without a bearer),
+  the PRM and `/api/me/connectors` each answered 503 `connector_disabled`;
+  `/catalog-index.json` serves (95 KB). The skill's setup reference has the chat path in both
+  copies.
+- **User outcome:** a chat client's flow (sign in, consent, tools, send, Install on Home, on air)
+  works end to end locally and the lock holds on hosted Auth. Production is off. Switching on
+  is safe by the runbook, but switching off again is not until the off body is fixed.
+- **Not checked (needs a person):** Claude Code's `claude mcp add` sign-in and Claude.ai's
+  first connection.
+- **Hosted branch:** `connector-p5-check`, created 07:44:56 UTC and deleted 07:50:46. The
+  branch list then held only `main` and the branch's query endpoint answered 404 "Resource has
+  been removed". Micro compute for 6 minutes, under 0.02 USD.
+
+**Traps.**
+
+- *A local stack can start on a stale volume.* `supabase start` reused another session's volume
+  that was at 0090 and applied nothing new, so the spike failed 4 of 14 checks: no `noacg_uid`,
+  and the account endpoints were open (it changed the test account's password and signed it
+  out). Run `npx supabase@2.111.0 stop --no-backup` before `start` for a fresh stack, and check
+  `select max(version) from supabase_migrations.schema_migrations`.
+- *The off-switch failure is silent* because `patch` greps for success. Read the HTTP status
+  when testing any runbook call.
