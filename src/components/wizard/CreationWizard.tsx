@@ -476,14 +476,16 @@ export default function CreationWizard() {
   useEffect(() => {
     if (stepRef.current) stepRef.current.scrollTop = 0;
   }, [step, mode]);
-  // A new mode is a new walk, with other steps; declared first, so a mode pick that also moves
-  // the step resets before the step is counted.
+  // A new mode is a new walk, with other steps, and it starts on the step the mode changed on.
+  // A dropped file turns the design walk into the file walk without moving the reader, so a
+  // reset to 0 there sent Continue back to Entry with the file out of sight.
+  const lastMode = useRef(mode);
   useEffect(() => {
-    lastStep.current = 0;
-  }, [mode]);
-  useEffect(() => {
-    if (open && step > lastStep.current) lastStep.current = step;
-  }, [open, step]);
+    if (mode !== lastMode.current) {
+      lastMode.current = mode;
+      lastStep.current = step;
+    } else if (open && step > lastStep.current) lastStep.current = step;
+  }, [open, mode, step]);
   useEffect(() => {
     if (!open) return;
     const el = stepRef.current;
