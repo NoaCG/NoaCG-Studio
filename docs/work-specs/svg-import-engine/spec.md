@@ -566,3 +566,105 @@ only if the owner's start prompt did not already say.
 Each phase's pull request adds here what the next phase must allow for, newest first: the previous
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
+
+### Phase 1: the corpus harness (build, 2026-10-13, pull request #1122)
+
+- **Last check's findings:** none (first phase).
+- **Main before:** `abd2b7f45c097753eddbabb969022d89db782674`. Merge sha: the queue's merge of #1122.
+  Revert: `git revert -m 1 <merge sha>` on its own branch through `/check` and `/queue-merge`. It
+  removes the test, its snapshot, the plan paragraph and the `__importDraft` extension; the two
+  other callers of `__importDraft` pass either way.
+- **Built:** `scripts/svg-import-passes.test.mjs` (factory tier, discovered from its header;
+  `gates.mjs audit` OK) and `scripts/fixtures/svg-corpus-passes.json` (about 500 KB). Eleven
+  records per accepted file: `inventory`, `proposal`, `fieldList`, `step` (growth default and fill
+  gap), `bind`, `layout`, `behaviour`, `fields`, `fontCss`, `emit` (sha256 of html, css, js),
+  `runtime` (at rest and at every `LADDER_VALUES` length: lines, size as a percentage of the drawn
+  size, overflow, and every growth rule's box). The refusing file records only its message.
+  529 records.
+- **Run time:** 5.5 s for 49 files on this Windows machine (the whole test file 6.0 s); 8.8 to
+  10.3 s on CI's factory job (four runs). The spec's estimate was under 60 s.
+- **Probe (AC-1):** made and reverted in the builder's worktree:
+  ```diff
+  -  root.setAttribute('class', classes.join(' '));
+  +  root.setAttribute('class', classes.join(' ') + ' ');
+  ```
+  Result: `bind` failed naming 48 files (every accepted file; `geometry-unescaped-ampersand` is
+  refused and has no bind record), `emit` failed on the same 48 (the html hash), and `inventory`,
+  `proposal`, `fieldList`, `step`, `layout`, `behaviour`, `fields`, `fontCss` and `runtime` stayed
+  green. A long text is shown from where it first differs:
+  `(whole) at character 254: "...class=\"imported-design-art\">..." -> "...class=\"imported-design-art \">..."`.
+- **Findings (D10), 5, recorded under `findings`:**
+  - `effects-figma-masked-reveal`, `inkscape-flowed-text-card`, `nested-svg-sub-artboard`,
+    `ticker-strip-3840`: growth default `grow-xy`, sidecar `shrink`. Four of the five
+    `GROWTH_FINDINGS` in `e2e/import-svg-corpus.spec.ts`.
+  - `figma-outline-text-title-card`: 0 outline rows, sidecar 2. Figma writes one path per
+    outlined text layer, and the reader offers a row only for a group of two or more glyph shapes.
+    The corpus e2e gate never reads this file (it walks only files with a text field), so this
+    finding was not listed anywhere.
+  - Not reproduced: `student-illustrator-quiz`, the fifth `GROWTH_FINDINGS` entry. The harness
+    reads `shrink`, as its sidecar states, because a quiz is proposed at drop and the step stands
+    growth down when a behaviour is attached. The e2e list may be stale on that file. Not walked
+    in the app to confirm.
+- **Two CI runs (AC-8):** the transform records (every pass but `runtime`) matched a Windows
+  recording on the first Linux run. The runtime record differed on 14 of 48 files, the same 14
+  with identical numbers on two Linux runs (jobs 115426620902 and 115429883175). With the same
+  font files, Chromium on Windows hints glyph advances differently, enough to move a wrap. So the
+  runtime record is Linux's (D3's stated fallback, "pin the runtime record on CI only"), taken from
+  the second job's printed records. Off Linux it is measured and its differences counted in the
+  skip message, not compared. With those records committed, two runs of the factory job on the
+  same sha `136e7799e` passed with every record equal (jobs 115434243996 and its re-run
+  115436470170). `volatile` is empty: nothing differed between Linux runs.
+- **Decisions:**
+  - The `step` record mirrors three parts of the mapping step outside React, on an off-screen
+    stage of the artwork's width with the step's own reveal rule: the text it measures outside
+    the frame taken off, the growth effect of `MapSvgFieldsStep.tsx` (`proposeBannerGrowth`,
+    `panelsHoldingText`, `repeatsWithNewContent`) and the fill gap `BehaviourSection.tsx` counts
+    (`fillGap` over `measureBoxes`). The phase proof expects the `GROWTH_FINDINGS`, and §1.3 asks
+    for the fill gap per file. The build and the runtime record then use the draft the step
+    would leave: 21 files grow. `fieldList` is that draft.
+  - The build is `IMPORTED_SVG.create` plus `withSvgImportPasses`, as §3 states, not the wizard's
+    whole `buildDraftTemplate`: the wizard's later `withUniversalMotion` rewrite of the motion
+    block is not in `emit` or in the runtime. The catalog baseline's `svg01` row is the other
+    byte pin.
+  - The runtime reads overflow from `svgFitOver` (what sets the `-overflow` class) and a growth
+    rule's box from its painted client rect, as the fit sweep reads "wider"; the line's own
+    geometry is not recorded.
+  - Fonts: the bundled faces are served from `public/fonts` under a fake origin through
+    `page.route`, every other request is aborted, and each family the file names that no bundled
+    face matches is aliased to Inter in both the stage and the graphic.
+  - Phase 1's draft records are `proposal` and `fieldList`; the name `draft` is left for phase 2.
+  - The findings list fails the test only when it changes, so a new disagreement cannot land
+    silently and a fixed one is re-recorded on purpose.
+  - Runtime tolerance: sizes and boxes within 1, line counts and overflow exact; 4 for a
+    `volatile` record.
+  - Guards: the spec's list, plus all of `src/components/wizard/import/**` (the step mirror reads
+    `stageMeasure.ts`, `fieldAutoMap.ts`), `CreationWizard.tsx` (the drop handler
+    `__importDraft` copies), `src/model/fonts.ts`, `public/fonts/**` and `scripts/ladder-values.mjs`.
+  - A runtime that throws fails the run naming the file; it is never recorded as a value.
+- **What the next phase must allow for:**
+  - Phase 2 switches the harness from `__importDraft` to `svgDraftFromImport` and adds `draft`.
+    `proposal` and `fieldList` must not move. The harness overwrites `svgStretch` with the step's
+    answer after the draft is built, so a drop-time `svgStretch` is not what the build sees.
+  - `__importDraft` fits to 1920 x 1080, the default format.
+  - On Windows, compare the runtime locally against this machine's own baseline: run once on
+    main with `SVG_CORPUS_RUNTIME_LOCAL=<file outside the repo>` (it writes the file), then
+    again on the branch with the same variable. Checked: a probe changing `SVG_LINE_HEIGHT`
+    from 1.2 to 1.5 failed `runtime` on 44 files and `emit` on 48 against that baseline, and
+    nothing else.
+  - A re-record on Windows keeps the committed runtime. If a phase legitimately changes it, take
+    the runtime from a failing CI run: save the factory job log and re-record with
+    `SVG_CORPUS_RUNTIME_FROM=<log>`. A new corpus file gets no runtime off Linux until then.
+- **Traps:**
+  - `__importDraft` and the step mirror are copies of `CreationWizard.tsx`'s drop handler,
+    `MapSvgFieldsStep.tsx`'s outside-frame and growth effects and `BehaviourSection.tsx`'s fill
+    inputs. A change to those must change the copies. Phase 2 retires the first; no phase retires
+    the step mirror, which a `stageMeasure.ts` function both sides call would.
+  - The mirror does not measure outline boxes, so an `f:`-marked outline stays `box: null` and
+    builds no stand-in. No corpus file has one today.
+  - `crossCheck` restates the sweep's sidecar scoring (`svg-import-sweep.mjs score`) on the
+    harness's data, without `noticeAbout`; a new sidecar column needs both.
+  - The harness's fonts are not the app's. The app's stage falls back to system fonts for an
+    unresolved family, the harness to Inter, so a borderline growth reading can differ from the
+    walk. The sidecars and the e2e walk stay the authority.
+  - `sed -i` on Windows rewrote `svg.ts` line endings during the probe. Restore with
+    `git checkout -- <file>`, not a reverse edit.
