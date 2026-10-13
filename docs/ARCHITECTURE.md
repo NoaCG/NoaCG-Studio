@@ -99,7 +99,9 @@ here and not in §6 are wrong - fix the code, not the table.
 - `community` -> backend, validation, packs (a community pack IS a `noacg-pack` file, so the shelf's
   builder and the admin's re-check use the one pack format)
 - `packs` -> validation (a pack installs only through the ONE export gate - the importer refusing
-  what export would refuse is the whole safety story of installing a file somebody handed you)
+  what export would refuse is the whole safety story of installing a file somebody handed you),
+  templates (`types/recipeTemplate` only: a pack's RECIPE entry is built at install with the
+  bridge scaffold's own function, docs/REMOTE_MCP_PLAN.md decision 5)
 - `admin` -> backend (`getAccessToken` + `isBackendConfigured` only - every fact it shows comes
   from `api/admin/*`, never from another domain)
 - `showchat` -> backend, control

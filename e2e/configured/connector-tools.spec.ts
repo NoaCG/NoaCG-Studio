@@ -15,15 +15,12 @@
 //
 // Local stack only: it registers OAuth clients, which hosted staging's Auth cannot do yet.
 
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
 import { mintAccount, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
-import { connect, consentPath, deleteOAuthClient, ScriptedClaude } from './_connector';
+import { callTool, deleteOAuthClient, ScriptedClaude, signedInClient } from './_connector';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 /** Written into every template's code; it must never come back from a tool. */
@@ -97,27 +94,7 @@ async function seed(admin: SupabaseClient, userId: string, label: string): Promi
   return { graphic, brand, production, teamProduction };
 }
 
-/** Sign one account in to a fresh scripted client, approving it through NoaCG's consent endpoint
- *  with the account's own session - the call the consent page's Allow makes. */
-async function signedInClient(request: APIRequestContext, origin: string, email: string, password: string, provider: ScriptedClaude): Promise<Client> {
-  const mcpUrl = new URL(`${origin}/mcp`);
-  await expect(connect(mcpUrl, provider)).rejects.toBeInstanceOf(UnauthorizedError);
-  const authorizationId = new URLSearchParams((await consentPath(request, provider.authorizationUrl!)).split('?')[1]).get('authorization_id');
-  const { data, error } = await createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } }).auth.signInWithPassword({ email, password });
-  if (error || !data.session) throw new Error(`sign-in: ${error?.message}`);
-  const allow = await request.post(`${origin}/api/me/connectors`, {
-    headers: { authorization: `Bearer ${data.session.access_token}` },
-    data: { action: 'allow', authorizationId },
-  });
-  expect(allow.status(), await allow.text()).toBe(200);
-  const code = new URL((await allow.json()).redirectUrl).searchParams.get('code');
-  expect(code).toBeTruthy();
-  await new StreamableHTTPClientTransport(mcpUrl, { authProvider: provider }).finishAuth(code!);
-  return (await connect(mcpUrl, provider)).client;
-}
-
-type ToolAnswer = { isError?: boolean; content: Array<{ type: string; text: string }>; structuredContent?: Record<string, unknown> };
-const call = async (client: Client, name: string, args: Record<string, unknown> = {}) => (await client.callTool({ name, arguments: args })) as ToolAnswer;
+const call = callTool;
 const idsOf = (list: unknown) => (list as Array<{ id: string }>).map((x) => x.id);
 
 test.describe('remote MCP connector: the read tools', () => {
@@ -136,14 +113,14 @@ test.describe('remote MCP connector: the read tools', () => {
       for (const account of accounts) userIds.push(await mintAccount(admin, account.email, account.password));
       const [seededA, seededB] = [await seed(admin, userIds[0], 'A'), await seed(admin, userIds[1], 'B')];
       const [clientA, clientB] = [
-        await signedInClient(request, origin, accounts[0].email, accounts[0].password, accounts[0].provider),
-        await signedInClient(request, origin, accounts[1].email, accounts[1].password, accounts[1].provider),
+        await signedInClient(request, origin, { url: SUPABASE_URL, anonKey: ANON_KEY }, accounts[0].email, accounts[0].password, accounts[0].provider),
+        await signedInClient(request, origin, { url: SUPABASE_URL, anonKey: ANON_KEY }, accounts[1].email, accounts[1].password, accounts[1].provider),
       ];
 
       // tools/list: the read tools, each titled and with all three hints.
       const { tools } = await clientA.listTools();
-      expect(tools.map((t) => t.name)).toEqual(['noacg_catalog', 'noacg_library']);
-      for (const tool of tools) {
+      expect(tools.map((t) => t.name)).toEqual(['noacg_catalog', 'noacg_library', 'noacg_send_package']);
+      for (const tool of tools.filter((t) => t.name !== 'noacg_send_package')) {
         expect(tool.title, tool.name).toBeTruthy();
         expect(tool.annotations, tool.name).toEqual({ readOnlyHint: true, destructiveHint: false, openWorldHint: false });
       }

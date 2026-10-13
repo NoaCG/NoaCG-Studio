@@ -4,9 +4,10 @@
 
 import { expect, type APIRequestContext } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
+import { createClient } from '@supabase/supabase-js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
+import { UnauthorizedError, type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js';
 
 export const REDIRECT = 'http://127.0.0.1:53682/callback';
@@ -60,3 +61,32 @@ export async function consentPath(request: APIRequestContext, authorizationUrl: 
   expect(id).toBeTruthy();
   return `/?authorization_id=${id}`;
 }
+
+/** Sign one account in to a fresh scripted client, approving it through NoaCG's consent endpoint
+ *  with the account's own session - the call the consent page's Allow makes. */
+export async function signedInClient(
+  request: APIRequestContext,
+  origin: string,
+  supabase: { url: string; anonKey: string },
+  email: string,
+  password: string,
+  provider: ScriptedClaude,
+): Promise<Client> {
+  const mcpUrl = new URL(`${origin}/mcp`);
+  await expect(connect(mcpUrl, provider)).rejects.toBeInstanceOf(UnauthorizedError);
+  const authorizationId = new URLSearchParams((await consentPath(request, provider.authorizationUrl!)).split('?')[1]).get('authorization_id');
+  const { data, error } = await createClient(supabase.url, supabase.anonKey, { auth: { persistSession: false } }).auth.signInWithPassword({ email, password });
+  if (error || !data.session) throw new Error(`sign-in: ${error?.message}`);
+  const allow = await request.post(`${origin}/api/me/connectors`, {
+    headers: { authorization: `Bearer ${data.session.access_token}` },
+    data: { action: 'allow', authorizationId },
+  });
+  expect(allow.status(), await allow.text()).toBe(200);
+  const code = new URL((await allow.json()).redirectUrl).searchParams.get('code');
+  expect(code).toBeTruthy();
+  await new StreamableHTTPClientTransport(mcpUrl, { authProvider: provider }).finishAuth(code!);
+  return (await connect(mcpUrl, provider)).client;
+}
+
+export type ToolAnswer = { isError?: boolean; content: Array<{ type: string; text: string }>; structuredContent?: Record<string, unknown> };
+export const callTool = async (client: Client, name: string, args: Record<string, unknown> = {}) => (await client.callTool({ name, arguments: args })) as ToolAnswer;

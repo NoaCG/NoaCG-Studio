@@ -28,9 +28,13 @@ import {
   setShowGraphicLayer,
   updateShowCue,
   setGraphicSounds,
+  setShowBrand,
   type Show,
 } from '../model/shows';
 import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, packStampFor } from '../model/library';
+import { applyLookToTemplate, loadLooks } from '../model/packets';
+import type { ProjectBrand } from '../model/brand';
+import { templateFromRecipe, type TemplateRecipe } from '../templates/types/recipeTemplate';
 import { readPackStamp, type PackStamp } from '../model/graphicDoc';
 import { isProductionSounds } from '../assets/productionSounds';
 import { rememberSound, soundBlob, materializeSoundAssets, isSoundAssetRef } from '../assets/soundAssets';
@@ -66,6 +70,36 @@ export interface PackGraphic {
   /** The community pack the graphic was installed from, carried through an export so the
    *  import stays locked (spec AC-5). */
   fromPack?: PackStamp;
+  /** A RECIPE entry: a catalog design to build at install, not code. Until `installPack` builds
+   *  it, `template` is a placeholder carrying only the name. */
+  recipe?: TemplateRecipe;
+}
+
+/**
+ * One RECIPE entry of the pack FILE (additive, format v1): a catalog type and design, optionally
+ * a palette and font, and starting values by the type's LOGICAL field keys - no code at all. The
+ * studio builds it at install with the same function the bridge's scaffold uses
+ * (templates/types/recipeTemplate.ts), then it is validated like every other graphic. It is how
+ * a chat client's package names catalog designs (docs/REMOTE_MCP_PLAN.md, key decision 5).
+ * Cues address its fields by their SPX ids (`f0`, `f1`, ...), as for any graphic.
+ */
+export interface PackRecipeFile {
+  name: string;
+  recipe: TemplateRecipe;
+  layer?: number;
+  cues?: PackCue[];
+}
+
+/**
+ * The pack's BRAND (additive, format v1): a saved look, carried as data so the file installs on
+ * any account. `installPack` applies it to every graphic of the pack (model/packets.ts
+ * `applyLookToTemplate`, the studio's own "apply a brand"), and points the production at the
+ * look when the installing account has a look of that id.
+ */
+export interface PackBrand {
+  id?: string;
+  name: string;
+  look: ProjectBrand;
 }
 
 /**
@@ -110,6 +144,7 @@ export interface GraphicsPack {
    * an ordering only one list can carry. Mutually exclusive with per-graphic `cues`.
    */
   rundown?: RundownCue[];
+  brand?: PackBrand;
 }
 
 /** The format marker every pack file carries — a fast, honest "this is not a pack" answer
@@ -202,6 +237,17 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
       return { pack: null, error: `Two graphics are both named “${graphicName}”.` };
     }
     seenNames.add(graphicName);
+    const layerNum = Number(entry.layer);
+    const layer = Number.isFinite(layerNum) && layerNum >= 1 && layerNum <= 100 ? { layer: Math.round(layerNum) } : {};
+    const cues = packCues(entry.cues);
+
+    if (entry.recipe !== undefined) {
+      const recipe = parseRecipe(entry.recipe);
+      if (!recipe) return { pack: null, error: `“${graphicName}” has a recipe without a graphic type and a design.` };
+      graphics.push({ template: recipeStub(graphicName), recipe, ...layer, cues });
+      continue;
+    }
+
     if (!isTemplateType(entry.type)) {
       return { pack: null, error: `“${graphicName}” has an unknown graphic type.` };
     }
@@ -243,29 +289,12 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
       layers: [],
     };
 
-    const layerNum = Number(entry.layer);
-    const cuesRaw = Array.isArray(entry.cues) ? entry.cues : [];
-    const cues: PackCue[] = [];
-    for (const cue of cuesRaw) {
-      if (!isRecord(cue)) continue;
-      const cueLabel = asString(cue.label).trim();
-      if (!cueLabel) continue;
-      cues.push({
-        label: cueLabel,
-        values: stringValues(cue.values),
-        ...(asString(cue.note) ? { note: asString(cue.note) } : {}),
-        ...(accentColor(cue.accentColor) ? { accentColor: accentColor(cue.accentColor) } : {}),
-      });
-    }
-
     const stamp = readPackStamp(entry.fromPack);
     graphics.push({
       template,
       ...(stamp ? { fromPack: stamp } : {}),
       ...(entry.sounds ? { sounds: { ...entry.sounds as ProductionSounds, assets: (entry.sounds as ProductionSounds).assets.map(a=>{ const {storageKey:_cloud,...ref}=a; return ref; }) } } : {}),
-      ...(Number.isFinite(layerNum) && layerNum >= 1 && layerNum <= 100
-        ? { layer: Math.round(layerNum) }
-        : {}),
+      ...layer,
       cues,
     });
   }
@@ -301,6 +330,12 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     }
   }
 
+  let brand: PackBrand | undefined;
+  if (raw.brand !== undefined) {
+    brand = parseBrand(raw.brand) ?? undefined;
+    if (!brand) return { pack: null, error: 'The pack’s brand is not readable.' };
+  }
+
   return {
     pack: {
       name,
@@ -308,9 +343,115 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
       graphics,
       ...(soundAssets.length ? {soundAssets} : {}),
       ...(rundown.length ? { rundown } : {}),
+      ...(brand ? { brand } : {}),
     },
     error: null,
   };
+}
+
+/** A graphic's prepared cues as the file carries them; a row without a label is skipped. */
+function packCues(v: unknown): PackCue[] {
+  const cues: PackCue[] = [];
+  for (const cue of Array.isArray(v) ? v : []) {
+    if (!isRecord(cue)) continue;
+    const cueLabel = asString(cue.label).trim();
+    if (!cueLabel) continue;
+    cues.push({
+      label: cueLabel,
+      values: stringValues(cue.values),
+      ...(asString(cue.note) ? { note: asString(cue.note) } : {}),
+      ...(accentColor(cue.accentColor) ? { accentColor: accentColor(cue.accentColor) } : {}),
+    });
+  }
+  return cues;
+}
+
+/** A recipe entry's recipe, or null without a type and a design. Whether the ids exist is the
+ *  build's question at install (templateFromRecipe), which answers it with a sentence. */
+function parseRecipe(v: unknown): TemplateRecipe | null {
+  if (!isRecord(v)) return null;
+  const type = asString(v.type).trim();
+  const design = asString(v.design).trim();
+  if (!type || !design) return null;
+  const palette = asString(v.palette).trim();
+  const font = asString(v.font).trim();
+  const values = stringValues(v.values);
+  return { type, design, ...(palette ? { palette } : {}), ...(font ? { font } : {}), ...(Object.keys(values).length ? { values } : {}) };
+}
+
+/** What a recipe entry holds until install builds it: its name and nothing to run. */
+function recipeStub(name: string): SpxTemplate {
+  return {
+    name,
+    type: 'blank',
+    resolution: DEFAULT_GRAPHICS_RESOLUTION,
+    fps: DEFAULT_GRAPHICS_FORMAT.fps,
+    html: '',
+    css: '',
+    js: '',
+    fields: [],
+    settings: { ...DEFAULT_SETTINGS },
+    assets: [],
+    layers: [],
+  };
+}
+
+const isDataAsset = (v: unknown): v is AssetFile =>
+  isRecord(v) && typeof v.path === 'string' && typeof v.data === 'string' && v.data.startsWith('data:');
+
+/** The pack's brand narrowed to the look's own keys, or null when it is not one. */
+function parseBrand(v: unknown): PackBrand | null {
+  if (!isRecord(v) || !isRecord(v.look)) return null;
+  const look = v.look;
+  const p = look.palette;
+  if (!isRecord(p) || ![p.accent, p.text, p.textDim, p.panel].every((c) => typeof c === 'string')) return null;
+  const font = look.customFont;
+  let customFont: ProjectBrand['customFont'] = null;
+  if (font !== undefined && font !== null) {
+    if (!isRecord(font) || typeof font.family !== 'string' || !isDataAsset(font.asset)) return null;
+    customFont = font as unknown as NonNullable<ProjectBrand['customFont']>;
+  }
+  if (look.logo !== undefined && !isDataAsset(look.logo)) return null;
+  const tokens = stringValues(look.tokens);
+  const id = asString(v.id).trim();
+  return {
+    ...(id ? { id } : {}),
+    name: asString(v.name).trim() || 'Brand',
+    look: {
+      styleTag: (asString(look.styleTag) || 'minimal') as ProjectBrand['styleTag'],
+      palette: {
+        id: asString(p.id) || 'custom',
+        name: asString(p.name) || 'Brand',
+        styleTags: Array.isArray(p.styleTags) ? (p.styleTags.filter((t) => typeof t === 'string') as ProjectBrand['palette']['styleTags']) : [],
+        accent: p.accent as string,
+        text: p.text as string,
+        textDim: p.textDim as string,
+        panel: p.panel as string,
+      },
+      fontId: typeof look.fontId === 'string' && look.fontId ? look.fontId : null,
+      customFont,
+      ...(Object.keys(tokens).length ? { tokens } : {}),
+      ...(isDataAsset(look.logo) ? { logo: { path: look.logo.path, data: look.logo.data } } : {}),
+    },
+  };
+}
+
+/**
+ * Build what a pack only names: each RECIPE entry becomes its template (the bridge scaffold's
+ * own function), and the pack's BRAND is applied to every graphic. A pack with neither comes
+ * back as it was. Throws a sentence naming the graphic when a recipe names something this build
+ * does not have.
+ */
+export async function realizePack(pack: GraphicsPack): Promise<GraphicsPack> {
+  const look = pack.brand?.look;
+  if (!look && !pack.graphics.some((g) => g.recipe)) return pack;
+  const graphics: PackGraphic[] = [];
+  for (const { recipe, ...g } of pack.graphics) {
+    let template = recipe ? await templateFromRecipe(recipe, g.template.name, look?.logo) : g.template;
+    if (look) template = applyLookToTemplate(template, look);
+    graphics.push({ ...g, template });
+  }
+  return { ...pack, graphics };
 }
 
 /**
@@ -343,6 +484,7 @@ export async function installPack(
    *  Without it, each graphic keeps the stamp its file entry carries. */
   fromPack?: PackStamp,
 ): Promise<Show> {
+  pack = await realizePack(pack);
   const failure = validatePack(pack);
   if (failure) throw new Error(failure);
   for (const a of pack.soundAssets ?? []) {
@@ -412,6 +554,11 @@ export async function installPack(
       for (const cue of rest) addShowCue(show.id, pooled.id, cue);
     }
   }
+
+  // The production is IN the pack's brand when this account has that look (a file from another
+  // account carries the look's data, already applied above, but not a look this one can name).
+  const brandId = pack.brand?.id;
+  if (brandId && loadLooks().some((l) => l.id === brandId)) setShowBrand(show.id, brandId);
 
   // One claim for the whole layer/cue pass — reporting success on the synchronous answer
   // would navigate to a production whose rundown never landed.

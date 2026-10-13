@@ -509,3 +509,97 @@ designs, every design id is unique, and every design's palette and font are in t
 - Docker Desktop here: the first launch fails ("Docker Desktop is unable to start"). Killing only
   `Docker Desktop.exe` leaves `com.docker.backend.exe` running and the relaunch fails again; quit
   both, then relaunch (up in 9 s). A fresh worktree has no `node_modules`; run `npm ci` first.
+
+### Phase 4: send (AC-4)
+
+**Last check's findings (phase 3 check):** PASS, 60 of 60 locally (three accounts; leak attempts
+by id, by words, by undeclared arguments, by forged tokens and after leaving a team were all
+refused); the index built, production byte-identical, 69 types; main's configured suite
+38326104062 green. Notes: `additionalProperties: false` is not enforced (undeclared arguments are
+ignored, harmless); a team production's `brandId` or `graphicId` can name a teammate's look or
+graphic (ids only), so phase 4 must refuse those for the caller; the 503 half still skips locally
+(#987); about 2,400 characters were left under the schema ceiling for the send tool.
+
+**What was built.** `noacg_send_package` (`api/_lib/me/connectorSend.ts`), title "Send a package
+to Home", `readOnlyHint: false`, `destructiveHint: false`, `openWorldHint: false`, permission
+`graphics:create`. It takes a production name, an optional brand id, graphics and an ordered
+rundown, and writes ONE row to `agent_packages` (the CLI door's waiting table, migration 0065), so
+the package waits on Home → Productions like a `noacg pack --save` one. The pack format gains two
+additive v1 parts (`src/packs/graphicsPack.ts`, docs/GRAPHICS_PACKS.md): a RECIPE graphic entry
+(`{ name, recipe: { type, design, palette?, font?, values? }, layer?, cues? }`) and a pack `brand`
+(`{ id?, name, look }`, a saved look as data). `installPack` first builds each recipe with
+`templateFromRecipe` (`src/templates/types/recipeTemplate.ts`, which the bridge scaffold now calls
+too), applies the brand to every graphic with `applyLookToTemplate`, points the production at the
+look when the account has that look, then validates and installs as before. The package door's
+shape guard (`packageShape.ts`) accepts and narrows both parts, so the CLI door and the connector
+store one format. New dependency edge: `packs` -> `templates/types/recipeTemplate` (ARCHITECTURE §3
+and `.dependency-cruiser.cjs`). No migration: `agent_packages.origin` was already jsonb.
+
+**Evidence.** On a local stack on this machine (CLI 2.111.0, Docker relaunched once, the dev
+server Playwright starts), `e2e/configured/connector-send.spec.ts` passed: account A's scripted
+client (`@modelcontextprotocol/sdk`) signed in through registration, the authorization URL, Allow
+with A's session and the code exchange, then sent three recipes (`lower-third`, `title-card`,
+`logo-bug`), a copy of A's own graphic, A's brand (its logo a Storage reference, as sync leaves
+it) and four cues. One row was stored, origin `{ tool: "noacg-connector", client, grant }`.
+Another account's graphic and brand, a design of another type, a value key the type lacks, the
+waiting cap (25) and the send budget each got a sentence and stored nothing. Install on Home in a
+browser as A opened the production: four graphics on their layers, every one passing
+`publishGate` and `productionGateFailures` empty, every one carrying the brand's accent, the
+brand's mark in the logo bug, the production's `brandId` set to the look, the cues in order with
+the run sheet's values under the SPX ids (`name`/`title` became `f0`/`f1`). Published, its first
+cue taken, the browser source showed "Anna Andersson / Pastor" on air in the brand's colours
+(opacity and size checked, screenshot looked at). A pack file with a recipe entry then installed
+through Import and passed the gate. `connector-tools.spec.ts` passed in the same run with the
+three tools. `tools/list` is 2,726 characters for three tools (ceiling 3,500). Unit tests:
+`connectorSend.test.ts` (the package built, 19 refusals storing nothing, the cap, the budget,
+an asset outside the user's own Storage folder), `packages.test.ts` (the recipe and brand shape),
+`mcp.test.ts` (three tools, the send tool's hints and permission, the ceiling); 379 pass.
+
+**Decisions.**
+
+- *`noacg_guide` stays dropped.* The send tool fits: the three tools are 2,726 characters, under
+  the 3,500 ceiling, and the descriptions say what a recipe is.
+- *Own means `user_id` is the caller.* Graphics and the brand are read from `documents` with
+  `user_id = principal.userId`, so a teammate's look or graphic named by a team production is
+  refused like an unknown id ("no graphic ... in this user's own library; a teammate's cannot be
+  sent"). A team's own brand would need a team-scoped read; not in this phase.
+- *Two kinds of key, one stored key.* A recipe's `values` and its cues use the type's logical keys
+  (the catalog index's field keys, the logo slot excluded: the brand fills it); a copy's cues use
+  its SPX field ids. The server translates a recipe's cue keys to `f0..fN` (the type's declaration
+  order, `typeFieldsToSpx`), so the stored rundown speaks SPX ids like every pack. The wrong kind is
+  refused with the list of the right keys.
+- *The brand travels as data and applies to every graphic,* the copy included, as the studio's
+  "Apply brand to all graphics" does. A recipe for a design with a logo slot is built with the
+  slot on when the brand has a mark (the wizard's own rule: never into a picture slot, never where
+  the design drew none). The brand's colours win over a recipe's `palette`.
+- *Stored assets are read back as data.* The studio's sync stores a look's logo and a graphic's
+  files in the `user-assets` bucket behind `spx-storage:` references; the tool downloads them with
+  the service role, only under `<user id>/`, so the pack installs on any device and through Import.
+- *Send budget:* `CONNECTOR_SEND_RATE_MAX`, 10 a minute per user, every call counted, before
+  anything else is read. The waiting cap is the CLI door's 25, shared.
+- *Recipe entries in a file are checked at install,* not by the shape guard: the guard checks ids
+  are catalog-shaped strings, the connector checks them against the index, and `templateFromRecipe`
+  refuses an id the build does not have with a sentence naming the graphic.
+- *Until install, a recipe entry's template is a placeholder* (type `blank`, no code). Anything that
+  validates a parsed pack without installing it (the community shelf's checks) would refuse a
+  recipe pack; community packs with recipes are not a goal of this plan.
+
+**What the next phase must allow for.**
+
+- *AC-5's single scripted run* can reuse `connector-send.spec.ts` as is; it mints its own two
+  accounts and cleans up its OAuth client, users and Storage object.
+- *The skill's reference text* can describe the chat path as: catalog recipes, copies of the user's
+  own graphics, a brand id, cues by field key (recipes) or field id (copies), Install on Home.
+- *A package's body is a pack file again,* so the CLI could later send recipes too; no CLI change
+  was made.
+- *The 503 half* of `connector-grants.spec.ts` still runs only on hosted staging (#987).
+
+**Traps.**
+
+- *A graphic's text is in the markup before it plays.* A browser source check must look at the
+  frame's opacity and size, not only at `#f0`'s text (the first try of this spec passed on a blank
+  output); `output-cold-boot.spec.ts` says the same.
+- *The studio fills a cue's other fields from the graphic's defaults* at install (the brand mark's
+  path among them), so assert the run sheet's keys with `objectContaining`, not the whole map.
+- *The job queue's RAM floor (4 GB) refuses a browser run while the local stack is up* on this
+  machine (1.7 GB free); the spec was run directly, then the stack stopped.

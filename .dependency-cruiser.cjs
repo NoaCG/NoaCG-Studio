@@ -285,6 +285,14 @@ module.exports = {
     },
     {
       comment:
+        '§3: packs -> templates (types/recipeTemplate only). A pack RECIPE entry names a catalog ' +
+        'design instead of carrying code (docs/REMOTE_MCP_PLAN.md decision 5), and installPack ' +
+        'builds it with the same function the bridge scaffold uses, so the two cannot drift.',
+      from: { path: '^src/packs/' },
+      to: { path: '^src/templates/types/recipeTemplate' },
+    },
+    {
+      comment:
         '§3: admin -> backend (getAccessToken + isBackendConfigured only). The admin page is ' +
         'its own MPA entry, so it needs the session token to authorize its API calls; it ' +
         'reads no other domain, because every fact it shows comes from api/admin/*.',
