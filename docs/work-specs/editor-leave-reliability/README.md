@@ -54,4 +54,4 @@ Disposable CI reproduction: run `38445327031`, product tree `4508e1331` plus the
 docs-only independent checker receipt. Results and source comparison follow in
 the verification receipt. Full suites/builds belong to pull-request CI.
 
-[Verification and unresolved Back behavior](verification.md). This checkpoint is not ready to queue.
+[Passing verification, failed-attempt history and limits](verification.md).

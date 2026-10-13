@@ -34,5 +34,23 @@
     "path": "leave-probe-signed-in-loca-55f75--discard-revisions-distinct-configured/account-leave.png",
     "sha256": "de872fd50ec9b9010367336dae7f3272022a0598b4f83157db9f9057796af4cb",
     "inspected": true
+  },
+  {
+    "run": "38447255350",
+    "path": "cumulative/interaction-probe-task-phase-cumulative-task-1920-chromium/desktop.png",
+    "sha256": "0c955197600469581811fce2e4b66de760b36606ce38bfce622c6fdc8f2cccaf",
+    "inspected": true
+  },
+  {
+    "run": "38447255350",
+    "path": "cumulative/interaction-probe-task-phase-cumulative-task-1366-chromium/laptop.png",
+    "sha256": "ff0b28ea52b5ca57e86f9150b90da0a56a3769322f1b958d2cba36c3e7f29c38",
+    "inspected": true
+  },
+  {
+    "run": "38447255350",
+    "path": "cumulative/interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/native-125.png",
+    "sha256": "fce24ce319b714da82e5b19e6d8cdd471aecee0320854a27d8b868a01986cf4c",
+    "inspected": true
   }
 ]

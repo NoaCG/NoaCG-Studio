@@ -185,10 +185,17 @@ test('discard restores the saved copy and never retains a discarded experiment a
   await settleDurableWrites(page); await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible();
   expect(await source(page)).not.toEqual(experiment);
   expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+  // Open a different, already saved graphic after discarding the catalog experiment.
+  await page.getByTestId('home-nav-graphics').click();
+  await page.locator('.lib-row', { hasText: 'Original' }).getByTestId('open-graphic').click();
+  await page.getByTestId('control-open-editor').click(); await ready(page);
+  expect(await source(page)).toEqual(saved[0].template);
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   await pressNewFromHome(page); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
 });
 
-test('browser Back and hash navigation ask before changing surfaces, with Cancel preserving history', async ({ page }) => {
+test('browser Back asks before changing surfaces, with Cancel preserving history', async ({ page }) => {
   await open(page); await draw(page, .3); const edited = await source(page);
   const cdp = await page.context().newCDPSession(page);
   const history = await cdp.send('Page.getNavigationHistory');
@@ -222,11 +229,16 @@ test('browser Back and hash navigation ask before changing surfaces, with Cancel
   // Approval replays the actual prior top-level route once, with no delayed guard.
   await page.evaluate(() => { window.history.back(); }); await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
-  await expect(page).toHaveURL(previousUrl); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  // The existing wizard resumes the finished walk at Finish, then canonicalizes its URL.
+  await expect(page).toHaveURL(/#\/new\/step\/finish$/);
+  await expect(page.getByTestId('wz-resume-confirm')).toBeVisible();
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   expect(await source(page)).not.toEqual(edited);
   await settleDurableWrites(page);
 
-  // Keep the direct hash-navigation outcome as a separate ordinary edited document.
+});
+
+test('direct hash navigation asks before Home and discards without a repeated question', async ({ page }) => {
   await open(page); await draw(page, .3);
   await page.evaluate(() => { window.location.hash = '#/home/graphics'; });
   await expect(page.getByTestId('confirm-switch')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);

@@ -1,133 +1,146 @@
 # Verification receipt
 
-## Scope and current result
+**PASS for the bounded leave-editor task.** This is engineering verification;
+owner acceptance, broader comfort and deployment status remain separate.
 
-Product baseline `4508e133162cc65b6296b448e987f603fc17d479`. The exact
-independent interaction receipt `dfdfe9f0a3f559f44a90dd4343a98797f18c080b`
-was cherry-picked as `5f8c99de7ddfe39b29907b419a74d86323745361` before edits.
+## Scope and final evidence
 
-Home/Open, save, cancelled naming, discard, durable reopen, account sync and
-production-copy independence pass. Native browser Back is unresolved; the
-verification retry limit was reported to the coordinator before further fixes.
-This is not a passing final check stamp or a queued slice.
+Baseline `4508e133162cc65b6296b448e987f603fc17d479`. The exact independent
+interaction receipt `dfdfe9f0a3f559f44a90dd4343a98797f18c080b` was cherry-picked
+as `5f8c99de7ddfe39b29907b419a74d86323745361` and remains byte-identical.
 
-## Reproduction and changed behavior
+[Final focused run 38459578040](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38459578040)
+passes all seven lifecycle cases in 1.1 minutes, one Chromium worker, zero retries.
+Its product and maintained-test source at
+`aa91d015f274e06ac7b1900082f254d34e3b676a` matches the final worktree exactly.
+[Run metadata](receipts/final-run.json).
 
-The normal ZIP-import wizard route, visual rectangle edit and Home action on the
-baseline fail the assertion that the editor remains mounted before a decision:
+| Acceptance | Result and evidence |
+| --- | --- |
+| Decide before Home or Open | Normal ZIP-import wizard and visual rectangle edit. Home and Open saved graphics keep the editor mounted and the destination absent until a decision. Cancel/Escape and cancelled naming preserve source/history. |
+| Keep and reopen | First Save produces one record despite two synchronous submit events. The Home -> control -> Edit route reopens its exact source. Linked Save updates the same ID. |
+| Discard without keeping an experiment | Discard restores a saved source or resets an unsaved catalog experiment. Library copies stay identical; reload does not revive the experiment. Opening a different saved graphic through Home restores its exact source without another save question. |
+| Navigation and failures | Native history, direct hash navigation, first-decision preservation during naming, local-write refusal/retry and duplicate-submit protection pass. Pristine wizard results still leave without a question. |
+| Preserve boundaries | Saved production copy stays identical after authoring Save. A signed-in localhost-backend task independently proves account source equality after Save and no account-record change after discard. |
+| Reference and cumulative task | Two fresh pinned-reference tasks and four cumulative/native tasks pass. Desktop/laptop/native-125 captures were inspected; all nine SPX/CasparCG/OGraf browser outputs execute without errors. |
+
+## Reproduction and failed attempts
+
+The normal ZIP-import route, visual edit and Home action on the baseline fail
+the editor-presence assertion in
 [38445327031](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38445327031).
-The captured destination is Home with no save decision. This reproduces the
-October 6 timing problem without calling the guard directly.
+The captured destination is Home with no save decision, reproducing the October
+6 timing problem without calling the guard directly.
 
-The corrected Home boundary keeps the editor and URL in place until Save,
-Discard or Cancel. First-save naming can be cancelled without source/history
-loss. Two synchronous submit events produce one library record. Saving a linked
-edit retains its ID; its existing production copy remains identical. Discard
-restores an existing saved source or resets an unsaved experiment without
-creating/deleting a library graphic. Reload and the next New door do not revive
-or re-question the discarded experiment. An injected local storage refusal
-keeps the editor and permits a successful retry.
+[38446367624](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38446367624) and
+[38447255350](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38447255350)
+ran the 54-case maintained selection: 46 passed, seven existing legacy-editor
+cases skipped and the newly added Back test failed. Excluding that six-case
+lifecycle file, 41 unchanged maintained cases passed. The selection covered
+library, wizard-draft-guard, editor-layer-property-qualification,
+editor-transform-qualification, editor-cli-round-trip and
+editor-canvas-short-height. The second run's two reference tasks and four
+cumulative/native tasks passed. No existing case was deleted or newly skipped.
 
-## Executed checks
+Focused runs
+[38447778696](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38447778696) and
+[38448392642](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38448392642)
+passed five of six cases, including production independence and preservation of
+the first pending destination during naming. Back first timed out waiting for
+Playwright's load event; native history.back also found no decision. The retry
+limit was reported and speculative fixes stopped.
 
-- Targeted ESLint on changed TypeScript and `npx tsc --noEmit -p tsconfig.json`:
-  pass. `npm run gates -- run --changed origin/main`: pass, including ten shared
-  instruction tests. `git diff --check`: pass. No full build or browser ran on
-  the shared machine; observed available memory fell below the unchanged 4 GB floor.
-- [38446367624](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38446367624):
-  the 54-case maintained selection had 46 passes, seven existing legacy-editor
-  skips and the new Back failure. Both reference tasks and the cumulative/native
-  step passed. Selection: new-graphic-guard, library, wizard-draft-guard,
-  editor-layer-property-qualification, editor-transform-qualification,
-  editor-cli-round-trip, editor-canvas-short-height.
-- [38447778696](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38447778696) and
-  [38448392642](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38448392642):
-  five of six focused cases pass, including first-decision preservation during
-  an open naming dialog and unchanged production revision. Back fails: the
-  Playwright load wait timed out; native `history.back()` also produced no dialog.
-  Assertions were not skipped, relaxed or given extra time. A bounded diagnostic
-  [38449150753](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38449150753)
-  records top-level history and events to distinguish frame history from routing.
-  [Its receipt](receipts/browser-history.json) shows two adjacent editor entries
-  at depth 3. First Back moves CDP index 5 to 4 with no top-level route event.
-  Second Back reaches wizard depth 2; the guard restores depth 3 and opens the
-  decision. The test assumes one Back leaves the editor, but the browser actually
-  traverses a preview-frame entry first. No speculative preview change or test
-  relaxation was made after the retry limit. The coordinator reviewed that evidence and authorized a deterministic setup
-  correction: assert the duplicate editor entries, verify the first traversal
-  preserves source/history/surface, then test the actual route traversal with
-  Escape, Cancel and Discard. The original hash and pre-destination assertions
-  remain, and native discard replay/no-repeat coverage is added. No preview
-  behavior is changed. The corrected test awaits execution.
-- [38447255350](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38447255350):
-  fresh cumulative desktop, laptop and actual native 125% tasks, plus nested-copy
-  ownership, pass. They cancel the leave dialog before completing source/text,
-  animation, history, save/reopen and executable SPX/CasparCG/OGraf outputs.
-  All three task receipts have empty console-error and failed-request lists.
+[Diagnostic 38449150753](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38449150753)
+and [its history receipt](receipts/browser-history.json) resolve the false setup
+assumption. A preview rebuild leaves two adjacent editor entries at depth 3.
+First Back moves browser index 5 to 4 with no parent route event. Second Back
+reaches wizard depth 2; the guard restores depth 3 and opens the decision. The
+coordinator authorized a deterministic test of both observed steps: the first
+preserves surface/source/history, and the actual route traversal asks before
+leaving. No preview behavior, timeout or outcome assertion was relaxed.
 
-- [38448397968](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38448397968):
-  mutation check passes by removing the route guard and observing the required
-  editor-presence assertion fail. An earlier harness run stopped at a missing
-  output directory before executing the test; creating that directory corrected
-  the harness without changing its assertion.
+[38458517155](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38458517155)
+passed both Back steps and stay choices, then exposed an over-specific added
+assertion about the destination URL. CreationWizard's existing finishedWalk
+contract explicitly restores the step where the walk ended, then replaces its
+URL with Finish. Its separate regeneration notice remains intentional. The test
+now checks that exact Finish route and notice, with no repeated confirm-switch.
+
+[38459025084](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38459025084)
+passed the complete native Back/stay/discard task. Its later hash case failed
+because page.goto changed only the hash while the wizard's existing regeneration
+notice remained open. Giving that independent hash case a fresh Playwright
+fixture preserves all its assertions and avoids unrelated modal state. The
+final seven-case run passes. No wizard or preview product code changed in these
+setup corrections; no test-maintenance entry or budget exception was added.
+
+[Mutation 38448397968](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38448397968)
+passes by removing the route guard and observing the required editor-presence
+assertion fail. An earlier harness run stopped before testing because its output
+directory was absent; creating the directory corrected that harness.
 
 ## Signed-in account and revision boundaries
 
 [38448402526](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38448402526)
-passes the normal signed-in Home -> import -> edit -> Home decision -> first Save
--> library -> control -> Edit -> discard -> reload path. It uses the existing
-configured-suite bootstrap, a synthetic account and an ephemeral localhost
-Supabase instance on GitHub's runner. The test explicitly refuses a non-local
-backend. Cloud assets are downloaded from the local storage service and hydrated
-before byte/source comparison. The raw saved account record stays identical
-after discard. Local durable Save, asynchronous cloud sync and production copies
-remain separate boundaries.
+passes the signed-in Home -> import -> edit -> Home decision -> first Save ->
+library -> control -> Edit -> discard -> reload path. It uses the configured-suite
+bootstrap, a synthetic account and ephemeral localhost Supabase on GitHub's
+runner. The test refuses a non-local backend. Local storage assets are downloaded
+and hydrated before exact source comparison. The raw account record remains
+identical after discard. [Account receipt](receipts/account-lifecycle.json).
 
-The first account assertion incorrectly compared storage references with local
-asset bytes. Hydrating the actual stored assets corrected the comparison; no
-product behavior or assertion of source equality was weakened. The workflow's
-always-run teardown stops local Supabase without backup. No hosted account,
-production backend, migration or security boundary was changed; no hosted
-backend cost was incurred. CI uses the repository's existing Actions runners.
+The first account assertion compared storage references with local asset bytes.
+Hydrating the actual stored bytes corrected the comparison, retaining exact
+source equality. The always-run teardown successfully stopped Supabase without
+backup. No hosted account, production backend, migration or security boundary
+changed, and no hosted backend cost was incurred. CI used the existing Actions
+runners. Local durable Save, asynchronous cloud sync and production copies remain
+separate; this is not a claim about actual hosted cloud-status notices.
 
-## Rendered judgment and limits
+## Rendering, reference and limits
 
-Inspected desktop 1920x1080, laptop 1366x768 and native-125 leave-dialog captures
-from run 38447255350, plus the saved reference-editor captures. The dialog is
-legible, its three choices remain visible, and the editing surface is present
-behind it. No new copy or layout design was introduced. The native receipt has
-zoom 1.25, outer 1366x768, content 1093x545, DPR 1.25 and visual scale 1. Its canvas,
-timeline and inspector remain 196px, 180px and 280px respectively. Small Fit
-artwork and Properties scrolling remain known comfort limits, not acceptance.
+Inspected fresh desktop 1920x1080, laptop 1366x768 and native-125 editor and
+leave-dialog captures, plus both reference-editor captures and the signed-in
+dialog. The dialog's three choices remain legible and visible over the editor.
+Existing layout and decision labels are reused; in-flight and failed-write
+feedback are added. [Capture hashes](receipts/captures.json).
 
-Reference source and runtime comparison are in [reference.md](reference.md).
-The Studio and Eyevinn unit suites were inspected, not run. Browser-export
-execution is not a claim about physical SPX, CasparCG or OGraf receiving hosts.
-Owner acceptance, wider workflow comfort, cloud-status redesign and the editor
-default switch remain outside this slice. The pre-existing #987 hosted latency
-alarm is distinct from this lifecycle work.
+Native zoom is 1.25 at both ends, outer 1366x768, content 1093x545, DPR 1.25 and
+visual scale 1. Canvas, timeline and inspector remain 196px, 180px and 280px.
+Small Fit artwork and Properties scrolling are known comfort limits. All three
+cumulative receipts have empty console-error and failed-request lists and three
+successful browser outputs each. Deliberate zoom/pan survives native resize
+without source/history changes. [Desktop](receipts/desktop.json),
+[laptop](receipts/laptop.json), [native 125%](receipts/actual-125.json),
+[camera](receipts/native-camera.json).
 
-## Checkpoint and reproduction
+[Reference comparison](reference.md) records exact Studio and Eyevinn revisions,
+source paths, hashes, event-to-mutation-to-preview/test trace, executed tasks and
+intentional differences. Upstream unit suites were inspected, not executed; no
+upstream AGPL code was copied. Browser exports do not establish physical SPX,
+CasparCG or OGraf receiving-host acceptance. Owner acceptance, broader comfort,
+cloud-status redesign and the editor default switch remain outside this slice.
+The pre-existing #987 hosted-latency alarm is separate.
+
+## Check and reproduction
 
 Review ran inline because no callable review/simplification execution capability
-was available. It found and corrected replacement of the pending destination
-while a naming dialog was already open. Simplification was inline and retained
-the existing save-store boundary. Verification is incomplete because the native
-Back test remains red. No passing stamp or merge queue entry is claimed.
+was available. It found and fixed replacement of the first pending destination
+while a naming dialog was open. Inline simplification retained the existing
+save-store boundary. Final inline verification passes: targeted ESLint,
+TypeScript, affected gates including ten shared-instruction tests, whitespace,
+exact probe/product-source comparison and the seven focused browser cases.
+Full build and suites remain pull-request/merge-group CI work.
 
-[Disposable probe patch](ci-probe.patch) contains the CI recipes and authored
-reference/cumulative/account/history probes. Apply only on a fresh disposable
-branch based on this checkpoint. Dispatch deploy-verify with focused, mutation,
-complete or history; configured-suite runs the localhost account task. Never
-open or queue the probe branch as a product PR. The history diagnostic has no
-behavior verdict; it records three ordinary Back attempts and their events.
+No local browser or full build ran. Job j-4386 was cancelled before launch at the
+unchanged 4 GB floor, with 1.18 GB free. Automatic approval review initially
+refused public CI publication; no denied export was bypassed. The human then
+explicitly approved publication and CI for this editor run, after which the
+approved disposable runs executed. No local test process remains running.
 
-### Resumed targeted check
-
-The coordinator explicitly authorized the evidence-backed history setup
-correction after the stopped report. ESLint and whitespace pass for that test
-change. Local job j-4386 was held at the unchanged 4 GB memory floor and cancelled before launch; the last free-memory reading was 1.18 GB. Automatic
-approval review twice refused the disposable public-branch publication and CI
-dispatch, even after verifying the existing public origin and reviewed payload.
-No denied export was performed or routed around the review. Execution and a
-passing stamp remain pending. Current-main merge-tree reconciliation is clean.
+[Disposable probe patch](ci-probe.patch) contains CI recipes and authored
+reference/cumulative/account/history probes. Apply it only to a fresh disposable
+branch based on the final product revision. Dispatch deploy-verify with focused,
+mutation, complete or history; configured-suite runs the localhost account task.
+Never open or queue a probe branch as a product PR. The diagnostic records history
+events rather than asserting a behavior verdict.
