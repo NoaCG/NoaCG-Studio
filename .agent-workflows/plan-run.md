@@ -6,9 +6,9 @@ checked by another, the next only after the check passed. Output: phases on `mai
 **Runnable plans** (a name here and nothing else):
 
 - `editor`: `docs/EDITOR_REBUILD_PLAN.md`; its order and acceptance are in `docs/EDITOR_PLAN.md`.
-- `guided-mod`: `docs/work-specs/guided-mod/spec.md`; phases, acceptance and phase notes are in it.
-- `production-page`: `docs/work-specs/production-page-refactor/spec.md`; the same.
-- `ci-plan`: `docs/work-specs/ci-plan-reliability/spec.md`; the same.
+- `guided-mod`, `production-page`, `ci-plan`, `svg-import-engine`: `docs/work-specs/<spec>/spec.md`,
+  where `<spec>` is `guided-mod`, `production-page-refactor`, `ci-plan-reliability` and
+  `svg-import-engine`; phases, acceptance and phase notes are in it.
 - `remote-mcp`: `docs/REMOTE_MCP_PLAN.md`; the same.
 
 ## Boundaries
