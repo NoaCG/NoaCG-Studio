@@ -132,11 +132,13 @@ test('modifier drag copies selected artwork atomically and cancellation retains 
     await page.keyboard.down('Alt'); await page.mouse.move(start.x,start.y); await page.mouse.down();
     await page.mouse.move(start.x+42,start.y+17,{steps:8});
     await expect((await frame(page)).locator(original+'-copy-1')).toHaveCount(1);
+    await expect.poll(async()=> (await point(page,original+'-copy-1')).x).toBeCloseTo(start.x+42,1);
+    await expect.poll(async()=> (await point(page,original+'-copy-1')).y).toBeCloseTo(start.y+17,1);
     expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history);
     if (cancel) await page.keyboard.press('Escape');
     await page.mouse.up(); await page.keyboard.up('Alt'); await ready(page);
   };
-  await drag(true); expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history); expect(await selected(page)).toEqual([original]);
+  await drag(true); await expect((await frame(page)).locator(original+'-copy-1')).toHaveCount(0); expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history); expect(await selected(page)).toEqual([original]);
   await drag(); const copy = (await selected(page))[0]; expect(copy).not.toBe(original);
   await expect((await frame(page)).locator(copy)).toHaveCount(1);
   const originalPoint=await point(page,original),copyPoint=await point(page,copy);
