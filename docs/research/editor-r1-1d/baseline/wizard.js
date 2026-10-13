@@ -1945,7 +1945,7 @@ function measureSvgRoom() {
       // mirrored top padding, drawn tighter than that on most artwork) is exactly that case.
       room.height = Math.max(
         box.height * scale,
-        (svgFitCeiling(el, panel, svgPanelTopPad(panel, nodes)) - box.top) * scale,
+        (svgFitCeiling(el, panel, svgPanelTopPad(panel, nodes)) - box.top) * scale
       );
       // A LINE THE AUTHOR SENT TO THE TOP OR THE BOTTOM OF ITS BOX stands the snap away from
       // where it was drawn (svgAlignOf): what a top line gains above is room below, and what a
@@ -2104,7 +2104,7 @@ function svgBalanceLines(el, lines, budget) {
   for (var j = 1; j <= k; j++) {
     cost.push([]);
     from.push([]);
-    for (var i = 0; i <= n; i++) {
+    for (i = 0; i <= n; i++) {
       cost[j][i] = Infinity;
       // From a one-word last line backwards, only as far as one line can reach.
       for (var a = i - 1; a >= j - 1; a--) {
