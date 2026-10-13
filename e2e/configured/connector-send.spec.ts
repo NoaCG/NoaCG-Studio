@@ -243,6 +243,7 @@ test.describe('remote MCP connector: send a package', () => {
       const lineCount = titleCard.fields.filter((f) => !f.role).length;
       const card = installed.graphics.find((g) => g.name === 'Sermon card')!;
       const leftOut = card.fields.filter((f) => /^f\d+$/.test(f.field) && Number(f.field.slice(1)) >= (titleKey ? 1 : 0) && Number(f.field.slice(1)) < lineCount);
+      expect(leftOut.length, 'the title card has lines the recipe left out (its kicker among them)').toBeGreaterThan(0);
       expect(leftOut.map((f) => f.value), 'the lines a recipe leaves out are blank').toEqual(leftOut.map(() => ''));
       expect(installed.graphics.find((g) => g.name === 'Church bug')!.hasMark, 'the brand mark is in the logo bug').toBe(true);
       // The run sheet's values, by the SPX ids the logical keys compiled to (the studio fills the

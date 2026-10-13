@@ -141,8 +141,8 @@ export async function verifyConnectorToken(
 export interface AuthorizationDetails {
   clientId: string;
   clientName: string;
-  /** The scopes the client asked for, as Auth recorded them. */
-  scopes: string[];
+  /** The scopes the client asked for, as Auth recorded them; null when Auth did not say. */
+  scopes: string[] | null;
 }
 
 async function asUser(path: string, userToken: string, init: RequestInit = {}): Promise<Response> {
@@ -169,7 +169,7 @@ export async function authorizationDetails(userToken: string, authorizationId: s
   return {
     clientId: client.id,
     clientName: typeof client.name === 'string' ? client.name.trim().slice(0, 80) : '',
-    scopes: typeof scope === 'string' ? scope.split(/\s+/).filter(Boolean) : [],
+    scopes: typeof scope === 'string' ? scope.split(/\s+/).filter(Boolean) : null,
   };
 }
 

@@ -104,6 +104,10 @@ test('a request for the openid scope is refused before any grant: its ID token w
   assert.match(error.message, /Deny this request/);
   assert.deepEqual(h.approved, [], 'nothing approved at Auth, so the client gets no code');
   assert.equal(h.store.grants.length, 0);
+  // An answer that names no scope is not taken as "no openid".
+  const unknown = setup({ details: async () => ({ clientId: CLIENT, clientName: 'Claude', scopes: null }) });
+  assert.equal((await allow(unknown)).status, 403);
+  assert.equal(unknown.store.grants.length, 0);
 });
 
 test('the list is the user\'s own live grants; Revoke ends the grant and the client\'s sessions', async () => {

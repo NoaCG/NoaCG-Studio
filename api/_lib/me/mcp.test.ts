@@ -151,6 +151,28 @@ test('verifyUser refuses a connector token before asking Auth', async () => {
   assert.equal(await verifyUser(CONNECTOR_TOKEN), null);
 });
 
+test('verifyUser refuses a token that names no session (an OAuth ID token) before asking Auth', async () => {
+  process.env.SUPABASE_URL = 'http://auth.test';
+  process.env.SUPABASE_ANON_KEY = 'anon';
+  const asked: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    asked.push(String(input instanceof Request ? input.url : input));
+    return new Response(JSON.stringify({ id: USER, aud: 'authenticated', role: 'authenticated' }), { headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    // What Auth issues beside the access token for the `openid` scope: the real user, no session.
+    const idToken = jwt({ sub: USER, aud: CLIENT, iss: 'http://auth.test/auth/v1', email: 'a@example.test' });
+    assert.equal(await verifyUser(idToken), null);
+    assert.deepEqual(asked, [], 'Auth was not asked');
+    const session = jwt({ sub: USER, role: 'authenticated', session_id: '6f1c0c3e-6a0e-4a43-9d0a-1c2b3d4e5f61' });
+    assert.deepEqual(await verifyUser(session), { userId: USER }, 'a first-party session is still asked about and served');
+    assert.equal(asked.length, 1);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test('a connector token is verified locally against the issuer\'s JWKS, never by asking Auth who it is', async () => {
   process.env.SUPABASE_URL = 'http://auth.test';
   process.env.SUPABASE_ANON_KEY = 'anon';

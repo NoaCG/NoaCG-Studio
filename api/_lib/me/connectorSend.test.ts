@@ -47,6 +47,7 @@ const INDEX: CatalogIndex = {
       fields: [
         { key: 'name', label: 'Name', kind: 'text' },
         { key: 'title', label: 'Title', kind: 'text' },
+        { key: 'score', label: 'Score', kind: 'number' },
         { key: 'side', label: 'Side', kind: 'select', role: 'data', options: ['left', 'right'] },
         { key: 'logo', label: 'Logo', kind: 'image', role: 'logo' },
       ],
@@ -144,7 +145,8 @@ test('three recipes, a copy, a brand and cues become ONE waiting package with th
   const body = row.body as { format: string; graphics: Array<Record<string, unknown>>; cues: Array<Record<string, unknown>>; brand: Record<string, unknown> };
   assert.equal(body.format, 'noacg-pack');
   assert.deepEqual(body.graphics[0], { name: 'Speaker', recipe: { type: 'lower-third', design: 'lt01', values: { name: 'Anna', title: 'Pastor' } }, layer: 20 });
-  // A line the recipe left out is blank, never the design's sample text; a setting keeps its default.
+  // A text line the recipe left out is blank, never the design's sample text; a number line (a
+  // score) and a setting keep their defaults.
   assert.deepEqual(body.graphics[1].recipe, { type: 'lower-third', design: 'lt01', palette: 'ivory', font: 'inter', values: { side: 'right', name: '', title: '' } });
   assert.deepEqual(body.graphics[2].recipe, { type: 'lower-third', design: 'lt01', values: { name: '', title: '' } });
   // The copy carries its sources as data: the Storage reference was read back.
@@ -164,7 +166,7 @@ const refusals: Array<[string, Record<string, unknown>, RegExp]> = [
   ['an unknown type', { name: 'x', graphics: [{ name: 'a', type: 'nope', design: 'lt01' }] }, /no type "nope".*noacg_catalog/],
   ['a design of another type', { name: 'x', graphics: [{ name: 'a', type: 'lower-third', design: 'sb01' }] }, /"sb01" is not a design of lower-third\. Its designs: "lt01"/],
   ['an unknown palette', { name: 'x', graphics: [{ name: 'a', type: 'lower-third', design: 'lt01', palette: 'pink' }] }, /no palette "pink"/],
-  ['an unknown value key', { name: 'x', graphics: [{ name: 'a', type: 'lower-third', design: 'lt01', values: { f0: 'Anna' } }] }, /no field "f0"\. Its field keys: "name", "title", "side"/],
+  ['an unknown value key', { name: 'x', graphics: [{ name: 'a', type: 'lower-third', design: 'lt01', values: { f0: 'Anna' } }] }, /no field "f0"\. Its field keys: "name", "title", "score", "side"/],
   ['the logo slot as a value', { name: 'x', graphics: [{ name: 'a', type: 'lower-third', design: 'lt01', values: { logo: 'x.png' } }] }, /no field "logo"/],
   ['a choice that is not one', { name: 'x', graphics: [{ name: 'a', type: 'lower-third', design: 'lt01', values: { side: 'up' } }] }, /"up" is not a choice of side/],
   ['neither a recipe nor a copy', { name: 'x', graphics: [{ name: 'a' }] }, /give `type` and `design`/],

@@ -307,6 +307,10 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
         && claims.payload.session_id !== firstParty.payload.session_id && !token.body.id_token,
       `sub "${String(claims.payload.sub).replace(cleanup.userId, '<user id>')}"; session_id ${UUID_RE.test(claims.payload.session_id ?? '') ? 'a UUID' : 'NOT a UUID'}; id_token ${token.body.id_token ? 'ISSUED' : 'none'} for scope "${CONNECTOR_SCOPE}"`,
     );
+    // The account's own session still reaches its account (asked before the probes below, which
+    // would sign it out if the lock ever failed).
+    const ownUser = await call(`${auth}/user`, { headers: asUser });
+    check('first_party_account_allowed', ownUser.status === 200 && ownUser.body?.id === cleanup.userId, `GET /auth/v1/user with the first-party session: ${brief(ownUser)}`);
     // Another client's pending request: approving it with the connector's token would grant a
     // client the user never saw, and that grant would survive revoking the first.
     const otherReg = await call(meta.registration_endpoint, {
@@ -342,8 +346,6 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
       Boolean(otherId) && Object.values(probes).every((r) => r.status >= 400) && !changed && ownPassword.status === 200,
       `${Object.entries(probes).map(([what, r]) => `${what} ${brief(r)}`).join(' | ')}; metadata ${changed ? 'CHANGED' : 'unchanged'}; the account's own password ${ownPassword.status === 200 ? 'still signs in' : `fails (${brief(ownPassword)})`}`,
     );
-    const ownUser = await call(`${auth}/user`, { headers: asUser });
-    check('first_party_account_allowed', ownUser.status === 200 && ownUser.body?.id === cleanup.userId, `GET /auth/v1/user with the first-party session: ${brief(ownUser)}`);
 
     // 7. Port-agnostic loopback: Claude Code's callback is http://localhost:<any port>/callback.
     const loopReg = await call(meta.registration_endpoint, {

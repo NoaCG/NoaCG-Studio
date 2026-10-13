@@ -249,7 +249,8 @@ not a UUID and a `session_id` that names no session, so Auth's account middlewar
 plus a live grant row, and refuses a token without the lock. NoaCG never approves a request for
 the `openid` scope, because the ID token that scope buys carries the real `sub` and no session,
 the hook never sees it, and Auth's `/user` accepted it (GET and PUT, measured on the branch).
-The protected resource metadata asks for `email` only.
+The protected resource metadata asks for `email` only, and NoaCG's own API refuses any token
+that names no session, which an ID token never does.
 
 **Real risks left.**
 
@@ -757,7 +758,9 @@ minute through; the 503 half is still unchecked on hosted (#987).
   `400 bad_jwt` before reading anything. `connectorUserId` reads `noacg_uid` and nothing else, so
   `/mcp` refuses a token issued without the lock.
 - *No ID token.* The protected resource metadata asks for `email` only, and NoaCG's Allow refuses
-  a request whose scope (as Auth recorded it) includes `openid`, before any grant or approval.
+  a request whose scope (as Auth recorded it) includes `openid`, or names no scope at all, before
+  any grant or approval. Behind that, `verifyUser` refuses a token that names no session (an ID
+  token names none), so NoaCG's own API never serves one even if a client held it.
 - *Pinned:* `connector-oauth-spike.mjs` gains three required checks (`account_claims_locked`,
   `connector_account_refused`, `first_party_account_allowed`; 14 in all), so
   `connector-oauth.spec.ts` fails on any landing that reopens the account endpoints.
@@ -765,8 +768,8 @@ minute through; the 503 half is still unchecked on hosted (#987).
   refused with no grant; its 503 half now asks Auth whether the OAuth server runs instead of
   guessing from the URL. The connector specs run on one hosted test project named in
   `NOACG_CONNECTOR_TEST_REF` (a preview branch, or staging once it is on); production is refused.
-- *Phase 4's findings:* a recipe's lines left out are stored as blank (other fields keep the
-  design's default, which is a working setting such as a clock or a "LIVE" word, not sample copy),
+- *Phase 4's findings:* a recipe's text lines left out are stored as blank (number lines such as
+  a score, and other fields, keep the design's default: a working setting, not sample copy),
   and the values description says so; the Home row says "sent from a connected app", the name
   Settings gives the connector; the send budget is an exact count of calls in the last minute
   (`hitCallLog`), because the two-window estimate still charged a call made 61 s earlier.
@@ -819,8 +822,10 @@ server. Test accounts were minted by the specs and deleted by them.
 - *`noacg_uid` only, no fallback to `sub`.* A token without the lock is refused at `/mcp`, so the
   connector cannot run on an Auth whose account endpoints a token still opens.
 - *Blank lines, not a description warning.* A blank line shows on Home and in the studio before
-  air; a sample line is not noticed until it airs. Only lines: blanking a clock, a score word or a
-  choice would break the graphic.
+  air; a sample line is not noticed until it airs. Only text lines: blanking a score, a clock, a
+  "LIVE" word or a choice would break the graphic. Only on the connector's path: the CLI's
+  scaffold keeps samples for a draft an agent then edits, and a recipe in a pack file is its
+  author's.
 - *"Connected app"* on the Home row, the word Settings already uses, rather than the client's
   self-declared name, which the waiting row does not store.
 - *An exact send budget* for this gate only; the per-IP gates keep the estimate, where one call of
