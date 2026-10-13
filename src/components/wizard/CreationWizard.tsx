@@ -1636,7 +1636,10 @@ export default function CreationWizard() {
       picker.focus();
       return;
     }
-    setStep(stepIndexes[1] ?? step);
+    // A kit graphic is recorded on the way off it, as on every other move (`moveKitTo`).
+    const target = stepIndexes[1] ?? step;
+    if (kit) moveKitTo(target);
+    else setStep(target);
   };
 
   /* The step footer. It belongs to the CENTRE COLUMN, not to the whole sheet: the preview
