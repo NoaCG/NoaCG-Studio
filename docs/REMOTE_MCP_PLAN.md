@@ -812,7 +812,10 @@ server. Test accounts were minted by the specs and deleted by them.
   is runbook step 6.
 - *Off in production:* `POST https://noacg.studio/mcp`, the PRM and `/api/me/connectors` each
   answered 503 `connector_disabled` (2026-10-13, after the branch was deleted).
-- *CI's local stack:* the configured suite on this branch: CONFIGURED_SUITE_RUN.
+- *CI's local stack:* the configured suite on this branch's final code,
+  [run 38359107581](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38359107581): 100 passed,
+  0 failed, 0 flaky, with the spike's 14 checks and all four connector specs green (`tools/list`
+  2,807 characters there, after the values description was shortened).
 
 **Decisions.**
 
