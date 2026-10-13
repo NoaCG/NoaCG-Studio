@@ -5,7 +5,7 @@ on:
       scope:
         description: Verification subset
         type: choice
-        options: [reproduce, changed, complete, references, cumulative, mutation]
+        options: [reproduce, changed, complete, references, cumulative, mutation, selection]
         default: complete
 permissions:
   contents: read
@@ -43,6 +43,9 @@ jobs:
       - name: Focused interactions
         if: inputs.scope == 'reproduce' || inputs.scope == 'changed'
         run: npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'modifier drag|keyboard duplicate|property reveal' --workers=1 --output=.noacg/results/changed
+      - name: Independent marquee and multi-object regression
+        if: inputs.scope == 'selection'
+        run: npx playwright test e2e/editor-base-edits.spec.ts --grep 'B02 multi-object drag' --workers=1 --output=.noacg/results/selection
       - name: Preserved cumulative regressions
         if: inputs.scope == 'complete'
         run: npx playwright test e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts --workers=1 --output=.noacg/results/maintained
