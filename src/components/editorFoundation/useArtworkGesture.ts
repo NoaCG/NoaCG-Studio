@@ -43,18 +43,18 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
    *  start) shows the source again, once. */
   const show = (gesture: Gesture) => {
     preview()?.noteInput('drag');
-    if (gesture.operations.length) { preview()?.previewTemplate(session.preview(gesture.operations).template); gesture.drafted = true; }
+    if (gesture.operations.length) { preview()?.previewTemplate(session.preview(gesture.operations).template, 'drag', gesture.copies?.members.map((member, index) => ({ source: gesture.members![index].part.selector, target: member.part.selector }))); gesture.drafted = true; }
     else if (gesture.drafted) { preview()?.previewTemplate(template); gesture.drafted = false; }
   };
   const cancel = (restoreView = true) => {
-    const active = !!current.current; console.log('PROBE cancel', active, restoreView);
+    const active = !!current.current;
     if (active) { session.cancel(restoreView); preview()?.previewTemplate(session.port.read(), 'cancel'); }
     current.current = null; setDraft(null);
     // Escape during an anchor drag ends the drag; the Anchor tool stays for the next one.
     if (!active && tool === 'anchor') setTool('select');
   };
   const begin = (point: Point, part?: RenderedPart, handle?: Handle, selected?: RenderedPart[], duplicate = false) => {
-    console.log('PROBE begin', duplicate, part?.selector, selected?.map(p=>p.selector)); setError('');
+    setError('');
     try {
       const expected = session.version();
       const base = part ? baseValues(template, part.selector) : undefined;
@@ -94,7 +94,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
   };
   const move = (point: Point, modifiers: { shiftKey: boolean; altKey: boolean }) => {
     const gesture = current.current;
-    console.log('PROBE move/end', !!gesture, gesture?.operations.length); if (!gesture || !isCurrent(gesture)) return;
+    if (!gesture || !isCurrent(gesture)) return;
     try {
       const delta = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
       if (Math.hypot(delta.x, delta.y) < 2 && !gesture.moved) return;
@@ -185,7 +185,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
   };
   const end = () => {
     const gesture = current.current;
-    console.log('PROBE move/end', !!gesture, gesture?.operations.length); if (!gesture || !isCurrent(gesture)) return;
+    if (!gesture || !isCurrent(gesture)) return;
     try {
       if (gesture.creation && !gesture.moved) gesture.operations = [{ kind: 'layer.create', geometry: { ...gesture.creation,
         width: gesture.creation.shape === 'text' ? 320 : 120, height: gesture.creation.shape === 'text' ? 64 : 120, box: false } }];

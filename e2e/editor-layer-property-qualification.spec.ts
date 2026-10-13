@@ -124,7 +124,7 @@ test('ordinary nested SVG label and eye retain definitions masks references and 
   await undo(page); expect(await source(page)).toEqual(renamed); await expect((await frame(page)).locator(selector)).toBeVisible(); await undo(page); expect(await source(page)).toEqual(initial);
 });
 
-test('modifier drag copies selected artwork atomically and cancellation retains the original', async ({page}) => { page.on('console',msg=>console.log(msg.text()));
+test('modifier drag copies selected artwork atomically and cancellation retains the original', async ({page}) => {
   await open(page); const original = await draw(page,.35);
   await page.getByRole('button',{name:'select tool',exact:true}).click(); await select(page,original);
   const before = await source(page), history = (await inspection(page)).history, start = await point(page,original);
@@ -183,8 +183,8 @@ test('modifier drag preserves multi-root animated group and refusal boundaries',
   await open(page); const a=await draw(page,.3), b=await draw(page,.6);
   await page.getByRole('button',{name:'select tool',exact:true}).click();
   const canvas=page.getByTestId('foundation-canvas');
-  const drag=async(selector:string,cancel?:'pointercancel'|'stale'|'refusal')=>{
-    const p=await point(page,selector); await page.keyboard.down('Alt'); await page.mouse.move(p.x,p.y); await page.mouse.down();
+  const drag=async(selector:string,cancel?:'pointercancel'|'stale'|'refusal', hit=selector)=>{
+    const p=await point(page,hit); await page.keyboard.down('Alt'); await page.mouse.move(p.x,p.y); await page.mouse.down();
     await page.mouse.move(p.x+35,p.y+13,{steps:6});
     if(cancel==='pointercancel') await canvas.dispatchEvent('pointercancel',{pointerId:1,pointerType:'mouse'});
     if(cancel==='stale') {
@@ -203,15 +203,15 @@ test('modifier drag preserves multi-root animated group and refusal boundaries',
   await select(page,a);const beforeStale=(await inspection(page)).history;await drag(a,'stale');expect(await source(page)).toEqual(pair);expect((await inspection(page)).history).toEqual(beforeStale);expect(await selected(page)).toEqual(['#f0']);
   const originalPoint=await point(page,a);await page.mouse.click(originalPoint.x,originalPoint.y);
   await select(page,a);await row(page,b).locator('.ef-layer').click({modifiers:['Control']});await page.getByRole('button',{name:'Group selection',exact:true}).click();await ready(page);
-  const group=(await selected(page))[0],grouped=await source(page);await drag(group);
+  const group=(await selected(page))[0],grouped=await source(page);await drag(group,undefined,a);
   const groupCopy=(await selected(page))[0];expect(groupCopy).not.toBe(group);await expect((await frame(page)).locator(groupCopy+' '+a+'-copy-1')).toHaveCount(1);
   await undo(page);expect(await source(page)).toEqual(grouped);
   await page.getByRole('button',{name:'Enter group',exact:true}).click();await select(page,a);await canvas.focus();await page.keyboard.press('Control+a');expect(new Set(await selected(page))).toEqual(new Set([a,b]));
   await page.getByRole('button',{name:'Back to Composition',exact:true}).click();await select(page,group);
   await seek(page,.4);await page.getByRole('button',{name:'Enable Position X animation',exact:true}).click();await ready(page);await seek(page,.8);
-  const animated=await source(page);await drag(group);const copy=(await selected(page))[0];expect(copy).not.toBe(group);expect((await source(page)).js).not.toBe(animated.js);
+  const animated=await source(page);await drag(group,undefined,a);const copy=(await selected(page))[0];expect(copy).not.toBe(group);expect((await source(page)).js).not.toBe(animated.js);
   await undo(page);expect(await source(page)).toEqual(animated);
   // The catalog structural box has no stable ID and must not partly copy a mixed selection.
   await select(page,group);await row(page,'.graphic-box').locator('.ef-layer').click({modifiers:['Control']});const refused=await source(page),refusedHistory=(await inspection(page)).history;
-  await drag(group,'refusal');expect(await source(page)).toEqual(refused);expect((await inspection(page)).history).toEqual(refusedHistory);await expect(page.getByText('This structural edit requires a layer with a stable ID.',{exact:true})).toBeVisible();
+  await drag(group,'refusal',a);expect(await source(page)).toEqual(refused);expect((await inspection(page)).history).toEqual(refusedHistory);await expect(page.getByText('This structural edit requires a layer with a stable ID.',{exact:true})).toBeVisible();
 });
