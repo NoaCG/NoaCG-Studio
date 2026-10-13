@@ -154,9 +154,21 @@ account token from `.env`; none needs a deploy. Run them in Git Bash from the ma
 export SUPABASE_ACCESS_TOKEN="$(grep '^SUPABASE_ACCESS_TOKEN=' .env | cut -d= -f2-)"
 REF=garafohbzmsybtysxphb          # staging first; production is kprolrchuldgfrzspthy
 AUTH="https://api.supabase.com/v1/projects/$REF/config/auth"
-patch() { curl -sS -X PATCH "$AUTH" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-  -H 'content-type: application/json' -d "$1" | grep -o "\"${2}\":[a-z]*"; }
+patch() {
+  local out code
+  out=$(curl -sS -X PATCH "$AUTH" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+    -H 'content-type: application/json' -d "$1" -w '\n%{http_code}') || { echo "REFUSED: no answer" >&2; return 1; }
+  code=${out##*$'\n'}
+  out=${out%$'\n'*}
+  case $code in
+    2??) for k in $(grep -o '"[a-z_]*":' <<<"$1" | tr -d '":'); do grep -o "\"$k\":[^,}]*" <<<"$out"; done ;;
+    *) echo "REFUSED, HTTP $code: $out" >&2; return 1 ;;
+  esac
+}
 ```
+
+`patch '<settings>'` prints each setting it sent as Auth holds it afterwards. A refused call
+prints `REFUSED`, the HTTP status and Auth's reason instead and changes nothing; stop there.
 
 **1. Check the project is ready.** `npm run check:migration-drift` lists no pending migration
 for the project (0089, 0090 and 0091 must be applied; a landing pushes them to both). The signing
@@ -168,7 +180,7 @@ prints one line on both projects today.
 email, phone, MFA factors or linked identities changed. Useful whatever the connector does.
 
 ```bash
-patch '{"mailer_notifications_password_changed_enabled":true,"mailer_notifications_email_changed_enabled":true,"mailer_notifications_phone_changed_enabled":true,"mailer_notifications_mfa_factor_enrolled_enabled":true,"mailer_notifications_mfa_factor_unenrolled_enabled":true,"mailer_notifications_identity_linked_enabled":true,"mailer_notifications_identity_unlinked_enabled":true}' mailer_notifications_password_changed_enabled
+patch '{"mailer_notifications_password_changed_enabled":true,"mailer_notifications_email_changed_enabled":true,"mailer_notifications_phone_changed_enabled":true,"mailer_notifications_mfa_factor_enrolled_enabled":true,"mailer_notifications_mfa_factor_unenrolled_enabled":true,"mailer_notifications_identity_linked_enabled":true,"mailer_notifications_identity_unlinked_enabled":true}'
 ```
 
 Not recommended: `security_update_password_require_current_password`. Step 3 already keeps
@@ -180,16 +192,16 @@ project; first-party tokens pass through unchanged. Then sign in to the studio o
 once and open Home (production: noacg.studio as yourself).
 
 ```bash
-patch '{"hook_custom_access_token_enabled":true,"hook_custom_access_token_uri":"pg-functions://postgres/public/connector_access_token"}' hook_custom_access_token_enabled
+patch '{"hook_custom_access_token_enabled":true,"hook_custom_access_token_uri":"pg-functions://postgres/public/connector_access_token"}'
 ```
 
 If sign-in fails after this, turn it straight off again:
-`patch '{"hook_custom_access_token_enabled":false}' hook_custom_access_token_enabled`.
+`patch '{"hook_custom_access_token_enabled":false}'`.
 
 **4. The OAuth server on.** This is the switch.
 
 ```bash
-patch '{"oauth_server_enabled":true,"oauth_server_allow_dynamic_registration":true,"oauth_server_authorization_path":"/"}' oauth_server_enabled
+patch '{"oauth_server_enabled":true,"oauth_server_allow_dynamic_registration":true,"oauth_server_authorization_path":"/"}'
 ```
 
 Within a minute `curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://noacg.studio/mcp`
@@ -223,7 +235,7 @@ there ends it.
 within a minute, and tokens already issued are refused at `/mcp`, by the database and by Auth:
 
 ```bash
-patch '{"oauth_server_enabled":false,"oauth_server_allow_dynamic_registration":false}' oauth_server_enabled
+patch '{"oauth_server_enabled":false,"oauth_server_allow_dynamic_registration":false,"oauth_server_authorization_path":"/"}'
 ```
 
 Leave the hook on: it touches only connector tokens. **Never turn the hook off while the OAuth
