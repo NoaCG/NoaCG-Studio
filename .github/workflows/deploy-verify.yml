@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
+        description: Bounded independent verification selection
         type: choice
         options: [reproduce, complete, references, focused, mutation, visual, history, export]
         default: reproduce
@@ -41,13 +42,13 @@ jobs:
         run: xvfb-run -a npx playwright test e2e/leave-reference.spec.ts --workers=1 --output=.noacg/results/references
       - name: Complete lifecycle and preserved regressions
         if: inputs.scope == 'complete'
-        run: npx playwright test e2e/new-graphic-guard.spec.ts e2e/library.spec.ts e2e/wizard-draft-guard.spec.ts e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts e2e/editor-commands.spec.ts e2e/project.spec.ts e2e/route-transition-flash.spec.ts e2e/leave-checker.spec.ts --workers=1 --output=.noacg/results/maintained
+        run: npx playwright test e2e/new-graphic-guard.spec.ts e2e/library.spec.ts e2e/wizard-draft-guard.spec.ts e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts e2e/editor-commands.spec.ts e2e/project.spec.ts e2e/route-transition-flash.spec.ts e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts --workers=1 --output=.noacg/results/maintained
       - name: Two sequential exported graphics
         if: always() && (inputs.scope == 'complete' || inputs.scope == 'export')
         run: npx playwright test e2e/ograf-conformance.spec.ts --grep 'two DIFFERENT' --workers=1 --output=.noacg/results/export
       - name: Final focused lifecycle
         if: inputs.scope == 'focused'
-        run: npx playwright test e2e/leave-checker.spec.ts --workers=1 --output=.noacg/results/focused
+        run: npx playwright test e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts --workers=1 --output=.noacg/results/focused
       - name: Inspect native history
         if: inputs.scope == 'history'
         run: npx playwright test e2e/history-probe.spec.ts --workers=1 --output=.noacg/results/history
@@ -77,4 +78,6 @@ jobs:
           name: leave-receipts
           include-hidden-files: true
           path: .noacg/results
+
+
 
