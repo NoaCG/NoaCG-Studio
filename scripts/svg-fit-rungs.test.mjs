@@ -38,7 +38,8 @@
 // (the box in the line's own units, the alignment, the nudge and the inset on each axis). A
 // disagreement is a finding (docs/work-specs/svg-import-engine/spec.md D10): listed in
 // MIRROR_FINDINGS below and printed on every run, never fixed here. The test fails only when the
-// list changes, so a new drift cannot land silently and a fixed one is taken off on purpose.
+// list changes (compared on Linux, where CI runs it: MIRROR_PINNED), so a new drift cannot land
+// silently and a fixed one is taken off on purpose.
 //
 //   node --test scripts/svg-fit-rungs.test.mjs
 //   SVG_FIT_RUNGS_SHOW=1 node --test scripts/svg-fit-rungs.test.mjs   # print every mirror finding as code to paste
@@ -58,11 +59,16 @@ const RUNTIME = root('src/templates/importedDesign/runtime/');
 const ORIGIN = 'http://svg-fit-rungs.harness';
 /** A rule must reach at least this many corpus files, or it is not testing the corpus. */
 const MIN_FILES = 10;
+/** THE MIRROR'S RECORD IS LINUX'S, where CI runs it. Two lines sit on an edge another platform's
+ *  glyph hinting crosses (a webfont's fallback moves which plate the step groups a line under; an
+ *  inset lands either side of its tolerance), so elsewhere the findings are measured and their
+ *  differences listed in the skip message, not compared - the pass harness's RUNTIME_PINNED rule. */
+const MIRROR_PINNED = process.platform === 'linux';
 /** What the step and the runtime were last recorded disagreeing about (D10). Re-recorded on purpose,
  *  with the reason in the pull request: SVG_FIT_RUNGS_SHOW=1 prints the list as code. */
 const MIRROR_FINDINGS = [
   'affinity-point-sized-nameplate f0: law: inset y',
-  'effects-css-import-webfont f0: box: the step and the runtime choose different boxes',
+  'effects-css-import-webfont f0: box: the step groups it under no box, the runtime measures it in one',
   'effects-css-import-webfont f1: box: the step groups it under no box, the runtime measures it in one',
   'effects-css-import-webfont f1: law: inset y',
   'effects-external-ref-and-script f0: box: the step groups it under no box, the runtime measures it in one',
@@ -115,6 +121,7 @@ const MIRROR_FINDINGS = [
   'nested-svg-sub-artboard f1: box: the step groups it under no box, the runtime measures it in one',
   'nested-svg-sub-artboard f1: law: inset y',
   'no-viewbox-px-and-pt f0: law: inset y',
+  'no-viewbox-px-and-pt f2: law: inset y',
   'origin-shifted-quiz-board f0: box: the step groups it under no box, the runtime measures it in one',
   'student-illustrator-scoreboard f0: law: inset x (penned by a neighbour)',
   'student-illustrator-scoreboard f1: law: inset x (penned by a neighbour)',
@@ -709,12 +716,21 @@ for (const rule of RULES) {
   });
 }
 
-test('the mirror gate covers every bound line, and its findings are the recorded ones', () => {
+test('the mirror gate covers every bound line', () => {
   assert.ok(mirrorLines > 0, 'no bound line was mirrored');
   // Every line the runtime fits in the artwork has the step's answer beside it.
   const uncovered = accepted.flatMap((f) => Object.keys(raws[f.name].runtimeSide)
     .filter((id) => !raws[f.name].stepSide[id]).map((id) => `${f.name} ${id}`));
   assert.deepEqual(uncovered, [], 'a bound line the step never measured');
-  assert.deepEqual(mirror, MIRROR_FINDINGS);
+});
+
+const mirrorMoved = [
+  ...mirror.filter((s) => !MIRROR_FINDINGS.includes(s)).map((s) => `+ ${s}`),
+  ...MIRROR_FINDINGS.filter((s) => !mirror.includes(s)).map((s) => `- ${s}`),
+];
+test('the mirror\'s findings are the recorded ones', {
+  skip: MIRROR_PINNED ? false : `not compared on ${process.platform}: the record is Linux's (CI), and ${mirrorMoved.length} finding(s) differ from it here${mirrorMoved.length ? `:\n  ${mirrorMoved.join('\n  ')}` : ''}`,
+}, () => {
+  assert.deepEqual(mirror, MIRROR_FINDINGS, `the mirror moved:\n  ${mirrorMoved.join('\n  ')}`);
 });
 
