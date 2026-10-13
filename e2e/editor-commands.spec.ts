@@ -84,7 +84,21 @@ test('commit receipt stays separate from matching preview readiness and route li
   await expect.poll(() => page.evaluate(async () => { const r = (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect(); return r.ok ? r.preview.state : r.refusal.code; })).toBe('ready');
   const acknowledged = await page.evaluate(async () => (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
   if (acknowledged.ok && acknowledged.preview.state === 'ready') { expect(acknowledged.preview.revision).toEqual(acknowledged.expected.revision); expect(acknowledged.preview.time).toBe(acknowledged.view.time); expect(acknowledged.preview.drawingSpace).not.toBeNull(); }
-  await page.evaluate(() => { location.hash = '#/home'; }); await expect(page.getByTestId('editor-foundation')).toHaveCount(0);
+  const sourceBeforeLeave = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+  await page.evaluate(() => { location.hash = '#/home'; });
+  // Dirty navigation first resolves the document while the command binding is still live.
+  // Save through the real decision, then retain the original unmount/reopen assertions.
+  await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('home-page')).toHaveCount(0);
+  const pending = await page.evaluate(async () => (await import('/src/components/editorFoundation/commandAdapter.ts')).activeEditorCommands().inspect());
+  expect(pending.ok).toBe(true);
+  if (pending.ok && acknowledged.ok) expect(pending.expected).toEqual(acknowledged.expected);
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template)).toEqual(sourceBeforeLeave);
+  await page.getByTestId('switch-save').click();
+  await expect(page.getByTestId('save-dialog')).toBeVisible();
+  await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('editor-foundation')).toHaveCount(0);
   const unmounted = await page.evaluate(() => (window as unknown as { priorCommands: { inspect(): { ok: boolean; refusal?: { code: string } } } }).priorCommands.inspect());
   expect(unmounted.ok).toBe(false); expect(unmounted.refusal?.code).toBe('session_closed');
   // Real navigation destroys the old realm; document reopen gives a fresh instance.

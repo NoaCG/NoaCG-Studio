@@ -242,10 +242,12 @@ if (typeof window !== 'undefined') {
       });
       return;
     }
-    // popstate and hashchange both report one traversal. The restored entry is also
-    // already rendered, so its second event must not ask twice.
+    // The guarded editor is already rendered at a restored entry; its second event
+    // must not ask twice. Other surfaces retain native navigation notifications,
+    // including a same-hash visit that closes an export snapshot from that surface.
     if (routeHash(route) === routeHash(useRouter.getState().route)) {
       lastDepth = depth;
+      if (!navigationGuard) useRouter.setState({ route });
       return;
     }
     if (approvedDepth === depth) approvedDepth = null;
