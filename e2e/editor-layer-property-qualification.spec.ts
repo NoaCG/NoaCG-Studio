@@ -160,6 +160,9 @@ test('keyboard duplicate select all and canvas context retain input ownership', 
   await select(page,original); const before = await source(page),history=(await inspection(page)).history.undo;
   const canvas=page.getByTestId('foundation-canvas'); await canvas.focus(); await page.keyboard.press('Control+d'); await ready(page);
   const copy=(await selected(page))[0]; expect(copy).not.toBe(original); expect((await inspection(page)).history.undo).toBe(history+1);
+  const duplicateSource=await source(page), duplicateHistory=(await inspection(page)).history, overlap=await point(page,copy);
+  await page.keyboard.down('Alt');await page.mouse.click(overlap.x,overlap.y);await page.keyboard.up('Alt');await ready(page);
+  expect(await selected(page)).toEqual([original]);expect(await source(page)).toEqual(duplicateSource);expect((await inspection(page)).history).toEqual(duplicateHistory);
   await canvas.focus(); await page.keyboard.press('Shift+F10'); await expect(page.getByRole('menu',{name:'Layer actions'})).toBeVisible();
   await page.keyboard.press('Escape'); await canvas.focus(); await page.keyboard.press('Control+z'); await ready(page); expect(await source(page)).toEqual(before);
   await canvas.focus(); await page.keyboard.press('Control+a');
