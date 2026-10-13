@@ -130,6 +130,9 @@ export class PreviewController {
     }, 10000);
   }
   async load(template: SpxTemplate, revision: Revision, sampleData: Record<string, string>, time: number, cue?: number) {
+    // A draft can replace DOM, CSS and motion. Source acceptance must clear all of it,
+    // including a cancellation queued for the next frame.
+    const canReuseFrame = !this.draftMotion && !this.pendingTemplate;
     this.previewError = null; this.transient = false;
     this.exitMode = null;
     this.targetCue = cue;
@@ -144,7 +147,7 @@ export class PreviewController {
     const epoch = ++this.loadEpoch;
     const previousEnvelope = this.expected;
     const previousTemplate = this.template;
-    const previouslyReady = this.ready;
+    const previouslyReady = this.ready && canReuseFrame;
     this.ready = false;
     this.expected = null; // refuse old acks even while hashing new bytes
     this.targetTime = time;
