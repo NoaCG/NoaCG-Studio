@@ -1,8 +1,8 @@
 # Wizard structure: a thin shell over Node-tested walk modules
 
 Baseline: main `dba61b8e1`, 2026-10-13; every line number below is of that revision. Authority:
-owner, 2026-10-13 (see `work.json`). Plan for `/plan-run wizard-shell`: seven mandatory sequential
-phases (S1a to S7), each built by one session and checked by another on `main`, then two optional
+owner, 2026-10-13 (see `work.json`). Plan for `/plan-run wizard-shell`: nine mandatory sequential
+phases (S1a, S1b, S1c, then S2 to S7), each built by one session and checked by another on `main`, then two optional
 phases the owner adds after reading the first run's notes. The Create with AI step is the child
 plan `docs/work-specs/wizard-ai/spec.md` (`/plan-run wizard-ai`), which runs beside this one on
 disjoint files (section 8). Together they pick up wizard rows 3 to 5 of the 2026-09-06 workflow
@@ -490,7 +490,7 @@ outside this plan. `npm run audit:instructions` runs in S7.
   window is a new run whose list starts at the first unfinished phase and may include S8 and S9
   only if the owner added them to this spec's phase list after reading S6's probe.
 - **Builders and ordinary checks:** `wave-row` (Opus, high). One builder owns the shell in any
-  phase. S2 is `wave-row-mechanical` territory only for its moves; its tests are judgement.
+  phase.
 - **`wave-row-deciding`** (Opus, xhigh): the pre-merge assessments of S4 and S5 (A), and a narrow
   state or lifetime decision this spec does not settle (recorded in the phase notes; never
   widening scope).
