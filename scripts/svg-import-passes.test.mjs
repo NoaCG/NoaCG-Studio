@@ -30,8 +30,9 @@
 // harness origin, and every family a file names that no bundled face matches is declared as an
 // alias of Inter, so a Windows checkout and the Linux runner measure the same glyphs. This is the
 // harness's override, never the product's: what the font pass emits is pinned by `fontCss`.
-// A record that still differs between two runs goes under `volatile` in the snapshot with its
-// reason, and is compared within VOLATILE_TOLERANCE rather than exactly; never dropped.
+// The runtime record is still Linux's alone (RUNTIME_PINNED says why). A record that differs
+// between two CI runs goes under `volatile` in the snapshot with its reason, and is compared
+// within VOLATILE_TOLERANCE rather than exactly; never dropped.
 //
 // SIDECARS ARE THE TRUTH, NOT THIS RECORD. Every run cross-checks each file against its
 // `.expect.json` (accepted, size, text fields ON, labels as a prefix, picture rows, outline rows,
@@ -41,6 +42,8 @@
 //
 //   node --test scripts/svg-import-passes.test.mjs
 //   UPDATE_SVG_CORPUS_PASSES=1 node --test scripts/svg-import-passes.test.mjs   # re-record; name the reason in the pull request
+//   UPDATE_SVG_CORPUS_PASSES=1 SVG_CORPUS_RUNTIME_FROM=<saved CI job log> node --test scripts/svg-import-passes.test.mjs
+//                                                   # off Linux: the runtime records a failing CI run printed
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -62,6 +65,14 @@ const ORIGIN = 'http://svg-corpus.harness';
 const TOLERANCE = 1;
 /** The same, for a record listed under `volatile`. */
 const VOLATILE_TOLERANCE = 4;
+/** THE RUNTIME RECORD IS LINUX'S, where CI runs it. With the same font files, Chromium on Windows
+ *  lays text out a fraction of a pixel differently (its rasteriser hints the advances), which is
+ *  enough to move a wrap: the first CI run of this harness disagreed with a Windows recording on
+ *  14 of 48 files and on nothing else. Elsewhere the runtime is measured and its differences
+ *  counted, but not compared, and a re-record keeps the committed runtime unless
+ *  SVG_CORPUS_RUNTIME_FROM names a saved CI job log, whose `runtime-record` lines it takes. */
+const RUNTIME_PINNED = process.platform === 'linux';
+const RUNTIME_FROM = process.env.SVG_CORPUS_RUNTIME_FROM ?? null;
 
 const SPECS = [
   ['assets/svgImport.ts', 'NOACG_SVG'],
@@ -334,17 +345,27 @@ console.log(`[svg-import-passes] ${findings.length} findings against the sidecar
 
 const before = existsSync(SNAPSHOT) ? JSON.parse(readFileSync(SNAPSHOT, 'utf8')) : null;
 if (UPDATE || !before) {
+  // Off Linux the runtime record is not this machine's to write: it keeps the committed one, or
+  // takes the lines a CI run printed (RUNTIME_FROM, a saved job log).
+  const fromLog = RUNTIME_FROM
+    ? Object.fromEntries([...readFileSync(RUNTIME_FROM, 'utf8').matchAll(/\[svg-import-passes\] runtime-record (\S+) (\{.*\})\s*$/gm)].map((m) => [m[1], JSON.parse(m[2])]))
+    : {};
+  const files = Object.fromEntries(Object.entries(records).map(([name, rec]) => {
+    if (RUNTIME_PINNED || !rec.runtime) return [name, rec];
+    const runtime = fromLog[name] ?? before?.files?.[name]?.runtime ?? rec.runtime;
+    return [name, { ...rec, runtime }];
+  }));
   writeFileSync(
     SNAPSHOT,
     `${JSON.stringify({
       $comment:
-        'Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review.',
+        'Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review. The runtime records are Linux (CI) measurements.',
       findings,
       volatile: before?.volatile ?? {},
-      files: records,
+      files,
     }, null, 1)}\n`,
   );
-  console.log(`[svg-import-passes] recorded ${SNAPSHOT}`);
+  console.log(`[svg-import-passes] recorded ${SNAPSHOT}${RUNTIME_PINNED ? '' : ` (runtime records kept from the snapshot${RUNTIME_FROM ? ` or taken from ${RUNTIME_FROM}` : ''})`}`);
 }
 const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));
 
@@ -357,17 +378,30 @@ test('the findings against the sidecars are the recorded ones', () => {
   assert.deepEqual(findings, snapshot.findings);
 });
 
+/** Every file whose `pass` record differs from the snapshot, with what moved. */
+function changedIn(pass) {
+  const changed = [];
+  for (const { name } of corpus) {
+    const volatile = snapshot.volatile?.[name]?.[pass];
+    const tol = pass === 'runtime' ? (volatile ? VOLATILE_TOLERANCE : TOLERANCE) : 0;
+    const lines = diff(snapshot.files[name]?.[pass], records[name][pass], tol);
+    if (lines.length) changed.push({ name, lines });
+  }
+  return changed;
+}
+
 for (const pass of PASSES) {
-  test(`${pass}: every corpus file matches its record`, () => {
-    const changed = [];
-    for (const { name } of corpus) {
-      const was = snapshot.files[name]?.[pass];
-      const now = records[name][pass];
-      const volatile = snapshot.volatile?.[name]?.[pass];
-      const tol = pass === 'runtime' ? (volatile ? VOLATILE_TOLERANCE : TOLERANCE) : 0;
-      const lines = diff(was, now, tol);
-      if (lines.length) changed.push(`${name} / ${pass}\n    ${lines.join('\n    ')}`);
+  // Measured everywhere; compared only where it was recorded (see RUNTIME_PINNED), and said so.
+  const skip = pass === 'runtime' && !RUNTIME_PINNED
+    ? `the runtime record is Linux's (CI) and this is ${process.platform}: ${changedIn(pass).length} file(s) lay text out differently here, which is font hinting rather than a change`
+    : false;
+  test(`${pass}: every corpus file matches its record`, { skip }, () => {
+    const changed = changedIn(pass);
+    if (pass === 'runtime') {
+      // The fresh records, one line each, so a re-record off Linux can take them from this log.
+      for (const { name } of changed) console.log(`[svg-import-passes] runtime-record ${name} ${JSON.stringify(records[name].runtime)}`);
     }
-    assert.equal(changed.length, 0, `${changed.length} file(s) changed in ${pass}:\n  ${changed.join('\n  ')}`);
+    const said = changed.map(({ name, lines }) => `${name} / ${pass}\n    ${lines.join('\n    ')}`);
+    assert.equal(changed.length, 0, `${changed.length} file(s) changed in ${pass}:\n  ${said.join('\n  ')}`);
   });
 }
