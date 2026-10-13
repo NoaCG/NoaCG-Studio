@@ -679,22 +679,38 @@ and the check's findings. The AI track's notes live in its own spec.
 - **Measured** (`evidence/phase-s1a.md`): the 92 wizard rules now sit 31 in the wizard contract,
   19 in `import/`, 20 in `steps/`, 22 in `steps/ai/`, none lost or duplicated. Chains: shell edit
   58,678 -> 34,807 (under the 40,960 target); `import/` 42,347; `steps/` 42,867; `steps/ai/`
-  51,910 (13,626 free of the cap). The brief's "about 75 of 107" was an estimate; 61 of 92 moved.
-- **Decision:** AC-7 names "the metrics file" for S1a's numbers, while S1a's file list allows
-  only `evidence/phase-s1a.md` and S7 writes `docs/metrics/<date>-wizard-shell.md`. S1a's numbers
-  live in the evidence file; S7's metrics file carries them as its "before". Revert: S7 copies
-  them instead.
+  51,910 (13,626 free of the cap). This supersedes the estimates in "Why" ("75 of the 107 active
+  wizard rules") and section 7 ("about 32 rules", "about 44 KB"): the shell's file held 92 rules,
+  61 moved, and the AI-step chain is 51,910, not about 44 KB.
+- **Decision:** AC-7 and section 7 say S1a's chain sizes go in `docs/metrics/<date>-wizard-shell.md`;
+  S1a's phase entry and its row name only `evidence/phase-s1a.md`, and section 8 allows one
+  metrics file per track. S1a's numbers live in the evidence file, and S7 writes the track's one
+  metrics file with S1a's numbers as its "before" and its own as "after", which meets AC-7's
+  "recorded at S1a and S7 in the metrics file". Revert: write that file now from the evidence.
+- **Next candidates for the chains still over 40,960:** `import/` (+1,387) and `steps/` (+1,907)
+  share the shell contract, so S7's retirements and rescopes there count for both (about 400
+  bytes per rule); `wizard/spread-every-handler-patches-make-visible` is in `import/AGENTS.md`
+  now. Beyond those, the largest rules are `open-create-step-user-own-coding` (641 bytes) and
+  `order-entry-step-four-equal-start` (551) in `steps/`, and
+  `measure-line-room-alignment-line-own` (499) in `import/`. `src/` and `src/components/`
+  (20,684 bytes together) are outside this plan.
 - **S1b must allow for:** no recompile in S1b (it edits no rule and no contract). After any
   `git merge origin/main`, run `npm run contracts:compile` and commit what changes: a generated
   contract merges cleanly and can still come out wrong. The svg-import-engine plan may add files
   under `import/`; its rules already land in `import/AGENTS.md` through the same compile.
 - **For the AI track (A4) and S7:** a `steps/ai/` edit pays for `steps/AGENTS.md` too (8,058),
   because `steps/ai/` sits under `steps/`; A4's move to `wizard/ai/` with the marker removes that
-  and is the largest single cut left for that chain (10,950 over target). The 31 rules left in
-  the wizard contract include section 7's S7 candidates (the three door rules, the lifecycle
-  rules, `hold-import-images-continuation-old-importstep`); `give-every-wizard-step-own-history`
-  was never in it (it spans `src/app/router.ts`, so it lives in `src/AGENTS.md`).
+  and is the largest single cut left for that chain (10,950 over target). `steps/ai/` now holds a
+  generated `AGENTS.md` and `.gitattributes`: A4 deletes both (a `git mv` of `steps/ai/*` would
+  collide with the new `wizard/ai/AGENTS.md` and skip the dotfile, and the compiler never flags a
+  `.gitattributes` whose folder lost its marker), writes the marker in `wizard/ai/`, and
+  recompiles. The 31 rules left in the wizard contract include section 7's S7 candidates (the
+  three door rules, the lifecycle rules, `hold-import-images-continuation-old-importstep`),
+  except `spread-every-handler-patches-make-visible`, which moved to `import/`;
+  `give-every-wizard-step-own-history` was never in it (it spans `src/app/router.ts`, so it lives
+  in `src/AGENTS.md`).
 - **Traps:** `npm run metrics:contracts` lists tracked files (`git ls-files`), so a new contract is
-  invisible to it until staged. `check-shared-instructions.mjs` prints only the three tightest
-  chains; a per-file chain is the sum of the `AGENTS.md` files on the path, LF-normalised, plus 2
-  bytes per join. The compiler wrote `.gitattributes` beside each new contract; keep them.
+  invisible to it until staged. `check-shared-instructions.mjs` prints at least the three
+  tightest chains (all above 80% of the cap when more), not every chain; a per-file chain is the
+  sum of the `AGENTS.md` files on the path, LF-normalised, plus 2 bytes per join. Keep the
+  `.gitattributes` the compiler wrote beside each new contract while its marker stays.

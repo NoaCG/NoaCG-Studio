@@ -26,8 +26,9 @@ added, none duplicated.
 
 ## Chain per edited file
 
-`node scripts/check-shared-instructions.mjs` prints only the three tightest chains and
-`npm run metrics:contracts` only the five tightest, so no tool prints these per file. They are
+`node scripts/check-shared-instructions.mjs` prints the three tightest chains (more only when more
+are above 80% of the cap) and `npm run metrics:contracts` the five tightest, so neither prints all
+four of these. They are
 computed the way `check-shared-instructions.mjs` counts a chain: every `AGENTS.md` from the root
 down to the file's folder, LF-normalised, plus 2 bytes per join. The steps/ai figure matches the
 chain the check itself printed after the change (51,910).
@@ -42,7 +43,7 @@ chain the check itself printed after the change (51,910).
 Against the 65,536-byte cap (the build fails below 4,096 free), the tightest wizard chain went from
 6,858 to 13,626 bytes free. Against the 40,960-byte target of `docs/METRICS.md`, which is reported
 and not gated: the shell chain is under it; import (+1,387), steps (+1,907) and steps/ai (+10,950)
-are over it.
+are over it. The next candidates for those three chains are named in the spec's S1a phase notes.
 
 ## Commands and output
 
@@ -68,8 +69,9 @@ After (run on the committed tree, since the script lists tracked files):
        48481  4  src/templates/infographics  (~12,120 tokens)
 ```
 
-The corpus went from 102 files and 480,479 bytes to 105 files and 481,245 bytes (+766 bytes:
-each new contract has its own header, and three more chains load the root file).
+The corpus went from 102 files and 480,479 bytes to 105 files and 481,245 bytes (+766 bytes: the
+three new contracts total 24,637 bytes against the wizard contract's 23,871-byte drop; the
+difference is their own headers).
 
 `node scripts/check-shared-instructions.mjs`, before:
 
