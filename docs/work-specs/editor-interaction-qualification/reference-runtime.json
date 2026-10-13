@@ -173,19 +173,19 @@
   },
   "captures": [
     {
-      "artifactPath": ".noacg\\results\\references\\interaction-probe-conventi-44b59-nd-modifier-drag-comparison-chromium\\eyevinn-interactions.png",
+      "artifactPath": ".noacg/results/references/interaction-probe-conventi-44b59-nd-modifier-drag-comparison-chromium/eyevinn-interactions.png",
       "sha256": "f2aeb850511b2a83a272fc38fbee581e9676566b6fe6287fb95550aecd828002"
     },
     {
-      "artifactPath": ".noacg\\results\\references\\interaction-probe-conventi-4f42d-nd-modifier-drag-comparison-chromium\\studio-interactions.png",
+      "artifactPath": ".noacg/results/references/interaction-probe-conventi-4f42d-nd-modifier-drag-comparison-chromium/studio-interactions.png",
       "sha256": "e458e2a8f0edde654d5d536e421e53b186db13f9480b606b5043c60153c9632c"
     },
     {
-      "artifactPath": ".noacg\\results\\references\\interaction-probe-referenc-9ef76-o-layer-property-comparison-chromium\\reference-desktop.png",
+      "artifactPath": ".noacg/results/references/interaction-probe-referenc-9ef76-o-layer-property-comparison-chromium/reference-desktop.png",
       "sha256": "1600df634c93eb8623998cefd07cf30642539e2f04a0bfd065a4d5fb4c26a24f"
     },
     {
-      "artifactPath": ".noacg\\results\\references\\interaction-probe-referenc-9ef76-o-layer-property-comparison-chromium\\reference-reopened.png",
+      "artifactPath": ".noacg/results/references/interaction-probe-referenc-9ef76-o-layer-property-comparison-chromium/reference-reopened.png",
       "sha256": "f786672cdbc5e3ee2b960b49706d7da9443008259a8ba3ef20053a8a48908e1d"
     }
   ]

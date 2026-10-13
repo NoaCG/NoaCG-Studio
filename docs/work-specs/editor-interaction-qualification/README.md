@@ -32,7 +32,8 @@ cumulative editing/output work. Engineering verification is separate from owner 
    without stealing from text/numeric/rename controls (E02/E07/E17, B02/B06).
 2. Alt-drag previews a copy while original source/history remain unchanged, commits only once,
    selects stable copy IDs, and undoes/redoes the whole gesture. Escape, pointer cancellation,
-   unsupported mixed selections and stale source preserve original source/history. Repeat
+   and unsupported mixed selections preserve original source/history. A stale gesture retains
+   the latest authoritative source/history and removes its draft. Repeat
    with several roots, nested groups and an animated layer. Alt-click and handle constraints
    remain intact (E07/E17, B02/B03).
 3. Property reveal and previous/next-key navigation work from editor focus, leave source,
@@ -50,8 +51,27 @@ cumulative editing/output work. Engineering verification is separate from owner 
 
 ## Reproduction and evidence
 
-Pending execution. Source inspection finds Alt excluded from the canvas gesture start,
-no Ctrl/Cmd+D or select-all editor action, and no property reveal/previous/next controls.
-Existing October 10-11 layer/property, transform and short-height receipts remain unchanged.
-Disposable CI probes must never enter the merge queue. Final evidence will distinguish
-observed failures, test-driver corrections, unsupported cases and checks not run.
+Current-main reproduction used product `dba61b8e1` in disposable CI run
+[38425103564](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38425103564).
+All three new cases failed at their intended missing behavior: Alt-drag cancellation lost
+selection, Ctrl+D did not duplicate, and P did not reveal Position. Existing additive/range
+selection, rename/eye, context actions, numeric scrubbing and transforms were retained.
+
+The change reuses the operation registry for copy batches, previews temporary rendered clones,
+and commits once on release. Escape/pointer cancellation removes drafts. Changed source,
+time, cue or selection refuses the gesture. The existing stable-ID/reference rules still
+refuse unsupported structures atomically. Keyboard commands use the existing input guard
+and only canvas/timeline/inspector focus; property shortcuts and key navigation only change
+editor view state.
+
+- [Verification and limits](verification.md), including failed assertions and driver corrections.
+- [Pinned source and executed reference comparison](reference.md),
+  [source hashes](provenance.json), [reference runtime receipt](reference-runtime.json).
+- [Workspace, native zoom and executable output receipt](workspace-runtime.json).
+- `ci-probe.patch` reproduces the builder tasks on a disposable branch. It is evidence only,
+  never merge-queue input. It installs pinned dependencies and the hash-checked Studio release.
+
+Earlier transform/layer/short-height receipts and specifications remain unchanged; the six
+original layer/property cases remain an exact source prefix. Full owner acceptance, native
+macOS device behavior and receiving-host certification are not claimed. Save/leave/cloud
+status are subsequent phases.
