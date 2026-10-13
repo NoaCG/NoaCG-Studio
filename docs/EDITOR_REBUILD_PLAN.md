@@ -699,6 +699,17 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-14: refused-discard transaction repair
+
+- [Repair receipt](work-specs/editor-leave-reliability/repair/README.md): the fresh unchanged checker again reproduced lost Undo after one refused working-slot write. Discard now persists the replacement before publishing it to the editor; a refused write keeps the original session, source, command context, selection and Undo/Redo. A pending autosave drains first, and a newer source change refuses stale completion. Successful discard still restores the saved copy or clean default and clears discarded history.
+- Preserve the prior wizard-open and native export-notification corrections. The repair changes neither wizard/import sources nor routing/export behavior. The exact independent checker receipt is carried unchanged. Verification passes 69 maintained/adversarial cases with eight unchanged legacy skips, two pinned reference cases, four cumulative/native tasks, the unchanged two-graphic export and the synthetic localhost account task. Native 125% retains 196px canvas / 180px timeline / 280px inspector and nine browser outputs execute. The receipt records hashes, rendering, teardown and limits.
+- Next: land only with the passing bounded verification, then a fresh independent check before Phase 3. Hosted cloud-status work, loops, full projects, R2/R3, default switch, owner comfort/acceptance and physical receiving hosts remain separate. The old #987 hosted-latency alarm is not this defect.
+
+### 2026-10-14: independent leave-editor check failed
+
+- [Independent receipt](work-specs/editor-leave-reliability/independent/README.md): fresh merged-main run confirms a refused Discard preserves source and the editor but erases its Undo history (one entry becomes zero). Discard changes the document before durable confirmation; restoring the store does not restore the editor session. Repair this transaction boundary before Phase 3, then repeat the independent check. No product repair or PR was made by the checker.
+- Other coverage passes: 64 maintained/adversarial cases, two pinned reference lifecycles, four cumulative/native tasks and the corrected signed-in localhost account task. Eight unchanged legacy-editor skips remain explicit. Native 125% retains 196px canvas / 180px timeline / 280px inspector; nine browser exports execute. The receipt records the account-query correction, teardown, supplemental export proof and main CI state. Comfort, owner acceptance and physical receiving hosts remain separate.
+
 ### 2026-10-13: bounded leave-editor reliability
 
 - [Spec, comparison and passing verification](work-specs/editor-leave-reliability/README.md): Home used to unmount the editor before resolving edits. Mounted-editor navigation now uses the existing Save/Discard/Cancel decision before publishing its destination. In-flight submissions and the first pending destination are protected. Discard restores the linked source or resets an unsaved experiment without changing the library; clearing a dirty flag alone is not discard.

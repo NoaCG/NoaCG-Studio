@@ -1,0 +1,57 @@
+[
+  {
+    "path": ".noacg/reference-results/references/leave-reference-Eyevinn-sw-6bda3--confirms-explicit-deletion-chromium/eyevinn-kept.png",
+    "run": "38476301472",
+    "sha256": "05ec2e4f1c473a9a465bf24c805ba4b1a8e650bf3455d5f3c7b7390522d61e7f"
+  },
+  {
+    "path": ".noacg/reference-results/references/leave-reference-Studio-can-9b0b6-New-and-reopen-saved-source-chromium/studio-reopened.png",
+    "run": "38476301472",
+    "sha256": "d9501c35300d2043864d97b1b7c90c9d9facb9ce38a5aba69424e9cf5170baa6"
+  },
+  {
+    "path": ".noacg/account-results/leave-probe-signed-in-loca-55f75--discard-revisions-distinct-configured/account-leave.png",
+    "run": "38476895614",
+    "sha256": "d9a7a7c5c25f2a880a2d2d132b63217c93b09422a5a24a904f5d93fe3d3cf6aa"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-checker-nested-f42c4-esture-and-rename-ownership-chromium/nested-copy.png",
+    "run": "38476787644",
+    "sha256": "1afeb9ef822ed17e36d3d161f1712d28dfe3f24061b9f931ee5cf517798da05b"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/actual-125-leave-dialog.png",
+    "run": "38476787644",
+    "sha256": "57711e088516fd196a7f25a84b4e8b3a1a2527f5b51110f829bafdd9f1b94089"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/actual-125.png",
+    "run": "38476787644",
+    "sha256": "ae08e0993bd6dd0012f096c24aaf79c78322dc8360a020aeb9730df4c1ce3d56"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/native-125.png",
+    "run": "38476787644",
+    "sha256": "fce24ce319b714da82e5b19e6d8cdd471aecee0320854a27d8b868a01986cf4c"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-probe-task-phase-cumulative-task-1366-chromium/laptop-leave-dialog.png",
+    "run": "38476787644",
+    "sha256": "4d7849ddca5149874f963156ca5208aedca100f01845eb692d09ea1e58bd144c"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-probe-task-phase-cumulative-task-1366-chromium/laptop.png",
+    "run": "38476787644",
+    "sha256": "dcb6da0e924e08f03c5eb46db028ea686c463c251db09392d482519d8e9aa007"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-probe-task-phase-cumulative-task-1920-chromium/desktop-leave-dialog.png",
+    "run": "38476787644",
+    "sha256": "04c7da6df528f284a8e59d2ef155f33da80a67027607dd98a607ac56b7a17ea2"
+  },
+  {
+    "path": ".noacg/complete-results/cumulative/interaction-probe-task-phase-cumulative-task-1920-chromium/desktop.png",
+    "run": "38476787644",
+    "sha256": "93c6ce9cda534696b38ec4a7a0db96853f6dd231a9f5520fdab66d72423a7c3e"
+  }
+]

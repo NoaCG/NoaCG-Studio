@@ -1,0 +1,15 @@
+# Independent check scope
+
+Check merged main `1bfc1248cda50bdd91e880cc9e451b740cb1d974`, PR #1131. No product changes. The checker uses its own feature worktree and a never-merge disposable CI branch, because measured free RAM is 2.10 GB, below the unchanged 4 GB local browser floor.
+
+Goal: resolve real edits before Home/Open/history navigation with Save, Discard and Stay; preserve draft/library/cloud/production revisions, cancelled naming, durable failure recovery, existing wizard navigation and cumulative editing/export behavior. Non-goals: whole R1.4, cloud-status redesign, loops, projects, default switch, owner comfort and physical receiving-host acceptance.
+
+Independent additions: linked Save refusal with Escape, retained selection/history and retry; Discard working-slot refusal with retained source/history and retry; cancelled naming followed by another destination; signed-in never-saved experiment discarded without an account record. Existing maintained cases retain every assertion, including mid-walk wizard start-over/Back and two sequential graphic exports. Cumulative desktop/laptop/native 125% and pinned reference lifecycle tasks execute afresh.
+
+# Independent source review
+
+Fresh Studio clone at `3142fc7d02934494931eb14e7dc255393e4110d0`; inspected ten exact files and found them byte-identical to official v0.17 source `a1e9776120fa19d9f3f9d40ab4b10ae1be034347`. Git-blob SHA-256 values are in reference-checker.json. Menubar New confirms, calls newProject, resets history and selection. Direct file Open loads without a dirty prompt. fileIO snapshots and certifies before native write/download. projectStore resets timeline/clipboard at New/load; Stage/LayerNode consume the changed project. useAutosave persists a separate working snapshot after 500ms. historyStore groups ordinary bursts for 500ms, with explicit discrete-command flushes and resetHistory after document replacement. Read fileIO, projectStore and projectTimelineSync tests; did not execute upstream unit suites.
+
+Fresh Eyevinn clone at `616841bd949e3a21137579451123f66c292543f0`; seven exact-file hashes retained. main's create/switch/delete events route to TemplateManager and refresh views. Creation persists immediately; property edits call VisualEditor.updateSelectedElement -> model update -> render -> saveToStorage. Save serializes the template map and current ID. Explicit Delete confirms and persists removal. Storage failures record lastStorageError and dispatch ograf-storage-error; corrupt input is handled per record. Read bugfix-model-io and ograf-lifecycle tests; did not execute upstream unit suites.
+
+Deliberate differences: NoaCG's named library Save and discardable draft support experiments without adding/deleting saved graphics. Its pre-navigation Save/Discard/Cancel contract is stronger than Studio direct Open or Eyevinn autosave. No upstream AGPL implementation copied. Both runtime lifecycle tasks subsequently passed in run 38472743447; their fresh rendered captures were inspected. This source review is research alongside that execution evidence.
