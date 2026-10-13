@@ -17,7 +17,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { isConnectorTestStack } from '../../scripts/connector-oauth-spike.mjs';
 import { publishProduction } from '../_publish';
-import { mintAccount, SERVICE_ROLE_KEY, signInOnHome, SUPABASE_URL, unpublishForCleanup } from './_helpers';
+import { mintAccount, SERVICE_ROLE_KEY, shot, signInOnHome, SUPABASE_URL, unpublishForCleanup } from './_helpers';
 import { callTool, deleteOAuthClient, ScriptedClaude, signedInClient } from './_connector';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
@@ -194,6 +194,7 @@ test.describe('remote MCP connector: send a package', () => {
       await expect(row).toBeVisible({ timeout: 20_000 });
       await expect(row).toContainText('4 graphics');
       await expect(row, 'a chat client is a connected app, not a coding agent').toContainText('sent from a connected app');
+      await shot(page, 'connector-send-waiting-row');
       await row.getByTestId('install-waiting-package').click();
       await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
       await expect(page.getByTestId('production-page')).toContainText(args.name);

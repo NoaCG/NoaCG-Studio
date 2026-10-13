@@ -145,9 +145,140 @@ the ports.
 
 ## Owner's steps (after the run)
 
-Filled in by phase 5: enable the OAuth server and the hook on staging, connect Claude.ai to a
-staging deployment once, then the same on production; add `remotes` to `cli/server.json` on the
-next CLI release; the directory submissions.
+The connector is ON for a project exactly when its Supabase Auth runs the OAuth server with
+dynamic registration: the site reads that from Auth's discovery document (cached a minute), and
+nothing in Vercel or the code changes. Every step below is a Management API call with the
+account token from `.env`; none needs a deploy. Run them in Git Bash from the main checkout.
+
+```bash
+export SUPABASE_ACCESS_TOKEN="$(grep '^SUPABASE_ACCESS_TOKEN=' .env | cut -d= -f2-)"
+REF=garafohbzmsybtysxphb          # staging first; production is kprolrchuldgfrzspthy
+AUTH="https://api.supabase.com/v1/projects/$REF/config/auth"
+patch() { curl -sS -X PATCH "$AUTH" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  -H 'content-type: application/json' -d "$1" | grep -o "\"${2}\":[a-z]*"; }
+```
+
+**1. Check the project is ready.** `npm run check:migration-drift` lists no pending migration
+for the project (0089, 0090 and 0091 must be applied; a landing pushes them to both). The signing
+key must be asymmetric (the connector refuses HS256 tokens):
+`curl -sS "$AUTH/signing-keys" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | grep -o '"algorithm":"ES256","status":"in_use"'`
+prints one line on both projects today.
+
+**2. Security notification emails on.** They tell a user, after the fact, that their password,
+email, phone, MFA factors or linked identities changed. Useful whatever the connector does.
+
+```bash
+patch '{"mailer_notifications_password_changed_enabled":true,"mailer_notifications_email_changed_enabled":true,"mailer_notifications_phone_changed_enabled":true,"mailer_notifications_mfa_factor_enrolled_enabled":true,"mailer_notifications_mfa_factor_unenrolled_enabled":true,"mailer_notifications_identity_linked_enabled":true,"mailer_notifications_identity_unlinked_enabled":true}' mailer_notifications_password_changed_enabled
+```
+
+Not recommended: `security_update_password_require_current_password`. Step 3 already keeps
+connector tokens away from password change, and turning it on breaks Settings' password form,
+which has no current-password field.
+
+**3. The access token hook on, BEFORE the OAuth server.** It runs on every sign-in of the
+project; first-party tokens pass through unchanged. Then sign in to the studio on that project
+once and open Home (production: noacg.studio as yourself).
+
+```bash
+patch '{"hook_custom_access_token_enabled":true,"hook_custom_access_token_uri":"pg-functions://postgres/public/connector_access_token"}' hook_custom_access_token_enabled
+```
+
+If sign-in fails after this, turn it straight off again:
+`patch '{"hook_custom_access_token_enabled":false}' hook_custom_access_token_enabled`.
+
+**4. The OAuth server on.** This is the switch.
+
+```bash
+patch '{"oauth_server_enabled":true,"oauth_server_allow_dynamic_registration":true,"oauth_server_authorization_path":"/"}' oauth_server_enabled
+```
+
+Within a minute `curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://noacg.studio/mcp`
+answers 401 (it answered 503 before). For staging there is no deployed site; check it with the
+scripted run in step 5.
+
+**5. Prove it on staging** (from a checkout of `main`, with staging's anon and service keys from
+the dashboard): the four connector specs against staging, the same run as phase 5's hosted proof.
+
+```bash
+NOACG_CONNECTOR_TEST_REF=garafohbzmsybtysxphb VITE_SUPABASE_URL=https://garafohbzmsybtysxphb.supabase.co \
+VITE_SUPABASE_ANON_KEY=<staging anon key> SUPABASE_SERVICE_ROLE_KEY=<staging service key> \
+npx playwright test -c playwright.live.config.ts e2e/configured/connector-oauth.spec.ts \
+  e2e/configured/connector-tools.spec.ts e2e/configured/connector-send.spec.ts e2e/configured/connector-grants.spec.ts
+```
+
+All pass, and the spike's log shows `connector_account_refused: GET /user 400 bad_jwt ...`.
+Supabase allows about ten client registrations per five minutes from one address (burst 30), so
+run it once, not in a loop.
+
+**6. Production:** steps 1 to 4 with `REF=kprolrchuldgfrzspthy`, then the first real chat
+connection with your own account: Claude.ai → Settings → Connectors → Add custom connector, URL
+`https://noacg.studio/mcp`; sign in, Allow, ask "what is in my NoaCG library?", then ask for a
+two-graphic package and press Install on Home. Settings → Account → Agent access lists it; Revoke
+there ends it.
+
+**Later, not part of the switch:** add a `remotes` entry for `https://noacg.studio/mcp` to
+`cli/server.json` on the next CLI release; the directory submissions.
+
+**Turning it off.** One call per project; every connector path answers 503 `connector_disabled`
+within a minute, and tokens already issued are refused at `/mcp`, by the database and by Auth:
+
+```bash
+patch '{"oauth_server_enabled":false,"oauth_server_allow_dynamic_registration":false}' oauth_server_enabled
+```
+
+Leave the hook on: it touches only connector tokens. **Never turn the hook off while the OAuth
+server is on.** Connector tokens issued then would carry the plain `authenticated` role and the
+user's own id, so they would reach the database with the user's rights and open Auth's account
+endpoints. (`/mcp` would refuse them, so nothing in NoaCG would show the problem.) Turn the
+hook off only after the OAuth server.
+
+### Security review (issue #1083), phase 5
+
+**What a connector token can reach now** (all measured on a hosted preview branch of production,
+see phase 5's notes): the three tools, scoped to the user who allowed it, while their grant is
+live. Refused: every Auth endpoint that acts as the user (user read, metadata, password, MFA
+enrolment, the user's grants, reading or approving another client's request, sign-out), each
+`400 bad_jwt` before Auth reads anything; PostgREST, RPCs and Storage (`permission denied to set
+role "noacg_connector"`); NoaCG's own API outside `/mcp` (401). The same probes without the lock,
+on the same branch, changed the password, enrolled a TOTP factor and signed the user out
+everywhere, which is the takeover #1083 describes.
+
+**How it holds.** The access token hook (migration 0091) gives connector tokens a `sub` that is
+not a UUID and a `session_id` that names no session, so Auth's account middleware refuses them;
+`/mcp` verifies the token locally (JWKS, issuer, expiry) and reads the user from `noacg_uid`
+plus a live grant row, and refuses a token without the lock. NoaCG never approves a request for
+the `openid` scope, because the ID token that scope buys carries the real `sub` and no session,
+the hook never sees it, and Auth's `/user` accepted it (GET and PUT, measured on the branch).
+The protected resource metadata asks for `email` only.
+
+**Real risks left.**
+
+- *The tools themselves.* Whoever holds a live connector token (the chat client's operator, or
+  someone who took the token from it) can read the user's library (names, field values, brands,
+  productions, team productions) and fill Home with waiting packages (25 at most, 10 sends a
+  minute). Nothing is edited, published or played. Revoke in Settings stops it on the next call.
+- *A client that insists on `openid`* cannot connect; the consent page says why. If Claude.ai or
+  ChatGPT turns out to be such a client, the choice is between not supporting it and accepting a
+  bearer that opens the account endpoints. That would be a new owner decision; nothing is
+  accepted today.
+- *A future GoTrue change.* If Supabase starts rejecting such claims at issue time, sign-in
+  through the connector fails (closed). If it ever stopped loading the user by `sub`, the lock
+  would open silently; `connector-oauth.spec.ts` runs the refusals on every landing against the
+  pinned CLI's GoTrue, but hosted Auth upgrades on Supabase's schedule. Repeat step 5 after a
+  Supabase Auth upgrade notice.
+- *Client names are self-declared.* Any site can register as "Claude" and send a user to the
+  consent page; the page names the client and where it will return to, and the user decides.
+  Standard for dynamic registration; the tools' reach above is the cost of a wrong Allow.
+- *Dynamic registration is per address, about ten per five minutes.* If a chat service
+  registers every user's connection from a few addresses, a launch-day rush could see "too many
+  requests" on connect. Not a security risk; a reason to watch the first week.
+- *Turning the hook off with the OAuth server on* reopens everything (see "Turning it off").
+
+**Safeguards.** The notification emails (step 2); Revoke in Settings; the grant row checked on
+every call; refresh tokens end with Revoke; access tokens live an hour (`jwt_expiry`).
+
+**Launch decision.** With steps 1 to 4 done, the #1083 boundary holds as the plan states it. No
+risk above needs accepting to switch on; the second and fourth are worth knowing.
 
 ## Phase notes
 
@@ -606,3 +737,113 @@ configured suite on the branch ([run 38330971066](https://github.com/NoaCG/NoaCG
   path among them), so assert the run sheet's keys with `objectContaining`, not the whole map.
 - *The job queue's RAM floor (4 GB) refuses a browser run while the local stack is up* on this
   machine (1.7 GB free); the spec was run directly, then the stack stopped.
+
+### Phase 5: ready, and off in production (AC-5)
+
+**Last check's findings (phase 4 check):** PASS end to end locally on effab612: consent, library
+and catalog picks, one waiting row, Install passes the gate, cues on air in brand colours, Import
+of a recipe pack; every refusal actionable and storing nothing; main's configured suite
+38334080210 green (100/0/0). Findings: empty recipe fields kept the design's sample text (a
+church card aired "ELECTIONS 2026"), so blank them or say so in the tool description; the Home row
+said "sent from your coding agent" for a connector package; the send budget let 9, not 10, a
+minute through; the 503 half is still unchecked on hosted (#987).
+
+**What was built.**
+
+- *The account lock (#1083).* Migration 0091 extends the access token hook: on a token carrying
+  `client_id` it moves the user id to `noacg_uid`, sets `sub` to `noacg-connector:<user id>` (no
+  UUID parser form takes 52 characters) and `session_id` to a fresh random UUID. Auth's account
+  middleware loads the user by `sub` first, so every endpoint that acts as the user answers
+  `400 bad_jwt` before reading anything. `connectorUserId` reads `noacg_uid` and nothing else, so
+  `/mcp` refuses a token issued without the lock.
+- *No ID token.* The protected resource metadata asks for `email` only, and NoaCG's Allow refuses
+  a request whose scope (as Auth recorded it) includes `openid`, before any grant or approval.
+- *Pinned:* `connector-oauth-spike.mjs` gains three required checks (`account_claims_locked`,
+  `connector_account_refused`, `first_party_account_allowed`; 14 in all), so
+  `connector-oauth.spec.ts` fails on any landing that reopens the account endpoints.
+  `connector-grants.spec.ts` checks the client holds no ID token and that an `openid` request is
+  refused with no grant; its 503 half now asks Auth whether the OAuth server runs instead of
+  guessing from the URL. The connector specs run on one hosted test project named in
+  `NOACG_CONNECTOR_TEST_REF` (a preview branch, or staging once it is on); production is refused.
+- *Phase 4's findings:* a recipe's lines left out are stored as blank (other fields keep the
+  design's default, which is a working setting such as a clock or a "LIVE" word, not sample copy),
+  and the values description says so; the Home row says "sent from a connected app", the name
+  Settings gives the connector; the send budget is an exact count of calls in the last minute
+  (`hitCallLog`), because the two-window estimate still charged a call made 61 s earlier.
+- *The chat path* in the skill's setup reference (`cli/skill/.../references/setup.md` and its
+  generated copy): the connector assembles, the CLI also makes.
+- *The owner's runbook and the security review*, above.
+
+**Evidence: a hosted preview branch of production.** Branch `connector-p5-proof` (ref
+`pdonkjqmgtcdwikhwbax`, eu-west-1, Postgres 17), created through the Management API at 06:09 UTC
+on 2026-10-13 and deleted at 06:35 (the branch list then held only `main`, and the project
+answered 404 "Resource has been removed"). Cost: Micro compute for under half an hour, about
+0.01 USD, against the owner's 2 EUR cap. Production's Auth was only read (OAuth server off, hook
+off, notifications off, before and after). The branch came up at migration 0073; 0074 to 0091
+were applied through the query endpoint (`create role` in 0089 worked on hosted; 0074's
+`concurrently` was dropped for that endpoint's transaction). Branch-only Auth config: OAuth
+server with dynamic registration, authorization path `/`, the hook, `site_url` the local dev
+server. Test accounts were minted by the specs and deleted by them.
+
+- *The refusal.* With a real connector token (ES256, the branch's own key): `GET /user`,
+  `PUT /user` (metadata and password), `POST /factors`, `GET /user/oauth/grants`, reading and
+  approving another client's request, and `POST /logout?scope=global` each answered `400 bad_jwt -
+  invalid claim: sub claim must be a UUID`; the metadata was unchanged and the account's own
+  password still signed in; PostgREST, RPC and Storage answered `permission denied to set role
+  "noacg_connector"`; a refresh kept the lock. *Control on the same branch* with 0089's hook (no
+  lock): the same probes answered 200 and 204, the password changed, a TOTP factor was enrolled
+  and the user was signed out everywhere. *ID token:* with `openid`, `GET` and `PUT /user` with
+  the ID token answered 200 and the metadata changed, lock or no lock; hence `email` only.
+- *The flow (AC-2 to AC-4)* through this checkout's dev server on the branch, with the
+  `@modelcontextprotocol/sdk` client: `connector-oauth`, `connector-tools`, `connector-grants`
+  (the consent page in a browser, 43 tables refused, Revoke) and `connector-send` (one package of
+  three recipes, a copy and a brand; Install on Home; published; the first cue on air in the
+  brand's blue, screenshot looked at; the card's left-out lines blank; Import of a recipe pack).
+  `tools/list` is 2,814 characters.
+- *Repeat runs, consecutive, no retries:* the spike 10 of 10 (median 2.2 s), then
+  `connector-oauth` and `connector-tools` 4 of 4 each, `connector-grants` and `connector-send` 3 of
+  3 each. Two spike runs in between failed by design (the control) or on Auth's registration limit
+  (`429` after about 40 registrations in ten minutes), not on NoaCG.
+- *Real client:* the MCP SDK client the CLI ships. Claude Code's `claude mcp add --transport
+  http` needs a person to sign in in a browser, so it was not run; Claude.ai's first connection
+  is runbook step 6.
+- *Off in production:* `POST https://noacg.studio/mcp`, the PRM and `/api/me/connectors` each
+  answered 503 `connector_disabled` (2026-10-13, after the branch was deleted).
+- *CI's local stack:* the configured suite on this branch: CONFIGURED_SUITE_RUN.
+
+**Decisions.**
+
+- *Build the control, and refuse `openid`.* Both hold on hosted; nothing needs accepting to
+  switch on. If a chat client turns out to insist on `openid`, that is a new owner decision (the
+  review says what it would cost).
+- *`noacg_uid` only, no fallback to `sub`.* A token without the lock is refused at `/mcp`, so the
+  connector cannot run on an Auth whose account endpoints a token still opens.
+- *Blank lines, not a description warning.* A blank line shows on Home and in the studio before
+  air; a sample line is not noticed until it airs. Only lines: blanking a clock, a score word or a
+  choice would break the graphic.
+- *"Connected app"* on the Home row, the word Settings already uses, rather than the client's
+  self-declared name, which the waiting row does not store.
+- *An exact send budget* for this gate only; the per-IP gates keep the estimate, where one call of
+  slack does not matter.
+- *No current-password requirement.* The lock makes it unnecessary for the connector, and it
+  would break Settings' password form.
+
+**What the owner's switch-on must allow for.**
+
+- Hook before OAuth server, and never the hook off while the OAuth server is on (runbook).
+- Auth's dynamic registration limit is about ten per five minutes per address (burst 30). A chat
+  service registering from a few addresses could meet `429` on a busy day.
+- The 503 half of `connector-grants.spec.ts` skips on staging once staging is on; production's
+  503 is then the runbook's curl, and after production's switch-on it answers 401 by design.
+
+**Traps.**
+
+- `supabase link` (CLI from npx) failed against a fresh branch with `LegacyLinkApiKeysNetworkError`
+  (a date-format schema error in the API keys answer), so `db:push --ref <branch>` could not
+  push; the Management API's query endpoint applied the files instead.
+- The registration limit bites test loops: about 40 registrations in ten minutes met `429`, and a
+  spike step that registers a second client then reads as a failure. Wait five minutes.
+- `GET v1/branches/{id}` returns the branch's database password and JWT secret in its body; read
+  the status from the branch list instead.
+- The job queue asked 4 GB free for the browser specs with about 2 GB free (Docker not running),
+  so they were run directly, one worker, as phase 4 did.
