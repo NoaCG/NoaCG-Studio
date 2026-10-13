@@ -178,7 +178,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
   return <section className="ef-canvas" data-group-scope={groupScope ?? undefined} aria-label="Graphic canvas">
     <div className="ef-toolbar">
       {(['select', 'anchor', 'text', 'rectangle', 'ellipse', 'pen'] as const).map(choice => <button key={choice} aria-pressed={tool === choice} disabled={!!groupScope && choice !== 'select' && choice !== 'anchor'}
-        title={choice === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
+        title={choice === 'select' ? 'Alt/Option-drag: duplicate. Alt/Option-click: cycle overlapping artwork.' : choice === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
         onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); gesture.setTool(choice); }} aria-label={choice + ' tool'}>{choice[0].toUpperCase() + choice.slice(1)}</button>)}
       <button aria-label="image tool" disabled={!!groupScope} onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); openAssets(); }}>Image</button>
       <button onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); imageInput.current?.click(); }} disabled={image.busy || !!groupScope}>Add image file…</button>
