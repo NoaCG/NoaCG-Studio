@@ -62,7 +62,10 @@ async function fetchConnectorRequest(authorizationId: string): Promise<Connector
   if (!('authorization_id' in data)) return { kind: 'redirect', url: webRedirect(data.redirect_url) };
   let returnsTo = '';
   try {
-    returnsTo = new URL(data.redirect_uri).host;
+    // A web address shows its host; an app's own scheme shows the scheme too, because a client
+    // names its own redirect: `ms-msdt://claude.ai/...` must not read as "claude.ai".
+    const { protocol, host } = new URL(data.redirect_uri);
+    returnsTo = protocol === 'https:' || protocol === 'http:' ? host : `${protocol}//${host}`;
   } catch {
     /* shown without it */
   }

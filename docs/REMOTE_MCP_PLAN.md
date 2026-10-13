@@ -283,6 +283,10 @@ that names no session, which an ID token never does.
 - *Dynamic registration is per address, about ten per five minutes.* If a chat service
   registers every user's connection from a few addresses, a launch-day rush could see "too many
   requests" on connect. Not a security risk; a reason to watch the first week.
+- *A client may return to an app scheme.* Desktop apps register their own (the Claude app:
+  `claude://`), so after Allow the page can open an installed app's handler. The page shows such an
+  address with its scheme (`claude://claude.ai`), refuses schemes that run inside the page, and the
+  browser asks before opening an app; a wrong Allow costs what the tools reach, as above.
 - *Turning the hook off with the OAuth server on* reopens everything (see "Turning it off").
 
 **Safeguards.** The notification emails (`on` sets them); Revoke in Settings; the grant row checked on
