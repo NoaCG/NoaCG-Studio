@@ -579,8 +579,9 @@ run time, the findings recorded, and the check's findings.
   corpus 21. Main's push run was red only on the rundown-history flake (the retry passed;
   quarantine #1132). The e2e trace map lacks the new files until the nightly run. Stale comments
   remain at `designTypes.ts:390` and `draft.ts:1355`.
-- **Main before:** `6e8bfb503b8f4d70bdfd6e33b4259142aca83bb6`, plus #1133 (`094209a4e`), which this
-  branch is built on and which lands first. Merge sha: the queue's merge of this pull request.
+- **Main before:** `b18fe3d1e0ace6d3063874e2797c17b54d8d7197`, the merge of #1133, which this
+  branch is built on; the runtime baseline was taken on its parent `6e8bfb503`, and #1133 leaves
+  the runtime record unchanged. Merge sha: the queue's merge of this pull request.
   Revert: `git revert -m 1 <merge sha>` on its own branch through `/check` and `/queue-merge`. It
   puts the two strings back into `svg.ts` and removes the runtime folder and its lint block; the
   emitted bytes stay as they are. #1133 is reverted separately, by its own merge sha, and that
