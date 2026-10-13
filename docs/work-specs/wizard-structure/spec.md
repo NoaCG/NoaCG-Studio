@@ -668,3 +668,33 @@ evidence; the baseline recorded.
 Each phase's pull request adds here what the next phase must allow for, newest first: the
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
+
+### S1a. Instruction relief (built 2026-10-13)
+
+- **Check's findings:** none (no check preceded this phase).
+- **Shas:** previous verified `main` `4508e1331`; contracts commit `0e912b7f6` on
+  `claude/plan-wizard-shell-p1-build`; the merge sha is the one the queue records for that pull
+  request. **Revert:** delete `src/components/wizard/{import,steps,steps/ai}/AGENTS.md` and the
+  `.gitattributes` beside each, run `npm run contracts:compile`, commit what it changes.
+- **Measured** (`evidence/phase-s1a.md`): the 92 wizard rules now sit 31 in the wizard contract,
+  19 in `import/`, 20 in `steps/`, 22 in `steps/ai/`, none lost or duplicated. Chains: shell edit
+  58,678 -> 34,807 (under the 40,960 target); `import/` 42,347; `steps/` 42,867; `steps/ai/`
+  51,910 (13,626 free of the cap). The brief's "about 75 of 107" was an estimate; 61 of 92 moved.
+- **Decision:** AC-7 names "the metrics file" for S1a's numbers, while S1a's file list allows
+  only `evidence/phase-s1a.md` and S7 writes `docs/metrics/<date>-wizard-shell.md`. S1a's numbers
+  live in the evidence file; S7's metrics file carries them as its "before". Revert: S7 copies
+  them instead.
+- **S1b must allow for:** no recompile in S1b (it edits no rule and no contract). After any
+  `git merge origin/main`, run `npm run contracts:compile` and commit what changes: a generated
+  contract merges cleanly and can still come out wrong. The svg-import-engine plan may add files
+  under `import/`; its rules already land in `import/AGENTS.md` through the same compile.
+- **For the AI track (A4) and S7:** a `steps/ai/` edit pays for `steps/AGENTS.md` too (8,058),
+  because `steps/ai/` sits under `steps/`; A4's move to `wizard/ai/` with the marker removes that
+  and is the largest single cut left for that chain (10,950 over target). The 31 rules left in
+  the wizard contract include section 7's S7 candidates (the three door rules, the lifecycle
+  rules, `hold-import-images-continuation-old-importstep`); `give-every-wizard-step-own-history`
+  was never in it (it spans `src/app/router.ts`, so it lives in `src/AGENTS.md`).
+- **Traps:** `npm run metrics:contracts` lists tracked files (`git ls-files`), so a new contract is
+  invisible to it until staged. `check-shared-instructions.mjs` prints only the three tightest
+  chains; a per-file chain is the sum of the `AGENTS.md` files on the path, LF-normalised, plus 2
+  bytes per join. The compiler wrote `.gitattributes` beside each new contract; keep them.
