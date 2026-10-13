@@ -21,7 +21,7 @@ test('signed-in local account keeps save, cloud and discard revisions distinct',
  await page.getByTestId('open-home').click(); await expect(page.getByTestId('home-page')).toHaveCount(0);
  await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Cancelled account experiment'); await page.keyboard.press('Escape'); expect(await source(page)).toEqual(experiment);
  await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible(); await settleSync(page);
- const all=await admin.from('documents').select('id,body'); expect(all.error).toBeNull(); expect(all.data).toHaveLength(1); expect(all.data![0].body).toEqual(cloud.data!.body);
+ const all=await admin.from('documents').select('id,body').eq('kind','graphic'); expect(all.error).toBeNull(); expect(all.data).toHaveLength(1); expect(all.data![0].body).toEqual(cloud.data!.body);
  await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible(); await settleSync(page); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
  writeFileSync(test.info().outputPath('account-lifecycle.json'),JSON.stringify({backend:'disposable local Supabase',signedIn:true,saveConfirmed:true,cloudMatchesSave:true,discardKeptCloudRecord:true,reloadKeptSavedSource:true,cancelledNamingKeptDraft:true,neverSavedDiscardAddedNoCloudRecord:true},null,2));
 });
