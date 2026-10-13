@@ -164,7 +164,7 @@ test('property reveal and key navigation leave source and history unchanged', as
   const canvas=page.getByTestId('foundation-canvas'), before=await source(page),history=(await inspection(page)).history;
   for(const [key,label] of [['a','Anchor X'],['p','Position X'],['s','Scale X %'],['r','Rotation'],['t','Opacity %']]) {
     await canvas.focus(); await page.keyboard.press(key);
-    await expect(page.locator('.ef-inspector').getByRole('textbox',{name:label,exact:true})).toBeInViewport();
+    await expect(page.locator('.ef-inspector').getByRole(label === 'Opacity %' ? 'spinbutton' : 'textbox',{name:label,exact:true})).toBeInViewport();
     expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history);
   }
   await seek(page,.4); await page.getByRole('button',{name:'Enable Position X animation',exact:true}).click(); await ready(page);

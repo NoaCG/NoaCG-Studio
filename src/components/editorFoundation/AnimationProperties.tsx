@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { baseValues } from '../../blocks/baseEdits';
-import { isArmed, keyedAt, poseKey, sequenceAuthoringReason, writeChannel, type NumericProperty } from '../../blocks/editorAnimation';
+import { CONTROL_CHANNELS, isArmed, keyedAt, poseKey, sequenceAuthoringReason, writeChannel, type NumericProperty } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { RenderedPart } from './protocol';
 import { ownerOf, readTimeline } from './timelineView';
 import { authoredTransform, authoringPosition, displayedBase, editingPose, editTarget, requireCurrentPose } from './animationAuthoring';
 import type { EditorOperation } from './operations';
+import { layerKeys } from './keySelection';
 import AnimationNumber from './AnimationNumber';
 export { default as AnimationNumber } from './AnimationNumber';
 
-export function AnimationButtons({ template, selector, property, label, session, appearance }: {
+export function AnimationButtons({ template, selector, property, label, session, appearance, seek }: {
+  seek: (time: number, cue?: number) => void;
   template: SpxTemplate; selector: string; property: NumericProperty; label: string; session: EditorSession; appearance?: RenderedPart['appearance'];
 }) {
   const [error, setError] = useState('');
@@ -18,6 +20,11 @@ export function AnimationButtons({ template, selector, property, label, session,
   const view = readTimeline(template), position = authoringPosition(template, selector, time, cue), owner = ownerOf(view, selector);
   // The control is animated and keyed through any of its channels (R1.2a.6).
   const armed = isArmed(view.data, owner, property), keyed = keyedAt(view.data, owner, property, position.step, position.time);
+  const keys = layerKeys(view.data, owner).filter(row => CONTROL_CHANNELS[property].some(channel => channel === row.property))
+    .flatMap(row => row.keys.map(key => ({ time: view.segments[key.step].start + key.time / view.data!.speed, cue: key.step })))
+    .sort((a, b) => a.time - b.time || a.cue - b.cue);
+  const earlier = keys.filter(key => key.time < time - view.near);
+  const previous = earlier[earlier.length - 1], next = keys.find(key => key.time > time + view.near);
   const act = (action: 'set' | 'remove' | 'disable') => {
     try {
       requireCurrentPose(appearance, session.port.view().time, session.version(), session.port.view().cue);
@@ -36,12 +43,15 @@ export function AnimationButtons({ template, selector, property, label, session,
   return <div className="ef-key-controls">
     <button aria-label={(armed ? 'Disable ' : 'Enable ') + label + ' animation'} aria-pressed={armed} title={armed ? 'Remove this property’s keys and retain the current pose' : 'Create one key at the playhead'} onClick={() => act(armed ? 'disable' : 'set')}>◷</button>
     <button aria-label={(keyed ? 'Remove ' : 'Add ') + label + ' key'} aria-pressed={keyed} title={(keyed ? 'Remove' : 'Add') + ' only the ' + label + ' key at the playhead'} onClick={() => act(keyed ? 'remove' : 'set')}>{keyed ? '◆' : '◇'}</button>
+    <button aria-label={'Previous ' + label + ' key'} title={'Go to previous ' + label + ' key'} disabled={!previous} onClick={() => previous && seek(previous.time, previous.cue)}>‹</button>
+    <button aria-label={'Next ' + label + ' key'} title={'Go to next ' + label + ' key'} disabled={!next} onClick={() => next && seek(next.time, next.cue)}>›</button>
     <span className="ef-muted">{editTarget(template, selector, time, cue)} · {armed ? keyed ? 'key' : 'animated' : 'base'}</span>
     {error && <p role="alert">{error}</p>}
   </div>;
 }
 
-export default function AnimationProperties({ template, selector, session, appearance, linked, previewTemplate }: {
+export default function AnimationProperties({ template, selector, session, appearance, linked, previewTemplate, seek }: {
+  seek: (time: number, cue?: number) => void;
   template: SpxTemplate; selector: string; session: EditorSession; appearance?: RenderedPart['appearance']; linked: boolean; previewTemplate: (template: SpxTemplate) => void;
 }) {
   const [error, setError] = useState('');
@@ -72,8 +82,8 @@ export default function AnimationProperties({ template, selector, session, appea
           setError('');
         } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
       };
-      return <div className="ef-transform-property" key={property}><AnimationNumber label={label + (percent === 100 ? ' %' : '')} value={value} commit={commit} session={session} build={build} previewTemplate={previewTemplate} />
-        <AnimationButtons {...{ template, selector, session, appearance, property, label }} /></div>;
+      return <div className="ef-transform-property" key={property} data-reveal={property === 'x' ? 'p' : property === 'scaleX' ? 's' : property === 'rotation' ? 'r' : undefined} tabIndex={-1}><AnimationNumber label={label + (percent === 100 ? ' %' : '')} value={value} commit={commit} session={session} build={build} previewTemplate={previewTemplate} />
+        <AnimationButtons {...{ template, selector, session, appearance, property, label, seek }} /></div>;
     })}
     {error && <p role="alert">{error}</p>}
   </div>;
