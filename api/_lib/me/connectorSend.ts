@@ -174,6 +174,13 @@ function recipeEntry(g: Record<string, unknown>, name: string, where: string, in
       throw new Refusal(`${where}: "${value}" is not a choice of ${key}. Its choices: ${list(field.options)}.`);
     }
   }
+  // A TEXT LINE the recipe leaves out is blank, never the design's sample text: the phase 4 check
+  // aired a church's card reading "ELECTIONS 2026". Text lines are the words a show says; a cue
+  // fills them. Everything else (a score or a goal line, which is a number; a clock, a "LIVE"
+  // word, a choice) keeps the design's default, a working setting rather than sample copy.
+  for (const field of type.fields) {
+    if (!field.role && (field.kind === 'text' || field.kind === 'lines') && !(field.key in values)) values[field.key] = '';
+  }
   return {
     kind: 'recipe',
     name,
@@ -332,7 +339,7 @@ export function createSendTool(deps: SendToolDeps = {}): McpTool {
               design: { type: 'string', description: 'A design id of that type' },
               palette: { type: 'string' },
               font: { type: 'string' },
-              values: { ...STRINGS, description: "By the type's field keys" },
+              values: { ...STRINGS, description: "By the type's field keys. Text lines (no role) left out are blank; other fields keep the design's default" },
               graphic: { type: 'string', description: 'A library graphic id, instead of type and design' },
               layer: { type: 'integer', minimum: 1, maximum: 100 },
             },

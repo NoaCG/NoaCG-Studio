@@ -18,7 +18,7 @@ export interface WaitingPackage {
   name: string;
   description: string;
   graphicCount: number;
-  /** Which tool sent it (`noacg-cli`); provenance, never proof. */
+  /** Which tool sent it (`noacg-cli`, or `noacg-connector` for a chat client); provenance, never proof. */
   tool: string;
   createdAt: string;
 }

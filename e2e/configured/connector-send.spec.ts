@@ -15,9 +15,9 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
+import { isConnectorTestStack } from '../../scripts/connector-oauth-spike.mjs';
 import { publishProduction } from '../_publish';
-import { mintAccount, SERVICE_ROLE_KEY, signInOnHome, SUPABASE_URL, unpublishForCleanup } from './_helpers';
+import { mintAccount, SERVICE_ROLE_KEY, shot, signInOnHome, SUPABASE_URL, unpublishForCleanup } from './_helpers';
 import { callTool, deleteOAuthClient, ScriptedClaude, signedInClient } from './_connector';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
@@ -87,7 +87,7 @@ test.describe('remote MCP connector: send a package', () => {
 
   test('a chat client sends one package that installs into a working, branded production; refusals store nothing; a recipe pack imports', async ({ page, request, baseURL, context }) => {
     test.skip(!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY, 'needs VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
-    test.skip(!isLocalUrl(SUPABASE_URL), 'local stack only: it registers OAuth clients');
+    test.skip(!isConnectorTestStack(SUPABASE_URL), 'local stack or the hosted test project named in NOACG_CONNECTOR_TEST_REF only: it registers OAuth clients');
     const origin = baseURL!.replace(/\/+$/, '');
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const stamp = Date.now();
@@ -193,6 +193,8 @@ test.describe('remote MCP connector: send a package', () => {
       const row = page.getByTestId('waiting-packages').locator('.pack-waiting-row').filter({ hasText: args.name });
       await expect(row).toBeVisible({ timeout: 20_000 });
       await expect(row).toContainText('4 graphics');
+      await expect(row, 'a chat client is a connected app, not a coding agent').toContainText('sent from a connected app');
+      await shot(page, 'connector-send-waiting-row');
       await row.getByTestId('install-waiting-package').click();
       await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 60_000 });
       await expect(page.getByTestId('production-page')).toContainText(args.name);
@@ -236,6 +238,13 @@ test.describe('remote MCP connector: send a package', () => {
         expect.objectContaining({ field: 'f0', title: 'Name', value: 'Anna Andersson' }),
         expect.objectContaining({ field: 'f1', title: 'Title', value: 'Pastor' }),
       ]);
+      // The card's lines the recipe left out are blank, not the design's sample text (a church's
+      // card once aired "ELECTIONS 2026"). Lines come first, so they are f0..f(lines - 1).
+      const lineCount = titleCard.fields.filter((f) => !f.role).length;
+      const card = installed.graphics.find((g) => g.name === 'Sermon card')!;
+      const leftOut = card.fields.filter((f) => /^f\d+$/.test(f.field) && Number(f.field.slice(1)) >= (titleKey ? 1 : 0) && Number(f.field.slice(1)) < lineCount);
+      expect(leftOut.length, 'the title card has lines the recipe left out (its kicker among them)').toBeGreaterThan(0);
+      expect(leftOut.map((f) => f.value), 'the lines a recipe leaves out are blank').toEqual(leftOut.map(() => ''));
       expect(installed.graphics.find((g) => g.name === 'Church bug')!.hasMark, 'the brand mark is in the logo bug').toBe(true);
       // The run sheet's values, by the SPX ids the logical keys compiled to (the studio fills the
       // rest of a cue from the graphic's defaults, the brand mark among them).

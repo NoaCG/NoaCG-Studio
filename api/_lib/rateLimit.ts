@@ -293,7 +293,33 @@ export function connectorSendRateLimitCaps(): RateLimitCaps {
   };
 }
 
-export function checkConnectorSendRateLimit(userId: string): RateLimitDecision | null {
-  const decision = hitRateLimit(`connector-send:${userId}`, connectorSendRateLimitCaps(), Date.now());
+/** The last `max` call times per key, for gates that promise an exact "N in any window". */
+function callLogs(): Map<string, number[]> {
+  const g = globalThis as { __noacgCallLogs?: Map<string, number[]> };
+  g.__noacgCallLogs ??= new Map();
+  return g.__noacgCallLogs;
+}
+
+/** Count one call against `key`: allowed while fewer than `max` calls fell in the last window.
+ *  EXACT, unlike hitRateLimit's two-window estimate, which still charges part of a call made more
+ *  than a window ago (one send, a minute's wait, and then only 9 of 10 got through). The send
+ *  budget is a number a person reads in a refusal, so it holds to the call. Memory is at most
+ *  `max` times per user; a refused call is logged too, so a loop stays refused. */
+function hitCallLog(key: string, caps: RateLimitCaps, nowMs: number): RateLimitDecision {
+  if (caps.max <= 0) return { allowed: true, retryAfterSec: 0 };
+  const logs = callLogs();
+  const recent = (logs.get(key) ?? []).filter((t) => nowMs - t < caps.windowMs);
+  const allowed = recent.length < caps.max;
+  recent.push(nowMs);
+  const kept = recent.slice(-caps.max);
+  logs.set(key, kept);
+  if (logs.size > SWEEP_ABOVE) {
+    for (const [k, times] of logs) if (nowMs - times[times.length - 1] >= caps.windowMs) logs.delete(k);
+  }
+  return allowed ? { allowed, retryAfterSec: 0 } : { allowed, retryAfterSec: Math.max(1, Math.ceil((kept[0] + caps.windowMs - nowMs) / 1000)) };
+}
+
+export function checkConnectorSendRateLimit(userId: string, nowMs = Date.now()): RateLimitDecision | null {
+  const decision = hitCallLog(`connector-send:${userId}`, connectorSendRateLimitCaps(), nowMs);
   return decision.allowed ? null : decision;
 }

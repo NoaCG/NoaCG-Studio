@@ -105,7 +105,7 @@ test('the protected resource metadata names this resource and the Auth issuer', 
   const meta = (await res.json()) as { resource: string; authorization_servers: string[]; scopes_supported: string[] };
   assert.equal(meta.resource, 'http://studio.test/mcp');
   assert.deepEqual(meta.authorization_servers, ['http://127.0.0.1:54321/auth/v1']);
-  assert.deepEqual(meta.scopes_supported, ['openid', 'email']);
+  assert.deepEqual(meta.scopes_supported, ['email'], "never openid: its ID token would open Auth's account endpoints");
 });
 
 test('no token, a session or an unknown token is 401 with the metadata pointer', async () => {
@@ -151,6 +151,28 @@ test('verifyUser refuses a connector token before asking Auth', async () => {
   assert.equal(await verifyUser(CONNECTOR_TOKEN), null);
 });
 
+test('verifyUser refuses a token that names no session (an OAuth ID token) before asking Auth', async () => {
+  process.env.SUPABASE_URL = 'http://auth.test';
+  process.env.SUPABASE_ANON_KEY = 'anon';
+  const asked: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    asked.push(String(input instanceof Request ? input.url : input));
+    return new Response(JSON.stringify({ id: USER, aud: 'authenticated', role: 'authenticated' }), { headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  try {
+    // What Auth issues beside the access token for the `openid` scope: the real user, no session.
+    const idToken = jwt({ sub: USER, aud: CLIENT, iss: 'http://auth.test/auth/v1', email: 'a@example.test' });
+    assert.equal(await verifyUser(idToken), null);
+    assert.deepEqual(asked, [], 'Auth was not asked');
+    const session = jwt({ sub: USER, role: 'authenticated', session_id: '6f1c0c3e-6a0e-4a43-9d0a-1c2b3d4e5f61' });
+    assert.deepEqual(await verifyUser(session), { userId: USER }, 'a first-party session is still asked about and served');
+    assert.equal(asked.length, 1);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
 test('a connector token is verified locally against the issuer\'s JWKS, never by asking Auth who it is', async () => {
   process.env.SUPABASE_URL = 'http://auth.test';
   process.env.SUPABASE_ANON_KEY = 'anon';
@@ -173,7 +195,8 @@ test('a connector token is verified locally against the issuer\'s JWKS, never by
     return `${input}.${Buffer.from(sig).toString('base64url')}`;
   };
   const nowMs = Date.UTC(2026, 9, 12);
-  const claims = { iss: issuer, sub: USER, client_id: CLIENT, exp: nowMs / 1000 + 600, role: 'noacg_connector' };
+  // As the access token hook (0091) issues it: the user in noacg_uid, `sub` no UUID.
+  const claims = { iss: issuer, sub: `noacg-connector:${USER}`, noacg_uid: USER, client_id: CLIENT, exp: nowMs / 1000 + 600, role: 'noacg_connector' };
   const verify = (token: string) => verifyConnectorToken(token, { fetchFn, nowMs });
 
   assert.deepEqual(await verify(await sign(claims)), { userId: USER, clientId: CLIENT });
@@ -183,10 +206,13 @@ test('a connector token is verified locally against the issuer\'s JWKS, never by
   assert.equal(await verify(await sign(claims, { alg: 'ES256', kid: 'unknown' })), null, 'a key Auth never published');
   const good = await sign(claims);
   const [h, , s] = good.split('.');
-  assert.equal(await verify(`${h}.${b64({ ...claims, sub: '0b2c3d47-58cc-4372-a567-f47ac10be9d4' })}.${s}`), null, 'a tampered payload');
+  assert.equal(await verify(`${h}.${b64({ ...claims, noacg_uid: '0b2c3d47-58cc-4372-a567-f47ac10be9d4' })}.${s}`), null, 'a tampered payload');
   assert.equal(await verify(`${b64({ alg: 'HS256', kid: 'k1' })}.${b64(claims)}.${s}`), null, 'a symmetric algorithm');
   assert.equal(await verify(`${b64({ alg: 'none' })}.${b64(claims)}.`), null, 'no signature');
-  assert.equal(connectorUserId({ sub: 'not-a-uuid' }), null);
+  // A token from no hook or 0089's: its `sub` still opens Auth's account endpoints (#1083).
+  assert.equal(await verify(await sign({ ...claims, sub: USER, noacg_uid: undefined })), null, 'issued without the account lock');
+  assert.equal(connectorUserId({ noacg_uid: 'not-a-uuid' }), null);
+  assert.equal(connectorUserId({ sub: USER }), null, 'sub is never read');
   // Only the discovery document and the keys were fetched: no /user, no /oauth/userinfo.
   assert.ok(asked.every((url) => url.includes('/.well-known/')), asked.join(', '));
 });
