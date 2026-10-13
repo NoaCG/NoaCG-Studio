@@ -868,7 +868,7 @@ applied), this checkout's dev server, then one throwaway preview branch of produ
   for the key, so it prints nothing and the owner sees no error; on the branch the dev server
   still served a connector token 80 s later and discovery still offered registration. With
   `"oauth_server_authorization_path":"/"` added the call answered 200, and `/mcp`, the PRM and
-  `/api/me/connectors` answered 503 `connector_disabled` within 35 s. To fix: that body in
+  `/api/me/connectors` answered 503 `connector_disabled` within 40 s. To fix: that body in
   "Turning it off", and a `patch` that prints the error when its key is not in the answer
   (the same silence would hide a failed step 2, 3 or 4).
 - **The rest of the runbook holds, run verbatim on the branch** (ref `ttncixlmgvdjkekfnxvx`):
