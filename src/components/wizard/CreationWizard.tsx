@@ -317,6 +317,10 @@ export default function CreationWizard() {
   const [brandChoices, setBrandChoices] = useState<BrandChoice[]>([]);
   const [brandId, setBrandId] = useState<string | null>(null);
   const brand = brandId ? brandChoices.find((b) => b.id === brandId)?.brand ?? null : null;
+  /** The brand in force, for the deep link below. A link can land in the same commit as the open,
+   *  before the brand that open chose has rendered, so the open writes its choice here at once. */
+  const brandInForce = useRef<ProjectBrand | null>(null);
+  brandInForce.current = brand;
   // The production this open is FOR (one-shot from pendingProductionId; Finish preselects it).
   const [contextProductionId, setContextProductionId] = useState<string | null>(null);
   // ── BACK INTO THE WALK ──
@@ -640,6 +644,7 @@ export default function CreationWizard() {
       const saved = loadLooks().map((l) => ({ id: l.id, name: l.name, brand: l.brand }));
       setBrandChoices(saved);
       setBrandId(null);
+      brandInForce.current = null;
       // PRODUCTION CONTEXT (step 6): opened FOR a production (its page's "+ New graphic"),
       // the wizard pre-applies that production's look — the unified brand its graphics
       // share — and the Finish step preselects it. One-shot, like pendingDesignId.
@@ -658,6 +663,7 @@ export default function CreationWizard() {
         if (chosen) {
           if (!named) setBrandChoices([chosen, ...saved]);
           setBrandId(chosen.id);
+          brandInForce.current = chosen.brand;
           start = mergeDraft(start, brandPatch(chosen.brand));
         }
       }
@@ -713,9 +719,11 @@ export default function CreationWizard() {
       zone: null,
       logoEnabled: null,
       animation: { presetId: null, outPresetId: null, steps: null },
-      paletteId: null,
-      customPalette: null,
-      fontId: null,
+      // The brand in force carries its look, as on the Browse pick: the chooser keeps naming it,
+      // so a draft without it had the chooser and the preview disagreeing.
+      ...(brandInForce.current
+        ? brandPatch(brandInForce.current)
+        : { paletteId: null, customPalette: null, fontId: null }),
     });
     setDraft(startDraft.current);
     setStep(2);
