@@ -1,0 +1,670 @@
+# Wizard structure: a thin shell over Node-tested walk modules
+
+Baseline: main `dba61b8e1`, 2026-10-13; every line number below is of that revision. Authority:
+owner, 2026-10-13 (see `work.json`). Plan for `/plan-run wizard-shell`: nine mandatory sequential
+phases (S1a, S1b, S1c, then S2 to S7), each built by one session and checked by another on `main`, then two optional
+phases the owner adds after reading the first run's notes. The Create with AI step is the child
+plan `docs/work-specs/wizard-ai/spec.md` (`/plan-run wizard-ai`), which runs beside this one on
+disjoint files (section 8). Together they pick up wizard rows 3 to 5 of the 2026-09-06 workflow
+plan (`git show 353527c3:docs/WORKFLOW_ARCHITECTURE.md`, lines 349-358); rows 1 and 2 landed on
+2026-09-06 and 2026-09-07 (`docs/metrics/2026-09-07-phase-2a-module-rows.md`).
+
+## Verdict
+
+Restructure, now: small prerequisites first, then the extractions each justified by a measured
+benefit, a mandatory close-out inside the first run, and a reassessment after it. The wizard's
+behaviour, URLs, step names, test ids, copy and persisted formats do not change. What changes is
+where the walk's rules live and how they are proved: the step tables, the walk's transitions and
+the finish doors become pure modules with Node tests, the shell holds screen state and rendering,
+the Import-graphic capability's drop handlers go behind its own index, and the instruction chain
+every wizard edit loads shrinks before any file moves.
+
+Not promised: that this makes the next graphic better by itself, or that the co-change number
+reaches its target in this plan's window (it is measured over a later window of real work,
+section 7). It makes a template-road or import-road change stop needing a shell edit, which is
+what lets two agents work in the wizard at once, and it makes the shell's regressions cheaper
+to find.
+
+Biggest risk: the walk's open, rewind and restore transitions, which decide what a reader gets
+back after Home, browser Back or a finished walk, and whose three implementations today keep
+different things (section 1.3). Second: the finish doors, which save, publish-gate, pool into a
+production and navigate, where a reordered write or an unguarded second press loses work or
+makes a duplicate. Both are addressed by characterising today's behaviour first (section 5), by
+the door contracts in section 3, and by pinning the transition policies per intent before the
+reducer exists (section 4).
+
+## Why
+
+`src/components/wizard/CreationWizard.tsx` is 2,601 lines: 57 imports at 1-94, module constants
+and types at 96-261, one component function at 270-2601 with no props, 29 `useState(`, 14 refs,
+10 `useEffect(`, 8 `useCallback(`, no reducer, 720 comment-only lines. It changed in 155 commits
+over the last 90 days (12 landed pull requests), 165 hunks in its first 200 lines and 241 in
+lines 200-799. The September audit measured the wizard's coupling and set a target
+(`docs/METRICS.md`): a commit touching only one capability's files should edit a shared giant at
+most 10% of the time. On 2026-10-13 (`npm run metrics:cochange -- --days 90`): template-only
+commits 59% (45 of 76), import-only 32% (64 of 203), AI-only 20% (12 of 60). The giants named by
+the metric are `CreationWizard.tsx`, `draft.ts`, `draft/core.ts`, `draft/format.ts`,
+`model/wizard.ts`, `templates/contract.ts` and `model/templateVocabulary.ts`; of these only the
+shell churns (`draft/core.ts` 4 commits, `kitPlan.ts` 7 in the same window).
+
+Three things the shell does today that make every capability change a shell change:
+
+- Seven hard-coded step-title arrays (122-141, 204) and the mode union (144), with step indices
+  compared as numbers at 691, 764, 775, 779, 783, 1543-1552, 1605-1609, 1648, 1830, 1859,
+  1902-2465 and 2489, and the mode-to-component ladder at 1902-2465 (20 branches).
+- About 290 lines of Import-graphic handlers inline in JSX: `onSvg` 2006-2127, `onArt`
+  2159-2193, `onTemplateFile` 2142, `onClearSvg` 2131; `ImportDesignStep` takes 14 props. The
+  seam `docs/ARCHITECTURE.md` section 5 pins at six names is now eight: `armTimerClock`,
+  `pollDrivenLayers`, `proposeSvgExtras`, `graphicNameFromFile` and `proposeSvgBehaviour` are
+  read by the shell, `behaviourSummary` by `FinishStep.tsx`, `svgDesignOptions` and
+  `withSvgImportPasses` by `draft/core.ts`.
+- Three walk-reset sites that keep different things: the restore branch 571-608, the fresh branch
+  611-662 and `leaveStep` 884-913; "pick a design" written three ways (2226-2238, 2335-2349,
+  706-716); the export door three times (1309-1322, 1386-1401, 1509-1522); the editor door twice;
+  the kit and AI package doors pairwise identical (1203-1225, 1242-1266).
+
+The instruction chain is the other cost. `src/components/wizard/AGENTS.md` is 35,238 bytes and
+the Codex chain for any wizard file is 58,678 bytes against the 65,536-byte cap; the build fails
+below 4,096 bytes free (`node scripts/check-shared-instructions.mjs`), so 2,762 bytes remain for
+new rules. The compiler places each rule in the deepest directory carrying its marker
+(`scripts/contracts-lib.mjs:571`, `ruleHomes`); `import/`, `steps/` and `steps/ai/` carry none,
+so 75 of the 107 active wizard rules compile into the shell's file for want of three one-line
+files. Claude loads the same rules by path from `.claude/rules/` and is not near a limit.
+
+## Goal
+
+The shell becomes a thin router over Node-tested walk modules under `src/components/wizard/`:
+the walks as data, the walk's durable state and its transitions in one reducer, the finish doors
+as one implementation over injected IO, the Import-graphic drop handlers behind that
+capability's index, the kit as operations over the reducer's state. Every moved rule is pinned by
+a test that existed or was written before the move. The instruction chain for a wizard edit is
+measured and reduced, markers first.
+
+## Non-goals
+
+Hoisting the draft record or `buildDraftTemplate` to `blocks/` or `templates/` (section 1.2, D1);
+nesting `WizardDraft` into slices (row 6); the full capabilities registry shape
+`{ id, modes, steps[], draftSlice, previewOverrides?, doors, testidPrefixes }`; moving
+`CreationWizard.tsx` to another path; the AI step's internals (the child plan); the SVG import
+capability's own internals (`import/`, `templates/importedDesign/`, docs/SVG_IMPORT_PLAN.md: a
+neighbour with a fixed seam here); the `App.tsx` route handshake (225-285); the Video door;
+deleting the Pro code (#771 is the owner's); any UX, copy, URL, step slug, test id or
+persisted-format change; fixing a defect inside an extraction (D10).
+
+## 1. Decisions
+
+### 1.1 Owner decisions (2026-10-13)
+
+1. **Both tracks.** The shell plan (this spec) and the AI plan (the child) are both authorised;
+   each is its own `/plan-run` name and they may run beside each other.
+2. **Pro code is preserved, not deleted.** `AiStep.tsx:346-357` records the standing decision
+   to keep the Pro branches intact pending issue #771; the child plan quarantines them.
+
+### 1.2 Derived decisions (revertible; each says how)
+
+- **D1 The draft stays under `components/wizard/draft/`.** Measured, not grandfathered:
+  `blocks/` cannot import the `WizardDraft` type (nothing imports `components/`, eslint Stage
+  A); `templates/` widens the affected-spec plan for the most-edited wizard files from 40 to
+  59-132 specs (`node scripts/e2e-affected.mjs --list --files <path>`, 2026-10-13: `templates/`
+  paths plan 59-132, `blocks/` 15, `wizard/` 40-43); `buildDraftTemplate` (core.ts:289-352) calls
+  `withSvgImportPasses` from `../import` at 337, the very passes section 5 refused to move; and
+  the file does not churn (4 commits in 90 days). Node tests need no move: the repo's Node tests
+  bundle a `src/**.ts` entry with rolldown (`scripts/field-auto-map.test.mjs:30-40`). Close-out
+  rewords section 5's sentence to its purpose: transforms over documents live below
+  `components/`; a UI state machine that reads the store or the draft lives as `.ts` beside its
+  component. Revert: none needed, nothing moves.
+- **D2 One owner of durable walk state: a `useReducer` in the shell** over exactly the record
+  that is already snapshotted, restored and reset today (`FinishedWalk`, 234-247: draft, mode,
+  step, browseFilters, aiResult, aiThread, importedFile, contextProductionId, brandChoices,
+  brandId) plus the kit picker (buildMode, kitPack, kitSelected, kit) and the two baselines
+  (`startDraft` 288, `lastStep` 291). Screen state stays `useState`: the four SVG overlay states
+  343-371, `stretchDemo` 343, `replayKey` 308, `kitBusy`/`kitError` 432-433, the three confirm
+  asks, `stepOverflow` 438, `finishLibrary` 814. `madeThisOpen` (337) and `finishedWalk` (329)
+  stay refs: `saveBuiltGraphic` (1014) reads `madeThisOpen.current` across awaits, and a state
+  value captured at render would be stale under a second press. The trap
+  `wizard/keep-browse-filter-state-creationwizard-back` (the setter is a React `Dispatch`) is
+  met by a stable `onFilters: Dispatch<SetStateAction<BrowseFilters>>` that dispatches
+  `{ type: 'filters', update }`. No store, no new framework. Revert: inline the reducer.
+- **D3 Three explicit transition policies**, not one reset: fresh-open, rewind (the close
+  control and Escape) and restore (a step URL with a finished walk in memory), plus Continue (a
+  held walk) and Close. Each policy has a keep/clear table per field in section 4, filled from
+  what the code does today and from the decisions of S1c; the differences the code keeps on
+  purpose stay, the accidental ones are decided and fixed apart. Revert: keep the three sites.
+- **D4 Doors as one implementation over injected IO.** `makeDoors(io)` returns `export`,
+  `addToProduction`, `editArtwork`, `openSet` and `exportSet`; `apply` is the mode's own applier
+  (`applyDraftProject` 1341-1363, `applyAiProject` 1276-1302, `applyImportedFile` 1492-1499),
+  which stays with its mode. `io` carries `saveBuiltGraphic`, `openExport`, `addGraphicToShow`,
+  `publishGate`, `commitDurableWrites`, `createShowNamedChecked`, `loadShows`, `setShowLook`,
+  `captureLookFromTemplate`, `trackEvent`, `raiseStorageAlert`, the router and `closeGallery`.
+  The kit and AI package doors become `openSet` and `exportSet` over `saveTemplateSet`. Revert:
+  inline the copies.
+- **D5 Import drop doors behind `import/index.ts`.** `import/drop.ts` exports `svgDropPatch`,
+  `artDropPatch`, `clearSvgPatch` and `templateFileDropped`, each returning a `DraftPatch` (or
+  the effect the shell applies) from the shell's inline bodies at 2006-2127, 2159-2193, 2131 and
+  2142; the brand spread is the caller's, through one `brandOrClearPatch(brand)` added to
+  `draft/template.ts` beside `brandPatch` and `brandClearPatch` (44-79), so `import/` never
+  imports `../draft`. The section 5 counter is widened to count `index.ts` exports named outside
+  `import/`; S2 records the new number and it may not rise after. Revert: inline the bodies.
+- **D6 The kit as operations over the reducer's state.** `template/useKit.ts` supplies
+  `moveKitTo`, `openKitGraphic`, `buildFromKitStep`, `applyKitStyle`, `saveKit` and the rail
+  interception (1072-1134, 1138-1152, 1579-1596) and owns only transient UI (the two asks 426-427,
+  `kitProductionName` 429, busy, error); `template/KitConfirms.tsx` renders the two confirms
+  (2518-2564); `template/walk.ts` holds the template and kit `WalkSpec`s. Revert: inline.
+- **D7 Markers first.** S1a adds the compiler's marker to `src/components/wizard/import/AGENTS.md`,
+  `steps/AGENTS.md` and `steps/ai/AGENTS.md` and runs `npm run contracts:compile`; no rule is
+  edited. When the child plan creates `wizard/ai/` and S8 creates `template/`, the marker moves
+  with the folder. Revert: delete the marker files and recompile.
+- **D8 Size gate.** The gate is production-page's D8 (`scripts/check-file-budgets.mjs`, header
+  `// gate: build`, `measured(n, 'budgeted files')`, `package.json` `check:file-budgets`). Budgets
+  live one JSON per budgeted file under `scripts/file-budgets/` so three plans never edit one
+  line: `scripts/file-budgets/components-wizard-CreationWizard.json` installed at 2,601. If
+  production-page's phase 1 landed its single `scripts/file-budgets.json` first, S1b extends the
+  gate to read the directory as well, in its own small pull request, and leaves that file alone;
+  if this plan lands first, the gate is installed reading both layouts and production-page's
+  builder follows its own D8 unchanged. The number never rises; a phase that shrinks the shell
+  lowers it to the actual count. Revert: delete the gate.
+- **D9 Never weaken.** A phase pull request may change a selector in a characterisation spec,
+  never an assertion; the checker diffs the e2e files for that. A skipped test is not coverage
+  (`e2e/_create.ts:16`): bringing one back counts, adding a skip needs a `## Test maintenance`
+  line and is refused by `scripts/check-e2e-protection.mjs` otherwise.
+- **D10 Defects apart from extraction.** A suspected existing defect (1.3) is reproduced first;
+  a confirmed one is fixed in its own pull request that carries its regression test, landed
+  before the extraction that would otherwise pin the defect; a refuted one is recorded as
+  today's behaviour by a characterisation test. A behaviour change found during an extraction
+  goes the same way, never into the phase.
+- **D11 Rule edits only in close-out.** S2 to S6 edit no rule file and do not recompile; every
+  shell retirement and rescope happens in S7 through `npm run learn`, after the child plan's A5
+  (section 8). Rules scoped to `CreationWizard.tsx` keep loading on the shell file until then,
+  which is correct: the shell still calls the moved modules.
+- **D12 Measurement.** The direct check of the coupling claim is the representative-change
+  probe at S6: three written capability changes (a template-walk gating rule, a kit confirm, an
+  import drop kind), each answered in the phase notes with the files it would touch. Co-change
+  is re-measured in S7 and again over a later window of real work, with the matcher fixed first:
+  `scripts/metrics/cochange.mjs:76` matches shared files by exact path (`shared.includes(f)`), so
+  the new `shell/` files must be listed by path or the matcher changed to a prefix, as the
+  capability prefixes at 18-38 already are. The instruction-chain target is reported, not gated
+  (section 7). Revert: keep the metric as is.
+- **D13 No new ARCHITECTURE edge.** `shell/*.ts`, `import/drop.ts` and `template/*.ts` runtime-
+  import only wizard siblings and the lower domains the shell already imports through their
+  seams (`model/`, `templates/`, `blocks/`, `validation/publishGate`, `control/productionAdmission`);
+  the store, the router, durable writes and telemetry arrive through `io`. `npm run depcruise`
+  passes with no config change; the `wizard-import-through-its-index` rule
+  (`.dependency-cruiser.cjs:57-75`) stands and S8 extends it to `template/`.
+- **D14 Paths that must keep resolving.** `src/components/wizard/draft.ts` (ten e2e and script
+  loaders import it by Vite path inside `page.evaluate`: `e2e/_create.ts:97,202`,
+  `e2e/wizard-brand.spec.ts`, `e2e/wizard-kit.spec.ts`, `e2e/editor-foundation.spec.ts`, six
+  scripts) and `src/components/brand/BrandEditor.tsx:9` (four symbols) keep their imports;
+  `CreationWizard.tsx:100`'s lazy import of `./steps/AiStep` keeps resolving until S7 retargets
+  it after the child's A4.
+
+### 1.3 Suspected existing defects (S1c reproduces each; decided on evidence)
+
+- **S1 A stale template file makes an empty walk held.** The fresh branch (611-662) never
+  clears `importedFile` or `importedFileError`, and `walkHasWork` (536-543) counts
+  `importedFile`. Reproduce: drop a template file on the Create with AI card (file mode), Home,
+  "+ New graphic", Start fresh, browser Back off Entry; expected today: `heldWalk` set over a walk
+  with nothing in it, and Continue lands on `lastStep.current = 0`. Confirmed: own fix pull
+  request (clear it in the fresh policy) with its regression test; refuted: characterised.
+- **S2 Re-picking a design keeps or resets the steps answer depending on the door.**
+  `TemplateStep.onPickVariant` (2344) sends `animation.steps: null`; `BrowseStep.onPickVariant`
+  (2226-2238) and the deep link (706-716) do not. Reproduce: pick a stepped design, untick steps
+  on Animation, Back, pick another stepped design on Browse; the answer carries.
+  `wizard/resolve-deep-linked-through-hit-apply` requires the deep link to equal the Browse
+  patch, which holds today only because both share the omission.
+- **S3 A deep link drops the production-context brand from the draft.** The open effect merges
+  `brandPatch` into `start` (658) and sets `brandId`; the deep-link effect rebuilds `startDraft`
+  from `initialDraft()` (706) without it. Reproduce: open the wizard for a production that names
+  a brand and a `#/new/<id>` link on the same open; the chooser names the brand, the preview
+  shows catalog colours. Needs `pendingProductionId` and `pendingDesignId` on one open; rare,
+  cheap to characterise either way.
+- **S4 Rewind keeps what fresh clears, and the reverse.** `leaveStep` (884-913) keeps
+  `importedFile`, `contextProductionId` and `acceptedAiGeneration`; the fresh branch keeps
+  `importedFile`, `importedFileError`, the four SVG overlay states, `replayKey` and `kitBusy`.
+  S1c decides the intended keep/clear table per intent (section 4) and the reducer pins it.
+- **S5 Two kit bypasses.** `editSummaryStep` (1601-1610) and `revealFormatPicker`'s fallback
+  (1624) call `setStep` around `moveKitTo`, so in kit mode they skip `commitKitGraphic`
+  (1072-1088); and `kitBusy` (432) is never reset on open, so a save in flight across a close
+  survives into the next walk. Reproduce both in kit mode with a held durable write.
+
+Also noticed, not defects: the kit and Pro-package endings snapshot no walk (954-957, recorded as
+backlog); the AI package doors (1242-1266) are reachable only with `proMode` and so never today
+(the child plan's quarantine takes them); `resetKit`'s comment says seven values and it resets
+eight (512-521).
+
+## 2. Module boundaries
+
+Each row is justified by a maintenance or testing benefit, not by size. The shell keeps: screen
+state, the hooks that bind the modules, the header, rail, footer and preview chrome, and the
+step ladder. Required for the measured wins: S2 to S7. Optional: S8, S9.
+
+| Module | Responsibility | Owns | Runtime imports / injected IO | Interface | Benefit |
+|---|---|---|---|---|---|
+| `src/components/wizard/shell/walks.ts` | the walks as data | nothing | none / none | `WalkSpec` {titles, subs, slugs, animStep, finishStep, previewFrom, brandChooserFrom, canProceed(state), railJump(state, index), summaryKeys}; `walkOf(mode, kitWalk)`, `StepId`, `stepSlug` (181-183) | replaces the seven arrays (122-141, 204), `stepTitlesFor` (167-176), `STEP_SUBS` (189-203), `nextDisabled` (1543-1552), `showPreview` (1563-1570), `editSummaryStep` (1601-1610), the rail rule (1851-1860) and the index arithmetic in `goToStep` (1579-1596); a Node test pins today's literal titles, subs and indices per (mode, kitWalk) |
+| `shell/walkState.ts` | the walk's durable state and its transitions | the record of D2 | `draft/core`, `draft/template`, `kitPlan` / none | `transition(state, intent)` for the five intents of section 4, `reduce(state, action)` for `go`, `setMode`, `patch`, `pickDesign`, `chooseBrand`, `filters`, the kit actions; `snapshotWalk(state)`, `walkHasWork(state)` | the three reset sites become one implementation whose differences are deliberate and tested per intent; one pick patch for Browse, Template and the deep link |
+| `shell/useWalkLifecycle.ts` | the open and close effect's IO | nothing | react; `store/saveActions` (`useSaveUi`), `store/templateStore` (`pendingDesignId`, `pendingProductionId`), `app/router`, `model/packets` (`loadLooks`), `model/shows` (`loadShows`), `templates/catalog` (`variantById`) | reads the route and the one-shots, computes the intent, dispatches once; sets `heldWalk` on close (663-673) | the 125-line effect (550-674) and the deep-link effect (695-719) become IO only; the decision is in the reducer |
+| `shell/doors.ts` | one implementation of each ending | nothing | `validation/publishGate`, `model/shows`, `model/durableStore`, `model/packets` through `io` | `makeDoors(io)` -> `export(apply, name)`, `addToProduction(apply, dest, name)`, `editArtwork(apply)`, `openSet(saveSet, dest)`, `exportSet(saveSet, dest)` | the three export copies, two editor copies, three production wrappers and the kit and AI set pairs collapse; the `addToProduction` ladder (1415-1484) and `saveBuiltGraphic` (1013-1034) get Node tests with held writes |
+| `import/drop.ts`, exported through `import/index.ts` | what a dropped SVG, raster or template file does to the draft | nothing | `import/draft`, `assets/svgImport`, `model/fonts`; `importTemplateFile` injected | `svgDropPatch(result, ctx)`, `artDropPatch(file, ctx)`, `clearSvgPatch(draft)`, `templateFileDropped(file, io)` | about 290 shell lines leave; the fit-to-frame, furniture, prefix and naming decisions are tested at plan width 13 instead of 50 |
+| `draft/template.ts` (one function added) | brand or clear | nothing | as today | `brandOrClearPatch(brand)` | four copies (2120, 2186, 2235, 2346) become one |
+| `template/useKit.ts`, `template/KitConfirms.tsx`, `template/walk.ts` | the kit as an extension of the template walk | transient UI only (the two asks, productionName, busy, error) | react, `kitPlan`, `templates/kit` (dynamic, as 1110) | `useKit({ state, dispatch, walk, brandFields })` -> the operations of D6; `KitConfirms` renders 2518-2564; `walk.ts` exports the template and kit `WalkSpec`s | about 170 lines and two confirms leave the shell; one owner of kit state |
+| `scripts/wizard-draft.test.mjs`, `wizard-kit-plan.test.mjs`, `wizard-walks.test.mjs`, `wizard-walk-state.test.mjs`, `wizard-doors.test.mjs`, `import-drop.test.mjs` | Node guards | nothing | rolldown `load()` as `scripts/field-auto-map.test.mjs:30-40` | `// guards:` headers naming the module | the wizard's logic tested outside Playwright for the first time |
+
+Not made: a separate `finishedWalk.ts` (two pure functions in `walkState.ts`), a zustand walk
+store, a capability registry carrying `draftSlice`, `previewOverrides` or `testidPrefixes`, a
+footer component (props, not a benefit), a `shell/CreationWizard.tsx` move (155 commits in 90
+days: every open branch would conflict).
+
+## 3. Door contracts (reconciled against the code)
+
+### 3.1 Rules
+
+- **R1 Build before any write.** Every door first applies the built graphic to the store with
+  the wizard kept open: catalog and AI through `applyGenerated` (1046-1050: Prettier on the HTML,
+  `applyTemplate(..., { resetSampleData: true, keepGalleryOpen: true })`, `toSpxShell`), a
+  finished file byte-faithfully through `applyImportedFile` (1492-1499). `rememberWalk`
+  (959-973) snapshots the walk before the apply. The legibility settings and, for AI, the spec
+  and thread are set on the store after the swap (1288-1290, 1353).
+- **R2 The save resolves by name, once.** `saveBuiltGraphic` (1013-1034): over the record this
+  walk made (`madeThisOpen`), else over the record already carrying the name
+  (`librarySaveEffect`), else mint through `saveGraphicAs`. A `needs-name` answer mid-write (the
+  record went meanwhile) mints. Failure returns `{ ok: false, error }`; it never throws.
+- **R3 A failed save is never silent, and it never moves the reader.** The export door reports
+  through `reportFailedCreateSave` (113-120) and still opens the export window over the unsaved
+  graphic (1317-1321, 1396-1400, 1516-1520); the production door raises the storage alert and
+  returns with the wizard open on Finish (1417-1426).
+- **R4 Production admission.** After the save: `publishGate(template, true)` refuses before any
+  rundown write (1430-1434); an existing production is looked up by id and a missing one
+  replaced by a new unnamed one (1452-1456); creating the production and pooling the copy are
+  each awaited through `commitDurableWrites` and reported naming the production (1439-1445,
+  1458-1466, 1468-1476); the look is captured onto a production that has none (1478); then
+  `noteMade`, `closeGallery`, `router.replace` to the production (1481-1483).
+- **R5 Set doors.** `saveTemplateSet` (1162-1186) gates every member with `publishGate` before
+  writing, `kitBusy` guards the press and `kitError` carries the failure; then `closeGallery` and
+  navigate (1203-1209), the export variant setting `pendingProductionExport` first (1218-1225).
+- **R6 The editor door saves nothing.** `noteMade` with `landedOn: editor-foundation`, then
+  `openNewEditor({ replace: true })`, then `closeGallery` (1367-1374, 1501-1507).
+- **R7 Second presses.** Entry's New production is guarded by `creatingProduction` (340); a
+  second pass down the same walk writes over `madeThisOpen` (977-989) once the first completed;
+  the set doors are guarded by `kitBusy`. The catalog, AI and file doors carry no press guard
+  during their await: S1b characterises a second press while the durable write is held, and S1c
+  decides whether that is a defect.
+- **R8 When navigation happens.** The production door after the pooled write committed (1483);
+  the editor door right after the apply; the export door never (the window opens over the
+  wizard, which stays on the last creation step); the set doors after the show resolved.
+
+### 3.2 Per door (today's order; kept)
+
+| Door | At press | Writes, in order | On failure | Lands |
+|---|---|---|---|---|
+| Add to the production, catalog (1529-1534 -> 1415) | `applyDraftProject` (snapshot, apply, legibility, activation) | library save (R2); publish gate; production create if new, awaited; pool, awaited; look capture | alert naming the step to retry; wizard stays on Finish; library record kept | `router.replace` production |
+| Add to the production, AI (1326-1331) | `applyAiProject` (snapshot, accepted generation, staged pick committed, apply, spec and thread, Lite outcome `accepted`, activation) | as above | as above | as above |
+| Add to the production, file (1524-1527) | `applyImportedFile` (snapshot, byte-faithful apply, activation) | as above | as above | as above |
+| Export, catalog (1386-1401) | `applyDraftProject` | library save (R2) | `reportFailedCreateSave`; export window opens anyway over the unsaved graphic | nowhere; export window over the wizard |
+| Export, AI (1309-1322) | `applyAiProject` | as above | as above | as above |
+| Export, file (1509-1522) | `applyImportedFile` | as above | as above | as above |
+| Edit this graphic, catalog (1367-1374) and file (1501-1507) | the mode's applier | none | n/a | new editor, wizard closed |
+| Kit production (1203-1209) and export (1218-1225) | `saveKit` -> `saveTemplateSet` | every member gated; set saved to the production | `kitError`; wizard stays | production page (export variant with `pendingProductionExport`) |
+| AI package doors (1242-1266) | `saveTemplateSet` | as kit | as kit | as kit; unreachable today (`proMode`) |
+
+Each row becomes a Node test in S4 with a scripted `io` whose durable write answers late, fails,
+or sees a second press; the e2e journeys of S1b pin the same rows through the UI first.
+
+## 4. Walk lifetime (the transition policies)
+
+The five intents and what each keeps, as the code does today; S1c settles the cells marked
+"decide" and the reducer of S5 pins the table.
+
+| Field | Continue (held walk, 557-562) | Restore (step URL + finished walk, 569-610) | Fresh (611-662) | Rewind (`leaveStep`, 884-913) | Close (663-673) |
+|---|---|---|---|---|---|
+| draft, mode, step | kept; step = `lastStep` | from the snapshot; URL replaced with the ended step | `initialDraft()` + production brand; mode template; step from the URL or 0 | reset to Entry | step 0 |
+| browseFilters, aiResult, aiThread | kept | from the snapshot | cleared | cleared | kept |
+| importedFile, importedFileError | kept | from the snapshot; error cleared | **decide** (S1: kept today) | kept (S4) | kept |
+| contextProductionId | kept | the production the walk landed in, else the snapshot's | the one-shot `pendingProductionId` | kept (S4) | kept |
+| brandChoices, brandId | kept | from the snapshot | saved looks; None, or the production's brand | **decide** | kept |
+| acceptedAiGeneration | kept | kept | cleared | kept (S4) | kept |
+| kit state | kept | `resetKit` | `resetKit` | `resetKit` | kept |
+| stretchDemo, overlays, replayKey | kept | stretchDemo cleared | **decide** (kept today) | cleared | kept |
+| `heldWalk` | cleared on open | cleared on open | cleared on open | n/a | set when left with work (`walkHasWork`) |
+| `resumeAsk` | none | raised | cleared | n/a | n/a |
+
+Deep link (695-719) is Fresh followed by `pickDesign` jumping to Fields in template mode; S3
+decides whether the production brand survives it. A plain `#/new` open discards a finished walk
+(`forgetWalk`, 611); only a step URL offers it back, behind the warning that names what
+re-entering resets (`wz-resume-confirm`, 2566-2598).
+
+## 5. Safety net
+
+### 5.1 Environments
+
+Everything here runs offline (`playwright.config.ts`, backend pinned off); no configured spec is
+needed because no door reaches the backend. Durable writes are held or failed with the fakes the
+suite already uses (`e2e/_durable.ts`: `settleDurableWrites`, `awaitDurableReady`; a quota
+failure as `e2e/storage-full.spec.ts` induces it). Node tests load a `src/**.ts` entry with
+rolldown (`scripts/field-auto-map.test.mjs:30-40`); S1b verifies that `draft/core.ts` loads that
+way (it reaches `model/fonts.ts`, whose DOM use sits inside functions, and `blocks/presetApply`).
+Local targeted runs go through the browser queue: `node scripts/e2e-runs.mjs --wait && npx
+playwright test <files>`; broad affected suites stay on GitHub Actions.
+
+### 5.2 Inventory (reconciled against `origin/main` on 2026-10-13)
+
+There are no `src/**/*.test.*` files, no vitest, no snapshots. Levels: Node `scripts/*.test.mjs`
+(`node --test`, discovered by `scripts/gates.mjs` from `// gate:` and `// guards:` headers);
+offline Playwright `e2e/*.spec.ts` selected by `// covers:` headers (`scripts/e2e-lists.mjs`) and
+the traced map; the configured suite (not a pull request gate). A change to `CreationWizard.tsx`
+alone plans 50 specs (52 table-minutes); `e2e/wizard-draft-guard.spec.ts` names it by path,
+`e2e/template-deep-link.spec.ts` and `e2e/route-transition-flash.spec.ts` declare `covers: none`
+although they exercise the shell's deep link and first-visit open, and
+`e2e/mark-legibility.spec.ts` covers only `src/assets/assetInfo.ts`.
+
+Live today (offline gate): `wizard-shell` (12 tests: counter, header, close control, Escape,
+Home, one history entry per step, a named step URL surviving reload), `wizard-entry-fit` (19),
+`wizard-filters` (21), `wizard-finish` (16: door order, production door and confirm, the
+Back-after-create warning at 117, skip to finish, export saves and opens the window at 239 and
+380, save-over by name 314, the package folder name), `wizard-kit` (18), `wizard-preview` (9),
+`wizard-draft-guard` (4: Continue, Discard, Back-left walk, production-page doors),
+`new-graphic-guard`, `project` (2 of 3), `no-old-editor`, `template-deep-link`,
+`route-transition-flash`, `community-packs`, `motion-presets`, `mark-legibility`, `storage-full`
+(full quota on the production and export doors), `studio-evening-reliability`, the import road
+(13 specs) and four Node tests under `scripts/` for `import/`.
+
+Skipped at runtime through the retired-editor helpers (`e2e/_create.ts:16`, issue #800), so not
+coverage: `wizard-brand` 7 of 7, `wizard-logo` 6 of 7, `wizard-setup-fields` 9 of 10,
+`project-format` 11 of 11, `flows` 7 of 7, `ux` 6 of 6, `end-credits` 8 of 8, `package`; the AI
+files are the child plan's. About ten of the forty specs on the shared wizard covers line are
+all-skipped.
+
+No test at all: `draft/core.ts`, `draft/template.ts`, `draft/format.ts`, `kitPlan.ts` (Node);
+the TemplateStep continuation (images then template); the brand chooser's effect on the built
+graphic; a finished walk restored beyond `wizard-finish` 117; a second press on a door during a
+held write; VideoStep duration, aspect and fps; the signed-out Video door.
+
+### 5.3 Coverage by behaviour and what S1b adds
+
+| Behaviour (shell code) | Proved today | New in S1b (passing behaviour only) |
+|---|---|---|
+| Entry cards, Playout row, header doors (1902-1955, 1738-1820) | wizard-entry-fit, wizard-shell, no-old-editor | none |
+| Step history and URL (455-474, 1837-1886) | wizard-shell 373/404, wizard-draft-guard 74 | a reload on every mode's step URL lands on that step (template, import, design, svg, file, ai) |
+| Held walk (663-673, `saveActions.ts:187-227`) | wizard-draft-guard | Continue returns to `lastStep` with filters, draft and imported file intact; the held flag is false after a fresh open in every mode |
+| Restore a finished walk (569-610) | wizard-finish 117 | after the production door: browser Back offers the walk, declining lands on the production; after the export door: nothing to walk back from; a plain `#/new` discards it |
+| Deep link (695-719) | template-deep-link (covers none) | header gets real covers; the draft after a deep link equals the draft after the Browse pick of the same design |
+| Production context brand (640-660) | wizard-brand (skipped) | the chooser preselects the production's brand and the preview carries its palette (the chooser half only; the palette assertion comes with S2's `wizard-brand` revival) |
+| Pick a design, three ways (2226-2238, 2335-2349, 706-716) | wizard-filters, wizard-kit | S2's regression or characterisation per S1c |
+| Finish doors (section 3.2) | wizard-finish, storage-full, import-name-collision, no-old-editor | with a held durable write: the production door's library record exists before the rundown row, the alert names the retry on a failed pool, no navigation before the commit; the export door opens the window with the save failed; a second press during the hold (recorded as today's behaviour, R7) |
+| Kit doors and hub (1072-1226) | wizard-kit (18) | `editSummaryStep` in kit mode (S5's outcome) |
+| Draft and kit plan (core.ts, template.ts, format.ts, kitPlan.ts) | none in Node; `wizard-kit` 414/599 in-page | Node: `initialDraft`/`mergeDraft` nesting, `draftToOptions` per design (lines, logo, brand mark, palette resolution incl. a captured palette), `buildDraftTemplate` name, fonts, overrides, out-preset mix; `brandPatch` known and captured; `universalPick`; `kitLookPatch`, `buildKit`, `reconcileKit`, `rebrandKit`, `commitKitGraphic` |
+
+Rules from `e2e/AGENTS.md` apply: wait for the preview rebuild on what the document shows, never
+on stamps; a seed waits for `awaitDurableReady`; a guard fix is asserted backwards and
+mutation-tested. Rule `root/put-durable-check-cheapest-layer-proves` decides the layer: pure
+logic in Node, journeys appended to the flow's existing file (`wizard-shell`, `wizard-finish`,
+`wizard-kit`), no new spec file; the capacity line is at 93.8% of its envelope and a change that
+adds spec minutes above 95% needs a `## Budget exceptions` entry.
+
+## 6. Verification matrix (one per phase; the builder follows it as written)
+
+Every phase runs `/check`, `npm run depcruise`, `node scripts/gates.mjs run --changed
+origin/main`, AC-9's scope fence and the Node files it adds; local targeted specs through the
+browser queue; broad affected suites on GitHub Actions. Assessment A = a fresh read-only session
+with the `/so` brief (`.agent-workflows/so.md`) by `wave-row` (Opus, high).
+
+| Phase | Local targeted specs | Node | Assessment | Measurement |
+|---|---|---|---|---|
+| S1a | wizard-shell (the contracts compile and load) | compile-contracts, check-shared-instructions | none | `npm run metrics:contracts` and the chain check, recorded |
+| S1b | wizard-shell, wizard-finish, wizard-kit, wizard-draft-guard, template-deep-link, storage-full | wizard-draft, wizard-kit-plan, the gate's test | none | plan widths and table-minutes recorded |
+| S1c | the spec file each defect lands in | the regression test each fix carries | none | baseline evidence recorded after the last decision |
+| S2 | import-svg, import-graphic, import-prepare, import-name-collision, wizard-brand (revived), wizard-shell | import-drop | none | section 5 counter on `index.ts` exports |
+| S3 | wizard-shell, wizard-finish, wizard-kit, project-format (revived), every mode's step-URL journey | wizard-walks | none | none |
+| S4 | wizard-finish, storage-full, import-name-collision, wizard-kit, no-old-editor | wizard-doors (every 3.2 row with late, failed and second-press writes) | A | none |
+| S5 | wizard-shell, wizard-draft-guard, wizard-finish, wizard-logo and wizard-setup-fields (revived), template-deep-link, wizard-brand | wizard-walk-state (every section 4 cell; `walkHasWork` false after fresh in every mode; snapshot and restore round-trip) | A | none |
+| S6 | wizard-kit, wizard-filters, community-packs | wizard-walks (kit spec) | none | the representative-change probe |
+| S7 | the full affected plan for the shell on CI | all of the above | none | chain sizes, co-change (matcher fixed), budgets |
+| S8 | build, depcruise, the affected plan | none | none | plan widths after the move |
+| S9 | the affected plan | none | A | the probe repeated |
+
+Evidence (`evidence/phase-<n>.md`): the candidate sha, each command and its summary, the
+assessor's verdict with the reviewed sha. Revalidation, evidence-only commits and mappings follow
+`docs/work-specs/production-page-refactor/spec.md` section 6 word for word: a material commit
+restarts the matrix; a new Node test carries `// guards:`; a spec whose `// covers:` named a
+moved behaviour gains the new path in the same pull request; `node scripts/e2e-affected.mjs
+--list --files <new module>` must select the specs that covered the behaviour before the move.
+
+## 7. Instruction weight
+
+Markers alone (S1a) are expected to give the shell edit about 34 KB (root 2,750 + `src` 8,987 +
+`components` 11,697 + a wizard contract of about 32 rules) and a step or capability edit about
+44 KB (the same plus about 26 rules): under the 65,536 cap with room, still above the 40,960
+target of `docs/METRICS.md`. S1a measures the real numbers. S7 then retires the structural traps
+the reducer and the walks table turn into code (candidates:
+`wizard/keep-browse-filter-state-creationwizard-back`,
+`wizard/hold-import-images-continuation-old-importstep`,
+`wizard/resolve-deep-linked-through-hit-apply`,
+`wizard/spread-every-handler-patches-make-visible` if the drop doors absorb it), rescopes the
+door rules (`send-all-three-finish-doors-through`, `snapshot-walk-each-three-appliers-finish`,
+`lead-finish-add-production-every-finish`) and the lifecycle rules
+(`give-every-wizard-step-own-history`, `keep-browse-filter-state-creationwizard-back`,
+`resolve-deep-linked-through-hit-apply`) to the modules that now carry the behaviour, and drops
+the e2e scopes of the seven retired rules that still carry one. The stale citations in
+`contracts/records/ai/2026-09-07-*` are the child plan's.
+
+**AC-7 is a measured target with a reporting obligation.** This plan is complete when the listed
+reductions are done and the chain sizes are reported in `docs/metrics/<date>-wizard-shell.md` at
+S1a and S7; reaching 40,960 bytes on every wizard chain is the series' goal, and a miss names
+the next candidates. Never by weakening `src/AGENTS.md` or `src/components/AGENTS.md`, which are
+outside this plan. `npm run audit:instructions` runs in S7.
+
+## 8. Parallel execution rules
+
+- **Two documents, two ledgers.** This track writes only this spec (its `## Phase notes`) and
+  its `work.json`; the AI track writes only `docs/work-specs/wizard-ai/spec.md` and its
+  `work.json`. No shared notes file.
+- **File ownership.** Shell: `src/components/wizard/CreationWizard.tsx`, `shell/`, `import/`,
+  `template/`, `draft/`, `kitPlan.ts`, `KitTray.tsx`, `steps/` except the AI files,
+  `e2e/_create.ts`, `e2e/wizard-*.spec.ts`, `e2e/project-format.spec.ts`,
+  `e2e/template-deep-link.spec.ts`, `e2e/route-transition-flash.spec.ts`,
+  `e2e/mark-legibility.spec.ts`, `scripts/wizard-*.test.mjs`, `scripts/import-drop.test.mjs`. AI:
+  `steps/AiStep.tsx`, `steps/ai/*`, the future `wizard/ai/`, `src/ai/*`, `e2e/_ai-step.ts`,
+  `e2e/ai*.spec.ts`, `e2e/pro*.spec.ts`, `scripts/ai-lite-bench.test.mjs`,
+  `scripts/ai-creation.test.mjs`. A phase that needs the other track's file stops and records it
+  in its notes; the owner decides the order.
+- **Generated contracts and rule files: one writer at a time, in this order.** S1a (markers,
+  recompile) -> A4 (scopes and the `wizard/ai/` marker, recompile) -> A5 (the AI track's rule
+  edits) -> S7 (every shell rule edit). S2 to S6 edit no rule and do not recompile. The
+  coordinator of `wizard-shell` reads `wizard-ai`'s ledger before launching S7 and records a
+  `stop` while A4 or A5 is open (launched, not landed); the coordinator of `wizard-ai` does the
+  same before A4 while S1a or S7 is open. A track that has not started holds nothing: the order
+  above serialises concurrent writers, it is not a dependency.
+- **Other shared files.** `scripts/e2e-affected.test.mjs` pins paths for both tracks: A4 before
+  S8. `scripts/file-budgets/`: one JSON per budgeted file. `package.json`: S1b adds the one
+  `check:file-budgets` line if production-page has not; the AI track adds none.
+  `.agent-workflows/plan-run.md`: this landing only. `docs/ARCHITECTURE.md`: S7 only.
+  `docs/metrics/`: one file per track. `CreationWizard.tsx:100`: S7 retargets the lazy import if
+  A4 landed, else records the leftover.
+- **Beside `production-page`.** Disjoint `src/`; shared only the size gate (D8: a directory of
+  budgets, whichever plan lands its gate first sets the layout and the other follows) and the
+  `package.json` script line. Plan runs of different plans may run side by side
+  (`.agent-workflows/plan-run.md`), never two on one file.
+
+## 9. Execution settings
+
+- **Coordinator:** `/plan-run wizard-shell`, sequential; the wave file lists the phases still to
+  build as `N. Phase <k> of the spec: <name> (AC-...)`; the first run's list is S1a to S7; a later
+  window is a new run whose list starts at the first unfinished phase and may include S8 and S9
+  only if the owner added them to this spec's phase list after reading S6's probe.
+- **Builders and ordinary checks:** `wave-row` (Opus, high). One builder owns the shell in any
+  phase.
+- **`wave-row-deciding`** (Opus, xhigh): the pre-merge assessments of S4 and S5 (A), and a narrow
+  state or lifetime decision this spec does not settle (recorded in the phase notes; never
+  widening scope).
+- **Optional review mechanisms** (explicit opt-in; none stacked by default): the Workflow tool,
+  `/code-review ultra`, `/so`. At most one for S5.
+- **Preflight before S1a** (recorded in the wave file): `node scripts/work-spec.mjs status
+  docs/work-specs/wizard-structure/work.json` clean and the plan listed under "Runnable plans";
+  `origin/main` CI green; the browser queue idle enough (`npm run test:e2e:runs`); `gh`
+  authenticated; `wave-row` and `wave-row-deciding` available; no open wave or plan run on these
+  files (`scripts/wave-plan-store.mjs --list`); the owner's window in Helsinki time with its
+  offset.
+- **Preflight before S2** (from S1c's notes): S1b's tests and the gate green on main; S1 to S5
+  decided with evidence and any confirmed fix landed in its own pull request; the baseline
+  evidence recorded.
+
+## 10. How the owner starts this plan
+
+1. Execution is `/plan-run`, never an ordinary session working through the list by hand. One
+   coordinator session opens the run, launches each phase's builder and, after the landing, its
+   independent checker (`.agent-workflows/plan-run.md` section 2), and advances by itself when
+   the check passes. Every builder lands through `/check` and `/queue-merge`; only the merge
+   queue writes `main`.
+2. The deadline comes from the owner at the start. This spec carries no date. A start without a
+   deadline is answered with one question for it. The runner's ceiling is 24 hours per window.
+3. Start template, once the plan is registered under "Runnable plans":
+
+   ```
+   /plan-run wizard-shell until <date and time with UTC offset>
+   ```
+
+   The AI track starts the same way as `/plan-run wizard-ai`, in its own coordinator session,
+   beside this one or later.
+4. Continuation in a fresh session, an expired window and the end-of-window report follow
+   `docs/work-specs/production-page-refactor/spec.md` section 10, points 5 and 6. The plan is
+   never restarted from S1a and no active step is launched twice.
+5. After S7's landing the owner reads the probe in the phase notes and decides whether to add S8
+   and S9 to the phase list for a later window.
+
+## 11. Acceptance criteria
+
+### AC-1: The prerequisites exist before any extraction
+S1a's markers and measurements, S1b's Node tests, journeys, covers headers and the gate, and
+S1c's decisions with their fixes are on `main` before S2 lands.
+
+### AC-2: Behaviour is identical at every phase
+Every section 5 spec and every S1b journey passes at every phase with unchanged assertions; the
+checker confirms the e2e diff changed selectors at most; no URL, step slug, test id, copy or
+persisted format changed.
+
+### AC-3: Every new pure module runs in Node
+`walks.ts`, `walkState.ts`, `doors.ts`, `import/drop.ts` and the draft and kit modules each have
+a `scripts/*.test.mjs` with `// guards:`, loaded through rolldown, taking browser IO through
+`io`; `npm run depcruise` passes with no config change.
+
+### AC-4: One transition implementation with a tested policy table
+Every cell of section 4 is a Node test of `transition`; `walkHasWork` is false right after a
+fresh open in every mode; `snapshotWalk` then restore round-trips; no second implementation of
+a reset remains in the shell.
+
+### AC-5: Each door's contract holds through one implementation
+Every row of section 3.2 is a Node test of `doors.ts` with a late, a failed and a second-press
+write; the S1b door journeys pass unchanged; no second implementation of an export, editor or
+production door remains in the shell.
+
+### AC-6: The import seam is counted and does not grow
+The section 5 counter runs over `import/index.ts` exports; S2 records the number; no later phase
+raises it; the shell reads no `import/draft.ts` function directly.
+
+### AC-7: Instruction weight is measured and reported (target, not gate)
+Chain sizes for a shell edit and a step edit are recorded at S1a and S7 in the metrics file; the
+retirements and rescopes of section 7 are done; a chain still above 40,960 bytes names the next
+candidates. The build's chain check stays green at every phase.
+
+### AC-8: The coupling claim is checked directly
+S6's representative-change probe is recorded with the files each change would touch; S7 re-runs
+co-change with the matcher fixed and records it, with the note that the window is re-read later
+over real work.
+
+### AC-9: Each phase stays inside its fence
+`git diff --name-only origin/main...HEAD -- src` lists only the phase's allowed files.
+
+### AC-10: The size gate never rose
+The shell's budget was installed at 2,601, lowered by each shrinking phase, and never raised.
+
+### AC-11: Docs and rules follow the code inside the first run
+S7 rewrote `docs/ARCHITECTURE.md` section 5 (the draft's measured reasoning, the widened
+counter, the shell modules), updated section 8, wrote the metrics file, fixed the co-change
+matcher and retired or rescoped the rules through `npm run learn`; `npm run audit:instructions`
+ran.
+
+### AC-12: Suspected defects were decided on evidence
+S1 to S5 are each reproduced or refuted in S1c; a confirmed one was fixed in its own pull
+request carrying its regression test before the extraction that would have pinned it.
+
+### AC-13 and AC-14
+Inherited by the child plan (the AI run module and the Pro quarantine); not criteria of this
+track.
+
+### AC-15: Nothing visible changed
+`wizard-shell`, `wizard-entry-fit` and `wizard-finish` pass unchanged at every phase.
+
+## Phases
+
+Each phase runs `/check` and the section 6 matrix and lands with `/queue-merge`; the builder
+adds the next phase's notes under `## Phase notes` (the previous verified `main` sha, the merge
+sha, the revert command, decisions, traps, the check's findings). Allowed `src` files are
+exactly those named. Temporary interfaces are the callbacks a module takes from the shell while
+the shell still owns the state; each is removed in the phase that moves that state.
+
+1. **S1a. Instruction relief** (AC-7). Files: `src/components/wizard/import/AGENTS.md`,
+   `src/components/wizard/steps/AGENTS.md`, `src/components/wizard/steps/ai/AGENTS.md` (the
+   marker line each), the regenerated contracts, `evidence/phase-s1a.md`. No rule file, no `src`
+   logic.
+2. **S1b. Characterisation of passing behaviour and the gate** (AC-1, AC-10). Files:
+   `scripts/wizard-draft.test.mjs`, `scripts/wizard-kit-plan.test.mjs`, `e2e/wizard-shell.spec.ts`,
+   `e2e/wizard-finish.spec.ts`, `e2e/wizard-kit.spec.ts`, `e2e/wizard-draft-guard.spec.ts`
+   (journeys appended), `e2e/template-deep-link.spec.ts`, `e2e/route-transition-flash.spec.ts`,
+   `e2e/mark-legibility.spec.ts` (headers), the gate files of D8, `package.json` (one line) if
+   needed, `evidence/*`. No `src/`. Only tests that pass on today's code.
+3. **S1c. Defect decisions** (AC-12). One pull request per confirmed defect (the fix and its
+   regression test in the spec file that owns the flow); refuted ones characterised in S1b's
+   files; the baseline evidence recorded last.
+4. **S2. Import drop doors** (AC-2, AC-3, AC-6, AC-9). Prerequisite landed first:
+   `e2e/wizard-brand.spec.ts` revived through the export door. Files: `import/drop.ts`,
+   `import/index.ts`, `draft/template.ts` (`brandOrClearPatch`), `CreationWizard.tsx`,
+   `scripts/import-drop.test.mjs`. No temporary interface. Budget lowered.
+5. **S3. Walks table** (AC-2, AC-3, AC-9). Prerequisite: `e2e/project-format.spec.ts` revived.
+   Files: `shell/walks.ts`, `CreationWizard.tsx`, `scripts/wizard-walks.test.mjs`. The ladder is
+   re-keyed by `StepId`; no props move. Temporary interface: the kit's rail interception stays
+   inline until S6.
+6. **S4. Doors** (AC-2, AC-3, AC-5, AC-9). Files: `shell/doors.ts`, `CreationWizard.tsx`,
+   `scripts/wizard-doors.test.mjs`. Temporary interface: `noteMade`, `rememberWalk` and
+   `saveBuiltGraphic` injected from the shell until S5. No rule edits.
+7. **S5. Walk reducer and lifecycle** (AC-2, AC-3, AC-4, AC-9). Safety-sensitive. Prerequisite:
+   `e2e/wizard-logo.spec.ts` and `e2e/wizard-setup-fields.spec.ts` revived. Files:
+   `shell/walkState.ts`, `shell/useWalkLifecycle.ts`, `CreationWizard.tsx`,
+   `scripts/wizard-walk-state.test.mjs`. Removes S4's temporary interfaces. `App.tsx` untouched.
+   No rule edits.
+8. **S6. The kit as operations, and the probe** (AC-2, AC-8, AC-9). Files: `template/useKit.ts`,
+   `template/KitConfirms.tsx`, `template/walk.ts`, `shell/walks.ts`, `CreationWizard.tsx`. The
+   representative-change probe is written into the phase notes.
+9. **S7. Close-out** (AC-7, AC-8, AC-10, AC-11). Files: `docs/ARCHITECTURE.md`,
+   `docs/metrics/<date>-wizard-shell.md`, `scripts/metrics/cochange.mjs`, the budgets, the rule
+   files through `npm run learn` and the regenerated contracts, `CreationWizard.tsx:100` if A4
+   landed, `evidence/*`. Lands after the child's A5 when that track is running (section 8).
+
+Optional, added to this list by the owner after reading S6 and S7:
+
+- **S8. Template folder move** (AC-2, AC-9, AC-11). Files: the moved template files and
+  `kitPlan.ts` under `template/`, covers headers, rule scopes, `.dependency-cruiser.cjs`, the
+  marker, `docs/ARCHITECTURE.md` section 8. No logic change.
+- **S9. Capability `Steps` components** (AC-2, AC-8, AC-9). Only if S6's probe still named the
+  shell for a template-only change. Files: `template/TemplateSteps.tsx`,
+  `import/ImportSteps.tsx`, `CreationWizard.tsx`.
+
+## What the plan can demonstrate, and what stays uncertain
+
+Demonstrable: behaviour identical on every pinned journey and every Node contract; one owner of
+walk state with tested policies; the doors' write order, failure outcomes and navigation moments
+under held writes; the chain sizes before and after; whether a representative capability change
+still touches the shell. Uncertain: the co-change percentage until a window of real work has
+been done on the new layout; whether the folder move (S8) is worth its width; the AI track's
+outcome, which this plan only reads through its ledger.
+
+## Readiness
+
+Before S1a: this spec and `work.json` on `main`, `work-spec.mjs status` clean, the "Runnable
+plans" line present; `origin/main` CI green; the browser queue idle; `gh auth status` ok;
+`wave-row` and `wave-row-deciding` available; no open wave or plan run on these files; the
+owner's window supplied. Before S2: S1a's numbers and S1b's tests on main; S1 to S5 decided with
+evidence; the baseline recorded.
+
+## Phase notes
+
+Each phase's pull request adds here what the next phase must allow for, newest first: the
+previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
+and the check's findings. The AI track's notes live in its own spec.
