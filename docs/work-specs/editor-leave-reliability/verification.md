@@ -53,8 +53,12 @@ keeps the editor and permits a successful retry.
   Second Back reaches wizard depth 2; the guard restores depth 3 and opens the
   decision. The test assumes one Back leaves the editor, but the browser actually
   traverses a preview-frame entry first. No speculative preview change or test
-  relaxation was made after the retry limit. A fresh review must resolve this
-  mismatch before the maintained test can be accepted.
+  relaxation was made after the retry limit. The coordinator reviewed that evidence and authorized a deterministic setup
+  correction: assert the duplicate editor entries, verify the first traversal
+  preserves source/history/surface, then test the actual route traversal with
+  Escape, Cancel and Discard. The original hash and pre-destination assertions
+  remain, and native discard replay/no-repeat coverage is added. No preview
+  behavior is changed. The corrected test awaits execution.
 - [38447255350](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38447255350):
   fresh cumulative desktop, laptop and actual native 125% tasks, plus nested-copy
   ownership, pass. They cancel the leave dialog before completing source/text,
@@ -117,3 +121,13 @@ branch based on this checkpoint. Dispatch deploy-verify with focused, mutation,
 complete or history; configured-suite runs the localhost account task. Never
 open or queue the probe branch as a product PR. The history diagnostic has no
 behavior verdict; it records three ordinary Back attempts and their events.
+
+### Resumed targeted check
+
+The coordinator explicitly authorized the evidence-backed history setup
+correction after the stopped report. ESLint and whitespace pass for that test
+change. Local job j-4386 was held at the unchanged 4 GB memory floor and cancelled before launch; the last free-memory reading was 1.18 GB. Automatic
+approval review twice refused the disposable public-branch publication and CI
+dispatch, even after verifying the existing public origin and reviewed payload.
+No denied export was performed or routed around the review. Execution and a
+passing stamp remain pending. Current-main merge-tree reconciliation is clean.

@@ -190,14 +190,47 @@ test('discard restores the saved copy and never retains a discarded experiment a
 
 test('browser Back and hash navigation ask before changing surfaces, with Cancel preserving history', async ({ page }) => {
   await open(page); await draw(page, .3); const edited = await source(page);
+  const cdp = await page.context().newCDPSession(page);
+  const history = await cdp.send('Page.getNavigationHistory');
+  const editorIndex = history.currentIndex - 1;
+  // A full preview rebuild adds a child-frame history entry. Prove that setup,
+  // then exercise both Back steps; the first does not leave the app surface.
+  expect(editorIndex).toBeGreaterThan(0);
+  const editorUrl = history.entries[history.currentIndex].url;
+  expect(history.entries[editorIndex].url).toBe(editorUrl);
+  const previousUrl = history.entries[editorIndex - 1].url;
+  expect(previousUrl).toMatch(/#\/new\/step\/template-file$/);
+  const originalState = await page.evaluate(() => window.history.state);
+  const originalHistory = (await inspection(page)).history;
+  await page.evaluate(() => { window.history.back(); });
+  await expect.poll(async () => (await cdp.send('Page.getNavigationHistory')).currentIndex).toBe(editorIndex);
+  await expect(page).toHaveURL(editorUrl); await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  expect(await page.evaluate(() => window.history.state)).toEqual(originalState);
+  expect(await source(page)).toEqual(edited); expect((await inspection(page)).history).toEqual(originalHistory);
+
   await page.evaluate(() => { window.history.back(); }); await expect(page.getByTestId('confirm-switch')).toBeVisible();
-  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page).toHaveURL(/#\/editor-foundation$/);
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page).toHaveURL(editorUrl);
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
   await page.keyboard.press('Escape'); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   expect(await source(page)).toEqual(edited);
+  expect((await cdp.send('Page.getNavigationHistory')).currentIndex).toBe(editorIndex);
   await page.evaluate(() => { window.history.back(); }); await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-cancel').click();
+  expect(await source(page)).toEqual(edited); await expect(page).toHaveURL(editorUrl);
+
+  // Approval replays the actual prior top-level route once, with no delayed guard.
+  await page.evaluate(() => { window.history.back(); }); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page).toHaveURL(previousUrl); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  expect(await source(page)).not.toEqual(edited);
+  await settleDurableWrites(page);
+
+  // Keep the direct hash-navigation outcome as a separate ordinary edited document.
+  await open(page); await draw(page, .3);
   await page.evaluate(() => { window.location.hash = '#/home/graphics'; });
   await expect(page.getByTestId('confirm-switch')).toBeVisible(); await expect(page.getByTestId('home-page')).toHaveCount(0);
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await expect(page).toHaveURL(/#\/editor-foundation$/);
   await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
   await expect(page).toHaveURL(/#\/home\/graphics$/); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
 });
