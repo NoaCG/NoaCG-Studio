@@ -222,7 +222,10 @@ test('browser Back and hash navigation ask before changing surfaces, with Cancel
   // Approval replays the actual prior top-level route once, with no delayed guard.
   await page.evaluate(() => { window.history.back(); }); await expect(page.getByTestId('confirm-switch')).toBeVisible();
   await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('creation-wizard')).toBeVisible();
-  await expect(page).toHaveURL(previousUrl); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  // The existing wizard resumes the finished walk at Finish, then canonicalizes its URL.
+  await expect(page).toHaveURL(/#\/new\/step\/finish$/);
+  await expect(page.getByTestId('wz-resume-confirm')).toBeVisible();
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   expect(await source(page)).not.toEqual(edited);
   await settleDurableWrites(page);
 
