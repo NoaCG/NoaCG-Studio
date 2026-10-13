@@ -17,19 +17,14 @@
 import type { SpxTemplate } from '../../model/types';
 import { definitionScriptBlock } from '../../model/spxDefinition';
 import { resolveEasing } from '../../model/easings';
-import { customFontFaceCss, fontFaceCss, FONTS, type BundledFont } from '../../model/fonts';
 import {
   paletteById,
   resolveOptions,
   type DesignSvg,
-  type DesignSvgField,
-  type DesignSvgFollower,
-  type DesignSvgGrowth,
   type ResolvedOptions,
   type TemplateVariant,
   type WizardOptions,
 } from '../../model/wizard';
-import { SVG_CANDIDATE_ATTR, svgPictureTarget } from '../../assets/svgImport';
 import { svgFieldSelectors, svgLayerSelectors } from '../../model/structure';
 import type { AnimData } from '../../blocks/animData';
 import {
@@ -49,10 +44,16 @@ import { convertToDataRegion } from '../shared/standard';
 import { attachMachine } from '../types/graphicType';
 import { boundBehaviour } from './behaviour';
 import { countdownIndex, svgFields } from './artworkFields';
-import { creditsClass, creditsIndex, creditsRollCss, creditsRollRuntimeJs } from './creditsRoll';
+import { creditsIndex, creditsRollCss, creditsRollRuntimeJs } from './creditsRoll';
 import type { AnimPreset, PresetConfig } from '../lowerThirds/animPresets';
 import { DESIGN_PRESETS } from './designPresets';
 import { PREFIX } from './shared';
+import { bindSvgMarkup, candidateLabel } from './svgBind';
+import { svgFontCss } from './svgFonts';
+import { LAYOUT_EL_ATTR, layoutDataJs, layoutRules, saidLines } from './svgLayout';
+
+// Moved to the pass that owns them; the wizard keeps importing all four constants from here.
+export { PANEL_SAFE, SVG_ALIGN_WORD } from './svgLayout';
 
 /**
  * HOW NEAR THE MIDDLE COUNTS AS CENTRED, as a fraction of the box on the axis being asked about.
@@ -68,10 +69,6 @@ import { PREFIX } from './shared';
  * source below, so the emitted template carries the value rather than a reference to it.
  */
 export const SVG_ALIGN_TOL = 0.05;
-
-/** The runtime's anchor words as a reader is shown them - on the grid, on the caret, and in the
- *  emitted table's comments. One map, so the three cannot drift. */
-export const SVG_ALIGN_WORD = { start: 'left', middle: 'centred', end: 'right' } as const;
 
 /**
  * A WRAPPED LINE'S STEP, IN EMS - the leading the ladder assumes where the file gives it none.
@@ -96,293 +93,6 @@ const NO_SVG: DesignSvg = {
   outlines: [],
   fonts: [],
 };
-
-/**
- * Bind the chosen candidates: each gets id="fN" (in field order), every remaining candidate
- * marker is stripped, and the root <svg> gains the artwork class so the part registry names
- * it. Any pre-existing id that collides with a bound one is prefixed out of the way - the
- * field ids are the one namespace the platform owns inside the file.
- *
- * `keepMarkers` is the ONE preview-only exception (`ResolvedOptions.previewMarkers`): the
- * mapping step's hover highlight needs a handle on the layer a checklist row means, and the
- * preview iframe is the only canvas that has the fit runtime. A ticked OUTLINE group still
- * loses its marker there - that group is hidden and its live stand-in wears the marker
- * instead (components/wizard/import/draft.ts `withSvgOutlineFields`), so one marker always points at
- * whatever actually airs.
- */
-/** The attribute every element a layout rule names carries. One stamp kind for the feature. */
-const LAYOUT_EL_ATTR = 'data-noacg-el';
-/** The emitted relationship table's schema (docs/SVG_IMPORT_PLAN.md §6c). Additive optional
- *  fields never bump it; a breaking shape change bumps it and migrates on read in the SAME
- *  commit, the doctrine docs/STATE_MACHINE_SCHEMA.md §5 states and `blocks/animData.ts` keeps. */
-const LAYOUT_VERSION = 1;
-/** How close to the frame's edge a growing element may get, as a fraction of the frame. The
- *  hug's original constant: growing off the screen was never a fit (plan §3). Exported because
- *  it is the floor the wizard's cap line stops at (`stageMeasure.growCapOf`), and a second copy
- *  of it is how the limit a reader can reach and the limit the runtime keeps drift apart. */
-export const PANEL_SAFE = 0.04;
-
-const growToken = (i: number) => `g${i}`;
-const followToken = (i: number, j: number) => `g${i}f${j}`;
-
-/**
- * THE LAYOUT RELATIONSHIPS OF A DESIGN, in one shape (plan §6c).
- *
- * A NORMALIZING read, the same idiom `parseAnimData` uses: the hug's original one-rectangle
- * `stretch` becomes one axis-'x' rule with derived followers - which is exactly what it always
- * meant - so a draft, a saved wizard option or a project from before this change still builds
- * the graphic it described, and nothing downstream ever sees two shapes.
- */
-function layoutRules(svg: DesignSvg): DesignSvgGrowth[] {
-  if (svg.growth?.length) return svg.growth;
-  return svg.stretch ? [{ candidateId: svg.stretch.candidateId, axis: 'x' }] : [];
-}
-
-/**
- * The designer's own name for a marked element, off the markup - `data-name` carries the
- * original spelling where an exporter uniquified the id. Null when nothing named it, so the
- * caller can fall back honestly.
- *
- * IT LOOKS UP THE TREE, as the step's own naming does (`candidateName`, assets/svgImport.ts).
- * Illustrator writes the layer name on the GROUP and leaves the rect inside it anonymous, so a
- * plate the step calls "q bg" was read here as unnamed and every growth rule on it emitted the
- * comment `// "Layer" grows wider` - a comment about the generated code that named the wrong
- * thing, on the one file the owner walks.
- *
- * IT STOPS AT THE FIRST ANCESTOR THAT HOLDS SOMEBODY ELSE. A name only belongs to this layer
- * while the group wearing it wraps this layer alone; a group holding two marked layers is a
- * container, and its name would be handed to every plate inside it. Stopping at the ROOT is not
- * enough for that: Illustrator writes `id="Layer_1"` on the `<svg>`, but Figma and Inkscape wrap
- * the artwork in a NAMED group under the root, which would emit `// "Frame 1" grows wider` on
- * every row - the same wrong comment in a different exporter's spelling.
- */
-function candidateLabel(svg: DesignSvg, candidateId: string): string | null {
-  const doc = new DOMParser().parseFromString(svg.markup, 'image/svg+xml');
-  const root = doc.documentElement;
-  let el = doc.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
-  // The marked element itself is allowed a name whatever it contains - it IS the layer.
-  const own = el?.getAttribute('data-name') ?? el?.getAttribute('id');
-  if (own?.trim()) return own.trim();
-  el = el?.parentElement ?? null;
-  while (el && el !== root && el.querySelectorAll(`[${SVG_CANDIDATE_ATTR}]`).length <= 1) {
-    const name = el.getAttribute('data-name') ?? el.getAttribute('id');
-    if (name?.trim()) return name.trim();
-    el = el.parentElement;
-  }
-  return null;
-}
-
-/**
- * THE SWAP AND THE RESTORE BOTH SPEAK `href`, so a bound picture keeps exactly one spelling.
- *
- * Illustrator and Figma both write the SVG 1.1 `xlink:href` on a placed picture, while
- * `setFieldValue` (templates/shared/base.ts) remembers and rewrites the SVG 2 `href`. Left as
- * exported that half-works in the worst way: an operator's swap paints (a browser prefers
- * `href`), and CLEARING the field restores an empty string over a picture the `xlink:href`
- * beside it can no longer bring back - the field's own promise, "empty keeps the picture you
- * drew", failing only on the second click. Moving the value rather than copying it also keeps
- * one base64 payload in the export instead of two.
- */
-function normalizePictureHref(el: Element): void {
-  const legacy = el.getAttribute('xlink:href');
-  if (legacy === null) return;
-  if (!el.getAttribute('href')) el.setAttribute('href', legacy);
-  el.removeAttribute('xlink:href');
-}
-
-/**
- * Rename an element's id and move every in-document reference to it with the rename. An SVG
- * refers to its own nodes by `#id` all over - a `<use>` inside a `<pattern>`, a gradient, a clip
- * path - so an id changed on its own turns a painted shape into an empty one.
- *
- * References are COMPARED, never selected. The old id is the DESIGNER'S text - Figma names a
- * text layer after the words in it - and an id carrying a quote or a backslash makes
- * `[href="#…"]` an invalid selector, which throws out of here and out of Create project. This
- * used to run only for the handful of layer ids that collided with ours (`f0`, `q-sel-1`), all
- * of them safe tokens; it now runs for every bound field.
- *
- * A DUPLICATE id moves nothing. Figma writes a duplicated layer's name into `id` verbatim, so a
- * file really can carry the same id twice (corpus: `figma-duplicate-ids-scorebug`), and a
- * browser answers `#id` with the FIRST one. A later twin was therefore never what any reference
- * pointed at, and repointing them here would silently hand this node's picture to another shape.
- */
-function setIdKeepingRefs(root: Element, el: Element, id: string): void {
-  const was = el.getAttribute('id');
-  el.setAttribute('id', id);
-  if (!was || was === id) return;
-  const all = Array.from(root.querySelectorAll('*'));
-  const twin = all.findIndex((n) => n.getAttribute('id') === was);
-  if (twin !== -1 && twin < all.indexOf(el)) return; // an earlier twin owns the references
-  for (const ref of all) {
-    if (ref.getAttribute('href') === `#${was}`) ref.setAttribute('href', `#${id}`);
-    if (ref.getAttribute('xlink:href') === `#${was}`) ref.setAttribute('xlink:href', `#${id}`);
-  }
-}
-
-function bindSvgMarkup(svg: DesignSvg, keepMarkers = false): string {
-  const doc = new DOMParser().parseFromString(svg.markup, 'image/svg+xml');
-  const root = doc.documentElement;
-
-  // The artwork identity (model/structure.ts `.{prefix}-art`) - appended, never replacing
-  // classes the designer put there.
-  const classes = (root.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-  if (!classes.includes(`${PREFIX}-art`)) classes.push(`${PREFIX}-art`);
-  root.setAttribute('class', classes.join(' '));
-
-  // Field ids are ours: a layer Illustrator happened to name "f0" would collide with the
-  // binding, so any such id moves aside (references to it inside the file move with it). The
-  // behaviour's own fields count here too - its holders carry `fN` ids like any other field,
-  // and the stamped layer ids (`q-sel-1`, `p-bar-1`, …) are ours for the same reason.
-  const behaviour = boundBehaviour(svg, svgFields(svg));
-  const taken = new Set([
-    ...[...svg.fields, ...svg.images, ...Array(behaviour?.fieldCount ?? 0)].map((_, i) => `f${i}`),
-    ...(behaviour?.layerIds ?? []),
-  ]);
-  for (const el of Array.from(root.querySelectorAll('[id]'))) {
-    const id = el.getAttribute('id')!;
-    if (taken.has(id)) setIdKeepingRefs(root, el, `layer-${id}`);
-  }
-
-  const clock = countdownIndex(svg);
-  const credits = creditsIndex(svg);
-  [...svg.fields, ...svg.images].forEach((field, i) => {
-    const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${field.candidateId}"]`);
-    if (!el) return;
-    if (i === clock || i === credits) {
-      // The countdown DISPLAY: the clock runtime paints into `.{prefix}-clock`, and the
-      // operator's minutes land in the hidden #fN holder instead - so this node takes the
-      // class and NOT the field id, or update() would write "10" over the ticking readout.
-      // The CREDITS SAMPLE is the same shape: the operator's list lands in its holder, and the
-      // drawn text keeps its two looks for the roll engine to copy (creditsRoll.ts).
-      // The sample is the whole <text>: a composed block offers its runs as candidates, and the
-      // roll copies looks and leading off the lines of the text those runs belong to.
-      const target = i === credits ? el.closest('text') ?? el : el;
-      const cls = i === clock ? `${PREFIX}-clock` : creditsClass(PREFIX);
-      const own = (target.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-      if (!own.includes(cls)) own.push(cls);
-      target.setAttribute('class', own.join(' '));
-      return;
-    }
-    // A PICTURE field binds the node whose href paints the picture, which is not always the node
-    // the mapping step offered: Figma's placed raster is a `<rect fill="url(#pattern0)">` painted
-    // by an `<image>` parked in `<defs>`, and only that `<image>` responds to a swap
-    // (assets/svgImport.ts `svgPictureTarget` states why the two are chosen separately). Taking
-    // the id KEEPS the references: the pattern's `<use>` points at the picture by id, so an
-    // unaccompanied `setAttribute('id', …)` would leave the shape painting nothing.
-    if (i < svg.fields.length) {
-      setIdKeepingRefs(root, el, `f${i}`);
-      return;
-    }
-    const picture = svgPictureTarget(el, root);
-    normalizePictureHref(picture);
-    setIdKeepingRefs(root, picture, `f${i}`);
-  });
-  // An outlined-text group the user chose to replace (plan §1.A) is HIDDEN, not deleted:
-  // the class below is what the `.{prefix}-outlined { display: none }` rule in template.css
-  // matches, so a professional can compare the live text against the shapes by deleting
-  // one line, and the file still carries everything the designer exported. The HTML field
-  // that stands in for it is placed afterwards (components/wizard/import/draft.ts).
-  for (const outline of svg.outlines) {
-    const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${outline.candidateId}"]`);
-    if (!el) continue;
-    const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-    if (!own.includes(`${PREFIX}-outlined`)) own.push(`${PREFIX}-outlined`);
-    el.setAttribute('class', own.join(' '));
-  }
-  // A text layer the author said should come OFF the artwork, hidden the same way and for the
-  // same reason: the designer's own shapes stay in the file, and one rule takes them off air.
-  // Its own class rather than the outlined one, because the two are different statements - a
-  // replaced outline has a live field standing where it was, and this has nothing.
-  for (const gone of svg.hidden ?? []) {
-    const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${gone.candidateId}"]`);
-    if (!el) continue;
-    const own = (el.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
-    if (!own.includes(`${PREFIX}-removed`)) own.push(`${PREFIX}-removed`);
-    el.setAttribute('class', own.join(' '));
-  }
-  // THE ELEMENTS A LAYOUT RELATIONSHIP NAMES (plan §6c): every participant - an element that
-  // may GROW, and anything DECLARED to travel with it - is stamped with one token, and the
-  // emitted NOACG_LAYOUT table says what each token does. One stamp kind for the whole
-  // feature, so a rule can name several elements without minting a class per role.
-  for (const [i, rule] of layoutRules(svg).entries()) {
-    // A SPACE-SEPARATED list of tokens, not a single value: one element may be named by two
-    // rules at once - the wider-then-wrap ladder is one panel growing on both axes - and a
-    // plain `setAttribute` would let the second rule erase the first one's stamp.
-    const stamp = (candidateId: string, token: string) => {
-      const el = root.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidateId}"]`);
-      if (!el) return;
-      const own = (el.getAttribute(LAYOUT_EL_ATTR) ?? '').split(/\s+/).filter(Boolean);
-      if (!own.includes(token)) own.push(token);
-      el.setAttribute(LAYOUT_EL_ATTR, own.join(' '));
-    };
-    stamp(rule.candidateId, growToken(i));
-    rule.followers?.forEach((f: DesignSvgFollower, j: number) => stamp(f.candidateId, followToken(i, j)));
-  }
-  // The layers a bound behaviour claims: our id, plus the state class on the ones that are drawn
-  // MOMENTS. Before the markers are stripped - that is what they are for.
-  behaviour?.markLayers(root);
-  const replaced = new Set(svg.outlines.map((o) => o.candidateId));
-  for (const el of Array.from(root.querySelectorAll(`[${SVG_CANDIDATE_ATTR}]`))) {
-    if (keepMarkers && !replaced.has(el.getAttribute(SVG_CANDIDATE_ATTR) ?? '')) continue;
-    el.removeAttribute(SVG_CANDIDATE_ATTR);
-  }
-  return new XMLSerializer().serializeToString(root);
-}
-
-/**
- * Every @font-face the template ships (plan §4): a bundled face whose family name matches
- * what the SVG references, or a fetched/uploaded face embedded as an asset. An UNRESOLVED
- * family is stated in a comment - never blocked, because the designer may know the playout
- * machine has the face installed; the wizard already warned out loud.
- */
-/** A bundled face declared under the name the artwork asks for - same file, second name. The
- *  comment says which face it really is, so the emitted CSS is readable rather than mysterious. */
-function aliasFontFaceCss(font: BundledFont, family: string, weight?: number): string {
-  // THE NAME IS THE ONLY PLACE ILLUSTRATOR STATES THE WEIGHT. It writes `font-family:
-  // 'Archivo-Black'` and no font-weight at all, because in its world that name IS one static
-  // file. Ours is a variable file covering 400-900, so declared with its whole range the artwork's
-  // weight-less text asks for the default and renders REGULAR - a Black headline arrives thin,
-  // with nothing reporting it. Declaring the alias as the ONE weight its name states pins it: a
-  // request is clamped into the face's declared range, and a range of one value has one answer.
-  const pinned = weight === undefined ? null : Math.min(font.weights[1], Math.max(font.weights[0], weight));
-  const weightLine = pinned === null
-    ? `  font-weight: ${font.weights[0]} ${font.weights[1]};  /* variable font: covers this weight range */`
-    : `  font-weight: ${pinned};            /* the name says this one weight, and the artwork states no other: pin the variable file to it */`;
-  return `/* Bundled open-source font (the file ships with the export - no internet at playout).
-   Declared as "${family}" because that is the name this artwork's own CSS asks for; the file is ${font.family}. */
-@font-face {
-  font-family: "${family}";
-  src: url("fonts/${font.file}") format("woff2");
-${weightLine}
-  font-display: swap;          /* show fallback text until the font loads */
-}`;
-}
-
-function svgFontCss(svg: DesignSvg): string {
-  const blocks: string[] = [];
-  const unresolved: string[] = [];
-  for (const font of svg.fonts) {
-    const bundled = font.fontId ? FONTS.find((f) => f.id === font.fontId) : undefined;
-    if (bundled) {
-      // A face is declared under the name the ARTWORK asks for. Illustrator writes PostScript
-      // names ("Archivo-Bold"), which the import matches to the bundled family they plainly are
-      // - but a `@font-face` declared as "Archivo" answers nothing in an SVG whose own CSS says
-      // `font-family: Archivo-Bold`, so the alias is the whole point of the match.
-      blocks.push(
-        bundled.family === font.family ? fontFaceCss(bundled) : aliasFontFaceCss(bundled, font.family, font.weight),
-      );
-    } else if (font.customFont) blocks.push(customFontFaceCss(font.customFont));
-    else unresolved.push(font.family);
-  }
-  if (unresolved.length > 0) {
-    blocks.push(
-      `/* UNRESOLVED ${unresolved.length === 1 ? 'FONT' : 'FONTS'}: ${unresolved.join(', ')} - the SVG references ${unresolved.length === 1 ? 'this family' : 'these families'} but no file ships
-   with the template, so playout falls back to whatever the machine has installed. If the
-   playout machine has the ${unresolved.length === 1 ? 'font' : 'fonts'}, this is fine; otherwise import the file in the Style panel. */`,
-    );
-  }
-  return blocks.join('\n\n');
-}
 
 /**
  * The overflow-only text fit (plan §3): SVG text neither wraps nor clips, so a longer
@@ -1914,107 +1624,6 @@ if (typeof ResizeObserver === 'function') {
 }
 `;
 
-/**
- * THE HUG (docs/SVG_IMPORT_PLAN.md §3), emitted only for a design whose author said its panel
- * grows. Its doctrine is the raster stretch runtime's (importedDesign/stretch.ts): ONE measured
- * value - how far the longest bound line overflows the width it was drawn at - widens the
- * panel, and the text fit above then answers only what the frame's safe margin could not give.
- *
- * Everything is measured in SCREEN px and converted back through each element's own CTM,
- * because a group between the artwork's root and a layer may carry a transform, and comparing
- * raw attribute numbers across two such spaces is how a banner ends up growing the wrong way.
- */
-/**
- * THE RELATIONSHIP TABLE, emitted as data the runtime below loops over (plan §6c).
- *
- * It is DATA, and versioned, because it is a persisted format: the author declares which
- * element grows, which way, how far and what travels with it, and principle 6 applies to
- * anything a saved template carries. Emitted as a HIDDEN model it would be the second scene
- * model the architecture forbids; emitted as a commented literal the code reads - and the code
- * still the truth - it is not. A reader can delete a row and the relationship is gone.
- */
-/** The bound lines the author said something about - an alignment, or the nudge - with the field
- *  index each one binds as. The one predicate for "this design has a `lines` list". The countdown
- *  layer and the credits sample are left out: each becomes a display the runtime paints and
- *  never carries the field id a row would name (`bindSvgMarkup`), so a declaration on it could
- *  reach nothing. */
-function saidLines(svg: DesignSvg): { f: DesignSvgField; i: number }[] {
-  const clock = countdownIndex(svg);
-  const credits = creditsIndex(svg);
-  return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && i !== credits && (f.align || f.nudge));
-}
-
-function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => string): string {
-  const rules = layoutRules(svg);
-  const rows = rules.map((rule, i) => {
-    const axis = rule.axis ?? 'x';
-    const way = axis === 'x' ? 'wider' : 'taller';
-    const followers = rule.followers?.length
-      ? `,\n      followers: [${rule.followers
-          .map((f: DesignSvgFollower, j: number) => `{ el: '${followToken(i, j)}', mode: '${f.mode ?? 'move'}' }`)
-          .join(', ')}]`
-      : '';
-    const note = rule.followers?.length
-      ? `${rule.followers.length} layer(s) travel with it`
-      : 'whatever is drawn past its moving edge travels with it';
-    // THE LIMIT THE AUTHOR SET, where they set one: written as the margin it keeps, so the row
-    // says the same thing the wizard's cap line showed them. A row without it keeps the
-    // design's own margin mirrored, which is every graphic emitted before caps existed.
-    const cap = rule.cap != null ? `, cap: ${Number(rule.cap.toFixed(4))}` : '';
-    const stops = rule.cap != null
-      ? ` It stops ${Math.round(rule.cap * 100)}% of the frame short of the edge it grows towards.`
-      : '';
-    return `    // "${labelOf(rule.candidateId)}" grows ${way}; ${note}.${stops}
-    { el: '${growToken(i)}', axis: '${axis}', safe: ${PANEL_SAFE}${cap}${followers} }`;
-  });
-  // HOW A LINE SITS IN ITS BOX, for the lines the author SAID it about (docs/TEXT_BOX_BINDING.md,
-  // "Alignment"). Every other line is read off the drawing at play time, so the list is left out
-  // entirely where nobody touched the grid - an untouched import emits the bytes it always did.
-  // ADDITIVE to version 1: a runtime from before this list existed simply never looks for it.
-  const said = saidLines(svg).map(({ f, i }) => {
-    const kept = f.nudge ? '; keeps the nudge it was drawn with' : '';
-    return `    // "${f.title}" - ${f.align ? `${SVG_ALIGN_WORD[f.align.h]}, ${f.align.v}` : 'as drawn'}${kept}.
-    { el: 'f${i}'${f.align ? `, h: '${f.align.h}', v: '${f.align.v}'` : ''}${f.nudge ? ', nudge: true' : ''} }`;
-  });
-  const lines = said.length
-    ? `,
-  // Which edge each of these lines fills from and where its block sits in its box, as the author
-  // set it on the Fields step. A line not listed is aligned the way it was drawn. \`nudge: true\`
-  // keeps the offset the designer left between the block and its anchor.
-  lines: [
-${said.join(',\n')}
-  ]`
-    : '';
-  return `
-// ── Layout relationships (SVG) ────────────────────────────────────────────────
-// WHICH ELEMENT MAY GROW, WHICH WAY, HOW FAR, AND WHAT TRAVELS WITH IT.
-//
-// Nothing here is elastic by default: a graphic with an empty table never moves, which is what
-// every board and every scorebug wants. Each row names one element by the data-noacg-el stamp
-// it carries in the artwork above, the axis it may grow on, and how close to the frame's edge
-// it may get (\`safe\`, a fraction of the frame). \`cap\` is a tighter limit the author set by
-// hand: the margin the growing edge must leave on the side it grows towards, as a fraction of
-// the frame. Leave it out and the element keeps the margin the design drew on its other side.
-// A row with its own \`followers\` list moves
-// exactly those layers; a row without one falls back to measuring what sits past the growing
-// edge, which is a fair guess sideways and a poor one downwards - so a vertical rule is
-// normally written with its followers spelled out.
-//
-// A follower travels by default (\`mode: 'move'\`): it keeps its distance and its size. Write
-// \`mode: 'grow'\` instead and the layer is STRETCHED by what the panel gained, which is what a
-// rail or a tint band wants. You rarely need to: furniture drawn to the panel's own two edges is
-// measured and stretched automatically, and never appears in this list.
-//
-// Delete a row and that element stops growing. Edit \`axis\` and it grows the other way.
-var NOACG_LAYOUT = {
-  version: ${LAYOUT_VERSION},
-  rules: [
-${rows.join(',\n')}
-  ]${lines}
-};
-`;
-}
-
 /** THE TWO POINT SHIFTERS, emitted for a design that grows a panel or fills a gauge: a panel
  *  drawn as a path or a polygon grows by them, and so does a behaviour's gauge drawn that way
  *  (behaviourRuntime.ts `noacgGauge`), which is why they are not inside the growth runtime. */
@@ -2090,6 +1699,16 @@ function svgShiftPoints(points, axis, split, dir, delta) {
 }
 `;
 
+/**
+ * THE HUG (docs/SVG_IMPORT_PLAN.md §3), emitted only for a design whose author said its panel
+ * grows. Its doctrine is the raster stretch runtime's (importedDesign/stretch.ts): ONE measured
+ * value - how far the longest bound line overflows the width it was drawn at - widens the
+ * panel, and the text fit above then answers only what the frame's safe margin could not give.
+ *
+ * Everything is measured in SCREEN px and converted back through each element's own CTM,
+ * because a group between the artwork's root and a layer may carry a transform, and comparing
+ * raw attribute numbers across two such spaces is how a banner ends up growing the wrong way.
+ */
 function growthRuntimeJs(): string {
   return `
 // ── Panel hug (SVG) ───────────────────────────────────────────────────────────

@@ -56,6 +56,13 @@ sanitized at import (`assets/svgImport.ts`), re-checked by the gate
 channel 'rise'; `fieldPlan: fixed` (the fields ARE the mapping step's choices); DESIGN_PRESETS plus
 `design-stagger`. E2E: `e2e/import-svg.spec.ts`.
 
+The build, one pass per file (the corpus harness `scripts/svg-import-passes.test.mjs` pins each):
+
+- `svg.ts` - `assembleImportedSvg` and `IMPORTED_SVG`, the constants the wizard imports (re-exported where a pass owns them), and the fit and growth runtimes as strings.
+- `svgBind.ts` - `bindSvgMarkup`, the one DOM pass: field ids with their references, classes, layout stamps, marker strip; `candidateLabel`.
+- `svgLayout.ts` - `layoutRules`, `saidLines`, `layoutDataJs`: the `NOACG_LAYOUT` text and its stamp, pure (`scripts/svg-layout-table.test.mjs`).
+- `svgFonts.ts` - `svgFontCss`: the `@font-face` block with the pinned alias, pure (`scripts/svg-font-css.test.mjs`).
+
 **A PICTURE candidate and the node it BINDS are not always the same element.** Figma writes a
 placed raster as `<rect fill="url(#patternN)">` painted by an `<image>` in `<defs>`, so the row is
 offered on the shape the designer named and `id="fN"` lands on the `<image>` the pattern resolves
