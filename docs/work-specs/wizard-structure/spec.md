@@ -669,6 +669,90 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S1b. Characterisation and the gate (built 2026-10-13)
+
+- **Check's findings (S1a check: PASS).** Carried: S1a's evidence states its limitations inline
+  under no heading (S1b's has a Limitations heading); the chain numbers go into the track's one
+  metrics file at S7, a decision recorded under S1a with its revert; S1a's file list did not name
+  the three generated `.gitattributes`; three chains stay over 40,960 (`import/` 42,347,
+  `steps/` 42,867, `steps/ai/` 51,910); the `npm run rules` lookup reads rule scopes, so the
+  saving shows in the AGENTS.md chain, not in the lookup.
+- **Shas:** previous verified `main` `13b326773`; built on `claude/plan-wizard-shell-p2-build`,
+  pull request #1134; the merge sha is the one the queue records. **Revert:** `git revert` the
+  pull request's merge commit; nothing under `src/` changed, so nothing else depends on it.
+- **What landed** (`evidence/phase-s1b.md`): the size gate and the shell's budget; Node tests for
+  the draft (15) and the kit plan (10); 12 journeys appended to `wizard-shell` (3),
+  `wizard-draft-guard` (2), `wizard-kit` (1) and `wizard-finish` (6); real `// covers:` headers
+  on `template-deep-link`, `route-transition-flash` and `mark-legibility`. The shell's plan is
+  53 specs, 53.1 table-minutes (was 50, 52.0). Capacity measured on CI: 94.3% and +1.2 minutes on
+  the first run, 93.6% and +0.4 on the final tip; under the 95% line, so no budget exception.
+- **Decisions** (each revertible as stated):
+  - *Budget at 2,601, not the shell's 2,485.* The shell is 2,485 lines on this `main` because the
+    svg-import-engine plan's phase 2 shrank it after the baseline. D8 and AC-10 install 2,601, and
+    a lower number could fail a beside-running plan's landing on a few lines it never meant to
+    add. So 116 lines of growth pass unnoticed until S2, the first phase of this plan that shrinks
+    the shell, lowers the budget to the actual count. Revert: set `lines` to 2485 now.
+  - *The gate's guard is `scripts/file-budgets/*.json`, not `scripts/file-budgets/`.* A bare
+    directory matches no file, so `gates.mjs audit` refuses it. Each budget is
+    `{ "file", "lines", "why" }`; `scripts/file-budgets.json` (production-page's D8 layout) is read
+    as one such entry or an array, and a file budgeted in both layouts is refused. Production-page
+    adds its file to the gate's `// guards:` line when it budgets one.
+  - *`wizard-draft.test.mjs` is a factory gate (`needs: browser`).* `variant.create()` needs
+    `DOMParser` (all 528 designs fail in bare Node), so the `buildDraftTemplate` case runs the same
+    bundles in one Chromium page; the other 14 cases run in Node in the same file. CI's Factory
+    gates job ran it (ok). Revert: if a DOM-free build path appears, move the page case to Node and
+    the file to `gate: build`.
+  - *Both Node tests redirect `../import` to `import/draft.ts`* (a 9-line rolldown resolver beside
+    the field-auto-map `load()`): the index also re-exports the import steps' components, which
+    fail to load in Node (a stylesheet, then a module-level `DOMParser`). This answers section
+    5.1's "S1b verifies that `draft/core.ts` loads that way": not as it stands, yes with the
+    redirect.
+  - *The kit tests use fixture designs* whose `create()` writes the options it was handed into the
+    template, so each assertion reads which draft a graphic was built from. Real designs through
+    the kit stay with `wizard-kit`.
+  - *The production-brand journey asserts the chooser only*; the palette half waits for S2's
+    `wizard-brand` revival, as section 5.3 says.
+  - *`mark-legibility` covers `useMarkLegibility.ts` too*: its wizard test walks to the Style step;
+    it is skipped today (Advanced mode, #800), and the header names its code for the day it is
+    revived.
+- **Recorded as today's behaviour, for S1c to decide:** a second press of the production door
+  while the library save is held runs both presses: one library record (the second press saves
+  over the first by name) and two productions named "Friday Show", each pooling the graphic
+  (`wizard-finish`, "pressed twice"). R7 called this undecided; it is a duplicate production.
+- **For S1c (left out because they fail on today's code):**
+  - *Continue in file mode returns to Entry and the file is lost to the reader.* Reproduce: Home,
+    + New graphic, Import graphic, drop a finished `.html` template (the import card shows it),
+    the wizard's Home door, + New graphic, Continue: the import card is gone (CI run 38467355045,
+    shard job 115538360001, `toContainText` on `import-template-card`: element not found). By the
+    code: dropping a file switches the mode from `design` to `file`, the `[mode]` effect resets
+    `lastStep` to 0, and the `[open, step]` effect does not re-run because the step stays 1, so
+    Continue sets step 0; pressing Import graphic there clears `importedFile`. Same root as S1
+    (the held-walk bookkeeping across a mode change). The journey ("Continue keeps a dropped
+    template file", a fixture `.html` with one field) goes back in with the decision.
+  - *A reload of a non-template walk's step URL does not land on that step.* A cold open resolves
+    the step name against the template walk only (`CreationWizard.tsx`, the fresh branch of the
+    open effect, "Resolved against the walk this reset installs"), so by the code a reload of
+    `#/new/step/images` (import), `design`, `prepare`, `text` (design), `template-file` (file),
+    `create` (AI), `video` and `kit` lands on Entry, and the svg walk's `fields` lands on the
+    template walk's Fields. Reproduce: open the mode, step forward, reload. Not run: the probe was in the local run that never started. Whether a
+    reload should restore a non-template walk at all (its draft is gone after a reload) is the
+    decision; the journey for those walks goes in with it.
+- **S1c must allow for:** the hold switch in `wizard-finish` (`armWriteSwitch`) holds or refuses
+  the writes of one durable key, so a door can be observed between two writes; S1c's defect
+  reproductions with a held durable write (S5's kit bypasses) can reuse it from that file. The
+  shell's budget is 2,601; a fix pull request that adds lines to the shell stays under it.
+- **Traps:** `gates.mjs run --changed` does not run a brand-new test file unless its guards are
+  among the changed paths (a test's derived guards are its imports and sibling, not itself): run
+  new Node tests directly. `e2e-capacity --changed` locally counts an edited spec at its table
+  value (+0.00); the added minutes only show in CI's measured line (the Combined E2E report job).
+  The import card names a dropped template by its file name, lower-cased, not by its
+  `<title>`. The local browser queue held every browser job from 22:10 to 01:00 on 2026-10-13 (0.7 to
+  2.8 GB free against a 4.0 GB floor), so the journeys ran on CI only. The gate does not enforce
+  "only goes down": a raised number is for the reviewer to refuse. Its `// guards:` line names
+  only the shell and the per-file budgets, so a plan that budgets another file adds that file
+  (and `scripts/file-budgets.json` once it exists) to the line, or `gates run --changed` skips
+  the gate for it. Both came from S1b's review and were left as written by D8.
+
 ### S1a. Instruction relief (built 2026-10-13)
 
 - **Check's findings:** none (no check preceded this phase).
