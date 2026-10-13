@@ -598,7 +598,8 @@ run time, the findings recorded, and the check's findings.
   reads from another, so phase 5 needs no byte change.
 - **Built:** `runtime/svgFit.js` (1,466 lines) and `runtime/svgFitBoot.js` (25), imported `?raw` by
   `svg.ts` and filled by `fillRuntime(text, values)`: each `__NAME__` token becomes `String(value)`,
-  and CRLF becomes LF. `SVG_FIT_JS` is `'\n' + fillRuntime(svgFit, { PREFIX, SVG_ALIGN_TOL,
+  CRLF becomes LF, and a token left without a value throws at module load (probe: filling the
+  boot without `PREFIX` failed the catalog gate). `SVG_FIT_JS` is `'\n' + fillRuntime(svgFit, { PREFIX, SVG_ALIGN_TOL,
   SVG_LINE_HEIGHT })` and `SVG_FIT_BOOT` is `'\n' + fillRuntime(svgFitBoot, { PREFIX })`, still
   module constants. An ESLint block for `runtime/*.js`: `ecmaVersion: 5`, `sourceType: script`,
   browser globals, `js.configs.recommended`, `no-unused-vars` for locals only, and per file the
@@ -611,7 +612,7 @@ run time, the findings recorded, and the check's findings.
     and from CRLF files. Neither original holds a `__NAME__` text or a carriage return.
   - Harness: 15/15, every record equal, the snapshot untouched (on top of #1133's re-record). The
     runtime compared with this machine's baseline taken on `6e8bfb503` before any change
-    (`SVG_CORPUS_RUNTIME_LOCAL`). Run time 7.3 s for the test file.
+    (`SVG_CORPUS_RUNTIME_LOCAL`). Run time 6.7 s for the test file.
   - `check-catalog-emit`: PASS, 528 designs, `svg01` unchanged.
   - CRLF, as a Windows checkout writes the files: harness 15/15 and catalog PASS. Probe: without
     the CRLF step in `fillRuntime`, the catalog failed on `svg01` `js`.
@@ -623,8 +624,8 @@ run time, the findings recorded, and the check's findings.
   - `tsc`, `depcruise src` (no violations), ESLint on the changed files, `gates run --changed
     origin/main` (all checks, 4 test files, 23 tests) green; `vote-board-bars`, `readout-ink`,
     `behaviour-removed-layer` and the two phase 3 Node tests pass (21 tests).
-- **AC-4 line counts:** `svg.ts` 1,369 lines: 940 are the runtime strings phase 5 moves
-  (`SHAPE_SHIFT_JS` 71, `growthRuntimeJs` 869) and 429 are TypeScript. After phase 5 it should be
+- **AC-4 line counts:** `svg.ts` 1,372 lines: 940 are the runtime strings phase 5 moves
+  (`SHAPE_SHIFT_JS` 71, `growthRuntimeJs` 869) and 432 are TypeScript. After phase 5 it should be
   about 440, under 500.
 - **Decisions:**
   - Tokens are `__PREFIX__`, `__SVG_ALIGN_TOL__` and `__SVG_LINE_HEIGHT__`, the interpolated names
@@ -641,8 +642,12 @@ run time, the findings recorded, and the check's findings.
     `model/fonts.ts` imports `OFL.txt?raw`. `vite-env.d.ts` already types `*?raw` and is unchanged.
   - The rules stay on, including `no-redeclare` and `no-undef`; only `no-unused-vars` is narrowed
     to locals, because a top-level function here is called by another piece of the graphic.
-  - The TypeScript doc comments stay in `svg.ts` above the constants. Two that said "below" now
-    name `runtime/svgFit.js`.
+  - The TypeScript doc comments stay in `svg.ts` above the constants. Three that pointed "below" at
+    the fit now name `runtime/svgFit.js`.
+  - Kept after review, with the reason: the cross-file globals are hand lists, so renaming a
+    function `svgFitBoot.js` calls still lints clean (the harness's runtime record catches it);
+    the block takes all of `globals.browser`, as the app's own block does, so a stray `top` or
+    `name` is not flagged.
 - **What the next phase must allow for:**
   - `growthRuntimeJs` returns a literal that ends `}` with no line break before the backtick, and
     `SHAPE_SHIFT_JS` begins with one. Extracting by cooking the literal (as this phase did)
@@ -650,11 +655,15 @@ run time, the findings recorded, and the check's findings.
   - The growth runtime interpolates `PREFIX` (6 times) and `LAYOUT_EL_ATTR` (once). It reads 17
     names that `svgFit.js` defines (`svgFitRoom`, `svgFitPlaced`, `measureSvgRoom` and so on),
     the shifters and `NOACG_LAYOUT`, so its globals list is long; the shifters read nothing.
-  - `planFor(['src/templates/importedDesign/runtime/svgFit.js'])` selects 60 specs and misses
-    `editor-fidelity-trim` and `ograf-isolation`, which `svg.ts` selects, until the nightly
-    traces the runtime files (the #927 pattern). `editor-fidelity-trim` compares the emitted
-    script byte for byte, so a change to a runtime file alone should run it by hand or add the
-    folder to its `covers:` line.
+  - Until the nightly traces the runtime files (the #927 pattern; `repoFileOf` drops the `?raw`
+    query, so the trace will name them), `e2e-affected --files` selects 60 specs for
+    `runtime/svgFit.js` alone against 72 for `svg.ts`. The 12 it misses: `dashboard-operator-walk`,
+    `editor-drawing-task`, `editor-fidelity-trim`, `editor-layer-property-qualification`,
+    `editor-out`, `import-graphic`, `import-svg-centred-title`, `import-svg-credits`,
+    `motion-presets`, `ograf-isolation`, `score-tracker-moments`, `svg-examples`.
+    `editor-fidelity-trim` compares the emitted script byte for byte. Phase 5 changes `svg.ts`, so
+    its pull request selects all 72; a change to a runtime file alone before the nightly should
+    name those specs by hand.
   - Comments outside this fence still name `svg.ts` as the home of fit functions:
     `assets/svgImport.ts:1111` (`svgFitValue`), `wizard/import/stageMeasure.ts:209` and
     `WizardPreview.tsx:36` (`svgLocalBox`, `svgAlignOf`), `e2e/import-svg-corpus.spec.ts:780`.

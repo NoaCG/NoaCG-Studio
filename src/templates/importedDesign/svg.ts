@@ -100,11 +100,14 @@ const NO_SVG: DesignSvg = {
  * A RUNTIME FILE AS THE GRAPHIC GETS IT (`runtime/`, plain ES5 so it lints as what it is). Each
  * `__NAME__` token is replaced by its value, so the emitted text carries the value rather than a
  * reference to it. A Windows checkout writes the file with CRLF line ends; the graphic gets LF
- * either way, so the emitted bytes never depend on the machine that built them.
+ * either way, so the emitted bytes never depend on the machine that built them. A token left
+ * without a value throws here, where every build and test meets it, rather than on air.
  */
 function fillRuntime(text: string, values: Record<string, string | number>): string {
   let out = text.replace(/\r\n/g, '\n');
   for (const [name, value] of Object.entries(values)) out = out.split(`__${name}__`).join(String(value));
+  const unfilled = /__[A-Z][A-Z0-9_]*__/.exec(out);
+  if (unfilled) throw new Error(`fillRuntime: ${unfilled[0]} has no value`);
   return out;
 }
 
@@ -1104,8 +1107,8 @@ function growSvgHeights() {
 }
 
 /** The shared update()'s optional placed-text hook line (templates/shared/base.ts runtimeJs).
- *  An imported SVG REPLACES it with its own: the ladder below fits the placed lines too, so
- *  this design calls one fit rather than two (plan §6b). Matched by shape, like
+ *  An imported SVG REPLACES it with its own: its ladder (runtime/svgFit.js) fits the placed
+ *  lines too, so this design calls one fit rather than two (plan §6b). Matched by shape, like
  *  blocks/designLayout does. */
 const PLACED_TEXT_HOOK = `  // Designs that fit text to a fixed slot re-measure here (no-op otherwise).
   if (typeof fitPlacedText === 'function') fitPlacedText();`;
