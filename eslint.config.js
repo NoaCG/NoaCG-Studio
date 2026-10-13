@@ -241,6 +241,43 @@ export default tseslint.config(
     },
   },
 
+  // The imported SVG's runtime (src/templates/importedDesign/runtime/): plain ES5 scripts that
+  // every exported graphic runs, read as text (`?raw`) and filled at emit (svg.ts `fillRuntime`).
+  // They share one global scope in the graphic, so a top-level name may be used only by another
+  // file and only locals are checked for use. Each file declares what it reads from the others,
+  // and the `__NAME__` tokens svg.ts fills, as globals of its own.
+  {
+    files: ['src/templates/importedDesign/runtime/*.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 5,
+      sourceType: 'script',
+      globals: { ...globals.browser },
+    },
+    rules: {
+      'no-unused-vars': ['error', { vars: 'local' }],
+    },
+  },
+  {
+    files: ['src/templates/importedDesign/runtime/svgFit.js'],
+    languageOptions: {
+      globals: {
+        __SVG_ALIGN_TOL__: 'readonly',
+        __SVG_LINE_HEIGHT__: 'readonly',
+        NOACG_LAYOUT: 'readonly', // the layout table (svgLayout.ts layoutDataJs)
+        growSvgLayout: 'readonly', // the growth runtime, when the design has a rule
+        growSvgHeights: 'readonly',
+        svgLayoutRest: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['src/templates/importedDesign/runtime/svgFitBoot.js'],
+    languageOptions: {
+      globals: { refitSvgText: 'readonly', svgFitDue: 'readonly' },
+    },
+  },
+
   // Node scripts (dev tooling). Browser globals too: the Playwright sweeps run code inside
   // page.evaluate callbacks, which execute in the page.
   {

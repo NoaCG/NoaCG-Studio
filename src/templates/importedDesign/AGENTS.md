@@ -58,7 +58,8 @@ channel 'rise'; `fieldPlan: fixed` (the fields ARE the mapping step's choices); 
 
 The build, one pass per file (the corpus harness `scripts/svg-import-passes.test.mjs` pins each):
 
-- `svg.ts` - `assembleImportedSvg` and `IMPORTED_SVG`, the constants the wizard imports (re-exported where a pass owns them), and the fit and growth runtimes as strings.
+- `svg.ts` - `assembleImportedSvg` and `IMPORTED_SVG`, the constants the wizard imports (re-exported where a pass owns them), `fillRuntime`, and the growth and shape runtimes as strings.
+- `runtime/svgFit.js`, `runtime/svgFitBoot.js` - the fit ladder and its load-time passes, the ES5 every graphic runs, read `?raw` and filled at emit: a `__NAME__` token stands where svg.ts writes a value. Linted as ES5 (`eslint.config.js`); the emitted bytes are pinned by the harness's `emit` record.
 - `svgBind.ts` - `bindSvgMarkup`, the one DOM pass: field ids with their references, classes, layout stamps, marker strip; `candidateLabel`.
 - `svgLayout.ts` - `layoutRules`, `saidLines`, `layoutDataJs`: the `NOACG_LAYOUT` text and its stamp, pure (`scripts/svg-layout-table.test.mjs`).
 - `svgFonts.ts` - `svgFontCss`: the `@font-face` block with the pinned alias, pure (`scripts/svg-font-css.test.mjs`).
