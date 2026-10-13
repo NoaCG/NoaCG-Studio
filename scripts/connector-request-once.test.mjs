@@ -85,17 +85,26 @@ test('each authorization is read on its own', async () => {
   assert.deepEqual(reads.map((r) => r.id), ['authz-1', 'authz-2']);
 });
 
-test('the page returns to a web address or an installed app, never to a scheme that runs in the page', () => {
+test('the page returns to a web address or a known desktop app, never to another scheme', () => {
   const { module } = harness();
   for (const url of [
     'https://claude.ai/api/mcp/auth_callback?code=x',
     'http://localhost:53682/callback?code=x',
     'claude://claude.ai/mcp-auth-callback/sdk?code=x',
-    'cursor://anysphere.cursor-retrieval/oauth/callback?code=x',
   ]) {
     assert.equal(module.webRedirect(url), url);
   }
-  for (const url of ['javascript:alert(1)', 'JavaScript:alert(1)', 'data:text/html,x', 'vbscript:x', 'file:///C:/x', 'blob:https://noacg.studio/x', 'about:blank']) {
+  for (const url of [
+    'javascript:alert(1)',
+    'JavaScript:alert(1)',
+    'data:text/html,x',
+    'file:///C:/x',
+    'blob:https://noacg.studio/x',
+    'search-ms:query=x',
+    'ms-msdt:/id x',
+    'intent://x#Intent;end',
+    'cursor://anysphere.cursor-retrieval/oauth/callback?code=x',
+  ]) {
     assert.throws(() => module.webRedirect(url), /will not open/, url);
   }
 });

@@ -10,18 +10,22 @@
 import { getSupabase } from './supabase';
 import { authedFetch, errorMessage } from './agentAccess';
 
-/** Schemes that run or read something inside the page that opens them. Every other scheme either
- *  loads a web page or hands the address to an installed app. */
-const PAGE_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:', 'file:', 'blob:', 'filesystem:', 'about:', 'view-source:']);
+/** The schemes this page hands an approved sign-in back to: the web, and the desktop apps seen to
+ *  connect. Any client can register any redirect URI (dynamic registration), so an unknown scheme
+ *  would launch whatever handler the machine has for it (`search-ms:`, `intent:`, ...); a new app
+ *  is added here when a real client needs it. */
+const RETURN_SCHEMES = new Set([
+  'https:',
+  'http:',
+  // The Claude desktop app (RFC 8252 7.1): `claude://claude.ai/mcp-auth-callback/sdk`, measured on
+  // staging 2026-10-13; an http(s)-only rule refused it after Auth had already approved.
+  'claude:',
+]);
 
-/** Where Auth sends the browser next. A client registers its own redirect URIs, and a desktop app
- *  registers its own scheme for them (RFC 8252 7.1): the Claude app's is
- *  `claude://claude.ai/mcp-auth-callback/sdk`, measured on staging 2026-10-13, which an http(s)-only
- *  rule refused after Auth had already approved. Refused: a scheme that would run or read
- *  something in the studio's own page. */
+/** Where Auth sends the browser next, refused unless its scheme is one this page returns to. */
 export function webRedirect(url: string): string {
   const { protocol } = new URL(url);
-  if (PAGE_SCHEMES.has(protocol.toLowerCase())) throw new Error('The app asked to return to an address this page will not open.');
+  if (!RETURN_SCHEMES.has(protocol)) throw new Error('The app asked to return to an address this page will not open.');
   return url;
 }
 
