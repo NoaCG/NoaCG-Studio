@@ -148,33 +148,82 @@ the ports.
 The connector is ON for a project exactly when its Supabase Auth runs the OAuth server with
 dynamic registration: the site reads that from Auth's discovery document (cached a minute), and
 nothing in Vercel or the code changes. Every step below is a Management API call with the
-account token from `.env`; none needs a deploy. Run them in Git Bash from the main checkout.
+account token from `.env`; none needs a deploy. Run them in Git Bash from the main checkout, and
+paste this block once in each Git Bash window first. It names no project:
 
 ```bash
-export SUPABASE_ACCESS_TOKEN="$(grep '^SUPABASE_ACCESS_TOKEN=' .env | cut -d= -f2-)"
-REF=garafohbzmsybtysxphb          # staging first; production is kprolrchuldgfrzspthy
-AUTH="https://api.supabase.com/v1/projects/$REF/config/auth"
-patch() {
-  local out code
-  out=$(curl -sS -X PATCH "$AUTH" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-    -H 'content-type: application/json' -d "$1" -w '\n%{http_code}') || { echo "REFUSED: no answer" >&2; return 1; }
+export SUPABASE_ACCESS_TOKEN="$(grep '^SUPABASE_ACCESS_TOKEN=' .env | cut -d= -f2- | tr -d '\r')"
+project() {  # names the project REF points at; every call below reads REF when it runs
+  case $REF in
+    kprolrchuldgfrzspthy) echo "production ($REF)" ;;
+    garafohbzmsybtysxphb) echo "staging ($REF)" ;;
+    '') echo 'REFUSED: no project, set REF first' >&2; return 1 ;;
+    *) echo "project $REF" ;;
+  esac
+}
+patch() {  # patch '<settings>': sets them on that project's Auth, prints each as Auth holds it
+  local who out code k sent held bad=0
+  who=$(project) || return 1
+  echo "== $who"
+  out=$(curl -sS -X PATCH "https://api.supabase.com/v1/projects/$REF/config/auth" \
+    -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'content-type: application/json' \
+    -d "$1" -w '\n%{http_code}') || { echo "REFUSED: no answer" >&2; return 1; }
   code=${out##*$'\n'}
   out=${out%$'\n'*}
-  case $code in
-    2??) for k in $(grep -o '"[a-z_]*":' <<<"$1" | tr -d '":'); do grep -o "\"$k\":[^,}]*" <<<"$out"; done ;;
-    *) echo "REFUSED, HTTP $code: $out" >&2; return 1 ;;
+  case $code in 2??) ;; *) echo "REFUSED, HTTP $code: $out" >&2; return 1 ;; esac
+  for k in $(grep -o '"[a-z_]*":' <<<"$1" | tr -d '":'); do
+    sent=$(grep -o "\"$k\":[^,}]*" <<<"$1")
+    held=$(grep -o "\"$k\":[^,}]*" <<<"$out")
+    if [ "$sent" = "$held" ]; then echo "$held"; else
+      echo "REFUSED: sent $sent, Auth holds ${held:-no setting named $k}" >&2; bad=1; fi
+  done
+  return $bad
+}
+connector() {  # connector on|off: waits until that project's connector is so, or says NOT
+  local who doc auth site i
+  case $1 in on|off) ;; *) echo 'say connector on, or connector off' >&2; return 1 ;; esac
+  who=$(project) || return 1
+  for i in $(seq 36); do
+    doc=$(curl -sS "https://$REF.supabase.co/auth/v1/.well-known/oauth-authorization-server" -w '%{http_code}')
+    case $doc in *registration_endpoint*200) auth=on ;; *200|*404) auth=off ;; *) auth="unreadable (${doc: -3})" ;; esac
+    [ "$auth" = "$1" ] && break
+    sleep 5
+  done
+  [ "$auth" = "$1" ] || { echo "NOT $1: $who, Auth $auth after 3 minutes" >&2; return 1; }
+  echo "$who: Auth $auth"
+  [ "$REF" = kprolrchuldgfrzspthy ] || return 0
+  sleep 65  # each warm noacg.studio instance keeps Auth's last answer for a minute
+  site=$(curl -sS -o /dev/null -w '%{http_code}' -X POST https://noacg.studio/mcp)
+  case $1:$site in
+    on:401|off:503) echo "https://noacg.studio/mcp $site" ;;
+    *) echo "NOT $1: https://noacg.studio/mcp $site" >&2; return 1 ;;
   esac
 }
 ```
 
-`patch '<settings>'` prints each setting it sent as Auth holds it afterwards. A refused call
-prints `REFUSED`, the HTTP status and Auth's reason instead and changes nothing; stop there.
+Each call prints the project first (`== staging (garafohbzmsybtysxphb)`); check it is the one
+you mean. `patch '<settings>'` then prints each setting it sent as Auth now holds it. A line
+starting `REFUSED` (an HTTP error with Auth's reason, a misspelt setting, or no `REF`) means that
+setting is not as sent; stop there. `connector on` or `connector off` waits until the project's
+connector is in that state and says so, or prints `NOT` after three minutes.
+
+**Staging first.** Name it; every step reads `REF` when it runs, so nothing from an earlier
+paste or step decides the project:
+
+```bash
+REF=garafohbzmsybtysxphb          # staging
+```
 
 **1. Check the project is ready.** `npm run check:migration-drift` lists no pending migration
 for the project (0089, 0090 and 0091 must be applied; a landing pushes them to both). The signing
 key must be asymmetric (the connector refuses HS256 tokens):
-`curl -sS "$AUTH/signing-keys" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | grep -o '"algorithm":"ES256","status":"in_use"'`
-prints one line on both projects today; no line means stop.
+
+```bash
+project && curl -sS "https://api.supabase.com/v1/projects/$REF/config/auth/signing-keys" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | grep -o '"algorithm":"ES256","status":"in_use"'
+```
+
+It prints the project and `"algorithm":"ES256","status":"in_use"` on both projects today; no
+second line means stop.
 
 **2. Security notification emails on.** They tell a user, after the fact, that their password,
 email, phone, MFA factors or linked identities changed. Useful whatever the connector does.
@@ -188,25 +237,27 @@ connector tokens away from password change, and turning it on breaks Settings' p
 which has no current-password field.
 
 **3. The access token hook on, BEFORE the OAuth server.** It runs on every sign-in of the
-project; first-party tokens pass through unchanged. Then sign in to the studio on that project
-once and open Home (production: noacg.studio as yourself).
+project; first-party tokens pass through unchanged.
 
 ```bash
 patch '{"hook_custom_access_token_enabled":true,"hook_custom_access_token_uri":"pg-functions://postgres/public/connector_access_token"}'
 ```
 
-If sign-in fails after this, turn it straight off again:
+On production, then sign in at noacg.studio as yourself once and open Home. Staging has no
+studio; step 5's run checks that a first-party sign-in still works there
+(`first_party_account_allowed`). If sign-in fails, turn the hook straight off again:
 `patch '{"hook_custom_access_token_enabled":false}'`.
 
 **4. The OAuth server on.** This is the switch.
 
 ```bash
 patch '{"oauth_server_enabled":true,"oauth_server_allow_dynamic_registration":true,"oauth_server_authorization_path":"/"}'
+connector on
 ```
 
-Within a minute `curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://noacg.studio/mcp`
-answers 401 (it answered 503 before). For staging there is no deployed site; check it with the
-scripted run in step 5.
+`connector on` prints `staging (garafohbzmsybtysxphb): Auth on`. Staging has no deployed site,
+so Auth's answer is the check there; on production it also waits for
+`https://noacg.studio/mcp 401` (it answered 503 before).
 
 **5. Prove it on staging** (from a checkout of `main`, with staging's anon and service keys from
 the dashboard): the four connector specs against staging, the same run as phase 5's hosted proof.
@@ -218,29 +269,44 @@ npx playwright test -c playwright.live.config.ts e2e/configured/connector-oauth.
   e2e/configured/connector-tools.spec.ts e2e/configured/connector-send.spec.ts e2e/configured/connector-grants.spec.ts
 ```
 
-All pass, and the spike's log shows `connector_account_refused: GET /user 400 bad_jwt ...`.
-Supabase allows about ten client registrations per five minutes from one address (burst 30), so
-run it once, not in a loop.
+All pass, and the spike's log shows `connector_account_refused: GET /user 400 bad_jwt ...` and
+`first_party_account_allowed`. Supabase allows about ten client registrations per five minutes
+from one address (burst 30), so run it once, not in a loop.
 
-**6. Production:** steps 1 to 4 with `REF=kprolrchuldgfrzspthy`, then the first real chat
-connection with your own account: Claude.ai → Settings → Connectors → Add custom connector, URL
-`https://noacg.studio/mcp`; sign in, Allow, ask "what is in my NoaCG library?", then ask for a
-two-graphic package and press Install on Home. Settings → Account → Agent access lists it; Revoke
-there ends it.
+**6. Production.** Name it, then run steps 1 to 4 again in the same window; each call now prints
+`production (kprolrchuldgfrzspthy)` first, and step 4's `connector on` ends
+`https://noacg.studio/mcp 401`:
+
+```bash
+REF=kprolrchuldgfrzspthy          # production
+```
+
+Then the first real chat connection with your own account: Claude.ai → Settings → Connectors →
+Add custom connector, URL `https://noacg.studio/mcp`; sign in, Allow, ask "what is in my NoaCG
+library?", then ask for a two-graphic package and press Install on Home. Settings → Account →
+Agent access lists it; Revoke there ends it.
 
 **Later, not part of the switch:** add a `remotes` entry for `https://noacg.studio/mcp` to
 `cli/server.json` on the next CLI release; the directory submissions.
 
-**Turning it off.** One call per project; every connector path answers 503 `connector_disabled`
-within a minute, and tokens already issued are refused at `/mcp`, by the database and by Auth:
+**Turning it off.** One project at a time, named here, never left from an earlier step. In a new
+Git Bash window paste the setup block above first.
 
 ```bash
+REF=kprolrchuldgfrzspthy          # production; for staging: REF=garafohbzmsybtysxphb
 patch '{"oauth_server_enabled":false,"oauth_server_allow_dynamic_registration":false,"oauth_server_authorization_path":"/"}'
+connector off
 ```
 
-It prints the three settings `false`, `false`, `"/"`; Auth refuses an OAuth change that leaves out
-the authorization path. Off is a pause: switching on again with step 4 lets connections that were
-not revoked work again. To end one for good, Revoke it in Settings.
+`patch` prints `== production (kprolrchuldgfrzspthy)` and the three settings `false`, `false`,
+`"/"`; Auth refuses an OAuth change that leaves out the authorization path. `connector off` takes
+about 80 s: Auth reads off within about 15 s, and each warm noacg.studio
+instance keeps Auth's last answer for a minute, so it waits 65 s more and ends
+`https://noacg.studio/mcp 503`. From then every connector path answers 503 `connector_disabled`,
+and tokens already issued are refused at `/mcp`, by the database and by Auth. A line starting
+`NOT` means the connector is still on: run the `patch` line again. Off is a pause: switching on
+again with step 4 lets connections that were not revoked work again. To end one for good, Revoke
+it in Settings.
 
 Leave the hook on: it touches only connector tokens. **Never turn the hook off while the OAuth
 server is on.** Connector tokens issued then would carry the plain `authenticated` role and the
@@ -1087,3 +1153,99 @@ on every account endpoint locally and hosted); the lock was spot-checked again o
 - *A fresh branch can first answer at an older migration level.* The query endpoint read 0044
   a minute after creation and 0073 a minute later; wait until the level stops moving before
   applying the rest.
+
+### Phase 5 second repair: the runbook names its project at every call
+
+**Last check's findings:** FAIL product: the setup block fixed `AUTH` from `REF` when pasted, so
+`REF=<production>` in the window that ran staging kept acting on staging and printed `true`;
+"Turning it off" named no project and checked nothing, so a production off could turn staging
+off and report success. Off took 56 to 66 s to reach 503, not "within a minute". Smaller: step 3
+asked for a studio sign-in staging does not have; a misspelt key alone is accepted and ignored by
+the API, and `patch` returned 1 with no `REFUSED` line. The lock, bad-body refusals, production's
+503 and both projects' unchanged Auth held.
+
+**What changed.** Only the runbook.
+
+- *No project in the setup block.* It defines `project`, `patch` and `connector`; each builds its
+  URL from `REF` when it runs and prints the project first (`== production (kprolrchuldgfrzspthy)`,
+  `staging (...)`, or `project <ref>` for any other). With no `REF`, `REFUSED: no project, set
+  REF first`. Step 1's signing-key curl reads `REF` at call time too and prints the project.
+- *Every section names its project:* a `REF=` line before step 1 (staging), one in step 6
+  (production), and one at the top of "Turning it off", which also says to paste the setup block
+  first in a new window.
+- *Every section ends on a check:* `connector on|off` polls Auth's discovery document (what the
+  site reads) until it reads that state, three minutes at most; on production it then waits 65 s
+  and needs `https://noacg.studio/mcp` to answer 401 (on) or 503 (off). Anything else prints
+  `NOT ...` and returns 1. Staging has no deployed site (`scripts/supabase-projects.mjs`), so
+  Auth's answer is its check.
+- *A misspelt key is loud:* `patch` compares each setting it sent with what Auth holds and prints
+  `REFUSED: sent <setting>, Auth holds no setting named <key>` (or the value held), returning 1.
+- *Step 3:* a studio sign-in on production only; staging's first-party sign-in is checked by step
+  5's `first_party_account_allowed`.
+- *The token line* strips the CR a Windows `.env` leaves (curl accepted it, but a stray CR in a
+  header is not worth relying on).
+
+**Evidence: two throwaway preview branches of production,** created 08:40:08 UTC on 2026-10-13
+through the Management API: `connector-p5r2-decoy` (ref `xeixbpiusdddajvjikzk`) and
+`connector-p5r2-real` (ref `klcvooqhbjczdisolras`). Both came up at 0073 (status
+`MIGRATIONS_FAILED` on the decoy, `FUNCTIONS_DEPLOYED` on the other); 0074 to 0091 were applied through the query
+endpoint and the hook function and `noacg_connector` role read back on both. No Auth config was
+set outside the runbook's own calls; no test account was needed. A script took every `bash`
+block of "Owner's steps" from this file verbatim and ran them in ONE bash shell, substituting
+only the `REF=` lines (staging's with the decoy, production's and the off section's with the
+real branch), with this checkout's dev server pointed at the real branch:
+
+- *The old block, first, as a reused window holds it:* after `REF=<real>`, `AUTH` still ended in
+  the decoy's ref (the finding, reproduced). The new setup block was then pasted over it.
+- *No `REF`:* `patch` printed `REFUSED: no project, set REF first`, exit 1.
+- *Decoy, steps 1 to 4:* each call printed `project xeixbpiusdddajvjikzk` first; step 1 the
+  ES256 line; steps 2 to 4 every setting `true` (the hook URI, the path `"/"`); `connector on`
+  printed `project xeixbpiusdddajvjikzk: Auth on` 9 s after the patch. The dev server (pointed at
+  the real branch) still answered 503 on `/mcp`, the PRM and `/api/me/connectors`.
+- *Step 6's `REF` line, then steps 1 to 4 again in the same shell:* every call printed `project
+  klcvooqhbjczdisolras`; the same settings, `connector on` `Auth on`. A minute later the dev server
+  answered `/mcp` 401, the PRM 200, `/api/me/connectors` 401.
+- *Refusals on the real branch:* the misspelt `hook_custom_access_token_enabld` printed
+  `REFUSED: sent "hook_custom_access_token_enabld":true, Auth holds no setting named
+  hook_custom_access_token_enabld`, exit 1; a trailing-comma body `REFUSED, HTTP 400: {"message":
+  "Expected double-quoted property name ..."}`; the old unpaired off body `REFUSED, HTTP 400:
+  {"message":"Both OAUTH_SERVER_ENABLED and OAUTH_SERVER_AUTHORIZATION_PATH must be provided
+  together ..."}`; a ref of no project of ours `REFUSED, HTTP 404`. Each exit 1.
+- *"Turning it off", verbatim, at 08:44:50* (the dev server read just before, so its cache was
+  fresh, the worst case): `== project klcvooqhbjczdisolras`, `false`, `false`, `"/"`;
+  `connector off` printed `Auth off` at +8 s. The dev server answered 401 until +52 s and 503 on
+  all three paths at +57 s, which is Auth's flip plus the one-minute cache. Hence the 65 s wait
+  in `connector` and "about 80 s" in the runbook (40 to 66 s measured across four
+  offs). Afterwards the real branch's discovery answered 404 and the decoy's 200: the decoy was
+  still on (OAuth server, registration, hook, notifications), so the off acted on the named
+  project only. The hook-off rollback then printed `"hook_custom_access_token_enabled":false`.
+- *Production's branch of `connector`, read only:* `REF=kprolrchuldgfrzspthy; connector off`
+  (no `patch`) printed `production (kprolrchuldgfrzspthy): Auth off`, then after 65 s
+  `https://noacg.studio/mcp 503`, exit 0.
+- *Deleted* at 08:47:17: the branch list then held only `main`, and both refs' query endpoints
+  answered 404 "Resource has been removed". Two Micro branches for about 7 minutes each, under
+  0.01 USD (phase 5 in all about 0.06 USD of the owner's 2 EUR). Production's and staging's Auth
+  were only read, before (08:39) and after (08:47): OAuth server off with no authorization path,
+  hook off, notifications off. Production's `POST /mcp`, PRM and `/api/me/connectors` answered 503
+  `connector_disabled` after.
+
+**Decisions.**
+
+- *`REF` read at call time, not a ref argument.* Steps 1 to 4 run twice, once per project; one
+  `REF=` line per section keeps the step blocks identical, and every call prints the name it
+  acts on. The setup block sets no `REF`, so a fresh paste cannot quietly pick staging.
+- *Staging's check is Auth's discovery document.* There is no staging deployment; that document
+  is exactly what any deployment reads.
+- *Wait 65 s after Auth flips on production* rather than trusting the first 503: each warm
+  instance keeps its own one-minute answer, so one 503 does not prove the others are off.
+- *Name production and staging in `project` only for the label.* Any other ref still runs, so the
+  runbook can be rehearsed on a branch verbatim; the label shows it is not one of the two.
+
+**What the owner's switch-on must allow for.** Each section starts with its `REF=` line and ends
+with `connector on` or `connector off`; check the project each call prints. Production's
+`connector` takes about 80 s.
+
+**Traps.**
+
+- *A worktree has no `node_modules`;* `npm ci` took 51 s before this checkout's dev server
+  (`npm run dev:worktree`) could start. The branch's anon key was passed inline; no `.env` needed.
