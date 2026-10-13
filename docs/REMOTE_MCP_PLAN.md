@@ -1188,7 +1188,7 @@ the API, and `patch` returned 1 with no `REFUSED` line. The lock, bad-body refus
 **Evidence: two throwaway preview branches of production,** created 08:40:08 UTC on 2026-10-13
 through the Management API: `connector-p5r2-decoy` (ref `xeixbpiusdddajvjikzk`) and
 `connector-p5r2-real` (ref `klcvooqhbjczdisolras`). Both came up at 0073 (status
-`MIGRATIONS_FAILED` on the decoy, as before); 0074 to 0091 were applied through the query
+`MIGRATIONS_FAILED` on the decoy, `FUNCTIONS_DEPLOYED` on the other); 0074 to 0091 were applied through the query
 endpoint and the hook function and `noacg_connector` role read back on both. No Auth config was
 set outside the runbook's own calls; no test account was needed. A script took every `bash`
 block of "Owner's steps" from this file verbatim and ran them in ONE bash shell, substituting
