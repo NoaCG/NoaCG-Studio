@@ -656,6 +656,16 @@ presentation attributes; a value that already carries a unit is untouched.
     coordinates (`x="50%"`, offered - and middle-anchored, so growth correctly refuses);
     a `<text>` with no x/y; duplicate ids (labels number "Name" / "Name 2", binding is by
     marker so ids never collide with fields).
+- **The corpus pass harness (2026-10-13)** - `scripts/svg-import-passes.test.mjs` runs every
+  file of `e2e/fixtures/svg-corpus/` through every pass of this import in one blank Chromium
+  page, in seconds and in CI's factory job: the reader, the proposal, the draft the wizard builds
+  at drop, the mapping step's growth default and fill gap, the bound markup, the layout and
+  behaviour tables, the fields, the font CSS, the emitted bytes, and the runtime's lines, sizes,
+  overflow and grown panels at every `LADDER_VALUES` length. Each pass is compared with its own
+  record in `scripts/fixtures/svg-corpus-passes.json`, so a change names the pass and the files
+  it moved; the sidecars stay the truth, and every disagreement with them is a listed finding.
+  Re-record with `UPDATE_SVG_CORPUS_PASSES=1` and say why in the pull request. Why and how far
+  it goes: `docs/work-specs/svg-import-engine/spec.md`.
 - **P3 (opt-in):** AI label proposals; Figma-specific niceties; SVG *export* of a NoaCG graphic
   is explicitly out of scope.
 
