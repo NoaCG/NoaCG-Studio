@@ -48,6 +48,9 @@ export default function EditorFoundation() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const assistantButton = useRef<HTMLButtonElement>(null);
   const [linked, setLinked] = useState(true);
+  const [propertyReveal, setPropertyReveal] = useState<{ key: string; id: string; scope: string } | null>(null);
+  const revealScope = session.instanceId + ':' + (groupScope ?? 'composition');
+  const activeReveal = propertyReveal?.scope === revealScope ? propertyReveal : null;
   const [pathEditing, setPathEditing] = useState<string | null>(null);
   const [appearance, setAppearance] = useState<Record<string, RenderedPart['appearance']>>({});
   const preview = useRef<PreviewController | null>(null);
@@ -149,6 +152,22 @@ export default function EditorFoundation() {
       // A select has no undo of its own, so undo and redo also work from one (the timeline's key
       // ease dropdown keeps focus after it edits).
       if (!editorShortcutsLive(event.target) && !(historyKey && event.target instanceof HTMLSelectElement)) return;
+      const key = event.key.toLowerCase(), modifier = event.ctrlKey || event.metaKey;
+      if ((event.target as HTMLElement).closest('.ef-canvas, .ef-timeline, .ef-inspector') && !event.altKey && !event.shiftKey && !event.repeat && !pathEditing && !session.commandState().gestureActive) {
+        if (modifier && (key === 'd' || key === 'a')) {
+          event.preventDefault(); pause(); preview.current?.stopExit();
+          if (key === 'a') setSelection(view.parts.filter(part => part.kind !== 'root' && (hierarchy.parent[part.selector] ?? null) === groupScope).map(part => part.selector));
+          else try {
+            const operations = selectedLayerOperations(session.port.read(), selection, 'duplicate');
+            if (operations.length) session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations });
+            setLayerError('');
+          } catch (cause) { setLayerError(cause instanceof Error ? cause.message : String(cause)); }
+          return;
+        }
+        if (!modifier && selection.length && ['a', 'p', 's', 'r', 't', 'u'].includes(key)) {
+          event.preventDefault(); pause(); setAssistantOpen(false); setPropertyReveal({ key, id: crypto.randomUUID(), scope: revealScope }); return;
+        }
+      }
       if (historyKey) {
         event.preventDefault(); history(event.shiftKey || event.key.toLowerCase() === 'y');
       }
@@ -212,9 +231,9 @@ export default function EditorFoundation() {
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
       <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} openLayerMenu={(selector, x, y) => setLayerMenu({ selector, x, y, id: crypto.randomUUID(), instance: session.instanceId })} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
-      {assistantOpen ? <ProposalPanel key={session.instanceId} close={() => { setAssistantOpen(false); assistantButton.current?.focus(); }} /> : <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />}
+      {assistantOpen ? <ProposalPanel key={session.instanceId} close={() => { setAssistantOpen(false); assistantButton.current?.focus(); }} /> : <Inspector reveal={activeReveal} seek={(time, cue) => { pause(); preview.current?.stopExit(); seek(time, cue); }} time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />}
     </div>
-    <Timeline key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); setLayerMenu(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu?.instance === session.instanceId ? layerMenu : null} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
+    <Timeline reveal={activeReveal} key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} setSelection={selectors => { setPathEditing(null); setLayerMenu(null); recordFoundationInput('selection'); setSelection(selectors); }} layerMenu={layerMenu?.instance === session.instanceId ? layerMenu : null} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
     <footer className="ef-status">{layerError && <span role="alert">{layerError}</span>}<span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;

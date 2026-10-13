@@ -20,7 +20,7 @@ export default function AnchorPoint({ template, selector, session, appearance }:
   try { base = baseValues(template, selector); } catch { return null; }
   // The pivot's place in the box is the same on every cue, so the rendered pose gives it.
   const anchor = base.anchorReason ? null : shownAnchor(base, appearance);
-  if (!anchor) return <div className="ef-anchor"><span className="ef-section-label">Anchor point</span><p className="ef-muted">{base.anchorReason ?? 'Reading the layer’s pivot from the preview…'}</p></div>;
+  if (!anchor) return <div className="ef-anchor" data-reveal="a" tabIndex={-1}><span className="ef-section-label">Anchor point</span><p className="ef-muted">{base.anchorReason ?? 'Reading the layer’s pivot from the preview…'}</p></div>;
   const run = (operations: () => EditorOperation[], expected: Revision) => {
     try {
       const batch = operations();
@@ -40,7 +40,7 @@ export default function AnchorPoint({ template, selector, session, appearance }:
     if (!box) throw new Error('Wait for the rendered box before centring its anchor.');
     return anchorOperations(selector, { x: box[0] / 2 / unit, y: box[1] / 2 / unit });
   }, session.version());
-  return <div className="ef-anchor">
+  return <div className="ef-anchor" data-reveal="a" tabIndex={-1}>
     <span className="ef-section-label">Anchor point</span>
     <div className="ef-number-row">
       <AnimationNumber label="Anchor X" value={anchor.x} commit={commit('x')} session={session} />
