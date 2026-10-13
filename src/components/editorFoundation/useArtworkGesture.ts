@@ -43,7 +43,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
    *  start) shows the source again, once. */
   const show = (gesture: Gesture) => {
     preview()?.noteInput('drag');
-    if (gesture.operations.length) { preview()?.previewTemplate(session.preview(gesture.operations).template); gesture.drafted = true; }
+    if (gesture.operations.length) { preview()?.previewTemplate(session.preview(gesture.operations).template, 'drag', gesture.copies?.members.map((member, index) => ({ source: gesture.members![index].part.selector, target: member.part.selector }))); gesture.drafted = true; }
     else if (gesture.drafted) { preview()?.previewTemplate(template); gesture.drafted = false; }
   };
   const cancel = (restoreView = true) => {
