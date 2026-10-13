@@ -10,11 +10,22 @@
 import { getSupabase } from './supabase';
 import { authedFetch, errorMessage } from './agentAccess';
 
-/** Where Auth sends the browser next, refused unless it is a web address: a client registers its
- *  own redirect URIs, and this page must never navigate the studio's origin to anything else. */
+/** The schemes this page hands an approved sign-in back to: the web, and the desktop apps seen to
+ *  connect. Any client can register any redirect URI (dynamic registration), so an unknown scheme
+ *  would launch whatever handler the machine has for it (`search-ms:`, `intent:`, ...); a new app
+ *  is added here when a real client needs it. */
+const RETURN_SCHEMES = new Set([
+  'https:',
+  'http:',
+  // The Claude desktop app (RFC 8252 7.1): `claude://claude.ai/mcp-auth-callback/sdk`, measured on
+  // staging 2026-10-13; an http(s)-only rule refused it after Auth had already approved.
+  'claude:',
+]);
+
+/** Where Auth sends the browser next, refused unless its scheme is one this page returns to. */
 export function webRedirect(url: string): string {
   const { protocol } = new URL(url);
-  if (protocol !== 'https:' && protocol !== 'http:') throw new Error('The app asked to return to an address this page will not open.');
+  if (!RETURN_SCHEMES.has(protocol)) throw new Error('The app asked to return to an address this page will not open.');
   return url;
 }
 
@@ -55,7 +66,10 @@ async function fetchConnectorRequest(authorizationId: string): Promise<Connector
   if (!('authorization_id' in data)) return { kind: 'redirect', url: webRedirect(data.redirect_url) };
   let returnsTo = '';
   try {
-    returnsTo = new URL(data.redirect_uri).host;
+    // A web address shows its host; an app's own scheme shows the scheme too, because a client
+    // names its own redirect: `ms-msdt://claude.ai/...` must not read as "claude.ai".
+    const { protocol, host } = new URL(data.redirect_uri);
+    returnsTo = protocol === 'https:' || protocol === 'http:' ? host : `${protocol}//${host}`;
   } catch {
     /* shown without it */
   }
