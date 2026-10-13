@@ -22,6 +22,7 @@ export const foundationRuntime = String.raw`
   var initialized = false;
   var failed = false;
   var currentCss = null;
+  var draftCopies = [];
   window.addEventListener('error', function (event) {
     failed = true;
     send('error', lastRequest, { message: event.message || 'Template runtime failed.' });
@@ -339,7 +340,19 @@ export const foundationRuntime = String.raw`
       else if (m.kind === 'exit-start' || m.kind === 'exit-time') exit(m.time, m.kind === 'exit-start');
       else if (m.kind === 'preview-css') setCss(m.css);
       else if (m.kind === 'preview-template') {
-        resetPose(); setCss(m.css);
+        resetPose();
+        draftCopies.forEach(function (copy) { copy.remove(); }); draftCopies = [];
+        (m.copies || []).forEach(function (patch) {
+          var original = document.querySelector(patch.source);
+          if (!original) throw new Error('The original layer is no longer available.');
+          var copy = original.cloneNode(true), nodes = [copy].concat(Array.from(copy.querySelectorAll('*')));
+          if (nodes.length !== patch.attributes.length) throw new Error('The rendered layer structure changed.');
+          patch.attributes.forEach(function (attributes, index) {
+            attributes.forEach(function (attribute) { nodes[index].setAttribute(attribute[0], attribute[1]); });
+          });
+          original.after(copy); draftCopies.push(copy);
+        });
+        setCss(m.css);
         (m.geometry || []).forEach(function (patch) {
           var element = document.querySelector(patch.selector);
           if (!element) return;
