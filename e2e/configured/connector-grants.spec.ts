@@ -99,7 +99,7 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
       //    listed (connector-tools.spec.ts calls them), and a tool call resolves the grant (its
       //    last use is stamped) before it meets the tool table.
       const { client } = await connect(mcpUrl, provider);
-      expect((await client.listTools()).tools.map((t) => t.name)).toEqual(['noacg_catalog', 'noacg_library']);
+      expect((await client.listTools()).tools.map((t) => t.name)).toEqual(['noacg_catalog', 'noacg_library', 'noacg_send_package']);
       await expect(client.callTool({ name: 'noacg_probe', arguments: {} })).rejects.toThrow(/Unknown tool/);
       expect((await grantsOf())[0].last_used_at).not.toBeNull();
 
