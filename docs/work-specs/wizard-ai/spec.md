@@ -250,8 +250,39 @@ from A1.
 
 ## 8. Acceptance criteria
 
-Inherited as written in the parent: AC-1 (A1 on main before A2), AC-2, AC-3, AC-9, AC-10 (the
-step's budget installed at 2,152 and lowered by A3 and A4), AC-11 (A5), AC-12 (1.3), AC-15.
+The parent's criteria this track inherits are declared here as headings of their own so the
+ledger tracks them; their text is the parent's, with this track's observable named.
+
+### AC-1: The prerequisites exist before any extraction
+A1 (the revived run-chain tests, the late-completion test, the step's budget) is on `main`
+before A2 lands.
+
+### AC-2: Behaviour is identical at every phase
+The eleven specs whose covers name the step and the sixteen that drive it pass at every phase
+with unchanged assertions; the checker confirms the e2e diff changed selectors at most; no test
+id, copy or settings behaviour changed.
+
+### AC-3: Every new pure module runs in Node
+`src/ai/creation.ts` has `scripts/ai-creation.test.mjs` with `// guards:`, loaded through
+rolldown, taking browser IO through `io`; `npm run depcruise` passes with no config change.
+
+### AC-9: Each phase stays inside its fence
+`git diff --name-only origin/main...HEAD -- src` lists only the phase's allowed files; never
+`CreationWizard.tsx`.
+
+### AC-10: The size gate never rose
+The step's budget was installed at 2,152, lowered by A3 and A4, and never raised.
+
+### AC-11: Docs and rules follow the code inside the run
+A5 wrote the metrics file, fixed the stale record citations, made the rule pass through
+`npm run learn` and recompiled; A4 updated every covers header, pin and prefix it names.
+
+### AC-12: Suspected behaviour was decided on evidence
+Section 1.3's late-completion behaviour is pinned by A1's test; any change found during an
+extraction landed as its own fix with its regression test.
+
+### AC-15: Nothing visible changed
+`ai-tiers`, `pro` and the two live `ai.spec.ts` arrival tests pass unchanged at every phase.
 
 ### AC-13: The run module runs in Node and holds its contract
 `src/ai/creation.ts` has `scripts/ai-creation.test.mjs` with `// guards:`; every section 4 row
@@ -279,13 +310,15 @@ adds the next phase's notes under `## Phase notes`. Allowed `src` files are exac
    `e2e/ai-lite.spec.ts`, `e2e/_ai-step.ts`, the budget JSON for the step, `evidence/*`. No
    `src/`. Revivals through the export door or the production door with routed answers; the
    late-completion case added; nothing else.
-2. **A2. `src/ai/creation.ts`: the tier dispatch** (AC-2, AC-3, AC-13, AC-9). Files:
+2. **A2. `src/ai/creation.ts`: the tier dispatch** (AC-2, AC-3, AC-9; AC-13 for the rows it
+   moves: convert, Lite, raw, three directions and the unselectable Pro tier; the rest of AC-13
+   is A3's). Files:
    `src/ai/creation.ts`, `src/components/wizard/steps/AiStep.tsx` (calls the module; constructs
    the validator), `scripts/ai-creation.test.mjs`, `scripts/ai-lite-bench.test.mjs` (the guard
    points at the new boundary). Temporary interface: `refine`, `rebuild` and `chat` stay in the
    step until A3.
 3. **A3. Refine, rebuild and chat into the module; the Pro quarantine; the lifted import**
-   (AC-2, AC-13, AC-14, AC-10). Files: `src/ai/creation.ts`, `steps/AiStep.tsx`,
+   (AC-2, AC-13 in full, AC-14, AC-10). Files: `src/ai/creation.ts`, `steps/AiStep.tsx`,
    `steps/ai/ProPanel.tsx`, `steps/ai/MoreControlPanel.tsx` (the `pickerHex` import), the leaf
    that receives `pickerHex` (`src/model/cssVars.ts` or `src/components/wizard/colour.ts`),
    `scripts/ai-creation.test.mjs`. Budget lowered.
@@ -298,7 +331,9 @@ adds the next phase's notes under `## Phase notes`. Allowed `src` files are exac
 5. **A5. Close-out** (AC-11). Files: `docs/metrics/<date>-wizard-ai.md`, the stale records
    `contracts/records/ai/2026-09-07-*` (citations fixed), the rule pass through `npm run learn`
    (the validator rule's wording against the raw route; retirements the quarantine allows), the
-   regenerated contracts, `evidence/*`. Lands before the parent's S7.
+   regenerated contracts, `evidence/*`. Lands before the parent's S7 when both tracks run at
+   once; when S7 has already landed, A5 lands alone and the shim retarget stays a one-line
+   leftover for the shell's next landing.
 
 ## What the plan can demonstrate, and what stays uncertain
 
