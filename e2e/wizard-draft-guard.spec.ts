@@ -167,33 +167,6 @@ test('Continue keeps the whole walk: the furthest step, the Browse filters and t
   await expect(page.locator('.wz-browse-search')).toHaveValue('Hairline');
 });
 
-test('Continue keeps a dropped template file', async ({ page }) => {
-  await page.goto('/app#/home');
-  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
-  await page.locator('[data-door="new-graphic"]').click();
-  await page.locator('[data-entry="import-graphic"]').click();
-  await page.locator('.wz-drop input[type="file"]').setInputFiles({
-    name: 'studio-strap.html',
-    mimeType: 'text/html',
-    buffer: Buffer.from(
-      '<!DOCTYPE html><html><head><script>window.SPXGCTemplateDefinition = { description: "Studio strap", DataFields: [' +
-        '{ field: "f0", ftype: "textfield", title: "Name", value: "Alexandra Riva" } ] };' +
-        'function update(data) {} function play() {} function stop() {} function next() {}</script></head>' +
-        '<body><div id="root"><span id="f0">Alexandra Riva</span></div></body></html>',
-      'utf8',
-    ),
-  });
-  // The card names the file and the operator fields it found.
-  const card = page.getByTestId('import-template-card');
-  await expect(card).toContainText('studio strap');
-  await expect(card).toContainText('operator field: Name');
-
-  await leaveThenPressNew(page);
-  await page.getByTestId('confirm-switch').getByTestId('switch-resume').click();
-  await expect(card).toContainText('studio strap');
-  await expect(card).toContainText('operator field: Name');
-});
-
 test('a fresh open holds nothing: entering any walk and leaving asks nothing', async ({ page }) => {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });

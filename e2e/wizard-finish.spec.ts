@@ -2,7 +2,7 @@
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
-import { addToProductionFromFinish, enableAdvancedMode, startNewProject } from './_create';
+import { addToProductionFromFinish, enableAdvancedMode } from './_create';
 import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 
@@ -666,9 +666,12 @@ test('a plain #/new after the production door discards the finished walk', async
   await addToProductionFromFinish(page);
   await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
 
-  // + New graphic opens the plain `#/new`: the fresh wizard, and the walk is forgotten.
-  await startNewProject(page);
+  // The plain `#/new`, typed rather than reached through a door, so no guard can answer for it.
+  await page.evaluate(() => {
+    window.location.hash = '#/new';
+  });
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
   await expect(page.getByTestId('wz-resume-confirm')).toHaveCount(0);
 
   // So Back past the production onto a step of that walk opens it fresh, with no offer: the
