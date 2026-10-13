@@ -1,0 +1,10 @@
+{
+  "backend": "disposable local Supabase",
+  "signedIn": true,
+  "saveConfirmed": true,
+  "cloudMatchesSave": true,
+  "discardKeptCloudRecord": true,
+  "reloadKeptSavedSource": true,
+  "cancelledNamingKeptDraft": true,
+  "neverSavedDiscardAddedNoCloudRecord": true
+}

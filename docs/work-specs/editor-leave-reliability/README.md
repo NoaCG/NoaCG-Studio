@@ -55,3 +55,25 @@ docs-only independent checker receipt. Results and source comparison follow in
 the verification receipt. Full suites/builds belong to pull-request CI.
 
 [Passing verification, failed-attempt history and limits](verification.md).
+
+## Refused-discard repair, 2026-10-14
+
+Independent checking found that a refused working-slot write restored the source
+but erased private editor command history. Restore must be published to the live
+editor only after the working slot accepts it. Retain the linked saved record,
+clean-default behavior, wizard-open state and existing navigation continuation.
+This repair does not alter wizard/import ownership, route semantics, cloud status,
+production copies or the next phase.
+
+Acceptance additions:
+
+- A single IndexedDB working-slot quota refusal leaves the same live session,
+  revision, transaction history, Undo/Redo, source, selection and playhead intact.
+  Cancel and Undo/Redo still work; retry really discards and survives reload.
+- Cover linked and never-saved drafts, retained Redo and a pending autosave. No
+  discarded source is published while persistence is pending or after refusal.
+- Keep the original independent failed assertion unchanged and promote the
+  behavior to the maintained leave-editor journey. Preserve wizard start-over /
+  Back, two sequential exports, saved/cloud/on-air separation and earlier
+  cumulative rendered/output receipts. Browser work stays in disposable CI at
+  the unchanged 4 GB local floor. A fresh checker follows landing.
