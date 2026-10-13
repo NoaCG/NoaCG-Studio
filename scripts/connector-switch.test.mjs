@@ -86,8 +86,8 @@ const touchedRefs = (world) => new Set(world.calls.map((c) => /(?:projects\/|htt
 
 test('staging and production map to refs through supabase-projects, and the shell may not disagree with .env', () => {
   assert.deepEqual(projectRefs(FILE_ENV, {}), { production: PROD, staging: STAGING });
-  assert.deepEqual(projectRefs({ ...FILE_ENV, STAGING_SUPABASE_PROJECT_REF: 'abcdefghijabcdefghij' }, {}).staging, 'abcdefghijabcdefghij');
-  assert.deepEqual(projectRefs(FILE_ENV, { VITE_SUPABASE_URL: FILE_ENV.VITE_SUPABASE_URL }).production, PROD);
+  assert.equal(projectRefs({ ...FILE_ENV, STAGING_SUPABASE_PROJECT_REF: 'abcdefghijabcdefghij' }, {}).staging, 'abcdefghijabcdefghij');
+  assert.equal(projectRefs(FILE_ENV, { VITE_SUPABASE_URL: FILE_ENV.VITE_SUPABASE_URL }).production, PROD);
   assert.throws(() => projectRefs(FILE_ENV, { VITE_SUPABASE_URL: `https://${BRANCH}.supabase.co` }), /ambiguous/);
   // A window pointed at a branch cannot stand in for a checkout whose .env names no production.
   assert.throws(() => projectRefs({}, { VITE_SUPABASE_URL: `https://${BRANCH}.supabase.co` }), /\.env says nothing/);

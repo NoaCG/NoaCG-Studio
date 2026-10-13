@@ -62,7 +62,7 @@ const OAUTH_OFF = { oauth_server_enabled: false, oauth_server_allow_dynamic_regi
 /** The bodies, in the order they are sent. Exported so the tests pin them. */
 export const STEPS = {
   on: [['security notification emails on', EMAILS], ['access token hook on', HOOK_ON], ['OAuth server on', OAUTH_ON]],
-  off: [['OAuth server off', OAUTH_OFF]],
+  off: ['OAuth server off', OAUTH_OFF],
   hookOff: ['access token hook off', HOOK_OFF],
 };
 
@@ -80,8 +80,9 @@ function parseArgs(argv) {
     else if (argv[i].startsWith('-')) throw new Refused(`unknown option ${argv[i]}\n${USAGE}`);
     else args.words.push(argv[i]);
   }
-  const [name, action] = args.ref === null ? args.words : [null, ...args.words];
-  if (args.words.length !== (args.ref === null ? 2 : 1)) throw new Refused(`${args.ref === null ? 'name a project and an action' : '--ref takes the place of the project name'}\n${USAGE}`);
+  const named = args.ref === null;
+  const [name, action] = named ? args.words : [null, ...args.words];
+  if (args.words.length !== (named ? 2 : 1)) throw new Refused(`${named ? 'name a project and an action' : '--ref takes the place of the project name'}\n${USAGE}`);
   if (name !== null && name !== 'staging' && name !== 'production') throw new Refused(`unknown project "${name}"\n${USAGE}`);
   if (!['on', 'off', 'status'].includes(action)) throw new Refused(`unknown action "${action}"\n${USAGE}`);
   if (args.hookOff && action !== 'off') throw new Refused('--hook-off goes with off only: the hook is turned off after the OAuth server, never on its own');
@@ -221,7 +222,7 @@ async function waitForSite(ctx, want, authFlippedAt) {
   for (;;) {
     const got = await siteState(ctx);
     if (got === want) break;
-    if (ctx.io.now() >= deadline) throw new Not(`NOT ${want}: ${PRODUCTION_SITE}/mcp answers ${got === 'on' || got === 'off' ? SITE_ANSWER[got] : got}, not ${code}`);
+    if (ctx.io.now() >= deadline) throw new Not(`NOT ${want}: ${PRODUCTION_SITE}/mcp answers ${SITE_ANSWER[got] ?? got}, not ${code}`);
     await ctx.io.sleep(POLL_MS);
   }
   ctx.io.out(`ok   ${PRODUCTION_SITE}/mcp ${code}`);
@@ -256,25 +257,26 @@ async function run(argv, io) {
   const refs = projectRefs(io.fileEnv, io.shellEnv);
   if (!refs.production) throw new Refused(`production's ref is unknown: no VITE_SUPABASE_URL in ${io.envPath}; run this from the main checkout`);
   if (refs.production === refs.staging) throw new Refused(`staging and production name the same project (${refs.production})`);
-  const ctx = { io, name: args.name, action: args.action, ref: '', label: '', arg: args.name };
-  if (args.ref !== null) {
+  const named = args.ref === null;
+  if (!named) {
     if (!/^[a-z]{20}$/.test(args.ref)) throw new Refused(`--ref "${args.ref}" is not a project ref`);
     if (args.ref === refs.production || args.ref === refs.staging) {
       throw new Refused(`--ref ${args.ref} is ${args.ref === refs.production ? 'production' : 'staging'}; name it instead of --ref`);
     }
-    ctx.ref = args.ref;
-    ctx.label = `branch ${args.ref}`;
-    ctx.arg = `--ref ${args.ref}`;
-  } else {
-    ctx.ref = refs[args.name];
-    ctx.label = `${args.name} (${ctx.ref})`;
   }
-  io.out(`== ${ctx.label}${args.ref !== null ? ', throwaway preview branch only' : ''}: ${args.action}${args.hookOff ? ' --hook-off' : ''}`);
-
-  ctx.token = (io.shellEnv.SUPABASE_ACCESS_TOKEN || io.fileEnv.SUPABASE_ACCESS_TOKEN || '').trim();
+  const ref = named ? refs[args.name] : args.ref;
+  const ctx = {
+    io,
+    name: args.name,
+    ref,
+    label: named ? `${args.name} (${ref})` : `branch ${ref}`,
+    arg: named ? args.name : `--ref ${ref}`,
+    token: (io.shellEnv.SUPABASE_ACCESS_TOKEN || io.fileEnv.SUPABASE_ACCESS_TOKEN || '').trim(),
+  };
+  io.out(`== ${ctx.label}${named ? '' : ', throwaway preview branch only'}: ${args.action}${args.hookOff ? ' --hook-off' : ''}`);
   if (!ctx.token) throw new Refused(`no SUPABASE_ACCESS_TOKEN in this window or in ${io.envPath}; nothing was changed`);
 
-  if (args.ref !== null) {
+  if (!named) {
     const branches = await managed(ctx, 'GET', `/v1/projects/${refs.production}/branches`);
     const branch = Array.isArray(branches) ? branches.find((b) => b.project_ref === args.ref) : null;
     if (!branch || branch.is_default || branch.persistent) {
@@ -292,8 +294,7 @@ async function run(argv, io) {
     for (const [label, settings] of STEPS.on) await apply(ctx, label, settings);
     await waitForSite(ctx, 'on', await waitForAuth(ctx, 'on'));
   } else {
-    const [[label, settings]] = STEPS.off;
-    await apply(ctx, label, settings);
+    await apply(ctx, ...STEPS.off);
     const flippedAt = await waitForAuth(ctx, 'off');
     // apply() has read the OAuth server off and Auth's discovery agrees; only now may the hook go.
     if (args.hookOff) await apply(ctx, ...STEPS.hookOff);
