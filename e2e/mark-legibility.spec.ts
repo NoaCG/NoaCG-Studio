@@ -2,6 +2,11 @@
 // trigger rests entirely on `inkSpread` separating one ink from several.
 // covers: src/assets/assetInfo.ts
 //
+// Its third test walks the wizard to the Style step, where the shell raises the notice from
+// useMarkLegibility. It is skipped while it opts into Advanced mode (issue #800); the shell is
+// named here so the plan selects it the day it is revived.
+// covers: src/components/wizard/CreationWizard.tsx, src/components/wizard/useMarkLegibility.ts
+//
 // A brand mark nobody can see must not ship silently.
 //
 // The defect, from the owner's blind value-gate ballot (2026-08-14,

@@ -648,3 +648,15 @@ test('every kit can run a show in one Style out of the box', async ({ page }) =>
     expect(new Set(accents).size, `${id}: ${accents.join(', ')}`).toBe(1);
   }
 });
+
+test('a built kit left mid-way is held, and Continue returns to its hub with every graphic', async ({ page }) => {
+  // docs/work-specs/wizard-structure/spec.md section 4, the kit row: Continue keeps the kit.
+  await pickShortKit(page, 2);
+  await buildKit(page, 2);
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.locator('[data-door="new-graphic"]').click();
+  await page.getByTestId('confirm-switch').getByTestId('switch-resume').click();
+  await expect(page.getByTestId('kit-finish')).toBeVisible();
+  await expect(page.locator('[data-kit-open]')).toHaveCount(2);
+});

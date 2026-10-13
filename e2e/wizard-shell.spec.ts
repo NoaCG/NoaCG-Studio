@@ -2,7 +2,8 @@
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { pickDesign } from './_browse';
 
 /** One sample per animation frame: what `#root` held, and whether the wizard was in it. */
 interface WizardFrame {
@@ -413,4 +414,72 @@ test('a step URL is NAMED, so it survives a reload and an extra step cannot shif
   await page.goto('/app#/new/step/not-a-step');
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
   await expect(counter(page)).toHaveCount(0);
+});
+
+// ── WHAT THE SHELL DOES TODAY, PINNED BEFORE IT IS TAKEN APART ──────────────────────────────
+// docs/work-specs/wizard-structure/spec.md section 5.3: the walk's lifecycle and the deep link
+// move into their own modules in later phases, and each journey below is today's behaviour, so
+// a move that changes it fails here first. Asserted only on what a reader sees or the store holds.
+
+test('a reload on any step URL of the template walk lands on that step', async ({ page }) => {
+  // A cold open resolves the name against the template walk, the only walk a fresh open is on.
+  const steps = [['browse', 2], ['fields', 3], ['style', 4], ['animation', 5], ['finish', 6]] as const;
+  for (const [slug, n] of steps) {
+    await page.goto(`/app#/new/step/${slug}`);
+    await page.reload();
+    await expect(counter(page), slug).toHaveText(new RegExp(`Step\\s*${n}\\s*/\\s*6`));
+    await expect(page).toHaveURL(new RegExp(`#/new/step/${slug}$`));
+  }
+});
+
+/** The live preview's document once its newest build has loaded. */
+async function previewDoc(page: Page): Promise<string> {
+  const stage = page.locator('.wz-stage');
+  await expect(stage).toHaveAttribute('data-doc-rev', /\d/, { timeout: 20_000 });
+  await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
+  return page.locator('.wz-side iframe').evaluate((el) => (el as HTMLIFrameElement).srcdoc);
+}
+
+test('a deep link starts the walk exactly where the Browse pick of the same design does', async ({ page }) => {
+  // `wizard/resolve-deep-linked-through-hit-apply`: one pick, two doors. What the preview builds
+  // and what Fields offers are the draft, read from the outside.
+  await page.goto('/app#/new/lt01');
+  await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);
+  const linked = { doc: await previewDoc(page), fields: await page.locator('.wz-line-row input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)) };
+
+  await page.getByTestId('wz-home').click();
+  await page.locator('[data-door="new-graphic"]').click();
+  await page.locator('[data-entry="template"]').click();
+  await pickDesign(page, 'Hairline');
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);
+  const picked = { doc: await previewDoc(page), fields: await page.locator('.wz-line-row input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)) };
+
+  expect(linked.fields.length).toBeGreaterThan(0);
+  expect(picked).toEqual(linked);
+});
+
+test('opened for a production that names a brand, the chooser has that brand chosen', async ({ page }) => {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const ids = await page.evaluate(async () => {
+    const { createLook } = await import('/src/model/packets.ts');
+    const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');
+    const { PALETTES } = await import('/src/model/wizard.ts');
+    const brand = (name: string, palette: (typeof PALETTES)[number]) =>
+      createLook(name, { styleTag: 'minimal', palette, fontId: null, customFont: null });
+    brand('Other Brand', PALETTES[1]);
+    const chosen = brand('Studio Blue', PALETTES[2]);
+    const { show } = createShowNamedChecked('Brand Show');
+    setShowBrand(show.id, chosen.id);
+    return { brand: chosen.id, show: show.id };
+  });
+  await settleDurableWrites(page);
+  await page.evaluate((id) => {
+    window.location.hash = `#/production/${id}`;
+  }, ids.show);
+  await page.getByTestId('production-new-graphic').click();
+  await page.locator('[data-entry="template"]').click();
+  await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);
 });
