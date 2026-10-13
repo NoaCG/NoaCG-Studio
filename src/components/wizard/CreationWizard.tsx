@@ -625,6 +625,10 @@ export default function CreationWizard() {
       setAiResult(null);
       acceptedAiGeneration.current = null;
       setAiThread(null);
+      // A dropped template file is this walk's material like the draft: kept, it held an empty
+      // walk (`walkHasWork` counts it) and the guard asked about nothing.
+      setImportedFile(null);
+      setImportedFileError(null);
       setStretchDemo(null);
       resetKit();
       // Every saved brand, offered by name. NONE is selected: matching is an explicit act, and
@@ -897,6 +901,9 @@ export default function CreationWizard() {
     setBrowseFilters(NO_BROWSE_FILTERS);
     setAiResult(null);
     setAiThread(null);
+    // The dropped file goes with the walk, as on a fresh open.
+    setImportedFile(null);
+    setImportedFileError(null);
     setStretchDemo(null);
     resetKit();
     // THE WALK THIS REWIND DISCARDS IS NOT A WALK TO COME BACK TO. Without this, a graphic
