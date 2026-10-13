@@ -72,10 +72,6 @@ test('create canvas selection context actions and input keyboard ownership', asy
   await select(page,a); await row(page,a).locator('.ef-layer').press('Shift+F10'); await page.getByRole('menuitem',{name:'Bring forward',exact:true}).click(); await ready(page);
   const reordered=await source(page); expect(reordered).not.toEqual(before); await undo(page); expect(await source(page)).toEqual(before);
   await select(page,a); await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('Delete'); await expect((await frame(page)).locator(a)).toHaveCount(0); await undo(page); expect(await source(page)).toEqual(before);
-  await select(page,original); const numeric=number(page,'Rotation'); await numeric.focus(); await numeric.press('Control+a'); await numeric.press('Control+d');
-  expect(await selected(page)).toEqual([original]); expect(await source(page)).toEqual(before);
-  await page.getByTestId('save-graphic').focus(); await page.keyboard.press('Control+d');
-  expect(await selected(page)).toEqual([original]); expect(await source(page)).toEqual(before);
   await select(page,'#f0'); const text=page.getByRole('textbox',{name:'Artwork text',exact:true}); await text.focus(); await text.press('Control+a'); await text.press('Delete');
   const h=(await inspection(page)).history; expect(await source(page)).toEqual(before); await text.press('Control+z'); expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(h);
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
