@@ -123,3 +123,56 @@ test('ordinary nested SVG label and eye retain definitions masks references and 
   const hidden=await source(page); expect(hidden.html.replace(' data-noacg-hidden="true"','')).toBe(renamed.html); expect(hidden.html.match(/<defs>[\s\S]*?<\/defs>/)?.[0]).toBe(initial.html.match(/<defs>[\s\S]*?<\/defs>/)?.[0]); expect(hidden.js).toBe(initial.js); expect(hidden.fields).toEqual(initial.fields); expect(hidden.assets).toEqual(initial.assets);
   await undo(page); expect(await source(page)).toEqual(renamed); await expect((await frame(page)).locator(selector)).toBeVisible(); await undo(page); expect(await source(page)).toEqual(initial);
 });
+
+test('modifier drag copies selected artwork atomically and cancellation retains the original', async ({page}) => {
+  await open(page); const original = await draw(page,.35);
+  await page.getByRole('button',{name:'select tool',exact:true}).click(); await select(page,original);
+  const before = await source(page), history = (await inspection(page)).history, start = await point(page,original);
+  const drag = async (cancel = false) => {
+    await page.keyboard.down('Alt'); await page.mouse.move(start.x,start.y); await page.mouse.down();
+    await page.mouse.move(start.x+42,start.y+17,{steps:8});
+    expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history);
+    if (cancel) await page.keyboard.press('Escape');
+    await page.mouse.up(); await page.keyboard.up('Alt'); await ready(page);
+  };
+  await drag(true); expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history); expect(await selected(page)).toEqual([original]);
+  await drag(); const copy = (await selected(page))[0]; expect(copy).not.toBe(original);
+  await expect((await frame(page)).locator(copy)).toHaveCount(1);
+  const originalPoint=await point(page,original),copyPoint=await point(page,copy);
+  expect(originalPoint.x).toBeCloseTo(start.x,2); expect(originalPoint.y).toBeCloseTo(start.y,2);
+  expect(copyPoint.x-start.x).toBeCloseTo(42,1); expect(copyPoint.y-start.y).toBeCloseTo(17,1);
+  expect((await inspection(page)).history.undo).toBe(history.undo+1); const committed=await source(page);
+  await undo(page); expect(await source(page)).toEqual(before); expect(await selected(page)).toEqual([original]);
+  await redo(page); expect(await source(page)).toEqual(committed); expect(await selected(page)).toEqual([copy]);
+});
+
+test('keyboard duplicate select all and canvas context retain input ownership', async ({page}) => {
+  await open(page); const original = await draw(page,.35); await page.getByRole('button',{name:'select tool',exact:true}).click();
+  await select(page,original); const before = await source(page),history=(await inspection(page)).history.undo;
+  const canvas=page.getByTestId('foundation-canvas'); await canvas.focus(); await page.keyboard.press('Control+d'); await ready(page);
+  const copy=(await selected(page))[0]; expect(copy).not.toBe(original); expect((await inspection(page)).history.undo).toBe(history+1);
+  await canvas.focus(); await page.keyboard.press('Shift+F10'); await expect(page.getByRole('menu',{name:'Layer actions'})).toBeVisible();
+  await page.keyboard.press('Escape'); await canvas.focus(); await page.keyboard.press('Control+z'); await ready(page); expect(await source(page)).toEqual(before);
+  await canvas.focus(); await page.keyboard.press('Control+a');
+  const all=await selected(page); expect(all).toContain(original); expect(all).toContain('#f0'); expect(all.length).toBeGreaterThan(2);
+  await select(page,'#f0'); const text=page.getByRole('textbox',{name:'Artwork text',exact:true}); await text.focus(); await text.press('Control+a'); await text.press('Control+d');
+  expect(await selected(page)).toEqual(['#f0']); expect(await source(page)).toEqual(before);
+});
+
+test('property reveal and key navigation leave source and history unchanged', async ({page}) => {
+  await open(page); const original=await draw(page,.35); await page.getByRole('button',{name:'select tool',exact:true}).click(); await select(page,original);
+  const canvas=page.getByTestId('foundation-canvas'), before=await source(page),history=(await inspection(page)).history;
+  for(const [key,label] of [['a','Anchor X'],['p','Position X'],['s','Scale X %'],['r','Rotation'],['t','Opacity %']]) {
+    await canvas.focus(); await page.keyboard.press(key);
+    await expect(page.locator('.ef-inspector').getByRole('textbox',{name:label,exact:true})).toBeInViewport();
+    expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history);
+  }
+  await seek(page,.4); await page.getByRole('button',{name:'Enable Position X animation',exact:true}).click(); await ready(page);
+  await seek(page,.8); const x=number(page,'Position X'); await x.fill('800'); await x.press('Enter'); await ready(page);
+  const keyed=await source(page), keyedHistory=(await inspection(page)).history;
+  await canvas.focus(); await page.keyboard.press('u');
+  await expect(page.locator(`.ef-property-track[data-selector="${original}"][data-property="x"]`)).toBeVisible();
+  await page.getByRole('button',{name:'Previous Position X key',exact:true}).click(); await expect(page.getByTestId('foundation-clock')).toHaveText('0.40 s');
+  await page.getByRole('button',{name:'Next Position X key',exact:true}).click(); await expect(page.getByTestId('foundation-clock')).toHaveText('0.80 s');
+  expect(await source(page)).toEqual(keyed); expect((await inspection(page)).history).toEqual(keyedHistory);
+});
