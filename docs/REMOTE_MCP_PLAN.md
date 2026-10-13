@@ -1008,3 +1008,82 @@ starting `REFUSED` means that step did not happen. Nothing else changed from pha
   with the server); the branch's deletion removes it.
 - *Stopping a backgrounded `vite` through the shell leaves its `node` child listening* on
   Windows; kill it by PID (`netstat -ano`).
+
+### Phase 5 second check: FAIL (product), the runbook's project switch
+
+On `main` at dd2bcbaa, 2026-10-13, with this checkout's dev server on one throwaway preview
+branch of production. No product code changed since the first check (#1104), so AC-1 to AC-4 and
+the #1083 lock rest on that check's evidence (one scripted run on a fresh local stack, the lock
+on every account endpoint locally and hosted); the lock was spot-checked again on the branch.
+
+- **Changing `REF` does not change the project the runbook acts on.** The setup block expands
+  `AUTH` from `REF` once, when it is pasted, and `patch` and step 1's curl use `AUTH`. Step 6 says
+  "steps 1 to 4 with `REF=kprolrchuldgfrzspthy`"; in the shell that ran staging, typing that
+  leaves `AUTH` on staging (measured: after `REF=kprolrchuldgfrzspthy`, `AUTH` still ended in
+  `garafohbzmsybtysxphb/config/auth`). Every step then succeeds and prints `true` against staging,
+  and step 1 checks staging's key. The same holds for "Turning it off": it names no project, and
+  a fresh paste of the setup block gives staging's `REF`, so during an incident on production the
+  off call would turn staging off, print `false`, `false`, `"/"`, and leave production on, with
+  nothing in that section that checks production. Step 4's curl on noacg.studio would show the
+  switch-on mistake (503, not 401); nothing shows the switch-off mistake. To fix: build the URL
+  from `REF` inside `patch` and step 1's curl (or say to paste the whole block again with the
+  new `REF`), say in "Turning it off" to set `REF` to the project, and end that section with the
+  production check (`curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://noacg.studio/mcp`
+  answers 503).
+- **The runbook works as written for the project `REF` names**, taken from this file by a
+  script with only `REF` swapped for the branch, in Git Bash with the token line from a CRLF
+  `.env` (the trailing CR reaches curl, which drops it; every call answered). Step 1's
+  signing-key line printed `"algorithm":"ES256","status":"in_use"` on the branch, production and
+  staging; `check:migration-drift` says both hosted projects hold all 89 migrations. Steps 2, 3
+  and 4 printed every setting `true` (and the hook URI, the path `"/"`), exit 0.
+- **On:** a test account's first-party token kept a UUID `sub` with the hook on, and
+  `/api/me/connectors` answered 200. Through the dev server: `/mcp` without a token 401 with
+  `resource_metadata`; the PRM named the branch's Auth and `email` only. A client registered,
+  authorized with PKCE and `scope=email`, and NoaCG's Allow returned a code; the ES256 token
+  carried `client_id`, `sub` `noacg-connector:<id>`, `noacg_uid` the user, role
+  `noacg_connector`, and no ID token. `/mcp` `initialize`, `tools/list` (three tools, 2,851
+  characters) and `noacg_library` answered 200.
+- **Lock spot-check on hosted:** with that token, Auth's `GET` and `PUT /user` (metadata and
+  password), `POST /factors` and `POST /logout?scope=global` each answered `400 bad_jwt - invalid
+  claim: sub claim must be a UUID`; PostgREST 403 and Storage refused, both `permission denied
+  to set role "noacg_connector"`. Afterwards the metadata was unchanged, no factor, the own
+  password signed in, the first-party session still worked, and `noacg_library` still answered.
+- **A bad body is loud:** the old unpaired off body and a misspelt OAuth key each printed
+  `REFUSED, HTTP 400: {"message":"Both OAUTH_SERVER_ENABLED and OAUTH_SERVER_AUTHORIZATION_PATH
+  must be provided together ..."}`, malformed JSON printed `REFUSED, HTTP 400: {"message":
+  "Expected double-quoted property name ..."}`, each exit 1, and Auth still read the OAuth server
+  on. A misspelt key alone (`hook_custom_access_token_enabld`) is accepted by the API and
+  ignored: `patch` prints no line and returns 1, but no `REFUSED`; the hook stayed on. Only a
+  hand-edited body meets this.
+- **Off, verbatim,** at 08:25:15 UTC printed `false`, `false`, `"/"`, exit 0. The token still
+  worked at 08:26:11; at 08:26:21 `/mcp` with and without it, the PRM and `/api/me/connectors`
+  each answered 503 `connector_disabled` (56 to 66 s, so "within a minute" is about a minute).
+  Issued tokens were refused everywhere: the OAuth refresh 404 `feature_disabled`, Auth `/user`
+  400 `bad_jwt`, PostgREST 403. The hook-off rollback printed
+  `"hook_custom_access_token_enabled":false`, exit 0.
+- **Production:** `GET` and `POST https://noacg.studio/mcp`, the PRM and `/api/me/connectors`
+  each answered 503 `connector_disabled` before and after. Production's and staging's Auth were
+  only read, before (08:19) and after (08:27): OAuth server off with no authorization path, hook
+  off, notifications off, `jwt_exp` 3600.
+- **User outcome:** the connector flow holds and the off switch works on the project the shell
+  points at, but an owner switching production on or off by the runbook's words can act on
+  staging instead and see success.
+- **Smaller points for the repair:** step 3's "sign in to the studio on that project once" has
+  no studio for staging (step 5's `first_party_account_allowed` check covers it, the step could
+  say so).
+- **Not checked (needs a person):** Claude Code's `claude mcp add` sign-in and Claude.ai's first
+  connection. Step 5's four specs against a hosted project were not rerun (phase 5's build ran
+  them on a branch).
+- **Hosted branch:** `connector-p5-check2` (ref `fppausjfpxkapcvhadif`), created 08:19:43 UTC,
+  came up at 0073; 0074 to 0091 applied through the query endpoint (0074 without
+  `concurrently`). Branch-only Auth config: `site_url` the dev server, then the runbook's steps.
+  One test account, deleted by the run; the OAuth client went with the branch. Deleted at
+  08:27:07: the branch list then held only `main`, and the branch's query endpoint answered 404
+  "Resource has been removed". Micro compute for under 8 minutes, under 0.01 USD (phase 5 in all
+  about 0.05 USD of the owner's 2 EUR).
+
+**Traps.**
+
+- *A fresh branch can first answer at an older migration level.* The query endpoint read 0044
+  a minute after creation and 0073 a minute later; wait until the level stops moving before
+  applying the rest.
