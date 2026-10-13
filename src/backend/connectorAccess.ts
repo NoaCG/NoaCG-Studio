@@ -10,11 +10,18 @@
 import { getSupabase } from './supabase';
 import { authedFetch, errorMessage } from './agentAccess';
 
-/** Where Auth sends the browser next, refused unless it is a web address: a client registers its
- *  own redirect URIs, and this page must never navigate the studio's origin to anything else. */
+/** Schemes that run or read something inside the page that opens them. Every other scheme either
+ *  loads a web page or hands the address to an installed app. */
+const PAGE_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:', 'file:', 'blob:', 'filesystem:', 'about:', 'view-source:']);
+
+/** Where Auth sends the browser next. A client registers its own redirect URIs, and a desktop app
+ *  registers its own scheme for them (RFC 8252 7.1): the Claude app's is
+ *  `claude://claude.ai/mcp-auth-callback/sdk`, measured on staging 2026-10-13, which an http(s)-only
+ *  rule refused after Auth had already approved. Refused: a scheme that would run or read
+ *  something in the studio's own page. */
 export function webRedirect(url: string): string {
   const { protocol } = new URL(url);
-  if (protocol !== 'https:' && protocol !== 'http:') throw new Error('The app asked to return to an address this page will not open.');
+  if (PAGE_SCHEMES.has(protocol.toLowerCase())) throw new Error('The app asked to return to an address this page will not open.');
   return url;
 }
 
