@@ -1432,7 +1432,8 @@ here the lock was spot-checked with a token from NoaCG's Allow, and step 3's spe
   no functions). Every run
   named B on its first line and ended `connector on` or `connector off`, exit 0, in 8 to 14 s.
   After each off the dev server answered 503 `connector_disabled` on `/mcp` (with the token too),
-  the PRM and `/api/me/connectors` within 21 to 27 s; after each on, 401 within 24 to 30 s, and
+  the PRM and `/api/me/connectors` 26 to 32 s after the command ended; after each on, 401 30 to
+  40 s after, and
   the token minted before the first off worked again. The rollback `off --hook-off` read the
   OAuth server off, discovery off, then the hook off, exit 0.
 - **A untouched by B's commands:** A's whole Auth config hashed the same (`0174dc0e...`) after
