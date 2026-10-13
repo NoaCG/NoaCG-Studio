@@ -1405,3 +1405,87 @@ starting `REFUSED` or `NOT` means stop. Production's `on` and `off` take about 8
   read again.
 - *A dev server started through a background shell keeps its `node` child* listening after the
   shell is stopped; kill it by PID (`netstat -ano`), as before.
+
+### Phase 5 fourth check: PASS
+
+On `main` at e1719faf, 2026-10-13, acting as the owner in Git Bash with the runbook's commands as
+written, only the project name swapped for `--ref <branch ref>`, on two throwaway preview branches
+of production and this checkout's dev server pointed at the second. No product code changed since
+the first check (#1104), so AC-1 to AC-4 and the full #1083 lock rest on that check's evidence;
+here the lock was spot-checked with a token from NoaCG's Allow, and step 3's specs were not run.
+
+- **Unit tests:** `node --test scripts/connector-switch.test.mjs` 15 of 15.
+- **On for A** (staging's step 2): the branch line, `signing key ES256 in use`, the three steps
+  `ok`, `Auth's discovery reads on`, `connector on`, exit 0 in 19 s. B's whole Auth config hashed
+  the same before and after, and the dev server (on B) still answered 503 on all three paths.
+- **On for B** (step 4): the same, exit 0 in 14 s; 39 s later the dev server answered `/mcp` 401
+  with `resource_metadata`, the PRM 200 naming B's Auth and `email` only, `/api/me/connectors`
+  401.
+- **A NoaCG-Allow token on B:** registered, authorized with `scope=email`, NoaCG's Allow 200, no
+  ID token; ES256, `sub` `noacg-connector:<uuid>`, `noacg_uid` the user, role `noacg_connector`.
+  `tools/list` three tools (2,817 characters) and `noacg_library` answered through the MCP SDK
+  client. Auth's `GET /user` and `PUT /user` (metadata, password) each `400 bad_jwt - invalid claim:
+  sub claim must be a UUID`; the metadata unchanged, the own password still signed in, and its
+  session got 200 from `/api/me/connectors`.
+- **Off for B** ("Turning it off"), then on and off again: in this session's shell, and in a new
+  Git Bash login process started with a clean Windows environment (no `SUPABASE_*` variables,
+  no functions). Every run
+  named B on its first line and ended `connector on` or `connector off`, exit 0, in 8 to 14 s.
+  After each off the dev server answered 503 `connector_disabled` on `/mcp` (with the token too),
+  the PRM and `/api/me/connectors` 26 to 32 s after the command ended; after each on, 401 30 to
+  40 s after, and
+  the token minted before the first off worked again. The rollback `off --hook-off` read the
+  OAuth server off, discovery off, then the hook off, exit 0.
+- **A untouched by B's commands:** A's whole Auth config hashed the same (`0174dc0e...`) after
+  its `on` and at three points through B's nine commands, the last after all of them, the slips
+  and the interrupts; `status` read A on.
+- **Slips, each exit 1 and nothing changed:** `prodution off`, `production of`, `off production`,
+  `--ref` with production's or staging's ref ("name it instead of --ref"), a made-up ref ("not a
+  throwaway preview branch"), a URL given as the ref, `on --hook-off`, `--ref` together with a
+  name; a window exporting `VITE_SUPABASE_URL` or `STAGING_SUPABASE_PROJECT_REF` set to B ("the
+  project name is ambiguous; run it in a new window"); a wrong token (`HTTP 401: Invalid access
+  token`); an `.env` with an empty token (`no SUPABASE_ACCESS_TOKEN ... nothing was changed`); no
+  `.env` (`production's ref is unknown`); run from the home folder or from `cli/`
+  (`Cannot find module`).
+- **Ctrl-C** (the process interrupted on a printed line, then `status`): during `off --hook-off`
+  after the OAuth server read off, `status` read the config off and discovery still on, so
+  `connector on`, and 10 s later `connector off` with the hook left on; during `on` after the
+  emails, `connector off` with the OAuth server off; during `on` while waiting for discovery,
+  the config `OAuth server on` but discovery still off, so `connector off`, and `connector on`
+  seconds later. Nothing reached another project, and the hook was on whenever the OAuth server
+  was.
+- **Production and staging, read only:** both projects' whole Auth config hashed the same at
+  10:36 and 10:49 UTC (OAuth server off, path null, hook off, notifications off, `jwt_exp` 3600).
+  `node scripts/connector-switch.mjs production status` at 10:49 printed `signing key ES256 in
+  use`, the config off, `Auth's discovery reads off`, `https://noacg.studio/mcp 503`,
+  `production (kprolrchuldgfrzspthy): connector off`, exit 0; `staging status` read off too.
+  `GET` and `POST https://noacg.studio/mcp`, the PRM and `/api/me/connectors` answered 503
+  `connector_disabled`. `check:migration-drift`: both hold all 89 migrations.
+- **User outcome:** the owner's switch acts only on the project its line names, says so first,
+  and ends on the state the site sees; every slip tried was refused loudly or left a state
+  `status` reports. Switching on is ready, and production is off.
+- **Smaller points (not blockers):**
+  - `status` concludes from Auth's discovery alone, so for the few seconds discovery lags a
+    config change (seen after an interrupted run) it prints `connector off` under a config line
+    saying `OAuth server on`, exit 0. Saying `NOT settled` when the config and discovery disagree
+    would close it.
+  - The main checkout does not hold the command until `git pull` (the runbook says to pull
+    first; without it, `Cannot find module`), and its `node_modules` predates the MCP SDK, so
+    step 3's specs need `npm ci` there first; the runbook does not say so.
+- **Not checked (needs a person):** Claude Code's `claude mcp add` sign-in and Claude.ai's first
+  connection.
+- **Hosted branches:** `connector-p5c4-a` (ref `dnwxltighqflpkjwzrbb`) and `connector-p5c4-b`
+  (ref `kpuzolzzvfyovwgoasuq`), created 10:36:33 and 10:36:38 UTC; both came up at 0073
+  (`MIGRATIONS_FAILED`), and 0074 to 0091 were applied through the query endpoint (the hook
+  function and `noacg_connector` role read back). No branch Auth config was set outside the
+  command. One test account on B, deleted. Both branches deleted at 10:49:59 and 10:50:02: the
+  branch list then held only `main`, and both refs answered 404 "Resource has been removed". Two
+  Micro branches for about 14 minutes each, under 0.01 USD (phase 5 in all about 0.09 USD of the
+  owner's 2 EUR).
+
+**Traps.**
+
+- *A linked worktree resolves the main checkout's `node_modules`,* which here predated the MCP
+  SDK; run `npm ci` in the worktree before the dev server or the SDK client.
+- *Git Bash rewrites an argument starting with `/`* into a Windows path before Node sees it
+  (`/v1/projects/...` became `C:/Program Files/Git/v1/...`); pass API routes without the slash.
