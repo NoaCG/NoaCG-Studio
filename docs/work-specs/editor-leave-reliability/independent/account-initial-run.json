@@ -1,0 +1,1 @@
+{"conclusion":"failure","jobs":[{"completedAt":"2026-10-13T21:51:08Z","conclusion":"failure","databaseId":115555746357,"name":"configured","startedAt":"2026-10-13T21:47:52Z","status":"completed","steps":[],"url":"https://github.com/NoaCG/NoaCG-Studio/actions/runs/38472748048/job/115555746357"}],"status":"completed"}
