@@ -11,11 +11,11 @@
 //
 // A CONNECTOR TOKEN IS VERIFIED HERE, LOCALLY, against the issuer's JWKS - never with Auth's
 // /user or /oauth/userinfo. Those endpoints are the account surface a connector token must not
-// reach (issue #1083), and the planned hardening makes them refuse such tokens outright. So the
-// MCP route trusts exactly three things: the signature (asymmetric only), the expiry and issuer,
-// and a live `connector_grants` row the caller checks next. Revocation is that row; the token's
-// session is not consulted. The user id is read through `connectorUserId`, the one place a
-// change to where the hook puts it has to touch.
+// reach (issue #1083), and the access token hook (migration 0091) makes them refuse such tokens
+// outright: it moves the user id from `sub` to `noacg_uid` and points `session_id` at no session.
+// So the MCP route trusts exactly three things: the signature (asymmetric only), the expiry and
+// issuer, and a live `connector_grants` row the caller checks next. Revocation is that row; the
+// token's session is not consulted. The user id is read through `connectorUserId`.
 
 import { webcrypto } from 'node:crypto';
 import { oauthClientOf, supabaseEnv } from './auth.js';
@@ -90,11 +90,13 @@ const ALGORITHMS: Record<string, [webcrypto.EcKeyImportParams | webcrypto.RsaHas
   RS256: [{ name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, { name: 'RSASSA-PKCS1-v1_5' }],
 };
 
-/** The user a connector token speaks for. Today Auth's `sub`; if the access token hook moves the
- *  real user into a NoaCG claim (issue #1083), this is the line that follows it. */
+/** The user a connector token speaks for: `noacg_uid`, where the access token hook (0091) moves
+ *  it so that Auth's own account endpoints refuse the token (issue #1083). A token without it was
+ *  issued with no hook or an older one, whose `sub` still opens those endpoints, so it is refused
+ *  here too: the connector never runs on an Auth that has not closed them. */
 export function connectorUserId(claims: Record<string, unknown>): string | null {
-  const sub = claims.sub;
-  return typeof sub === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sub) ? sub : null;
+  const uid = claims.noacg_uid;
+  return typeof uid === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(uid) ? uid : null;
 }
 
 export interface ConnectorVerifyOptions {

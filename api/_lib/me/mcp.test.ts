@@ -173,7 +173,8 @@ test('a connector token is verified locally against the issuer\'s JWKS, never by
     return `${input}.${Buffer.from(sig).toString('base64url')}`;
   };
   const nowMs = Date.UTC(2026, 9, 12);
-  const claims = { iss: issuer, sub: USER, client_id: CLIENT, exp: nowMs / 1000 + 600, role: 'noacg_connector' };
+  // As the access token hook (0091) issues it: the user in noacg_uid, `sub` no UUID.
+  const claims = { iss: issuer, sub: `noacg-connector:${USER}`, noacg_uid: USER, client_id: CLIENT, exp: nowMs / 1000 + 600, role: 'noacg_connector' };
   const verify = (token: string) => verifyConnectorToken(token, { fetchFn, nowMs });
 
   assert.deepEqual(await verify(await sign(claims)), { userId: USER, clientId: CLIENT });
@@ -183,10 +184,13 @@ test('a connector token is verified locally against the issuer\'s JWKS, never by
   assert.equal(await verify(await sign(claims, { alg: 'ES256', kid: 'unknown' })), null, 'a key Auth never published');
   const good = await sign(claims);
   const [h, , s] = good.split('.');
-  assert.equal(await verify(`${h}.${b64({ ...claims, sub: '0b2c3d47-58cc-4372-a567-f47ac10be9d4' })}.${s}`), null, 'a tampered payload');
+  assert.equal(await verify(`${h}.${b64({ ...claims, noacg_uid: '0b2c3d47-58cc-4372-a567-f47ac10be9d4' })}.${s}`), null, 'a tampered payload');
   assert.equal(await verify(`${b64({ alg: 'HS256', kid: 'k1' })}.${b64(claims)}.${s}`), null, 'a symmetric algorithm');
   assert.equal(await verify(`${b64({ alg: 'none' })}.${b64(claims)}.`), null, 'no signature');
-  assert.equal(connectorUserId({ sub: 'not-a-uuid' }), null);
+  // A token from no hook or 0089's: its `sub` still opens Auth's account endpoints (#1083).
+  assert.equal(await verify(await sign({ ...claims, sub: USER, noacg_uid: undefined })), null, 'issued without the account lock');
+  assert.equal(connectorUserId({ noacg_uid: 'not-a-uuid' }), null);
+  assert.equal(connectorUserId({ sub: USER }), null, 'sub is never read');
   // Only the discovery document and the keys were fetched: no /user, no /oauth/userinfo.
   assert.ok(asked.every((url) => url.includes('/.well-known/')), asked.join(', '));
 });

@@ -82,7 +82,10 @@ authorization_url_path = "/"
 # Custom Access Token hook: a token issued to an OAuth client (it carries `client_id`) gets the
 # `noacg_connector` database role, which holds no grants and which the API roles cannot assume, so
 # a connector token reaches no table, function or storage object through PostgREST or Storage.
-# First-party sessions pass through unchanged. Migration 0089 creates the role and the function.
+# It also moves the user id from `sub` to `noacg_uid` and points `session_id` at no session, so
+# Supabase Auth's own account endpoints (password, email, MFA, consent) refuse the token too
+# (issue #1083). First-party sessions pass through unchanged. Migration 0089 creates the role and
+# the function; 0091 adds the account lock.
 # Enabling this on a hosted project is the owner's step (docs/REMOTE_MCP_PLAN.md, "Owner's steps").
 [auth.hook.custom_access_token]
 enabled = true

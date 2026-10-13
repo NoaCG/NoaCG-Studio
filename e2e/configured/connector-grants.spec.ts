@@ -19,7 +19,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
-import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
+import { isConnectorTestStack } from '../../scripts/connector-oauth-spike.mjs';
 import { mintAccount, shot, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { connect, consentPath, deleteOAuthClient, REDIRECT, ScriptedClaude } from './_connector';
 
@@ -52,7 +52,7 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
 
   test('a chat client signs in through the consent page, is served as a connector, and is stopped by Revoke', async ({ page, request, baseURL }) => {
     test.skip(!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY, 'needs VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
-    test.skip(!isLocalUrl(SUPABASE_URL), 'local stack only: it registers OAuth clients');
+    test.skip(!isConnectorTestStack(SUPABASE_URL), 'local stack or a named preview branch only: it registers OAuth clients');
     const origin = baseURL!.replace(/\/+$/, '');
     const mcpUrl = new URL(`${origin}/mcp`);
     const supabase = SUPABASE_URL.replace(/\/+$/, '');
@@ -175,7 +175,7 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
 
   test('a deployment whose Auth runs no OAuth server answers 503 connector_disabled on every connector path', async ({ request, baseURL }) => {
     test.skip(!SUPABASE_URL, 'needs VITE_SUPABASE_URL');
-    test.skip(isLocalUrl(SUPABASE_URL), 'the local stack runs the OAuth server; hosted staging does not');
+    test.skip(isConnectorTestStack(SUPABASE_URL), 'the local stack and a named preview branch run the OAuth server; hosted staging does not');
     const origin = baseURL!.replace(/\/+$/, '');
     for (const res of [
       await request.post(`${origin}/mcp`, { data: { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} } }),

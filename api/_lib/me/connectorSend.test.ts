@@ -144,7 +144,9 @@ test('three recipes, a copy, a brand and cues become ONE waiting package with th
   const body = row.body as { format: string; graphics: Array<Record<string, unknown>>; cues: Array<Record<string, unknown>>; brand: Record<string, unknown> };
   assert.equal(body.format, 'noacg-pack');
   assert.deepEqual(body.graphics[0], { name: 'Speaker', recipe: { type: 'lower-third', design: 'lt01', values: { name: 'Anna', title: 'Pastor' } }, layer: 20 });
-  assert.deepEqual(body.graphics[1].recipe, { type: 'lower-third', design: 'lt01', palette: 'ivory', font: 'inter', values: { side: 'right' } });
+  // A line the recipe left out is blank, never the design's sample text; a setting keeps its default.
+  assert.deepEqual(body.graphics[1].recipe, { type: 'lower-third', design: 'lt01', palette: 'ivory', font: 'inter', values: { side: 'right', name: '', title: '' } });
+  assert.deepEqual(body.graphics[2].recipe, { type: 'lower-third', design: 'lt01', values: { name: '', title: '' } });
   // The copy carries its sources as data: the Storage reference was read back.
   assert.equal(body.graphics[3].name, 'Sermon copy');
   assert.match(String(body.graphics[3].html), /SPXGCTemplateDefinition/);

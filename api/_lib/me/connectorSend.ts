@@ -174,6 +174,11 @@ function recipeEntry(g: Record<string, unknown>, name: string, where: string, in
       throw new Refusal(`${where}: "${value}" is not a choice of ${key}. Its choices: ${list(field.options)}.`);
     }
   }
+  // A LINE the recipe leaves out is blank, never the design's sample text: the phase 4 check aired
+  // a church's card reading "ELECTIONS 2026". Lines are the words a show says; a cue fills them.
+  // Every other field (a clock, a score, a "LIVE" word, a choice) keeps the design's default,
+  // which is a working setting rather than sample copy.
+  for (const field of type.fields) if (!field.role && !(field.key in values)) values[field.key] = '';
   return {
     kind: 'recipe',
     name,
@@ -332,7 +337,7 @@ export function createSendTool(deps: SendToolDeps = {}): McpTool {
               design: { type: 'string', description: 'A design id of that type' },
               palette: { type: 'string' },
               font: { type: 'string' },
-              values: { ...STRINGS, description: "By the type's field keys" },
+              values: { ...STRINGS, description: "By the type's field keys. Lines (fields with no role) left out are blank; other fields keep the design's default" },
               graphic: { type: 'string', description: 'A library graphic id, instead of type and design' },
               layer: { type: 'integer', minimum: 1, maximum: 100 },
             },

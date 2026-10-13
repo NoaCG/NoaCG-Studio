@@ -4,6 +4,15 @@ This toolkit runs in Claude Code, local Codex or another local MCP client with f
 and process access. Ordinary Claude Chat cannot run the local CLI. Installing a skill does
 not install Node, a browser, account credentials or a playout server.
 
+**Two paths.** The CLI (this toolkit) MAKES graphics and also assembles packages. A chat client
+(Claude.ai, ChatGPT) with the NoaCG connector added, where the deployment has it switched on,
+only ASSEMBLES: `noacg_catalog` and `noacg_library` read catalog designs and the user's own
+graphics, brands and productions; `noacg_send_package` puts catalog recipes (type, design, values
+by field key), copies of the user's own graphics (by id), a brand id and a rundown (cue values by
+field key for a recipe, by field id for a copy) on Home → Productions, where the user presses
+Install. The connector writes no graphic code and edits, publishes or plays nothing; a new or
+changed graphic needs the CLI.
+
 1. Check `node --version`: the CLI requires Node 20 or newer. Install a supported Node release
    with npm if the command is missing. Building the distribution itself requires Node 24.
 2. Install the reviewed CLI: `npm i -g @noacg/cli@0.10.1`. Check `noacg --version` before using

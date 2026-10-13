@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { hitRateLimit, type RateLimitCaps } from './rateLimit.js';
+import { checkConnectorSendRateLimit, hitRateLimit, type RateLimitCaps } from './rateLimit.js';
 
 // The gates share ONE bucket map on globalThis, and their windows differ (5 s ingest, 60 s
 // per-IP, 3600 s feedback). The sweep must therefore compare bucket AGES in milliseconds -
@@ -30,4 +30,25 @@ test('a genuinely dead bucket is swept by its own gate\'s age, freeing the memor
   const later = now + 3 * FIVE_SEC.windowMs;
   for (let i = 0; i < 5_100; i += 1) hitRateLimit(`sweep-noise2-${i}`, FIVE_SEC, later);
   assert.equal(hitRateLimit('sweep-dead', FIVE_SEC, later).allowed, true);
+});
+
+// The connector's send budget (docs/REMOTE_MCP_PLAN.md phase 5): "10 a minute" means exactly 10 in
+// any minute. On the two-window estimate a call made 61 s earlier still cost most of a slot, so a
+// send, a minute's wait and a burst let only 9 through (the phase 4 check's finding).
+
+test('the send budget: exactly ten in a minute, and a call over a minute old no longer counts', () => {
+  const t0 = 3_000_000_005_000; // 5 s into a minute, where the estimate charged the old call most
+  assert.equal(checkConnectorSendRateLimit('budget-a', t0), null);
+  const burst = Array.from({ length: 11 }, (_, i) => checkConnectorSendRateLimit('budget-a', t0 + 61_000 + i));
+  assert.equal(burst.filter((d) => d === null).length, 10, 'ten in the minute after the first call aged out');
+  assert.ok(burst[10] && burst[10].retryAfterSec >= 1 && burst[10].retryAfterSec <= 60, 'the eleventh waits, at most a minute');
+  for (let i = 0; i < 10; i += 1) assert.equal(checkConnectorSendRateLimit('budget-b', t0 + i * 1_000), null, `call ${i + 1} of a fresh user`);
+  assert.notEqual(checkConnectorSendRateLimit('budget-b', t0 + 59_000), null, 'the eleventh inside the minute is refused');
+});
+
+test('the send budget counts a refused call, so a loop stays refused until it stops for a minute', () => {
+  const t0 = 4_000_000_000_000;
+  for (let i = 0; i < 10; i += 1) checkConnectorSendRateLimit('budget-loop', t0);
+  for (let s = 1; s <= 120; s += 1) assert.notEqual(checkConnectorSendRateLimit('budget-loop', t0 + s * 1_000), null, `still looping at ${s} s`);
+  assert.equal(checkConnectorSendRateLimit('budget-loop', t0 + 180_000), null, 'a minute after the loop stopped');
 });

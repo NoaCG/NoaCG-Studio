@@ -18,7 +18,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { isLocalUrl } from '../../scripts/connector-oauth-spike.mjs';
+import { isConnectorTestStack } from '../../scripts/connector-oauth-spike.mjs';
 import { mintAccount, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { callTool, deleteOAuthClient, ScriptedClaude, signedInClient } from './_connector';
 
@@ -102,7 +102,7 @@ test.describe('remote MCP connector: the read tools', () => {
 
   test('a chat client finds catalog designs and reads its own user\'s library, never another account\'s', async ({ request, baseURL }) => {
     test.skip(!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY, 'needs VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
-    test.skip(!isLocalUrl(SUPABASE_URL), 'local stack only: it registers OAuth clients');
+    test.skip(!isConnectorTestStack(SUPABASE_URL), 'local stack or a named preview branch only: it registers OAuth clients');
     const origin = baseURL!.replace(/\/+$/, '');
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const stamp = Date.now();

@@ -458,7 +458,7 @@ export default function ProductionsSection({
     <>
       {duplicateError && <p className="status-bad" role="alert">{duplicateError}</p>}
       {heading && <h2><IconTv size={18} /> Productions</h2>}
-      {/* Packages a coding agent sent - one row each, Install turns it into a production and
+      {/* Packages a coding agent or a connected app sent - one row each, Install turns it into a production and
           opens its rundown. Shown on the Home dashboard too: arriving is news. */}
       {waiting.length > 0 && (
         <div className="pack-waiting" data-testid="waiting-packages">
@@ -468,8 +468,10 @@ export default function ProductionsSection({
               <div className="lib-info">
                 <strong>{p.name}</strong>
                 <span className="muted">
-                  {p.graphicCount} graphic{p.graphicCount === 1 ? '' : 's'} · sent from your coding
-                  agent · {new Date(p.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                  {p.graphicCount} graphic{p.graphicCount === 1 ? '' : 's'} ·{' '}
+                  {/* A chat client's connector is a "connected app", as Settings lists it. */}
+                  {p.tool === 'noacg-connector' ? 'sent from a connected app' : 'sent from your coding agent'} ·{' '}
+                  {new Date(p.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
                 {p.description && <span className="muted">{p.description}</span>}
               </div>
