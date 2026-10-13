@@ -65,7 +65,7 @@ const MIN_FILES = 10;
  *  differences listed in the skip message, not compared - the pass harness's RUNTIME_PINNED rule. */
 const MIRROR_PINNED = process.platform === 'linux';
 /** What the step and the runtime were last recorded disagreeing about (D10). Re-recorded on purpose,
- *  with the reason in the pull request: SVG_FIT_RUNGS_SHOW=1 prints the list as code. */
+ *  with the reason in the pull request: SVG_FIT_RUNGS_SHOW=1 prints the list as code. Issue #1145. */
 const MIRROR_FINDINGS = [
   'affinity-point-sized-nameplate f0: law: inset y',
   'effects-css-import-webfont f0: box: the step groups it under no box, the runtime measures it in one',
@@ -130,7 +130,7 @@ const MIRROR_FINDINGS = [
   'ticker-strip-3840 f2: box: the step groups it under no box, the runtime measures it in one',
 ];
 const RULES = ['room', 'snap', 'margin', 'settle', 'fits', 'floors'];
-/** The corpus files on which the runtime breaks a rung today (D10), by rung. */
+/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, settle #1143. */
 const RUNG_FINDINGS = {
   room: ['illustrator-rotated-sidebar-strip'],
   settle: [
