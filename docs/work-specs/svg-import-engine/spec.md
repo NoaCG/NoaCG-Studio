@@ -567,6 +567,105 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
 
+### Phase 5: the growth and shape runtimes as files (build, 2026-10-14)
+
+- **Last check's findings (phase 4, PASS):** #1133 changes no behaviour (a trailing comma in a
+  call, and a function-scoped `i` reused after the outer loop ends); its snapshot diff is only the
+  48 `emit.js` hashes. The runtime baselines at `6e8bfb503`, `b18fe3d1e`, `4e4eb8b0^1` and
+  `4e4eb8b0` are byte-identical, and the snapshot and catalog blobs are unchanged across #1136.
+  The CRLF step was proven by comparing the old and new literals, an unfilled token throws, the
+  ES5 lint is scoped to `runtime/*.js`, and the probes were caught. The fence holds and
+  `editor-fidelity-trim` passed 11/11. GAP: the `import-svg` tests for the `fitSvgText` marker
+  (spec lines 1070 and 1150) and the same ladder (line 1782) have been skipped since #800, so
+  phase 4's "the outlined-text tests prove it on CI" was wrong (corrected there); the checker's
+  own probe proved the marker on all 48 templates through `ensureTextFitRuntime`, and the gap is
+  recorded on #800. `svg.ts` was 1,372 lines.
+- **Main before:** `42c370b69fd1dcbcd55eb4e0a5750b583ec722e6` (the merge of #1135, which touches
+  nothing here; phase 4's merge `4e4eb8b0c` is its parent). Merge sha: the queue's merge of this
+  pull request. Revert: `git revert -m 1 <merge sha>` on its own branch through `/check` and
+  `/queue-merge`; it puts the two strings back into `svg.ts`, deletes the two files and their
+  lint block, and the emitted bytes stay as they are.
+- **Built:** `runtime/svgGrowth.js` (868 lines) and `runtime/svgShapeShift.js` (69), imported
+  `?raw` by `svg.ts`. `SVG_GROWTH_JS` is `'\n' + fillRuntime(svgGrowth, { PREFIX, LAYOUT_EL_ATTR })`
+  without its final line break, and `SHAPE_SHIFT_JS` is `'\n' + fillRuntime(svgShapeShift, {})`,
+  both module constants. The emit order in `assembleImportedSvg` is unchanged. An ESLint block for
+  `svgGrowth.js` lists what it reads from the others; `svgShapeShift.js` reads nothing and needs
+  none. The folder's `AGENTS.md` file map and its growth paragraph name the files.
+- **Proof:**
+  - Cut by script, as phase 4 did: each template literal's source was taken from `svg.ts`, any
+    interpolation other than `PREFIX` and `LAYOUT_EL_ATTR` refused (the growth has 7, the
+    shifters none), `${NAME}` replaced by `__NAME__`, and the literal cooked as JavaScript does
+    (`\\d` becomes `\d`, `` \` `` becomes a backtick). Filling the files back gave the original
+    strings exactly, from LF and from CRLF files; neither original holds a `__NAME__` text or a
+    carriage return. Re-run against the saved original `svg.ts` after the edit: equal.
+  - Harness: 15/15, every record equal, the snapshot untouched. The runtime compared with this
+    machine's baseline taken on `42c370b69` before any change (`SVG_CORPUS_RUNTIME_LOCAL`). Run
+    time 6.9 s for the test file. Probe: one space in `svgGrowth.js` plus one comment line in
+    `svgShapeShift.js` failed `emit` on 23 files, every corpus design that grows.
+  - `check-catalog-emit`: PASS, 528 designs, `svg01` unchanged (its stand-in artwork has no
+    growth rule, so the harness is what pins these two strings).
+  - CRLF, as a Windows checkout writes the files: harness 15/15 and ES5 lint clean.
+  - `npx eslint src/templates/importedDesign/runtime`: clean. Before the globals block the only
+    findings were 47 `no-undef` on the cross-file names, no ES5 or other rule, so nothing in
+    either string needed a byte change. Probes, each made and reverted: a misspelt `svgFitPlacd`
+    in `svgGrowth.js` failed `no-undef`; a `let` appended to `svgShapeShift.js` failed the parse.
+  - `tsc --noEmit`, `depcruise src` (no violations), ESLint on the changed files, `gates run
+    --changed origin/main` (all checks, 3 test files, 16 tests) green; `vote-board-bars`,
+    `readout-ink`, `behaviour-removed-layer`, `svg-layout-table` and `svg-font-css` pass (21).
+  - `SVG_TEXT_FIT_MARKER` is untouched in `svgFit.js`, and the emitted bytes did not move.
+- **AC-4 line counts (`wc -l`):** `svg.ts` 437, `svgBind.ts` 217, `svgLayout.ts` 132,
+  `svgFonts.ts` 62: under 500, and no engine TypeScript file over 800. The runtime files are
+  JavaScript: `svgFit.js` 1,466, `svgGrowth.js` 868, `svgShapeShift.js` 69, `svgFitBoot.js` 25.
+  Outside the split and unchanged by it (§2.1): `behaviourRuntime.ts` 1,105, `draft.ts` 1,652,
+  `svgImport.ts` 1,896.
+- **Decisions:**
+  - `growthRuntimeJs()` took no argument, so it became the constant `SVG_GROWTH_JS`, like
+    `SVG_FIT_JS`: the fill and its unfilled-token guard run once at module load.
+  - The growth string never ended with a line break; the file ends with one, as a file does, and
+    `svg.ts` takes exactly one off (`.replace(/\n$/, '')`). Chosen over a file with no final line
+    break, which editors and tools add back silently, and over rewriting the concatenation.
+  - The shifters go through `fillRuntime` with no values, so the CRLF step and the guard hold for
+    them too.
+  - The three fit tables the growth assigns (`svgFitExtra`, `svgFitShift`, `svgFitExtraH`) are
+    `writable` globals; the other 13 names from `svgFit.js`, `NOACG_LAYOUT` and the two shifters
+    are `readonly`. Phase 4 forecast 17 names from `svgFit.js`; it is 16.
+  - The THE HUG doc comment stays in `svg.ts` above the constant, as phase 4 kept its own.
+  - Kept after review, with the reason: the growth's one-line-break strip is the only asymmetry
+    among the four fills, and a file saved without its final line break would move every growing
+    design's hash, which the harness's `emit` record catches; the fill now runs at module load, so
+    a stray `__NAME__` text in the growth file breaks every importer of `svg.ts` at once, which is
+    the guard working as phase 4 meant it to.
+- **What the next phase must allow for:**
+  - `svgShapeShift.js` is two pure functions reading no global: phase 6 can load it alone. The
+    growth needs `svgFit.js`, the shifters and a `NOACG_LAYOUT` table in the same scope, filled;
+    `fillRuntime` is not exported, so a rung test either exports it (an `svg.ts` change) or loads
+    the emitted template.
+  - The nightly will NOT close the e2e selection gap phase 4 expected it to: `e2e/_trace.ts`
+    counts a file only when a function other than its module's top level ran, and a `?raw` module
+    is only a top-level string (the map holds none of `gsap.min.js`, `flexGapShim.js`, `OFL.txt`).
+    `e2e-affected --files` on any of `svgFit.js`, `svgGrowth.js`, `svgShapeShift.js` selects 60
+    specs against 72 for `svg.ts`, measured on `42c370b69`. Issue #1138. Until it is fixed, a
+    pull request that changes a runtime file without `svg.ts` names the 12 specs phase 4 listed
+    by hand. This pull request changes `svg.ts`, so it selects all 72.
+  - Stale names outside this fence: `docs/SVG_BEHAVIOUR_PLAN.md:343` and
+    `docs/SVG_IMPORT_PLAN.md:903` still say `growthRuntimeJs`; `stageMeasure.ts:10-15` says the
+    originals of its mirrors live in `svg.ts` (now `svgGrowth.js` for `svgLinesInside`, `svgFit.js`
+    for `svgAlignOf`, `measureSvgRoom`, `svgLocalBox`), and its lines 348 (`growOneRule`) and 696
+    (`svgMovingBox`) point at `svg.ts` too. Phase 6 opens `stageMeasure.ts` and can fix them.
+    §2 6f of this spec describes the flow as it was, and its "when a rule or an aligned line
+    exists" is the layout table's condition; the growth runtime rides only with a rule.
+    `SHAPE_SHIFT_JS` keeps its name, so `behaviour.ts:64` and `behaviourRuntime.ts:747` stay right.
+  - A comment inside a runtime file is emitted bytes: rewording one (for example
+    `svgGrowth.js:31` "defined in the fit block above", true of the emitted script rather than of
+    the file) changes the hashes of every design that carries it and is not a move.
+- **Findings (D10):** none in the product; the five recorded harness findings are unchanged. One
+  in the test selection, found by this phase's review: the e2e gap above (#1138), outside the
+  fence and not fixed here.
+- **Traps:**
+  - The Bash tool here refuses a command whose program or arguments come from a shell variable;
+    write scratchpad paths out in full.
+  - A fresh `SVG_CORPUS_RUNTIME_LOCAL` path per phase, taken on main before the change.
+
 ### Phase 4: the fit runtime as a file (build, 2026-10-13)
 
 - **Last check's findings (phase 3, PASS):** the checker's own AST token check found all 45
@@ -621,7 +720,10 @@ run time, the findings recorded, and the check's findings.
     `const` arrow function appended to `svgFitBoot.js` failed the parse ("The keyword 'const' is
     reserved"); a misspelt `refitSvgTxt()` failed `no-undef`.
   - `SVG_TEXT_FIT_MARKER` (`function fitSvgText`) is in `svgFit.js` once and in the emitted bytes,
-    which did not move; the `import-svg` outlined-text tests prove it on CI.
+    which did not move. Corrected in phase 5: the `import-svg` tests for that marker and its ladder
+    have been skipped since #800, so they proved nothing on CI; the phase 4 checker's own probe
+    proved the marker on all 48 corpus templates through `ensureTextFitRuntime`, and the gap is
+    recorded on #800.
   - `tsc`, `depcruise src` (no violations), ESLint on the changed files, `gates run --changed
     origin/main` (all checks, 4 test files, 23 tests) green; `vote-board-bars`, `readout-ink`,
     `behaviour-removed-layer` and the two phase 3 Node tests pass (21 tests).
