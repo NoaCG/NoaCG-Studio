@@ -154,21 +154,33 @@ account token from `.env`; none needs a deploy. Run them in Git Bash from the ma
 export SUPABASE_ACCESS_TOKEN="$(grep '^SUPABASE_ACCESS_TOKEN=' .env | cut -d= -f2-)"
 REF=garafohbzmsybtysxphb          # staging first; production is kprolrchuldgfrzspthy
 AUTH="https://api.supabase.com/v1/projects/$REF/config/auth"
-patch() { curl -sS -X PATCH "$AUTH" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-  -H 'content-type: application/json' -d "$1" | grep -o "\"${2}\":[a-z]*"; }
+patch() {
+  local out code
+  out=$(curl -sS -X PATCH "$AUTH" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+    -H 'content-type: application/json' -d "$1" -w '\n%{http_code}') || { echo "REFUSED: no answer" >&2; return 1; }
+  code=${out##*$'\n'}
+  out=${out%$'\n'*}
+  case $code in
+    2??) for k in $(grep -o '"[a-z_]*":' <<<"$1" | tr -d '":'); do grep -o "\"$k\":[^,}]*" <<<"$out"; done ;;
+    *) echo "REFUSED, HTTP $code: $out" >&2; return 1 ;;
+  esac
+}
 ```
+
+`patch '<settings>'` prints each setting it sent as Auth holds it afterwards. A refused call
+prints `REFUSED`, the HTTP status and Auth's reason instead and changes nothing; stop there.
 
 **1. Check the project is ready.** `npm run check:migration-drift` lists no pending migration
 for the project (0089, 0090 and 0091 must be applied; a landing pushes them to both). The signing
 key must be asymmetric (the connector refuses HS256 tokens):
 `curl -sS "$AUTH/signing-keys" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | grep -o '"algorithm":"ES256","status":"in_use"'`
-prints one line on both projects today.
+prints one line on both projects today; no line means stop.
 
 **2. Security notification emails on.** They tell a user, after the fact, that their password,
 email, phone, MFA factors or linked identities changed. Useful whatever the connector does.
 
 ```bash
-patch '{"mailer_notifications_password_changed_enabled":true,"mailer_notifications_email_changed_enabled":true,"mailer_notifications_phone_changed_enabled":true,"mailer_notifications_mfa_factor_enrolled_enabled":true,"mailer_notifications_mfa_factor_unenrolled_enabled":true,"mailer_notifications_identity_linked_enabled":true,"mailer_notifications_identity_unlinked_enabled":true}' mailer_notifications_password_changed_enabled
+patch '{"mailer_notifications_password_changed_enabled":true,"mailer_notifications_email_changed_enabled":true,"mailer_notifications_phone_changed_enabled":true,"mailer_notifications_mfa_factor_enrolled_enabled":true,"mailer_notifications_mfa_factor_unenrolled_enabled":true,"mailer_notifications_identity_linked_enabled":true,"mailer_notifications_identity_unlinked_enabled":true}'
 ```
 
 Not recommended: `security_update_password_require_current_password`. Step 3 already keeps
@@ -180,16 +192,16 @@ project; first-party tokens pass through unchanged. Then sign in to the studio o
 once and open Home (production: noacg.studio as yourself).
 
 ```bash
-patch '{"hook_custom_access_token_enabled":true,"hook_custom_access_token_uri":"pg-functions://postgres/public/connector_access_token"}' hook_custom_access_token_enabled
+patch '{"hook_custom_access_token_enabled":true,"hook_custom_access_token_uri":"pg-functions://postgres/public/connector_access_token"}'
 ```
 
 If sign-in fails after this, turn it straight off again:
-`patch '{"hook_custom_access_token_enabled":false}' hook_custom_access_token_enabled`.
+`patch '{"hook_custom_access_token_enabled":false}'`.
 
 **4. The OAuth server on.** This is the switch.
 
 ```bash
-patch '{"oauth_server_enabled":true,"oauth_server_allow_dynamic_registration":true,"oauth_server_authorization_path":"/"}' oauth_server_enabled
+patch '{"oauth_server_enabled":true,"oauth_server_allow_dynamic_registration":true,"oauth_server_authorization_path":"/"}'
 ```
 
 Within a minute `curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://noacg.studio/mcp`
@@ -223,8 +235,12 @@ there ends it.
 within a minute, and tokens already issued are refused at `/mcp`, by the database and by Auth:
 
 ```bash
-patch '{"oauth_server_enabled":false,"oauth_server_allow_dynamic_registration":false}' oauth_server_enabled
+patch '{"oauth_server_enabled":false,"oauth_server_allow_dynamic_registration":false,"oauth_server_authorization_path":"/"}'
 ```
+
+It prints the three settings `false`, `false`, `"/"`; Auth refuses an OAuth change that leaves out
+the authorization path. Off is a pause: switching on again with step 4 lets connections that were
+not revoked work again. To end one for good, Revoke it in Settings.
 
 Leave the hook on: it touches only connector tokens. **Never turn the hook off while the OAuth
 server is on.** Connector tokens issued then would carry the plain `authenticated` role and the
@@ -917,3 +933,78 @@ applied), this checkout's dev server, then one throwaway preview branch of produ
   `select max(version) from supabase_migrations.schema_migrations`.
 - *The off-switch failure is silent* because `patch` greps for success. Read the HTTP status
   when testing any runbook call.
+
+### Phase 5 repair: the runbook's off switch
+
+**Last check's findings:** FAIL product: the runbook's off body was refused by the Management API
+(`400 "Both OAUTH_SERVER_ENABLED and OAUTH_SERVER_AUTHORIZATION_PATH must be provided
+together"`), and the `patch` helper grepped for its key and hid the error (it would have hidden a
+failed step 2, 3 or 4 too). Fix: add `oauth_server_authorization_path` to the off body, and make
+`patch` print the error. Everything else held: steps 1 to 4 verbatim on a throwaway branch, the
+#1083 lock (`400 bad_jwt` on every account endpoint, locally and hosted), `openid` refused with
+403, AC-1 to AC-4 in one run (4 passed, 1 skipped by design locally), production 503.
+
+**What changed.** Only the runbook. The off body names the authorization path. `patch` takes the
+body alone: on a 2xx it prints every setting it sent as Auth now holds it; on anything else it
+prints `REFUSED, HTTP <status>: <Auth's message>` to stderr and returns 1; with no answer at all
+it prints `REFUSED: no answer`. Step 1's signing-key line says that no output means stop.
+"Turning it off" says what it prints, and that off is a pause: connections not revoked work
+again after a switch-on. Every other body was read for the same pairing rule and run on the
+branch: step 2, step 3's hook (enabled and URI together already) and step 4 were accepted, and
+the hook-off rollback `{"hook_custom_access_token_enabled":false}` was accepted on its own.
+
+**Evidence: a throwaway preview branch of production.** Branch `connector-p5-repair` (ref
+`zitmesddhqlrvhhmjahl`), created 07:57:26 UTC on 2026-10-13 through the Management API; it came
+up at 0073 and 0074 to 0091 were applied through the query endpoint. The runbook text was taken
+from this file by a script (setup block, step 1's curl, every `patch` line), with only `REF`
+swapped for the branch, and run against this checkout's dev server on the branch. One test
+account and one OAuth client were minted for the run; the account was deleted, the client went
+with the branch.
+
+- *On, verbatim:* step 1 printed `"algorithm":"ES256","status":"in_use"`; step 2 printed all
+  seven notification settings `true`; step 3 `"hook_custom_access_token_enabled":true` and the
+  URI; step 4 `"oauth_server_enabled":true`, `"oauth_server_allow_dynamic_registration":true`,
+  `"oauth_server_authorization_path":"/"`. A connector token minted through NoaCG's Allow then
+  got `200` with a result from `noacg_library` at `/mcp`; `/mcp` without a token 401, the PRM
+  200; Auth's `/user` with the token `400 bad_jwt`; PostgREST `permission denied to set role
+  "noacg_connector"`.
+- *A refused body is loud:* the old off body printed `REFUSED, HTTP 400: {"message":"Both
+  OAUTH_SERVER_ENABLED and OAUTH_SERVER_AUTHORIZATION_PATH must be provided together when
+  updating OAuth configuration"}` and returned 1, and the branch's Auth still read OAuth server
+  on; a malformed body printed `REFUSED, HTTP 400: {"message":"Expected double-quoted property
+  name in JSON at position 30 ..."}`.
+- *Off, verbatim* at 08:00:15: printed `false`, `false`, `"/"`. Auth's discovery answered 404
+  within 15 s; at 08:01:04 (49 s) `/mcp` with the token answered `503 connector_disabled`, and
+  `/mcp`, the PRM and `/api/me/connectors` without one each answered 503. The hook-off rollback
+  then printed `"hook_custom_access_token_enabled":false`.
+- *Reversible:* steps 1 to 4 again at 08:01:32 (all printed as above); `/mcp` 401 and the PRM
+  200 at 08:02:14. The token minted before the first off worked again (200 result). Off again
+  at 08:02:24: all three paths 503 at 08:03:24.
+- *Deleted* at 08:03:38: the branch list then held only `main`, and the branch's project
+  answered 404 "Resource has been removed". Micro compute for about 6 minutes, under 0.01 USD
+  (phase 5 in all about 0.04 USD of the owner's 2 EUR). Production's and staging's Auth were
+  only read, before and after: OAuth server off with no authorization path, hook off,
+  notifications off.
+- *Production after:* `POST /mcp`, the PRM and `/api/me/connectors` on noacg.studio answered 503
+  `connector_disabled`.
+
+**Decisions.**
+
+- *Report each setting as Auth holds it, not the key the caller names.* The second argument was
+  where the silence came from; printing every sent setting also shows a 200 that kept a value.
+- *Keep `"/"` in the off body* rather than `null`: it is the value step 4 sets, so switching on
+  again is the same call, and Auth accepts it with the server off.
+- *Say that off is a pause*, not a revocation: measured, and it matters if the owner turns the
+  connector off because of an incident.
+
+**What the owner's switch-on must allow for.** Each `patch` line prints its settings; a line
+starting `REFUSED` means that step did not happen. Nothing else changed from phase 5's list.
+
+**Traps.**
+
+- *The Management API pairs OAuth fields:* any change to the OAuth server must send
+  `oauth_server_enabled` and `oauth_server_authorization_path` together.
+- *Deleting the test OAuth client after off answers 404* (Auth's admin OAuth routes go away
+  with the server); the branch's deletion removes it.
+- *Stopping a backgrounded `vite` through the shell leaves its `node` child listening* on
+  Windows; kill it by PID (`netstat -ano`).
