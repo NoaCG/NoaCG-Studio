@@ -712,7 +712,7 @@ export default function CreationWizard() {
       lines: pending.suggestedLines.map((l) => ({ ...l })),
       zone: null,
       logoEnabled: null,
-      animation: { presetId: null, outPresetId: null },
+      animation: { presetId: null, outPresetId: null, steps: null },
       paletteId: null,
       customPalette: null,
       fontId: null,
@@ -2123,7 +2123,8 @@ export default function CreationWizard() {
                     lines: v.suggestedLines.map((l) => ({ ...l })),
                     zone: null,
                     logoEnabled: null, // the logo decision belongs to the picked design
-                    animation: { presetId: null, outPresetId: null },
+                    // Motion and the steps decision too, as on the images walk's Template step.
+                    animation: { presetId: null, outPresetId: null, steps: null },
                     // The chosen brand carries its look into every new graphic.
                     ...(brand
                       ? brandPatch(brand)
