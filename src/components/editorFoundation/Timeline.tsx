@@ -82,7 +82,12 @@ export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, vi
   const cue = session.port.view().cue;
   const dragging = useRef<Marquee | null>(null);
   const ruler = useRef<HTMLDivElement>(null);
-  const tracks = useRef<HTMLDivElement>(null);
+  const tracks = useRef<HTMLDivElement>(null), revealedScroll = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (reveal?.key !== 'u' || reveal.id === revealedScroll.current || !animatedOnly.some(selector => selection.includes(selector))) return;
+    const property = Array.from(tracks.current?.querySelectorAll<HTMLElement>('.ef-property-track') ?? []).find(row => selection.includes(row.dataset.selector!));
+    if (property) { property.scrollIntoView({ block: 'nearest' }); revealedScroll.current = reveal.id; }
+  }, [reveal, animatedOnly, expanded, selection]);
   const startTime = useRef<number | null>(null);
   const extent = Math.max(2, view.duration * 1.15, session.port.view().cue === view.segments.length - 1 ? view.duration + 2 : 0);
   const limit = session.port.view().cue === view.segments.length - 1 ? extent : view.duration;

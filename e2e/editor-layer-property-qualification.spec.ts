@@ -172,7 +172,7 @@ test('property reveal and key navigation leave source and history unchanged', as
   await seek(page,.8); const x=number(page,'Position X'); await x.fill('800'); await x.press('Enter'); await ready(page);
   const keyed=await source(page), keyedHistory=(await inspection(page)).history;
   await canvas.focus(); await page.keyboard.press('u');
-  await expect(page.locator(`.ef-property-track[data-selector="${original}"][data-property="x"]`)).toBeVisible();
+  await expect(page.locator(`.ef-property-track[data-selector="${original}"][data-property="x"]`)).toBeInViewport();
   await page.getByRole('button',{name:'Previous Position X key',exact:true}).click(); await expect(page.getByTestId('foundation-clock')).toHaveText('0.40 s');
   await page.getByRole('button',{name:'Next Position X key',exact:true}).click(); await expect(page.getByTestId('foundation-clock')).toHaveText('0.80 s');
   expect(await source(page)).toEqual(keyed); expect((await inspection(page)).history).toEqual(keyedHistory);
