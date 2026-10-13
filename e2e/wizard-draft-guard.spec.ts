@@ -186,3 +186,63 @@ test('a fresh open holds nothing: entering any walk and leaving asks nothing', a
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
   await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
 });
+
+// ── A DROPPED TEMPLATE FILE ACROSS THE WALK'S LIFETIME ──────────────────────────────────────
+// docs/work-specs/wizard-structure/spec.md section 4 (decided in S1c): the file belongs to the
+// walk it was dropped on. Continue brings it back; Start fresh and the ✕ let it go.
+
+/** A finished one-field template, as a reader would drop it on the Import graphic card. */
+const STUDIO_STRAP = {
+  name: 'studio-strap.html',
+  mimeType: 'text/html',
+  buffer: Buffer.from(
+    '<!DOCTYPE html><html><head><script>window.SPXGCTemplateDefinition = { description: "Studio strap", DataFields: [' +
+      '{ field: "f0", ftype: "textfield", title: "Name", value: "Alexandra Riva" } ] };' +
+      'function update(data) {} function play() {} function stop() {} function next() {}</script></head>' +
+      '<body><div id="root"><span id="f0">Alexandra Riva</span></div></body></html>',
+    'utf8',
+  ),
+};
+
+/** From Home into the wizard's Entry. */
+async function openFromHome(page: Page) {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-door="new-graphic"]').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+}
+
+/** From the wizard's Entry: Import graphic, and the template file dropped on its card. */
+async function dropTemplateFile(page: Page) {
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(STUDIO_STRAP);
+  // The card names the file and the operator fields it found.
+  await expect(page.getByTestId('import-template-card')).toContainText('studio strap');
+}
+
+/** The wizard's own Home door, and whether the walk it left is held (saveActions `heldWalk`). */
+async function leaveAndReadHeld(page: Page): Promise<boolean> {
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  return page.evaluate(async () => {
+    const { useSaveUi } = await import('/src/store/saveActions.ts');
+    return useSaveUi.getState().heldWalk;
+  });
+}
+
+test('a walk started over holds no dropped file: Start fresh and the ✕ both let it go', async ({ page }) => {
+  await openFromHome(page);
+  await dropTemplateFile(page);
+  // Start fresh over the held walk, then leave the fresh one untouched: nothing is held.
+  await leaveThenPressNew(page);
+  await page.getByTestId('confirm-switch').getByTestId('switch-discard').click();
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  expect(await leaveAndReadHeld(page), 'Start fresh').toBe(false);
+
+  // The ✕ rewinds to Entry the same way: the file goes with the walk it was dropped on.
+  await page.locator('[data-door="new-graphic"]').click();
+  await dropTemplateFile(page);
+  await page.locator('.wz-header .gallery-close').click();
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  expect(await leaveAndReadHeld(page), 'the ✕').toBe(false);
+});
