@@ -1249,3 +1249,86 @@ with `connector on` or `connector off`; check the project each call prints. Prod
 
 - *A worktree has no `node_modules`;* `npm ci` took 51 s before this checkout's dev server
   (`npm run dev:worktree`) could start. The branch's anon key was passed inline; no `.env` needed.
+
+### Phase 5 third check: FAIL (product), `patch` is also a system command
+
+On `main` at 4e22a6ac, 2026-10-13, with two throwaway preview branches of production and this
+checkout's dev server pointed at the second. No product code changed since the first check
+(#1104), so AC-1 to AC-4 and the full #1083 lock rest on that check's evidence; the lock was
+spot-checked again here, and step 5's four specs ran on a branch.
+
+- **Without the setup block, `patch` runs GNU patch and hangs without a word.** Git Bash ships
+  `/usr/bin/patch` (`type -a patch` in a fresh shell). In a new window where the owner forgets the
+  setup block and pastes "Turning it off", the `REF` line runs, then GNU patch takes the JSON as a
+  file name and reads the patch from the terminal: it prints nothing and waits until end of input
+  (measured: silent for as long as its input stayed open; fed the pasted lines, it swallowed
+  `connector off` and only then said `Only garbage was found in the patch input`). Nothing
+  changes on any project, but the owner, told that off takes about 80 s, waits on a silent
+  prompt while production stays on. Steps 2 to 4 hang the same way; `project` and `connector` say
+  `command not found`, which is the loud failure wanted. To fix: rename the function to a name
+  no system command has (`authset` is free in Git Bash), check every helper name with `type -a`
+  in a fresh window, and re-run this slip as a paste.
+- **The runbook acts on the project `REF` names, in one shell,** with every block taken from this
+  file by a script and only the `REF=` lines swapped (staging's for branch A, production's and the
+  off section's for branch B; step 5's hard-coded staging ref and its key placeholders for A's).
+  A `.env` holding only the token, with CRLF endings, stood in for the main checkout's.
+  - *Staging's steps on A:* step 1 printed `project <A>` and the ES256 line; steps 2, 3 and 4
+    printed every setting `true` (the hook URI, the path `"/"`), exit 0; `connector on` printed
+    `Auth on` 10 s after the patch. B's whole Auth config was byte-identical before and after,
+    and the dev server (on B) still answered 503 on all three paths.
+  - *Step 5 on A, as written:* 4 passed, 1 skipped (the 503 half, by design with the OAuth server
+    on), 58 s, with `first_party_account_allowed`, `connector_account_refused` (eight account
+    endpoints `400 bad_jwt`) and the spike's 14 checks.
+  - *Step 6's `REF` line, then steps 1 to 4 in the same shell:* every call printed `project <B>`;
+    the same settings; `connector on` `Auth on`. A's config was byte-identical before and after.
+    The dev server then answered `/mcp` 401, the PRM 200 naming B's Auth and `email` only,
+    `/api/me/connectors` 401.
+  - *On B, through the dev server:* a test account's first-party token kept a UUID `sub` with the
+    hook on, and `/api/me/connectors` answered it 200. A scripted MCP SDK client registered,
+    authorized with `scope=email`, and NoaCG's Allow answered 200; the ES256 token carried
+    `client_id`, `sub` `noacg-connector:<uuid>`, `noacg_uid` the user, role `noacg_connector`,
+    and no ID token. `tools/list` (three tools, 2,817 characters) and `noacg_library` worked.
+  - *Lock spot-check with that token:* Auth's `GET` and `PUT /user` (metadata and password) each
+    `400 bad_jwt - invalid claim: sub claim must be a UUID`; the metadata was unchanged and the own
+    password still signed in; PostgREST 403 `permission denied to set role "noacg_connector"`;
+    `noacg_library` still answered.
+  - *"Turning it off" on B* at 09:10:59 UTC: `== project <B>`, `false`, `false`, `"/"`, then
+    `connector off` printed `Auth off`, exit 0. By 09:11:59 the dev server answered 503
+    `connector_disabled` on `/mcp` (with the token too), the PRM and `/api/me/connectors`. A
+    stayed on: its config byte-identical, its discovery 200 while B's answered 404.
+- **The other slips fail loudly.** `REF` unset: `patch`, `connector off` and step 1 each printed
+  `REFUSED: no project, set REF first`, exit 1. Misspelt keys: `oauth_server_enabeld` got
+  `REFUSED, HTTP 400` (Auth's pairing rule); `hook_custom_access_token_enabld` and
+  `oauth_server_allow_dynamic_registraton` each `REFUSED: sent ..., Auth holds no setting named
+  ...`, exit 1. Bad bodies (a trailing comma, `flase`): `REFUSED, HTTP 400` with Auth's reason.
+  `connector of`: `say connector on, or connector off`. Setup pasted in a folder with no `.env`,
+  then the off section against A (on): `grep: .env: No such file or directory`, `REFUSED, HTTP
+  401`, and after three minutes `NOT off: project <A>, Auth on after 3 minutes`, exit 1; A unchanged.
+- **Production and staging:** `REF=kprolrchuldgfrzspthy; connector off` (no `patch`) printed
+  `production (kprolrchuldgfrzspthy): Auth off` and, 65 s later, `https://noacg.studio/mcp 503`.
+  `GET` and `POST https://noacg.studio/mcp`, the PRM and `/api/me/connectors` answered 503
+  `connector_disabled` before and after. Both projects' whole Auth config was byte-identical at
+  09:04 and 09:17 (OAuth server off, path null, hook off, notifications off, `jwt_exp` 3600);
+  `check:migration-drift` says both hold all 89 migrations.
+- **User outcome:** the flow holds and every runbook call names and acts on the project set, but
+  an owner who skips the setup block in a new window meets a silent hang at the off switch.
+- **Smaller points (not blockers):** `patch` with no body prints `== <project>` and exits 0
+  having changed nothing; a body written with spaces (`"key": false`) is applied but each key is
+  reported `REFUSED` (loud, but a false alarm); step 5 names staging's ref inline rather than
+  `$REF`, which is right for a staging-only step.
+- **Not checked (needs a person):** Claude Code's `claude mcp add` sign-in and Claude.ai's first
+  connection.
+- **Hosted branches:** `connector-p5c3-a` (ref `hbxnzcxhjzczedmrkghu`) and `connector-p5c3-b`
+  (ref `catyisoerledmvnhturi`), created 09:04:27 and 09:04:31 UTC; both came up at 0073
+  (`MIGRATIONS_FAILED` at 0074's `concurrently`), and 0074 to 0091 were applied through the query
+  endpoint. No branch Auth config was set outside the runbook's own calls. Test accounts: those
+  step 5's specs mint and delete, and one for the B flow, deleted. Both branches deleted at
+  09:17:26 and 09:17:29: the branch list then held only `main`, and both refs answered 404
+  "Resource has been removed". Two Micro branches for about 13 minutes each, under 0.01 USD
+  (phase 5 in all about 0.07 USD of the owner's 2 EUR).
+
+**Traps.**
+
+- *A hand-fed test of a paste is not a terminal.* A command that reads standard input ends when
+  piped lines run out, but waits forever on a terminal; judge a slip by what a terminal does.
+- *`npm run dev:worktree` listens on `localhost` only* (`[::1]`); `127.0.0.1:<port>` refused it.
