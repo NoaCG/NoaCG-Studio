@@ -5,8 +5,8 @@ on:
       scope:
         description: Verification subset
         type: choice
-        options: [reproduce, changed, complete, references]
-        default: reproduce
+        options: [reproduce, changed, complete, references, cumulative, mutation]
+        default: complete
 permissions:
   contents: read
 jobs:
@@ -21,17 +21,35 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Reproduce missing interactions
+      - name: Focused interactions
         if: inputs.scope == 'reproduce' || inputs.scope == 'changed'
-        run: npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'modifier drag|keyboard duplicate|property reveal' --workers=1
+        run: npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'modifier drag|keyboard duplicate|property reveal' --workers=1 --output=.noacg/results/changed
       - name: Preserved cumulative regressions
         if: inputs.scope == 'complete'
-        run: npx playwright test e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts --workers=1
+        run: npx playwright test e2e/editor-layer-property-qualification.spec.ts e2e/editor-transform-qualification.spec.ts e2e/editor-cli-round-trip.spec.ts e2e/editor-canvas-short-height.spec.ts --workers=1 --output=.noacg/results/maintained
+      - name: Fresh cumulative and actual native zoom tasks
+        if: always() && (inputs.scope == 'complete' || inputs.scope == 'cumulative')
+        run: xvfb-run -a npx playwright test e2e/interaction-probe-task.spec.ts --workers=1 --output=.noacg/results/cumulative
+      - name: Fetch pinned references
+        if: always() && (inputs.scope == 'complete' || inputs.scope == 'references')
+        run: |
+          mkdir -p .noacg
+          curl -fL https://github.com/zerodensity/ograf-studio/releases/download/v0.17/OGrafStudioServer-linux-x64 -o .noacg/studio-server
+          echo '9ba1de317cdc8380c38a694f1d201964d7b805833597419111dab9eea9a02681  .noacg/studio-server' | sha256sum -c -
+          chmod +x .noacg/studio-server
+          git clone https://github.com/Eyevinn/ograf-editor.git .noacg/reference-eyevinn
+          git -C .noacg/reference-eyevinn checkout 616841bd949e3a21137579451123f66c292543f0
+          npm ci --prefix .noacg/reference-eyevinn
+      - name: Execute pinned reference tasks
+        if: always() && (inputs.scope == 'complete' || inputs.scope == 'references')
+        env:
+          REFERENCE_EXE: ${{ github.workspace }}/.noacg/studio-server
+        run: xvfb-run -a npx playwright test e2e/interaction-probe-reference.spec.ts e2e/interaction-probe-conventions.spec.ts --workers=1 --output=.noacg/results/references
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: interaction-receipts
+          include-hidden-files: true
           path: |
-            test-results
+            .noacg/results
             blob-report
-
