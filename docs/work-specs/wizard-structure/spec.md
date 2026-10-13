@@ -180,7 +180,7 @@ persisted-format change; fixing a defect inside an extraction (D10).
   probe at S6: three written capability changes (a template-walk gating rule, a kit confirm, an
   import drop kind), each answered in the phase notes with the files it would touch. Co-change
   is re-measured in S7 and again over a later window of real work, with the matcher fixed first:
-  `scripts/metrics/cochange.mjs:75` matches shared files by exact path (`shared.includes(f)`), so
+  `scripts/metrics/cochange.mjs:76` matches shared files by exact path (`shared.includes(f)`), so
   the new `shell/` files must be listed by path or the matcher changed to a prefix, as the
   capability prefixes at 18-38 already are. The instruction-chain target is reported, not gated
   (section 7). Revert: keep the metric as is.
@@ -262,7 +262,7 @@ days: every open branch would conflict).
   `applyTemplate(..., { resetSampleData: true, keepGalleryOpen: true })`, `toSpxShell`), a
   finished file byte-faithfully through `applyImportedFile` (1492-1499). `rememberWalk`
   (959-973) snapshots the walk before the apply. The legibility settings and, for AI, the spec
-  and thread are set on the store after the swap (1293-1296, 1355).
+  and thread are set on the store after the swap (1288-1290, 1353).
 - **R2 The save resolves by name, once.** `saveBuiltGraphic` (1013-1034): over the record this
   walk made (`madeThisOpen`), else over the record already carrying the name
   (`librarySaveEffect`), else mint through `saveGraphicAs`. A `needs-name` answer mid-write (the
@@ -273,10 +273,10 @@ days: every open branch would conflict).
   returns with the wizard open on Finish (1417-1426).
 - **R4 Production admission.** After the save: `publishGate(template, true)` refuses before any
   rundown write (1430-1434); an existing production is looked up by id and a missing one
-  replaced by a new unnamed one (1457-1461); creating the production and pooling the copy are
-  each awaited through `commitDurableWrites` and reported naming the production (1450-1455,
-  1477-1484); the look is captured onto a production that has none (1485); then `noteMade`,
-  `closeGallery`, `router.replace` to the production (1489-1491).
+  replaced by a new unnamed one (1452-1456); creating the production and pooling the copy are
+  each awaited through `commitDurableWrites` and reported naming the production (1439-1445,
+  1458-1466, 1468-1476); the look is captured onto a production that has none (1478); then
+  `noteMade`, `closeGallery`, `router.replace` to the production (1481-1483).
 - **R5 Set doors.** `saveTemplateSet` (1162-1186) gates every member with `publishGate` before
   writing, `kitBusy` guards the press and `kitError` carries the failure; then `closeGallery` and
   navigate (1203-1209), the export variant setting `pendingProductionExport` first (1218-1225).
@@ -287,7 +287,7 @@ days: every open branch would conflict).
   the set doors are guarded by `kitBusy`. The catalog, AI and file doors carry no press guard
   during their await: S1b characterises a second press while the durable write is held, and S1c
   decides whether that is a defect.
-- **R8 When navigation happens.** The production door after the pooled write committed (1491);
+- **R8 When navigation happens.** The production door after the pooled write committed (1483);
   the editor door right after the apply; the export door never (the window opens over the
   wizard, which stays on the last creation step); the set doors after the show resolved.
 
@@ -469,8 +469,9 @@ outside this plan. `npm run audit:instructions` runs in S7.
   recompile) -> A4 (scopes and the `wizard/ai/` marker, recompile) -> A5 (the AI track's rule
   edits) -> S7 (every shell rule edit). S2 to S6 edit no rule and do not recompile. The
   coordinator of `wizard-shell` reads `wizard-ai`'s ledger before launching S7 and records a
-  `stop` if A4 or A5 is open; the coordinator of `wizard-ai` does the same before A4 if S1a has
-  not landed.
+  `stop` while A4 or A5 is open (launched, not landed); the coordinator of `wizard-ai` does the
+  same before A4 while S1a or S7 is open. A track that has not started holds nothing: the order
+  above serialises concurrent writers, it is not a dependency.
 - **Other shared files.** `scripts/e2e-affected.test.mjs` pins paths for both tracks: A4 before
   S8. `scripts/file-budgets/`: one JSON per budgeted file. `package.json`: S1b adds the one
   `check:file-budgets` line if production-page has not; the AI track adds none.
@@ -634,7 +635,7 @@ the shell still owns the state; each is removed in the phase that moves that sta
 9. **S7. Close-out** (AC-7, AC-8, AC-10, AC-11). Files: `docs/ARCHITECTURE.md`,
    `docs/metrics/<date>-wizard-shell.md`, `scripts/metrics/cochange.mjs`, the budgets, the rule
    files through `npm run learn` and the regenerated contracts, `CreationWizard.tsx:100` if A4
-   landed, `evidence/*`. Lands after the child's A5 (section 8).
+   landed, `evidence/*`. Lands after the child's A5 when that track is running (section 8).
 
 Optional, added to this list by the owner after reading S6 and S7:
 

@@ -115,7 +115,7 @@ coding-agent route, consent; the `MoreControlPanel` beyond lifting one import.
   `src/components/wizard/steps/ai/**` for the step itself once they are rescoped to
   `wizard/ai/**` (Claude loads by path and is unaffected). Covers headers (11 specs name
   `steps/{AiStep.tsx,ai/**}`), `contracts/index.md:523`, `scripts/e2e-affected.test.mjs:261` and
-  the cochange prefixes (`scripts/metrics/cochange.mjs:31` already lists `wizard/ai/`) are updated
+  the cochange prefixes (`scripts/metrics/cochange.mjs:32` already lists `wizard/ai/`) are updated
   in the same pull request. Revert: `git mv` back.
 - **D7 No new ARCHITECTURE edge, no new seam promise.** `src/ai/index.ts` keeps exporting
   `getAiProvider`; `creation.ts` is a named module the step imports directly, as the step imports
@@ -231,7 +231,7 @@ As parent section 8: this track writes only this spec and its `work.json`; owns
 `e2e/ai*.spec.ts`, `e2e/pro*.spec.ts`, `scripts/ai-lite-bench.test.mjs`,
 `scripts/ai-creation.test.mjs`; never edits `CreationWizard.tsx` (the shim keeps the lazy import
 valid); recompiles contracts only in A4 and A5, after the parent's S1a and before its S7; the
-coordinator reads `wizard-shell`'s ledger before A4 and records a `stop` if S1a has not landed.
+coordinator reads `wizard-shell`'s ledger before A4 and records a `stop` while S1a or S7 is open (launched, not landed); a shell run that has not started holds nothing.
 `scripts/e2e-affected.test.mjs` is edited in A4 only; the budgets directory takes one JSON for
 the step; `package.json` is not touched.
 
@@ -289,7 +289,7 @@ adds the next phase's notes under `## Phase notes`. Allowed `src` files are exac
    `steps/ai/ProPanel.tsx`, `steps/ai/MoreControlPanel.tsx` (the `pickerHex` import), the leaf
    that receives `pickerHex` (`src/model/cssVars.ts` or `src/components/wizard/colour.ts`),
    `scripts/ai-creation.test.mjs`. Budget lowered.
-4. **A4. Folder move** (AC-2, AC-9, AC-11). After the parent's S1a. Files: `git mv` of
+4. **A4. Folder move** (AC-2, AC-9, AC-11). Never while the parent's S1a or S7 is open. Files: `git mv` of
    `steps/AiStep.tsx` and `steps/ai/*` to `src/components/wizard/ai/`, the one-line
    `steps/AiStep.tsx` re-export, `src/components/wizard/ai/AGENTS.md` (marker), the eleven
    covers headers, `scripts/e2e-affected.test.mjs`, `scripts/metrics/cochange.mjs` (the
@@ -311,7 +311,7 @@ whether the quarantined code ever returns; the hosted Pro route, which no offlin
 
 Before A1: this spec and `work.json` on `main`, `work-spec.mjs status` clean, the "Runnable
 plans" line present; `origin/main` CI green; the browser queue idle; `gh auth status` ok; no
-open plan run on these files; the owner's window supplied. Before A4: the parent's S1a landed.
+open plan run on these files; the owner's window supplied. Before A4: no shell phase that recompiles contracts (S1a, S7) is open.
 
 ## Phase notes
 
