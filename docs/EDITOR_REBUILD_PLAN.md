@@ -699,6 +699,18 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-13: leave-editor reliability checkpoint, not yet accepted
+
+- [Spec, comparison and verification](work-specs/editor-leave-reliability/README.md) reproduce Home unmounting the editor before resolving edits. The current branch guards mounted-editor route changes through the existing Save/Discard/Cancel decision, protects in-flight writes and first-save continuation, and makes discard restore the linked source or reset an unsaved experiment without changing the library. A dirty flag alone is not discard.
+- Normal Home/Open, naming cancellation, save refusal/retry, duplicate-submit prevention, preserved saved copies, reload and production revision independence pass. A signed-in task against a disposable localhost backend also confirms cloud source equality after Save and no cloud change on discard. It makes no hosted-account claim and changes no backend boundary. Cloud notices remain the next phase.
+- Fresh Studio and Eyevinn lifecycle tasks and desktop/laptop/native-125 cumulative source/output tasks pass. Studio New confirms and resets, while direct Open has no dirty decision; Eyevinn auto-saves edits and needs explicit Delete to remove an experiment. Preserve NoaCG's stronger draft/library separation rather than copying these behaviors.
+- Native browser Back remains unresolved: both Playwright Back and native history.back leave the editor mounted without the expected decision. The repeated failure reached the verification retry limit and was reported; the bounded diagnostic shows the first Back traverses preview-frame history without a top-level route event. The second Back reaches the wizard route and the guard correctly restores the editor and asks. A fresh review must resolve the test assumption versus preview history before acceptance. Do not queue this checkpoint or advance the next phase on these partial passes.
+
+### 2026-10-13: independent interaction check carried into leave-editor work
+
+- [Independent receipt](work-specs/editor-interaction-qualification/independent/README.md) is the exact checker commit dfdfe9f0 carried into this branch. PR #1121 landed as 2ea888ed. Thirty fresh cases passed, including nested copies, marquee selection, both pinned references, cumulative text/artwork/animation, save/reopen and executable SPX/CasparCG/OGraf outputs. Main CI 38437501762 and configured suite 38437502114 passed.
+- Preserve the measured native 125% allocation: 1093x545 CSS content, 196px canvas, 180px timeline, 280px inspector. Engineering qualification does not settle comfort or owner acceptance. The bounded leave-editor slice owns the next save/discard/stay decision; actual cloud notices remain the following phase.
+
 ### 2026-10-13: remaining everyday interaction qualification
 
 - [Spec, reference comparison and receipts](work-specs/editor-interaction-qualification/README.md): current-main reproduction and source tracing found missing keyboard duplicate/select-all, canvas keyboard context, property reveal/key navigation and Alt-drag copies. Existing selection, rename/eye, transforms and numeric scrubs remain in place. Copy batches reuse stable-ID/source operations and one session transaction; input controls retain keyboard ownership.

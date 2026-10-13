@@ -44,8 +44,11 @@ save dialog + the unsaved-changes guard). `saveCurrentGraphic()` writes the link
 document (applies its ACTIVE control entry into sample data) and re-links. Every path calls
 `persistLink()` so the slot's `graphicId`/`dirty` survive a reload even when no template
 change follows. `requestSwitch(proceed, cancel?)` is THE guard: any action that REPLACES the
-working document (open another graphic, create new) goes through it; navigating to
-Home/control/video never does (nothing is lost there). It asks only when the switch would
+working document (open another graphic, create new) goes through it. The mounted editor
+also guards leaving its route before Home/control/video renders. Other surfaces do not
+ask merely because a working document exists. Discard restores the linked library copy
+or a clean unlinked default, persists the slot and clears discarded undo history; it never
+writes a library or production copy. It asks only when the switch would
 lose work: a linked document that drifted (`dirty`), or a never-saved one that differs from
 its creation `baseline`. A never-saved document is `dirty` from birth, so `dirty` alone asked
 over untouched work (e2e/new-graphic-guard.spec.ts). A door that opens the wizard fresh also

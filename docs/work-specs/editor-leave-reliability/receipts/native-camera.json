@@ -1,0 +1,19 @@
+{
+  "zoom": 2,
+  "pan": [
+    31,
+    -13
+  ],
+  "outerWindows": [
+    [
+      1920,
+      1080
+    ],
+    [
+      1366,
+      768
+    ]
+  ],
+  "sourceUnchanged": true,
+  "historyUnchanged": true
+}

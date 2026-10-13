@@ -1,0 +1,38 @@
+[
+  {
+    "run": "38447255350",
+    "path": "cumulative/interaction-probe-task-pha-63bdd-125-percent-cumulative-task-chromium/actual-125-leave-dialog.png",
+    "sha256": "15e952596f2aba9583c06845c66a11cd53209d5d619a7fdf310a066bbda2463f",
+    "inspected": true
+  },
+  {
+    "run": "38447255350",
+    "path": "cumulative/interaction-probe-task-phase-cumulative-task-1366-chromium/laptop-leave-dialog.png",
+    "sha256": "163f947986da2a0ad6b32ffffabec6442c17ca77a4fb36480b019192863fb588",
+    "inspected": true
+  },
+  {
+    "run": "38447255350",
+    "path": "cumulative/interaction-probe-task-phase-cumulative-task-1920-chromium/desktop-leave-dialog.png",
+    "sha256": "04c7da6df528f284a8e59d2ef155f33da80a67027607dd98a607ac56b7a17ea2",
+    "inspected": true
+  },
+  {
+    "run": "38447255350",
+    "path": "references/leave-reference-Eyevinn-sw-6bda3--confirms-explicit-deletion-chromium/eyevinn-kept.png",
+    "sha256": "05ec2e4f1c473a9a465bf24c805ba4b1a8e650bf3455d5f3c7b7390522d61e7f",
+    "inspected": true
+  },
+  {
+    "run": "38447255350",
+    "path": "references/leave-reference-Studio-can-9b0b6-New-and-reopen-saved-source-chromium/studio-reopened.png",
+    "sha256": "d9501c35300d2043864d97b1b7c90c9d9facb9ce38a5aba69424e9cf5170baa6",
+    "inspected": true
+  },
+  {
+    "run": "38448402526",
+    "path": "leave-probe-signed-in-loca-55f75--discard-revisions-distinct-configured/account-leave.png",
+    "sha256": "de872fd50ec9b9010367336dae7f3272022a0598b4f83157db9f9057796af4cb",
+    "inspected": true
+  }
+]
