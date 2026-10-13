@@ -20,26 +20,36 @@ const OFF_CONFIG = () => ({
  * A stateful fake: per-ref Auth config with the Management API's pairing rule and its habit of
  * ignoring unknown keys, discovery that follows the config, and a site that follows production.
  */
-function fakeWorld({ refuse = null, hold = {}, site = null, discovery = null, algorithm = 'ES256', branches = [BRANCH], lagMs = 0 } = {}) {
+function fakeWorld({ refuse = null, hold = {}, site = null, discovery = null, algorithm = 'ES256', branches = [BRANCH], persistent = false, lagMs = 0, failGets = 0 } = {}) {
   const configs = { [PROD]: OFF_CONFIG(), [STAGING]: OFF_CONFIG(), [BRANCH]: OFF_CONFIG() };
   const calls = [];
   let clock = 0;
+  let getsAfterPatch = 0;
   const stale = {}; // ref -> { config, until }: like the API, GET config may lag a PATCH
   const out = [];
   const err = [];
-  const reply = (status, body, pretty = false) => ({
+  const reply = (status, body, pretty = false, headers = {}) => ({
     status,
+    headers: { get: (name) => headers[name.toLowerCase()] ?? null },
     text: async () => (typeof body === 'string' ? body : JSON.stringify(body, null, pretty ? 2 : 0)),
   });
+  const siteReply = (state) => {
+    if (state === 'on') return reply(401, { error: 'unauthorized' }, false, { 'www-authenticate': `Bearer resource_metadata="${PRODUCTION_SITE}/.well-known/oauth-protected-resource/mcp"` });
+    if (state === 'off') return reply(503, { error: { code: 'connector_disabled' } });
+    return reply(503, '<html>Service Unavailable</html>'); // a platform 503, not the connector's
+  };
   const fetch = async (url, { method, headers, body }) => {
     const sent = body ? JSON.parse(body) : undefined;
-    calls.push({ method, url, body: sent, auth: headers?.Authorization });
+    calls.push({ method, url, body: sent, auth: headers?.Authorization, at: clock });
     let m = /^https:\/\/api\.supabase\.com\/v1\/projects\/([a-z]+)\/(.*)$/.exec(url);
     if (m) {
       const [, ref, rest] = m;
-      if (rest === 'branches') return reply(200, branches.map((b) => ({ name: `rehearsal-${b}`, project_ref: b, is_default: false })).concat({ name: 'main', project_ref: PROD, is_default: true }));
+      if (rest === 'branches') return reply(200, branches.map((b) => ({ name: `rehearsal-${b}`, project_ref: b, is_default: false, persistent })).concat({ name: 'main', project_ref: PROD, is_default: true }));
       if (rest === 'config/auth/signing-keys') return reply(200, { keys: [{ algorithm: 'HS256', status: 'previously_used' }, { algorithm, status: 'in_use' }] });
-      if (rest === 'config/auth' && method === 'GET') return reply(200, clock < (stale[ref]?.until ?? 0) ? stale[ref].config : configs[ref], true);
+      if (rest === 'config/auth' && method === 'GET') {
+        if (getsAfterPatch-- > 0) return reply(502, { message: 'Bad gateway' });
+        return reply(200, clock < (stale[ref]?.until ?? 0) ? stale[ref].config : configs[ref], true);
+      }
       if (rest === 'config/auth' && method === 'PATCH') {
         const refusal = refuse?.(sent);
         if (refusal) return reply(400, { message: refusal });
@@ -47,6 +57,7 @@ function fakeWorld({ refuse = null, hold = {}, site = null, discovery = null, al
           return reply(400, { message: 'Both OAUTH_SERVER_ENABLED and OAUTH_SERVER_AUTHORIZATION_PATH must be provided together when updating OAuth configuration' });
         }
         if (lagMs) stale[ref] = { config: structuredClone(configs[ref]), until: clock + lagMs };
+        getsAfterPatch = failGets;
         for (const [k, v] of Object.entries(sent)) if (Object.hasOwn(configs[ref], k)) configs[ref][k] = hold[k] ?? v;
         return reply(200, configs[ref]);
       }
@@ -54,10 +65,10 @@ function fakeWorld({ refuse = null, hold = {}, site = null, discovery = null, al
     m = /^https:\/\/([a-z]+)\.supabase\.co\/auth\/v1\/\.well-known\/oauth-authorization-server$/.exec(url);
     if (m) {
       const c = configs[m[1]];
-      const on = discovery ? discovery(clock) : c.oauth_server_enabled;
-      return on ? reply(200, { issuer: 'x', ...(c.oauth_server_allow_dynamic_registration ? { registration_endpoint: 'x/register' } : {}) }) : reply(404, { message: 'not found' });
+      const on = discovery ? discovery(clock) : c.oauth_server_enabled && c.oauth_server_allow_dynamic_registration;
+      return on ? reply(200, { issuer: 'x', registration_endpoint: 'x/register' }) : reply(404, { message: 'not found' });
     }
-    if (url === `${PRODUCTION_SITE}/mcp`) return reply(site ? site(clock) : configs[PROD].oauth_server_enabled ? 401 : 503, {});
+    if (url === `${PRODUCTION_SITE}/mcp`) return siteReply(site ? site(clock) : configs[PROD].oauth_server_enabled ? 'on' : 'off');
     throw new Error(`unexpected request ${method} ${url}`);
   };
   const io = (shellEnv = {}, fileEnv = FILE_ENV) => ({
@@ -75,8 +86,11 @@ const touchedRefs = (world) => new Set(world.calls.map((c) => /(?:projects\/|htt
 
 test('staging and production map to refs through supabase-projects, and the shell may not disagree with .env', () => {
   assert.deepEqual(projectRefs(FILE_ENV, {}), { production: PROD, staging: STAGING });
-  assert.deepEqual(projectRefs(FILE_ENV, { STAGING_SUPABASE_PROJECT_REF: 'abcdefghijabcdefghij' }).staging, 'abcdefghijabcdefghij');
+  assert.deepEqual(projectRefs({ ...FILE_ENV, STAGING_SUPABASE_PROJECT_REF: 'abcdefghijabcdefghij' }, {}).staging, 'abcdefghijabcdefghij');
+  assert.deepEqual(projectRefs(FILE_ENV, { VITE_SUPABASE_URL: FILE_ENV.VITE_SUPABASE_URL }).production, PROD);
   assert.throws(() => projectRefs(FILE_ENV, { VITE_SUPABASE_URL: `https://${BRANCH}.supabase.co` }), /ambiguous/);
+  // A window pointed at a branch cannot stand in for a checkout whose .env names no production.
+  assert.throws(() => projectRefs({}, { VITE_SUPABASE_URL: `https://${BRANCH}.supabase.co` }), /\.env says nothing/);
   assert.equal(projectRefs({}, {}).production, '');
 });
 
@@ -137,14 +151,17 @@ test('a setting Auth holds differently, or does not know, is REFUSED and stops t
   assert.equal(patches(unknown).length, 1);
 });
 
-test('the config read back may lag the PATCH: it is read again, and a read that never agrees is REFUSED', async () => {
+test('the config read back may lag or fail after the PATCH: it is read again, and a read that never agrees is REFUSED', async () => {
   const lagging = fakeWorld({ lagMs: 10_000 });
   assert.equal(await main(['staging', 'on'], lagging.io()), 0, lagging.err.join('\n'));
   assert.ok(lagging.out.includes('...  access token hook on: Auth stored it; reading the config back (up to 60 s)'));
 
+  const flaky = fakeWorld({ failGets: 1 });
+  assert.equal(await main(['staging', 'on'], flaky.io()), 0, flaky.err.join('\n'));
+
   const stuck = fakeWorld({ lagMs: 10 * 60_000 });
   assert.equal(await main(['staging', 'on'], stuck.io()), 1);
-  assert.match(stuck.err[0], /^REFUSED: security notification emails on: read back after 60 s: sent mailer_notifications_password_changed_enabled=true, Auth holds false/);
+  assert.match(stuck.err[0], /^REFUSED: security notification emails on: Auth's PATCH answer held it, but the config read back after 60 s says: sent mailer_notifications_password_changed_enabled=true, Auth holds false/);
   assert.equal(patches(stuck).length, 1);
 });
 
@@ -154,29 +171,38 @@ test('values compare by value, not by how Auth formats its answer', async () => 
   assert.ok(world.out.some((l) => l === 'ok   OAuth server on: Auth reads back 3 settings as sent'));
 });
 
-test('off sends the paired body; --hook-off sends the hook only after Auth reads the OAuth server off', async () => {
-  const world = fakeWorld();
-  world.configs[PROD] = { ...world.configs[PROD], oauth_server_enabled: true, oauth_server_allow_dynamic_registration: true, oauth_server_authorization_path: '/', hook_custom_access_token_enabled: true };
+test('off sends the paired body; --hook-off sends the hook only once Auth reads the OAuth server off', async () => {
+  const world = fakeWorld({ discovery: (clock) => clock < 20_000 }); // Auth keeps serving for 20 s
+  world.configs[PROD] = { ...world.configs[PROD], oauth_server_enabled: true, oauth_server_allow_dynamic_registration: true, oauth_server_authorization_path: '/', ...STEPS.on[1][1] };
   assert.equal(await main(['production', 'off', '--hook-off'], world.io()), 0, world.err.join('\n'));
   assert.deepEqual(patches(world).map((c) => c.body), [
     { oauth_server_enabled: false, oauth_server_allow_dynamic_registration: false, oauth_server_authorization_path: '/' },
     { hook_custom_access_token_enabled: false },
   ]);
-  const hookAt = world.calls.findIndex((c) => c.method === 'PATCH' && 'hook_custom_access_token_enabled' in c.body);
-  const authOffAt = world.calls.findIndex((c) => c.url.includes('oauth-authorization-server'));
-  assert.ok(authOffAt > 0 && authOffAt < hookAt, 'discovery read off before the hook goes');
+  assert.ok(patches(world)[1].at >= 20_000, 'the hook goes only after discovery stopped offering the OAuth server');
   assert.equal(world.out.at(-1), `production (${PROD}): connector off`);
 });
 
-test('the ending check fails loudly: NOT off when the site stays 401, NOT on when Auth never flips', async () => {
-  const stuck = fakeWorld({ site: () => 401 });
+test('the ending check fails loudly: NOT off when the site stays on or answers a platform 503, NOT on when Auth never flips', async () => {
+  const stuck = fakeWorld({ site: () => 'on' });
   assert.equal(await main(['production', 'off'], stuck.io()), 1);
   assert.equal(stuck.err[0], `NOT off: ${PRODUCTION_SITE}/mcp answers 401, not 503`);
+
+  const platform = fakeWorld({ site: () => 'platform' });
+  assert.equal(await main(['production', 'off'], platform.io()), 1);
+  assert.match(platform.err[0], /^NOT off: https:\/\/noacg\.studio\/mcp answers HTTP 503 <html>/);
 
   const neverOn = fakeWorld({ discovery: () => false });
   assert.equal(await main(['staging', 'on'], neverOn.io()), 1);
   assert.match(neverOn.err[0], /^NOT on: staging \(garafohbzmsybtysxphb\), Auth's discovery reads off after 3 minutes$/);
   assert.ok(!neverOn.calls.some((c) => c.url.startsWith(PRODUCTION_SITE)), 'staging has no site check');
+});
+
+test('a request that never answers ends in REFUSED, not a hang', async () => {
+  const world = fakeWorld();
+  const hanging = (url, { signal }) => new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
+  assert.equal(await main(['staging', 'status'], { ...world.io(), fetch: hanging, timeoutMs: 5 }), 1);
+  assert.match(world.err[0], /^REFUSED: GET \/v1\/projects\/garafohbzmsybtysxphb\/config\/auth: no answer: no answer in 0\.005 s$/);
 });
 
 test('status only reads, and says production is off with the site at 503', async () => {
@@ -187,32 +213,39 @@ test('status only reads, and says production is off with the site at 503', async
   assert.equal(world.out.at(-1), `production (${PROD}): connector off`);
 });
 
-test('status says NOT safe when the OAuth server runs without the hook', async () => {
-  const world = fakeWorld();
-  Object.assign(world.configs[STAGING], { oauth_server_enabled: true, oauth_server_allow_dynamic_registration: true });
-  assert.equal(await main(['staging', 'status'], world.io()), 1);
-  assert.match(world.err[0], /^NOT safe: /);
+test("status says NOT safe when the OAuth server runs without the connector's hook", async () => {
+  for (const hook of [{}, { hook_custom_access_token_enabled: true, hook_custom_access_token_uri: 'pg-functions://postgres/public/other' }]) {
+    const world = fakeWorld();
+    Object.assign(world.configs[STAGING], { oauth_server_enabled: true, oauth_server_allow_dynamic_registration: true }, hook);
+    assert.equal(await main(['staging', 'status'], world.io()), 1);
+    assert.match(world.err[0], /^NOT safe: /);
+  }
 });
 
-test('--ref takes only a preview branch of production and touches nothing else', async () => {
+test('--ref takes only a throwaway preview branch of production and touches nothing else', async () => {
   const world = fakeWorld();
   assert.equal(await main(['--ref', BRANCH, 'on'], world.io()), 0, world.err.join('\n'));
   assert.equal(world.out[0], `== branch ${BRANCH}, throwaway preview branch only: on`);
   assert.deepEqual(patches(world).map((c) => c.url), Array(3).fill(`https://api.supabase.com/v1/projects/${BRANCH}/config/auth`));
   assert.ok(!world.calls.some((c) => c.url.startsWith(PRODUCTION_SITE)));
 
-  const refusals = { [PROD]: /is production; name it/, [STAGING]: /is staging; name it/, abcdefghijabcdefghij: /not a preview branch of production/, nope: /not a project ref/ };
+  const refusals = { [PROD]: /is production; name it/, [STAGING]: /is staging; name it/, abcdefghijabcdefghij: /not a throwaway preview branch/, nope: /not a project ref/ };
   for (const [ref, reason] of Object.entries(refusals)) {
     const refused = fakeWorld();
     assert.equal(await main(['--ref', ref, 'off'], refused.io()), 1, ref);
     assert.match(refused.err[0], reason);
     assert.ok(!refused.calls.some((c) => c.method === 'PATCH'), ref);
   }
+  const kept = fakeWorld({ persistent: true });
+  assert.equal(await main(['--ref', BRANCH, 'off'], kept.io()), 1);
+  assert.match(kept.err[0], /not a throwaway preview branch/);
 });
 
-test('an HS256 signing key refuses on before anything changes', async () => {
-  const world = fakeWorld({ algorithm: 'HS256' });
-  assert.equal(await main(['staging', 'on'], world.io()), 1);
-  assert.match(world.err[0], /HS256/);
-  assert.equal(patches(world).length, 0);
+test('a signing key that is not known to be asymmetric refuses on before anything changes', async () => {
+  for (const algorithm of ['HS256', null]) {
+    const world = fakeWorld({ algorithm });
+    assert.equal(await main(['staging', 'on'], world.io()), 1);
+    assert.match(world.err[0], /^REFUSED: the signing key in use is (HS256|none); the connector needs ES256, RS256, EdDSA/);
+    assert.equal(patches(world).length, 0);
+  }
 });

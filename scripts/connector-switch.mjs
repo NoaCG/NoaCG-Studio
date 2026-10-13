@@ -42,6 +42,9 @@ const SITE_CACHE_MS = 65_000;
 const SITE_WAIT_MS = 60_000;
 const READBACK_MS = 60_000;
 const READBACK_POLL_MS = 3_000;
+const ASYMMETRIC = ['ES256', 'RS256', 'EdDSA'];
+/** What https://noacg.studio/mcp answers without a token in each state. */
+const SITE_ANSWER = { on: 401, off: 503 };
 
 const EMAILS = Object.fromEntries(
   ['password_changed', 'email_changed', 'phone_changed', 'mfa_factor_enrolled', 'mfa_factor_unenrolled', 'identity_linked', 'identity_unlinked']
@@ -85,14 +88,15 @@ function parseArgs(argv) {
   return { name, action, ref: args.ref, hookOff: args.hookOff };
 }
 
-/** One value both from `.env` and from this window: refuse when they name different things. */
+/** A project setting comes from `.env` only; a window that sets it differently is refused, so a
+ *  shell left pointed at a branch cannot make `production` mean that branch. */
 function agreed(key, fileEnv, shellEnv) {
   const file = (fileEnv[key] ?? '').trim();
   const shell = (shellEnv[key] ?? '').trim();
-  if (file && shell && file !== shell) {
-    throw new Refused(`this window sets ${key}=${shell} but .env says ${file}, so the project name is ambiguous; run it in a new window`);
+  if (shell && file !== shell) {
+    throw new Refused(`this window sets ${key}=${shell} but .env says ${file || 'nothing'}, so the project name is ambiguous; run it in a new window`);
   }
-  return shell || file;
+  return file;
 }
 
 /** The refs `staging` and `production` stand for, from the same module the landing uses. */
@@ -102,18 +106,23 @@ export function projectRefs(fileEnv, shellEnv) {
   return { production, staging };
 }
 
+/**
+ * One request with a timer this function CLEARS, as scripts/migration-drift.mjs explains:
+ * `AbortSignal.timeout()` can abort the process on exit on Windows.
+ */
 async function request(io, method, url, { token, body } = {}) {
+  const timeoutMs = io.timeoutMs ?? TIMEOUT_MS;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'content-type': 'application/json' } : {}) };
   try {
     const res = await io.fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: controller.signal });
     const text = await res.text();
     let json = null;
     try { json = JSON.parse(text); } catch { /* not JSON: the text is the message */ }
-    return { status: res.status, text, json };
+    return { status: res.status, text, json, headers: res.headers };
   } catch (error) {
-    return { status: 0, text: error?.name === 'AbortError' ? `no answer in ${TIMEOUT_MS / 1000} s` : String(error?.message ?? error), json: null };
+    return { status: 0, text: controller.signal.aborted ? `no answer in ${timeoutMs / 1000} s` : String(error?.message ?? error), json: null };
   } finally {
     clearTimeout(timer);
   }
@@ -146,10 +155,13 @@ async function apply(ctx, label, settings) {
   if (wrong.length) throw new Refused(`${label}: ${wrong.join('; ')}`);
   const deadline = ctx.io.now() + READBACK_MS;
   for (let first = true; ; first = false) {
-    const held = await managed(ctx, 'GET', `/v1/projects/${ctx.ref}/config/auth`);
-    wrong = differences(settings, held);
+    // A failed read is retried like a stale one: the change itself has already been stored.
+    const held = await managed(ctx, 'GET', `/v1/projects/${ctx.ref}/config/auth`).catch((error) => error);
+    wrong = held instanceof Error ? [held.message] : differences(settings, held);
     if (!wrong.length) break;
-    if (ctx.io.now() >= deadline) throw new Refused(`${label}: read back after ${READBACK_MS / 1000} s: ${wrong.join('; ')}`);
+    if (ctx.io.now() >= deadline) {
+      throw new Refused(`${label}: Auth's PATCH answer held it, but the config read back after ${READBACK_MS / 1000} s says: ${wrong.join('; ')}`);
+    }
     if (first) ctx.io.out(`...  ${label}: Auth stored it; reading the config back (up to ${READBACK_MS / 1000} s)`);
     await ctx.io.sleep(READBACK_POLL_MS);
   }
@@ -160,20 +172,30 @@ async function apply(ctx, label, settings) {
 async function signingKey(ctx) {
   const { keys = [] } = await managed(ctx, 'GET', `/v1/projects/${ctx.ref}/config/auth/signing-keys`);
   const inUse = keys.find((key) => key.status === 'in_use');
-  return { algorithm: inUse?.algorithm ?? 'none', asymmetric: Boolean(inUse && inUse.algorithm !== 'HS256') };
+  return { algorithm: inUse?.algorithm ?? 'none', asymmetric: ASYMMETRIC.includes(inUse?.algorithm) };
 }
 
-/** What a deployment reads: Auth's discovery offers registration exactly when the connector is on. */
+/**
+ * What a deployment reads, by the site's own rule (api/_lib/connectorAuth.ts): on when Auth's
+ * discovery is JSON with a string `issuer` and a `registration_endpoint`; off when it answers 404
+ * or a document without them. Anything else is unreadable, never off.
+ */
 async function discovery(ctx) {
   const res = await request(ctx.io, 'GET', `https://${ctx.ref}.supabase.co/auth/v1/.well-known/oauth-authorization-server`);
-  if (res.status === 200) return res.json?.registration_endpoint ? 'on' : 'off';
   if (res.status === 404) return 'off';
+  if (res.status === 200 && res.json) {
+    const on = typeof res.json.registration_endpoint === 'string' && res.json.registration_endpoint && typeof res.json.issuer === 'string';
+    return on ? 'on' : 'off';
+  }
   return `unreadable (${res.status ? `HTTP ${res.status}` : res.text})`;
 }
 
-async function siteCode(ctx) {
+/** The site's own answer: 401 asking for a token is on, 503 `connector_disabled` is off. */
+async function siteState(ctx) {
   const res = await request(ctx.io, 'POST', `${PRODUCTION_SITE}/mcp`);
-  return res.status || `no answer (${res.text})`;
+  if (res.status === 401 && /resource_metadata=/.test(res.headers?.get?.('www-authenticate') ?? '')) return 'on';
+  if (res.status === 503 && res.json?.error?.code === 'connector_disabled') return 'off';
+  return res.status ? `HTTP ${res.status} ${res.text.slice(0, 120)}` : `no answer (${res.text})`;
 }
 
 async function waitForAuth(ctx, want) {
@@ -191,16 +213,15 @@ async function waitForAuth(ctx, want) {
 
 async function waitForSite(ctx, want, authFlippedAt) {
   if (ctx.name !== 'production') return;
-  const code = want === 'on' ? 401 : 503;
+  const code = SITE_ANSWER[want];
   ctx.io.out(`...  waiting for ${PRODUCTION_SITE}/mcp to answer ${code}: each warm instance keeps Auth's answer for a minute`);
   const wait = authFlippedAt + SITE_CACHE_MS - ctx.io.now();
   if (wait > 0) await ctx.io.sleep(wait);
   const deadline = ctx.io.now() + SITE_WAIT_MS;
-  let got;
   for (;;) {
-    got = await siteCode(ctx);
-    if (got === code) break;
-    if (ctx.io.now() >= deadline) throw new Not(`NOT ${want}: ${PRODUCTION_SITE}/mcp answers ${got}, not ${code}`);
+    const got = await siteState(ctx);
+    if (got === want) break;
+    if (ctx.io.now() >= deadline) throw new Not(`NOT ${want}: ${PRODUCTION_SITE}/mcp answers ${got === 'on' || got === 'off' ? SITE_ANSWER[got] : got}, not ${code}`);
     await ctx.io.sleep(POLL_MS);
   }
   ctx.io.out(`ok   ${PRODUCTION_SITE}/mcp ${code}`);
@@ -217,14 +238,15 @@ async function status(ctx) {
     `notification emails ${emails} of ${Object.keys(EMAILS).length} on`);
   const auth = await discovery(ctx);
   ctx.io.out(`Auth's discovery reads ${auth}`);
-  const site = ctx.name === 'production' ? await siteCode(ctx) : null;
-  if (site !== null) ctx.io.out(`${PRODUCTION_SITE}/mcp ${site}`);
-  if (config.oauth_server_enabled === true && config.hook_custom_access_token_enabled !== true) {
-    throw new Not(`NOT safe: the OAuth server is on without the access token hook; run: node scripts/connector-switch.mjs ${ctx.arg} on (or off)`);
+  const site = ctx.name === 'production' ? await siteState(ctx) : null;
+  const siteSays = SITE_ANSWER[site] ?? site;
+  if (site !== null) ctx.io.out(`${PRODUCTION_SITE}/mcp ${siteSays}`);
+  const hooked = config.hook_custom_access_token_enabled === true && config.hook_custom_access_token_uri === HOOK_ON.hook_custom_access_token_uri;
+  if ((config.oauth_server_enabled === true || auth === 'on') && !hooked) {
+    throw new Not(`NOT safe: the OAuth server is on without the connector's access token hook; run: node scripts/connector-switch.mjs ${ctx.arg} on (or off)`);
   }
-  const expectedSite = { on: 401, off: 503 }[auth];
-  if (!expectedSite || (site !== null && site !== expectedSite)) {
-    throw new Not(`NOT settled: Auth's discovery reads ${auth}${site !== null ? `, ${PRODUCTION_SITE}/mcp answers ${site}` : ''}; ask again in a minute`);
+  if (!SITE_ANSWER[auth] || (site !== null && site !== auth)) {
+    throw new Not(`NOT settled: Auth's discovery reads ${auth}${site !== null ? `, ${PRODUCTION_SITE}/mcp answers ${siteSays}` : ''}; ask again in a minute`);
   }
   ctx.io.out(`${ctx.label}: connector ${auth}`);
 }
@@ -255,7 +277,9 @@ async function run(argv, io) {
   if (args.ref !== null) {
     const branches = await managed(ctx, 'GET', `/v1/projects/${refs.production}/branches`);
     const branch = Array.isArray(branches) ? branches.find((b) => b.project_ref === args.ref) : null;
-    if (!branch || branch.is_default) throw new Refused(`${args.ref} is not a preview branch of production; --ref is for throwaway branches only`);
+    if (!branch || branch.is_default || branch.persistent) {
+      throw new Refused(`${args.ref} is not a throwaway preview branch of production; --ref is for those only`);
+    }
     ctx.io.out(`ok   ${args.ref} is production's preview branch "${branch.name}"`);
   }
 
@@ -263,7 +287,7 @@ async function run(argv, io) {
 
   if (args.action === 'on') {
     const key = await signingKey(ctx);
-    if (!key.asymmetric) throw new Refused(`the signing key in use is ${key.algorithm}; the connector refuses HS256 tokens, so switch to an asymmetric key first. Nothing was changed`);
+    if (!key.asymmetric) throw new Refused(`the signing key in use is ${key.algorithm}; the connector needs ${ASYMMETRIC.join(', ')} (it refuses HS256 tokens). Nothing was changed`);
     io.out(`ok   signing key ${key.algorithm} in use`);
     for (const [label, settings] of STEPS.on) await apply(ctx, label, settings);
     await waitForSite(ctx, 'on', await waitForAuth(ctx, 'on'));

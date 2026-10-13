@@ -158,7 +158,8 @@ node scripts/connector-switch.mjs <staging|production> <on|off|status> [--hook-o
 Its first line names the project (`== production (kprolrchuldgfrzspthy): on`); check it is the
 one you mean. A line starting `REFUSED` (Auth's HTTP code and message, a setting Auth does not
 hold as sent, no token, an unknown name) or `NOT` (the connector did not reach the state asked
-for) means stop; the command then exits non-zero. `status` only reads. To rehearse on a throwaway
+for) means stop; the command then exits non-zero. The one exception is `NOT` after `off`: the
+connector may still be on, so run the same `off` again. `status` only reads. To rehearse on a throwaway
 preview branch of production, put `--ref <branch ref>` in place of the project name; it refuses
 any ref that is not such a branch.
 
@@ -287,8 +288,9 @@ that names no session, which an ID token never does.
 **Safeguards.** The notification emails (`on` sets them); Revoke in Settings; the grant row checked on
 every call; refresh tokens end with Revoke; access tokens live an hour (`jwt_expiry`).
 
-**Launch decision.** With steps 1 to 4 done, the #1083 boundary holds as the plan states it. No
-risk above needs accepting to switch on; the second and fourth are worth knowing.
+**Launch decision.** With a project switched on by `on` (steps 2 and 4), the #1083 boundary
+holds as the plan states it. No risk above needs accepting to switch on; the second and fourth
+are worth knowing.
 
 ## Phase notes
 
@@ -1281,28 +1283,43 @@ repo command, because all three failed checks came from pasted shell state.
   (read from the branch list); production's or staging's own ref is refused ("name it instead").
   The first line names the project. The token comes from the window or the checkout's `.env`
   (CR stripped; a worktree falls back to the main checkout's `.env`, as every keyed script does).
-- *`on`* checks the signing key (refuses HS256 before changing anything), then sends the
-  notification emails, the hook and the OAuth server in that order; *`off`* sends the paired off
-  body; *`--hook-off`* (off only) sends the hook off after Auth's config and discovery read the
-  OAuth server off. Each body is checked by value in the PATCH's answer and then in a fresh read
-  of the config. Each run ends on Auth's discovery (up to 3 minutes), and on production on
-  `https://noacg.studio/mcp` 401 or 503, polled once 65 s have passed since Auth flipped, for a
-  minute more. `status` only reads, and says `NOT safe` if the OAuth server runs without the hook.
-  Every refusal is `REFUSED: ...` with the HTTP code and Auth's message, every missed state
-  `NOT on|off: ...`, both exit 1. Every request has a 20 s timeout and nothing reads the terminal.
+- *`on`* checks the signing key (only ES256, RS256 or EdDSA pass; anything else is refused
+  before any change), then sends the notification emails, the hook and the OAuth server in that
+  order; *`off`* sends the paired off body; *`--hook-off`* (off only) sends the hook off after
+  Auth's config and discovery read the OAuth server off. Each body is checked by value in the
+  PATCH's answer and then in a fresh read of the config (a failed or stale read is retried for a
+  minute). Each run ends on Auth's discovery, read by the site's own rule in
+  `api/_lib/connectorAuth.ts` (up to 3 minutes), and on production on `https://noacg.studio/mcp`:
+  401 with `resource_metadata` for on, 503 `connector_disabled` for off (a platform 503 does not
+  count), polled once 65 s have passed since Auth flipped, for a minute more. `status` only reads,
+  and says `NOT safe` if the OAuth server runs without the connector's hook (enabled and pointing
+  at `connector_access_token`). Every refusal is `REFUSED: ...` with the HTTP code and Auth's
+  message, every missed state `NOT on|off: ...`, both exit 1. Every request has a 20 s timeout and
+  nothing reads the terminal.
 - *The runbook* now has four steps: 1 ready (`check:migration-drift`; the signing key is in `on`
   and `status`), 2 staging on, 3 the four specs on staging (unchanged), 4 production on; then
   "Turning it off". The setup block, `REF=` lines, `patch` and `connector` are gone. The security
   review's step references follow the new numbers; the notes above keep the old ones.
-- *Unit tests* (`scripts/connector-switch.test.mjs`, 14, a stubbed `fetch` and clock): project
-  mapping and a window that disagrees with `.env`, unknown project, action and option, missing
-  token, a refusal (no OAuth server after it), a mismatch and an unknown key, a read-back that
-  lags and one that never agrees, the paired off body, the order, hook off only after discovery
-  reads off, the ending checks (NOT off with the site stuck at 401, NOT on with Auth never
-  flipping), `status` read only and `NOT safe`, `--ref` refusals, HS256. Nine hand-made mutants
-  of the command (unpaired off body, order swapped, no cache wait, string comparison, no mismatch
-  check, hook off before discovery, no site check, no branch check, token keeping its CR) each
-  fail at least one test.
+- *Unit tests* (`scripts/connector-switch.test.mjs`, 15, a stubbed `fetch` and clock): project
+  mapping and a window that disagrees with `.env` or stands in for a missing one, unknown project,
+  action and option, missing token, a refusal (no OAuth server after it), a mismatch and an
+  unknown key, a read-back that lags, fails once, or never agrees, the paired off body, the order,
+  hook off only once a lagging discovery reads off, the ending checks (NOT off with the site still
+  on or answering a platform 503, NOT on with Auth never flipping), a request that never answers,
+  `status` read only and `NOT safe` (no hook, or a hook pointing elsewhere), `--ref` refusals
+  (including a persistent branch), HS256 and an unknown algorithm. Thirteen hand-made mutants of
+  the command (unpaired off body, order swapped, no cache wait, string comparison, no mismatch
+  check, hook off before discovery, no site check, no branch check, persistent branch accepted,
+  site read by code only, a failed read-back refusing, hook function unchecked, token keeping its
+  CR) each fail at least one test.
+- *The review's fixes,* made after the hosted run below: the site's answer is read by its body
+  and header, not its code alone; discovery by the site's own rule; a failed read-back is retried
+  rather than reported as a refused write; production's ref comes from `.env` only; persistent
+  branches are refused by `--ref`; the signing key passes on an allow-list; `NOT safe` checks the
+  hook's function; the runbook says to run `off` again after a `NOT` from it. Re-checked on hosted
+  read-only: `production status` and `staging status` at 10:17 printed the same as at 10:08, and
+  a window pointing `VITE_SUPABASE_URL` elsewhere was refused. The site's 401 header was read in
+  `api/_lib/me/mcp.ts`, not on a live on-state.
 
 **Evidence: two throwaway preview branches of production,** `connector-p5r3-a` (ref
 `wswzaccfukrfxvimjgvz`) and `connector-p5r3-b` (ref `wbnetwsdsxarnsvhvzri`), created 09:54:10
@@ -1365,11 +1382,13 @@ main checkout's).
   this repair removes; two commands bring back an order the owner must keep. A broken hook
   breaks connector tokens too, so nothing unsafe opens; the sign-in check follows `on`, and its
   rollback is one command (`off --hook-off`).
-- *`--ref` only for preview branches of production,* checked against the branch list, so a
-  rehearsal can never be aimed at a real project and the runbook stays verbatim apart from it.
-- *Production's ref comes from `.env`* as the rest of the repository reads it, and a window that
-  sets a different `VITE_SUPABASE_URL` is refused, not obeyed: a shell left pointed at a branch
-  must not make `production` mean that branch.
+- *`--ref` only for non-persistent preview branches of production,* checked against the branch
+  list, so a rehearsal can never be aimed at a real project and the runbook stays verbatim apart
+  from it.
+- *Production's ref comes from `.env` only* (staging's from `.env` or the default), and a window
+  that sets a different value, or sets one `.env` lacks, is refused, not obeyed: a shell left
+  pointed at a branch must not make `production` mean that branch. A fork keeping its own staging
+  sets `STAGING_SUPABASE_PROJECT_REF` in `.env`.
 - *The PATCH's answer and a re-read of the config,* not the re-read alone: the read is cached
   for about 10 s, so a stale read can neither confirm nor refute on its own.
 - *Step 1's drift check stays manual* (`npm run check:migration-drift` is already the one
