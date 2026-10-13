@@ -72,6 +72,11 @@ since the last explicit Save. The store (`templateStore`) tracks
 - The autosave slot is the crash-safety net (reload restores edits, dirty flag included);
   Save is the durable, named, synced record. Both survive; they are never conflated.
 - Opening another document with unsaved changes asks first (Save / Discard / Cancel).
+- Leaving the mounted editor resolves that same choice before rendering Home or another
+  route, including browser history. Cancel and cancelled first-save naming stay in the
+  editor. Discard restores the linked library graphic or a clean unlinked default, persists
+  the working slot and clears discarded undo history; it never modifies the saved library
+  or production copies. An untouched wizard Edit result still leaves without a question.
 
 ## 3. Navigation (hash routes, one application)
 
