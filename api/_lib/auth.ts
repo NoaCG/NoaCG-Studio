@@ -43,10 +43,12 @@ function unverifiedClaims(token: string | null): Record<string, unknown> | null 
   }
 }
 
-/** Whether a JWT names a session, as every first-party access token does. Only used to refuse. */
-function hasSession(token: string): boolean {
-  const sid = unverifiedClaims(token)?.session_id;
-  return typeof sid === 'string' && sid !== '' && sid !== '00000000-0000-0000-0000-000000000000';
+/** Whether a JWT is shaped like a first-party session: it names a session and no OAuth client.
+ *  Read unverified, so only ever used to refuse. */
+function firstPartyShaped(token: string): boolean {
+  const claims = unverifiedClaims(token);
+  const sid = claims?.session_id;
+  return !claims?.client_id && typeof sid === 'string' && sid !== '' && sid !== '00000000-0000-0000-0000-000000000000';
 }
 
 /** Resolve a Bearer JWT to a user id; null = anonymous (absent/invalid token or no backend).
@@ -60,7 +62,7 @@ function hasSession(token: string): boolean {
  *  session; an OAuth ID token does not (it carries the real user id and the client as `aud`), and
  *  getUser would answer for it as well (issue #1083, measured on a hosted branch). */
 export async function verifyUser(token: string | null): Promise<AuthedUser | null> {
-  if (!token || oauthClientOf(token) || !hasSession(token)) return null;
+  if (!token || !firstPartyShaped(token)) return null;
   const env = supabaseEnv();
   if (!env) return null;
   try {

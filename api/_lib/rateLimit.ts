@@ -305,7 +305,7 @@ function callLogs(): Map<string, number[]> {
  *  than a window ago (one send, a minute's wait, and then only 9 of 10 got through). The send
  *  budget is a number a person reads in a refusal, so it holds to the call. Memory is at most
  *  `max` times per user; a refused call is logged too, so a loop stays refused. */
-export function hitCallLog(key: string, caps: RateLimitCaps, nowMs: number): RateLimitDecision {
+function hitCallLog(key: string, caps: RateLimitCaps, nowMs: number): RateLimitDecision {
   if (caps.max <= 0) return { allowed: true, retryAfterSec: 0 };
   const logs = callLogs();
   const recent = (logs.get(key) ?? []).filter((t) => nowMs - t < caps.windowMs);

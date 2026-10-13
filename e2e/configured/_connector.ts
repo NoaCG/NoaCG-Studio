@@ -62,8 +62,26 @@ export async function consentPath(request: APIRequestContext, authorizationUrl: 
   return `/?authorization_id=${id}`;
 }
 
-/** Sign one account in to a fresh scripted client, approving it through NoaCG's consent endpoint
- *  with the account's own session - the call the consent page's Allow makes. */
+/** Allow an authorization through NoaCG's consent endpoint with the account's own session - the
+ *  call the consent page's Allow makes. The response is the caller's to judge. */
+export async function allowAs(
+  request: APIRequestContext,
+  origin: string,
+  supabase: { url: string; anonKey: string },
+  email: string,
+  password: string,
+  authorizationUrl: URL,
+) {
+  const authorizationId = new URLSearchParams((await consentPath(request, authorizationUrl)).split('?')[1]).get('authorization_id');
+  const { data, error } = await createClient(supabase.url, supabase.anonKey, { auth: { persistSession: false } }).auth.signInWithPassword({ email, password });
+  if (error || !data.session) throw new Error(`sign-in: ${error?.message}`);
+  return request.post(`${origin}/api/me/connectors`, {
+    headers: { authorization: `Bearer ${data.session.access_token}` },
+    data: { action: 'allow', authorizationId },
+  });
+}
+
+/** Sign one account in to a fresh scripted client, approving it with `allowAs`. */
 export async function signedInClient(
   request: APIRequestContext,
   origin: string,
@@ -74,13 +92,7 @@ export async function signedInClient(
 ): Promise<Client> {
   const mcpUrl = new URL(`${origin}/mcp`);
   await expect(connect(mcpUrl, provider)).rejects.toBeInstanceOf(UnauthorizedError);
-  const authorizationId = new URLSearchParams((await consentPath(request, provider.authorizationUrl!)).split('?')[1]).get('authorization_id');
-  const { data, error } = await createClient(supabase.url, supabase.anonKey, { auth: { persistSession: false } }).auth.signInWithPassword({ email, password });
-  if (error || !data.session) throw new Error(`sign-in: ${error?.message}`);
-  const allow = await request.post(`${origin}/api/me/connectors`, {
-    headers: { authorization: `Bearer ${data.session.access_token}` },
-    data: { action: 'allow', authorizationId },
-  });
+  const allow = await allowAs(request, origin, supabase, email, password, provider.authorizationUrl!);
   expect(allow.status(), await allow.text()).toBe(200);
   const code = new URL((await allow.json()).redirectUrl).searchParams.get('code');
   expect(code).toBeTruthy();

@@ -23,7 +23,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
 import { isConnectorTestStack } from '../../scripts/connector-oauth-spike.mjs';
 import { mintAccount, shot, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
-import { connect, consentPath, deleteOAuthClient, REDIRECT, ScriptedClaude } from './_connector';
+import { allowAs, connect, consentPath, deleteOAuthClient, REDIRECT, ScriptedClaude } from './_connector';
 
 const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const CLIENT_NAME = 'Claude (scripted)';
@@ -127,12 +127,7 @@ test.describe('remote MCP connector: consent, grant, revocation and the closed d
       openidAuthorize.search = new URLSearchParams({
         response_type: 'code', client_id: otherClient!, redirect_uri: REDIRECT, code_challenge: randomBytes(32).toString('base64url'), code_challenge_method: 'S256', scope: 'openid email',
       }).toString();
-      const openidRequest = new URLSearchParams((await consentPath(request, openidAuthorize)).split('?')[1]).get('authorization_id');
-      const { data: own } = await createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } }).auth.signInWithPassword({ email, password });
-      const openidAllow = await request.post(`${origin}/api/me/connectors`, {
-        headers: { authorization: `Bearer ${own.session!.access_token}` },
-        data: { action: 'allow', authorizationId: openidRequest },
-      });
+      const openidAllow = await allowAs(request, origin, { url: SUPABASE_URL, anonKey: ANON_KEY }, email, password, openidAuthorize);
       expect(openidAllow.status(), await openidAllow.text()).toBe(403);
       expect((await openidAllow.json()).error.message).toMatch(/openid/);
       expect((await grantsOf()).map((g) => g.client_id), 'no grant for the openid client').toEqual([provider.info!.client_id]);
