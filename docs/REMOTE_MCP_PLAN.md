@@ -957,8 +957,9 @@ the hook-off rollback `{"hook_custom_access_token_enabled":false}` was accepted 
 `zitmesddhqlrvhhmjahl`), created 07:57:26 UTC on 2026-10-13 through the Management API; it came
 up at 0073 and 0074 to 0091 were applied through the query endpoint. The runbook text was taken
 from this file by a script (setup block, step 1's curl, every `patch` line), with only `REF`
-swapped for the branch, and run against this checkout's dev server on the branch. Test account
-and client minted for the run and deleted.
+swapped for the branch, and run against this checkout's dev server on the branch. One test
+account and one OAuth client were minted for the run; the account was deleted, the client went
+with the branch.
 
 - *On, verbatim:* step 1 printed `"algorithm":"ES256","status":"in_use"`; step 2 printed all
   seven notification settings `true`; step 3 `"hook_custom_access_token_enabled":true` and the
