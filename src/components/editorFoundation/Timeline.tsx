@@ -21,6 +21,7 @@ type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] 
 type KeyDrag = { keys: KeyRef[]; ids: Set<string>; select: boolean; row: string; time: number; x: number; width: number; expected: Revision; moved: boolean; delta: number; refused: string; checked: Map<number, string> };
 
 interface Props {
+  reveal: { key: string; id: string } | null;
   groupScope: string | null; enterGroup: (selector: string) => void; hierarchy: ReturnType<typeof groupHierarchy>;
   view: TimelineView; fps: number; time: number; selection: string[];
   setSelection: (selectors: string[]) => void; layerMenu: LayerMenuRequest | null;
@@ -30,7 +31,7 @@ interface Props {
   session: EditorSession; pause: () => void;
   inspectOut: () => void; playOut: () => void; parkOut: () => void; inspectStep: (index: number) => void;
 }
-export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps, time, selection, setSelection, layerMenu, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut, inspectStep }: Props) {
+export default function Timeline({ reveal, groupScope, enterGroup, hierarchy, view, fps, time, selection, setSelection, layerMenu, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut, inspectStep }: Props) {
   const visibleParts = view.parts.filter(part => part.selector === groupScope || (hierarchy.parent[part.selector] ?? null) === groupScope);
   const organization = useLayerOrganization(session, visibleParts, groupScope, selection, select, pause);
   const localStart = groupScope ? Math.min(...view.bars.filter(bar => bar.selector === groupScope).map(bar => bar.start), view.duration) : 0;
@@ -39,6 +40,13 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
   const rangeAnchor = useRef<string | null>(null);
   useEffect(() => { if (selection.length === 1) rangeAnchor.current = selection[0]; }, [selection]);
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [animatedOnly, setAnimatedOnly] = useState<string[]>([]);
+  const revealed = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (reveal?.key !== 'u' || reveal.id === revealed.current) return;
+    revealed.current = reveal.id;
+    setExpanded(previous => [...new Set([...previous, ...selection])]); setAnimatedOnly(selection);
+  }, [reveal, selection]);
   const [picked, setPicked] = useState<KeyRef[]>([]);
   const keys = useMemo(() => liveKeys(view.data, picked), [view.data, picked]);
   const selected = useMemo(() => new Set(keys.map(keyId)), [keys]);
@@ -321,11 +329,12 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
         const properties = [...authored];
         for (const property of [...(placement ? ['x', 'y', 'scaleX', 'scaleY', 'rotation'] : []), 'opacity']) if (!properties.some(row => row.property === property)) properties.push({ property, keys: [] });
         const open = expanded.includes(part.selector);
+        const shownProperties = animatedOnly.includes(part.selector) ? properties.filter(row => row.keys.length) : properties;
         return <div key={part.selector} className="ef-layer-group">
           <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')} data-selector={part.selector} data-testid={part.selector === groupScope ? "foundation-parent-bar" : undefined}>
             <div className="ef-layer-cell" style={{ paddingInlineStart: depth * 12 }}>
               {properties.length ? <button className="ef-twirl" aria-label={'Properties of ' + part.label} title="Show properties, including those without keys" aria-expanded={open}
-                onClick={() => setExpanded(open ? expanded.filter(s => s !== part.selector) : [...expanded, part.selector])}>{open ? '▾' : '▸'}</button> : <span className="ef-twirl" />}
+                onClick={() => { setAnimatedOnly(animatedOnly.filter(s => s !== part.selector)); setExpanded(open ? expanded.filter(s => s !== part.selector) : [...expanded, part.selector]); }}>{open ? '▾' : '▸'}</button> : <span className="ef-twirl" />}
               <LayerActions part={part} index={index} selection={selection} session={session} pause={pause} group={hierarchy.groups.has(part.selector)} request={layerMenu?.selector === part.selector ? layerMenu : null}
                 selectOnly={() => select(part.selector, false)} onSelect={event => {
                   const order = organization.rows.flatMap(row => 'part' in row ? [row.part.selector] : []);
@@ -346,7 +355,7 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
               <span className="ef-playhead-line" style={{ left: time / extent * 100 + '%' }} />
             </div>
           </div>
-          {open && properties.map(row => <div key={row.property} className="ef-track ef-property-track" data-selector={part.selector} data-property={row.property}>
+          {open && shownProperties.map(row => <div key={row.property} className="ef-track ef-property-track" data-selector={part.selector} data-property={row.property}>
             <span className="ef-property-name" title={row.property}>{row.property === 'x' || row.property === 'y' ? (placement?.mode === 'flow' ? 'Layout offset ' : 'Position ') + row.property.toUpperCase() : PROPERTY_LABELS[row.property] ?? row.property}{!row.keys.length && <small> · base</small>}</span>
             <div className={'ef-track-lane' + (reasonRow === part.selector + '\n' + row.property ? ' has-key-reason' : '')}>
               {moments(row.keys).map(group => keyButton(group, part.selector, part.label, part.selector + '\n' + row.property))}
