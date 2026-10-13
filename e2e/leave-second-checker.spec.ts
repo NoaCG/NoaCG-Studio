@@ -102,3 +102,38 @@ test('second checker newer edit rejects a delayed discard and preserves its sess
   await page.getByTestId('open-home').click(); await expect(page.getByTestId('confirm-switch')).toBeVisible(); await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
   writeFileSync(test.info().outputPath('stale-discard.json'),JSON.stringify({newerEditRetained:true,exactContextRetained:true,undoRedoRecovered:true,newerDraftReloaded:true,retryDiscarded:true}));
 });
+
+test('second checker newer edit during autosave confirmation refuses the already requested discard', async ({page}) => {
+  await open(page); await draw(page,.2); await settleDurableWrites(page);
+  await page.getByTestId('open-home').click(); await holdWrites(page,2);
+  await commandEdit(page,true);
+  await expect.poll(async () => (await probe(page)).released).toEqual([true]);
+  const requested = await source(page);
+  const result = await page.evaluate(async () => {
+    const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+    const c = activeEditorCommands(), i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
+    const result = c.apply({ expected:i.expected, transactionId:crypto.randomUUID(), commands:[{id:'layer.create',args:{geometry:{shape:'rectangle',x:1100,y:300,width:100,height:100}}}] });
+    if (!result.ok) throw Error(result.refusal.message);
+    const before = c.inspect();
+    (window as any).secondCheck.releases[0]();
+    await new Promise(r => setTimeout(r));
+    return before;
+  });
+  const newer = await source(page); expect(newer).not.toEqual(requested);
+  await expect.poll(async () => (await probe(page)).released).toEqual([true,true]);
+  const writes = (await probe(page)).writes;
+  expect(writes[0].template).toEqual(requested); expect(writes[1].dirty).toBe(false);
+  expect(await source(page)).toEqual(newer); await expect(page.getByTestId('home-page')).toHaveCount(0);
+  await release(page,1);
+  const snapshot = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    await new Promise(r => setTimeout(r));
+    return {source:useTemplateStore.getState().template,home:!!document.querySelector('[data-testid=home-page]'),error:document.querySelector('[data-testid=confirm-switch] .status-bad')?.textContent};
+  });
+  writeFileSync(test.info().outputPath('autosave-newer-edit.json'),JSON.stringify({requested,newer,before:result,after:snapshot},null,2));
+  await page.screenshot({path:test.info().outputPath('autosave-newer-edit.png')});
+  expect(snapshot.home,'a newer edit during pending autosave must keep the editor mounted').toBe(false);
+  expect(snapshot.source,'discard may not erase the newer command edit').toEqual(newer);
+  await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toContainText('changed while discarding');
+  expect((await inspection(page)).history).toEqual(result.history);
+});

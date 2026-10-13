@@ -5,7 +5,7 @@ on:
       scope:
         description: Bounded independent verification selection
         type: choice
-        options: [reproduce, complete, references, focused, mutation, visual, history, export]
+        options: [reproduce, complete, references, focused, mutation, visual, history, export, autosave-race]
         default: reproduce
 permissions:
   contents: read
@@ -49,6 +49,9 @@ jobs:
       - name: Final focused lifecycle
         if: inputs.scope == 'focused'
         run: npx playwright test e2e/leave-checker.spec.ts e2e/leave-second-checker.spec.ts --workers=1 --output=.noacg/results/focused
+      - name: Newer edit during autosave confirmation
+        if: inputs.scope == 'autosave-race'
+        run: npx playwright test e2e/leave-second-checker.spec.ts --grep 'during autosave confirmation' --workers=1 --output=.noacg/results/autosave-race
       - name: Inspect native history
         if: inputs.scope == 'history'
         run: npx playwright test e2e/history-probe.spec.ts --workers=1 --output=.noacg/results/history
@@ -78,6 +81,7 @@ jobs:
           name: leave-receipts
           include-hidden-files: true
           path: .noacg/results
+
 
 
 
