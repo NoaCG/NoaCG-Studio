@@ -72,6 +72,10 @@ test('create canvas selection context actions and input keyboard ownership', asy
   await select(page,a); await row(page,a).locator('.ef-layer').press('Shift+F10'); await page.getByRole('menuitem',{name:'Bring forward',exact:true}).click(); await ready(page);
   const reordered=await source(page); expect(reordered).not.toEqual(before); await undo(page); expect(await source(page)).toEqual(before);
   await select(page,a); await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('Delete'); await expect((await frame(page)).locator(a)).toHaveCount(0); await undo(page); expect(await source(page)).toEqual(before);
+  await select(page,original); const numeric=number(page,'Rotation'); await numeric.focus(); await numeric.press('Control+a'); await numeric.press('Control+d');
+  expect(await selected(page)).toEqual([original]); expect(await source(page)).toEqual(before);
+  await page.getByTestId('save-graphic').focus(); await page.keyboard.press('Control+d');
+  expect(await selected(page)).toEqual([original]); expect(await source(page)).toEqual(before);
   await select(page,'#f0'); const text=page.getByRole('textbox',{name:'Artwork text',exact:true}); await text.focus(); await text.press('Control+a'); await text.press('Delete');
   const h=(await inspection(page)).history; expect(await source(page)).toEqual(before); await text.press('Control+z'); expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(h);
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -147,6 +151,12 @@ test('modifier drag copies selected artwork atomically and cancellation retains 
   expect((await inspection(page)).history.undo).toBe(history.undo+1); const committed=await source(page);
   await undo(page); expect(await source(page)).toEqual(before); expect(await selected(page)).toEqual([original]);
   await redo(page); expect(await source(page)).toEqual(committed); expect(await selected(page)).toEqual([copy]);
+  await select(page,'#f0'); const textBefore=await source(page), textHistory=(await inspection(page)).history;
+  const textValue=await (await frame(page)).locator('#f0').textContent(), textPoint=await point(page,'#f0');
+  await page.keyboard.down('Alt');await page.mouse.move(textPoint.x,textPoint.y);await page.mouse.down();await page.mouse.move(textPoint.x+26,textPoint.y+11,{steps:6});
+  await expect((await frame(page)).locator('#f2')).toHaveText(textValue!);expect(await source(page)).toEqual(textBefore);
+  await page.keyboard.press('Escape');await page.mouse.up();await page.keyboard.up('Alt');await ready(page);
+  await expect((await frame(page)).locator('#f2')).toHaveCount(0);expect(await source(page)).toEqual(textBefore);expect((await inspection(page)).history).toEqual(textHistory);
 });
 
 test('keyboard duplicate select all and canvas context retain input ownership', async ({page}) => {
@@ -158,6 +168,10 @@ test('keyboard duplicate select all and canvas context retain input ownership', 
   await page.keyboard.press('Escape'); await canvas.focus(); await page.keyboard.press('Control+z'); await ready(page); expect(await source(page)).toEqual(before);
   await canvas.focus(); await page.keyboard.press('Control+a');
   const all=await selected(page); expect(all).toContain(original); expect(all).toContain('#f0'); expect(all.length).toBeGreaterThan(2);
+  await select(page,original); const numeric=number(page,'Rotation'); await numeric.focus(); await numeric.press('Control+a'); await numeric.press('Control+d');
+  expect(await selected(page)).toEqual([original]); expect(await source(page)).toEqual(before);
+  await page.getByTestId('save-graphic').focus(); await page.keyboard.press('Control+d');
+  expect(await selected(page)).toEqual([original]); expect(await source(page)).toEqual(before);
   await select(page,'#f0'); const text=page.getByRole('textbox',{name:'Artwork text',exact:true}); await text.focus(); await text.press('Control+a'); await text.press('Control+d');
   expect(await selected(page)).toEqual(['#f0']); expect(await source(page)).toEqual(before);
 });
@@ -213,7 +227,7 @@ test('modifier drag preserves multi-root animated group and refusal boundaries',
   await seek(page,.4);await page.getByRole('button',{name:'Enable Position X animation',exact:true}).click();await ready(page);await seek(page,.8);
   const animated=await source(page);await drag(group,undefined,a);const copy=(await selected(page))[0];expect(copy).not.toBe(group);expect((await source(page)).js).not.toBe(animated.js);
   await undo(page);expect(await source(page)).toEqual(animated);
-  // The catalog structural box has no stable ID and must not partly copy a mixed selection.
+  // A composition container is not an artwork layer and must not partly copy a mixed selection.
   await select(page,group);await row(page,'.graphic-box').locator('.ef-layer').click({modifiers:['Control']});const refused=await source(page),refusedHistory=(await inspection(page)).history;
-  await drag(group,'refusal',a);expect(await source(page)).toEqual(refused);expect((await inspection(page)).history).toEqual(refusedHistory);await expect(page.getByText('This structural edit requires a layer with a stable ID.',{exact:true})).toBeVisible();
+  await drag(group,'refusal',a);expect(await source(page)).toEqual(refused);expect((await inspection(page)).history).toEqual(refusedHistory);await expect(page.getByText('Select an artwork layer inside the graphic, not its container.',{exact:true})).toBeVisible();
 });
