@@ -277,6 +277,33 @@ export default tseslint.config(
       globals: { refitSvgText: 'readonly', svgFitDue: 'readonly' },
     },
   },
+  {
+    files: ['src/templates/importedDesign/runtime/svgGrowth.js'],
+    languageOptions: {
+      globals: {
+        NOACG_LAYOUT: 'readonly', // the layout table (svgLayout.ts layoutDataJs)
+        svgShiftPathD: 'readonly', // svgShapeShift.js
+        svgShiftPoints: 'readonly',
+        // svgFit.js: what the fit measured, and the room the growth hands back to it.
+        measureSvgBudgets: 'readonly',
+        measureSvgRoom: 'readonly',
+        svgFitAlign: 'readonly',
+        svgFitNodes: 'readonly',
+        svgFitPlaced: 'readonly',
+        svgFitRoom: 'readonly',
+        svgFitValue: 'readonly',
+        svgFitWidths: 'readonly',
+        svgFrameScale: 'readonly',
+        svgIsEndCap: 'readonly',
+        svgPlacedScale: 'readonly',
+        svgTextWidth: 'readonly',
+        svgUnsqueeze: 'readonly',
+        svgFitExtra: 'writable',
+        svgFitExtraH: 'writable',
+        svgFitShift: 'writable',
+      },
+    },
+  },
 
   // Node scripts (dev tooling). Browser globals too: the Playwright sweeps run code inside
   // page.evaluate callbacks, which execute in the page.

@@ -58,8 +58,8 @@ channel 'rise'; `fieldPlan: fixed` (the fields ARE the mapping step's choices); 
 
 The build, one pass per file (the corpus harness `scripts/svg-import-passes.test.mjs` pins each):
 
-- `svg.ts` - `assembleImportedSvg` and `IMPORTED_SVG`, the constants the wizard imports (re-exported where a pass owns them), `fillRuntime`, and the growth and shape runtimes as strings.
-- `runtime/svgFit.js`, `runtime/svgFitBoot.js` - the fit ladder and its load-time passes, the ES5 every graphic runs, read `?raw` and filled at emit: a `__NAME__` token stands where svg.ts writes a value. Linted as ES5 (`eslint.config.js`); the emitted bytes are pinned by the harness's `emit` record.
+- `svg.ts` - `assembleImportedSvg` and `IMPORTED_SVG`, the constants the wizard imports (re-exported where a pass owns them), and `fillRuntime`, which fills the four runtime files.
+- `runtime/svgFit.js`, `runtime/svgFitBoot.js`, `runtime/svgGrowth.js`, `runtime/svgShapeShift.js` - the fit ladder, its load-time passes, the growth and the point shifters, the ES5 every graphic runs, read `?raw` and filled at emit: a `__NAME__` token stands where svg.ts writes a value. Linted as ES5 (`eslint.config.js`); the emitted bytes are pinned by the harness's `emit` record.
 - `svgBind.ts` - `bindSvgMarkup`, the one DOM pass: field ids with their references, classes, layout stamps, marker strip; `candidateLabel`.
 - `svgLayout.ts` - `layoutRules`, `saidLines`, `layoutDataJs`: the `NOACG_LAYOUT` text and its stamp, pure (`scripts/svg-layout-table.test.mjs`).
 - `svgFonts.ts` - `svgFontCss`: the `@font-face` block with the pinned alias, pure (`scripts/svg-font-css.test.mjs`).
@@ -143,7 +143,7 @@ measured defect; §3 holds the evidence:
   2026-08-22: shrink, never condense).
 
 **GROWTH is the alternative the mapping step ASKS for, and it is a VERSIONED TABLE**
-(`DesignSvg.growth` -> `NOACG_LAYOUT` v1, emitted by `layoutDataJs` and read by `growthRuntimeJs`):
+(`DesignSvg.growth` -> `NOACG_LAYOUT` v1, emitted by `layoutDataJs` and read by `runtime/svgGrowth.js`):
 each row names one element by its `data-noacg-el` stamp, its axis, its safe margin, and optionally
 its FOLLOWERS; an additive `lines` list carries the alignment a reader SET per bound line
 (`DesignSvgField.align` / `nudge`, read by `svgAlignOf`), and brings the table out on its own where
