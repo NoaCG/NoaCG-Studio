@@ -437,8 +437,14 @@ server. Unit tests: `api/_lib/me/mcp.test.ts`, `connectors.test.ts`.
   listed, so Auth's half cannot be retried from the UI; a client that kept its `client_id` would
   then be auto-approved by Auth and get tokens `/mcp` refuses. Rare and fail-closed; revisit if it
   is ever seen.
-- *The consent page navigates only to http(s)* (`webRedirect`): clients register their own
-  redirect URIs.
+- *The consent page follows a web address or an app's own scheme* (`webRedirect`): clients register
+  their own redirect URIs, and a desktop app registers a private scheme (the Claude app:
+  `claude://claude.ai/mcp-auth-callback/sdk`). Refused: schemes that run or read in the page
+  (`javascript:`, `data:`, `file:` and the like). Until 2026-10-13 it was http(s) only, which
+  stopped the Claude app after Auth had approved (found in the owner's staging try-out).
+- *A 2026-07-28 tool list says how long it may be cached* (`ttlMs`, an hour, and `cacheScope`
+  `private`): Claude Code 2.1.295 refused the whole list without them and showed the connector with
+  0 tools (owner's staging try-out, 2026-10-14). The SDK client in the specs (1.30) predates the rule.
 - *`last_used_at` is written at most once a minute per grant* (`connector_grant_resolve`), so a
   chatty client does not write a row per message.
 - *Off.* "On" is read from Auth's discovery document (cached a minute per instance): without a

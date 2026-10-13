@@ -260,8 +260,13 @@ test('the 2026-07-28 request metadata: headers must mirror the body; discover, l
   assert.ok(result.supportedVersions.includes('2026-07-28') && result.supportedVersions.includes('2025-11-25'));
 
   const list = modern('tools/list');
-  const listed = (await (await handler.fetch(rpc(list.body, { headers: list.headers }))).json()) as { result: { resultType: string; tools: unknown[] } };
+  const listed = (await (await handler.fetch(rpc(list.body, { headers: list.headers }))).json()) as {
+    result: { resultType: string; tools: unknown[]; ttlMs: unknown; cacheScope: unknown };
+  };
   assert.equal(listed.result.resultType, 'complete');
+  // Claude Code 2.1.295 refuses a 2026-07-28 list without these two and shows the connector with no tools.
+  assert.equal(typeof listed.result.ttlMs, 'number');
+  assert.ok(listed.result.cacheScope === 'public' || listed.result.cacheScope === 'private');
 
   const mismatch = await handler.fetch(rpc(list.body, { headers: { ...list.headers, 'mcp-method': 'tools/call' } }));
   assert.equal(mismatch.status, 400);

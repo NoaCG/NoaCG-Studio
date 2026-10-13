@@ -53,6 +53,8 @@ const CAPABILITIES = { tools: { listChanged: false } };
 const INSTRUCTIONS =
   "NoaCG Studio makes broadcast graphics. Find ready-made designs with noacg_catalog and the user's own graphics, brands and productions with noacg_library, then put a production's graphics and rundown on their Home with noacg_send_package.";
 const META_VERSION = 'io.modelcontextprotocol/protocolVersion';
+/** How long a 2026-07-28 client may keep the tool list: an hour; the tools change only with a deploy. */
+const TOOLS_TTL_MS = 3_600_000;
 
 /** Comfortably above any tool call the connector takes; a package is recipes and ids, not code. */
 const MAX_BODY_BYTES = 1_000_000;
@@ -189,7 +191,10 @@ export function createMcpHandler(deps: McpDeps = {}): { fetch(req: Request): Pro
     // The methods both eras share; 2026-07-28 marks every result complete.
     const modern = typeof bodyVersion === 'string';
     const done = (result: object) => rpcResult(id, modern ? { resultType: 'complete', ...result } : result);
-    if (method === 'tools/list') return done({ tools: tools.map(toolView) });
+    // 2026-07-28 makes a list result say how long it may be cached and for whom: Claude Code
+    // 2.1.295 refuses the whole list without `ttlMs` and `cacheScope` (measured 2026-10-14). The
+    // tools change only with a deploy; `private` because the list is served behind a user's token.
+    if (method === 'tools/list') return done({ tools: tools.map(toolView), ...(modern ? { ttlMs: TOOLS_TTL_MS, cacheScope: 'private' } : {}) });
     if (method === 'tools/call') return callTool(id, principal, msg.params, { origin: resourceUrls(req).origin }, done);
     if (method === 'ping') return done({});
     // A modern server answers an unknown method with 404, so a client can tell it from a legacy one.
