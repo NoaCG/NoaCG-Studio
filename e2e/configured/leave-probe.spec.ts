@@ -1,0 +1,27 @@
+import { test, expect } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+import { E2E_EMAIL, E2E_PASSWORD, SUPABASE_URL, SERVICE_ROLE_KEY, signInOnHome, settleSync } from './_helpers';
+import { open, draw, source, ready } from '../_layerProperty';
+import { writeFileSync } from 'node:fs';
+test('signed-in local account keeps save, cloud and discard revisions distinct',async({page})=>{
+ test.setTimeout(120000);
+ expect(new URL(SUPABASE_URL).hostname).toBe('127.0.0.1');
+ const admin=createClient(SUPABASE_URL,SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+ await signInOnHome(page,E2E_EMAIL,E2E_PASSWORD); await open(page); await draw(page,.3);
+ const edited=await source(page);await page.getByTestId('open-home').click();await expect(page.getByTestId('confirm-switch')).toBeVisible();await expect(page.getByTestId('home-page')).toHaveCount(0);
+ await page.getByTestId('switch-cancel').click();expect(await source(page)).toEqual(edited);
+ await page.getByTestId('open-home').click();await page.getByTestId('switch-save').click();await page.getByTestId('save-name').fill('Account saved copy');await page.getByTestId('save-confirm').click();await expect(page.getByTestId('home-page')).toBeVisible();await settleSync(page);
+ const library=await page.evaluate(async()=>(await import('/src/model/library.ts')).loadGraphics());expect(library).toHaveLength(1);const saved=library[0];
+ const cloud=await admin.from('documents').select('body').eq('id',saved.id).single();expect(cloud.error).toBeNull();const hydrated=structuredClone(cloud.data!.body.template);for(const asset of hydrated.assets){if(!asset.data.startsWith('spx-storage:'))continue;const result=await admin.storage.from('user-assets').download(asset.data.slice('spx-storage:'.length));expect(result.error).toBeNull();asset.data='data:'+result.data!.type+';base64,'+Buffer.from(await result.data!.arrayBuffer()).toString('base64');}expect(hydrated).toEqual(saved.template);
+ await page.getByTestId('home-nav-graphics').click();await page.locator('.lib-row',{hasText:'Account saved copy'}).getByTestId('open-graphic').click();await page.getByTestId('control-open-editor').click();await ready(page);await draw(page,.55);
+ await page.getByTestId('open-home').click();await expect(page.getByTestId('editor-foundation')).toBeVisible();await page.screenshot({path:test.info().outputPath('account-leave.png')});await page.getByTestId('switch-discard').click();await expect(page.getByTestId('home-page')).toBeVisible();await settleSync(page);
+ const after=await admin.from('documents').select('body').eq('id',saved.id).single();expect(after.error).toBeNull();expect(after.data!.body).toEqual(cloud.data!.body);expect(await source(page)).toEqual(saved.template);
+ await page.reload();await expect(page.getByTestId('home-page')).toBeVisible();await settleSync(page);expect(await source(page)).toEqual(saved.template);await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+ await open(page); await draw(page,.4); const experiment=await source(page);
+ await page.getByTestId('open-home').click(); await expect(page.getByTestId('home-page')).toHaveCount(0);
+ await page.getByTestId('switch-save').click(); await page.getByTestId('save-name').fill('Cancelled account experiment'); await page.keyboard.press('Escape'); expect(await source(page)).toEqual(experiment);
+ await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible(); await settleSync(page);
+ const all=await admin.from('documents').select('id,body'); expect(all.error).toBeNull(); expect(all.data).toHaveLength(1); expect(all.data![0].body).toEqual(cloud.data!.body);
+ await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible(); await settleSync(page); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+ writeFileSync(test.info().outputPath('account-lifecycle.json'),JSON.stringify({backend:'disposable local Supabase',signedIn:true,saveConfirmed:true,cloudMatchesSave:true,discardKeptCloudRecord:true,reloadKeptSavedSource:true,cancelledNamingKeptDraft:true,neverSavedDiscardAddedNoCloudRecord:true},null,2));
+});
