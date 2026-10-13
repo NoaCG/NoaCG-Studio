@@ -1,5 +1,5 @@
 {
- "$comment": "Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review.",
+ "$comment": "Every SVG corpus file through every import pass (scripts/svg-import-passes.test.mjs). Re-record only with UPDATE_SVG_CORPUS_PASSES=1 and the reason in the pull request; the diff is the review. The runtime records are Linux (CI) measurements.",
  "findings": [
   "effects-figma-masked-reveal: growth default grow-xy, sidecar shrink",
   "figma-outline-text-title-card: 0 outline rows, sidecar 2",
@@ -646,7 +646,7 @@
       {
        "id": "f1",
        "lines": 1,
-       "sizePct": 98,
+       "sizePct": 97,
        "over": false
       }
      ],
@@ -656,8 +656,8 @@
      "lines": [
       {
        "id": "f0",
-       "lines": 5,
-       "sizePct": 100,
+       "lines": 4,
+       "sizePct": 81,
        "over": false
       },
       {
@@ -673,8 +673,8 @@
      "lines": [
       {
        "id": "f0",
-       "lines": 7,
-       "sizePct": 100,
+       "lines": 6,
+       "sizePct": 73,
        "over": false
       },
       {
@@ -5582,7 +5582,7 @@
      "lines": [
       {
        "id": "f0",
-       "lines": 3,
+       "lines": 2,
        "sizePct": 100,
        "over": false
       },
@@ -5598,18 +5598,18 @@
        "el": "g0",
        "box": {
         "x": 140,
-        "y": 655,
+        "y": 712,
         "w": 1640,
-        "h": 295
+        "h": 238
        }
       },
       {
        "el": "g1",
        "box": {
         "x": 140,
-        "y": 655,
+        "y": 712,
         "w": 1640,
-        "h": 295
+        "h": 238
        }
       }
      ]
@@ -6420,7 +6420,7 @@
       {
        "id": "f0",
        "lines": 5,
-       "sizePct": 36,
+       "sizePct": 32,
        "over": true
       },
       {
@@ -7611,7 +7611,7 @@
       {
        "id": "f1",
        "lines": 2,
-       "sizePct": 32,
+       "sizePct": 36,
        "over": true
       },
       {
@@ -7623,7 +7623,7 @@
       {
        "id": "f3",
        "lines": 2,
-       "sizePct": 32,
+       "sizePct": 36,
        "over": true
       },
       {
@@ -9587,7 +9587,7 @@
        "box": {
         "x": 140,
         "y": 790,
-        "w": 1625,
+        "w": 1631,
         "h": 190
        }
       },
@@ -9596,7 +9596,7 @@
        "box": {
         "x": 140,
         "y": 790,
-        "w": 1625,
+        "w": 1631,
         "h": 190
        }
       }
@@ -10031,7 +10031,7 @@
       },
       {
        "id": "f2",
-       "lines": 2,
+       "lines": 3,
        "sizePct": 40,
        "over": true
       },
@@ -10073,7 +10073,7 @@
       {
        "id": "f3",
        "lines": 4,
-       "sizePct": 50,
+       "sizePct": 45,
        "over": true
       },
       {
@@ -10451,7 +10451,7 @@
       },
       {
        "id": "f2",
-       "lines": 2,
+       "lines": 1,
        "sizePct": 55,
        "over": false
       }
@@ -12839,7 +12839,7 @@
       {
        "id": "f0",
        "lines": 1,
-       "sizePct": 81,
+       "sizePct": 73,
        "over": false
       },
       {
@@ -13343,7 +13343,7 @@
        "id": "f3",
        "lines": 2,
        "sizePct": 55,
-       "over": true
+       "over": false
       },
       {
        "id": "f4",
@@ -13412,7 +13412,7 @@
       {
        "id": "f3",
        "lines": 3,
-       "sizePct": 36,
+       "sizePct": 35,
        "over": true
       },
       {
@@ -13429,7 +13429,7 @@
       {
        "id": "f0",
        "lines": 1,
-       "sizePct": 34,
+       "sizePct": 33,
        "over": true
       },
       {
@@ -15745,7 +15745,7 @@
       {
        "id": "f3",
        "lines": 2,
-       "sizePct": 59,
+       "sizePct": 58,
        "over": false
       }
      ],
@@ -15773,7 +15773,7 @@
       },
       {
        "id": "f3",
-       "lines": 3,
+       "lines": 2,
        "sizePct": 36,
        "over": true
       }
@@ -15803,7 +15803,7 @@
       {
        "id": "f3",
        "lines": 3,
-       "sizePct": 30,
+       "sizePct": 32,
        "over": true
       }
      ],
@@ -17276,7 +17276,7 @@
        "box": {
         "x": 140,
         "y": 120,
-        "w": 1168,
+        "w": 1171,
         "h": 260
        }
       },
@@ -17285,7 +17285,7 @@
        "box": {
         "x": 140,
         "y": 120,
-        "w": 1168,
+        "w": 1171,
         "h": 260
        }
       }
@@ -17420,7 +17420,7 @@
        "box": {
         "x": 140,
         "y": 120,
-        "w": 1061,
+        "w": 1060,
         "h": 260
        }
       },
@@ -17429,7 +17429,7 @@
        "box": {
         "x": 140,
         "y": 120,
-        "w": 1061,
+        "w": 1060,
         "h": 260
        }
       }
@@ -17651,18 +17651,18 @@
       {
        "el": "g0",
        "box": {
-        "x": 561,
+        "x": 557,
         "y": 940,
-        "w": 878,
+        "w": 886,
         "h": 90
        }
       },
       {
        "el": "g1",
        "box": {
-        "x": 561,
+        "x": 557,
         "y": 940,
-        "w": 878,
+        "w": 886,
         "h": 90
        }
       }
@@ -17711,18 +17711,18 @@
       {
        "el": "g0",
        "box": {
-        "x": 241,
+        "x": 234,
         "y": 940,
-        "w": 1518,
+        "w": 1532,
         "h": 90
        }
       },
       {
        "el": "g1",
        "box": {
-        "x": 241,
+        "x": 234,
         "y": 940,
-        "w": 1518,
+        "w": 1532,
         "h": 90
        }
       }
@@ -17771,18 +17771,18 @@
       {
        "el": "g0",
        "box": {
-        "x": 607,
+        "x": 605,
         "y": 940,
-        "w": 785,
+        "w": 790,
         "h": 90
        }
       },
       {
        "el": "g1",
        "box": {
-        "x": 607,
+        "x": 605,
         "y": 940,
-        "w": 785,
+        "w": 790,
         "h": 90
        }
       }
@@ -18523,7 +18523,7 @@
       {
        "id": "f0",
        "lines": 1,
-       "sizePct": 66,
+       "sizePct": 59,
        "over": false
       },
       {
@@ -18541,7 +18541,7 @@
       {
        "id": "f3",
        "lines": 1,
-       "sizePct": 66,
+       "sizePct": 59,
        "over": false
       }
      ],
@@ -21423,7 +21423,7 @@
       {
        "id": "f0",
        "lines": 3,
-       "sizePct": 50,
+       "sizePct": 45,
        "over": true
       },
       {
@@ -21507,7 +21507,7 @@
       {
        "id": "f0",
        "lines": 1,
-       "sizePct": 32,
+       "sizePct": 36,
        "over": true
       },
       {
