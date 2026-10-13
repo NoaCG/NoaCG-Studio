@@ -630,22 +630,37 @@ run time, the findings recorded, and the check's findings.
     `writable` globals; the other 13 names from `svgFit.js`, `NOACG_LAYOUT` and the two shifters
     are `readonly`. Phase 4 forecast 17 names from `svgFit.js`; it is 16.
   - The THE HUG doc comment stays in `svg.ts` above the constant, as phase 4 kept its own.
+  - Kept after review, with the reason: the growth's one-line-break strip is the only asymmetry
+    among the four fills, and a file saved without its final line break would move every growing
+    design's hash, which the harness's `emit` record catches; the fill now runs at module load, so
+    a stray `__NAME__` text in the growth file breaks every importer of `svg.ts` at once, which is
+    the guard working as phase 4 meant it to.
 - **What the next phase must allow for:**
   - `svgShapeShift.js` is two pure functions reading no global: phase 6 can load it alone. The
     growth needs `svgFit.js`, the shifters and a `NOACG_LAYOUT` table in the same scope, filled;
     `fillRuntime` is not exported, so a rung test either exports it (an `svg.ts` change) or loads
     the emitted template.
-  - Until the nightly traces the runtime files, `e2e-affected --files` on `runtime/svgGrowth.js`
-    or `runtime/svgShapeShift.js` alone misses specs, as phase 4 found for `svgFit.js`; this pull
-    request changes `svg.ts`, so it selects all of them.
+  - The nightly will NOT close the e2e selection gap phase 4 expected it to: `e2e/_trace.ts`
+    counts a file only when a function other than its module's top level ran, and a `?raw` module
+    is only a top-level string (the map holds none of `gsap.min.js`, `flexGapShim.js`, `OFL.txt`).
+    `e2e-affected --files` on any of `svgFit.js`, `svgGrowth.js`, `svgShapeShift.js` selects 60
+    specs against 72 for `svg.ts`, measured on `42c370b69`. Issue #1138. Until it is fixed, a
+    pull request that changes a runtime file without `svg.ts` names the 12 specs phase 4 listed
+    by hand. This pull request changes `svg.ts`, so it selects all 72.
   - Stale names outside this fence: `docs/SVG_BEHAVIOUR_PLAN.md:343` and
-    `docs/SVG_IMPORT_PLAN.md:903` still say `growthRuntimeJs`; §2 of this spec describes the flow
-    as it was. `SHAPE_SHIFT_JS` keeps its name, so `behaviour.ts:64` and
-    `behaviourRuntime.ts:747` stay right.
+    `docs/SVG_IMPORT_PLAN.md:903` still say `growthRuntimeJs`; `stageMeasure.ts:10-15` says the
+    originals of its mirrors live in `svg.ts` (now `svgGrowth.js` for `svgLinesInside`, `svgFit.js`
+    for `svgAlignOf`, `measureSvgRoom`, `svgLocalBox`), and its lines 348 (`growOneRule`) and 696
+    (`svgMovingBox`) point at `svg.ts` too. Phase 6 opens `stageMeasure.ts` and can fix them.
+    §2 6f of this spec describes the flow as it was, and its "when a rule or an aligned line
+    exists" is the layout table's condition; the growth runtime rides only with a rule.
+    `SHAPE_SHIFT_JS` keeps its name, so `behaviour.ts:64` and `behaviourRuntime.ts:747` stay right.
   - A comment inside a runtime file is emitted bytes: rewording one (for example
     `svgGrowth.js:31` "defined in the fit block above", true of the emitted script rather than of
     the file) changes the hashes of every design that carries it and is not a move.
-- **Findings (D10):** none new. The five recorded harness findings are unchanged.
+- **Findings (D10):** none in the product; the five recorded harness findings are unchanged. One
+  in the test selection, found by this phase's review: the e2e gap above (#1138), outside the
+  fence and not fixed here.
 - **Traps:**
   - The Bash tool here refuses a command whose program or arguments come from a shell variable;
     write scratchpad paths out in full.
