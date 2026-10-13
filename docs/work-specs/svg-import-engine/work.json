@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "84c9269c33a93bc3075a21bf516f68010a0ac06acd403939e2c451aa0ea377de",
+  "authority": {
+    "status": "agreed",
+    "source": "owner, 2026-10-13: the research prompt (\"Research and plan the SVG import engine for reliability and maintainability. This session produces a verdict and a plan, not code: change no product code. Land the docs through /queue-merge\") and the owner's framing of the same day (keep it simple, break nothing, simplify and harden the engine, learn how other platforms import SVGs and create fields, plan first and then run it as a planned run). Approved in direction for documentation; the owner starts execution later with /plan-run svg-import-engine and supplies the window then. The one open product question (spec section 1.3) is recorded with a recommendation and does not block the plan."
+  },
+  "review": null
+}

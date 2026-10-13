@@ -15,6 +15,7 @@ import { AnimationButtons } from './AnimationProperties';
 import type { EditorOperation } from './operations';
 
 interface Props {
+  seek: (time: number, cue?: number) => void;
   template: SpxTemplate; selector: string; session: EditorSession;
   appearance?: RenderedPart['appearance']; previewCss: (css: string) => void;
   previewTemplate: (template: SpxTemplate) => void;
@@ -88,7 +89,7 @@ function AppearanceField({ template, selector, session, previewCss, previewTempl
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
-  return <div className="ef-appearance-field" onBlur={event => {
+  return <div className="ef-appearance-field" data-reveal={property === 'opacity' ? 't' : undefined} tabIndex={property === 'opacity' ? -1 : undefined} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget)) finish();
   }} onKeyDown={event => {
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); }

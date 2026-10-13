@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ownerOf, type TimelineView } from './timelineView';
 import { animatedProps } from '../../blocks/animEval';
 import type { SpxTemplate } from '../../model/types';
@@ -13,6 +13,8 @@ import PathControls from './PathControls';
 import type { RenderedPart } from './protocol';
 import { editTarget } from './animationAuthoring';
 interface Props {
+  reveal: { key: string; id: string } | null;
+  seek: (time: number, cue?: number) => void;
   time: number;
   pause: () => void;
   view: TimelineView; template: SpxTemplate; selection: string[];
@@ -37,9 +39,17 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
       if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); }
     }} /></label>;
 }
-function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time, openAssets, editPoints }: Props) {
+function Inspector({ reveal, seek, view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time, openAssets, editPoints }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
+  const body = useRef<HTMLElement>(null), revealed = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!reveal || reveal.key === 'u' || reveal.id === revealed.current) return;
+    if (tab !== 'properties') { setTab('properties'); return; }
+    const target = body.current?.querySelector<HTMLElement>('[data-reveal="' + reveal.key + '"]');
+    if (target) { target.scrollIntoView({ block: 'nearest' }); target.focus({ preventScroll: true }); }
+    revealed.current = reveal.id;
+  }, [reveal, tab]);
   const part = view.parts.find(p => p.selector === selection[0]), cue = session.port.view().cue;
   const node = useMemo(() => part ? new DOMParser().parseFromString(template.html, 'text/html').querySelector(part.selector) : null, [template.html, part]);
   const tracks = part && view.data ? animatedProps(view.data, ownerOf(view, part.selector)) : [];
@@ -59,9 +69,9 @@ function Inspector({ view, template, selection, select, session, linked, setLink
     const other = axis === 'scaleX' ? 'scaleY' : 'scaleX';
     change({ [axis]: value / 100, ...(linked ? { [other]: base[axis] === 0 ? value / 100 : base[other] * value / 100 / base[axis] } : {}) });
   };
-  return <aside className="ef-inspector" aria-label="Inspector" onFocusCapture={pause} onPointerDownCapture={pause}>
+  return <aside ref={body} className="ef-inspector" aria-label="Inspector" onFocusCapture={pause} onPointerDownCapture={pause}>
     <div className="ef-toolbar" role="tablist" aria-label="Inspector view">
-      <button role="tab" aria-selected={tab === 'properties'} onClick={() => setTab('properties')}>Properties</button>
+      <button role="tab" title="A: Anchor · P: Position · S: Scale · R: Rotation · T: Opacity · U: animated properties" aria-selected={tab === 'properties'} onClick={() => setTab('properties')}>Properties</button>
       <button role="tab" aria-selected={tab === 'outline'} onClick={() => setTab('outline')}>Outline</button>
     </div>
     {tab === 'outline' ? <div className="ef-inspector-body">
@@ -78,14 +88,14 @@ function Inspector({ view, template, selection, select, session, linked, setLink
           {selection.map(selector => <li key={selector}>{view.parts.find(p => p.selector === selector)?.label ?? selector} · {editTarget(template, selector, time, cue)}</li>)}
         </ul>}</>}
       {part ? <>
-        {selection.length === 1 && <><ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
+        {selection.length === 1 && <><ArtworkAppearance seek={seek} key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
           <ImageControls key={'image:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} openAssets={openAssets} />
           <PathControls key={'path:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} editPoints={editPoints} />
           <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} />
-          <AnimationProperties key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} previewTemplate={previewTemplate} />
+          <AnimationProperties seek={seek} key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} previewTemplate={previewTemplate} />
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">
-          <button onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>
+          <button title="Duplicate artwork (Ctrl/Cmd+D)" onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>
           <button onClick={() => execute({ kind: 'layer.delete', selector: part.selector })} disabled={selection.length !== 1}>Delete</button>
           <button onClick={() => execute({ kind: 'layer.reorder', selector: part.selector, direction: 'backward' })} disabled={selection.length !== 1}>Send backward</button>
           <button onClick={() => execute({ kind: 'layer.reorder', selector: part.selector, direction: 'forward' })} disabled={selection.length !== 1}>Bring forward</button>

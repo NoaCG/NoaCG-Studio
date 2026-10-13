@@ -1,7 +1,7 @@
 import { useRef, useState, type MouseEvent } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BaseValues, type Creation, type CreationKind } from '../../blocks/baseEdits';
-import type { EditorSession, Revision } from './session';
+import { sameRevision, type EditorSession, type Revision } from './session';
 import { applyOperations, type EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
@@ -22,7 +22,9 @@ interface Gesture {
   expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
   base?: BaseValues; part?: RenderedPart; handle?: Handle; creation?: Creation;
   members?: { base: BaseValues; part: RenderedPart }[];
-  time: number;
+  time: number; cue?: number; selection: string;
+  duplicate?: boolean;
+  copies?: { template: SpxTemplate; operations: EditorOperation[]; members: { base: BaseValues; part: RenderedPart }[] };
   /** The rotation handle's last pointer and the angle swept so far, unwrapped. */
   turn?: { last: Point; swept: number };
   /** Whether the preview shows this drag's draft rather than the source. */
@@ -41,17 +43,17 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
    *  start) shows the source again, once. */
   const show = (gesture: Gesture) => {
     preview()?.noteInput('drag');
-    if (gesture.operations.length) { preview()?.previewTemplate(session.preview(gesture.operations).template); gesture.drafted = true; }
+    if (gesture.operations.length) { preview()?.previewTemplate(session.preview(gesture.operations).template, 'drag', gesture.copies?.members.map((member, index) => ({ source: gesture.members![index].part.selector, target: member.part.selector }))); gesture.drafted = true; }
     else if (gesture.drafted) { preview()?.previewTemplate(template); gesture.drafted = false; }
   };
-  const cancel = () => {
+  const cancel = (restoreView = true) => {
     const active = !!current.current;
-    if (active) { session.cancel(); preview()?.previewTemplate(template, 'cancel'); }
+    if (active) { session.cancel(restoreView); preview()?.previewTemplate(session.port.read(), 'cancel'); }
     current.current = null; setDraft(null);
     // Escape during an anchor drag ends the drag; the Anchor tool stays for the next one.
     if (!active && tool === 'anchor') setTool('select');
   };
-  const begin = (point: Point, part?: RenderedPart, handle?: Handle, selected?: RenderedPart[]) => {
+  const begin = (point: Point, part?: RenderedPart, handle?: Handle, selected?: RenderedPart[], duplicate = false) => {
     setError('');
     try {
       const expected = session.version();
@@ -81,25 +83,43 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       const local = drawingSpace ? inverseDelta(drawingSpace, { x: point.x - drawingSpace[4], y: point.y - drawingSpace[5] }) : point;
       const creation = !base && tool !== 'select' && tool !== 'anchor' && tool !== 'pen' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
       session.begin(expected);
-      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time,
+      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time, cue, selection: JSON.stringify(session.port.view().selectedParts), duplicate,
         turn: handle?.kind === 'rotate' ? { last: point, swept: 0 } : undefined };
     } catch (cause) { setError(String(cause instanceof Error ? cause.message : cause)); }
   };
+  const isCurrent = (gesture: Gesture) => {
+    const view = session.port.view();
+    if (sameRevision(gesture.expected, session.version()) && view.time === gesture.time && view.cue === gesture.cue && JSON.stringify(view.selectedParts) === gesture.selection) return true;
+    cancel(false); setError('The document or selection changed. Start the gesture again.'); return false;
+  };
   const move = (point: Point, modifiers: { shiftKey: boolean; altKey: boolean }) => {
     const gesture = current.current;
-    if (!gesture) return;
+    if (!gesture || !isCurrent(gesture)) return;
     try {
       const delta = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
       if (Math.hypot(delta.x, delta.y) < 2 && !gesture.moved) return;
       gesture.moved = true;
       if (gesture.members?.length && gesture.handle === undefined) {
         const constrained = modifiers.shiftKey ? Math.abs(delta.x) >= Math.abs(delta.y) ? { x: delta.x, y: 0 } : { x: 0, y: delta.y } : delta;
-        gesture.operations = gesture.members.flatMap(({ base, part }) => {
+        if (gesture.duplicate && !gesture.copies) {
+          let copied = template;
+          const operations: EditorOperation[] = [], members: { base: BaseValues; part: RenderedPart }[] = [];
+          for (const member of gesture.members) {
+            const operation: EditorOperation = { kind: 'layer.duplicate', selector: member.part.selector };
+            const patch = applyOperations(copied, [operation], false);
+            const selector = patch.changedTargets[0];
+            copied = patch.template; operations.push(operation);
+            members.push({ base: baseValues(copied, selector), part: { ...member.part, selector } });
+          }
+          gesture.copies = { template: copied, operations, members };
+        }
+        const source = gesture.copies?.template ?? template;
+        gesture.operations = [...(gesture.copies?.operations ?? []), ...(gesture.copies?.members ?? gesture.members).flatMap(({ base, part }) => {
           const change = inverseDelta(part.parent ?? [1, 0, 0, 1], constrained);
           // Each layer moves from the pose it edits: on a flag, a layer starting there from its departing cue's.
-          const pose = editingPose(template, base.selector, part.appearance, gesture.time, part.appearance?.cue);
-          return authoredTransform(template, base.selector, base, part.appearance, { x: displayedBase(base, pose, 'x') + change.x, y: displayedBase(base, pose, 'y') + change.y }, gesture.time);
-        });
+          const pose = editingPose(source, base.selector, part.appearance, gesture.time, part.appearance?.cue);
+          return authoredTransform(source, base.selector, base, part.appearance, { x: displayedBase(base, pose, 'x') + change.x, y: displayedBase(base, pose, 'y') + change.y }, gesture.time);
+        })];
         show(gesture);
         return;
       }
@@ -165,7 +185,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
   };
   const end = () => {
     const gesture = current.current;
-    if (!gesture) return;
+    if (!gesture || !isCurrent(gesture)) return;
     try {
       if (gesture.creation && !gesture.moved) gesture.operations = [{ kind: 'layer.create', geometry: { ...gesture.creation,
         width: gesture.creation.shape === 'text' ? 320 : 120, height: gesture.creation.shape === 'text' ? 64 : 120, box: false } }];

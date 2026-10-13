@@ -178,7 +178,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
   return <section className="ef-canvas" data-group-scope={groupScope ?? undefined} aria-label="Graphic canvas">
     <div className="ef-toolbar">
       {(['select', 'anchor', 'text', 'rectangle', 'ellipse', 'pen'] as const).map(choice => <button key={choice} aria-pressed={tool === choice} disabled={!!groupScope && choice !== 'select' && choice !== 'anchor'}
-        title={choice === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
+        title={choice === 'select' ? 'Alt/Option-drag: duplicate. Alt/Option-click: cycle overlapping artwork.' : choice === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
         onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); gesture.setTool(choice); }} aria-label={choice + ' tool'}>{choice[0].toUpperCase() + choice.slice(1)}</button>)}
       <button aria-label="image tool" disabled={!!groupScope} onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); openAssets(); }}>Image</button>
       <button onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); imageInput.current?.click(); }} disabled={image.busy || !!groupScope}>Add image file…</button>
@@ -229,6 +229,12 @@ export default function Canvas({ template, sampleData, session, time, selection,
       }}
       onKeyDown={event => {
         if (!editorShortcutsLive(event.target)) return;
+        if (event.target === event.currentTarget && tool === 'select' && selection.length &&
+          (event.key === 'ContextMenu' || event.shiftKey && event.key === 'F10')) {
+          event.preventDefault(); event.stopPropagation(); pause(); keyboard.cancel(); gesture.cancel();
+          const box = event.currentTarget.getBoundingClientRect();
+          openLayerMenu(selection[0], box.left + box.width / 2, box.top + box.height / 2); return;
+        }
         if (event.target === event.currentTarget && event.key.startsWith('Arrow')) setArrangementError('');
         if (event.target === event.currentTarget && tool === 'select' && !gesture.active() && !marqueeStart.current && !drag.current && keyboard.down(event)) {
           event.preventDefault(); event.stopPropagation(); return;
@@ -289,15 +295,18 @@ export default function Canvas({ template, sampleData, session, time, selection,
         const handle = handleAt({ x, y });
         if (handle) { gesture.begin({ x, y }, single!, handle); return; }
         const index = event.altKey ? (hits.findIndex(p => p.selector === selection[0]) + 1) % Math.max(1, hits.length) : 0;
-        const hit = hits[index], additive = event.shiftKey || event.ctrlKey || event.metaKey;
+        const hit = hits[0], additive = !event.altKey && (event.shiftKey || event.ctrlKey || event.metaKey);
         if (!hit || (containers.has(hit.selector) && !selection.includes(hit.selector) && !event.altKey)) {
           marqueeStart.current = { x, y, selection: [...selection], additive, revision: session.version(), hit: hit?.selector, moved: false };
           if (!additive) setSelection([]);
           return;
         }
+        // Alt-click cycles the hit stack; crossing the drag threshold copies the selected roots.
+        // Delay cycling until release so a cancelled copy gesture retains the original selection.
+        if (event.altKey) clickSelection.current = hits[index]?.selector ?? null;
         if (additive || !selection.includes(hit.selector)) select(hit.selector, additive);
-        if (!additive && selection.length > 1 && selection.includes(hit.selector)) clickSelection.current = hit.selector;
-        if (!additive && !event.altKey) gesture.begin({ x, y }, hit, undefined, selection.includes(hit.selector) ? selected : [hit]);
+        if (!additive && !event.altKey && selection.length > 1 && selection.includes(hit.selector)) clickSelection.current = hit.selector;
+        if (!additive) gesture.begin({ x, y }, hit, undefined, selection.includes(hit.selector) ? selected : [hit], event.altKey);
       }}
       onDoubleClick={event => {
         if ((event.target as HTMLElement).closest('.ef-inline-text')) return;
@@ -335,7 +344,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (start?.hit && !start.moved && sameRevision(start.revision, session.version())) select(start.hit, start.additive);
         marqueeStart.current = null; setMarquee(null); drag.current = null;
         const moved = gesture.end();
-        if (!moved && clickSelection.current) select(clickSelection.current, false);
+        if (moved === false && clickSelection.current) select(clickSelection.current, false);
         clickSelection.current = null;
       }}
       onLostPointerCapture={() => { if (pen.pressed()) pen.cancel(); clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}

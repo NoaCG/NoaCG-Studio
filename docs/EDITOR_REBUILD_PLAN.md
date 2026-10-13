@@ -699,6 +699,13 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-13: remaining everyday interaction qualification
+
+- [Spec, reference comparison and receipts](work-specs/editor-interaction-qualification/README.md): current-main reproduction and source tracing found missing keyboard duplicate/select-all, canvas keyboard context, property reveal/key navigation and Alt-drag copies. Existing selection, rename/eye, transforms and numeric scrubs remain in place. Copy batches reuse stable-ID/source operations and one session transaction; input controls retain keyboard ownership.
+- The existing transient preview path did not render added structure. Copy drafts now clone already rendered artwork with operation-derived ID/reference changes, preserving populated text. Source/history stay unchanged until release; Escape, pointer cancellation and changed editing context remove drafts. Keep Alt-click cycling distinct from dragging and retain Alt-scale pivot behavior. A source change during a structural/motion draft must take the full preview load: CSS/key-only reuse can retain temporary DOM and draft animation.
+- Fresh Studio and Eyevinn executions plus exact source hashes are recorded. Studio keyboard copy/history/context work, but Alt-drag moves the original; Eyevinn has no copy shortcut or canvas context action. NoaCG deliberately keeps Shift row ranges, exact Escape, one gesture per undo, static Anchor and separate Scale/box size.
+- Desktop/laptop/native 125% cumulative tasks retain text, animation, save/reopen and executable SPX/CasparCG/OGraf outputs. Actual 125% stays at 1093x545 CSS content, 196px canvas, 180px timeline and 280px inspector. The Fit artwork remains small and Properties scrolls; comfort and owner acceptance remain open. Preserve #950/#960 and the earlier receipts. Next: separately scoped leave-editor and cloud-status phases; no loops, R1.5/default switch, receiving-host or paired-MCP claim.
+
 ### 2026-10-11: independent landed short-height comparison (#991)
 
 - [Fresh checker receipt](work-specs/editor-canvas-short-height/independent/README.md): PR #990 landed as 0a04f770; fetched main 5896c25a and served 8cee8ffc have identical product trees. Twenty-two maintained regressions, five fresh cumulative/reference tasks and the served task with three executable outputs passed in the recorded CI steps; six layout/entry cases separately retained captures. Failed checker assertions and the old production revision guard remain explicit. No product code changed.

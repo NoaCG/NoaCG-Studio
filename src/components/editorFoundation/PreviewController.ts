@@ -52,6 +52,7 @@ export class PreviewController {
   private queuedKind = 'scrub';
   private pendingCss: string | null = null;
   private pendingTemplate: SpxTemplate | null = null;
+  private pendingCopies: { source: string; attributes: [string, string][][] }[] = [];
   private draftMotion = false;
   private resolvedAssets: SpxTemplate['assets'] = [];
   private monitoringFrame = 0;
@@ -129,6 +130,9 @@ export class PreviewController {
     }, 10000);
   }
   async load(template: SpxTemplate, revision: Revision, sampleData: Record<string, string>, time: number, cue?: number) {
+    // A draft can replace DOM, CSS and motion. Source acceptance must clear all of it,
+    // including a cancellation queued for the next frame.
+    const canReuseFrame = !this.draftMotion && !this.pendingTemplate;
     this.previewError = null; this.transient = false;
     this.exitMode = null;
     this.targetCue = cue;
@@ -138,11 +142,12 @@ export class PreviewController {
     this.inFlight = true;
     this.pendingCss = null;
     this.pendingTemplate = null;
+    this.pendingCopies = [];
     this.draftMotion = false;
     const epoch = ++this.loadEpoch;
     const previousEnvelope = this.expected;
     const previousTemplate = this.template;
-    const previouslyReady = this.ready;
+    const previouslyReady = this.ready && canReuseFrame;
     this.ready = false;
     this.expected = null; // refuse old acks even while hashing new bytes
     this.targetTime = time;
@@ -212,7 +217,16 @@ export class PreviewController {
     this.pendingCss = inlineAssetRefs(css, this.resolvedAssets);
     this.seek(this.targetTime, kind, this.targetCue);
   }
-  previewTemplate(template: SpxTemplate, kind = 'drag') {
+  previewTemplate(template: SpxTemplate, kind = 'drag', copies: { source: string; target: string }[] = []) {
+    // Clone already rendered content (including sample data), applying only the registry's
+    // changed IDs/references. No document HTML or template script is executed for a draft.
+    this.pendingCopies = copies.map(copy => {
+      const source = artworkLayerNode(this.template!, copy.source), target = artworkLayerNode(template, copy.target);
+      const originals = [source, ...source.querySelectorAll('*')], targets = [target, ...target.querySelectorAll('*')];
+      if (originals.length !== targets.length) throw new Error('The copied layer structure changed. Start the gesture again.');
+      return { source: svgInspectionSelector(source), attributes: targets.map((node, index) => Array.from(node.attributes)
+        .filter(attribute => originals[index].getAttribute(attribute.name) !== attribute.value).map(attribute => [attribute.name, attribute.value] as [string, string])) };
+    });
     this.transient = template.html !== this.template?.html || template.css !== this.template?.css || template.js !== this.template?.js;
     if (!this.draftMotion && template.js === this.template?.js && template.html === this.template?.html) { this.previewCss(template.css, kind); return; }
     this.draftMotion = template.js !== this.template?.js || template.html !== this.template?.html;
@@ -255,8 +269,8 @@ export class PreviewController {
     this.expected = this.envelope(this.expected.revision);
     const css = this.pendingCss;
     this.pendingCss = null;
-    const draft = this.pendingTemplate;
-    this.pendingTemplate = null;
+    const draft = this.pendingTemplate, copies = this.pendingCopies;
+    this.pendingTemplate = null; this.pendingCopies = [];
     const document = draft ? new DOMParser().parseFromString(draft.html, 'text/html') : null;
     const geometry = document ? this.timeline!.parts.flatMap(part => {
       const node = document.querySelector(part.selector);
@@ -264,7 +278,7 @@ export class PreviewController {
         attributes: Object.fromEntries(['x', 'y', 'cx', 'cy'].map(name => [name, node.getAttribute(name)])) }] : [];
     }) : [];
     this.iframe.contentWindow?.postMessage({ ...this.expected, kind: exitKind ?? (draft ? 'preview-template' : css === null ? 'seek' : 'preview-css'),
-      css: draft ? inlineAssetRefs(draft.css, this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry } : {}), ...position }, '*');
+      css: draft ? inlineAssetRefs(draft.css, this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry, copies } : {}), ...position }, '*');
   }
   /** Source acceptance and correlated rendered-pose acknowledgement are separate receipts. */
   receipt(revision: Revision, view: { time: number; cue?: number }) {
