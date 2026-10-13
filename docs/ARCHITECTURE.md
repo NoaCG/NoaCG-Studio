@@ -217,8 +217,8 @@ was tried on paper and refused, because it costs more than the rule buys:
 
 What the rule is actually protecting - UI that cannot be reused from below and transforms hiding
 in the render tree - is answered instead by keeping the capability's boundary narrow, and by
-MEASURING that rather than asserting it. Of the 20 functions and 20 types `import/draft.ts`
-exports, **four functions, the clear patch and one type are named in code outside `import/`**:
+MEASURING that rather than asserting it. Of the 18 functions and 20 types `import/draft.ts`
+exports, **five functions and one type are named in code outside `import/`**:
 `svgDraftFromImport` and `svgDraftCleared` (the draft a dropped SVG starts from and the patch
 that takes it back, the whole of what `CreationWizard.tsx` takes; the corpus harness
 `scripts/svg-import-passes.test.mjs` builds its draft through the same function),
@@ -227,11 +227,11 @@ that takes it back, the whole of what `CreationWizard.tsx` takes; the corpus har
 extends. `stageMeasure.ts` and `fieldAutoMap.ts` cross out not at all - they measure and propose
 over the step's own render, which nothing below the UI could call anyway.
 
-**Four functions plus the clear patch is the number to watch, and this is how to count it** -
-re-open the exception if it grows. The command matches text, so it also lists names that appear
-outside `import/` only in comments: today `armTimerClock` (`templates/behaviours/naming.ts`) and
-`DesignFieldSpec` (`blocks/designFields.ts`, `ai/importAnalysis/normalize.ts`). It has no
-backslash, so it reads the same in bash and PowerShell.
+**Five functions and one type are the number to watch, and this is how to count it** - re-open
+the exception if it grows. The command matches text, so it prints eight names today: those six,
+and two that appear outside `import/` only in comments, `armTimerClock`
+(`templates/behaviours/naming.ts`) and `DesignFieldSpec` (`blocks/designFields.ts`,
+`ai/importAnalysis/normalize.ts`). It has no backslash; in an interactive bash, run `set +H` first.
 
 ```
 node -e "const fs=require('fs');const p='src/components/wizard/import/draft.ts';const s=fs.readFileSync(p,'utf8');

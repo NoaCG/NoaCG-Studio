@@ -14,8 +14,9 @@
 //
 //   inventory    what the reader returns (`importSvgMarkup`), its markup as a hash
 //   proposal     the behaviour and the extras proposed from the names
-//   draft        the whole patch the wizard's drop applies (`svgDraftFromImport`), the read
-//                result in it as its fitted size
+//   draft        the rest of the patch the wizard's drop applies (`svgDraftFromImport`): the fitted
+//                size, the growth seed, the name and every key a drop resets; its rows are
+//                `proposal`'s and `fieldList`'s
 //   fieldList    the draft's field, picture, outline and font rows, as the wizard builds them
 //   step         the mapping step's growth default and its fill gap, measured on a stage render
 //   bind         the bound <svg> as the emitted html carries it (`bindSvgMarkup`)
@@ -117,15 +118,18 @@ const RECORD = async ({ markup, origin, ladder }) => {
   }
 
   // PROPOSE and DRAFT, through the one function `CreationWizard.tsx` calls on drop. The drop's
-  // patch is kept as it came, before the step below re-answers its fields and its growth.
+  // patch is taken as it came, before the step below re-answers its fields and its growth, and
+  // without the rows `proposal` and `fieldList` already pin, so one change fails one record.
   const draft = w0.__importDraft(svg);
   const behaviour = draft.svgBehaviour;
   const { designSvg: placed, ...dropped } = draft;
-  const drop = {
+  for (const pinned of ['svgFields', 'svgImages', 'svgOutlines', 'svgFonts', 'svgBehaviour', 'svgExtras']) delete dropped[pinned];
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const drop = JSON.parse(JSON.stringify({
     size: { width: placed.width, height: placed.height },
-    restIsTheRead: Object.keys({ ...svg, ...placed }).every((k) => k === 'width' || k === 'height' || placed[k] === svg[k]),
+    restIsTheRead: Object.keys({ ...svg, ...placed }).every((k) => k === 'width' || k === 'height' || same(placed[k], svg[k])),
     ...dropped,
-  };
+  }));
 
   // Every family the file names, on a bundled face: its own where the draft matched one, Inter
   // where nothing did. Declared for the step's stage here, and inside the graphic below.
@@ -249,6 +253,28 @@ const RECORD = async ({ markup, origin, ladder }) => {
   };
 };
 
+/** Runs in the browser: the name a drop gives and a clear takes back, which the corpus (fresh
+ *  drafts of files read without a name) never exercises. */
+const NAMING = () => {
+  const D = window.NOACG_DRAFT;
+  const read = { ...window.NOACG_SVG.importSvgMarkup('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="10" y="50">Hello</text></svg>') };
+  const drop = (fileName, previous) => D.svgDraftFromImport({ ...read, fileName }, { resolution: { width: 1920, height: 1080 }, previous }).name;
+  const quiz = { fileName: 'quiz-board.svg' };
+  return {
+    drops: [
+      drop('quiz-board.svg', { name: '', designSvg: null }),
+      drop('quiz-board.svg', { name: '   ', designSvg: null }),
+      drop('scoreboard.svg', { name: 'Final', designSvg: quiz }),
+      drop('scoreboard.svg', { name: 'Quiz board', designSvg: quiz }),
+      drop(undefined, { name: '', designSvg: null }),
+    ],
+    clears: [
+      D.svgDraftCleared({ name: 'Quiz board', designSvg: quiz }),
+      D.svgDraftCleared({ name: 'Final', designSvg: quiz }),
+    ],
+  };
+};
+
 const sha = (s) => createHash('sha256').update(s ?? '').digest('hex');
 
 /** The bound <svg> as the emitted html carries it, without the indent the assembler adds. */
@@ -345,6 +371,7 @@ function diff(before, after, tol, path = '', out = []) {
 
 const started = Date.now();
 const fontBytes = new Map();
+let naming = null;
 const raws = await withBundledPage(SPECS, async (page) => {
   // Offline and the same everywhere: the harness origin serves the bundled faces, nothing else
   // leaves the page.
@@ -363,6 +390,7 @@ const raws = await withBundledPage(SPECS, async (page) => {
     out[file.name] = await page.evaluate(RECORD, { markup: file.markup, origin: ORIGIN, ladder: LADDER_VALUES })
       .catch((e) => { throw new Error(`${file.name}: ${e.message}`); });
   }
+  naming = await page.evaluate(NAMING);
   return out;
 });
 const seconds = ((Date.now() - started) / 1000).toFixed(1);
@@ -417,6 +445,12 @@ if (RUNTIME_LOCAL) {
 test('the corpus is the files with a sidecar, and the record holds each of them', () => {
   assert.ok(corpus.length >= 49, `only ${corpus.length} corpus files`);
   assert.deepEqual(Object.keys(records), Object.keys(snapshot.files).sort(), 'a corpus file was added or removed: re-record');
+});
+
+test('a drop names the graphic after its file unless the reader named it, and a clear takes only that name back', () => {
+  assert.deepEqual(naming.drops, ['Quiz board', 'Quiz board', 'Final', 'Scoreboard', '']);
+  const empty = { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null };
+  assert.deepEqual(naming.clears, [{ ...empty, name: '' }, { ...empty, name: 'Final' }]);
 });
 
 test('the findings against the sidecars are the recorded ones', () => {

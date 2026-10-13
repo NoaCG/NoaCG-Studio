@@ -584,11 +584,18 @@ run time, the findings recorded, and the check's findings.
 - **Built:** `svgDraftFromImport(result, { resolution, previous })` and `svgDraftCleared(previous)`
   in `import/draft.ts`, where `previous` is the draft's `name` and `designSvg`. Their bodies are the
   wizard's removed lines with the comments, unchanged except `draft` reads as `previous`.
-  `CreationWizard.tsx` now calls them and imports five fewer names. `__importDraft(svg)` is
-  `svgDraftFromImport` for a fresh draft at 1920 x 1080. The harness reads its behaviour from the
-  draft and adds a `draft` record: the whole drop patch, with the read result as its fitted
-  `size` and `restIsTheRead` (every other `designSvg` key is the reader's own value; true on all
-  48 files). ARCHITECTURE §5 carries the counts and the command.
+  `CreationWizard.tsx` now calls them: six imports out, two in. The drop's return type names every
+  key it sets, so leaving one out does not compile; the clear's names every `svg*` key of the
+  slice, so a new one does not compile until the clear resets it. `proposeSvgExtras` and
+  `graphicNameFromFile` lost their last outside caller and are no longer exported.
+  `__importDraft(svg)` is `svgDraftFromImport`
+  for a fresh draft at 1920 x 1080. The harness reads its behaviour from the draft and adds a
+  `draft` record: the drop patch without the rows `proposal` and `fieldList` already pin (so
+  one change fails one record), with the read result as its fitted `size` and `restIsTheRead`
+  (every other `designSvg` key equals the reader's value; true on all 48 files). Because the
+  corpus drops only fresh drafts of unnamed files, a harness test also pins the name a drop
+  gives and the patch a clear returns (five drops, two clears). ARCHITECTURE §5 carries the
+  counts and the command.
 - **Proof, the temporary assertion** (`scripts/tmp-svg-draft-door.test.mjs`, run in this worktree,
   then deleted). The old side was lines 2006-2133 of `CreationWizard.tsx` at `f6634cbd6`, pasted with
   types stripped, `patch` returning its argument and `draftResolution(draft)` as `res` (a
@@ -613,13 +620,13 @@ run time, the findings recorded, and the check's findings.
   every other pass matched, and the runtime matched this machine's baseline, taken on this
   branch before the harness switched (`SVG_CORPUS_RUNTIME_LOCAL`). After the re-record, the
   snapshot without its `draft` keys is identical to `f6634cbd6`'s (parsed and compared). The
-  patience diff is 3,872 added lines and none removed. Run time 5.7 s for 49 files on this
+  patience diff is 1,200 added lines and none removed. Run time 5.6 s for 49 files on this
   Windows machine. `vote-board-bars.test.mjs` and `readout-ink.test.mjs`, the other two callers
   of `__importDraft`, pass. Findings unchanged: the same five.
 - **§5 command:** prints as code references exactly `svgDraftFromImport`, `svgDraftCleared`
   (`CreationWizard.tsx`), `svgDesignOptions`, `withSvgImportPasses`, `SvgImportDraft`
   (`draft/core.ts`), `behaviourSummary` (`FinishStep.tsx`). It also lists `armTimerClock`
-  (`naming.ts:194`) and `DesignFieldSpec`, both only in comments. `import/draft.ts` exports 20
+  (`naming.ts:194`) and `DesignFieldSpec`, both only in comments. `import/draft.ts` exports 18
   functions and 20 types.
 - **Decisions:**
   - The brand stays with the shell, which patches it over the drop the same way as on every
@@ -628,9 +635,10 @@ run time, the findings recorded, and the check's findings.
     `import/draft.ts`). No key of the drop patch is a brand key, so the order is free. The brand
     case is in the assertion above.
   - The context is `{ resolution, previous }` rather than the whole draft, so the function says
-    what it reads. It returns a `DraftPatch` (a type-only import from `draft/core.ts`, the
-    precedent of the step files), because the drop sets wizard-level keys (`name`, `category`,
-    `variantId`, `lines`, `zone`, `animation`) as well as the slice.
+    what it reads. Its return type is the slice without `designKeepBakedText` plus the
+    wizard-level keys the drop sets (`importedImages`, `name`, `category`, `variantId`, `lines`,
+    `zone`, `animation`), built from `DraftPatch` and `WizardDraft` (type-only imports from
+    `draft/core.ts`, the precedent of the step files).
   - The drop still leaves `designKeepBakedText` alone, as before, even though its comment says a
     fresh drop clears it. That is a raster-road answer, and changing it is not a move.
   - ARCHITECTURE §5's `planFor` command used `require`, which `e2e-affected.mjs` (top-level await)
@@ -643,16 +651,21 @@ run time, the findings recorded, and the check's findings.
     is now ignored. Those files are outside this fence, and both pass on the draft's own
     proposal. Whoever next touches them can drop the argument.
   - `import/draft.ts` now imports `FONTS` and `fontNameKey` from `model/fonts.ts` as values, so
-    every bundle of it (the harness, the two tests above) carries the font list.
+    every bundle of it carries the font list, and the two tests above now get the bundled
+    `fontId` match where they used to get null, as the wizard always did.
+  - The empty SVG slice is written three times: `initialDraft` (`draft/core.ts`),
+    `svgDraftCleared`, and the raster drop `onArt` in `CreationWizard.tsx`. The clear's type now
+    catches a missing `svg*` key; `initialDraft` is typed whole; `onArt` is not checked. One
+    shared constant would close it; that touches `onArt` and `core.ts`, outside this fence.
   - `docs/work-specs/wizard-structure/spec.md` (landed in #1124) cites `onSvg` at 2006-2127 and the
     eight-name seam. After this phase, the handler is 11 lines and the seam is four functions plus
-    the clear.
+    the clear and one type.
 - **Traps:**
-  - The harness splits the draft before the step mirror reassigns `svgFields` and `svgStretch`.
-    Those are reassignments, not mutations, so the `draft` record is the drop's own. A step mirror
-    that mutated in place would leak into it.
-  - `restIsTheRead` compares by reference. A `svgDraftFromImport` that copied the candidate lists
-    would flip it to false without changing any value.
+  - The harness copies the `draft` record (through JSON) the moment the drop returns, so the step
+    mirror and the build cannot change it afterwards. `fieldList` is not copied that way: it is
+    the rows as the build left them.
+  - The `draft` record leaves out the rows, so a drop-time row the step then re-answers (text
+    outside the frame) is pinned only as the step leaves it. No corpus file has one today.
 
 ### Phase 1: the corpus harness (build, 2026-10-13, pull request #1122)
 

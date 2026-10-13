@@ -1040,7 +1040,7 @@ export interface SvgExtraDraft {
 }
 
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */
-export function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
+function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
   return proposeExtras(svg).map(({ candidateId, prefix }) =>
     prefix.kind === 'switch'
       ? { candidateId, use: 'switch' as const, name: prefix.name }
@@ -1052,7 +1052,7 @@ export function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
  *  second unnamed import used to be called "Imported SVG design" like the first and replace it
  *  in the production by name (row E's walk, 2026-09-21); the file's own name is the one thing the
  *  student already chose. Blank when the file has no name to give. */
-export function graphicNameFromFile(fileName: string): string {
+function graphicNameFromFile(fileName: string): string {
   const stem = fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
   return stem ? stem.charAt(0).toUpperCase() + stem.slice(1) : '';
 }
@@ -1421,6 +1421,16 @@ function withSvgOutlineFields(
 /** The draft as it stood before a drop or a clear: what decides the graphic's name. */
 type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'>;
 
+/** Every key a drop sets, so leaving one out does not compile: the whole slice but the raster
+ *  road's baked-text answer, and the wizard-level keys that make the draft an imported design. */
+type SvgDropPatch = Omit<SvgImportDraft, 'designKeepBakedText'> &
+  Required<Pick<DraftPatch, 'importedImages' | 'name' | 'category' | 'variantId' | 'lines' | 'zone' | 'animation'>>;
+
+/** Every key a clear resets: each `svg*` key of the slice, so a new one does not compile until
+ *  the clear takes it back too, and the keys that made the draft an imported design. */
+type SvgClearPatch = Pick<SvgImportDraft, 'designSvg' | Extract<keyof SvgImportDraft, `svg${string}`>> &
+  Required<Pick<DraftPatch, 'name' | 'category' | 'variantId'>>;
+
 /**
  * THE DRAFT A DROPPED SVG STARTS FROM: every answer the mapping step then opens on. The brand
  * is the shell's, as on every other road, and is patched over this.
@@ -1428,7 +1438,7 @@ type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'>;
 export function svgDraftFromImport(
   result: SvgImportResult,
   context: { resolution: { width: number; height: number }; previous: SvgDropPrevious },
-): DraftPatch {
+): SvgDropPatch {
   const { resolution: res, previous } = context;
   // Fit-to-frame like the raster path: a larger canvas scales DOWN to the
   // frame (vector — nothing is lost); the viewBox in the markup is untouched,
@@ -1547,14 +1557,14 @@ export function svgDraftFromImport(
 
 /** THE DRAFT WITH THE SVG TAKEN BACK: every answer the drop gave is cleared. The name the file
  *  gave goes with the file; a name the reader typed stays. */
-export function svgDraftCleared(previous: SvgDropPrevious): DraftPatch {
+export function svgDraftCleared(previous: SvgDropPrevious): SvgClearPatch {
   const fromFile = graphicNameFromFile(previous.designSvg?.fileName ?? '');
   return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null, name: previous.name === fromFile ? '' : previous.name };
 }
 
 // ── THE TWO DOORS THE SHARED DRAFT TAKES ────────────────────────────────────────────────────
-// Everything above is the capability's own; these two are what `../draft/core.ts` calls, and
-// they are deliberately the whole of it. Nine functions used to cross here, and the cost was
+// The drop and the clear above are what the shell calls; these two are what `../draft/core.ts`
+// calls, and they are deliberately the whole of it. Nine functions used to cross here, and the cost was
 // not the count - it was that the CALLER held the knowledge joining them: which layers become
 // numbered fields, and which order the template passes run in. Both facts now sit with the
 // code that decides them, and adding a tenth answer to the mapping step changes one file.
