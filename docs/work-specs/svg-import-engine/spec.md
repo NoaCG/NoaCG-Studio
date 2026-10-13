@@ -602,10 +602,10 @@ run time, the findings recorded, and the check's findings.
 
   | Rung | Contract rule | Holds |
   |---|---|---|
-  | `room` | room stops at the box's edge and at a neighbour on the line's rows; unreported, nothing paints out of its box sideways | 43 of 44 (8 files have a penned line) |
+  | `room` | room stops at the box's edge and at a neighbour on the line's rows; unreported, nothing paints out of its box sideways | 42 of 44 (8 files have a penned line) |
   | `snap` | a centred line is anchored on its box's middle, a centred block on its band's middle | 23 of 23 (22 on Linux) |
   | `margin` | growth never passes the mirrored margin, floored at `safe`, and never leaves the frame | 19 of 19 |
-  | `settle` | a second `fitSvgText` and a `refitSvgText` give the same artwork to the byte | 36 of 48 |
+  | `settle` | a second `fitSvgText` and a `refitSvgText` give the same artwork to the byte | 35 of 47 (one file binds no line the fit walks) |
   | `fits` | at rest the artwork is the design; a value the room holds stays at the drawn size on one line, unreported, and moves nothing | 46 of 46 |
   | `floors` | never below 30%, reported below 55%, squeezed no narrower than 70% and reported | 28 of 28 |
 
@@ -639,6 +639,10 @@ run time, the findings recorded, and the check's findings.
     on the line. The other 11 files are not traced.
   - `room`, `illustrator-rotated-sidebar-strip` (#1144): the turned line wraps across both edges
     of its upright strip, unreported (from -64 to 184 px at `over1` in a 120 px strip).
+  - `room`, `effects-symbol-library-ticker` (#1148): the story is penned by the source beside it,
+    but the source is end-anchored and grows leftwards unbounded, so with long values the two
+    overlap, unreported. Found by the review of this pull request, once the rung read the
+    neighbour where it stands after the fit rather than where it stood at rest.
   - The mirror's 61 findings (#1145), listed in `MIRROR_FINDINGS`.
   - None of the pass harness's five recorded findings changed; this phase does not touch it.
 - **Decisions:**
@@ -670,7 +674,7 @@ run time, the findings recorded, and the check's findings.
   - Phase 7 (optional) retires `import-svg.spec.ts` transform tests against the pass harness. This
     test covers the rungs on corpus artwork, not the wizard's preview, the gestures or the
     sweep's value-by-option matrix, so no ladder or growth spec should be retired against it.
-  - A fix for #1143, #1144 or #1145 changes `RUNG_FINDINGS` or `MIRROR_FINDINGS` in the same pull
+  - A fix for #1143, #1144, #1145 or #1148 changes `RUNG_FINDINGS` or `MIRROR_FINDINGS` in the same pull
     request; for the mirror take the list from a CI log (it prints every finding; on Linux,
     `SVG_FIT_RUNGS_SHOW=1` prints it as code).
   - A change to a runtime file alone runs this test (its guards include the runtime folder), so
@@ -679,8 +683,10 @@ run time, the findings recorded, and the check's findings.
   - This worktree had no `node_modules`; a junction to the main checkout's (same lockfile), made
     with `node -e "require('fs').symlinkSync(<main>/node_modules, 'node_modules', 'junction')"`,
     serves it, and git ignores it.
-  - The Bash tool refuses a heredoc and a command that mixes `git` with other programs; run `git`
-    on its own.
+  - The step's stage, its outside-frame untick and its growth answer are now copied in two tests,
+    this one and the pass harness, both from `MapSvgFieldsStep.tsx`. A change to that effect
+    changes both copies; one shared page helper for the two would close it, and was left out to
+    keep the harness, the byte gate of phases 2 to 5, untouched here.
 
 ### Phase 5: the growth and shape runtimes as files (build, 2026-10-14)
 

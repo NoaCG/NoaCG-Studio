@@ -130,9 +130,9 @@ const MIRROR_FINDINGS = [
   'ticker-strip-3840 f2: box: the step groups it under no box, the runtime measures it in one',
 ];
 const RULES = ['room', 'snap', 'margin', 'settle', 'fits', 'floors'];
-/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, settle #1143. */
+/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1148 and #1144, settle #1143. */
 const RUNG_FINDINGS = {
-  room: ['illustrator-rotated-sidebar-strip'],
+  room: ['effects-symbol-library-ticker', 'illustrator-rotated-sidebar-strip'],
   settle: [
     'effects-smil-animated-bug',
     'figma-offset-centred-endboard',
@@ -159,7 +159,11 @@ const SPECS = [
 
 const corpus = readdirSync(CORPUS)
   .filter((f) => f.endsWith('.svg') && existsSync(`${CORPUS}${f.replace(/\.svg$/, '.expect.json')}`))
-  .map((f) => ({ name: f.replace(/\.svg$/, ''), markup: readFileSync(`${CORPUS}${f}`, 'utf8') }))
+  .map((f) => ({
+    name: f.replace(/\.svg$/, ''),
+    markup: readFileSync(`${CORPUS}${f}`, 'utf8'),
+    refuses: JSON.parse(readFileSync(`${CORPUS}${f.replace(/\.svg$/, '.expect.json')}`, 'utf8')).expect?.accepted === false,
+  }))
   .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
 
 // ── THE RUNTIME, FILLED AS svg.ts FILLS IT ────────────────────────────────────────────────────
@@ -188,7 +192,8 @@ const CODE = { fit: filled('svgFit.js'), growth: filled('svgGrowth.js'), shapes:
 /** Runs in the browser: one corpus file built as the wizard builds it, the step's mirror measured
  *  on the step's own stage, then the runtime loaded alone over the bound artwork and every rung
  *  driven and checked. Returns the observations; the assertions are made in Node. */
-const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
+const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
+  const code = window.__RUNG_CODE;               // the filled runtime, sent once (below)
   const { NOACG_SVG: R, NOACG_DRAFT: D, NOACG_STAGE: S, NOACG_IMPORTED: B, NOACG_FONTS: FONTS } = window;
   let svg;
   try {
@@ -197,6 +202,7 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
     return { refused: String(e && e.message ? e.message : e) };
   }
   const draft = D.svgDraftFromImport(svg, { resolution: { width: 1920, height: 1080 }, previous: { name: '', designSvg: null } });
+  const dsvg = draft.designSvg;
   const inter = FONTS.fontById('inter').file;
   const face = (family, file) =>
     `@font-face{font-family:"${family}";src:url("${origin}/fonts/${file}") format("woff2");font-weight:100 900;}`;
@@ -212,12 +218,11 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
   document.head.appendChild(style);
   const stage = document.createElement('div');
   stage.className = 'map-svg-stage';
-  stage.style.cssText = `position:absolute;left:-20000px;top:0;width:${draft.designSvg.width}px;`;
-  stage.innerHTML = draft.designSvg.markup;
+  stage.style.cssText = `position:absolute;left:-20000px;top:0;width:${dsvg.width}px;`;
+  stage.innerHTML = dsvg.markup;
   document.body.appendChild(stage);
   stage.getBoundingClientRect();
   await document.fonts.ready;
-  const dsvg = draft.designSvg;
   const ids = [...new Set([...dsvg.groups, ...dsvg.shapes, ...dsvg.candidates, ...dsvg.images, ...dsvg.outlines].map((c) => c.id))];
   const boxes = S.measureBoxes(stage, ids);
   const frameRect = stage.querySelector('svg')?.getBoundingClientRect();
@@ -264,15 +269,15 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
     }
   };
   const options = D.svgDesignOptions(draft);
-  const lineOf = options.fields.map((f, i) => ({ id: `f${i}`, candidateId: f.candidateId, title: f.title }));
+  const lineOf = options.fields.map((f, i) => ({ id: `f${i}`, candidateId: f.candidateId }));
   const stepSide = {};
   for (const l of lineOf) {
     const boxId = grouped[l.candidateId] ?? null;
-    // -1: no box; -2: a box that is not a shape (a group), which the runtime never measures in.
-    const at = boxId ? shapeIndex(markerEl(boxId)) : -1;
+    // -1: no box; -2: a box that is not a shape (a group), which the runtime never measures in;
+    // -3: a box the step names and its stage does not hold.
+    const boxEl = boxId ? markerEl(boxId) : null;
     stepSide[l.id] = {
-      boxIndex: boxId && at < 0 ? -2 : at,
-      fit: boxId ? fitWords(S.boxFitOf(stage, l.candidateId, boxId)) : null,
+      boxIndex: !boxId ? -1 : !boxEl ? -3 : shapeIndex(boxEl) < 0 ? -2 : shapeIndex(boxEl),
       candidateId: l.candidateId,
     };
   }
@@ -280,12 +285,10 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
   // ── BUILD, as the harness and the wizard build it.
   let template = B.IMPORTED_SVG.create({ designSvg: options });
   template = D.withSvgImportPasses(template, draft);
-  const rules = (template.js.match(/var NOACG_LAYOUT = \{[\s\S]*?\n\};/) || [null])[0];
-  const shipped = {
-    fit: template.js.includes(`\n${code.fit}`),
-    growth: !rules || template.js.includes(`\n${code.growth.replace(/\n$/, '')}`),
-    shapes: !rules || template.js.includes(`\n${code.shapes}`),
-  };
+  // The table rides for a growth rule OR a line an author aligned; the growth runtime and its
+  // shifters only for a rule (svg.ts), so the page loads what the template carries.
+  const table = (template.js.match(/var NOACG_LAYOUT = \{[\s\S]*?\n\};/) || [null])[0];
+  const shipped = { fit: template.js.includes(`\n${code.fit}`) };
 
   // ── THE RUNG PAGE: the template's css, the bound artwork and its placed lines, no script.
   const parsed = new DOMParser().parseFromString(template.html, 'text/html');
@@ -311,28 +314,36 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
   // The two renders are one parse of one markup, so a shape is the same shape at the same index.
   const sameShapes = artShapes.length === stageShapes.length
     && artShapes.every((el, i) => el.tagName === stageShapes[i].tagName);
-  /** Every attribute of everything drawn that is not a bound line - what may never move at rest. */
-  const furniture = () => {
-    const lines = w.svgFitNodes ? w.svgFitNodes() : [];
-    return [...art.querySelectorAll('*')]
-      .filter((el) => !lines.some((l) => l === el || l.contains(el)))
-      .map((el) => [...el.attributes].map((a) => `${a.name}=${a.value}`).join(' '))
-      .join('\n');
-  };
-  const pristine = { furniture: null };
 
   // LOAD THE RUNTIME, in the order the template carries it: the fit (its parse-time pass records
   // the drawn values), the table, and the growth and its shifters only where a rule exists.
   w.eval(code.fit);
+  if (table) w.eval(table);
+  const rules = !!table && w.NOACG_LAYOUT.rules.length > 0;
+  shipped.growth = template.js.includes(`\n${code.growth.replace(/\n$/, '')}`) === rules;
+  shipped.shapes = !rules || template.js.includes(`\n${code.shapes}`);
   if (rules) {
-    w.eval(rules);
     w.eval(code.shapes);
     w.eval(code.growth);
   }
-  pristine.furniture = furniture();
-
   const nodes = w.svgFitNodes();
+  /** Every attribute of everything drawn that is not a bound line - what may never move at rest. */
+  const lineSet = new Set(nodes);
+  const inLine = (el) => {
+    for (let n = el; n && n !== art; n = n.parentNode) if (lineSet.has(n)) return true;
+    return false;
+  };
+  const furniture = () => [...art.querySelectorAll('*')]
+    .filter((el) => !inLine(el))
+    .map((el) => [...el.attributes].map((a) => `${a.name}=${a.value}`).join(' '))
+    .join('\n');
+  const pristineFurniture = furniture();
   const drawnNodes = nodes.filter((el) => !w.svgFitPlaced(el));
+  // A bound field drawn as SVG text that the fit does not walk would drop out of every rung.
+  const unfitted = lineOf.filter((l) => {
+    const el = art.querySelector(`[id="${l.id}"]`);
+    return el && /^(text|tspan)$/i.test(el.tagName) && !nodes.includes(el);
+  }).map((l) => l.id);
   const r2 = (n) => Math.round(n * 100) / 100;
   const rect = (el) => {
     const b = el.getBoundingClientRect();
@@ -355,9 +366,14 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
     containers[el.id] = panel;
     restLocal[el.id] = local;
     // The neighbour that pens a line, found the way its room found it.
-    if (panel && room.penned) neighbours[el.id] = w.svgFitNeighbour(el, panel.getBoundingClientRect()).edge;
+    // Kept as the element, so its edge is read where it stands after a panel has grown.
+    if (panel && room.penned) {
+      const edge = w.svgFitNeighbour(el, panel.getBoundingClientRect()).edge;
+      neighbours[el.id] = [...art.querySelectorAll(`text, tspan, image, ${SHAPES}`)]
+        .find((o) => o !== el && !o.contains(el) && !el.contains(o) && Math.abs(o.getBoundingClientRect().left - edge) < 0.01);
+    }
     const own = el.getBBox();
-    const b = local;
+    const b = local;                              // the box, in the line's own units
     // The inset the runtime's room keeps, on each axis, read back off the room it measured: the
     // margin left between the room's far end and the box, on the side a longer value fills.
     let insetX = null;
@@ -401,8 +417,8 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
   w.refitSvgText();                               // the load pass and the fonts.ready pass
 
   // ── THE RUNGS.
-  const rulesOut = { room: [], snap: [], margin: [], settle: [], fits: [], floors: [] };
-  const exercised = { room: false, snap: false, margin: false, settle: false, fits: false, floors: false };
+  const rulesOut = Object.fromEntries(ruleNames.map((n) => [n, []]));
+  const exercised = Object.fromEntries(ruleNames.map((n) => [n, false]));
   // Where each line is painted at rest, holding the drawn value.
   const restRects = {};
   for (const el of drawnNodes) if (w.svgFitLaidOut(el)) restRects[el.id] = rect(el);
@@ -413,26 +429,23 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
   const layoutEls = rules ? w.NOACG_LAYOUT.rules.map((rule) => w.svgLayoutEl(rule.el)) : [];
 
   // AT REST the artwork is the design: nothing grown, nothing shrunk, squeezed or reported.
-  if (furniture() !== pristine.furniture) say('fits', 'rest: the artwork outside its lines is not as drawn');
+  if (furniture() !== pristineFurniture) say('fits', 'rest: the artwork outside its lines is not as drawn');
   for (const el of nodes) {
     if (!w.svgFitLaidOut(el)) continue;
     if (el.style.fontSize || squeezed(el).length || w.svgFitOver[el.id]) say('fits', `rest: ${el.id} is not at its drawn size`);
   }
-  // The geometry each rule reads at rest, before any value.
-  const restRect = (el) => (el ? rect(el) : null);
+  // The geometry each rule reads at rest, before any value. What MOVES with a rule is its element
+  // and its followers, as one rectangle (the runtime's svgMovingBox).
   const artRect = rect(art);
-  const restRules = layoutEls.map((el, i) => {
-    if (!el) return null;
+  const movingBox = (el, i) => {
     const rest = w.svgGrowRest[i];
-    const moving = [el, ...((rest && rest.followers) || []).map((f) => f.el)].map(rect).filter((r) => r.width > 0 && r.height > 0);
+    const rs = [el, ...((rest && rest.followers) || []).map((f) => f.el)].map(rect).filter((r) => r.width > 0 && r.height > 0);
     return {
-      panel: restRect(el),
-      moving: {
-        left: Math.min(...moving.map((r) => r.left)), right: Math.max(...moving.map((r) => r.right)),
-        top: Math.min(...moving.map((r) => r.top)), bottom: Math.max(...moving.map((r) => r.bottom)),
-      },
+      left: Math.min(...rs.map((r) => r.left)), right: Math.max(...rs.map((r) => r.right)),
+      top: Math.min(...rs.map((r) => r.top)), bottom: Math.max(...rs.map((r) => r.bottom)),
     };
-  });
+  };
+  const restRules = layoutEls.map((el, i) => (el ? { panel: rect(el), moving: movingBox(el, i) } : null));
   const values = Object.entries(ladder);
   for (const [key, value] of values) {
     // Does the value fit the room at the drawn size, as one line? Measured on a copy of the line,
@@ -459,7 +472,7 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
     const second = painted();
     w.refitSvgText();
     const third = painted();
-    exercised.settle = true;
+    if (nodes.length) exercised.settle = true;
     // Where two paintings first differ, so a broken settle says what moved.
     const where = (a, b) => { let i = 0; while (a[i] === b[i]) i++; return `at ${JSON.stringify(a.slice(Math.max(0, i - 60), i + 40))} -> ${JSON.stringify(b.slice(Math.max(0, i - 60), i + 40))}`; };
     if (second !== first) say('settle', `${key}: a second fitSvgText moved the artwork ${where(first, second)}`);
@@ -477,7 +490,7 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
         say('fits', `${key}: ${el.id} holds the value at its drawn size, yet was ${el.style.fontSize ? `set to ${el.style.fontSize}` : lines > 1 ? `wrapped onto ${lines} lines` : 'squeezed or reported'}`);
       }
     }
-    if (allFit && furniture() !== pristine.furniture) say('fits', `${key}: every line holds the value, yet the artwork moved`);
+    if (allFit && furniture() !== pristineFurniture) say('fits', `${key}: every line holds the value, yet the artwork moved`);
 
     // FLOORS: never below 30%, reported below 55%, squeezed no narrower than 70% and reported.
     for (const el of nodes) {
@@ -512,10 +525,11 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
       const now = rect(el);
       const drawn = restRects[el.id];
       const p = rect(panel);
-      const right = Math.max(el.id in neighbours ? Math.min(neighbours[el.id], p.right) : p.right, drawn.right);
+      const pen = neighbours[el.id];
+      const right = Math.max(pen ? Math.min(rect(pen).left, p.right) : p.right, drawn.right);
       const left = Math.min(p.left, drawn.left);
       if (now.right > right + 1) {
-        say('room', `${key}: ${el.id} paints to ${r2(now.right)}, past ${el.id in neighbours ? 'the neighbour that pens it' : 'its box'} at ${r2(right)}`);
+        say('room', `${key}: ${el.id} paints to ${r2(now.right)}, past ${pen ? 'the neighbour that pens it' : 'its box'} at ${r2(right)}`);
       }
       if (now.left < left - 1) say('room', `${key}: ${el.id} paints from ${r2(now.left)}, left of its box at ${r2(left)}`);
     }
@@ -554,12 +568,7 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
       if (!el || !rest) return;
       const rule = w.NOACG_LAYOUT.rules[i];
       const now = rect(el);
-      const followers = ((w.svgGrowRest[i] && w.svgGrowRest[i].followers) || []).map((f) => rect(f.el)).filter((r) => r.width > 0 && r.height > 0);
-      const moving = [now, ...followers];
-      const m = {
-        left: Math.min(...moving.map((r) => r.left)), right: Math.max(...moving.map((r) => r.right)),
-        top: Math.min(...moving.map((r) => r.top)), bottom: Math.max(...moving.map((r) => r.bottom)),
-      };
+      const m = movingBox(el, i);
       const y = rule.axis === 'y';
       const span = y ? artRect.height : artRect.width;
       const lo = y ? 'top' : 'left';
@@ -568,26 +577,24 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
       const grewHi = now[hi] - rest.panel[hi] > 0.5;
       if (!grewLo && !grewHi) return;
       exercised.margin = true;
-      const restLo = rest.panel[lo] - artRect[lo];
-      const restHi = artRect[hi] - rest.panel[hi];
       const safe = span * rule.safe;
+      // An author's cap replaces the mirrored margin; the safe margin floors either (svgCapMargin).
+      const capped = rule.cap != null ? Math.max(span * rule.cap, safe) : null;
       if (m[lo] < artRect[lo] - 1 || m[hi] > artRect[hi] + 1) say('margin', `${key}: rule ${i} grew out of the frame`);
+      // How far the moving edge stands from the frame, now and at rest, on one side.
+      const inset = (box, side) => (side === lo ? box[lo] - artRect[lo] : artRect[hi] - box[hi]);
       if (grewLo && grewHi) {
         // From the middle: the nearer margin, spent half on each side.
-        const nearer = Math.min(rest.moving[lo] - artRect[lo], artRect[hi] - rest.moving[hi]);
-        const room = Math.max(0, nearer - (rule.cap != null ? Math.max(span * rule.cap, safe) : safe));
-        if (rest.moving[lo] - m[lo] > room + 1 || m[hi] - rest.moving[hi] > room + 1) {
+        const room = Math.max(0, Math.min(inset(rest.moving, lo), inset(rest.moving, hi)) - (capped ?? safe));
+        if (inset(rest.moving, lo) - inset(m, lo) > room + 1 || inset(rest.moving, hi) - inset(m, hi) > room + 1) {
           say('margin', `${key}: rule ${i} widened from its middle past its nearer margin`);
         }
-      } else if (grewHi) {
-        const keep = rule.cap != null ? Math.max(span * rule.cap, safe) : Math.max(restLo, safe);
-        if (artRect[hi] - m[hi] < Math.min(keep, artRect[hi] - rest.moving[hi]) - 1) {
-          say('margin', `${key}: rule ${i} grew to ${r2(artRect[hi] - m[hi])} from the frame, inside the ${r2(keep)} it mirrors`);
-        }
       } else {
-        const keep = rule.cap != null ? Math.max(span * rule.cap, safe) : Math.max(restHi, safe);
-        if (m[lo] - artRect[lo] < Math.min(keep, rest.moving[lo] - artRect[lo]) - 1) {
-          say('margin', `${key}: rule ${i} grew to ${r2(m[lo] - artRect[lo])} from the frame, inside the ${r2(keep)} it mirrors`);
+        // One way: the margin the panel keeps on the side it is anchored to, mirrored.
+        const side = grewHi ? hi : lo;
+        const keep = capped ?? Math.max(inset(rest.panel, side === hi ? lo : hi), safe);
+        if (inset(m, side) < Math.min(keep, inset(rest.moving, side)) - 1) {
+          say('margin', `${key}: rule ${i} grew to ${r2(inset(m, side))} from the frame, inside the ${r2(keep)} it mirrors`);
         }
       }
     });
@@ -596,10 +603,10 @@ const RUNG = async ({ markup, origin, ladder, code, prefix }) => {
   // Back to the drawn values: the artwork comes back to the design (svgLayoutRest).
   for (const el of nodes) el.textContent = w.svgFitDrawn[el.id];
   w.refitSvgText();
-  if (furniture() !== pristine.furniture) say('fits', 'the drawn values again: the artwork did not come back to the design');
+  if (furniture() !== pristineFurniture) say('fits', 'the drawn values again: the artwork did not come back to the design');
   frame.remove();
 
-  return { shipped, sameShapes, grows: !!rules, penned: Object.keys(neighbours).length, lines: lineOf.map((l) => l.id), stepSide, runtimeSide, rules: rulesOut, exercised };
+  return { shipped, sameShapes, unfitted, penned: Object.keys(neighbours).length, lines: lineOf.map((l) => l.id), stepSide, runtimeSide, rules: rulesOut, exercised };
 };
 
 const started = Date.now();
@@ -615,9 +622,10 @@ const raws = await withBundledPage(SPECS, async (page) => {
     }
     return route.abort();
   });
+  await page.evaluate((code) => { window.__RUNG_CODE = code; }, CODE);
   const out = {};
   for (const file of corpus) {
-    out[file.name] = await page.evaluate(RUNG, { markup: file.markup, origin: ORIGIN, ladder: LADDER_VALUES, code: CODE, prefix: TOKENS.PREFIX })
+    out[file.name] = await page.evaluate(RUNG, { markup: file.markup, origin: ORIGIN, ladder: LADDER_VALUES, prefix: TOKENS.PREFIX, ruleNames: RULES })
       .catch((e) => { throw new Error(`${file.name}: ${e.message}`); });
   }
   return out;
@@ -636,8 +644,9 @@ function mirrorOf(step, run) {
   const box = [];
   if (step.boxIndex !== run.boxIndex) {
     box.push(step.boxIndex === -1 ? 'box: the step groups it under no box, the runtime measures it in one'
-      : step.boxIndex === -2 ? 'box: the step groups it under a group, the runtime measures it in a shape'
       : run.boxIndex < 0 ? 'box: the step groups it under a box, the runtime finds none'
+      : step.boxIndex === -2 ? 'box: the step groups it under a group, the runtime measures it in a shape'
+      : step.boxIndex === -3 ? 'box: the step names a box its stage does not hold'
       : 'box: the step and the runtime choose different boxes');
   }
   const law = [];
@@ -702,6 +711,10 @@ test('the corpus is every file with a sidecar, and each built file runs the runt
   assert.deepEqual(notShipped, [], 'the filled runtime files are not what the build emitted');
   const unpaired = accepted.filter((f) => !raws[f.name].sameShapes).map((f) => f.name);
   assert.deepEqual(unpaired, [], 'the step\'s stage and the bound artwork do not hold the same shapes');
+  // Only a file its sidecar says the door refuses is left out of the rungs and the mirror.
+  assert.deepEqual(corpus.filter((f) => raws[f.name].refused).map((f) => f.name), corpus.filter((f) => f.refuses).map((f) => f.name));
+  const unfitted = accepted.flatMap((f) => raws[f.name].unfitted.map((id) => `${f.name} ${id}`));
+  assert.deepEqual(unfitted, [], 'a bound text field the fit does not walk');
 });
 
 for (const rule of RULES) {
@@ -710,7 +723,8 @@ for (const rule of RULES) {
     const brokenOn = accepted.filter((f) => raws[f.name].rules[rule].length).map((f) => f.name);
     const said = accepted.flatMap((f) => raws[f.name].rules[rule].map((s) => `${f.name}: ${s}`));
     const holds = reached.filter((n) => !brokenOn.includes(n)).length;
-    console.log(`[svg-fit-rungs] ${rule}: holds on ${holds} of the ${reached.length} files it reaches${said.length ? `; broken:\n  ${said.join('\n  ')}` : ''}`);
+    const penned = rule === 'room' ? ` (${accepted.filter((f) => raws[f.name].penned).length} with a line a neighbour pens)` : '';
+    console.log(`[svg-fit-rungs] ${rule}: holds on ${holds} of the ${reached.length} files it reaches${penned}${said.length ? `; broken:\n  ${said.join('\n  ')}` : ''}`);
     assert.deepEqual(brokenOn, RUNG_FINDINGS[rule] ?? [], `the files the "${rule}" rung breaks on are not the recorded ones:\n  ${said.join('\n  ')}`);
     assert.ok(holds >= MIN_FILES, `the "${rule}" rung holds on only ${holds} corpus files`);
   });
