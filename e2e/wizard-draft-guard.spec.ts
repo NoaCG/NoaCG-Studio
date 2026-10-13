@@ -183,12 +183,15 @@ test('Continue keeps a dropped template file', async ({ page }) => {
       'utf8',
     ),
   });
+  // The card names the file and the operator fields it found.
   const card = page.getByTestId('import-template-card');
-  await expect(card).toContainText('Studio strap');
+  await expect(card).toContainText('studio strap');
+  await expect(card).toContainText('operator field: Name');
 
   await leaveThenPressNew(page);
   await page.getByTestId('confirm-switch').getByTestId('switch-resume').click();
-  await expect(card).toContainText('Studio strap');
+  await expect(card).toContainText('studio strap');
+  await expect(card).toContainText('operator field: Name');
 });
 
 test('a fresh open holds nothing: entering any walk and leaving asks nothing', async ({ page }) => {
