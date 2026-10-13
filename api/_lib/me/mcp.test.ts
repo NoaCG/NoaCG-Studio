@@ -12,6 +12,7 @@ import {
   LEGACY_VERSIONS,
   MODERN_VERSIONS,
   PROTECTED_RESOURCE_PATH,
+  TOOLS,
   type McpTool,
 } from './mcp.js';
 import { memoryConnectorStore, type MemoryConnectorStore } from '../connectorStore.js';
@@ -200,9 +201,10 @@ test('the 2025 handshake: initialize negotiates, a notification is 202, tools li
   await grant(grants);
   const init = await handler.fetch(rpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } }));
   assert.equal(init.status, 200);
-  const initBody = (await init.json()) as { result: { protocolVersion: string; serverInfo: { name: string }; capabilities: { tools: unknown } } };
+  const initBody = (await init.json()) as { result: { protocolVersion: string; serverInfo: { name: string }; capabilities: { tools: unknown }; instructions: string } };
   assert.equal(initBody.result.protocolVersion, '2025-06-18');
   assert.equal(initBody.result.serverInfo.name, 'noacg');
+  assert.match(initBody.result.instructions, /noacg_catalog/);
   assert.ok(initBody.result.capabilities.tools);
   assert.equal(init.headers.get('mcp-session-id'), null, 'stateless: no session is minted');
 
@@ -214,7 +216,7 @@ test('the 2025 handshake: initialize negotiates, a notification is 202, tools li
 
   const headers = { 'mcp-protocol-version': '2025-06-18' };
   const list = await handler.fetch(rpc({ jsonrpc: '2.0', id: 3, method: 'tools/list' }, { headers }));
-  assert.deepEqual(((await list.json()) as { result: { tools: unknown[] } }).result.tools, []);
+  assert.deepEqual(((await list.json()) as { result: { tools: Array<{ name: string }> } }).result.tools.map((t) => t.name), ['noacg_catalog', 'noacg_library']);
   const unknown = await handler.fetch(rpc({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'noacg_nothing', arguments: {} } }, { headers }));
   assert.equal(((await unknown.json()) as { error: { code: number } }).error.code, -32602);
   const missing = await handler.fetch(rpc({ jsonrpc: '2.0', id: 5, method: 'resources/list' }, { headers }));
@@ -276,6 +278,32 @@ test('a tool call asks permits() for the tool\'s permission', async () => {
   const operate = (await (await call('t_operate')).json()) as { result: { isError?: boolean } };
   assert.equal(operate.result.isError, true);
   assert.deepEqual(calls, ['t_read:connector']);
+});
+
+/** The plan's schema ceiling (docs/REMOTE_MCP_PLAN.md, key decision 6): every tool together under
+ *  1,000 tokens, because a chat client puts the list into the model's context in every
+ *  conversation where the connector is added, about NoaCG or not. Counted in characters of the
+ *  JSON `tools/list` answers, at 3.5 characters a token - below what JSON schemas measure (the
+ *  CLI's own MCP schema measured about 4.1, docs/AGENT_CLI.md "What a session pays") - so this
+ *  many characters stays under 1,000 tokens. Phase 4's send tool has to fit beside the read tools;
+ *  raise this only with a token measurement written beside it. */
+const SCHEMA_CHAR_CEILING = 3500;
+
+test('every tool has a title and all three hints, and the whole list stays under the schema ceiling', async () => {
+  const { handler, grants } = setup();
+  await grant(grants);
+  const res = await handler.fetch(rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }, { headers: { 'mcp-protocol-version': '2025-11-25' } }));
+  const { tools } = ((await res.json()) as { result: { tools: Array<{ name: string; title: string; annotations: Record<string, unknown> }> } }).result;
+  assert.equal(tools.length, TOOLS.length);
+  for (const tool of tools) {
+    assert.ok(tool.title, `${tool.name} has a title`);
+    for (const hint of ['readOnlyHint', 'destructiveHint', 'openWorldHint']) assert.equal(typeof tool.annotations[hint], 'boolean', `${tool.name} ${hint}`);
+  }
+  for (const name of ['noacg_catalog', 'noacg_library']) {
+    assert.deepEqual(tools.find((t) => t.name === name)?.annotations, { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, name);
+  }
+  const chars = JSON.stringify(tools).length;
+  assert.ok(chars <= SCHEMA_CHAR_CEILING, `the tool list is ${chars} characters, over the ${SCHEMA_CHAR_CEILING} ceiling`);
 });
 
 test('GET and DELETE are 405, a foreign Origin is 403, a batch is refused', async () => {

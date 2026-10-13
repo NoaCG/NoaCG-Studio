@@ -3,6 +3,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { claimDevPorts, reservesPorts, writeLaunchConfig } from './scripts/dev-port.mjs';
 import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
+import { catalogIndexPlugin } from './scripts/catalogIndexPlugin.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
 import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
@@ -182,6 +183,8 @@ export default defineConfig(({ command, mode }) => {
       dataApiPlugin(),
       // /panel.json: where the Companion module finds this app's backend (scripts/panelBackendPlugin.mjs).
       panelBackendPlugin(),
+      // /catalog-index.json: the catalog the remote MCP connector reads (scripts/catalogIndexPlugin.mjs).
+      catalogIndexPlugin(),
     ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port. The
