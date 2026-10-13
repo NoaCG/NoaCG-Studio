@@ -2,7 +2,7 @@
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
-import { addToProductionFromFinish, enableAdvancedMode } from './_create';
+import { addToProductionFromFinish, enableAdvancedMode, startNewProject } from './_create';
 import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 
@@ -498,4 +498,184 @@ test('browse step: canvas format stays reachable with the mobile filter drawer s
   await expect(format.locator('select').first()).toBeVisible();
   await format.locator('select').first().selectOption('9:16');
   await expect(format.locator('select').nth(1)).toContainText('Vertical');
+});
+
+// ── THE DOORS AS THEY BEHAVE TODAY, PINNED BEFORE THEY BECOME ONE MODULE ────────────────────
+// docs/work-specs/wizard-structure/spec.md sections 3.2 and 4. The doors are about to share one
+// implementation, and the risky part is ORDER: which write lands first, when the reader is moved,
+// and what a failure leaves behind. Writes are held or refused per storage key below, so each
+// journey can stand in the moment between two writes and look.
+
+/** One switch over IndexedDB writes, installed before the first load: `hold` keeps every write
+ *  of a key waiting (its transaction stays open) until released; `refuse` fails them as a full
+ *  disk would. Keys are the durable store's (`spx-gfx-graphics`, `spx-gfx-shows`). */
+async function armWriteSwitch(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    // Guarded whole: the script also runs in the sandboxed preview frames (e2e/_storage.ts).
+    try {
+      if (typeof IDBObjectStore === 'undefined') return;
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function heldPut(this: IDBObjectStore, ...args: unknown[]) {
+        const w = window as unknown as { __wzHold?: string; __wzRefuse?: string };
+        const key = String(args[1] ?? '');
+        if (w.__wzRefuse && key.startsWith(w.__wzRefuse)) {
+          const e = new Error('The browser storage quota is exhausted.');
+          e.name = 'QuotaExceededError';
+          throw e;
+        }
+        const request = (put as (...a: unknown[]) => IDBRequest).apply(this, args);
+        if (w.__wzHold && key.startsWith(w.__wzHold)) {
+          // A transaction commits once it has no request left, so it is kept busy until release.
+          const spin = () => {
+            if (w.__wzHold) this.count().onsuccess = spin;
+          };
+          spin();
+        }
+        return request;
+      } as typeof IDBObjectStore.prototype.put;
+    } catch {
+      /* nothing to install here */
+    }
+  });
+}
+
+async function setWriteSwitch(page: Page, value: { hold?: string; refuse?: string }): Promise<void> {
+  await page.evaluate((v) => {
+    const w = window as unknown as { __wzHold?: string; __wzRefuse?: string };
+    w.__wzHold = v.hold;
+    w.__wzRefuse = v.refuse;
+  }, value);
+}
+
+/** The library's names and, per production name, the names in its rundown. */
+async function saved(page: Page): Promise<{ library: string[]; rundowns: Record<string, string[]> }> {
+  return page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadShows } = await import('/src/model/shows.ts');
+    return {
+      library: loadGraphics().map((g) => g.name),
+      rundowns: Object.fromEntries(loadShows().map((s) => [s.name, s.graphics.map((g) => g.name)])),
+    };
+  });
+}
+
+test('production door: the library record lands first, and nothing moves until the rundown has', async ({ page }) => {
+  await armWriteSwitch(page);
+  await toFinishStep(page);
+  await page.getByTestId('wz-finish-name').fill('Guest Strap');
+  await page.getByTestId('wz-finish-production-name').fill('Friday Show');
+  await settleDurableWrites(page);
+  await setWriteSwitch(page, { hold: 'spx-gfx-shows' });
+  await addToProductionFromFinish(page);
+
+  // The production's first write is held: the graphic is already in the library, the rundown
+  // has no row yet, and the reader is still on Finish.
+  await expect.poll(() => saved(page)).toEqual({ library: ['Guest Strap'], rundowns: { 'Friday Show': [] } });
+  await expect(page).toHaveURL(/#\/new\/step\/finish$/);
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+
+  await setWriteSwitch(page, {});
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  expect(await saved(page)).toEqual({ library: ['Guest Strap'], rundowns: { 'Friday Show': ['Guest Strap'] } });
+});
+
+test('production door: a refused rundown write names the retry and leaves the reader on Finish', async ({ page }) => {
+  await armWriteSwitch(page);
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.evaluate(async () => {
+    const { createShowNamed } = await import('/src/model/shows.ts');
+    createShowNamed('Old Show');
+  });
+  await settleDurableWrites(page);
+  await toFinishStep(page);
+  await page.getByTestId('wz-finish-name').fill('Guest Strap');
+  await expect(page.getByTestId('wz-finish-production').locator('option:checked')).toContainText('Old Show');
+  await setWriteSwitch(page, { refuse: 'spx-gfx-shows' });
+  await addToProductionFromFinish(page);
+
+  const alert = page.getByTestId('storage-alert');
+  await expect(alert).toBeVisible();
+  await expect(page.getByTestId('storage-alert-action')).toContainText('Adding “Guest Strap” to “Old Show”');
+  await expect(alert).toContainText('press “Add to the production” again');
+  await expect(page).toHaveURL(/#\/new\/step\/finish$/);
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  expect(await saved(page)).toEqual({ library: ['Guest Strap'], rundowns: { 'Old Show': [] } });
+});
+
+test('export door: a refused save still opens the export window, over the unsaved graphic', async ({ page }) => {
+  await armWriteSwitch(page);
+  await toFinishStep(page);
+  await page.getByTestId('wz-finish-name').fill('Guest Strap');
+  await setWriteSwitch(page, { refuse: 'spx-gfx-graphics' });
+  await page.getByTestId('wz-finish-export').click();
+
+  await expect(page.getByTestId('storage-alert-action')).toContainText('Guest Strap');
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  expect((await saved(page)).library).toEqual([]);
+});
+
+test('production door pressed twice while its save is held: today both presses run (R7)', async ({ page }) => {
+  // RECORDED, NOT ENDORSED. The catalog door has no press guard during its awaits (spec section
+  // 3.1, R7); S1c decides whether this is a defect. Until then this is what a second press does.
+  await armWriteSwitch(page);
+  await toFinishStep(page);
+  await page.getByTestId('wz-finish-name').fill('Guest Strap');
+  await page.getByTestId('wz-finish-production-name').fill('Friday Show');
+  await settleDurableWrites(page);
+  await setWriteSwitch(page, { hold: 'spx-gfx-graphics' });
+  await addToProductionFromFinish(page);
+  await expect.poll(async () => (await saved(page)).library).toEqual(['Guest Strap']);
+  await addToProductionFromFinish(page);
+  await setWriteSwitch(page, {});
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await settleDurableWrites(page);
+
+  const productions = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().map((s) => [s.name, s.graphics.map((g) => g.name)]);
+  });
+  expect({ library: (await saved(page)).library, productions }).toEqual({
+    library: ['Guest Strap'],
+    productions: [
+      ['Friday Show', ['Guest Strap']],
+      ['Friday Show', ['Guest Strap']],
+    ],
+  });
+});
+
+test('after the export door there is nothing to walk back from: Back is an ordinary step', async ({ page }) => {
+  await toFinishStep(page);
+  await page.getByTestId('wz-finish-name').fill('Match Day Strap');
+  await page.getByTestId('wz-finish-export').click();
+  const win = page.getByTestId('export-window');
+  await expect(win).toBeVisible();
+  await win.locator('.gallery-close').click();
+  // The door kept the wizard open on Finish: no walk ended, so nothing is offered back.
+  await expect(page.getByTestId('wz-finish-name')).toBeVisible();
+  await page.goBack();
+  await expect(page.locator('.wz-dot.active')).toHaveText(/Animation/);
+  await expect(page.getByTestId('wz-resume-confirm')).toHaveCount(0);
+});
+
+test('a plain #/new after the production door discards the finished walk', async ({ page }) => {
+  await toFinishStep(page);
+  await page.getByTestId('wz-finish-name').fill('Guest Strap');
+  await page.getByTestId('wz-finish-production-name').fill('Friday Show');
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+
+  // + New graphic opens the plain `#/new`: the fresh wizard, and the walk is forgotten.
+  await startNewProject(page);
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  await expect(page.getByTestId('wz-resume-confirm')).toHaveCount(0);
+
+  // So Back past the production onto a step of that walk opens it fresh, with no offer: the
+  // same press made before the discard raises the warning (the Back-after-create test above).
+  await page.goBack();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.goBack();
+  await expect(page.getByTestId('wz-stepcount')).toHaveText(/Step\s*5\s*\/\s*6/);
+  await expect(page.getByTestId('wz-resume-confirm')).toHaveCount(0);
 });

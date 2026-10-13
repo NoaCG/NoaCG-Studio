@@ -10,7 +10,7 @@
 // page's doors (the bar's and the rundown's New graphic) go through the same guard.
 
 import { test, expect, type Page } from '@playwright/test';
-import { pickDesign } from './_browse';
+import { chooseType, pickDesign } from './_browse';
 
 /** Into the wizard from Home, onto the template walk's Browse step. */
 async function toBrowse(page: Page) {
@@ -139,4 +139,74 @@ test('the production page asks too: its rundown door, Continue at the furthest s
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
   await expect(page.getByTestId('wz-stepcount')).toHaveCount(0);
   await expect(doc).toHaveCount(0);
+});
+
+// ── WHAT A HELD WALK KEEPS, PINNED BEFORE THE WALK'S STATE MOVES ────────────────────────────
+// docs/work-specs/wizard-structure/spec.md section 4: Continue keeps everything and returns to
+// the furthest step; a fresh open holds nothing until the reader does something.
+
+test('Continue keeps the whole walk: the furthest step, the Browse filters and the answers', async ({ page }) => {
+  await toBrowse(page);
+  await chooseType(page, 'Lower thirds');
+  const type = await page.getByTestId('wz-browse-type').inputValue();
+  await pickDesign(page, 'Hairline');
+  await page.getByRole('button', { name: 'Next →' }).click(); // Fields
+  const firstLine = page.locator('.wz-line-row input').nth(1);
+  await firstLine.fill('Ada Lovelace');
+  await page.getByRole('button', { name: 'Next →' }).click(); // Style, the furthest step
+  const where = (await page.getByTestId('wz-stepcount').textContent())!;
+  await page.goBack(); // back on Fields: the furthest step is still Style
+
+  await leaveThenPressNew(page);
+  await page.getByTestId('confirm-switch').getByTestId('switch-resume').click();
+  await expect(page.getByTestId('wz-stepcount')).toHaveText(where);
+  await page.locator('.wz-dot', { hasText: 'Fields' }).click();
+  await expect(firstLine).toHaveValue('Ada Lovelace');
+  await page.locator('.wz-dot', { hasText: 'Browse' }).click();
+  await expect(page.getByTestId('wz-browse-type')).toHaveValue(type);
+  await expect(page.locator('.wz-browse-search')).toHaveValue('Hairline');
+});
+
+test('Continue keeps a dropped template file', async ({ page }) => {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await page.locator('[data-door="new-graphic"]').click();
+  await page.locator('[data-entry="import-graphic"]').click();
+  await page.locator('.wz-drop input[type="file"]').setInputFiles({
+    name: 'studio-strap.html',
+    mimeType: 'text/html',
+    buffer: Buffer.from(
+      '<!DOCTYPE html><html><head><script>window.SPXGCTemplateDefinition = { description: "Studio strap", DataFields: [' +
+        '{ field: "f0", ftype: "textfield", title: "Name", value: "Alexandra Riva" } ] };' +
+        'function update(data) {} function play() {} function stop() {} function next() {}</script></head>' +
+        '<body><div id="root"><span id="f0">Alexandra Riva</span></div></body></html>',
+      'utf8',
+    ),
+  });
+  const card = page.getByTestId('import-template-card');
+  await expect(card).toContainText('Studio strap');
+
+  await leaveThenPressNew(page);
+  await page.getByTestId('confirm-switch').getByTestId('switch-resume').click();
+  await expect(card).toContainText('Studio strap');
+});
+
+test('a fresh open holds nothing: entering any walk and leaving asks nothing', async ({ page }) => {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  for (const entry of ['template', 'import-graphic', 'ai', 'video']) {
+    await page.locator('[data-door="new-graphic"]').click();
+    await page.locator(`[data-entry="${entry}"]`).click();
+    await expect(page.getByTestId('wz-stepcount'), entry).toBeVisible();
+    await page.getByTestId('wz-home').click();
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    const held = await page.evaluate(async () => {
+      const { useSaveUi } = await import('/src/store/saveActions.ts');
+      return useSaveUi.getState().heldWalk;
+    });
+    expect(held, `${entry}: nothing was done, so nothing is held`).toBe(false);
+  }
+  await page.locator('[data-door="new-graphic"]').click();
+  await expect(page.locator('[data-entry="template"]')).toBeVisible();
+  await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
 });
