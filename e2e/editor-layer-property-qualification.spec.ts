@@ -131,6 +131,7 @@ test('modifier drag copies selected artwork atomically and cancellation retains 
   const drag = async (cancel = false) => {
     await page.keyboard.down('Alt'); await page.mouse.move(start.x,start.y); await page.mouse.down();
     await page.mouse.move(start.x+42,start.y+17,{steps:8});
+    await expect((await frame(page)).locator(original+'-copy-1')).toHaveCount(1);
     expect(await source(page)).toEqual(before); expect((await inspection(page)).history).toEqual(history);
     if (cancel) await page.keyboard.press('Escape');
     await page.mouse.up(); await page.keyboard.up('Alt'); await ready(page);
@@ -175,4 +176,40 @@ test('property reveal and key navigation leave source and history unchanged', as
   await page.getByRole('button',{name:'Previous Position X key',exact:true}).click(); await expect(page.getByTestId('foundation-clock')).toHaveText('0.40 s');
   await page.getByRole('button',{name:'Next Position X key',exact:true}).click(); await expect(page.getByTestId('foundation-clock')).toHaveText('0.80 s');
   expect(await source(page)).toEqual(keyed); expect((await inspection(page)).history).toEqual(keyedHistory);
+});
+
+
+test('modifier drag preserves multi-root animated group and refusal boundaries', async ({page}) => {
+  await open(page); const a=await draw(page,.3), b=await draw(page,.6);
+  await page.getByRole('button',{name:'select tool',exact:true}).click();
+  const canvas=page.getByTestId('foundation-canvas');
+  const drag=async(selector:string,cancel?:'pointercancel'|'stale')=>{
+    const p=await point(page,selector); await page.keyboard.down('Alt'); await page.mouse.move(p.x,p.y); await page.mouse.down();
+    await page.mouse.move(p.x+35,p.y+13,{steps:6});
+    if(cancel==='pointercancel') await canvas.dispatchEvent('pointercancel',{pointerId:1,pointerType:'mouse'});
+    if(cancel==='stale') {
+      await page.evaluate(async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.setSelectedParts(['#f0']); await new Promise(r=>setTimeout(r));});
+      await page.mouse.move(p.x+40,p.y+15);
+    }
+    await page.mouse.up();await page.keyboard.up('Alt');await ready(page);
+  };
+  await select(page,a);await row(page,b).locator('.ef-layer').click({modifiers:['Control']});
+  const pair=await source(page),h=(await inspection(page)).history;
+  await drag(a,'pointercancel'); expect(await source(page)).toEqual(pair);expect((await inspection(page)).history).toEqual(h);expect(await selected(page)).toEqual([a,b]);
+  await drag(a);expect(await selected(page)).toHaveLength(2);expect((await inspection(page)).history.undo).toBe(h.undo+1);
+  for(const selector of [a,b]) await expect((await frame(page)).locator(selector+'-copy-1')).toHaveCount(1);
+  await undo(page);expect(await source(page)).toEqual(pair);
+  await select(page,a);const beforeStale=(await inspection(page)).history;await drag(a,'stale');expect(await source(page)).toEqual(pair);expect((await inspection(page)).history).toEqual(beforeStale);expect(await selected(page)).toEqual(['#f0']);
+  await select(page,a);await row(page,b).locator('.ef-layer').click({modifiers:['Control']});await page.getByRole('button',{name:'Group selection',exact:true}).click();await ready(page);
+  const group=(await selected(page))[0],grouped=await source(page);await drag(group);
+  const groupCopy=(await selected(page))[0];expect(groupCopy).not.toBe(group);await expect((await frame(page)).locator(groupCopy+' '+a+'-copy-1')).toHaveCount(1);
+  await undo(page);expect(await source(page)).toEqual(grouped);
+  await page.getByRole('button',{name:'Enter group',exact:true}).click();await select(page,a);await canvas.focus();await page.keyboard.press('Control+a');expect(new Set(await selected(page))).toEqual(new Set([a,b]));
+  await page.getByRole('button',{name:'Back to Composition',exact:true}).click();await select(page,group);
+  await seek(page,.4);await page.getByRole('button',{name:'Enable Position X animation',exact:true}).click();await ready(page);await seek(page,.8);
+  const animated=await source(page);await drag(group);const copy=(await selected(page))[0];expect(copy).not.toBe(group);expect((await source(page)).js).not.toBe(animated.js);
+  await undo(page);expect(await source(page)).toEqual(animated);
+  // The catalog structural box has no stable ID and must not partly copy a mixed selection.
+  await select(page,group);await row(page,'.graphic-box').locator('.ef-layer').click({modifiers:['Control']});const refused=await source(page),refusedHistory=(await inspection(page)).history;
+  await drag(group);expect(await source(page)).toEqual(refused);expect((await inspection(page)).history).toEqual(refusedHistory);await expect(page.getByText('This structural edit requires a layer with a stable ID.',{exact:true})).toBeVisible();
 });
