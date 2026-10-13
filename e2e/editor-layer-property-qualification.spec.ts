@@ -153,6 +153,15 @@ test('modifier drag copies selected artwork atomically and cancellation retains 
   await expect((await frame(page)).locator('#f2')).toHaveText(textValue!);expect(await source(page)).toEqual(textBefore);
   await page.keyboard.press('Escape');await page.mouse.up();await page.keyboard.up('Alt');await ready(page);
   await expect((await frame(page)).locator('#f2')).toHaveCount(0);expect(await source(page)).toEqual(textBefore);expect((await inspection(page)).history).toEqual(textHistory);
+  await page.keyboard.down('Alt');await page.mouse.move(textPoint.x,textPoint.y);await page.mouse.down();await page.mouse.move(textPoint.x+26,textPoint.y+11,{steps:6});
+  await expect((await frame(page)).locator('#f2')).toHaveCount(1);
+  await page.evaluate(async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.setCss(store.template.css+'\n/* source changed during drag */');});
+  await ready(page); const changedSource=await source(page),changedHistory=(await inspection(page)).history;
+  await expect((await frame(page)).locator('#f2')).toHaveCount(0);
+  await page.mouse.move(textPoint.x+30,textPoint.y+13);await page.mouse.up();await page.keyboard.up('Alt');
+  await expect(page.locator('.ef-stage-error')).toBeVisible();
+  expect(await source(page)).toEqual(changedSource);expect((await inspection(page)).history).toEqual(changedHistory);
+  expect(changedSource.css).toBe(textBefore.css+'\n/* source changed during drag */');
 });
 
 test('keyboard duplicate select all and canvas context retain input ownership', async ({page}) => {
