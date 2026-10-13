@@ -39,14 +39,14 @@ test('Eyevinn selection properties and modifier drag comparison',async({page})=>
     await page.setViewportSize({width:1366,height:768});await page.goto('http://127.0.0.1:4399/');
     await page.getByRole('button',{name:'New Template',exact:true}).click();await page.locator('#template-id').fill('interaction-qualification');await page.locator('#template-name').fill('Interaction qualification');await page.locator('#template-type').selectOption('custom');await page.getByRole('button',{name:'Create',exact:true}).click();
     await page.getByRole('button',{name:'Add Rectangle',exact:true}).click();await page.getByRole('button',{name:'Fit the whole canvas in view',exact:true}).click();
-    const elements=page.locator('.graphics-element');await expect(elements).toHaveCount(1);await elements.first().click();
-    const x=page.locator('[data-property="x"]');await expect(x).toBeVisible();await x.fill('300');await x.press('Tab');await expect(elements.first()).toHaveCSS('left','300px');
-    await x.focus();await x.press('Delete');await expect(elements).toHaveCount(1);await x.fill('300');await x.press('Tab');
-    let box=(await elements.first().boundingBox())!;await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await page.keyboard.press('Control+d');await expect(elements).toHaveCount(1);receipt.keyboardDuplicate=false;
-    box=(await elements.first().boundingBox())!;await page.keyboard.down('Alt');await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+30,box.y+box.height/2+10,{steps:6});await page.mouse.up();await page.keyboard.up('Alt');await expect(elements).toHaveCount(1);expect(Number(await x.inputValue())).toBeGreaterThan(300);receipt.altDrag={duplicates:false,x:Number(await x.inputValue())};
+    const elements=page.locator('.graphics-element');await expect(elements).toHaveCount(2);await elements.last().click();
+    const x=page.locator('[data-property="x"]');await expect(x).toBeVisible();await x.fill('300');await x.press('Tab');await expect(elements.last()).toHaveCSS('left','300px');
+    await x.focus();await x.press('Delete');await expect(elements).toHaveCount(2);await x.fill('300');await x.press('Tab');
+    let box=(await elements.last().boundingBox())!;await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await page.keyboard.press('Control+d');await expect(elements).toHaveCount(2);receipt.keyboardDuplicate=false;
+    box=(await elements.last().boundingBox())!;await page.keyboard.down('Alt');await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+30,box.y+box.height/2+10,{steps:6});await page.mouse.up();await page.keyboard.up('Alt');await expect(elements).toHaveCount(2);expect(Number(await x.inputValue())).toBeGreaterThan(300);receipt.altDrag={duplicates:false,x:Number(await x.inputValue())};
     await page.mouse.click(box.x+box.width/2+30,box.y+box.height/2+10,{button:'right'});expect(await page.getByRole('menu').count()).toBe(0);receipt.contextMenu=false;
     await page.screenshot({path:test.info().outputPath('eyevinn-interactions.png')});receipt.propertyNames=await page.locator('#properties-content label').allTextContents();receipt.elements=await elements.evaluateAll(es=>es.map(e=>({id:e.getAttribute('data-element-id'),style:e.getAttribute('style')})));
-    await page.reload();await expect(elements).toHaveCount(1);receipt.reopen=true;
+    await page.reload();await expect(elements).toHaveCount(2);receipt.reopen=true;
   } finally {child.kill();writeFileSync(test.info().outputPath('eyevinn-interactions.json'),JSON.stringify(receipt,null,2));writeFileSync(test.info().outputPath('eyevinn.log'),log);}
 });
 

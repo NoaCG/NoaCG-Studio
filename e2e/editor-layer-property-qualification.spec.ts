@@ -124,7 +124,7 @@ test('ordinary nested SVG label and eye retain definitions masks references and 
   await undo(page); expect(await source(page)).toEqual(renamed); await expect((await frame(page)).locator(selector)).toBeVisible(); await undo(page); expect(await source(page)).toEqual(initial);
 });
 
-test('modifier drag copies selected artwork atomically and cancellation retains the original', async ({page}) => {
+test('modifier drag copies selected artwork atomically and cancellation retains the original', async ({page}) => { page.on('console',msg=>console.log(msg.text()));
   await open(page); const original = await draw(page,.35);
   await page.getByRole('button',{name:'select tool',exact:true}).click(); await select(page,original);
   const before = await source(page), history = (await inspection(page)).history, start = await point(page,original);

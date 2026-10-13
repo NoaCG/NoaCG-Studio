@@ -273,7 +273,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
           event.currentTarget.setPointerCapture(event.pointerId);
           return;
         }
-        if (event.button !== 0 || pending || status.error) return;
+        console.log('PROBE pointerDown', event.button, pending, status.error, selection, event.altKey); if (event.button !== 0 || pending || status.error) return;
         const { x, y } = pointerPoint(event, size, pan, scale, width, height);
         event.currentTarget.setPointerCapture(event.pointerId);
         if (tool === 'pen') { pen.begin({ x, y }); return; }
@@ -293,7 +293,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
           return;
         }
         const handle = handleAt({ x, y });
-        if (handle) { gesture.begin({ x, y }, single!, handle); return; }
+        console.log('PROBE handle', handle); if (handle) { gesture.begin({ x, y }, single!, handle); return; }
         const index = event.altKey ? (hits.findIndex(p => p.selector === selection[0]) + 1) % Math.max(1, hits.length) : 0;
         const hit = hits[0], additive = !event.altKey && (event.shiftKey || event.ctrlKey || event.metaKey);
         if (!hit || (containers.has(hit.selector) && !selection.includes(hit.selector) && !event.altKey)) {
@@ -343,11 +343,11 @@ export default function Canvas({ template, sampleData, session, time, selection,
         const start = marqueeStart.current;
         if (start?.hit && !start.moved && sameRevision(start.revision, session.version())) select(start.hit, start.additive);
         marqueeStart.current = null; setMarquee(null); drag.current = null;
-        const moved = gesture.end();
+        console.log('PROBE pointerUp'); const moved = gesture.end();
         if (moved === false && clickSelection.current) select(clickSelection.current, false);
         clickSelection.current = null;
       }}
-      onLostPointerCapture={() => { if (pen.pressed()) pen.cancel(); clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
+      onLostPointerCapture={() => { console.log('PROBE lost capture'); if (pen.pressed()) pen.cancel(); clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
       onPointerCancel={() => { pen.cancel(); onPathEditing(null); clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; gesture.cancel(); if (marqueeStart.current) setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); }}>
       <div className="ef-artboard" style={{ width, height,
         transform: 'translate(' + pan.x + 'px,' + pan.y + 'px) translate(-50%,-50%) scale(' + scale + ')' }}>
