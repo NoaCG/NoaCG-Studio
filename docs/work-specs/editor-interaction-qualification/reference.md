@@ -57,3 +57,29 @@ its committed lockfile and serves that exact checkout with its Vite dependency.
 
 Upstream unit suites are inspected, not executed. Runtime receipts are reported separately;
 source inspection alone is not a functional verdict or whole-editor comparison.
+
+## Executed comparison
+
+[CI reference run 38429040294](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38429040294)
+passed three tasks with one worker and zero retries on October 13. The builder inspected
+both interaction screenshots and their JSON receipts. Runtime details are retained in
+`reference-runtime.json`; images remain in the CI artifact and ignored local evidence.
+
+Studio: Ctrl+D creates new IDs; undo removes the copy; redo restores those same IDs;
+Ctrl+A selects both. Input-focused Ctrl+D leaves the layer count unchanged. Canvas right-click
+exposes Duplicate. Alt-drag moves X from 100 to 167 with two layers before and after, without
+copying. The separate cumulative task edits text to Leila Moreno, writes X at frames 0/12,
+saves native .ogs, reopens through its file-input fallback and retains source IDs and tracks.
+Ctrl row selection adds; Shift replaces with one row. Escape during its numeric scrub retains
+the changed value (244 to 261), unlike NoaCG's exact cancellation. Layer-list context remains
+absent even though canvas context exists.
+
+Eyevinn: a Custom template starts with one text element; Add Rectangle makes two. An initial
+probe incorrectly assumed an empty Custom template and stopped before interaction assertions.
+The corrected task edits rectangle X to 300, preserves it under input-focused Delete,
+observes no Ctrl+D copy, and moves the original to X 393.913 by Alt-drag. It exposes no canvas
+context menu. Reload preserves both elements. Its short laptop view requires property-panel
+scrolling; NoaCG intentionally retains the separately scrollable inspector and timeline.
+
+These are builder comparisons, not independent checking or owner acceptance. There is no
+reference Alt-copy feature to claim parity with; NoaCG's copy contract is verified directly.
