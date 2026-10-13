@@ -1,5 +1,7 @@
-// covers: none - its route lives in src/app/router.ts, which is CORE: a change there runs the full
-// suite, or the focus set this spec is in
+// The deep link is resolved by the wizard shell: its pending-design effect picks the design and
+// drops the walk on Fields. The route itself lives in src/app/router.ts, which is CORE (a change
+// there runs the full suite, or the focus set this spec is in).
+// covers: src/components/wizard/CreationWizard.tsx
 //
 // focus
 

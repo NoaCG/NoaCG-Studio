@@ -1,5 +1,7 @@
-// covers: none - its subject, the boot routing in src/App.tsx, is CORE: a change there runs the
-// full suite, or the focus set this spec is in
+// Its subject, the boot routing in src/App.tsx, is CORE: a change there runs the full suite, or
+// the focus set this spec is in. A first visit boots straight into the wizard shell, and three
+// of its tests watch that startup open.
+// covers: src/components/wizard/CreationWizard.tsx
 //
 // The BOOT SURFACE - that opening the studio never paints a screen it was not going to stay on. It
 // belongs here because of what it guards rather than what it costs: src/App.tsx is a CORE file, and
