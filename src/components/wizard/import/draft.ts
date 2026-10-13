@@ -17,7 +17,8 @@ import type {
   DesignSvgRecipeBehaviour,
   DesignSvgHidden,
 } from '../../../model/wizard';
-import type { CustomFont } from '../../../model/fonts';
+import { FONTS, fontNameKey, type CustomFont } from '../../../model/fonts';
+import type { DraftPatch, WizardDraft } from '../draft/core';
 import type { EraseRect, RegionInk } from '../../../assets/eraseRegion';
 import { looksNumeric, SVG_CANDIDATE_ATTR, type SvgImportResult } from '../../../assets/svgImport';
 import { bestProposal, extraPrefixOf, proposeExtras, type ProposedBinding } from '../../../templates/behaviours/naming';
@@ -1039,7 +1040,7 @@ export interface SvgExtraDraft {
 }
 
 /** The switches and choices the drop proposes from the two prefixes, named by their layers. */
-export function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
+function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
   return proposeExtras(svg).map(({ candidateId, prefix }) =>
     prefix.kind === 'switch'
       ? { candidateId, use: 'switch' as const, name: prefix.name }
@@ -1051,7 +1052,7 @@ export function proposeSvgExtras(svg: SvgImportResult): SvgExtraDraft[] {
  *  second unnamed import used to be called "Imported SVG design" like the first and replace it
  *  in the production by name (row E's walk, 2026-09-21); the file's own name is the one thing the
  *  student already chose. Blank when the file has no name to give. */
-export function graphicNameFromFile(fileName: string): string {
+function graphicNameFromFile(fileName: string): string {
   const stem = fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
   return stem ? stem.charAt(0).toUpperCase() + stem.slice(1) : '';
 }
@@ -1412,9 +1413,158 @@ function withSvgOutlineFields(
   return next;
 }
 
+// ── THE DROP AND THE CLEAR ──────────────────────────────────────────────────────────────────
+// What the wizard shell patches into its draft when an SVG is dropped and when it is taken
+// back. One function each, so the shell, the corpus harness (scripts/svg-import-passes.test.mjs)
+// and every test that builds an import "as the wizard would" build the same draft.
+
+/** The draft as it stood before a drop or a clear: what decides the graphic's name. */
+type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'>;
+
+/** Every key a drop sets, so leaving one out does not compile: the whole slice but the raster
+ *  road's baked-text answer, and the wizard-level keys that make the draft an imported design. */
+type SvgDropPatch = Omit<SvgImportDraft, 'designKeepBakedText'> &
+  Required<Pick<DraftPatch, 'importedImages' | 'name' | 'category' | 'variantId' | 'lines' | 'zone' | 'animation'>>;
+
+/** Every key a clear resets: each `svg*` key of the slice, so a new one does not compile until
+ *  the clear takes it back too, and the keys that made the draft an imported design. */
+type SvgClearPatch = Pick<SvgImportDraft, 'designSvg' | Extract<keyof SvgImportDraft, `svg${string}`>> &
+  Required<Pick<DraftPatch, 'name' | 'category' | 'variantId'>>;
+
+/**
+ * THE DRAFT A DROPPED SVG STARTS FROM: every answer the mapping step then opens on. The brand
+ * is the shell's, as on every other road, and is patched over this.
+ */
+export function svgDraftFromImport(
+  result: SvgImportResult,
+  context: { resolution: { width: number; height: number }; previous: SvgDropPrevious },
+): SvgDropPatch {
+  const { resolution: res, previous } = context;
+  // Fit-to-frame like the raster path: a larger canvas scales DOWN to the
+  // frame (vector — nothing is lost); the viewBox in the markup is untouched,
+  // only the design-space size the box is sized by changes.
+  const fit =
+    result.width > res.width || result.height > res.height
+      ? Math.min(res.width / result.width, res.height / result.height)
+      : 1;
+  // A behaviour PROPOSED from the layer names, never required
+  // (docs/GRAPHIC_BEHAVIOUR_PLAN.md). Proposed before the fields because the FIELDS
+  // have to be able to see it: a proposed countdown needs its clock layer bound as
+  // one, which is a choice in the field list rather than in the behaviour's own
+  // pickers (`armTimerClock`, and it is the same call the mapping step's picker
+  // makes). Every other behaviour leaves the fields exactly as they were.
+  const proposed = proposeSvgBehaviour({ ...result, candidates: result.candidates.filter(c => !c.outsideCanvas) });
+  const written = pollDrivenLayers(proposed);
+  const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
+  return {
+    designSvg: {
+      ...result,
+      width: Math.round(result.width * fit),
+      height: Math.round(result.height * fit),
+    },
+    // EVERY detected text starts ON (plan §2, zero clicks). The `f:` prefix
+    // says "this is definitely a field" and names it — it never says "and
+    // nothing else is": one layer exported as `f:Competition` used to turn the
+    // other six off, which reads as detection having missed them. The one
+    // exception is the opposite prefix: `static:` is the designer saying this
+    // text is furniture, so the row is offered UNTICKED with its words left as
+    // drawn (a top ten's ten rank numerals, a bingo grid's numbers).
+    // FURNITURE LAST: the drawn rows are listed after every field, in their own
+    // order, so the Fields step opens on what the operator can change rather
+    // than on four letter tiles under four plate headings (row E's walk,
+    // 2026-09-21). Field ids are minted from the ticked rows, so nothing
+    // downstream moves. A one-letter text the proposed behaviour WRITES (a
+    // puzzle's tiles) is not furniture: it stays ticked and in place, so the
+    // mapping step keeps showing it as the board's, never as "stays as drawn".
+    svgFields: armTimerClock(
+      [...result.candidates.filter((c) => !furniture(c)), ...result.candidates.filter(furniture)].map((c) => ({
+        candidateId: c.id,
+        on: !furniture(c) && !c.outsideCanvas,
+        ...(c.outsideCanvas ? { whenOff: 'keep' as const } : {}),
+        title: c.label,
+        sample: c.sample,
+        numeric: c.numeric,
+        clock: c.clock,
+        // Text until the user says otherwise — "22:40" may be the time of day.
+        kind: 'text',
+      })),
+      proposed,
+    ),
+    // Pictures start OFF — inside a design they are usually the artwork
+    // itself — unless the layer opted in by name (`f:`).
+    svgImages: result.images.map((c) => ({
+      candidateId: c.id,
+      on: c.marked,
+      title: c.label,
+    })),
+    // Outlined-text suspects start OFF (a logo is a group of paths too) —
+    // unless named `f:`; the mapping step measures their boxes on its own
+    // render, and the generator hides whichever the user ticks (plan §1.A).
+    svgOutlines: result.outlines.map((c) => ({
+      candidateId: c.id,
+      on: c.marked,
+      title: c.label,
+      sample: c.label,
+      box: null,
+      color: null,
+      looksLikeText: null,
+    })),
+    // Every picker in the mapping step is re-pickable, and a file that looks like
+    // nothing in particular proposes nothing at all.
+    svgBehaviour: proposed,
+    // The switches and choices the names declare outright (`show:`, `choice:`).
+    svgExtras: proposeSvgExtras(result),
+    // THE HUG (plan §3) starts OFF here with the widest rectangle proposed;
+    // the mapping step then MEASURES the rendered artwork and turns growth on
+    // by itself where it is unambiguous (GOALS goal 5 - MapSvgFieldsStep
+    // proposeBannerGrowth). The measurement needs layout, which a drop handler
+    // does not have, so the decision lives there rather than here.
+    svgStretch: { on: false, shapeId: result.shapes[0]?.id ?? null },
+    // Bundled faces auto-match by family name; the mapping step offers the
+    // Google fetch or an upload for the rest (plan §4).
+    svgFonts: result.fonts.map((f) => ({
+      family: f.family,
+      lookup: f.lookup,
+      weight: f.weight,
+      // Matched on the LOOKUP name, so Illustrator's "Archivo-Bold" finds the
+      // bundled Archivo it plainly is. The template still declares the face
+      // under `family` — the name the artwork's own CSS asks for.
+      fontId:
+        FONTS.find((b) => fontNameKey(b.family) === fontNameKey(f.lookup))?.id ?? null,
+      customFont: null,
+    })),
+    // A fresh drop replaces any raster state from this walk.
+    designArt: null,
+    importedImages: [],
+    designOriginal: null,
+    designErases: [],
+    designFields: [],
+    // NAMED AFTER THE FILE until the Finish step is given a name: a name the
+    // reader typed stays, and a name an earlier drop gave is replaced by this
+    // drop's, so swapping quiz.svg for scoreboard.svg does not ship a scoreboard
+    // called Quiz. Blank still falls back to the catalog name in `draftName`.
+    name:
+      previous.name.trim() && previous.name !== graphicNameFromFile(previous.designSvg?.fileName ?? '')
+        ? previous.name
+        : graphicNameFromFile(result.fileName ?? ''),
+    category: 'imported-design',
+    variantId: 'svg01',
+    lines: [],
+    zone: null,
+    animation: { presetId: null, outPresetId: null },
+  };
+}
+
+/** THE DRAFT WITH THE SVG TAKEN BACK: every answer the drop gave is cleared. The name the file
+ *  gave goes with the file; a name the reader typed stays. */
+export function svgDraftCleared(previous: SvgDropPrevious): SvgClearPatch {
+  const fromFile = graphicNameFromFile(previous.designSvg?.fileName ?? '');
+  return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null, name: previous.name === fromFile ? '' : previous.name };
+}
+
 // ── THE TWO DOORS THE SHARED DRAFT TAKES ────────────────────────────────────────────────────
-// Everything above is the capability's own; these two are what `../draft/core.ts` calls, and
-// they are deliberately the whole of it. Nine functions used to cross here, and the cost was
+// The drop and the clear above are what the shell calls; these two are what `../draft/core.ts`
+// calls, and they are deliberately the whole of it. Nine functions used to cross here, and the cost was
 // not the count - it was that the CALLER held the knowledge joining them: which layers become
 // numbered fields, and which order the template passes run in. Both facts now sit with the
 // code that decides them, and adding a tenth answer to the mapping step changes one file.
