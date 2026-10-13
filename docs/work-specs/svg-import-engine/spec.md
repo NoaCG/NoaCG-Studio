@@ -600,8 +600,11 @@ run time, the findings recorded, and the check's findings.
     nothing of the original is missing, and the only added lines are imports and the one
     re-export. After that, one doc phrase changed ("the runtime below" became "the growth
     runtime (svg.ts)", since the table now sits in another file) and `LAYOUT_VERSION` stayed
-    private. Two doc comments moved to the code they describe: `bindSvgMarkup`'s (it sat above
-    `LAYOUT_EL_ATTR`) and THE HUG's (now directly above `growthRuntimeJs`).
+    private. Four doc comments that sat stacked above other code moved to what they describe:
+    `bindSvgMarkup`'s (it sat above `LAYOUT_EL_ATTR`), THE HUG's (now directly above
+    `growthRuntimeJs`), the relationship table's (above `layoutDataJs`, not `saidLines`) and
+    `svgFontCss`'s (not `aliasFontFaceCss`). The multiset check after them still shows only the
+    one changed phrase.
   - Harness: 577 records, every pass green, the snapshot file untouched. The runtime record was
     compared with this machine's baseline taken on `13b326773` before the change
     (`SVG_CORPUS_RUNTIME_LOCAL`). Run time 6.3 s for the test file.
@@ -640,7 +643,19 @@ run time, the findings recorded, and the check's findings.
     until the next nightly. Until then a change to `svgBind.ts` alone selects 60 specs and misses
     `editor-fidelity-trim` and the other specs traced to `svg.ts` (72 for `svg.ts`), the #927
     pattern. Phases 4 and 5 change `svg.ts`, so they are covered.
-- **Findings (D10):** none new; the five recorded findings are unchanged.
+  - Two comments outside this fence still name `svg.ts` as the home of a moved function:
+    `designTypes.ts:390` (`aliasFontFaceCss`) and `components/wizard/import/draft.ts:1355`
+    (`bindSvgMarkup`). Whoever next edits those files can point them at `svgFonts.ts` and
+    `svgBind.ts`.
+- **Findings (D10):** none new from the harness; the five recorded findings are unchanged. The
+  review of this pull request read the moved code and named pre-existing behaviour, none
+  reproduced here and none a move may change: `layoutDataJs` writes a label or a field title into
+  a `//` comment without taking out line breaks, so a name holding a newline would end the comment;
+  `setIdKeepingRefs` carries `href` and `xlink:href` but not `url(#id)` references when it moves a
+  colliding id, and does not check that `layer-<id>` is free; two picture fields filled from one
+  shared Figma `<image>` would both bind that node; `candidateLabel` reads `data-name ?? id` rather
+  than the reader's own `svgLayerLabel`; and `candidateLabel` parses the markup again per growth
+  rule. Each wants a reproduction on a real file before a fix of its own.
 - **Traps:**
   - The scratchpad is shared across this plan's sessions. A `SVG_CORPUS_RUNTIME_LOCAL` file that
     already exists is compared against, not rewritten, so an earlier phase's file silently

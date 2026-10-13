@@ -40,15 +40,6 @@ export function layoutRules(svg: DesignSvg): DesignSvgGrowth[] {
   return svg.stretch ? [{ candidateId: svg.stretch.candidateId, axis: 'x' }] : [];
 }
 
-/**
- * THE RELATIONSHIP TABLE, emitted as data the growth runtime (svg.ts) loops over (plan §6c).
- *
- * It is DATA, and versioned, because it is a persisted format: the author declares which
- * element grows, which way, how far and what travels with it, and principle 6 applies to
- * anything a saved template carries. Emitted as a HIDDEN model it would be the second scene
- * model the architecture forbids; emitted as a commented literal the code reads - and the code
- * still the truth - it is not. A reader can delete a row and the relationship is gone.
- */
 /** The bound lines the author said something about - an alignment, or the nudge - with the field
  *  index each one binds as. The one predicate for "this design has a `lines` list". The countdown
  *  layer and the credits sample are left out: each becomes a display the runtime paints and
@@ -60,6 +51,15 @@ export function saidLines(svg: DesignSvg): { f: DesignSvgField; i: number }[] {
   return svg.fields.map((f, i) => ({ f, i })).filter(({ f, i }) => i !== clock && i !== credits && (f.align || f.nudge));
 }
 
+/**
+ * THE RELATIONSHIP TABLE, emitted as data the growth runtime (svg.ts) loops over (plan §6c).
+ *
+ * It is DATA, and versioned, because it is a persisted format: the author declares which
+ * element grows, which way, how far and what travels with it, and principle 6 applies to
+ * anything a saved template carries. Emitted as a HIDDEN model it would be the second scene
+ * model the architecture forbids; emitted as a commented literal the code reads - and the code
+ * still the truth - it is not. A reader can delete a row and the relationship is gone.
+ */
 export function layoutDataJs(svg: DesignSvg, labelOf: (candidateId: string) => string): string {
   const rules = layoutRules(svg);
   const rows = rules.map((rule, i) => {

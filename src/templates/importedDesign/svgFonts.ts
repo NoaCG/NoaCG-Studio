@@ -6,12 +6,6 @@
 import { customFontFaceCss, fontFaceCss, FONTS, type BundledFont } from '../../model/fonts';
 import type { DesignSvg } from '../../model/wizard';
 
-/**
- * Every @font-face the template ships (plan §4): a bundled face whose family name matches
- * what the SVG references, or a fetched/uploaded face embedded as an asset. An UNRESOLVED
- * family is stated in a comment - never blocked, because the designer may know the playout
- * machine has the face installed; the wizard already warned out loud.
- */
 /** A bundled face declared under the name the artwork asks for - same file, second name. The
  *  comment says which face it really is, so the emitted CSS is readable rather than mysterious. */
 function aliasFontFaceCss(font: BundledFont, family: string, weight?: number): string {
@@ -35,6 +29,12 @@ ${weightLine}
 }`;
 }
 
+/**
+ * Every @font-face the template ships (plan §4): a bundled face whose family name matches
+ * what the SVG references, or a fetched/uploaded face embedded as an asset. An UNRESOLVED
+ * family is stated in a comment - never blocked, because the designer may know the playout
+ * machine has the face installed; the wizard already warned out loud.
+ */
 export function svgFontCss(svg: DesignSvg): string {
   const blocks: string[] = [];
   const unresolved: string[] = [];
