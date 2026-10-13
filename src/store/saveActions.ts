@@ -129,9 +129,9 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
  * cleared the unsaved-changes guard. Applies the doc's ACTIVE control entry (if any) into
  * the sample data, so the active data reaches the editor preview.
  */
-export function openGraphicDoc(doc: GraphicDoc): void {
+export function openGraphicDoc(doc: GraphicDoc, opts?: { keepGalleryOpen?: boolean }): void {
   const store = useTemplateStore.getState();
-  store.applyTemplate(doc.template, { resetSampleData: true });
+  store.applyTemplate(doc.template, { resetSampleData: true, keepGalleryOpen: opts?.keepGalleryOpen });
   useDocKindStore.getState().setKind('spx');
   if (doc.baseline) useTemplateStore.setState({ baseline: doc.baseline });
   // The swap cleared the working spec and conversation; a saved AI creation brings its own back.
@@ -160,9 +160,11 @@ export function openGraphicById(id: string): boolean {
 export async function discardCurrentGraphic(): Promise<string | null> {
   const before = useTemplateStore.getState();
   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
-  if (doc) openGraphicDoc(doc);
+  // The pending continuation owns navigation. Closing an open wizard here would make
+  // App rewind its current history entry before the durable write finishes.
+  if (doc) openGraphicDoc(doc, { keepGalleryOpen: true });
   else {
-    before.applyTemplate(createDefaultTemplate(), { resetSampleData: true });
+    before.applyTemplate(createDefaultTemplate(), { resetSampleData: true, keepGalleryOpen: true });
     useTemplateStore.getState().setSaved({ graphicId: null, dirty: false, status: 'idle' });
     persistLink();
   }

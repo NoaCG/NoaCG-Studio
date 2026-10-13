@@ -12,7 +12,8 @@ as `5f8c99de7ddfe39b29907b419a74d86323745361` and remains byte-identical.
 [Final focused run 38459578040](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38459578040)
 passes all seven lifecycle cases in 1.1 minutes, one Chromium worker, zero retries.
 Its product and maintained-test source at
-`aa91d015f274e06ac7b1900082f254d34e3b676a` matches the final worktree exactly.
+`aa91d015f274e06ac7b1900082f254d34e3b676a` matches the initial queued head
+`fa468b2431530a7c3b64a6f28fa0fc842afaf5ef`. The later CI repair is recorded below.
 [Run metadata](receipts/final-run.json).
 
 | Acceptance | Result and evidence |
@@ -144,3 +145,59 @@ branch based on the final product revision. Dispatch deploy-verify with focused,
 mutation, complete or history; configured-suite runs the localhost account task.
 Never open or queue a probe branch as a product PR. The diagnostic records history
 events rather than asserting a behavior verdict.
+
+## PR CI repair: navigation side effects
+
+[PR CI 38460407412](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38460407412)
+passed build and factory gates but failed three cases on shards 1, 3 and 7.
+The full failed logs were downloaded before repair. A disposable comparison
+[38465026394](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38465026394)
+ran those exact three original cases on main `ef3ada8f664d7da3976ad71bbaf33c58384590f9`
+and PR head `fa468b2431530a7c3b64a6f28fa0fc842afaf5ef`: main passed all three;
+the PR head failed all three at the original assertions. None failed then
+passed on the same product commit, so no quarantine classification applies.
+
+- `project.spec.ts:171`: document restoration closed an open wizard before the
+  awaited durable write completed. App interpreted the close as leaving the
+  wizard and replaced its history entry with Home. Discard now preserves the
+  wizard's open state until the pending navigation runs. Both linked restore
+  and clean-default restore pass `keepGalleryOpen`; normal library Open retains
+  its existing behavior. No wizard shell or import source file changed.
+- `ograf-conformance.spec.ts:386`: the new same-route event suppression also
+  suppressed Home's native navigation notification. ExportWindow depends on
+  that notification to close its snapshot, so the next Home visit left the
+  previous export open. Suppression now applies only to the mounted guarded
+  editor. Native notifications outside the editor retain their prior behavior.
+  The OGraf test and bootstrap helper remain unchanged.
+- `editor-commands.spec.ts:74`: the existing test edited a document and expected
+  direct hash navigation to unmount it without consent. That setup contradicts
+  this phase's pre-navigation decision. It now asserts that the editor, source
+  and command binding remain live at the decision, answers Save through the
+  real naming dialog, then runs every original unmount, session-closed and
+  reopen assertion. No assertion was deleted or weakened, and no timeout,
+  skip, test-maintenance record or budget exception was added.
+
+The repair stays within the original lifecycle acceptance. In particular,
+discard must not move a wizard before its continuation, and editor history
+protection must not change native navigation notifications on other surfaces.
+The original project and OGraf regressions map directly to these failure cases.
+
+[Repair verification 38465441764](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38465441764)
+passes 26 cases in 1.9 minutes with one unchanged legacy-editor skip, one Chromium
+worker and zero retries. Selection: all editor-commands, new-graphic-guard,
+project, wizard-draft-guard and route-transition-flash cases, plus the original
+OGraf two-graphics case. It includes all seven leave-editor cases and all three
+previously failing paths. Product and test source at probe
+`25ec25ce71ff69807b30d27bb53d27f52ea8cff5` matches this repair.
+[Comparison and repair run metadata](receipts/repair-runs.json).
+
+The repair check ran inline: review found two product regressions and the one
+lifecycle-test setup mismatch described above; all three are corrected.
+Simplification retained the existing optional applyTemplate behavior and router
+boundary without adding another state store. Targeted ESLint, TypeScript,
+affected gates (including ten instruction tests), whitespace and source equality
+pass. The prior account, reference and cumulative evidence remains applicable;
+those expensive tasks were not rerun for these contained navigation corrections.
+Local free memory was 1.52 GB, below the unchanged 4 GB browser floor. Only the
+authorized disposable CI browser runs executed; neither probe was queued.
+Full PR and merge-group CI must pass before landing or independent phase checking.
