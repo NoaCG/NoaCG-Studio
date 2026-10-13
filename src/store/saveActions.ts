@@ -8,7 +8,7 @@
 // proceeding. Other surfaces do not ask merely because a working document exists.
 
 import { create } from 'zustand';
-import { useTemplateStore } from './templateStore';
+import { flushPendingProject, useTemplateStore } from './templateStore';
 import {
   createGraphic,
   graphicById,
@@ -17,7 +17,7 @@ import {
 } from '../model/library';
 import { saveProject } from '../model/project';
 import { designLocked } from '../model/graphicDoc';
-import { commitDurableWrites } from '../model/durableStore';
+import { captureDurableWrites, commitDurableReceipt, commitDurableWrites } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
@@ -130,6 +130,11 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
  * the sample data, so the active data reaches the editor preview.
  */
 export function openGraphicDoc(doc: GraphicDoc, opts?: { keepGalleryOpen?: boolean }): void {
+  applyGraphicDoc(doc, opts);
+  persistLink();
+}
+
+function applyGraphicDoc(doc: GraphicDoc, opts?: { keepGalleryOpen?: boolean }): void {
   const store = useTemplateStore.getState();
   store.applyTemplate(doc.template, { resetSampleData: true, keepGalleryOpen: opts?.keepGalleryOpen });
   useDocKindStore.getState().setKind('spx');
@@ -144,7 +149,6 @@ export function openGraphicDoc(doc: GraphicDoc, opts?: { keepGalleryOpen?: boole
     }
   }
   useTemplateStore.getState().setSaved({ graphicId: doc.id, dirty: false, status: 'idle' });
-  persistLink();
 }
 
 export function openGraphicById(id: string): boolean {
@@ -158,20 +162,36 @@ export function openGraphicById(id: string): boolean {
 /** Discard the working draft, never its library or production copies. A navigation does
  * not replace the document, so clearing only `dirty` would retain the discarded artwork. */
 export async function discardCurrentGraphic(): Promise<string | null> {
+  // Drain a pending autosave before staging the replacement, otherwise its timer can
+  // overwrite the discard while its durable confirmation is still pending.
+  flushPendingProject();
+  const pendingFailure = await commitDurableWrites();
+  if (pendingFailure) return pendingFailure;
   const before = useTemplateStore.getState();
   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
-  // The pending continuation owns navigation. Closing an open wizard here would make
-  // App rewind its current history entry before the durable write finishes.
-  if (doc) openGraphicDoc(doc, { keepGalleryOpen: true });
-  else {
-    before.applyTemplate(createDefaultTemplate(), { resetSampleData: true, keepGalleryOpen: true });
-    useTemplateStore.getState().setSaved({ graphicId: null, dirty: false, status: 'idle' });
+  const template = doc?.template ?? createDefaultTemplate();
+  // Changing source or baseline clears the editor's private command history. Persist
+  // first: rolling back the visible store cannot roll back a disposed editor session.
+  const { receipts } = captureDurableWrites('spx-gfx-project', () => saveProject(
+    template, doc?.baseline ?? template, { graphicId: doc?.id ?? null, dirty: false },
+    doc?.aiSpec ?? null, normalizeThread(doc?.aiThread), doc?.legibility ?? null,
+  ));
+  if (!receipts.length) return 'Could not discard. Your changes are still open. Try again.';
+  const failures = await Promise.all(receipts.map(commitDurableReceipt));
+  const failure = failures.find(Boolean);
+  if (failure) return failure;
+  const current = useTemplateStore.getState();
+  if (current.template !== before.template || current.baseline !== before.baseline ||
+      current.saved.graphicId !== before.saved.graphicId || current.aiSpec !== before.aiSpec ||
+      current.aiThread !== before.aiThread || current.legibility !== before.legibility) {
     persistLink();
+    return 'The graphic changed while discarding. Your changes are still open. Try again.';
   }
-  const failure = await commitDurableWrites();
-  if (failure) {
-    useTemplateStore.setState(before);
-    return failure;
+  // The pending continuation owns navigation. Keep a wizard open until it runs.
+  if (doc) applyGraphicDoc(doc, { keepGalleryOpen: true });
+  else {
+    before.applyTemplate(template, { resetSampleData: true, keepGalleryOpen: true });
+    useTemplateStore.getState().setSaved({ graphicId: null, dirty: false, status: 'idle' });
   }
   useTemplateStore.setState({ history: [], future: [], selectedParts: [], selectedPart: null });
   return null;

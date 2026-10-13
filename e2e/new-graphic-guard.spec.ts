@@ -20,7 +20,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
 import { addToProductionFromFinish } from './_create';
 import { settleDurableWrites } from './_durable';
-import { open, draw, source, ready, inspection } from './_layerProperty';
+import { open, draw, source, ready, inspection, selected, undo, redo } from './_layerProperty';
 
 /** Walk the wizard to Finish on a catalog design (Entry -> Browse -> pick -> Skip to finish). */
 async function toFinish(page: Page) {
@@ -266,4 +266,112 @@ test('a refused save stays in the editor with its draft and can be retried', asy
   expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toHaveLength(0);
   await page.getByTestId('save-confirm').click(); await expect(page.getByTestId('home-page')).toBeVisible();
   expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toHaveLength(1);
+});
+
+for (const linked of [true, false]) {
+  test(`a refused discard preserves the entire ${linked ? 'linked' : 'unsaved'} session, including Redo`, async ({ page }) => {
+    await open(page); await draw(page, .24);
+    if (linked) {
+      await page.getByTestId('save-graphic').click();
+      await page.getByTestId('save-name').fill('Discard boundary');
+      await page.getByTestId('save-confirm').click();
+      await expect(page.getByTestId('save-status')).toHaveText('Saved');
+    }
+    const saved = await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics());
+    await draw(page, .5); await draw(page, .7); await undo(page);
+    await settleDurableWrites(page);
+    const edited = await source(page), before = await inspection(page), selection = await selected(page);
+    expect(before.history.undo).toBeGreaterThan(0); expect(before.history.redo).toBe(1);
+    await page.evaluate(() => {
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(value, key) {
+        if (key === 'spx-gfx-project') {
+          IDBObjectStore.prototype.put = put;
+          throw new DOMException('Injected discard refusal', 'QuotaExceededError');
+        }
+        return put.call(this, value, key);
+      };
+    });
+    await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click();
+    await expect(page.getByTestId('confirm-switch').locator('.status-bad')).toBeVisible();
+    await expect(page.getByTestId('home-page')).toHaveCount(0);
+    await expect(page.getByTestId('editor-foundation')).toBeVisible();
+    expect(await source(page)).toEqual(edited);
+    const after = await inspection(page);
+    expect(after.expected).toEqual(before.expected); expect(after.view).toEqual(before.view);
+    expect(after.history).toEqual(before.history); expect(await selected(page)).toEqual(selection);
+    await page.keyboard.press('Escape'); await redo(page); await undo(page);
+    expect(await source(page)).toEqual(edited);
+    await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click();
+    await expect(page.getByTestId('home-page')).toBeVisible();
+    expect(await page.evaluate(async () => (await import('/src/model/library.ts')).loadGraphics())).toEqual(saved);
+    expect(await source(page)).not.toEqual(edited);
+    if (linked) expect(await source(page)).toEqual(saved[0].template);
+    expect(await page.evaluate(async () => {
+      const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+      return { history: s.history, future: s.future, selection: s.selectedParts, dirty: s.saved.dirty };
+    })).toEqual({ history: [], future: [], selection: [], dirty: false });
+    const discarded = await source(page);
+    await settleDurableWrites(page); await page.reload();
+    await expect(page.getByTestId('home-page')).toBeVisible(); expect(await source(page)).toEqual(discarded);
+    await pressNewFromHome(page); await expect(page.getByTestId('confirm-switch')).toHaveCount(0);
+  });
+}
+
+test('discard keeps source and history live until the working-slot write is confirmed', async ({ page }) => {
+  await open(page); await draw(page, .3); await settleDurableWrites(page);
+  const edited = await source(page), before = await inspection(page);
+  await page.evaluate(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-project') {
+        IDBObjectStore.prototype.put = put;
+        const tx = this.transaction;
+        Object.defineProperty(tx, 'oncomplete', { set(handler: (event: Event) => void) {
+          tx.addEventListener('complete', event => {
+            Object.assign(window, { releaseDiscard: () => handler.call(tx, event) });
+          }, { once: true });
+        } });
+      }
+      return put.call(this, value, key);
+    };
+  });
+  await page.getByTestId('open-home').click(); await page.getByTestId('switch-discard').click();
+  await expect.poll(() => page.evaluate(() => 'releaseDiscard' in window)).toBe(true);
+  await expect(page.getByTestId('switch-discard')).toBeDisabled();
+  await expect(page.getByTestId('home-page')).toHaveCount(0);
+  expect(await source(page)).toEqual(edited);
+  const pending = await inspection(page);
+  expect(pending.expected).toEqual(before.expected); expect(pending.history).toEqual(before.history);
+  await page.evaluate(() => (window as unknown as { releaseDiscard: () => void }).releaseDiscard());
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(await source(page)).not.toEqual(edited);
+});
+
+test('a refused pending autosave cannot make Discard replace the live document', async ({ page }) => {
+  await open(page); await draw(page, .3); await settleDurableWrites(page);
+  await page.getByTestId('open-home').click();
+  const result = await page.evaluate(async () => {
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const { discardCurrentGraphic } = await import('/src/store/saveActions.ts');
+    const s = useTemplateStore.getState();
+    s.applyTemplate({ ...s.template, css: s.template.css + '\n/* pending edit */' });
+    const session = activeEditorSession(), before = session.commandState(), edited = useTemplateStore.getState().template;
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (key === 'spx-gfx-project') {
+        IDBObjectStore.prototype.put = put;
+        throw new DOMException('Pending autosave refused', 'QuotaExceededError');
+      }
+      return put.call(this, value, key);
+    };
+    const error = await discardCurrentGraphic();
+    return { error, before, after: activeEditorSession().commandState(), sameSource: edited === useTemplateStore.getState().template };
+  });
+  expect(result.error).toBeTruthy(); expect(result.sameSource).toBe(true); expect(result.after).toEqual(result.before);
+  await expect(page.getByTestId('home-page')).toHaveCount(0); await expect(page.getByTestId('confirm-switch')).toBeVisible();
+  await page.getByTestId('switch-discard').click(); await expect(page.getByTestId('home-page')).toBeVisible();
+  await settleDurableWrites(page); const discarded = await source(page);
+  await page.reload(); await expect(page.getByTestId('home-page')).toBeVisible(); expect(await source(page)).toEqual(discarded);
 });

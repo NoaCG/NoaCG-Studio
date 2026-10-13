@@ -602,7 +602,7 @@ export const useTemplateStore = create<TemplateState>((rawSet, get) => {
 // document has drifted from its library record. saveActions' open/save paths set the link
 // AFTER their applyTemplate returns, so their state wins over this generic marking.
 let projectSaveTimer: ReturnType<typeof setTimeout> | null = null;
-function flushPendingProject() {
+export function flushPendingProject() {
   if (!projectSaveTimer) return;
   clearTimeout(projectSaveTimer);
   projectSaveTimer = null;
