@@ -14,11 +14,8 @@
 // design failing without one), so the `buildDraftTemplate` cases run the same bundled modules in
 // one blank Chromium page, which is why this file is a factory gate rather than a build one.
 //
-// LOADED AS scripts/field-auto-map.test.mjs loads its module (rolldown, `rawSuffix`), with one
-// redirect: `draft/core.ts` reads the Import-graphic road through `../import`, whose index also
-// re-exports that road's step COMPONENTS (stylesheets, a module-level `DOMParser`). The draft
-// only ever uses the three names `import/draft.ts` defines, so `IMPORT_DRAFT_ONLY` resolves the
-// index to that file and nothing else changes.
+// Loaded through scripts/wizard-load.mjs: field-auto-map.test.mjs's rolldown pattern, with the
+// wizard's `import` index resolved to `import/draft.ts` (that file says why).
 //
 //   node --test scripts/wizard-draft.test.mjs
 import test from 'node:test';
@@ -26,37 +23,10 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
-import { rolldown } from 'rolldown';
-import { rawSuffix } from './rolldown-raw.mjs';
+import { loadWizardModule as load, wizardBrowserScript as browserScript } from './wizard-load.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const src = (relative) => path.join(projectRoot, 'src', relative);
-
-/** `../import` from inside the wizard -> `../import/draft.ts`: the draft's whole use of it. */
-const IMPORT_DRAFT_ONLY = {
-  name: 'wizard-import-draft-only',
-  resolveId(source, importer) {
-    if (!importer || !/[\\/]components[\\/]wizard[\\/]/.test(importer)) return null;
-    if (!/(^|\/)import$/.test(source)) return null;
-    return path.resolve(path.dirname(importer), source, 'draft.ts');
-  },
-};
-
-/** One TypeScript module of the app's graph, importable here. */
-async function load(entry) {
-  const bundle = await rolldown({ input: entry, platform: 'neutral', plugins: [rawSuffix, IMPORT_DRAFT_ONLY], logLevel: 'silent' });
-  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
-  await bundle.close();
-  return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
-}
-
-/** The same module as a browser script exposing `window[globalName]`. */
-async function browserScript(entry, globalName) {
-  const bundle = await rolldown({ input: entry, platform: 'browser', plugins: [rawSuffix, IMPORT_DRAFT_ONLY], logLevel: 'silent' });
-  const { output } = await bundle.generate({ format: 'iife', name: globalName, codeSplitting: false });
-  await bundle.close();
-  return output[0].code;
-}
 
 const draftModule = await load(src('components/wizard/draft.ts'));
 const { initialDraft, mergeDraft, draftToOptions, draftName, brandPatch, brandClearPatch, universalPick } = draftModule;
@@ -252,15 +222,16 @@ test('the graphic is named from Finish, else from the design', () => {
 // ── Building the real design (Chromium: create() needs a DOM) ──────────────────────────────
 
 test('buildDraftTemplate: the Finish name, the font stack, declared overrides only, a different exit', async () => {
-  const [draftJs, catalogJs, fontsJs, browser] = await Promise.all([
+  // Bundled before the browser starts, so a bundle that fails leaves no Chromium behind.
+  const scripts = await Promise.all([
     browserScript(src('components/wizard/draft.ts'), 'NOACG_DRAFT'),
     browserScript(src('templates/catalog.ts'), 'NOACG_CATALOG'),
     browserScript(src('model/fonts.ts'), 'NOACG_FONTS'),
-    chromium.launch(),
   ]);
+  const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    for (const content of [draftJs, catalogJs, fontsJs]) await page.addScriptTag({ content });
+    for (const content of scripts) await page.addScriptTag({ content });
     const seen = await page.evaluate(() => {
       const { initialDraft, mergeDraft, buildDraftTemplate } = window.NOACG_DRAFT;
       const { FONTS, fontStack } = window.NOACG_FONTS;

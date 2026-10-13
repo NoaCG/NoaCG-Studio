@@ -14,34 +14,15 @@
 // assertions read them back - a graphic built from the wrong draft, or not rebuilt at all, shows.
 // Real designs through the real UI stay with e2e/wizard-kit.spec.ts.
 //
-// Loaded as scripts/field-auto-map.test.mjs loads its module (rolldown, `rawSuffix`), with the
-// one redirect scripts/wizard-draft.test.mjs explains: `../import` -> `../import/draft.ts`.
+// Loaded through scripts/wizard-load.mjs: field-auto-map.test.mjs's rolldown pattern, with the
+// wizard's `import` index resolved to `import/draft.ts` (that file says why).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rolldown } from 'rolldown';
-import { rawSuffix } from './rolldown-raw.mjs';
+import { loadWizardModule as load } from './wizard-load.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-/** `../import` from inside the wizard -> `../import/draft.ts`: the draft's whole use of it. */
-const IMPORT_DRAFT_ONLY = {
-  name: 'wizard-import-draft-only',
-  resolveId(source, importer) {
-    if (!importer || !/[\\/]components[\\/]wizard[\\/]/.test(importer)) return null;
-    if (!/(^|\/)import$/.test(source)) return null;
-    return path.resolve(path.dirname(importer), source, 'draft.ts');
-  },
-};
-
-/** One TypeScript module of the app's graph, importable here. */
-async function load(entry) {
-  const bundle = await rolldown({ input: entry, platform: 'neutral', plugins: [rawSuffix, IMPORT_DRAFT_ONLY], logLevel: 'silent' });
-  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
-  await bundle.close();
-  return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
-}
 
 const { kitLookPatch, buildKit, reconcileKit, commitKitGraphic, applyStyleToKit, rebrandKit, kitPaletteFor } = await load(
   path.join(projectRoot, 'src/components/wizard/kitPlan.ts'),
