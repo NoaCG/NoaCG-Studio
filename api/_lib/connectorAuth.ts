@@ -141,6 +141,8 @@ export async function verifyConnectorToken(
 export interface AuthorizationDetails {
   clientId: string;
   clientName: string;
+  /** The scopes the client asked for, as Auth recorded them. */
+  scopes: string[];
 }
 
 async function asUser(path: string, userToken: string, init: RequestInit = {}): Promise<Response> {
@@ -162,9 +164,13 @@ async function asUser(path: string, userToken: string, init: RequestInit = {}): 
 export async function authorizationDetails(userToken: string, authorizationId: string): Promise<AuthorizationDetails | null> {
   const res = await asUser(`/oauth/authorizations/${encodeURIComponent(authorizationId)}`, userToken);
   if (!res.ok) return null;
-  const { client } = (await res.json()) as { client?: { id?: unknown; name?: unknown } };
+  const { client, scope } = (await res.json()) as { client?: { id?: unknown; name?: unknown }; scope?: unknown };
   if (typeof client?.id !== 'string' || !client.id) return null;
-  return { clientId: client.id, clientName: typeof client.name === 'string' ? client.name.trim().slice(0, 80) : '' };
+  return {
+    clientId: client.id,
+    clientName: typeof client.name === 'string' ? client.name.trim().slice(0, 80) : '',
+    scopes: typeof scope === 'string' ? scope.split(/\s+/).filter(Boolean) : [],
+  };
 }
 
 /** Approve an authorization; the URL that returns the code to the client, or null on refusal. */

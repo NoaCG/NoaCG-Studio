@@ -57,8 +57,9 @@ const META_VERSION = 'io.modelcontextprotocol/protocolVersion';
 /** Comfortably above any tool call the connector takes; a package is recipes and ids, not code. */
 const MAX_BODY_BYTES = 1_000_000;
 
-/** The scopes a client asks Supabase Auth for: identity only, the only kind Auth issues. */
-export const CONNECTOR_SCOPES = ['openid', 'email'];
+/** The scopes a client asks Supabase Auth for: identity only, the only kind Auth issues. Never
+ *  `openid`: its ID token opens Auth's account endpoints, so NoaCG's Allow refuses it (connectors.ts). */
+export const CONNECTOR_SCOPES = ['email'];
 
 export interface McpToolResult {
   content: Array<{ type: 'text'; text: string }>;

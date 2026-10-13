@@ -61,6 +61,15 @@ export function createConnectorsHandler(deps: ConnectorsDeps = {}): { fetch(req:
     if (!AUTHORIZATION_ID.test(authorizationId)) return apiError('invalid', '`authorizationId` is required.', 400);
     const request = await details(token, authorizationId);
     if (!request) return apiError('not_found', 'This sign-in request is unknown or has expired. Start again from the chat.', 404);
+    // NO ID TOKEN FOR A CONNECTOR (issue #1083). With `openid` Auth also issues an ID token: same
+    // signing key, the real user id as `sub`, no session, and the access token hook never sees it.
+    // Auth's own /user takes it as a bearer (GET and PUT answered 200 on a hosted branch, the
+    // user's metadata changed), so it would reopen the account endpoints the hook closes. The
+    // protected resource metadata asks for `email` only; a request for more is refused here,
+    // before any grant, and the client gets no code.
+    if (request.scopes.includes('openid')) {
+      return apiError('forbidden', 'This app asked for more access to your account than NoaCG gives a connected app (the "openid" scope). Deny this request; the app can connect without it.', 403);
+    }
     const store = storeOf();
     const { row, created } = await store.createGrant({
       userId,

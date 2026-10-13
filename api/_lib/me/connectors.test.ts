@@ -33,7 +33,7 @@ function setup(overrides: Partial<ConnectorsDeps> = {}): Harness {
     store,
     enabled: async () => true,
     user: async (token) => (token === 'session-a' ? { userId: USER } : token === 'session-b' ? { userId: OTHER } : null),
-    details: async (_token, id) => (id === AUTHZ ? { clientId: CLIENT, clientName: 'Claude' } : null),
+    details: async (_token, id) => (id === AUTHZ ? { clientId: CLIENT, clientName: 'Claude', scopes: ['email'] } : null),
     approve: async (_token, id) => {
       approved.push(id);
       return `http://127.0.0.1:53682/callback?code=c0de&state=s`;
@@ -93,6 +93,17 @@ test('an unknown request or a refused approval leaves no grant', async () => {
   assert.equal((await allow(refused)).status, 502);
   assert.equal(await refused.store.resolveGrant(USER, CLIENT), null);
   assert.equal((await allow(h, '../../x')).status, 400);
+});
+
+test('a request for the openid scope is refused before any grant: its ID token would open Auth\'s account endpoints', async () => {
+  const h = setup({ details: async () => ({ clientId: CLIENT, clientName: 'Claude', scopes: ['openid', 'email'] }) });
+  const res = await allow(h);
+  assert.equal(res.status, 403);
+  const { error } = (await res.json()) as { error: { code: string; message: string } };
+  assert.equal(error.code, 'forbidden');
+  assert.match(error.message, /Deny this request/);
+  assert.deepEqual(h.approved, [], 'nothing approved at Auth, so the client gets no code');
+  assert.equal(h.store.grants.length, 0);
 });
 
 test('the list is the user\'s own live grants; Revoke ends the grant and the client\'s sessions', async () => {

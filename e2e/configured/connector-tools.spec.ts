@@ -102,7 +102,7 @@ test.describe('remote MCP connector: the read tools', () => {
 
   test('a chat client finds catalog designs and reads its own user\'s library, never another account\'s', async ({ request, baseURL }) => {
     test.skip(!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY, 'needs VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
-    test.skip(!isConnectorTestStack(SUPABASE_URL), 'local stack or a named preview branch only: it registers OAuth clients');
+    test.skip(!isConnectorTestStack(SUPABASE_URL), 'local stack or the hosted test project named in NOACG_CONNECTOR_TEST_REF only: it registers OAuth clients');
     const origin = baseURL!.replace(/\/+$/, '');
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const stamp = Date.now();

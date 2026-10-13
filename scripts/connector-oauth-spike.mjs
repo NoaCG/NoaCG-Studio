@@ -21,8 +21,8 @@
 //   node scripts/connector-oauth-spike.mjs --json     # the full evidence as JSON
 // VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY win when set, which is
 // how e2e/configured/connector-oauth.spec.ts runs it on CI's local stack. It refuses any URL that
-// is not localhost, unless NOACG_CONNECTOR_BRANCH_REF names the hosted preview branch the URL
-// points at (never production or staging): it creates and deletes an account and OAuth clients.
+// is not localhost, unless NOACG_CONNECTOR_TEST_REF names the hosted test project the URL
+// points at (never production): it creates and deletes an account and OAuth clients.
 // Exit 1 when a step of AC-1, decision 4 or the account lock fails.
 
 import { execFileSync } from 'node:child_process';
@@ -31,6 +31,9 @@ import { pathToFileURL } from 'node:url';
 
 export const PINNED_CLI = '2.111.0';
 export const CONNECTOR_ROLE = 'noacg_connector';
+/** What NoaCG's protected resource metadata advertises (api/_lib/me/mcp.ts CONNECTOR_SCOPES).
+ *  Never `openid`: its ID token is a second bearer the hook never sees (connectors.ts refuses it). */
+export const CONNECTOR_SCOPE = 'email';
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -67,15 +70,16 @@ export function isLocalUrl(url) {
   }
 }
 
-/** Projects the connector's acceptance never runs against: production and hosted staging. */
-const NEVER_REFS = ['kprolrchuldgfrzspthy', 'garafohbzmsybtysxphb'];
+/** The project the connector's acceptance never runs against: production, which has real users. */
+const NEVER_REFS = ['kprolrchuldgfrzspthy'];
 
 /** Where the connector's acceptance may create accounts and OAuth clients: a local stack, or the
- *  ONE hosted preview branch named on purpose in NOACG_CONNECTOR_BRANCH_REF, which must be the
- *  project the URL points at (docs/REMOTE_MCP_PLAN.md, phase 5's hosted proof). */
+ *  ONE hosted test project named on purpose in NOACG_CONNECTOR_TEST_REF (a preview branch, or
+ *  staging once the owner has switched it on), which must be the project the URL points at
+ *  (docs/REMOTE_MCP_PLAN.md, phase 5 and the owner's steps). */
 export function isConnectorTestStack(url, env = process.env) {
   if (isLocalUrl(url)) return true;
-  const ref = env.NOACG_CONNECTOR_BRANCH_REF ?? '';
+  const ref = env.NOACG_CONNECTOR_TEST_REF ?? '';
   const match = /^https:\/\/([a-z0-9]{20})\.supabase\.co\/?$/.exec(url ?? '');
   return Boolean(ref && match && match[1] === ref && !NEVER_REFS.includes(ref));
 }
@@ -118,7 +122,7 @@ async function call(url, { method = 'GET', headers = {}, json, form, redirect = 
 /** One line of evidence for a probe answer: status and the error code or message, never a token. */
 const brief = (r) => {
   const b = r.body && typeof r.body === 'object' ? r.body : {};
-  const why = b.code ?? b.error_code ?? b.error ?? b.statusCode ?? '';
+  const why = b.error_code ?? b.code ?? b.error ?? b.statusCode ?? '';
   const msg = b.message ?? b.msg ?? b.error_description ?? (typeof r.body === 'string' ? r.body.slice(0, 120) : '');
   return `${r.status}${why ? ` ${why}` : ''}${msg ? ` - ${msg}` : ''}`;
 };
@@ -130,7 +134,7 @@ const brief = (r) => {
  * @returns {Promise<{ checks: Record<string, { ok: boolean, detail: string }>, findings: Record<string, string> }>}
  */
 export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () => {} }) {
-  if (!isConnectorTestStack(apiUrl)) throw new Error(`refusing ${apiUrl}: the spike runs against a local stack, or a preview branch named in NOACG_CONNECTOR_BRANCH_REF`);
+  if (!isConnectorTestStack(apiUrl)) throw new Error(`refusing ${apiUrl}: the spike runs against a local stack, or a hosted test project named in NOACG_CONNECTOR_TEST_REF`);
   const base = apiUrl.replace(/\/$/, '');
   const auth = `${base}/auth/v1`;
   const rest = `${base}/rest/v1`;
@@ -204,7 +208,7 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     const state = b64url(randomBytes(12));
     const authorize = await call(authorizeHref({
       response_type: 'code', client_id: clientId, redirect_uri: redirectUri,
-      code_challenge: challenge, code_challenge_method: 'S256', state, scope: 'openid email',
+      code_challenge: challenge, code_challenge_method: 'S256', state, scope: CONNECTOR_SCOPE,
     }), { redirect: 'manual' });
     const consentUrl = authorize.location ? new URL(authorize.location) : null;
     const authorizationId = consentUrl?.searchParams.get('authorization_id');
@@ -243,7 +247,7 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
       'token_carries_client_id',
       accessToken && claims.payload.client_id === clientId && claims.payload.noacg_uid === cleanup.userId,
       accessToken
-        ? `client_id ${claims.payload.client_id}; noacg_uid is the test account; aud ${JSON.stringify(claims.payload.aud)}; scope "${claims.payload.scope ?? ''}"; refresh token ${token.body.refresh_token ? 'issued' : 'absent'}; id_token ${token.body.id_token ? 'issued' : 'absent'}`
+        ? `client_id ${claims.payload.client_id}; noacg_uid ${claims.payload.noacg_uid === cleanup.userId ? 'is the test account' : 'MISSING'}; aud ${JSON.stringify(claims.payload.aud)}; scope "${claims.payload.scope ?? ''}"; refresh token ${token.body.refresh_token ? 'issued' : 'absent'}; id_token ${token.body.id_token ? 'issued' : 'absent'}`
         : brief(token),
     );
     if (!accessToken) return { checks, findings };
@@ -294,11 +298,14 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     // The account lock (issue #1083, migration 0091): `sub` is no UUID and `session_id` names no
     // session, so every Auth endpoint that acts as the user refuses the connector's token before
     // reading anything. Each probe is a step a holder of the token would take toward the account.
+    // ...and the client holds no second bearer: with the `email` scope Auth issues no ID token,
+    // which would carry the real `sub` and no session (Auth's /user accepted one on a hosted
+    // branch: GET and PUT 200, the metadata changed).
     check(
       'account_claims_locked',
       claims.payload.sub !== cleanup.userId && !UUID_RE.test(claims.payload.sub ?? '') && UUID_RE.test(claims.payload.session_id ?? '')
-        && claims.payload.session_id !== firstParty.payload.session_id,
-      `sub "${String(claims.payload.sub).replace(cleanup.userId, '<user id>')}"; session_id ${UUID_RE.test(claims.payload.session_id ?? '') ? 'a UUID' : 'NOT a UUID'}`,
+        && claims.payload.session_id !== firstParty.payload.session_id && !token.body.id_token,
+      `sub "${String(claims.payload.sub).replace(cleanup.userId, '<user id>')}"; session_id ${UUID_RE.test(claims.payload.session_id ?? '') ? 'a UUID' : 'NOT a UUID'}; id_token ${token.body.id_token ? 'ISSUED' : 'none'} for scope "${CONNECTOR_SCOPE}"`,
     );
     // Another client's pending request: approving it with the connector's token would grant a
     // client the user never saw, and that grant would survive revoking the first.
@@ -310,11 +317,11 @@ export async function runConnectorSpike({ apiUrl, anonKey, serviceKey, log = () 
     const otherAuthorize = otherReg.body?.client_id
       ? await call(authorizeHref({
         response_type: 'code', client_id: otherReg.body.client_id, redirect_uri: redirectUri,
-        code_challenge: challenge, code_challenge_method: 'S256', scope: 'openid email',
+        code_challenge: challenge, code_challenge_method: 'S256', scope: CONNECTOR_SCOPE,
       }), { redirect: 'manual' })
       : null;
     const otherId = otherAuthorize?.location ? new URL(otherAuthorize.location).searchParams.get('authorization_id') : null;
-    const none = { status: 0, body: 'no second request' };
+    const none = { status: 0, body: `no second request (registration ${otherReg.status}, authorize ${otherAuthorize ? brief(otherAuthorize) : 'not tried'})` };
     const probes = {
       'GET /user': await call(`${auth}/user`, { headers: asConnector }),
       'PUT /user metadata': await call(`${auth}/user`, { method: 'PUT', headers: asConnector, json: { data: { connector_spike_probe: true } } }),

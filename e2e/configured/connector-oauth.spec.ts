@@ -11,8 +11,8 @@
 // scripts/connector-oauth-spike.mjs, which a person runs against `npx supabase@2.111.0 start` the
 // same way; this spec keeps it passing on every landing and prints its evidence into the run log.
 // No page: what is under test is Supabase Auth and the database. It skips on hosted staging
-// (hosted-latency.yml), whose Auth configuration nothing here touches, and runs on a hosted
-// preview branch only when NOACG_CONNECTOR_BRANCH_REF names it.
+// (hosted-latency.yml), whose Auth configuration nothing here touches, and runs on a hosted test
+// project (a preview branch, or staging once switched on) only when NOACG_CONNECTOR_TEST_REF names it.
 
 import { test, expect } from '@playwright/test';
 import { failedChecks, isConnectorTestStack, runConnectorSpike } from '../../scripts/connector-oauth-spike.mjs';
@@ -22,7 +22,7 @@ const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 
 test('a chat client signs in with PKCE and its token reaches no table, function or object directly', async () => {
   test.skip(!SUPABASE_URL || !SERVICE_ROLE_KEY || !ANON_KEY, 'needs VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
-  test.skip(!isConnectorTestStack(SUPABASE_URL), 'local stack or a named preview branch only: the spike creates OAuth clients');
+  test.skip(!isConnectorTestStack(SUPABASE_URL), 'local stack or the hosted test project named in NOACG_CONNECTOR_TEST_REF only: the spike creates OAuth clients');
   const lines: string[] = [];
   let report: Awaited<ReturnType<typeof runConnectorSpike>>;
   try {

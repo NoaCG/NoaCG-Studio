@@ -105,7 +105,7 @@ test('the protected resource metadata names this resource and the Auth issuer', 
   const meta = (await res.json()) as { resource: string; authorization_servers: string[]; scopes_supported: string[] };
   assert.equal(meta.resource, 'http://studio.test/mcp');
   assert.deepEqual(meta.authorization_servers, ['http://127.0.0.1:54321/auth/v1']);
-  assert.deepEqual(meta.scopes_supported, ['openid', 'email']);
+  assert.deepEqual(meta.scopes_supported, ['email'], "never openid: its ID token would open Auth's account endpoints");
 });
 
 test('no token, a session or an unknown token is 401 with the metadata pointer', async () => {
