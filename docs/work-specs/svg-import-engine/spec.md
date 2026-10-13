@@ -567,6 +567,102 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
 
+### Phase 3: the TypeScript transform in named files (build, 2026-10-13)
+
+- **Last check's findings (phase 2, PASS):** the checker compared the old `onSvg` and `onClearSvg`
+  from `f6634cbd6` with main over 48 files, 5 frames, 6 previous drafts and 3 brands: 4,320 drops
+  and 8,640 clears, 0 differences, and its probe was caught. The snapshot without `draft` is
+  deep-equal to `f6634cbd6`'s. CI on `cb3d9557`: `import-svg` 54 passed, `import-svg-behaviour` 34.
+  A UI walk of drop, fields, behaviour, preview and clear was OK. AC-3: six names, and the two
+  extras are comments. The fence held. Minor: ARCHITECTURE §5 says 3,280 of 8,082 no-JSX lines,
+  measured 3,290 of 8,092 (confirmed here on `13b326773`; ARCHITECTURE.md is outside this fence,
+  so it is #1129). Carried: two tests still pass a second argument `__importDraft` ignores, and
+  the empty SVG slice is written three times (#1126).
+- **Main before:** `13b326773c7cc3b180532fa8b3b743876661c85b`. Merge sha: the queue's merge of this
+  pull request. Revert: `git revert -m 1 <merge sha>` on its own branch through `/check` and
+  `/queue-merge`. It puts the three passes back into `svg.ts` and removes the two Node tests and
+  the file map; nothing else depends on the new files.
+- **Built:** `svgBind.ts` (217 lines: `candidateLabel`, `normalizePictureHref`,
+  `setIdKeepingRefs`, `bindSvgMarkup`), `svgLayout.ts` (132: `SVG_ALIGN_WORD`, `LAYOUT_EL_ATTR`,
+  `LAYOUT_VERSION`, `PANEL_SAFE`, the two token helpers, `layoutRules`, `saidLines`,
+  `layoutDataJs`), `svgFonts.ts` (62: `aliasFontFaceCss`, `svgFontCss`). `svg.ts` keeps the
+  header, `SVG_ALIGN_TOL`, `SVG_LINE_HEIGHT`, `NO_SVG`, the runtime strings, the hooks,
+  `assembleImportedSvg` and `IMPORTED_SVG`, and re-exports `PANEL_SAFE` and `SVG_ALIGN_WORD`, so
+  `stageMeasure.ts` and `MapSvgFieldsStep.tsx` import as before. Two build-tier Node tests:
+  `scripts/svg-layout-table.test.mjs` (5 tests: the normalisation, `saidLines` without the
+  countdown or credits sample, one whole table pinned as text, the table run as a script, no
+  `lines` list for an unaligned design) and `scripts/svg-font-css.test.mjs` (5 tests: empty, a
+  bundled face, the pinned alias as text with both clamps and the no-weight range, an embedded
+  face, the unresolved comment).
+- **Proof:**
+  - Pure move: the files were cut by line range from `13b326773`'s `svg.ts` with a script. An
+    independent check compared the line multisets (blank lines and a leading `export` ignored):
+    nothing of the original is missing, and the only added lines are imports and the one
+    re-export. After that, one doc phrase changed ("the runtime below" became "the growth
+    runtime (svg.ts)", since the table now sits in another file) and `LAYOUT_VERSION` stayed
+    private. Four doc comments that sat stacked above other code moved to what they describe:
+    `bindSvgMarkup`'s (it sat above `LAYOUT_EL_ATTR`), THE HUG's (now directly above
+    `growthRuntimeJs`), the relationship table's (above `layoutDataJs`, not `saidLines`) and
+    `svgFontCss`'s (not `aliasFontFaceCss`). The multiset check after them still shows only the
+    one changed phrase.
+  - Harness: 577 records, every pass green, the snapshot file untouched. The runtime record was
+    compared with this machine's baseline taken on `13b326773` before the change
+    (`SVG_CORPUS_RUNTIME_LOCAL`). Run time 6.3 s for the test file.
+  - `check-catalog-emit`: PASS, 528 designs, `svg01` unchanged.
+  - The two Node tests: 5 and 5 green in about 0.15 s each, discovered by `gates.mjs` as build
+    tier (`gates.mjs audit` OK). Probes, each made and reverted: dropping the lower weight clamp
+    in `aliasFontFaceCss` failed the alias test; dropping the nudge comment in `layoutDataJs`
+    failed the whole-table test.
+  - `tsc`, ESLint on the folder and the tests, `depcruise src` (no violations),
+    `gates run --changed origin/main` (all checks, 6 test files, 33 tests) green;
+    `vote-board-bars`, `readout-ink` and `behaviour-removed-layer`, which bundle `svg.ts`, pass.
+- **AC-4 line counts:** `svg.ts` 2,847 lines, of which 2,436 are the runtime strings phases 4 and 5
+  move (`SVG_FIT_JS` 1,468, `SVG_FIT_BOOT` 27, `SHAPE_SHIFT_JS` 71, `growthRuntimeJs` 870) and 411
+  are TypeScript. No new file is over 800. Decision: "`svg.ts` under 500 lines" is read as the end
+  state after phase 5, as §2.1's column "After phase 3 to 5" states. The runtime cannot leave
+  `svg.ts` inside this fence (that is phases 4 and 5), and moving it into another TypeScript file
+  would add a file outside the fence and over 800 lines.
+- **Decisions:**
+  - `SVG_ALIGN_WORD` moved to `svgLayout.ts` (§2.1 does not list it): `layoutDataJs` writes it into
+    the table's comments, and leaving it in `svg.ts` would make `svgLayout.ts` import `svg.ts`, a
+    cycle, and pull the whole build into the Node test's bundle.
+  - Exported only what another file uses: `LAYOUT_EL_ATTR` (the growth runtime in `svg.ts`
+    interpolates it), the two token helpers (`bindSvgMarkup` stamps with them), `layoutRules`,
+    `saidLines`, `layoutDataJs`, `candidateLabel`, `bindSvgMarkup`, `svgFontCss`.
+  - `aliasFontFaceCss` stays private; the test reaches it through `svgFontCss`.
+  - ARCHITECTURE §8 does not list this folder's files, so it is unchanged; the file map is in the
+    folder's `AGENTS.md`, one line per file.
+- **What the next phase must allow for:**
+  - The runtime strings interpolate `PREFIX`, `SVG_ALIGN_TOL` and `SVG_LINE_HEIGHT` (fit and boot,
+    in `svg.ts`) and `PREFIX` and `LAYOUT_EL_ATTR` (growth, imported from `svgLayout.ts`). The
+    `NOACG_LAYOUT` text with `PANEL_SAFE` and `LAYOUT_VERSION` is `layoutDataJs`'s and not runtime.
+  - THE HUG's doc comment now sits directly above `growthRuntimeJs`, ready for phase 5.
+  - `svg.ts`'s TypeScript is 411 lines; the `?raw` imports and `fillRuntime` must keep it under
+    500.
+  - The nightly's traced e2e map (`scripts/e2e-traced.json`) has no entry for the three new files
+    until the next nightly. Until then a change to `svgBind.ts` alone selects 60 specs and misses
+    `editor-fidelity-trim` and the other specs traced to `svg.ts` (72 for `svg.ts`), the #927
+    pattern. Phases 4 and 5 change `svg.ts`, so they are covered.
+  - Two comments outside this fence still name `svg.ts` as the home of a moved function:
+    `designTypes.ts:390` (`aliasFontFaceCss`) and `components/wizard/import/draft.ts:1355`
+    (`bindSvgMarkup`). Whoever next edits those files can point them at `svgFonts.ts` and
+    `svgBind.ts`.
+- **Findings (D10):** none new from the harness; the five recorded findings are unchanged. The
+  review of this pull request read the moved code and named pre-existing behaviour, none
+  reproduced here and none a move may change: `layoutDataJs` writes a label or a field title into
+  a `//` comment without taking out line breaks, so a name holding a newline would end the comment;
+  `setIdKeepingRefs` carries `href` and `xlink:href` but not `url(#id)` references when it moves a
+  colliding id, and does not check that `layer-<id>` is free; two picture fields filled from one
+  shared Figma `<image>` would both bind that node; `candidateLabel` reads `data-name ?? id` rather
+  than the reader's own `svgLayerLabel`; and `candidateLabel` parses the markup again per growth
+  rule. Each wants a reproduction on a real file before a fix of its own.
+- **Traps:**
+  - The scratchpad is shared across this plan's sessions. A `SVG_CORPUS_RUNTIME_LOCAL` file that
+    already exists is compared against, not rewritten, so an earlier phase's file silently
+    becomes the baseline. Use a fresh path per phase.
+  - `sed -i` on Windows still rewrites a file's line endings; harmless for a commit
+    (`core.autocrlf`), but restore a probe with `git checkout -- <file>`.
+
 ### Phase 2: one door for the draft (build, 2026-10-13)
 
 - **Last check's findings (phase 1, PASS):** the checker's own bind probe (a clock suffix) was
