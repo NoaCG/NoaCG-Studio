@@ -11,16 +11,17 @@
       "since": "2026-10-12",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38305069010"
+    },
+    "e2e/configured/late-send-abandoned.spec.ts": {
+      "since": "2026-10-13",
+      "count": 6,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38376289834"
     }
   },
   "released": {
     "e2e/configured/dashboard-hosted-walk.spec.ts": {
       "count": 5,
       "last": "2026-10-12"
-    },
-    "e2e/configured/late-send-abandoned.spec.ts": {
-      "count": 5,
-      "last": "2026-10-13"
     },
     "e2e/configured/production-data-key.spec.ts": {
       "count": 2,
