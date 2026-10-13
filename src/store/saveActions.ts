@@ -4,9 +4,8 @@
 // library graphic loads, and when the "unsaved changes" guard must interpose.
 //
 // The autosave slot (model/project.ts) is the crash-safety net and is never conflated with
-// Save: replacing the WORKING DOCUMENT (open another graphic, create a new project) is the
-// only destructive move, so that is the one moment the guard asks. Navigating to Home, a
-// control panel, or the video shell never touches the working document and never asks.
+// Save: document replacement and leaving the mounted editor resolve unsaved work before
+// proceeding. Other surfaces do not ask merely because a working document exists.
 
 import { create } from 'zustand';
 import { useTemplateStore } from './templateStore';
@@ -23,6 +22,7 @@ import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
 import { prepareOutRuntime } from '../blocks/animMigration';
+import { createDefaultTemplate } from '../templates/defaultTemplate';
 
 function prepareEmptyOut() {
   const store = useTemplateStore.getState();
@@ -155,6 +155,26 @@ export function openGraphicById(id: string): boolean {
   return true;
 }
 
+/** Discard the working draft, never its library or production copies. A navigation does
+ * not replace the document, so clearing only `dirty` would retain the discarded artwork. */
+export async function discardCurrentGraphic(): Promise<string | null> {
+  const before = useTemplateStore.getState();
+  const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
+  if (doc) openGraphicDoc(doc);
+  else {
+    before.applyTemplate(createDefaultTemplate(), { resetSampleData: true });
+    useTemplateStore.getState().setSaved({ graphicId: null, dirty: false, status: 'idle' });
+    persistLink();
+  }
+  const failure = await commitDurableWrites();
+  if (failure) {
+    useTemplateStore.setState(before);
+    return failure;
+  }
+  useTemplateStore.setState({ history: [], future: [], selectedParts: [], selectedPart: null });
+  return null;
+}
+
 /**
  * Would replacing the working document lose something the user did? This is the guard's
  * question, and `saved.dirty` alone answers a different one.
@@ -224,6 +244,9 @@ export const useSaveUi = create<SaveUiState>((set, get) => ({
   },
   settleConfirm: () => set({ confirmSwitch: null }),
   requestSwitch: (proceed, cancel, resume) => {
+    // Browser navigation can arrive through an open modal. Keep the first decision and
+    // its destination instead of stacking guards or replacing a first-save continuation.
+    if (get().confirmSwitch || get().saveDialog) return;
     if (resume && get().heldWalk) set({ confirmSwitch: { proceed, cancel, resume } });
     else if (hasUnsavedWork()) set({ confirmSwitch: { proceed, cancel } });
     else proceed();

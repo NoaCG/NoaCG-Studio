@@ -3,6 +3,7 @@ import { useTemplateStore } from '../../store/templateStore';
 import {
   saveCurrentGraphic,
   saveGraphicAs,
+  discardCurrentGraphic,
   useSaveUi,
 } from '../../store/saveActions';
 import { useModalGate } from '../spaceKey';
@@ -38,7 +39,10 @@ export default function SaveDialogs() {
 
 function SaveDialog() {
   const dialog = useSaveUi((s) => s.saveDialog)!;
-  const close = useSaveUi((s) => s.closeSaveDialog);
+  const closeDialog = useSaveUi((s) => s.closeSaveDialog);
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const close = () => { if (!busyRef.current) closeDialog(); };
   const template = useTemplateStore((s) => s.template);
   // WHERE THE GRAPHIC GOES, said at the one moment the question has a consequence. The topbar
   // states which account state the studio is in, and the owner's worry (2026-09-10: "we need to
@@ -73,21 +77,24 @@ function SaveDialog() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape' && !busyRef.current) closeDialog();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [close]);
+  }, [closeDialog]);
 
   const confirm = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     void saveGraphicAs(name.trim() || template.name, { kind: 'standalone' }).then((res) => {
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      close();
+      closeDialog();
       dialog.then?.();
-    });
+    }).finally(() => { busyRef.current = false; setBusy(false); });
   };
 
   return (
@@ -102,13 +109,14 @@ function SaveDialog() {
       <div className="wz-modal save-dialog" role="dialog" aria-modal="true" aria-label="Save graphic" data-testid="save-dialog">
         <div className="wz-header">
           <h2>{dialog.mode === 'save-as' ? 'Save a copy' : 'Save graphic'}</h2>
-          <button className="gallery-close" onClick={close} title="Cancel">✕</button>
+          <button className="gallery-close" onClick={close} title="Cancel" disabled={busy}>✕</button>
         </div>
         <div className="save-dialog-body">
           <label className="save-field">
             <span>Name</span>
             <input
               autoFocus
+              disabled={busy}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }}
@@ -122,9 +130,9 @@ function SaveDialog() {
           </p>
           {error && <p className="status-bad">{error}</p>}
           <div className="dlg-foot dlg-foot--inline">
-            <button onClick={close}>Cancel</button>
+            <button onClick={close} disabled={busy}>Cancel</button>
             <div className="spacer" />
-            <button className="primary" onClick={confirm} data-testid="save-confirm">Save</button>
+            <button className="primary" onClick={confirm} disabled={busy} data-testid="save-confirm">{busy ? 'Saving…' : 'Save'}</button>
           </div>
         </div>
       </div>
@@ -134,7 +142,11 @@ function SaveDialog() {
 
 function ConfirmSwitchDialog() {
   const confirm = useSaveUi((s) => s.confirmSwitch)!;
-  const closeConfirm = useSaveUi((s) => s.closeConfirm);
+  const cancelConfirm = useSaveUi((s) => s.closeConfirm);
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const closeConfirm = () => { if (!busyRef.current) cancelConfirm(); };
   const settleConfirm = useSaveUi((s) => s.settleConfirm);
   const openSaveDialog = useSaveUi((s) => s.openSaveDialog);
   const graphicId = useTemplateStore((s) => s.saved.graphicId);
@@ -145,20 +157,24 @@ function ConfirmSwitchDialog() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeConfirm();
+      if (e.key === 'Escape' && !busyRef.current) cancelConfirm();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [closeConfirm]);
+  }, [cancelConfirm]);
 
   const saveThen = () => {
+    if (busyRef.current) return;
     const proceed = confirm.proceed;
     if (graphicId) {
+      busyRef.current = true;
+      setBusy(true);
       void saveCurrentGraphic().then((r) => {
-        if (r !== 'saved') return;
+        if (r === 'failed') { setError('Could not save. Your changes are still open. Try again.'); return; }
         settleConfirm();
-        proceed();
-      });
+        if (r === 'needs-name') openSaveDialog('first', proceed);
+        else proceed();
+      }).finally(() => { busyRef.current = false; setBusy(false); });
     } else {
       // Never saved: settle the guard and hand the continuation to the save dialog.
       settleConfirm();
@@ -167,11 +183,15 @@ function ConfirmSwitchDialog() {
   };
 
   const discard = () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
     const proceed = confirm.proceed;
-    settleConfirm();
-    // Discarding means the replacement may proceed; the library copy (if any) is untouched.
-    useTemplateStore.setState((s) => ({ saved: { ...s.saved, dirty: false } }));
-    proceed();
+    void discardCurrentGraphic().then(failure => {
+      if (failure) { setError(failure); return; }
+      settleConfirm();
+      proceed();
+    }).finally(() => { busyRef.current = false; setBusy(false); });
   };
 
   // A WIZARD WALK left mid-way is what is at risk (saveActions `heldWalk`): it has no library to
@@ -203,7 +223,7 @@ function ConfirmSwitchDialog() {
       >
         <div className="wz-header">
           <h2>{title}</h2>
-          <button className="gallery-close" onClick={closeConfirm} title="Cancel">✕</button>
+          <button className="gallery-close" onClick={closeConfirm} title="Cancel" disabled={busy}>✕</button>
         </div>
         <div className="save-dialog-body">
           <p>
@@ -211,8 +231,9 @@ function ConfirmSwitchDialog() {
               ? 'You left a graphic unfinished in the wizard.'
               : `“${name}” has unsaved changes. Save them before continuing?`}
           </p>
+          {error && <p className="status-bad" role="alert">{error}</p>}
           <div className="dlg-foot dlg-foot--inline">
-            <button onClick={closeConfirm} data-testid="switch-cancel">Cancel</button>
+            <button onClick={closeConfirm} disabled={busy} data-testid="switch-cancel">Cancel</button>
             <div className="spacer" />
             {walk ? (
               <>
@@ -221,9 +242,9 @@ function ConfirmSwitchDialog() {
               </>
             ) : (
               <>
-                <button onClick={discard} data-testid="switch-discard">Discard changes</button>
-                <button className="primary" onClick={saveThen} data-testid="switch-save">
-                  {graphicId ? 'Save & continue' : 'Save first…'}
+                <button onClick={discard} disabled={busy} data-testid="switch-discard">Discard changes</button>
+                <button className="primary" onClick={saveThen} disabled={busy} data-testid="switch-save">
+                  {busy ? 'Please wait…' : graphicId ? 'Save & continue' : 'Save first…'}
                 </button>
               </>
             )}

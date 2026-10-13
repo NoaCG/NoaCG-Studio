@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
-import { useRouter } from '../../app/router';
+import { guardNavigation, useRouter } from '../../app/router';
+import { useSaveUi } from '../../store/saveActions';
 import NewGraphicButton from '../NewGraphicButton';
 import SaveControls from '../save/SaveControls';
 import BrandLogo from '../BrandLogo';
@@ -28,6 +29,7 @@ import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
 export default function EditorFoundation() {
+  useEffect(() => guardNavigation(proceed => useSaveUi.getState().requestSwitch(proceed)), []);
   const template = useTemplateStore(state => state.template);
   // Artwork authoring shows saved defaults; operator rehearsals retain their own samples.
   const sampleData = useMemo(() => Object.fromEntries(template.fields.map(f => [f.field, String(f.value ?? '')])), [template.fields]);
