@@ -1,0 +1,159 @@
+{
+  "date": "2026-10-13T17:35:56.554Z",
+  "main": "2ea888ed16911d579cfcc0e52a1956ebf03b984a",
+  "probe": "24346119d94e68fa0de894de975f5f2505017ad5",
+  "references": {
+    "studio": {
+      "repository": "https://github.com/zerodensity/ograf-studio",
+      "pin": "3142fc7d02934494931eb14e7dc255393e4110d0",
+      "files": [
+        {
+          "path": "apps/editor/src/state/editorShortcuts.ts",
+          "sha256": "b5c9d785d4115802b5372b462d00177228e98cecc2b755ce8a6f86316fe9d7cc",
+          "releaseSha256": "b5c9d785d4115802b5372b462d00177228e98cecc2b755ce8a6f86316fe9d7cc"
+        },
+        {
+          "path": "apps/editor/src/state/editorShortcuts.test.ts",
+          "sha256": "2320437b90e9b2837046a6b5b8f82497a77ba685a3de4bae320b01fc208b5538",
+          "releaseSha256": "2320437b90e9b2837046a6b5b8f82497a77ba685a3de4bae320b01fc208b5538"
+        },
+        {
+          "path": "apps/editor/src/state/selectionStore.ts",
+          "sha256": "590b8416b976571dda2eaa186dbc9c645dec6382fa61be5ac9ec82b287f0a6ac",
+          "releaseSha256": "590b8416b976571dda2eaa186dbc9c645dec6382fa61be5ac9ec82b287f0a6ac"
+        },
+        {
+          "path": "apps/editor/src/state/selectionStore.test.ts",
+          "sha256": "39a84eb081a96a906b960ffabca649350a315c0423b714f61a7f9d0879f0a448",
+          "releaseSha256": "39a84eb081a96a906b960ffabca649350a315c0423b714f61a7f9d0879f0a448"
+        },
+        {
+          "path": "apps/editor/src/state/projectStore.ts",
+          "sha256": "a52fce8b17aadc063d36416cca5cf6517fd50b7ae695d910dd3657b36a8855df",
+          "releaseSha256": "a52fce8b17aadc063d36416cca5cf6517fd50b7ae695d910dd3657b36a8855df"
+        },
+        {
+          "path": "apps/editor/src/state/historyStore.ts",
+          "sha256": "21895f00b23025d889a5908d6aaa7c19e375b8f15ac66f44d8dd1e725acf76e8",
+          "releaseSha256": "21895f00b23025d889a5908d6aaa7c19e375b8f15ac66f44d8dd1e725acf76e8"
+        },
+        {
+          "path": "apps/editor/src/state/layerEditing.test.ts",
+          "sha256": "81a600062ae7fec460d25c503369e38547fa9dc3ac53a1d1bd2331a49f76e206",
+          "releaseSha256": "81a600062ae7fec460d25c503369e38547fa9dc3ac53a1d1bd2331a49f76e206"
+        },
+        {
+          "path": "apps/editor/src/canvas/Stage.tsx",
+          "sha256": "20dab164db68b8f81e175f1f5892fcf009915e6c55a1246fbcd20b9b23cd628f",
+          "releaseSha256": "20dab164db68b8f81e175f1f5892fcf009915e6c55a1246fbcd20b9b23cd628f"
+        },
+        {
+          "path": "apps/editor/src/canvas/LayerNode.tsx",
+          "sha256": "6f3ab3f58e42bc1ed6079564384a942bd8965b33964af35d47caf03696a9f859",
+          "releaseSha256": "6f3ab3f58e42bc1ed6079564384a942bd8965b33964af35d47caf03696a9f859"
+        },
+        {
+          "path": "apps/editor/src/panels/InspectorPanel.tsx",
+          "sha256": "62590dbc6812431ceb97d3313c623850ab7c4f9006427bf1168b89dfc808b52b",
+          "releaseSha256": "62590dbc6812431ceb97d3313c623850ab7c4f9006427bf1168b89dfc808b52b"
+        },
+        {
+          "path": "apps/editor/src/panels/LayerListPanel.tsx",
+          "sha256": "2911667ae7b3089786bbbf6b50a8ea09e251826bebaa204d08b9871db4ac8c5a",
+          "releaseSha256": "2911667ae7b3089786bbbf6b50a8ea09e251826bebaa204d08b9871db4ac8c5a"
+        },
+        {
+          "path": "apps/editor/src/state/fileIO.ts",
+          "sha256": "ccb0eea8ab5e2a238aa2f326a2415599594a64c08c610361524bcd6b2e6c31c3",
+          "releaseSha256": "ccb0eea8ab5e2a238aa2f326a2415599594a64c08c610361524bcd6b2e6c31c3"
+        },
+        {
+          "path": "apps/editor/src/components/numericScrub.ts",
+          "sha256": "a14a618b033e141d58ac2fb9613ebdea96a2dc445af2fd6482c1a8237ef88574",
+          "releaseSha256": "a14a618b033e141d58ac2fb9613ebdea96a2dc445af2fd6482c1a8237ef88574"
+        },
+        {
+          "path": "apps/editor/src/components/NumericScrubController.tsx",
+          "sha256": "ccfcc1a21c27704c360b3f26e2713bdd94ebe141edecaebe46e17c05464bfee1",
+          "releaseSha256": "ccfcc1a21c27704c360b3f26e2713bdd94ebe141edecaebe46e17c05464bfee1"
+        }
+      ]
+    },
+    "eyevinn": {
+      "repository": "https://github.com/Eyevinn/ograf-editor",
+      "pin": "616841bd949e3a21137579451123f66c292543f0",
+      "files": [
+        {
+          "path": "src/components/VisualEditor.js",
+          "sha256": "0ffd159b5f7f56989beed3abd04ccdd1191d60a42c1181c48be1de0c9491e40a"
+        },
+        {
+          "path": "src/components/PropertyPanel.js",
+          "sha256": "5ed93cad5b40ae4142f7ddb3ac9898aead86c4d9a0635e0fb1c098181ff1ba68"
+        },
+        {
+          "path": "src/models/OGrafTemplate.js",
+          "sha256": "81bb9ea35762beb9158ea64b78314ec454bd687ddacf2e7d471b6a8011a18c55"
+        },
+        {
+          "path": "src/services/TemplateManager.js",
+          "sha256": "294be36dc53b92319c8bc3c2627e1f4138fa60c574a791ac4c539975080c9a2a"
+        },
+        {
+          "path": "test/bugfix-propertypanel.test.js",
+          "sha256": "cc5991d7fed24bae75f9a4dd0946ca5de22548360ec62a0d57944d0cf1510e11"
+        },
+        {
+          "path": "test/bugfix-element-id-rename.test.js",
+          "sha256": "67402ef639255d4141fde4c9adeed05058e5f166121fd0462676c00563728d9c"
+        }
+      ]
+    }
+  },
+  "product": [
+    {
+      "path": "src/components/editorFoundation/EditorFoundation.tsx",
+      "sha256": "e348739f59505f9ee5361dfcb612393eb2f244091169f9cb1f1bcc69f96821d8"
+    },
+    {
+      "path": "src/components/editorFoundation/Canvas.tsx",
+      "sha256": "34fb11de6d1e70d9aa350fa02193f6f7b97340fa9b5b4ccf26cd0d331faf2375"
+    },
+    {
+      "path": "src/components/editorFoundation/useArtworkGesture.ts",
+      "sha256": "0fd87f5c1e3936ead36009f1dbe170586da050110e85903a177dc483ae717c79"
+    },
+    {
+      "path": "src/components/editorFoundation/PreviewController.ts",
+      "sha256": "c86bcd7e0f7c3c74acc0a390b14b99291eaaa1642a511d48f125208e659e9ef2"
+    },
+    {
+      "path": "src/components/editorFoundation/AnimationProperties.tsx",
+      "sha256": "988217fc498710ded8ade93f8aecceb9e65999b6b3e6688622f9b1e94d050bfc"
+    },
+    {
+      "path": "src/components/editorFoundation/Timeline.tsx",
+      "sha256": "581c3db86bc4c3d82fb56ffb8743f83f2f93c9ab8bbd4467743caf93f2d38440"
+    },
+    {
+      "path": "src/components/editorFoundation/session.ts",
+      "sha256": "e67f7e7669cc512f3e4caa03bd9528334e3d2535349f37d2308bd6051fdcd465"
+    },
+    {
+      "path": "src/blocks/artworkLayers.ts",
+      "sha256": "61117189b9bd1d0bba1e678b246c7ca206cf88cd81844c9108805cd271cbb963"
+    },
+    {
+      "path": "src/components/editorFoundation/runtime.ts",
+      "sha256": "a2ce6b90a14bc26feb3168379ed02960df430dc610e5c7ddeea462c8b31072b8"
+    }
+  ],
+  "trees": {
+    "main": "7110cfdc7e3b82472382db5567264727d410d291",
+    "probe": "7110cfdc7e3b82472382db5567264727d410d291"
+  },
+  "probes": [
+    "24346119d94e68fa0de894de975f5f2505017ad5",
+    "72c26af585fb050fa678f049e9f80cc6ddc8b494"
+  ]
+}

@@ -1,0 +1,39 @@
+qualification	Preserved cumulative regressions	2026-10-13T17:35:22.9234418Z Running 22 tests using 1 worker
+qualification	Preserved cumulative regressions	2026-10-13T17:35:23.3648620Z [1/22] [chromium] › e2e/editor-canvas-short-height.spec.ts:17:1 › short desktop layout recovers canvas while ordinary laptop and phone keep their panels
+qualification	Preserved cumulative regressions	2026-10-13T17:35:31.7122679Z [2/22] [chromium] › e2e/editor-canvas-short-height.spec.ts:51:1 › compact canvas exposes movement resize and rotation and retains group navigation
+qualification	Preserved cumulative regressions	2026-10-13T17:35:42.7940527Z [3/22] [chromium] › e2e/editor-cli-round-trip.spec.ts:79:124 › agent package visual round-trip desktop
+qualification	Preserved cumulative regressions	2026-10-13T17:36:00.9099208Z [4/22] [chromium] › e2e/editor-cli-round-trip.spec.ts:79:124 › agent package visual round-trip laptop
+qualification	Preserved cumulative regressions	2026-10-13T17:36:19.2258475Z [5/22] [chromium] › e2e/editor-cli-round-trip.spec.ts:79:124 › agent package visual round-trip laptop-125
+qualification	Preserved cumulative regressions	2026-10-13T17:36:37.5036235Z [6/22] [chromium] › e2e/editor-cli-round-trip.spec.ts:159:1 › independent CLI scoreboard retains its operator machine after visual edit and reopen
+qualification	Preserved cumulative regressions	2026-10-13T17:36:57.5385011Z [7/22] [chromium] › e2e/editor-cli-round-trip.spec.ts:199:1 › inline data scripts retain their tags while classic scripts use the JS pane
+qualification	Preserved cumulative regressions	2026-10-13T17:36:58.5571403Z [8/22] [chromium] › e2e/editor-cli-round-trip.spec.ts:213:1 › CSS edits patch effective repeated rules without changing nested or unrelated rules
+qualification	Preserved cumulative regressions	2026-10-13T17:37:00.0059858Z [9/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:7:57 › ordinary layer selection rename eye and history 1920
+qualification	Preserved cumulative regressions	2026-10-13T17:37:11.1264224Z [10/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:7:57 › ordinary layer selection rename eye and history 1366
+qualification	Preserved cumulative regressions	2026-10-13T17:37:22.1302943Z [11/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:35:1 › numeric scrub previews one undo exact cancellation modifiers and armed routing
+qualification	Preserved cumulative regressions	2026-10-13T17:37:36.6659275Z [12/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:66:1 › create canvas selection context actions and input keyboard ownership
+qualification	Preserved cumulative regressions	2026-10-13T17:37:47.8542649Z [13/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:84:1 › cumulative import text artwork animation cancel save reopen executable outputs
+qualification	Preserved cumulative regressions	2026-10-13T17:38:02.4485310Z [14/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:114:1 › ordinary nested SVG label and eye retain definitions masks references and identity
+qualification	Preserved cumulative regressions	2026-10-13T17:38:10.4394402Z [15/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:127:1 › modifier drag copies selected artwork atomically and cancellation retains the original
+qualification	Preserved cumulative regressions	2026-10-13T17:38:23.3160859Z [16/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:167:1 › keyboard duplicate select all and canvas context retain input ownership
+qualification	Preserved cumulative regressions	2026-10-13T17:38:31.2545766Z [17/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:187:1 › property reveal and key navigation leave source and history unchanged
+qualification	Preserved cumulative regressions	2026-10-13T17:38:39.2469890Z [18/22] [chromium] › e2e/editor-layer-property-qualification.spec.ts:206:1 › modifier drag preserves multi-root animated group and refusal boundaries
+qualification	Preserved cumulative regressions	2026-10-13T17:38:55.1720353Z [19/22] [chromium] › e2e/editor-transform-qualification.spec.ts:46:1 › linked scale preserves unequal axes for typing, corners and sides; Shift inverts and cancel is exact
+qualification	Preserved cumulative regressions	2026-10-13T17:39:10.2566434Z [20/22] [chromium] › e2e/editor-transform-qualification.spec.ts:73:124 › text-box side versus corner and rotation reopen desktop
+qualification	Preserved cumulative regressions	2026-10-13T17:39:24.0701891Z [21/22] [chromium] › e2e/editor-transform-qualification.spec.ts:73:124 › text-box side versus corner and rotation reopen laptop
+qualification	Preserved cumulative regressions	2026-10-13T17:39:37.1999844Z [22/22] [chromium] › e2e/editor-transform-qualification.spec.ts:73:124 › text-box side versus corner and rotation reopen zoom-proxy
+qualification	Preserved cumulative regressions	2026-10-13T17:39:50.7511549Z ##[notice]  22 passed (4.6m)
+qualification	Preserved cumulative regressions	2026-10-13T17:39:50.7515317Z   22 passed (4.6m)
+qualification	Fresh cumulative and actual native zoom tasks	2026-10-13T17:39:56.2767856Z Running 4 tests using 1 worker
+qualification	Fresh cumulative and actual native zoom tasks	2026-10-13T17:39:56.6870224Z [1/4] [chromium] › e2e/interaction-checker-nested.spec.ts:6:1 › independent nested group copy constrained gesture and rename ownership
+qualification	Fresh cumulative and actual native zoom tasks	2026-10-13T17:40:08.4471389Z [2/4] [chromium] › e2e/interaction-probe-task.spec.ts:172:56 › phase cumulative task 1920
+qualification	Fresh cumulative and actual native zoom tasks	2026-10-13T17:40:36.7728601Z [3/4] [chromium] › e2e/interaction-probe-task.spec.ts:172:56 › phase cumulative task 1366
+qualification	Fresh cumulative and actual native zoom tasks	2026-10-13T17:41:04.9078522Z [4/4] [chromium] › e2e/interaction-probe-task.spec.ts:175:1 › phase actual 125 percent cumulative task
+qualification	Fresh cumulative and actual native zoom tasks	2026-10-13T17:41:45.2321810Z ##[notice]  4 passed (1.9m)
+qualification	Fresh cumulative and actual native zoom tasks	2026-10-13T17:41:45.2328789Z   4 passed (1.9m)
+qualification	Fetch pinned references	2026-10-13T17:41:46.3086983Z .noacg/studio-server: OK
+qualification	Execute pinned reference tasks	2026-10-13T17:43:00.5938344Z Running 3 tests using 1 worker
+qualification	Execute pinned reference tasks	2026-10-13T17:43:01.0243820Z [1/3] [chromium] › e2e/interaction-probe-conventions.spec.ts:6:1 › Studio keyboard copy context and modifier drag comparison
+qualification	Execute pinned reference tasks	2026-10-13T17:43:04.8734883Z [2/3] [chromium] › e2e/interaction-probe-conventions.spec.ts:32:1 › Eyevinn selection properties and modifier drag comparison
+qualification	Execute pinned reference tasks	2026-10-13T17:43:10.5829605Z [3/3] [chromium] › e2e/interaction-probe-reference.spec.ts:6:1 › fresh Studio layer property comparison
+qualification	Execute pinned reference tasks	2026-10-13T17:43:20.7675917Z ##[notice]  3 passed (24.2s)
+qualification	Execute pinned reference tasks	2026-10-13T17:43:20.7683985Z   3 passed (24.2s)

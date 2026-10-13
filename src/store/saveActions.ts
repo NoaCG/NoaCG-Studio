@@ -4,9 +4,8 @@
 // library graphic loads, and when the "unsaved changes" guard must interpose.
 //
 // The autosave slot (model/project.ts) is the crash-safety net and is never conflated with
-// Save: replacing the WORKING DOCUMENT (open another graphic, create a new project) is the
-// only destructive move, so that is the one moment the guard asks. Navigating to Home, a
-// control panel, or the video shell never touches the working document and never asks.
+// Save: document replacement and leaving the mounted editor resolve unsaved work before
+// proceeding. Other surfaces do not ask merely because a working document exists.
 
 import { create } from 'zustand';
 import { useTemplateStore } from './templateStore';
@@ -23,6 +22,7 @@ import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
 import { prepareOutRuntime } from '../blocks/animMigration';
+import { createDefaultTemplate } from '../templates/defaultTemplate';
 
 function prepareEmptyOut() {
   const store = useTemplateStore.getState();
@@ -129,9 +129,9 @@ export async function saveGraphicAs(name: string, _dest: SaveDestination): Promi
  * cleared the unsaved-changes guard. Applies the doc's ACTIVE control entry (if any) into
  * the sample data, so the active data reaches the editor preview.
  */
-export function openGraphicDoc(doc: GraphicDoc): void {
+export function openGraphicDoc(doc: GraphicDoc, opts?: { keepGalleryOpen?: boolean }): void {
   const store = useTemplateStore.getState();
-  store.applyTemplate(doc.template, { resetSampleData: true });
+  store.applyTemplate(doc.template, { resetSampleData: true, keepGalleryOpen: opts?.keepGalleryOpen });
   useDocKindStore.getState().setKind('spx');
   if (doc.baseline) useTemplateStore.setState({ baseline: doc.baseline });
   // The swap cleared the working spec and conversation; a saved AI creation brings its own back.
@@ -153,6 +153,28 @@ export function openGraphicById(id: string): boolean {
   if (!doc || designLocked(doc)) return false;
   openGraphicDoc(doc);
   return true;
+}
+
+/** Discard the working draft, never its library or production copies. A navigation does
+ * not replace the document, so clearing only `dirty` would retain the discarded artwork. */
+export async function discardCurrentGraphic(): Promise<string | null> {
+  const before = useTemplateStore.getState();
+  const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
+  // The pending continuation owns navigation. Closing an open wizard here would make
+  // App rewind its current history entry before the durable write finishes.
+  if (doc) openGraphicDoc(doc, { keepGalleryOpen: true });
+  else {
+    before.applyTemplate(createDefaultTemplate(), { resetSampleData: true, keepGalleryOpen: true });
+    useTemplateStore.getState().setSaved({ graphicId: null, dirty: false, status: 'idle' });
+    persistLink();
+  }
+  const failure = await commitDurableWrites();
+  if (failure) {
+    useTemplateStore.setState(before);
+    return failure;
+  }
+  useTemplateStore.setState({ history: [], future: [], selectedParts: [], selectedPart: null });
+  return null;
 }
 
 /**
@@ -202,7 +224,7 @@ export interface SaveUiState {
   /** Dismiss the guard because the switch happened (never runs `cancel`). */
   settleConfirm: () => void;
   /**
-   * Run `proceed` (an action that REPLACES the working document) behind the guard: a document
+   * Run `proceed` (leaving the editor or replacing its document) behind the guard: a document
    * with work the switch would lose asks first (`hasUnsavedWork`), any other switches at once.
    * A door that opens the wizard FRESH passes `resume` as well, so a held walk is asked about
    * first, under the same rule: the wizard holds it only when it has work in it.
@@ -224,6 +246,9 @@ export const useSaveUi = create<SaveUiState>((set, get) => ({
   },
   settleConfirm: () => set({ confirmSwitch: null }),
   requestSwitch: (proceed, cancel, resume) => {
+    // Browser navigation can arrive through an open modal. Keep the first decision and
+    // its destination instead of stacking guards or replacing a first-save continuation.
+    if (get().confirmSwitch || get().saveDialog) return;
     if (resume && get().heldWalk) set({ confirmSwitch: { proceed, cancel, resume } });
     else if (hasUnsavedWork()) set({ confirmSwitch: { proceed, cancel } });
     else proceed();

@@ -166,6 +166,21 @@ function withDepth(state: unknown, depth: number): Record<string, unknown> {
   return { ...(state && typeof state === 'object' ? state : {}), [DEPTH_KEY]: depth };
 }
 
+type NavigationGuard = (proceed: () => void) => void;
+let navigationGuard: NavigationGuard | null = null;
+let lastDepth = currentDepth();
+
+/** The mounted authoring surface owns the decision; the router owns the pending move. */
+export function guardNavigation(guard: NavigationGuard): () => void {
+  navigationGuard = guard;
+  return () => { if (navigationGuard === guard) navigationGuard = null; };
+}
+
+function requestNavigation(route: Route, proceed: () => void): void {
+  if (navigationGuard && routeHash(route) !== routeHash(useRouter.getState().route)) navigationGuard(proceed);
+  else proceed();
+}
+
 /** Write a hash without a same-route no-op (which would push a duplicate history entry). */
 function writeHash(route: Route, mode: 'push' | 'replace'): void {
   const hash = routeHash(route);
@@ -174,6 +189,7 @@ function writeHash(route: Route, mode: 'push' | 'replace'): void {
   const depth = currentDepth();
   if (mode === 'push') window.history.pushState(withDepth(null, depth + 1), '', url);
   else window.history.replaceState(withDepth(null, depth), '', url);
+  lastDepth = currentDepth();
 }
 
 /** True when the entry before this one is a page of this app (see IN-APP HISTORY DEPTH). */
@@ -184,12 +200,16 @@ export function canGoBack(): boolean {
 export const useRouter = create<RouterState>((set) => ({
   route: currentRoute(),
   navigate: (route) => {
-    writeHash(route, 'push');
-    set({ route });
+    requestNavigation(route, () => {
+      writeHash(route, 'push');
+      set({ route });
+    });
   },
   replace: (route) => {
-    writeHash(route, 'replace');
-    set({ route });
+    requestNavigation(route, () => {
+      writeHash(route, 'replace');
+      set({ route });
+    });
   },
   goBack: (fallback) => {
     if (canGoBack()) window.history.back();
@@ -205,13 +225,51 @@ if (typeof window !== 'undefined') {
   if (depthOf(window.history.state) === null) {
     window.history.replaceState(withDepth(window.history.state, 0), '');
   }
-  let lastDepth = currentDepth();
+  let restoring: { depth: number; delta: number; guard: NavigationGuard } | null = null;
+  let approvedDepth: number | null = null;
   const sync = () => {
     if (depthOf(window.history.state) === null) {
       window.history.replaceState(withDepth(window.history.state, lastDepth + 1), '');
     }
-    lastDepth = currentDepth();
-    useRouter.setState({ route: currentRoute() });
+    const depth = currentDepth(), route = currentRoute();
+    if (restoring) {
+      if (depth !== restoring.depth) return;
+      const pending = restoring;
+      restoring = null;
+      pending.guard(() => {
+        approvedDepth = pending.depth - pending.delta;
+        window.history.go(-pending.delta);
+      });
+      return;
+    }
+    // The guarded editor is already rendered at a restored entry; its second event
+    // must not ask twice. Other surfaces retain native navigation notifications,
+    // including a same-hash visit that closes an export snapshot from that surface.
+    if (routeHash(route) === routeHash(useRouter.getState().route)) {
+      lastDepth = depth;
+      if (!navigationGuard) useRouter.setState({ route });
+      return;
+    }
+    if (approvedDepth === depth) approvedDepth = null;
+    else if (navigationGuard) {
+      const delta = lastDepth - depth;
+      if (delta) {
+        // Restore the original history entry before asking. Cancel leaves Back/Forward
+        // intact; approval replays exactly the attempted traversal once.
+        restoring = { depth: lastDepth, delta, guard: navigationGuard };
+        window.history.go(delta);
+      } else {
+        const previous = useRouter.getState().route;
+        writeHash(previous, 'replace');
+        requestNavigation(route, () => {
+          writeHash(route, 'replace');
+          useRouter.setState({ route });
+        });
+      }
+      return;
+    }
+    lastDepth = depth;
+    useRouter.setState({ route });
   };
   window.addEventListener('popstate', sync);
   window.addEventListener('hashchange', sync);
