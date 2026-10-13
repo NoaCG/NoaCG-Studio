@@ -33,6 +33,7 @@ jobs:
           assert guard in text
           p.write_text(text.replace(guard, '// Deliberate probe mutation: remove input ownership guard.'))
           PY
+          mkdir -p .noacg
           set +e
           npx playwright test e2e/editor-layer-property-qualification.spec.ts --grep 'keyboard duplicate select all' --workers=1 --output=.noacg/results/mutation > .noacg/mutation.log 2>&1
           result=$?
