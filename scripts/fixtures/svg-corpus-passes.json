@@ -81,6 +81,71 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1280,
+     "height": 720
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Speaker",
+      "sample": "Dr Aino Virtanen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Faculty",
+      "sample": "Faculty of Science",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1280,
@@ -504,6 +569,71 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Event",
+      "sample": "CAMPUS CUP FINAL",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Venue",
+      "sample": "Otaniemi Sports Hall, 19:00",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Bebas Neue",
+      "lookup": "Bebas Neue",
+      "weight": null,
+      "fontId": "bebas-neue",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -779,6 +909,71 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Kicker",
+      "sample": "IN PARTNERSHIP WITH",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Sponsor",
+      "sample": "Nordvind Energi",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     },
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -1062,6 +1257,71 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Alexandra Riva",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Role",
+      "sample": "Chief Correspondent",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -1498,6 +1758,80 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Alexandra Riva",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Role",
+      "sample": "Chief Correspondent",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Programme",
+      "sample": "THE LONG WAY NORTH",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -1984,6 +2318,71 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Station",
+      "sample": "RADIO NOA",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Strap",
+      "sample": "Morning show",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -2268,6 +2667,78 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Story",
+      "sample": "Harbour tunnel reopens after eight weeks of repairs",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Source",
+      "sample": "NOA NEWSDESK",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Archivo-SemiBold",
+      "lookup": "Archivo",
+      "weight": 600,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -2567,6 +3038,80 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Eyebrow",
+      "sample": "A STUDENT DOCUMENTARY",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Title",
+      "sample": "The Long Winter",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Credit",
+      "sample": "Directed by Aino Virtanen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     },
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -2938,6 +3483,82 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Team",
+      "sample": "HIFK",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Score",
+      "sample": "3",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Team 2",
+      "sample": "TPS",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Score 2",
+      "sample": "2",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -3336,6 +3957,77 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Guest name",
+      "sample": "Tuomas Lehtinen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Guest role",
+      "sample": "Head Coach, HJK Helsinki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Guest photo"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -3778,6 +4470,80 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Alexandra Riva",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Role",
+      "sample": "Chief Correspondent",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Location",
+      "sample": "HELSINKI",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -4371,6 +5137,123 @@
     },
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Question",
+      "sample": "Which city hosted the 1952 Summer Olympics?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Answer A",
+      "sample": "Amsterdam",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Answer B",
+      "sample": "Helsinki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Answer C",
+      "sample": "Melbourne",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Answer D",
+      "sample": "Reykjavik",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "quiz",
+     "question": "t0",
+     "answers": [
+      "t1",
+      "t2",
+      "t3",
+      "t4"
+     ],
+     "rows": [
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      }
+     ],
+     "locked": ""
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -4954,6 +5837,71 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Sign off",
+      "sample": "Kiitos katsomisesta",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Next time",
+      "sample": "Nähdään ensi viikolla",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -5195,6 +6143,37 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -5332,6 +6311,77 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Guest name",
+      "sample": "Tuomas Lehtinen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Guest role",
+      "sample": "Head Coach, HJK Helsinki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Strap backplate"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "i0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -5771,6 +6821,80 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Text 1",
+      "sample": "Aino Virtanen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Text 2",
+      "sample": "Meteorologist",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Text 3",
+      "sample": "HELSINKI",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -6250,6 +7374,71 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Kicker",
+      "sample": "IN PARTNERSHIP WITH",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Partner",
+      "sample": "Helsinki City Library",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -6533,6 +7722,77 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Guest name",
+      "sample": "Aino Virtanen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Guest role",
+      "sample": "Author, Helsinki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Guest photo"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -7108,6 +8368,159 @@
      "final": "g9"
     },
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Heading",
+      "sample": "LUOKKAVISA",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Team 1",
+      "sample": "KETUT",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Score 1",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Team 2",
+      "sample": "SUDET",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Score 2",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t5",
+      "on": true,
+      "title": "Team 3",
+      "sample": "HAUKAT",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t6",
+      "on": true,
+      "title": "Score 3",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t7",
+      "on": true,
+      "title": "Team 4",
+      "sample": "KARHUT",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t8",
+      "on": true,
+      "title": "Score 4",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "score",
+     "rows": [
+      {
+       "name": "t1",
+       "score": "t2",
+       "flash": "g5"
+      },
+      {
+       "name": "t3",
+       "score": "t4",
+       "flash": "g6"
+      },
+      {
+       "name": "t5",
+       "score": "t6",
+       "flash": "g7"
+      },
+      {
+       "name": "t7",
+       "score": "t8",
+       "flash": "g8"
+      }
+     ],
+     "final": "g9"
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-SemiBold",
+      "lookup": "Inter",
+      "weight": 600,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -7866,6 +9279,80 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Alexandra Riva",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Job title",
+      "sample": "Chief Correspondent",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Name 2",
+      "sample": "HELSINKI",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -8344,6 +9831,71 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Headline",
+      "sample": "WORLD REPORT",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Subtitle",
+      "sample": "The stories that shaped the week",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Gotham-Bold",
+      "lookup": "Gotham",
+      "weight": 700,
+      "fontId": null,
+      "customFont": null
+     },
+     {
+      "family": "Inter-Regular",
+      "lookup": "Inter",
+      "weight": 400,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -8789,6 +10341,159 @@
      "badge": "g2"
     },
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Badge text",
+      "sample": "VOTE NOW",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Question",
+      "sample": "Which way should the club vote?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Option 1",
+      "sample": "Keep the crest",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Option 2",
+      "sample": "New crest",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Option 3",
+      "sample": "Put it to members",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t5",
+      "on": true,
+      "title": "Percent 1",
+      "sample": "0%",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t6",
+      "on": true,
+      "title": "Percent 2",
+      "sample": "0%",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t7",
+      "on": true,
+      "title": "Percent 3",
+      "sample": "0%",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t8",
+      "on": true,
+      "title": "Total votes",
+      "sample": "0 votes so far",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "poll",
+     "question": "t1",
+     "rows": [
+      {
+       "label": "t2",
+       "bar": "s4",
+       "value": "t5",
+       "winner": "g3"
+      },
+      {
+       "label": "t3",
+       "bar": "s5",
+       "value": "t6",
+       "winner": "g4"
+      },
+      {
+       "label": "t4",
+       "bar": "s6",
+       "value": "t7",
+       "winner": "g5"
+      }
+     ],
+     "total": "t8",
+     "badge": "g2"
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -9244,6 +10949,81 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Episode",
+      "sample": "The Helsinki Files",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Airtime",
+      "sample": "TONIGHT 21:00",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [
+     {
+      "candidateId": "o0",
+      "on": false,
+      "title": "Show title",
+      "sample": "Show title",
+      "box": null,
+      "color": null,
+      "looksLikeText": null
+     }
+    ],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -9758,6 +11538,91 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1570,
+     "height": 700
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "question",
+      "sample": "Question 1: Who is the best at chess in the world?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Text 2",
+      "sample": "2. Magnus Carlsen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Text 3",
+      "sample": "3. Elmo",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Text 4",
+      "sample": "4. Beth Harmon",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Text 5",
+      "sample": "Lorem ipsum",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "MyriadPro-Regular",
+      "lookup": "Myriad Pro",
+      "weight": 400,
+      "fontId": null,
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1570,
@@ -10241,6 +12106,87 @@
     },
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Kicker",
+      "sample": "VASTAUSAIKA",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Clock",
+      "sample": "5:00",
+      "numeric": false,
+      "clock": true,
+      "kind": "countdown",
+      "armedByTimer": true
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Note",
+      "sample": "Kirjoita vastaus lomakkeeseen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "timer",
+     "bar": "s3",
+     "warning": "g1",
+     "paused": "g2",
+     "expired": "g3"
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-SemiBold",
+      "lookup": "Inter",
+      "weight": 600,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -10694,6 +12640,130 @@
      "locked": ""
     },
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Question",
+      "sample": "Which Finnish city hosted the 1952 Summer Olympics, and in which month did they open?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Answer A",
+      "sample": "Helsinki, July",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Answer B",
+      "sample": "Tampere, August",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Answer C",
+      "sample": "Turku, June",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Answer D",
+      "sample": "Oulu, September",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "quiz",
+     "question": "t0",
+     "answers": [
+      "t1",
+      "t2",
+      "t3",
+      "t4"
+     ],
+     "rows": [
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      }
+     ],
+     "locked": ""
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -11309,6 +13379,80 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Programme",
+      "sample": "RESULTS LIVE",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Clock",
+      "sample": "21:45",
+      "numeric": false,
+      "clock": true,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Zone",
+      "sample": "EEST",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "JetBrainsMono-Regular",
+      "lookup": "Jet Brains Mono",
+      "weight": 400,
+      "fontId": "jetbrains-mono",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -11641,6 +13785,71 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Aino Virtanen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Role",
+      "sample": "Student editor",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -12309,6 +14518,172 @@
      "locked": "g14"
     },
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Question",
+      "sample": "Which Finnish city hosted the 1952 Summer Olympics?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t5",
+      "on": true,
+      "title": "Answer A",
+      "sample": "Helsinki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t6",
+      "on": true,
+      "title": "Answer B",
+      "sample": "Tampere",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t7",
+      "on": true,
+      "title": "Answer C",
+      "sample": "Turku",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t8",
+      "on": true,
+      "title": "Answer D",
+      "sample": "Oulu",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t0",
+      "on": false,
+      "title": "Letters",
+      "sample": "A",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": false,
+      "title": "Letters 2",
+      "sample": "B",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": false,
+      "title": "Letters 3",
+      "sample": "C",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": false,
+      "title": "Letters 4",
+      "sample": "D",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Show logo"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "quiz",
+     "question": "t4",
+     "answers": [
+      "t5",
+      "t6",
+      "t7",
+      "t8"
+     ],
+     "rows": [
+      {
+       "selected": "g2",
+       "correct": "g6",
+       "wrong": "g10"
+      },
+      {
+       "selected": "g3",
+       "correct": "g7",
+       "wrong": "g11"
+      },
+      {
+       "selected": "g4",
+       "correct": "g8",
+       "wrong": "g12"
+      },
+      {
+       "selected": "g5",
+       "correct": "g9",
+       "wrong": "g13"
+      }
+     ],
+     "locked": "g14"
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -13030,6 +15405,124 @@
     },
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Team 1",
+      "sample": "HAUKAT",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Score 1",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Score 2",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Team 2",
+      "sample": "SUDET",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Period",
+      "sample": "2. ERÄ",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Logo 1"
+     },
+     {
+      "candidateId": "i1",
+      "on": false,
+      "title": "Logo 2"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "score",
+     "rows": [
+      {
+       "name": "t0",
+       "score": "t1",
+       "flash": "g1"
+      },
+      {
+       "name": "t3",
+       "score": "t2",
+       "flash": "g2"
+      }
+     ],
+     "final": ""
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-SemiBold",
+      "lookup": "Inter",
+      "weight": 600,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -13543,6 +16036,71 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Kicker",
+      "sample": "TIEDOTE",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Headline",
+      "sample": "Lahetys jatkuu klo 19",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     },
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -14085,6 +16643,130 @@
      "locked": "g4"
     },
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Question",
+      "sample": "Mikä on Suomen pisin joki?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Answer A",
+      "sample": "Kemijoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Answer B",
+      "sample": "Tornionjoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Answer C",
+      "sample": "Oulujoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Answer D",
+      "sample": "Iijoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "quiz",
+     "question": "t0",
+     "answers": [
+      "t1",
+      "t2",
+      "t3",
+      "t4"
+     ],
+     "rows": [
+      {
+       "selected": "g1",
+       "correct": "",
+       "wrong": "g3"
+      },
+      {
+       "selected": "",
+       "correct": "g2",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      }
+     ],
+     "locked": "g4"
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -14662,6 +17344,55 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Question",
+      "sample": "Mika on Suomen korkein tunturi?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -15029,6 +17760,80 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Sofia Lindqvist",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Role",
+      "sample": "Student reporter",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Copy",
+      "sample": "OPPILAS-TV",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -15533,6 +18338,82 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1280,
+     "height": 720
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Home team",
+      "sample": "SPV",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Home score",
+      "sample": "4",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Away score",
+      "sample": "2",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Away team",
+      "sample": "TPS",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1280,
@@ -15906,6 +18787,71 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Headline",
+      "sample": "CHAMPIONS",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Subtitle",
+      "sample": "FINAALI 2026 - HELSINKI",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Bebas Neue",
+      "lookup": "Bebas Neue",
+      "weight": null,
+      "fontId": "bebas-neue",
+      "customFont": null
+     },
+     {
+      "family": "DejaVu Sans",
+      "lookup": "DejaVu Sans",
+      "weight": null,
+      "fontId": null,
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -16119,6 +19065,61 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Disclaimer",
+      "sample": "Official partner",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Banner art"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -16456,6 +19457,61 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Handle",
+      "sample": "@yleurheilu",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Favicon"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": null
+    },
+    "svgFonts": [
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -16669,6 +19725,77 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Aino Virtanen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Role",
+      "sample": "Meteorologist",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Badge"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -17090,6 +20217,70 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Club",
+      "sample": "HJK Helsinki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Score",
+      "sample": "2",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Crest"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -17500,6 +20691,61 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Presented by",
+      "sample": "PRESENTED BY",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Sponsor mark"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -17853,6 +21099,61 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Strand",
+      "sample": "WEEKNIGHTS AT NINE",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [
+     {
+      "candidateId": "i0",
+      "on": false,
+      "title": "Logo plate"
+     }
+    ],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "i0"
+    },
+    "svgFonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -18104,6 +21405,89 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Headline",
+      "sample": "Election night results",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Timestamp",
+      "sample": "Updated 22:40 EET",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Channel",
+      "sample": "NEWS 24",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Strap",
+      "sample": "LIVE COVERAGE",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -18651,6 +22035,80 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Name",
+      "sample": "Alexandra Riva",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Role",
+      "sample": "Chief Correspondent",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Location",
+      "sample": "HELSINKI",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -19280,6 +22738,130 @@
      "locked": ""
     },
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Question",
+      "sample": "Which river runs through Rovaniemi?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Answer A",
+      "sample": "Kemijoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Answer B",
+      "sample": "Ounasjoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Answer C",
+      "sample": "Tornionjoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Answer D",
+      "sample": "Iijoki",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "quiz",
+     "question": "t0",
+     "answers": [
+      "t1",
+      "t2",
+      "t3",
+      "t4"
+     ],
+     "rows": [
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      },
+      {
+       "selected": "",
+       "correct": "",
+       "wrong": ""
+      }
+     ],
+     "locked": ""
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {
@@ -20036,6 +23618,130 @@
     },
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Question text",
+      "sample": "Mika on Suomen korkein tunturi?",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Option 1",
+      "sample": "Halti",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Option 2",
+      "sample": "Saana",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Option 3",
+      "sample": "Ylläs",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Option 4",
+      "sample": "Ruka",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": {
+     "kind": "quiz",
+     "question": "t0",
+     "answers": [
+      "t1",
+      "t2",
+      "t3",
+      "t4"
+     ],
+     "rows": [
+      {
+       "selected": "g2",
+       "correct": "g6",
+       "wrong": "g10"
+      },
+      {
+       "selected": "g3",
+       "correct": "g7",
+       "wrong": "g11"
+      },
+      {
+       "selected": "g4",
+       "correct": "g8",
+       "wrong": "g12"
+      },
+      {
+       "selected": "g5",
+       "correct": "g9",
+       "wrong": "g13"
+      }
+     ],
+     "locked": "g14"
+    },
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-Medium",
+      "lookup": "Inter",
+      "weight": 500,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -20670,6 +24376,98 @@
     "behaviour": null,
     "extras": []
    },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Home",
+      "sample": "HAUKAT",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Home goals",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Away goals",
+      "sample": "0",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t3",
+      "on": true,
+      "title": "Away",
+      "sample": "SUDET",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t4",
+      "on": true,
+      "title": "Period",
+      "sample": "2. ERA",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo-Bold",
+      "lookup": "Archivo",
+      "weight": 700,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "Inter-SemiBold",
+      "lookup": "Inter",
+      "weight": 600,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
    "fieldList": {
     "size": {
      "width": 1920,
@@ -21139,6 +24937,80 @@
    "proposal": {
     "behaviour": null,
     "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 60
+    },
+    "restIsTheRead": true,
+    "svgFields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Category",
+      "sample": "BREAKING",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Headline",
+      "sample": "Parliament passes the budget after a nine-hour sitting",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t2",
+      "on": true,
+      "title": "Clock",
+      "sample": "22:40",
+      "numeric": false,
+      "clock": true,
+      "kind": "text"
+     }
+    ],
+    "svgImages": [],
+    "svgOutlines": [],
+    "svgBehaviour": null,
+    "svgExtras": [],
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "svgFonts": [
+     {
+      "family": "Archivo",
+      "lookup": "Archivo",
+      "weight": null,
+      "fontId": "archivo",
+      "customFont": null
+     },
+     {
+      "family": "JetBrains Mono",
+      "lookup": "JetBrains Mono",
+      "weight": null,
+      "fontId": "jetbrains-mono",
+      "customFont": null
+     }
+    ],
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
    },
    "fieldList": {
     "size": {

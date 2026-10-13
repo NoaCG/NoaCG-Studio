@@ -14,6 +14,8 @@
 //
 //   inventory    what the reader returns (`importSvgMarkup`), its markup as a hash
 //   proposal     the behaviour and the extras proposed from the names
+//   draft        the whole patch the wizard's drop applies (`svgDraftFromImport`), the read
+//                result in it as its fitted size
 //   fieldList    the draft's field, picture, outline and font rows, as the wizard builds them
 //   step         the mapping step's growth default and its fill gap, measured on a stage render
 //   bind         the bound <svg> as the emitted html carries it (`bindSvgMarkup`)
@@ -91,7 +93,7 @@ const SPECS = [
   ['model/fonts.ts', 'NOACG_FONTS'],
 ].map(([rel, globalName]) => ({ entry: root(`src/${rel}`), globalName }));
 
-const PASSES = ['inventory', 'proposal', 'fieldList', 'step', 'bind', 'layout', 'behaviour', 'fields', 'fontCss', 'emit', 'runtime'];
+const PASSES = ['inventory', 'proposal', 'draft', 'fieldList', 'step', 'bind', 'layout', 'behaviour', 'fields', 'fontCss', 'emit', 'runtime'];
 
 const corpus = readdirSync(CORPUS)
   .filter((f) => f.endsWith('.svg') && existsSync(`${CORPUS}${f.replace(/\.svg$/, '.expect.json')}`))
@@ -114,9 +116,16 @@ const RECORD = async ({ markup, origin, ladder }) => {
     return { refused: String(e && e.message ? e.message : e) };
   }
 
-  // PROPOSE and DRAFT, as `CreationWizard.tsx` does on drop.
-  const behaviour = D.proposeSvgBehaviour({ ...svg, candidates: svg.candidates.filter((c) => !c.outsideCanvas) });
-  const draft = w0.__importDraft(svg, behaviour);
+  // PROPOSE and DRAFT, through the one function `CreationWizard.tsx` calls on drop. The drop's
+  // patch is kept as it came, before the step below re-answers its fields and its growth.
+  const draft = w0.__importDraft(svg);
+  const behaviour = draft.svgBehaviour;
+  const { designSvg: placed, ...dropped } = draft;
+  const drop = {
+    size: { width: placed.width, height: placed.height },
+    restIsTheRead: Object.keys({ ...svg, ...placed }).every((k) => k === 'width' || k === 'height' || placed[k] === svg[k]),
+    ...dropped,
+  };
 
   // Every family the file names, on a bundled face: its own where the draft matched one, Inter
   // where nothing did. Declared for the step's stage here, and inside the graphic below.
@@ -231,6 +240,7 @@ const RECORD = async ({ markup, origin, ladder }) => {
     markup: sanitized,
     inventory,
     proposal: { behaviour, extras: draft.svgExtras },
+    draft: drop,
     fieldList: { size: { width: dsvg.width, height: dsvg.height }, fields: draft.svgFields, images: draft.svgImages, outlines: draft.svgOutlines, fonts: draft.svgFonts },
     step: { growth: { ...stretch, label: dsvg.shapes.find((s) => s.id === stretch.shapeId)?.label ?? null }, fillGap },
     template: { html: template.html, css: template.css, js: template.js, fields: template.fields },
@@ -260,6 +270,7 @@ function recordsOf(raw) {
   return {
     inventory: { ...raw.inventory, markupSha256: sha(raw.markup) },
     proposal: raw.proposal,
+    draft: raw.draft,
     fieldList: raw.fieldList,
     step: raw.step,
     bind: boundSvg(raw.template.html),

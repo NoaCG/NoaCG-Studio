@@ -2,7 +2,6 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useTemplateStore } from '../../store/templateStore';
 import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
-  armTimerClock,
   brandClearPatch,
   brandPatch,
   buildDraftTemplate,
@@ -10,18 +9,16 @@ import {
   draftName,
   draftResolution,
   formatDraftPatch,
-  graphicNameFromFile,
   initialDraft,
   mergeDraft,
-  pollDrivenLayers,
-  proposeSvgBehaviour,
-  proposeSvgExtras,
+  svgDraftCleared,
+  svgDraftFromImport,
   type DraftPatch,
   type WizardDraft,
 } from './draft';
 import { type ProjectBrand } from '../../model/brand';
 import { loadLooks } from '../../model/packets';
-import { FONTS, fontNameKey } from '../../model/fonts';
+import { FONTS } from '../../model/fonts';
 import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
 import { paletteById } from '../../model/wizard';
@@ -2004,119 +2001,8 @@ export default function CreationWizard() {
               <ImportDesignStep
                 svg={draft.designSvg}
                 onSvg={(result) => {
-                  // Fit-to-frame like the raster path: a larger canvas scales DOWN to the
-                  // frame (vector — nothing is lost); the viewBox in the markup is untouched,
-                  // only the design-space size the box is sized by changes.
-                  const res = draftResolution(draft);
-                  const fit =
-                    result.width > res.width || result.height > res.height
-                      ? Math.min(res.width / result.width, res.height / result.height)
-                      : 1;
-                  // A behaviour PROPOSED from the layer names, never required
-                  // (docs/GRAPHIC_BEHAVIOUR_PLAN.md). Hoisted out of the patch because the FIELDS
-                  // have to be able to see it: a proposed countdown needs its clock layer bound as
-                  // one, which is a choice in the field list rather than in the behaviour's own
-                  // pickers (`armTimerClock`, and it is the same call the mapping step's picker
-                  // makes). Every other behaviour leaves the fields exactly as they were.
-                  const proposed = proposeSvgBehaviour({ ...result, candidates: result.candidates.filter(c => !c.outsideCanvas) });
-                  const written = pollDrivenLayers(proposed);
-                  const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
                   patch({
-                    designSvg: {
-                      ...result,
-                      width: Math.round(result.width * fit),
-                      height: Math.round(result.height * fit),
-                    },
-                    // EVERY detected text starts ON (plan §2, zero clicks). The `f:` prefix
-                    // says "this is definitely a field" and names it — it never says "and
-                    // nothing else is": one layer exported as `f:Competition` used to turn the
-                    // other six off, which reads as detection having missed them. The one
-                    // exception is the opposite prefix: `static:` is the designer saying this
-                    // text is furniture, so the row is offered UNTICKED with its words left as
-                    // drawn (a top ten's ten rank numerals, a bingo grid's numbers).
-                    // FURNITURE LAST: the drawn rows are listed after every field, in their own
-                    // order, so the Fields step opens on what the operator can change rather
-                    // than on four letter tiles under four plate headings (row E's walk,
-                    // 2026-09-21). Field ids are minted from the ticked rows, so nothing
-                    // downstream moves. A one-letter text the proposed behaviour WRITES (a
-                    // puzzle's tiles) is not furniture: it stays ticked and in place, so the
-                    // mapping step keeps showing it as the board's, never as "stays as drawn".
-                    svgFields: armTimerClock(
-                      [...result.candidates.filter((c) => !furniture(c)), ...result.candidates.filter(furniture)].map((c) => ({
-                        candidateId: c.id,
-                        on: !furniture(c) && !c.outsideCanvas,
-                        ...(c.outsideCanvas ? { whenOff: 'keep' as const } : {}),
-                        title: c.label,
-                        sample: c.sample,
-                        numeric: c.numeric,
-                        clock: c.clock,
-                        // Text until the user says otherwise — "22:40" may be the time of day.
-                        kind: 'text',
-                      })),
-                      proposed,
-                    ),
-                    // Pictures start OFF — inside a design they are usually the artwork
-                    // itself — unless the layer opted in by name (`f:`).
-                    svgImages: result.images.map((c) => ({
-                      candidateId: c.id,
-                      on: c.marked,
-                      title: c.label,
-                    })),
-                    // Outlined-text suspects start OFF (a logo is a group of paths too) —
-                    // unless named `f:`; the mapping step measures their boxes on its own
-                    // render, and the generator hides whichever the user ticks (plan §1.A).
-                    svgOutlines: result.outlines.map((c) => ({
-                      candidateId: c.id,
-                      on: c.marked,
-                      title: c.label,
-                      sample: c.label,
-                      box: null,
-                      color: null,
-                      looksLikeText: null,
-                    })),
-                    // Every picker in the mapping step is re-pickable, and a file that looks like
-                    // nothing in particular proposes nothing at all.
-                    svgBehaviour: proposed,
-                    // The switches and choices the names declare outright (`show:`, `choice:`).
-                    svgExtras: proposeSvgExtras(result),
-                    // THE HUG (plan §3) starts OFF here with the widest rectangle proposed;
-                    // the mapping step then MEASURES the rendered artwork and turns growth on
-                    // by itself where it is unambiguous (GOALS goal 5 - MapSvgFieldsStep
-                    // proposeBannerGrowth). The measurement needs layout, which a drop handler
-                    // does not have, so the decision lives there rather than here.
-                    svgStretch: { on: false, shapeId: result.shapes[0]?.id ?? null },
-                    // Bundled faces auto-match by family name; the mapping step offers the
-                    // Google fetch or an upload for the rest (plan §4).
-                    svgFonts: result.fonts.map((f) => ({
-                      family: f.family,
-                      lookup: f.lookup,
-                      weight: f.weight,
-                      // Matched on the LOOKUP name, so Illustrator's "Archivo-Bold" finds the
-                      // bundled Archivo it plainly is. The template still declares the face
-                      // under `family` — the name the artwork's own CSS asks for.
-                      fontId:
-                        FONTS.find((b) => fontNameKey(b.family) === fontNameKey(f.lookup))?.id ?? null,
-                      customFont: null,
-                    })),
-                    // A fresh drop replaces any raster state from this walk.
-                    designArt: null,
-                    importedImages: [],
-                    designOriginal: null,
-                    designErases: [],
-                    designFields: [],
-                    // NAMED AFTER THE FILE until the Finish step is given a name: a name the
-                    // reader typed stays, and a name an earlier drop gave is replaced by this
-                    // drop's, so swapping quiz.svg for scoreboard.svg does not ship a scoreboard
-                    // called Quiz. Blank still falls back to the catalog name in `draftName`.
-                    name:
-                      draft.name.trim() && draft.name !== graphicNameFromFile(draft.designSvg?.fileName ?? '')
-                        ? draft.name
-                        : graphicNameFromFile(result.fileName ?? ''),
-                    category: 'imported-design',
-                    variantId: 'svg01',
-                    lines: [],
-                    zone: null,
-                    animation: { presetId: null, outPresetId: null },
+                    ...svgDraftFromImport(result, { resolution: draftResolution(draft), previous: draft }),
                     ...(brand
                       ? brandPatch(brand)
                       : { paletteId: null, customPalette: null, fontId: null }),
@@ -2126,9 +2012,7 @@ export default function CreationWizard() {
                   setMode('svg');
                 }}
                 onClearSvg={() => {
-                  // The name the file gave goes with the file; a name the reader typed stays.
-                  const fromFile = graphicNameFromFile(draft.designSvg?.fileName ?? '');
-                  patch({ designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null, name: draft.name === fromFile ? '' : draft.name });
+                  patch(svgDraftCleared(draft));
                   setMode('design');
                 }}
                 templateFile={importedFile}

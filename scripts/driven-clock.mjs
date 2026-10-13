@@ -49,16 +49,10 @@ export const DRIVEN_CLOCK = `<script id="test-clock">
  *  the page) into a fresh iframe of its own size with the driven clock and `head` (optional
  *  markup, such as a test's font faces) ahead of everything, and hands back its window.
  *
- *  `__importDraft(svg, behaviour)` is the draft the wizard builds when a file is dropped
- *  (`CreationWizard.tsx`, the import step's `onSvg`), for building an imported design without
- *  the wizard: fitted to the default 1920x1080 frame; every text a field and ON except furniture (`static:`,
- *  or a letter tile no behaviour writes) and text outside the canvas; furniture listed last; a
- *  proposed countdown's clock armed; pictures and outlined text OFF unless marked `f:`; the extras
- *  the names declare; growth off on the widest shape; fonts matched to the bundled faces by lookup
- *  name. It needs NOACG_DRAFT on the page, and matches fonts only where `model/fonts.ts` is
- *  bundled as NOACG_FONTS. The behaviour is the caller's, proposed the wizard's way
- *  (`proposeSvgBehaviour` over the candidates inside the canvas). A copy of the wizard's assembly
- *  until that assembly is one function in `import/draft.ts`, so the two change together. */
+ *  `__importDraft(svg)` is the draft the wizard builds when a file is dropped, for building an
+ *  imported design without the wizard: the wizard's own `svgDraftFromImport` (`import/draft.ts`),
+ *  for a fresh draft in the default 1920x1080 frame, behaviour proposal included. It needs
+ *  NOACG_DRAFT on the page. */
 const PAGE_HELPERS = (clock) => {
   window.__TEST_CLOCK = clock;
   window.__mountDesign = async (template, head = '') => {
@@ -72,49 +66,10 @@ const PAGE_HELPERS = (clock) => {
     await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
     return frame.contentWindow;
   };
-  window.__importDraft = (svg, behaviour) => {
-    const resolution = { width: 1920, height: 1080 };
-    const D = window.NOACG_DRAFT;
-    const fonts = window.NOACG_FONTS;
-    const fit = svg.width > resolution.width || svg.height > resolution.height
-      ? Math.min(resolution.width / svg.width, resolution.height / svg.height)
-      : 1;
-    const written = D.pollDrivenLayers(behaviour);
-    const furniture = (c) => c.drawing && !written.has(c.id);
-    const rows = [...svg.candidates.filter((c) => !furniture(c)), ...svg.candidates.filter(furniture)];
-    return {
-      designSvg: { ...svg, width: Math.round(svg.width * fit), height: Math.round(svg.height * fit) },
-      svgFields: D.armTimerClock(rows.map((c) => ({
-        candidateId: c.id,
-        on: !furniture(c) && !c.outsideCanvas,
-        ...(c.outsideCanvas ? { whenOff: 'keep' } : {}),
-        title: c.label,
-        sample: c.sample,
-        numeric: c.numeric,
-        clock: c.clock,
-        kind: 'text',
-      })), behaviour),
-      svgImages: svg.images.map((c) => ({ candidateId: c.id, on: c.marked, title: c.label })),
-      svgOutlines: svg.outlines.map((c) => ({
-        candidateId: c.id, on: c.marked, title: c.label, sample: c.label, box: null, color: null, looksLikeText: null,
-      })),
-      svgBehaviour: behaviour,
-      svgExtras: D.proposeSvgExtras(svg),
-      svgStretch: { on: false, shapeId: svg.shapes[0]?.id ?? null },
-      svgFonts: svg.fonts.map((f) => ({
-        family: f.family,
-        lookup: f.lookup,
-        weight: f.weight,
-        fontId: fonts?.FONTS.find((b) => fonts.fontNameKey(b.family) === fonts.fontNameKey(f.lookup))?.id ?? null,
-        customFont: null,
-      })),
-      designArt: null,
-      importedImages: [],
-      designOriginal: null,
-      designErases: [],
-      designFields: [],
-    };
-  };
+  window.__importDraft = (svg) => window.NOACG_DRAFT.svgDraftFromImport(svg, {
+    resolution: { width: 1920, height: 1080 },
+    previous: { name: '', designSvg: null },
+  });
 };
 
 /** Put the driven clock and the helpers above on a 1920x1080 page. */
