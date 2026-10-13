@@ -27,7 +27,7 @@ async function load(entry) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
 
-const { layoutRules, saidLines, layoutDataJs, PANEL_SAFE, LAYOUT_VERSION } = await load(
+const { layoutRules, saidLines, layoutDataJs, PANEL_SAFE } = await load(
   path.join(projectRoot, 'src/templates/importedDesign/svgLayout.ts'),
 );
 
@@ -128,7 +128,7 @@ test('layoutDataJs: the table runs as a script and says what the design said', (
     stretch: { candidateId: 'panel' },
   });
   assert.deepEqual(tableOf(layoutDataJs(svg, label)), {
-    version: LAYOUT_VERSION,
+    version: 1,
     rules: [{ el: 'g0', axis: 'x', safe: PANEL_SAFE }],
     lines: [{ el: 'f0', h: 'end', v: 'middle', nudge: true }],
   });

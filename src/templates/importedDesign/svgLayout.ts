@@ -17,7 +17,7 @@ export const LAYOUT_EL_ATTR = 'data-noacg-el';
 /** The emitted relationship table's schema (docs/SVG_IMPORT_PLAN.md §6c). Additive optional
  *  fields never bump it; a breaking shape change bumps it and migrates on read in the SAME
  *  commit, the doctrine docs/STATE_MACHINE_SCHEMA.md §5 states and `blocks/animData.ts` keeps. */
-export const LAYOUT_VERSION = 1;
+const LAYOUT_VERSION = 1;
 /** How close to the frame's edge a growing element may get, as a fraction of the frame. The
  *  hug's original constant: growing off the screen was never a fit (plan §3). Exported because
  *  it is the floor the wizard's cap line stops at (`stageMeasure.growCapOf`), and a second copy
