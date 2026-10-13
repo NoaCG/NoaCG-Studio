@@ -553,7 +553,10 @@ through Import and passed the gate. `connector-tools.spec.ts` passed in the same
 three tools. `tools/list` is 2,726 characters for three tools (ceiling 3,500). Unit tests:
 `connectorSend.test.ts` (the package built, 19 refusals storing nothing, the cap, the budget,
 an asset outside the user's own Storage folder), `packages.test.ts` (the recipe and brand shape),
-`mcp.test.ts` (three tools, the send tool's hints and permission, the ceiling); 379 pass.
+`mcp.test.ts` (three tools, the send tool's hints and permission, the ceiling); 379 pass. The
+configured suite on the branch ([run 38330971066](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38330971066),
+99 passed, 1 failed) passed `connector-send.spec.ts` on CI's local stack; the one failure was
+`connector-grants.spec.ts` still expecting two tools, fixed in the follow-up that adds the third.
 
 **Decisions.**
 
