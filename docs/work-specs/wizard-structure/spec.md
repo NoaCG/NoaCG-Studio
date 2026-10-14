@@ -722,6 +722,12 @@ and the check's findings. The AI track's notes live in its own spec.
   - *The prerequisite went through the export door with one wait changed.* The revived tests
     waited for the editor door to close the wizard; the export door keeps the wizard open by
     design, so they wait for the export window instead. No assertion changed.
+- **Noticed in review, not reproduced, kept as today (D10):** a template file read that finishes
+  after a later drop or clear still sets `importedFile` and file mode (no check that the read is
+  still the current one; S5 owns that state); and both drops reset `animation` to
+  `{ presetId: null, outPresetId: null }` only, so `mergeDraft` keeps `steps`, `motionIn` and
+  `motionOut` from the artwork before, where the catalog picks send `steps: null`. Each needs a
+  reproduction before it is called a defect.
 - **S3 must allow for:** the shell's budget is 2,482, its exact length, so any line a
   beside-running plan adds to the shell fails `check:file-budgets` until S3 lowers it again; a
   plan that must add lines says so in its own notes rather than raising the number. The import

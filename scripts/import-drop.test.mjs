@@ -54,8 +54,8 @@ function inventory(overrides = {}) {
 
 const drop = (result, previous = initialDraft()) => svgDropPatch(result, { resolution: FRAME, previous });
 
-/** Every key of the SVG road's slice that a clear takes back. */
-const SVG_KEYS = ['designSvg', 'svgFields', 'svgImages', 'svgOutlines', 'svgBehaviour', 'svgExtras', 'svgStretch', 'svgFonts'];
+/** The SVG road's keys of a patch: `designSvg` and every `svg*` key. */
+const svgKeys = (patch) => Object.keys(patch).filter((k) => k === 'designSvg' || k.startsWith('svg')).sort();
 
 // ── An SVG drop ───────────────────────────────────────────────────────────────────────────
 
@@ -130,8 +130,10 @@ const picture = (name) => ({ path: `images/${name}`, name, mime: 'image/png', da
 test('a dropped picture takes back every SVG answer an SVG clear does', () => {
   const patch = artDropPatch(art, [picture('strap.png')]);
   const cleared = clearSvgPatch(mergeDraft(initialDraft(), drop(inventory())));
-  assert.deepEqual(Object.keys(cleared).filter((k) => SVG_KEYS.includes(k)).sort(), [...SVG_KEYS].sort());
-  for (const key of SVG_KEYS) assert.deepEqual(patch[key], cleared[key], key);
+  // Whatever SVG answer the clear takes back, a picture drop takes back too, to the same value.
+  assert.deepEqual(svgKeys(patch), svgKeys(cleared));
+  assert.equal(svgKeys(cleared).length, 8);
+  for (const key of svgKeys(cleared)) assert.deepEqual(patch[key], cleared[key], key);
 });
 
 test('a dropped picture starts the prepare walk over on it and settles the bare design', () => {

@@ -2,7 +2,8 @@
 // wizard's draft. The shell (CreationWizard.tsx) calls these through `./index.ts` and applies
 // what they return; it owns the walk (which import mode a drop switches to) and the brand in
 // force, which it spreads over the patch through `brandOrClearPatch` (draft/template.ts), so
-// this folder never imports the shared draft. Node-tested in scripts/import-drop.test.mjs.
+// this folder takes only the shared draft's types, never its code. Node-tested in
+// scripts/import-drop.test.mjs.
 
 import type { AssetFile } from '../../../model/types';
 import type { DesignArt } from '../../../model/wizard';
