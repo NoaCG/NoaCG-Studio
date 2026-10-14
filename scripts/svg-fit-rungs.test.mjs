@@ -149,22 +149,9 @@ const MIRROR_FINDINGS = [
   'ticker-strip-3840 f2: law: inset x (penned by a neighbour)',
 ];
 const RULES = ['room', 'neighbour', 'snap', 'margin', 'settle', 'fits', 'floors'];
-/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, settle #1143. */
+/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144. */
 const RUNG_FINDINGS = {
   room: ['illustrator-rotated-sidebar-strip'],
-  settle: [
-    'effects-smil-animated-bug',
-    'figma-offset-centred-endboard',
-    'geometry-optimized-no-ids',
-    'illustrator-embedded-image-card',
-    'illustrator-four-team-scoreboard',
-    'illustrator-mixed-outlines',
-    'inkscape-text-on-path-bumper',
-    'logo-small-favicon',
-    'logo-tall-crest',
-    'nested-svg-sub-artboard',
-    'ticker-strip-3840',
-  ],
 };
 
 const SPECS = [
