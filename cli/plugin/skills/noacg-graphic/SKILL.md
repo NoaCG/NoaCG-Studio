@@ -1,12 +1,10 @@
 ---
-name: noacg-graphic
+name: graphic
+argument-hint: "[--guidelines | --critique <folder>] [what the graphic is]"
 description: >-
-  Make, critique or improve a broadcast graphic - or a whole graphics package for a show - for
-  NoaCG Studio (lower third, scoreboard, bug, ticker, countdown, full-screen, any on-air graphic)
-  and put it in the user's NoaCG library or on Home ready to install as a production. Use when
-  the user says "for NoaCG", names NoaCG, SPX, CasparCG or OGraf playout, or wants graphics
-  operated live (editable fields, Take/Update/Out). Teaches the contract, tools and loop, not
-  how to design.
+  Make, critique or improve a broadcast graphic or show package (lower third, scoreboard,
+  ticker, countdown, any on-air graphic) and save it to NoaCG. Use when the user names NoaCG,
+  SPX, CasparCG or OGraf, or wants graphics operated live (Take/Update/Out).
 ---
 
 # Make a NoaCG graphic
@@ -16,7 +14,8 @@ operator drives from a control panel, and NoaCG saves, edits and plays out. Desi
 normally design - this skill tells you the CONTRACT the graphic must satisfy, how its FIELDS AND
 BEHAVIOUR should work for the operator, the TOOLS that check it, and how it reaches the user's
 library. It does not tell you how it should look: the look is yours, unless the user switches on
-one of the two opt-in tools at the end of this file.
+one of the two opt-in tools at the end of this file. If you were not told what the graphic is,
+ask before starting.
 
 ## The loop
 
@@ -109,7 +108,7 @@ noacg pack ./opener ./name-strap ./scorebug ./endboard --name "Friday Fight Nigh
   "rundown": [ … ] }` - sent to Home when this machine holds a key; `out` also writes the file.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli@0.10.1 <command>` when nothing is installed; `npm i -g @noacg/cli@0.10.1` once makes every
+(`npx -y @noacg/cli@0.11.0 <command>` when nothing is installed; `npm i -g @noacg/cli@0.11.0` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the

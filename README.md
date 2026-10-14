@@ -65,8 +65,7 @@ npx @noacg/cli validate ./football-scoreboard --screenshots ./shots
 npx @noacg/cli save ./football-scoreboard
 ```
 
-In Claude Code, the plugin adds the `noacg-graphic` skill and the `/noacg:graphic` command. Type
-this in a Claude Code session (2.1.275 or later):
+In Claude Code, the plugin adds the `/noacg:graphic` skill. Type this in a Claude Code session (2.1.275 or later):
 
 ```text
 /plugin install noacg --marketplace NoaCG/NoaCG-Studio

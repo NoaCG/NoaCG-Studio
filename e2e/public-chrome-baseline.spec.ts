@@ -1,4 +1,5 @@
 // covers: src/site-chrome.css, src/brandCore.css, ograf.html, scripts/site-nav.mjs
+// covers: {index,privacy,terms,docs,downloads,whats-new,roadmap}.html, src/legal.css, src/docs/**, src/downloads/**, src/landing/updates.css, docs/whats-new/**
 
 import { existsSync } from 'node:fs';
 import { test, expect, type Locator, type Page, type TestInfo } from '@playwright/test';

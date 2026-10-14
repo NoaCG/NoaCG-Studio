@@ -10,6 +10,24 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.11.0 - 2026-10-14
+
+**One `/noacg:graphic` entry instead of two.** The `noacg` plugin used to add a skill and a
+command that only pointed at it, so every Claude Code session listed both. The skill is now
+`/noacg:graphic` itself, with the same `--guidelines` and `--critique <folder>` switches, and its
+description is about half as long, so the plugin costs a session less context. Update the plugin
+the usual way; `/noacg:graphic` keeps its name, and nothing else changes for you.
+
+**`noacg bridge` reaches vMix.** Besides CasparCG, the Bridge now talks to vMix on the same
+computer over vMix's TCP API, so the studio page can put the NoaCG output on a vMix overlay
+channel and take it off again. It uses vMix's own port, 8099; if your vMix uses another, start the
+Bridge with `--vmix-port <port>`.
+
+**The skill knows the chat connector.** Its setup notes now say what NoaCG's chat connector does
+(assembles productions from catalog designs and your own graphics) and what still needs the CLI
+(making or changing a graphic). The validator notes also explain the supporting-text size warning
+and a field on a match clock.
+
 ## 0.10.1 - 2026-10-09
 
 **A refused share no longer leaves a copy on your Home.** `noacg pack … --save --share` now runs

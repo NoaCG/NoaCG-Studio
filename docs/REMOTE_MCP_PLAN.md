@@ -188,8 +188,10 @@ current-password field.
 
 **3. Prove it on staging** (from a checkout of `main`, with staging's anon and service keys from
 the dashboard): the four connector specs against staging, the same run as phase 5's hosted proof.
+Run `npm ci` after `git pull` first: an older `node_modules` may lack the MCP SDK the specs use.
 
 ```bash
+npm ci
 NOACG_CONNECTOR_TEST_REF=garafohbzmsybtysxphb VITE_SUPABASE_URL=https://garafohbzmsybtysxphb.supabase.co \
 VITE_SUPABASE_ANON_KEY=<staging anon key> SUPABASE_SERVICE_ROLE_KEY=<staging service key> \
 npx playwright test -c playwright.live.config.ts e2e/configured/connector-oauth.spec.ts \

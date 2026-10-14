@@ -222,6 +222,16 @@ test("status says NOT safe when the OAuth server runs without the connector's ho
   }
 });
 
+test("status says NOT settled, not off, while Auth's discovery and its config disagree", async () => {
+  for (const [config, discovery] of [[{ oauth_server_enabled: true, oauth_server_allow_dynamic_registration: true }, false], [{}, true]]) {
+    const world = fakeWorld({ discovery: () => discovery });
+    Object.assign(world.configs[STAGING], config, STEPS.on[1][1]);
+    assert.equal(await main(['staging', 'status'], world.io()), 1);
+    assert.match(world.err[0], /^NOT settled: Auth's config reads (on|off), its discovery (off|on);/);
+    assert.ok(!world.out.some((line) => /connector (on|off)$/.test(line)));
+  }
+});
+
 test('--ref takes only a throwaway preview branch of production and touches nothing else', async () => {
   const world = fakeWorld();
   assert.equal(await main(['--ref', BRANCH, 'on'], world.io()), 0, world.err.join('\n'));

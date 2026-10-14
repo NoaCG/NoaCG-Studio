@@ -9,10 +9,10 @@
 // Code plugin carries and a Codex session loads can never say three different things:
 //
 //   1. the npm package's `skill/`        - IS the source: cli/package.json "files" ships cli/skill as-is
-//   2. the plugin's `skills/noacg-graphic/` (cli/plugin/) - a byte-identical copy; the same folder
-//      is what the Claude Code plugin (.claude-plugin/plugin.json) and the Codex plugin
-//      (.codex-plugin/plugin.json, `skills: "./skills/"`) both read, and what a Codex user copies
-//      into ~/.codex/skills/ when they want the skill without the plugin
+//   2. the plugin's `skills/noacg-graphic/` (cli/plugin/) - a copy identical but for the skill's
+//      name, `graphic`, which makes it `/noacg:graphic` (plugin-skill.mjs); the same folder is what
+//      the Claude Code plugin (.claude-plugin/plugin.json) and the Codex plugin
+//      (.codex-plugin/plugin.json, `skills: "./skills/"`) both read
 //   3. the version stamped on the four plugin manifests (`noacg` under cli/plugin/, `noacg-mcp`
 //      under cli/plugin-mcp/, a Claude Code and a Codex manifest each) and on both marketplace
 //      entries at the repo root (.claude-plugin/marketplace.json) - cli/package.json's version,
@@ -46,6 +46,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { measured } from '../../scripts/measured.mjs';
+import { pluginSkillFile } from './plugin-skill.mjs';
 
 const CLI = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT = path.resolve(CLI, '..');
@@ -54,7 +55,7 @@ const PLUGIN = path.join(CLI, 'plugin');
 const PLUGIN_SKILL = path.join(PLUGIN, 'skills', 'noacg-graphic');
 const MARKETPLACE = path.join(ROOT, '.claude-plugin', 'marketplace.json');
 /** The plugins the marketplace offers, read from the marketplace itself so a plugin listed there
- *  can never miss its stamp: today `noacg` (the skill and the command, no server) and `noacg-mcp`
+ *  can never miss its stamp: today `noacg` (the skill, no server) and `noacg-mcp`
  *  (the always-on MCP server, optional - docs/AGENT_CLI.md "What a session pays" is why they are
  *  two). Each has a Claude Code and a Codex manifest, and all are versioned as the CLI. */
 const PLUGINS = readJson(MARKETPLACE).plugins.map((p) => ({ name: p.name, dir: path.resolve(ROOT, p.source) }));
@@ -97,7 +98,7 @@ const SERVER_JSON = path.join(CLI, 'server.json');
 /** Every generated file, as the bytes it must hold. */
 const expected = new Map();
 
-// 1. Versioned install commands in maintained documentation, then byte-identical skill copies.
+// 1. Versioned install commands in maintained documentation, then the plugin's skill copy.
 if (!existsSync(SOURCE)) {
   console.error(`missing the skill source ${rel(SOURCE)}`);
   process.exit(2);
@@ -112,7 +113,7 @@ for (const file of walk(SOURCE)) {
   const sourceFile = path.join(SOURCE, ...file.split('/'));
   const bytes = pinCommands(readFileSync(sourceFile));
   expected.set(sourceFile, bytes);
-  expected.set(path.join(PLUGIN_SKILL, ...file.split('/')), bytes);
+  expected.set(path.join(PLUGIN_SKILL, ...file.split('/')), pluginSkillFile(file, bytes));
 }
 for (const plugin of PLUGINS) {
   expected.set(path.join(plugin.dir, 'README.md'), pinCommands(readFileSync(path.join(plugin.dir, 'README.md'))));

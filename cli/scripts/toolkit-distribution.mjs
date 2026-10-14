@@ -7,6 +7,8 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { crc32, deflateRawSync } from 'node:zlib';
 
+import { pluginSkillFile } from './plugin-skill.mjs';
+
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const json = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
@@ -154,7 +156,7 @@ export function validatePackage(files, { host, name, version }) {
   if (name === 'noacg') {
     requireThat(!files.has('.mcp.json'), 'main plugin must remain lazy');
     const skill = files.get('skills/noacg-graphic/SKILL.md')?.toString();
-    requireThat(skill?.startsWith('---\nname: noacg-graphic\n') && /\ndescription:/.test(skill), 'skill frontmatter missing');
+    requireThat(skill?.startsWith('---\nname: graphic\n') && /\ndescription:/.test(skill), 'skill frontmatter missing');
     for (const ref of skill.matchAll(/references\/([\w-]+\.md)/g)) requireThat(files.has(`skills/noacg-graphic/references/${ref[1]}`), `missing skill reference ${ref[1]}`);
     const setup = files.get('skills/noacg-graphic/references/setup.md')?.toString();
     requireThat(setup?.includes(`@noacg/cli@${version}`), 'setup CLI pin drift');
@@ -184,6 +186,7 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
     return bytes;
   };
   read('cli/scripts/toolkit-distribution.mjs');
+  read('cli/scripts/plugin-skill.mjs');
   const pkg = JSON.parse(read('cli/package.json'));
   const lock = JSON.parse(read('cli/package-lock.json'));
   requireThat(lock.version === pkg.version && lock.packages[''].version === pkg.version, 'CLI lockfile version drift');
@@ -198,13 +201,12 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
     main.set(`.${host}-plugin/plugin.json`, read(`cli/plugin/.${host}-plugin/plugin.json`));
     mcp.set(`.${host}-plugin/plugin.json`, read(`cli/plugin-mcp/.${host}-plugin/plugin.json`));
   }
-  main.set('commands/graphic.md', read('cli/plugin/commands/graphic.md'));
   for (const file of pathsIn(path.join(root, 'cli/skill/noacg-graphic'))) {
     requireThat(file.endsWith('.md'), `only portable skill markdown is allowed: ${file}`);
     const bytes = read(`cli/skill/noacg-graphic/${file}`);
     const copy = read(`cli/plugin/skills/noacg-graphic/${file}`);
-    requireThat(bytes.equals(copy), `generated skill drift: ${file}`);
-    main.set(`skills/noacg-graphic/${file}`, bytes);
+    requireThat(pluginSkillFile(file, bytes).equals(copy), `generated skill drift: ${file}`);
+    main.set(`skills/noacg-graphic/${file}`, copy);
   }
   requireThat(pathsIn(path.join(root, 'cli/plugin/skills/noacg-graphic')).length === pathsIn(path.join(root, 'cli/skill/noacg-graphic')).length, 'stray generated skill file');
   for (const file of ['README.md', 'LICENSE', 'NOTICE', 'assets/icon.png', '.mcp.json', 'codex-mcp.json', 'mcp-server.mjs']) mcp.set(file, read(`cli/plugin-mcp/${file}`));
@@ -220,7 +222,7 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
   main.set('PROVENANCE.json', provenance);
   mcp.set('PROVENANCE.json', provenance);
   const claude = new Map([...main].filter(([p]) => !p.startsWith('.codex-plugin/')));
-  const codex = new Map([...main].filter(([p]) => !p.startsWith('.claude-plugin/') && !p.startsWith('commands/')));
+  const codex = new Map([...main].filter(([p]) => !p.startsWith('.claude-plugin/')));
   const claudeMcp = new Map([...mcp].filter(([p]) => !p.startsWith('.codex-plugin/') && p !== 'codex-mcp.json'));
   // Codex keeps the Claude manifest too: the launcher reads its version authority from it.
   const codexMcp = new Map([...mcp].filter(([p]) => p !== '.mcp.json'));
