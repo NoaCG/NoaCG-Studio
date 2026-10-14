@@ -1,261 +1,390 @@
-# Driving NoaCG from vMix's own Overlay buttons through NoaCG Bridge
+# vMix as a NoaCG playout target, through NoaCG Bridge
 
 ## Problem and authority
 
-A vMix operator's hands are on vMix: its input bar, its Overlay buttons, its shortcuts and
-controllers. A NoaCG production already runs there, as a Web Browser input on the output URL kept
-on one overlay channel all show (measured, `docs/VMIX_ON_A_REAL_HOST.md` §2), but every cue is
-taken from NoaCG's own page or a phone, because vMix tells a browser page nothing and no vMix
-function can call NoaCG (`docs/research/vmix-inside-vmix.md` §1). The one documented push vMix has
-is the TCP API's `SUBSCRIBE ACTS`, which reports an overlay going on or off as it happens (measured,
-`VMIX_ON_A_REAL_HOST.md` §3). NoaCG Bridge, already on the operator's machine, is what can hold
-that subscription for a whole show.
+An operator who plays out through CasparCG runs the whole show from the NoaCG production page:
+the graphics go on air through the output URL on a CasparCG channel, and the rundown's clips play
+on a clip channel that feeds the vision mixer. A vMix user has none of that. The output URL works
+as a Web Browser input added by hand (measured, `docs/VMIX_ON_A_REAL_HOST.md` §2), the clips are
+loaded into vMix by hand, and nothing in the studio knows vMix exists.
 
-Authority: `docs/GOALS.md` outcome 5 (one production workflow that plays out to every environment)
-and [issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760), part 1 (P1, owner ask: 2026-09-29,
-"be compatible with vMix in every way we can", before the vMix trial ends about 2026-11-28). The
-setup is held to the CasparCG owner decisions of 2026-09-30 by analogy, as the OBS adapter is
-(`docs/work-specs/bridge-obs-adapter/spec.md`): connecting may happen by itself, putting on air
-never does, nothing is retyped. The route is the one `research/vmix-inside-vmix.md` §3 chose and the
-walk of 2026-10-12 confirmed. The decisions below marked **derived** are this spec's, open to the
-owner's overrule.
+Authority: the owner's ask of 2026-10-14. Make vMix a NoaCG playout target through NoaCG Bridge
+that an operator uses the way they use CasparCG today: NoaCG is the playout client, vMix is the
+mixer. (1) A vMix connection in Settings > Playout and per-production buttons that work like the
+CasparCG ones. (2) Graphics on vMix overlay channels, mapped with evidence. (3) Clips and other
+inserts as vMix inputs that play files on the vMix computer, the way CasparCG's clip channel
+feeds a mixer. (4) Driving NoaCG from vMix's own buttons is out of scope; the design must not
+close that door. Invent no new workflow, follow common vMix practice, and make the defaults work
+with no setup. Also `docs/GOALS.md` outcome 5 (one production workflow that plays out to every
+environment) and [issue #760](https://github.com/NoaCG/NoaCG-Studio/issues/760) (owner,
+2026-09-29: "be compatible with vMix in every way we can", before the vMix trial ends about
+2026-11-28). The setup follows the CasparCG owner decisions of 2026-09-30 by analogy: connecting
+may happen by itself, putting on air never does, nothing is retyped.
+
+This spec replaces the revision of 2026-10-12, which centred on item (4). What still holds from it
+(the connection, the failure states, security, the read-back, and the first slice already on
+`main`, `evidence/slice-1.md`) is kept below; what is set aside is under **Later**.
+
+## Answers first
+
+- **Graphics: the whole production is one Web Browser input on one overlay channel, the highest
+  this vMix has** (8 on vMix 29, 4 on vMix 28, 1 on Basic HD). NoaCG's own layers stay inside that
+  page. This is what every graphics tool documented for vMix does (H2R, SPX, Singular, Flowics:
+  one browser input on an overlay), it keeps NoaCG's entrances and exits (vMix's own overlay off
+  removes the input with no exit, measured), and it costs one input and one browser engine.
+- **Clips: one vMix input the Bridge makes, `NoaCG Clips`, a Video List.** NoaCG's Take puts the
+  cue's file in it and plays it; the vMix operator cuts to that input the way a vision mixer cuts
+  to the CasparCG clip channel. vMix's own Auto Play, Auto Pause and Auto Restart are off on it, so
+  it plays what NoaCG took however vMix is cut, exactly as a CasparCG channel does (measured).
+  Hold, Loop and Play next are vMix's own list behaviour (measured). Audio files get a second list,
+  `NoaCG Audio`, heard whatever is on Program.
+- **The files live on the vMix computer**, in one media folder the Bridge lists (default: the
+  Windows Videos folder of the user running it). A cue keeps the file's path inside that folder.
+- **NoaCG never changes vMix's Program, Preview or transitions.** vMix is the mixer.
+- **Six phases**, each one pull request, three Bridge releases. The first release (phase V1)
+  gives an operator Load and Unload of the output on vMix from the production page.
+
+## The two models side by side
+
+| | CasparCG | vMix | Source |
+|---|---|---|---|
+| What NoaCG talks to | a server on the LAN, AMCP on 5250 | vMix on this computer, the TCP API on 8099, no password | measured (`VMIX_ON_A_REAL_HOST.md` §7); documented, [TCP API](https://www.vmix.com/help29/TCPAPI.html) |
+| Where things play | channels, each with numbered layers; a layer holds one producer | inputs (a clip, a camera, a browser…); one Program and one Preview; overlay channels drawn over Program | documented, [Overlays](https://www.vmix.com/help29/Overlay2.html), [Cut](https://www.vmix.com/help29/Cut.html) |
+| Stacking | a higher layer draws over a lower one | a higher overlay channel draws over a lower one, all over Program | measured (8 over 2 over 1) |
+| Places for graphics | any channel and layer | overlay channels: 8 on vMix 29 HD and up, 4 on vMix 24 to 28, 1 on Basic HD | documented, [help29 Overlays](https://www.vmix.com/help29/Overlay2.html), [help28](https://www.vmix.com/help28/Overlay2.html), [KB 164](https://www.vmix.com/knowledgebase/article.aspx/164/why-do-i-only-see-1-overlay-channel-in-vmix) |
+| Who mixes | a vision mixer (an ATEM, or the channel itself on a one-channel setup) | vMix: Cut, Fade, Merge, Stinger, the four transition buttons | documented, [Transitions](https://www.vmix.com/help29/Transitions.html) |
+| A clip | `PLAY c-l FILE` on a layer | a Video input, or an item of a Video List input, played with `Play` | documented, [Function reference](https://www.vmix.com/help29/ShortcutFunctionReference.html); measured (research §1, §5) |
+| End of a clip | holds its last frame; `LOOP`; `LOADBG … AUTO` plays the next | pauses on its last frame, state `Completed`; `LoopOn` loops it; a Video List's Auto Next plays the next item | measured (research §5 to §7); documented, [Video List](https://www.vmix.com/help29/VideoList.html), [Loop](https://www.vmix.com/help29/Loop.html) |
+| Nothing on a layer | `STOP`, `CLEAR`: empty, black on the mixer | `ListRemoveAll` on a list: black | measured (research §10) |
+| A clip starting on a cut | never: the channel plays what it was told | by default yes: Auto Play starts a clip when a transition begins, Auto Pause pauses it when it leaves; per input, `AutoPlayOff` and the rest turn that off | documented, [Options](https://www.vmix.com/help29/Options.html); measured (research §11, §12) |
+| Sound | a layer's sound goes out with the channel | an input's sound follows the picture to Program by default (Audio Auto) | measured (research §15, §16) |
+| The media library | the server's media folder, listed by its scanner (`CLS`) | none: a file is a path on the vMix computer | documented ([Function reference](https://www.vmix.com/help29/ShortcutFunctionReference.html) `AddInput`, `ListAdd` take paths) |
+| Reading state | `INFO`, per channel | `XML`: every input's `state` (`Running`, `Paused`, `Completed`), `position` and `duration` in ms, `loop`, `selectedIndex`, the list's items; which input is on which overlay | measured (research §1 to §10) |
+
+## Research findings
+
+Each claim is **measured** (this repository's records), **documented** (the vMix page named) or
+**assumed**. `research` is `evidence/research-2026-10-14.md`; `host` is
+`docs/VMIX_ON_A_REAL_HOST.md`.
+
+### Graphics
+
+- Measured: the output URL in a Web Browser input on an overlay ran a three-layer production with
+  live updates and exits (host §2); `AddInput Value=Browser|<url>` makes that input, type
+  `Browser` (host §7), although `Browser` is not in the documented `AddInput` list (documented
+  absence, [Function reference](https://www.vmix.com/help29/ShortcutFunctionReference.html)).
+- Measured: vMix's own overlay Out or Off removes the input without NoaCG's exit animation
+  (host, answers first). So vMix's overlay buttons must not be how one graphic leaves the air.
+- Documented: H2R Graphics ([vMix guide](https://h2r.graphics/docs/how-to-use-with/vmix/)), SPX
+  (the "URL for OBS / vMIX" renderer field, [SPX-GC](https://github.com/TuomoKu/SPX-GC)),
+  Singular ([vMix article](https://support.singular.live/hc/en-us/articles/360012717332-Singular-and-vMix))
+  and Flowics ([vMix integration](https://support.flowics.com/vmix/integrating-graphics-with-vmix))
+  all put their whole output in one Web Browser input on an overlay. None names a default
+  channel, and no vMix page assigns roles to channels (assumed from absence).
+- Documented: 8 overlay channels on vMix 29 HD, 4K, Pro and MAX, 1 on Basic HD; 4 on vMix 24 to
+  28 ([help29](https://www.vmix.com/help29/Overlay2.html), [help28](https://www.vmix.com/help28/Overlay2.html),
+  [help27](https://www.vmix.com/help27/Overlay2.html)). The XML lists 16 `<overlay>` elements on 29
+  (measured), so the count comes from version and edition, as `vmixOverlayCount` does.
+- Documented: the 60-day trial has every Pro feature
+  ([KB 59](https://www.vmix.com/knowledgebase/article.aspx/59/which-edition-is-the-trial));
+  Basic HD has 4 inputs, 1 overlay and no Video List ([purchase](https://www.vmix.com/purchase/)).
+- Assumed: a Web Browser input counts as one of the edition's inputs; there is no separate limit.
+- Measured: there is no per-layer output page today: the output URL renders every layer, and a
+  second output page is a later idea ([issue #767](https://github.com/NoaCG/NoaCG-Studio/issues/767)).
+
+**Recommended mapping for graphics, and why.** One output, one Web Browser input, one overlay
+channel, the highest the vMix offers. A layer per overlay channel was rejected: it needs per-layer
+output pages NoaCG does not have, an input and a browser engine per layer, more channels than
+vMix 28 and Basic HD have (4 and 1), and the only thing it buys is pressing a layer off in vMix,
+which kills the exit and is item (4) anyway. The highest channel is the default because higher
+channels draw on top (measured), so NoaCG's graphics stay above the operator's own overlays, and
+operators fill channels from 1 (assumed: vMix's buttons and every guide above start at 1). The
+channel is a setting because an operator who already uses the top channel (a stinger, their own
+bug) must be able to move NoaCG below it.
+
+### Clips as inputs
+
+- Documented: `AddInput` takes `Video|<path>` and `VideoList|<path>`; `ListAdd`, `ListRemove`,
+  `ListRemoveAll`, `SelectIndex`, `NextItem`, `Play`, `Pause`, `Restart`, `SetPosition` (ms),
+  `LoopOn`/`LoopOff`, `AutoPlayOn`/`Off`, `AutoPauseOn`/`Off`, `AutoRestartOn`/`Off`,
+  `AutoPlayNextOn`/`Off`, `AudioAutoOn`/`Off`, `AudioOn`/`Off`, `SetVolume`, `RemoveInput`,
+  `QuickPlay` ([Function reference](https://www.vmix.com/help29/ShortcutFunctionReference.html)).
+  `AddInput` has no name and returns no key, so the Bridge finds the new input in the XML and
+  names it with `SetInputName`, as it already does for the output (measured, slice 1).
+- Measured (research §1, §2): `AddInput Value=VideoList|` with no file makes an empty Video List;
+  after `ListAdd` its XML `title` is `<name> - <file>` and its `shortTitle` stays the name, so a
+  list is found by key, else by `shortTitle`.
+- Measured (research §5 to §10): `SelectIndex` and `Play` start an item, with `position` in ms;
+  with Auto Next off it ends `Completed` on its last frame; `LoopOn` loops the item; `SelectIndex`
+  while playing switches at once (the XML shows it about 0.3 s later); `Pause` and `Play` resume;
+  `ListRemoveAll` leaves a black picture and an empty list.
+- Measured (research §5): with Auto Next on (vMix's default) the list plays its next item by
+  itself, and each switch sends `ACTS OK InputPlaying <n> 0` and `… 1` in the same millisecond. A
+  still in a list plays forever (position 0, duration 0).
+- Documented: a Video List's Loop plays it "from the beginning when it reaches the end of the
+  list" ([Video List](https://www.vmix.com/help29/VideoList.html)). Not measured with Auto Next on.
+- Measured (research §3): `ListAdd` of a missing file answers `FUNCTION ER File Not Found: <path>`.
+  vMix's `OK` still proves nothing for most functions (host §7), so every verb reads back.
+- Measured (research §11, §12): vMix's defaults start a paused clip on a cut to it and pause it on
+  a cut away; with `AutoPlayOff`, `AutoPauseOff` and `AutoRestartOff` on the input, cuts change
+  nothing, and `Play` runs a clip that is on neither Program nor Preview (§13).
+- Documented: there is no "transition on completion" setting; an `OnCompletion` trigger is set in
+  vMix's dialog and has no function to create it ([Triggers](https://www.vmix.com/help29/Triggers.html);
+  assumed from the function list). Operators send Program back to a camera by hand or with that
+  trigger ([forum](https://forums.vmix.com/posts/m24099-Video-remains-paused-on-completion)).
+- Documented as forum practice: a VT is its own input, cut or faded to Program with Auto Play
+  ([forum](https://forums.vmix.com/posts/t11629--Go-to-the-next-input-after-playback)); broadcast
+  automation (Sofie's vMix integration) adds clips with `AddInput` and `SetInputName` and plays
+  them with `Play` ([TSR](https://github.com/Sofie-Automation/sofie-timeline-state-resolver/blob/main/packages/timeline-state-resolver/src/integrations/vmix/vMixInputHandler.ts)).
+- Measured (research §15, §16): an input's sound follows the picture (muted off Program); with
+  `AudioAutoOff` and `AudioOn` an audio list is heard on the master whatever is on Program.
+- Documented: Video List is not in Basic HD ([purchase](https://www.vmix.com/purchase/)).
+- Assumed: a UNC path works in `ListAdd`; an `http(s)` address does not (a 2017 forum report of
+  `File Not Found` for a stream URL, [forum](https://forums.vmix.com/posts/t10730-vMIX-API-AddInput-Stream);
+  streams are a separate Stream input, [Stream](https://www.vmix.com/help29/Stream.html)).
+
+**Recommended mapping for clips, and why.** CasparCG's clip channel is one place the vision mixer
+cuts to, and NoaCG decides what plays there. Its vMix counterpart is one input NoaCG owns and the
+vMix operator cuts to: a Video List, because it is the one vMix input whose file can be changed
+over the API (a Video input's file cannot), and its own Auto Next, Loop and end-of-item hold are
+the endings NoaCG already offers. A separate input per clip was rejected: it is how vMix users
+load VTs by hand, but then a Take that does not touch Program plays where nobody sees it, and a
+Take that does cut Program needs an Out that cuts back to a camera NoaCG knows nothing about.
+Audio files get their own list for the reason CasparCG gives them layer 5: a sting must never
+knock the VT off, and it must be heard while a camera is on Program.
+
+### What NoaCG's clip cues become in vMix
+
+A cue keeps everything the CasparCG one has (its item, endings, folder, the clock), with a vMix
+item: `{ adapter: 'vmix', kind: 'media', name: '<path inside the media folder, with />' }` and
+its file kind (`movie`, `still`, `audio`) from the Bridge's list. It has no channel or layer: a
+movie or a still plays in `NoaCG Clips`, an audio file in `NoaCG Audio`. The verbs:
+
+| NoaCG | vMix, on the player input by key |
+|---|---|
+| Take | `LoopOn` or `LoopOff` as the cue's ending says, and `AutoPlayNextOff` (both are settings of the input, not of an item, so every Take sets both, measured: research §7); `ListAdd` the file, `SelectIndex` to it, `Play`; read back until that item is `Running`; then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V2 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
+| At the end: Hold (default) | `LoopOff`, `AutoPlayNextOff`: vMix holds the last frame (`Completed`) |
+| At the end: Loop | `LoopOn` |
+| At the end: Clear | the Bridge sees `Completed` on its own take and sends `ListRemoveAll` |
+| Play next, a Play-through folder | every file added in order, `AutoPlayNextOn`, `SelectIndex` to the first, `Play`; the last item's ending as above; Loop the folder is the list's Loop once measured, else the Bridge's runner |
+| Change the ending while it plays | `LoopOn` / `LoopOff`, or arming the Clear |
+| Pause, Resume | `Pause`, `Play` |
+| Out, Clear, All out | `Pause`, `ListRemoveAll` (black) |
+| Level | `SetVolume` on the player at the Take, once its curve is measured; refused until then |
+| Fade in, fade out, trim | refused with the reason: a list has no per-item transition, and a fade on Program is the vMix operator's transition |
+
+**A file's length.** The page needs each file's length for the clock's "TO STUDIO" and refuses a
+sequence member without one (`sequenceMembers`, `src/control/serverPlayout.ts`; `SequenceEntry
+.media.seconds`). vMix reports the length of the item that is selected and of nothing else
+(measured, research §5), so the Bridge reads it from the file itself when it lists the folder:
+the `mvhd` box of an MP4 or MOV and the header of a WAV, which needs no tool beside the Bridge;
+any other file is listed with no length. For a vMix sequence the 2-second rule does not apply
+(vMix plays the next item itself, nothing is queued ahead), so an entry of unknown length may
+join one, and "TO STUDIO" shows once every length is known.
+
+### Where the files must live
+
+On the vMix computer, which is where the Bridge runs. The Bridge lists one **media folder**
+(`/list media` with a path inside it, the way the CasparCG picker browses the server's folders),
+only files vMix plays as movie, still or audio, never anything outside the folder, and joins the
+cue's name to it at the Take. Default: the Videos folder of the Windows user running the Bridge.
+The folder is a setting because no vMix setting names one (documented absence) and productions
+keep media on a dedicated drive (assumed); the Bridge keeps it per vMix, beside its token, so
+every browser paired with it sees the same folder, as it keeps a CasparCG server's studio setup.
+A file that is not there is refused by vMix with its path (measured), and the page says so.
+Plainly: any page paired with the Bridge can choose the folder, so a paired page can list the
+folder and media file names anywhere on that computer's disks, and nothing else (owner decision 2).
+
+### What Load and Unload need beyond studio UI
+
+The Bridge half is on `main` (slice 1, `@noacg/cli` 0.11.0) but in no Bridge download (the latest
+is `bridge-v0.9.0`). The studio needs: to read `/health` `adapters` (nothing reads it today), a
+target-aware request layer (`targetOf` and `slotOf` in `src/control/playoutLink.ts` return
+CasparCG only), the production's title as the item's `label` (the vMix adapter refuses a url
+without one), the setup sentences for `not-running` and `not-vmix` (`AgentError.setup` is read
+nowhere in `src/`), the `/state` overlays read for the row's state, and a release.
+
+One Bridge gap: Load (the adapter's Put on air) reuses an existing `NoaCG <title>` Browser
+input by its name alone (`cli/src/playout/adapters/vmix.ts`), so two productions with one title
+share an input, and an input made from a development server keeps that address. V1 fixes it by
+identity, not by title: the output address carries the production's slug, which is stable and
+unique, so the Bridge remembers the key of the input it made for each address (without the
+`&name=` part) in `vmix-outputs.json` beside its token. Load and Unload find the output by that
+key, so a renamed production still unloads and its input is renamed to the new title. An input
+of the same name that the Bridge did not make for this address is never reused: Load adds a new
+input named `NoaCG <title> (2)`. A key vMix no longer lists (a new session with another preset)
+is forgotten, and Load adds the input again. If vMix's XML turns out to name a Browser input's
+address (V1 measures it), that check is added; it is not relied on.
+
+### What a fake vMix proves, and what needs the real one
+
+`cli/test/_fakeVmix.mjs` already answers as vMix 29 did. It proves the wire: which lines are sent
+in which order, that every `Input=` is a key, refusals before anything is sent, read-back,
+`uncertain` on a lost answer, and the parsing of the XML. Extended with a Video List model
+(items, `selectedIndex`, `state`, a position that advances on a clock the test controls, Auto
+Next, Loop, `File Not Found`) it proves the clips verbs, the readings and the runner's rules. The
+studio side is proven against the fake Bridge in `e2e/_fakeBridge.ts`.
+
+Only the real vMix proves what vMix does with them: the picture (`SnapshotInput`), first-frame
+delay, the list's Loop with Auto Next on, the `SetVolume` curve, UNC paths, a preset saved with
+the players and opened again, and vMix's Chrome rendering the output. The owner's vMix 29 trial on
+the development laptop is the host. **The builder runs it, not the owner**, through the TCP and
+HTTP APIs, as on 2026-10-12 and 2026-10-14: back up `%APPDATA%\last.vmix` and vMix's
+`user.config` first, start vMix, measure, force-close it, put both files back and compare their
+SHA-256, leave the background service alone. The owner is asked nothing in any phase; once a
+release is out he uses it on his own shows and reports what real use breaks. Editions other than
+the trial (vMix 28, Basic HD) cannot be measured here and stay documented only.
 
 ## Behaviour
 
-### The route in one paragraph
+### Settings > Playout: the vMix section
 
-The NoaCG output stays on one overlay channel for the whole show. Each cue of the production has a
-small **cue input** in vMix: a transparent image named after the cue, which shows nothing even when
-it is on an overlay. The Bridge subscribes to vMix's activators. A cue input going ON an overlay is
-a Take of that cue through the production's command log, the same batch the hosted control page
-sends; the graphic animates in inside the output input, which never left the air. The same cue
-input going OFF is an Out of its layer, if that cue is still the one on air there. Everything in
-vMix that can press an overlay (the button, a shortcut, MIDI or X-Keys, a trigger, the Web
-Controller) therefore drives NoaCG, because the Bridge listens to the result, not to the control.
+Shown when the paired Bridge lists `vmix` in `/health` `adapters`; with an older Bridge, nothing
+about vMix is offered. It holds:
 
-### Setup, one launch
+- the connection line: **vMix 29.0.0.49, Trial, 8 overlay channels, on this computer**, from
+  `/status` with `{ adapter: 'vmix' }`, or the sentence for the Bridge's `setup` state with
+  **Try again** (`/connect`):
 
-The operator runs NoaCG Bridge on the computer that runs vMix and pairs as today. Nobody types a
-host or a port:
+  | State | What the Bridge saw | What the page says |
+  |---|---|---|
+  | `not-running` | nothing listening on the port | vMix is not running on this computer. Start vMix. |
+  | `not-vmix` | the port accepts, but no `VERSION OK` greeting within 3 s | Something on port `<port>` is not vMix's TCP API. |
 
-1. The Bridge finds vMix on this computer at the TCP API's documented port, `127.0.0.1:8099`
-   (vMix's [TCP API](https://www.vmix.com/help29/TCPAPI.html); no password exists for it). It
-   needs no file of vMix's read. `noacg bridge --vmix-port <n>` names another port.
-2. After pairing, the pairing page asks the Bridge for vMix (`/status` with target
-   `{ adapter: 'vmix' }`). When vMix answers, the page says **Connected to vMix 29.0.0.49 on this
-   computer** and saves vMix as a playout target. Connecting is the TCP greeting and one `XML`
-   read and nothing else, so it happens by itself.
-3. When it cannot connect, the page shows one sentence for the state the Bridge names (the
-   error's `setup` field), with **Try again**, which is `/connect`:
+- **NoaCG output**: the overlay channel, a choice of 1 to the vMix's count, default the highest.
+  Stored app-wide as `PlayoutSettings.vmix = { overlay? }` (`src/control/playoutLink.ts`); absent
+  means the highest. A stored channel above this vMix's count reads as the highest, and the line
+  says so.
+- **Media folder** (from phase V3): the folder the Bridge lists, its default shown as the path.
 
-| State | What the Bridge saw | What the page says |
-|---|---|---|
-| `not-running` | nothing listening on the port | vMix is not running on this computer. Start vMix. |
-| `not-vmix` | the port accepts, but no `VERSION OK` greeting comes within 3 s | Something on port `<port>` is not vMix's TCP API. |
+The pairing page, after `/pair`, asks for vMix once; when it answers it adds **Connected to vMix
+29.0.0.49 on this computer** under the CasparCG lines. Connecting is the greeting and one `XML`
+read, so it happens by itself; a vMix that does not answer adds nothing there.
 
-   A Basic HD edition connects like any other, with `overlays` 1: the page says **This vMix has
-   one overlay channel and four inputs: the output runs on it, cues are taken from NoaCG**, offers
-   Put on air, and disables Set up in vMix.
+### The production: vMix via Bridge
 
-4. Per production: **Links > vMix > Set up in vMix**, **Put on air** and **Take off**, beside the
-   CasparCG ones. **Settings > Playout** gets a vMix section: the connection line,
-   **Connect**, and the overlay channel the output goes on (default `overlays`, the highest
-   channel this vMix offers, so the graphics draw over the operator's own overlays: higher
-   channels draw on top, measured). `overlays` is the count of channels the vMix UI offers, which
-   the Bridge derives in one function from the XML's `version` and `edition`: 8 from vMix 29, 4
-   before it, 1 on Basic HD; the XML's own `<overlay>` count (16 on vMix 29, measured) is not it.
-   The page stores the choice app-wide as `PlayoutSettings.vmix = { overlay }`
-   (`src/control/playoutLink.ts`); a missing `vmix` means vMix is not set up.
-5. **Set up in vMix** (per production, once, and again after the rundown changes) hands the Bridge
-   the production's link and the Bridge makes the inputs (below). The page then shows one line per
-   NoaCG layer with the overlay channel it suggests for that layer's cue inputs: the channels
-   below the output's, highest first, so a lower third and a bug never share a button. The
-   adapter acts on a press on **any** channel; the suggestion keeps vMix's lit buttons true, it is
-   not a condition.
+The Playout panel (`src/components/home/PlayoutPanel.tsx`) gets a **vMix via Bridge** section
+beside **CasparCG via Bridge**, with the same parts: the switch, the Bridge row (Download and Pair
+when unpaired), and one row **Output on Overlay 8** with its state (on air, off, or holding
+another input by its vMix name) and **Load** or **Unload**. Load when the channel holds another
+input asks first, as CasparCG does before replacing another production: **Replace "<input>" on
+Overlay 8?** The switch is the production's own field (`vmix?` on the output setup): the
+operator's choice wins; until then a production with vMix cues is on and every other one is off.
+The older `vmix` output profile does not turn it on: it means a Browser input added by hand,
+and loading a second one over it would double the graphics. There is no account default for
+vMix. Load sends the output URL named `vMix Overlay 8` (so the playout status names it) with the
+production's title as `label`, which names the input `NoaCG <title>`. First publish loads it
+only when the operator has switched vMix on, as CasparCG does when its switch is on.
 
-With an older Bridge (no `vmix` in `/health` `adapters`) nothing about vMix is offered.
+From phase V3 the rundown's **From the playout server…** picker offers **From vMix…** on a
+production with the vMix switch on: the media folder, browsed by folder, added as vMix cues. The
+cue editor says where it plays (**NoaCG Clips** or **NoaCG Audio**) where a CasparCG cue has its
+channel and layer. Every control the CasparCG clip has appears only when `/status` lists the
+capability for vMix, as today.
 
-### The production link the Bridge holds
+### Target, slot, item and routes (protocol v2, additive)
 
-The Bridge today keeps its token and the servers the page connected to, each with its studio setup
-(`docs/BRIDGE.md` §3). This adapter has it hold one more thing: a production's **control link**,
-the take-capable capability the hosted control page uses (the Data API key cannot take, by design,
-`docs/DATA_API.md`), because the press it hears must become a Take with no page open.
+- target `{ adapter: 'vmix', port? }` (unchanged).
+- slot `{ adapter: 'vmix', overlay }` for the output (unchanged) and, new, `{ adapter: 'vmix',
+  player: 'clips' | 'audio' }` for the players.
+- items: `url` on an overlay slot; `media` on a player slot, `name` the path inside the media
+  folder with `/`, never absolute and never with `..`. `template` refused.
+- `/list media` with a vmix target and an optional `path`: the folders and media files there, each
+  with `kind` `movie`, `still` or `audio` and, for MP4, MOV and WAV, the length the Bridge read
+  from the file (as `frames` and `fps`, the fields the page already reads); other files have none.
+- `/studio` with a vmix target keeps `{ mediaFolder }` per vMix port beside the token
+  (`vmix-setup.json`), with the players' keys; feature `vmix-media`.
+- `/state` with a vmix target answers `VmixStateReply` with, new, `players`: one `SlotState` per
+  player, read from its XML (`producer` `video`, `still` or `empty`, `file`, `segment { 0,
+  duration }`, `position`, `paused`, `loop`, `sequence`, `instance`, `cueId`, `generation`), with
+  a new optional `player` naming it and `layer` 0, so the required field keeps its meaning for
+  every CasparCG reading. A vMix `PlayoutItem` likewise keeps `layer` 0 and no `channel`, so a
+  stored item stays valid for an older page.
+- `capabilities` for vMix: `state`, then `end` and `sequence` once phase V5 lands, `level` once
+  measured; never `fade`, `trim` or `image-fit`. Verbs: `take`, `out`, `clear` (V1); `pause`,
+  `resume`, `ending` (V2); `sequence` (V5).
+- The players are made when first needed: `AddInput Value=VideoList|`, then `SetInputName`
+  (`NoaCG Clips`, `NoaCG Audio`), `AutoPlayOff`, `AutoPauseOff`, `AutoRestartOff`,
+  `AutoPlayNextOff`; for audio also `AudioAutoOff` and `AudioOn`. Found by the key the Bridge
+  kept, else by `shortTitle`, reused when it is a `VideoList`, refused when that name is another
+  kind of input. Load also makes the players a production's cues need, so the vMix operator can
+  put them on a button before the show.
 
-- `POST /vmix/link` (token) with `{ target, link: { slug, outputUrl, backend: { url, key } } }`:
-  the control slug, the production's output URL and the backend the page itself speaks to (its
-  REST address and public anon key, both already in every page load). The Bridge resolves the
-  production through the slug the way the hosted page does (`control_show_resolve`, falling back
-  to `control_show_by_slug`: the title, the output payload's cues and graphics, the staging
-  buffer, the live cue map, and `seq` when the server has the sequence road), makes or updates
-  its inputs, writes `vmix-links.json` beside its token and answers the production's title, id
-  and cue count. Linking again updates: new cues get inputs, renamed cues are renamed, and the
-  inputs the Bridge made for cues that no longer exist are removed (`RemoveInput`); an input the
-  Bridge did not make is never removed.
-- `POST /vmix/unlink { target, id }` forgets the link; the inputs stay for the operator to delete.
-- `POST /vmix/links { target }` answers `[{ id, title, linkedAt, cues }]`, never a slug.
-- The slug arrives over the paired channel only (token and origin checked), never in a URL, a
-  command-line argument, a log line or a reply. Unlink forgets it. `noacg bridge` also takes a
-  link on standard input (`--vmix-link-stdin`, one JSON line) for a machine with no page open.
+### Session, failure and security (kept)
 
-**The inputs the Bridge makes**, all through vMix functions with the input's **key** (a GUID) as
-`Input=`, never its number, since numbers are positions and move:
+- One connection per vMix port, opened by the first request that needs it; a read that finds it
+  closed opens a new one and reads again. One action at a time per vMix. A `FUNCTION` whose
+  answer never came is `uncertain` and never resent; reads are `unreachable`; each verb has one
+  7 s budget. vMix closing reads `not-running` until it is back.
+- From phase V5 the Bridge reads a player that holds its own take four times a second while that
+  take has an ending to carry out (Clear) or a sequence, like the CasparCG runner (which today ends
+  every sequence that is not on a CasparCG slot, `cli/src/playout/runner.ts`), with the slot's
+  generation guarding every command it sends by itself; nothing else contacts vMix unasked.
+- vMix's TCP API has no authentication; the Bridge connects to `127.0.0.1` only. The Bridge's own
+  properties (loopback, token, origin allowlist, no DNS rebinding) are unchanged.
+- **New boundary (owner decision 2):** the Bridge reads the local disk for the first time: folder
+  and media file names under the folder a paired page chose, never a path outside it, never a
+  file's contents beyond a media header's length.
+- Preserved: every CasparCG, OGraf and OBS route and reply; the output URL in vMix with no Bridge
+  behaves exactly as today; Program, Preview and transitions are never addressed.
 
-- the **output input**: `AddInput Value=Browser|<outputUrl>` (works, measured), then
-  `SetInputName Value=NoaCG <production title>`; an input of that name already there is reused
-  when it is a Browser input, and refused when it is another kind;
-- one **cue input** per cue: `AddInput Value=Image|<path>` with a small fully transparent PNG the
-  Bridge writes once into its config directory, then `SetInputName Value=NoaCG: <cue label>`
-  (a second cue with the same label gets ` (2)`). A transparent image on an overlay leaves Program
-  byte-identical (measured).
+## Where the 2026-10-12 spec was wrong or over-built for these priorities
 
-`vmix-links.json`: per production `{ id, title, slug, outputUrl, backend, output: { key }, cues: {
-[cueId]: { key, title, graphic } }, linkedAt }`. A file that cannot be read is an empty list. A key
-the XML no longer lists (whether a vMix restart keeps keys is a check) is re-found by the title the
-Bridge gave the input, and the new key is written back.
+1. **Its centre was item (4).** Cue inputs, the Bridge holding the production's control link,
+   `vmix-links.json`, `/vmix/link`, the `SUBSCRIBE ACTS` press handling with its settle window and
+   preset-burst rules, and the kept reconnect timer serve driving NoaCG from vMix's buttons, which
+   is now out of scope. They also carried the plan's largest security change (a take capability
+   that cannot be rotated, stored on the operator's computer). All of it moves to **Later**,
+   unbuilt, with its measured facts kept.
+2. **Put on air and Take off are called Load and Unload now.** The CasparCG buttons the owner asked
+   vMix to match are **Load** and **Unload** (`PlayoutPanel.tsx`, the playout-workflow
+   simplification); vMix uses the same words. The owner's wording names the function, not labels.
+3. **"Set up in vMix" and the per-layer channel suggestions** are dropped: with no cue inputs there
+   is nothing to set up, and the output's channel is the only one NoaCG uses for graphics.
+4. **"`template` and `media` are refused"** no longer holds: media on a player slot is phase V2.
+5. **"vMix answers OK to everything"** was too strong: `ListAdd` of a missing file answers `ER`
+   (measured). The rule stays (read back every effect), and an `ER` is now shown, not swallowed.
+6. **A list is found by `shortTitle`, not `title`**, because a list's `title` carries the playing
+   file (measured). The output's Browser input keeps `title` = name (measured).
+7. **A read right after `SelectIndex` can show the old item** (measured), so the clips verbs read
+   back with a short wait, as Put on air already does after `AddInput`.
 
-### Target, slot and item (protocol v2, additive on the wire)
+## Decisions
 
-- target `{ adapter: 'vmix', port? }`; `port` overrides the default. Always `127.0.0.1`.
-- slot `{ adapter: 'vmix', overlay }`: an overlay channel, 1 to 8.
-- items: `url` (the production output, or any page), with the production's title as the item's
-  `label`, which names the output input. `template` and `media` are refused. Take off and clear
-  name the same item, since vMix's own Out and Off take whatever the channel holds.
-- `/health` adds `vmix` to `adapters`, and `vmix-link` to `features` once the link routes exist. `/status` and `/connect` add
-  `vmix: { version, edition, overlays, inputs }`. `capabilities` for vMix is `['state']`; lists
-  nothing; thumbnails none; verbs `take`, `out`, `clear` for a url. Errors may carry `setup`.
-- `/state` with `{ target }` answers `VmixStateReply`: `{ ok, session, observedAt, overlays:
-  [{ overlay, input?: { key, number, title, type } }], linked: [{ id, output: { onOverlay? },
-  live: [cueId] }] }`: what each channel holds, and for each linked production whether its
-  output is on a channel and which cue inputs are up.
+### Owner decisions (asked 2026-10-14; the run stops before the phase that depends on one still open)
 
-**The Bridge code this touches** (the protocol is mirrored at `src/control/playoutProtocol.ts`):
-`AdapterId`, `Target` and `Slot` gain the vMix members; `readTarget` and the slot reader in
-`cli/src/playout/server.ts` get a vMix branch; `targetKey` and `slotKey` in `slots.ts` key vMix by
-port and by overlay; `adapters/vmix.ts` is new, with `vmixLinks.ts` beside `servers.ts`. The
-senders and the value resolver the hosted page uses, `takeCueItems`, `clearCueItems` and
-`hostedCueValues` (`src/control/hostedControl.ts`, which imports supabase-js and browser modules;
-`resolveBindings` in `src/model/productionData.ts` for the bound data), move into a
-dependency-free module mirrored into the CLI with a drift test, the way `protocol.ts` is.
+1. **A clip Take does not touch vMix's Program**: it plays in `NoaCG Clips`, and the vMix operator
+   cuts to that input, with vMix's Auto Play, Pause and Restart off on it. Recommended: it is the
+   CasparCG model the owner named (NoaCG plays, vMix mixes) and the only one with an honest Out.
+   The alternative, Take also cuts the clip to Program (vMix's Quick Play, measured to work), suits
+   a one-person show but needs a "back to camera" NoaCG cannot know. Depends: V2.
+2. **The Bridge lists one media folder on the vMix computer**, default the Windows Videos folder,
+   media files only, nothing outside it, the folder chosen in Settings. Because any paired page can
+   choose the folder, a paired page can learn folder and media file names anywhere on that
+   computer, never their contents. Recommended: vMix has no library of its own, the pairing token
+   and origin check already guard the Bridge, and choosing the folder from the page keeps the
+   setup in one place. The stricter alternative is choosing the folder only in the Bridge's own
+   window or command line. Depends: V2.
+3. **No fades or trim for vMix clips in this plan**; level only if `SetVolume` maps to dB.
+   Recommended: a Video List has no per-item transition and a fade on Program is the vMix
+   operator's transition; GOALS outcome 5 asks for "volume, loop and the other attributes a
+   production genuinely needs", which Hold, Loop, Clear, Play next and level cover. Depends: V5.
 
-### The verbs, as vMix TCP API commands
+### Derived (revertible; each says how)
 
-Every command goes over the one TCP connection (`FUNCTION <name> <params>`, `XML`,
-`SUBSCRIBE ACTS`), the way vMix documents it, with the parameters URL-encoded, which vMix decodes
-(measured). The HTTP API on 8088 is not used, so the Web
-Controller's port and password do not matter. Where a function takes `Input=`, it is always a
-key; `Out` and `Off` act on whatever the channel holds, so the Bridge reads the channel first and
-never sends them over somebody else's input.
+1. One output on the highest overlay channel, a setting to move it (revert: change the default in
+   the one function that picks it).
+2. Two players by kind, `NoaCG Clips` and `NoaCG Audio`, no per-cue choice (revert: the slot
+   already names the player, so a third player is a new value).
+3. The media folder and the players' keys are kept by the Bridge, the overlay choice by the
+   browser, as CasparCG splits server setup and page preference (revert: move the overlay into
+   `vmix-setup.json`).
+4. Basic HD: the output works on its one channel; clips are refused with the edition named,
+   because it has no Video List (documented).
+5. The Bridge, not the page, carries out a Clear at the end and runs sequences, as for CasparCG
+   (`BRIDGE.md` §5a: no timer in the page fires a clip).
 
-| Verb | Commands |
-|---|---|
-| connect | TCP `127.0.0.1:8099`; wait for `VERSION OK <version>`; `SUBSCRIBE ACTS` when a link exists |
-| status | `XML` → `version`, `edition`, the `overlays` and the inputs by key, number, title, type |
-| take url (Put on air) | `XML`; find the output input by key, else by name; none: `AddInput Value=Browser\|<url>` → `XML` → `SetInputName`; another kind of input holds the name: refused, nothing more sent. Then `OverlayInput<N>In Input=<key>`, and `XML` to see the channel hold it: vMix answers `FUNCTION OK Completed` to any function, even one it does not have or a key it does not know (measured) |
-| out url (Take off) | `XML`; only when channel N holds the output's key: `OverlayInput<N>Out` (the channel's transition). Anything else on the channel, or nothing, is left alone: already off |
-| clear url | the same read, then `OverlayInput<N>Off` (at once) |
-| state | `XML` |
-| take template or media, update, next, pause, resume, sequence, thumbnail | refused `unsupported` before anything is sent |
-
-**The presses, as `ACTS` lines.** With a link held, the connection is kept open. `ACTS OK
-Overlay<N> <input number> <0|1>` lines are collected for one **settle window** (50 ms, derived: a
-replace sends the old input's `0` and the new input's `1` in the same millisecond, and `AllOff`
-one `0` per channel at once, measured), then resolved to keys with **one** `XML` read for the
-whole window (numbers are positions, measured, so none is ever cached; one read per burst, not per
-line, keeps a preset's forty lines from forty reads) and handled in this order:
-
-| Line | Input | The Bridge does |
-|---|---|---|
-| `… 0` | the output input | **clears every live layer** of that production (All out, `clearCueItems` per live layer, in batches of four), so putting the output back up brings nothing back with it. Every cue `0` of that production in the same window is dropped, and so is one that arrives while the clear is in flight. Nothing is sent to vMix |
-| `… 1` | a cue input of a linked production | **Take** that cue: `update` with the values the hosted page's own Take would send (`hostedCueValues`: the published values under the shared staging buffer and the production's bound data), `play`, and its `cue` marker, one batch, `takeCueItems`. The Bridge records it as the last cue it took on that layer |
-| `… 0` | a cue input | a `1` in the same window for another cue on the **same layer**: dropped, the Take replaces. The last cue the Bridge itself took on that layer is another one (a Take still in flight, or pressed on another channel): dropped. Otherwise it reads which cue is live on the layer (`live_cue`, which the send RPCs mirror onto `control_shows`); this cue: **Out** (`clearCueItems`: `stop`, `cue: null`); another, or none: nothing |
-| `… 1` | the output input | nothing |
-| any | an input of no linked production, or any other activator (`Input`, `InputPreview`, `InputPlaying`, `Fullscreen`, `MasterVolume` …) | nothing |
-
-- A press is a press whatever pressed it: the button, a shortcut, a trigger, the Web Controller or
-  the Bridge's own `OverlayInput<N>In` for the output. The adapter does not check that the output
-  is on its overlay before a Take: the press means take, and the operator sees in vMix whether
-  the output is up.
-- **Opening a preset** sends a burst (`InputPlaying <n> 0` for every input, `Fullscreen 0`,
-  `MasterVolume 1`, `MasterHeadphones 1`, measured). Overlay lines inside that burst are state,
-  not presses, and air nothing. A preset saved with inputs on overlays does send them: `ACTS OK
-  Overlay3 1 1` and `Overlay4 2 1` came about a second after the burst's first line, after
-  `MasterHeadphones` and after the open's own `FUNCTION OK` (measured), so a 50 ms window does
-  not hold them. The XML's `<preset>` names the file opened, which tells a new preset from a press.
-- The take is **the hosted page's**: the same items, through the send RPC the resolve names
-  (`control_send_seq` with a sender body when the production answers `seq`, else
-  `control_send_many`), so the production page, a phone and the output's recovery see it as a
-  take from one more operator surface. A send that fails airs nowhere and is logged once; a send
-  whose answer never came (3 s) is not repeated.
-- **Latency:** the line arrives about 2 ms after the press (measured); the send and the output's
-  Realtime road are the rest. A take from the control page was drawing in vMix within about 0.4 s
-  (measured); AC-7 measures the press.
-- A toggle off or `OverlayInput<N>Out` reports its 0 when the channel's transition ends, about
-  510 ms later with the default 500 ms (measured); `Off` and `AllOff` at once. The guide says:
-  give the cue channels a Cut transition, so an Out starts at the press.
-
-### Session, failure and reconnect
-
-- **One connection, kept open** (derived; the subscription needs it). It is opened by the first
-  request that needs it (a read that finds it closed opens a new one and reads again, since a read
-  is safe to repeat) or, while a link exists, by the Bridge itself at start and after a loss,
-  with a backoff of 1 s doubling to 10 s. This is the Bridge's first timer that contacts a server
-  without the page asking; it exists only while a production is linked and sends `SUBSCRIBE ACTS`
-  and nothing else.
-- **Nothing airs by itself.** A reconnect subscribes and reads nothing back as a press: overlays
-  pressed while vMix was closed or the Bridge was down are not replayed, and the Bridge's own
-  state (`/state`) says what each channel holds so the operator can press again. No take, In or
-  Out is ever repeated.
-- A `FUNCTION` whose answer never came (3 s, or the connection dropped) is `uncertain` and never
-  retried. Reads are `unreachable`. Each verb has one 7 s budget for all its commands.
-- **vMix closes:** the connection ends, state reads `not-running`, and the next request or the
-  backoff reconnects. The link survives; the inputs are vMix's to keep (they are in its preset).
-- The generation and instance per slot are kept as `slots.ts` keeps them, so a reading taken
-  before a Take never undoes it on screen.
-
-### Security
-
-- The control slug is a full operator capability that cannot be rotated (`docs/CLOUD_PLAYOUT.md`
-  §7, migration 0040). It lives in `vmix-links.json` in the Bridge's per-user config directory
-  beside the token, arrives over the paired channel or standard input, and appears in no reply,
-  log line, URL or argument. Unlink forgets it. The owner may prefer the alternative recorded in
-  `research/vmix-inside-vmix.md` §3: the Bridge only reports presses and a paired page sends the
-  take, which keeps the capability out of the Bridge but makes every press depend on a page
-  staying open and awake.
-- vMix's TCP API has no authentication; whether it listens beyond loopback is vMix's setting. The
-  Bridge connects to `127.0.0.1` only.
-- The backend address and anon key the page hands over are the public ones every page load
-  carries; they let the Bridge call the same RPCs with the same checks.
-- The Bridge's own properties (loopback, token, origin allowlist, no DNS rebinding) are unchanged.
-
-Preserved: every CasparCG, OGraf and OBS route and reply; the output URL in vMix with no Bridge
-behaves exactly as today; taking cues from the production page, the control link or a phone keeps
-working with the Bridge linked, and vMix's buttons then simply do not follow (non-goal below).
-
-Non-goals: mirroring NoaCG's state back onto vMix's buttons (slice 3 in #760: a take from a phone
-lights its cue input; needs the Bridge to follow the log and to ignore its own echoes); vMix on
-another computer; Update, Next or text edits from vMix (text is edited in NoaCG); the exported
-overlay or show package in vMix, triggers and `BrowserReload`; VB.NET scripts; vMix's own titles or
-clips as rundown cues; Basic HD cue inputs (one channel, four inputs); the hosted control page as
-a Web Browser input (a guide paragraph, measured to render); Companion and Stream Deck
-([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809)); setting the output input's size by API.
-
-### Decisions (derived)
-
-1. The Bridge holds the production's control link, received over the paired channel, so a press
-   becomes a take with no page open; the alternative stands recorded above.
-2. One kept TCP connection with a bounded reconnect while a link exists; the HTTP API is not used.
-3. Cue inputs are transparent images the Bridge makes and names, mapped by vMix input key and
-   re-found by the name it gave them when a key is gone; the adapter never removes an input it
-   did not make.
-4. Lines are handled per 50 ms window from one `XML` read. A cue input's 0 is an Out only when its
-   cue is still live on its layer and the Bridge itself took no other cue there since; a 0 with a
-   1 for the same layer in its window is a replace; the output's 0 clears every layer once and
-   drops the cue 0s that come with it.
-5. Put on air is `OverlayInput<N>In` of the output input on the channel in Settings and nothing
-   else; Take off and clear act only when that channel holds the output; the adapter never changes
-   Program, Preview, a transition or any vMix setting.
-6. A press on any channel counts; the per-layer channel suggestion is guidance for the tally.
+## Acceptance criteria
 
 ### AC-1: The Bridge finds vMix on this computer
 
@@ -265,96 +394,281 @@ and edition; nothing listening is `not-running`, a port that greets wrongly is `
 3 s; `overlays` is 8 for a vMix 29, 4 for a 28 and 1 for Basic HD; `--vmix-port` is honoured;
 `/health` lists `vmix`.
 
-### AC-2: Pairing connects to vMix by itself
+### AC-2: Settings and pairing know vMix
 
-After pairing with vMix running, the pairing page says it is connected to that vMix version with no
-further press and Settings > Playout shows the vMix section with the output's overlay channel
-defaulting to the highest one; with vMix closed it says the `not-running` sentence and connects on
-**Try again** once vMix is started.
+With a Bridge that lists `vmix`: Settings > Playout shows the vMix section with the connection
+line, or the `not-running` / `not-vmix` sentence and **Try again**, which connects once vMix
+answers; the NoaCG output channel offers 1 to the vMix's count, defaults to the highest, and a
+choice survives a reload; the pairing page says it is connected to that vMix. With a Bridge that
+does not list `vmix`, nothing about vMix appears anywhere.
 
-### AC-3: Put on air and Take off drive the output input
+### AC-3: Load and Unload drive the output input
 
-Put on air creates `NoaCG <title>` as a Browser input on the output URL (or reuses one of that
-name) and puts it on the chosen overlay by key; Take off takes it off with the channel's
-transition, and sends nothing when the channel holds another input or none; a name held by
-another kind of input is refused with nothing changed; Program and Preview are never addressed;
-every function that takes an input names it by key.
+Load (the adapter's Put on air) creates `NoaCG <title>` as a Browser input on the output URL (or
+reuses the one the Bridge made for this address, by the key it kept) and puts it on the chosen
+overlay by key; Unload (Take off) takes it off with the channel's transition, and sends nothing
+when the channel holds another input or none; Program and Preview are never addressed; every
+function that takes an input names it by key. Two productions with one title get two inputs
+(`(2)` on the second); a production renamed while loaded still unloads, and its input takes the
+new name; an input the Bridge did not make for this address is never reused; a kept key vMix no
+longer lists is forgotten and the input made again.
 
-### AC-4: Set up in vMix links the production and makes its cue inputs
+### AC-4: Load and Unload on the production
 
-`/vmix/link` resolves the production, adds one transparent image input per cue named after it,
-adds or reuses the output input, writes the link beside the token and answers title, id and cue
-count; linking again adds, renames and removes only the Bridge's own inputs; `/vmix/links` and the
-log never carry the slug; `/vmix/unlink` forgets it and removes nothing; a link on standard input
-works with no page; `/health` lists `vmix-link`.
+On a production with **vMix via Bridge** on, **Load** sends one `take` of the output URL named
+`vMix Overlay <n>` with the production's title as `label` on `{ adapter: 'vmix', overlay: n }`;
+the row then reads on air from `/state`; **Unload** sends `out` with the same item; a channel
+holding another input asks before replacing it and sends nothing on Cancel; a Bridge error with a
+`setup` shows its sentence; the switch is off until the operator turns it on or the production has
+vMix cues, and the older `vmix` output profile does not turn it on; first publish loads only when
+the operator switched vMix on; every CasparCG journey in `e2e/bridge-connect.spec.ts` passes
+unchanged.
 
-### AC-5: An overlay press takes its cue and the next press plays it out
+### AC-5: A Bridge release carries each usable step
 
-Against the fake vMix server and the local stack (an e2e spec beside `e2e/bridge-ograf.spec.ts`):
-a `1` on a cue input puts that cue on air on the production's output page with the published
-values; its `0` takes it out; a `0` and a `1` for two cues of one layer in the same millisecond
-replace without an Out; a `0` for a cue another cue has replaced, from any surface or by the
-Bridge's own Take still in flight, changes nothing; the output input's `0` with every cue's `0`
-at once (`AllOff`) clears each live layer exactly once and its `1` nothing; a burst of lines costs
-one `XML` read; lines for unlinked inputs, other activators and the preset-open burst air nothing.
+Each of phases V1, V4 and V5 lands a `cli/BRIDGE_CHANGELOG.md` section for a version the release
+workflow accepts, written for the operator (what was missing, what it does now, what to do), and
+the release workflow publishes that version's exe; `docs/BRIDGE.md` describes the vMix adapter as
+built so far. V1 releases 0.12.0: its output identity changes the Bridge, and npm already
+shipped 0.11.0; its section covers every Bridge change since 0.9.0, which is the vMix adapter. Every
+version is bumped the way `Release @noacg/cli 0.11.0` (`2128d984d`) did, every file it
+touched, with a `cli/CHANGELOG.md` section (`cli/test/release-notes.test.mjs` requires one).
 
-### AC-6: Failure and reconnect never air anything
+### AC-6: Failure never airs anything twice
 
-A dropped connection mid-send answers `uncertain` and nothing is resent; the reconnect sends
-`SUBSCRIBE ACTS` and no function; overlays changed while disconnected are not replayed; a send the
-backend refuses airs nothing and is logged once; vMix closing reads `not-running` until it is
-back; `update`, `next`, `template`, `media`, `pause`, `resume` and `thumbnail` are refused before
-anything is sent; one connection serves every `/state` and every press.
+A dropped connection mid-function answers `uncertain` and nothing is resent; a function with no
+answer is `uncertain`; `FUNCTION ER` is `refused` with vMix's words; vMix closing reads
+`not-running` until it is back; a verb vMix cannot honour (`update`, `next`, `template`, a fade, a
+trim, a thumbnail) is refused before anything is sent; one connection serves every request.
 
-### AC-7: A real vMix round
+### AC-7: The clips player plays what NoaCG takes
 
-On the trial's vMix 29, the built Bridge, linked from the production page, makes the inputs; the
-output goes on air from the page; pressing Overlay on a cue input animates that cue in inside the
-output, measured from the press to the first changed frame over five presses; pressing it again
-animates it out; pressing another cue of the same layer replaces it; `OverlayInputAllOff` clears,
-and putting the output back brings nothing back. The checks below are answered in
-`docs/VMIX_ON_A_REAL_HOST.md`.
+Against the fake vMix with a Video List model: a media Take on `{ player: 'clips' }` makes
+`NoaCG Clips` once (an empty Video List, named, Auto Play, Pause, Restart and Play Next off) and
+reuses it by key, then by `shortTitle`; every Take sets `LoopOn` or `LoopOff` and
+`AutoPlayNextOff`, adds the file joined to the media folder, selects it, sends `Play`, answers
+only once the XML shows that item running, and then removes the items before it; a Hold after a
+Loop sends `LoopOff`; Pause and Resume; the `ending` verb switches Loop and Hold; Out, Clear and
+All out send `Pause` and `ListRemoveAll`; a missing file is refused with vMix's `File Not Found`
+and its path; Basic HD refuses with the edition named; `/state` reports the player as a
+`SlotState` with `player`, the file, position and length in seconds, paused, loop, instance, cueId
+and generation; every `Input=` is a key; Program, Preview and transitions are never addressed. On
+the real vMix 29: the same Take, Loop, Hold, Pause and Out, and a Take while a clip plays, with
+input snapshots showing the clip, its last frame, the replacement without a black frame (or the
+fallback recorded) and black after Out, in the phase's evidence.
 
-### AC-8: A Bridge release carries it
+### AC-8: The Bridge lists one media folder
 
-`cli/package.json` and `cli/BRIDGE_CHANGELOG.md` name the release; `docs/BRIDGE.md` has the vMix
-adapter table, the kept connection and the link in §3's "Nearly stateless" row;
-`docs/PLAYOUT_INTEGRATION.md` §5 and the website's vMix guide describe the overlay-press route,
-the Cut transition for cue channels and the channel plan; the release workflow publishes the exe.
+`/list media` with a vmix target lists the media folder's subfolders and its movie, still and
+audio files (by extension), one level at a time with `path`, with the length read from MP4, MOV
+and WAV headers; a `path` with `..`, an absolute path, a drive letter or a link leading outside the
+folder is refused; `/studio` keeps the folder per vMix port across a Bridge restart, defaulting to
+the user's Videos folder; nothing outside the folder is ever listed or played.
 
-## Measured so far, and what still needs a real vMix
+### AC-9: vMix clip cues in the rundown
 
-**Measured on vMix 29.0.0.49 on 2026-10-12** (`docs/VMIX_ON_A_REAL_HOST.md` §3, and the first
-slice's own runs, `evidence/slice-1.md`): `SUBSCRIBE ACTS`
-reports `ACTS OK Overlay2 <input number> 1` about 2 ms after the press; a replace on the same
-channel sends the old input's `0` and the new input's `1` in the same millisecond; a toggle off or
-`OverlayInput<N>Out` reports `0` about 510 ms later, when the 500 ms transition ends, `Off` and
-`AllOff` at once; inputs are reported by number, not key; keys survive `SavePreset` and
-`OpenPreset` within one vMix session; a transparent PNG image on an overlay leaves Program
-byte-identical; higher overlay channels draw on top (8 over 2 over 1); `AddInput Value=Browser|<url>`
-makes a Web Browser input; the state XML on vMix 29 lists 16 `<overlay>` elements; opening a preset
-sends the `InputPlaying`, `Fullscreen`, `MasterVolume` and `MasterHeadphones` burst; the engine is
-Chrome 115; the hosted control page renders in a Web Browser input. Over the TCP API: the greeting
-`VERSION OK 29.0.0.49` about 20 ms after connecting; `XML <n>` where `n` counts the body's UTF-8
-bytes, the body ending in `\r\n`; `ACTS` lines arrive between replies, before or after the
-`FUNCTION OK` of the call that caused them, never inside an XML body; `FUNCTION OK Completed` for an
-unknown function and for a key no input has; an unknown command is `<COMMAND> ER Unknown Command`;
-`OverlayInput<N>Out` and `Off` ignore an `Input=` and take what the channel holds; keys survive a
-preset saved in one vMix session and opened in the next; a Web Browser input is type `Browser` and
-loads the whole URL, `&name=` included, when the value is URL-encoded; a blank session's two `Blank`
-inputs are replaced by the first inputs added.
+With the vMix switch on and a Bridge with `vmix-media`: **From vMix…** browses the media folder
+and adds cues as vMix items (`layer` 0, no channel); the cue editor shows **NoaCG Clips** or
+**NoaCG Audio** instead of channel and layer; Take, Out, Pause and Resume send the vMix target and
+player slot; controls for capabilities vMix does not list (fade, trim, image fit) are absent or
+disabled with the reason; Settings shows the media folder and changes it through `/studio`;
+CasparCG cues in the same rundown send exactly what they did.
 
-**Still needs a real vMix**, each kept behind a small function so the answer changes one place:
+### AC-10: The clip clock and a reload
 
-1. Answered (above): the greeting.
-2. Answered (above): the answers, the length prefix, and `ACTS` lines between replies.
-3. Answered for a preset saved in one session and opened in the next: the keys stayed. A vMix
-   restart opens a blank session, so the keys after it are those of the preset the operator opens.
-4. A Cut (0 ms) overlay transition reports its `0` at the press.
-5. Answered (above): it does, about a second after the burst.
-6. Answered (above), but for the cue input's thumbnail in the input bar.
-7. Enhanced security on with a Web Controller password: the TCP API still answers a local client.
-8. The `edition` string in the XML for Basic HD, and that vMix 28 offers four channels and 29
-   eight, which the `overlays` function encodes.
-9. The Browser input's size when the production's resolution differs from vMix's output.
-10. Press-to-animation delay through the Bridge (AC-7).
+From the fake Bridge's vMix `/state`: the page polls the players its cues use, the clip clock
+counts down a vMix clip, the row says on air and `replaced` when the player holds what this
+Bridge did not start, and a reload puts the playing clip back on its cue by its instance; a
+reading older than the last accepted action is ignored, as for CasparCG.
+
+### AC-11: Play next, folders, Clear at the end, stills and audio
+
+Against the fake vMix: Play next and a Play-through folder add every entry in order with
+`AutoPlayNextOn` and play the first, and `/state` names the entry on air and the ones to come; an
+entry of unknown length may join a vMix sequence; a Clear at the end sends `ListRemoveAll` once the
+Bridge's own take reads `Completed`; a command the Bridge sends by itself (a Clear at the end, a
+sequence step) is dropped unsent once the player's generation has moved; a still plays in
+`NoaCG Clips`; an audio file plays in `NoaCG Audio`, made with `AudioAutoOff` and `AudioOn`,
+without touching `NoaCG Clips`; level sends `SetVolume` by the measured curve or is refused with
+the reason. On the real vMix 29: a three-file folder plays through, the Loop the folder behaviour
+is measured and the spec updated, an audio file is heard on the master while a camera is on
+Program, and the `SetVolume` curve is recorded.
+
+### AC-12: A real vMix round
+
+On the trial's vMix 29, with the released Bridge exe and the production page: a production with
+three graphics on its overlay, two clips, a still, a sting and a Play-through folder is loaded,
+operated (take, update, out of graphics; take, loop, hold, out of clips while vMix cuts to
+`NoaCG Clips`; the sting over a camera) and unloaded, and the record in
+`docs/VMIX_ON_A_REAL_HOST.md` §8 says what was seen in vMix's snapshots, with vMix's files restored
+byte for byte.
+
+### AC-13: The operator's guide says how
+
+`docs/PLAYOUT_INTEGRATION.md` §5 and the website's vMix guide (`docs.html`) describe Load and
+Unload from NoaCG, the overlay choice, the players and the vMix operator's cut to them, the media
+folder, and what vMix cannot do here (fades, trim, Basic HD clips); `docs/GOALS.md` outcome 5's
+current state names vMix; issue #760 has a summary comment with what remains (Later).
+
+## Phases
+
+Each phase is one pull request, runs `/check` and lands with `/queue-merge`; the builder adds the
+next phase's notes under `## Phase notes`. `plan-run` numbers the phases 1 to 6; phase n is Vn,
+and evidence files are `evidence/phase-vN.md`. A phase marked **real vMix** has its builder run
+vMix 29 on this laptop by the procedure in "What a fake vMix proves"; the owner is asked nothing.
+A checker re-runs the fake-based tests and the e2e journeys and reads the builder's real-vMix
+evidence; it starts vMix itself only when that evidence is missing or contradicts the code.
+
+1. **V1. Load and Unload on vMix, and the first Bridge download** (AC-2, AC-3's output identity, AC-4,
+   AC-5; the review also records AC-1 and AC-3 from `evidence/slice-1.md`; **real vMix**: whether
+   the XML names a Browser input's address, then the built exe with Load and Unload from the dev
+   server's production page and the snapshot of Program with the output on Overlay 8).
+   Files: `src/control/playoutLink.ts` (requests with an explicit target and slot, `adapters` from
+   `/health`, `vmix` settings), a new pure `src/control/vmixPlayout.ts` (the default channel, the
+   setup sentences, the row's words) with `scripts/vmix-playout.test.mjs`,
+   `src/components/PlayoutSettingsPanel.tsx` with a new `VmixSettingsSection.tsx`,
+   `src/components/home/PlayoutPanel.tsx` (`VmixSection`), `src/components/home/ProductionPage.tsx`
+   (wiring only, no new logic), `src/model/outputSetup.ts` (`vmix?` and its switch rule),
+   `src/components/BridgePairPage.tsx`, `src/control/playoutStatus.ts`, `e2e/_fakeBridge.ts` and
+   the vMix journeys in `e2e/bridge-connect.spec.ts`, `cli/src/playout/adapters/vmix.ts`,
+   a new `cli/src/playout/vmixOutputs.ts` (the kept keys), `cli/test/_fakeVmix.mjs` and
+   `cli/test/vmix.test.mjs` (the output identity only),
+   `cli/BRIDGE_CHANGELOG.md` and the version bump of AC-5, `docs/BRIDGE.md` (the vMix adapter table),
+   `docs/PLAYOUT_INTEGRATION.md` §5 (Load from NoaCG), `evidence/phase-v1.md`.
+2. **V2. The clips player and the media folder in the Bridge** (AC-6, AC-7, AC-8; **real vMix**:
+   Take, a Take over a playing clip, Loop, Hold, Pause, Out with input snapshots; a UNC path if a
+   share is reachable, else recorded as not tried). Stops before starting if owner decision 1 or
+   2 is open.
+   Files: `cli/src/playout/adapters/vmix.ts` (with a new `vmixPlayers.ts` if it passes 500
+   lines), `cli/src/playout/vmixTcp.ts` (list items, `shortTitle`, `state`, `position`,
+   `duration`, `selectedIndex`), a new `cli/src/playout/vmixMedia.ts` (the folder, the listing,
+   the length headers, the path rules), `cli/src/playout/server.ts` (`/list`, `/studio`, `/state`
+   for vmix), `cli/src/playout/slots.ts` (player keys), `cli/src/playout/protocol.ts` and its
+   mirror `src/control/playoutProtocol.ts`, `src/control/playoutSlots.ts` (`slotAddress` and
+   `compareSlots` for a player slot, which the protocol change reaches), `cli/test/_fakeVmix.mjs`
+   (the Video List model), `cli/test/vmix.test.mjs`, a new `cli/test/vmix-media.test.mjs`,
+   `evidence/phase-v2.md`. No release: nothing in the studio uses it yet.
+3. **V3. vMix clip cues in the rundown** (AC-9). Files: `src/model/shows.ts`
+   (`PlayoutItem.adapter` `'casparcg' | 'vmix'`, additive), `src/components/home/PlayoutItemPicker.tsx`
+   and `CueRundown.tsx` (From vMix…), `src/components/home/ServerCueEditor.tsx` (where it plays),
+   `src/control/serverPlayout.ts` and `src/control/playoutLink.ts` (the item's target and slot
+   from its adapter), `src/control/cuePlayback.ts` (the capability gating for vMix),
+   `src/components/home/ProductionPage.tsx` (wiring only), the media folder line in
+   `VmixSettingsSection.tsx`, `e2e/_fakeBridge.ts` and a vMix journey in `e2e/playout-cues.spec.ts`,
+   `evidence/phase-v3.md`. No release: without the clock (V4) a vMix clip is not yet usable on air.
+4. **V4. The clip clock, the reload, and the second download** (AC-5, AC-10). Files:
+   `src/control/serverState.ts` (`applyReading` and the slot it builds, keyed by player for vMix),
+   `src/control/serverPlayout.ts` (`pollServerState` by target), the state poll in
+   `src/components/home/ProductionPage.tsx` (which picks channels from `itemSlot().channel` today:
+   move the choice into `control/`), `src/control/playoutLink.ts` (`readState` for a vmix target),
+   `e2e/_fakeBridge.ts` and a vMix journey in `e2e/playout-clock.spec.ts`, `cli/BRIDGE_CHANGELOG.md`
+   and the version bump of AC-5, `docs/BRIDGE.md`, `evidence/phase-v4.md`.
+5. **V5. Play next, folders, Clear at the end, stills, audio and level, and the third download**
+   (AC-5, AC-11; **real vMix**: a folder plays through, Loop the folder measured, the sting heard
+   over a camera, the `SetVolume` curve). Stops before starting if owner decision 3 is open.
+   Files: `cli/src/playout/adapters/vmix.ts` or `vmixPlayers.ts`, `cli/src/playout/runner.ts` (it
+   ends every sequence not on a CasparCG slot today: a vMix branch, or a small vMix runner beside
+   it, reading the player four times a second for a Clear at the end and a sequence),
+   `cli/test/_fakeVmix.mjs`, `cli/test/vmix.test.mjs`, `src/control/serverPlayout.ts`
+   (`sequenceMembers`: an entry of unknown length may join a vMix sequence) and
+   `src/control/cuePlayback.ts`, vMix journeys in `e2e/playout-sequence.spec.ts` and
+   `e2e/playout-folders.spec.ts`, `cli/BRIDGE_CHANGELOG.md` and the version bump of AC-5,
+   `docs/BRIDGE.md`, `evidence/phase-v5.md`.
+6. **V6. The full round and the operator's guide** (AC-12, AC-13; **real vMix**: the round of
+   AC-12 with the released exe). Files: `docs/VMIX_ON_A_REAL_HOST.md` §8,
+   `docs/PLAYOUT_INTEGRATION.md` §5, `docs.html` (the vMix guide), `docs/GOALS.md` (outcome 5's
+   current state, one sentence), `evidence/phase-v6.md`, and the summary comment on issue #760.
+   No product code; a defect found becomes a fix in this phase only when small and contained,
+   otherwise an issue.
+
+## Readiness
+
+Before V1: this spec and `work.json` on `main`, the "Runnable plans" line present, `origin/main`
+green, the owner's window supplied, and vMix 29 trial installed on this laptop (it is, 29.0.0.49,
+trial ending about 2026-11-28). Before V2 and V5: the owner decisions they depend on answered.
+Before V6: the V5 Bridge release published. Every real-vMix step: vMix not already running (if it
+is, the owner is using it: wait, never close it), ffmpeg present for test media (`C:\ffmpeg`).
+
+## Execution settings and how the owner starts this plan
+
+`/plan-run vmix`, sequential, `wave-row` (Opus, high) builders; checkers in fresh sessions. The
+start template:
+
+```
+/plan-run vmix until <date and time with UTC offset>
+```
+
+**Estimate:** about 3 hours for each of V1, V2 and V5 (real vMix and a release), 2 to 3 hours for
+V3 and V4, and 2 hours for V6, each with its check: 15 to 18 hours of run time, so one window of
+about 20 hours, or two evenings. It must finish before the trial ends (about 2026-11-28).
+
+## What the plan can demonstrate, and what stays uncertain
+
+Demonstrable: Load and Unload of the output on vMix from the production page; clips, stills and
+audio from the rundown in vMix inputs the vMix operator cuts to, with Hold, Loop, Clear, Play next
+and folders; every wire proven against the fake vMix and every picture on vMix 29. Uncertain:
+vMix 28 and Basic HD (documented only); first-frame delay of large files on slower machines; the
+operator's own presets saved with the players in them (keys survived a preset within and across
+sessions for images, measured; not yet for lists).
+
+## Later (not planned, door kept open)
+
+Driving NoaCG from vMix's own buttons (item 4). The 2026-10-12 revision designed it: a transparent
+image **cue input** per cue, `SUBSCRIBE ACTS` on the kept connection, a press read as a Take
+through the production's command log, with the Bridge holding the production's control link
+(`git show edea69c72:docs/work-specs/bridge-vmix-adapter/spec.md`, "The production link the Bridge
+holds" to "Decisions"). Nothing in this plan closes it: inputs are found by key, the connection is
+one per vMix and can subscribe, the players and the output are inputs vMix buttons can already
+press, and the slot shape has room for another kind. Its measured facts stay below. Also later:
+mirroring NoaCG's state onto vMix's buttons, Companion
+([issue #809](https://github.com/NoaCG/NoaCG-Studio/issues/809)), a second output page per overlay
+([issue #767](https://github.com/NoaCG/NoaCG-Studio/issues/767)), fades and trim, thumbnails of vMix
+media, setting the Browser input's size by API.
+
+## Measured so far
+
+**On vMix 29.0.0.49, 2026-10-12** (`docs/VMIX_ON_A_REAL_HOST.md` §3 and §7, `evidence/slice-1.md`):
+the greeting `VERSION OK 29.0.0.49` about 20 ms after connecting; `XML <n>` counts the body's
+UTF-8 bytes, ending `\r\n`; `FUNCTION OK Completed` for an unknown function and for a key no
+input has; an unknown command is `<COMMAND> ER Unknown Command`; parameters are URL-decoded;
+`OverlayInput<N>Out` and `Off` ignore `Input=`; `AddInput Value=Browser|<url>` makes a `Browser`
+input that loads the whole URL; higher overlay channels draw on top (8 over 2 over 1); the XML
+lists 16 `<overlay>` elements; keys survive `SavePreset` and `OpenPreset`, also across sessions;
+vMix's engine is Chrome 115; a blank session's two `Blank` inputs are replaced by the first inputs
+added. For item (4): `SUBSCRIBE ACTS` reports `ACTS OK Overlay<N> <input number> 1` about 2 ms
+after the press, a replace as a `0` and a `1` in the same millisecond, an Out about 510 ms later
+(at the end of a 500 ms transition), `Off` and `AllOff` at once; opening a preset sends an
+`InputPlaying`, `Fullscreen`, `MasterVolume`, `MasterHeadphones` burst, and its overlay lines
+about a second later; a transparent PNG on an overlay leaves Program byte-identical.
+
+**On vMix 29.0.0.49, 2026-10-14** (`evidence/research-2026-10-14.md`): the Video List rows quoted
+in "Research findings" above.
+
+**Still open on a real vMix:** a Cut (0 ms) overlay transition's timing; enhanced security with a
+Web Controller password; the `edition` string of Basic HD and vMix 28's four channels; the Browser
+input's size against a production of another resolution; the list's Loop with Auto Next on; a
+list item's first-frame delay; UNC paths; the `SetVolume` curve; a preset saved with the players.
+
+## Phase notes
+
+Each phase's pull request adds here what the next phase must allow for, newest first: the
+previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found, and
+the check's findings.
+
+### Before V1 (the plan, 2026-10-14)
+
+- The vMix adapter's Put on air (Load) finds the output input by `title` today; V1 makes it the key
+  kept per output address. Players are found by `shortTitle` (a list's `title` changes with its file).
+- `PlayoutSettings` has no `vmix` and `targetOf`/`slotOf` are CasparCG-only; `/health`
+  `adapters` is parsed into `BridgeReply` and read nowhere; `AgentError.setup` is read nowhere in
+  `src/`. Generalise them without changing a CasparCG request byte (the CasparCG journeys in
+  `e2e/bridge-connect.spec.ts` must pass unchanged).
+- The CasparCG per-production buttons are **Load** and **Unload** (`caspar-put-on-air`,
+  `caspar-take-off-air` test ids); give vMix's their own ids (`vmix-load`, `vmix-unload`).
+- `ProductionPage.tsx` is already very large; put vMix state and words in `control/` and the panel
+  component, and keep the page to wiring.
+- From the plan's review: the studio's state path is keyed by CasparCG channel and layer
+  (`serverState.ts` `applyReading`, `playoutSlots.ts`, the page's poll), which is why V4 exists
+  apart from V3; a protocol change to `VmixSlot` reaches `playoutSlots.ts` already in V2.
+- Loop and Auto Next are settings of the list input, not of an item: a Take that does not set both
+  inherits the last cue's.
