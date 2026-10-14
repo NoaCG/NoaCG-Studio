@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "8fb07fbf8b142cb4da8fa918bd93334bad8963eda3656a22dad215eee4f2053e",
+  "specSha256": "76d3c5d9b872b495299d4266dbeb49c140629b111d02de70191213d106638038",
   "authority": {
     "status": "agreed",
-    "source": "owner, 2026-10-14: make vMix a NoaCG playout target through NoaCG Bridge used the way CasparCG is (NoaCG the playout client, vMix the mixer): a vMix connection in Settings > Playout and per-production buttons like the CasparCG ones, graphics on vMix overlay channels mapped with evidence, clips and other inserts as vMix inputs that play files on the vMix computer, driving NoaCG from vMix buttons out of scope; research and plan only, registered as the runnable plan vmix. Also docs/GOALS.md outcome 5 and issue #760 (owner, 2026-09-29). The three owner decisions in the spec are recommendations awaiting his answer; the decisions marked derived are open to his overrule. The 2026-10-12 revision and its slice-1 evidence (AC-1 and AC-3 met) are kept in evidence/slice-1.md."
+    "source": "owner, 2026-10-14: make vMix a NoaCG playout target through NoaCG Bridge used the way CasparCG is (NoaCG the playout client, vMix the mixer): a vMix connection in Settings > Playout and per-production buttons like the CasparCG ones, graphics on vMix overlay channels mapped with evidence, clips and other inserts as vMix inputs that play files on the vMix computer, driving NoaCG from vMix buttons out of scope; research and plan only, registered as the runnable plan vmix. Also docs/GOALS.md outcome 5 and issue #760 (owner, 2026-09-29). The owner answered later on 2026-10-14 (spec, Owner decisions): NoaCG leaves vMix Program alone; the Bridge reads one media folder on the vMix computer; vMix clips get the same controls as CasparCG clips (trim, fades, the end, Play next, folders); a production plays out through one system, CasparCG or vMix, chosen in the playout panel, without breaking CasparCG; the Bridge works for vMix as it does for CasparCG; one exe unless it grows large. The decisions marked derived are open to his overrule. The 2026-10-12 revision and its slice-1 evidence (AC-1 met, and the 2026-10-12 AC-3, now AC-4, in part) are kept in evidence/slice-1.md."
   },
   "review": null
 }
