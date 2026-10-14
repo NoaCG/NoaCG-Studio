@@ -1,8 +1,9 @@
 # Remote MCP connector: adapt and assemble from a chat client
 
-**Status: runnable with `/plan-run remote-mcp`.** Owner, 2026-10-12: build every phase now, in one
-plan run; the connector stays **off in production**, and turning it on is the owner's (the
-"Owner's steps" below). Evidence and the alternatives weighed:
+**Status: live in production since 2026-10-14** ("Launch" in the phase notes); all five phases
+built and checked. Owner, 2026-10-12: build every phase in one plan run and keep the connector off
+in production until the owner turns it on (the "Owner's steps" below), which happened on
+2026-10-14. Evidence and the alternatives weighed:
 [research/2026-10-12-remote-app-mcp.md](research/2026-10-12-remote-app-mcp.md). Narrows the first
 slice of [issue #843](https://github.com/NoaCG/NoaCG-Studio/issues/843).
 
