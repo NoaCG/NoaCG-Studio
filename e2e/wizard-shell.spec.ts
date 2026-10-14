@@ -483,3 +483,20 @@ test('opened for a production that names a brand, the chooser has that brand cho
   await page.locator('[data-entry="template"]').click();
   await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);
 });
+
+test('a design picked again on Browse asks the steps question again', async ({ page }) => {
+  // S2 (spec section 1.3): the steps answer belongs to the design, as on the images walk's
+  // Template step, so a re-pick starts from the new design's own default.
+  await wizard(page);
+  await page.locator('[data-entry="template"]').click();
+  const steps = page.locator('.dlg-check', { hasText: 'Reveal in steps' }).locator('input[type="checkbox"]');
+  await pickDesign(page, 'Clean Steps');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next →' }).click();
+  await expect(steps).toBeChecked();
+  await steps.uncheck();
+
+  await page.locator('.wz-dot', { hasText: 'Browse' }).click();
+  await pickDesign(page, 'Frost Checklist');
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next →' }).click();
+  await expect(steps).toBeChecked();
+});
