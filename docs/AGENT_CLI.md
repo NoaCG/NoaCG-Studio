@@ -518,9 +518,9 @@ Every channel below ships the same one artifact; what differs is which entrance 
 | Channel | What ships | Install |
 |---|---|---|
 | **npm** `@noacg/cli` (`cli/`) | the NoaCG CLI (`dist/`, which is the terminal AND the MCP server), the skill (`skill/` IS `cli/skill/noacg-graphic/`), README, LICENSE | `npx @noacg/cli <cmd>` / `npm i -g @noacg/cli` |
-| **Claude Code plugin** `noacg` (`cli/plugin/`, marketplace `noacg-studio` = root `.claude-plugin/marketplace.json`) | the skill copy and `/noacg:graphic` - NO server; the skill drives the CLI from the terminal | in a session (2.1.275+) `/plugin install noacg --marketplace NoaCG/NoaCG-Studio`; from a shell `claude plugin marketplace add NoaCG/NoaCG-Studio` then `claude plugin install noacg@noacg-studio`; from a clone `claude plugin marketplace add ./`, or for one session `claude --plugin-dir ./cli/plugin` |
+| **Claude Code plugin** `noacg` (`cli/plugin/`, marketplace `noacg-studio` = root `.claude-plugin/marketplace.json`) | the skill copy, named `graphic` so it is `/noacg:graphic` - NO server; the skill drives the CLI from the terminal | in a session (2.1.275+) `/plugin install noacg --marketplace NoaCG/NoaCG-Studio`; from a shell `claude plugin marketplace add NoaCG/NoaCG-Studio` then `claude plugin install noacg@noacg-studio`; from a clone `claude plugin marketplace add ./`, or for one session `claude --plugin-dir ./cli/plugin` |
 | **Claude Code plugin** `noacg-mcp` (`cli/plugin-mcp/`, same marketplace) - OPTIONAL | `.mcp.json` running `node mcp-server.mjs`, the launcher that resolves `@noacg/cli` and imports it in-process (npx in-process as the zero-install fallback) | in a session `/plugin install noacg-mcp --marketplace NoaCG/NoaCG-Studio`; from a shell `claude plugin install noacg-mcp@noacg-studio`; for one session `--plugin-dir ./cli/plugin-mcp` with `NOACG_CLI=<checkout>/cli/dist/index.js` |
-| **Codex** (`.codex-plugin/plugin.json` in each plugin directory, the same `skills/`, the same root marketplace) | the whole plugin directory: the skill copy and the command (`noacg`), or `.mcp.json` (`noacg-mcp`) | `codex plugin marketplace add NoaCG/NoaCG-Studio` then `codex plugin add noacg@noacg-studio` (and `noacg-mcp@noacg-studio` for the server) |
+| **Codex** (`.codex-plugin/plugin.json` in each plugin directory, the same `skills/`, the same root marketplace) | the whole plugin directory: the skill copy (`noacg`), or `.mcp.json` (`noacg-mcp`) | `codex plugin marketplace add NoaCG/NoaCG-Studio` then `codex plugin add noacg@noacg-studio` (and `noacg-mcp@noacg-studio` for the server) |
 | **In-repo dogfooding** | the thin adapter triple (`.agent-workflows/noacg-graphic.md`, `.claude/skills/`, `.agents/skills/`) - POINTERS at the source | already there |
 
 **Two hand-kept copies of the install lines exist outside `build-skill.mjs`'s reach** - the docs
@@ -574,7 +574,7 @@ be minimal and only used when they are creating graphics", and later the same da
 NoaCG should not noticeably consume or pollute a user's context window during normal Claude Code
 work. If it does, that will eventually become a reason for people to uninstall it." A plugin that
 declares an MCP server costs an unrelated session in two currencies, and they are different
-problems: **context** (every tool's schema, the skill's description and the command's description
+problems: **context** (every tool's schema, the skill's description (and a command's, while the plugin had one)
 sit in the system prompt of every session where the plugin is enabled, read on every turn) and
 **RAM** (the server process starts at session start and stays for the life of the session).
 
@@ -615,6 +615,10 @@ Since then the one tool has grown with its verbs. Measured 2026-10-02 the same w
 `tools/list` object, in characters): 2,771 with `pack`, and 3,109 once `screenshot` took `events`,
 `at` and `background` and `validate` took `background`, about 750 tokens at the ratio measured
 above (not re-tokenized). The ceiling in `cli/test/mcp.test.mjs` moved from 2,800 to 3,400 with it.
+
+On 2026-10-14 the command went: the plugin's skill copy is named `graphic`, which Claude Code
+lists as `/noacg:graphic`, and its description went from 483 to 254 characters with the triggers
+kept. One listing entry instead of two; the ceiling is pinned in `cli/test/unit.test.mjs`.
 
 **What changed, and why the split rather than a lazy start.** The seven tools became one
 (`cli/src/mcp.ts`; every description one line about dispatch, a character ceiling on the rendered

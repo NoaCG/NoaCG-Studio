@@ -1,5 +1,5 @@
 // gate: build
-// guards: cli/scripts/toolkit-distribution.mjs, cli/scripts/build-skill.mjs, cli/plugin/**, cli/plugin-mcp/**, cli/skill/**, cli/NOTICE, cli/LICENSE, cli/package.json, cli/package-lock.json, cli/src/mcp.ts, .github/workflows/release-cli.yml
+// guards: cli/scripts/toolkit-distribution.mjs, cli/scripts/plugin-skill.mjs, cli/scripts/build-skill.mjs, cli/plugin/**, cli/plugin-mcp/**, cli/skill/**, cli/NOTICE, cli/LICENSE, cli/package.json, cli/package-lock.json, cli/src/mcp.ts, .github/workflows/release-cli.yml
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -29,7 +29,8 @@ test('every independent ZIP extracts with verified CRCs and canonical bytes', as
     for (const [name, expected] of files) assert.deepEqual(await archive.file(name).async('nodebuffer'), expected, `${kind}: ${name}`);
   }
   assert.ok(!result.packages.codex.has('.claude-plugin/plugin.json'));
-  assert.ok(!result.packages.codex.has('commands/graphic.md'));
+  assert.ok(![...result.packages.claude.keys()].some((p) => p.startsWith('commands/')));
+  assert.match(result.packages.claude.get('skills/noacg-graphic/SKILL.md').toString(), /^---\nname: graphic\n/);
   assert.ok(!result.packages.codex.has('.mcp.json'));
   assert.ok(![...result.packages.repository.keys()].some((p) => /(^|\/)(src|research|benchmarks|node_modules|\.gitattributes)\//.test(p)));
 });
@@ -115,7 +116,7 @@ test('repository compressed, unpacked and entry boundaries are rejected independ
 
 test('source/generated skill drift is caught before packaging', (t) => {
   const dir=scratch(t);
-  for (const file of ['cli/package.json','cli/package-lock.json','cli/LICENSE','cli/NOTICE','cli/scripts/toolkit-distribution.mjs','.claude-plugin','cli/plugin','cli/plugin-mcp','cli/skill']) {
+  for (const file of ['cli/package.json','cli/package-lock.json','cli/LICENSE','cli/NOTICE','cli/scripts/toolkit-distribution.mjs','cli/scripts/plugin-skill.mjs','.claude-plugin','cli/plugin','cli/plugin-mcp','cli/skill']) {
     mkdirSync(path.dirname(path.join(dir,file)), {recursive:true});
     cpSync(path.join(ROOT,file), path.join(dir,file), {recursive:true});
   }

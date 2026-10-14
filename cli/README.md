@@ -15,7 +15,7 @@ agent uses -
 
 | Entrance | For | Install |
 |---|---|---|
-| **the plugin** | Claude Code, Codex | two commands, below - it brings the skill and a command, and runs nothing until a graphic is being made; the optional `noacg-mcp` plugin adds the always-on MCP server |
+| **the plugin** | Claude Code, Codex | two commands, below - it brings the skill (`/noacg:graphic` in Claude Code) and runs nothing until a graphic is being made; the optional `noacg-mcp` plugin adds the always-on MCP server |
 | **the MCP server** | any MCP client | `npx -y @noacg/cli mcp` over stdio |
 | **the terminal** | an agent that runs shell commands, and you | `npm i -g @noacg/cli` |
 
@@ -68,8 +68,8 @@ npx @noacg/cli doctor                 # no install: runs the published build
 npm i -g @noacg/cli                   # or install it once
 ```
 
-**Claude Code**: the `noacg` plugin ships the `noacg-graphic` skill and a `/noacg:graphic`
-command, with nothing to install first; the skill runs this CLI from the terminal. The optional
+**Claude Code**: the `noacg` plugin ships the skill as `/noacg:graphic`, with nothing to
+install first; the skill runs this CLI from the terminal. The optional
 `noacg-mcp` plugin adds the always-on MCP server (`cli/plugin-mcp/README.md` says what it costs).
 In a Claude Code session (2.1.275 or later), one command adds the marketplace, asks you to
 confirm it, and installs:
@@ -107,7 +107,7 @@ The same goes for Codex, in its own spelling: `codex plugin marketplace upgrade 
 codex plugin add noacg@noacg-studio`.
 
 On a Codex without `codex plugin`, do it the long way instead: copy `skill/noacg-graphic/` from
-this package (or `cli/plugin/skills/noacg-graphic/` in the repo) to `~/.codex/skills/noacg-graphic/`,
+this package to `~/.codex/skills/noacg-graphic/`,
 then `codex mcp add noacg -- npx -y @noacg/cli mcp`.
 
 **Any MCP client**: run `npx -y @noacg/cli mcp` as a stdio server - command `npx`, args

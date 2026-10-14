@@ -5,7 +5,7 @@ and full-screen graphics. Validate and capture them locally, then save to your N
 or hand off an offline package. The user operates them separately in NoaCG Playout or exports
 them for CasparCG, OBS, vMix, SPX, H2R or an OGraf renderer.
 
-This is the lazy local plugin: one skill and a Claude Code command. It runs no process until
+This is the lazy local plugin: one skill, `/noacg:graphic` in Claude Code. It runs no process until
 an agent uses it. Claude Code, local Codex and local agents with a terminal can run this workflow.
 Ordinary Claude Chat cannot run the local CLI. Installation supplies knowledge, not Node,
 a browser, account access or live hardware authority.

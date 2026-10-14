@@ -21,6 +21,7 @@ on:
       - 'cli/plugin-mcp/**'
       - 'cli/scripts/build-skill.mjs'
       - 'cli/scripts/toolkit-distribution.mjs'
+      - 'cli/scripts/plugin-skill.mjs'
       - 'cli/scripts/publish-toolkit-distribution.mjs'
       - 'cli/package.json'
       - 'cli/package-lock.json'

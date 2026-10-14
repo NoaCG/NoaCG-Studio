@@ -1,12 +1,9 @@
 ---
 name: noacg-graphic
 description: >-
-  Make, critique or improve a broadcast graphic - or a whole graphics package for a show - for
-  NoaCG Studio (lower third, scoreboard, bug, ticker, countdown, full-screen, any on-air graphic)
-  and put it in the user's NoaCG library or on Home ready to install as a production. Use when
-  the user says "for NoaCG", names NoaCG, SPX, CasparCG or OGraf playout, or wants graphics
-  operated live (editable fields, Take/Update/Out). Teaches the contract, tools and loop, not
-  how to design.
+  Make, critique or improve a broadcast graphic or show package (lower third, scoreboard,
+  ticker, countdown, any on-air graphic) and save it to NoaCG. Use when the user names NoaCG,
+  SPX, CasparCG or OGraf, or wants graphics operated live (Take/Update/Out).
 ---
 
 # Make a NoaCG graphic
@@ -16,7 +13,8 @@ operator drives from a control panel, and NoaCG saves, edits and plays out. Desi
 normally design - this skill tells you the CONTRACT the graphic must satisfy, how its FIELDS AND
 BEHAVIOUR should work for the operator, the TOOLS that check it, and how it reaches the user's
 library. It does not tell you how it should look: the look is yours, unless the user switches on
-one of the two opt-in tools at the end of this file.
+one of the two opt-in tools at the end of this file. If you were not told what the graphic is,
+ask before starting.
 
 ## The loop
 
