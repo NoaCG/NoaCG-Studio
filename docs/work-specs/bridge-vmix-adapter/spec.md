@@ -41,7 +41,7 @@ This spec replaces the revision of 2026-10-12, which centred on item (4). What s
 - **The files live on the vMix computer**, in one media folder the Bridge lists (default: the
   Windows Videos folder of the user running it). A cue keeps the file's path inside that folder.
 - **NoaCG never changes vMix's Program, Preview or transitions.** vMix is the mixer.
-- **Five phases**, each one pull request, three Bridge releases. The first release (phase V1)
+- **Six phases**, each one pull request, three Bridge releases. The first release (phase V1)
   gives an operator Load and Unload of the output on vMix from the production page.
 
 ## The two models side by side
@@ -162,16 +162,25 @@ movie or a still plays in `NoaCG Clips`, an audio file in `NoaCG Audio`. The ver
 
 | NoaCG | vMix, on the player input by key |
 |---|---|
-| Take | `ListRemoveAll`, `ListAdd` the file, `SelectIndex 1`, `Play`; read back until the item is `Running` |
-| At the end: Hold (default) | `AutoPlayNextOff`, nothing more: vMix holds the last frame (`Completed`) |
+| Take | `LoopOn` or `LoopOff` as the cue's ending says, and `AutoPlayNextOff` (both are settings of the input, not of an item, so every Take sets both, measured: research §7); `ListAdd` the file, `SelectIndex` to it, `Play`; read back until that item is `Running`; then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V2 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
+| At the end: Hold (default) | `LoopOff`, `AutoPlayNextOff`: vMix holds the last frame (`Completed`) |
 | At the end: Loop | `LoopOn` |
 | At the end: Clear | the Bridge sees `Completed` on its own take and sends `ListRemoveAll` |
-| Play next, a Play-through folder | every file added in order, `AutoPlayNextOn`, `SelectIndex 1`, `Play`; the last item's ending as above; Loop the folder is the list's Loop once measured, else the Bridge's runner |
+| Play next, a Play-through folder | every file added in order, `AutoPlayNextOn`, `SelectIndex` to the first, `Play`; the last item's ending as above; Loop the folder is the list's Loop once measured, else the Bridge's runner |
 | Change the ending while it plays | `LoopOn` / `LoopOff`, or arming the Clear |
 | Pause, Resume | `Pause`, `Play` |
 | Out, Clear, All out | `Pause`, `ListRemoveAll` (black) |
 | Level | `SetVolume` on the player at the Take, once its curve is measured; refused until then |
 | Fade in, fade out, trim | refused with the reason: a list has no per-item transition, and a fade on Program is the vMix operator's transition |
+
+**A file's length.** The page needs each file's length for the clock's "TO STUDIO" and refuses a
+sequence member without one (`sequenceMembers`, `src/control/serverPlayout.ts`; `SequenceEntry
+.media.seconds`). vMix reports the length of the item that is selected and of nothing else
+(measured, research §5), so the Bridge reads it from the file itself when it lists the folder:
+the `mvhd` box of an MP4 or MOV and the header of a WAV, which needs no tool beside the Bridge;
+any other file is listed with no length. For a vMix sequence the 2-second rule does not apply
+(vMix plays the next item itself, nothing is queued ahead), so an entry of unknown length may
+join one, and "TO STUDIO" shows once every length is known.
 
 ### Where the files must live
 
@@ -183,6 +192,8 @@ The folder is a setting because no vMix setting names one (documented absence) a
 keep media on a dedicated drive (assumed); the Bridge keeps it per vMix, beside its token, so
 every browser paired with it sees the same folder, as it keeps a CasparCG server's studio setup.
 A file that is not there is refused by vMix with its path (measured), and the page says so.
+Plainly: any page paired with the Bridge can choose the folder, so a paired page can list the
+folder and media file names anywhere on that computer's disks, and nothing else (owner decision 2).
 
 ### What Load and Unload need beyond studio UI
 
@@ -191,8 +202,16 @@ is `bridge-v0.9.0`). The studio needs: to read `/health` `adapters` (nothing rea
 target-aware request layer (`targetOf` and `slotOf` in `src/control/playoutLink.ts` return
 CasparCG only), the production's title as the item's `label` (the vMix adapter refuses a url
 without one), the setup sentences for `not-running` and `not-vmix` (`AgentError.setup` is read
-nowhere in `src/`), the `/state` overlays read for the row's state, and a release. No Bridge code
-change is needed for phase V1.
+nowhere in `src/`), the `/state` overlays read for the row's state, and a release.
+
+One Bridge gap: Load (the adapter's Put on air) reuses an existing `NoaCG <title>` Browser
+input by its name alone (`cli/src/playout/adapters/vmix.ts`), so two productions with one title
+share an input, and an input made from a development server keeps that address. V1 first
+measures whether vMix's XML names a Browser input's address. If it does, the Bridge reuses only
+an input with this address and refuses another with a sentence naming it. If not, it sends
+`BrowserNavigate` with the address to a reused input that is on no overlay, and uses one already
+on air as it is. A production renamed while loaded can no longer be unloaded from NoaCG, because
+Unload looks for the new name; the operator takes it off in vMix, and the guide says so.
 
 ### What a fake vMix proves, and what needs the real one
 
@@ -246,11 +265,13 @@ beside **CasparCG via Bridge**, with the same parts: the switch, the Bridge row 
 when unpaired), and one row **Output on Overlay 8** with its state (on air, off, or holding
 another input by its vMix name) and **Load** or **Unload**. Load when the channel holds another
 input asks first, as CasparCG does before replacing another production: **Replace "<input>" on
-Overlay 8?** The switch follows `casparSwitch`'s rules in its own field (`vmix?` on the output
-setup): the operator's choice wins; until then a production with vMix cues, or whose output
-profile is vMix, is on; a new one takes the account default. Load sends the output URL named
-`vMix Overlay 8` (so the playout status names it) with the production's title as `label`, which
-names the input `NoaCG <title>`. First publish loads it when the switch is on, as CasparCG does.
+Overlay 8?** The switch is the production's own field (`vmix?` on the output setup): the
+operator's choice wins; until then a production with vMix cues is on and every other one is off.
+The older `vmix` output profile does not turn it on: it means a Browser input added by hand,
+and loading a second one over it would double the graphics. There is no account default for
+vMix. Load sends the output URL named `vMix Overlay 8` (so the playout status names it) with the
+production's title as `label`, which names the input `NoaCG <title>`. First publish loads it
+only when the operator has switched vMix on, as CasparCG does when its switch is on.
 
 From phase V3 the rundown's **From the playout server…** picker offers **From vMix…** on a
 production with the vMix switch on: the media folder, browsed by folder, added as vMix cues. The
@@ -266,16 +287,19 @@ capability for vMix, as today.
 - items: `url` on an overlay slot; `media` on a player slot, `name` the path inside the media
   folder with `/`, never absolute and never with `..`. `template` refused.
 - `/list media` with a vmix target and an optional `path`: the folders and media files there, each
-  with `kind` `movie`, `still` or `audio` and, for movies and audio, `frames` and `fps` from
-  vMix if it can say, else none (the clock then reads the length from `/state`).
+  with `kind` `movie`, `still` or `audio` and, for MP4, MOV and WAV, the length the Bridge read
+  from the file (as `frames` and `fps`, the fields the page already reads); other files have none.
 - `/studio` with a vmix target keeps `{ mediaFolder }` per vMix port beside the token
   (`vmix-setup.json`), with the players' keys; feature `vmix-media`.
 - `/state` with a vmix target answers `VmixStateReply` with, new, `players`: one `SlotState` per
   player, read from its XML (`producer` `video`, `still` or `empty`, `file`, `segment { 0,
-  duration }`, `position`, `paused`, `loop`, `sequence`, `instance`, `cueId`, `generation`).
-- `capabilities` for vMix: `state`, then `end` and `sequence` once phase V4 lands, `level` once
+  duration }`, `position`, `paused`, `loop`, `sequence`, `instance`, `cueId`, `generation`), with
+  a new optional `player` naming it and `layer` 0, so the required field keeps its meaning for
+  every CasparCG reading. A vMix `PlayoutItem` likewise keeps `layer` 0 and no `channel`, so a
+  stored item stays valid for an older page.
+- `capabilities` for vMix: `state`, then `end` and `sequence` once phase V5 lands, `level` once
   measured; never `fade`, `trim` or `image-fit`. Verbs: `take`, `out`, `clear` (V1); `pause`,
-  `resume`, `ending` (V2); `sequence` (V4).
+  `resume`, `ending` (V2); `sequence` (V5).
 - The players are made when first needed: `AddInput Value=VideoList|`, then `SetInputName`
   (`NoaCG Clips`, `NoaCG Audio`), `AutoPlayOff`, `AutoPauseOff`, `AutoRestartOff`,
   `AutoPlayNextOff`; for audio also `AudioAutoOff` and `AudioOn`. Found by the key the Bridge
@@ -289,13 +313,15 @@ capability for vMix, as today.
   closed opens a new one and reads again. One action at a time per vMix. A `FUNCTION` whose
   answer never came is `uncertain` and never resent; reads are `unreachable`; each verb has one
   7 s budget. vMix closing reads `not-running` until it is back.
-- From phase V2 the Bridge reads a player that holds its own take four times a second while that
-  take has an ending to carry out (Clear) or a sequence, like the CasparCG runner, with the slot's
+- From phase V5 the Bridge reads a player that holds its own take four times a second while that
+  take has an ending to carry out (Clear) or a sequence, like the CasparCG runner (which today ends
+  every sequence that is not on a CasparCG slot, `cli/src/playout/runner.ts`), with the slot's
   generation guarding every command it sends by itself; nothing else contacts vMix unasked.
 - vMix's TCP API has no authentication; the Bridge connects to `127.0.0.1` only. The Bridge's own
   properties (loopback, token, origin allowlist, no DNS rebinding) are unchanged.
-- **New boundary (owner decision 2):** the Bridge reads the local disk for the first time, one
-  folder, only media file names, and never a path outside it.
+- **New boundary (owner decision 2):** the Bridge reads the local disk for the first time: folder
+  and media file names under the folder a paired page chose, never a path outside it, never a
+  file's contents beyond a media header's length.
 - Preserved: every CasparCG, OGraf and OBS route and reply; the output URL in vMix with no Bridge
   behaves exactly as today; Program, Preview and transitions are never addressed.
 
@@ -330,12 +356,16 @@ capability for vMix, as today.
    The alternative, Take also cuts the clip to Program (vMix's Quick Play, measured to work), suits
    a one-person show but needs a "back to camera" NoaCG cannot know. Depends: V2.
 2. **The Bridge lists one media folder on the vMix computer**, default the Windows Videos folder,
-   media files only, nothing outside it, the folder chosen in Settings. Recommended: vMix has no
-   library of its own, and this keeps the new disk access to one folder. Depends: V2.
+   media files only, nothing outside it, the folder chosen in Settings. Because any paired page can
+   choose the folder, a paired page can learn folder and media file names anywhere on that
+   computer, never their contents. Recommended: vMix has no library of its own, the pairing token
+   and origin check already guard the Bridge, and choosing the folder from the page keeps the
+   setup in one place. The stricter alternative is choosing the folder only in the Bridge's own
+   window or command line. Depends: V2.
 3. **No fades or trim for vMix clips in this plan**; level only if `SetVolume` maps to dB.
    Recommended: a Video List has no per-item transition and a fade on Program is the vMix
    operator's transition; GOALS outcome 5 asks for "volume, loop and the other attributes a
-   production genuinely needs", which Hold, Loop, Clear, Play next and level cover. Depends: V4.
+   production genuinely needs", which Hold, Loop, Clear, Play next and level cover. Depends: V5.
 
 ### Derived (revertible; each says how)
 
@@ -369,13 +399,14 @@ answers; the NoaCG output channel offers 1 to the vMix's count, defaults to the 
 choice survives a reload; the pairing page says it is connected to that vMix. With a Bridge that
 does not list `vmix`, nothing about vMix appears anywhere.
 
-### AC-3: Put on air and Take off drive the output input
+### AC-3: Load and Unload drive the output input
 
-Put on air creates `NoaCG <title>` as a Browser input on the output URL (or reuses one of that
-name) and puts it on the chosen overlay by key; Take off takes it off with the channel's
-transition, and sends nothing when the channel holds another input or none; a name held by
-another kind of input is refused with nothing changed; Program and Preview are never addressed;
-every function that takes an input names it by key.
+Load (the adapter's Put on air) creates `NoaCG <title>` as a Browser input on the output URL (or
+reuses one of that name by the rule in "What Load and Unload need") and puts it on the chosen
+overlay by key; Unload (Take off) takes it off with the channel's transition, and sends nothing
+when the channel holds another input or none; a name held by another kind of input is refused
+with nothing changed; Program and Preview are never addressed; every function that takes an input
+names it by key. A reused input that would show another address is never put on air with it.
 
 ### AC-4: Load and Unload on the production
 
@@ -383,69 +414,81 @@ On a production with **vMix via Bridge** on, **Load** sends one `take` of the ou
 `vMix Overlay <n>` with the production's title as `label` on `{ adapter: 'vmix', overlay: n }`;
 the row then reads on air from `/state`; **Unload** sends `out` with the same item; a channel
 holding another input asks before replacing it and sends nothing on Cancel; a Bridge error with a
-`setup` shows its sentence; the switch follows the rules above (operator's choice, vMix cues or a
-vMix output profile, account default); the CasparCG section behaves exactly as before.
+`setup` shows its sentence; the switch is off until the operator turns it on or the production has
+vMix cues, and the older `vmix` output profile does not turn it on; first publish loads only when
+the operator switched vMix on; every CasparCG journey in `e2e/bridge-connect.spec.ts` passes
+unchanged.
 
 ### AC-5: A Bridge release carries each usable step
 
-Each of phases V1, V3 and V4 lands a `cli/BRIDGE_CHANGELOG.md` section for a version the release
+Each of phases V1, V4 and V5 lands a `cli/BRIDGE_CHANGELOG.md` section for a version the release
 workflow accepts, written for the operator (what was missing, what it does now, what to do), and
 the release workflow publishes that version's exe; `docs/BRIDGE.md` describes the vMix adapter as
-built so far.
+built so far. V1 releases 0.11.0, whose Bridge changes since 0.9.0 are the vMix adapter alone.
+A later version is bumped the way `Release @noacg/cli 0.11.0` (`2128d984d`) did, every file it
+touched, with a `cli/CHANGELOG.md` section (`cli/test/release-notes.test.mjs` requires one).
 
 ### AC-6: Failure never airs anything twice
 
 A dropped connection mid-function answers `uncertain` and nothing is resent; a function with no
 answer is `uncertain`; `FUNCTION ER` is `refused` with vMix's words; vMix closing reads
 `not-running` until it is back; a verb vMix cannot honour (`update`, `next`, `template`, a fade, a
-trim, a thumbnail) is refused before anything is sent; one connection serves every request; a
-command the Bridge sends by itself (a Clear at the end, a sequence step) is dropped unsent once
-the player's generation has moved.
+trim, a thumbnail) is refused before anything is sent; one connection serves every request.
 
 ### AC-7: The clips player plays what NoaCG takes
 
 Against the fake vMix with a Video List model: a media Take on `{ player: 'clips' }` makes
 `NoaCG Clips` once (an empty Video List, named, Auto Play, Pause, Restart and Play Next off) and
-reuses it by key, then by `shortTitle`; it sends `ListRemoveAll`, `ListAdd` with the file joined
-to the media folder, `SelectIndex 1`, `Play`, every `Input=` a key, and answers only once the XML
-shows the item running; Loop sends `LoopOn`; Pause and Resume; the `ending` verb switches Loop
-and Hold; Out, Clear and All out send `Pause` and `ListRemoveAll`; a missing file is refused with
-vMix's `File Not Found` and its path; Basic HD refuses with the edition named; `/state` reports
-the player as a `SlotState` with the file, position and length in seconds, paused, loop, instance,
-cueId and generation; Program, Preview and transitions are never addressed. On the real vMix 29:
-the same Take, Loop, Hold, Pause, Out, with snapshots of the input showing the clip, its last
-frame and black, recorded in the phase's evidence.
+reuses it by key, then by `shortTitle`; every Take sets `LoopOn` or `LoopOff` and
+`AutoPlayNextOff`, adds the file joined to the media folder, selects it, sends `Play`, answers
+only once the XML shows that item running, and then removes the items before it; a Hold after a
+Loop sends `LoopOff`; Pause and Resume; the `ending` verb switches Loop and Hold; Out, Clear and
+All out send `Pause` and `ListRemoveAll`; a missing file is refused with vMix's `File Not Found`
+and its path; Basic HD refuses with the edition named; `/state` reports the player as a
+`SlotState` with `player`, the file, position and length in seconds, paused, loop, instance, cueId
+and generation; every `Input=` is a key; Program, Preview and transitions are never addressed. On
+the real vMix 29: the same Take, Loop, Hold, Pause and Out, and a Take while a clip plays, with
+input snapshots showing the clip, its last frame, the replacement without a black frame (or the
+fallback recorded) and black after Out, in the phase's evidence.
 
 ### AC-8: The Bridge lists one media folder
 
 `/list media` with a vmix target lists the media folder's subfolders and its movie, still and
-audio files (by extension), one level at a time with `path`; a `path` with `..`, an absolute path,
-a drive letter or a link leading outside the folder is refused; `/studio` keeps the folder per
-vMix port across a Bridge restart, defaulting to the user's Videos folder; nothing outside the
-folder is ever listed or played.
+audio files (by extension), one level at a time with `path`, with the length read from MP4, MOV
+and WAV headers; a `path` with `..`, an absolute path, a drive letter or a link leading outside the
+folder is refused; `/studio` keeps the folder per vMix port across a Bridge restart, defaulting to
+the user's Videos folder; nothing outside the folder is ever listed or played.
 
-### AC-9: vMix clip cues on the production page
+### AC-9: vMix clip cues in the rundown
 
 With the vMix switch on and a Bridge with `vmix-media`: **From vMix…** browses the media folder
-and adds cues; the cue editor shows **NoaCG Clips** or **NoaCG Audio** instead of channel and
-layer; Take, Out, Pause, Resume and the clip clock work from the fake Bridge's `/state`, and a
-reload puts the playing clip back on its cue by its instance; controls for capabilities vMix does
-not list (fade, trim, image fit) are absent or disabled with the reason; Settings shows the media
-folder and changes it through `/studio`; CasparCG cues in the same rundown are unchanged.
+and adds cues as vMix items (`layer` 0, no channel); the cue editor shows **NoaCG Clips** or
+**NoaCG Audio** instead of channel and layer; Take, Out, Pause and Resume send the vMix target and
+player slot; controls for capabilities vMix does not list (fade, trim, image fit) are absent or
+disabled with the reason; Settings shows the media folder and changes it through `/studio`;
+CasparCG cues in the same rundown send exactly what they did.
 
-### AC-10: Play next, folders, Clear at the end, stills and audio
+### AC-10: The clip clock and a reload
+
+From the fake Bridge's vMix `/state`: the page polls the players its cues use, the clip clock
+counts down a vMix clip, the row says on air and `replaced` when the player holds what this
+Bridge did not start, and a reload puts the playing clip back on its cue by its instance; a
+reading older than the last accepted action is ignored, as for CasparCG.
+
+### AC-11: Play next, folders, Clear at the end, stills and audio
 
 Against the fake vMix: Play next and a Play-through folder add every entry in order with
-`AutoPlayNextOn` and play the first, and `/state` names the entry on air and the ones to come; a
-Clear at the end sends `ListRemoveAll` once the Bridge's own take reads `Completed`, and nothing
-when a newer action moved the generation; a still plays in `NoaCG Clips`; an audio file plays in
-`NoaCG Audio`, made with `AudioAutoOff` and `AudioOn`, without touching `NoaCG Clips`; level sends
-`SetVolume` by the measured curve or is refused with the reason. On the real vMix 29: a
-three-file folder plays through, the Loop the folder behaviour is measured and the spec updated,
-an audio file is heard on the master while a camera is on Program, and the `SetVolume` curve is
-recorded.
+`AutoPlayNextOn` and play the first, and `/state` names the entry on air and the ones to come; an
+entry of unknown length may join a vMix sequence; a Clear at the end sends `ListRemoveAll` once the
+Bridge's own take reads `Completed`; a command the Bridge sends by itself (a Clear at the end, a
+sequence step) is dropped unsent once the player's generation has moved; a still plays in
+`NoaCG Clips`; an audio file plays in `NoaCG Audio`, made with `AudioAutoOff` and `AudioOn`,
+without touching `NoaCG Clips`; level sends `SetVolume` by the measured curve or is refused with
+the reason. On the real vMix 29: a three-file folder plays through, the Loop the folder behaviour
+is measured and the spec updated, an audio file is heard on the master while a camera is on
+Program, and the `SetVolume` curve is recorded.
 
-### AC-11: A real vMix round
+### AC-12: A real vMix round
 
 On the trial's vMix 29, with the released Bridge exe and the production page: a production with
 three graphics on its overlay, two clips, a still, a sting and a Play-through folder is loaded,
@@ -454,7 +497,7 @@ operated (take, update, out of graphics; take, loop, hold, out of clips while vM
 `docs/VMIX_ON_A_REAL_HOST.md` §8 says what was seen in vMix's snapshots, with vMix's files restored
 byte for byte.
 
-### AC-12: The operator's guide says how
+### AC-13: The operator's guide says how
 
 `docs/PLAYOUT_INTEGRATION.md` §5 and the website's vMix guide (`docs.html`) describe Load and
 Unload from NoaCG, the overlay choice, the players and the vMix operator's cut to them, the media
@@ -464,15 +507,16 @@ current state names vMix; issue #760 has a summary comment with what remains (La
 ## Phases
 
 Each phase is one pull request, runs `/check` and lands with `/queue-merge`; the builder adds the
-next phase's notes under `## Phase notes`. `plan-run` numbers the phases 1 to 5; phase n is Vn,
+next phase's notes under `## Phase notes`. `plan-run` numbers the phases 1 to 6; phase n is Vn,
 and evidence files are `evidence/phase-vN.md`. A phase marked **real vMix** has its builder run
 vMix 29 on this laptop by the procedure in "What a fake vMix proves"; the owner is asked nothing.
 A checker re-runs the fake-based tests and the e2e journeys and reads the builder's real-vMix
 evidence; it starts vMix itself only when that evidence is missing or contradicts the code.
 
-1. **V1. Load and Unload on vMix, and the first Bridge download** (AC-2, AC-4, AC-5; AC-1 and AC-3
-   are already met by slice 1; **real vMix**: the built exe, Load and Unload from the dev server's
-   production page, the snapshot of Program with the output on Overlay 8).
+1. **V1. Load and Unload on vMix, and the first Bridge download** (AC-2, AC-3's reuse rule, AC-4,
+   AC-5; the review also records AC-1 and AC-3 from `evidence/slice-1.md`; **real vMix**: whether
+   the XML names a Browser input's address, then the built exe with Load and Unload from the dev
+   server's production page and the snapshot of Program with the output on Overlay 8).
    Files: `src/control/playoutLink.ts` (requests with an explicit target and slot, `adapters` from
    `/health`, `vmix` settings), a new pure `src/control/vmixPlayout.ts` (the default channel, the
    setup sentences, the row's words) with `scripts/vmix-playout.test.mjs`,
@@ -480,42 +524,54 @@ evidence; it starts vMix itself only when that evidence is missing or contradict
    `src/components/home/PlayoutPanel.tsx` (`VmixSection`), `src/components/home/ProductionPage.tsx`
    (wiring only, no new logic), `src/model/outputSetup.ts` (`vmix?` and its switch rule),
    `src/components/BridgePairPage.tsx`, `src/control/playoutStatus.ts`, `e2e/_fakeBridge.ts` and
-   the vMix journeys in `e2e/bridge-connect.spec.ts`, `cli/BRIDGE_CHANGELOG.md` (version 0.11.0 if
-   `cli/src/playout` is unchanged since `cli-v0.11.0`, else the next minor in `cli/package.json`),
-   `docs/BRIDGE.md` (the vMix adapter table), `docs/PLAYOUT_INTEGRATION.md` §5 (Load from NoaCG),
-   `evidence/phase-v1.md`. No change under `cli/src` unless the real round finds one.
+   the vMix journeys in `e2e/bridge-connect.spec.ts`, `cli/src/playout/adapters/vmix.ts`,
+   `cli/test/_fakeVmix.mjs` and `cli/test/vmix.test.mjs` (the reuse rule only),
+   `cli/BRIDGE_CHANGELOG.md` (0.11.0), `docs/BRIDGE.md` (the vMix adapter table),
+   `docs/PLAYOUT_INTEGRATION.md` §5 (Load from NoaCG), `evidence/phase-v1.md`. If the reuse rule
+   changes `cli/src`, the release is still 0.11.0: the Bridge channel has not shipped it.
 2. **V2. The clips player and the media folder in the Bridge** (AC-6, AC-7, AC-8; **real vMix**:
-   Take, Loop, Hold, Pause, Out with input snapshots; a UNC path if a share is reachable, else
-   recorded as not tried). Stops before starting if owner decisions 1 or 2 are open.
+   Take, a Take over a playing clip, Loop, Hold, Pause, Out with input snapshots; a UNC path if a
+   share is reachable, else recorded as not tried). Stops before starting if owner decision 1 or
+   2 is open.
    Files: `cli/src/playout/adapters/vmix.ts` (with a new `vmixPlayers.ts` if it passes 500
    lines), `cli/src/playout/vmixTcp.ts` (list items, `shortTitle`, `state`, `position`,
    `duration`, `selectedIndex`), a new `cli/src/playout/vmixMedia.ts` (the folder, the listing,
-   the path rules), `cli/src/playout/server.ts` (`/list`, `/studio`, `/state` for vmix),
-   `cli/src/playout/slots.ts` (player keys), `cli/src/playout/protocol.ts` and its mirror
-   `src/control/playoutProtocol.ts`, `cli/test/_fakeVmix.mjs` (the Video List model),
-   `cli/test/vmix.test.mjs`, a new `cli/test/vmix-media.test.mjs`, `evidence/phase-v2.md`. No
-   release: nothing in the studio uses it yet, so no changelog section.
-3. **V3. vMix clip cues on the production page, and the second download** (AC-5, AC-9).
-   Files: `src/model/shows.ts` (`PlayoutItem.adapter` `'casparcg' | 'vmix'`, additive),
-   `src/components/home/PlayoutItemPicker.tsx` and `CueRundown.tsx` (From vMix…),
-   `src/components/home/ServerCueEditor.tsx` (where it plays), `src/control/serverPlayout.ts` and
-   `src/control/playoutLink.ts` (the item's target and slot from its adapter),
+   the length headers, the path rules), `cli/src/playout/server.ts` (`/list`, `/studio`, `/state`
+   for vmix), `cli/src/playout/slots.ts` (player keys), `cli/src/playout/protocol.ts` and its
+   mirror `src/control/playoutProtocol.ts`, `src/control/playoutSlots.ts` (`slotAddress` and
+   `compareSlots` for a player slot, which the protocol change reaches), `cli/test/_fakeVmix.mjs`
+   (the Video List model), `cli/test/vmix.test.mjs`, a new `cli/test/vmix-media.test.mjs`,
+   `evidence/phase-v2.md`. No release: nothing in the studio uses it yet.
+3. **V3. vMix clip cues in the rundown** (AC-9). Files: `src/model/shows.ts`
+   (`PlayoutItem.adapter` `'casparcg' | 'vmix'`, additive), `src/components/home/PlayoutItemPicker.tsx`
+   and `CueRundown.tsx` (From vMix…), `src/components/home/ServerCueEditor.tsx` (where it plays),
+   `src/control/serverPlayout.ts` and `src/control/playoutLink.ts` (the item's target and slot
+   from its adapter), `src/control/cuePlayback.ts` (the capability gating for vMix),
    `src/components/home/ProductionPage.tsx` (wiring only), the media folder line in
-   `VmixSettingsSection.tsx`, `e2e/_fakeBridge.ts` and vMix journeys in
-   `e2e/playout-cues.spec.ts` and `e2e/playout-clock.spec.ts`, `cli/BRIDGE_CHANGELOG.md`,
-   `cli/package.json`, `docs/BRIDGE.md`, `evidence/phase-v3.md`.
-4. **V4. Play next, folders, Clear at the end, stills, audio and level** (AC-5, AC-10; **real
-   vMix**: a folder plays through, Loop the folder measured, the sting heard over a camera, the
-   `SetVolume` curve). Stops before starting if owner decision 3 is open.
-   Files: `cli/src/playout/adapters/vmix.ts` or `vmixPlayers.ts`, `cli/src/playout/runner.ts`
-   only if Loop the folder needs the runner, `cli/test/_fakeVmix.mjs`, `cli/test/vmix.test.mjs`,
-   the capability gating in `src/control/cuePlayback.ts` if a vMix case needs it, vMix journeys
-   in `e2e/playout-sequence.spec.ts` and `e2e/playout-folders.spec.ts`, `cli/BRIDGE_CHANGELOG.md`,
-   `cli/package.json`, `docs/BRIDGE.md`, `evidence/phase-v4.md`.
-5. **V5. The full round and the operator's guide** (AC-11, AC-12; **real vMix**: the round of
-   AC-11 with the released exe). Files: `docs/VMIX_ON_A_REAL_HOST.md` §8,
+   `VmixSettingsSection.tsx`, `e2e/_fakeBridge.ts` and a vMix journey in `e2e/playout-cues.spec.ts`,
+   `evidence/phase-v3.md`. No release: without the clock (V4) a vMix clip is not yet usable on air.
+4. **V4. The clip clock, the reload, and the second download** (AC-5, AC-10). Files:
+   `src/control/serverState.ts` (`applyReading` and the slot it builds, keyed by player for vMix),
+   `src/control/serverPlayout.ts` (`pollServerState` by target), the state poll in
+   `src/components/home/ProductionPage.tsx` (which picks channels from `itemSlot().channel` today:
+   move the choice into `control/`), `src/control/playoutLink.ts` (`readState` for a vmix target),
+   `e2e/_fakeBridge.ts` and a vMix journey in `e2e/playout-clock.spec.ts`, `cli/BRIDGE_CHANGELOG.md`
+   and the version bump of AC-5, `docs/BRIDGE.md`, `evidence/phase-v4.md`.
+5. **V5. Play next, folders, Clear at the end, stills, audio and level, and the third download**
+   (AC-5, AC-11; **real vMix**: a folder plays through, Loop the folder measured, the sting heard
+   over a camera, the `SetVolume` curve). Stops before starting if owner decision 3 is open.
+   Files: `cli/src/playout/adapters/vmix.ts` or `vmixPlayers.ts`, `cli/src/playout/runner.ts` (it
+   ends every sequence not on a CasparCG slot today: a vMix branch, or a small vMix runner beside
+   it, reading the player four times a second for a Clear at the end and a sequence),
+   `cli/test/_fakeVmix.mjs`, `cli/test/vmix.test.mjs`, `src/control/serverPlayout.ts`
+   (`sequenceMembers`: an entry of unknown length may join a vMix sequence) and
+   `src/control/cuePlayback.ts`, vMix journeys in `e2e/playout-sequence.spec.ts` and
+   `e2e/playout-folders.spec.ts`, `cli/BRIDGE_CHANGELOG.md` and the version bump of AC-5,
+   `docs/BRIDGE.md`, `evidence/phase-v5.md`.
+6. **V6. The full round and the operator's guide** (AC-12, AC-13; **real vMix**: the round of
+   AC-12 with the released exe). Files: `docs/VMIX_ON_A_REAL_HOST.md` §8,
    `docs/PLAYOUT_INTEGRATION.md` §5, `docs.html` (the vMix guide), `docs/GOALS.md` (outcome 5's
-   current state, one sentence), `evidence/phase-v5.md`, and the summary comment on issue #760.
+   current state, one sentence), `evidence/phase-v6.md`, and the summary comment on issue #760.
    No product code; a defect found becomes a fix in this phase only when small and contained,
    otherwise an issue.
 
@@ -523,8 +579,8 @@ evidence; it starts vMix itself only when that evidence is missing or contradict
 
 Before V1: this spec and `work.json` on `main`, the "Runnable plans" line present, `origin/main`
 green, the owner's window supplied, and vMix 29 trial installed on this laptop (it is, 29.0.0.49,
-trial ending about 2026-11-28). Before V2 and V4: the owner decisions they depend on answered.
-Before V5: the V4 Bridge release published. Every real-vMix step: vMix not already running (if it
+trial ending about 2026-11-28). Before V2 and V5: the owner decisions they depend on answered.
+Before V6: the V5 Bridge release published. Every real-vMix step: vMix not already running (if it
 is, the owner is using it: wait, never close it), ffmpeg present for test media (`C:\ffmpeg`).
 
 ## Execution settings and how the owner starts this plan
@@ -536,9 +592,9 @@ start template:
 /plan-run vmix until <date and time with UTC offset>
 ```
 
-**Estimate:** about 3 to 4 hours per building phase (V1 to V4) with its check, and 2 hours for V5:
-14 to 18 hours of run time, so one window of about 20 hours, or two evenings. It must finish
-before the trial ends (about 2026-11-28).
+**Estimate:** about 3 hours for each of V1, V2 and V5 (real vMix and a release), 2 to 3 hours for
+V3 and V4, and 2 hours for V6, each with its check: 15 to 18 hours of run time, so one window of
+about 20 hours, or two evenings. It must finish before the trial ends (about 2026-11-28).
 
 ## What the plan can demonstrate, and what stays uncertain
 
@@ -595,7 +651,7 @@ the check's findings.
 
 ### Before V1 (the plan, 2026-10-14)
 
-- The vMix adapter's Put on air reads the output input by `title`; that is right for a `Browser`
+- The vMix adapter's Put on air (Load) reads the output input by `title`; that is right for a `Browser`
   input. Players are found by `shortTitle` (a list's `title` changes with its file).
 - `PlayoutSettings` has no `vmix` and `targetOf`/`slotOf` are CasparCG-only; `/health`
   `adapters` is parsed into `BridgeReply` and read nowhere; `AgentError.setup` is read nowhere in
@@ -605,3 +661,8 @@ the check's findings.
   `caspar-take-off-air` test ids); give vMix's their own ids (`vmix-load`, `vmix-unload`).
 - `ProductionPage.tsx` is already very large; put vMix state and words in `control/` and the panel
   component, and keep the page to wiring.
+- From the plan's review: the studio's state path is keyed by CasparCG channel and layer
+  (`serverState.ts` `applyReading`, `playoutSlots.ts`, the page's poll), which is why V4 exists
+  apart from V3; a protocol change to `VmixSlot` reaches `playoutSlots.ts` already in V2.
+- Loop and Auto Next are settings of the list input, not of an item: a Take that does not set both
+  inherits the last cue's.
