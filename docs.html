@@ -2338,10 +2338,15 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
         </section>
 
         <section id="chat-connector">
-          <h2>Prepare a show from Claude, ChatGPT or another chat app</h2>
+          <h2>Prepare a show from a chat app</h2>
           <p>
             Add NoaCG to a chat app as a connector and sign in. The app can then read your library
             and put a production with its rundown on your Home. You open it with Install.
+          </p>
+          <p>
+            Checked with Claude Code and the Claude desktop app. Claude.ai, ChatGPT and other apps
+            that take a custom connector are expected to work the same way, but have not been
+            tried yet.
           </p>
           <p>The connector address:</p>
           <pre><code>https://noacg.studio/mcp</code></pre>
@@ -2355,10 +2360,10 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
           <p>In Claude Code, the same connector is one command:</p>
           <pre><code>claude mcp add --transport http noacg https://noacg.studio/mcp</code></pre>
           <p>
-            The connector reads your graphics, brands and productions, picks designs from the
-            catalog, copies your own graphics, applies a brand and fills the cues. It does not
-            write new graphic code, and it does not edit, delete, publish or play anything. For new
-            designs, use a <a href="#claude-code">coding agent with the CLI</a>.
+            The connector reads your graphics, brands and productions (team productions too),
+            picks designs from the catalog, copies your own graphics, applies a brand and fills the
+            cues. It does not write new graphic code, and it does not edit, delete, publish or play
+            anything. For new designs, use a <a href="#claude-code">coding agent with the CLI</a>.
           </p>
           <p>
             Every connected app is listed in Settings &rarr; Account &rarr; Agent access, where
