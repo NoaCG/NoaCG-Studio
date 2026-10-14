@@ -683,6 +683,10 @@ and the check's findings. The AI track's notes live in its own spec.
   and Look go back to Prepare and Text (noted, not reproduced); the shell budget equalled its
   length; the kit's inline moves read `walkSpec.animStep`/`finishStep` until S6; the local
   browser queue refuses jobs on this machine (#1067), so browser evidence comes from CI.
+- **Assessment A: PASS** (wave-row, read-only, `/so` brief) on `c25c1b59d`: behaviour identical
+  door by door, every 3.2 row covered, type-only imports, fence and budget met. Its three low
+  findings: the held production write now has its own row; the microtask wording is corrected
+  below; the `noteMade` ordering and the owed `saveBuiltGraphic` tests are in S5's list.
 - **Shas:** previous verified `main` `8474e38df` (S3's merge); built from `20bda8867`. This
   phase's merge sha is the one the queue records. **Revert:** `git revert -m 1` this phase's merge
   commit (the shell takes its door copies back).
@@ -692,7 +696,7 @@ and the check's findings. The AI track's notes live in its own spec.
   `exportSet(save, dest)`; the shell's three export copies, two editor copies, three production
   wrappers, `pressProductionDoor`, `addToProduction`, `saveTemplateSet`, the kit and AI set pairs
   and `reportFailedCreateSave` gone, each Finish prop now one door call over the mode's applier;
-  `scripts/wizard-doors.test.mjs` (23 Node tests, every section 3.2 row late, failed and pressed
+  `scripts/wizard-doors.test.mjs` (24 Node tests, every section 3.2 row late, failed and pressed
   twice; ten mutations each turned at least one red); the shell 2,357 to 2,105 lines and its
   budget lowered to 2,105; `// covers:` on `no-old-editor` gains `shell/doors` (it names the
   shell by path and walks the editor door; the other four specs of the row select it through
@@ -710,8 +714,8 @@ and the check's findings. The AI track's notes live in its own spec.
   - *A door's name is a thunk read after the build*, as the inline bodies read it: the catalog's
     `draftName` needs the variant its applier checked.
   - *The sync file applier is awaited like the others.* The file editor door's close and the file
-    export's save now start one microtask later; nothing renders differently in between, because
-    the wizard stays open over everything until the door closes it (R1).
+    export's save now start one microtask later, so React commits one render first, with the
+    wizard still open; nothing paints, and the catalog and AI doors always had this interleaving.
   - *The store-backed IO is one module constant in the shell* (`STUDIO_DOOR_IO`): the export
     window, the editor, the router, the alert and the writes, read at call time.
   - *Second presses are recorded as today's (R7):* the export and editor doors keep no guard (two
@@ -723,6 +727,12 @@ and the check's findings. The AI track's notes live in its own spec.
   `madeThisOpen` and `finishedWalk`) and the appliers' `rememberWalk` with the reducer's state.
   S6's `useKit` owns `kitBusy` and `kitError` (D6) and so supplies `setSetBusy`/`setSetError`.
   The appliers (`applyDraftProject`, `applyAiProject`, `applyImportedFile`) are still in the shell.
+  Still owed from section 2: Node tests of `saveBuiltGraphic` with held writes (over a record,
+  `needs-name` minting, a failure that returns and never throws), for S5 when it moves it.
+  `noteMade` reads the record's id from the store, so it must stay after the save, which no Node
+  row can see. `productionPress` must stay a ref, not reducer state: a dispatched flag is not
+  visible to a second press arriving before the re-render. Sections 3.1 and 3.2 cite baseline
+  line numbers; the door bodies now live in `shell/doors.ts`.
 - **Traps:** a Node row that awaits a door held on a write the test never lets go hangs the run
   (a mutation found it); the test gives every case a 5-second timeout and lets holds go before
   awaiting. New files are LF in this worktree while the shell is CRLF; git normalises both.

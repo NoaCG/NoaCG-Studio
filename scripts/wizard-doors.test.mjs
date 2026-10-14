@@ -206,6 +206,20 @@ test('production door, late: the library record lands first, and nothing moves u
   }
 });
 
+test('production door, late production write: nothing is pooled and nobody moves until it has landed', async () => {
+  for (const mode of MODES) {
+    const create = held();
+    const s = studio({ createsFirst: true, create: () => create.promise });
+    const pressed = s.doors.addToProduction(appliers(s.log)[mode], NEW_PRODUCTION, name);
+    await settle();
+    assert.equal(s.log.at(-1), 'commit create', `${mode}: held at the production write`);
+    assert.ok(!s.log.some((l) => /^(pool|closeGallery|replace)/.test(l)), mode);
+    create.resolve(null);
+    await pressed;
+    assert.equal(s.log.at(-1), 'replace production new-1', mode);
+  }
+});
+
 test('production door, failed save: said, nothing written, the reader stays, a retry works', async () => {
   for (const mode of MODES) {
     const s = studio({ save: { ok: false, error: 'QuotaExceededError' } });
