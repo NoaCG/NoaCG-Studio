@@ -359,6 +359,39 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
 
+### A1 check on `main` (2026-10-14): PASS
+
+- **Shas:** checked `main` at `29883468f`, which contains A1's merge `bd6fd764d` (#1164).
+- **Browser evidence (CI; the local queue refused, about 1 GB free):** #1164's merge-group run
+  38525110256 ran the merged tree's `ai.spec.ts` and `ai-lite.spec.ts`: `Running 37 tests`,
+  `37 passed`, nothing skipped. Main's full run 38526192545 on `29883468f` passed (1,764 expected,
+  0 unexpected, 0 flaky); its merged report gives the A1 row: `ai` 35 passed, `ai-lite` 2,
+  `ai-tiers` 8, `ai-depth` 2, `pro` 2, `ai-consent` 1 passed and 1 skipped, `wizard-finish` 22
+  passed and 1 skipped (both skips are outside A1's files and predate it). Neither revived file
+  nor any helper it imports calls `test.skip`, `fixme` or a retired `_create.ts` door.
+- **Mutation, red where it should be:** a probe branch (dispatched run 38526539094, branch deleted,
+  never merged) flipped four assertions in `ai.spec.ts`; exactly those four tests failed and the
+  other 31 passed. The four: the raw call's tool list, the refined name in the library record, and
+  the two late-completion tests (after Home, Continue showed `Late Slate` where `Test Slate` was
+  asserted; after ✕, the result card was there, count 1, where none was asserted). So the late tests read the
+  late answer and would flip when #1165 is fixed.
+- **Size gate:** the step is 2,152 lines against a 2,152 budget. One added line made
+  `check-file-budgets.mjs` exit 1 (`2153 of 2152`), `gates.mjs list --changed origin/main` showed the
+  gate hit by a change to `AiStep.tsx` alone, and `gates.mjs run --changed origin/main --only checks`
+  failed on it. CI runs every build gate in `npm run build` regardless.
+- **Fence:** `git diff bd6fd764d^1 bd6fd764d -- src` is empty. `scripts/check-file-budgets.mjs`
+  (its guards line) is outside the row's list, needed for `--changed` to reach the step; accepted.
+- **Judgements:** the Finish test's `wz-finish-editor` -> `wz-finish-production-go` stays within D9:
+  that door no longer exists in `src/`, the behaviour asserted (an AI result lands on Finish with
+  its doors) is unchanged, and the export-door assertion beside it is untouched. The conversation
+  test's editor AI panel read became the record's `aiThread` because that panel lives only in the
+  unreachable old editor. The budget exceptions follow `scripts/e2e-capacity.mjs` and
+  `docs/VERIFICATION.md` (minutes, what they protect, 30-day expiry; both parse and cover today);
+  they come from the planned build, not a repair, and #1166 records the over-line state.
+- **For A2:** 45 specs now plan for `AiStep.tsx` (44 at A1, `main` moved); 15 for
+  `src/ai/creation.ts`. Not covered, as the builder recorded: the header's + New graphic while
+  busy, and the shell's `aiThread` after Continue (only the step's past generations are asserted).
+
 ### A1. Baseline on the existing step (built 2026-10-14)
 
 - **Check's findings:** none (no check preceded this phase).
