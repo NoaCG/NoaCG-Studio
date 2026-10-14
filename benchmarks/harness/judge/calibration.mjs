@@ -31,6 +31,7 @@
 // the repository. The archived frames are stills, not the full coverage matrix: that is the
 // calibration's limit, stated in evidence/phase-2.md.
 
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -497,6 +498,9 @@ if (isMain) {
       // The held-back part is read by the frozen judge only, so it can never shape the prompt.
       judge = loadJudge(HERE);
       if (!judge.frozen) fail(`the held-back part is judged only by a frozen judge: ${judge.reason}`);
+      // Read once: a second judge on the same held-back part would be a judge tuned on it.
+      const earlier = readResults(path.join(work, 'results-heldout.jsonl')).find((r) => r.judge !== judge.fingerprint);
+      if (earlier) fail(`the held-back part was already read by another judge (${earlier.judge.slice(0, 12)}): a re-pin needs a new held-back set, never this one again`);
     } else {
       judge = draftJudge(HERE, { model: value('model', ''), effort: value('effort', '') });
     }
@@ -517,7 +521,9 @@ if (isMain) {
     const model = value('model', '');
     const effort = value('effort', '');
     if (!model || !effort) fail('freeze needs --model <the exact id claude -p reported> and --effort <level>');
-    const lock = lockFor(HERE, model, effort);
+    // The Claude Code version that reported the id is kept beside it: a re-pin starts by comparing both.
+    const version = spawnSync(claudeExecutable(), ['--version'], { encoding: 'utf8', windowsHide: true }).stdout.trim();
+    const lock = { ...lockFor(HERE, model, effort), claudeCode: version, frozenAt: new Date().toISOString(), split: readJson(SPLIT_FILE).heldout.sha256 };
     writeFileSync(path.join(HERE, 'judge.lock.json'), `${JSON.stringify(lock, null, 2)}\n`);
     console.log(JSON.stringify(lock, null, 2));
   } else {

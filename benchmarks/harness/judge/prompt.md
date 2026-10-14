@@ -29,7 +29,10 @@ air:
 
 These are NOT basic mistakes: a long stress value shortened with a clean ellipsis ("…") inside
 its field, which is how a graphic keeps an impossible value in bounds; a board that shows only
-its title before the operator's first step, when the steps then reveal the content.
+its title before the operator's first step, when the steps then reveal the content. Judge what
+the frames show, never what they do not: a value or state no frame shows (a stress value on a
+part only a later step reveals, a state no button was pressed for) is neither a mistake nor a
+reason to refuse.
 
 Then judge it as a designer would at the desk. Each of these, when a viewer would see it, also
 keeps a graphic off air:
