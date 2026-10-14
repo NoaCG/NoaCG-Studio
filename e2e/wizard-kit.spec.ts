@@ -660,3 +660,18 @@ test('a built kit left mid-way is held, and Continue returns to its hub with eve
   await expect(page.getByTestId('kit-finish')).toBeVisible();
   await expect(page.locator('[data-kit-open]')).toHaveCount(2);
 });
+
+test('the rail\'s format Change from a kit graphic keeps the edit made on it', async ({ page }) => {
+  // S5 (spec section 1.3): every way off a kit graphic records it first (`moveKitTo`), the
+  // rail's format read-back included.
+  await pickShortKit(page, 2);
+  await buildKit(page, 2);
+  await page.locator('[data-kit-open="0"]').click();
+  await firstLine(page).fill('Kept across Change');
+  await page.locator('.wz-rail-foot .wz-rail-change').click();
+  await expect(page.getByTestId('kit-picker')).toBeVisible();
+  await page.locator('.wz-next').click();
+  await expect(page.getByTestId('kit-finish')).toBeVisible();
+  await page.locator('[data-kit-open="0"]').click();
+  await expect(firstLine(page)).toHaveValue('Kept across Change');
+});
