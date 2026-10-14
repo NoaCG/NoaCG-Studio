@@ -404,6 +404,29 @@ test('leaving a built kit for one graphic ends the kit', async ({ page }) => {
   await expect(page.getByTestId('wz-finish-name')).toBeVisible();
 });
 
+test('a built kit is held while another walk is on screen, and is there again in the template walk', async ({ page }) => {
+  // Spec section 1.3, S3's note: carried into another walk, the kit's rail jumps, tray and hub
+  // acted on that walk's steps. It is the template walk's, and waits there untouched.
+  await pickShortKit(page, 2);
+  await buildKit(page, 2);
+  await page.locator('[data-kit-open="0"]').click();
+  await firstLine(page).fill('Kept across walks');
+  await page.locator('.wz-back').click();
+  await page.locator('.wz-back').click();
+  await expect(page.getByTestId('kit-picker')).toBeVisible();
+  await page.locator('.wz-back').click();
+  await page.locator('[data-entry="import-graphic"]').click();
+  await expect(page.getByTestId('wz-stepcount')).toHaveText('Step 2 / 6');
+  // No artwork yet: the import walk's Finish is no jump target, so no kit hub can open there.
+  await expect(page.locator('.wz-dot').nth(5)).toBeDisabled();
+  await page.locator('.wz-back').click();
+  await page.locator('[data-entry="template"]').click();
+  await expect(page.locator('.wz-next')).toHaveText('Back to the kit →');
+  await page.locator('.wz-next').click();
+  await page.locator('[data-kit-open="0"]').click();
+  await expect(firstLine(page)).toHaveValue('Kept across walks');
+});
+
 test('clearing the brand gives every kit graphic its kit palette back', async ({ page }) => {
   // Model-level: a saved brand is the only way to reach the chooser, and what matters is the
   // transform - a brand in, then None, lands each graphic back on the kit's own palette.

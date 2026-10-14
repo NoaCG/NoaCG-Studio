@@ -321,6 +321,29 @@ test('the furthest step: forward counts, back does not, and a new mode starts on
   assert.equal(s.lastStep, 1);
 });
 
+test('a kit is the template walk\'s: another walk holds it untouched, and the template walk has it again', () => {
+  const onEntry = { ...loaded('template'), step: 0 };
+  assert.equal(W.activeKit(onEntry), onEntry.kit);
+  for (const mode of ['import', 'design', 'svg', 'file', 'ai', 'video']) {
+    const away = W.reduce(onEntry, { type: 'walk', mode, step: 1 });
+    assert.deepEqual(kitOf(away), kitOf(onEntry), `${mode}: held`);
+    assert.equal(W.activeKit(away), null, `${mode}: acting on nothing`);
+    for (let step = 0; step < 7; step++) assert.equal(W.isKitEditStep(away, step), false, `${mode} ${step}`);
+    // Nothing of that walk is recorded into the kit.
+    const edited = { ...away, step: 3, draft: mergeDraft(away.draft, { name: 'Another walk' }) };
+    assert.equal(W.committedKit(edited, edited.kit), edited.kit, `${mode}: not recorded`);
+    const back = W.reduce(W.reduce(away, { type: 'go', step: 0 }), { type: 'walk', mode: 'template', step: 1 });
+    assert.equal(W.activeKit(back), onEntry.kit, `${mode}: there again`);
+  }
+});
+
+test('a brand chosen in another walk reaches the held kit and leaves that walk\'s draft in hand', () => {
+  const away = W.reduce({ ...loaded('template'), step: 0 }, { type: 'walk', mode: 'design', step: 1 });
+  const branded = W.reduce(away, { type: 'chooseBrand', id: 'look-b' });
+  assert.ok(branded.kit.drafts.every((d) => d.paletteId === PALETTES[2].id), 'every graphic of the held kit');
+  assert.deepEqual(branded.draft, mergeDraft(away.draft, brandPatch(brandB)), 'the draft in hand stays the design walk\'s');
+});
+
 test('one pick patch for Browse, the images walk\'s Template step and a deep link', () => {
   const start = W.reduce(W.transition(W.emptyWalk(), fresh()).state, { type: 'chooseBrand', id: 'look-a' });
   const picked = W.reduce(W.reduce(start, { type: 'patch', patch: { animation: { steps: false } } }), { type: 'pickDesign', variant: A });

@@ -101,6 +101,7 @@ import {
 } from './shell/walks';
 import { makeDoors } from './shell/doors';
 import {
+  activeKit,
   brandOf,
   committedKit,
   emptyWalk,
@@ -180,10 +181,11 @@ export default function CreationWizard() {
 
   const isMobile = useIsMobile();
   // THE WALK: one record, one reducer (shell/walkState.ts), every open, rewind, restore and close
-  // one of its tested transitions. The brand in force is DERIVED from the chooser's two fields.
+  // one of its tested transitions. The brand in force and the kit acting are DERIVED from it.
   const [walk, dispatch] = useReducer(reduce, undefined, emptyWalk);
   const { draft, mode, step, browseFilters, aiResult, aiThread, importedFile, importedFileError } = walk;
-  const { contextProductionId, brandChoices, brandId, buildMode, kitPack, kitSelected, kit } = walk;
+  const { contextProductionId, brandChoices, brandId, buildMode, kitPack, kitSelected } = walk;
+  const kit = activeKit(walk);
   const brand = brandOf(walk);
   // Stable, as the steps hold them in effects and as functional updates (BrowseStep's chips).
   const onFilters = useCallback((update: SetStateAction<BrowseFilters>) => dispatch({ type: 'filters', update }), []);
@@ -612,8 +614,6 @@ export default function CreationWizard() {
      (wizard/kitPlan.ts). `kit.built` is always the whole set - the tray, the hub and the save
      all read it. */
 
-  /** Is this one of the steps that edit the open kit graphic? */
-  const editsKitGraphic = (s: number) => isKitEditStep(walk, s);
 
   /**
    * THE ONE WAY A KIT CHANGES STEP. Leaving the editing steps records the graphic in hand first,
@@ -632,7 +632,7 @@ export default function CreationWizard() {
       }
       return;
     }
-    const leaving = kit && editsKitGraphic(step) && !editsKitGraphic(target);
+    const leaving = kit && isKitEditStep(walk, step) && !isKitEditStep(walk, target);
     dispatch({ type: 'kit', kit: leaving ? commitKitGraphic(kit, draft) : kit, step: target });
   };
 
@@ -1148,7 +1148,7 @@ export default function CreationWizard() {
           <div className="wz-main">
           {/* THE KIT TRAY: which graphic of the set is open, and the door to any other. Shown
               on the editing steps; the hub lays the whole set out itself. See KitTray.tsx. */}
-          {kit && editsKitGraphic(step) && (
+          {kit && isKitEditStep(walk, step) && (
             <KitTray
               plan={kit}
               onOpen={(index) => openKitGraphic(index, step)}

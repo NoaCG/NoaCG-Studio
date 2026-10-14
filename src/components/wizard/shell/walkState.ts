@@ -178,9 +178,19 @@ export function brandOf(state: WalkState): ProjectBrand | null {
   return state.brandId ? state.brandChoices.find((b) => b.id === state.brandId)?.brand ?? null : null;
 }
 
-/** Is `step` one of the steps that edit the open kit graphic? */
+/**
+ * The kit the walk on screen is building. A kit is the template walk's: when the reader goes back
+ * to Entry and into another walk, the kit is HELD, untouched and acting on nothing, and it is
+ * there again when they come back to the template walk. Only the close control's rewind, a fresh
+ * open and a restore end it, as they end every other part of a walk.
+ */
+export function activeKit(state: WalkState): KitPlan | null {
+  return state.mode === 'template' ? state.kit : null;
+}
+
+/** Is `step` one of the steps that edit the open kit graphic? Only on the template walk. */
 export function isKitEditStep(state: WalkState, step: number): boolean {
-  return step >= 2 && step <= walkOf(state.mode, !!state.kit || state.buildMode === 'kit').animStep;
+  return state.mode === 'template' && step >= 2 && step <= walkOf(state.mode, !!state.kit || state.buildMode === 'kit').animStep;
 }
 
 /** The kit with the open graphic's answers recorded - what every move away from it keeps. */
@@ -489,11 +499,15 @@ export function reduce(state: WalkState, action: WalkAction): WalkState {
       // THE BRAND REACHES EVERY GRAPHIC OF A KIT, not only the one on screen: the set is built up
       // front, so every graphic's answers take it - and None hands each one back the kit's own
       // palette rather than no palette at all (wizard/kitPlan.ts).
+      // A kit held while another walk is on screen takes the brand too, and the draft in hand
+      // stays that walk's.
+      const draft = mergeDraft(state.draft, next ? brandPatch(next) : brandClearPatch());
       if (state.kit && state.buildMode === 'kit') {
-        const plan = rebrandKit(committedKit(state, state.kit), next ? brandPatch(next) : null);
-        return { ...state, brandId, kit: plan, draft: plan.drafts[plan.current] };
+        const open = activeKit(state);
+        const plan = rebrandKit(open ? committedKit(state, open) : state.kit, next ? brandPatch(next) : null);
+        return { ...state, brandId, kit: plan, draft: open ? plan.drafts[plan.current] : draft };
       }
-      return { ...state, brandId, draft: mergeDraft(state.draft, next ? brandPatch(next) : brandClearPatch()) };
+      return { ...state, brandId, draft };
     }
     // The plain setters keep the record when nothing changed, as a React state setter bails out:
     // AiStep reports its thread on mount, and that must not cost the shell a render.
