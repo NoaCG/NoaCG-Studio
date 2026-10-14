@@ -11,7 +11,7 @@
 // file applier is sync (byte-faithful). A door must treat the three alike.
 //
 //   node --test scripts/wizard-doors.test.mjs
-import test from 'node:test';
+import nodeTest from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +19,9 @@ import { loadWizardModule as load } from './wizard-load.mjs';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { makeDoors } = await load(path.join(projectRoot, 'src/components/wizard/shell/doors.ts'));
+
+// A door that waits on a write the test never lets go fails here rather than hanging the run.
+const test = (name, fn) => nodeTest(name, { timeout: 5000 }, fn);
 
 /** A promise the test resolves when it chooses: a durable write held in flight. */
 function held() {
@@ -266,10 +269,11 @@ test('production door, second press while the first is held: one build, one prod
     const apply = appliers(s.log)[mode];
     const first = s.doors.addToProduction(apply, NEW_PRODUCTION, name);
     await settle();
-    await s.doors.addToProduction(apply, NEW_PRODUCTION, name);
+    const second = s.doors.addToProduction(apply, NEW_PRODUCTION, name);
+    await settle();
     assert.equal(s.log.filter((l) => l.startsWith('apply')).length, 1, `${mode}: one build`);
     save.resolve({ ok: true, error: null });
-    await first;
+    await Promise.all([first, second]);
     assert.equal(s.productions.length, 1, `${mode}: one production`);
     assert.equal(s.log.filter((l) => l.startsWith('pool')).length, 1, mode);
     // Released by the landing: a later press is a press again.

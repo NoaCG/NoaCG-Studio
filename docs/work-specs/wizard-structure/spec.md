@@ -669,6 +669,66 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S4. Doors (built 2026-10-14)
+
+- **Check's findings (S3 check: PASS).** Fence 2 `src` files plus two covers lines; budget 2,357
+  of 2,357, never raised; Node 10/10, the old expressions match `29883468f`, eight own mutations
+  each turned one red; diff equivalence checked; merge-group run 38542146537 on `8474e38df` all
+  11 shards green (wizard-shell 18/18, wizard-finish 22 plus one old skip, wizard-kit 21/21,
+  project-format 9 plus 3 retired skips, template-deep-link 2/2); the step-URL try-out on probe
+  38545433234 6/6 (template, kit, design, svg, file, AI). Carried: the video walk (sign-in) and
+  the images walk (AI only) were not run in a browser, pinned by Node literals and the code
+  compare; non-template step URLs are pinned by no spec on main (only the checker's deleted
+  probe); a kit plan outlives Back to Entry (S6 owns it); the design walk's Finish rows Fields
+  and Look go back to Prepare and Text (noted, not reproduced); the shell budget equalled its
+  length; the kit's inline moves read `walkSpec.animStep`/`finishStep` until S6; the local
+  browser queue refuses jobs on this machine (#1067), so browser evidence comes from CI.
+- **Shas:** previous verified `main` `8474e38df` (S3's merge); built from `20bda8867`. This
+  phase's merge sha is the one the queue records. **Revert:** `git revert -m 1` this phase's merge
+  commit (the shell takes its door copies back).
+- **What landed** (`evidence/phase-s4.md`): `shell/doors.ts`, `makeDoors(io)` returning
+  `export(apply, name)`, `addToProduction(apply, dest, name)`, `editArtwork(apply)`,
+  `saveSet(templates, fallbackName, dest, activation)`, `openSet(save, dest)` and
+  `exportSet(save, dest)`; the shell's three export copies, two editor copies, three production
+  wrappers, `pressProductionDoor`, `addToProduction`, `saveTemplateSet`, the kit and AI set pairs
+  and `reportFailedCreateSave` gone, each Finish prop now one door call over the mode's applier;
+  `scripts/wizard-doors.test.mjs` (23 Node tests, every section 3.2 row late, failed and pressed
+  twice; ten mutations each turned at least one red); the shell 2,357 to 2,105 lines and its
+  budget lowered to 2,105; `// covers:` on `no-old-editor` gains `shell/doors` (it names the
+  shell by path and walks the editor door; the other four specs of the row select it through
+  `wizard/**`).
+- **Decisions** (each revertible by the revert above):
+  - *`rememberWalk` is not in `io`.* The appliers call it and stay with their mode (D4), and the
+    doors never snapshot, so the temporary interface is `saveBuiltGraphic` and `noteMade`. Moving
+    the snapshot into the door would also snapshot a press whose applier refuses.
+  - *The one-press guard's rule is the door's; its flag is the shell's `addingToProduction` ref,*
+    passed as `io.productionPress`. `makeDoors` is built each render over that render's closures,
+    so a flag held inside it would reset on every render. S5 may keep the ref or move it.
+  - *`saveSet` is a sixth door beside D4's five.* R5's gate over every member, the busy and error
+    lines and the activation event are the set rows' contract, so they moved with `openSet` and
+    `exportSet`; the shell's `saveKit` and `saveAiPack` only choose the set and its name.
+  - *A door's name is a thunk read after the build*, as the inline bodies read it: the catalog's
+    `draftName` needs the variant its applier checked.
+  - *The sync file applier is awaited like the others.* The file editor door's close and the file
+    export's save now start one microtask later; nothing renders differently in between, because
+    the wizard stays open over everything until the door closes it (R1).
+  - *The store-backed IO is one module constant in the shell* (`STUDIO_DOOR_IO`): the export
+    window, the editor, the router, the alert and the writes, read at call time.
+  - *Second presses are recorded as today's (R7):* the export and editor doors keep no guard (two
+    builds, two saves, the second over the first's record once it exists); the set doors rely on
+    `busy`, raised in the press itself, which disables their buttons; the Node rows say so.
+- **S5 must allow for:** the budget is 2,105, the shell's exact length. `doors` is rebuilt each
+  render from `STUDIO_DOOR_IO` plus `saveBuiltGraphic`, `noteMade`, `closeGallery`,
+  `addingToProduction`, `setKitBusy` and `setKitError`; S5 replaces the first two (they read
+  `madeThisOpen` and `finishedWalk`) and the appliers' `rememberWalk` with the reducer's state.
+  S6's `useKit` owns `kitBusy` and `kitError` (D6) and so supplies `setSetBusy`/`setSetError`.
+  The appliers (`applyDraftProject`, `applyAiProject`, `applyImportedFile`) are still in the shell.
+- **Traps:** a Node row that awaits a door held on a write the test never lets go hangs the run
+  (a mutation found it); the test gives every case a 5-second timeout and lets holds go before
+  awaiting. New files are LF in this worktree while the shell is CRLF; git normalises both.
+  `onExport={onExport}` in `FinishStep` passes the click event, so the door bindings are arrows
+  that drop it.
+
 ### S3. Walks table (built 2026-10-14)
 
 - **Check's findings (S2 check: PASS).** Fence 4 `src` files; 11/11 Node, 5 mutations each turned
