@@ -61,8 +61,9 @@ export function appendEntry(ledger, entry) {
   return e;
 }
 
-export function spentCents(ledger) {
-  return ledger.entries.filter((e) => e.funding === 'credit').reduce((n, e) => n + e.listCostCents, 0);
+/** What the credit has paid, in all or in one phase. */
+export function spentCents(ledger, phase = null) {
+  return ledger.entries.filter((e) => e.funding === 'credit' && (phase === null || e.phase === phase)).reduce((n, e) => n + e.listCostCents, 0);
 }
 
 export function remainingCents(ledger) {
@@ -93,9 +94,7 @@ export function admit(ledger, { budgetCents, concurrency = 1, overshootCents = D
 }
 
 /** What one phase's credit sessions have spent. */
-export function phaseSpentCents(ledger, phase) {
-  return ledger.entries.filter((e) => e.funding === 'credit' && e.phase === phase).reduce((n, e) => n + e.listCostCents, 0);
-}
+export const phaseSpentCents = (ledger, phase) => spentCents(ledger, phase);
 
 /** True once the ledger holds the phase's completed entry: `--build` refuses to run it again. */
 export function phaseCompleted(ledger, phase) {

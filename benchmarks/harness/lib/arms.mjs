@@ -108,10 +108,11 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
       const outputs = path.join(cellDir, 'outputs');
       mkdirSync(outputs, { recursive: true });
       const mounted = [];
-      for (const m of brief.mounts ?? []) mounted.push({ fileId: await upload(m.file), mountPath: m.mountPath });
       const dropMounted = () => Promise.all(mounted.map((m) => api.beta.files.delete(m.fileId).catch(() => undefined)));
       let sessionId;
       try {
+        if (brief.mounts?.length && !upload) throw new Error(`brief ${brief.id} mounts files, and this arm has no upload`);
+        for (const m of brief.mounts ?? []) mounted.push({ fileId: await upload(m.file), mountPath: m.mountPath });
         // A brief may name its own environment (H3's `packages` proof) and go without the tarball.
         ({ sessionId } = await client.startSession(api, { agent, environmentId: brief.environmentId ?? environmentId, brief: brief.prompt, type: brief.type, budgetCents, runId, files: [...(brief.withoutCli ? [] : files), ...mounted], ...(modelOverride ? { model: modelOverride } : {}) }));
       } catch (e) {
@@ -151,16 +152,19 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         if (downloadAll) {
           // The list by session also holds the session's copies of mounted files, which the
           // Files API refuses to download (`file_not_downloadable`): only what the agent wrote.
-          for (const f of listed.filter((x) => x.downloadable !== false)) {
-            const parts = f.filename.split(/[\\/]/).filter((p) => p && p !== '.' && p !== '..');
-            const target = path.join(outputs, 'all', ...parts);
+          // The list keeps only base names, so a second file of one name is kept beside the first
+          // under its id rather than over it. A file that fails to download is named, and never
+          // turns a collected hand-in into a failure.
+          for (const f of listed.filter((x) => x.downloadable !== false && x !== record && x !== zip)) {
+            const name = f.filename.split(/[\\/]/).filter((p) => p && p !== '.' && p !== '..').join('_') || f.id;
+            let target = path.join(outputs, 'all', name);
+            if (existsSync(target)) target = path.join(outputs, 'all', `${f.id}-${name}`);
             mkdirSync(path.dirname(target), { recursive: true });
-            const bytes = await client.downloadFile(api, f.id).catch((e) => {
-              if (e?.status === 400) return null;
-              throw e;
-            });
-            if (bytes) writeFileSync(target, bytes);
-            else undownloadable.push(f.filename);
+            try {
+              writeFileSync(target, await client.downloadFile(api, f.id));
+            } catch {
+              undownloadable.push(f.filename);
+            }
           }
         }
       } catch (e) {

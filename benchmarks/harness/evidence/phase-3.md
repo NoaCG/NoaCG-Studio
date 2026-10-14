@@ -43,9 +43,12 @@ fallback recommendation: Managed Agents runs the recipe. The numbers H4 needs:
 | cold start, CLI from `packages` | 26.8 s on the environment's first session, 18.2 s once its packages were cached |
 | hosts allowed | none beyond H1's `noacg.studio` and the package managers |
 
-Every figure is read from the session's own events (`benchmarks/harness/lib/trace.mjs`), and the
-list-price table reproduces each session's `usage.list_cost` to the cent (Opus 5.5 $4 / $20, cache
-reads $0.20, 5-minute cache writes $5 per million; running time $0.08 an hour).
+Every figure is read from the session's own events (`benchmarks/harness/lib/trace.mjs`). The
+Opus 5.5 list prices ($4 / $20, cache reads $0.20, 5-minute cache writes $5 per million; running
+time $0.08 an hour) reproduce both Opus sessions' `usage.list_cost` to the cent ($1.09 and $1.49),
+which is an independent check of `o`. The Haiku 5.5 row ($0.50 / $2.50) is fitted to the four
+Haiku sessions' own 1 to 3 cents, so it is not checked: whole-cent rounding at that size allows a
+third either way. No quality or cost claim rests on Haiku.
 
 ## The sessions
 

@@ -143,8 +143,10 @@ test('the committed ledger reads: no credit before H3, H3 within its $10, and H0
   const ledger = readLedger(LEDGER_FILE);
   assert.equal(ledger.runBudgetCents, 10_000, 'decision 11: $100 across every run of the plan');
   for (const phase of ['H0', 'H1', 'H2']) assert.equal(phaseSpentCents(ledger, phase), 0, `${phase} spent no credit`);
-  assert.ok(phaseSpentCents(ledger, 'H3') <= 1_000, 'H3 within its $10 ceiling (5.1)');
-  assert.equal(spentCents(ledger), ledger.entries.filter((e) => e.funding === 'credit').reduce((n, e) => n + e.listCostCents, 0));
+  // H3 is closed: its six sessions are what evidence/phase-3.md reports, inside its $10 (5.1).
+  assert.equal(phaseSpentCents(ledger, 'H3'), 266);
+  assert.equal(ledger.entries.filter((e) => e.phase === 'H3' && e.kind === 'session').length, 6);
+  assert.ok(spentCents(ledger) >= 266);
   assert.equal(phaseCompleted(ledger, 'H0'), true);
 });
 
@@ -310,6 +312,11 @@ test('a resumed --build runs only what the ledger does not already hold for that
   const arm = { id: 'managed-agents' };
   const cells = ['a', 'b', 'c'].map((id) => ({ id, brief: { id }, arm }));
   assert.deepEqual(pendingCells(ledger, 'H3', cells).map((c) => c.id), ['b', 'c'], 'a paid cell is never paid twice; a refused one, or another phase\'s, runs');
+  // A model run as a per-session override is the same arm id: the model tells the cells apart.
+  appendEntry(ledger, { kind: 'session', phase: 'H4', brief: 'a', arm: 'managed-agents', model: 'claude-opus-5-5', funding: 'credit', sessionId: 's3', listCostCents: 150, outcome: 'delivered' });
+  const onModel = (model) => [{ id: `a.${model}`, brief: { id: 'a' }, arm: { id: 'managed-agents', model } }];
+  assert.deepEqual(pendingCells(ledger, 'H4', onModel('claude-opus-5-5')), []);
+  assert.equal(pendingCells(ledger, 'H4', onModel('claude-sonnet-5-5')).length, 1, 'Sonnet on the brief Opus ran is another cell');
 });
 
 test('a delivered version that is not the one last reviewed, or a missing action, is caught', () => {

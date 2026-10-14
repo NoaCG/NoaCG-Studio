@@ -88,9 +88,10 @@ export function refuseCompletedPhase(ledger, phase) {
 }
 
 /** The cells of a `--build` the ledger does not already hold for that phase. A cell that ran
- *  (delivered, not ready or failed) is never paid twice; a refused or paused one runs again. */
+ *  (delivered, not ready or failed) on the same model is never paid twice; a refused or paused one
+ *  runs again, and another model on the same brief is another cell. */
 export function pendingCells(ledger, phase, cells) {
-  const ran = (c) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === c.brief.id && e.arm === c.arm.id && !['refused', 'paused'].includes(e.outcome));
+  const ran = (c) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === c.brief.id && e.arm === c.arm.id && (e.model ?? null) === (c.arm.model ?? null) && !['refused', 'paused'].includes(e.outcome));
   return cells.filter((c) => !ran(c));
 }
 
@@ -243,7 +244,10 @@ async function build(phase) {
   if (!arms.length || !(ids.length || proofIds.length)) fail('--build needs --arms and --briefs (or --proof): a paid run names exactly what it spends on');
   if (ids.length && arms.includes('managed-agents') && !(Number.isInteger(budgetCents) && budgetCents > 0)) fail('--build with managed-agents needs --budget-cents <n>, the per-session cap');
   if (arms.includes('claude-code') && !model) fail('--build with claude-code needs --model, the exact model id the reference session runs');
-  if (ceilingCents !== null && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail('--ceiling-cents is the phase ceiling in whole cents');
+  // Every paid phase has its own ceiling (5.1): a run that does not name it is refused, never
+  // admitted against the whole run budget.
+  if (arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
+  if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
   for (const a of arms) if (!['managed-agents', 'claude-code'].includes(a)) fail(`unknown arm ${a}`);
   if (proofIds.length && (phase !== 'H3' || arms.join() !== 'managed-agents')) fail('--proof is H3\'s, on the managed-agents arm alone');
   for (const id of proofIds) if (!PROOFS[id]) fail(`no H3 proof ${id} (${Object.keys(PROOFS).join(', ')})`);
@@ -274,7 +278,8 @@ async function build(phase) {
       const drift = syncPlan({ lock, environment: environmentDef, agent: agentDef, bundle: skillBundle(bundleDir) }).filter((step) => step.action !== 'keep');
       if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);
       const agentModel = agentDef.config.model?.id ?? agentDef.config.model;
-      const override = (id) => (id && id !== agentModel ? { id, ...(effort ? { effort } : {}) } : null);
+      // An override replaces the agent's model object in full, so an effort alone restates the model.
+      const override = (id) => ((id && id !== agentModel) || effort ? { id: id || agentModel, ...(effort ? { effort } : {}) } : null);
       const key = keyFor('bench');
       if (!key) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
       const { default: Anthropic, toFile } = await import('@anthropic-ai/sdk');

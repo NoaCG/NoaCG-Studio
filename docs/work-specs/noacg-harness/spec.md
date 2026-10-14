@@ -989,8 +989,10 @@ the spend added to the ledger, and the check's findings.
   version than its folder (test added); `packCli` threw on every real run; the arm tried to
   download the session's copies of mounted files. Added: a per-session model override
   (`agent_with_overrides`), so Haiku ran without an agent version; a phase ceiling in the ledger's
-  wall; `--proof`, `--ceiling-cents`, `--effort`; `lib/trace.mjs`, whose list-price table
-  reproduces every session's `usage.list_cost` to the cent. H3 is closed in the ledger.
+  wall, which `--build` now requires (`--ceiling-cents`); `--proof`, `--effort`; a resumed run
+  tells cells apart by model too; `lib/trace.mjs`, whose Opus 5.5 prices reproduce both Opus
+  sessions' `usage.list_cost` to the cent (its Haiku row is fitted, not checked). H3 is closed in
+  the ledger.
 - **H4 must allow for:**
   - `m` is **one sample**, $1.49 (the defect repair, a smaller job, $1.09). `B = round-up(1.5 m)`
     gives $2.24. `o` measured $0.22; a 5-minute cache that lapsed mid-session would make the next
@@ -1028,6 +1030,11 @@ the spend added to the ledger, and the check's findings.
     the bridge is up, the browser distrusts the gateway. `curl` succeeds, which misleads.
   - Output files lose their folders in the Files API list (`coverage/x.jpg` lists as `x.jpg`).
   - A cell that ran is never paid twice: a re-run of a proof needs a new proof id (`h3-plumbing-2`).
+  - The packages proofs make their environment per run: `h3-packages-warm` measures a cached start
+    only in the same invocation as, and after, `h3-packages-cold`.
+  - The zip read (`src/model/importTemplate.ts`) still imports a package's `thumbnail.png` as an
+    asset; only the digest ignores it now. A zip saved as is carries the frame twice (the asset and
+    the manifest thumbnail); outside this phase's files, reported in the pull request.
   - Shell heredocs through this machine's Bash tool can turn `\n` inside quoted code into real
     newlines; edit JavaScript with the editor, not with an inline script.
 
