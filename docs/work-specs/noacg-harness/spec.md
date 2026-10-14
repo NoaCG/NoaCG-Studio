@@ -373,7 +373,8 @@ Claude Code with the published plugin on the same briefs, on the subscription: o
 `claude -p` session per brief in an empty directory outside the repository, the plugin loaded
 with `--plugin-dir`, the built or published CLI on PATH behind the ledgering shim
 `scripts/agent-round-bench.mjs` already has, `NOACG_URL` the same deployment the harness used,
-no save. Its package goes through the same `noacg coverage`. For the five v1 tuning briefs the
+no save. Its package goes through the same `noacg coverage`. For the five NoaCG v1 briefs (the
+sixth, the hand-written OGraf package, is not a library graphic and stays out of tuning) the
 August cells' sources in `C:\claude\noacg-bench-archive\agent-round-2026-08-22\cells\` are
 re-captured locally at zero cost.
 
@@ -453,7 +454,7 @@ report's "Needs you" says that opening to students waits.
 | Reservation | H4 | $0 | local | the exam fits (5.2); the per-graphic budget is set |
 | Tuning round 1 | H5 | the round ceiling | Opus 5.5 | the August reproduction on the round's tuning briefs; the judge's verdict against the reference arm, the defect and missing-action counts, the median wall time |
 | Tuning round 2 | H6 | the round ceiling | Opus 5.5 or Sonnet 5.5 | the variable H5's evidence picks: the critic if round 1 delivered any basic defect or missing action, else Sonnet 5.5 on the round 1 configuration; progress against round 1 |
-| Tuning round 3 | H7 | the round ceiling | the next rung | Sonnet 5.5 on the round 2 configuration if round 2 was the critic; else Haiku 5.5 only if Sonnet matched and the money fits, else recorded as not needed |
+| Tuning round 3 | H7 | the round ceiling | the next rung | Sonnet 5.5 on the configuration that won after round 2 if round 2 was the critic; else Haiku 5.5 only if Sonnet matched and the money fits, else recorded as not needed |
 | Held-out exam | H8 | the reserved amount | the winner | the thresholds of 4.5 |
 
 The round ceiling is $15 for about 5 briefs, or $9 for 3 briefs when H4's fit rule says so
@@ -598,8 +599,10 @@ implementation and a re-run of the exam through the bench's arm interface.
   (`ai_harness_runs`: id, user, session id unique, status, interim and final record file ids,
   graphic id, cost, timestamps) and returns at once; Vercel functions stop at 300 s.
 - `GET /api/ai/harness-run?id=` polls: it reads the session's events and status; while running
-  it returns progress lines; on `idle` with `end_turn`, `budget_reached`, or `terminated`, it
-  calls `finalizeRun` inline and returns the result or the "checked, and not ready" state.
+  it returns progress lines; on `idle` (any stop reason, since `requires_action` cannot occur
+  with the web tools off and no custom tool) or `terminated`, it calls `finalizeRun` inline and
+  returns the result or the "checked, and not ready" state; `budget_reached` is the not-ready
+  case.
 - `POST /api/ai/harness-webhook` verifies the HMAC with the SDK's `webhooks.unwrap`
   (`ANTHROPIC_WEBHOOK_SIGNING_KEY`), dedupes on the event id, and calls `finalizeRun` for
   `session.status_idled` and `session.status_terminated`.
@@ -666,8 +669,8 @@ read the live state, so this snapshot is a starting point, not a dependency. `wi
   only when `wizard-ai` has no open phase (A4 and A5 landed, or the plan closed), read from that
   spec's phase notes on `origin/main` and `gh pr list --head claude/plan-wizard-ai-*`; otherwise
   it waits for that landing and re-checks. It builds on whatever landed: the step under
-  `src/components/wizard/ai/` if A4 landed, else under `steps/`; the route goes through
-  `creationRoute` and `runCreation` in `src/ai/creation.ts` (landed in A2).
+  `src/components/wizard/ai/` (A4), the route through `creationRoute` and `runCreation` in
+  `src/ai/creation.ts` (A2), and whatever A5's close-out changed.
 - H11 recompiles contracts, so it waits while `wizard-ai` A5 or `wizard-shell` S7 is open
   (launched, not landed), the one-writer rule of `wizard-structure` section 8.
 - `e2e/ai.spec.ts` carries a budget exception until 2026-11-13 from `wizard-ai`; H10 adds its
@@ -724,8 +727,9 @@ largest request's cost.
 
 ### AC-5: The exam is reserved before any tuning
 **Layer:** `benchmarks/harness/ledger.json` and `evidence/phase-4.md`.
-`B`, `o`, `R` and `T` computed as 5.2 says from H3's numbers; the reserve recorded; the run
-stopped with the numbers if the reserve does not fit.
+`B`, `o`, `R` and `T` computed as 5.2 says from H3's numbers; the reserve recorded; the round
+ceiling and brief count set; the run stopped with the numbers before H5 if fewer than two rounds
+fit even at $9 or the measured time is over the pass rule.
 
 ### AC-6: Every tuning round states its hypothesis before spending and measures its signal
 **Layer:** `evidence/phase-5.md`, `-6.md`, `-7.md` and the ledger.
@@ -843,10 +847,11 @@ Mechanically, `scripts/harness-bench.mjs` creates sessions only with an explicit
    The critic on the same briefs and model if round 1 delivered any basic defect or missing
    action, else Sonnet 5.5 on the round 1 configuration; the variable named in the evidence
    before any spend. Reference runs for new tuning briefs on the subscription.
-8. **H7. Tuning round 3: the next rung** (AC-6, the round ceiling). Sonnet 5.5 on the round 2
-   configuration if round 2 was the critic; else Haiku 5.5 only if Sonnet matched and the money
-   fits, else the round is recorded as not needed and spends nothing. The winner named; the
-   session budget revised for it; the stop rule applied across H5 to H7.
+8. **H7. Tuning round 3: the next rung** (AC-6, the round ceiling). Sonnet 5.5 on the
+   configuration that won after round 2 (the critic kept or dropped on its measurement) if round
+   2 was the critic; else Haiku 5.5 only if Sonnet matched and the money fits, else the round is
+   recorded as not needed and spends nothing. The winner named; the session budget revised for
+   it; the stop rule applied across H5 to H7.
 9. **H8. The held-out exam** (AC-7, the reserved amount). Decrypt and verify; the winner on all
    20; the reference arm on all 20 on the subscription; capture, judge in both orders, report,
    gallery; the owner notified by phone. A miss stops the run; the report lands either way, and
@@ -862,9 +867,9 @@ Mechanically, `scripts/harness-bench.mjs` creates sessions only with an explicit
     `e2e/ai-tiers.spec.ts`, the configured journey. Lite's door closed in the same change; Pro
     stays quarantined.
 12. **H11. Owner-only live, the glance, the rule pass** (AC-14, AC-15). Only while `wizard-ai`
-    A5 and `wizard-shell` S7 are not open. Enable on production for the owner's id, the three
-    walks, the owner's gallery verdict recorded if given, `npm run learn` for the retirements,
-    the docs, `Closes #771`.
+    A5 and `wizard-shell` S7 are not open. Enable on production for the owner's id and, for the
+    walk only, the bench account's id (removed after), the three walks, the owner's gallery
+    verdict recorded if given, `npm run learn` for the retirements, the docs, `Closes #771`.
 
 ## Readiness
 
