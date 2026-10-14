@@ -361,8 +361,8 @@ and the check's findings.
 
 ### A3 check on `main` (2026-10-14): PASS
 
-- **Shas:** checked `main` at `9f89075c3`, the merge of #1189 (`origin/main` was `77d38d583`,
-  docs only since).
+- **Shas:** checked `main` at `9f89075c3`, the merge of #1189 (`origin/main` was `77d38d583`;
+  only `docs.html`, `privacy.html` and `e2e/docs.spec.ts` changed since).
 - **Browser evidence (CI):** #1189's merge-group run 38545131904 ran `9f89075c3` and passed. Its
   merged report: `ai` 35 passed (the two arrival tests among them), `ai-lite` 2, `ai-tiers` 8,
   `ai-depth` 2, `pro` 2, `ai-consent` 1 plus 1 skip, `wizard-finish` 22 plus 1,
@@ -379,9 +379,10 @@ and the check's findings.
   `9f89075c3` (another design picked, no model call, the card names it, validation passes, the
   brief's text in the preview). Probe files deleted, nothing committed.
 - **AC-14:** each of the 17 runtime Pro symbols the step imported at `591213fca^1` is still used
-  outside an import in `creation.ts`, `ProPanel.tsx` or the step. Every line removed from the
-  step, trimmed, appears in `ProPanel.tsx` or the new `creation.ts` lines, except the call sites
-  and wrappers the evidence names. `git diff 591213fca^1 9f89075c3 -- src/ai/pro/` is empty.
+  outside an import in `creation.ts`, `ProPanel.tsx` or the step. Every Pro line removed from
+  the step, trimmed, appears in `ProPanel.tsx`, except the imports, the call sites now reading
+  `proTier.*`, the `proMode &&` wrappers, two JSX comment braces and `spec.category` read as
+  `category`, as the evidence says. `git diff 591213fca^1 9f89075c3 -- src/ai/pro/` is empty.
 - **Mutation:** seven of mine in `creation.ts`, each restored: Lite refine without the profile,
   Lite refine on the default provider, rebuild dropping `...current`, rebuild keeping the old
   `variantId`, talk keeping the oldest turns, one busy label for refine and fix, talk dropping
