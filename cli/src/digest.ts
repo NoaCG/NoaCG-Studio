@@ -27,8 +27,13 @@ export function canonicalJson(value: unknown): string {
   return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
 }
 
+/** The frame `validate --screenshots` writes into a package. It is an output of a validate, never
+ *  a source: a folder is read without it (workspace.ts `zipDirectory`), but a zip carries it as an
+ *  asset, so counting it made a handed-in `record.zip` read as another version than its folder. */
+export const THUMBNAIL_ASSET = 'thumbnail.png';
+
 export function sourceDigest(template: SpxTemplate): SourceDigest {
-  const assets = [...(template.assets ?? [])].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  const assets = (template.assets ?? []).filter((a) => a.path !== THUMBNAIL_ASSET).sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
   const subject = { ...template, html: lf(template.html ?? ''), css: lf(template.css ?? ''), js: lf(template.js ?? ''), assets };
   return `sha256:${createHash('sha256').update(canonicalJson(subject)).digest('hex')}`;
 }

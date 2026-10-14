@@ -41,8 +41,16 @@ const DEFECT = [
   'Someone started it, and their package is at /mnt/session/uploads/graphic.tgz. Unpack it into /workspace/graphic and finish it, so that it is a clean, readable lower third you would put on air. Keep its two fields.',
 ].join(' ');
 
+/** The second plumbing run, after the first measured the egress gateway (evidence/phase-3.md):
+ *  the same steps, the trust store set up first, no download probe (the first one measured it). */
+const PLUMBING_AGAIN = [
+  ...PLUMBING.split('\n').slice(0, 5),
+  'End with a short report: how the CLI got installed, whether `certutil` was there or had to be installed, which browser `noacg doctor` used, then the DELIVERED line.',
+].join('\n');
+
 export const PROOFS = {
   'h3-plumbing': { model: { id: 'claude-haiku-5-5' }, budgetCents: 50, prompt: PLUMBING },
+  'h3-plumbing-2': { model: { id: 'claude-haiku-5-5' }, budgetCents: 50, prompt: PLUMBING_AGAIN },
   'h3-packages-cold': { model: { id: 'claude-haiku-5-5' }, budgetCents: 30, prompt: PACKAGES, environment: 'packages', withoutCli: true },
   'h3-packages-warm': { model: { id: 'claude-haiku-5-5' }, budgetCents: 30, prompt: PACKAGES, environment: 'packages', withoutCli: true },
   'h3-defect': { model: null, budgetCents: 300, prompt: DEFECT, prepare: plantDefect },

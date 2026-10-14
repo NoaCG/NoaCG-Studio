@@ -2,7 +2,8 @@
 // measurements H3 owes H4 and the trace a reader can replay without the frames.
 //
 //   coldStart     seconds from the session's creation to its first model request, its first tool
-//                 call, and its first `noacg` command
+//                 call, its first `noacg` command, and the `noacg doctor` that first reached the
+//                 bridge: the CLI and a trusted browser working (bridgeReady)
 //   turns         model requests (`span.model_request_end`), and tool calls
 //   images        tool results that carried an image back to the model: the agent LOOKED, as
 //                 opposed to naming a file or reading text findings
@@ -20,7 +21,9 @@
 export const LIST_PRICES = {
   'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, write5m: 5, write1h: 8 },
   'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.2, write5m: 2.5, write1h: 4 },
-  'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheRead: 0.01, write5m: 0.125, write1h: 0.2 },
+  // Haiku 5.5 at $0.50 / $2.50: what H3's two plumbing sessions' own list costs imply (3 cents each
+  // on about 50k price-weighted tokens); the $0.10 / $0.50 figure did not reproduce them.
+  'claude-haiku-5-5': { input: 0.5, output: 2.5, cacheRead: 0.05, write5m: 0.625, write1h: 1 },
 };
 /** Session running time, billed into the list cost (managed-agents/budgets). */
 export const RUNTIME_USD_PER_HOUR = 0.08;
@@ -47,6 +50,7 @@ export function traceMetrics({ events, createdAt, model, usage = null }) {
   let firstRequest = null;
   let firstTool = null;
   let firstNoacg = null;
+  let bridgeReady = null;
   let images = 0;
   for (const e of events) {
     if (e.type === 'span.model_request_start' && !firstRequest) firstRequest = e.processed_at;
@@ -69,6 +73,7 @@ export function traceMetrics({ events, createdAt, model, usage = null }) {
       const text = textOf(e.content);
       images += imageBlocks;
       step.ok = !e.is_error;
+      if (!bridgeReady && /bridge\s+v\d/.test(text)) bridgeReady = e.processed_at;
       if (imageBlocks) step.images = imageBlocks;
       const digest = DIGEST.exec(text);
       if (digest) step.digest = digest[0];
@@ -80,7 +85,7 @@ export function traceMetrics({ events, createdAt, model, usage = null }) {
   const tokenUsd = requests.reduce((n, r) => n + (r.usd ?? 0), 0);
   return {
     model,
-    coldStart: { firstModelRequest: seconds(createdAt, firstRequest), firstToolCall: seconds(createdAt, firstTool), firstNoacgCommand: seconds(createdAt, firstNoacg) },
+    coldStart: { firstModelRequest: seconds(createdAt, firstRequest), firstToolCall: seconds(createdAt, firstTool), firstNoacgCommand: seconds(createdAt, firstNoacg), bridgeReady: seconds(createdAt, bridgeReady) },
     turns: { modelRequests: requests.length, toolCalls: steps.filter((s) => s.kind === 'tool').length },
     images,
     largestRequest: largest ? { at: largest.at, usd: Math.round(largest.usd * 10000) / 10000, usage: largest.usage } : null,

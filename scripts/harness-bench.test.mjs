@@ -39,7 +39,7 @@ import { claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } 
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
-import { admit, appendEntry, emptyLedger, phaseCompleted, readLedger, remainingCents, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, emptyLedger, phaseCompleted, phaseSpentCents, readLedger, remainingCents, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { digestCheck, missingActions, runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
@@ -105,7 +105,7 @@ test('a session\'s trace measures its cold start, turns, images and largest requ
     { type: 'agent.message', content: [{ type: 'text', text: 'DELIVERED' }], processed_at: at(50) },
   ];
   const m = traceMetrics({ events, createdAt: at(0), model: 'claude-opus-5-5', usage: { active_seconds: 3_600, cache_creation: { ephemeral_5m_input_tokens: 10_000 } } });
-  assert.deepEqual(m.coldStart, { firstModelRequest: 4, firstToolCall: 7, firstNoacgCommand: 31 });
+  assert.deepEqual(m.coldStart, { firstModelRequest: 4, firstToolCall: 7, firstNoacgCommand: 31, bridgeReady: null }, 'no doctor reached a bridge in this trace');
   assert.deepEqual(m.turns, { modelRequests: 2, toolCalls: 3 });
   assert.equal(m.images, 1, 'only a result that carried an image back counts as a look');
   // 2,000 x $4 + 4,000 x $20 + 100,000 x $0.20 per million: $0.108, more than the first's $0.064.
@@ -117,7 +117,7 @@ test('a session\'s trace measures its cold start, turns, images and largest requ
 });
 
 test('H3\'s proofs: the planted defect validates clean, and the packages environment adds only the published CLI', () => {
-  assert.deepEqual(Object.keys(PROOFS), ['h3-plumbing', 'h3-packages-cold', 'h3-packages-warm', 'h3-defect']);
+  assert.deepEqual(Object.keys(PROOFS), ['h3-plumbing', 'h3-plumbing-2', 'h3-packages-cold', 'h3-packages-warm', 'h3-defect']);
   assert.equal(PROOFS['h3-plumbing'].model.id, 'claude-haiku-5-5', 'plumbing is proved on the cheap model (5.3)');
   assert.equal(PROOFS['h3-defect'].model, null, 'the defect repair runs the synced agent, Opus 5.5');
   assert.doesNotMatch(PROOFS['h3-defect'].prompt, /upside|flip|mirror|transform|defect/i, 'the brief never names the defect');
@@ -139,10 +139,12 @@ test('an entry the credit did not fund carries no cost, and a credit session nam
   assert.equal(phaseCompleted(ledger, 'H6'), false);
 });
 
-test('the committed ledger reads, starts at $0 and holds H0 as completed', () => {
+test('the committed ledger reads: no credit before H3, H3 within its $10, and H0 completed', () => {
   const ledger = readLedger(LEDGER_FILE);
   assert.equal(ledger.runBudgetCents, 10_000, 'decision 11: $100 across every run of the plan');
-  assert.equal(spentCents(ledger), 0);
+  for (const phase of ['H0', 'H1', 'H2']) assert.equal(phaseSpentCents(ledger, phase), 0, `${phase} spent no credit`);
+  assert.ok(phaseSpentCents(ledger, 'H3') <= 1_000, 'H3 within its $10 ceiling (5.1)');
+  assert.equal(spentCents(ledger), ledger.entries.filter((e) => e.funding === 'credit').reduce((n, e) => n + e.listCostCents, 0));
   assert.equal(phaseCompleted(ledger, 'H0'), true);
 });
 

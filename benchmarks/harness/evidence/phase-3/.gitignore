@@ -1,0 +1,8 @@
+# H3's evidence on this machine (spec section 6): frames, packages and the raw session events stay
+# here and are never committed; each proof's trace (trace.json) and the bench's cell record
+# (cell.json) are.
+*
+!.gitignore
+!*/
+!*/trace.json
+!*/cell.json

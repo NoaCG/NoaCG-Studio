@@ -127,6 +127,7 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
       let record = null;
       let zip = null;
       let collected = false;
+      const undownloadable = [];
       try {
         // Poll the status alone; the events are read once, at the end.
         while (['running', 'rescheduling'].includes(await client.sessionStatus(api, sessionId))) {
@@ -148,11 +149,18 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         await Promise.all([[record, 'record.json'], [zip, 'record.zip']].filter(([f]) => f).map(async ([f, name]) => writeFileSync(path.join(outputs, name), await client.downloadFile(api, f.id))));
         collected = Boolean(record && zip);
         if (downloadAll) {
-          for (const f of listed) {
+          // The list by session also holds the session's copies of mounted files, which the
+          // Files API refuses to download (`file_not_downloadable`): only what the agent wrote.
+          for (const f of listed.filter((x) => x.downloadable !== false)) {
             const parts = f.filename.split(/[\\/]/).filter((p) => p && p !== '.' && p !== '..');
             const target = path.join(outputs, 'all', ...parts);
             mkdirSync(path.dirname(target), { recursive: true });
-            writeFileSync(target, await client.downloadFile(api, f.id));
+            const bytes = await client.downloadFile(api, f.id).catch((e) => {
+              if (e?.status === 400) return null;
+              throw e;
+            });
+            if (bytes) writeFileSync(target, bytes);
+            else undownloadable.push(f.filename);
           }
         }
       } catch (e) {
@@ -201,6 +209,7 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         model: modelOverride?.id ?? model,
         metrics,
         outputsListed: listed.map((f) => f.filename),
+        ...(undownloadable.length ? { undownloadable } : {}),
         cleanup,
       };
     },
