@@ -1,3 +1,5 @@
+// gate: factory
+// needs: browser
 // guards: src/ai/creation.ts
 //
 // THE CREATE WITH AI RUN, in Node (docs/work-specs/wizard-ai/spec.md section 4, AC-13).
