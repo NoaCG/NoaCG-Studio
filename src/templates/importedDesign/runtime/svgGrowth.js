@@ -318,12 +318,16 @@ function svgLayoutRest() {
   // panel's growth, a size, a squeeze, a wrap. A line that pass had carried past its panel's
   // edge then read as outside it, and the same value grew the panel on one update and not on
   // the next (#1143).
+  // A placed line has no anchor or wrap of its own, only a size and a squeeze. A line that is not
+  // laid out is left as it is: no panel can count it, and the fit would skip it, owed, leaving it
+  // flattened.
   var lines = svgFitNodes();
   for (var k = 0; k < lines.length; k++) {
     var line = lines[k];
-    if (svgFitPlaced(line) || !svgFitRoom[line.id]) continue;
-    line.style.fontSize = '';
+    if (!svgFitRoom[line.id] || !svgFitLaidOut(line)) continue;
+    svgSetSize(line, '');
     svgUnsqueeze(line);
+    if (svgFitPlaced(line)) continue;
     if (svgWrappedBlock(line)) line.textContent = svgFitValue(line);
     svgApplyAnchor(line, svgFitRoom[line.id]);
   }
@@ -632,7 +636,7 @@ function growOneRule(rule, index) {
     // measureSvgBudgets keeps. A line left squeezed from a floored value answers
     // getComputedTextLength with the TEXTLENGTH it was given, so a short value arriving after a
     // long one measured as long as the long one and the panel never came back to the design.
-    el.style.fontSize = '';                     // at the drawn size - the panel gives the room
+    svgSetSize(el, '');                         // at the drawn size - the panel gives the room
     svgUnsqueeze(el);
     // …and as ONE line: a block still painted as wrapped tspans from a previous pass measures
     // its widest line, which understates what the panel actually has to hold. The fit below

@@ -183,6 +183,17 @@ function svgFitSlot(el) {
 // being readable is not "inside the panel" in any sense an audience would recognise. Every value
 // that could be squeezed legibly is squeezed exactly as before, and both are still reported
 // through noacgTextOverflow(), which is what puts the warning in front of the operator.
+/** SET A LINE'S TYPE SIZE, or clear it with '' - and write its style ATTRIBUTE at once.
+ *
+ *  Chrome writes the attribute lazily, where it is first read, so on a line's first fit the size
+ *  landed after whatever the pass wrote next (a squeeze's textLength, a growth's transform) and
+ *  on every later fit before it: the same value fitted twice serialized differently (#1143).
+ *  Reading it back is what writes it now. */
+function svgSetSize(el, size) {
+  el.style.fontSize = size;
+  el.getAttribute('style');
+}
+
 function svgUnsqueeze(el) {
   if (svgFitPlaced(el)) {
     el.style.transform = '';
@@ -310,7 +321,7 @@ function measureSvgBudgets() {
     var drawn = svgFitDrawn[el.id];
     if (!svgFitLaidOut(el)) { svgFitOwed[el.id] = true; continue; }   // no box to read (above)
     // Any previous fit has to come off first, or the measurement compounds.
-    el.style.fontSize = '';
+    svgSetSize(el, '');
     svgUnsqueeze(el);
     // Measure the design, put the value back. A BLOCK is restored even when the value matches,
     // because the previous pass repainted its lines - see measureSvgRoom for what that cost.
@@ -879,7 +890,7 @@ function measureSvgRoom() {
     var drawn = svgFitDrawn[nodes[a].id];
     live.push(was);
     swapped.push(drawn != null && svgFitStale(nodes[a], was));
-    nodes[a].style.fontSize = '';
+    svgSetSize(nodes[a], '');
     if (swapped[a]) svgShowDrawn(nodes[a], drawn);
   }
   // What pens each line on its right, each line's own measures, and every end-anchored line with
@@ -1343,7 +1354,7 @@ function fitSvgText() {
     // reveal. Owed instead, and the reveal pays it.
     if (!room || !svgFitLaidOut(el)) { svgFitOwed[el.id] = true; continue; }
     svgFitOwed[el.id] = false;
-    el.style.fontSize = '';                     // back to the drawn size before measuring
+    svgSetSize(el, '');                         // back to the drawn size before measuring
     svgUnsqueeze(el);                           // …and out of any previous pass's squeeze
     svgApplyAnchor(el, room);                   // before any line is painted: a tspan reads it
     var budget = room.width + (svgFitExtra[el.id] || 0);
@@ -1376,12 +1387,7 @@ function fitSvgText() {
     for (var attempt = 0; attempt < 2; attempt++) {
       var stopAt = attempt === 0 ? floor : hardFloor;
       for (var pass = 0; pass < 8; pass++) {
-      el.style.fontSize = size === drawnSize ? '' : size.toFixed(2) + 'px';
-      // READ BACK AT ONCE, so the style attribute is written now. Chrome writes it lazily, where
-      // it is first read, so on a line's first fit it landed after whatever the pass wrote next
-      // (a squeeze's textLength, a growth's transform) and on every later fit before it: the same
-      // value fitted twice serialized differently (#1143).
-      el.getAttribute('style');
+      svgSetSize(el, size === drawnSize ? '' : size.toFixed(2) + 'px');
       // HOW MANY LINES THE ROOM COULD HOLD - an upper bound the measured check below prunes,
       // never the answer on its own. A block of n lines is (n-1) line STEPS plus one line's own
       // box, not n steps: counting it as n steps loses the last line of every block that fills
