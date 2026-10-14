@@ -90,6 +90,9 @@ const deferred = () => Promise.withResolvers();
 /** Let every queued microtask and timer callback run. */
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+/** A gateway answer as the stubbed `fetch` returns it. */
+const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
 /** Whether a promise has settled yet, without awaiting it. */
 function watch(promise) {
   const state = { done: false };
@@ -536,8 +539,8 @@ function chatNetwork() {
     requests.push({ url, body: JSON.parse(init.body), ...d });
     return d.promise;
   };
-  const reply = (text) => new Response(JSON.stringify({ output: text, usage: {}, model: 'stub-model' }), { status: 200, headers: { 'content-type': 'application/json' } });
-  const refuse = (message) => new Response(JSON.stringify({ error: { code: 'invalid_request', message, retryable: false } }), { status: 400, headers: { 'content-type': 'application/json' } });
+  const reply = (text) => json({ output: text, usage: {}, model: 'stub-model' });
+  const refuse = (message) => json({ error: { code: 'invalid_request', message, retryable: false } }, 400);
   return { requests, fetch, reply, refuse };
 }
 
@@ -589,7 +592,6 @@ test('talk: a reply after the caller abandoned the turn still goes to that turn'
 function proNetwork({ hold = false, refuse = false } = {}) {
   const requests = [];
   const reservations = [];
-  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
   const fetch = async (url, init = {}) => {
     requests.push({ url, body: init.body ? JSON.parse(init.body) : null });
     if (url === '/api/ai/pro-generations') {

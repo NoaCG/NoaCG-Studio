@@ -1,7 +1,8 @@
 // THE PRO TIER'S SCREEN, QUARANTINED (docs/work-specs/wizard-ai/spec.md, D4).
 //
 // Hosted Pro's door is closed pending https://github.com/NoaCG/NoaCG-Studio/issues/771, so the
-// step's `proMode` is always false and nothing here renders. The code is preserved, not deleted
+// step's `proMode` is always false and nothing here renders; the status read in `useProTier`
+// still runs on every opening, as it did in the step. The code is preserved, not deleted
 // (owner, 2026-10-13): it moved here from the step as it was, and keeps compiling, so reopening
 // the tier is what the door note in the step says and nothing more. The step renders each piece
 // behind the guard it always had; its run is the 'pro' route of src/ai/creation.ts.

@@ -1,8 +1,9 @@
 // THE CREATE WITH AI RUN, without React (docs/work-specs/wizard-ai/spec.md, sections 2 and 4).
 //
 // Which provider call runs for which tier, with which checks, and what the result carries back;
-// how a result is refined, fixed or rebuilt on another design; and the talk turn. The step (`components/wizard/steps/AiStep.tsx`) owns the screen: the composer, the thread, the
-// busy line, the result card. Everything the browser has to supply comes in through `io` - the
+// how a result is refined, fixed or rebuilt on another design; and the talk turn. The step
+// (`components/wizard/steps/AiStep.tsx`) owns the screen: the composer, the thread, the busy
+// line, the result card. Everything the browser has to supply comes in through `io` - the
 // provider, the validator the step builds, the structural check and the mark probe (both need a
 // live DOM) and the busy line - so `scripts/ai-creation.test.mjs` runs every route in Node with a
 // stub provider.

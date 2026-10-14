@@ -464,7 +464,6 @@ export default function AiStep({
   const [chatBusy, setChatBusy] = useState(false);
   const [latestBrief, setLatestBrief] = useState<string | null>(null);
 
-  /** What the model is told the conversation was: the talk turns, bounded, oldest first. */
   const conversation = () => conversationOf(turns.filter((t): t is TalkTurn => t.kind === 'you' || t.kind === 'ai'));
 
   const say = (turn: Turn) => setTurns((prev) => [...prev, turn]);

@@ -18,8 +18,8 @@ export function toHex(value: string): string | null {
 }
 
 /** #rrggbb for the native color input; rgba()/other values fall back to a neutral swatch.
- *  The AI step's brand-colour rows (wizard/steps/ai/MoreControlPanel) read it - one
- *  conversion, so a colour swatch means the same thing wherever the user picks one. */
+ *  The AI step's brand-colour rows (wizard/steps/ai/MoreControlPanel) read it. Unlike `toHex`
+ *  it never returns null and does not expand #rgb (that becomes the neutral swatch). */
 export function pickerHex(value: string): string {
   if (/^#[0-9a-f]{6}$/i.test(value)) return value;
   const m = value.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
