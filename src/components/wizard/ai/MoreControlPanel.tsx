@@ -10,33 +10,33 @@ import {
   aiCategoryById,
   recommendedPresetsFor,
   suggestedFieldsFor,
-} from '../../../../ai/spec/categories';
+} from '../../../ai/spec/categories';
 import {
   INTENSITY_PRESETS,
   type AnimationIntensity,
   type GenerationSpec,
   type SpecFieldDef,
-} from '../../../../model/generationSpec';
-import { TRANSITION_STYLES } from '../../../../blocks/animData';
-import { ALL_PRESETS } from '../../../../blocks/presetRegistry';
-import { EASINGS, type EasingId } from '../../../../model/easings';
-import type { AnimPresetId, AnimSpeed } from '../../../../model/wizard';
+} from '../../../model/generationSpec';
+import { TRANSITION_STYLES } from '../../../blocks/animData';
+import { ALL_PRESETS } from '../../../blocks/presetRegistry';
+import { EASINGS, type EasingId } from '../../../model/easings';
+import type { AnimPresetId, AnimSpeed } from '../../../model/wizard';
 import {
   familyFromFileName,
   fontFormatForExt,
   registerAndMeasureFont,
   type CustomFont,
-} from '../../../../model/fonts';
-import { extOf, fileToDataUrl } from '../../../../assets/assetUtils';
+} from '../../../model/fonts';
+import { extOf, fileToDataUrl } from '../../../assets/assetUtils';
 import {
   IMAGE_PURPOSES,
   PURPOSE_LABEL,
   isReferencePurpose,
   type PurposedImage,
-} from '../../../../model/imagePurpose';
-import type { FieldKind } from '../../../../model/fieldModel';
-import FontPicker from '../../FontPicker';
-import { pickerHex } from '../../../../model/cssVars';
+} from '../../../model/imagePurpose';
+import type { FieldKind } from '../../../model/fieldModel';
+import FontPicker from '../FontPicker';
+import { pickerHex } from '../../../model/cssVars';
 
 /** The four :root colours, in the Style step's order and words. */
 const COLOR_KEYS: { key: 'accent' | 'text' | 'textDim' | 'panel'; label: string }[] = [

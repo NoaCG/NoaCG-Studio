@@ -16,7 +16,7 @@ import {
   PURPOSE_LABEL,
   type AssetBinding,
   type PurposedImage,
-} from '../../../../model/imagePurpose';
+} from '../../../model/imagePurpose';
 
 interface Props {
   item: PurposedImage;

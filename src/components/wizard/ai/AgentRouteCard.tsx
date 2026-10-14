@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useId, useState } from 'react';
-import { copyLink } from '../../../home/copyLink';
+import { copyLink } from '../../home/copyLink';
 
 /**
  * THE USER'S OWN CODING AGENT IS THE RECOMMENDED WAY TO MAKE GRAPHICS WITH NOACG, SO IT IS THE

@@ -16,7 +16,7 @@ import {
   type PurposedImage,
   type ReferencePurpose,
 } from '../../../model/imagePurpose';
-import { UploadCard } from './ai/UploadCard';
+import { UploadCard } from '../ai/UploadCard';
 import {
   resolutionForSelection,
   type ProjectFormatSelection,

@@ -38,7 +38,7 @@ import { benchStructuralIntent } from '../../../validation/structuralIntentCheck
 import { withSpecChecks } from '../../../ai/spec/specValidate';
 import { loadProStatus } from '../../../ai/pro/session';
 import { PRO_SUPPORTED_CATEGORIES } from '../../../ai/pro/brief';
-import { ProFailingNote, ProReport, ProSettings, ProUploadNote, useProCategory, useProTier } from './ai/ProPanel';
+import { ProFailingNote, ProReport, ProSettings, ProUploadNote, useProCategory, useProTier } from './ProPanel';
 import { probeMark } from '../../../assets/assetInfo';
 import {
   emptyGenerationSpec,
@@ -51,7 +51,7 @@ import {
 import { useAuthState } from '../../auth/useAuthState';
 import SignInPrompt from '../../auth/SignInPrompt';
 import AiProviderSettings from '../../AiProviderSettings';
-import AgentRouteCard from './ai/AgentRouteCard';
+import AgentRouteCard from './AgentRouteCard';
 import { fileToDataUrl, uniqueAssetPath } from '../../../assets/assetUtils';
 import { extractBrandColors, paletteFromAccent, type BrandColor } from '../../../assets/paletteExtract';
 import {
@@ -66,7 +66,7 @@ import {
   splitByPurpose,
   type PurposedImage,
 } from '../../../model/imagePurpose';
-import { UploadCard } from './ai/UploadCard';
+import { UploadCard } from './UploadCard';
 import type { AssetFile, SpxTemplate } from '../../../model/types';
 import {
   resolutionForSelection,
@@ -82,7 +82,7 @@ import SectionHead from '../SectionHead';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import ViewingControls from '../ViewingControls';
 import { resolveLegibility, type ProjectLegibility, type ResolvedLegibility } from '../../../model/designRules';
-import MoreControlPanel from './ai/MoreControlPanel';
+import MoreControlPanel from './MoreControlPanel';
 import { GenerationRating } from '../../feedback/GenerationRating';
 import { LITE_AI_CATEGORIES } from '../../../ai/lite/contract';
 import { loadLiteStatus, recordLiteOutcome } from '../../../ai/lite/client';

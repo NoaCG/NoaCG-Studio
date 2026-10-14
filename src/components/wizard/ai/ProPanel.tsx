@@ -8,20 +8,20 @@
 // behind the guard it always had; its run is the 'pro' route of src/ai/creation.ts.
 
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { loadAiSettings, saveAiSettings } from '../../../../ai/settings';
-import type { ProGenerateResult } from '../../../../ai/pro/language/pipeline';
+import { loadAiSettings, saveAiSettings } from '../../../ai/settings';
+import type { ProGenerateResult } from '../../../ai/pro/language/pipeline';
 import {
   PRO_GRAPHICS,
   PRO_PACKAGE_LIST,
   type ProGraphicId,
   type ProPackageMember,
-} from '../../../../ai/pro/language/graphics';
-import { loadProStatus } from '../../../../ai/pro/session';
-import type { ProStatusResponse } from '../../../../ai/pro/types';
-import { PRO_SUPPORTED_CATEGORIES } from '../../../../ai/pro/brief';
-import type { GenerationSpec } from '../../../../model/generationSpec';
-import type { SpxTemplate } from '../../../../model/types';
-import MiniPreview from '../../MiniPreview';
+} from '../../../ai/pro/language/graphics';
+import { loadProStatus } from '../../../ai/pro/session';
+import type { ProStatusResponse } from '../../../ai/pro/types';
+import { PRO_SUPPORTED_CATEGORIES } from '../../../ai/pro/brief';
+import type { GenerationSpec } from '../../../model/generationSpec';
+import type { SpxTemplate } from '../../../model/types';
+import MiniPreview from '../MiniPreview';
 
 /** The Pro tier's state and its status read. The step calls it where they always ran. */
 export function useProTier(needsSignIn: boolean) {
