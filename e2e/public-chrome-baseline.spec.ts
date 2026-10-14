@@ -1,5 +1,5 @@
 // covers: src/site-chrome.css, src/brandCore.css, ograf.html, scripts/site-nav.mjs
-// covers: {index,privacy,terms,docs,downloads,whats-new,roadmap}.html, src/legal.css, src/docs/**, src/downloads/**, src/landing/updates.css, docs/whats-new/**
+// covers: {index,privacy,terms,docs,downloads,whats-new,roadmap}.html, src/legal.css, src/docs/**, src/downloads/**, src/landing/updates.css, docs/whats-new/**, docs/GOALS.md
 
 import { existsSync } from 'node:fs';
 import { test, expect, type Page, type TestInfo } from '@playwright/test';

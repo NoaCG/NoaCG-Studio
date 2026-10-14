@@ -17,7 +17,7 @@
 //
 // What's new and the roadmap: two public pages the landing links, whose lists the build generates
 // from docs/whats-new/ and docs/GOALS.md (scripts/whats-new.mjs, scripts/roadmap.mjs).
-// covers: {whats-new.html,roadmap.html,docs/whats-new/**,scripts/whats-new.mjs,scripts/roadmap.mjs}
+// covers: {whats-new.html,roadmap.html,docs/whats-new/**,docs/GOALS.md,scripts/whats-new.mjs,scripts/roadmap.mjs}
 
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
