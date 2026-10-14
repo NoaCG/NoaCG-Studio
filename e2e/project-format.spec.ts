@@ -9,7 +9,14 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
-import { createProject, finishIntoEditor, enableAdvancedMode, startNewProject } from './_create';
+import {
+  bootstrapGraphic,
+  createProject,
+  enableAdvancedMode,
+  finishIntoNewEditor,
+  openWorkingGraphicInEditor,
+  startNewProject,
+} from './_create';
 import { pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';
 
@@ -45,8 +52,7 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
 
   for (const [index, format] of cases.entries()) {
     if (index === 0) {
-      await enableAdvancedMode(page);
-  await page.goto('/app');
+      await page.goto('/app');
       await expect(page.getByTestId('creation-wizard')).toBeVisible();
     } else {
       await startNewProject(page);
@@ -56,18 +62,17 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
     await pickDesign(page, 'Hairline');
 
     if (index === cases.length - 1) {
+      // The footer's own Next, by class: Browse also shows the "Now & Next" card.
       for (let step = 0; step < 4; step++) {
-        await page.getByRole('button', { name: 'Next →' }).click();
+        await page.locator('.wz-footer button.wz-next').click();
       }
       await expect(page.locator('.wz-finish-summary')).toContainText(
         `16:9 · ${format.width}×${format.height} · ${format.fps} fps`,
       );
-      await awaitPreviewRebuild(page, () => page.getByTestId('wz-finish-editor').click());
-    } else {
-      await awaitPreviewRebuild(page, () =>
-        finishIntoEditor(page),
-      );
     }
+    // Finish's "Edit this graphic": the walk's graphic becomes the working document and the new
+    // editor opens on it, where the old code-editor door used to land.
+    await finishIntoNewEditor(page);
 
     const facts = await templateFacts(page);
     expect(facts).toMatchObject({
@@ -80,7 +85,6 @@ test('templates author 720p25, 1080p50, and 4K60 from the shared picker', async 
 });
 
 test('aspect changes select a valid resolution and route switches preserve the choice', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="template"]').click();
   await page.getByTestId('browse-format-aspect').selectOption('9:16');
@@ -97,9 +101,9 @@ test('aspect changes select a valid resolution and route switches preserve the c
   await expect(page.getByTestId('ai-format-fps')).toHaveValue('60');
 });
 
-test('blank and imported artwork require an authored format before creation', async ({ page }) => {
-  // Blank is an Advanced-mode door (step 4); the import half needs no toggle but shares the walk.
-  await enableAdvancedMode(page);
+test('blank artwork requires an authored format before creation', async ({ page }) => {
+  // Blank was an Advanced-mode door (step 4), and Advanced mode is gone with the old editor, so
+  // this half stays skipped; the import half below shared the walk and runs on its own.
   await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="blank"]').click();
@@ -113,8 +117,10 @@ test('blank and imported artwork require an authored format before creation', as
     await expect(page.getByTestId('creation-wizard')).toBeHidden({ timeout: 30_000 });
   });
   await expect(page.getByTestId('preview-project-format')).toHaveText('1280×720 · 50 fps');
+});
 
-  await startNewProject(page);
+test('imported artwork requires an authored format before creation', async ({ page }) => {
+  await page.goto('/app');
   await page.locator('[data-entry="import-graphic"]').click();
   await page.getByTestId('import-design-format-aspect').selectOption('1:1');
   await pickFormat(page, 'import-design-format', 'square-1080p', 60);
@@ -131,17 +137,14 @@ test('blank and imported artwork require an authored format before creation', as
   await expect(page.getByTestId('import-design-format-resolution')).toBeDisabled();
   await expect(page.getByTestId('import-raster-warning')).toBeVisible();
   await expect(page.locator('.wz-preview-bar')).toContainText('Project 1080×1080 · 60 fps');
-  await awaitPreviewRebuild(page, async () => {
-    // Design mode keeps the footer's "Create project" - no skip-to-finish there.
-    await page.getByRole('button', { name: 'Create project' }).click();
-    await expect(page.getByTestId('creation-wizard')).toBeHidden({ timeout: 30_000 });
-  });
-  await expect(page.getByTestId('preview-project-format')).toHaveText('1080×1080 · 60 fps');
+  // Design mode finishes like every walk: Skip to finish, then "Edit this graphic". The created
+  // graphic carries the format the old editor's canvas chip used to print.
+  await finishIntoNewEditor(page);
+  await expect.poll(() => templateFacts(page)).toMatchObject({ width: 1080, height: 1080, fps: 60 });
 });
 
 test('video AI uses the shared selected project format', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.getByRole('button', { name: 'Video or animation with AI' }).click();
   await expect.poll(() => page.locator('.wz-step').evaluate((element) => element.scrollTop)).toBe(0);
@@ -251,7 +254,6 @@ test('Create with AI receives and produces the selected 4K60 format', async ({ p
     route.fulfill({ status: 200, contentType: 'application/json', body: '{"recorded":true}' }),
   );
 
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="ai"]').click();
   await chooseNoacgAgent(page);
@@ -263,14 +265,16 @@ test('Create with AI receives and produces the selected 4K60 format', async ({ p
   });
   expect(requestFormat).toEqual({ resolution: { width: 3840, height: 2160 }, fps: 60 });
 
-  await page.getByRole('button', { name: 'Next →' }).click();
+  await page.locator('.wz-footer button.wz-next').click();
   await expect(page.locator('.wz-finish-summary')).toContainText('3840×2160 · 60 fps');
-  await awaitPreviewRebuild(page, () => page.getByTestId('wz-finish-editor').click());
+  // The AI walk's Finish has no editor door. Its export door builds the graphic into the working
+  // document first, like every Finish door, then opens the export window over the wizard.
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
   await expect.poll(() => templateFacts(page)).toMatchObject({ width: 3840, height: 2160, fps: 60 });
 });
 
 test('save, reopen, and package exports preserve authored dimensions and timing', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   const facts = await page.evaluate(async () => {
     const { createBlankTemplate } = await import('/src/templates/blank.ts');
@@ -344,7 +348,6 @@ test('render output settings are explicit scaling from the authored canvas', asy
 });
 
 test('animation seconds remain equal at 25, 50, and 60 fps', async ({ page }) => {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   const durations = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
@@ -384,7 +387,6 @@ test('native 4K capture is not downsampled and a deliberate 1px hairline stays o
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 3840, height: 2160 });
-  await enableAdvancedMode(page);
   await page.goto('/app');
   const measurements = await page.evaluate(async () => {
     const { variantById } = await import('/src/templates/catalog.ts');
@@ -494,18 +496,21 @@ test('a restored graphic whose format the catalogue does not offer is marked, no
   await expect(page.getByTestId('topbar-project-format')).not.toHaveAttribute('data-format-unsupported', 'true');
 });
 
-/** The topbar's own overflow test, the same arithmetic as `configured/signed-in-ux.spec.ts`:
+/** The editor header's overflow test, the same arithmetic as `configured/signed-in-ux.spec.ts`:
  *  how far past the bar's right edge its widest child reaches. Positive is an overflow, which is
- *  the account avatar hanging off the screen. */
+ *  the save controls hanging off the screen. The new editor's header (`.ef-header`) carries the
+ *  save controls the old editor's `.topbar` did. */
 async function topbarOverflowPx(page: Page): Promise<number> {
-  return page.locator('.topbar').evaluate((bar) => {
+  return page.locator('.ef-header').evaluate((bar) => {
     const boxes = [...bar.children].map((c) => c.getBoundingClientRect()).filter((r) => r.width > 0);
     return Math.round(Math.max(...boxes.map((r) => r.right)) - bar.getBoundingClientRect().right);
   });
 }
 
 test('a save carrying an unsupported format lands and says so instead of "Saved"', async ({ page }) => {
-  await createProject(page, 'Hairline');
+  // The new editor carries the save controls the old editor's topbar did.
+  await bootstrapGraphic(page, 'Hairline');
+  await openWorkingGraphicInEditor(page);
 
   // First save = saveGraphicAs. A catalogue format must not warn.
   await page.getByTestId('save-graphic').click();
