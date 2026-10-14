@@ -1,0 +1,338 @@
+#!/usr/bin/env node
+// THE NOACG HARNESS BENCH (docs/work-specs/noacg-harness/spec.md D5, sections 5.1, 5.3, 5.4).
+//
+//   node scripts/harness-bench.mjs                    FREE. The ledger: spent, left, per phase.
+//   node scripts/harness-bench.mjs --control [--briefs id,..] [--out <dir>]
+//                                                    FREE. No model, no credit: the fake arm and the
+//                                                    managed-agents arm on a stub that replays the
+//                                                    documented Managed Agents events and files push
+//                                                    scaffolded graphics through record, shape check,
+//                                                    capture, gallery and a ledger copy at $0, and the
+//                                                    ledger's wall refuses a session it cannot cover.
+//                                                    Run it FIRST and after any change here: a broken
+//                                                    bench would be measured as a model.
+//   node scripts/harness-bench.mjs --build <H#> --arms managed-agents[,claude-code] --briefs id,..
+//                                  --budget-cents <n> --model <id> [--overshoot-cents 50] [--out <dir>]
+//                                                    PAID. Real sessions: managed-agents on the bench
+//                                                    key's credit (scripts/bench-env.mjs --profile=harness),
+//                                                    claude-code on the owner's subscription. Refused
+//                                                    when the ledger already holds that phase as
+//                                                    completed, and per session when what is left
+//                                                    cannot cover its budget and the overshoot margin.
+//   node scripts/harness-bench.mjs --close <H#> [--note "..."]
+//                                                    Record a phase as completed in the ledger.
+//   node scripts/harness-bench.mjs --review <runDir> FREE. Rebuild a run's blind gallery.
+//
+// The briefs are the unsealed tuning set (benchmarks/harness/tuning/briefs.json). The exam set is
+// sealed (benchmarks/harness/exam/) and this runner never opens it before H8.
+//
+// Named `*bench*` so the one-job-per-machine guard sees it: every cell drives Chromium through the
+// CLI. Coverage runs against this checkout's dev server, or the deployment NOACG_URL names.
+
+import { mkdirSync, readFileSync, readdirSync, existsSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { devPort } from './dev-port.mjs';
+import { mainEnv } from './lite-eval-paths.mjs';
+import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
+import { claudeCodeArm, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
+import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
+import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
+import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
+import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, phaseCompleted, readLedger, summary, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
+import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
+import { claudeExecutable } from '../benchmarks/harness/lib/subscription.mjs';
+import { readAgentDefinition, readEnvironmentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
+import { AGENT_DIR, keyFor, lockPath, skillBundle, syncPlan } from './harness-agent-sync.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
+export const LEDGER_FILE = path.join(HARNESS, 'ledger.json');
+const TUNING = path.join(HARNESS, 'tuning', 'briefs.json');
+/** What `--control` runs by default: a two-sided board with operator actions, and a typeless brief. */
+export const CONTROL_BRIEFS = ['school-scoreboard', 'debate-clock'];
+
+const argv = process.argv.slice(2);
+const has = (name) => argv.includes(`--${name}`);
+const value = (name, fallback) => {
+  const i = argv.findIndex((a) => a === `--${name}` || a.startsWith(`--${name}=`));
+  if (i < 0) return fallback;
+  const eq = argv[i].indexOf('=');
+  if (eq >= 0) return argv[i].slice(eq + 1);
+  return argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : fallback;
+};
+const list = (name) => (value(name, '') || '').split(',').map((s) => s.trim()).filter(Boolean);
+const stamp = () => new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+function fail(message) {
+  console.error(`harness-bench: ${message}`);
+  process.exit(2);
+}
+
+/** The tuning briefs a run may use, by id; the OGraf brief is not a library graphic and stays out. */
+export function tuningBriefs(ids) {
+  const bank = JSON.parse(readFileSync(TUNING, 'utf8')).briefs;
+  const chosen = ids.map((id) => bank.find((b) => b.id === id) ?? fail(`no tuning brief ${id}`));
+  for (const b of chosen) if (!isLibraryBrief(b)) fail(`${b.id} is not a library graphic brief (4.2)`);
+  return chosen;
+}
+
+/** `--build` may create sessions only for a phase the ledger does not already hold as completed. */
+export function refuseCompletedPhase(ledger, phase) {
+  if (!/^H\d+$/.test(phase ?? '')) return `--build needs a phase like H3, got "${phase}"`;
+  if (phaseCompleted(ledger, phase)) return `the ledger already holds ${phase} as completed; a completed phase never spends again`;
+  return null;
+}
+
+/** The cells of a `--build` the ledger does not already hold for that phase. A cell that ran
+ *  (delivered, not ready or failed) is never paid twice; a refused or paused one runs again. */
+export function pendingCells(ledger, phase, cells) {
+  const ran = (c) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === c.brief.id && e.arm === c.arm.id && !['refused', 'paused'].includes(e.outcome));
+  return cells.filter((c) => !ran(c));
+}
+
+function printLedger(ledger) {
+  const s = summary(ledger);
+  console.log(`Ledger ${path.relative(ROOT, LEDGER_FILE)}: ${dollars(s.spentCents)} of ${dollars(ledger.runBudgetCents)} credit spent, ${dollars(s.remainingCents)} left.`);
+  for (const r of s.rows) console.log(`  ${r.phase} ${r.stage ?? '-'} ${r.model ?? '-'} (${r.funding}): ${r.sessions} session(s), ${dollars(r.listCostCents)}`);
+  for (const e of ledger.entries.filter((x) => x.kind === 'phase')) console.log(`  ${e.phase} ${e.outcome}${e.note ? ` - ${e.note}` : ''}`);
+}
+
+function ensureCli() {
+  if (!existsSync(CLI_ENTRY) || !existsSync(path.join(ROOT, 'cli', 'dist', 'commands', 'coverage.js'))) fail('the CLI in cli/dist is missing or predates `coverage` and `record`: run `npm run build` in cli/');
+}
+
+async function ensureBridge(cli) {
+  const r = await cli(['doctor', '--json']);
+  if (r.code !== 0) fail(`no NoaCG bridge at ${cli.url}: start this checkout's dev server (npm run dev) or set NOACG_URL\n${r.stderr.slice(-400)}`);
+}
+
+async function runCells({ cells, runDir, cli, ledger, entry, api, runId, onCell }) {
+  const done = [];
+  for (const c of cells) {
+    const cellDir = path.join(runDir, 'cells', c.id);
+    rmSync(cellDir, { recursive: true, force: true });
+    const t = Date.now();
+    const cell = await runCell({ arm: c.arm, brief: c.brief, cellDir, cli, ledger, entry: { ...entry, ...(c.entry ?? {}) }, shape: api.shape, runId: `${runId}-${c.id}`, log: (l) => console.log(l) });
+    done.push({ id: c.id, dir: cellDir, brief: c.brief.id, arm: c.arm.id, model: c.arm.model, cell });
+    console.log(`  ${c.id.padEnd(40)} ${describe(cell)} [${Math.round((Date.now() - t) / 1000)}s]`);
+    if (onCell) onCell(cell);
+  }
+  return done;
+}
+
+function describe(cell) {
+  if (cell.refused) return `REFUSED - ${cell.refused}`;
+  if (!cell.validation) return `${cell.outcome}${cell.reason ? ` - ${cell.reason}` : ''}`;
+  const parts = [
+    cell.outcome,
+    `shape ${cell.shape.ok ? 'ok' : `REFUSED (${cell.shape.reason})`}`,
+    `validator ${cell.validation.ok ? 'clean' : 'ERRORS'}`,
+    `${cell.capture.frames} frame(s), ${cell.capture.crops} crop(s)`,
+    `digests ${cell.digest.ok ? 'one version' : cell.digest.problems.join('; ')}`,
+    cell.operator.missing.length ? `MISSING ${cell.operator.missing.join('/')}` : 'actions ok',
+    dollars(cell.costCents ?? 0),
+  ];
+  if (cell.cleanup) parts.push(`cleanup ${cell.cleanup.sessionGone && cell.cleanup.filesLeft === 0 ? 'gone' : 'LEFT SOMETHING'}`);
+  return parts.join(', ');
+}
+
+// ── --control ─────────────────────────────────────────────────────────────────────────────────
+
+async function control() {
+  ensureCli();
+  const url = process.env.NOACG_URL || `http://localhost:${devPort()}`;
+  const cli = makeCli({ url });
+  await ensureBridge(cli);
+  const briefs = tuningBriefs(list('briefs').length ? list('briefs') : CONTROL_BRIEFS);
+  const runDir = path.resolve(value('out', path.join(os.tmpdir(), 'noacg-harness', `control-${stamp()}`)));
+  mkdirSync(runDir, { recursive: true });
+  // The control writes a COPY of the ledger: a dry run is not spend, and the committed ledger
+  // holds what the plan spent, nothing else.
+  const ledgerCopy = path.join(runDir, 'ledger.json');
+  copyFileSync(LEDGER_FILE, ledgerCopy);
+  const ledger = readLedger(ledgerCopy);
+  const api = await loadHarnessApi();
+  try {
+    console.log(`CONTROL against ${url}: ${briefs.length} brief(s) -> ${runDir}`);
+    const byRun = new Map();
+    const stubAgent = async (sessionId, params) => {
+      const brief = byRun.get(params.metadata?.run_id);
+      if (!brief) throw new Error(`the stub was asked for a run it does not know: ${params.metadata?.run_id}`);
+      const scratch = path.join(runDir, 'stub-sessions', sessionId);
+      const work = await fakeAgentWork({ brief, workDir: path.join(scratch, 'work'), outputsDir: path.join(scratch, 'outputs'), cli }).catch((e) => {
+        // The stub ends a session whose agent failed as the scenario says, with nothing handed in;
+        // the cause is said here, or the cell would read as the arm's failure alone.
+        console.error(`  stub session ${sessionId}: the fake agent failed - ${e instanceof Error ? e.message : String(e)}`);
+        throw e;
+      });
+      return {
+        outputs: [
+          { filename: 'record.json', bytes: readFileSync(work.recordFile), mimeType: 'application/json' },
+          { filename: 'record.zip', bytes: readFileSync(work.zipFile), mimeType: 'application/zip' },
+        ],
+        commands: work.commands.map(({ command, output }) => ({ command, output })),
+      };
+    };
+    const stubArm = (scenario) => {
+      const stub = api.stub.createManagedAgentsStub({ scenario, costCents: 0, runningReads: 1, agent: stubAgent });
+      const arm = managedAgentsArm({ api: stub, client: api.client, agent: { id: 'agent_stub', version: 1 }, environmentId: 'env_stub', budgetCents: 300, model: 'stub', funding: 'none', files: [{ fileId: 'file_stub_cli', mountPath: '/noacg-cli.tgz' }], pollMs: 500 });
+      const run = arm.run;
+      return { ...arm, stub, run: (ctx) => { byRun.set(ctx.runId, ctx.brief); return run(ctx); } };
+    };
+    const runId = `control-${stamp()}`;
+    const cells = [];
+    for (const brief of briefs) {
+      cells.push({ id: `${brief.id}.fake`, brief, arm: fakeArm() });
+      cells.push({ id: `${brief.id}.managed-agents-stub`, brief, arm: stubArm('end_turn') });
+    }
+    // The not-ready path: a session paused at its budget hands in its last record as not ready.
+    cells.push({ id: `${briefs[0].id}.managed-agents-stub-budget`, brief: briefs[0], arm: stubArm('budget_reached') });
+    const entry = { phase: 'H1', stage: 'control', budgetCents: 300, overshootCents: DEFAULT_OVERSHOOT_CENTS };
+    const done = await runCells({ cells, runDir, cli, ledger, entry, api, runId });
+
+    // The wall: a ledger with $1 left refuses a $3 session before anything is created.
+    const short = { ...ledger, entries: [...ledger.entries, { at: new Date().toISOString(), kind: 'session', phase: 'H1', stage: 'control-wall', arm: 'synthetic', funding: 'credit', sessionId: 'sesn_synthetic', listCostCents: ledger.runBudgetCents - 100, outcome: 'delivered', note: 'a synthetic spend, in this copy only' }] };
+    const wallArm = { ...stubArm('end_turn'), funding: 'credit' };
+    const refused = await runCell({ arm: wallArm, brief: briefs[0], cellDir: path.join(runDir, 'cells', 'wall'), cli, ledger: short, entry, shape: api.shape, runId: `${runId}-wall` });
+    const wall = { refused: Boolean(refused.refused), reason: refused.refused ?? null, sessionsCreated: wallArm.stub.sessions.size, admission: admit(short, { budgetCents: 300 }) };
+    console.log(`  ${'the wall ($1 left, a $3 session)'.padEnd(40)} ${wall.refused && wall.sessionsCreated === 0 ? 'REFUSED before any session was created' : 'NOT REFUSED - the wall is broken'}`);
+
+    writeLedger(ledgerCopy, ledger);
+    const judge = loadJudge(path.join(HARNESS, 'judge'));
+    const gallery = buildGallery({ runDir, cells: done, briefs });
+    const s = summary(ledger);
+    const report = {
+      runDir,
+      noacgUrl: url,
+      spentCents: s.spentCents - summary(readLedger(LEDGER_FILE)).spentCents,
+      cells: done.map((d) => ({ id: d.id, ...d.cell, trace: undefined })),
+      wall,
+      judge: judge.frozen ? { frozen: true, model: judge.lock.model } : { frozen: false, reason: judge.reason },
+      gallery,
+    };
+    writeFileSync(path.join(runDir, 'summary.json'), `${JSON.stringify(report, null, 2)}\n`);
+    const live = done.filter((d) => d.cell.validation);
+    const ok = live.length === done.length && live.every((d) => d.cell.shape.ok && d.cell.validation.ok && d.cell.digest.ok && d.cell.capture.frames > 0) && done.filter((d) => d.cell.cleanup).every((d) => d.cell.cleanup.sessionGone && d.cell.cleanup.filesLeft === 0) && wall.refused && wall.sessionsCreated === 0 && report.spentCents === 0;
+    console.log(`\nSpend recorded by this run: ${dollars(report.spentCents)} (ledger copy ${ledgerCopy}).`);
+    console.log(`Judge: ${judge.frozen ? `frozen on ${judge.lock.model}` : `not frozen yet - ${judge.reason}`}.`);
+    console.log(`Gallery: ${gallery.review}\nKey (open after notes.md): ${gallery.key}\nSummary: ${path.join(runDir, 'summary.json')}`);
+    console.log(ok ? 'CONTROL PASSED' : 'CONTROL FAILED - read the cells above');
+    process.exitCode = ok ? 0 : 1;
+  } finally {
+    await api.cleanup();
+  }
+}
+
+// ── --build ───────────────────────────────────────────────────────────────────────────────────
+
+async function build(phase) {
+  const ledger = readLedger(LEDGER_FILE);
+  const refusal = refuseCompletedPhase(ledger, phase);
+  if (refusal) fail(refusal);
+  const arms = list('arms');
+  const ids = list('briefs');
+  const budgetCents = Number(value('budget-cents', ''));
+  const model = value('model', '');
+  if (!arms.length || !ids.length) fail('--build needs --arms and --briefs: a paid run names exactly what it spends on');
+  if (arms.includes('managed-agents') && !(Number.isInteger(budgetCents) && budgetCents > 0)) fail('--build with managed-agents needs --budget-cents <n>, the per-session cap');
+  if (arms.includes('claude-code') && !model) fail('--build with claude-code needs --model, the exact model id the reference session runs');
+  for (const a of arms) if (!['managed-agents', 'claude-code'].includes(a)) fail(`unknown arm ${a}`);
+  ensureCli();
+  const url = process.env.NOACG_URL || 'https://noacg.studio';
+  const cli = makeCli({ url });
+  await ensureBridge(cli);
+  const briefs = tuningBriefs(ids);
+  const runDir = path.resolve(value('out', path.join(os.tmpdir(), 'noacg-harness', `${phase}-${stamp()}`)));
+  if (runDir.startsWith(ROOT + path.sep)) fail(`--out must be outside the repository (${ROOT}): a reference session there would load this repo's instructions`);
+  mkdirSync(runDir, { recursive: true });
+  const api = await loadHarnessApi();
+  const built = [];
+  let uploaded = null;
+  let sdk = null;
+  try {
+    if (arms.includes('managed-agents')) {
+      const lockFile = lockPath('bench');
+      if (!existsSync(lockFile)) fail(`no ${path.relative(ROOT, lockFile)}: sync the agent first (node scripts/harness-agent-sync.mjs --workspace bench --apply)`);
+      const lock = JSON.parse(readFileSync(lockFile, 'utf8'));
+      // The sessions run the agent as it was synced: its model is the synced one, and a
+      // definition changed since the sync would be measured as something it is not.
+      const agentDef = readAgentDefinition(AGENT_DIR);
+      const bundleDir = path.join(runDir, 'skill');
+      const drift = syncPlan({ lock, environment: readEnvironmentDefinition(AGENT_DIR), agent: agentDef, bundle: skillBundle(bundleDir) }).filter((step) => step.action !== 'keep');
+      if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);
+      const agentModel = agentDef.config.model?.id ?? agentDef.config.model;
+      if (model && model !== agentModel) fail(`--model ${model}, but the synced agent runs ${agentModel}: change agents/noacg-harness/agent.md and re-sync to measure another model`);
+      const key = keyFor('bench');
+      if (!key) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
+      const { default: Anthropic, toFile } = await import('@anthropic-ai/sdk');
+      sdk = new Anthropic({ apiKey: key });
+      const tarball = packCli(path.join(runDir, 'cli'));
+      uploaded = await sdk.files.upload({ file: await toFile(readFileSync(tarball), 'noacg-cli.tgz', { type: 'application/gzip' }) });
+      built.push(managedAgentsArm({ api: sdk, client: api.client, agent: { id: lock.agent.id, version: lock.agent.version }, environmentId: lock.environment.id, budgetCents, model: agentModel, funding: 'credit', files: [{ fileId: uploaded.id, mountPath: '/noacg-cli.tgz' }] }));
+    }
+    if (arms.includes('claude-code')) {
+      const token = mainEnv().CLAUDE_CODE_OAUTH_TOKEN;
+      built.push(claudeCodeArm({ claude: claudeExecutable(), token, model, url }));
+    }
+    const runId = `${phase}-${stamp()}`;
+    const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, overshootCents: Number(value('overshoot-cents', String(DEFAULT_OVERSHOOT_CENTS))) };
+    // A resumed run skips what the ledger already holds for this phase: a cell that ran (delivered,
+    // not ready or failed) is never paid twice; only a refused or paused one runs again.
+    const all = briefs.flatMap((brief) => built.map((arm) => ({ id: `${brief.id}.${arm.id}`, brief, arm })));
+    const cells = pendingCells(ledger, phase, all);
+    if (cells.length < all.length) console.log(`  ${all.length - cells.length} cell(s) already in the ledger for ${phase}, not run again: ${all.filter((c) => !cells.includes(c)).map((c) => c.id).join(', ')}`);
+    console.log(`BUILD ${phase}: ${cells.length} cell(s), ${dollars(summary(ledger).remainingCents)} left on the ledger -> ${runDir}`);
+    // Each cell's entry is written to the committed ledger as soon as it is known: a crash
+    // part way never loses spend, and a resumed run never spends it twice.
+    const done = await runCells({
+      cells,
+      runDir,
+      cli,
+      ledger,
+      entry,
+      api,
+      runId,
+      onCell: (cell) => {
+        writeLedger(LEDGER_FILE, ledger);
+        // Thrown, not exited: the finally below still deletes the uploaded CLI and the build dir.
+        if (cell.costUnread) throw new Error(`${cell.brief}.${cell.arm}: the session's cost could not be read; reconcile it in the Console and record it before another session spends`);
+      },
+    });
+    const gallery = buildGallery({ runDir, cells: done, briefs });
+    writeFileSync(path.join(runDir, 'summary.json'), `${JSON.stringify({ phase, runDir, cells: done.map((d) => ({ id: d.id, ...d.cell })), gallery }, null, 2)}\n`);
+    printLedger(ledger);
+    console.log(`Gallery: ${gallery.review}`);
+  } finally {
+    if (uploaded && sdk) await sdk.files.delete(uploaded.id).catch(() => undefined);
+    await api.cleanup();
+  }
+}
+
+// ── main ──────────────────────────────────────────────────────────────────────────────────────
+
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  if (has('control')) await control();
+  else if (has('build')) await build(value('build', ''));
+  else if (has('close')) {
+    const phase = value('close', '');
+    if (!/^H\d+$/.test(phase)) fail('--close needs a phase like H3');
+    const ledger = readLedger(LEDGER_FILE);
+    if (phaseCompleted(ledger, phase)) fail(`${phase} is already completed in the ledger`);
+    appendEntry(ledger, { kind: 'phase', phase, stage: 'close', funding: 'none', listCostCents: 0, outcome: 'completed', ...(value('note') ? { note: value('note') } : {}) });
+    writeLedger(LEDGER_FILE, ledger);
+    printLedger(ledger);
+  } else if (has('review')) {
+    const runDir = path.resolve(value('review', ''));
+    const cellsDir = path.join(runDir, 'cells');
+    if (!existsSync(cellsDir)) fail('--review needs a run directory holding cells/');
+    const cells = readdirSync(cellsDir).filter((d) => existsSync(path.join(cellsDir, d, 'cell.json'))).map((d) => {
+      const cell = JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8'));
+      return { id: d, dir: path.join(cellsDir, d), brief: cell.brief, arm: cell.arm, model: cell.model, cell };
+    });
+    const bank = JSON.parse(readFileSync(TUNING, 'utf8')).briefs;
+    console.log(buildGallery({ runDir, cells, briefs: bank }).review);
+  } else printLedger(readLedger(LEDGER_FILE));
+}

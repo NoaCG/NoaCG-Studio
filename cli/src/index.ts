@@ -19,6 +19,8 @@ import { runScaffold } from './commands/scaffold.js';
 import { runValidate } from './commands/validate.js';
 import { runInspect } from './commands/inspect.js';
 import { runScreenshot } from './commands/screenshot.js';
+import { runCoverage } from './commands/coverage.js';
+import { runRecord } from './commands/record.js';
 import { runPack } from './commands/pack.js';
 import { runDocs } from './commands/docs.js';
 import { runLogin } from './commands/login.js';
@@ -46,6 +48,13 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   screenshot <dir|zip> [--state off|onair|stress] [--data k=v]... [--event <op>]... [--at <time>]
              [--background transparent|checker|video|<colour>|<image>] --out <png>
                                  One frame; --event runs operator presses after the Take.
+  coverage <dir|zip> --out <dir> [--stress <brief.json>]
+                                 Every frame to look at before handing in: each value set on dark
+                                 and light grounds, the Take, every event, step, update and Out as
+                                 timed strips, and field crops. Writes coverage.json beside them.
+  record <dir|zip> --out <record.json> [--name N] [--folder F]
+                                 Validate, then write the library record save would send, and the
+                                 package zip beside it, without saving anything.
   pack <dir|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...
                                  Several graphics as one package: --save sends it to your NoaCG Home to Install.
   docs [contract|package|validator|control|design-notes]
@@ -75,6 +84,8 @@ const COMMANDS: Record<string, Command> = {
   validate: runValidate,
   inspect: runInspect,
   screenshot: runScreenshot,
+  coverage: runCoverage,
+  record: runRecord,
   pack: runPack,
   docs: runDocs,
   mcp: runMcp,

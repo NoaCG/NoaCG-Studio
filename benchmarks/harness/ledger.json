@@ -1,0 +1,28 @@
+{
+  "format": "noacg-harness-ledger-v1",
+  "runBudgetCents": 10000,
+  "entries": [
+    {
+      "at": "2026-10-14T00:00:00.000Z",
+      "kind": "phase",
+      "phase": "H0",
+      "stage": "briefs",
+      "funding": "subscription",
+      "listCostCents": 0,
+      "notionalUsd": 1.47,
+      "sessionId": "cd7d9f1d-94ad-47ad-8b3d-ea3835646bfa",
+      "outcome": "completed",
+      "note": "the sealed briefs, written by one claude -p child on the subscription (evidence/phase-0.md); recorded by H1, which created this ledger"
+    },
+    {
+      "at": "2026-10-14T18:03:27.416Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H1",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "the bench and the dry run: --control at $0 against the production bridge (evidence/phase-1.md); no session created, no credit spent"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+# The NoaCG harness environment: docs/work-specs/noacg-harness/spec.md D1 and 7.5. YAML in its
+# JSON form, which `ant apply` reads as is. `limited` networking: package managers (the CLI's npm
+# install) and exactly the NoaCG deployment. Whatever Chromium's download needs is measured in H3
+# and added then, as is `packages` if it can carry the CLI and a Chromium so no session pays the
+# install; until then the system prompt installs both.
+{
+  "name": "noacg-harness",
+  "description": "The container a NoaCG harness session makes its graphic in.",
+  "config": {
+    "type": "cloud",
+    "networking": {
+      "type": "limited",
+      "allow_package_managers": true,
+      "allow_mcp_servers": false,
+      "allowed_hosts": ["noacg.studio"]
+    }
+  },
+  "metadata": { "plan": "noacg-harness" }
+}

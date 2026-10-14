@@ -71,7 +71,7 @@ export const mimeTypeOf = (bytes: Uint8Array): 'image/jpeg' | 'image/png' => (by
 
 /** A defocused broadcast frame: bright and dark regions, soft colour, no flat area large enough
  *  to flatter a plate of either polarity. CSS only, so the CLI ships no binary for it. */
-const VIDEO_PLATE = [
+export const VIDEO_PLATE = [
   'radial-gradient(ellipse 34% 30% at 16% 20%, rgba(255, 212, 150, 0.9), rgba(255, 212, 150, 0) 72%)',
   'radial-gradient(ellipse 28% 34% at 84% 16%, rgba(130, 175, 255, 0.75), rgba(130, 175, 255, 0) 70%)',
   'radial-gradient(ellipse 50% 24% at 56% 60%, rgba(236, 240, 246, 0.92), rgba(236, 240, 246, 0) 72%)',
@@ -83,6 +83,26 @@ const VIDEO_PLATE = [
 
 const CHECKER = 'repeating-conic-gradient(#cfcfcf 0% 25%, #f2f2f2 0% 50%) 0 0 / 32px 32px';
 
+/** A bright daylight frame - sky, a pale wall, sunlit ground - so a graphic that only reads over
+ *  dark video is seen failing (`noacg coverage`'s second ground). */
+export const LIGHT_PLATE = [
+  'radial-gradient(ellipse 40% 30% at 20% 18%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 70%)',
+  'radial-gradient(ellipse 30% 26% at 78% 70%, rgba(255, 236, 196, 0.9), rgba(255, 236, 196, 0) 72%)',
+  'radial-gradient(ellipse 36% 22% at 50% 92%, rgba(196, 214, 170, 0.85), rgba(196, 214, 170, 0) 72%)',
+  'linear-gradient(180deg, #cfe3f5 0%, #eef2f4 46%, #f4efe4 76%, #d9d2c1 100%)',
+].join(', ');
+
+/** A busy picture: hard edges, small detail and both polarities everywhere, the crowd or market
+ *  behind a brief's `busy:` background (`noacg coverage`). */
+export const BUSY_PLATE = [
+  'repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.55) 0 6px, rgba(0, 0, 0, 0) 6px 22px)',
+  'repeating-linear-gradient(25deg, rgba(10, 12, 20, 0.6) 0 9px, rgba(0, 0, 0, 0) 9px 31px)',
+  'radial-gradient(circle at 30% 40%, #e8b33c 0 8%, rgba(0, 0, 0, 0) 9%)',
+  'radial-gradient(circle at 72% 30%, #2f7fd8 0 7%, rgba(0, 0, 0, 0) 8%)',
+  'radial-gradient(circle at 55% 75%, #d8452f 0 9%, rgba(0, 0, 0, 0) 10%)',
+  'linear-gradient(90deg, #6d5a3a 0%, #c9c2b0 25%, #3b4a2e 50%, #e9e4d8 75%, #2a2c33 100%)',
+].join(', ');
+
 const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 
 /** A ground with no see-through part, so a frame over it has no alpha a JPEG would flatten: the
@@ -90,7 +110,7 @@ const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'imag
  *  colour that may carry alpha, is not assumed opaque. */
 function opaqueGround(background: string | null | undefined): boolean {
   if (!background) return false;
-  if (background === VIDEO_PLATE || background === CHECKER || background.startsWith('url("data:image/jpeg')) return true;
+  if ([VIDEO_PLATE, CHECKER, LIGHT_PLATE, BUSY_PLATE].includes(background) || background.startsWith('url("data:image/jpeg')) return true;
   if (background.startsWith('url(')) return false;
   return !/transparent|rgba|hsla|\/|^#([0-9a-f]{4}|[0-9a-f]{8})$/i.test(background.trim());
 }
@@ -285,6 +305,12 @@ export interface SequenceOptions extends ShotOptions {
   buttons: ControlButton[];
   /** The longest this render may take (default SEQUENCE_DEADLINE_MS). */
   deadlineMs?: number;
+  /** A STRIP instead of one frame: shoot at each of these times after the last op, in one run
+   *  (`noacg coverage`'s entrance, transition and exit strips). Overrides `atMs`. */
+  offsets?: number[];
+  /** Field ids to crop at native pixels from the last frame, where the element can be found and
+   *  has a size (`noacg coverage`'s detail crops). */
+  crops?: string[];
 }
 
 export interface SequenceShot {
@@ -298,6 +324,12 @@ export interface SequenceShot {
   machine: MachineState | null;
   /** Things the agent must hear: an event that moved nothing, a call that threw. */
   notes: string[];
+  /** The events whose press left the machine where it was, with the note that says so. */
+  unmoved: Array<{ event: string; note: string }>;
+  /** Every frame shot, in time order, the last being `image` (one entry without `offsets`). */
+  strip: Array<{ atMs: number; image: Uint8Array }>;
+  /** The detail crops `crops` asked for, of the last frame. */
+  crops: Array<{ key: string; image: Uint8Array; box: { x: number; y: number; width: number; height: number } }>;
 }
 
 /** The longest one sequence render may take before its context is closed: a template that spins
@@ -357,6 +389,7 @@ export async function shootSequence(appOrigin: string, html: string, outPath: st
 async function runSequence(own: BenchContext, appOrigin: string, html: string, outPath: string | undefined, opts: SequenceOptions): Promise<SequenceShot> {
   const page = await own.newPage();
   const notes: string[] = [];
+  const unmoved: SequenceShot['unmoved'] = [];
   // The clock goes in, paused, before the document, so its timers, Date and frames are the
   // clock's and time moves only when the run moves it.
   await page.clock.install();
@@ -373,7 +406,8 @@ async function runSequence(own: BenchContext, appOrigin: string, html: string, o
   const data = { ...opts.data };
   const ops: FrameOp[] = opts.ops[0]?.kind === 'take' ? opts.ops : [{ kind: 'take' }, ...opts.ops];
   // At least a frame, even for --at 0: a dispatched event lands a frame later.
-  const atMs = Math.max(opts.atMs ?? STEP_MS, 20);
+  const offsets = [...new Set((opts.offsets?.length ? opts.offsets : [opts.atMs ?? STEP_MS]).map((ms) => Math.max(ms, 20)))].sort((a, b) => a - b);
+  const atMs = offsets[0];
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i];
     const last = i === ops.length - 1;
@@ -426,17 +460,55 @@ async function runSequence(own: BenchContext, appOrigin: string, html: string, o
       const after = await machineState(page);
       if (before && after && JSON.stringify(before.groups) === JSON.stringify(after.groups)) {
         const where = Object.entries(after.groups).map(([g, s]) => `${g}=${s}`).join(', ');
-        notes.push(`${op.event} did not move the machine (still ${where}). If it should have, the machine does not answer ${op.event} from there.`);
+        const note = `${op.event} did not move the machine (still ${where}). If it should have, the machine does not answer ${op.event} from there.`;
+        notes.push(note);
+        unmoved.push({ event: op.event, note });
       }
     }
   }
 
-  await rasterSettledFrame(page, async () => {
-    await page.evaluate(() => document.body.getBoundingClientRect());
-    await page.waitForTimeout(50);
-  });
+  const strip: SequenceShot['strip'] = [];
+  let at = atMs;
+  for (let k = 0; k < offsets.length; k++) {
+    if (k > 0) {
+      await advance(page, offsets[k] - at);
+      at = offsets[k];
+    }
+    await rasterSettledFrame(page, async () => {
+      await page.evaluate(() => document.body.getBoundingClientRect());
+      await page.waitForTimeout(50);
+    });
+    strip.push({ atMs: at, image: await capture(page, k === offsets.length - 1 ? outPath : undefined, opts) });
+  }
   const machine = await machineState(page);
-  return { image: await capture(page, outPath, opts), ran: ops.map(describeOp), atMs, machine, notes };
+  const crops = await cropFields(page, opts.crops ?? [], opts);
+  return { image: strip[strip.length - 1].image, ran: ops.map(describeOp), atMs: at, machine, notes, unmoved, strip, crops };
+}
+
+/** Detail crops of field elements at native pixels: the element a field's value is written into
+ *  (SPX binds a field to the element with its id), with a margin, inside the frame. A field with
+ *  no element, or one with no size (hidden, empty), has no crop. */
+async function cropFields(page: Page, keys: string[], opts: ShotOptions): Promise<SequenceShot['crops']> {
+  const crops: SequenceShot['crops'] = [];
+  const width = opts.width ?? 1920;
+  const height = opts.height ?? 1080;
+  const MARGIN = 16;
+  for (const key of keys) {
+    const box = await page.evaluate((key) => {
+      const el = document.getElementById(key) ?? document.querySelector(`[data-field="${CSS.escape(key)}"]`);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return r.width >= 1 && r.height >= 1 ? { x: r.x, y: r.y, width: r.width, height: r.height } : null;
+    }, key);
+    if (!box) continue;
+    const x = Math.max(0, Math.floor(box.x - MARGIN));
+    const y = Math.max(0, Math.floor(box.y - MARGIN));
+    const clip = { x, y, width: Math.min(width, Math.ceil(box.x + box.width + MARGIN)) - x, height: Math.min(height, Math.ceil(box.y + box.height + MARGIN)) - y };
+    if (clip.width < 1 || clip.height < 1) continue;
+    const image = await page.screenshot({ clip, type: 'png', omitBackground: !opts.background });
+    crops.push({ key, image: new Uint8Array(image), box });
+  }
+  return crops;
 }
 
 // ── Every state a graphic's events reach ──────────────────────────────────────
@@ -467,7 +539,8 @@ const WALK_PARALLEL = 4;
 /** How long a walk's render may run past the caller's `until`: a normal render takes 2-5 s. */
 const UNTIL_GRACE_MS = 15_000;
 
-const safe = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'state';
+/** A name as a file stem: lower case, runs of anything else one dash, none at either end. */
+export const safe = (s: string, fallback = 'state') => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || fallback;
 
 /**
  * Walk a graphic's machine breadth-first from the on-air state over its declared events (and

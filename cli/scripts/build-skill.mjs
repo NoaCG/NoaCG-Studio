@@ -36,15 +36,28 @@
 // scripts/check-shared-instructions.mjs - this script never touches them. Pointers do not drift;
 // copies do, which is why the copies are generated and checked.
 //
+//   5. the Skills API upload (docs/work-specs/noacg-harness/spec.md D2): the same bytes as the
+//      source, under one top folder named for the skill, for the agent a hosted harness runs.
+//      Nothing is committed for it - the bundle IS the source - but its limits are checked on
+//      every run (the frontmatter name and description the API accepts, the upload size), so a
+//      skill change that the upload would refuse fails here rather than at the next sync.
+//
 //   node cli/scripts/build-skill.mjs          write every generated copy (idempotent)
 //   node cli/scripts/build-skill.mjs --check  exit 1 listing every generated file that is missing,
 //                                             differs from what would be written, or is a stray
 //                                             (a reference deleted from the source must vanish
 //                                             from the copy too). Runs inside `npm run build`.
+//   node cli/scripts/build-skill.mjs --skills-api <dir>
+//                                             check as --check does, then write the upload bundle
+//                                             to <dir>/noacg-graphic/ and <dir>/bundle.json (each
+//                                             file's sha256 and the bundle's), for
+//                                             scripts/harness-agent-sync.mjs. Writes nothing else.
 
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseFrontmatter } from '../../scripts/frontmatter.mjs';
 import { measured } from '../../scripts/measured.mjs';
 import { pluginSkillFile } from './plugin-skill.mjs';
 
@@ -64,7 +77,13 @@ if (!PLUGINS.some((p) => p.dir === PLUGIN)) {
   process.exit(2);
 }
 
-const check = process.argv.includes('--check');
+const skillsApiAt = process.argv.indexOf('--skills-api');
+const skillsApiDir = skillsApiAt >= 0 ? process.argv[skillsApiAt + 1] : undefined;
+if (skillsApiAt >= 0 && (!skillsApiDir || skillsApiDir.startsWith('--'))) {
+  console.error('--skills-api needs the directory to write the upload bundle to');
+  process.exit(2);
+}
+const check = process.argv.includes('--check') || skillsApiDir !== undefined;
 
 const rel = (file) => path.relative(ROOT, file).replace(/\\/g, '/');
 
@@ -193,6 +212,33 @@ expected.set(
   }),
 );
 
+// 5. The Skills API upload: the source's bytes under `noacg-graphic/`, checked against the limits
+//    the Skills API states (https://platform.claude.com/docs/en/build-with-claude/skills-guide,
+//    read 2026-10-14): `name` at most 64 lowercase letters, digits and hyphens, not containing
+//    "anthropic" or "claude"; `description` non-empty, at most 1024 characters, no XML tags; the
+//    upload under 30 MB uncompressed.
+const SKILLS_API = { nameMax: 64, descriptionMax: 1024, uploadMax: 30 * 1024 * 1024 };
+const skillName = path.basename(SOURCE);
+const skillsApiFiles = walk(SOURCE).map((file) => ({ path: `${skillName}/${file}`, bytes: expected.get(path.join(SOURCE, ...file.split('/'))) }));
+
+const skillsApiProblems = [];
+{
+  const meta = parseFrontmatter(expected.get(path.join(SOURCE, 'SKILL.md')).toString('utf8'))?.data ?? {};
+  const name = meta.name ?? '';
+  if (!/^[a-z0-9-]+$/.test(name) || name.length > SKILLS_API.nameMax) skillsApiProblems.push(`name "${name}" must be at most ${SKILLS_API.nameMax} lowercase letters, digits and hyphens`);
+  if (/anthropic|claude/.test(name)) skillsApiProblems.push(`name "${name}" may not contain "anthropic" or "claude"`);
+  if (name !== skillName) skillsApiProblems.push(`name "${name}" must match the folder, ${skillName}`);
+  if (!meta.description) skillsApiProblems.push('description is empty');
+  else if (meta.description.length > SKILLS_API.descriptionMax) skillsApiProblems.push(`description is ${meta.description.length} characters, the limit is ${SKILLS_API.descriptionMax}`);
+  if (/<[a-z/][^>]*>/i.test(meta.description ?? '')) skillsApiProblems.push('description may not hold XML tags');
+  const size = skillsApiFiles.reduce((n, f) => n + f.bytes.length, 0);
+  if (size >= SKILLS_API.uploadMax) skillsApiProblems.push(`the upload is ${size} bytes, the limit is ${SKILLS_API.uploadMax}`);
+}
+if (skillsApiProblems.length) {
+  console.error(`${rel(path.join(SOURCE, 'SKILL.md'))} would be refused by the Skills API:\n${skillsApiProblems.map((p) => `  - ${p}`).join('\n')}`);
+  process.exit(2);
+}
+
 // Every generated copy is now known. `expected` is built by walking the skill source and by
 // stamping manifests found through the marketplace, so an empty map is what a moved source folder
 // or an emptied marketplace list looks like - and a comparison over no files is a --check that
@@ -223,6 +269,21 @@ for (const [file, bytes] of expected) {
 for (const file of strays) {
   problems.push(`stray (not in the source): ${rel(file)}`);
   if (!check) rmSync(file);
+}
+
+if (skillsApiDir !== undefined && problems.length === 0) {
+  const outDir = path.resolve(skillsApiDir);
+  const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
+  rmSync(path.join(outDir, skillName), { recursive: true, force: true });
+  for (const f of skillsApiFiles) {
+    const target = path.join(outDir, ...f.path.split('/'));
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, f.bytes);
+  }
+  const files = skillsApiFiles.map((f) => ({ path: f.path, bytes: f.bytes.length, sha256: sha(f.bytes) }));
+  const bundle = { name: skillName, cliVersion: version, files, sha256: sha(Buffer.from(files.map((f) => `${f.sha256}  ${f.path}\n`).join(''))) };
+  writeFileSync(path.join(outDir, 'bundle.json'), stableJson(bundle));
+  console.log(`build-skill --skills-api: ${files.length} file(s) of ${skillName} (noacg v${version}) in ${outDir}, bundle sha256 ${bundle.sha256}`);
 }
 
 if (check) {
