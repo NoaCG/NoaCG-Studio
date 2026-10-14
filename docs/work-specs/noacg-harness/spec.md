@@ -154,10 +154,13 @@ judge's calibration failed, and opening the harness to students waits.
   with no authoring history that reads the frames and the brief and answers the inspection
   questions of `references/critique.md`, phrased as what earns a pass. It is Anthropic machinery
   used because it costs no NoaCG code; in our own loop it is a second model call with the same
-  prompt. The `multiagent` block carries the roster only and no `workflows` setting: dynamic
-  workflows stay off, so a session idle with `end_turn` is the end of the work and never hides
-  an open run. Its model and its effect are measured, not assumed (section 3.4). Revert: turn
-  the roster off; the author re-reads its own frames.
+  prompt. The `multiagent` block is `multiagent_20261001` with `workflows` set to
+  `{ "type": "disabled" }` explicitly, because dynamic workflows are on by default with that
+  type, and with `subagents.inline_agents` disabled and the critic as the only predefined
+  agent, so the author can delegate to nothing else; a session idle with `end_turn` is then the
+  end of the work and never hides an open workflow run. The AC-10 payload test pins both
+  settings. Its model and its effect are measured, not assumed (section 3.4). Revert: turn the
+  roster off; the author re-reads its own frames.
 - **D5 The bench is host-neutral behind one arm interface.** `benchmarks/harness/` holds the
   ledger, the arms (`managed-agents` on the credit, `claude-code` on the subscription, `fake` at
   zero tokens), the coverage capture, the judge runner and the gallery. An arm returns the
@@ -604,9 +607,10 @@ implementation and a re-run of the exam through the bench's arm interface.
   graphic id, cost, timestamps) and returns at once; Vercel functions stop at 300 s.
 - `GET /api/ai/harness-run?id=` polls: it reads the session's status and its latest
   `session.status_idle` event; while running it returns progress lines. Work is done when the
-  session is `idle` with `stop_reason` `end_turn`: the agent has no `workflows` setting, so no
-  workflow run can stay open behind an idle, and session status aggregates thread status, so an
-  idle session has no critic thread still working. Then, and on `terminated`, it calls
+  session is `idle` with `stop_reason` `end_turn`: the agent's `multiagent` block disables
+  `workflows` explicitly (D4), so no workflow run can stay open behind an idle, and session
+  status aggregates thread status, so an idle session has no critic thread still working. Then,
+  and on `terminated`, it calls
   `finalizeRun` inline and returns the result. `budget_reached` is the not-ready case (the
   interim record is saved as such); `retries_exhausted` or `refusal` with no record fails the
   run; `requires_action` cannot occur with the web tools off and no custom tool, and is treated
@@ -626,8 +630,10 @@ implementation and a re-run of the exam through the bench's arm interface.
   deleting it, since a running session cannot be deleted.
 - `finalizeRun(sessionId)` is retry-safe and single-writer through a leased claim: an RPC sets
   `status = 'finishing'` with a fresh claim token and `claimed_at`, from a non-final status or
-  from a `finishing` whose claim is older than the lease (two minutes, longer than one
-  invocation can live). The holder lists the session's files by `scope_id`, downloads the record
+  from a `finishing` whose claim is older than the lease (six minutes, longer than the 300 s an
+  invocation can live at most, so a live holder is never superseded; the work itself is a
+  download of at most 4 MB, a shape check and one insert). The holder lists the session's files
+  by `scope_id`, downloads the record
   (and the interim one when there is no final), runs `graphicSaveShape`, and one SQL transaction
   inserts the document and marks the row final with the graphic id, conditioned on the row still
   carrying its token; a holder whose lease was taken over gets zero rows and stops. A crash
@@ -785,8 +791,9 @@ own path.
 ### AC-10: No credential or graphic code crosses the boundary
 **Layer:** a Node test of the create payload and the environment config.
 The session carries the brief and nothing else; the environment's allowed hosts are exactly
-H3's; web tools are off; the saved graphic comes only from the downloaded record after the shape
-check and is re-validated in the browser.
+H3's; web tools are off; the agent's `multiagent` block has `workflows` disabled and only the
+critic as a predefined subagent; the saved graphic comes only from the downloaded record after
+the shape check and is re-validated in the browser.
 
 ### AC-11: Retention matches decision 2
 **Layer:** a Node test.
