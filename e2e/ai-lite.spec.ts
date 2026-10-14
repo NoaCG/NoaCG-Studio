@@ -3,8 +3,6 @@
 
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode } from './_create';
 
 const STATUS = {
   profile: 'lite',
@@ -73,9 +71,6 @@ async function openLite(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   test.setTimeout(60_000);
-  // Lite's walk ends in the editor, and that Finish door is Advanced-only since step 6
-  // (docs/GOALS_ARCHIVE.md "Student release"; FinishStep `showEditorDoor`).
-  await enableAdvancedMode(page);
   await page.route('/api/ai/lite/status', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -83,7 +78,7 @@ test.beforeEach(async ({ page }) => {
   }));
 });
 
-test('Lite creates one grounded graphic, records usability and acceptance, and opens the normal editor', async ({ page }) => {
+test('Lite creates one grounded graphic, records usability and acceptance, and saves it for export', async ({ page }) => {
   const outcomes: string[] = [];
   await page.route('/api/ai/lite/generations', (route) => route.fulfill({
     status: 200,
@@ -148,31 +143,34 @@ test('Lite creates one grounded graphic, records usability and acceptance, and o
   await expect(page.getByTestId('ai-alternatives')).toHaveCount(0);
   await expect.poll(() => outcomes).toContain('usable');
 
+  // Finish through the export door: it saves the graphic to the library and opens the export
+  // window over the wizard. This walk used to end in the old code editor, which is closed
+  // (https://github.com/NoaCG/NoaCG-Studio/issues/800); only the ending moved.
   await page.getByRole('button', { name: 'Next →' }).click();
-  await awaitPreviewRebuild(page, async () => {
-    await page.getByTestId('wz-finish-editor').click();
-    await expect(page.getByTestId('creation-wizard')).toBeHidden();
-  });
+  await page.getByTestId('wz-finish-export').click();
+  const win = page.getByTestId('export-window');
+  await expect(win).toBeVisible();
   await expect.poll(() => outcomes).toContain('accepted');
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Campus News Strap');
 
   const templateFacts = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const { loadGraphics } = await import('/src/model/library.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');
-    const template = useTemplateStore.getState().template;
+    const graphics = loadGraphics();
+    const template = graphics.at(-1)?.template;
     return {
-      fields: template.fields.map((field) => field.field),
-      timeline: Boolean(parseAnimData(template.js)),
-      generationIdInTemplate: JSON.stringify(template).includes('11111111-1111-4111-8111-111111111111'),
+      names: graphics.map((g) => g.name),
+      fields: template?.fields.map((field) => field.field) ?? [],
+      timeline: Boolean(template && parseAnimData(template.js)),
+      generationIdInTemplate: JSON.stringify(template ?? null).includes('11111111-1111-4111-8111-111111111111'),
     };
   });
+  expect(templateFacts.names).toEqual(['Campus News Strap']);
   expect(templateFacts.fields).toEqual(['f0', 'f1']);
   expect(templateFacts.timeline).toBe(true);
   expect(templateFacts.generationIdInTemplate).toBe(false);
 
-  await page.getByRole('button', { name: /Export/ }).first().click();
-  await expect(page.getByText('SPX export', { exact: true })).toBeVisible();
-  await expect(page.locator('input[name="export-target"]')).toHaveCount(6);
+  await expect(win.getByText('SPX export', { exact: true })).toBeVisible();
+  await expect(win.locator('input[name="export-target"]')).toHaveCount(6);
 });
 
 test('Lite explains an unsupported package request without calling a code or fallback route', async ({ page }) => {
