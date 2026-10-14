@@ -592,6 +592,77 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
 
+### Phase 7: coverage moves (check, 2026-10-14)
+
+- **Verdict: PASS**, on `main` at `20bda886`, which holds the merge of #1188 (`f033d163`). No product
+  code or test changed here.
+- **AC-2.** #1188 changed only `e2e/import-svg.spec.ts`, the harness and this spec, so
+  `scripts/fixtures/svg-corpus-passes.json`, `e2e/catalog-baseline.json` and `src/` are
+  byte-identical (`git diff --stat f033d163^1 f033d163` on those paths is empty). The jobs that
+  ran, read from the logs of pull request run 38541990487 (head `f7ca1269`) and merge-group run
+  38543390296 (`f033d163`):
+  - E2E plan: `subset`, `import-svg.spec.ts` alone, `catalog: false`.
+  - E2E 1/1: 90 tests, 46 passed and 44 skipped, in 3.9 and 4.3 min.
+  - Factory gates: 159 of 159 pass with none skipped. That includes all twelve pass records, the
+    runtime record compared on Linux, the seven readings and the 5 recorded findings.
+  - Catalog calibration gate: skipped, because nothing that moves a design changed.
+  - `check-catalog-emit` here: PASS, 528 designs.
+- **AC-9, the gate.** `node scripts/check-e2e-protection.mjs --diff <the e2e diff of #1188>`
+  reports OK: 11 declarations fewer, covered by an entry. `--changed f033d163^1` agrees. The 11
+  retired titles match the 11 lines one for one, and declarations go from 100
+  to 89.
+- **AC-9, the claims.** Each retired test's assertions were read against its reading or record.
+  Each reading carries its walk's file verbatim and its asserts. The row count is checked, so an
+  extra row fails, and every reading also runs the export gate. Then this check broke each rule
+  in its own worktree, ran the harness, and restored the file. The comparison is with the same
+  container's unchanged-`main` run: here `step`, `bind`, `layout`, `emit` and `runtime` already
+  differ on `nested-svg-sub-artboard`, `runtime` on 11 more files, and there are 4 findings, as
+  the build notes say. "Fails" below means beyond that.
+
+  | Break | What fails |
+  |---|---|
+  | `stripFieldPrefix` reads only `field:` | reading `f-prefix` (title "f:Name") |
+  | the draft turns unmarked rows off when any row is marked | reading `f-prefix` (row t1 off) |
+  | `static:` regex never matches | reading `static-prefix` |
+  | `textLayerOf` returns the run, not its `<text>` | reading `kerned-figma-wrapper` ("HelsinkiLive") |
+  | `numberRepeats` numbers the first too | `kerned-figma-wrapper`, and the sidecar labels of figma-duplicate-ids-scorebug, illustrator-internal-css-lower-third, illustrator-save-as-quiz-board and 3 more |
+  | `text` dropped from the serial-id pattern | `inventory`, `fieldList` and `fields` of inkscape-lower-third-layers, and the finding `row 3 labelled "text847", sidecar "Copy"` |
+  | samples no longer collapse whitespace | reading `wrapped-source-line` |
+  | `xml:space="preserve"` ignored | reading `wrapped-source-line` ("A B") |
+  | `display="none"` attribute ignored | reading `hidden-and-symbol-text` only |
+  | hidden classes ignored | that reading, and four-team-scoreboard 14 ON against 9, question-timer-board 5 against 3, save-as-quiz-board and inkscape-hidden-state-layers-quiz |
+  | the symbol notice reworded | that reading and `inventory` of effects-symbol-library-ticker |
+  | `defs` and `symbol` both dropped from `NON_RENDERED_TAGS` | that reading, and effects-symbol-library-ticker 3 ON against 2 |
+  | SMIL kept | reading `sanitizer`, and `inventory` and `bind` of effects-smil-animated-bug |
+  | `foreignObject` kept | reading `sanitizer` (the export gate refuses), and illustrator-save-as-foreignobject |
+  | external refs kept | reading `sanitizer`, and effects-external-ref-and-script |
+  | event handlers kept | reading `sanitizer` only |
+  | a single `<textPath>` not bound | reading `text-on-path`, and inkscape-text-on-path-bumper |
+  | bundled faces declared under their own family, not the artwork's | `fontCss` of illustrator-rotated-sidebar-strip (`"Archivo"` for `"Archivo-Bold"`) and every aliased file |
+  | the flowed-text notice says "Convert to Path" | `inventory` of inkscape-flowed-text-card only |
+
+- **Nothing about growth, the ladder, gestures or the preview was retired.** The eleven are all
+  reader, draft or bind rules. No retired test's only other guard is a skipped one: every line's
+  guard is the harness, which ran unskipped in both runs above. The step's "(Archivo)" wording
+  had no running guard before or after. Its line says so, and its walk was itself skipped since
+  #800.
+- **Findings, none blocking, both in #1192:**
+  - **`static-prefix` reading.** It cannot tell a numeral kept on the artwork from one taken off.
+    A taken-off row keeps its words and gains `imported-design-removed`, which the reading's regex
+    accepts. Giving furniture rows `whenOff: 'remove'` passes the reading. Only
+    `fieldList`/`bind` of illustrator-save-as-quiz-board fail, because its letter tiles share the
+    `drawing` path. So the walk's "stays as drawn" is still guarded, but by a record its line does
+    not name.
+  - **The build's `symbol` probe row does not reproduce.** Dropping `symbol` alone from
+    `NON_RENDERED_TAGS` fails nothing, since the corpus file and the reading both put the symbol
+    inside `<defs>`. A `<symbol>` outside `<defs>` is guarded by nothing, and was not by the
+    retired walk either.
+- **Observation:** turning off `isHiddenNode`'s inline-`style` branch fails nothing.
+  `hoistInlineStyles` has already moved inline styles onto classes when candidates are read, so
+  `style="display:none"` is guarded through the class branch (the hidden-classes row above).
+- **Harness run time here:** 51 files, 601 records in 13.0 s. On CI: 8.7 s for the pull request
+  and 11.0 s for the merge group.
+
 ### Phase 7: coverage moves (build, 2026-10-14)
 
 - **Last check's findings (phase 6, check 2, PASS):** the neighbour rung is independent and
