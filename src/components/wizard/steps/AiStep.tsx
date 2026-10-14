@@ -15,42 +15,26 @@ import {
   saveAiSettings,
   type AiTier,
 } from '../../../ai/settings';
-import type { AiPath, AiTemplateChange, GenerateContext, GenerateOptions, SpxValidator } from '../../../ai/provider';
+import type { AiPath, AiTemplateChange, GenerateContext, SpxValidator } from '../../../ai/provider';
+import { creationError, creationRoute, runCreation, screenChange, type CreationIO } from '../../../ai/creation';
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
 import { AI_CATEGORIES, aiCategoryForAssemblerId } from '../../../ai/spec/categories';
 import { variantById } from '../../../templates/catalog';
 import type { TemplateVariant } from '../../../model/wizard';
-import { mergeSafety } from '../../../ai/safety';
 import { assembleGroundedTemplate, productionSpxValidator } from '../../../ai/lite/pipeline';
 import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
 import { demoteSpecFields, withSpecChecks } from '../../../ai/spec/specValidate';
-import { PRO_STANDARD_ROUTES } from '../../../ai/pro/contract';
+import type { ProGenerateResult } from '../../../ai/pro/language/pipeline';
 import {
-  generateProGraphic,
-  type ProGenerateResult,
-  type ProMark,
-  type ProStage,
-} from '../../../ai/pro/language/pipeline';
-import { proRuleCodes, validateProLanguage } from '../../../ai/pro/language/gate';
-import {
-  composeGraphic,
-  namedPackage,
-  packageLines,
   PRO_GRAPHICS,
   PRO_PACKAGE_LIST,
   type ProGraphicId,
   type ProPackageMember,
 } from '../../../ai/pro/language/graphics';
-import { loadProStatus, openProSession, reportProOutcome } from '../../../ai/pro/session';
+import { loadProStatus } from '../../../ai/pro/session';
 import type { ProStatusResponse } from '../../../ai/pro/types';
-import {
-  PRO_SUPPORTED_CATEGORIES,
-  proBrandPalette,
-  proLines,
-  proMarkDescriptor,
-  standardProLanguageBrief,
-} from '../../../ai/pro/brief';
+import { PRO_SUPPORTED_CATEGORIES } from '../../../ai/pro/brief';
 import { probeMark } from '../../../assets/assetInfo';
 import {
   emptyGenerationSpec,
@@ -86,7 +70,7 @@ import {
 } from '../../../model/projectFormat';
 import type { AiThread, AiThreadMessage } from '../../../model/aiThread';
 import type { Palette } from '../../../model/wizard';
-import { validateTemplate, type ValidationResult } from '../../../validation/validateTemplate';
+import type { ValidationResult } from '../../../validation/validateTemplate';
 import { readinessRows, unclaimedFindings } from '../../../validation/readiness';
 import { formatDuration, formatTokens, hasTokenCounts, lastRun, runCost, runExpectation, type RunCost } from '../../../ai/runStats';
 import MiniPreview from '../MiniPreview';
@@ -97,7 +81,7 @@ import { resolveLegibility, type ProjectLegibility, type ResolvedLegibility } fr
 import MoreControlPanel from './ai/MoreControlPanel';
 import { GenerationRating } from '../../feedback/GenerationRating';
 import { LITE_AI_CATEGORIES } from '../../../ai/lite/contract';
-import { LiteUnsupportedError, loadLiteStatus, recordLiteOutcome } from '../../../ai/lite/client';
+import { loadLiteStatus, recordLiteOutcome } from '../../../ai/lite/client';
 import type { LiteStatusResponse } from '../../../ai/lite/types';
 
 interface Props {
@@ -195,13 +179,6 @@ function shortlistOf(change: AiTemplateChange | undefined): TemplateVariant[] {
   if (!isAdapted(change) || !change?.shortlist?.length || !change.spec) return [];
   return change.shortlist.map((id) => variantById(id)).filter((v): v is TemplateVariant => Boolean(v));
 }
-
-/** The Pro pipeline's stage names, in the busy line's voice (docs/NOACG_PRO_PLAN.md §15). */
-const PRO_STAGE_LABELS: Record<ProStage, string> = {
-  design: 'Designing the on-air look…',
-  compose: 'Building the graphic in it…',
-  validate: 'Validating and testing playout…',
-};
 
 /**
  * ONE transcript for the whole step: what the user said, what the AI said back, and every
@@ -659,12 +636,20 @@ export default function AiStep({
     images.map((a) => a.path),
   );
   const validate: SpxValidator = withSpecChecks(safeValidate, activeSpec) ?? safeValidate;
+  // What a run takes from the browser (src/ai/creation.ts); the structural check and the mark
+  // probe need a live DOM.
+  const creationIo: CreationIO = {
+    provider: getAiProvider,
+    validate,
+    structuralCheck: benchStructuralIntent,
+    probeMark,
+    onProgress: setBusy,
+  };
 
   const showChange = (change: AiTemplateChange) => {
-    // Screened here as well as inside the injected validator, because `generateRaw` (the harness
-    // OFF path) validates itself and never runs ours — this is the one place every path passes
-    // through on its way to the user.
-    const v = mergeSafety(change.validation ?? validateTemplate(change.template), change.template, imported?.template);
+    // The one place every path passes through on its way to the user (`generateRaw` never runs
+    // the injected validator), so the safety screen runs here too.
+    const v = screenChange(change, imported?.template);
     setSummary(change.summary);
     setValidation(v);
     setLastPath(change.path ?? null);
@@ -712,38 +697,6 @@ export default function AiStep({
       facetsOf(chosen.spec, chosen.path),
       shown.map((alt) => facetsOf(alt.spec, alt.path)),
     );
-  };
-
-  /** A whole-result run (convert / raw generate): one direction, replacing whatever stood. */
-  const run = async (fn: (options: GenerateOptions) => Promise<AiTemplateChange>, label: string) => {
-    setBusy(label);
-    setError(null);
-    try {
-      const change = await fn({
-        validate,
-        // The structural-satisfaction check (docs/CREATIVE_MODE_PLAN.md §8): browser-only,
-        // so it is injected like the bench; the provider runs it on CREATE-routed results.
-        structuralCheck: benchStructuralIntent,
-        onProgress: (stage) => setBusy(stage),
-        ...(liteActive ? { profile: 'lite' as const } : {}),
-      });
-      setAlternatives([change]);
-      setOriginals([change]);
-      setSelected(0);
-      clearStagedSelection();
-      showChange(change);
-      recordSpend();
-    } catch (e) {
-      setError(
-        e instanceof LiteUnsupportedError && e.suggestedBrief
-          ? `${e.message} Try: ${e.suggestedBrief}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
-    } finally {
-      setBusy(null);
-    }
   };
 
   /** Show direction `i` in the preview + stage the pick as preference data. */
@@ -865,206 +818,41 @@ export default function AiStep({
     setArmedExample(null);
     const context = contextFor(seed);
     setLastLegibility(context.legibility ? legibilityStamp(context.legibility) : null);
-    // Conversion always runs the validated conversion flow; plain generation branches on
-    // the harness switch: OFF = the default one-shot (statically validated, no repair
-    // loop), ON = three harness alternatives with the live bench injected.
-    if (imported) {
-      if (!imported.confirmed) {
-        setError('Confirm the imported template project format before opening or converting it.');
-        return;
+    const route = creationRoute({ imported, liteActive, proMode, useHarness: settings.useHarness });
+    if (typeof route !== 'string') {
+      setError(route.refused);
+      return;
+    }
+    setError(null);
+    try {
+      const { changes, selected: first, pro } = await runCreation({
+        route,
+        brief,
+        context,
+        imported: imported?.template ?? null,
+        pro: { asIs: uploads.find((u) => u.purpose === 'asset')?.asset ?? null, spec: activeSpec, proPackage, resolution, fps },
+      }, creationIo);
+      if (pro) {
+        proDetails.current.set(pro.details.template, pro.details);
+        proPack.current.set(pro.details.template, pro.pack);
+        setProDropped(pro.dropped);
       }
-      if (liteActive) {
-        setError('Create with AI does not convert imported templates. Open it as code, or remove it and describe one new lower third.');
-        return;
-      }
-      if (proMode) {
-        setError('This route designs a new look and its package of graphics; it does not convert imported templates. Open it as code, or tick “Use your own AI account instead” in AI settings to convert it.');
-        return;
-      }
-      void run(
-        (options) => getAiProvider().convertImport(brief, imported.template, context, options),
-        'Converting your template…',
-      );
-      return;
-    }
-    if (proMode) {
-      // THE PRO TIER: the same brief, mapped deterministically onto the DESIGN-LANGUAGE call
-      // (src/ai/pro/brief.ts) and run on the standard route - a normal Pro user never picks
-      // models. The model decides the look; the platform composes the graphic through the
-      // catalog's own assembler (docs/NOACG_PRO_PLAN.md §15, §16).
-      // Spec-field findings demote to warnings: Pro is a fixed lower-third contract with no
-      // repair loop, the grounded-assembly rule (src/ai/spec/specValidate.ts).
-      const proValidate: SpxValidator = async (t) => demoteSpecFields(await validate(t));
-      void run(async (options) => {
-        // THE USER'S OWN MARK, measured before anything is sent. Two unrelated things read the
-        // probe and both need it before the model answers: the brief describes the ink in
-        // content-free words, and the composer decides afterwards whether that ink can read on
-        // the panel the language chose (`markFieldFor`). The pixels never leave the machine.
-        const asIs = uploads.find((upload) => upload.purpose === 'asset') ?? null;
-        const probe = asIs ? await probeMark(asIs.asset) : null;
-        const mark: ProMark | null = asIs
-          ? {
-            assetPath: asIs.asset.path,
-            images: [asIs.asset],
-            ...(probe
-              ? {
-                inkLuminance: probe.inkLuminance,
-                inkSpread: probe.inkSpread,
-                backing: probe.backing === 'own-field' ? 'own-field' as const : 'transparent' as const,
-              }
-              : {}),
-          }
-          : null;
-        // HOSTED PRO opens a reservation first: one allowance slot, one cost ceiling, covering
-        // every model call the generation makes. There is no second path any more - the tier is
-        // only offered where this reservation can be made (see the door note above), which is what
-        // makes "no key to supply" true rather than merely written.
-        const session = await openProSession();
-        let designed: ProGenerateResult;
-        try {
-          designed = await generateProGraphic(
-            {
-              language: standardProLanguageBrief(brief, activeSpec, probe ? proMarkDescriptor(probe) : null),
-              // The PRIMARY graphic - the one previewed and refined. Every other member of the
-              // package is composed from the same language below, for no extra call.
-              graphic: primaryGraphic,
-              lines: primaryGraphic === 'lower-third'
-                ? proLines(activeSpec)
-                : packageLines(primaryGraphic, {
-                  name: proLines(activeSpec)[0]?.sample ?? '',
-                  title: proLines(activeSpec)[1]?.sample ?? '',
-                  channel: null,
-                }),
-              mark,
-              // The customer's stated colours are the PLATFORM's to apply, never the model's to
-              // return - the rule Lite has carried since 2026-08-13 (src/ai/pro/brief.ts).
-              brandPalette: proBrandPalette(activeSpec),
-              resolution,
-              fps,
-            },
-            PRO_STANDARD_ROUTES.language,
-            {
-              session,
-              validate: proValidate,
-              onStage: (stage: ProStage) => options.onProgress?.(PRO_STAGE_LABELS[stage]),
-            },
-          );
-        } catch (error) {
-          // The spend is already recorded server-side; what the ledger cannot see from there
-          // is that the generation produced nothing usable. Report it and re-throw so the
-          // user still sees the failure.
-          await reportProOutcome(session, 'failed', { reason: 'generation_failed' });
-          throw error;
-        }
-        proDetails.current.set(designed.template, designed);
-
-        // ── THE REST OF THE PACKAGE (docs/NOACG_PRO_PLAN.md §15.9) ──────────────────────────
-        //
-        // The model call above is the ONLY paid step. Every other graphic in the package is
-        // composed from the SAME design language, deterministically and for zero tokens, which
-        // is why the default is the whole set: a package costs what one graphic costs.
-        //
-        // Each member goes through the SAME gate the primary did (`validateProLanguage`, the one
-        // seam) rather than being trusted because the composer wrote it. Nothing the model
-        // returns can make the code invalid, so a member that fails IS a platform bug - and the
-        // honest answer is to drop that member and say so, never to fail the generation the user
-        // already paid for or to ship a graphic no gate passed.
-        const members: ProPackageMember[] = [{ id: primaryGraphic, template: designed.template }];
-        const dropped: string[] = [];
-        for (const spec of PRO_PACKAGE_LIST) {
-          if (spec.id === primaryGraphic || !proPackage.includes(spec.id)) continue;
-          const lines = packageLines(spec.id, {
-            name: proLines(activeSpec)[0]?.sample ?? '',
-            title: proLines(activeSpec)[1]?.sample ?? '',
-            // The channel's name is not a fact this step holds - the brief is prose and parsing
-            // it is exactly the guessing this tier removed - so the bug keeps its own default
-            // caption, which is an ordinary operator field the user can type over.
-            channel: null,
-          });
-          const composed = composeGraphic(spec.id, designed.language, {
-            lines,
-            ...(spec.takesMark && mark ? { logo: mark } : {}),
-            ...(proBrandPalette(activeSpec) ? { brandPalette: proBrandPalette(activeSpec) } : {}),
-            resolution,
-            fps,
-          });
-          const memberVerdict = await validateProLanguage(composed, designed.fallbacks, proValidate);
-          if (memberVerdict && !memberVerdict.ok) {
-            dropped.push(spec.label);
-            continue;
-          }
-          members.push({ id: spec.id, template: composed.template });
-        }
-        // NAMED FOR WHAT EACH ONE IS (`namedPackage`, graphics.ts). The rule lives there rather
-        // than here because it is only testable where it can be REACHED: the Pro door exists on
-        // a configured deployment and nowhere else, so a rule buried in this component would be
-        // pinned by a suite CI never runs.
-        proPack.current.set(designed.template, namedPackage(members, designed.language.name));
-        setProDropped(dropped);
-        // THE LEDGER GETS THE WARNINGS TOO (`proRuleCodes`, src/ai/pro/language/gate.ts). Sending
-        // errors alone is the §16 hole from the other side: a graphic the platform quietly
-        // repaired wrote an EMPTY `validation_rule_codes` beside a `usable` status, so no row
-        // could tell a clean generation from a rescued one.
-        await reportProOutcome(
-          session,
-          designed.validation && !designed.validation.ok ? 'failed' : 'usable',
-          {
-            ...(designed.validation && !designed.validation.ok ? { reason: 'platform_validation' } : {}),
-            ruleCodes: proRuleCodes(designed.validation),
-          },
-        );
-        const change: AiTemplateChange = {
-          template: designed.template,
-          summary: `${designed.language.name}: ${designed.language.rationale}`,
-          path: 'pro',
-          ...(designed.validation ? { validation: designed.validation } : {}),
-        };
-        return change;
-      }, PRO_STAGE_LABELS.design).then(() => {
-        if (proHosted) void loadProStatus().then(setProStatus).catch(() => undefined);
-      });
-      return;
-    }
-    if (liteActive) {
-      void run(
-        (options) => getAiProvider('lite').generate(brief, context, options),
-        'Creating your graphic…',
-      ).then(() => {
-        void loadLiteStatus().then(setLiteStatus).catch(() => undefined);
-      });
-      return;
-    }
-    if (!settings.useHarness) {
-      void run(
-        (options) => getAiProvider().generateRaw(brief, context, { onProgress: options.onProgress }),
-        'Generating…',
-      );
-      return;
-    }
-    void (async () => {
-      setBusy(seed ? 'Designing three more in that spirit…' : 'Designing three directions…');
-      setError(null);
-      try {
-        const list = await getAiProvider().generateAlternatives(brief, context, {
-          validate,
-          structuralCheck: benchStructuralIntent,
-          onProgress: (stage) => setBusy(stage),
-        });
-        if (!list.length) return;
-        setAlternatives(list);
-        setOriginals(list);
-        // Start on the first option that passes; the pick is the user's to change.
-        const first = Math.max(0, list.findIndex((alt) => alt.validation?.ok ?? false));
+      if (changes.length) {
+        // One result replaces whatever stood; three directions start on the first that passes.
+        setAlternatives(changes);
+        setOriginals([...changes]);
         setSelected(first);
-        showChange(list[first]);
-        stagePick(list[first], list);
+        showChange(changes[first]);
+        stagePick(changes[first], changes);
         recordSpend();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setBusy(null);
       }
-    })();
+    } catch (e) {
+      setError(creationError(e, route));
+    } finally {
+      setBusy(null);
+    }
+    if (route === 'lite') void loadLiteStatus().then(setLiteStatus).catch(() => undefined);
+    if (route === 'pro' && proHosted) void loadProStatus().then(setProStatus).catch(() => undefined);
   };
 
   /** Bring an earlier generation back as the current result; the displaced one is kept. */
