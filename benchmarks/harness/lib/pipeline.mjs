@@ -40,7 +40,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
   const base = { phase: entry.phase, stage: entry.stage, arm: arm.id, model: arm.model, funding: arm.funding, brief: brief.id };
 
   if (arm.funding === 'credit') {
-    const admission = admit(ledger, { budgetCents: entry.budgetCents, overshootCents: entry.overshootCents, criticCents: entry.criticCents ?? 0 });
+    const admission = admit(ledger, { budgetCents: entry.budgetCents, overshootCents: entry.overshootCents, criticCents: entry.criticCents ?? 0, phase: entry.phase, ceilingCents: entry.ceilingCents ?? null });
     if (!admission.ok) {
       appendEntry(ledger, { ...base, kind: 'session', outcome: 'refused', listCostCents: 0, note: admission.reason });
       log(`  refused: ${admission.reason}`);
@@ -55,7 +55,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     result = { outcome: 'failed', reason: e instanceof Error ? e.message : String(e), costCents: 0, notionalUsd: 0, wallSeconds: 0, sessionId: null, trace: [] };
   }
 
-  const cell = { costUnread: Boolean(result.costUnread), brief: brief.id, arm: arm.id, model: arm.model, outcome: result.outcome, reason: result.reason ?? null, sessionId: result.sessionId, costCents: result.costCents, notionalUsd: result.notionalUsd, wallSeconds: result.wallSeconds, cleanup: result.cleanup ?? null, progress: result.progress ?? null, trace: result.trace };
+  const cell = { costUnread: Boolean(result.costUnread), brief: brief.id, arm: arm.id, model: arm.model, outcome: result.outcome, reason: result.reason ?? null, sessionId: result.sessionId, costCents: result.costCents, notionalUsd: result.notionalUsd, wallSeconds: result.wallSeconds, cleanup: result.cleanup ?? null, progress: result.progress ?? null, trace: result.trace, ...(result.metrics ? { metrics: { ...result.metrics, steps: undefined } } : {}), ...(result.outputsListed ? { outputsListed: result.outputsListed.length, undownloadable: result.undownloadable ?? [] } : {}) };
   if (result.recordFile && result.zipFile) {
     const record = JSON.parse(readFileSync(result.recordFile, 'utf8'));
     const shaped = shape.graphicSaveShape(record.doc);

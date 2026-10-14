@@ -956,6 +956,88 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H3. Feasibility (built 2026-10-14)
+
+- **Check's findings (H2 repair, on `f430c0b97`):** AC-3 holds: lock hashes match (LF-normalised),
+  frozen files byte-identical since `f85a356d5`, the committed `results-heldout.jsonl` rescores to
+  `score-heldout.json` (agreement 38/41, 0 basic-defect FAIL airable, pairwise 16/16, 0 flips,
+  PASS), 11 re-run pairs stamped after the reset, the leaky run not mixed in, six labels
+  spot-checked against the archives; ledger $0 credit, 529 calls, $164.21 notional, H0 to H2
+  completed; tests 24/24, lint clean; `--judge` on an empty run dir passes the sign-in check and
+  names the judge, a changed prompt is refused. Carried: a run stopped during a pause still
+  re-judges the answered order on its next start (only `judgePair`'s resume is tested); `nj-`
+  blinding rests on code and test, records keep no working dir; `instruments.md` entries 1 to 4
+  open for H5; the judge figure rests on 16 pairs of stills (lower bound 80.6%). From H1 and H2
+  for H3: the Chromium download host, the Haiku re-sync, the arm passing `files`, the reused
+  `--control --out` collision, the unsynced agent; all handled below.
+- **Shas:** previous verified `main` `f430c0b97`; built on `claude/plan-noacg-harness-p4-build`;
+  the hypothesis, ceiling and signal were committed in `93531e92d` before the first session; the
+  merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge commit. The bench
+  workspace keeps the agent, environment and skill (free, and the lock names them); no session,
+  output file, upload or extra environment is left (`evidence/phase-3/cleanup-check.txt`).
+- **What landed** (`benchmarks/harness/evidence/phase-3.md`): all four proofs of section 6 hold
+  in six sessions for **$2.66** of the $10 ceiling. The container needs one plumbing line: its
+  egress gateway inspects TLS, and Chromium trusts the gateway only after its certificates are
+  added to the NSS store (`certutil` is preinstalled). Then the tarball install, `doctor` (Google
+  Chrome, already in the sandbox), scaffold, `validate --screenshots`, `record` and `coverage` all
+  work, and the bench downloads every output. The defect repair (an upside-down name the validator
+  passes clean) read two images, removed the defect, re-inspected and handed in one version
+  ($1.09). One real graphic on `school-scoreboard`: **$1.49, 471 s, 36 model requests, 40 tool
+  calls, 11 images, largest request $0.22 across H3 (`o`; $0.14 in that session)**. Cold start to
+  a reachable bridge 27 to 32 s with the tarball, 18 to 27 s with the CLI in `packages`. Fixed on
+  the way: the CLI digest counted a zip's `thumbnail.png`, so a handed-in zip read as another
+  version than its folder (test added); `packCli` threw on every real run; the arm tried to
+  download the session's copies of mounted files. Added: a per-session model override
+  (`agent_with_overrides`), so Haiku ran without an agent version; a phase ceiling in the ledger's
+  wall, which `--build` now requires (`--ceiling-cents`); `--proof`, `--effort`; a resumed run
+  tells cells apart by model too; `lib/trace.mjs`, whose Opus 5.5 prices reproduce both Opus
+  sessions' `usage.list_cost` to the cent (its Haiku row is fitted, not checked). H3 is closed in
+  the ledger.
+- **H4 must allow for:**
+  - `m` is **one sample**, $1.49 (the defect repair, a smaller job, $1.09). `B = round-up(1.5 m)`
+    gives $2.24. `o` measured $0.22; a 5-minute cache that lapsed mid-session would make the next
+    request at the largest context seen (149k tokens) about $0.76, so the 5.2 default of $0.50 sits
+    between the two: say which one `R` uses.
+  - Time: 471 s of session wall for the real graphic plus about 30 s of cold start inside it, under
+    the ten-minute median of 4.5; the bench's own capture adds about 35 s outside the session.
+  - The ledger now holds H3's six sessions and its completed entry; `--ceiling-cents` is the way to
+    hold a round to its ceiling.
+- **H5 must allow for:**
+  - The real graphic's agent read the 69 coverage frames as six Pillow contact sheets of twelve, not
+    one by one, though the system prompt says "Read every frame". 3.2 says a contact sheet is
+    illegible: measure whether it misses what the single frames show before trusting a delivery.
+  - `MISSING flag` on `school-scoreboard` is the alias gap of H1's notes, again: map it before H5
+    counts missing actions.
+  - `packages` can carry the CLI only by a published name; put it in `environment.yaml` when the
+    release with `coverage` and `record` is out (saves about 10 s a session).
+  - A model's thinking is not in the trace (Opus 5.5 omits it), so "named from the image" rests on
+    the order of the trace and the agent's own words; the planted line was also in CSS the agent had
+    printed.
+- **Decisions** (each revertible in the file named):
+  - *Haiku ran as a per-session model override*, not a re-synced agent (D6's revert path): the
+    agent stays Opus 5.5, and an override never leaves a version behind. Revert: drop `model` from
+    `StartRequest` in `api/_lib/harness/client.ts`.
+  - *The planted defect is one the validator cannot see* (an upside-down name, `feasibility.mjs`):
+    an overlap or a clip, 6's examples, is a validator ERROR here, so the agent could fix it from the
+    text alone. Revert: plant an overlap.
+  - *No browser download host is allowed*: the sandbox has Chrome and Playwright's Chromium, and the
+    Playwright CDN does not even resolve. *`packages` stays out of `environment.yaml`* until the CLI
+    release (see H5).
+  - *The trust store is set up by the system prompt*, as plumbing: an environment cannot run a setup
+    script. Revert: if a later sandbox trusts the gateway in Chromium, drop the line.
+- **Traps:**
+  - Without the trust line `noacg doctor` reports "No NoaCG bridge ... ERR_CERT_AUTHORITY_INVALID":
+    the bridge is up, the browser distrusts the gateway. `curl` succeeds, which misleads.
+  - Output files lose their folders in the Files API list (`coverage/x.jpg` lists as `x.jpg`).
+  - A cell that ran is never paid twice: a re-run of a proof needs a new proof id (`h3-plumbing-2`).
+  - The packages proofs make their environment per run: `h3-packages-warm` measures a cached start
+    only in the same invocation as, and after, `h3-packages-cold`.
+  - The zip read (`src/model/importTemplate.ts`) still imports a package's `thumbnail.png` as an
+    asset; only the digest ignores it now. A zip saved as is carries the frame twice (the asset and
+    the manifest thumbnail); outside this phase's files, reported in the pull request.
+  - Shell heredocs through this machine's Bash tool can turn `\n` inside quoted code into real
+    newlines; edit JavaScript with the editor, not with an inline script.
+
 ### H2 second check (2026-10-15, on `f430c0b97`)
 
 - **Verdict: PASS.** Checked on `main` `f430c0b97`, the merge of the H2 repair (PR #1231); no

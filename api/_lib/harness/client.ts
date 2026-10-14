@@ -62,6 +62,10 @@ export interface StartRequest {
   title?: string;
   /** Files mounted into the session (the CLI tarball while the verbs are unpublished). */
   files?: Array<{ fileId: string; mountPath: string }>;
+  /** Run this session on another model than the synced agent's, without a new agent version
+   *  (`agent_with_overrides`). The override replaces the agent's model object in full, so an
+   *  effort the session should keep is restated here. */
+  model?: { id: string; effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' };
 }
 
 /** The one user message a session starts with: the brief and the type, nothing of NoaCG's. */
@@ -75,7 +79,9 @@ export function briefMessage(brief: string, type?: string | null): string {
 export function sessionCreateParams(req: StartRequest): SessionCreateParams {
   if (!Number.isInteger(req.budgetCents) || req.budgetCents <= 0) throw new Error(`budgetCents must be a positive whole number of cents, got ${req.budgetCents}`);
   return {
-    agent: { type: 'agent', id: req.agent.id, version: req.agent.version },
+    agent: req.model
+      ? { type: 'agent_with_overrides', id: req.agent.id, version: req.agent.version, model: req.model }
+      : { type: 'agent', id: req.agent.id, version: req.agent.version },
     environment_id: req.environmentId,
     title: req.title ?? `noacg-harness ${req.runId}`,
     budget: { type: 'limit', max_list_cost: { amount: String(req.budgetCents), currency: 'USD' } },

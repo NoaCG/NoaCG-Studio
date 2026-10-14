@@ -61,8 +61,9 @@ export function appendEntry(ledger, entry) {
   return e;
 }
 
-export function spentCents(ledger) {
-  return ledger.entries.filter((e) => e.funding === 'credit').reduce((n, e) => n + e.listCostCents, 0);
+/** What the credit has paid, in all or in one phase. */
+export function spentCents(ledger, phase = null) {
+  return ledger.entries.filter((e) => e.funding === 'credit' && (phase === null || e.phase === phase)).reduce((n, e) => n + e.listCostCents, 0);
 }
 
 export function remainingCents(ledger) {
@@ -73,20 +74,27 @@ export function remainingCents(ledger) {
  * May a session (or `concurrency` sessions at once) start? Refused when what is left, less the
  * overshoot margin, is below the budgets it would book.
  */
-export function admit(ledger, { budgetCents, concurrency = 1, overshootCents = DEFAULT_OVERSHOOT_CENTS, criticCents = 0 }) {
+export function admit(ledger, { budgetCents, concurrency = 1, overshootCents = DEFAULT_OVERSHOOT_CENTS, criticCents = 0, phase = null, ceilingCents = null }) {
   if (!Number.isInteger(budgetCents) || budgetCents <= 0) throw new Error(`a session budget is a positive whole number of cents, got ${budgetCents}`);
-  const remaining = remainingCents(ledger);
+  // A phase's own ceiling (5.1: H3's $10, a tuning round's) is a wall inside the run's.
+  const runLeft = remainingCents(ledger);
+  const phaseLeft = ceilingCents === null ? Infinity : ceilingCents - phaseSpentCents(ledger, phase);
+  const remaining = Math.min(runLeft, phaseLeft);
   const marginCents = overshootCents * concurrency + criticCents;
   const neededCents = budgetCents * concurrency;
   const ok = remaining - marginCents >= neededCents;
+  const holder = phaseLeft < runLeft ? `${phase}'s ${dollars(ceilingCents)} ceiling has` : 'the ledger has';
   return {
     ok,
     remainingCents: remaining,
     marginCents,
     neededCents,
-    reason: ok ? null : `the ledger has ${dollars(remaining)} left; ${concurrency} session(s) at ${dollars(budgetCents)} with a ${dollars(marginCents)} overshoot margin need ${dollars(neededCents + marginCents)}`,
+    reason: ok ? null : `${holder} ${dollars(remaining)} left; ${concurrency} session(s) at ${dollars(budgetCents)} with a ${dollars(marginCents)} overshoot margin need ${dollars(neededCents + marginCents)}`,
   };
 }
+
+/** What one phase's credit sessions have spent. */
+export const phaseSpentCents = (ledger, phase) => spentCents(ledger, phase);
 
 /** True once the ledger holds the phase's completed entry: `--build` refuses to run it again. */
 export function phaseCompleted(ledger, phase) {

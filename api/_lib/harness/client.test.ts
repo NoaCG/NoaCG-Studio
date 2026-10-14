@@ -64,6 +64,10 @@ test('a session starts with the brief, the budget in cents, the run id and nothi
   assert.equal(briefMessage('x', null), 'Brief: x', 'no type line when none was named');
   assert.doesNotMatch(JSON.stringify(params), /api[_-]?key|token|secret|supabase/i);
   for (const budgetCents of [0, -5, 2.5]) assert.throws(() => sessionCreateParams({ ...REQUEST, budgetCents }), /budgetCents/);
+  // Another model for one session overrides the synced version's model and nothing else.
+  const haiku = sessionCreateParams({ ...REQUEST, model: { id: 'claude-haiku-5-5' } });
+  assert.deepEqual(haiku.agent, { type: 'agent_with_overrides', id: 'agent_x', version: 3, model: { id: 'claude-haiku-5-5' } });
+  assert.deepEqual({ ...haiku, agent: undefined }, { ...params, agent: undefined });
 });
 
 test('the end of a session is read from its status and its last idle', () => {

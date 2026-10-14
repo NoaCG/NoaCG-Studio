@@ -28,7 +28,8 @@ You make one broadcast graphic for NoaCG Studio from the brief in the user's mes
 
 - The CLI: if `noacg --version` fails, run `npm install -g /mnt/session/uploads/noacg-cli.tgz`.
 - Run `export NOACG_URL=https://noacg.studio` first; every `noacg` command uses that deployment.
-- If `noacg doctor` finds no browser, run `npx -y playwright@1.61.1 install chromium` and try again.
+- The browser does not trust this container's egress certificate authority on its own, so before the first `noacg` command run: `mkdir -p ~/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -N --empty-password 2>/dev/null; for c in /usr/local/share/ca-certificates/*.crt; do certutil -d sql:$HOME/.pki/nssdb -A -t C,, -n "$(basename "$c")" -i "$c"; done)`. If `certutil` is missing: `apt-get install -y libnss3-tools`.
+- If `noacg doctor` finds no browser, set `NOACG_BROWSER` to the Chromium executable under `/opt/pw-browsers` (`find /opt/pw-browsers -name chrome -type f`) and try again.
 - Never run `noacg save` or `noacg login`. Nothing is saved from here; the host saves what you hand in.
 - Work in `/workspace/graphic`.
 

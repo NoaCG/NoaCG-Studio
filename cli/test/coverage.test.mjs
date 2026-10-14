@@ -62,6 +62,11 @@ test('the digest is the sources, not their key order, line endings or asset orde
     assert.notEqual(sourceDigest(template(changed)), a, `a change to ${Object.keys(changed)[0]} is a new version`);
   }
   assert.equal(canonicalJson({ b: 1, a: [2, { d: 3, c: undefined }] }), '{"a":[2,{"d":3}],"b":1}');
+  // A zip carries the thumbnail `validate --screenshots` wrote as an asset; its folder is read
+  // without it. Both are one version: the frame is an output, not a source (found in H3, where a
+  // container's record.zip read as another version than the folder it was recorded from).
+  const withThumbnail = template({ assets: [...template().assets, { path: 'thumbnail.png', data: 'data:image/png;base64,AAAA' }] });
+  assert.equal(sourceDigest(withThumbnail), a, 'a thumbnail is never a new version');
 });
 
 test('a long value is about 1.7 times its sample and ends on a whole word', () => {

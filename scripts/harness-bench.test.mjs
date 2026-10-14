@@ -39,11 +39,13 @@ import { claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } 
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
-import { admit, appendEntry, emptyLedger, phaseCompleted, readLedger, remainingCents, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, emptyLedger, phaseCompleted, phaseSpentCents, readLedger, remainingCents, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { digestCheck, missingActions, runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
-import { CONTROL_BRIEFS, judgeRun, LEDGER_FILE, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
+import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
+import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
+import { CONTROL_BRIEFS, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
 import { syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -76,6 +78,63 @@ test('the wall refuses a session when what is left, less the overshoot margin, c
   assert.throws(() => admit(ledger, { budgetCents: 0 }), /positive whole number/);
 });
 
+test('a phase ceiling is a wall inside the run\'s: H3 stops at its $10 whatever the ledger has left', () => {
+  const ledger = emptyLedger();
+  appendEntry(ledger, { kind: 'session', phase: 'H3', funding: 'credit', sessionId: 'sesn_a', listCostCents: 650, outcome: 'delivered' });
+  appendEntry(ledger, { kind: 'session', phase: 'H2', funding: 'credit', sessionId: 'sesn_b', listCostCents: 2_000, outcome: 'delivered' });
+  assert.equal(admit(ledger, { budgetCents: 300, overshootCents: 50, phase: 'H3', ceilingCents: 1_000 }).ok, true, '$3.50 under the ceiling covers $3 + $0.50');
+  const over = admit(ledger, { budgetCents: 301, overshootCents: 50, phase: 'H3', ceilingCents: 1_000 });
+  assert.equal(over.ok, false);
+  assert.match(over.reason, /H3's \$10\.00 ceiling has \$3\.50 left/);
+  assert.equal(admit(ledger, { budgetCents: 301, overshootCents: 50 }).ok, true, 'without a ceiling only the run\'s remainder counts');
+});
+
+test('a session\'s trace measures its cold start, turns, images and largest request at list prices', () => {
+  const at = (s) => new Date(Date.parse('2026-10-15T00:00:00Z') + s * 1000).toISOString();
+  const usage = (input, output, read, write) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: read, cache_creation_input_tokens: write });
+  const events = [
+    { type: 'span.model_request_start', processed_at: at(4) },
+    { type: 'span.model_request_end', processed_at: at(6), is_error: false, model_usage: usage(1_000, 500, 0, 10_000) },
+    { type: 'agent.tool_use', id: 'u1', name: 'bash', input: { command: 'npm install -g /mnt/session/uploads/noacg-cli.tgz' }, processed_at: at(7) },
+    { type: 'agent.tool_result', tool_use_id: 'u1', content: [{ type: 'text', text: 'added 1 package' }], processed_at: at(30) },
+    { type: 'agent.tool_use', id: 'u2', name: 'bash', input: { command: 'cd /workspace && noacg validate graphic' }, processed_at: at(31) },
+    { type: 'agent.tool_result', tool_use_id: 'u2', content: [{ type: 'text', text: `OK\nDigest:    sha256:${'d'.repeat(64)}` }], processed_at: at(40) },
+    { type: 'span.model_request_end', processed_at: at(45), is_error: false, model_usage: usage(2_000, 4_000, 100_000, 0) },
+    { type: 'agent.tool_use', id: 'u3', name: 'read', input: { file_path: '/mnt/session/outputs/shots/onair.png' }, processed_at: at(46) },
+    { type: 'agent.tool_result', tool_use_id: 'u3', content: [{ type: 'image', source: {} }], processed_at: at(47) },
+    { type: 'agent.message', content: [{ type: 'text', text: 'DELIVERED' }], processed_at: at(50) },
+  ];
+  const m = traceMetrics({ events, createdAt: at(0), model: 'claude-opus-5-5', usage: { active_seconds: 3_600, cache_creation: { ephemeral_5m_input_tokens: 10_000 } } });
+  assert.deepEqual(m.coldStart, { firstModelRequest: 4, firstToolCall: 7, firstNoacgCommand: 31, bridgeReady: null }, 'no doctor reached a bridge in this trace');
+  assert.deepEqual(m.turns, { modelRequests: 2, toolCalls: 3 });
+  assert.equal(m.images, 1, 'only a result that carried an image back counts as a look');
+  // 2,000 x $4 + 4,000 x $20 + 100,000 x $0.20 per million: $0.108, more than the first's $0.064.
+  assert.equal(m.largestRequest.usd, 0.108);
+  assert.equal(m.pricedCents, Math.round((0.064 + 0.108 + 0.08) * 100), 'tokens plus an hour of running time');
+  assert.equal(m.steps.find((s) => s.command?.includes('validate')).digest, `sha256:${'d'.repeat(64)}`);
+  assert.equal(m.steps.find((s) => s.tool === 'read').images, 1);
+  assert.equal(requestUsd(usage(0, 0, 0, 1_000_000), LIST_PRICES['claude-opus-5-5'], 1), 8, 'a one-hour cache write is twice the input price');
+});
+
+test('H3\'s proofs: the planted defect validates clean, and the packages environment adds only the published CLI', () => {
+  assert.deepEqual(Object.keys(PROOFS), ['h3-plumbing', 'h3-plumbing-2', 'h3-packages-cold', 'h3-packages-warm', 'h3-defect']);
+  assert.equal(PROOFS['h3-plumbing'].model.id, 'claude-haiku-5-5', 'plumbing is proved on the cheap model (5.3)');
+  assert.equal(PROOFS['h3-defect'].model, null, 'the defect repair runs the synced agent, Opus 5.5');
+  assert.doesNotMatch(PROOFS['h3-defect'].prompt, /upside|flip|mirror|transform|defect/i, 'the brief never names the defect');
+  const env = readEnvironmentDefinition(path.join(ROOT, 'agents', 'noacg-harness'));
+  const withPackages = packagesEnvironment(env);
+  assert.deepEqual(withPackages.config.packages, { npm: [PUBLISHED_CLI] });
+  assert.deepEqual({ ...withPackages.config, packages: undefined }, { ...env.config, packages: undefined }, 'the same networking');
+  assert.notEqual(withPackages.name, env.name);
+  // The cached start is measured only after the cold one, in the same run's environment.
+  const fresh = emptyLedger();
+  assert.equal(packagesProofRefusal(fresh, 'H3', ['h3-defect']), null);
+  assert.equal(packagesProofRefusal(fresh, 'H3', ['h3-packages-cold', 'h3-packages-warm']), null);
+  for (const ids of [['h3-packages-warm'], ['h3-packages-cold'], ['h3-packages-warm', 'h3-packages-cold']]) assert.match(packagesProofRefusal(fresh, 'H3', ids), /together and in order/, ids.join());
+  appendEntry(fresh, { kind: 'session', phase: 'H3', brief: 'h3-packages-cold', arm: 'managed-agents', funding: 'credit', sessionId: 's1', listCostCents: 1, outcome: 'failed' });
+  assert.match(packagesProofRefusal(fresh, 'H3', ['h3-packages-cold', 'h3-packages-warm']), /already holds h3-packages-cold/, 'a resume cannot measure the cached start in a new environment');
+});
+
 test('an entry the credit did not fund carries no cost, and a credit session names its session', () => {
   const ledger = emptyLedger();
   assert.throws(() => appendEntry(ledger, { kind: 'session', phase: 'H5', funding: 'subscription', listCostCents: 120, outcome: 'delivered' }), /did not fund/);
@@ -87,17 +146,22 @@ test('an entry the credit did not fund carries no cost, and a credit session nam
   assert.equal(phaseCompleted(ledger, 'H6'), false);
 });
 
-test('the committed ledger reads, starts at $0 and holds H0 as completed', () => {
+test('the committed ledger reads: no credit before H3, H3 within its $10, and H0 completed', () => {
   const ledger = readLedger(LEDGER_FILE);
   assert.equal(ledger.runBudgetCents, 10_000, 'decision 11: $100 across every run of the plan');
-  assert.equal(spentCents(ledger), 0);
+  for (const phase of ['H0', 'H1', 'H2']) assert.equal(phaseSpentCents(ledger, phase), 0, `${phase} spent no credit`);
+  // H3 is closed: its six sessions are what evidence/phase-3.md reports, inside its $10 (5.1).
+  assert.equal(phaseSpentCents(ledger, 'H3'), 266);
+  assert.equal(ledger.entries.filter((e) => e.phase === 'H3' && e.kind === 'session').length, 6);
+  assert.ok(spentCents(ledger) >= 266);
   assert.equal(phaseCompleted(ledger, 'H0'), true);
 });
 
 test('--build refuses a phase the ledger already holds as completed, and anything not a phase', () => {
   const ledger = readLedger(LEDGER_FILE);
   assert.match(refuseCompletedPhase(ledger, 'H0'), /already holds H0 as completed/);
-  assert.equal(refuseCompletedPhase(ledger, 'H3'), null);
+  assert.match(refuseCompletedPhase(ledger, 'H3'), /already holds H3 as completed/, 'a resumed H3 never spends again');
+  assert.equal(refuseCompletedPhase(ledger, 'H4'), null);
   assert.match(refuseCompletedPhase(ledger, 'feasibility'), /phase like H3/);
 });
 
@@ -255,6 +319,11 @@ test('a resumed --build runs only what the ledger does not already hold for that
   const arm = { id: 'managed-agents' };
   const cells = ['a', 'b', 'c'].map((id) => ({ id, brief: { id }, arm }));
   assert.deepEqual(pendingCells(ledger, 'H3', cells).map((c) => c.id), ['b', 'c'], 'a paid cell is never paid twice; a refused one, or another phase\'s, runs');
+  // A model run as a per-session override is the same arm id: the model tells the cells apart.
+  appendEntry(ledger, { kind: 'session', phase: 'H4', brief: 'a', arm: 'managed-agents', model: 'claude-opus-5-5', funding: 'credit', sessionId: 's3', listCostCents: 150, outcome: 'delivered' });
+  const onModel = (model) => [{ id: `a.${model}`, brief: { id: 'a' }, arm: { id: 'managed-agents', model } }];
+  assert.deepEqual(pendingCells(ledger, 'H4', onModel('claude-opus-5-5')), []);
+  assert.equal(pendingCells(ledger, 'H4', onModel('claude-sonnet-5-5')).length, 1, 'Sonnet on the brief Opus ran is another cell');
 });
 
 test('a delivered version that is not the one last reviewed, or a missing action, is caught', () => {

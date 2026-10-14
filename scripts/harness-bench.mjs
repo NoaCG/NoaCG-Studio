@@ -41,7 +41,8 @@ import { claudeCodeArm, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, phaseCompleted, readLedger, summary, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, phaseCompleted, phaseSpentCents, readLedger, summary, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
+import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
 import { readAgentDefinition, readEnvironmentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
@@ -87,10 +88,25 @@ export function refuseCompletedPhase(ledger, phase) {
 }
 
 /** The cells of a `--build` the ledger does not already hold for that phase. A cell that ran
- *  (delivered, not ready or failed) is never paid twice; a refused or paused one runs again. */
+ *  (delivered, not ready or failed) on the same model is never paid twice; a refused or paused one
+ *  runs again, and another model on the same brief is another cell. */
 export function pendingCells(ledger, phase, cells) {
-  const ran = (c) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === c.brief.id && e.arm === c.arm.id && !['refused', 'paused'].includes(e.outcome));
+  const ran = (c) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === c.brief.id && e.arm === c.arm.id && (e.model ?? null) === (c.arm.model ?? null) && !['refused', 'paused'].includes(e.outcome));
   return cells.filter((c) => !ran(c));
+}
+
+/** The packages proofs are one measurement: a cold start in a fresh environment, then a cached one
+ *  in the same environment. Their environment lives for one run, so both run in one invocation,
+ *  cold first, and neither may already be in the ledger; anything else would record a cold start
+ *  as the cached one. */
+export function packagesProofRefusal(ledger, phase, proofIds) {
+  const pair = Object.keys(PROOFS).filter((id) => PROOFS[id].environment === 'packages');
+  const asked = proofIds.filter((id) => pair.includes(id));
+  if (!asked.length) return null;
+  if (asked.join() !== pair.join()) return `the packages proofs run together and in order: --proof ${pair.join(',')}`;
+  const ran = pair.filter((id) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === id && !['refused', 'paused'].includes(e.outcome)));
+  if (ran.length) return `the ledger already holds ${ran.join(' and ')} for ${phase}: a cached start cannot be measured again in a new environment`;
+  return null;
 }
 
 function printLedger(ledger) {
@@ -232,14 +248,25 @@ async function build(phase) {
   const ledger = readLedger(LEDGER_FILE);
   const refusal = refuseCompletedPhase(ledger, phase);
   if (refusal) fail(refusal);
-  const arms = list('arms');
+  const proofIds = list('proof');
+  const arms = proofIds.length && !list('arms').length ? ['managed-agents'] : list('arms');
   const ids = list('briefs');
   const budgetCents = Number(value('budget-cents', ''));
   const model = value('model', '');
-  if (!arms.length || !ids.length) fail('--build needs --arms and --briefs: a paid run names exactly what it spends on');
-  if (arms.includes('managed-agents') && !(Number.isInteger(budgetCents) && budgetCents > 0)) fail('--build with managed-agents needs --budget-cents <n>, the per-session cap');
+  const effort = value('effort', '');
+  const ceilingCents = value('ceiling-cents') === undefined ? null : Number(value('ceiling-cents'));
+  if (!arms.length || !(ids.length || proofIds.length)) fail('--build needs --arms and --briefs (or --proof): a paid run names exactly what it spends on');
+  if (ids.length && arms.includes('managed-agents') && !(Number.isInteger(budgetCents) && budgetCents > 0)) fail('--build with managed-agents needs --budget-cents <n>, the per-session cap');
   if (arms.includes('claude-code') && !model) fail('--build with claude-code needs --model, the exact model id the reference session runs');
+  // Every paid phase has its own ceiling (5.1): a run that does not name it is refused, never
+  // admitted against the whole run budget.
+  if (arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
+  if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
   for (const a of arms) if (!['managed-agents', 'claude-code'].includes(a)) fail(`unknown arm ${a}`);
+  if (proofIds.length && (phase !== 'H3' || arms.join() !== 'managed-agents')) fail('--proof is H3\'s, on the managed-agents arm alone');
+  for (const id of proofIds) if (!PROOFS[id]) fail(`no H3 proof ${id} (${Object.keys(PROOFS).join(', ')})`);
+  const pairRefusal = packagesProofRefusal(ledger, phase, proofIds);
+  if (pairRefusal) fail(pairRefusal);
   ensureCli();
   const url = process.env.NOACG_URL || 'https://noacg.studio';
   const cli = makeCli({ url });
@@ -249,42 +276,60 @@ async function build(phase) {
   if (runDir.startsWith(ROOT + path.sep)) fail(`--out must be outside the repository (${ROOT}): a reference session there would load this repo's instructions`);
   mkdirSync(runDir, { recursive: true });
   const api = await loadHarnessApi();
-  const built = [];
+  const all = [];
   let uploaded = null;
   let sdk = null;
+  let packagesEnv = null;
   try {
     if (arms.includes('managed-agents')) {
       const lockFile = lockPath('bench');
       if (!existsSync(lockFile)) fail(`no ${path.relative(ROOT, lockFile)}: sync the agent first (node scripts/harness-agent-sync.mjs --workspace bench --apply)`);
       const lock = JSON.parse(readFileSync(lockFile, 'utf8'));
-      // The sessions run the agent as it was synced: its model is the synced one, and a
-      // definition changed since the sync would be measured as something it is not.
+      // The sessions run the agent as it was synced: a definition changed since the sync would be
+      // measured as something it is not. Another model runs as a per-session override of the
+      // synced version (`agent_with_overrides`), never as a silent edit of the agent.
       const agentDef = readAgentDefinition(AGENT_DIR);
+      const environmentDef = readEnvironmentDefinition(AGENT_DIR);
       const bundleDir = path.join(runDir, 'skill');
-      const drift = syncPlan({ lock, environment: readEnvironmentDefinition(AGENT_DIR), agent: agentDef, bundle: skillBundle(bundleDir) }).filter((step) => step.action !== 'keep');
+      const drift = syncPlan({ lock, environment: environmentDef, agent: agentDef, bundle: skillBundle(bundleDir) }).filter((step) => step.action !== 'keep');
       if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);
       const agentModel = agentDef.config.model?.id ?? agentDef.config.model;
-      if (model && model !== agentModel) fail(`--model ${model}, but the synced agent runs ${agentModel}: change agents/noacg-harness/agent.md and re-sync to measure another model`);
+      // An override replaces the agent's model object in full, so an effort alone restates the model.
+      const override = (id) => ((id && id !== agentModel) || effort ? { id: id || agentModel, ...(effort ? { effort } : {}) } : null);
       const key = keyFor('bench');
       if (!key) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
       const { default: Anthropic, toFile } = await import('@anthropic-ai/sdk');
       sdk = new Anthropic({ apiKey: key });
+      const upload = async (file) => (await sdk.files.upload({ file: await toFile(readFileSync(file), path.basename(file), { type: 'application/gzip' }) })).id;
       const tarball = packCli(path.join(runDir, 'cli'));
-      uploaded = await sdk.files.upload({ file: await toFile(readFileSync(tarball), 'noacg-cli.tgz', { type: 'application/gzip' }) });
-      built.push(managedAgentsArm({ api: sdk, client: api.client, agent: { id: lock.agent.id, version: lock.agent.version }, environmentId: lock.environment.id, budgetCents, model: agentModel, funding: 'credit', files: [{ fileId: uploaded.id, mountPath: '/noacg-cli.tgz' }] }));
+      uploaded = { id: await upload(tarball) };
+      const arm = (cellBudget, modelOverride) => managedAgentsArm({ api: sdk, client: api.client, agent: { id: lock.agent.id, version: lock.agent.version }, environmentId: lock.environment.id, budgetCents: cellBudget, model: agentModel, modelOverride, funding: 'credit', files: [{ fileId: uploaded.id, mountPath: '/noacg-cli.tgz' }], upload, downloadAll: true });
+      for (const brief of briefs) all.push({ id: `${brief.id}.managed-agents`, brief, arm: arm(budgetCents, override(model)), entry: { budgetCents } });
+      for (const id of proofIds) {
+        const proof = PROOFS[id];
+        const cellBudget = Number.isInteger(budgetCents) && budgetCents > 0 ? budgetCents : proof.budgetCents;
+        const prepared = proof.prepare ? await proof.prepare({ cli, dir: path.join(runDir, 'prepare', id) }) : {};
+        if (proof.environment === 'packages' && !packagesEnv) {
+          // The packages proof's own environment, made for this run and deleted after it.
+          packagesEnv = await sdk.beta.environments.create(packagesEnvironment(environmentDef));
+          console.log(`  environment ${packagesEnv.id} with packages ${JSON.stringify(packagesEnv.config?.packages ?? null)}`);
+        }
+        const brief = { id, kind: 'noacg', type: null, prompt: proof.prompt, ...prepared, ...(proof.environment === 'packages' ? { environmentId: packagesEnv.id } : {}), ...(proof.withoutCli ? { withoutCli: true } : {}) };
+        all.push({ id: `${id}.managed-agents`, brief, arm: arm(cellBudget, proof.model ? override(proof.model.id) : override(model)), entry: { budgetCents: cellBudget } });
+      }
     }
     if (arms.includes('claude-code')) {
       const token = mainEnv().CLAUDE_CODE_OAUTH_TOKEN;
-      built.push(claudeCodeArm({ claude: claudeExecutable(), token, model, url }));
+      const reference = claudeCodeArm({ claude: claudeExecutable(), token, model, url });
+      for (const brief of briefs) all.push({ id: `${brief.id}.claude-code`, brief, arm: reference });
     }
     const runId = `${phase}-${stamp()}`;
-    const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, overshootCents: Number(value('overshoot-cents', String(DEFAULT_OVERSHOOT_CENTS))) };
+    const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, overshootCents: Number(value('overshoot-cents', String(DEFAULT_OVERSHOOT_CENTS))), ceilingCents };
     // A resumed run skips what the ledger already holds for this phase: a cell that ran (delivered,
     // not ready or failed) is never paid twice; only a refused or paused one runs again.
-    const all = briefs.flatMap((brief) => built.map((arm) => ({ id: `${brief.id}.${arm.id}`, brief, arm })));
     const cells = pendingCells(ledger, phase, all);
     if (cells.length < all.length) console.log(`  ${all.length - cells.length} cell(s) already in the ledger for ${phase}, not run again: ${all.filter((c) => !cells.includes(c)).map((c) => c.id).join(', ')}`);
-    console.log(`BUILD ${phase}: ${cells.length} cell(s), ${dollars(summary(ledger).remainingCents)} left on the ledger -> ${runDir}`);
+    console.log(`BUILD ${phase}: ${cells.length} cell(s), ${dollars(summary(ledger).remainingCents)} left on the ledger${ceilingCents ? `, ${dollars(ceilingCents - phaseSpentCents(ledger, phase))} under ${phase}'s ceiling` : ''} -> ${runDir}`);
     // Each cell's entry is written to the committed ledger as soon as it is known: a crash
     // part way never loses spend, and a resumed run never spends it twice.
     const done = await runCells({
@@ -301,12 +346,13 @@ async function build(phase) {
         if (cell.costUnread) throw new Error(`${cell.brief}.${cell.arm}: the session's cost could not be read; reconcile it in the Console and record it before another session spends`);
       },
     });
-    const gallery = buildGallery({ runDir, cells: done, briefs });
+    const gallery = buildGallery({ runDir, cells: done, briefs: [...briefs, ...all.map((c) => c.brief).filter((b) => PROOFS[b.id])] });
     writeFileSync(path.join(runDir, 'summary.json'), `${JSON.stringify({ phase, runDir, cells: done.map((d) => ({ id: d.id, ...d.cell })), gallery }, null, 2)}\n`);
     printLedger(ledger);
     console.log(`Gallery: ${gallery.review}`);
   } finally {
     if (uploaded && sdk) await sdk.files.delete(uploaded.id).catch(() => undefined);
+    if (packagesEnv && sdk) await sdk.beta.environments.delete(packagesEnv.id).then(() => console.log(`  environment ${packagesEnv.id} deleted`), (e) => console.error(`  environment ${packagesEnv.id} NOT deleted: ${e instanceof Error ? e.message : String(e)}`));
     await api.cleanup();
   }
 }
