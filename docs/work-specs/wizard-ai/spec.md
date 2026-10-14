@@ -380,7 +380,7 @@ and the check's findings.
   - *Route choice in the module, as a pure function.* `creationRoute` returns the route or the
     refusal text, so the step refuses synchronously before any busy line, as before. Revert:
     inline it.
-  - *The busy label is the run's first progress call.* `runCreation` calls `io.onProgress(label)`
+  - *The busy label is the run's first progress call.* Each route in `runCreation` calls `io.onProgress(label)`
     synchronously before its first await, so the step needs no label table. Revert: return the
     label from `creationRoute`.
   - *`runCreation` throws; `creationError(e, route)` words it.* The step keeps one
@@ -399,8 +399,11 @@ and the check's findings.
 - **A3 must allow for:**
   - Refine and fix errors use the plain message; do not route them through `creationError`,
     whose "Try:" suffix only the whole-result routes had.
-  - A single result now puts the same array in `alternatives` and `originals`. Keep updating them
-    with `.map`, never in place.
+  - `alternatives` and `originals` are separate arrays (the step copies the result list into
+    `originals`); keep updating them with `.map`, never in place.
+  - Found by the review, existing before A2 and left as they were: `showChange` screens every
+    displayed result against `imported?.template`, not only a convert's (#1179); a Pro package
+    member whose composition throws skips the outcome report (Pro is unreachable).
   - The Pro generate branch already lives in `creation.ts` (`runPro`). AC-14's move check diffs
     across A2: `origin/main` before #1178, lines 890-1027 of the step, against `runPro`, with
     the WeakMap writes lifted into the step's `generate` and `setProDropped(pro.dropped)`.

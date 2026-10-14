@@ -2,14 +2,15 @@
 
 Recorded by the A2 builder (branch `claude/plan-wizard-ai-p2-build`, pull request #1178),
 2026-10-14, Windows 10. Before = `origin/main` at `9fd10aed3`. Candidate = the branch head the
-queue lands; the assessed code commit is `440aabc62` (later commits on the branch change only the
-test's tier header and these records).
+queue lands. Assessment A reviewed `440aabc62`; the `/check` pass after it (the test's tier
+header, a separate `originals` array, the busy labels inside `runCreation`'s cases, one bundle in
+the test) was re-assessed as a delta, below.
 
 ## What changed
 
 | File | What it does |
 |---|---|
-| `src/ai/creation.ts` (new, 321 lines) | `creationRoute` (section 4's "Selected when", with the three refusals), `runCreation(input, io)` (the five routes; `io` = `provider`, `validate`, `structuralCheck`, `probeMark`, `onProgress`), `creationError` (the step's error wording), `screenChange` (`validateTemplate` + `mergeSafety`, the display screen); the Pro branch moved as written into `runPro` |
+| `src/ai/creation.ts` (new, 310 lines) | `creationRoute` (section 4's "Selected when", with the three refusals), `runCreation(input, io)` (the five routes; `io` = `provider`, `validate`, `structuralCheck`, `probeMark`, `onProgress`), `creationError` (the step's error wording), `screenChange` (`validateTemplate` + `mergeSafety`, the display screen); the Pro branch moved as written into `runPro` |
 | `src/components/wizard/steps/AiStep.tsx` | still builds `productionSpxValidator` + `withSpecChecks` and passes it as `io.validate`; `generate` calls the module and sets the screen state from the result; `run` and the inline dispatch are gone; `showChange` calls `screenChange`. 2,152 to 1,940 lines |
 | `scripts/ai-creation.test.mjs` (new) | 19 tests, `// gate: factory`, `// needs: browser`, `// guards: src/ai/creation.ts`, loaded through rolldown |
 | `scripts/ai-lite-bench.test.mjs` | the validator test checks the new boundary; its guards name `creation.ts` and the step |
@@ -62,6 +63,20 @@ before the busy label in the same batch; a single result's stage cleared by `sta
 it cannot reject; the Pro WeakMaps set after the run, which differs only on a Pro failure after the
 design call, unreachable with `proMode` false); D3 holds; AC-13 met for A2's rows; the Pro branch
 is a move (IO substitutions, the WeakMap writes lifted out, the return shape); AC-3 and AC-9 hold.
+
+## The `/check` pass
+
+Review (delegated, scope matched): no regression from the move. Fixed: a single result's list is
+now copied into `originals`, so the two state slots are separate arrays as before the move.
+Reported, not changed (behaviour existing before A2, AC-12): a late result after the step was left
+(#1165); every displayed result screened against an unrelated import (#1179); a Pro package
+member whose composition throws skips the outcome report (Pro unreachable). Not taken: lowering
+the budget (A3's, per the row), a route-keyed input union (A3 can shape it with refine's inputs).
+Simplify (delegated, four angles): each route's busy label now opens its own `case` (one switch
+instead of two), `onProgress: setBusy`, `Promise.withResolvers` for the test's deferreds, one
+rolldown build emitted twice, and a validator text guard that no longer depends on field order.
+Not taken: `withBundledPage` reuse (needs an options argument in `catalog-emit.mjs`, outside the
+row). After it: 19 of 19 and 28 of 28 pass, the twelve mutants all red again, tsc and eslint clean.
 
 ## Mapping (parent section 6)
 

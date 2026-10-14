@@ -121,22 +121,6 @@ export function creationRoute(state: {
   return state.useHarness ? 'directions' : 'raw';
 }
 
-/** The busy line a route opens with. */
-function openingLabel(route: CreationRoute, context: GenerateContext): string {
-  switch (route) {
-    case 'convert':
-      return 'Converting your template…';
-    case 'lite':
-      return 'Creating your graphic…';
-    case 'raw':
-      return 'Generating…';
-    case 'directions':
-      return context.seed ? 'Designing three more in that spirit…' : 'Designing three directions…';
-    case 'pro':
-      return PRO_STAGE_LABELS.design;
-  }
-}
-
 /**
  * Run one Generate press. Validation is forwarded per route (spec D3): convert, Lite and the
  * three directions pass the step's validator and the structural check; the raw route (harness
@@ -144,22 +128,27 @@ function openingLabel(route: CreationRoute, context: GenerateContext): string {
  */
 export async function runCreation(input: CreationInput, io: CreationIO): Promise<CreationResult> {
   const { route, brief, context } = input;
-  io.onProgress(openingLabel(route, context));
   const options = { validate: io.validate, structuralCheck: io.structuralCheck, onProgress: io.onProgress };
+  // Each route opens the busy line with its own label before the provider is reached.
   switch (route) {
     case 'convert':
+      io.onProgress('Converting your template…');
       if (!input.imported) throw new Error('Nothing imported to convert.');
       return one(await io.provider().convertImport(brief, input.imported, context, options));
     case 'lite':
+      io.onProgress('Creating your graphic…');
       return one(await io.provider('lite').generate(brief, context, { ...options, profile: 'lite' }));
     case 'raw':
+      io.onProgress('Generating…');
       return one(await io.provider().generateRaw(brief, context, { onProgress: io.onProgress }));
     case 'directions': {
+      io.onProgress(context.seed ? 'Designing three more in that spirit…' : 'Designing three directions…');
       const list = await io.provider().generateAlternatives(brief, context, options);
       // Start on the first option that passes; the pick is the user's to change.
       return { changes: list, selected: Math.max(0, list.findIndex((alt) => alt.validation?.ok ?? false)) };
     }
     case 'pro':
+      io.onProgress(PRO_STAGE_LABELS.design);
       return runPro(brief, input.pro, io);
   }
 }

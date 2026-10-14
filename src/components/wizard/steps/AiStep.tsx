@@ -643,7 +643,7 @@ export default function AiStep({
     validate,
     structuralCheck: benchStructuralIntent,
     probeMark,
-    onProgress: (stage) => setBusy(stage),
+    onProgress: setBusy,
   };
 
   const showChange = (change: AiTemplateChange) => {
@@ -840,7 +840,7 @@ export default function AiStep({
       if (changes.length) {
         // One result replaces whatever stood; three directions start on the first that passes.
         setAlternatives(changes);
-        setOriginals(changes);
+        setOriginals([...changes]);
         setSelected(first);
         showChange(changes[first]);
         stagePick(changes[first], changes);

@@ -51,19 +51,18 @@ const harnessPlugin = {
   },
 };
 
-/** As an offline build sees it: no environment, so settings fall back to their defaults. */
-async function bundle(platform, format) {
-  const built = await rolldown({
-    input: ENTRY,
-    platform,
-    plugins: [rawSuffix, harnessPlugin],
-    transform: { define: { 'import.meta.env': '{}' } },
-    logLevel: 'silent',
-  });
-  const { output } = await built.generate({ format, codeSplitting: false, ...(format === 'iife' ? { name: 'NOACG_CREATION' } : {}) });
-  await built.close();
-  return output[0].code;
-}
+/** One build, as an offline build sees it (no environment, so settings take their defaults),
+ *  emitted twice: an ES module for Node and a script for the one Chromium page. */
+const built = await rolldown({
+  input: ENTRY,
+  platform: 'browser',
+  plugins: [rawSuffix, harnessPlugin],
+  transform: { define: { 'import.meta.env': '{}' } },
+  logLevel: 'silent',
+});
+const emit = async (format) => (await built.generate({ format, codeSplitting: false, ...(format === 'iife' ? { name: 'NOACG_CREATION' } : {}) })).output[0].code;
+const [esm, PAGE_SCRIPT] = [await emit('esm'), await emit('iife')];
+await built.close();
 
 const {
   creationError,
@@ -72,16 +71,11 @@ const {
   screenChange,
   LiteUnsupportedError,
   validateTemplate,
-} = await import(`data:text/javascript;base64,${Buffer.from(await bundle('neutral', 'esm'), 'utf8').toString('base64')}`);
+} = await import(`data:text/javascript;base64,${Buffer.from(esm, 'utf8').toString('base64')}`);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────────────────
 
-function deferred() {
-  let resolve;
-  let reject;
-  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
-  return { promise, resolve, reject };
-}
+const deferred = () => Promise.withResolvers();
 
 /** Let every queued microtask and timer callback run. */
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -417,10 +411,10 @@ test('pro: a reservation that lands after the caller abandoned the run still goe
 });
 
 test('pro: a finished run carries its package, ran the step validator, and reports usable', async () => {
-  const [script, browser] = await Promise.all([bundle('browser', 'iife'), chromium.launch()]);
+  const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    await page.addScriptTag({ content: script });
+    await page.addScriptTag({ content: PAGE_SCRIPT });
     const seen = await page.evaluate(async () => {
       const requests = [];
       const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
