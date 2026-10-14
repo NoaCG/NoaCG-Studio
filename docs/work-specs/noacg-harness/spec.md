@@ -24,11 +24,12 @@ whose signal is missing, and the exam reservation can refuse to fit in $100. Eit
 to the owner, not a failure of the plan.
 
 Biggest risk: the money. At list prices a strong-model graphic with the full coverage matrix is
-estimated at $2 to $3 (section 5.2); if feasibility measures more, two tuning rounds and the
-exam do not fit in $100 together, and the owner decides between a larger run budget, a smaller
-exam, or the exam on Sonnet 5.5. The second risk is the judge: a model that approves everything
-would pass a harness the owner rejects, which is why calibration on held-back owner verdicts
-runs at zero credit before any paid stage depends on it.
+estimated at about $2 (section 5.2), and at that estimate the exam reserve leaves room for one
+full tuning round at $15, not three; the plan fits by running smaller rounds, and if even two
+small rounds do not fit, the reservation phase stops before any tuning and the owner decides
+between a larger run budget, a smaller exam, or the exam on Sonnet 5.5. The second risk is the
+judge: a model that approves everything would pass a harness the owner rejects, which is why
+calibration on held-back owner verdicts runs at zero credit before any paid stage depends on it.
 
 ## Why
 
@@ -127,7 +128,9 @@ judge's calibration failed, and opening the harness to students waits.
   holds `agent.md` (model, effort, the plumbing-only system prompt, the toolset with web tools
   off and `permission_policy: always_allow`, the pinned custom skill) and `environment.yaml`
   (`cloud`, `limited` networking with `allow_package_managers: true` and `allowed_hosts` of
-  exactly the NoaCG deployment and whatever Chromium's download needs, measured in H3). The `ant`
+  exactly the NoaCG deployment and whatever Chromium's download needs, measured in H3, and the
+  environment's `packages` field carrying the CLI and a Chromium if H3 shows it can, so no
+  session pays the install). The `ant`
   CLI is not installed on this machine, so `scripts/harness-agent-sync.mjs` reads the same files
   through `@anthropic-ai/sdk` (added as a dependency; it sets the `managed-agents-2026-04-01`
   header and verifies webhooks) and records ids per workspace in
@@ -215,8 +218,8 @@ Retired approaches, read by their RETRY WHEN lines:
   joined items and the judge catches something no deterministic gate can"): fires here through
   the calibration of H2, on about 100 archived items with owner verdicts, before the judge
   decides anything. The exam judge is a judge of a pilot, not a production gate; the in-loop
-  critic blocks only the basic-mistake classes, and only once H2 shows the model separates good
-  from bad.
+  critic blocks only the basic-mistake classes, and stays only if H6's with-and-without
+  measurement shows it removes defects at a cost that does not rise more than it saves.
 - **The model-vs-harness study** ("retry when a materially different checkpoint class exists, or
   the harness changes enough that D-vs-A could invert"): the Managed Agents loop with sight is
   that different harness class; the exam replaces re-running that rig.
@@ -299,9 +302,10 @@ contrast a viewer can read: yes or no, which frame, which text"). The author rep
 critic found and re-captures the affected states; a disagreement is settled by the picture, not
 by the critic. The critic is not the exam judge and never sees the reference arm.
 
-Measured in tuning (H6): the same five briefs with and without, on the same model; the critic
-stays only if it removes basic defects or missing actions at a cost per accepted graphic that
-does not rise more than it saves.
+Measured in tuning (H6, when H5 delivered a basic defect or a missing action): the same briefs
+with and without, on the same model; the critic stays only if it removes basic defects or
+missing actions at a cost per accepted graphic that does not rise more than it saves. A clean
+H5 leaves the critic off, because a review with nothing to find is cost without a measurement.
 
 ### 3.5 Instruments that agree with the picture
 
@@ -337,10 +341,11 @@ reads it for guidance (AC-16).
 ### 3.8 Strong model first, then the ladder
 
 H5 reproduces August as closely as practical: Opus 5.5 at effort `high`, the skill as published,
-no critic, the coverage verb and the record hand-off. H6 adds one variable. H7 measures Sonnet
-5.5 against the H5 configuration on the same briefs; the cheapest model whose tuning-set verdict
-matches wins and runs the exam. Haiku 5.5 is measured only if Sonnet matches, and only within
-the round's ceiling.
+no critic, the coverage verb and the record hand-off. H6 runs the one variable H5's evidence
+picks: the critic if H5 delivered any basic defect or missing action, else Sonnet 5.5 on the
+same briefs and configuration. H7 takes the next rung (section 5.1). The cheapest model whose
+tuning-set verdict matches wins and runs the exam; Haiku 5.5 is measured only if Sonnet matched
+and the money fits.
 
 ## 4. The exam
 
@@ -349,11 +354,15 @@ the pass thresholds (4.5).
 
 ### 4.1 Briefs
 
-- **Held-out**: 20 new briefs written in H0 by a session that reads the product and the type
-  registry but never this plan's harness sections, the skill tuning or any tuning evidence;
-  sealed (D7). At least eight graphic types; stress cases: long names and titles, two-sided
-  boards, bright and dark logos, busy backgrounds, operator actions; each with `stress` values,
-  `expect` fields and actions, and a one-line `judge` note, as `benchmarks/agent/v1/briefs.json`.
+- **Held-out**: 20 new briefs written in H0 by a `claude -p` child on the subscription whose
+  prompt file holds exactly the permitted inputs (the product docs, the type registry,
+  `benchmarks/agent/v1/briefs.json` and this section's requirements) and nothing of this plan's
+  harness design, the skill tuning or any tuning evidence; H0's builder, who has read this plan,
+  writes no brief, records the prompt and the child's session id in `evidence/phase-0.md`,
+  checks coverage, and seals (D7). At least eight graphic types; stress cases: long names and
+  titles, two-sided boards, bright and dark logos, busy backgrounds, operator actions; each with
+  `stress` values, `expect` fields and actions, and a one-line `judge` note, as
+  `benchmarks/agent/v1/briefs.json`.
 - **Tuning**: the 6 v1 briefs plus 10 new tuning briefs from the same session, unsealed, in
   `benchmarks/harness/tuning/briefs.json`, varied types. These are the only briefs the harness is
   tuned on. The 21 Pro custom-bank briefs are a reservoir if a round needs a type the bank lacks.
@@ -373,7 +382,9 @@ re-captured locally at zero cost.
 - **Model**: the strongest vision model the subscription serves through `claude -p --model`,
   pinned by the exact id the CLI reports; prompt and rubric in `benchmarks/harness/judge/`,
   their sha256 together with the model id committed before H5 as `judge.lock.json`. The judge
-  reads the frames through `claude -p`'s Read tool and answers a strict JSON schema.
+  reads the frames through `claude -p`'s Read tool and answers a strict JSON schema. The exam
+  runner refuses a judge whose hash differs; if the pinned model is no longer served by exam
+  time, H2 is repeated as a re-pin and recorded, never patched in place.
 - **Two tasks**: single airability (would this air; which basic mistakes; which actions are
   missing) and pairwise preference (which would air, which is better, what is wrong, with
   reasons), over the full coverage matrix of both arms, blind. Every pair is judged in both
@@ -414,6 +425,11 @@ All of:
 - Claude Code preferred in no more than 10 of the 20 pairs, ties counted as not preferred;
 - median wall time at most 10 minutes and no accepted graphic over the session budget.
 
+"Ties counted" is read leniently: a tie is a pair in the denominator and not a Claude Code
+preference. Because the judge is calibrated on stills, a tie that comes from an order flip is
+also a reliability reading: more than 5 flip-ties in 20 makes the exam "inconclusive: judge
+unreliable on this set" rather than a pass, and the report says which pairs flipped.
+
 Twenty briefs make this a pilot: a 10 of 20 split carries an interval of roughly 30% to 70%. The
 pass earns the owner-only launch; real use is what proves broad reliability, and the report says
 so.
@@ -435,14 +451,15 @@ report's "Needs you" says that opening to students waits.
 | Briefs, dry run, judge | H0, H1, H2 | $0 | local, subscription | the bench, hand-off, completion and ledger work on a fake agent; the briefs are sealed; the judge separates good from bad on held-back verdicts |
 | Feasibility | H3 | $10 | Haiku 5.5, then Opus 5.5 | the container installs the CLI and a Chromium, reaches `/bridge`, renders, writes outputs; the agent sees an image, names a planted defect, fixes it, and the delivered digest equals the last reviewed one; one real graphic's cost and time are measured |
 | Reservation | H4 | $0 | local | the exam fits (5.2); the per-graphic budget is set |
-| Tuning round 1 | H5 | $15 | Opus 5.5 | the August reproduction on 5 tuning briefs; the judge's verdict against the reference arm and the defect count |
-| Tuning round 2 | H6 | $15 | Opus 5.5 | one variable (the critic first if round 1 delivered any basic defect or missing action, else a measured skill or CLI change); progress against round 1 |
-| Tuning round 3 | H7 | $15 | Sonnet 5.5 | the cheaper model on the round 2 configuration; matches or does not |
+| Tuning round 1 | H5 | the round ceiling | Opus 5.5 | the August reproduction on the round's tuning briefs; the judge's verdict against the reference arm, the defect and missing-action counts, the median wall time |
+| Tuning round 2 | H6 | the round ceiling | Opus 5.5 or Sonnet 5.5 | the variable H5's evidence picks: the critic if round 1 delivered any basic defect or missing action, else Sonnet 5.5 on the round 1 configuration; progress against round 1 |
+| Tuning round 3 | H7 | the round ceiling | the next rung | Sonnet 5.5 on the round 2 configuration if round 2 was the critic; else Haiku 5.5 only if Sonnet matched and the money fits, else recorded as not needed |
 | Held-out exam | H8 | the reserved amount | the winner | the thresholds of 4.5 |
 
-Each paid phase writes its hypothesis, its ceiling and its signal into `evidence/<phase>.md`
-before the first session starts, and the checker confirms the order. A stage whose signal is
-missing stops the run with a report.
+The round ceiling is $15 for about 5 briefs, or $9 for 3 briefs when H4's fit rule says so
+(5.2). Each paid phase writes its hypothesis, its ceiling and its signal into
+`evidence/<phase>.md` before the first session starts, and the checker confirms the order. A
+stage whose signal is missing stops the run with a report.
 
 ### 5.2 The reservation arithmetic
 
@@ -453,12 +470,25 @@ From H3's measured mean cost of one real graphic on the strong model, `m`:
 - exam reserve `R = 20 (B + o)`, plus the critic's share if H6 keeps it;
 - remainder for tuning `T = 100 - ledger spent - R`.
 
-With the list-price estimate of `m` about $2 (a 12-minute Opus 5.5 session: about 50k output
-tokens, 100k fresh input tokens with images, a million cached reads, two cents of container
-time), `B` is $3, `R` about $70, and `T` about $20 after a $10 feasibility: one full tuning
-round and a short one. If `m` is $1.50, two rounds fit. If `R` alone leaves less than one
-$15 round, H4 stops and reports the numbers; the owner decides between a larger run budget, a
-10-brief exam, or the exam on Sonnet 5.5. That is a money decision, not the run's.
+The fit rule, applied in H4 before any tuning: the ladder needs at least two rounds, the
+baseline (H5) and the model ladder (decision 5), with the critic round only when H5 shows a
+defect or a third round fits. H4 computes how many rounds fit at $15; if fewer than two, it
+recomputes at $9 (3 briefs a round); if still fewer than two, it stops with `needs: decision`
+before H5 spends anything, with a recommendation in this order: a run budget large enough for
+two $9 rounds, then a 10-brief exam, then the exam on Sonnet 5.5. That is a money decision,
+not the run's. H4 also fits time: if H3's measured wall time plus cold start is above the
+ten-minute median of 4.5, the same stop reports it, because the pass rule's number is the
+owner's to set against decision 9's "about ten minutes".
+
+| `m` measured in H3 | `B` | `R` (`o` = $0.50) | `T` after $10 feasibility | rounds at $15 | rounds at $9 |
+|---|---|---|---|---|---|
+| $1.00 | $1.50 | $40 | $50 | 3 | 5 |
+| $1.50 | $2.25 | $55 | $35 | 2 | 3 |
+| $2.00 (the estimate) | $3.00 | $70 | $20 | 1 | 2 |
+| $2.50 | $3.75 | $85 | $5 | 0, stop | 0, stop |
+
+The estimate: a 12-minute Opus 5.5 session with about 50k output tokens, 100k fresh input
+tokens including the images, a million cached reads and two cents of container time.
 
 ### 5.3 Walls, and their honest limits
 
@@ -466,8 +496,10 @@ $15 round, H4 stops and reports the numbers; the owner decides between a larger 
   authoritative: one entry per session (phase, stage, model, session id, `usage.list_cost`,
   wall, outcome). The runner refuses to start a session when `remaining - overshoot margin <
   session budget x concurrency`, where the margin is `o x concurrency` plus the critic's worst
-  thread. Reconciled against the Console's workspace usage at the end of every paid phase, the
-  figure recorded in the phase's evidence.
+  thread. The mechanical figure is the sum of the sessions' `usage.list_cost`, the same list
+  price the workspace limit meters. Reading the Console's workspace usage needs a person or an
+  Admin key, so each paid phase's pull request asks the owner for one glance (which page, which
+  number to compare with the ledger's) instead of claiming a reconciliation it cannot make.
 - **Session budgets can overshoot** by one request per running thread; the margin covers it.
 - **The bench workspace's spend limit** is a monthly backstop that holds even if the ledger is
   wrong. Each month the owner sets it no higher than what the ledger has left (owner setup).
@@ -489,7 +521,8 @@ windows.
 ### 5.5 Stop rules
 
 - H3: any of its four proofs fails: stop, recommend the fallback plan.
-- H4: the reserve does not fit: stop, report the numbers.
+- H4: fewer than two rounds fit even at $9, or the measured time is over the pass rule: stop
+  before H5, report the numbers with the recommendation of 5.2.
 - Two tuning rounds in a row without measurable progress, measured as cost per accepted graphic
   or the judge's verdict on the tuning set: stop; a third idea is not tried on hope. The report
   says what was learned and what the next plan should change.
@@ -512,6 +545,9 @@ ledger):
    `validate --screenshots` and `coverage`, writes the record and frames to the outputs, and the
    bench lists and downloads them. Measured: cold start to the first `noacg` call, the install
    path that worked, the hosts that had to be allowed, the `environment.yaml` that results.
+   Then the same with the CLI and the Chromium declared in the environment's `packages` field,
+   if the field can carry them, so later sessions start warm; the cold start of both paths is
+   recorded, because time is a pass rule (4.5) and H4 fits it.
 2. **The defect-repair proof, on Opus 5.5, about $3.** The bench plants a visible defect (a title
    overlapping the name, or a clipped long value) in a scaffolded package mounted into the
    session and asks the agent to finish the graphic. The trace must show: an image read, not a
@@ -617,11 +653,12 @@ alternatives; no other engine runs and no error code is shown (AC-13).
 
 ## 8. Coordination with `wizard-ai` and `wizard-shell`
 
-On `origin/main` at the baseline: `wizard-ai` A1 to A3 landed, A4 (the folder move,
-`claude/plan-wizard-ai-p4-build`, #1199) in flight, A5 open; `wizard-shell` S1a to S3 landed, S4
-queued (#1196), S5 to S7 open. `wizard-ai` owns `steps/AiStep.tsx`, `steps/ai/*`, the future
-`wizard/ai/`, `src/ai/*`, `e2e/_ai-step.ts`, `e2e/ai*.spec.ts`, `e2e/pro*.spec.ts` and two test
-scripts while a phase of it is open.
+On `origin/main` at `25849748c` (2026-10-14, the day this plan landed): `wizard-ai` A1 to A4
+landed and checked (the step now lives under `src/components/wizard/ai/`), A5 (the close-out,
+with contract recompiles) open; `wizard-shell` S1a to S4 landed, S5 to S7 open. The rules below
+read the live state, so this snapshot is a starting point, not a dependency. `wizard-ai` owns
+`src/components/wizard/ai/*`, `src/ai/*`, `e2e/_ai-step.ts`, `e2e/ai*.spec.ts`,
+`e2e/pro*.spec.ts` and two test scripts while a phase of it is open.
 
 - H0 to H9 touch none of those files, so they run beside both wizard plans (plan runs of
   different plans may run side by side, never two on one file).
@@ -635,6 +672,8 @@ scripts while a phase of it is open.
   (launched, not landed), the one-writer rule of `wizard-structure` section 8.
 - `e2e/ai.spec.ts` carries a budget exception until 2026-11-13 from `wizard-ai`; H10 adds its
   own line under `## Budget exceptions` if it adds minutes past that date.
+- H1 adds one dependency line to `package.json`, a file `wizard-structure` section 8 names as
+  shared; it is one added line the merge queue rebases.
 
 ## 9. Long-term direction, and the fallback path
 
@@ -668,9 +707,10 @@ ledger with $0 recorded; the managed-agents arm runs against a stub client repla
 documented event and file shapes; the ledger refuses a session when the remainder is short.
 
 ### AC-2: The exam briefs are sealed before tuning starts
-**Layer:** a Node check in H0's evidence and the checker's read.
+**Layer:** a Node test (`scripts/harness-bench.test.mjs`: the sealed file decrypts to the
+committed hash with the passphrase and is refused without it) and the checker's read.
 `briefs.sealed` and `briefs.sha256` are committed by H0; no plaintext brief is in the repository
-or in any tuning evidence; the brief-writing session's isolation is recorded in `evidence/phase-0.md`.
+or in any tuning evidence; the child session's prompt and id are in `evidence/phase-0.md`.
 
 ### AC-3: The judge is frozen and calibrated
 **Layer:** `benchmarks/harness/judge/judge.lock.json` and the calibration report.
@@ -690,8 +730,9 @@ stopped with the numbers if the reserve does not fit.
 ### AC-6: Every tuning round states its hypothesis before spending and measures its signal
 **Layer:** `evidence/phase-5.md`, `-6.md`, `-7.md` and the ledger.
 Each round's hypothesis, ceiling and signal are written before its first session; one variable
-per round; the judge's verdict against the reference arm and the defect and action counts
-recorded; the stop rule applied.
+per round; the judge's verdict against the reference arm, the defect and missing-action counts
+and the median wall time recorded; the stop rule applied; H8 launched only within the time
+rule.
 
 ### AC-7: The held-out exam passed the fixed thresholds
 **Layer:** `benchmarks/harness/exam/REPORT.md`, the gallery on this machine.
@@ -730,12 +771,14 @@ coding-agent route pass unchanged.
 The fleet cap, the student's allowance and the empty-balance refusal each show the resting note
 with its date and the three alternatives; no other engine runs; no error code is shown.
 
-### AC-14: Live on production for the owner only
+### AC-14: Live on production for the override list only
 **Layer:** one recorded production walk in `evidence/phase-11.md`.
-With `harness_open` off and the owner's id in the override list, the owner's account creates
-three graphics from unseen briefs (a lower third, a two-sided board, a type with operator
-actions); each lands in the library, opens, and plays in the browser output with its fields and
-controls; a second account sees no Create with AI engine.
+With `harness_open` off and the override list holding the owner's id and, for the check only,
+the bench account's id (added for the walk and removed after), the bench account creates three
+graphics from unseen briefs (a lower third, a two-sided board, a type with operator actions);
+each lands in the library, opens, and plays in the browser output with its fields and controls;
+an account outside the list sees no Create with AI engine. The owner's own look is the gallery
+verdict of 4.6, never a walk the run waits on.
 
 ### AC-15: The superseded rulings are retired where they live
 **Layer:** `npm run learn`, the compiled contracts, the docs diff.
@@ -761,13 +804,20 @@ approved without that entry.
 Each phase runs `/check` and lands with `/queue-merge`; the builder adds the next phase's notes
 under `## Phase notes` and the spend to the ledger. Every phase ends at a safe stopping point,
 with `main` green and the spend recorded, so the next run resumes without redoing or re-spending.
-Product integration (H9 onward) starts only after H8 passed.
+Product integration (H9 onward) starts only after H8 passed. `plan-run` numbers phases 1 to 12
+from this list; phase n is H(n-1), and evidence files are named by H number.
 
-1. **H0. The sealed briefs** (AC-2). A session that reads the product, the type registry,
-   `benchmarks/agent/v1/briefs.json` and section 4.1 only. Files: `benchmarks/harness/exam/
-   briefs.sealed`, `briefs.sha256`, `benchmarks/harness/tuning/briefs.json`, `evidence/phase-1.md`;
-   the plaintext and passphrase under `docs/private/harness-exam/` in the main checkout. No
-   `src/`, no `cli/`. Subscription use for writing is fine; no credit.
+A checker spends nothing: it creates no session and runs no reference arm. It verifies from the
+ledger, free session fetches on the bench key (not found after cleanup is itself AC-4's fourth
+proof), the committed artifacts, a local re-capture of the delivered packages and `--control`.
+Mechanically, `scripts/harness-bench.mjs` creates sessions only with an explicit `--build
+<phase>` and refuses when the ledger already holds that phase's completed entries.
+
+1. **H0. The sealed briefs** (AC-2). The builder writes no brief: a `claude -p` child on the
+   subscription writes them from the permitted inputs of 4.1, the builder reviews coverage and
+   seals. Files: `benchmarks/harness/exam/briefs.sealed`, `briefs.sha256`,
+   `benchmarks/harness/tuning/briefs.json`, `evidence/phase-0.md`; the plaintext and passphrase
+   under `docs/private/harness-exam/` in the main checkout. No `src/`, no `cli/`. No credit.
 2. **H1. The bench and the dry run** (AC-1; the plumbing of AC-16). Files: `benchmarks/harness/`
    (ledger, arms, capture, gallery, judge runner skeleton), `scripts/harness-bench.mjs`,
    `scripts/harness-bench.test.mjs`, `scripts/harness-agent-sync.mjs`, `agents/noacg-harness/`,
@@ -778,20 +828,25 @@ Product integration (H9 onward) starts only after H8 passed.
 3. **H2. The judge** (AC-3). Files: `benchmarks/harness/judge/` (prompt, rubric, lock, the
    calibration runner), `evidence/phase-2.md`. Subscription only, paced; the held-back part
    never read while writing the prompt.
-4. **H3. Feasibility** (AC-4, $10). Files: `agents/noacg-harness/environment.yaml` as measured,
-   `evidence/phase-3.md`, `evidence/phase-3/` traces, the ledger. Stops with the fallback
-   recommendation on any failed proof.
+4. **H3. Feasibility** (AC-4, $10). Files: `agents/noacg-harness/environment.yaml` as measured
+   (networking, and `packages` if it worked), `evidence/phase-3.md`, `evidence/phase-3/` traces,
+   the ledger. Stops with the fallback recommendation on any failed proof.
 5. **H4. The exam reservation** (AC-5, $0). Files: the ledger, `evidence/phase-4.md`, the budget
-   default in `agents/noacg-harness/agent.md`. Stops with the numbers if the reserve does not fit.
-6. **H5. Tuning round 1: the August reproduction** (AC-6, AC-16, AC-17, $15). The five v1 tuning
-   briefs on Opus 5.5, the archived August cells as the reference, the judge on the tuning set.
-   Files: `evidence/phase-5.md`, `evidence/instruments.md`, the ledger; `cli/` or `cli/skill/`
-   only with a measurement.
-7. **H6. Tuning round 2: one variable** (AC-6, AC-16, AC-17, $15). The critic if round 1 showed a
-   basic defect or a missing action, else a measured skill or CLI change; the same briefs and
-   model. Reference runs for new tuning briefs on the subscription.
-8. **H7. Tuning round 3: the model ladder** (AC-6, $15). Sonnet 5.5 on the round 2 configuration;
-   the winner named; the session budget revised for it; the stop rule applied across H5 to H7.
+   default in `agents/noacg-harness/agent.md`, the round ceiling and brief count for H5 to H7.
+   Stops with `needs: decision` before H5 if fewer than two rounds fit or the time is over the
+   pass rule (5.2).
+6. **H5. Tuning round 1: the August reproduction** (AC-6, AC-16, AC-17, the round ceiling). The
+   round's v1 tuning briefs on Opus 5.5, the archived August cells as the reference, the judge on
+   the tuning set. Files: `evidence/phase-5.md`, `evidence/instruments.md`, the ledger; `cli/` or
+   `cli/skill/` only with a measurement.
+7. **H6. Tuning round 2: the variable round 1 picked** (AC-6, AC-16, AC-17, the round ceiling).
+   The critic on the same briefs and model if round 1 delivered any basic defect or missing
+   action, else Sonnet 5.5 on the round 1 configuration; the variable named in the evidence
+   before any spend. Reference runs for new tuning briefs on the subscription.
+8. **H7. Tuning round 3: the next rung** (AC-6, the round ceiling). Sonnet 5.5 on the round 2
+   configuration if round 2 was the critic; else Haiku 5.5 only if Sonnet matched and the money
+   fits, else the round is recorded as not needed and spends nothing. The winner named; the
+   session budget revised for it; the stop rule applied across H5 to H7.
 9. **H8. The held-out exam** (AC-7, the reserved amount). Decrypt and verify; the winner on all
    20; the reference arm on all 20 on the subscription; capture, judge in both orders, report,
    gallery; the owner notified by phone. A miss stops the run; the report lands either way, and
@@ -819,7 +874,8 @@ paid phase: the bench workspace's monthly limit at or under the ledger's remaind
 awake, `claude auth status` green in the constructed environment, Chrome or Edge present for the
 local capture. Before H9: `@anthropic-ai/sdk` on `main` (H1). Before H11: the webhook endpoint
 registered in the Console (Manage, Webhooks) with `ANTHROPIC_WEBHOOK_SIGNING_KEY` in Vercel
-production, the owner's user id for the override list, the migration applied by the landing.
+production, the owner's user id and the bench account's id for the override list, the migration
+applied by the landing.
 
 ## Execution settings and how the owner starts this plan
 
