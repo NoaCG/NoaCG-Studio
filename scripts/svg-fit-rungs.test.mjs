@@ -17,8 +17,10 @@
 //
 //   room          a line's room stops at its box's edge: unless it is reported too long, it never
 //                 paints out of its box sideways
-//   neighbour     a line's room stops at what is drawn beside it on its own rows: unless it is
-//                 reported too long, it never paints across the neighbour that pens it. Which
+//   neighbour     a line's room stops at what is drawn beside it on its own rows (to its right,
+//                 and to its left as well for an end-anchored line, which grows leftwards):
+//                 unless it is reported too long, it never paints across the neighbour that pens
+//                 it. Which
 //                 thing pens which line is found here, from the artwork's geometry at rest, never
 //                 from the runtime's own `svgFitNeighbour` or `room.penned`, so a runtime that
 //                 stops finding the neighbour fails this rung rather than skipping it
@@ -84,6 +86,7 @@ const MIRROR_FINDINGS = [
   'effects-figma-masked-reveal f0: law: inset y',
   'effects-gradient-shadow-lower-third f0: law: inset y',
   'effects-symbol-library-ticker f0: law: inset x (penned by a neighbour)',
+  'effects-symbol-library-ticker f1: law: inset x (penned by a neighbour)',
   'figma-centred-title-card f0: law: inset y',
   'figma-duplicate-ids-scorebug f0: law: inset x (penned by a neighbour)',
   'figma-duplicate-ids-scorebug f2: law: inset x (penned by a neighbour)',
@@ -116,6 +119,7 @@ const MIRROR_FINDINGS = [
   'illustrator-save-as-foreignobject f0: law: inset y',
   'illustrator-save-as-quiz-board f0: law: inset x (penned by a neighbour), inset y',
   'illustrator-scoreboard-lower-third f1: law: inset x (penned by a neighbour)',
+  'illustrator-scoreboard-lower-third f2: law: inset x (penned by a neighbour)',
   'illustrator-scoreboard-lower-third f3: law: inset x (penned by a neighbour)',
   'inkscape-flowed-text-card f0: law: inset y',
   'inkscape-flowed-text-card f1: law: inset y',
@@ -123,9 +127,12 @@ const MIRROR_FINDINGS = [
   'inkscape-millimetre-scorebug f0: law: inset x (penned by a neighbour)',
   'inkscape-millimetre-scorebug f1: law: inset x (penned by a neighbour)',
   'inkscape-millimetre-scorebug f2: law: inset x (penned by a neighbour)',
+  'inkscape-millimetre-scorebug f3: law: inset x (penned by a neighbour)',
   'inkscape-player-number-strap f0: law: inset x (penned by a neighbour)',
   'inkscape-text-on-path-bumper f1: box: the step groups it under no box, the runtime measures it in one',
   'logo-square-badge f0: law: inset y',
+  'logo-tall-crest f0: law: inset x (penned by a neighbour)',
+  'logo-transparent-ground f0: law: inset x (penned by a neighbour)',
   'nested-svg-sub-artboard f0: box: the step groups it under no box, the runtime measures it in one',
   'nested-svg-sub-artboard f1: box: the step groups it under no box, the runtime measures it in one',
   'nested-svg-sub-artboard f1: law: inset y',
@@ -134,15 +141,17 @@ const MIRROR_FINDINGS = [
   'origin-shifted-quiz-board f0: box: the step groups it under no box, the runtime measures it in one',
   'student-illustrator-scoreboard f0: law: inset x (penned by a neighbour)',
   'student-illustrator-scoreboard f1: law: inset x (penned by a neighbour)',
+  'student-illustrator-scoreboard f2: law: inset x (penned by a neighbour)',
+  'student-illustrator-scoreboard f3: law: inset x (penned by a neighbour)',
   'ticker-strip-3840 f1: box: the step groups it under no box, the runtime measures it in one',
   'ticker-strip-3840 f1: law: inset x (penned by a neighbour)',
   'ticker-strip-3840 f2: box: the step groups it under no box, the runtime measures it in one',
+  'ticker-strip-3840 f2: law: inset x (penned by a neighbour)',
 ];
 const RULES = ['room', 'neighbour', 'snap', 'margin', 'settle', 'fits', 'floors'];
-/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, neighbour #1148, settle #1143. */
+/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, settle #1143. */
 const RUNG_FINDINGS = {
   room: ['illustrator-rotated-sidebar-strip'],
-  neighbour: ['effects-symbol-library-ticker'],
   settle: [
     'effects-smil-animated-bug',
     'figma-offset-centred-endboard',
@@ -153,7 +162,6 @@ const RUNG_FINDINGS = {
     'inkscape-text-on-path-bumper',
     'logo-small-favicon',
     'logo-tall-crest',
-    'logo-transparent-ground',
     'nested-svg-sub-artboard',
     'ticker-strip-3840',
   ],
@@ -366,7 +374,8 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   const runtimeSide = {};
   const containers = {};
   const restLocal = {};
-  const neighbours = {};
+  /** Per line, what pens it on each side: { right, left }. */
+  const pens = {};
   for (const el of drawnNodes) {
     const align = w.svgFitAlign[el.id];
     const room = w.svgFitRoom[el.id];
@@ -415,7 +424,8 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
     };
   }
   // THE NEIGHBOUR THAT PENS EACH LINE, read off the artwork at rest by this test alone: the nearest
-  // thing drawn inside the line's box, on the line's own rows, to its right. Not the box itself, and
+  // thing drawn inside the line's box, on the line's own rows, to its right - and for a line
+  // anchored at its end, which grows leftwards, the nearest to its left too. Not the box itself, and
   // not a plate as big as the box. A part of another bound line stands for that line, since a value
   // written into it replaces its parts. Kept as the element, so its edge is read where it stands
   // after a panel has grown (an end cap travels with the edge it hugs).
@@ -428,6 +438,9 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
     if (!(me.width > 0)) continue;
     let pen = null;
     let penLeft = Infinity;
+    let before = null;
+    let beforeRight = -Infinity;
+    const leftward = w.svgFitAlign[el.id]?.h === 'end';
     for (const o of art.querySelectorAll(`text, tspan, image, ${SHAPES}`)) {
       if (o === panel || o === el || o.contains(el) || el.contains(o)) continue;
       const r = rect(o);
@@ -435,10 +448,11 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
       if (r.left < p.left - 1 || r.right > p.right + 1 || r.top < p.top - 1 || r.bottom > p.bottom + 1) continue;
       if (r.width >= p.width - 1 && r.height >= p.height - 1) continue;
       if (Math.min(r.bottom, me.bottom) - Math.max(r.top, me.top) < 1) continue;
+      if (leftward && r.right <= me.left + 1 && r.right > beforeRight) { beforeRight = r.right; before = lineOfPart(o); }
       if (r.left < me.right - 1) continue;
       if (r.left < penLeft) { penLeft = r.left; pen = lineOfPart(o); }
     }
-    if (pen) neighbours[el.id] = pen;
+    if (pen || before) pens[el.id] = { right: pen, left: before };
   }
   // The bound lines the mirror cannot compare, each with the reason, so none drops out unseen.
   const notCompared = {};
@@ -506,12 +520,13 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   // Would a value that wide, painted from where the line is anchored, reach the neighbour that
   // pens it? Only such a value tests the neighbour rung.
   const reachesPen = (el, width) => {
-    const pen = neighbours[el.id];
+    const pen = pens[el.id];
     const drawn = restRects[el.id];
     if (!pen || !drawn) return false;
     const h = w.svgFitAlign[el.id]?.h;
-    const right = h === 'end' ? drawn.right : h === 'middle' ? (drawn.left + drawn.right) / 2 + width / 2 : drawn.left + width;
-    return right > rect(pen).left + 1;
+    const left = h === 'end' ? drawn.right - width : h === 'middle' ? (drawn.left + drawn.right) / 2 - width / 2 : drawn.left;
+    const right = left + width;
+    return (!!pen.right && right > rect(pen.right).left + 1) || (!!pen.left && left < rect(pen.left).right - 1);
   };
   // ROOM and NEIGHBOUR, on the given lines.
   const sideways = (key, lines, reaching) => {
@@ -533,12 +548,18 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
     // now, unless it is reported too long. A line drawn past its neighbour may stand where it was
     // drawn. The rung is reached by a value long enough to have crossed the neighbour without it.
     for (const el of lines) {
-      const pen = neighbours[el.id];
+      const pen = pens[el.id];
       if (!pen || !restRects[el.id] || w.svgFitOver[el.id] || !w.svgFitLaidOut(el)) continue;
       if (reaching[el.id]) exercised.neighbour = true;
       const now = rect(el);
-      const edge = Math.max(rect(pen).left, restRects[el.id].right);
-      if (now.right > edge + 1) say('neighbour', `${key}: ${el.id} paints to ${r2(now.right)}, past the neighbour that pens it at ${r2(edge)}`);
+      if (pen.right) {
+        const edge = Math.max(rect(pen.right).left, restRects[el.id].right);
+        if (now.right > edge + 1) say('neighbour', `${key}: ${el.id} paints to ${r2(now.right)}, past the neighbour that pens it at ${r2(edge)}`);
+      }
+      if (pen.left) {
+        const edge = Math.min(rect(pen.left).right, restRects[el.id].left);
+        if (now.left < edge - 1) say('neighbour', `${key}: ${el.id} paints from ${r2(now.left)}, past the neighbour that pens it on its left at ${r2(edge)}`);
+      }
     }
   };
   const values = Object.entries(ladder);
@@ -683,15 +704,16 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   // value that would cross the neighbour at the drawn size and fits once wrapped or shrunk. Each
   // line a neighbour pens takes its own drawn value repeated until it is a third wider than the
   // gap to the neighbour; every other line keeps its drawn value, as when one name is typed long.
-  for (const el of drawnNodes) {
-    const pen = neighbours[el.id];
+  const sides = [['right', (drawn, pen) => rect(pen).left - drawn.left], ['left', (drawn, pen) => drawn.right - rect(pen).right]];
+  for (const el of drawnNodes) for (const [side, gapOf] of sides) {
+    const pen = pens[el.id]?.[side];
     const drawn = restRects[el.id];
     if (!pen || !drawn) continue;
     for (const n of nodes) n.textContent = w.svgFitDrawn[n.id];
     w.refitSvgText();
     const word = String(w.svgFitDrawn[el.id] ?? '').trim();
     if (!word) continue;
-    const gap = rect(pen).left - drawn.left;
+    const gap = gapOf(drawn, pen);
     let value = word;
     for (let i = 0; i < 40 && atDrawnSize(el, value).width < gap * 1.34; i++) value += ` ${word}`;
     const reaching = { [el.id]: reachesPen(el, atDrawnSize(el, value).width) };
@@ -707,7 +729,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   frame.remove();
 
   return {
-    shipped, sameShapes, unfitted, penned: Object.keys(neighbours), grew, atCap, notCompared,
+    shipped, sameShapes, unfitted, penned: Object.keys(pens), grew, atCap, notCompared,
     lines: lineOf.map((l) => l.id), stepSide, runtimeSide, rules: rulesOut, exercised,
   };
 };

@@ -609,8 +609,10 @@ function growOneRule(rule, index) {
     if (svgFitRoom[el.id] == null) continue;
     // A PENNED line is bounded by whatever is drawn beside it, not by the panel, so widening
     // the panel gives it nothing and it may not ask for any. Its own room already stops it
-    // short of its neighbour; the fit answers the rest.
-    if (svgFitRoom[el.id].penned) continue;
+    // short of its neighbour; the fit answers the rest. The one exception is an end-anchored
+    // line penned on its left alone (room.widens): the panel grows rightwards for a penned line
+    // (svgGrowDir), its anchor travels with that edge, and the neighbour stays.
+    if (svgFitRoom[el.id].penned && !svgFitRoom[el.id].widens) continue;
     // EVERY TRACE OF THE LAST PASS COMES OFF FIRST, or the measurement compounds - the same rule
     // measureSvgBudgets keeps. A line left squeezed from a floored value answers
     // getComputedTextLength with the TEXTLENGTH it was given, so a short value arriving after a
@@ -643,7 +645,7 @@ function growOneRule(rule, index) {
     // Same two skips as the measuring loop above, for the same reasons: a line nobody could
     // measure is not given a share of the grant, and a penned one never asked for any.
     if (svgFitRoom[svgPanelTexts[k].id] == null) continue;
-    if (svgFitRoom[svgPanelTexts[k].id].penned) continue;
+    if (svgFitRoom[svgPanelTexts[k].id].penned && !svgFitRoom[svgPanelTexts[k].id].widens) continue;
     var scale = svgUserScale(svgPanelTexts[k]);
     svgFitExtra[svgPanelTexts[k].id] = grant / scale;
     // AND HOW FAR THIS LINE'S OWN ANCHOR TRAVELLED, which is not the same distance for every
