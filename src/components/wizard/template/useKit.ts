@@ -153,14 +153,12 @@ export function useKit({ state, dispatch, walk, brand }: KitArgs) {
     else void build(kitPack, kitSelected, target);
   };
 
-  const moveKitTo = (target: number) => {
-    const move = kitMove(state, target);
+  /** Every move to a step, the shell's included: a kit's goes through `kitMove`. */
+  const moveTo = (target: number) => {
+    const move = kit ? kitMove(state, target) : ({ type: 'go', step: target } as const);
     if (move === 'build') buildFromKitStep(target);
     else dispatch(move);
   };
-
-  /** Every move the shell makes to a step: a kit's goes through `moveKitTo`. */
-  const moveTo = (target: number) => (kit ? moveKitTo(target) : dispatch({ type: 'go', step: target }));
 
   /** Open kit graphic `index` on `target` (Fields by default, or the step already on screen when
    *  the tray jumps), recording the one being left. */
@@ -201,7 +199,7 @@ export function useKit({ state, dispatch, walk, brand }: KitArgs) {
         ? {
             plan: kit,
             onOpen: (index: number) => openGraphic(index, step),
-            onHub: () => moveKitTo(walk.finishStep),
+            onHub: () => moveTo(walk.finishStep),
             onApplyStyle: kit.items.length > 1 ? () => setApplyAsk(true) : undefined,
           }
         : null,
@@ -213,7 +211,7 @@ export function useKit({ state, dispatch, walk, brand }: KitArgs) {
           onName: setProductionName,
           built: kit.built,
           onOpen: (index: number) => openGraphic(index),
-          onEditContents: () => moveKitTo(1),
+          onEditContents: () => moveTo(1),
           busy,
           error,
         }
