@@ -198,6 +198,7 @@
     "path-to-regexp": "6.3.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.133.0",
     "@monaco-editor/react": "^4.7.0",
     "@remotion/vercel": "^4.0.488",
     "@supabase/supabase-js": "^2.110.2",

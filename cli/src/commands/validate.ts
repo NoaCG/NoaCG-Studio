@@ -15,6 +15,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient, type BridgeValidation, type NormalizeResult, type SpxTemplate } from '../bridgeClient.js';
+import { sourceDigest } from '../digest.js';
 import { ografBench } from '../ografBench.js';
 import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { describeShotFailure, describeUnreached, resolveBackground, shootValidateFrames, type Thumbnail } from '../screenshot.js';
@@ -151,7 +152,8 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     const normalized = await bridge.normalize(pkg.imported.template);
     const template = normalized.template;
     const validation = await bridge.validate(template, { bench, houseContract });
-    Object.assign(report, { ok: validation.ok, validation, normalize: { ...normalized, template: undefined }, stale: pkg.imported.noacg?.stale ?? false });
+    // The digest says which version of the sources this report is about (cli/src/digest.ts).
+    Object.assign(report, { ok: validation.ok, digest: sourceDigest(template), validation, normalize: { ...normalized, template: undefined }, stale: pkg.imported.noacg?.stale ?? false });
 
     let thumbnail: Thumbnail | undefined;
     const stateLines: string[] = [];
@@ -190,6 +192,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     out.result(report);
     out.say(describeValidation(validation));
     for (const line of describeNormalize(normalized)) out.say(line);
+    out.say(`Digest:    ${report.digest as string}`);
     if (report.screenshots) out.say(`Screenshots: ${Object.values(report.screenshots as Record<string, string>).join(', ')}`);
     if (stateLines.length) out.say(['States the events reach, one frame each:', ...stateLines].join('\n'));
     if (report.unshotStates && !shotFailure) out.say(describeUnreached(report.unshotStates as string[], 'Shoot one with `noacg screenshot --event ...`.'));

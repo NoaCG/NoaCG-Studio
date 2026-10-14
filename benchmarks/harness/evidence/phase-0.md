@@ -61,7 +61,7 @@ the plan's harness design, the skill or any tuning evidence; the words "harness"
 | Part | Source | sha256 |
 |---|---|---|
 | Instructions | verbatim below | `83c6537456d37ba4b8f2144cbf399e1509313ca88a6b4d62924249f6d160b986` (trimmed) |
-| INPUT 1, the product docs | `docs.html` at `e4d7b0841` (the noacg.studio/docs page), tags stripped to text | file `5359a63d14abaaeb3e39f74f7c97b62649be2e0ac2036d83d95eacffcbab9dea`, text `da1df2a4cf728426eb4f9e17011391d9eda2fa9699ce67de983d4594718a38d3` |
+| INPUT 1, the product docs | `docs.html` at `e4d7b0841` (the noacg.studio/docs page), tags stripped to text | file `5359a63d14abaaeb3e39f74f7c97b62649be2e0ac2036d83d95eacffcbab9dea` (the Windows working-tree file, CRLF; the committed LF blob is `746d7b36511b8b0ae110429995283cc2d6582603d184f8b8ec8c5ff4db56cfde`, noted by H1's check), text `da1df2a4cf728426eb4f9e17011391d9eda2fa9699ce67de983d4594718a38d3` |
 | INPUT 2, the type registry | `noacg types --json` against `https://noacg.studio` on 2026-10-14 (69 types), condensed to id, name, description, neutral, fields (key, label, kind, role, a short example, options) and actions (event, label); designs dropped | raw `a348b15ce5a1cf8fc7f3f412506ba29e953a30404792e0fdc59d4197ec45131f`, condensed `13e0147bd4ae311f7aec6147ac180eaf4d7ff33d8f07b8352245a6e98a92d4d9` |
 | INPUT 3, the existing briefs | `benchmarks/agent/v1/briefs.json` verbatim | `05d7a99d82ba8f647119805e5fba27c075b7745fa834dde6fef74c9ad17f0f29` |
 

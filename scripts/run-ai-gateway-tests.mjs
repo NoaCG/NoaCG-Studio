@@ -42,6 +42,7 @@ const sources = [
   'api/_lib/me/connectors.test.ts',
   'api/_lib/me/connectorTools.test.ts',
   'api/_lib/me/connectorSend.test.ts',
+  'api/_lib/harness/client.test.ts',
 ];
 
 // The suite this runner is. `node --test` with an empty file list runs nothing and exits 0, so a

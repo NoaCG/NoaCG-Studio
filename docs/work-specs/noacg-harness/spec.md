@@ -956,6 +956,93 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H1. The bench and the dry run (built 2026-10-14)
+
+- **Check's findings (H0, on `78a429895`):** AC-2 holds: the sealed file (noacg-sealed-v1,
+  aes-256-gcm/scrypt) decrypts to `briefs.sha256`, a wrong passphrase is refused, the plaintext
+  equals the private copy byte for byte; 20 exam briefs, 18 types and 2 typeless, every 4.1 stress
+  case over its minimum, ids unique across 36; a leak scan of 144 needles over 6,632 files and
+  `git log -p` since 10-13 found 0 hits (one generic stress value coincides with
+  `src/templates/audience` files from July and August); child session `cd7d9f1d`, 2 messages,
+  0 tools, its prompt exactly the 4.1 inputs; the 5.4 environment rebuilt, `oauth_token`; $0
+  credit, $1.47 notional on the subscription; PR #1215 touched 5 files and no `src/` or `cli/`;
+  a checker wrote the AC-2 test from the evidence alone and it passed. Carried into H1: the
+  evidence gave `docs.html`'s hash of the CRLF working-tree file, not the LF git blob
+  (`746d7b36...`): `evidence/phase-0.md` now says so. The two-sided count is 6 in the evidence and
+  7 by the checker's heuristic (3 required): either way over the minimum, left as it is. Child
+  isolation needs `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` and `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`
+  (HOME alone does not isolate on Windows): `benchmarks/harness/lib/subscription.mjs` sets both.
+  The AC-2 test checks the hash only where the private passphrase is present; CI checks the
+  format and the wrong-passphrase refusal.
+- **Shas:** previous verified `main` `78a429895`; built on `claude/plan-noacg-harness-p2-build`;
+  the merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge commit; no
+  Anthropic resource exists to clean up (nothing was synced).
+- **What landed** (`benchmarks/harness/evidence/phase-1.md`): `noacg coverage`, `noacg record`
+  and the digest in `validate --json`, with offline tests (`cli/test/coverage.test.mjs`); the
+  Skills API target of `build-skill.mjs`; `api/_lib/harness/client.ts`, its stub and its test
+  (no route); `benchmarks/harness/lib/` (ledger, arms, pipeline, gallery, judge skeleton,
+  subscription, sealed); `scripts/harness-bench.mjs` and its build-gate test (AC-1, AC-2, AC-16's
+  cap); `agents/noacg-harness/` and `scripts/harness-agent-sync.mjs`; `bench-env.mjs
+  --profile=harness`; `@anthropic-ai/sdk` 0.133.0. `--control` passed at $0 against the
+  production bridge. Spend: $0 credit, no subscription child. The ledger holds H0 and H1 as
+  completed.
+- **H2 must allow for:**
+  - The judge's files go in `benchmarks/harness/judge/` as `prompt.md` and `rubric.json` (its
+    `schema` is passed to `claude -p --json-schema`); freeze with `lockFor(dir, model)` from
+    `benchmarks/harness/lib/judge.mjs` into `judge.lock.json`. `loadJudge` refuses a changed file;
+    `judgeInvocation` builds the call (Read only, `--strict-mcp-config`). Calibration children use
+    `subscriptionEnv` and `checkSubscriptionAuth` from `subscription.mjs`, not a new runner.
+  - The archived calibration frames are stills; the coverage frames the exam judges are
+    `coverage.json`'s `frames` (each with `render`, `state`, `values`, `ground`, `atMs`) and `crops`.
+- **H3 must allow for:**
+  - Nothing is synced yet: `node scripts/bench-env.mjs --profile=harness`, then `node
+    scripts/harness-agent-sync.mjs --workspace bench --apply` (it prints `create` for the
+    environment, the skill and the agent) writes `agents/noacg-harness/claude-lock.bench.json`;
+    commit it. `environment.yaml` allows only `noacg.studio` beside the package managers; the
+    Chromium download host is what H3 measures and adds, then re-syncs.
+  - `scripts/harness-bench.mjs --build H3 --arms managed-agents --briefs <tuning id> --model
+    <id> --budget-cents <n>` packs the CLI (`npm pack` in `cli/`), uploads it, mounts it at
+    `/noacg-cli.tgz` (the system prompt installs it from `/mnt/session/uploads/noacg-cli.tgz`),
+    runs, collects, disposes and checks not-found. The model is the agent's, so a Haiku proof
+    needs the agent's model changed and re-synced (a new agent version), or an
+    `agent_with_overrides` path the client does not have yet. Proof 2's planted defect needs a
+    session that starts from a mounted package: the client takes `files`, the arm does not yet
+    pass one; add it there, small.
+  - The run's `--out` must be outside the repository (the runner refuses otherwise).
+- **Decisions** (each revertible in the file named):
+  - *The definitions are YAML in its JSON form* (`agent.md` frontmatter, `environment.yaml`):
+    `ant apply` reads them as they are and the repository needs no YAML parser. Revert: rewrite as
+    block YAML and add a parser to the sync.
+  - *No multiagent block on the agent*: 3.8 puts the critic off until H5's evidence picks it; the
+    SDK has the `multiagent_20261001` shape D4 names, for H6.
+  - *One record file, overwritten*: the agent records to `/mnt/session/outputs/record.json` after
+    every clean validate; the last one is the hand-in, and the session's stop reason says whether
+    it is delivered or not ready. No separate interim file id.
+  - *The coverage hand-in lives in the system prompt*, not the skill, until the verbs are
+    published: the published skill must not name a verb its pinned CLI lacks. When the CLI release
+    carries `coverage` and `record` (H9 at the latest), move the "run coverage, look at every
+    frame" step into `cli/skill/` and drop it from the prompt.
+  - *An event that does not move the machine from the settled Take is pressed again after each
+    event that does*, and is a finding only if it moves it from none: `clearFlag` from a board
+    with no flag moved nothing, which is correct, and was a false finding before (3.5).
+  - *Image fields' `bright:` and `dark:` stress values become test crests* (SVG data URLs in
+    `coverage.ts`), and `busy:` backgrounds the busy plate; `logo` on a type without an image
+    field is noted, not drawn.
+  - *Runs write outside the repository* (`--control` by default, `--build` always); the gallery
+    copies frames under opaque ids so no image path names an arm.
+- **Traps:**
+  - The v1 briefs' `expect.actions` are not always the registry's event names: `school-scoreboard`
+    expects `flag`, the scoreboard type's events are `goalA`, `goalB`, `clearFlag`, `final`. The
+    mechanical gate (3.6, `missingActions`, case-insensitive name match) reports it missing on a
+    correct graphic. Before H5 counts missing actions, map these (an alias list per brief, or the
+    judge reading the operator surface), and expect an authored package to name events its own way.
+  - A remote bridge flakes now and then: one of five dry runs lost a stub session's fake agent
+    with the cause swallowed (the runner prints it now). A paid run must read a failed cell's
+    reason before counting it against the model.
+  - The bench-process guard (`scripts/hooks/guard-command.mjs`) counts any `harness-bench`
+    command as browser work: `--close` and the ledger print wait for a running control.
+  - Editing this file changes the spec's sha256 again (H0's trap): left as it is.
+
 ### H0. The sealed briefs (built 2026-10-14)
 
 - **Check's findings:** none; this is the plan's first phase (the run opened 2026-10-14 on

@@ -4,6 +4,9 @@
 //   node scripts/bench-env.mjs --profile=lite [--model=<provider/model>] [--prompt-version=<id>]
 //   node scripts/bench-env.mjs --profile=pro
 //   [--user=<email>] [--ids=<uuid,uuid>]   (either profile: whose quota override to write)
+//   node scripts/bench-env.mjs --profile=harness
+//                                          the NoaCG harness bench (scripts/harness-bench.mjs): the
+//                                          bench workspace's key and nothing else
 //
 // A linked worktree has no .env of its own, so this is the step that makes a paid round
 // runnable from anywhere. See scripts/lite-eval-paths.mjs for why the target is named
@@ -16,7 +19,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { benchEnvPath, mainCheckout, mainEnv } from './lite-eval-paths.mjs';
 import { defaultEvalEmail, resolveUserId } from './lite-eval-token.mjs';
 
-const PROFILES = ['lite', 'pro'];
+const PROFILES = ['lite', 'pro', 'harness'];
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
@@ -40,6 +43,27 @@ const need = (name, ...alternates) => {
 
 /** Present in root .env or not written at all - an empty value would OVERRIDE a real one. */
 const optional = (name) => (src[name] ? [`${name}=${src[name]}`] : []);
+
+// The harness bench pays its Managed Agents sessions from the BENCH workspace's key (its own
+// Console workspace with a $100 spend limit, docs/work-specs/noacg-harness/spec.md decision 12),
+// and nothing of the app's: no gateway key, no Supabase, no production key. Its subscription half
+// reads CLAUDE_CODE_OAUTH_TOKEN from the main .env itself and passes it only to `claude -p`
+// children (benchmarks/harness/lib/subscription.mjs), so it is not copied here either.
+if (PROFILE === 'harness') {
+  const benchKey = need('ANTHROPIC_BENCH_API_KEY');
+  if (src.ANTHROPIC_API_KEY && src.ANTHROPIC_API_KEY === benchKey) {
+    console.error('ANTHROPIC_BENCH_API_KEY is the production key: the production key never funds a bench run. Put the bench workspace\'s own key there.');
+    process.exit(1);
+  }
+  // Added to whatever the file already holds, never in place of it: a checkout set up for a Lite
+  // or Pro round keeps its configuration, and they keep this line (`carriedBenchKey` below).
+  const out = benchEnvPath();
+  const kept = existsSync(out) ? readFileSync(out, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => !line.startsWith('ANTHROPIC_BENCH_API_KEY=')) : [];
+  while (kept.length && kept[kept.length - 1] === '') kept.pop();
+  writeFileSync(out, [...kept, ...(kept.length ? [''] : []), '# The NoaCG harness bench (scripts/bench-env.mjs --profile=harness): the bench workspace\'s key.', `ANTHROPIC_BENCH_API_KEY=${benchKey}`, ''].join('\n'), 'utf8');
+  console.log(`added the harness bench's key to ${out} (the bench workspace's key, copied not printed)`);
+  process.exit(0);
+}
 
 // The override lifts the per-user daily/monthly Lite caps to 10,000 and concurrency to 2; the
 // fleet daily spend ceiling stays the only control. The ids are resolved from the auth
@@ -131,6 +155,9 @@ if (PROFILE === 'lite') {
 }
 
 if (carriedToken) lines.push('', carriedToken);
+// The harness bench's key, if --profile=harness added it, stays too.
+const carriedBenchKey = existsSync(OUT) ? readFileSync(OUT, 'utf8').split(/\r?\n/).find((line) => line.startsWith('ANTHROPIC_BENCH_API_KEY=')) : undefined;
+if (carriedBenchKey) lines.push('', carriedBenchKey);
 lines.push('');
 
 writeFileSync(OUT, `${lines.join('\n')}\n`, 'utf8');
