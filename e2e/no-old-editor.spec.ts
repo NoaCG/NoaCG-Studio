@@ -3,7 +3,7 @@
 // and Finish steps, Home, a graphic row, the control page, the new editor's header and the video
 // workspace. App.tsx and model/prefs.ts are CORE, which reaches the same spec through the focus set
 // (`// focus`).
-// covers: src/components/{SettingsDialog,home/{HomePage,GraphicRow,GraphicControlPage},editorFoundation/{EditorFoundation,openNewEditor},video/VideoAppShell,wizard/{CreationWizard,steps/{EntryStep,FinishStep}}}.ts{,x}
+// covers: src/components/{SettingsDialog,home/{HomePage,GraphicRow,GraphicControlPage},editorFoundation/{EditorFoundation,openNewEditor},video/VideoAppShell,wizard/{CreationWizard,shell/doors,steps/{EntryStep,FinishStep}}}.ts{,x}
 //
 // THE OLD CODE EDITOR ITSELF, and what only it reads: its shell, its dock, its Monaco pane and
 // the pane's teaching layer. No route renders any of it any more (owner, 2026-09-24), so no
