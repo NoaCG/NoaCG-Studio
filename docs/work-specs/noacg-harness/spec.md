@@ -956,6 +956,49 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H2 repair. The blind pairs (2026-10-15)
+
+- **Check's findings (H2, on `f85a356d5`):** fail on product: AC-3's blind pairwise figure did not
+  exist. The blinded held-back run judged 5 of 16 pairs; the other 11 were saved as errors because
+  that run's runner missed the "session limit" wording, so the 15 of 16 came only from the run that
+  leaked the good item's name through the working directory (`pair~<good>~<bad>`). Everything else
+  held: lock hashes recomputed (prompt `3060b854`, rubric `82311f0d`, `claude-fable-5-1` at
+  `high`), the tamper refusal in both runners, the split (`c5cc0367e`) before the prompt before the
+  lock (`851f23255`) before the first held-back record, 25 of 81 groups stratified on seed
+  20261014, the set as 4.3 names it (46 good, 29 + 30 + 5 bad, 22 planted), the working directory
+  blinded (`nj-XXXXXX`, only the G, A and B files), the 5.4 environment on `oauth_token`, $0
+  credit, tests 24 of 24, lint and gates clean, no product code. Minor: the ledger said 454 calls
+  against the evidence's about 520; the ledger marked H2 completed with the pairs unfinished; the
+  phase notes did not name the merge sha; `instruments.md` entries 1 to 4 open and deferred to H5
+  without the corpus check; `judgePair` re-ran a finished first order when the second paused.
+- **Shas:** previous verified `main` `f85a356d5` (H2's merge); built on
+  `claude/plan-noacg-harness-p3-repair`; the merge sha is the one the queue records. **Revert:**
+  `git revert -m 1` the merge commit; that removes the committed answers and the figure, and the
+  judge stays as H2 froze it.
+- **What landed:** the detection was confirmed first: `usageLimit` on the recorded text ("You've
+  hit your session limit · resets 12:20am (Europe/Kyiv)") returns the reset, 21:20 UTC; the 11
+  errors predate PR #1230's fix, so no detection change was needed. `calibration.mjs run --part
+  heldout --task pairwise` then judged exactly the 11 errored pairs, both orders each, all by
+  `claude-fable-5-1`, in `nj-` directories, with no pause. `score --part heldout`: **pairwise 16 of
+  16 (100%, Wilson 80.6% to 100%), 0 flips, 0 wrong; agreement 38 of 41; no basic-defect FAIL
+  aired; PASS.** The leaky run's one flip (`rr:X-07` against `ts:X-10`) held blind. The answers
+  (`benchmarks/harness/judge/results-heldout.jsonl`, every record, the refused attempts included)
+  and the score (`score-heldout.json`) are committed, so the evidence no longer lives only in
+  `%TEMP%`. `judgePair` now returns the answered orders on a pause or error as `answered`, and
+  both runners pass them back on the retry (a test pins it). Spend: $8.78 notional, 22 calls, $0
+  credit; H2 in all 551 calls (529 answered), $164.21 notional. The ledger's first H2 entry is
+  corrected to `paused` with the true count (it counted 59 + 161 + 161 + 73 and left out the probes
+  and the blinded re-run), and a second H2 entry is `completed`.
+- **H3 must allow for:** nothing of the judge. **H5 must allow for:** the H2 list below stands; the
+  judge's blind pairwise figure rests on 16 stills pairs (lower bound 80.6%), not on coverage
+  matrices, so H5's first judged round is also the judge's first read of a full matrix.
+  `instruments.md` entries 1 to 4 stay open for H5 with their corpus check.
+- **Decisions:** the prompt, rubric, lock and split were not touched; the repair measured the
+  frozen judge and tuned nothing. The committed results file keeps the 11 error records rather
+  than a cleaned copy, so it is exactly what the scorer read.
+- **Traps:** a fresh worktree has no `node_modules`; `harness-bench.test.mjs` fails to load
+  (`@anthropic-ai/sdk` missing in `api/_lib/harness`) until `npm ci`.
+
 ### H2. The judge (built 2026-10-14)
 
 - **Check's findings (H1, on `e349156e6`):** AC-1 holds: `--control` CONTROL PASSED at $0 (both
@@ -975,7 +1018,7 @@ the spend added to the ledger, and the check's findings.
   files); the MISSING actions on v1 briefs are the alias gap, to map before H5.
 - **Shas:** previous verified `main` `e349156e6`; built on `claude/plan-noacg-harness-p3-build`; the
   split was committed in `c5cc0367e` before any prompt existed and the lock in `851f23255` before the
-  held-back part was read; the merge sha is the one the queue records. **Revert:** `git revert -m 1`
+  held-back part was read; the merge sha is `f85a356d5` (PR #1230). **Revert:** `git revert -m 1`
   the merge commit; no Anthropic resource exists, nothing to clean up.
 - **What landed** (`benchmarks/harness/evidence/phase-2.md`): the judge in `benchmarks/harness/judge/`
   (`prompt.md`, `rubric.json`, `judge.lock.json`, `calibration.mjs`, `plant.mjs`,
@@ -985,12 +1028,10 @@ the spend added to the ledger, and the check's findings.
   five tests; `evidence/instruments.md` (3.5 fired). Held-back 30%: agreement 38 of 41 (92.7%) and
   no basic-defect FAIL called airable, in both runs; pairwise 15 of 16 (93.8%, one flip) in the
   first run, which leaked the item's name through the judge's working directory (fixed). The
-  blinded re-run judged 5 of 16 pairs (5 correct) before the subscription's session limit; **the
-  next session runs `node benchmarks/harness/judge/calibration.mjs run --part heldout` and `score
-  --part heldout` to finish the 11 pairs, and records the figure in `evidence/phase-2.md`** before
-  H5 relies on the judge. Spend: $0 credit, $155.43 notional on the subscription, two `paused`
-  ledger entries. Review findings left open: `judgePair` re-runs a finished first order when the
-  second pauses.
+  blinded re-run judged 5 of 16 pairs (5 correct) before the subscription's session limit; the H2
+  repair above finished the other 11 (blind pairwise 16 of 16). Spend: $0 credit, $155.43 notional
+  on the subscription, two `paused` ledger entries. The `judgePair` re-run of a finished first
+  order on a pause is fixed in the repair.
 - **H3 must allow for:** nothing of the judge; H3 measures the container. The ledger now holds H0 to
   H2 as completed.
 - **H5 must allow for:**

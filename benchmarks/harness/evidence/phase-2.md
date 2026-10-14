@@ -4,20 +4,20 @@ Phase 3 of `docs/work-specs/noacg-harness/spec.md` (AC-3, section 4.3), built 20
 `origin/main` `e349156e6`. Credit spent: $0. Every judgement ran as a `claude -p` child on the
 owner's subscription in the 5.4 environment (`benchmarks/harness/lib/subscription.mjs`: built from
 scratch, `claude auth status` reported `loggedIn: true`, `authMethod: oauth_token` before each
-run). Notional subscription cost $155.43. The blinded re-run hit the subscription's session
-limit at 20:42 UTC; the ledger holds two `paused` entries (resets 21:20 UTC), and the run was
-stopped there when the run window closed.
+run). Notional subscription cost $164.21, of which $8.78 finished the blinded pairs. The blinded
+re-run hit the subscription's session limit at 20:42 UTC; the ledger holds two `paused` entries
+(resets 21:20 UTC). The remaining pairs ran after the reset, at 21:48 UTC on `main` `f85a356d5`,
+without a further pause.
 
-**Result: airability PASS; pairwise not yet confirmed.** The first held-back run passed both
-thresholds (agreement 38 of 41, pairwise 15 of 16), but review found that the judge's working
-directory, which Claude Code shows the model, was named after the item (`plant~<cell>~overlap`,
-`pair~<good>~<bad>`): see "The directory leak" below. Re-run with the same frozen judge in opaque
-directories: airability agreement 38 of 41 (92.7%, Wilson 95% interval 80.6% to 97.5%), the same
-three disagreements, no basic-defect FAIL called airable (16 of 16 rejected). Pairwise: 5 of the
-16 held-back pairs judged before the usage limit, all 5 correct, no flip; **11 pairs remain**.
-`node benchmarks/harness/judge/calibration.mjs run --part heldout` resumes exactly those (the
-runner skips what it already holds for this judge) and `score --part heldout` gives the final
-figure. Until then AC-3's pairwise half rests on the leaky run's 15 of 16.
+**Result: PASS, on the blinded run.** The first held-back run passed both thresholds (agreement
+38 of 41, pairwise 15 of 16), but review found that the judge's working directory, which Claude
+Code shows the model, was named after the item (`plant~<cell>~overlap`, `pair~<good>~<bad>`): see
+"The directory leak" below. The figures that count are the re-run with the same frozen judge in
+opaque `nj-XXXXXX` directories holding only `A-1.png`, `B-2.png` and so on: airability agreement
+38 of 41 (92.7%, Wilson 95% interval 80.6% to 97.5%), the same three disagreements, no
+basic-defect FAIL called airable (16 of 16 rejected); **pairwise 16 of 16 (100%, interval 80.6% to
+100%), no order flip, no pair wrong.** The answers and the score are committed beside the judge:
+`benchmarks/harness/judge/results-heldout.jsonl` and `score-heldout.json`.
 
 ## The directory leak
 
@@ -40,7 +40,7 @@ change was driven by the leak.
 | The prompt | `benchmarks/harness/judge/prompt.md` | The judge's whole system prompt: the basic mistakes, what is not one, the designer's checks that also keep a graphic off air, the pairwise rule. |
 | The rubric | `benchmarks/harness/judge/rubric.json` | The basic-mistake kinds and the strict JSON schema of each task (`single`, `pairwise`), passed to `claude -p --json-schema`. |
 | The lock | `benchmarks/harness/judge/judge.lock.json` | sha256 of `prompt.md` (`3060b854...`) and `rubric.json` (`82311f0d...`), model `claude-fable-5-1`, effort `high`, Claude Code `2.1.296`, the held-back membership hashes. Committed in `851f23255` before the held-back part was read. |
-| The judge runner | `benchmarks/harness/lib/judge.mjs` | `loadJudge` (refuses a changed file), `judgeSingle`, `judgePair` (both orders, a flip is a tie), `coverageFrames` (a cell's coverage matrix with captions). One `claude -p` per judgement: the frozen prompt as `--system-prompt`, `--tools Read`, `--strict-mcp-config`, `--no-session-persistence`, the rubric schema; the frames copied into an empty directory as `A-1.png`, `B-3.png` and so on. An answer whose `modelUsage` lacks the pinned id is an error, not a judgement. |
+| The judge runner | `benchmarks/harness/lib/judge.mjs` | `loadJudge` (refuses a changed file), `judgeSingle`, `judgePair` (both orders, a flip is a tie; an order answered before a pause is handed back and not judged again), `coverageFrames` (a cell's coverage matrix with captions). One `claude -p` per judgement: the frozen prompt as `--system-prompt`, `--tools Read`, `--strict-mcp-config`, `--no-session-persistence`, the rubric schema; the frames copied into an empty directory as `A-1.png`, `B-3.png` and so on. An answer whose `modelUsage` lacks the pinned id is an error, not a judgement. |
 | The exam's judge | `scripts/harness-bench.mjs --judge <runDir> [--phase H#]` | Judges every cell with coverage frames alone and every two arms on one brief as a pair, with each cell's operator surface. Refuses before anything starts when the judge's files differ from the lock. |
 | The calibration | `benchmarks/harness/judge/calibration.mjs` | `set`, `split`, `render`, `run --part dev|heldout`, `score`, `freeze`. `run --part heldout` refuses an unfrozen judge, and refuses a second judge on a held-back part another judge already read. |
 | The set and split | `benchmarks/harness/judge/calibration-set.json`, `split.json` | The labels, briefs and frame paths; the seed and membership. Frames stay in the archives and the work directory, never in the repository. |
@@ -118,9 +118,31 @@ defect classes the owner names across many rounds.
 Development by source for v3: August 16 of 17, re-read 13 of 14, type sweep 17 of 20, free-form
 20 of 22, instruments 3 of 3, planted 15 of 15; pairs: planted 15 of 15, type sweep 19 of 20.
 
+## The held-back part (frozen judge, blinded): the result
+
+`calibration.mjs run --part heldout` then `score --part heldout`, in opaque working directories.
+The single judgements and 5 pairs ran first; the session limit then refused the first order of the
+other 11 pairs (twice each, $0), and the runner of that run saved them as errors instead of pausing
+(it did not yet read "session limit" as the usage limit; fixed in PR #1230). Error records never
+count as done, so the next run judged exactly those 11, in both orders, all by `claude-fable-5-1`.
+
+| Measure | Result | Threshold (4.3) |
+|---|---|---|
+| Airability agreement | 38 of 41, 92.7% (80.6% to 97.5%) | at least 85% |
+| Basic-defect FAIL called airable | 0 (16 of 16 rejected) | none |
+| Approves everything | no: 14 of 15 good aired, 24 of 26 bad rejected | fails if so |
+| Pairwise, good preferred, flips as errors | **16 of 16, 100% (80.6% to 100%)** | at least 90% |
+| Order flips | **0** | counted as an error |
+| Pairs wrong in both orders | 0 | |
+
+Pairs: planted 7 of 7, type sweep 9 of 9. The good graphic was A in the first order in 7 of the 16
+pairs and B in the other 9. The pair that flipped in the leaky run (`rr:X-07` against `ts:X-10`)
+held in both orders blind. The single verdicts and their three disagreements are the same as in
+the first run, below.
+
 ## The held-back part (frozen judge, first run, with the directory leak)
 
-`calibration.mjs run --part heldout` then `score --part heldout`:
+Kept for the record; superseded by the blinded run above.
 
 | Measure | Result | Threshold (4.3) |
 |---|---|---|
@@ -160,8 +182,8 @@ No rejected graphic was approved with high confidence. 29 of the 41 answers were
   (above) an unsettled count-up. Archived items sit on flat grey, re-renders on the blurred plate;
   both kinds occur among good and bad items, and the two graphics of a pair always share a ground.
 - **Planted defects are coarse.** They are unmistakable by construction; real defects are subtler.
-- **Small numbers, one owner.** 41 items and 16 pairs: the lower ends of the intervals (80.6%,
-  71.7%) sit below the thresholds the spec fixed on point estimates.
+- **Small numbers, one owner.** 41 items and 16 pairs: the lower ends of the blinded intervals
+  (80.6% for both) sit below the thresholds the spec fixed on point estimates.
 
 ## Spend
 
@@ -172,10 +194,15 @@ No rejected graphic was approved with high confidence. 29 of the 41 answers were
 | v2, development | `4e1122e9c04a` | 91 single, 35 pairs (161) | $54.75 |
 | v3, development | `60bfb08e18a4` | 91 single, 35 pairs (161) | $54.45 |
 | v3, held back (directory leak) | `60bfb08e18a4` | 41 single, 16 pairs (73) | $21.08 |
-| v3, held back, blinded re-run | `60bfb08e18a4` | 41 single, 5 pairs; 11 pairs stopped by the usage limit | $11.87 |
-| Total | | about 520 | $155.43 notional, $0 credit |
+| v3, held back, blinded re-run | `60bfb08e18a4` | 41 single, 5 pairs (51); 11 pairs refused by the session limit (22, $0) | $11.87 |
+| v3, held back, blinded, the 11 remaining pairs | `60bfb08e18a4` | 11 pairs (22) | $8.78 |
+| Total | | 551 calls, 529 of them answered | $164.21 notional, $0 credit |
 
-A single judgement took a median 22 s. The ledger holds H2 as completed with the notional figure.
+The total is counted from the result records (one call a single judgement, two an answered pair,
+two attempts a refused pair) and the two probes. The ledger's first H2 entry said 454: that was the
+three development drafts and the leaky held-back run (59 + 161 + 161 + 73), without the probes or
+the blinded re-run. A single judgement took a median 22 s. The ledger holds that first H2 entry as
+`paused` at the usage limit, corrected, and a second, `completed` entry for the finished pairs.
 
 ## Reproduce
 
@@ -187,4 +214,8 @@ node benchmarks/harness/judge/calibration.mjs score --part dev
 ```
 
 The held-back part has been read; a re-pin (4.3) needs a new held-back set rather than this one
-again, and the runner refuses a second judge on it from the same work directory.
+again, and the runner refuses a second judge on it from the same work directory. Its answers are
+committed as `benchmarks/harness/judge/results-heldout.jsonl` (every record, the 11 refused
+attempts included: `score` reads the latest record of each judgement) and its score as
+`score-heldout.json`; `score --part heldout --work <dir>` on a directory holding that results file
+gives the same score.

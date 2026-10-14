@@ -1,0 +1,49 @@
+{
+  "single": {
+    "n": 41,
+    "agreed": 38,
+    "agreement": 0.926829268292683,
+    "interval": [
+      0.806,
+      0.975
+    ],
+    "goodAired": 14,
+    "good": 15,
+    "badRejected": 24,
+    "bad": 26,
+    "unanswered": 0,
+    "basicFailsCalledAirable": [],
+    "approvesEverything": false
+  },
+  "pairwise": {
+    "n": 16,
+    "correct": 16,
+    "rate": 1,
+    "interval": [
+      0.806,
+      1
+    ],
+    "flips": 0,
+    "wrong": 0,
+    "unanswered": 0
+  },
+  "disagreements": [
+    {
+      "id": "aug:live-vote.C",
+      "owner": true,
+      "said": false
+    },
+    {
+      "id": "ff:X-55",
+      "owner": false,
+      "said": true
+    },
+    {
+      "id": "ts:X-10",
+      "owner": false,
+      "said": true
+    }
+  ],
+  "pairErrors": [],
+  "pass": true
+}
