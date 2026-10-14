@@ -1,4 +1,4 @@
-// guards: src/components/wizard/shell/walks.ts
+// guards: src/components/wizard/shell/walks.ts, src/components/wizard/template/walk.ts
 //
 // THE WIZARD'S WALKS AS DATA (docs/work-specs/wizard-structure/spec.md section 2, phase S3). Two
 // halves:
@@ -9,6 +9,8 @@
 // 2. The rules the shell used to spell as index comparisons, checked against THOSE EXPRESSIONS,
 //    copied below from `CreationWizard.tsx` as they stood before the move (main `29883468f`),
 //    over every walk, step and state they read. A difference anywhere is a behaviour change.
+//    Since S6 the rules read the walk's state (`WalkState`) and each walk answers its own; the
+//    template road's two walks and their rules are template/walk.ts's (part 3).
 //
 //   node --test scripts/wizard-walks.test.mjs
 import test from 'node:test';
@@ -21,8 +23,22 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const walks = await load(path.join(projectRoot, 'src/components/wizard/shell/walks.ts'));
 const {
   walkOf, stepSlug, stepIndex, slugIndex, railIndex, stepAfter, summaryStep,
-  previewOn, offersBrand, needsCatalogOn, offersSkip, canProceed, railJump,
+  previewOn, offersBrand, needsCatalogOn, offersSkip, canProceed, railJump, isShelf, walkSpec,
 } = walks;
+const { TEMPLATE_WALK, KIT_WALK } = await load(path.join(projectRoot, 'src/components/wizard/template/walk.ts'));
+
+/** The walk's state as the rules read it: only the fields a rule may read are set. */
+function walkState({ buildMode = 'one', kitPick = 'none', kit = false, variantId = null, category = null, images = 0, importedFile = null } = {}) {
+  return {
+    buildMode,
+    // A kit not picked, picked with nothing ticked, or picked with a graphic ticked.
+    kitPack: kitPick === 'none' ? null : { id: 'ceremony' },
+    kitSelected: kitPick === 'ticked' ? ['a'] : [],
+    kit: kit ? { pack: { id: 'ceremony' } } : null,
+    draft: { variantId, category, importedImages: Array.from({ length: images }, (_, i) => ({ path: `p${i}` })) },
+    importedFile,
+  };
+}
 
 const MODES = ['template', 'import', 'design', 'svg', 'file', 'ai', 'video'];
 
@@ -182,6 +198,9 @@ function oldSkip({ mode, step, kit, buildMode }) {
   return ((mode === 'template' && step >= 1 && !kit && buildMode === 'one') || importCanFinishEarly) && step < oldFinishStep(mode);
 }
 
+// `onShelf`.
+const oldShelf = ({ stepId, buildMode }) => (stepId === 'browse' || stepId === 'kit') && buildMode === 'community';
+
 // The rail entry's `disabled`.
 function oldRailDisabled({ mode, step, target, onShelf, kit, variantId }) {
   return onShelf && target > step ? true
@@ -208,14 +227,17 @@ function oldRail(titles, step, delta) {
 const BUILD_MODES = ['one', 'kit', 'community'];
 
 /** Every state the rules read, for a walk: the kit walk exists in template mode when a kit is
- *  built or being picked, and a built kit can be carried into the other walks. */
+ *  built or being picked. Another walk may HOLD a built kit, which acts on nothing there (the
+ *  fix of #1224, scripts/wizard-walk-state.test.mjs), so the old expressions are asked with the
+ *  kit the walk on screen acts on (`acting`), never with a kit it only holds. */
 function* states() {
   for (const mode of MODES) {
     for (const buildMode of BUILD_MODES) {
       for (const kit of [false, true]) {
         const kitWalk = kit || buildMode === 'kit';
         const walk = walkOf(mode, kitWalk);
-        for (let step = 0; step < walk.steps.length; step++) yield { mode, buildMode, kit, walk, step };
+        const acting = kit && mode === 'template';
+        for (let step = 0; step < walk.steps.length; step++) yield { mode, buildMode, kit, acting, walk, step };
       }
     }
   }
@@ -226,16 +248,16 @@ test('Next is enabled exactly where it was, on every walk that shows it', () => 
   for (const { mode, buildMode, kit, walk, step } of states()) {
     // The general Next is not rendered on the AI and video walks (the AI step has its own).
     if (mode === 'ai' || mode === 'video') continue;
-    for (const kitBrowseReady of [false, true])
+    for (const kitPick of ['none', 'picked', 'ticked'])
       for (const variantId of [null, 'lt01'])
         for (const category of [null, 'lower-third'])
           for (const images of [0, 2])
             for (const importedFile of [null, {}]) {
+              // The shell's `kitBrowseReady` was: a kit picked and at least one graphic ticked.
+              const kitBrowseReady = kitPick === 'ticked';
               const was = oldNextDisabled({ mode, step, buildMode, kitBrowseReady, variantId, category, images, importedFile });
-              const is = !canProceed(walk, step, {
-                buildMode, kitBrowseReady, designPicked: !!variantId, category: !!category, images, file: !!importedFile,
-              });
-              assert.equal(is, was, JSON.stringify({ mode, step, buildMode, kit, kitBrowseReady, variantId, category, images, importedFile }));
+              const is = !canProceed(walk, step, walkState({ buildMode, kitPick, kit, variantId, category, images, importedFile }));
+              assert.equal(is, was, JSON.stringify({ mode, step, buildMode, kit, kitPick, variantId, category, images, importedFile }));
               checked++;
             }
   }
@@ -243,24 +265,27 @@ test('Next is enabled exactly where it was, on every walk that shows it', () => 
 });
 
 test('the preview, the brand chooser, the catalog and Skip to finish show where they did', () => {
-  for (const { mode, buildMode, kit, walk, step } of states()) {
+  for (const { mode, buildMode, kit, acting, walk, step } of states()) {
     const at = JSON.stringify({ mode, step, buildMode, kit });
-    assert.equal(previewOn(walk, step, kit), oldPreview({ mode, step, kit }), `preview ${at}`);
+    const s = walkState({ buildMode, kit });
+    assert.equal(previewOn(walk, step, s), oldPreview({ mode, step, kit: acting }), `preview ${at}`);
     assert.equal(offersBrand(walk, step), oldBrand({ mode, step }), `brand ${at}`);
     assert.equal(needsCatalogOn(walk, step), oldCatalog({ mode, step }), `catalog ${at}`);
-    assert.equal(offersSkip(walk, step, buildMode), oldSkip({ mode, step, kit, buildMode }), `skip ${at}`);
+    assert.equal(offersSkip(walk, step, s), oldSkip({ mode, step, kit: acting, buildMode }), `skip ${at}`);
+    assert.equal(isShelf(walk, step, s), oldShelf({ stepId: walk.steps[step].id, buildMode }), `shelf ${at}`);
   }
 });
 
 test('the rail jumps exactly where it did', () => {
-  for (const { mode, buildMode, kit, walk, step } of states()) {
+  for (const { mode, buildMode, kit, acting, walk, step } of states()) {
+    // The shelf is the walk's own answer now, read from the build mode on the step on screen.
+    const onShelf = oldShelf({ stepId: walk.steps[step].id, buildMode });
     for (let target = 0; target < walk.steps.length; target++)
-      for (const onShelf of [false, true])
-        for (const variantId of [null, 'lt01']) {
-          const was = oldRailDisabled({ mode, step, target, onShelf, kit, variantId });
-          const is = !railJump(walk, step, target, { onShelf, kitBuilt: kit, designPicked: !!variantId });
-          assert.equal(is, was, JSON.stringify({ mode, step, target, buildMode, kit, onShelf, variantId }));
-        }
+      for (const variantId of [null, 'lt01']) {
+        const was = oldRailDisabled({ mode, step, target, onShelf, kit: acting, variantId });
+        const is = !railJump(walk, step, target, walkState({ buildMode, kit, variantId }));
+        assert.equal(is, was, JSON.stringify({ mode, step, target, buildMode, kit, onShelf, variantId }));
+      }
   }
 });
 
@@ -302,4 +327,36 @@ test('the indices are the ones the shell computed, on every walk', () => {
       assert.equal(walk.finishStep, oldFinishStep(mode), mode);
     }
   }
+});
+
+// ── 3. The template road's walks (template/walk.ts) ─────────────────────────────────────────
+
+test('the template and kit walks are the ones template/walk.ts writes', () => {
+  for (const [def, kitWalk] of [[TEMPLATE_WALK, false], [KIT_WALK, true]]) {
+    const walk = walkOf('template', kitWalk);
+    assert.deepEqual(walk.steps, walkSpec(def).steps);
+    assert.equal(walk.kit, kitWalk);
+    assert.deepEqual(Object.keys(def.rules).sort(), ['canProceed', 'isShelf', 'offersSkip', 'previewOn', 'railJump']);
+  }
+});
+
+test('the kit walk: its Kit step wants a kit and a tick, and a built kit previews its editing steps and opens every rail entry', () => {
+  const kit = walkOf('template', true);
+  const kitStep = stepIndex(kit, 'kit');
+  assert.equal(canProceed(kit, kitStep, walkState({ buildMode: 'kit' })), false, 'no kit picked');
+  assert.equal(canProceed(kit, kitStep, walkState({ buildMode: 'kit', kitPick: 'picked' })), false, 'a kit with nothing ticked');
+  assert.equal(canProceed(kit, kitStep, walkState({ buildMode: 'kit', kitPick: 'ticked' })), true);
+  const built = walkState({ buildMode: 'kit', kitPick: 'ticked', kit: true });
+  assert.deepEqual(kit.steps.map((_, i) => previewOn(kit, i, built)), [false, false, true, true, true, false]);
+  for (let at = 0; at < kit.steps.length; at++)
+    for (let target = 0; target < kit.steps.length; target++) assert.equal(railJump(kit, at, target, built), true, `${at} -> ${target}`);
+  // Nothing on the kit walk skips to Finish: the hub's Create is the action.
+  assert.ok(kit.steps.every((_, i) => !offersSkip(kit, i, walkState({ buildMode: 'kit' }))));
+  // The Community shelf stands the forward rail down, even with a design picked.
+  const shelf = walkState({ buildMode: 'community', variantId: 'lt01' });
+  const browse = walkOf('template', false);
+  assert.equal(isShelf(browse, 1, shelf), true);
+  assert.equal(railJump(browse, 1, 2, shelf), false);
+  assert.equal(railJump(browse, 1, 0, shelf), true);
+  assert.equal(railJump(browse, 1, 2, walkState({ variantId: 'lt01' })), true, 'off the shelf, a picked design opens the jump');
 });

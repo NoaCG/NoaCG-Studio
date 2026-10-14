@@ -669,6 +669,73 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S6. The kit as operations, and the probe (built 2026-10-14)
+
+- **Check's findings (S5 check: PASS).** Try-out probes 38612104009 (before S5) and 38612112538
+  (`2df104e67`) gave 63 of 63 observation lines identical; merge group 38608438772 on `2df104e67`
+  all green; Node walk-state 25/25 and siblings 70/70; 18 of 20 checker mutations red; D9, D11,
+  D13, AC-9 and AC-10 hold, budget 1,661 of 1,661. Carried: restore building its URL from the kit
+  walk has no test (the fixture uses svg); a kit brand change skipping `committedKit` was untested
+  (the fixture sat on step 0; closed here, `wizard-kit-moves`); the two `DoorIo` comments saying
+  "until S5" are stale (`doors.ts` is outside this fence: S7); the throwing applier (D10) is still
+  carried; #1220 is open; the kit plan outliving Back to Entry (decided below).
+- **Shas:** previous verified `main` `2df104e67` (S5's merge); built from `2df104e67`.
+  Prerequisite: #1224, the kit fix below, its own pull request, landed first. This phase's merge
+  sha is the one the queue records. **Revert:** `git revert -m 1` this phase's merge commit (the
+  shell takes its kit code and the template walks back; #1224 stays).
+- **What landed** (`evidence/phase-s6.md`): `template/useKit.ts` (the kit's moves, tray, hub,
+  picker, footer words, its two asks, production name and the set save's busy and error lines, and
+  the `resetScreen` the lifecycle hook calls; the decisions `kitStepTarget`, `kitMove`, `kitBuilt`
+  and `kitLabels` are pure and tested); `template/KitConfirms.tsx` (both confirms);
+  `template/walk.ts` (`TEMPLATE_WALK` and `KIT_WALK` with the rules they answer themselves: Next on
+  the design step, forward rail jumps, a built kit's preview, Skip for one graphic, the Community
+  shelf); `shell/walks.ts` builds every walk from a `WalkDef`, keeps default rules for the rest and
+  asks every rule over the walk's state; `scripts/wizard-kit-moves.test.mjs` (10 Node tests);
+  `scripts/wizard-walks.test.mjs` re-based on `WalkState` plus two kit-walk tests; the shell 1,661
+  to 1,419 lines and its budget lowered to 1,419; `// covers:` on `community-packs` gains
+  `template/{useKit,walk}.ts` (its shelf rule and build-mode switch moved there).
+- **The probe (D12, AC-8)**, each change with the files it would touch:
+  1. *A template-walk gating rule* (Next on Fields waits for a first line): `template/walk.ts`,
+     `scripts/wizard-walks.test.mjs`, the flow's journey. No shell edit.
+  2. *A kit confirm* (ask before unticking an edited graphic on a built kit's Kit step):
+     `template/useKit.ts`, `template/KitConfirms.tsx`, possibly `kitPlan.ts`,
+     `e2e/wizard-kit.spec.ts`. No shell edit.
+  3. *An import drop kind* (a Lottie file on the Import graphic step): `import/drop.ts`,
+     `import/index.ts` (the counter rises past 15), `import/ImportDesignStep.tsx`,
+     **`CreationWizard.tsx`** (the handler, its patch, brand and mode switch in the ladder),
+     `shell/walks.ts` if it needs its own walk, the import Node test and spec. The shell is
+     touched: the template road is off it, the import road is not (S9's `ImportSteps`).
+- **Decisions** (each revertible by the revert above, the first by reverting #1224):
+  - *A kit is HELD, never dropped, by another walk* (#1224, D10: reproduced on probe run
+    38613883924). It acts only in the template walk (`activeKit`); nothing of another walk is
+    recorded into it; a brand chosen there reaches its graphics but not the draft in hand; back in
+    the template walk it is there with every edit. Ending it on a walk change was rejected: it
+    silently lost edited graphics, which the kit's switch confirm exists to prevent.
+  - *A walk answers its own rules over `WalkState`*, so a rule that reads another field needs no
+    shell edit; `ProceedState` and `RailState` are gone. The template walks' rules live in
+    `template/walk.ts`, which imports `shell/walks.ts` for types only (no cycle); its `step`,
+    `START` and `EDIT` are written again there for that reason, and the Node test pins every title.
+  - *`useKit` returns props bags* (`picker`, `tray`, `hub`) the shell spreads, and its `save`
+    takes the doors' `saveSet`: the doors need the hook's busy setters, so the hook is called above
+    the closed wizard's early return and the doors after it.
+- **S7 must allow for:** the budget is 1,419, the shell's exact length. `doors.ts` comments: the
+  two "until S5" and `setSetBusy`'s "the shell's `kitBusy`" (now `useKit`'s). In `walkState.ts`,
+  `chooseBrand`'s `open ? committedKit(...) : state.kit` is `committedKit(state, state.kit)` now
+  that `isKitEditStep` is guarded, and `isKitEditStep`'s `walkOf(...).animStep` is always 4; the
+  `animStep` 4 of the walks without Animation can go. `template/` has no marker (D11: no recompile
+  here), so its rules compile into the wizard contract and the kit rules scoped to the shell or
+  `KitTray.tsx` do not load for a `template/` edit: rescope them, and decide the marker with S8.
+  `scripts/metrics/cochange.mjs` needs `src/components/wizard/template/` among the template
+  capability's prefixes. A deep link in the same open as Continue keeps a held kit and lets the
+  link's design be recorded into it (same root as #1220; commented there).
+- **Traps:** each rolldown `load()` is its own bundle and renames functions on collision, so a
+  rule is compared across bundles by behaviour, never by identity or source text. A Python heredoc
+  carrying quotes fails in this Git Bash; write scripts to the scratchpad and run them. Files a
+  rebase checks out come back CRLF even when written LF, so a replace script must match `\r\n`.
+  `merge-order.mjs` holds a branch that contains an unlanded one, so this phase queued only once
+  #1224 had landed. The shell sat at its budget for the fix pull request, which therefore removed
+  the one-line `editsKitGraphic` wrapper to stay under it.
+
 ### S5. Walk reducer and lifecycle (built 2026-10-14)
 
 - **Check's findings (S4 check: PASS).** Fence 2 `src` files plus the `no-old-editor` covers line;
