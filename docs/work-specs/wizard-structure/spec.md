@@ -719,8 +719,15 @@ and the check's findings. The AI track's notes live in its own spec.
   - *The store-backed IO is one module constant in the shell* (`STUDIO_DOOR_IO`): the export
     window, the editor, the router, the alert and the writes, read at call time.
   - *Second presses are recorded as today's (R7):* the export and editor doors keep no guard (two
-    builds, two saves, the second over the first's record once it exists); the set doors rely on
-    `busy`, raised in the press itself, which disables their buttons; the Node rows say so.
+    builds, two saves; a second press while the first save is held reaches `saveBuiltGraphic`
+    before the first `noteMade`, so it resolves by name, not over the record the walk made); the
+    set doors rely on `busy`, raised in the press itself, which disables their buttons; the Node
+    rows say so.
+- **Noticed in review, not reproduced, kept as today (D10):** a second Export press during a held
+  save rebuilds the working project while the first save is still committing, which may leave
+  the record and the working document apart; and no door catches an applier or save that throws
+  (the press then ends as an unhandled rejection with nothing said). Each needs a reproduction
+  before it is called a defect; S5 moves the save and is the natural place to try both.
 - **S5 must allow for:** the budget is 2,105, the shell's exact length. `doors` is rebuilt each
   render from `STUDIO_DOOR_IO` plus `saveBuiltGraphic`, `noteMade`, `closeGallery`,
   `addingToProduction`, `setKitBusy` and `setKitError`; S5 replaces the first two (they read
@@ -729,8 +736,8 @@ and the check's findings. The AI track's notes live in its own spec.
   The appliers (`applyDraftProject`, `applyAiProject`, `applyImportedFile`) are still in the shell.
   Still owed from section 2: Node tests of `saveBuiltGraphic` with held writes (over a record,
   `needs-name` minting, a failure that returns and never throws), for S5 when it moves it.
-  `noteMade` reads the record's id from the store, so it must stay after the save, which no Node
-  row can see. `productionPress` must stay a ref, not reducer state: a dispatched flag is not
+  The Node rows pin `noteMade` after the save, but not why: it reads the record's id from the
+  store, so whatever the reducer keeps must be read after the save too. `productionPress` must stay a ref, not reducer state: a dispatched flag is not
   visible to a second press arriving before the re-render. Sections 3.1 and 3.2 cite baseline
   line numbers; the door bodies now live in `shell/doors.ts`.
 - **Traps:** a Node row that awaits a door held on a write the test never lets go hangs the run
