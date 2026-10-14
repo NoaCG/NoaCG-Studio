@@ -825,10 +825,9 @@ function svgIsEndCap(o, r, panel, axis, dir) {
  *  is - an end CAP bounds the room without penning the line (see svgIsEndCap).
  *
  *  Only what is drawn INSIDE the panel is a neighbour, for the same reason svgFitCeiling only
- *  looks inside it: a plate standing beside this one is not this line's furniture. Where the
- *  neighbour is part of another bound line, that line is returned as well (measureSvgRoom shares
- *  the gap between two lines that grow towards each other). */
-function svgFitNeighbour(el, panel, dir, nodes) {
+ *  looks inside it: a plate standing beside this one is not this line's furniture. The neighbour
+ *  itself is returned too, so measureSvgRoom can tell when it is part of another bound line. */
+function svgFitNeighbour(el, panel, dir) {
   var art = document.querySelector('.__PREFIX__-art');
   var box = el.getBoundingClientRect();
   var others = art.querySelectorAll('text, tspan, image, rect, path, polygon, ellipse, circle');
@@ -851,12 +850,7 @@ function svgFitNeighbour(el, panel, dir, nodes) {
       cap = svgIsEndCap(o, r, panel, 'x', dir);
     }
   }
-  var line = null;
-  for (var n = 0; near && !cap && n < nodes.length; n++) {
-    if (nodes[n] === near || nodes[n].contains(near)) line = nodes[n];
-  }
-  if (line && (!svgFitLaidOut(line) || svgFitPlaced(line))) line = null;
-  return { edge: edge, cap: cap, line: line };
+  return { edge: edge, cap: cap, near: cap ? null : near };
 }
 
 function measureSvgRoom() {
@@ -888,9 +882,10 @@ function measureSvgRoom() {
     nodes[a].style.fontSize = '';
     if (swapped[a]) svgShowDrawn(nodes[a], drawn);
   }
-  // The line that pens each line on its right, and every end-anchored line penned on its left by
-  // another bound line: the pairs that may share the gap between them (below).
-  var penLine = {};
+  // What pens each line on its right, each line's own measures, and every end-anchored line with
+  // something drawn on its left: the pairs that may share the gap between them (below).
+  var penNear = {};
+  var measured = {};
   var facing = [];
   for (var i = 0; i < nodes.length; i++) {
     var el = nodes[i];
@@ -928,7 +923,7 @@ function measureSvgRoom() {
       // nothing - so it must not drive the growth either. A bound that is an end CAP does not
       // pen: the cap is the panel's own furniture and travels with its growing edge, so
       // widening genuinely buys the line room - the text just stays off the cap meanwhile.
-      var bound = svgFitNeighbour(el, panel, 1, nodes);
+      var bound = svgFitNeighbour(el, panel, 1);
       var edge = bound.edge;
       room.penned = edge < panel.right - 0.5 && !bound.cap;
       // The gap to keep: half the drawn type beside a neighbour (a readable space between two
@@ -937,7 +932,8 @@ function measureSvgRoom() {
       var gap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
       var pad = room.penned ? gap : inset;
       room.width = Math.max(svgFitWidths[el.id], (edge - pad - box.left) * scale);
-      if (room.penned && bound.line) penLine[el.id] = bound.line;
+      if (room.penned) penNear[el.id] = bound.near;
+      measured[el.id] = { box: box, scale: scale, gap: gap };
       // A line anchored to the middle or the right of its box fills BOTH ways, so its room is
       // the box's own inside rather than the distance from where it was drawn to the far margin.
       // Not for a PENNED line: something else drawn beside it is the real bound, and the box
@@ -948,7 +944,7 @@ function measureSvgRoom() {
       // by the margin the design keeps on the anchored side, without penning - exactly as the
       // two bound a line on its right.
       if (align.h === 'end') {
-        var before = svgFitNeighbour(el, panel, -1, nodes);
+        var before = svgFitNeighbour(el, panel, -1);
         if (before.edge > panel.left + 0.5) {
           // Where the line is anchored, which an author's declared anchor moves off where it
           // was drawn (svgAlignOf).
@@ -956,9 +952,7 @@ function measureSvgRoom() {
           var shift = align.anchor != null ? (align.anchor - (own.x + own.width)) / scale : 0;
           var keep = before.cap ? Math.max(0, panel.right - box.right - shift) : gap;
           var reach = Math.max(svgFitWidths[el.id], (box.right + shift - keep - before.edge) * scale);
-          if (!before.cap && before.line) {
-            facing.push({ left: before.line, right: el, rightBox: { left: box.left + shift, right: box.right + shift }, reach: box.right + shift - room.width / scale, gap: gap, scale: scale });
-          }
+          if (!before.cap) facing.push({ near: before.near, right: el, shift: shift, reach: box.right + shift - room.width / scale });
           room.width = Math.min(room.width, reach);
           if (!before.cap) room.penned = true;
         }
@@ -1048,17 +1042,19 @@ function measureSvgRoom() {
   // left one's bound. Each keeps its half type short of where they meet.
   for (var f = 0; f < facing.length; f++) {
     var pair = facing[f];
-    var leftRoom = svgFitRoom[pair.left.id];
-    if (!leftRoom || penLine[pair.left.id] !== pair.right || !leftRoom.align || leftRoom.align.h === 'end') continue;
-    var lBox = pair.left.getBoundingClientRect();
-    var lScale = 1 / svgFrameScale(pair.left);
-    var middle = (lBox.right + pair.rightBox.left) / 2;
+    var left = null;
+    for (var n = 0; n < nodes.length; n++) if (nodes[n].contains(pair.near)) { left = nodes[n]; break; }
+    var leftRoom = left && svgFitRoom[left.id];
+    var l = left && measured[left.id];
+    var r = measured[pair.right.id];
+    var penned = left && penNear[left.id];
+    if (!l || !leftRoom.align || leftRoom.align.h === 'end' || !penned || !pair.right.contains(penned)) continue;
+    var middle = (l.box.right + r.box.left + pair.shift) / 2;
     var meet = Math.max(middle, pair.reach);
-    var lGap = ((svgFitSizes[pair.left.id] || 0) * 0.5) / lScale;
-    leftRoom.width = Math.max(svgFitWidths[pair.left.id], Math.min(leftRoom.width, (meet - lGap - lBox.left) * lScale));
+    leftRoom.width = Math.max(svgFitWidths[left.id], Math.min(leftRoom.width, (meet - l.gap - l.box.left) * l.scale));
     if (pair.reach < middle) {
       var rightRoom = svgFitRoom[pair.right.id];
-      rightRoom.width = Math.max(svgFitWidths[pair.right.id], Math.min(rightRoom.width, (pair.rightBox.right - pair.gap - middle) * pair.scale));
+      rightRoom.width = Math.max(svgFitWidths[pair.right.id], Math.min(rightRoom.width, (r.box.right + pair.shift - r.gap - middle) * r.scale));
     }
   }
   // Put each value back in the shape it was in - the drawn LINES where the value is the drawn

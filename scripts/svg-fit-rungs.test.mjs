@@ -374,8 +374,8 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   const runtimeSide = {};
   const containers = {};
   const restLocal = {};
-  const neighbours = {};
-  const leftNeighbours = {};
+  /** Per line, what pens it on each side: { right, left }. */
+  const pens = {};
   for (const el of drawnNodes) {
     const align = w.svgFitAlign[el.id];
     const room = w.svgFitRoom[el.id];
@@ -452,8 +452,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
       if (r.left < me.right - 1) continue;
       if (r.left < penLeft) { penLeft = r.left; pen = lineOfPart(o); }
     }
-    if (pen) neighbours[el.id] = pen;
-    if (before) leftNeighbours[el.id] = before;
+    if (pen || before) pens[el.id] = { right: pen, left: before };
   }
   // The bound lines the mirror cannot compare, each with the reason, so none drops out unseen.
   const notCompared = {};
@@ -521,14 +520,13 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   // Would a value that wide, painted from where the line is anchored, reach the neighbour that
   // pens it? Only such a value tests the neighbour rung.
   const reachesPen = (el, width) => {
-    const pen = neighbours[el.id];
-    const before = leftNeighbours[el.id];
+    const pen = pens[el.id];
     const drawn = restRects[el.id];
-    if (!drawn) return false;
+    if (!pen || !drawn) return false;
     const h = w.svgFitAlign[el.id]?.h;
-    const right = h === 'end' ? drawn.right : h === 'middle' ? (drawn.left + drawn.right) / 2 + width / 2 : drawn.left + width;
     const left = h === 'end' ? drawn.right - width : h === 'middle' ? (drawn.left + drawn.right) / 2 - width / 2 : drawn.left;
-    return (!!pen && right > rect(pen).left + 1) || (!!before && left < rect(before).right - 1);
+    const right = left + width;
+    return (!!pen.right && right > rect(pen.right).left + 1) || (!!pen.left && left < rect(pen.left).right - 1);
   };
   // ROOM and NEIGHBOUR, on the given lines.
   const sideways = (key, lines, reaching) => {
@@ -550,17 +548,16 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
     // now, unless it is reported too long. A line drawn past its neighbour may stand where it was
     // drawn. The rung is reached by a value long enough to have crossed the neighbour without it.
     for (const el of lines) {
-      const pen = neighbours[el.id];
-      const before = leftNeighbours[el.id];
-      if ((!pen && !before) || !restRects[el.id] || w.svgFitOver[el.id] || !w.svgFitLaidOut(el)) continue;
+      const pen = pens[el.id];
+      if (!pen || !restRects[el.id] || w.svgFitOver[el.id] || !w.svgFitLaidOut(el)) continue;
       if (reaching[el.id]) exercised.neighbour = true;
       const now = rect(el);
-      if (pen) {
-        const edge = Math.max(rect(pen).left, restRects[el.id].right);
+      if (pen.right) {
+        const edge = Math.max(rect(pen.right).left, restRects[el.id].right);
         if (now.right > edge + 1) say('neighbour', `${key}: ${el.id} paints to ${r2(now.right)}, past the neighbour that pens it at ${r2(edge)}`);
       }
-      if (before) {
-        const edge = Math.min(rect(before).right, restRects[el.id].left);
+      if (pen.left) {
+        const edge = Math.min(rect(pen.left).right, restRects[el.id].left);
         if (now.left < edge - 1) say('neighbour', `${key}: ${el.id} paints from ${r2(now.left)}, past the neighbour that pens it on its left at ${r2(edge)}`);
       }
     }
@@ -707,17 +704,16 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   // value that would cross the neighbour at the drawn size and fits once wrapped or shrunk. Each
   // line a neighbour pens takes its own drawn value repeated until it is a third wider than the
   // gap to the neighbour; every other line keeps its drawn value, as when one name is typed long.
-  for (const [el, gapOf] of drawnNodes.flatMap((n) => [
-    ...(neighbours[n.id] ? [[n, (drawn) => rect(neighbours[n.id]).left - drawn.left]] : []),
-    ...(leftNeighbours[n.id] ? [[n, (drawn) => drawn.right - rect(leftNeighbours[n.id]).right]] : []),
-  ])) {
+  const sides = [['right', (drawn, pen) => rect(pen).left - drawn.left], ['left', (drawn, pen) => drawn.right - rect(pen).right]];
+  for (const el of drawnNodes) for (const [side, gapOf] of sides) {
+    const pen = pens[el.id]?.[side];
     const drawn = restRects[el.id];
-    if (!drawn) continue;
+    if (!pen || !drawn) continue;
     for (const n of nodes) n.textContent = w.svgFitDrawn[n.id];
     w.refitSvgText();
     const word = String(w.svgFitDrawn[el.id] ?? '').trim();
     if (!word) continue;
-    const gap = gapOf(drawn);
+    const gap = gapOf(drawn, pen);
     let value = word;
     for (let i = 0; i < 40 && atDrawnSize(el, value).width < gap * 1.34; i++) value += ` ${word}`;
     const reaching = { [el.id]: reachesPen(el, atDrawnSize(el, value).width) };
@@ -733,7 +729,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   frame.remove();
 
   return {
-    shipped, sameShapes, unfitted, penned: [...new Set([...Object.keys(neighbours), ...Object.keys(leftNeighbours)])], grew, atCap, notCompared,
+    shipped, sameShapes, unfitted, penned: Object.keys(pens), grew, atCap, notCompared,
     lines: lineOf.map((l) => l.id), stepSide, runtimeSide, rules: rulesOut, exercised,
   };
 };
