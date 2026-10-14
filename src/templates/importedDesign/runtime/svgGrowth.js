@@ -312,6 +312,21 @@ function svgLayoutRest() {
   }
   svgFitExtra = {};
   svgFitShift = {};
+  // AND EVERY LINE BACK ON ITS RESTING ANCHOR, at the drawn size and on one line, holding the
+  // value it has now. The next pass reads which lines a panel holds off where each one stands
+  // (svgLinesInside), and the last pass left its own answer on the node: an anchor moved by the
+  // panel's growth, a size, a squeeze, a wrap. A line that pass had carried past its panel's
+  // edge then read as outside it, and the same value grew the panel on one update and not on
+  // the next (#1143).
+  var lines = svgFitNodes();
+  for (var k = 0; k < lines.length; k++) {
+    var line = lines[k];
+    if (svgFitPlaced(line) || !svgFitRoom[line.id]) continue;
+    line.style.fontSize = '';
+    svgUnsqueeze(line);
+    if (svgWrappedBlock(line)) line.textContent = svgFitValue(line);
+    svgApplyAnchor(line, svgFitRoom[line.id]);
+  }
 }
 
 // WHAT TRAVELS, when the table does not say. A shape drawn entirely past the growing edge has

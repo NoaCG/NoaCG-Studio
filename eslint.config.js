@@ -287,6 +287,7 @@ export default tseslint.config(
         // svgFit.js: what the fit measured, and the room the growth hands back to it.
         measureSvgBudgets: 'readonly',
         measureSvgRoom: 'readonly',
+        svgApplyAnchor: 'readonly',
         svgFitAlign: 'readonly',
         svgFitNodes: 'readonly',
         svgFitPlaced: 'readonly',
@@ -298,6 +299,7 @@ export default tseslint.config(
         svgPlacedScale: 'readonly',
         svgTextWidth: 'readonly',
         svgUnsqueeze: 'readonly',
+        svgWrappedBlock: 'readonly',
         svgFitExtra: 'writable',
         svgFitExtraH: 'writable',
         svgFitShift: 'writable',

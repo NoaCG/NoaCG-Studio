@@ -1377,6 +1377,11 @@ function fitSvgText() {
       var stopAt = attempt === 0 ? floor : hardFloor;
       for (var pass = 0; pass < 8; pass++) {
       el.style.fontSize = size === drawnSize ? '' : size.toFixed(2) + 'px';
+      // READ BACK AT ONCE, so the style attribute is written now. Chrome writes it lazily, where
+      // it is first read, so on a line's first fit it landed after whatever the pass wrote next
+      // (a squeeze's textLength, a growth's transform) and on every later fit before it: the same
+      // value fitted twice serialized differently (#1143).
+      el.getAttribute('style');
       // HOW MANY LINES THE ROOM COULD HOLD - an upper bound the measured check below prunes,
       // never the answer on its own. A block of n lines is (n-1) line STEPS plus one line's own
       // box, not n steps: counting it as n steps loses the last line of every block that fills
