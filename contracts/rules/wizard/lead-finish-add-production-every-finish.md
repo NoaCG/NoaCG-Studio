@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/CreationWizard.tsx, src/components/wizard/steps/FinishStep.tsx
+scope: src/components/wizard/CreationWizard.tsx, src/components/wizard/steps/FinishStep.tsx, src/components/wizard/shell/doors.ts
 kind: rule
 fires: contract
 status: active

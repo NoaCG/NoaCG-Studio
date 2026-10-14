@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/CreationWizard.tsx
+scope: src/components/wizard/CreationWizard.tsx, src/components/wizard/shell/walks.ts, src/components/wizard/template/walk.ts
 kind: rule
 fires: contract
 status: active

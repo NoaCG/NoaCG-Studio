@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/EntryStep.tsx, e2e/wizard-entry-fit.spec.ts
+scope: src/components/wizard/steps/EntryStep.tsx
 kind: trap
 fires: contract
 status: retired

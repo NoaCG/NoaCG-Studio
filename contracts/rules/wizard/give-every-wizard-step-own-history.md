@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/CreationWizard.tsx, src/app/router.ts
+scope: src/components/wizard/CreationWizard.tsx, src/app/router.ts, src/components/wizard/shell/walks.ts, src/components/wizard/shell/walkState.ts
 kind: invariant
 fires: contract
 status: active

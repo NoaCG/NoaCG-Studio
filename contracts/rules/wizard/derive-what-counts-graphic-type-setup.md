@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/templates/types/graphicType.ts, e2e/wizard-setup-fields.spec.ts
+scope: src/templates/types/graphicType.ts
 kind: invariant
 fires: contract
 status: retired

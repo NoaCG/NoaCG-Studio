@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/ai/AgentRouteCard.tsx, e2e/ai-tiers.spec.ts
+scope: src/components/wizard/ai/AgentRouteCard.tsx
 kind: invariant
 fires: contract
 status: retired

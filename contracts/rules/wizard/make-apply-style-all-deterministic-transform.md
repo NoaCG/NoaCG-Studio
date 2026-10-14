@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/kitPlan.ts
+scope: src/components/wizard/kitPlan.ts, src/components/wizard/template/useKit.ts, src/components/wizard/template/KitConfirms.tsx
 kind: rule
 fires: contract
 status: active
