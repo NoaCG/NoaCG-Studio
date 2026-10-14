@@ -294,11 +294,11 @@ test('the modules the runtime bench measures through raise the catalog flag', ()
   }
 });
 
-test('public legal pages select their clean-URL and responsive-layout spec', () => {
+test('public legal pages select their clean-URL and responsive-layout spec, and the chrome screenshots', () => {
   for (const file of ['terms.html', 'privacy.html', 'src/legal.css']) {
     const { mode, specs } = planFor([file]);
     assert.equal(mode, 'subset');
-    assert.deepEqual(specs, ['legal.spec.ts']);
+    assert.deepEqual(specs, ['legal.spec.ts', 'public-chrome-baseline.spec.ts']);
   }
 });
 
@@ -421,7 +421,7 @@ test('public docs screenshots plan the docs edge without matching similar paths'
 
   const page = planFor(['docs.html']);
   assert.equal(page.mode, 'subset');
-  assert.deepEqual(page.specs, ['docs.spec.ts', 'landing.spec.ts']);
+  assert.deepEqual(page.specs, ['docs.spec.ts', 'landing.spec.ts', 'public-chrome-baseline.spec.ts']);
 
   const lookalike = 'public/docs.png';
   const guard = planFor([lookalike]);
@@ -523,7 +523,7 @@ test('a merge commit plans from the fork point, so the catalog gate is not skipp
     git('commit', '-m', 'tweak the legal page');
     const fresh = plan('--json', '--integration', landed);
     assert.equal(fresh.base, landed, 'an inherited merge is not this branch\'s integration');
-    assert.deepEqual(fresh.specs, ['legal.spec.ts']);
+    assert.deepEqual(fresh.specs, ['legal.spec.ts', 'public-chrome-baseline.spec.ts']);
     assert.equal(fresh.catalog, false);
   } finally {
     rmSync(repo, { recursive: true, force: true, maxRetries: 5 });
@@ -1296,7 +1296,7 @@ test('--files maps a covered path through the same index a ref diff would use', 
   const direct = planFor(['src/legal.css']);
   assert.equal(out.mode, 'subset');
   assert.deepEqual(out.specs, direct.specs);
-  assert.deepEqual(out.specs, ['legal.spec.ts']);
+  assert.deepEqual(out.specs, ['legal.spec.ts', 'public-chrome-baseline.spec.ts']);
   assert.equal(out.base, null, '--files has no diff base to report');
 });
 
