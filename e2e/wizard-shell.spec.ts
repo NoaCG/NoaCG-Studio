@@ -445,6 +445,9 @@ test('a deep link starts the walk exactly where the Browse pick of the same desi
   // and what Fields offers are the draft, read from the outside.
   await page.goto('/app#/new/lt01');
   await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);
+  // Fields loads with its own chunk after the rail moves, so its rows are waited for, not read
+  // at once (a cold run read none: CI run 38496838758).
+  await expect(page.locator('.wz-line-row input').first()).toBeVisible();
   const linked = { doc: await previewDoc(page), fields: await page.locator('.wz-line-row input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)) };
 
   await page.getByTestId('wz-home').click();
@@ -453,6 +456,7 @@ test('a deep link starts the walk exactly where the Browse pick of the same desi
   await pickDesign(page, 'Hairline');
   await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);
+  await expect(page.locator('.wz-line-row input').first()).toBeVisible();
   const picked = { doc: await previewDoc(page), fields: await page.locator('.wz-line-row input').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)) };
 
   expect(linked.fields.length).toBeGreaterThan(0);

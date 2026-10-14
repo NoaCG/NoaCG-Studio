@@ -751,7 +751,11 @@ and the check's findings. The AI track's notes live in its own spec.
   journey names it `.wz-rail-foot .wz-rail-change`. A held kit save's landing still moves the
   reader after they left and opened another walk (recorded in wizard-finish, not judged: the window
   needs a durable write held for seconds). `e2e-capacity --changed` read 94% (table values) on
-  every pull request of this phase.
+  every pull request of this phase. **`e2e/wizard-shell.spec.ts` is quarantined** (#1160): S1b's
+  deep-link journey read the Fields rows before their lazy chunk had rendered (0 rows on #1158's
+  first run 38496838758, green on its re-run); this phase's pull request waits for the first row
+  before reading. Until the quarantine releases it, the file runs in `quarantine.yml`, not in the
+  blocking shards, which AC-15 and S2 to S5 must allow for.
 
 ### S1b. Characterisation and the gate (built 2026-10-13)
 
