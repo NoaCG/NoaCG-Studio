@@ -23,6 +23,43 @@
       "funding": "none",
       "outcome": "completed",
       "note": "the bench and the dry run: --control at $0 against the production bridge (evidence/phase-1.md); no session created, no credit spent"
+    },
+    {
+      "at": "2026-10-14T20:24:12.472Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H2",
+      "stage": "calibration",
+      "arm": "judge",
+      "model": "claude-fable-5-1",
+      "funding": "subscription",
+      "notionalUsd": 155.43,
+      "outcome": "completed",
+      "note": "the frozen judge: 454 claude -p judgement calls (three prompt drafts on the 70% development part, one frozen run on the held-back 30%, then its re-run with the working directory blinded) and two model probes on the subscription, no credit; the blinded re-run paused at the usage limit with 11 of 16 held-back pairs unjudged (evidence/phase-2.md)"
+    },
+    {
+      "at": "2026-10-14T20:42:05.334Z",
+      "listCostCents": 0,
+      "kind": "session",
+      "phase": "H2",
+      "stage": "calibration-heldout",
+      "arm": "judge",
+      "model": "claude-fable-5-1",
+      "funding": "subscription",
+      "outcome": "paused",
+      "note": "the subscription's usage limit; paused until 2026-10-14T21:20:00.000Z; nothing moved to the credit"
+    },
+    {
+      "at": "2026-10-14T20:42:05.457Z",
+      "listCostCents": 0,
+      "kind": "session",
+      "phase": "H2",
+      "stage": "calibration-heldout",
+      "arm": "judge",
+      "model": "claude-fable-5-1",
+      "funding": "subscription",
+      "outcome": "paused",
+      "note": "the subscription's usage limit; paused until 2026-10-14T21:20:00.000Z; nothing moved to the credit"
     }
   ]
 }

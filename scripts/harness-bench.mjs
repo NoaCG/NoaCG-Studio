@@ -29,6 +29,7 @@
 // Named `*bench*` so the one-job-per-machine guard sees it: every cell drives Chromium through the
 // CLI. Coverage runs against this checkout's dev server, or the deployment NOACG_URL names.
 
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, existsSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -39,10 +40,10 @@ import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
 import { claudeCodeArm, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
-import { loadJudge } from '../benchmarks/harness/lib/judge.mjs';
+import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, phaseCompleted, readLedger, summary, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
-import { claudeExecutable } from '../benchmarks/harness/lib/subscription.mjs';
+import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
 import { readAgentDefinition, readEnvironmentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
 import { AGENT_DIR, keyFor, lockPath, skillBundle, syncPlan } from './harness-agent-sync.mjs';
 
@@ -310,6 +311,67 @@ async function build(phase) {
   }
 }
 
+// ── --judge ───────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Judge a run with the FROZEN judge (4.3): every delivered cell alone, and every two arms on one
+ * brief as a pair in both orders. Refused before anything starts when the judge's files differ
+ * from judge.lock.json: a judge changed after calibration is not the judge that was calibrated.
+ * Writes `judgements.jsonl` in the run directory; a usage-limit pause is recorded in the ledger and
+ * waited out, never moved to the credit.
+ */
+export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), phase = null, claude, env, run, log = console.log }) {
+  const judge = loadJudge(judgeDir);
+  if (!judge.frozen) throw new Error(`the exam judges only with a frozen judge: ${judge.reason}`);
+  const cellsDir = path.join(runDir, 'cells');
+  const cells = readdirSync(cellsDir)
+    .filter((d) => existsSync(path.join(cellsDir, d, 'cell.json')) && existsSync(path.join(cellsDir, d, 'frames', 'coverage.json')))
+    .map((d) => ({ id: d, dir: path.join(cellsDir, d), cell: JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8')), brief: JSON.parse(readFileSync(path.join(cellsDir, d, 'brief.json'), 'utf8')) }));
+  const out = path.join(runDir, 'judgements.jsonl');
+  const seen = new Set((existsSync(out) ? readFileSync(out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []).filter((r) => r.judge === judge.fingerprint && !r.error).map((r) => `${r.task}:${r.id}`));
+  const record = (r) => writeFileSync(out, `${JSON.stringify({ judge: judge.fingerprint, at: new Date().toISOString(), ...r })}\n`, { flag: 'a' });
+  const once = async (key, go) => {
+    if (seen.has(key)) return;
+    for (;;) {
+      const r = await go();
+      if (!r.paused) return r;
+      if (phase) {
+        const ledger = readLedger(LEDGER_FILE);
+        appendEntry(ledger, { kind: 'session', phase, stage: 'judge', arm: 'judge', model: judge.lock.model, funding: 'subscription', outcome: 'paused', note: `the subscription's usage limit; paused until ${r.paused.resetsAt ?? 'an unknown reset'}; nothing moved to the credit` });
+        writeLedger(LEDGER_FILE, ledger);
+      }
+      log(`  paused by the usage limit until ${r.paused.resetsAt ?? 'an unknown reset'}`);
+      await new Promise((resolve) => setTimeout(resolve, pauseMs(r.paused)));
+    }
+  };
+  const graphic = (c) => ({ id: c.id, frames: coverageFrames(path.join(c.dir, 'frames')), operator: c.cell.operator?.buttons ?? [] });
+  for (const c of cells) {
+    const r = await once(`single:${c.id}`, () => judgeSingle(judge, { brief: c.brief.prompt, frames: graphic(c).frames, operator: graphic(c).operator, actions: c.brief.expect?.actions ?? [], dir: path.join(runDir, 'judge', 'single', c.id), claude, env, run }));
+    if (r) {
+      record({ task: 'single', id: c.id, brief: c.cell.brief, ...r });
+      log(`  single   ${c.id.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `airable ${r.answer.airable}`}`);
+    }
+  }
+  const byBrief = new Map();
+  for (const c of cells) byBrief.set(c.cell.brief, [...(byBrief.get(c.cell.brief) ?? []), c]);
+  for (const [brief, list] of byBrief) {
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        if (list[i].cell.arm === list[j].cell.arm) continue;
+        const id = `${list[i].id}|${list[j].id}`;
+        // Which one goes first is decided by the pair's own hash: no arm is always A.
+        const xFirst = parseInt(createHash('sha256').update(id).digest('hex').slice(0, 2), 16) % 2 === 0;
+        const r = await once(`pairwise:${id}`, () => judgePair(judge, { brief: list[i].brief.prompt, x: graphic(list[i]), y: graphic(list[j]), xFirst, actions: list[i].brief.expect?.actions ?? [], dir: path.join(runDir, 'judge', 'pairwise', id.replace('|', '~')), claude, env, run }));
+        if (r) {
+          record({ task: 'pairwise', id, brief, ...r });
+          log(`  pairwise ${id.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `prefers ${r.combined}`}`);
+        }
+      }
+    }
+  }
+  return { judge: { model: judge.lock.model, fingerprint: judge.fingerprint }, file: out };
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────────────────────
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -324,6 +386,16 @@ if (isMain) {
     appendEntry(ledger, { kind: 'phase', phase, stage: 'close', funding: 'none', listCostCents: 0, outcome: 'completed', ...(value('note') ? { note: value('note') } : {}) });
     writeLedger(LEDGER_FILE, ledger);
     printLedger(ledger);
+  } else if (has('judge')) {
+    const runDir = path.resolve(value('judge', ''));
+    if (!existsSync(path.join(runDir, 'cells'))) fail('--judge needs a run directory holding cells/');
+    const claude = claudeExecutable();
+    const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
+    const env = subscriptionEnv({ token: mainEnv().CLAUDE_CODE_OAUTH_TOKEN, home: path.join(runDir, 'judge', 'home'), pathDirs: [path.dirname(process.execPath), path.dirname(claude), system] });
+    checkSubscriptionAuth({ claude, env });
+    const phase = value('phase', null);
+    const r = await judgeRun({ runDir, phase: /^H\d+$/.test(phase ?? '') ? phase : null, claude, env }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+    console.log(`Judged with ${r.judge.model} (${r.judge.fingerprint.slice(0, 12)}): ${r.file}`);
   } else if (has('review')) {
     const runDir = path.resolve(value('review', ''));
     const cellsDir = path.join(runDir, 'cells');
