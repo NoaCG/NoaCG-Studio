@@ -1,6 +1,6 @@
 // gate: factory
 // needs: browser
-// guards: src/assets/svgImport.ts, src/templates/importedDesign/**, src/templates/behaviours/**, src/components/wizard/import/**, src/components/wizard/CreationWizard.tsx, public/fonts/**, src/preview/composeDocument.ts, src/model/fonts.ts, e2e/fixtures/svg-corpus/**, scripts/fixtures/svg-corpus-passes.json, scripts/ladder-values.mjs
+// guards: src/assets/svgImport.ts, src/templates/importedDesign/**, src/templates/behaviours/**, src/components/wizard/import/**, src/components/wizard/CreationWizard.tsx, public/fonts/**, src/preview/composeDocument.ts, src/model/fonts.ts, src/validation/**, e2e/fixtures/svg-corpus/**, scripts/fixtures/svg-corpus-passes.json, scripts/ladder-values.mjs
 //
 // EVERY CORPUS FILE THROUGH EVERY PASS OF THE SVG IMPORT, IN ONE BLANK PAGE, AGAINST A RECORD.
 //
@@ -41,7 +41,8 @@
 // corpus file is drawn in (a layer-name prefix, a source line wrapped by a pretty-printer, an event
 // handler). Their files, each lifted verbatim from the `e2e/import-svg.spec.ts` test it replaced
 // (`## Test maintenance` in docs/work-specs/svg-import-engine/spec.md), run through the same read,
-// draft and build here, and READINGS states what each must give: their sidecar, held in this file.
+// draft, build and placing passes here and then the export gate, and READINGS states what each must
+// give: their sidecar, held in this file.
 //
 // SIDECARS ARE THE TRUTH, NOT THIS RECORD. Every run cross-checks each file against its
 // `.expect.json` (accepted, size, text fields ON, labels as a prefix, picture rows, outline rows,
@@ -98,6 +99,7 @@ const SPECS = [
   ['components/wizard/import/stageMeasure.ts', 'NOACG_STAGE'],
   ['components/wizard/import/fieldAutoMap.ts', 'NOACG_FILL'],
   ['model/fonts.ts', 'NOACG_FONTS'],
+  ['validation/validateTemplate.ts', 'NOACG_VALIDATE'],
 ].map(([rel, globalName]) => ({ entry: root(`src/${rel}`), globalName }));
 
 const PASSES = ['inventory', 'proposal', 'draft', 'fieldList', 'step', 'bind', 'layout', 'behaviour', 'fields', 'fontCss', 'emit', 'runtime'];
@@ -302,10 +304,9 @@ const READINGS = [
       <text id="static_x3A_Rank" data-name="static:Rank" x="20" y="60" font-size="30" fill="#8a8f98">10.</text>
       <text id="Item" x="90" y="60" font-size="30" fill="#fff">The buzzer is a kazoo</text>
     </svg>`,
-    // Offered unticked with its words kept, and the template has one field while the numeral
-    // stays drawn and unbound.
+    // Offered unticked, and the template has one field while the numeral stays drawn and unbound.
     expect: {
-      rows: [{ title: 'Rank', on: false, kept: true }, { on: true }],
+      rows: [{ title: 'Rank', on: false }, { on: true }],
       fields: ['f0:Item'],
       bound: [/<text\b[^>]*data-name="static:Rank"[^>]*>\s*10\.\s*<\/text>/],
       notBound: [/<text[^>]*id="f1"/],
@@ -349,6 +350,20 @@ const READINGS = [
     expect: { rows: [{ sample: 'Breaking news from the capital' }, { sample: 'A   B' }] },
   },
   {
+    name: 'text-on-path',
+    retired: 'svg import: text on a path binds the path run, and keeps its curve when an operator types',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <defs><path id="curve" d="M20 150 Q200 40 380 150"/></defs>
+      <text id="Arc" font-size="24" fill="#fff"><textPath href="#curve">Around the bend</textPath></text>
+    </svg>`,
+    // The field is the <textPath>, so a write replaces its words and not the curve it runs on;
+    // the SVG 2 `href` the corpus's Inkscape file (`xlink:href`) does not draw.
+    expect: {
+      rows: [{ sample: 'Around the bend' }],
+      bound: [/<textPath\b[^>]*\bid="f0"/i, /<textPath\b[^>]*\shref="#curve"/i],
+    },
+  },
+  {
     name: 'sanitizer',
     retired: 'svg import: sanitizer — script, handlers, foreignObject, SMIL and network refs never reach the template',
     markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
@@ -360,7 +375,8 @@ const READINGS = [
         <animate attributeName="opacity" values="0;1" dur="1s" repeatCount="indefinite"/>
       </text>
     </svg>`,
-    // The import says what it removed, and none of it reaches the template.
+    // The import says what it removed, none of it reaches the template, and the export gate
+    // (its own SVG checks) agrees.
     expect: {
       notices: [/Script code inside the SVG was removed/, /Event-handler attributes/, /foreignObject block was removed/,
         /SVG-native \(SMIL\) animation was removed/, /References to files on the internet were removed/],
@@ -369,23 +385,26 @@ const READINGS = [
   },
 ];
 
-/** Runs in the browser: one small file through the read, the drop's draft and the build. */
+/** Runs in the browser: one small file through the read, the drop's draft, the build and the
+ *  placing passes, as the wizard runs them, then the export gate. */
 const READ_ONE = ({ markup }) => {
   const w0 = window;
+  const D = w0.NOACG_DRAFT;
   const svg = w0.NOACG_SVG.importSvgMarkup(markup);
   const draft = w0.__importDraft(svg);
-  const template = w0.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: w0.NOACG_DRAFT.svgDesignOptions(draft) });
-  // In the reader's order (t0, t1, ...), which is how the step's rows are named; the draft
-  // itself lists furniture last.
+  const template = D.withSvgImportPasses(w0.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: D.svgDesignOptions(draft) }), draft);
+  // One row per text layer the reader found, in its order (t0, t1, ...), which is how the step
+  // names its rows; the draft itself lists furniture last.
   const rowOf = new Map(draft.svgFields.map((f) => [f.candidateId, f]));
   return {
     notices: svg.notices,
-    rows: svg.candidates.filter((c) => rowOf.has(c.id)).map((c) => {
+    rows: svg.candidates.map((c) => {
       const f = rowOf.get(c.id);
-      return { title: f.title, sample: f.sample, on: f.on, kept: !f.on && f.whenOff !== 'remove', namedByGroup: c.namedByGroup };
+      return { id: c.id, title: f?.title, sample: f?.sample, on: f?.on, namedByGroup: c.namedByGroup };
     }),
     fields: template.fields.map((f) => `${f.field}:${f.title}`),
     html: template.html,
+    gate: w0.NOACG_VALIDATE.validateTemplate(template).errors.map((e) => e.rule),
   };
 };
 
@@ -507,7 +526,10 @@ const raws = await withBundledPage(SPECS, async (page) => {
   }
   naming = await page.evaluate(NAMING);
   readings = {};
-  for (const r of READINGS) readings[r.name] = await page.evaluate(READ_ONE, { markup: r.markup });
+  for (const r of READINGS) {
+    readings[r.name] = await page.evaluate(READ_ONE, { markup: r.markup })
+      .catch((e) => { throw new Error(`reading ${r.name}: ${e.message}`); });
+  }
   return out;
 });
 const seconds = ((Date.now() - started) / 1000).toFixed(1);
@@ -573,12 +595,18 @@ test('a drop names the graphic after its file unless the reader named it, and a 
 for (const { name, retired, expect } of READINGS) {
   test(`reading ${name}: ${retired.replace(/^svg import: /, '')}`, () => {
     const got = readings[name];
-    assert.equal(got.rows.length, expect.rows?.length ?? got.rows.length, `${name}: ${got.rows.length} rows`);
+    got.rows.forEach((row, i) => {
+      assert.equal(row.id, `t${i}`, `${name}: the reader's text layers are t0, t1, ...`);
+      assert.ok(row.title !== undefined, `${name}: text layer ${row.id} has no row in the draft`);
+    });
+    if (expect.rows) assert.equal(got.rows.length, expect.rows.length, `${name}: ${got.rows.length} text layers`);
     (expect.rows ?? []).forEach((want, i) => {
-      for (const [k, v] of Object.entries(want)) assert.equal(got.rows[i][k], v, `${name}: row ${i + 1} ${k}`);
+      for (const [k, v] of Object.entries(want)) assert.equal(got.rows[i][k], v, `${name}: row ${got.rows[i].id} ${k}`);
     });
     if (expect.fields) assert.deepEqual(got.fields, expect.fields, `${name}: the template's fields`);
-    const bound = boundSvg(got.html) ?? '';
+    assert.deepEqual(got.gate, [], `${name}: the export gate refuses the template`);
+    const bound = boundSvg(got.html);
+    assert.ok(bound, `${name}: the template carries no bound <svg>`);
     for (const re of expect.bound ?? []) assert.match(bound, re, `${name}: the bound svg`);
     for (const re of expect.notBound ?? []) assert.doesNotMatch(bound, re, `${name}: the bound svg`);
     for (const re of expect.notices ?? []) assert.ok(got.notices.some((n) => re.test(n)), `${name}: no notice matching ${re}, only ${JSON.stringify(got.notices)}`);
