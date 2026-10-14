@@ -11,6 +11,11 @@
       "since": "2026-10-13",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38459008195"
+    },
+    "e2e/wizard-shell.spec.ts": {
+      "since": "2026-10-14",
+      "count": 4,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38496838758"
     }
   },
   "released": {
@@ -89,10 +94,6 @@
     "e2e/playout-feedback-health.spec.ts": {
       "count": 1,
       "last": "2026-10-04"
-    },
-    "e2e/wizard-shell.spec.ts": {
-      "count": 3,
-      "last": "2026-10-03"
     }
   }
 }
