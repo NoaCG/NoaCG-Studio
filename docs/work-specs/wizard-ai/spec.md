@@ -359,6 +359,48 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
 
+### A3 check on `main` (2026-10-14): PASS
+
+- **Shas:** checked `main` at `9f89075c3`, the merge of #1189 (`origin/main` was `77d38d583`;
+  only `docs.html`, `privacy.html` and `e2e/docs.spec.ts` changed since).
+- **Browser evidence (CI):** #1189's merge-group run 38545131904 ran `9f89075c3` and passed. Its
+  merged report: `ai` 35 passed (the two arrival tests among them), `ai-lite` 2, `ai-tiers` 8,
+  `ai-depth` 2, `pro` 2, `ai-consent` 1 plus 1 skip, `wizard-finish` 22 plus 1,
+  `ai-more-control` 3 skipped (#800): the A2 check's counts exactly. #1189's e2e diff is empty
+  and `.dependency-cruiser.cjs` is unchanged (AC-2, AC-15).
+- **The Node guard on CI:** Factory gates job 115789190207, `ai-creation` 33 of 33 (refine, fix,
+  rebuild, talk and Pro rows `ok 17` to `ok 33`), 173 passed in the step. Locally: `ai-creation`
+  33 of 33 with both Chromium cases, `ai-lite-bench` 28 of 28, `tsc --noEmit` (strict,
+  `noUnusedLocals`) clean with `proMode` false, `npm run depcruise` no violations.
+- **Local browser runs** (one worker, about 2 GB free): `pro` 2 of 2. A throwaway probe counted
+  `/api/ai/pro-status` requests on opening Create with AI: 0 before the click and 2 after, both
+  at `9f89075c3^1` and at `9f89075c3`, so `useProTier` keeps the request as it was. As a user:
+  `adapt-first`'s shortlist test, run from a copy without its editor-door skip, passed on
+  `9f89075c3` (another design picked, no model call, the card names it, validation passes, the
+  brief's text in the preview). Probe files deleted, nothing committed.
+- **AC-14:** each of the 17 runtime Pro symbols the step imported at `591213fca^1` is still used
+  outside an import in `creation.ts`, `ProPanel.tsx` or the step. Every Pro line removed from
+  the step, trimmed, appears in `ProPanel.tsx`, except the imports, the call sites now reading
+  `proTier.*`, the `proMode &&` wrappers, two JSX comment braces and `spec.category` read as
+  `category`, as the evidence says. `git diff 591213fca^1 9f89075c3 -- src/ai/pro/` is empty.
+- **Mutation:** seven of mine in `creation.ts`, each restored: Lite refine without the profile,
+  Lite refine on the default provider, rebuild dropping `...current`, rebuild keeping the old
+  `variantId`, talk keeping the oldest turns, one busy label for refine and fix, talk dropping
+  the conversation. Six went red on exactly their rows. `keepChassisZone: false` survived: the
+  rebuild test does not pin that option (moved unchanged; a gap, not a regression).
+- **Judgements:** the shipped signatures differ from section 2's table, but section 4 holds
+  row by row: the same `modify` options, the result replacing in place, no spend on a rebuild,
+  talk past the provider. Section 2's table (and section 4's "none" for rebuild progress: the
+  rebuild showed "Rebuilding on that design…" before and still does) are stale text for A5.
+  Refine, fix, rebuild and talk show the plain `e.message`; only the whole-result routes go
+  through `creationError`. The no-op rebuild now reaches `finally`, harmless because the
+  shortlist only renders when `busy` is null. `StyleStep.tsx` is outside the row's literal
+  file list, but D5's lift cannot be done without removing the definition there, and only the
+  unused definition went (AC-9 holds in intent). D5 holds: nothing under `src` imports
+  `StyleStep` for `pickerHex`. Budget JSON 1,659, the step 1,659 lines (AC-10).
+- **For A4:** the rebuild still has no live e2e while `adapt-first` stays skipped (#800); its
+  shortlist test needs no editor and could be revived alone.
+
 ### A3. Refine, rebuild and talk in the module; the Pro quarantine (built 2026-10-14)
 
 - **Check's findings (A2 check, main `591213fca`):** merge-group run 38536443430 green, the AI
