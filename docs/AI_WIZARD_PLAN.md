@@ -10,7 +10,7 @@ Create-with-AI wizard step as it stands today, names what is weak, compares agai
 rest of the market does, and proposes an ordered plan. Where a proposal costs real API money
 to prove, that is stated in the phase.
 
-Scope: `src/components/wizard/steps/AiStep.tsx` + `steps/ai/MoreControlPanel.tsx` (the
+Scope: `src/components/wizard/ai/AiStep.tsx` + `ai/MoreControlPanel.tsx` (the
 surface) and `src/ai/` (the harness). The video harness (`src/ai/video/`) is referenced only
 as the in-house comparison. Contracts it must not break: `src/ai/CLAUDE.md` (the doctrine),
 `docs/DESIGN_LANGUAGE.md`, and the root `AGENTS.md` pillars.

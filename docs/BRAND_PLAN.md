@@ -243,7 +243,7 @@ MODEL  opus high - product judgement inside an existing contract; the shapes are
        joins are not written
 START  now
 TOUCHES src/model/brand.ts, src/model/packets.ts, src/model/shows.ts, src/components/wizard/draft.ts,
-       src/components/wizard/CreationWizard.tsx, src/components/wizard/steps/AiStep.tsx,
+       src/components/wizard/CreationWizard.tsx, src/components/wizard/ai/AiStep.tsx,
        src/components/home/sections/LooksSection.tsx (row actions only), src/templates/shared/logoSlot.ts,
        e2e/wizard-brand.spec.ts (new), e2e/library.spec.ts, e2e/package.spec.ts   MINTS -
 GOAL   A brand with a logo, chosen from the wizard's chooser, produces a graphic that carries its
