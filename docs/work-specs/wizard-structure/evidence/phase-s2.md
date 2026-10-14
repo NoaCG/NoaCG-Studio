@@ -53,7 +53,7 @@ In bash, run `set +H` first. Result after this phase: **15 of 48**.
 | `ImportStep`, `ImportDesignStep`, `PrepareDesignStep`, `PlaceFieldsStep`, `MapSvgFieldsStep` | `CreationWizard.tsx` (and comments elsewhere) |
 | `armTimerClock`, `DesignFieldSpec` | comments only (`templates/behaviours/naming.ts`; `blocks/designFields.ts`, `ai/importAnalysis/normalize.ts`) |
 
-Before (`1e9ff904b`), by the same count: 13 of 44, with `svgDraftFromImport` and
+Before (`1e9ff904b`), by the same count: 13 of 43, with `svgDraftFromImport` and
 `svgDraftCleared` read by the shell in place of the four drop doors. After this phase the shell
 names no `import/draft.ts` function (each `import/draft.ts` export checked against the shell by
 name: none found).
