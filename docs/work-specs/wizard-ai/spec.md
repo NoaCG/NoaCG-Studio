@@ -360,6 +360,37 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
 
+### A5 check on `main` (2026-10-14): PASS
+
+The plan's last entry: every phase is built and checked.
+
+- **Shas:** checked `main` at `65b64086a`, the merge of #1203. Its merge-group run 38558000847
+  passed. `git diff 4d18e937a 65b64086a -- src` is the regenerated
+  `src/components/wizard/ai/AGENTS.md` alone: no product code (AC-9).
+- **Node checks (section 5's A5 row), run on `65b64086a`:** `ai-creation` 33 of 33,
+  `ai-lite-bench` 28 of 28, `e2e-affected` 81 of 81; `check:contracts` OK (562 rules, 259
+  generated files current); `check-file-budgets` OK, the step 1,659 of 1,659.
+- **AC-10:** the budget JSON's history is 2,152 (A1), 1,660 (A3), 1,659 (A3 tidy), 1,659 renamed
+  in A4; it never rose.
+- **AC-11, the validator rule:** the new rule file carries `supersedes:` and a `learn`-format
+  record, the old one is `retired` and kept, and the compiler reports every generated file
+  current, so nothing compiled was hand-edited. The demand is unchanged: `runCreation`'s `raw`
+  case passes only `onProgress` to `generateRaw`, and `screenChange` (`validateTemplate` through
+  `mergeSafety`) screens it, pinned by `ai-creation`; the step still builds
+  `productionSpxValidator` for the other routes.
+- **AC-11, records and metrics:** each citation in the seven annotated records resolves at
+  `65b64086a` (`AI_TIERS`, `const tier: AiTier` with the reopen comment above it, `useProTier`,
+  the `pro` route's `generateProGraphic`, `CONVERSATION_TURNS` and `conversationOf`,
+  `screenChange` and `showChange`, `AIPromptPanel`'s `mergeSafety`; no `TIER_OPTIONS` in
+  `src`). One is indirect: `useProTier` reads `/api/ai/pro-status` through `loadProStatus` in
+  `src/ai/pro/session.ts`. Reproduced in the metrics file: the chains (AI step 44,665, `steps/`
+  42,338, `src/ai/` 32,535, and A5's +66 bytes) and the widths (`creation.ts` 19, the step 43).
+- **D4's dollar line:** the record and the #771 comment are the right close. The card never
+  renders while `proMode` is false, AC-14 requires the move, and A5's fence has no `src`;
+  whoever reopens the Pro door removes the figure in that change.
+- **Still open, carried from A5:** the four `src` comments naming old paths and the shim go with
+  the shell's S7; `keepChassisZone` is unpinned; the AI step's chain is 3,705 bytes over 40,960.
+
 ### A5. Close-out (built 2026-10-14)
 
 - **Check's findings (A4 check, main `15b26a6c9`): PASS.** Merge-group run 38552822347 green
