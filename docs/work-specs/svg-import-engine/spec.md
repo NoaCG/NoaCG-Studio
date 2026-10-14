@@ -567,6 +567,127 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
 
+### Phase 6: rungs and the mirror gate (build, 2026-10-14)
+
+- **Last check's findings (phase 5, PASS):** byte identity held on the checker's own literal
+  comparison (the old `SHAPE_SHIFT_JS` and `growthRuntimeJs` against `fillRuntime`) for LF, a
+  synthesised CRLF copy and the CRLF working tree; the snapshot, catalog and fidelity blobs are
+  unchanged, and the harness passed 15/15 against an `a05aefeb^1` baseline. ESLint is clean; the
+  globals block holds the right 19 cross-file names, the three writable ones assigned in the growth
+  and declared in `svgFit.js`, and the probes were caught. AC-4: `svg.ts` is 437 lines and every
+  split file 217 or fewer; the coordinator ruled `behaviourRuntime.ts` (1,105 lines, another plan's,
+  older than this one) outside AC-4. The fence held and the phase 4 note is corrected. CI
+  merge_group: `import-svg` 54, corpus 21, behaviour 34, fidelity 11. #1138 is open: the e2e plan
+  misses specs when only a `?raw` runtime file changes.
+- **Main before:** `d8c96727044191872abcfa36518e6e8ee2b853be` (the merge of #1141, a quarantine that
+  touches nothing here; phase 5's merge is below it). Merge sha: the queue's merge of this pull
+  request. Revert: `git revert -m 1 <merge sha>` on its own branch through `/check` and
+  `/queue-merge`; it removes the one test file and these notes, and nothing depends on either.
+- **Built:** `scripts/svg-fit-rungs.test.mjs`, factory tier from its header (`gates.mjs audit` OK),
+  guarding `src/templates/importedDesign/**`, the reader, the behaviours, `wizard/import/**`, the
+  fonts, the corpus and `ladder-values.mjs`. No product file changed: `boxFitOf`,
+  `panelOfEachLine` and `withoutBackplates` were already exported. Per corpus file it builds the
+  draft, the step's stage and the template as the pass harness does, then opens a blank page
+  holding only the template's css, the bound artwork and its placed lines, and loads
+  `svgFit.js`, the layout table, `svgShapeShift.js` and `svgGrowth.js` as text, filled with the
+  test's own copy of `fillRuntime` (not exported from `svg.ts`, outside this fence). Every filled
+  text is checked to be in the template the build emitted, so the page runs the shipped bytes. The
+  rungs are driven through the runtime's own functions (`svgRestAndMeasure`, `fitSvgText`,
+  `refitSvgText`, which run `measureSvgRoom`, `growSvgLayout`, `growSvgHeights`), at rest and at
+  every `LADDER_VALUES` entry.
+- **Run time:** 7.8 s for 49 files on this Windows machine (the whole file about 8.3 s); 17.1 s on
+  CI's factory job (job 115597447559).
+- **The six rungs** (files where the rule holds, of the files it reaches; Windows and Linux agree
+  except where noted). Each must hold on at least 10 files:
+
+  | Rung | Contract rule | Holds |
+  |---|---|---|
+  | `room` | room stops at the box's edge and at a neighbour on the line's rows; unreported, nothing paints out of its box sideways | 42 of 44 (8 files have a penned line) |
+  | `snap` | a centred line is anchored on its box's middle, a centred block on its band's middle | 23 of 23 (22 on Linux) |
+  | `margin` | growth never passes the mirrored margin, floored at `safe`, and never leaves the frame | 19 of 19 |
+  | `settle` | a second `fitSvgText` and a `refitSvgText` give the same artwork to the byte | 35 of 47 (one file binds no line the fit walks) |
+  | `fits` | at rest the artwork is the design; a value the room holds stays at the drawn size on one line, unreported, and moves nothing | 46 of 46 |
+  | `floors` | never below 30%, reported below 55%, squeezed no narrower than 70% and reported | 28 of 28 |
+
+- **The mirror gate:** 136 bound lines in 48 files, 135 measurable at rest (one is in a state hidden
+  at rest). On Linux 78 lines agree on box and law; the box agrees on 123 and differs on 12; the
+  law (on the runtime's box) agrees on 86 and differs on 49. On Windows 79, 123/12 and 87/48. The
+  alignment words agree on all 135 lines, and the box in the line's units wherever both sides use
+  one box. The 61 findings on 57 lines: `inset y` 36 (top-composed lines: the runtime's room runs
+  to the mirrored top padding or stops at the line where something is drawn below; the overlay
+  keeps the tighter drawn gap in the band), `inset x` 18 (13 penned by a neighbour the step does
+  not model), box 12 (11 grouped under no box by the step, 1 a different shape), `nudge x` 2.
+  Insets and nudges agree within a tenth of the drawn type (at least one unit); the box to a unit.
+- **Proof that each rule bites** (each made with `sed` in this worktree, the test run, then
+  `git checkout --` the file; base run green before, tree clean after):
+
+  | Probe | Result |
+  |---|---|
+  | `svgFit.js` `measureSvgRoom`: `var edge = bound.edge;` to `bound.edge + 400;` | `room` holds on 8 of 44: `affinity-point-sized-nameplate: over1: f0 paints to 1535.05, past its box at 1168.38` |
+  | `svgFit.js` `svgApplyAnchor`: the written `x` plus 5 | `snap` holds on 9 of 23: `effects-smil-animated-bug: over1: f0 sits 5 off its box's middle sideways` |
+  | `svgGrowth.js` `svgCapMargin`: `return span * rule.safe;` | `margin` holds on 2 of 21: `affinity-point-sized-nameplate: over1: rule 0 grew to 51.2 from the frame, inside the 126.67 it mirrors` |
+  | `svgFit.js` `svgRestAndMeasure` without `svgLayoutRest()` | `settle` breaks on 24 files against the 12 recorded (`affinity-point-sized-nameplate`, `effects-figma-masked-reveal`, ... added) |
+  | `svgFit.js` `fitSvgText`: `var size = drawnSize * 0.95;` | `fits` holds on 0 of 46: `affinity-point-sized-nameplate: short: f0 holds the value at its drawn size, yet was set to 26.6px` |
+  | `svgFit.js` `SVG_FIT_HARD_FLOOR = 0.2` | `floors` holds on 12 of 28: `figma-duplicate-ids-scorebug: over1: f1 shrank to 26%, under the 30% floor` |
+  | `stageMeasure.ts` `boxFitOf`: a centred line's sideways margin `type * 0.5` to `type * 0.3` | the mirror's list moved, 24 entries in and 7 out (`+ figma-centred-title-card f1: law: inset x`); 63 lines agree instead of 79. Run on Windows while the list was still compared there |
+
+- **Findings (D10), recorded and not fixed here:**
+  - `settle`, 12 files (#1143): the same value fitted twice can answer differently. Traced on
+    `logo-transparent-ground`: at `over1` the first fit grows the plate and the second does not,
+    at `over2` the reverse, because `svgRestOneRule` reads `svgLinesInside` off where each line is
+    painted now, and `svgLayoutRest` rests the panel but not the anchor and size the last pass left
+    on the line. The other 11 files are not traced.
+  - `room`, `illustrator-rotated-sidebar-strip` (#1144): the turned line wraps across both edges
+    of its upright strip, unreported (from -64 to 184 px at `over1` in a 120 px strip).
+  - `room`, `effects-symbol-library-ticker` (#1148): the story is penned by the source beside it,
+    but the source is end-anchored and grows leftwards unbounded, so with long values the two
+    overlap, unreported. Found by the review of this pull request, once the rung read the
+    neighbour where it stands after the fit rather than where it stood at rest.
+  - The mirror's 61 findings (#1145), listed in `MIRROR_FINDINGS`.
+  - None of the pass harness's five recorded findings changed; this phase does not touch it.
+- **Decisions:**
+  - The six rules: the four §3 names (room stops at a neighbour, centred lines snap, growth never
+    passes the mirrored margin, two passes settle) plus the two ends of the ladder the AGENTS
+    contract rules on (fill the room first; the floors and the report). The neighbour rule alone
+    reaches only 8 files with a penned line, so it is asserted as the room's two bounds, the box's
+    edge and the neighbour, which reaches 44.
+  - Findings are pinned in the test file rather than a fixture (no fixture is in the fence): per
+    rung, the files it breaks on (`RUNG_FINDINGS`); for the mirror, the line and what differs
+    (`MIRROR_FINDINGS`). Each test fails when its list changes, so a new break or drift fails
+    and a fix takes its entry off on purpose.
+  - The mirror's list is Linux's and compared only there (`MIRROR_PINNED`, the harness's
+    `RUNTIME_PINNED` rule): on the first CI run two lines differed from Windows, a webfont
+    fallback that moves which plate the step groups `effects-css-import-webfont f0` under, and
+    `no-viewbox-px-and-pt f2`'s inset y landing 2.8 off against a 2.1 tolerance (1.8 on Windows).
+    Elsewhere the skip message lists the differences (3 on this machine). The rung lists matched
+    on both platforms and are compared everywhere.
+  - The mirror is compared in two halves: which box each side chose (by shape index; one parse
+    gives both renders the same shapes, which the test asserts), and the law, with `boxFitOf` given
+    the runtime's own box under a temporary marker, so a law drift shows even where the boxes
+    differ.
+  - The runtime's insets are read back off the room `measureSvgRoom` recorded: sideways the margin
+    left between the room's end and the box on the side a longer value fills, downwards the margin
+    left in the band. The step's are `boxFitOf`'s `insetX` and `insetY`.
+  - `stageMeasure.ts` is not edited, since nothing needed an export. Its stale comments (lines
+    10-15, 348, 696) stay for whoever next edits it, as the brief allows.
+- **What the next phase must allow for:**
+  - Phase 7 (optional) retires `import-svg.spec.ts` transform tests against the pass harness. This
+    test covers the rungs on corpus artwork, not the wizard's preview, the gestures or the
+    sweep's value-by-option matrix, so no ladder or growth spec should be retired against it.
+  - A fix for #1143, #1144, #1145 or #1148 changes `RUNG_FINDINGS` or `MIRROR_FINDINGS` in the same pull
+    request; for the mirror take the list from a CI log (it prints every finding; on Linux,
+    `SVG_FIT_RUNGS_SHOW=1` prints it as code).
+  - A change to a runtime file alone runs this test (its guards include the runtime folder), so
+    the rungs are checked even where #1138 leaves the e2e plan short.
+- **Traps:**
+  - This worktree had no `node_modules`; a junction to the main checkout's (same lockfile), made
+    with `node -e "require('fs').symlinkSync(<main>/node_modules, 'node_modules', 'junction')"`,
+    serves it, and git ignores it.
+  - The step's stage, its outside-frame untick and its growth answer are now copied in two tests,
+    this one and the pass harness, both from `MapSvgFieldsStep.tsx`. A change to that effect
+    changes both copies; one shared page helper for the two would close it, and was left out to
+    keep the harness, the byte gate of phases 2 to 5, untouched here.
+
 ### Phase 5: the growth and shape runtimes as files (build, 2026-10-14)
 
 - **Last check's findings (phase 4, PASS):** #1133 changes no behaviour (a trailing comma in a
