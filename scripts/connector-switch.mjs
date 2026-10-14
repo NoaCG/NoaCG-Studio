@@ -246,8 +246,10 @@ async function status(ctx) {
   if ((config.oauth_server_enabled === true || auth === 'on') && !hooked) {
     throw new Not(`NOT safe: the OAuth server is on without the connector's access token hook; run: node scripts/connector-switch.mjs ${ctx.arg} on (or off)`);
   }
-  if (!SITE_ANSWER[auth] || (site !== null && site !== auth)) {
-    throw new Not(`NOT settled: Auth's discovery reads ${auth}${site !== null ? `, ${PRODUCTION_SITE}/mcp answers ${siteSays}` : ''}; ask again in a minute`);
+  // Discovery lags the config for a few seconds after a change: both must agree, and the site too.
+  const configured = config.oauth_server_enabled === true && config.oauth_server_allow_dynamic_registration === true ? 'on' : 'off';
+  if (!SITE_ANSWER[auth] || auth !== configured || (site !== null && site !== auth)) {
+    throw new Not(`NOT settled: Auth's config reads ${configured}, its discovery ${auth}${site !== null ? `, ${PRODUCTION_SITE}/mcp answers ${siteSays}` : ''}; ask again in a minute`);
   }
   ctx.io.out(`${ctx.label}: connector ${auth}`);
 }
