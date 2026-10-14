@@ -92,6 +92,21 @@ import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
 import type { TemplatePack } from '../../templates/packs';
+import {
+  canProceed,
+  needsCatalogOn,
+  offersBrand,
+  offersSkip,
+  previewOn,
+  railIndex,
+  railJump,
+  slugIndex,
+  stepAfter,
+  stepIndex,
+  summaryStep,
+  walkOf,
+  type WizardMode,
+} from './shell/walks';
 
 // The steps that list or build on catalog designs load with the catalog, never with the wizard:
 // the Entry step must open without it (components/catalogOnDemand.tsx).
@@ -99,11 +114,6 @@ const BrowseStep = lazyStep(() => import('./steps/BrowseStep'));
 const FieldsStep = lazyStep(() => import('./steps/FieldsStep'));
 const AiStep = lazyStep(() => import('./steps/AiStep'));
 
-// The catalog flow browses ONE faceted step (search + programme + category + refinements —
-// docs/TEMPLATE_TAXONOMY_PROPOSAL.md §12) instead of the old Category → Template pair.
-// Every catalog-shaped flow ends on FINISH: the graphic is named there, and the wizard's one
-// branch is taken: a production, its export packages, or the new editor
-// (steps/FinishStep.tsx + components/ExportWindow.tsx). No door opens the old code editor.
 /**
  * An Export door whose SAVE failed. The report comes from the app-level dialog, the one place
  * a storage failure is announced (App.tsx). The outcome line says where the work actually is,
@@ -119,34 +129,6 @@ function reportFailedCreateSave(name: string, error: string | null): void {
   });
 }
 
-const STEP_TITLES = ['Start', 'Browse', 'Fields', 'Style', 'Animation', 'Finish'];
-const STEP_TITLES_IMPORT = ['Start', 'Images', 'Template', 'Fields', 'Style', 'Animation', 'Finish'];
-const STEP_TITLES_AI = ['Start', 'Create', 'Finish'];
-const STEP_TITLES_VIDEO = ['Start', 'Video'];
-// Import-graphic mode is a SETUP flow, not a second editor: bring the artwork in, prepare it
-// (erase baked-in text, pick how it meets long text), PLACE editable text on it, choose the
-// in/out animation, create — and land in the real canvas editor with a graphic that already
-// works. Text and Animation are optional stops: Create is available from the Design step on
-// (docs/IMPORT_MVP.md).
-const STEP_TITLES_DESIGN = ['Start', 'Design', 'Prepare', 'Text', 'Animation', 'Finish'];
-// A layered SVG dropped on that same zone has nothing to erase and nothing to place — its
-// text layers are already exactly where the designer set them — so its walk swaps
-// Prepare/Text for ONE mapping step: which layers the operator can edit
-// (docs/SVG_IMPORT_PLAN.md §2). A MODE, not a branch, for the same reason 'file' is one.
-const STEP_TITLES_SVG = ['Start', 'Design', 'Fields', 'Animation', 'Finish'];
-// A finished template (.html / .zip) dropped on that same zone has nothing to prepare, place
-// or animate — it already declares all three — so its walk is two stops: the file, then where
-// it goes. A MODE rather than a branch inside design mode, so the rail never offers four steps
-// that cannot apply to it.
-const STEP_TITLES_FILE = ['Start', 'Template file', 'Finish'];
-
-/** Which walk the wizard is on. Each one has its own step list above. */
-type WizardMode = 'template' | 'import' | 'design' | 'svg' | 'file' | 'ai' | 'video';
-
-/** The walks whose created graphic actually carries the draft's palette and typeface — the
- *  BRAND CHOOSER in the footer, and the reasoning, are there. */
-const BRAND_MODES: WizardMode[] = ['template', 'import', 'design', 'svg', 'ai'];
-
 /** One entry in the footer's brand chooser: a saved brand, by the name its owner gave it.
  *
  *  It is a shape of its own rather than a `SavedLook` because one entry is NOT a saved record -
@@ -161,47 +143,6 @@ interface BrandChoice {
 
 /** The synthetic entry above. Never a look id, so it can never collide with one. */
 const PRODUCTION_LOOK_ID = 'production-look';
-
-/** The active walk's steps, in order. One function so the RAIL and the URL can never disagree
- *  about what step 3 of this mode is called. */
-function stepTitlesFor(mode: WizardMode, kitWalk: boolean): string[] {
-  return mode === 'ai' ? STEP_TITLES_AI
-    : mode === 'video' ? STEP_TITLES_VIDEO
-    : mode === 'design' ? STEP_TITLES_DESIGN
-    : mode === 'svg' ? STEP_TITLES_SVG
-    : mode === 'file' ? STEP_TITLES_FILE
-    : mode === 'import' ? STEP_TITLES_IMPORT
-    : kitWalk ? STEP_TITLES_KIT
-    : STEP_TITLES;
-}
-
-/** A step's name in the URL: its TITLE, slugged. Never its index — import mode carries an extra
- *  Images step, so index 3 is Fields on one walk and Style on another, and a history entry
- *  written by one mode would mean a different step when another mode read it back. */
-function stepSlug(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-}
-
-/* What each step is FOR, in the reader's words — the second line of every rail entry
-   (re-design/handoff.md §2). A title alone says where you are; the sub says what the step
-   will ask you. Parallel to the arrays above, index for index, so the two cannot drift.
-   The vocabulary follows docs/DESIGN_LANGUAGE.md §0: a family is a TYPEFACE, never a font. */
-const STEP_SUBS: Record<string, string[]> = {
-  template: ['Choose mode', 'Pick a design', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Name & save'],
-  import: ['Choose mode', 'Add pictures', 'Pick a design', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'Name & save'],
-  ai: ['Choose mode', 'Describe it', 'Name & save'],
-  video: ['Choose mode', 'Brief & format'],
-  design: ['Choose mode', 'Your artwork', 'Erase & scale', 'Place fields', 'In & out motion', 'Name & save'],
-  svg: ['Choose mode', 'Your artwork', 'Map text layers', 'In & out motion', 'Name & save'],
-  file: ['Choose mode', 'Your graphic', 'Name & save'],
-};
-
-/* A KIT uses the SAME six steps as one graphic, so it borrows `template`'s rail and changes
-   only the words that would be wrong: the step where a design is chosen is where the KIT is
-   chosen, the three editing steps edit whichever graphic of it is open, and the last step is
-   the kit's hub - every graphic, and where the production goes. */
-const STEP_SUBS_KIT = ['Choose mode', 'Pick the kit', 'Operator inputs', 'Colors & typeface', 'In & out motion', 'All graphics & save'];
-const STEP_TITLES_KIT = ['Start', 'Kit', 'Fields', 'Style', 'Animation', 'Finish'];
 
 /** The AI step's current result, previewed live like any draft. Named because the walk
  *  snapshot below has to hold one too, and two inline copies of this shape would drift. */
@@ -450,9 +391,10 @@ export default function CreationWizard() {
   //
   // Step 0 deliberately has NO step segment. Its entry is the plain `#/new`, so Back off the
   // front page still LEAVES the wizard — the contract App.tsx's routed-wizard effect keeps.
-  const stepTitles = stepTitlesFor(mode, !!kit || buildMode === 'kit');
+  const walkSpec = walkOf(mode, !!kit || buildMode === 'kit');
+  const stepId = walkSpec.steps[step]?.id ?? null;
   const route = useRouter((s) => s.route);
-  const stepKey = step > 0 ? stepSlug(stepTitles[step] ?? '') : null;
+  const stepKey = step > 0 ? walkSpec.slugs[step] ?? '' : null;
   /** The step this component last agreed with the URL about. Comparing it to `stepKey` is what
    *  tells the two directions apart: if the WIZARD moved, push the new step; if the URL moved
    *  (Back/Forward), follow it. Without that, following a Back would look like a step change
@@ -474,10 +416,10 @@ export default function CreationWizard() {
       // Back/Forward, or a hand-typed URL. An unknown name (a link written by a build whose
       // walk had other steps, or a step this mode does not have) degrades to the front page
       // rather than to a step that means something else here.
-      const idx = stepTitles.findIndex((t) => stepSlug(t) === urlKey);
+      const idx = slugIndex(walkSpec, urlKey);
       setStep(idx >= 0 ? idx : 0);
     }
-  }, [open, route, stepKey, stepTitles]);
+  }, [open, route, stepKey, walkSpec]);
 
   // Each route/step starts at its own first control. This is especially important on phones:
   // the Video entry sits at the bottom of Entry, and carrying that scrollTop forward used to
@@ -610,7 +552,7 @@ export default function CreationWizard() {
         // the URL on an earlier step would make the rail and the address bar disagree.
         useRouter.getState().replace({
           view: 'new',
-          step: stepSlug(stepTitlesFor(walk.mode, false)[walk.step] ?? ''),
+          step: walkOf(walk.mode, false).slugs[walk.step] ?? '',
         });
         // Nothing is restored silently: re-entering REGENERATES, so the warning naming what
         // that writes over goes up with it.
@@ -627,7 +569,7 @@ export default function CreationWizard() {
       // page rather than to whatever step happens to sit at some index.
       const named =
         opening.view === 'new' && opening.step
-          ? stepTitlesFor('template', false).findIndex((t) => stepSlug(t) === opening.step)
+          ? slugIndex(walkOf('template', false), opening.step)
           : -1;
       setStep(named > 0 ? named : 0);
       lastStep.current = 0;
@@ -703,9 +645,8 @@ export default function CreationWizard() {
   // step (lazy, so it brings its own), the import doors (their own variants resolve without it)
   // and video never wait for it. Until it arrives the step area shows CatalogLoading.
   const importedVariant = IMPORTED_VARIANTS.find((v) => v.id === draft.variantId);
-  const listsDesigns = (mode === 'template' && step >= 1) || (mode === 'import' && step >= 2);
   const needsCatalog =
-    listsDesigns || Boolean(pendingDesignId) || (step > 0 && Boolean(draft.variantId) && !importedVariant);
+    needsCatalogOn(walkSpec, step) || Boolean(pendingDesignId) || (step > 0 && Boolean(draft.variantId) && !importedVariant);
   const catalog = useCatalog(open && needsCatalog);
   useEffect(() => {
     if (!open || !pendingDesignId || !catalog) return;
@@ -730,7 +671,7 @@ export default function CreationWizard() {
       ...brandOrClearPatch(brandInForce.current),
     });
     setDraft(startDraft.current);
-    setStep(2);
+    setStep(stepIndex(walkOf('template', false), 'fields'));
   }, [open, pendingDesignId, catalog]);
 
   useEffect(() => {
@@ -776,7 +717,7 @@ export default function CreationWizard() {
       variant
         ? buildDraftTemplate(variant, draft, {
             stretchDemo: mode === 'design',
-            previewMarkers: mode === 'svg' && step === 2,
+            previewMarkers: mode === 'svg' && walkOf('svg', false).steps[step]?.id === 'map',
           })
         : null,
     [variant, draft, mode, step],
@@ -785,20 +726,10 @@ export default function CreationWizard() {
   // actually carries one - the check mounts a frame, and a graphic with no logo cannot fail it.
   const markWarning = useMarkLegibility(previewTemplate, Boolean(draft.logoAssetPath));
 
-  // The Animation step's index per mode: the one-step Browse flow ends at 4, the import
-  // continuation keeps the old six-step shape. Finish always follows it.
-  const animStep = mode === 'import' ? 5 : mode === 'svg' ? 3 : 4;
-  // AI has no configuring steps of its own — the result IS the configuration — so its
-  // Finish sits right after the working step (index 2), not after an animation step it
-  // never shows.
-  const finishStep = mode === 'ai' || mode === 'file' ? 2 : animStep + 1;
-  // The steps from which an imported artwork (design, SVG) or the images continuation can be
-  // finished early: every step once there is a graphic to show - from Design on, and from
-  // the template pick on in the images flow. The footer offers the jump to Finish there.
-  const importCanFinishEarly = (mode === 'design' || mode === 'svg' || mode === 'import') && (mode === 'import' ? step >= 2 : step >= 1);
+  const { animStep, finishStep } = walkSpec;
   // On the Animation step the preview demos the full lifecycle (in → hold → out → in)
   // so the exit is actually seen — unless the user is tuning the entrance only.
-  const onAnimationStep = step === animStep && mode !== 'ai' && mode !== 'video';
+  const onAnimationStep = stepId === 'animation';
   const demoOut =
     onAnimationStep &&
     !!variant &&
@@ -1564,39 +1495,27 @@ export default function CreationWizard() {
   /** Browse showing the Community packs shelf: each card's Install is the step's only action,
    *  so the footer's Next and brand chooser stand down (a brand cannot reach a pack whose
    *  design is fixed), and the rail offers no forward jump. */
-  const onShelf = mode === 'template' && step === 1 && buildMode === 'community';
-  const nextDisabled =
-    mode === 'template'
-      ? step === 1 && (buildMode === 'kit' ? !kitBrowseReady : !draft.variantId)
-      : mode === 'file'
-      ? step === 1 && !importedFile
-      : (step === 1 &&
-          (mode === 'import'
-            ? draft.importedImages.length === 0 || !draft.category
-            : !draft.category)) ||
-        (step === 2 && !draft.variantId);
+  const onShelf = (stepId === 'browse' || stepId === 'kit') && buildMode === 'community';
+  const nextDisabled = !canProceed(walkSpec, step, {
+    buildMode,
+    kitBrowseReady,
+    designPicked: !!draft.variantId,
+    category: !!draft.category,
+    images: draft.importedImages.length,
+    file: !!importedFile,
+  });
 
-  // Design mode previews from the moment the artwork lands, through the Prepare step —
-  // the user sees the real graphic (and its default entrance) before creating.
-  //
+  // The graphic the preview shows: the AI's result, a dropped template as itself (it is the
+  // graphic, already finished), or the draft built as real template code.
+  const previewGraphic =
+    mode === 'ai' ? aiResult?.template ?? null : mode === 'file' ? importedFile?.template ?? null : previewTemplate;
   // FINISH ON A PHONE IS THE ONE EXCEPTION. Stacked, the preview claims a fixed 38vh and the
   // step scrolls in what is left — which put BOTH doors below the fold on arrival, on the one
   // step that exists to offer a choice. Every earlier step had already shown the graphic, and
   // the step's own read-back says what was built, so the actions win the room here.
-  // The kit's Browse step is a picker over whole SHOWS, not a design grid, so there is no one
-  // graphic to preview yet; from Fields on, the preview shows the graphic being configured.
   const showPreview =
-    (mode === 'ai' ? (step === 1 || step === finishStep) && !!aiResult
-    : mode === 'video' ? false
-    : mode === 'design' || mode === 'svg' ? step >= 1 && !!previewTemplate
-    // A dropped template is previewed as itself: it is the graphic, already finished.
-    : mode === 'file' ? step >= 1 && !!importedFile
-    : mode === 'template' ? (kit ? step >= 2 && step < finishStep : step >= 1) && !!previewTemplate
-    : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep) && !onShelf;
-  const stepSubs = mode === 'template' && (kit || buildMode === 'kit') ? STEP_SUBS_KIT : STEP_SUBS[mode];
-  // Rail position → step index (1:1 in every mode).
-  const stepIndexes = stepTitles.map((_, i) => i);
-  const railPos = stepIndexes.indexOf(step);
+    previewOn(walkSpec, step, !!kit) && !!previewGraphic && !(isMobile && step === finishStep) && !onShelf;
+  const railPos = railIndex(walkSpec, step);
   /** Forward and Back mean something different for a kit at three points. Leaving the Kit step
    *  BUILDS the set and opens the hub; Back from a graphic's first editing step and Next from
    *  its last both return to the hub, because a kit is edited graphic by graphic in any order,
@@ -1615,23 +1534,16 @@ export default function CreationWizard() {
       moveKitTo(1);
       return;
     }
-    const target = stepIndexes[railPos + delta] ?? step;
+    const target = stepAfter(walkSpec, step, delta);
     if (kit) moveKitTo(target);
     else setStep(target);
   };
 
-  /* Finish's read-back rows are clickable: each goes back to the step it was decided on.
-     The row names its decision, not a step NUMBER, because import mode carries an extra
-     Images step and every later index shifts by one (animStep above says the same thing). */
+  /* Finish's read-back rows are clickable: each goes back to the step it was decided on, by the
+     decision it names (the walk table's `summary`), never by a step number. */
   const editSummaryStep = (key: SummaryStepKey) => {
-    // SVG mode: the artwork and its format live on step 1, the field mapping on step 2;
-    // there is no Look step (the SVG carries its own look).
-    if (mode === 'svg') {
-      setStep({ design: 1, format: 1, fields: 2, look: 2, motion: animStep }[key]);
-      return;
-    }
-    const browse = mode === 'import' ? 2 : 1;
-    setStep({ design: browse, format: browse, fields: browse + 1, look: browse + 2, motion: animStep }[key]);
+    const target = summaryStep(walkSpec, key);
+    if (target !== null) setStep(target);
   };
 
   // The rail's format read-back. The real CONTROL stays in the step that owns it, so this is
@@ -1646,8 +1558,9 @@ export default function CreationWizard() {
       picker.focus();
       return;
     }
-    // A kit graphic is recorded on the way off it, as on every other move (`moveKitTo`).
-    const target = stepIndexes[1] ?? step;
+    // The walk's first working step. A kit graphic is recorded on the way off it, as on every
+    // other move (`moveKitTo`).
+    const target = 1;
     if (kit) moveKitTo(target);
     else setStep(target);
   };
@@ -1673,7 +1586,7 @@ export default function CreationWizard() {
       {/* WITH NO BRANDS THERE IS NO CONTROL, not a disabled one (docs/BRAND_PLAN.md decision 1):
           an empty chooser is a promise the install cannot keep, and the door to making one is
           Home, not here. */}
-      {brandChoices.length > 0 && BRAND_MODES.includes(mode) && !onShelf && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
+      {brandChoices.length > 0 && offersBrand(walkSpec, step) && !onShelf && (
         <label className="wz-match" title={brandTitle}>
           Brand
           <select
@@ -1698,7 +1611,7 @@ export default function CreationWizard() {
           graphic on. There is no straight-to-code "Create project" any more: no wizard
           control opens the old code editor (owner, 2026-09-21 and 2026-09-24).
           KIT stands down for the same reason as Finish: its own Create IS the action. */}
-      {((mode === 'template' && step >= 1 && !kit && buildMode === 'one') || importCanFinishEarly) && step < finishStep && (
+      {offersSkip(walkSpec, step, buildMode) && (
         <button
           className="wz-skip"
           disabled={mode === 'template' ? !draft.variantId : !previewTemplate}
@@ -1711,7 +1624,7 @@ export default function CreationWizard() {
       )}
       {/* AI's Create step advances to Finish once a valid result stands. Its doors live
           there, same as every catalog mode. */}
-      {mode === 'ai' && step === 1 && (
+      {stepId === 'create' && (
         <button
           className="primary wz-next"
           disabled={!aiResult?.valid}
@@ -1821,7 +1734,7 @@ export default function CreationWizard() {
               true once it does appear. */}
           {step > 0 && (
             <span className="wz-stepcount" data-testid="wz-stepcount">
-              Step <b>{railPos + 1}</b> / {stepTitles.length}
+              Step <b>{railPos + 1}</b> / {walkSpec.steps.length}
             </span>
           )}
 
@@ -1855,7 +1768,7 @@ export default function CreationWizard() {
             taking it from the one canvas that can answer the step's question. */}
         <div
           className={`wz-body ${showPreview ? 'with-preview' : ''}${
-            mode === 'design' && step === 3 ? ' wz-body-working' : ''
+            stepId === 'text' ? ' wz-body-working' : ''
           }`}
         >
           {/* The entry is a MENU, not the first committed step of every possible walk. Until
@@ -1864,8 +1777,7 @@ export default function CreationWizard() {
               every chosen path, including the phone's horizontal form of the same rail. */}
           {step > 0 && <nav className="wz-rail" aria-label="Creation steps">
             <div className="wz-dots">
-              {stepTitles.map((t, i) => {
-                const s = stepIndexes[i];
+              {walkSpec.steps.map(({ title: t, sub }, s) => {
                 const done = s < step;
                 return (
                   <button
@@ -1876,25 +1788,16 @@ export default function CreationWizard() {
                     // a tasteful default, so "the template is good enough" must not cost four
                     // Next presses. Other modes keep their sequential walks - their steps
                     // build state a jump would skip.
-                    disabled={
-                      // A BUILT KIT is complete, so every entry is a jump target: the editing
-                      // steps edit the open graphic and the last one is the kit's hub. The
-                      // Kit step stays reachable to change the contents.
-                      onShelf && s > step ? true
-                      : kit ? false
-                      : s > step
-                        ? !(mode === 'template' && !!draft.variantId)
-                        : s > (mode === 'template' ? 1 : 2) && !draft.variantId
-                    }
+                    disabled={!railJump(walkSpec, step, s, { onShelf, kitBuilt: !!kit, designPicked: !!draft.variantId })}
                     onClick={() => (kit ? moveKitTo(s) : setStep(s))}
                     title={t}
                   >
-                    <span className="wz-dot-num" aria-hidden="true">{done ? '✓' : i + 1}</span>
+                    <span className="wz-dot-num" aria-hidden="true">{done ? '✓' : s + 1}</span>
                     {/* The label is its own element so a PHONE can drop the sub-line and lay
                         the rail out as a horizontal strip of numbered chips. */}
                     <span className="wz-dot-text">
                       <span className="wz-dot-label">{t}</span>
-                      <span className="wz-dot-sub">{stepSubs?.[i] ?? ''}</span>
+                      <span className="wz-dot-sub">{sub}</span>
                     </span>
                   </button>
                 );
@@ -1927,7 +1830,7 @@ export default function CreationWizard() {
           <div className="wz-step" ref={stepRef} data-overflow={stepOverflow || undefined}>
             {/* A step that builds on catalog designs waits for them here (see needsCatalog). */}
             {needsCatalog && !catalog ? <CatalogLoading /> : <>
-            {step === 0 && (
+            {stepId === 'start' && (
               <EntryStep
                 onTemplates={() => { setMode('template'); setStep(1); }}
                 onImportGraphic={() => {
@@ -1981,7 +1884,7 @@ export default function CreationWizard() {
                 }}
               />
             )}
-            {step === 1 && mode === 'video' && (
+            {stepId === 'video' && (
               <VideoStep
                 format={draftFormatSelection(draft)}
                 onFormat={(selection) => patch(formatDraftPatch(selection))}
@@ -1992,8 +1895,8 @@ export default function CreationWizard() {
             {/* AiStep stays MOUNTED across the Create → Finish move (hidden on Finish), so
                 stepping to the doors and back never discards the thread, the three directions,
                 or the refinement history — none of which is lifted into the draft. */}
-            {mode === 'ai' && (step === 1 || step === finishStep) && (
-              <div hidden={step === finishStep}>
+            {mode === 'ai' && (stepId === 'create' || stepId === 'finish') && (
+              <div hidden={stepId === 'finish'}>
                 <Suspense fallback={<CatalogLoading />}>
                 <AiStep
                   format={draftFormatSelection(draft)}
@@ -2016,7 +1919,7 @@ export default function CreationWizard() {
                     });
                     setImportedFileError(null);
                     setMode('file');
-                    setStep(2); // file mode's Finish
+                    setStep(stepIndex(walkOf('file', false), 'finish'));
                   }}
                   onUseTemplates={(images) => {
                     // Skip the AI: design AROUND the images with the catalog — the existing
@@ -2028,7 +1931,7 @@ export default function CreationWizard() {
                 </Suspense>
               </div>
             )}
-            {step === 1 && (mode === 'design' || mode === 'svg' || mode === 'file') && (
+            {(stepId === 'artwork' || stepId === 'file') && (
               <ImportDesignStep
                 svg={draft.designSvg}
                 onSvg={(result) => {
@@ -2086,7 +1989,7 @@ export default function CreationWizard() {
                 }
               />
             )}
-            {step === 1 && mode === 'import' && (
+            {stepId === 'images' && (
               <ImportStep
                 images={draft.importedImages}
                 draft={draft}
@@ -2096,11 +1999,11 @@ export default function CreationWizard() {
                 }
                 onContinue={(category) => {
                   patch({ category });
-                  setStep(2);
+                  setStep(stepIndex(walkSpec, 'template'));
                 }}
               />
             )}
-            {step === 1 && mode === 'template' && (
+            {(stepId === 'browse' || stepId === 'kit') && (
               <Suspense fallback={<CatalogLoading />}>
               <BrowseStep
                 draft={draft}
@@ -2144,25 +2047,16 @@ export default function CreationWizard() {
               />
               </Suspense>
             )}
-            {step === 3 && mode === 'design' && draft.designArt && (
+            {stepId === 'text' && draft.designArt && (
               <PlaceFieldsStep
                 art={draft.designArt}
                 draft={draft}
                 onDraft={patch}
-                onBackToPrepare={() => setStep(2)}
-              />
-            )}
-            {step === 4 && mode === 'design' && variant && (
-              <AnimationStep
-                variant={variant}
-                template={previewTemplate}
-                draft={draft}
-                onDraft={patch}
-                onReplay={() => setReplayKey((k) => k + 1)}
+                onBackToPrepare={() => setStep(stepIndex(walkSpec, 'prepare'))}
               />
             )}
             {/* The SVG walk's one setup step: which text layers the operator can edit. */}
-            {step === 2 && mode === 'svg' && draft.designSvg && (
+            {stepId === 'map' && draft.designSvg && (
               <MapSvgFieldsStep
                 draft={draft}
                 onDraft={patch}
@@ -2174,16 +2068,7 @@ export default function CreationWizard() {
                 onArmPick={armSvgPick}
               />
             )}
-            {step === 3 && mode === 'svg' && variant && (
-              <AnimationStep
-                variant={variant}
-                template={previewTemplate}
-                draft={draft}
-                onDraft={patch}
-                onReplay={() => setReplayKey((k) => k + 1)}
-              />
-            )}
-            {step === 2 && mode === 'design' && draft.designArt && (
+            {stepId === 'prepare' && draft.designArt && (
               <PrepareDesignStep
                 art={draft.designArt}
                 resolution={draftResolution(draft)}
@@ -2210,7 +2095,7 @@ export default function CreationWizard() {
                 onDemoText={setStretchDemo}
               />
             )}
-            {step === 2 && mode === 'import' && (
+            {stepId === 'template' && (
               <TemplateStep
                 variants={orderedVariants}
                 draft={draft}
@@ -2231,15 +2116,14 @@ export default function CreationWizard() {
                 }
               />
             )}
-            {/* The catalog flow's later steps — one index earlier in the Browse flow;
-                design mode has its own step 3/4 above. */}
-            {step === (mode === 'template' ? 2 : 3) && (mode === 'template' || mode === 'import') && variant && (
+            {/* The catalog walks' later steps; Animation is every animated walk's. */}
+            {stepId === 'fields' && variant && (
               <Suspense fallback={<CatalogLoading />}><FieldsStep variant={variant} draft={draft} onDraft={patch} /></Suspense>
             )}
-            {step === (mode === 'template' ? 3 : 4) && (mode === 'template' || mode === 'import') && variant && (
+            {stepId === 'style' && variant && (
               <StyleStep variant={variant} draft={draft} onDraft={patch} builtCss={previewTemplate?.css ?? null} markWarning={markWarning} />
             )}
-            {step === animStep && (mode === 'template' || mode === 'import') && variant && (
+            {stepId === 'animation' && variant && (
               <AnimationStep
                 variant={variant}
                 template={previewTemplate}
@@ -2250,7 +2134,7 @@ export default function CreationWizard() {
             )}
             {/* THE KIT'S HUB: every graphic of the set, each one click from editing, the way
                 back to its contents, and the production doors. */}
-            {step === finishStep && kit && (
+            {stepId === 'finish' && kit && (
               <KitFinishStep
                 name={kitProductionName}
                 namePlaceholder={kit.pack.name}
@@ -2267,7 +2151,7 @@ export default function CreationWizard() {
               />
             )}
             {/* A finished template file: the same three doors, over code we did not write. */}
-            {step === finishStep && mode === 'file' && importedFile && (
+            {stepId === 'finish' && mode === 'file' && importedFile && (
               <FinishStep
                 name={draft.name}
                 namePlaceholder={importedFile.template.name}
@@ -2285,7 +2169,7 @@ export default function CreationWizard() {
               />
             )}
             {/* Finish — shared by every catalog-shaped mode, design included. */}
-            {step === finishStep && !kit && mode !== 'ai' && mode !== 'video' && mode !== 'file' && variant && (
+            {stepId === 'finish' && !kit && mode !== 'ai' && mode !== 'file' && variant && (
               <FinishStep
                 name={draft.name}
                 namePlaceholder={variant.name}
@@ -2311,7 +2195,7 @@ export default function CreationWizard() {
                 the other N-1 looking like they were never made. It is the same component the
                 catalog kit uses, on purpose - the promise being checked is identical, and the
                 thumbnail grid is where it is checkable. */}
-            {step === finishStep && mode === 'ai' && aiResult && aiPack() && (
+            {stepId === 'finish' && mode === 'ai' && aiResult && aiPack() && (
               <KitFinishStep
                 name={draft.name}
                 namePlaceholder={aiResult.template.name}
@@ -2328,7 +2212,7 @@ export default function CreationWizard() {
                 error={kitError}
               />
             )}
-            {step === finishStep && mode === 'ai' && aiResult && !aiPack() && (
+            {stepId === 'finish' && mode === 'ai' && aiResult && !aiPack() && (
               <FinishStep
                 name={draft.name}
                 namePlaceholder={aiResult.template.name}
@@ -2350,24 +2234,15 @@ export default function CreationWizard() {
           {wizardFooter}
           </div>
 
-          {showPreview &&
-            (mode === 'ai' ? aiResult
-            : mode === 'file' ? importedFile
-            : previewTemplate) && (
+          {showPreview && previewGraphic && (
             <aside className="wz-side">
               <WizardPreview
-                template={
-                  mode === 'ai'
-                    ? aiResult!.template
-                    : mode === 'file'
-                      ? importedFile!.template
-                      : previewTemplate!
-                }
+                template={previewGraphic}
                 replayKey={replayKey}
                 demoOut={demoOut}
                 rehearse={onAnimationStep}
                 demoText={mode === 'design' ? stretchDemo : null}
-                {...(mode === 'svg' && step === 2
+                {...(stepId === 'map'
                   ? {
                       highlightSelector: svgHoverId ? `[${SVG_CANDIDATE_ATTR}="${svgHoverId}"]` : null,
                       boxOverlay: svgBoxOverlay,

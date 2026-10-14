@@ -1,7 +1,7 @@
 // covers: src/components/NewGraphicButton.tsx, src/store/saveActions.ts, src/components/save/SaveDialogs.tsx
 // covers: src/components/wizard/CreationWizard.tsx, src/components/home/HomePage.tsx
 // covers: src/components/home/CueRundown.tsx
-// covers: src/components/wizard/import/drop.ts
+// covers: src/components/wizard/import/drop.ts, src/components/wizard/shell/walks.ts
 //
 // + NEW GRAPHIC FROM HOME OVER A WIZARD WALK LEFT MID-WAY. The wizard's Home door closes it with
 // the draft still in memory, and + New graphic used to open it FRESH, wiping that draft without
