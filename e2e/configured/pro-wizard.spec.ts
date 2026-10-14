@@ -8,7 +8,7 @@
 //
 // The step that decides which tiers are offered at all, and the one feature-detection point
 // the second half of that decision reads.
-// covers: src/components/wizard/steps/AiStep.tsx, src/backend/config.ts
+// covers: src/components/wizard/ai/{AiStep,ProPanel}.tsx, src/ai/creation.ts, src/backend/config.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { SUPABASE_URL, haveCreds, settleSync, signIn } from './_helpers';

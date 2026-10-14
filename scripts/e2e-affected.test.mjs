@@ -258,7 +258,7 @@ test('a change only a configured deployment can cover raises the configured flag
   for (const file of [
     'src/ai/pro/session.ts',
     'api/_lib/pro/status.ts',
-    'src/components/wizard/steps/AiStep.tsx',
+    'src/components/wizard/ai/AiStep.tsx',
     'e2e/configured/pro-wizard.spec.ts',
   ]) {
     assert.equal(planFor([file]).configured, true, `${file} must raise the configured flag`);

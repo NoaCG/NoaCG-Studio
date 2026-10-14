@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{AiStep.tsx,ai/**}
+// covers: src/ai/creation.ts, src/components/wizard/ai/**
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page, type Route } from '@playwright/test';

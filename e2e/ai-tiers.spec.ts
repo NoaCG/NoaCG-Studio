@@ -1,4 +1,4 @@
-// covers: src/ai/**, src/components/wizard/steps/{AiStep.tsx,ai/**}, api/{ai/**,_lib/ai*{,/**}}
+// covers: src/ai/**, src/components/wizard/ai/**, api/{ai/**,_lib/ai*{,/**}}
 //
 // The shared provider/model/key surface. The tier door is where its WORDING is pinned - the
 // one defect class (a mislabelled tier, a transport offered as a choice) that builds green.
