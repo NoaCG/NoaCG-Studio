@@ -39,7 +39,7 @@ import { fileURLToPath } from 'node:url';
 import { makeCli } from '../lib/cli.mjs';
 import { draftJudge, judgePair, judgeSingle, loadJudge, lockFor } from '../lib/judge.mjs';
 import { appendEntry, readLedger, writeLedger } from '../lib/ledger.mjs';
-import { checkSubscriptionAuth, claudeExecutable, subscriptionEnv } from '../lib/subscription.mjs';
+import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../lib/subscription.mjs';
 import { changedFraction, DEFECT_KIND, DEFECTS, injection } from './plant.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -113,6 +113,8 @@ const CAPTION = {
   'step-1': 'after the operator\'s first step',
   'step-2': 'after the operator\'s second step',
   'step-3': 'after the operator\'s third step',
+  // `noacg validate --screenshots` lengthens every field itself (each value set twice over).
+  'stress-cli': 'on air with stress values: every field\'s text made much longer',
 };
 
 function blindFrames(round, id, kinds = ['hold', 'stress', 'step-1', 'step-2', 'step-3']) {
@@ -296,14 +298,15 @@ async function render({ set, work, only }) {
     const shots = r.json?.screenshots ?? {};
     const frames = [];
     if (shots.onair) frames.push({ root: 'work', path: path.relative(work, shots.onair).split(path.sep).join('/'), caption: CAPTION.hold });
-    if (shots.stress) frames.push({ root: 'work', path: path.relative(work, shots.stress).split(path.sep).join('/'), caption: CAPTION.stress });
+    if (shots.stress) frames.push({ root: 'work', path: path.relative(work, shots.stress).split(path.sep).join('/'), caption: CAPTION['stress-cli'] });
     for (const s of (r.json?.stateFrames ?? []).slice(0, 3)) frames.push({ root: 'work', path: path.relative(work, s.file).split(path.sep).join('/'), caption: `after the operator presses ${s.via.join(', then ')}` });
     const record = { id: item.id, exit: r.code, ok: r.json?.ok ?? null, frames, failed: r.json?.screenshotsFailed ?? null, seconds: Math.round((Date.now() - t) / 1000) };
     if (item.render.defect) {
       const original = path.join(work, 'renders', keyOf(`aug:${item.render.cell}`));
       record.changed = Object.fromEntries(['onair', 'stress'].filter((n) => shots[n] && existsSync(path.join(original, `${n}.png`))).map((n) => [n, Number(changedFraction(path.join(original, `${n}.png`), shots[n]).toFixed(4))]));
-      // A plant that moved under 0.05% of the picture did nothing a viewer could see.
-      record.planted = Object.values(record.changed).some((v) => v > 0.0005);
+      // A plant that moved under 0.01% of the picture (about 200 pixels) did nothing a viewer could
+      // see; a clipped short word is about 400.
+      record.planted = Object.values(record.changed).some((v) => v > 0.0001);
     }
     mkdirSync(out, { recursive: true });
     writeFileSync(path.join(out, 'render.json'), `${JSON.stringify(record, null, 2)}\n`);
@@ -378,7 +381,7 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
         }
         if (out.paused) {
           ledgerPause(out.paused.resetsAt);
-          const wait = out.paused.resetsAt ? Math.max(60_000, Date.parse(out.paused.resetsAt) - Date.now() + 60_000) : 15 * 60_000;
+          const wait = pauseMs(out.paused);
           console.log(`  PAUSED by the usage limit; resuming in ${Math.round(wait / 60000)} min`);
           await sleep(wait);
           continue;
@@ -394,11 +397,9 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, (_, w) => worker(w)));
-  if (count) {
-    const ledger = readLedger(LEDGER_FILE);
-    appendEntry(ledger, { kind: 'session', phase: 'H2', stage: `calibration-${part}`, arm: 'judge', model: judge.lock.model, funding: 'subscription', notionalUsd: Number(notional.toFixed(2)), outcome: 'completed', note: `${count} judgement(s) (${task}) on the ${part} part, judge ${judge.fingerprint.slice(0, 12)}` });
-    writeLedger(LEDGER_FILE, ledger);
-  }
+  // What a run took is kept beside its results; the committed ledger gets the phase's total when
+  // H2 closes, and a pause the moment it happens.
+  if (count) appendFileSync(path.join(work, 'runs.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), part, task, judge: judge.fingerprint, model: judge.lock.model, effort: judge.lock.effort, judgements: count, notionalUsd: Number(notional.toFixed(2)) })}\n`);
   console.log(`Done: ${count} judgement(s), $${notional.toFixed(2)} notional on the subscription, $0 credit.`);
 }
 
@@ -468,7 +469,9 @@ if (isMain) {
   const verb = argv[0];
   const work = path.resolve(value('work', path.join(os.tmpdir(), 'noacg-harness', 'judge-calibration')));
   if (work.startsWith(ROOT + path.sep)) fail(`--work must be outside the repository (${ROOT}): frames are never committed`);
-  const only = (value('only', '') || '').split(',').filter(Boolean);
+  const onlyArg = value('only', '') || '';
+  // `--only @file` reads the ids from a file, one list separated by commas or lines.
+  const only = (onlyArg.startsWith('@') ? readFileSync(onlyArg.slice(1), 'utf8') : onlyArg).split(/[,\s]+/).filter(Boolean);
   if (verb === 'set') {
     const set = buildSet();
     writeFileSync(SET_FILE, `${JSON.stringify(set, null, 1)}\n`);

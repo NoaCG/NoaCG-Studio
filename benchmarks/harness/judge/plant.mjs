@@ -7,7 +7,8 @@
 // of a NoaCG graphic. It runs on every frame (the graphic may re-lay itself out on an update), finds
 // the live text on the page and applies one of:
 //
-//   overlap    the second-largest text is moved onto the largest one: text over text
+//   overlap    the second-largest text (with its branch of the page) is moved onto the largest
+//              one: text over text
 //   clipped    the largest text loses the right 40% of its glyphs to a hard clip: a clipped title
 //   contrast   every text and every painted surface turns mid-grey: grey-on-grey text
 //
@@ -45,13 +46,20 @@ export function injection(defect) {
       var el = all[i];
       if (/^(SCRIPT|STYLE|TEMPLATE)$/.test(el.tagName) || !ownText(el)) continue;
       var cs = window.getComputedStyle(el);
-      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      if (cs.display === 'none' || cs.visibility === 'hidden' || seen(el) < 0.05) continue;
       var r = textBox(el);
-      if (r.width < 4 || r.height < 4) continue;
+      if (r.width < 4 || r.height < 4 || r.right < 0 || r.bottom < 0 || r.left > window.innerWidth || r.top > window.innerHeight) continue;
       out.push({ el: el, r: r, size: parseFloat(cs.fontSize) || 0 });
     }
-    out.sort(function (a, b) { return b.size - a.size || b.r.width * b.r.height - a.r.width * a.r.height; });
+    // The most prominent text first: large AND long (a title, a name), not a single big digit.
+    out.sort(function (a, b) { return b.size * b.r.width - a.size * a.r.width; });
     return out;
+  }
+  /** The opacity a viewer sees: the element's times every ancestor's. */
+  function seen(el) {
+    var o = 1;
+    for (var e = el; e && e.nodeType === 1; e = e.parentNode) o *= parseFloat(window.getComputedStyle(e).opacity);
+    return o;
   }
   var moved = null;
   function apply() {
@@ -80,13 +88,17 @@ export function injection(defect) {
     } else if (DEFECT === 'overlap' && t.length > 1) {
       var big = t[0];
       var other = t[1];
-      if (moved && moved.el !== other.el) moved.el.style.removeProperty('translate');
-      var dx = moved && moved.el === other.el ? moved.dx : 0;
-      var dy = moved && moved.el === other.el ? moved.dy : 0;
+      // Move the second text's whole branch (up to the ancestor it shares with the first), so a
+      // per-line reveal mask moves with it instead of hiding it.
+      var branch = other.el;
+      while (branch.parentNode && branch.parentNode.contains && !branch.parentNode.contains(big.el)) branch = branch.parentNode;
+      if (moved && moved.el !== branch) moved.el.style.removeProperty('translate');
+      var dx = moved && moved.el === branch ? moved.dx : 0;
+      var dy = moved && moved.el === branch ? moved.dy : 0;
       var nx = big.r.left + big.r.width * 0.12 - (other.r.left - dx);
       var ny = big.r.top + big.r.height * 0.3 - (other.r.top - dy);
-      other.el.style.setProperty('translate', nx + 'px ' + ny + 'px', 'important');
-      moved = { el: other.el, dx: nx, dy: ny };
+      branch.style.setProperty('translate', nx + 'px ' + ny + 'px', 'important');
+      moved = { el: branch, dx: nx, dy: ny };
     }
   }
   setInterval(apply, 40);

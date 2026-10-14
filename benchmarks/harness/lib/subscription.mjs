@@ -14,7 +14,7 @@
 // Before any subscription stage, `claude auth status` in that same environment must say
 // `loggedIn: true` and `authMethod: oauth_token`, or nothing starts.
 
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 
@@ -100,12 +100,52 @@ export function usageLimit(result) {
   return { resetsAt: epoch ? new Date(Number(epoch[1]) * 1000).toISOString() : null };
 }
 
+/** How long a stage paused by the usage limit waits: until the reset and a minute, or 15 minutes when no reset was given. */
+export function pauseMs(paused, now = Date.now()) {
+  return paused?.resetsAt ? Math.max(60_000, Date.parse(paused.resetsAt) - now + 60_000) : 15 * 60_000;
+}
+
 /** Run one `claude -p` child: the prompt on stdin, JSON out. */
 export function runClaude({ claude, args, env, cwd, input, timeoutMs, run = spawnSync }) {
   assertNoKeys(env);
   const { file, args: argv } = invocation(claude, ['-p', '--output-format', 'json', ...args]);
   const started = Date.now();
-  const r = run(file, argv, { cwd, env, input, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+  return readRun(run(file, argv, { cwd, env, input, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024, windowsHide: true }), started);
+}
+
+/** `runClaude` without blocking, so several judgements run at once. `run` may return a promise. */
+export async function runClaudeAsync({ claude, args, env, cwd, input, timeoutMs, run = spawnAsync }) {
+  assertNoKeys(env);
+  const { file, args: argv } = invocation(claude, ['-p', '--output-format', 'json', ...args]);
+  const started = Date.now();
+  return readRun(await run(file, argv, { cwd, env, input, encoding: 'utf8', timeout: timeoutMs, windowsHide: true }), started);
+}
+
+/** `spawnSync`'s result shape, from a child that does not block the event loop. */
+export function spawnAsync(file, args, { input, timeout, ...opts }) {
+  return new Promise((resolve) => {
+    const child = spawn(file, args, { ...opts, stdio: ['pipe', 'pipe', 'pipe'] });
+    const out = [];
+    const err = [];
+    let error = null;
+    const timer = timeout ? setTimeout(() => {
+      error = Object.assign(new Error('timed out'), { code: 'ETIMEDOUT' });
+      child.kill();
+    }, timeout) : null;
+    child.stdout.on('data', (d) => out.push(d));
+    child.stderr.on('data', (d) => err.push(d));
+    child.on('error', (e) => {
+      error = e;
+    });
+    child.on('close', (status, signal) => {
+      if (timer) clearTimeout(timer);
+      resolve({ status, signal, error, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8') });
+    });
+    child.stdin.end(input ?? '');
+  });
+}
+
+function readRun(r, started) {
   let json = null;
   try {
     json = JSON.parse(r.stdout);

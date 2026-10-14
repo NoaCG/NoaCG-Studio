@@ -17,7 +17,7 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { runClaude } from './subscription.mjs';
+import { runClaudeAsync } from './subscription.mjs';
 
 export const JUDGE_FILES = ['prompt.md', 'rubric.json'];
 export const TASKS = ['single', 'pairwise'];
@@ -121,10 +121,10 @@ function answerOf(r, judge) {
 }
 
 /** A runner for one judgement: `run` is injectable so the bench's tests need no Claude Code. */
-function judgeOnce(judge, { task, brief, graphics, operator, actions, dir, claude, env, run, timeoutMs = 15 * 60_000 }) {
+async function judgeOnce(judge, { task, brief, graphics, operator, actions, dir, claude, env, run, timeoutMs = 15 * 60_000 }) {
   const call = judgeInvocation(judge, { task, brief, graphics, operator, actions });
   writeFileSync(path.join(dir, 'prompt.md'), call.prompt);
-  const r = runClaude({ claude, args: call.args, env, cwd: dir, input: call.prompt, timeoutMs, ...(run ? { run } : {}) });
+  const r = await runClaudeAsync({ claude, args: call.args, env, cwd: dir, input: call.prompt, timeoutMs, ...(run ? { run } : {}) });
   writeFileSync(path.join(dir, 'claude.json'), r.stdout || r.stderr || '');
   return answerOf(r, judge);
 }
@@ -158,10 +158,21 @@ export async function judgePair(judge, { brief, x, y, xFirst = true, actions = [
     const sub = path.join(dir, `order-${i + 1}`);
     const graphics = [{ label: 'A', frames: stage(sub, 'A', a.frames) }, { label: 'B', frames: stage(sub, 'B', b.frames) }];
     const operator = a.operator || b.operator ? { A: a.operator ?? [], B: b.operator ?? [] } : null;
-    const out = judgeOnce(judge, { task: 'pairwise', brief, graphics, operator, actions, dir: sub, claude, env, run });
+    const out = await judgeOnce(judge, { task: 'pairwise', brief, graphics, operator, actions, dir: sub, claude, env, run });
     notionalUsd += out.notionalUsd ?? 0;
     if (out.paused || out.error) return { ...out, notionalUsd };
     answers.push({ a: a.id, b: b.id, ...out });
   }
   return { combined: combinePair(answers[0], answers[1]), orders: answers.map((o) => ({ a: o.a, b: o.b, sessionId: o.sessionId, models: o.models, notionalUsd: o.notionalUsd, answer: o.answer })), notionalUsd, ms: answers.reduce((n, o) => n + (o.ms ?? 0), 0) };
+}
+
+/**
+ * A cell's coverage matrix as the judge reads it (`noacg coverage`'s coverage.json): every render
+ * and every native-pixel crop, each captioned with what it shows.
+ */
+export function coverageFrames(framesDir) {
+  const coverage = JSON.parse(readFileSync(path.join(framesDir, 'coverage.json'), 'utf8'));
+  const frames = (coverage.frames ?? []).map((f) => ({ file: path.join(framesDir, f.file), caption: `${f.state}; ${f.values} values on the ${f.ground} ground${f.atMs ? `, at ${f.atMs} ms` : ''}` }));
+  const crops = (coverage.crops ?? []).map((c) => ({ file: path.join(framesDir, c.file), caption: `native-pixel crop of field ${c.key}; ${c.values} values on the ${c.ground} ground` }));
+  return [...frames, ...crops];
 }

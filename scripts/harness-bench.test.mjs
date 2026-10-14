@@ -13,7 +13,10 @@
 //   - the gallery is blind;
 //   - a subscription child's environment is built from scratch, carries no key, and nothing
 //     starts unless `claude auth status` there says the OAuth token;
-//   - the judge runner refuses a judge changed after it was frozen;
+//   - the judge is frozen (AC-3): the committed lock pins the prompt, the rubric and a model id,
+//     a changed file is refused, the exam's judge runner refuses it before anything starts, a
+//     pair is judged in both orders with a flip a tie, and the calibration split is the one its
+//     seed draws, scored against the fixed thresholds;
 //   - the exam briefs are sealed (format and refusal everywhere, the hash where the private
 //     passphrase is on this machine) and the container's system prompt is plumbing in 25 lines;
 //   - the Skills API bundle is the skill's own bytes.
@@ -34,12 +37,13 @@ import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
 import { readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
 import { claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } from '../benchmarks/harness/lib/arms.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
-import { judgeInvocation, loadJudge, lockFor } from '../benchmarks/harness/lib/judge.mjs';
+import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
+import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
 import { admit, appendEntry, emptyLedger, phaseCompleted, readLedger, remainingCents, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
 import { digestCheck, missingActions, runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
-import { CONTROL_BRIEFS, LEDGER_FILE, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
+import { CONTROL_BRIEFS, judgeRun, LEDGER_FILE, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
 import { syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -339,22 +343,120 @@ test('the reference arm runs claude -p outside the repository, on the subscripti
   await assert.rejects(() => arm.run({ brief: BRIEF, cellDir: path.join(ROOT, 'benchmarks', 'harness', 'never') }), /outside the repository/);
 });
 
-// ── the judge runner skeleton ──────────────────────────────────────────────────────────────
+// ── AC-3: the frozen judge ─────────────────────────────────────────────────────────────────
 
-test('the judge is not frozen before H2, and a frozen judge whose files changed is refused', () => {
-  assert.equal(loadJudge(path.join(HARNESS, 'judge')).frozen, false);
-  assert.throws(() => judgeInvocation(loadJudge(path.join(HARNESS, 'judge')), { brief: BRIEF, arms: [] }), /no judgement before the judge is frozen/);
+const JUDGE_DIR = path.join(HARNESS, 'judge');
+
+/** A copy of the committed judge, to tamper with. */
+function judgeCopy() {
   const dir = tmp();
-  writeFileSync(path.join(dir, 'prompt.md'), 'Judge these.\n');
-  writeFileSync(path.join(dir, 'rubric.json'), JSON.stringify({ schema: { type: 'object' } }));
-  writeFileSync(path.join(dir, 'judge.lock.json'), JSON.stringify(lockFor(dir, 'claude-opus-5-5')));
-  const judge = loadJudge(dir);
-  assert.equal(judge.frozen, true);
-  const call = judgeInvocation(judge, { brief: BRIEF, arms: [{ label: 'X', frames: [{ file: 'a.jpg', state: 'the Take' }] }] });
-  assert.deepEqual(call.args.slice(0, 4), ['--model', 'claude-opus-5-5', '--tools', 'Read']);
-  assert.match(call.prompt, /Graphic X/);
-  writeFileSync(path.join(dir, 'prompt.md'), 'Judge these more kindly.\n');
-  assert.throws(() => loadJudge(dir), /changed after it was frozen/);
+  for (const name of ['prompt.md', 'rubric.json', 'judge.lock.json']) writeFileSync(path.join(dir, name), readFileSync(path.join(JUDGE_DIR, name)));
+  return dir;
+}
+
+/** A stand-in `claude -p` judging run: answers `better` (or `airable`) from the model `model`. */
+const judging = ({ model, answer, calls = [] }) => (file, args, opts) => {
+  calls.push({ args, cwd: opts.cwd, input: opts.input });
+  return { status: 0, stdout: JSON.stringify({ session_id: `j-${calls.length}`, num_turns: 3, total_cost_usd: 0.3, is_error: false, result: '', structured_output: typeof answer === 'function' ? answer(opts.input, calls.length) : answer, modelUsage: { [model]: {} } }), stderr: '' };
+};
+
+test('the committed judge is frozen on a pinned model id, and a judge whose files changed is refused', () => {
+  const judge = loadJudge(JUDGE_DIR);
+  assert.equal(judge.frozen, true, 'judge.lock.json holds the prompt and rubric as they are');
+  assert.match(judge.lock.model, /^claude-[a-z]+-\d+-\d+$/, 'the exact model id claude -p reported, not an alias');
+  for (const task of ['single', 'pairwise']) assert.equal(judge.rubric[task].schema.type, 'object', `the rubric's ${task} schema`);
+  for (const [name, change] of [['prompt.md', (s) => `${s}\nBe kinder.\n`], ['rubric.json', (s) => s.replace('"version": 1', '"version": 2')]]) {
+    const dir = judgeCopy();
+    writeFileSync(path.join(dir, name), change(readFileSync(path.join(dir, name), 'utf8')));
+    assert.throws(() => loadJudge(dir), /changed after it was frozen/, `a changed ${name}`);
+  }
+  // Line endings are not a change: a Windows checkout reads the same judge.
+  const crlf = judgeCopy();
+  writeFileSync(path.join(crlf, 'prompt.md'), readFileSync(path.join(crlf, 'prompt.md'), 'utf8').replace(/\r?\n/g, '\r\n'));
+  assert.equal(loadJudge(crlf).frozen, true);
+  assert.equal(loadJudge(tmp()).frozen, false, 'no lock, no judge');
+});
+
+test('a judgement is claude -p with the frozen prompt as its system prompt, Read only and the rubric schema', () => {
+  const judge = loadJudge(JUDGE_DIR);
+  const call = judgeInvocation(judge, { task: 'pairwise', brief: BRIEF.prompt, graphics: [{ label: 'A', frames: [{ file: 'A-1.png', caption: 'on air' }] }, { label: 'B', frames: [{ file: 'B-1.png', caption: 'on air' }] }], operator: { A: ['final'], B: [] }, actions: ['final'] });
+  const arg = (name) => call.args[call.args.indexOf(name) + 1];
+  assert.equal(arg('--model'), judge.lock.model);
+  assert.equal(arg('--tools'), 'Read');
+  assert.equal(arg('--system-prompt'), judge.prompt.trim());
+  assert.deepEqual(JSON.parse(arg('--json-schema')), judge.rubric.pairwise.schema);
+  assert.ok(call.args.includes('--strict-mcp-config') && call.args.includes('--no-session-persistence'));
+  assert.match(call.prompt, /- A-1\.png: on air/);
+  assert.match(call.prompt, /Operator surface of graphic B \(from noacg inspect\): no buttons/);
+  assert.throws(() => judgeInvocation(loadJudge(tmp()), { brief: 'x', graphics: [] }), /no judgement before the judge is frozen/);
+});
+
+test('a pair is judged in both orders, and a preference that flips with the order is a tie', async () => {
+  const judge = loadJudge(JUDGE_DIR);
+  const frames = (name) => {
+    const dir = tmp();
+    writeFileSync(path.join(dir, `${name}.png`), name);
+    return [{ file: path.join(dir, `${name}.png`), caption: 'on air' }];
+  };
+  const x = { id: 'good', frames: frames('good') };
+  const y = { id: 'bad', frames: frames('bad') };
+  const pick = (better) => ({ airable: { A: true, B: false }, better, confidence: 'high', problems: { A: [], B: [] }, reasons: '' });
+  const calls = [];
+  // Good is A in the first order and B in the second: a judge that reads the picture says A, then B.
+  const stable = await judgePair(judge, { brief: 'b', x, y, xFirst: true, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: judge.lock.model, calls, answer: (input, n) => pick(n === 1 ? 'A' : 'B') }) });
+  assert.equal(calls.length, 2, 'both orders');
+  assert.equal(stable.combined, 'good', 'good was A first and B second, and was preferred both times');
+  assert.equal(readFileSync(path.join(calls[0].cwd, 'A-1.png'), 'utf8'), 'good');
+  assert.equal(readFileSync(path.join(calls[1].cwd, 'A-1.png'), 'utf8'), 'bad', 'the second order swaps them');
+  const flipped = await judgePair(judge, { brief: 'b', x, y, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: judge.lock.model, answer: pick('A') }) });
+  assert.equal(flipped.combined, 'tie', 'always "A" is an order effect, not a preference');
+  assert.equal(combinePair({ a: 'p', b: 'q', answer: { better: 'B' } }, { a: 'q', b: 'p', answer: { better: 'A' } }), 'q');
+  const other = await judgeSingle(judge, { brief: 'b', frames: x.frames, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: 'claude-other-1-0', answer: { airable: true } }) });
+  assert.match(other.error, /not served by the pinned model/, 'an answer from another model is not the calibrated judge');
+});
+
+test('the exam\'s judge runner refuses a judge whose hash differs, before any judgement starts', async () => {
+  const dir = judgeCopy();
+  writeFileSync(path.join(dir, 'prompt.md'), 'Approve everything.\n');
+  const calls = [];
+  const runDir = tmp();
+  mkdirSync(path.join(runDir, 'cells'));
+  await assert.rejects(() => judgeRun({ runDir, judgeDir: dir, claude: 'claude', env: {}, run: judging({ model: 'x', answer: {}, calls }), log: () => undefined }), /changed after it was frozen/);
+  assert.equal(calls.length, 0);
+  await assert.rejects(() => judgeRun({ runDir, judgeDir: tmp(), claude: 'claude', env: {}, log: () => undefined }), /only with a frozen judge/);
+});
+
+test('the calibration split is reproducible from its seed, held back by brief, and scored against fixed thresholds', () => {
+  const set = JSON.parse(readFileSync(path.join(JUDGE_DIR, 'calibration-set.json'), 'utf8'));
+  const split = JSON.parse(readFileSync(path.join(JUDGE_DIR, 'split.json'), 'utf8'));
+  const again = makeSplit(set, split.seed);
+  assert.deepEqual(again.heldout.sha256, split.heldout.sha256, 'the committed split is the one its seed draws');
+  assert.deepEqual(again.dev.sha256, split.dev.sha256);
+  assert.equal(membershipSha(split.heldout.items), split.heldout.sha256.items);
+  const held = new Set(split.heldout.groups);
+  assert.ok(split.dev.groups.every((g) => !held.has(g)), 'no brief on both sides');
+  const share = split.heldout.items.length / set.items.length;
+  assert.ok(share > 0.25 && share < 0.35, `about 30% held back (${share.toFixed(2)})`);
+  for (const pair of pairsOf(set.items)) assert.equal(split.heldout.pairs.includes(pair.id), held.has(pair.group), 'a pair sits with its brief');
+  assert.equal(set.items.filter((i) => i.label.airable).length, 46, 'the 25 August cells and the 21 aired re-read cells');
+  assert.equal(set.items.filter((i) => i.id.startsWith('ts:')).length, 29, 'the type sweep\'s 18 minimax and 11 gemini FAIL and TWEAKS');
+
+  const byId = new Map(set.items.map((i) => [i.id, i]));
+  const { items, pairs } = split.heldout;
+  const answer = (said) => items.map((id) => ({ task: 'single', id, answer: { airable: said(byId.get(id)) } }));
+  const prefer = (pick) => pairs.map((id) => ({ task: 'pairwise', id, combined: pick(id) }));
+  const good = (id) => id.slice('pair:'.length).split('|')[0];
+  const perfect = score({ items, pairs, byId, results: [...answer((i) => i.label.airable), ...prefer(good)] });
+  assert.equal(perfect.pass, true);
+  const approves = score({ items, pairs, byId, results: [...answer(() => true), ...prefer(good)] });
+  assert.equal(approves.pass, false, 'a judge that approves everything fails');
+  assert.ok(approves.single.basicFailsCalledAirable.length > 0);
+  const flips = score({ items, pairs, byId, results: [...answer((i) => i.label.airable), ...prefer(() => 'tie')] });
+  assert.equal(flips.pass, false, 'order flips count as errors');
+  assert.equal(flips.pairwise.flips, pairs.length);
+  const silent = score({ items, pairs, byId, results: [] });
+  assert.equal(silent.single.agreed, 0, 'an unanswered item is an item the judge did not get right');
+  assert.deepEqual(THRESHOLDS, { agreement: 0.85, pairwise: 0.9 });
 });
 
 // ── AC-2: the sealed exam ──────────────────────────────────────────────────────────────────
