@@ -20,12 +20,23 @@
 // session's own mode, and it carries on from its wave file. Only if that send fails does the firing
 // session take the run over itself. `idle`, when no marked run is open, pauses the task.
 //
+// A FIRING COSTS NOTHING when there is nothing to do. The model call is the whole cost of a firing
+// (about 85k tokens of context on the default model), so scripts/hooks/run-wake-gate.mjs runs the
+// check on the firing's prompt, before any model call, and blocks the prompt on alive, unknown and
+// waiting. Only resume and idle reach the model, with the check's output in its context; that
+// firing also archives the finished wake-up sessions and itself, so they do not pile up.
+//
 // LIVENESS is the harness's own process inventory (`claude agents --json`, scripts/claude-agents.mjs,
 // which drops a killed process) against the run's recorded sessions: the `Session:` lines and the
 // `Wake:` line. Any of them listed means the run has a coordinator, so nothing is done. None listed,
 // while the inventory answered, means it is gone: `resume`. An inventory that did not answer is
 // `unknown`, and the next firing asks again. A transcript's age is not used: a coordinator stopped
 // on the owner's answer is silent for hours and still alive.
+//
+// THE USAGE LIMIT stops a coordinator without ending its process: its turn ends on a rate-limit
+// error and no timer of its own fires again. So a running coordinator whose transcript ends on that
+// error is `waiting` until the limit's reset time the error records, and `resume` once it has
+// passed: the same message starts its next turn.
 //
 // THE MACHINE stays awake through `awake`, not the app's request_keep_awake, which lets go after
 // about five idle minutes and when the app quits. It starts a detached holder that keeps Windows
@@ -34,7 +45,8 @@
 // the start steps again, which start it again after a reboot. A closed lid still sleeps.
 
 import { spawn } from 'node:child_process';
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, closeSync, existsSync, fstatSync, openSync, readdirSync, readFileSync, readSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -71,12 +83,60 @@ export function writeWake(text, { host, session, resume }) {
   return `${text.slice(0, at)}Wake: ${host} ${session} ${resume}\n${text.slice(at + (match?.[0].length ?? 0))}`;
 }
 
+/** How far back a transcript is read for its last entry; one entry is far smaller. */
+const TAIL_BYTES = 256 * 1024;
+
+/** The transcript of Claude Code session `id`, under any project folder, or null. */
+function transcriptOf(id, projects = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(homedir(), '.claude'), 'projects')) {
+  if (!existsSync(projects)) return null;
+  for (const folder of readdirSync(projects)) {
+    const file = path.join(projects, folder, `${id}.jsonl`);
+    if (existsSync(file)) return file;
+  }
+  return null;
+}
+
+/**
+ * Did the conversation in this transcript text stop on the usage limit? Its last main-chain message
+ * is then the harness's rate-limit error: `{ resetsAt }` (ms, or null when the error has none).
+ * Otherwise null. Lines that do not parse, such as a first line cut by the tail read, are skipped.
+ */
+export function usageStopIn(text) {
+  const lines = String(text).split('\n');
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    let entry;
+    try { entry = JSON.parse(lines[i]); } catch { continue; }
+    if ((entry.type !== 'user' && entry.type !== 'assistant') || entry.isSidechain) continue;
+    if (entry.type !== 'assistant' || entry.error !== 'rate_limit') return null;
+    const at = Number(entry.quotaLimits?.resetsAt);
+    return { resetsAt: at > 0 ? at * 1000 : null };
+  }
+  return null;
+}
+
+/** `usageStopIn` for session `id`'s transcript, read from its tail. */
+function usageStop(id) {
+  const file = transcriptOf(id);
+  if (!file) return null;
+  const fd = openSync(file, 'r');
+  try {
+    const { size } = fstatSync(fd);
+    const length = Math.min(size, TAIL_BYTES);
+    const buffer = Buffer.alloc(length);
+    readSync(fd, buffer, 0, length, size - length);
+    return usageStopIn(buffer.toString('utf8'));
+  } finally {
+    closeSync(fd);
+  }
+}
+
 /**
  * One run's state from its wave file's text and the process inventory (or a function returning it,
  * asked only for an open armed run): over (report written, window ended or not armed) | alive |
- * resume | unknown, each with `why`.
+ * waiting (stopped on the usage limit until it resets) | resume | unknown, each with `why`.
+ * `stopped(id)` says whether a running session stopped on the usage limit (see `usageStop`).
  */
-export function wakeVerdict({ text, inventory, now = Date.now() }) {
+export function wakeVerdict({ text, inventory, now = Date.now(), stopped = usageStop }) {
   const wake = readWake(text);
   if (!wake) return { verdict: 'over', why: 'the run has no wake-up' };
   const { why } = holdable(text, now);
@@ -88,9 +148,17 @@ export function wakeVerdict({ text, inventory, now = Date.now() }) {
     return { verdict: 'unknown', why: `the process inventory did not answer${inventory?.why ? ` (${inventory.why})` : ''}` };
   }
   const ids = [...new Set([...sessions, wake.session])];
-  const live = ids.find((id) => index.bySession.has(id));
-  if (live) return { verdict: 'alive', why: `session ${live} is running (pid ${index.bySession.get(live).pid})` };
-  return { verdict: 'resume', why: `no recorded session is running (${ids.join(', ')})`, ...wake };
+  const live = ids.filter((id) => index.bySession.has(id));
+  if (live.length === 0) return { verdict: 'resume', why: `no recorded session is running (${ids.join(', ')})`, ...wake };
+  const stops = live.map((id) => stopped(id));
+  const working = live.find((id, i) => !stops[i]);
+  if (working) return { verdict: 'alive', why: `session ${working} is running (pid ${index.bySession.get(working).pid})` };
+  const resets = stops.map((stop) => stop.resetsAt);
+  const until = resets.includes(null) ? null : Math.max(...resets);
+  if (until && until > now) {
+    return { verdict: 'waiting', why: `session ${live.join(', ')} stopped on the usage limit, which resets at ${new Date(until).toISOString()}` };
+  }
+  return { verdict: 'resume', usage: true, why: `session ${live.join(', ')} stopped on the usage limit, which has reset`, ...wake };
 }
 
 /**
@@ -102,35 +170,48 @@ export function wakeReport(runs) {
   const open = runs.filter((run) => run.verdict !== 'over');
   const resume = open.find((run) => run.verdict === 'resume');
   if (resume) {
+    const stop = resume.usage
+      ? 'you stopped on the usage limit, which has now reset, and this message starts your next turn'
+      : 'your process had stopped and this message started it again';
     return [
       `resume: ${resume.why} for ${resume.file}`,
       `session_id: ${resume.host}`,
-      `message: Wake-up: your process had stopped and this message started it again. Continue the run in ${resume.file} with ${resume.resume}: reconcile first, launch nothing twice.`,
+      `message: Wake-up: ${stop}. Continue the run in ${resume.file} with ${resume.resume}: reconcile first, launch nothing twice.`,
       `command: ${resume.resume}`,
     ];
   }
   if (open.length === 0) return ['idle: no open run has a wake-up'];
-  const verdict = open.some((run) => run.verdict === 'unknown') ? 'unknown' : 'alive';
+  const verdict = ['unknown', 'waiting'].find((word) => open.some((run) => run.verdict === word)) ?? 'alive';
   return [`${verdict}: ${open.map((run) => `${path.basename(run.file)} ${run.verdict} (${run.why})`).join('; ')}`];
 }
+
+/** The first words of a check that leave nothing for a firing to do: its prompt gate blocks them. */
+export const QUIET_VERDICTS = Object.freeze(['alive', 'unknown', 'waiting']);
+
+/** The wake-up sessions' title, which the firing that acts archives. */
+export const WAKE_TITLE = 'NoaCG run wake-up';
 
 /** The create_scheduled_task arguments; `repo` is the primary checkout, where its runs start. */
 export function wakeTask(repo) {
   return {
     taskId: WAKE_TASK_ID,
-    title: 'NoaCG run wake-up',
-    description: 'Restarts a plan run or wave whose coordinator session stopped',
+    title: WAKE_TITLE,
+    description: 'Restarts a plan run or wave whose coordinator session stopped or hit the usage limit',
     cronExpression: WAKE_CRON,
     notifyOnCompletion: false,
     prompt: [
-      'Durable wake-up for NoaCG plan runs and waves. Do only this:',
-      `1. In ${repo}, run exactly: node scripts/run-wake.mjs check`,
-      '2. Act on the first word of its output and nothing else:',
-      '   - alive or unknown: end here and do nothing more.',
-      `   - idle: pause this task with update_scheduled_task (taskId ${WAKE_TASK_ID}, enabled false), then end.`,
+      'Durable wake-up for NoaCG plan runs and waves. Do only this, in as few turns as you can:',
+      '1. The output of `node scripts/run-wake.mjs check` is normally already in your context (a prompt hook',
+      `   ran it). Only if it is not, run exactly, in ${repo}: node scripts/run-wake.mjs check`,
+      '2. Act on the first word of that output and nothing else:',
+      '   - alive, unknown or waiting: end here and do nothing more.',
+      `   - idle: pause this task with update_scheduled_task (taskId ${WAKE_TASK_ID}, enabled false).`,
       '   - resume: send the printed message to the printed session_id with mcp__ccd_session_mgmt__send_message;',
       '     that restarts the run\'s own coordinator session. Only if the send fails, invoke the printed',
-      '     command with the Skill tool (its name without the slash, the rest as arguments) and follow it.',
+      '     command with the Skill tool (its name without the slash, the rest as arguments), follow it and',
+      '     end without step 3.',
+      `3. Clean up: list_sessions (limit 100), then in one parallel batch archive_session every other session titled "${WAKE_TITLE}"`,
+      '   (finished firings), then archive_session "self". Write no report.',
     ].join('\n'),
   };
 }
@@ -215,7 +296,8 @@ function arm(file, argv, env = process.env) {
   return 0;
 }
 
-function check(files) {
+/** One check over the given wave files (default: every one in the store): its output lines. */
+export function runCheck(files = wavePlanFiles().map((name) => path.join(wavePlansDir(), name))) {
   const runs = files.filter((file) => existsSync(file))
     .map((file) => ({ file, ...wakeVerdict({ text: readFileSync(file, 'utf8'), inventory: harnessInventory }) }));
   const lines = wakeReport(runs);
@@ -224,8 +306,7 @@ function check(files) {
     const text = readFileSync(resume.file, 'utf8');
     appendFileSync(resume.file, `${text.endsWith('\n') || !text ? '' : '\n'}- ${new Date().toISOString()} wake-up: ${resume.why}; restarting its session ${resume.host}\n`, 'utf8');
   }
-  process.stdout.write(`${lines.join('\n')}\n`);
-  return 0;
+  return lines;
 }
 
 function fail(message, code) {
@@ -241,8 +322,8 @@ export function main(argv = process.argv.slice(2)) {
   const [command, file] = argv;
   if (command === 'hold') return hold(file).then(() => 0);
   if (command === 'check') {
-    const folder = wavePlansDir();
-    return check(argv.length > 1 ? argv.slice(1) : wavePlanFiles().map((name) => path.join(folder, name)));
+    process.stdout.write(`${runCheck(...(argv.length > 1 ? [argv.slice(1)] : [])).join('\n')}\n`);
+    return 0;
   }
   if (!['arm', 'awake'].includes(command) || !file) return fail(USAGE, 2);
   if (!existsSync(file)) return fail(`no wave file at ${file}`, 1);
