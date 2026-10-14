@@ -597,6 +597,7 @@ export default function CreationWizard() {
         madeThisOpen.current = made;
         setBrandChoices(walk.brandChoices);
         setBrandId(walk.brandId);
+        brandInForce.current = walk.brandChoices.find((b) => b.id === walk.brandId)?.brand ?? null;
         setStretchDemo(null);
         resetKit();
         // The step the walk ENDED on, not the one the history entry happens to name: the
