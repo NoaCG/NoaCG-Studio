@@ -86,7 +86,10 @@
           </div>
         </div>
         <div class="doc-nav-topic">
-          <a href="#claude-code">Coding agents &amp; the CLI</a>
+          <a href="#claude-code">AI agents &amp; the CLI</a>
+          <div class="doc-nav-sub" id="nav-agents">
+            <a href="#chat-connector">Claude, ChatGPT &amp; chat apps</a>
+          </div>
         </div>
       </nav>
 
@@ -2331,6 +2334,36 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             The graphic itself is plain HTML, CSS and JavaScript. So the same sources also export
             to CasparCG, an OBS or vMix overlay, H2R and LiveOS. The full reference is
             <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/AGENT_CLI.md">AGENT_CLI.md</a>.
+          </p>
+        </section>
+
+        <section id="chat-connector">
+          <h2>Prepare a show from Claude, ChatGPT or another chat app</h2>
+          <p>
+            Add NoaCG to a chat app as a connector and sign in. The app can then read your library
+            and put a production with its rundown on your Home. You open it with Install.
+          </p>
+          <p>The connector address:</p>
+          <pre><code>https://noacg.studio/mcp</code></pre>
+          <ol>
+            <li>In the chat app, add a custom connector with this address.</li>
+            <li>Sign in to NoaCG when the app asks, and press <strong>Allow</strong>.</li>
+            <li>Ask for what you need, for example a rundown from an order of service, in your
+              brand.</li>
+            <li>Open Home in the studio and press <strong>Install</strong>.</li>
+          </ol>
+          <p>In Claude Code, the same connector is one command:</p>
+          <pre><code>claude mcp add --transport http noacg https://noacg.studio/mcp</code></pre>
+          <p>
+            The connector reads your graphics, brands and productions, picks designs from the
+            catalog, copies your own graphics, applies a brand and fills the cues. It does not
+            write new graphic code, and it does not edit, delete, publish or play anything. For new
+            designs, use a <a href="#claude-code">coding agent with the CLI</a>.
+          </p>
+          <p>
+            Every connected app is listed in Settings &rarr; Account &rarr; Agent access, where
+            Revoke ends it. What an app reads goes to that app&rsquo;s provider, under its terms
+            (<a href="/privacy">privacy</a>).
           </p>
         </section>
       </div>
