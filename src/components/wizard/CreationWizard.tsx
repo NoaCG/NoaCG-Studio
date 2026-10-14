@@ -107,6 +107,7 @@ import {
   walkOf,
   type WizardMode,
 } from './shell/walks';
+import { makeDoors } from './shell/doors';
 
 // The steps that list or build on catalog designs load with the catalog, never with the wizard:
 // the Entry step must open without it (components/catalogOnDemand.tsx).
@@ -114,20 +115,23 @@ const BrowseStep = lazyStep(() => import('./steps/BrowseStep'));
 const FieldsStep = lazyStep(() => import('./steps/FieldsStep'));
 const AiStep = lazyStep(() => import('./steps/AiStep'));
 
-/**
- * An Export door whose SAVE failed. The report comes from the app-level dialog, the one place
- * a storage failure is announced (App.tsx). The outcome line says where the work actually is,
- * which is the part a "storage is full" string alone never answers: the wizard stays open on
- * Finish under the export window, with the graphic built.
- */
-function reportFailedCreateSave(name: string, error: string | null): void {
-  raiseStorageAlert({
-    action: `Saving “${name}”`,
-    error: error ?? 'The graphic could not be saved.',
-    outcome:
-      'It is still open in the wizard, unsaved. You can export it without saving, or free some room and press Export it again.',
-  });
-}
+/** What the doors (shell/doors.ts) reach in the studio beyond the walk: stores, writes, routes. */
+const STUDIO_DOOR_IO = {
+  built: () => {
+    const s = useTemplateStore.getState();
+    return { template: s.template, graphicId: s.saved.graphicId };
+  },
+  openExport: () => {
+    const s = useTemplateStore.getState();
+    useExportUi.getState().openExport({ template: s.template, sampleData: s.sampleData, graphicId: s.saved.graphicId });
+  },
+  openEditor: () => openNewEditor({ replace: true }),
+  requestProductionExport: (showId: string) => useTemplateStore.setState({ pendingProductionExport: showId }),
+  navigate: (route: Route) => useRouter.getState().navigate(route),
+  replace: (route: Route) => useRouter.getState().replace(route),
+  raiseStorageAlert, publishGate, loadShows, createShowNamedChecked, commitDurableWrites, addGraphicToShow,
+  setShowLook, captureLookFromTemplate, saveTemplateSetToProduction, trackEvent,
+};
 
 /** One entry in the footer's brand chooser: a saved brand, by the name its owner gave it.
  *
@@ -900,8 +904,8 @@ export default function CreationWizard() {
    * the three APPLIERS rather than by each of FinishStep's doors, so a door added to that step
    * later inherits it.
    *
-   * The KIT and Pro-PACKAGE endings reach neither applier (`openKitProduction`, `exportKit`,
-   * `openAiPackage`, `exportAiPackage` save a SET, not a document), so they still leave the
+   * The KIT and Pro-PACKAGE endings reach no applier (the set doors, `openSet` and `exportSet`,
+   * save a SET, not a document), so they still leave the
    * wizard with no way back in. Deliberately out of scope here and recorded in
    * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md rather than half-wired.
    */
@@ -981,6 +985,17 @@ export default function CreationWizard() {
     }
     return saveGraphicAs(name, { kind: 'standalone' });
   };
+
+  /** Every ending of the walk (shell/doors.ts), each taking the mode's applier below. */
+  const doors = makeDoors({
+    ...STUDIO_DOOR_IO,
+    saveBuiltGraphic,
+    noteMade,
+    closeGallery,
+    productionPress: addingToProduction,
+    setSetBusy: setKitBusy,
+    setSetError: setKitError,
+  });
 
   // Apply a freshly GENERATED template as a new project. Its HTML is tidied through Prettier
   // first (HTML only - the CSS keeps its hand-aligned property comments and the JS animation
@@ -1092,46 +1107,12 @@ export default function CreationWizard() {
 
   /**
    * SAVE THE WHOLE SET: every graphic to the library, pooled into one new PRODUCTION - the
-   * unit that airs (docs/GOALS_ARCHIVE.md "Student release" step 3). The write path and its
-   * durable-write claims live in model/templateSet.ts.
+   * unit that airs (docs/GOALS_ARCHIVE.md "Student release" step 3). The doors' `saveSet` gates
+   * every member first; the write path and its durable-write claims live in model/templateSet.ts.
    */
   const saveKit = async (dest: ProductionDest): Promise<Show | null> => {
     if (!kit) return null;
-    return saveTemplateSet(committedKit(kit).built, kit.pack.name, dest, 'kit');
-  };
-
-  /**
-   * The SET-shaped ending, shared by the catalog kit and a NoaCG Pro package (§15.9).
-   *
-   * The actual save lives in model/templateSet.ts (`saveTemplateSetToProduction`), shared with
-   * the pack importer - two copies would be two chances for one of them to forget the
-   * durable-write claim. This wrapper owns only the wizard's busy/error state and the
-   * activation event.
-   */
-  const saveTemplateSet = async (
-    templates: SpxTemplate[],
-    fallbackName: string,
-    dest: ProductionDest,
-    activation: 'kit' | 'pro',
-  ): Promise<Show | null> => {
-    if (!templates.length) return null;
-    setKitBusy(true);
-    setKitError(null);
-    try {
-      // Refuse the whole set before writing its library or rundown, matching single admission.
-      for (const template of templates) {
-        const gate = publishGate(template, true);
-        if (!gate.ok) throw new Error(`"${template.name}" failed validation: ${gate.errors[0]?.message ?? 'unknown error'}. Fix the graphic before adding this set to a production.`);
-      }
-      const target = await saveTemplateSetToProduction(templates, fallbackName, dest);
-      trackEvent('activation', activation);
-      return target;
-    } catch (error) {
-      setKitError(error instanceof Error ? error.message : String(error));
-      return null;
-    } finally {
-      setKitBusy(false);
-    }
+    return doors.saveSet(committedKit(kit).built, kit.pack.name, dest, 'kit');
   };
 
   /** What "Apply this Style to all" is actually offering to carry, in the user's own words -
@@ -1148,31 +1129,6 @@ export default function CreationWizard() {
     return `${palette.name} · ${font}`;
   };
 
-  /** Door 1: save the set, land on the production page. */
-  const openKitProduction = (dest: ProductionDest) => {
-    void saveKit(dest).then((show) => {
-      if (!show) return;
-      closeGallery();
-      useRouter.getState().navigate({ view: 'production', id: show.id });
-    });
-  };
-
-  /**
-   * Door 2: save the set, then export it as ONE package - without the editor ever opening
-   * (src/components/AGENTS.md: export is not a reward for opening the editor). The target
-   * picker and the validation gate live on ProductionExportDialog, so the wizard asks for that
-   * surface through the store's one-shot `pendingProductionExport` (the `pendingProductionId`
-   * idiom) rather than growing a second whole-show export screen that could disagree with it.
-   */
-  const exportKit = (dest: ProductionDest) => {
-    void saveKit(dest).then((show) => {
-      if (!show) return;
-      useTemplateStore.setState({ pendingProductionExport: show.id });
-      closeGallery();
-      useRouter.getState().navigate({ view: 'production', id: show.id });
-    });
-  };
-
   // The AI graphic's name: the Finish field, else the generated design's own name — the same
   // rule catalog modes apply through draftName, just off the result instead of a variant.
   const aiName = (): string => draft.name.trim() || (aiResult?.template.name ?? '');
@@ -1187,31 +1143,12 @@ export default function CreationWizard() {
   const aiPack = (): SpxTemplate[] | null =>
     aiResult?.pack && aiResult.pack.length > 1 ? aiResult.pack : null;
 
-  /** Door 1: save the whole package, land on the production page. */
-  const openAiPackage = (dest: ProductionDest) => {
+  /** Save the whole package, through the kit's own set doors. The name the user typed on Finish
+   *  names the PRODUCTION here rather than one graphic - there is no single graphic for it to
+   *  name - and each member keeps the name its own composer gave it. */
+  const saveAiPack = async (dest: ProductionDest): Promise<Show | null> => {
     const pack = aiPack();
-    if (!pack) return;
-    // The name the user typed on Finish names the PRODUCTION here rather than one graphic -
-    // there is no single graphic for it to name - and each member keeps the name its own
-    // composer gave it, which is the design language's name plus what the graphic is.
-    void saveTemplateSet(pack, aiName() || pack[0].name, dest, 'pro').then((show) => {
-      if (!show) return;
-      closeGallery();
-      useRouter.getState().navigate({ view: 'production', id: show.id });
-    });
-  };
-
-  /** Door 2: save the package, then export that production as ONE zip - the kit's own door,
-   *  reached the same way (the wizard never grows a second whole-show export screen). */
-  const exportAiPackage = (dest: ProductionDest) => {
-    const pack = aiPack();
-    if (!pack) return;
-    void saveTemplateSet(pack, aiName() || pack[0].name, dest, 'pro').then((show) => {
-      if (!show) return;
-      useTemplateStore.setState({ pendingProductionExport: show.id });
-      closeGallery();
-      useRouter.getState().navigate({ view: 'production', id: show.id });
-    });
+    return pack ? doors.saveSet(pack, aiName() || pack[0].name, dest, 'pro') : null;
   };
 
   /**
@@ -1250,44 +1187,6 @@ export default function CreationWizard() {
     return useTemplateStore.getState().template;
   };
 
-  /** The AI export door: create, SAVE, and go straight to the export window (mirrors
-   *  createAndExport, including keeping the wizard open UNDER the window so closing it
-   *  returns to the last creation step). The save is not optional — an export-only creation
-   *  that vanished would cost the whole AI generation to reproduce. A failed save says so
-   *  and leaves the wizard open on Finish. */
-  const createFromAiAndExport = () => {
-    void applyAiProject().then(async (template) => {
-      if (!template) return;
-      const saved = await saveBuiltGraphic(aiName());
-      const s = useTemplateStore.getState();
-      if (!saved.ok) reportFailedCreateSave(aiName(), saved.error);
-      else noteMade(aiName(), null);
-      useExportUi.getState().openExport({
-        template: s.template,
-        sampleData: s.sampleData,
-        graphicId: s.saved.graphicId,
-      });
-    });
-  };
-
-  /** One press, one production. A second press of "Add to the production" while the first is
-   *  still building and saving adds nothing: it made a second production under the same name,
-   *  each pooling the graphic. Released when the door lands or fails, so a retry still works. */
-  const pressProductionDoor = (run: () => Promise<void>) => {
-    if (addingToProduction.current) return;
-    addingToProduction.current = true;
-    void run().finally(() => {
-      addingToProduction.current = false;
-    });
-  };
-
-  /** The AI production door - the same primary ending as the catalog one (byte-identical
-   *  doors doctrine: both route through applyAiProject). */
-  const createFromAiAndAddToProduction = (dest: ProductionDest) =>
-    pressProductionDoor(async () => {
-      if (await applyAiProject()) await addToProduction(dest, aiName());
-    });
-
   /**
    * Build the drafted graphic and make it the working project. BOTH Finish doors go through
    * here — including the export one, which is what keeps the two endings byte-identical: the
@@ -1320,128 +1219,10 @@ export default function CreationWizard() {
     return useTemplateStore.getState().template;
   };
 
-  // Apply the final formatted document once. Opt in without a reload/autosave race,
-  // and retain the walk-back warning before a stale wizard draft can replace edits.
-  const createAndEditArtwork = () => {
-    void applyDraftProject().then((template) => {
-      if (!template) return;
-      noteMade(template.name, null, { view: 'editor-foundation' });
-      openNewEditor({ replace: true });
-      closeGallery();
-    });
-  };
+  /** The catalog walk's name for what it built, read once the applier has built it. */
+  const catalogName = () => (variant ? draftName(variant, draft) : '');
 
-  /**
-   * The export door: create it, SAVE it, and go straight to the export window, which opens
-   * OVER the wizard. The save is not optional here. This branch exists for someone who is done,
-   * and a graphic that was configured, exported and then dropped would be unrecoverable: every
-   * wizard choice would have to be made again to get the same package back.
-   *
-   * If the save fails (a full quota is the realistic cause) the storage dialog says so, and
-   * the wizard is still open on Finish with the graphic built, so the export can go ahead
-   * unsaved or the door can be pressed again once there is room.
-   */
-  const createAndExport = () => {
-    void applyDraftProject().then(async (template) => {
-      if (!template || !variant) return;
-      const saved = await saveBuiltGraphic(draftName(variant, draft));
-      // Read AFTER the save: it renames the working template to the record's name, which is
-      // what the export slugs the zip and the SPX/CasparCG template folder from.
-      const s = useTemplateStore.getState();
-      if (!saved.ok) reportFailedCreateSave(draftName(variant, draft), saved.error);
-      else noteMade(draftName(variant, draft), null);
-      useExportUi.getState().openExport({
-        template: s.template,
-        sampleData: s.sampleData,
-        graphicId: s.saved.graphicId,
-      });
-    });
-  };
-
-  /**
-   * THE PRIMARY DOOR (docs/GOALS_ARCHIVE.md "Student release" step 6): create it, SAVE it (library
-   * record first - never lose the work), pool a copy into the chosen production with its
-   * auto-seeded first cue, capture the look onto a production that has none yet, and land on
-   * the production page - the road to air.
-   *
-   * NOTHING IS REVEALED ON THE WAY (owner walk, 2026-09-01: adding an imported graphic to a
-   * production flashed the canvas before the rundown appeared). Every create keeps the wizard
-   * open (applyGenerated), so it stays over the surface until this routes to the production.
-   * That also makes a FAILED save land somewhere useful: the wizard is still open on Finish,
-   * with the graphic built, so the door can simply be pressed again.
-   */
-  const addToProduction = async (dest: ProductionDest, name: string) => {
-    const saved = await saveBuiltGraphic(name);
-    if (!saved.ok) {
-      // NEVER a silent return - swallowing this left the user with no production, no saved
-      // graphic and nothing said (the acceptance-pass blocker of 2026-08-06).
-      raiseStorageAlert({
-        action: `Adding “${name}” to a production`,
-        error: saved.error ?? 'The graphic could not be saved.',
-        outcome:
-          'Your graphic is still open in the wizard, unsaved. Free some room, then press “Add to the production” again.',
-      });
-      return;
-    }
-    const s = useTemplateStore.getState();
-    let created: string | null = null;
-    const gate = publishGate(s.template, true);
-    if (!gate.ok) {
-      raiseStorageAlert({ action: `Adding “${name}” to a production`, error: gate.errors.map(e => e.message).join(' '), outcome: 'The graphic is preserved in your library. Correct it before adding it to the rundown.' });
-      return;
-    }
-    let show: Show | undefined;
-    if (dest.kind === 'existing') {
-      show = loadShows().find((x) => x.id === dest.id);
-    } else {
-      const made = createShowNamedChecked(dest.name);
-      show = made.show;
-      // The durable store confirms a write after the call returns, so every "did that land?"
-      // question here is one await (model/durableStore.ts's claim protocol) - claiming the
-      // failure is also what keeps THIS message, which names the production, rather than the
-      // generic announcement the app makes for an unclaimed one.
-      created = made.error ?? (await commitDurableWrites());
-    }
-    // A picked production deleted mid-wizard (another tab/device): fall back to a NEW one rather
-    // than dropping the work on the floor. UNNAMED, so the model's own floor answers - naming it
-    // after the graphic, which this used to do, is the defect the empty production box carried
-    // on the same door (e2e/import-svg.spec.ts, "an unnamed production is not named after the
-    // graphic"), and one door must not answer one question two ways.
-    if (!show) {
-      const made = createShowNamedChecked('');
-      show = made.show;
-      created = made.error ?? (await commitDurableWrites());
-    }
-    const target = show;
-    if (created) {
-      raiseStorageAlert({
-        action: `Creating the production “${target.name}”`,
-        error: created,
-        // Where the reader actually IS: the wizard, still on Finish (the door no longer routes
-        // through the editor), so the retry is the door they just pressed - not a trip to Home.
-        outcome: `“${name}” is saved in your library. Free some room, then press “Add to the production” again.`,
-      });
-      return;
-    }
-    const pooled = addGraphicToShow(target.id, s.template, { graphicId: s.saved.graphicId ?? undefined });
-    const pooledError = pooled.error ?? (await commitDurableWrites());
-    if (pooledError) {
-      raiseStorageAlert({
-        action: `Adding “${name}” to “${target.name}”`,
-        error: pooledError,
-        outcome: `“${name}” is saved in your library. Free some room, then press “Add to the production” again.`,
-      });
-      return;
-    }
-    if (!target.look) setShowLook(target.id, captureLookFromTemplate(s.template));
-    // The rundown this graphic went into, by name — what the walk-back warning states, and
-    // what makes a second pass down the walk replace that copy instead of adding another.
-    noteMade(name, target.name, { view: 'production', id: target.id });
-    closeGallery();
-    useRouter.getState().replace({ view: 'production', id: target.id });
-  };
-
-  /* ── A finished template file: the three doors, over the file exactly as written ────────
+  /* ── A finished template file: its applier, over the file exactly as written ────────────
      BYTE-FAITHFUL, deliberately: `applyTemplate` rather than `applyGenerated`, so nothing
      Prettier-formats somebody else's HTML on the way in. The name is the only edit — it slugs
      the zip and, on the SPX and CasparCG packages, the template FOLDER an operator reads. */
@@ -1455,39 +1236,6 @@ export default function CreationWizard() {
     trackEvent('activation', 'file');
     return useTemplateStore.getState().template;
   };
-
-  const createFromFileAndEditArtwork = () => {
-    const template = applyImportedFile();
-    if (!template) return;
-    noteMade(template.name, null, { view: 'editor-foundation' });
-    openNewEditor({ replace: true });
-    closeGallery();
-  };
-
-  const createFromFileAndExport = () => {
-    if (!applyImportedFile()) return;
-    void (async () => {
-      const saved = await saveBuiltGraphic(importedName());
-      const s = useTemplateStore.getState();
-      if (!saved.ok) reportFailedCreateSave(importedName(), saved.error);
-      else noteMade(importedName(), null);
-      useExportUi.getState().openExport({
-        template: s.template,
-        sampleData: s.sampleData,
-        graphicId: s.saved.graphicId,
-      });
-    })();
-  };
-
-  const createFromFileAndAddToProduction = (dest: ProductionDest) =>
-    pressProductionDoor(async () => {
-      if (applyImportedFile()) await addToProduction(dest, importedName());
-    });
-
-  const createAndAddToProduction = (dest: ProductionDest) =>
-    pressProductionDoor(async () => {
-      if ((await applyDraftProject()) && variant) await addToProduction(dest, draftName(variant, draft));
-    });
 
   /** Kit mode's Browse step is satisfied by a picked SHOW with at least one graphic ticked,
    *  never by a `draft.variantId` — no single design has been chosen at that point. */
@@ -2144,8 +1892,8 @@ export default function CreationWizard() {
                 onEditContents={() => moveKitTo(1)}
                 productions={finishProductions}
                 defaultProductionId={contextProductionId}
-                onOpenProduction={openKitProduction}
-                onExport={exportKit}
+                onOpenProduction={(dest) => void doors.openSet(saveKit, dest)}
+                onExport={(dest) => void doors.exportSet(saveKit, dest)}
                 busy={kitBusy}
                 error={kitError}
               />
@@ -2162,9 +1910,9 @@ export default function CreationWizard() {
                 fields={importedFile.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
-                onAddToProduction={createFromFileAndAddToProduction}
-                onEditArtwork={createFromFileAndEditArtwork}
-                onExport={createFromFileAndExport}
+                onAddToProduction={(dest) => void doors.addToProduction(applyImportedFile, dest, importedName)}
+                onEditArtwork={() => void doors.editArtwork(applyImportedFile)}
+                onExport={() => void doors.export(applyImportedFile, importedName)}
                 busy={false}
               />
             )}
@@ -2181,9 +1929,9 @@ export default function CreationWizard() {
                 fields={(previewTemplate?.fields ?? []).map((f) => f.field)}
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
-                onAddToProduction={createAndAddToProduction}
-                onEditArtwork={createAndEditArtwork}
-                onExport={createAndExport}
+                onAddToProduction={(dest) => void doors.addToProduction(applyDraftProject, dest, catalogName)}
+                onEditArtwork={() => void doors.editArtwork(applyDraftProject)}
+                onExport={() => void doors.export(applyDraftProject, catalogName)}
                 busy={!previewTemplate}
               />
             )}
@@ -2206,8 +1954,8 @@ export default function CreationWizard() {
                 // A Pro user never chose a "kit" - they asked for a channel's look and got the
                 // graphics built in it.
                 noun="package"
-                onOpenProduction={openAiPackage}
-                onExport={exportAiPackage}
+                onOpenProduction={(dest) => void doors.openSet(saveAiPack, dest)}
+                onExport={(dest) => void doors.exportSet(saveAiPack, dest)}
                 busy={kitBusy || !aiResult.valid}
                 error={kitError}
               />
@@ -2223,8 +1971,8 @@ export default function CreationWizard() {
                 fields={aiResult.template.fields.map((f) => f.field)}
                 defaultProductionId={contextProductionId}
                 madeId={finishMadeId}
-                onAddToProduction={createFromAiAndAddToProduction}
-                onExport={createFromAiAndExport}
+                onAddToProduction={(dest) => void doors.addToProduction(applyAiProject, dest, aiName)}
+                onExport={() => void doors.export(applyAiProject, aiName)}
                 busy={!aiResult.valid}
               />
             )}
