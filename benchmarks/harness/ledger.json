@@ -34,8 +34,8 @@
       "model": "claude-fable-5-1",
       "funding": "subscription",
       "notionalUsd": 155.43,
-      "outcome": "completed",
-      "note": "the frozen judge: 454 claude -p judgement calls (three prompt drafts on the 70% development part, one frozen run on the held-back 30%, then its re-run with the working directory blinded) and two model probes on the subscription, no credit; the blinded re-run paused at the usage limit with 11 of 16 held-back pairs unjudged (evidence/phase-2.md)"
+      "outcome": "paused",
+      "note": "the judge, up to the usage limit: 507 answered claude -p calls (two model probes, three prompt drafts on the 70% development part, one frozen run on the held-back 30%, then its re-run with the working directory blinded) on the subscription, no credit; the blinded re-run stopped at the session limit with 11 of 16 held-back pairs unjudged (at least 24 calls refused at $0: 22 recorded as errors, and the starts behind the two paused entries). Corrected 2026-10-15: this entry first said completed and 454 calls, which left out the probes and the blinded re-run (evidence/phase-2.md)"
     },
     {
       "at": "2026-10-14T20:42:05.334Z",
@@ -60,6 +60,19 @@
       "funding": "subscription",
       "outcome": "paused",
       "note": "the subscription's usage limit; paused until 2026-10-14T21:20:00.000Z; nothing moved to the credit"
+    },
+    {
+      "at": "2026-10-14T21:54:08.218Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H2",
+      "stage": "calibration-heldout",
+      "arm": "judge",
+      "model": "claude-fable-5-1",
+      "funding": "subscription",
+      "notionalUsd": 8.78,
+      "outcome": "completed",
+      "note": "the frozen judge, calibrated blind: the 11 remaining held-back pairs (22 claude -p calls) on the subscription, no pause, no credit; held-back pairwise 16 of 16 with no order flip, agreement 38 of 41, PASS. H2 in all: 529 answered calls and at least 24 refused at $0, $164.21 notional, $0 credit (evidence/phase-2.md)"
     }
   ]
 }

@@ -332,9 +332,11 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
   const record = (r) => writeFileSync(out, `${JSON.stringify({ judge: judge.fingerprint, at: new Date().toISOString(), ...r })}\n`, { flag: 'a' });
   const once = async (key, go) => {
     if (seen.has(key)) return;
-    for (;;) {
-      const r = await go();
+    // A paused pair hands back the order it already answered, and the retry judges only the other.
+    for (let answered; ;) {
+      const r = await go(answered);
       if (!r.paused) return r;
+      answered = r.answered;
       if (phase) {
         const ledger = readLedger(LEDGER_FILE);
         appendEntry(ledger, { kind: 'session', phase, stage: 'judge', arm: 'judge', model: judge.lock.model, funding: 'subscription', outcome: 'paused', note: `the subscription's usage limit; paused until ${r.paused.resetsAt ?? 'an unknown reset'}; nothing moved to the credit` });
@@ -361,7 +363,7 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
         const id = `${list[i].id}|${list[j].id}`;
         // Which one goes first is decided by the pair's own hash: no arm is always A.
         const xFirst = parseInt(createHash('sha256').update(id).digest('hex').slice(0, 2), 16) % 2 === 0;
-        const r = await once(`pairwise:${id}`, () => judgePair(judge, { brief: list[i].brief.prompt, x: graphic(list[i]), y: graphic(list[j]), xFirst, actions: list[i].brief.expect?.actions ?? [], dir: path.join(runDir, 'judge', 'pairwise', id.replace('|', '~')), claude, env, run }));
+        const r = await once(`pairwise:${id}`, (answered) => judgePair(judge, { brief: list[i].brief.prompt, x: graphic(list[i]), y: graphic(list[j]), xFirst, actions: list[i].brief.expect?.actions ?? [], answered, dir: path.join(runDir, 'judge', 'pairwise', id.replace('|', '~')), claude, env, run }));
         if (r) {
           record({ task: 'pairwise', id, brief, ...r });
           log(`  pairwise ${id.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `prefers ${r.combined}`}`);

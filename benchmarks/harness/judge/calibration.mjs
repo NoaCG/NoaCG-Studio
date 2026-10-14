@@ -366,7 +366,9 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
       const job = jobs[next++];
       const dir = path.join(work, 'judgements', part, job.task, keyOf(job.id));
       rmSync(dir, { recursive: true, force: true });
-      for (let attempt = 0; ; attempt++) {
+      let answered = [];
+      let retried = false;
+      for (;;) {
         let out;
         try {
           if (job.task === 'single') {
@@ -377,7 +379,8 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
             const bad = byId.get(job.bad);
             // The order of the first judgement is seeded by the pair, so neither side is always first.
             const goodFirst = parseInt(sha(job.id).slice(0, 2), 16) % 2 === 0;
-            out = await judgePair(judge, { brief: good.brief.text, x: { id: good.id, frames: resolveFrames(work, good) }, y: { id: bad.id, frames: resolveFrames(work, bad) }, xFirst: goodFirst, dir, claude, env });
+            out = await judgePair(judge, { brief: good.brief.text, x: { id: good.id, frames: resolveFrames(work, good) }, y: { id: bad.id, frames: resolveFrames(work, bad) }, xFirst: goodFirst, answered, dir, claude, env });
+            answered = out.answered ?? [];
           }
         } catch (e) {
           out = { error: e instanceof Error ? e.message : String(e) };
@@ -389,7 +392,11 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
           await sleep(wait);
           continue;
         }
-        if (out.error && attempt < 1) continue;
+        // One retry for an error; a pause waited out is not an attempt.
+        if (out.error && !retried) {
+          retried = true;
+          continue;
+        }
         notional += out.notionalUsd ?? 0;
         count++;
         const rec = { task: job.task, id: job.id, judge: judge.fingerprint, at: new Date().toISOString(), ...out };

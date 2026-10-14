@@ -180,18 +180,21 @@ export function combinePair(first, second) {
 /**
  * Pairwise preference, in both orders. `x` and `y`: `{ id, frames, operator? }`. `xFirst` says
  * which is A in the first judgement; the second swaps them. Returns both answers and the combined
- * preference (an id, or 'tie').
+ * preference (an id, or 'tie'). A pause or an error returns the orders already answered as
+ * `answered`; passed back on the retry, they are not judged again.
  */
-export async function judgePair(judge, { brief, x, y, xFirst = true, actions = [], dir, claude, env, run }) {
+export async function judgePair(judge, { brief, x, y, xFirst = true, actions = [], answered = [], dir, claude, env, run }) {
   const orders = xFirst ? [[x, y], [y, x]] : [[y, x], [x, y]];
-  const answers = [];
-  let notionalUsd = 0;
-  for (const [i, [a, b]] of orders.entries()) {
+  if (answered.some((o, i) => o.a !== orders[i]?.[0].id || o.b !== orders[i]?.[1].id)) throw new Error('the answered orders are not this pair\'s');
+  const answers = [...answered];
+  let notionalUsd = answers.reduce((n, o) => n + (o.notionalUsd ?? 0), 0);
+  for (let i = answers.length; i < orders.length; i++) {
+    const [a, b] = orders[i];
     const graphics = [{ label: 'A', frames: a.frames }, { label: 'B', frames: b.frames }];
     const operator = a.operator || b.operator ? { A: a.operator ?? [], B: b.operator ?? [] } : null;
     const out = await judgeOnce(judge, { task: 'pairwise', brief, graphics, operator, actions, dir: path.join(dir, `order-${i + 1}`), claude, env, run });
     notionalUsd += out.notionalUsd ?? 0;
-    if (out.paused || out.error) return { ...out, notionalUsd };
+    if (out.paused || out.error) return { ...out, notionalUsd, answered: answers };
     answers.push({ a: a.id, b: b.id, ...out });
   }
   return { combined: combinePair(answers[0], answers[1]), orders: answers.map((o) => ({ a: o.a, b: o.b, sessionId: o.sessionId, models: o.models, notionalUsd: o.notionalUsd, answer: o.answer })), notionalUsd, ms: answers.reduce((n, o) => n + (o.ms ?? 0), 0) };

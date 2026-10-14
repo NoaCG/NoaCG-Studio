@@ -425,6 +425,18 @@ test('a pair is judged in both orders, and a preference that flips with the orde
   assert.match((await judgeSingle(judge, { brief: 'b', frames: x.frames, dir: tmp(), claude: 'claude', env: {}, run: helped })).error, /not served by the pinned model/, 'nor one another model mostly wrote');
   const shapeless = await judgePair(judge, { brief: 'b', x, y, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: judge.lock.model, answer: { airable: { A: true, B: true } } }) });
   assert.match(shapeless.error, /neither A nor B/, 'an answer without a preference is an error, never a silent B');
+  // The usage limit pausing the second order hands back the first, and the retry judges only the second.
+  const resumed = [];
+  const answers = judging({ model: judge.lock.model, calls: resumed, answer: (input, n) => pick(n === 1 ? 'A' : 'B') });
+  const limited = (file, args, opts) => (resumed.length === 1 && !limited.hit ? ((limited.hit = true), { status: 1, stdout: JSON.stringify({ is_error: true, result: 'You\'ve hit your session limit · resets 12:20am (Europe/Kyiv)', modelUsage: {} }), stderr: '' }) : answers(file, args, opts));
+  const paused = await judgePair(judge, { brief: 'b', x, y, xFirst: true, dir: tmp(), claude: 'claude', env: {}, run: limited });
+  assert.ok(paused.paused, 'the second order paused');
+  assert.equal(paused.answered.length, 1, 'with the first order answered');
+  const done = await judgePair(judge, { brief: 'b', x, y, xFirst: true, answered: paused.answered, dir: tmp(), claude: 'claude', env: {}, run: limited });
+  assert.equal(resumed.length, 2, 'the first order was not judged again');
+  assert.equal(done.combined, 'good');
+  assert.ok(Math.abs(done.notionalUsd - 0.6) < 1e-9, 'each order counted once');
+  await assert.rejects(() => judgePair(judge, { brief: 'b', x, y, xFirst: false, answered: paused.answered, dir: tmp(), claude: 'claude', env: {}, run: limited }), /not this pair's/);
 });
 
 test('the exam\'s judge runner refuses a judge whose hash differs, before any judgement starts', async () => {
