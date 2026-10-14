@@ -1503,3 +1503,20 @@ here the lock was spot-checked with a token from NoaCG's Allow, and step 3's spe
   SDK; run `npm ci` in the worktree before the dev server or the SDK client.
 - *Git Bash rewrites an argument starting with `/`* into a Windows path before Node sees it
   (`/v1/projects/...` became `C:/Program Files/Git/v1/...`); pass API routes without the slash.
+
+### Launch (2026-10-14)
+
+- *Staging, real clients:* the Claude desktop app and Claude Code connected through a local dev
+  server against staging, listed the library, sent a two-graphic package, and it installed on
+  Home. Two blockers found and fixed on the way: the consent page refused the Claude app's
+  `claude://` redirect (now an allowlist of http(s) and `claude:`), and the 2026-07-28 tool list
+  lacked `ttlMs` and `cacheScope`, so Claude Code showed no tools (#1135). A plain library call was
+  then made names and ids only (#1181).
+- *Production switched on* by the owner's authority with `connector-switch.mjs production on`
+  (2026-10-14, about 12:00 Helsinki): every setting read back as sent, `noacg.studio/mcp` answered
+  401. The privacy policy's Connected apps paragraph and the docs section (`/docs#chat-connector`)
+  went live first (#1190, #1191).
+- *Claude.ai on production:* the owner signed in at noacg.studio with the hook on, then connected
+  Claude.ai: consent, Allow, and a library listing (25 of 115 graphics, productions, teams).
+  Claude.ai did not ask for `openid`.
+- *Not checked:* ChatGPT and other clients; the docs say they are expected, not tried.
