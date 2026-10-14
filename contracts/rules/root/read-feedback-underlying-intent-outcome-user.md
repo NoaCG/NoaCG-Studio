@@ -3,7 +3,7 @@ v: 1
 scope: **
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-10-07
 record: contracts/records/root/2026-10-07-read-feedback-underlying-intent-outcome-user.md
 ---
