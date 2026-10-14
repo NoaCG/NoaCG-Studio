@@ -156,6 +156,17 @@ function svgFitSlot(el) {
   return cap > 0 ? cap : slot.offsetWidth;
 }
 
+/** SET A LINE'S TYPE SIZE, or clear it with '' - and write its style ATTRIBUTE at once.
+ *
+ *  Chrome writes the attribute lazily, where it is first read, so on a line's first fit the size
+ *  landed after whatever the pass wrote next (a squeeze's textLength, a growth's transform) and
+ *  on every later fit before it: the same value fitted twice serialized differently (#1143).
+ *  Reading it back is what writes it now. */
+function svgSetSize(el, size) {
+  el.style.fontSize = size;
+  el.getAttribute('style');
+}
+
 // ── THE LAST RUNG: NOTHING PAINTS OUTSIDE ITS ROOM (owner ruling, 2026-08-26) ──
 // The ladder used to stop at the readability floor and simply REPORT a value it could not fit,
 // which left the floored line running straight across whatever the designer drew beside it. So a
@@ -183,17 +194,6 @@ function svgFitSlot(el) {
 // being readable is not "inside the panel" in any sense an audience would recognise. Every value
 // that could be squeezed legibly is squeezed exactly as before, and both are still reported
 // through noacgTextOverflow(), which is what puts the warning in front of the operator.
-/** SET A LINE'S TYPE SIZE, or clear it with '' - and write its style ATTRIBUTE at once.
- *
- *  Chrome writes the attribute lazily, where it is first read, so on a line's first fit the size
- *  landed after whatever the pass wrote next (a squeeze's textLength, a growth's transform) and
- *  on every later fit before it: the same value fitted twice serialized differently (#1143).
- *  Reading it back is what writes it now. */
-function svgSetSize(el, size) {
-  el.style.fontSize = size;
-  el.getAttribute('style');
-}
-
 function svgUnsqueeze(el) {
   if (svgFitPlaced(el)) {
     el.style.transform = '';

@@ -317,8 +317,7 @@ function svgLayoutRest() {
   // (svgLinesInside), and the last pass left its own answer on the node: an anchor moved by the
   // panel's growth, a size, a squeeze, a wrap. A line that pass had carried past its panel's
   // edge then read as outside it, and the same value grew the panel on one update and not on
-  // the next (#1143).
-  // A placed line has no anchor or wrap of its own, only a size and a squeeze. A line that is not
+  // the next (#1143). A placed line has no anchor or wrap of its own, only a size and a squeeze. A line that is not
   // laid out is left as it is: no panel can count it, and the fit would skip it, owed, leaving it
   // flattened.
   var lines = svgFitNodes();
