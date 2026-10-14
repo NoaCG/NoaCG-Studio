@@ -975,7 +975,8 @@ the spend added to the ledger, and the check's findings.
   blinded run started at 20:35Z. The records keep no working directory, so `nj-` rests on the
   code at `f85a356d5` and its test; the kept per-order prompts name only `A-1.png` and the like.
   The labels spot-checked against the archived notes agree (`rr:X-07` OK*, `rr:X-13` AIR,
-  `ts:X-10` TWEAKS, `ts:X-11` FAIL with the accent over the text, `ts:X-19` FAIL empty, `ff:X-55`).
+  `ts:X-10` TWEAKS, `ts:X-11` FAIL with the accent over the text, `ts:X-19` FAIL empty, `ff:X-55`
+  not okay for a stroke almost over the logo).
 - **Ledger:** $0 credit (`spentCents` 0); `phaseCompleted` is true for H0, H1 and H2 and false for
   H3. The call counts add up: 59 + 161 + 161 + 73 + 2 probes + 51 blinded = 507, then 22 = 529; the
   notional $155.43 + $8.78 = $164.21, and the runs log gives $8.78 for the repair run.
