@@ -825,13 +825,9 @@ function svgIsEndCap(o, r, panel, axis, dir) {
  *  is - an end CAP bounds the room without penning the line (see svgIsEndCap).
  *
  *  Only what is drawn INSIDE the panel is a neighbour, for the same reason svgFitCeiling only
- *  looks inside it: a plate standing beside this one is not this line's furniture.
- *
- *  TWO LINES THAT GROW TOWARDS EACH OTHER SHARE THE GAP between them, half each. A ticker's story
- *  fills rightwards and its end-anchored source leftwards: bounded each by where the other was
- *  DRAWN, both may fill the same gap, and with two long values they painted over each other,
- *  unreported (#1148). The room is measured once, at rest, so it cannot depend on which of the
- *  two values is the long one; the middle of the gap is the one bound both can keep. */
+ *  looks inside it: a plate standing beside this one is not this line's furniture. Where the
+ *  neighbour is part of another bound line, that line is returned as well (measureSvgRoom shares
+ *  the gap between two lines that grow towards each other). */
 function svgFitNeighbour(el, panel, dir) {
   var art = document.querySelector('.__PREFIX__-art');
   var box = el.getBoundingClientRect();
@@ -852,26 +848,16 @@ function svgFitNeighbour(el, panel, dir) {
     if (left ? r.right > edge : r.left < edge) {
       edge = left ? r.right : r.left;
       near = o;
-      cap = svgIsEndCap(o, r, panel, 'x', left ? -1 : 1);
+      cap = svgIsEndCap(o, r, panel, 'x', dir);
     }
   }
-  var other = near && !cap ? svgFitLineOf(near) : null;
-  if (other && svgFitLaidOut(other) && !svgFitPlaced(other)) {
-    var mine = svgAlignOf(el, svgFitContainer(el)).h;
-    var theirs = svgAlignOf(other, svgFitContainer(other)).h;
-    // Left of the pair grows right unless it is end-anchored; right of the pair grows left
-    // only when it is.
-    var facing = left ? mine === 'end' && theirs !== 'end' : mine !== 'end' && theirs === 'end';
-    if (facing) edge = (edge + (left ? box.left : box.right)) / 2;
-  }
-  return { edge: edge, cap: cap };
-}
-
-/** The bound line a drawn thing belongs to (a line, or one of its own runs), else null. */
-function svgFitLineOf(o) {
+  var line = null;
   var nodes = svgFitNodes();
-  for (var i = 0; i < nodes.length; i++) if (nodes[i] === o || nodes[i].contains(o)) return nodes[i];
-  return null;
+  for (var n = 0; near && !cap && n < nodes.length; n++) {
+    if (nodes[n] === near || nodes[n].contains(near)) line = nodes[n];
+  }
+  if (line && (!svgFitLaidOut(line) || svgFitPlaced(line))) line = null;
+  return { edge: edge, cap: cap, line: line };
 }
 
 function measureSvgRoom() {
@@ -903,6 +889,10 @@ function measureSvgRoom() {
     nodes[a].style.fontSize = '';
     if (swapped[a]) svgShowDrawn(nodes[a], drawn);
   }
+  // The line that pens each line on its right, and every end-anchored line penned on its left by
+  // another bound line: the pairs that may share the gap between them (below).
+  var penLine = {};
+  var facing = [];
   for (var i = 0; i < nodes.length; i++) {
     var el = nodes[i];
     // No box to read, so nothing is recorded and the line stays owed (svgFitLaidOut). Asked
@@ -948,11 +938,15 @@ function measureSvgRoom() {
       var gap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
       var pad = room.penned ? gap : inset;
       room.width = Math.max(svgFitWidths[el.id], (edge - pad - box.left) * scale);
+      if (room.penned && bound.line) penLine[el.id] = bound.line;
       // An END-anchored line grows LEFTWARDS, so what is drawn to its left pens it as well, the
       // same half type short of it (#1148).
       if (align.h === 'end') {
         var before = svgFitNeighbour(el, panel, -1);
         if (before.edge > panel.left + 0.5 && !before.cap) {
+          // How far left this line reaches with nothing beside it there, for the share below.
+          var wide = room.penned || !(align.width > 0) ? room.width : Math.max(svgFitWidths[el.id], align.width);
+          if (before.line) facing.push({ left: before.line, right: el, reach: box.right - wide / scale, gap: gap });
           var reach = Math.max(svgFitWidths[el.id], (box.right - gap - before.edge) * scale);
           room.width = room.penned ? Math.min(room.width, reach) : reach;
           room.penned = true;
@@ -1038,6 +1032,31 @@ function measureSvgRoom() {
       }
     }
     svgFitRoom[el.id] = room;
+  }
+  // TWO LINES THAT GROW TOWARDS EACH OTHER SHARE THE GAP between them. A ticker's story fills
+  // rightwards and its end-anchored source leftwards: bounded each by where the other was DRAWN,
+  // both may fill the same gap, and with two long values they painted over each other,
+  // unreported (#1148). The room is measured once, at rest, so it cannot depend on which value is
+  // the long one: they meet at the middle of the gap, unless the right one could never reach that
+  // far left anyway (a score figure penned on its other side), and then where it stops is the
+  // left one's bound. Each keeps its half type short of where they meet.
+  for (var f = 0; f < facing.length; f++) {
+    var pair = facing[f];
+    var leftRoom = svgFitRoom[pair.left.id];
+    var leftAlign = svgFitAlign[pair.left.id];
+    if (!leftRoom || penLine[pair.left.id] !== pair.right || !leftAlign || leftAlign.h === 'end') continue;
+    var lBox = pair.left.getBoundingClientRect();
+    var rBox = pair.right.getBoundingClientRect();
+    var lScale = 1 / svgFrameScale(pair.left);
+    var rScale = 1 / svgFrameScale(pair.right);
+    var middle = (lBox.right + rBox.left) / 2;
+    var meet = Math.max(middle, pair.reach);
+    var lGap = ((svgFitSizes[pair.left.id] || 0) * 0.5) / lScale;
+    leftRoom.width = Math.max(svgFitWidths[pair.left.id], Math.min(leftRoom.width, (meet - lGap - lBox.left) * lScale));
+    if (pair.reach < middle) {
+      var rightRoom = svgFitRoom[pair.right.id];
+      rightRoom.width = Math.max(svgFitWidths[pair.right.id], Math.min(rightRoom.width, (rBox.right - pair.gap - middle) * rScale));
+    }
   }
   // Put each value back in the shape it was in - the drawn LINES where the value is the drawn
   // one, so a block skipped by the ladder is not left flattened (measureSvgBudgets says why).
