@@ -679,8 +679,9 @@ and the check's findings. The AI track's notes live in its own spec.
   corrected below. The local browser queue refused jobs (about 1.4 GB free against its 4 GB
   floor), so browser evidence came from CI.
 - **Shas:** previous verified `main` `1dc34cebd` (built from `1e9ff904b`). Prerequisite: #1163
-  revives `e2e/wizard-brand.spec.ts` through the export door, in its own pull request landed
-  first. This phase's merge sha is the one the queue records. **Revert:** `git revert -m 1` this
+  revives `e2e/wizard-brand.spec.ts` through the export door, in its own pull request, landed
+  first as `25218ca58` (its CI run 38519527933: 7 passed; capacity 94.2%, +0.7 minutes, under
+  the 95% line). This phase's merge sha is the one the queue records. **Revert:** `git revert -m 1` this
   phase's merge commit (the shell takes its inline handlers back; #1163 stays, it only revives
   tests).
 - **What landed** (`evidence/phase-s2.md`): `import/drop.ts` with `svgDropPatch`, `clearSvgPatch`,
