@@ -50,14 +50,14 @@ none of these; data arrives through `update()`.
 | `bench-preplay` | error | nothing is visible BEFORE `play()` (a keyed graphic shows nothing before its cue) | the root starts hidden (`opacity: 0` / `visibility: hidden`); `play()` reveals it |
 | `bench-entrance` | error | the graphic is on air within 2 s of `play()` | the entrance reveals the root and finishes |
 | `bench-overlap` | error (>=25% box overlap) / warn | two text elements collide in the settled state or under stress | give distinct information distinct space (flow/flex + gap, not colliding absolutes) |
-| `bench-overflow` | error / warn | text clips at its panel, escapes the canvas, leaves the title-safe area | `width: fit-content` + a `max-width` cap so text wraps; stay inside the safe area |
+| `bench-overflow` | error / warn | text clips at its panel, escapes the canvas, leaves the title-safe area; warn when a line's own mask cuts its end off | `width: fit-content` + a `max-width` cap so text wraps; stay inside the safe area |
 | `bench-occluded` | warn | a text element is hidden under another box | stacking/order |
 | `bench-unbacked-text` | warn | text sits on nothing (video) - a legibility risk | a plate, a shadow, or accept it deliberately |
 | `bench-line-wrap` | warn (opt-in) | an identity line wrapped | shorten, or let it wrap on purpose |
 | `bench-type-floor` | warn | a text FIELD renders below the category floor (20px at 1080p; 16px for a corner bug) | larger type |
-| `legibility-*` | warn | the on-air design rules: size per role, contrast, stroke, safe area | read each message; they are measured numbers |
+| `legibility-*` | warn | the on-air design rules: size per role (supporting text under about 24px at 1080p, more strongly under 20px), contrast, protection over video (a panel, glass included, a scrim, a shadow or an outline), safe area | read each message; they are measured numbers |
 | `bench-mark-unreadable` | warn | a brand mark's ink does not read on the surface it sits on | the mark's surface/ink |
-| `bench-field-unpainted` | warn | a declared text field reaches NO pixel in ANY of the machine's states | the field's element is visible where the operator expects the value to appear. A `hidden` field in a `noacg-data-source` holder is a REPORTED field and is exempt - it is read, never drawn |
+| `bench-field-unpainted` | warn | a declared text field reaches NO pixel in ANY of the machine's states | the field's element is visible where the operator expects the value to appear. A `hidden` field in a `noacg-data-source` holder is a REPORTED field and is exempt - it is read, never drawn. A field on the `.<prefix>-clock` element is driven with a time, which is what a match clock reads |
 | `bench-events-skipped` | warn | the bench pressed fewer than all of the machine's operator arrows (a ceiling of 24, or a from-state it could not enter) and names the ones it left | press them by hand before air, or give the graphic fewer arrows - a control surface an operator can read is smaller than that. A from-state it could not enter is a real defect: an arrow nobody can ever press |
 | `bench-hidden` | error | the graphic is off air within 2 s of `stop()` | the exit hides the root and finishes |
 | `bench-replay` | error | `play()` after `stop()` is on air again | entrances are `fromTo`, state resets |
