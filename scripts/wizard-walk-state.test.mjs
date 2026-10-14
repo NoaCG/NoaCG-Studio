@@ -461,7 +461,7 @@ test('a record gone mid-write mints; a failed write returns its reason and never
   assert.deepEqual(await W.saveBuiltGraphic({ finished: null, made: null }, 'Score', failedMint.lib), { ok: false, error: 'Storage is full.' });
 });
 
-test('held writes: each save reads the made record when it starts (a second press before noteMade resolves by name)', async () => {
+test('held writes: each save reads the walk\'s record when it starts, and neither waits on the other', async () => {
   let release;
   const hold = new Promise((r) => (release = r));
   const { lib, log } = library({ current: () => hold.then(() => 'saved') });
@@ -479,4 +479,17 @@ test('held writes: each save reads the made record when it starts (a second pres
 test('a write that THROWS rejects the save (today\'s behaviour, recorded: the real writes report, they never throw)', async () => {
   const { lib } = library({ current: () => { throw new Error('boom'); } });
   await assert.rejects(W.saveBuiltGraphic({ finished: null, made: MADE }, 'Score', lib), /boom/);
+});
+
+test('a deep link in the same open as a restore replaces the restored draft (today\'s behaviour, recorded, not endorsed)', () => {
+  // Browser Back onto `#/new/<id>/step/<name>` after a door closed the walk: the step URL
+  // restores the walk, and the design in the same URL is a deep link (App.tsx hands it to
+  // `openGallery`), which the lifecycle dispatches after the restore. Characterised for the
+  // decision S1c's notes left to this phase; the spec's phase notes say where it went.
+  const walk = { ...W.snapshotWalk({ ...loaded('template'), ...NO_KIT }), step: 5, made: MADE };
+  const restored = W.transition(W.emptyWalk(), { kind: 'restore', walk, live: null }).state;
+  const linked = W.reduce(restored, { type: 'deepLink', variant: B });
+  assert.equal(linked.draft.variantId, 'b', 'the link\'s design, under the warning that offers the walk back');
+  assert.equal(linked.draft.name, '', 'the walk\'s answers are gone');
+  assert.equal(linked.step, stepIndex(walkOf('template', false), 'fields'));
 });
