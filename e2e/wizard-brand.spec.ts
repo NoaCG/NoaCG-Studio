@@ -7,9 +7,7 @@
 // without the `// focus` line the one spec written to protect the surface would never run.
 // focus
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
 import { awaitDurableReady } from './_durable';
 import { chooseType, pickDesign } from './_browse';
 
@@ -75,11 +73,8 @@ async function createdTemplate(page: Page) {
   });
 }
 
-/** Open the wizard on Browse with a design picked, past the step where the chooser appears.
- *  Advanced mode first: `finishIntoEditor` takes the Finish step's EDITOR door, which the
- *  student release hides behind that switch (e2e/_create.ts `enableAdvancedMode`). */
+/** Open the wizard: a first visit to the app opens it on Entry. */
 async function openWizard(page: Page) {
-  await enableAdvancedMode(page);
   await page.goto('/app');
 }
 
@@ -89,6 +84,16 @@ async function toPickedDesign(page: Page) {
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, 'Topic');
   await pickDesign(page, 'Hairline Card');
+}
+
+/** Walk on to Finish and take the EXPORT door. Like every Finish door it first builds the graphic
+ *  into the working document, then it opens the export window over the wizard, so the document
+ *  `createdTemplate` reads is the created graphic. The footer's own Next, by class: Browse also
+ *  shows the "Now & Next" card. */
+async function createThroughExport(page: Page) {
+  for (let i = 0; i < 4; i++) await page.locator('.wz-footer button.wz-next').click();
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
 }
 
 test('with no brands saved the wizard offers no chooser', async ({ page }) => {
@@ -112,10 +117,7 @@ test('a chosen brand puts its accent, typeface and logo into the created graphic
   await expect(chooser).toHaveValue('');
   await chooser.selectOption({ label: BRAND_NAME });
 
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await createThroughExport(page);
 
   const t = await createdTemplate(page);
   expect(t.css).toContain(ACCENT);
@@ -142,10 +144,7 @@ test('None takes back exactly what the brand put there', async ({ page }) => {
   await chooser.selectOption({ label: BRAND_NAME });
   await chooser.selectOption('');
 
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await createThroughExport(page);
 
   const t = await createdTemplate(page);
   expect(t.css).not.toContain(ACCENT);
@@ -160,10 +159,7 @@ test('creating a graphic writes no brand record', async ({ page }) => {
   const id = await seedBrand(page, { logo: false });
   await page.reload();
   await toPickedDesign(page);
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await createThroughExport(page);
 
   // Create used to overwrite one anonymous record with whatever had just been made, which is
   // why the old footer offer proposed a look nobody had chosen (docs/BRAND_PLAN.md decision 6).
