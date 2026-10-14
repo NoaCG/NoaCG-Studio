@@ -29,8 +29,8 @@ export const WIZARD = {
       'src/components/wizard/DesignPrepCanvas', 'src/components/wizard/fieldAutoMap',
       'src/components/wizard/draft/import.ts',
     ],
-    // The Create with AI step lives under ai/ since wizard-ai A4; steps/AiStep is its re-export
-    // until the shell's S7 deletes it, and both old paths hold most of the window's history.
+    // The Create with AI step lives under ai/ since wizard-ai A4; its two old paths stay listed
+    // because they hold most of the window's history.
     ai: ['src/components/wizard/steps/AiStep', 'src/components/wizard/steps/ai/', 'src/components/wizard/ai/'],
     template: [
       'src/components/wizard/steps/BrowseStep', 'src/components/wizard/steps/FieldsStep',
@@ -41,8 +41,10 @@ export const WIZARD = {
   },
   // src/model/wizard.ts is the pre-row-1 path of the template contract (now
   // src/templates/contract.ts, with the vocabulary in src/model/templateVocabulary.ts). Both
-  // are listed: the window this reads still holds commits that touched the old path.
-  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/draft.ts', 'src/components/wizard/draft/core.ts', 'src/components/wizard/draft/format.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
+  // are listed: the window this reads still holds commits that touched the old path. shell/ is
+  // what the wizard-structure plan split out of CreationWizard.tsx (the walks, the walk state,
+  // the doors, the open and close). Each entry is a path prefix, as the capabilities' are.
+  shared: ['src/components/wizard/CreationWizard.tsx', 'src/components/wizard/shell/','src/components/wizard/draft.ts', 'src/components/wizard/draft/core.ts', 'src/components/wizard/draft/format.ts', 'src/model/wizard.ts', 'src/templates/contract.ts', 'src/model/templateVocabulary.ts'],
 };
 
 function commits(days) {
@@ -75,7 +77,7 @@ export function coupling(log, { capabilities, shared }) {
       const theirs = c.files.some((f) => hits(f, others));
       if (!mine || theirs) continue;
       pure += 1;
-      if (c.files.some((f) => shared.includes(f))) forced += 1;
+      if (c.files.some((f) => hits(f, shared))) forced += 1;
     }
     rows.push({ name, pure, forced, fraction: pure ? forced / pure : 0 });
   }
