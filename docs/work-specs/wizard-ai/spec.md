@@ -81,7 +81,8 @@ coding-agent route, consent; the `MoreControlPanel` beyond lifting one import.
   `generateProGraphic(input, route, { session, validate, onStage })`
   (`src/ai/pro/language/pipeline.ts:98`). Revert: move the file under `wizard/ai/run.ts`.
 - **D2 The IO shape.** `runCreation(input, io)` takes `{ provider: (profile?) => AIProvider,
-  validate, structuralCheck, probeMark, onProgress, now }`; the step constructs `validate` as
+  validate, structuralCheck, probeMark, onProgress }` (A2 dropped the planned `now`: no route
+  reads a clock); the step constructs `validate` as
   today (`productionSpxValidator` at 657-660 wrapped by `withSpecChecks` at 661) and passes it.
   Revert: inline.
 - **D3 Validation is preserved per route, as today.** The routes that forward `validate` keep
@@ -138,7 +139,7 @@ coding-agent route, consent; the `MoreControlPanel` beyond lifting one import.
 
 | Module | Responsibility | Owns | Runtime imports / injected IO | Interface | Benefit |
 |---|---|---|---|---|---|
-| `src/ai/creation.ts` | the tier dispatch, refinement and chassis rebuild | nothing | `ai/provider` (types), `ai/lite/pipeline` (`assembleGroundedTemplate`), `ai/pro/*` (the quarantined tier), `ai/spec/*`, `ai/brainstorm`, `model/*` types / `provider`, `validate`, `structuralCheck`, `probeMark`, `onProgress` | `runCreation(input, io)`, `refineResult(result, instruction, level, io)`, `rebuildOnChassis(spec, designId, io)`, `chat(turns, io)`; results are `AiTemplateChange` values with their metadata (section 4) | about 600 React-free lines leave the component; Node tests with a stub provider and deferred answers; the benches reuse the dispatch |
+| `src/ai/creation.ts` | the tier dispatch, refinement and chassis rebuild | nothing | `ai/provider` (types), `ai/lite/pipeline` (`assembleGroundedTemplate`), `ai/pro/*` (the quarantined tier), `ai/spec/*`, `ai/brainstorm`, `model/*` types / `provider`, `validate`, `structuralCheck`, `probeMark`, `onProgress` | `creationRoute(state)`, `runCreation(input, io)`, `screenChange(change, source)`, `creationError(error, route)`, `refineResult({ result, instruction, level, spec, context, lite }, io)`, `fixInstruction(validation)`, `rebuildOnChassis(current, variantId, context, io)` (`io` narrowed to `validate` and `onProgress`), `conversationOf(talk)`, `chat(conversation, text)` (past the provider, no `io`); results are `AiTemplateChange` values with their metadata (section 4) | about 600 React-free lines leave the component; Node tests with a stub provider and deferred answers; the benches reuse the dispatch |
 | `src/components/wizard/ai/AiStep.tsx` (A4; before that `steps/AiStep.tsx`) | the step's screen state and markup | prompt, thread, uploads, settings, result card state, busy, error | react; `creation.ts`; `validation/*` for the validator it constructs | today's ten props, unchanged | the component holds screen state and rendering only |
 | `src/components/wizard/ai/ProPanel.tsx` | the Pro markup, quarantined | nothing | react | today's values as props | the live file loses the markup that cannot render; nothing is deleted |
 | `scripts/ai-creation.test.mjs` | the Node guard | nothing | rolldown `load()` as `scripts/field-auto-map.test.mjs:30-40` | `// guards: src/ai/creation.ts` | the first test of the run chain outside Playwright |
@@ -194,7 +195,7 @@ section is a `## Test maintenance` entry if a section is retired instead.
 | Three directions | own key, harness on (1044-1067) | `generateAlternatives(brief, context, { validate, structuralCheck, onProgress })` | the list as `alternatives` and `originals`; first passing selected; `stagePick`; `recordSpend` | `busy` set by the step; errors to `error` |
 | Pro | never (`proMode` false) | `generateProGraphic` and the package loop (890-1027) | kept as written, quarantined | kept |
 | Refine, fix | a result stands (1092-1114) | `getAiProvider(lite ? 'lite' : undefined).modify(instruction, result, context, { validate, onProgress, profile?, spec? })` | replaces the selected direction in place; `originals` untouched; `stagePick`; `recordSpend` | as Convert |
-| Rebuild on another design | a shortlist entry picked (769-793) | no model call: `assembleGroundedTemplate` with the same spec | replaces the selected direction; no spend | none |
+| Rebuild on another design | a shortlist entry picked (769-793) | no model call: `assembleGroundedTemplate` with the same spec | replaces the selected direction; no spend | the busy line "Rebuilding on that design…"; a pick of the design it already has, or a result with no spec, returns `null` (no change); errors show their plain message |
 | Talk | the composer in talk mode (576-595) | `brainstorm(turns)` (bypasses the provider today; stays so) | a talk turn | `chatBusy` |
 
 What every result carries back to the shell (663-683, `CreationWizard.tsx:1977`): the template,
@@ -358,6 +359,46 @@ open plan run on these files; the owner's window supplied. Before A4: no shell p
 Each phase's pull request adds here what the next phase must allow for, newest first: the
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
+
+### A5. Close-out (built 2026-10-14)
+
+- **Check's findings (A4 check, main `15b26a6c9`): PASS.** Merge-group run 38552822347 green
+  (562 tests), the AI counts equal to A3's; rule-id sets equal before and after; `check:contracts`
+  OK; chain 52,023 -> 44,599; widths step 43, `creation.ts` 19; the size gate fails at 1,660 on
+  the moved step. Carried into A5: stale old paths in `docs/AI_WIZARD_PLAN.md:13`,
+  `docs/BRAND_PLAN.md:246`, `docs/PROMISE_AUDIT.md` and four `src` comments; the 2026-09-07 AI
+  records citing `TIER_OPTIONS` / `proOffered`; section 2's signatures and section 4's rebuild
+  progress; `keepChassisZone` unpinned; `UploadCard` shared with `steps/VideoStep.tsx`; chains
+  over 40,960 (AI 44,599, `steps/` 42,338).
+- **Shas:** previous verified `main` `15b26a6c9`; built on `claude/plan-wizard-ai-p5-build`; the
+  merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge commit (the
+  compiled contracts revert with it; `npm run check:contracts` confirms).
+- **What landed** (`evidence/phase-5.md`): `docs/metrics/2026-10-14-wizard-ai.md`; the validator
+  rule reworded through `npm run learn --supersedes` (new id
+  `wizard/inject-harness-validator-every-harnessed-provider`, the old one retired); the Pro
+  card's dollar line recorded on the money invariant's record; seven 2026-09-07 AI records given a
+  dated note naming where the code is now; the three docs' paths; this spec's D2, section 2 and
+  section 4 made true to the code.
+- **Decisions** (each revertible as stated):
+  - *The validator rule's demand is unchanged, only its wording.* The raw route never ran the
+    injected validator; the rule now says the raw result is screened where it is shown. Revert:
+    set the new rule `retired`, the old one `active`, recompile.
+  - *The dollar line is the code's debt, not the rule's.* Allowing it would change what the
+    invariant demands (an owner question), and removing it would break AC-14's move. It goes
+    when the Pro door reopens; the record says so.
+  - *No retirements.* The Pro rules guard preserved code (1.1, decision 2).
+  - *Records keep their evidence.* A dated note is appended, the 2026-09-07 quotations are not
+    rewritten, as the records' own "Quotation correction" entries do.
+- **For the shell's S7 (this plan has no next phase):** S7 deletes the `steps/AiStep.tsx` shim
+  and retargets `CreationWizard.tsx`'s lazy import; it should also fix the four comments naming
+  old paths (`src/ai/creation.ts:5`, `src/model/aiThread.ts:2`, `src/model/cssVars.ts:21`,
+  `src/styles/wizard-describe.css:200`) and decide whether `ai/UploadCard.tsx`, shared with
+  `steps/VideoStep.tsx`, belongs in `wizard/`. Still open beyond this plan: `keepChassisZone`
+  is not pinned by a test (A3 check's surviving mutant); the rebuild has no live e2e while
+  `adapt-first` is skipped (#800); the AI step's chain is 3,705 bytes over the 40,960 target.
+- **Traps:** rewording a rule renames it (the id comes from its words); the retired file stays so
+  citations of the old id still resolve. `learn` with an existing rule's exact text and
+  `--evidence` appends to that rule's record instead of writing a rule.
 
 ### A4 check on `main` (2026-10-14): PASS
 

@@ -587,3 +587,7 @@ it**, and a round whose harness changed underneath it is not comparable to one t
 
 The general form is the same as the runtime bench's (`docs/VERIFICATION.md`): check the instrument
 before concluding anything about what it measured.
+
+## Citations checked against current code (2026-10-14)
+
+This is the superseded contract, kept as written. Where it names the settings panel in AiStep, `proOffered` and AiStep's `showChange`: `TIER_OPTIONS` no longer exists: commit 452bda6eb ("Offer one Create with AI option instead of a tier chooser") removed the tier chooser, and the hosted Pro door is closed pending #771. The tier ids are `AI_TIERS` in `src/ai/settings.ts`; the AI step resolves the tier at `const tier: AiTier` in `src/components/wizard/ai/AiStep.tsx` (the custom tier, else Lite where the server offers it). `proOffered` survives only as the reopen instruction in the comment above that line (`proTier.proHosted && isBackendConfigured()`); `proHosted` is read from `GET /api/ai/pro-status` in `useProTier`, `src/components/wizard/ai/ProPanel.tsx`, where the quarantined Pro markup lives. The result screen is `screenChange` in `src/ai/creation.ts` (`validateTemplate` merged through `mergeSafety`), which the step's `showChange` calls.
