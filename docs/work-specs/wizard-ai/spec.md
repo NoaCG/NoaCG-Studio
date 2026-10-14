@@ -359,6 +359,51 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
 
+### A3. Refine, rebuild and talk in the module; the Pro quarantine (built 2026-10-14)
+
+- **Check's findings (A2 check, main `591213fca`):** merge-group run 38536443430 green, the AI
+  spec counts as before A2; e2e diff empty; `ai-creation` 19 of 19 in Factory job 115760358442,
+  the Chromium case included; four mutants red; `runPro` a move; D3, AC-9 and AC-10 hold;
+  dropping `now` justified; #1179 predates A2. Carried: main run 38537984916 red only on
+  `editor-fidelity-trim` (#1177, unrelated).
+- **Shas:** previous verified `main` `759772ddd`; built on `claude/plan-wizard-ai-p3-build`, pull
+  request #1189; the merge sha is the one the queue records. **Revert:** `git revert -m 1` the
+  merge commit; nothing else depends on the new exports yet.
+- **What landed** (`evidence/phase-3.md`): `refineResult`, `fixInstruction`, `rebuildOnChassis`,
+  `conversationOf` and `chat` in `creation.ts`; the Pro state, status read, category reset and
+  four markup pieces in `steps/ai/ProPanel.tsx`; `pickerHex` in `model/cssVars.ts`. The step 1,940
+  to 1,659 lines, budget JSON 1,659. `ai-creation` 33 tests (14 new), seven new mutants red.
+- **Decisions** (each revertible as stated):
+  - *Signatures differ from section 2's table:* `refineResult({ result, instruction, level, spec,
+    context, lite }, io)`, `rebuildOnChassis(current, variantId, context, io)` returning `null`
+    when there is nothing to rebuild, `chat(conversation, text)` with no `io` (the brainstorm
+    reaches the gateway itself; nothing to inject; the test stubs `fetch`). Revert: reshape the
+    arguments.
+  - *The busy label is the module's first `onProgress`* for refine, fix and rebuild, as A2 did.
+    Revert: pass the label in.
+  - *Pro state is two hooks in `ProPanel.tsx`, called where the state and the effect stood*, not
+    panel-local state: the status read runs on mount today whatever the tier, and a component
+    mounted only behind `proMode` would have dropped that request. So the panel file "owns" the
+    state section 2 says it does not; its components take values (one `tier` object) as props.
+    Revert: inline the hooks.
+  - *`StyleStep.tsx` loses `pickerHex`* (the row's list allowed the edit; it never called it).
+- **A4 must allow for:**
+  - `git mv` must take `steps/ai/ProPanel.tsx` too; its imports are four levels deep
+    (`../../../../ai/...`, `../../MiniPreview`) and change with the folder.
+  - The budget JSON names `steps/AiStep.tsx` at 1,659; point it and the gate's guards line at
+    `wizard/ai/AiStep.tsx` (A1's note), never at the shim.
+  - `ai-creation.test.mjs` now has two Chromium cases (Pro finish, rebuild); still factory tier.
+  - The covers headers: `src/ai/creation.ts` now holds refine, fix, rebuild and talk, so a spec
+    that drives those (`ai`, `ai-depth` for talk) should name it; five covering specs are still
+    not selected by `creation.ts` alone.
+  - For A5: `proDropped` is one state slot while the Pro details and package are per result, so
+    a restored Pro result shows the newest run's dropped list (existing; Pro unreachable).
+    `pickerHex` and `toHex` disagree on `#rgb` (moved as is). `ai-more-control` stays skipped
+    (#800); not revived here.
+- **Traps:** rebuilding needs `DOMParser` (catalog assembly), so its success, thrown and abandoned
+  cases run on the test's Chromium page; only the no-op cases are plain Node. The brainstorm's
+  gateway call reads settings and `getAccessToken`, which the existing bundle already stubs.
+
 ### A2 check on `main` (2026-10-14): PASS
 
 - **Shas:** checked `main` at `591213fca`, the merge of #1178.
