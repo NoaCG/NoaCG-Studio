@@ -5,8 +5,8 @@ Phase 3 of `docs/work-specs/noacg-harness/spec.md` (AC-3, section 4.3), built 20
 owner's subscription in the 5.4 environment (`benchmarks/harness/lib/subscription.mjs`: built from
 scratch, `claude auth status` reported `loggedIn: true`, `authMethod: oauth_token` before each
 run). Notional subscription cost $164.21, of which $8.78 finished the blinded pairs. The blinded
-re-run hit the subscription's session limit at 20:42 UTC; the ledger holds two `paused` entries
-(resets 21:20 UTC). The remaining pairs ran after the reset, at 21:48 UTC on `main` `f85a356d5`,
+re-run hit the subscription's session limit at 20:40 UTC; a second start at 20:42 UTC paused at
+once, and the ledger holds its two `paused` session entries (resets 21:20 UTC). The remaining pairs ran after the reset, at 21:48 UTC on `main` `f85a356d5`,
 without a further pause.
 
 **Result: PASS, on the blinded run.** The first held-back run passed both thresholds (agreement
@@ -196,10 +196,14 @@ No rejected graphic was approved with high confidence. 29 of the 41 answers were
 | v3, held back (directory leak) | `60bfb08e18a4` | 41 single, 16 pairs (73) | $21.08 |
 | v3, held back, blinded re-run | `60bfb08e18a4` | 41 single, 5 pairs (51); 11 pairs refused by the session limit (22, $0) | $11.87 |
 | v3, held back, blinded, the 11 remaining pairs | `60bfb08e18a4` | 11 pairs (22) | $8.78 |
-| Total | | 551 calls, 529 of them answered | $164.21 notional, $0 credit |
+| Total | | 529 answered, and at least 24 refused at $0 | $164.21 notional, $0 credit |
 
-The total is counted from the result records (one call a single judgement, two an answered pair,
-two attempts a refused pair) and the two probes. The ledger's first H2 entry said 454: that was the
+The answered calls are counted from the result records (one call a single judgement, two an
+answered pair) and the two probes. The refused calls are the 22 recorded as errors (two attempts
+for each of the 11 pairs) and at least one behind each of the two `paused` entries, which left no
+record. An attempt that failed for another reason and was retried at once also leaves no record;
+none shows in any results file, but such a call's cost would be missing from the notional figure.
+The ledger's first H2 entry said 454: that was the
 three development drafts and the leaky held-back run (59 + 161 + 161 + 73), without the probes or
 the blinded re-run. A single judgement took a median 22 s. The ledger holds that first H2 entry as
 `paused` at the usage limit, corrected, and a second, `completed` entry for the finished pairs.
@@ -217,5 +221,5 @@ The held-back part has been read; a re-pin (4.3) needs a new held-back set rathe
 again, and the runner refuses a second judge on it from the same work directory. Its answers are
 committed as `benchmarks/harness/judge/results-heldout.jsonl` (every record, the 11 refused
 attempts included: `score` reads the latest record of each judgement) and its score as
-`score-heldout.json`; `score --part heldout --work <dir>` on a directory holding that results file
-gives the same score.
+`score-heldout.json`; copied into a directory outside the repository (`--work` refuses one
+inside it), that results file gives the same score with `score --part heldout --work <dir>`.

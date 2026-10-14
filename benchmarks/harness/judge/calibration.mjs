@@ -367,7 +367,8 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
       const dir = path.join(work, 'judgements', part, job.task, keyOf(job.id));
       rmSync(dir, { recursive: true, force: true });
       let answered = [];
-      for (let attempt = 0; ; attempt++) {
+      let retried = false;
+      for (;;) {
         let out;
         try {
           if (job.task === 'single') {
@@ -391,7 +392,11 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
           await sleep(wait);
           continue;
         }
-        if (out.error && attempt < 1) continue;
+        // One retry for an error; a pause waited out is not an attempt.
+        if (out.error && !retried) {
+          retried = true;
+          continue;
+        }
         notional += out.notionalUsd ?? 0;
         count++;
         const rec = { task: job.task, id: job.id, judge: judge.fingerprint, at: new Date().toISOString(), ...out };

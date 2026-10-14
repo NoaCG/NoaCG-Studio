@@ -985,8 +985,11 @@ the spend added to the ledger, and the check's findings.
   (`benchmarks/harness/judge/results-heldout.jsonl`, every record, the refused attempts included)
   and the score (`score-heldout.json`) are committed, so the evidence no longer lives only in
   `%TEMP%`. `judgePair` now returns the answered orders on a pause or error as `answered`, and
-  both runners pass them back on the retry (a test pins it). Spend: $8.78 notional, 22 calls, $0
-  credit; H2 in all 551 calls (529 answered), $164.21 notional. The ledger's first H2 entry is
+  both runners pass them back when they retry after a pause within one run (a test pins
+  `judgePair`'s resume; the runners' wiring is untested); a pause no longer uses up the
+  calibration runner's one error retry. A run stopped during a pause still re-judges the answered
+  order on its next start. Spend: $8.78 notional, 22 calls, $0 credit; H2 in all 529 answered
+  calls and at least 24 refused at $0, $164.21 notional. The ledger's first H2 entry is
   corrected to `paused` with the true count (it counted 59 + 161 + 161 + 73 and left out the probes
   and the blinded re-run), and a second H2 entry is `completed`.
 - **H3 must allow for:** nothing of the judge. **H5 must allow for:** the H2 list below stands; the
@@ -1030,7 +1033,7 @@ the spend added to the ledger, and the check's findings.
   first run, which leaked the item's name through the judge's working directory (fixed). The
   blinded re-run judged 5 of 16 pairs (5 correct) before the subscription's session limit; the H2
   repair above finished the other 11 (blind pairwise 16 of 16). Spend: $0 credit, $155.43 notional
-  on the subscription, two `paused` ledger entries. The `judgePair` re-run of a finished first
+  on the subscription, two `paused` session entries in the ledger. The `judgePair` re-run of a finished first
   order on a pause is fixed in the repair.
 - **H3 must allow for:** nothing of the judge; H3 measures the container. The ledger now holds H0 to
   H2 as completed.

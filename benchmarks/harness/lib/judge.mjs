@@ -188,8 +188,8 @@ export async function judgePair(judge, { brief, x, y, xFirst = true, actions = [
   if (answered.some((o, i) => o.a !== orders[i]?.[0].id || o.b !== orders[i]?.[1].id)) throw new Error('the answered orders are not this pair\'s');
   const answers = [...answered];
   let notionalUsd = answers.reduce((n, o) => n + (o.notionalUsd ?? 0), 0);
-  for (const [i, [a, b]] of orders.entries()) {
-    if (i < answers.length) continue;
+  for (let i = answers.length; i < orders.length; i++) {
+    const [a, b] = orders[i];
     const graphics = [{ label: 'A', frames: a.frames }, { label: 'B', frames: b.frames }];
     const operator = a.operator || b.operator ? { A: a.operator ?? [], B: b.operator ?? [] } : null;
     const out = await judgeOnce(judge, { task: 'pairwise', brief, graphics, operator, actions, dir: path.join(dir, `order-${i + 1}`), claude, env, run });
