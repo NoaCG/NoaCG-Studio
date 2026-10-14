@@ -1,4 +1,5 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
+// covers: src/components/wizard/import/drop.ts
 //
 // A DATA-LOSS shape on the road every student walks in the class: import your own artwork, build a
 // production on it, then import your next version under the same name. Until 2026-09-08 the second

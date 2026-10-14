@@ -79,6 +79,16 @@ export function brandClearPatch(): DraftPatch {
 }
 
 /**
+ * The brand in force spread over a NEW design: a pick on Browse or on the images walk's Template
+ * step, a deep link, a dropped SVG or picture. A brand writes its patch; no brand clears the
+ * palette and the typeface the last design carried. Not `brandClearPatch`: a new design leaves
+ * `customFont` and `brandLogo` where they were, as every one of those doors always has.
+ */
+export function brandOrClearPatch(brand: import('../../../model/brand').ProjectBrand | null): DraftPatch {
+  return brand ? brandPatch(brand) : { paletteId: null, customPalette: null, fontId: null };
+}
+
+/**
  * The whole-unit category presets an imported design creates from, and the universal motion
  * each one IS. The wizard's Animation step shows the universal bank for that category (ten
  * cards instead of four), so a design that has not picked one still has to land on the same

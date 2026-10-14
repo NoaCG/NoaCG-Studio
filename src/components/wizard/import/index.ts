@@ -5,11 +5,13 @@
 // `wizard-import-through-its-index` refuses a deep import. Three callers exist, and the list
 // below is exactly what they need.
 //
-//   the shell (CreationWizard.tsx) - the step components it mounts per import mode
+//   the shell (CreationWizard.tsx) - the step components it mounts per import mode, and the
+//     drop doors (./drop.ts) its Import graphic card calls; it reads no ./draft.ts function
 //   the draft (draft.ts, draft/core.ts) - the capability's draft state and its build passes
 //   FinishStep.tsx - behaviourSummary, which it reads through the draft barrel today and will
 
 export * from './draft';
+export * from './drop';
 
 export { default as ImportStep } from './ImportStep';
 export { default as ImportDesignStep } from './ImportDesignStep';

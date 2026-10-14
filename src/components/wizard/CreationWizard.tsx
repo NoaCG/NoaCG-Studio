@@ -3,6 +3,7 @@ import { useTemplateStore } from '../../store/templateStore';
 import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
   brandClearPatch,
+  brandOrClearPatch,
   brandPatch,
   buildDraftTemplate,
   draftFormatSelection,
@@ -11,8 +12,6 @@ import {
   formatDraftPatch,
   initialDraft,
   mergeDraft,
-  svgDraftCleared,
-  svgDraftFromImport,
   type DraftPatch,
   type WizardDraft,
 } from './draft';
@@ -34,6 +33,10 @@ import {
   PrepareDesignStep,
   PlaceFieldsStep,
   MapSvgFieldsStep,
+  artDropPatch,
+  clearSvgPatch,
+  svgDropPatch,
+  templateFileDropped,
 } from './import';
 import TemplateStep from './steps/TemplateStep';
 import type { BuildMode } from './steps/BrowseStep';
@@ -724,9 +727,7 @@ export default function CreationWizard() {
       animation: { presetId: null, outPresetId: null, steps: null },
       // The brand in force carries its look, as on the Browse pick: the chooser keeps naming it,
       // so a draft without it had the chooser and the preview disagreeing.
-      ...(brandInForce.current
-        ? brandPatch(brandInForce.current)
-        : { paletteId: null, customPalette: null, fontId: null }),
+      ...brandOrClearPatch(brandInForce.current),
     });
     setDraft(startDraft.current);
     setStep(2);
@@ -2032,32 +2033,30 @@ export default function CreationWizard() {
                 svg={draft.designSvg}
                 onSvg={(result) => {
                   patch({
-                    ...svgDraftFromImport(result, { resolution: draftResolution(draft), previous: draft }),
-                    ...(brand
-                      ? brandPatch(brand)
-                      : { paletteId: null, customPalette: null, fontId: null }),
+                    ...svgDropPatch(result, { resolution: draftResolution(draft), previous: draft }),
+                    ...brandOrClearPatch(brand),
                   });
                   // The walk changes shape the moment the file is read: an SVG has nothing
                   // to erase and nothing to place — its one setup step is the mapping.
                   setMode('svg');
                 }}
                 onClearSvg={() => {
-                  patch(svgDraftCleared(draft));
+                  patch(clearSvgPatch(draft));
                   setMode('design');
                 }}
                 templateFile={importedFile}
                 onTemplateFile={(file) => {
                   setImportedFileError(null);
-                  void importTemplateFile(file)
-                    .then((result) => {
-                      setImportedFile(result);
-                      // The walk changes shape the moment the file is read: a template has no
-                      // artwork to prepare and no field to place.
-                      setMode('file');
-                    })
-                    .catch((e: unknown) =>
-                      setImportedFileError(e instanceof Error ? e.message : String(e)),
-                    );
+                  void templateFileDropped(file, { importTemplateFile }).then((read) => {
+                    if (!read.ok) {
+                      setImportedFileError(read.error);
+                      return;
+                    }
+                    setImportedFile(read.file);
+                    // The walk changes shape the moment the file is read: a template has no
+                    // artwork to prepare and no field to place.
+                    setMode('file');
+                  });
                 }}
                 onClearTemplate={() => {
                   setImportedFile(null);
@@ -2071,36 +2070,7 @@ export default function CreationWizard() {
                 format={draftFormatSelection(draft)}
                 onFormat={(selection) => patch(formatDraftPatch(selection))}
                 onArt={(designArt, importedImages) => {
-                  patch({
-                    // A raster drop replaces any SVG from this walk (and vice versa above).
-                    designSvg: null,
-                    svgFields: [],
-                    svgImages: [],
-                    svgOutlines: [],
-                    svgBehaviour: null,
-                    svgExtras: [],
-                    svgStretch: { on: false, shapeId: null },
-                    svgFonts: [],
-                    designArt,
-                    importedImages,
-                    // A fresh drop resets the Prepare step: the pristine pixels become the
-                    // erase's source, and any erase from a previous artwork is meaningless.
-                    designOriginal: importedImages[0] ?? null,
-                    designErases: [],
-                    designKeepBakedText: false,
-                    designFields: [],
-                    category: 'imported-design',
-                    // There is no design to choose — the artwork IS it — so the variant is
-                    // settled here, and the graphic creates BARE: its text/number/image
-                    // fields are added in the editor's Data tab as real placed layers.
-                    variantId: 'imp01',
-                    lines: [],
-                    zone: null,
-                    animation: { presetId: null, outPresetId: null },
-                    ...(brand
-                      ? brandPatch(brand)
-                      : { paletteId: null, customPalette: null, fontId: null }),
-                  });
+                  patch({ ...artDropPatch(designArt, importedImages), ...brandOrClearPatch(brand) });
                   // A raster drop is the classic prepare/place walk — also the way back from
                   // an SVG drop replaced by a picture.
                   setMode('design');
@@ -2147,9 +2117,7 @@ export default function CreationWizard() {
                     // Motion and the steps decision too, as on the images walk's Template step.
                     animation: { presetId: null, outPresetId: null, steps: null },
                     // The chosen brand carries its look into every new graphic.
-                    ...(brand
-                      ? brandPatch(brand)
-                      : { paletteId: null, customPalette: null, fontId: null }),
+                    ...brandOrClearPatch(brand),
                   })
                 }
                 onAi={() => { setMode('ai'); setStep(1); }}
@@ -2258,9 +2226,7 @@ export default function CreationWizard() {
                     // switching design re-asks instead of carrying the last answer across.
                     animation: { presetId: null, outPresetId: null, steps: null },
                     // The chosen brand carries its look into every new graphic.
-                    ...(brand
-                      ? brandPatch(brand)
-                      : { paletteId: null, customPalette: null, fontId: null }),
+                    ...brandOrClearPatch(brand),
                   })
                 }
               />
