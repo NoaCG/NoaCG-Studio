@@ -1,0 +1,71 @@
+{
+  "label": "desktop",
+  "shape": "#rectangle-1",
+  "duplicate": "#rectangle-1-copy-1",
+  "fields": [
+    "f0",
+    "f1"
+  ],
+  "assets": [
+    "fonts/inter.woff2",
+    "images/festival-mark.svg",
+    "thumbnail.png"
+  ],
+  "bounds": {
+    "innerWidth": 1920,
+    "innerHeight": 1080,
+    "outerWidth": 1920,
+    "outerHeight": 1080,
+    "devicePixelRatio": 1,
+    "visualScale": 1,
+    "html": {
+      "client": 1920,
+      "scroll": 1920
+    },
+    "controls": {
+      ".ef-shell": {
+        "x": 0,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      ".ef-viewport": {
+        "x": 0,
+        "y": 161,
+        "width": 1640,
+        "height": 534.203125
+      },
+      ".ef-timeline": {
+        "x": 0,
+        "y": 721.203125,
+        "width": 1920,
+        "height": 334.796875
+      },
+      ".ef-inspector": {
+        "x": 1640,
+        "y": 84,
+        "width": 280,
+        "height": 637.203125
+      }
+    }
+  },
+  "outputs": [
+    {
+      "target": "SPX export",
+      "errors": [],
+      "download": "independent_interaction_check_desktop_spx.zip"
+    },
+    {
+      "target": "CasparCG export",
+      "errors": [],
+      "download": "independent_interaction_check_desktop_casparcg.zip"
+    },
+    {
+      "target": "OGraf (EBU) export",
+      "errors": [],
+      "download": "independent_interaction_check_desktop_ograf.zip"
+    }
+  ],
+  "errors": [],
+  "failed": []
+}

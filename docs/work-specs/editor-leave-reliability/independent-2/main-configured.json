@@ -1,0 +1,15 @@
+{
+  "status": "completed",
+  "conclusion": "success",
+  "headSha": "d8c96727044191872abcfa36518e6e8ee2b853be",
+  "jobs": [
+    {
+      "name": "Configured E2E (authenticated, local Supabase)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Configured quarantine",
+      "conclusion": "skipped"
+    }
+  ]
+}

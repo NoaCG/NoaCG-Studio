@@ -1,0 +1,122 @@
+{
+  "status": "completed",
+  "conclusion": "failure",
+  "headSha": "1002d10a6163d38a9dd5bba6892869825c20159e",
+  "url": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38486085859",
+  "steps": [
+    {
+      "name": "Set up job",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:44:47Z",
+      "completedAt": "2026-10-13T23:44:48Z"
+    },
+    {
+      "name": "Run actions/checkout@v5",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:44:48Z",
+      "completedAt": "2026-10-13T23:44:52Z"
+    },
+    {
+      "name": "Run actions/setup-node@v4",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:44:52Z",
+      "completedAt": "2026-10-13T23:44:53Z"
+    },
+    {
+      "name": "Run npm ci",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:44:53Z",
+      "completedAt": "2026-10-13T23:45:02Z"
+    },
+    {
+      "name": "Run npx playwright install --with-deps chromium",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:45:02Z",
+      "completedAt": "2026-10-13T23:45:25Z"
+    },
+    {
+      "name": "Run node scripts/build-player-host.mjs",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:45:25Z",
+      "completedAt": "2026-10-13T23:45:25Z"
+    },
+    {
+      "name": "Current product reproduction",
+      "conclusion": "skipped",
+      "startedAt": "2026-10-13T23:45:25Z",
+      "completedAt": "2026-10-13T23:45:25Z"
+    },
+    {
+      "name": "Fetch pinned references",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:45:25Z",
+      "completedAt": "2026-10-13T23:46:36Z"
+    },
+    {
+      "name": "Execute pinned lifecycle tasks",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:46:36Z",
+      "completedAt": "2026-10-13T23:46:55Z"
+    },
+    {
+      "name": "Complete lifecycle and preserved regressions",
+      "conclusion": "failure",
+      "startedAt": "2026-10-13T23:46:55Z",
+      "completedAt": "2026-10-13T23:57:50Z"
+    },
+    {
+      "name": "Two sequential exported graphics",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:57:50Z",
+      "completedAt": "2026-10-13T23:58:01Z"
+    },
+    {
+      "name": "Final focused lifecycle",
+      "conclusion": "skipped",
+      "startedAt": "2026-10-13T23:58:01Z",
+      "completedAt": "2026-10-13T23:58:01Z"
+    },
+    {
+      "name": "Inspect native history",
+      "conclusion": "skipped",
+      "startedAt": "2026-10-13T23:58:01Z",
+      "completedAt": "2026-10-13T23:58:01Z"
+    },
+    {
+      "name": "Mutate navigation boundary",
+      "conclusion": "skipped",
+      "startedAt": "2026-10-13T23:58:01Z",
+      "completedAt": "2026-10-13T23:58:01Z"
+    },
+    {
+      "name": "Cumulative interaction and native zoom",
+      "conclusion": "success",
+      "startedAt": "2026-10-13T23:58:01Z",
+      "completedAt": "2026-10-14T00:00:02Z"
+    },
+    {
+      "name": "Run actions/upload-artifact@v4",
+      "conclusion": "success",
+      "startedAt": "2026-10-14T00:00:02Z",
+      "completedAt": "2026-10-14T00:00:06Z"
+    },
+    {
+      "name": "Post Run actions/setup-node@v4",
+      "conclusion": "skipped",
+      "startedAt": "2026-10-14T00:00:06Z",
+      "completedAt": "2026-10-14T00:00:06Z"
+    },
+    {
+      "name": "Post Run actions/checkout@v5",
+      "conclusion": "success",
+      "startedAt": "2026-10-14T00:00:06Z",
+      "completedAt": "2026-10-14T00:00:06Z"
+    },
+    {
+      "name": "Complete job",
+      "conclusion": "success",
+      "startedAt": "2026-10-14T00:00:06Z",
+      "completedAt": "2026-10-14T00:00:06Z"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "product": "d8c96727044191872abcfa36518e6e8ee2b853be",
+  "repair": "56ed14bb2add351fdc5fd671c1a30a7541baea74",
+  "focusedProbe": "466e482fe1d5dc003d45df43d90eea4b8b2f16ac",
+  "completeProbe": "1002d10a6163d38a9dd5bba6892869825c20159e",
+  "raceProbe": "39a90018347c2dd276b9b3ae3cdd671bd8ce1c76",
+  "originalCheckerBlob": "58954727b8cde36e43b76a78add2e16404d9eb0b",
+  "finalCheckerBlob": "58954727b8cde36e43b76a78add2e16404d9eb0b",
+  "equivalent": [
+    {
+      "path": "src",
+      "mainBlobOrTree": "b6a29e0721b662102c9a7ebdde4b1fac51f8b0fb",
+      "probeBlobOrTree": "b6a29e0721b662102c9a7ebdde4b1fac51f8b0fb",
+      "identical": true
+    },
+    {
+      "path": "e2e/new-graphic-guard.spec.ts",
+      "mainBlobOrTree": "a1217ad4cb373ffcce111848996e31ee47bdff45",
+      "probeBlobOrTree": "a1217ad4cb373ffcce111848996e31ee47bdff45",
+      "identical": true
+    },
+    {
+      "path": "e2e/wizard-draft-guard.spec.ts",
+      "mainBlobOrTree": "cf0d1560a20470e137fd7ac75e0c77463fdc8109",
+      "probeBlobOrTree": "cf0d1560a20470e137fd7ac75e0c77463fdc8109",
+      "identical": true
+    },
+    {
+      "path": "e2e/ograf-conformance.spec.ts",
+      "mainBlobOrTree": "865f23a18c5057080bce9b86834d1d866f9b1b09",
+      "probeBlobOrTree": "865f23a18c5057080bce9b86834d1d866f9b1b09",
+      "identical": true
+    },
+    {
+      "path": "playwright.config.ts",
+      "mainBlobOrTree": "34717b396be9a83f1ad9b055bf33d95053299a8f",
+      "probeBlobOrTree": "34717b396be9a83f1ad9b055bf33d95053299a8f",
+      "identical": true
+    }
+  ],
+  "localFreeGiB": 1.7389678955078125,
+  "localBrowserFloorGiB": 4
+}
