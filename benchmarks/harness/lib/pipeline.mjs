@@ -40,7 +40,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
   const base = { phase: entry.phase, stage: entry.stage, arm: arm.id, model: arm.model, funding: arm.funding, brief: brief.id };
 
   if (arm.funding === 'credit') {
-    const admission = admit(ledger, { budgetCents: entry.budgetCents, overshootCents: entry.overshootCents, criticCents: entry.criticCents ?? 0 });
+    const admission = admit(ledger, { budgetCents: entry.budgetCents, overshootCents: entry.overshootCents, criticCents: entry.criticCents ?? 0, phase: entry.phase, ceilingCents: entry.ceilingCents ?? null });
     if (!admission.ok) {
       appendEntry(ledger, { ...base, kind: 'session', outcome: 'refused', listCostCents: 0, note: admission.reason });
       log(`  refused: ${admission.reason}`);

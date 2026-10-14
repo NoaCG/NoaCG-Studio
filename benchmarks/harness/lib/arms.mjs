@@ -22,6 +22,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'n
 import path from 'node:path';
 import { ROOT, CLI_ENTRY } from './cli.mjs';
 import { checkSubscriptionAuth, runClaude, subscriptionEnv } from './subscription.mjs';
+import { traceMetrics } from './trace.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -90,17 +91,33 @@ export function fakeArm() {
  * (`--control`); `client` is api/_lib/harness/client.ts compiled. Polls until the session is no
  * longer running or the hard cap passes, collects the last record, then deletes the session and
  * its files and checks that both answer not found (section 6, proof 4).
+ *
+ * `modelOverride` runs the session on another model than the synced agent's (`agent_with_overrides`).
+ * A brief may carry `mounts` ([{ file, mountPath }]): local files `upload(file)` puts in the Files
+ * API and the session mounts under /mnt/session/uploads/; they are deleted with the session.
+ * `downloadAll` keeps every output file (the frames too), not only the record. The session's events
+ * are kept beside the cell (`events.jsonl`) with what they measure (`trace.json`, lib/trace.mjs).
  */
-export function managedAgentsArm({ api, client, agent, environmentId, budgetCents, model, funding = 'credit', files = [], pollMs = 5000, hardCapMinutes = 15, listRetries = 3 }) {
+export function managedAgentsArm({ api, client, agent, environmentId, budgetCents, model, modelOverride = null, funding = 'credit', files = [], upload = null, downloadAll = false, pollMs = 5000, hardCapMinutes = 15, listRetries = 3 }) {
   return {
     id: 'managed-agents',
     funding,
-    model,
+    model: modelOverride?.id ?? model,
     async run({ brief, cellDir, runId }) {
       const started = Date.now();
       const outputs = path.join(cellDir, 'outputs');
       mkdirSync(outputs, { recursive: true });
-      const { sessionId } = await client.startSession(api, { agent, environmentId, brief: brief.prompt, type: brief.type, budgetCents, runId, files });
+      const mounted = [];
+      for (const m of brief.mounts ?? []) mounted.push({ fileId: await upload(m.file), mountPath: m.mountPath });
+      const dropMounted = () => Promise.all(mounted.map((m) => api.beta.files.delete(m.fileId).catch(() => undefined)));
+      let sessionId;
+      try {
+        // A brief may name its own environment (H3's `packages` proof) and go without the tarball.
+        ({ sessionId } = await client.startSession(api, { agent, environmentId: brief.environmentId ?? environmentId, brief: brief.prompt, type: brief.type, budgetCents, runId, files: [...(brief.withoutCli ? [] : files), ...mounted], ...(modelOverride ? { model: modelOverride } : {}) }));
+      } catch (e) {
+        await dropMounted();
+        throw e;
+      }
       const settle = { pollMs: Math.min(pollMs, 2000) };
       // From here on the session exists and may be spending: whatever fails, it is stopped,
       // its cost read once it is final, and it is deleted, and the cell names it.
@@ -130,6 +147,14 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         ({ record, zip } = client.handIn(listed));
         await Promise.all([[record, 'record.json'], [zip, 'record.zip']].filter(([f]) => f).map(async ([f, name]) => writeFileSync(path.join(outputs, name), await client.downloadFile(api, f.id))));
         collected = Boolean(record && zip);
+        if (downloadAll) {
+          for (const f of listed) {
+            const parts = f.filename.split(/[\\/]/).filter((p) => p && p !== '.' && p !== '..');
+            const target = path.join(outputs, 'all', ...parts);
+            mkdirSync(path.dirname(target), { recursive: true });
+            writeFileSync(target, await client.downloadFile(api, f.id));
+          }
+        }
       } catch (e) {
         failure = e instanceof Error ? e.message : String(e);
       }
@@ -137,13 +162,26 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         failure = failure ?? `the session could not be read: ${e instanceof Error ? e.message : String(e)}`;
         return null;
       });
+      // What the session did, kept before the delete takes its events with it.
+      let metrics = null;
+      try {
+        const session = await api.beta.sessions.retrieve(sessionId);
+        const events = [];
+        for await (const e of api.beta.sessions.events.list(sessionId, { limit: 1000 })) events.push(e);
+        writeFileSync(path.join(cellDir, 'events.jsonl'), events.map((e) => `${JSON.stringify(e)}\n`).join(''));
+        metrics = traceMetrics({ events, createdAt: session.created_at, model: modelOverride?.id ?? model, usage: session.usage });
+        writeFileSync(path.join(cellDir, 'trace.json'), `${JSON.stringify({ sessionId, createdAt: session.created_at, usage: session.usage, ...metrics }, null, 2)}\n`);
+      } catch (e) {
+        metrics = { error: e instanceof Error ? e.message : String(e) };
+      }
       let cleanup = null;
       try {
         const disposed = await client.disposeSession(api, sessionId, settle);
-        cleanup = { ...disposed, sessionGone: await client.sessionGone(api, sessionId), filesLeft: (await client.listOutputs(api, sessionId)).length };
+        cleanup = { ...disposed, sessionGone: await client.sessionGone(api, sessionId), filesLeft: await client.listOutputs(api, sessionId).then((f) => f.length, (e) => `the list answered ${e?.status ?? ''} ${e instanceof Error ? e.message : String(e)}`.trim()) };
       } catch (e) {
         cleanup = { error: e instanceof Error ? e.message : String(e), sessionGone: false };
       }
+      await dropMounted();
       const state = failure || timedOut || !final ? 'failed' : final.completion.state;
       const outcome = state === 'delivered' && collected ? 'delivered' : state === 'not-ready' && collected ? 'not-ready' : 'failed';
       return {
@@ -160,7 +198,8 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         notionalUsd: 0,
         wallSeconds: Math.round((Date.now() - started) / 1000),
         sessionId,
-        model,
+        model: modelOverride?.id ?? model,
+        metrics,
         outputsListed: listed.map((f) => f.filename),
         cleanup,
       };
@@ -273,7 +312,8 @@ export function packCli(outDir) {
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const r = spawnSync(npm, ['pack', '--pack-destination', outDir, '--json'], { cwd: path.join(ROOT, 'cli'), encoding: 'utf8', shell: process.platform === 'win32', windowsHide: true });
   if (r.status !== 0) throw new Error(`npm pack failed: ${(r.stderr || '').slice(-400)}`);
-  const [{ filename }] = JSON.parse(r.stdout);
+  // `prepack` (the CLI's build) prints to stdout before npm's JSON: read from the JSON's start.
+  const [{ filename }] = JSON.parse(r.stdout.slice(r.stdout.search(/^\[/m)));
   return path.join(outDir, filename);
 }
 

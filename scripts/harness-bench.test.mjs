@@ -43,6 +43,8 @@ import { admit, appendEntry, emptyLedger, phaseCompleted, readLedger, remainingC
 import { digestCheck, missingActions, runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
+import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
+import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
 import { CONTROL_BRIEFS, judgeRun, LEDGER_FILE, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
 import { syncPlan } from './harness-agent-sync.mjs';
 
@@ -74,6 +76,56 @@ test('the wall refuses a session when what is left, less the overshoot margin, c
   assert.match(short.reason, /\$4\.00 left/);
   assert.equal(admit(ledger, { budgetCents: 300, overshootCents: 50, criticCents: 100 }).ok, false, 'the critic\'s worst thread counts too');
   assert.throws(() => admit(ledger, { budgetCents: 0 }), /positive whole number/);
+});
+
+test('a phase ceiling is a wall inside the run\'s: H3 stops at its $10 whatever the ledger has left', () => {
+  const ledger = emptyLedger();
+  appendEntry(ledger, { kind: 'session', phase: 'H3', funding: 'credit', sessionId: 'sesn_a', listCostCents: 650, outcome: 'delivered' });
+  appendEntry(ledger, { kind: 'session', phase: 'H2', funding: 'credit', sessionId: 'sesn_b', listCostCents: 2_000, outcome: 'delivered' });
+  assert.equal(admit(ledger, { budgetCents: 300, overshootCents: 50, phase: 'H3', ceilingCents: 1_000 }).ok, true, '$3.50 under the ceiling covers $3 + $0.50');
+  const over = admit(ledger, { budgetCents: 301, overshootCents: 50, phase: 'H3', ceilingCents: 1_000 });
+  assert.equal(over.ok, false);
+  assert.match(over.reason, /H3's \$10\.00 ceiling has \$3\.50 left/);
+  assert.equal(admit(ledger, { budgetCents: 301, overshootCents: 50 }).ok, true, 'without a ceiling only the run\'s remainder counts');
+});
+
+test('a session\'s trace measures its cold start, turns, images and largest request at list prices', () => {
+  const at = (s) => new Date(Date.parse('2026-10-15T00:00:00Z') + s * 1000).toISOString();
+  const usage = (input, output, read, write) => ({ input_tokens: input, output_tokens: output, cache_read_input_tokens: read, cache_creation_input_tokens: write });
+  const events = [
+    { type: 'span.model_request_start', processed_at: at(4) },
+    { type: 'span.model_request_end', processed_at: at(6), is_error: false, model_usage: usage(1_000, 500, 0, 10_000) },
+    { type: 'agent.tool_use', id: 'u1', name: 'bash', input: { command: 'npm install -g /mnt/session/uploads/noacg-cli.tgz' }, processed_at: at(7) },
+    { type: 'agent.tool_result', tool_use_id: 'u1', content: [{ type: 'text', text: 'added 1 package' }], processed_at: at(30) },
+    { type: 'agent.tool_use', id: 'u2', name: 'bash', input: { command: 'cd /workspace && noacg validate graphic' }, processed_at: at(31) },
+    { type: 'agent.tool_result', tool_use_id: 'u2', content: [{ type: 'text', text: `OK\nDigest:    sha256:${'d'.repeat(64)}` }], processed_at: at(40) },
+    { type: 'span.model_request_end', processed_at: at(45), is_error: false, model_usage: usage(2_000, 4_000, 100_000, 0) },
+    { type: 'agent.tool_use', id: 'u3', name: 'read', input: { file_path: '/mnt/session/outputs/shots/onair.png' }, processed_at: at(46) },
+    { type: 'agent.tool_result', tool_use_id: 'u3', content: [{ type: 'image', source: {} }], processed_at: at(47) },
+    { type: 'agent.message', content: [{ type: 'text', text: 'DELIVERED' }], processed_at: at(50) },
+  ];
+  const m = traceMetrics({ events, createdAt: at(0), model: 'claude-opus-5-5', usage: { active_seconds: 3_600, cache_creation: { ephemeral_5m_input_tokens: 10_000 } } });
+  assert.deepEqual(m.coldStart, { firstModelRequest: 4, firstToolCall: 7, firstNoacgCommand: 31 });
+  assert.deepEqual(m.turns, { modelRequests: 2, toolCalls: 3 });
+  assert.equal(m.images, 1, 'only a result that carried an image back counts as a look');
+  // 2,000 x $4 + 4,000 x $20 + 100,000 x $0.20 per million: $0.108, more than the first's $0.064.
+  assert.equal(m.largestRequest.usd, 0.108);
+  assert.equal(m.pricedCents, Math.round((0.064 + 0.108 + 0.08) * 100), 'tokens plus an hour of running time');
+  assert.equal(m.steps.find((s) => s.command?.includes('validate')).digest, `sha256:${'d'.repeat(64)}`);
+  assert.equal(m.steps.find((s) => s.tool === 'read').images, 1);
+  assert.equal(requestUsd(usage(0, 0, 0, 1_000_000), LIST_PRICES['claude-opus-5-5'], 1), 8, 'a one-hour cache write is twice the input price');
+});
+
+test('H3\'s proofs: the planted defect validates clean, and the packages environment adds only the published CLI', () => {
+  assert.deepEqual(Object.keys(PROOFS), ['h3-plumbing', 'h3-packages-cold', 'h3-packages-warm', 'h3-defect']);
+  assert.equal(PROOFS['h3-plumbing'].model.id, 'claude-haiku-5-5', 'plumbing is proved on the cheap model (5.3)');
+  assert.equal(PROOFS['h3-defect'].model, null, 'the defect repair runs the synced agent, Opus 5.5');
+  assert.doesNotMatch(PROOFS['h3-defect'].prompt, /upside|flip|mirror|transform|defect/i, 'the brief never names the defect');
+  const env = readEnvironmentDefinition(path.join(ROOT, 'agents', 'noacg-harness'));
+  const withPackages = packagesEnvironment(env);
+  assert.deepEqual(withPackages.config.packages, { npm: [PUBLISHED_CLI] });
+  assert.deepEqual({ ...withPackages.config, packages: undefined }, { ...env.config, packages: undefined }, 'the same networking');
+  assert.notEqual(withPackages.name, env.name);
 });
 
 test('an entry the credit did not fund carries no cost, and a credit session names its session', () => {
