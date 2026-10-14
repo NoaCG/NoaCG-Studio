@@ -201,6 +201,9 @@ test('a graphic id answers that graphic alone, even one past the list cap', () =
   const one = libraryView(WIDE, ` ${WIDE_ID} `) as Record<string, unknown> & { graphics: Array<{ id: string }> };
   assert.deepEqual(one.graphics.map((g) => g.id), [WIDE_ID]);
   assert.deepEqual(Object.keys(one), ['graphics'], 'no brands or productions beside it');
+  const missing = 'a1b2c3d4-0000-4000-8000-000000000999';
+  assert.deepEqual(libraryView(WIDE, missing), { graphics: [] });
+  assert.match(String((libraryView({ ...WIDE, scanLimited: true }, missing) as { searched?: string }).searched), /newest 1000/, 'a capped scan does not claim the graphic is absent');
 });
 
 

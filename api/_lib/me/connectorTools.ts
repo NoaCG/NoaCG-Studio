@@ -249,7 +249,11 @@ export type LibraryView = Record<string, unknown> & { graphics: Array<Record<str
 export function libraryView(rows: LibraryRows, query = ''): LibraryView {
   // A graphic id asks for that graphic alone, so its fields come back with it.
   const id = query.trim();
-  if (UUID.test(id)) return { graphics: libraryView({ ...rows, graphics: rows.graphics.filter((g) => g.id === id) }).graphics };
+  if (UUID.test(id)) {
+    const graphics = libraryView({ ...rows, graphics: rows.graphics.filter((g) => g.id === id) }).graphics;
+    // Not found in a capped scan is not "no such graphic": say how far the search went.
+    return { graphics, ...(graphics.length === 0 && rows.scanLimited ? { searched: `the newest ${LIBRARY_SCAN_ROWS} of each kind` } : {}) };
+  }
   const asked = wordsOf(query);
   const wanted = (...texts: Array<string | null | undefined>) => {
     if (asked.length === 0) return true;
