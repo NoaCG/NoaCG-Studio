@@ -699,6 +699,12 @@ changed that the next phase must allow for, decisions taken, traps found, and wh
 against the reference editors found. Only what the next phase needs; order and acceptance stay in
 [EDITOR_PLAN.md](EDITOR_PLAN.md), evidence stays in the receipts.
 
+### 2026-10-14: second independent leave-editor check failed
+
+- [Second independent receipt](work-specs/editor-leave-reliability/independent-2/README.md): the unchanged original quota-refusal test now passes, retaining Undo and successful retry. A distinct deterministic challenge loses a newer accepted command edit during the earlier autosave drain, then mounts Home without refusal. The stale snapshot is captured after that wait. [#1147](https://github.com/NoaCG/NoaCG-Studio/issues/1147) records the source boundary, failure and trace. No product code was changed by the checker.
+- The complete run passes 73 lifecycle cases, fails one added timing case and retains eight legacy skips; two fresh references, the unchanged sequential-export case, four cumulative/native tasks and the synthetic localhost account task pass separately. The added failure also held autosave, so it does not establish another replacement-write defect. Native 125% remains 196px canvas / 180px timeline / 280px inspector, and nine browser outputs execute. Tested descendant main CI and configured CI are green; broader comfort, owner acceptance and physical hosts remain open.
+- This is the second failed product check: stop the plan before Phase 3 and use the coordinator's owner-direction procedure. Automatic approval review rejected an optional further probe because of that stop; it did not execute and was not bypassed. Preserve both failed assertions and the successful original repair. The docs-only receipt does not authorize another repair or declare completion.
+
 ### 2026-10-14: refused-discard transaction repair
 
 - [Repair receipt](work-specs/editor-leave-reliability/repair/README.md): the fresh unchanged checker again reproduced lost Undo after one refused working-slot write. Discard now persists the replacement before publishing it to the editor; a refused write keeps the original session, source, command context, selection and Undo/Redo. A pending autosave drains first, and a newer source change refuses stale completion. Successful discard still restores the saved copy or clean default and clears discarded history.

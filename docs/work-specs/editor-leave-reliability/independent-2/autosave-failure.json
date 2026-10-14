@@ -1,0 +1,18 @@
+{
+  "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/38486709664",
+  "product": "d8c96727044191872abcfa36518e6e8ee2b853be",
+  "probe": "39a900183",
+  "test": "e2e/leave-second-checker.spec.ts:106",
+  "assertionLine": 135,
+  "requestedHtmlLength": 2613,
+  "newerHtmlLength": 2680,
+  "afterHtmlLength": 1796,
+  "homeMounted": true,
+  "error": null,
+  "historyBeforeCompletion": {
+    "undo": 3,
+    "redo": 0
+  },
+  "newerSourceLost": true,
+  "fullSnapshot": "leave-receipts/autosave-race/leave-second-checker-secon-c9c56-e-already-requested-discard-chromium/autosave-newer-edit.json"
+}
