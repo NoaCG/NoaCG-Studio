@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{AiStep.tsx,ai/**}, api/{ai/**,_lib/ai*{,/**}}
+// covers: src/ai/creation.ts, src/components/wizard/ai/**, api/{ai/**,_lib/ai*{,/**}}
 // covers: scripts/{aiDevPlugin.mjs,apiRouteTable.mjs}
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 

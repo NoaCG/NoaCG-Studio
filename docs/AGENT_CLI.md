@@ -525,7 +525,7 @@ Every channel below ships the same one artifact; what differs is which entrance 
 
 **Two hand-kept copies of the install lines exist outside `build-skill.mjs`'s reach** - the docs
 page's Reference (`docs.html#agent-setup`, and the paste-prompt above it) and the studio's own
-steer, `src/components/wizard/steps/ai/AgentRouteCard.tsx` (the AI step's *Recommended* block, which
+steer, `src/components/wizard/ai/AgentRouteCard.tsx` (the AI step's *Recommended* block, which
 shows Claude Code's one-command install, the Codex pair and `/noacg:graphic`). A change to the marketplace
 name, the plugin name or the command updates both in the same commit; nothing measures the drift
 yet, and `e2e/ai-tiers.spec.ts` pins only the studio copy's current text.

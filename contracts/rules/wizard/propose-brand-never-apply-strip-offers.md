@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/**, src/assets/paletteExtract.ts
+scope: src/components/wizard/ai/**, src/assets/paletteExtract.ts
 kind: rule
 fires: contract
 status: active

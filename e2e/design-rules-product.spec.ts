@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{AiStep.tsx,ai/**}
+// covers: src/ai/creation.ts, src/components/wizard/ai/**
 // covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus

@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/**
+scope: src/components/wizard/ai/**
 kind: rule
 fires: contract
 status: active

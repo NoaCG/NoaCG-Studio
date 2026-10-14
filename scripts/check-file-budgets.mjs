@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // gate: build
-// guards: src/components/wizard/CreationWizard.tsx, src/components/wizard/steps/AiStep.tsx, scripts/file-budgets/*.json
+// guards: src/components/wizard/CreationWizard.tsx, src/components/wizard/ai/AiStep.tsx, scripts/file-budgets/*.json
 //
 // A FILE THAT IS BEING TAKEN APART MUST NOT QUIETLY GROW BACK.
 //

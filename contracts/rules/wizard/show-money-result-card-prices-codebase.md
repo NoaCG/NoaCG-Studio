@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/**, src/ai/runStats.ts
+scope: src/components/wizard/ai/**, src/ai/runStats.ts
 kind: invariant
 fires: contract
 status: active

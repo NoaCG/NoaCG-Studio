@@ -29,6 +29,8 @@ export const WIZARD = {
       'src/components/wizard/DesignPrepCanvas', 'src/components/wizard/fieldAutoMap',
       'src/components/wizard/draft/import.ts',
     ],
+    // The Create with AI step lives under ai/ since wizard-ai A4; steps/AiStep is its re-export
+    // until the shell's S7 deletes it, and both old paths hold most of the window's history.
     ai: ['src/components/wizard/steps/AiStep', 'src/components/wizard/steps/ai/', 'src/components/wizard/ai/'],
     template: [
       'src/components/wizard/steps/BrowseStep', 'src/components/wizard/steps/FieldsStep',

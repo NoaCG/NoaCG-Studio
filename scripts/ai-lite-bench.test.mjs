@@ -1,4 +1,4 @@
-// guards: src/ai/lite/**, src/ai/creation.ts, src/components/wizard/steps/AiStep.tsx
+// guards: src/ai/lite/**, src/ai/creation.ts, src/components/wizard/ai/AiStep.tsx
 //
 // Self-tests for the NoaCG Lite benchmark (run in the build gate):
 //  - production-vs-benchmark pipeline EQUIVALENCE pins (one compile path, no drift)
@@ -84,7 +84,7 @@ test('the app injects the shared production validator', () => {
   // The step builds the one validator the bench runners share and hands it to the run module
   // as `io.validate`; the module builds none of its own and forwards that one per route
   // (scripts/ai-creation.test.mjs pins the forwarding, spec wizard-ai D3).
-  const step = read('src/components/wizard/steps/AiStep.tsx');
+  const step = read('src/components/wizard/ai/AiStep.tsx');
   assert.match(step, /productionSpxValidator\(/);
   assert.doesNotMatch(step, /withSafetyChecks\(/);
   assert.match(step, /const creationIo: CreationIO = \{[^}]*\svalidate,/);

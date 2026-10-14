@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/AiStep.tsx, src/components/wizard/steps/ai/AgentRouteCard.tsx, e2e/ai.spec.ts, e2e/ai-tiers.spec.ts
+scope: src/components/wizard/ai/AiStep.tsx, src/components/wizard/ai/AgentRouteCard.tsx, e2e/ai.spec.ts, e2e/ai-tiers.spec.ts
 kind: invariant
 fires: contract
 status: active

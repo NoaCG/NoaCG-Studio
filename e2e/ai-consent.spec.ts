@@ -1,4 +1,4 @@
-// covers: src/components/wizard/steps/{AiStep.tsx,ai/**}
+// covers: src/ai/creation.ts, src/components/wizard/ai/**
 
 import { expect, test, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
