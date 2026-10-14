@@ -2,7 +2,7 @@
 // covers: {index,privacy,terms,docs,downloads,whats-new,roadmap}.html, src/legal.css, src/docs/**, src/downloads/**, src/landing/updates.css, docs/whats-new/**, docs/GOALS.md
 
 import { existsSync } from 'node:fs';
-import { test, expect, type Page, type TestInfo } from '@playwright/test';
+import { test, expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { SITE_PAGES } from '../scripts/site-nav.mjs';
 
 // THE PUBLIC PAGES' CHROME AS PICTURES. Every public page draws the same top bar and footer from
@@ -36,6 +36,18 @@ async function open(page: Page, path: string, size: (typeof SIZES)[number]): Pro
   await page.evaluate(() => document.fonts.ready);
 }
 
+// The footer sits below the page's own content, whose height ends in a fraction of a pixel that
+// changes with every edit to that content, and the footer picture rasterises differently at each
+// fraction (#1190 lengthened /docs and /privacy and both footers failed, chrome untouched). Moving
+// it down to the next whole pixel leaves only its own height deciding where it lands. A relative
+// offset, because a larger top margin can collapse into the margin of the content above it.
+async function snapToWholePixel(footer: Locator): Promise<void> {
+  await footer.evaluate((el) => {
+    const fraction = (el.getBoundingClientRect().top + window.scrollY) % 1;
+    if (fraction) Object.assign(el.style, { position: 'relative', top: `${1 - fraction}px` });
+  });
+}
+
 for (const size of SIZES) {
   for (const [path, { file }] of Object.entries(SITE_PAGES)) {
     const name = file.replace(/\.html$/, '');
@@ -45,6 +57,7 @@ for (const size of SIZES) {
       skipUnrecorded(testInfo, header, footer);
       await open(page, path, size);
       await expect(page.locator('header.top')).toHaveScreenshot(header);
+      await snapToWholePixel(page.locator('footer.site'));
       await expect(page.locator('footer.site')).toHaveScreenshot(footer);
     });
   }
