@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAiProvider } from '../../../ai';
-import { brainstorm, type ChatMessage } from '../../../ai/brainstorm';
 import {
   EXAMPLE_PROMPTS,
   LITE_EXAMPLE_PROMPTS,
@@ -16,25 +15,30 @@ import {
   type AiTier,
 } from '../../../ai/settings';
 import type { AiPath, AiTemplateChange, GenerateContext, SpxValidator } from '../../../ai/provider';
-import { creationError, creationRoute, runCreation, screenChange, type CreationIO } from '../../../ai/creation';
+import {
+  chat,
+  conversationOf,
+  creationError,
+  creationRoute,
+  fixInstruction,
+  rebuildOnChassis,
+  refineResult,
+  runCreation,
+  screenChange,
+  type CreationIO,
+  type RefineLevel,
+} from '../../../ai/creation';
 import type { DesignSpec } from '../../../ai/designSpec';
 import { clearStagedSelection, facetsOf, stageSelection } from '../../../ai/preferences';
 import { AI_CATEGORIES, aiCategoryForAssemblerId } from '../../../ai/spec/categories';
 import { variantById } from '../../../templates/catalog';
 import type { TemplateVariant } from '../../../model/wizard';
-import { assembleGroundedTemplate, productionSpxValidator } from '../../../ai/lite/pipeline';
+import { productionSpxValidator } from '../../../ai/lite/pipeline';
 import { benchStructuralIntent } from '../../../validation/structuralIntentCheck';
-import { demoteSpecFields, withSpecChecks } from '../../../ai/spec/specValidate';
-import type { ProGenerateResult } from '../../../ai/pro/language/pipeline';
-import {
-  PRO_GRAPHICS,
-  PRO_PACKAGE_LIST,
-  type ProGraphicId,
-  type ProPackageMember,
-} from '../../../ai/pro/language/graphics';
+import { withSpecChecks } from '../../../ai/spec/specValidate';
 import { loadProStatus } from '../../../ai/pro/session';
-import type { ProStatusResponse } from '../../../ai/pro/types';
 import { PRO_SUPPORTED_CATEGORIES } from '../../../ai/pro/brief';
+import { ProFailingNote, ProReport, ProSettings, ProUploadNote, useProCategory, useProTier } from './ai/ProPanel';
 import { probeMark } from '../../../assets/assetInfo';
 import {
   emptyGenerationSpec,
@@ -195,13 +199,6 @@ type PastTurn = {
 type Turn = TalkTurn | PastTurn;
 
 /**
- * How many talk turns travel with a request. The whole conversation is the brief, but an
- * unbounded transcript would grow the design-stage prompt without bound — and the last
- * exchanges are where the decisions actually live.
- */
-const CONVERSATION_TURNS = 10;
-
-/**
  * The plain warning beside the NoaCG agent, before the choice and on its head after it (owner,
  * 2026-09-28). It replaced the "Still in testing - results vary" note and the Beta tag: a
  * statement of what is known, said where the reader decides, with no edition language.
@@ -279,32 +276,9 @@ export default function AiStep({
       alive = false;
     };
   }, [needsSignIn]);
-  // undefined = still resolving; null = no hosted Pro on this server.
-  const [proStatus, setProStatus] = useState<ProStatusResponse | null | undefined>(undefined);
-  /**
-   * WHICH GRAPHICS THIS PRO GENERATION MAKES (§15.9). Persisted like every other AI preference,
-   * normalized by `loadAiSettings` so it is always in package order and never empty.
-   *
-   * The FIRST member is the primary: the graphic the live preview shows, the one a refinement
-   * would act on, and the one the wizard treats as the project when the package is a set of one.
-   */
-  const [proPackage, setProPackage] = useState<ProGraphicId[]>(() => loadAiSettings().proPackage);
-  const primaryGraphic = proPackage[0] ?? 'lower-third';
-  /** Members the platform's own gate refused, named so a short package is never a silent one. */
-  const [proDropped, setProDropped] = useState<string[]>([]);
-  useEffect(() => {
-    let alive = true;
-    void loadProStatus()
-      .then((status) => {
-        if (alive) setProStatus(status);
-      })
-      .catch(() => {
-        if (alive) setProStatus(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [needsSignIn]);
+  // The quarantined Pro tier's state and its status read (steps/ai/ProPanel.tsx), in the place
+  // they always ran.
+  const proTier = useProTier(needsSignIn);
   const [settings, setSettings] = useState(loadAiSettings);
   const liteOffered = Boolean(liteStatus?.enabled);
   // `liteOffered` is false BOTH while the status is still in flight and when the answer is no,
@@ -312,21 +286,13 @@ export default function AiStep({
   // answer: a visitor who opens the sheet before the fetch lands must not be told this build has
   // no hosted route and then watch that silently become untrue.
   const hostedResolved = liteStatus !== undefined;
-  // HOSTED PRO IS THE ONLY PRO (owner, 2026-08-14). A NoaCG tier runs on NoaCG's own service or
-  // it is not offered - it never asks a customer for a key to reach our own models. So the tier
-  // appears on exactly two conditions, both of which have to be true at once: the SERVER says
-  // hosted Pro is available to this visitor (`AI_PRO_ENABLED` plus their entitlement and
-  // allowance), and this deployment actually carries the backend that route is metered through.
-  // The second is not belt-and-braces: hosted Pro reserves and settles per account, so a build
-  // with no backend cannot run it however the status answers.
-  const proHosted = Boolean(proStatus?.available);
   /*
    * THE WIZARD OFFERS ONE HOSTED PATH AND THE USER'S OWN KEY. Hosted Pro's DOOR is closed
    * pending the measured comparison in https://github.com/NoaCG/NoaCG-Studio/issues/771;
    * its PIPELINE is untouched, and every `proMode` branch below is left intact rather than
    * deleted, because deleting them is the half that decision has not made yet.
    *
-   * TO REOPEN IT: restore `const proOffered = proHosted && isBackendConfigured()` (the two
+   * TO REOPEN IT: restore `const proOffered = proTier.proHosted && isBackendConfigured()` (the two
    * conditions ANDed - the server says this visitor has hosted Pro, and this deployment carries
    * the backend the route is metered through, since a build with no backend cannot run it
    * however the status answers), and give `tier` a branch that resolves to 'pro'. Nothing else
@@ -436,14 +402,7 @@ export default function AiStep({
         : current,
     );
   }, [liteMode, spec.category]);
-  // The Pro tier's v1 pipeline compiles lower thirds only - a category it cannot carry
-  // resets to 'auto' (the Lite pattern) rather than being silently reinterpreted.
-  useEffect(() => {
-    if (!proMode) return;
-    if (spec.category !== 'auto' && !(PRO_SUPPORTED_CATEGORIES as readonly string[]).includes(spec.category)) {
-      setSpec((current) => ({ ...current, category: 'auto', categoryInferred: false }));
-    }
-  }, [proMode, spec.category]);
+  useProCategory(proMode, spec.category, setSpec);
   const activeSpec = specIsEmpty(spec) ? null : spec;
   const [imported, setImported] = useState<{
     fileName: string;
@@ -460,18 +419,6 @@ export default function AiStep({
   // (passed back on refine so "warmer colours" re-assembles instead of editing code).
   const [lastPath, setLastPath] = useState<AiPath | null>(null);
   const [lastSpec, setLastSpec] = useState<DesignSpec | null>(null);
-  // The Pro concept + editability report behind each pro-path template, keyed by the
-  // template OBJECT so an archived then restored result still shows its own concept.
-  const proDetails = useRef(new WeakMap<SpxTemplate, ProGenerateResult>());
-  /**
-   * THE REST OF THE PACKAGE, keyed by the graphic the step previews (§15.9).
-   *
-   * A WeakMap for the same reason `proDetails` is one: `turns` keeps earlier generations whole
-   * and "↩ Bring back" restores them, so a package has to travel with ITS OWN result rather
-   * than in a piece of state the next generation overwrites. The entry always LEADS with the
-   * previewed graphic, so `pack[0] === result` and a consumer never has to merge two lists.
-   */
-  const proPack = useRef(new WeakMap<SpxTemplate, ProPackageMember[]>());
   // Harness mode: the generated directions (one, or the harness's three) + which one is
   // picked (the pick is staged as preference data and committed when the project is actually
   // created). The list SURVIVES a refinement — refining replaces only the picked entry, so
@@ -518,11 +465,7 @@ export default function AiStep({
   const [latestBrief, setLatestBrief] = useState<string | null>(null);
 
   /** What the model is told the conversation was: the talk turns, bounded, oldest first. */
-  const conversation = (): ChatMessage[] =>
-    turns
-      .filter((t): t is TalkTurn => t.kind === 'you' || t.kind === 'ai')
-      .slice(-CONVERSATION_TURNS)
-      .map((t) => ({ role: t.kind === 'you' ? 'user' : 'assistant', text: t.text }));
+  const conversation = () => conversationOf(turns.filter((t): t is TalkTurn => t.kind === 'you' || t.kind === 'ai'));
 
   const say = (turn: Turn) => setTurns((prev) => [...prev, turn]);
 
@@ -553,13 +496,13 @@ export default function AiStep({
   const sendChat = async () => {
     const text = prompt.trim();
     if (!text || chatBusy || busy) return;
-    const history: ChatMessage[] = [...conversation(), { role: 'user', text }];
+    const history = conversation();
     say({ kind: 'you', text, attached: 0 });
     setPrompt('');
     setChatBusy(true);
     setError(null);
     try {
-      const { reply, brief } = await brainstorm(history);
+      const { reply, brief } = await chat(history, text);
       say({ kind: 'ai', text: reply });
       if (brief) setLatestBrief(brief);
     } catch (e) {
@@ -662,7 +605,7 @@ export default function AiStep({
       activeSpec,
       change.generationId,
       change.path ?? null,
-      proPack.current.get(change.template)?.map((member) => member.template) ?? null,
+      proTier.proPack.current.get(change.template)?.map((member) => member.template) ?? null,
     );
     return v;
   };
@@ -707,35 +650,15 @@ export default function AiStep({
   };
 
   /**
-   * Re-assemble the selected direction on a DIFFERENT design from the shortlist it was chosen
-   * from — deterministically, with no model call and no cost. Everything the design stage
-   * decided (lines, palette, typography, density, motion, shape) is in the spec and applies to
-   * the new chassis exactly as it did to the old one; only the proven design underneath swaps.
-   *
-   * That is what makes the promise checkable rather than a slogan: the user sees the designs
-   * the AI chose between and can overrule the choice without paying for another generation.
-   *
-   * No structural KIND check is needed here, unlike a generation: every design on the shortlist
-   * satisfies the anchor the brief resolved to, by construction (src/ai/retrieval.ts), so a
-   * swap inside it cannot produce the wrong kind of graphic.
+   * Re-assemble the selected direction on another design from its shortlist (`rebuildOnChassis`
+   * in src/ai/creation.ts: no model call, no cost). That is what makes the promise checkable
+   * rather than a slogan: the user sees the designs the AI chose between and can overrule the
+   * choice without paying for another generation.
    */
-  const rebuildOnChassis = async (variantId: string) => {
-    const current = alternatives[selected];
-    if (!current?.spec || current.spec.variantId === variantId) return;
-    setBusy('Rebuilding on that design…');
+  const swapChassis = async (variantId: string) => {
     try {
-      const spec: DesignSpec = { ...current.spec, variantId };
-      const { template } = assembleGroundedTemplate(spec, contextFor(), { keepChassisZone: true });
-      const change: AiTemplateChange = {
-        ...current,
-        template,
-        spec,
-        // A plain grounded assembly is what this now IS. Spreading `current` would carry a
-        // 'grounded+polish' path onto a template the polish pass never touched, so the card
-        // would keep promising "plus a bounded custom flourish" for a flourish that is gone.
-        path: 'grounded',
-        validation: demoteSpecFields(await validate(template)),
-      };
+      const change = await rebuildOnChassis(alternatives[selected], variantId, contextFor(), creationIo);
+      if (!change) return;
       setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));
       showChange(change);
     } catch (e) {
@@ -830,12 +753,12 @@ export default function AiStep({
         brief,
         context,
         imported: imported?.template ?? null,
-        pro: { asIs: uploads.find((u) => u.purpose === 'asset')?.asset ?? null, spec: activeSpec, proPackage, resolution, fps },
+        pro: { asIs: uploads.find((u) => u.purpose === 'asset')?.asset ?? null, spec: activeSpec, proPackage: proTier.proPackage, resolution, fps },
       }, creationIo);
       if (pro) {
-        proDetails.current.set(pro.details.template, pro.details);
-        proPack.current.set(pro.details.template, pro.pack);
-        setProDropped(pro.dropped);
+        proTier.proDetails.current.set(pro.details.template, pro.details);
+        proTier.proPack.current.set(pro.details.template, pro.pack);
+        proTier.setProDropped(pro.dropped);
       }
       if (changes.length) {
         // One result replaces whatever stood; three directions start on the first that passes.
@@ -852,7 +775,7 @@ export default function AiStep({
       setBusy(null);
     }
     if (route === 'lite') void loadLiteStatus().then(setLiteStatus).catch(() => undefined);
-    if (route === 'pro' && proHosted) void loadProStatus().then(setProStatus).catch(() => undefined);
+    if (route === 'pro' && proTier.proHosted) void loadProStatus().then(proTier.setProStatus).catch(() => undefined);
   };
 
   /** Bring an earlier generation back as the current result; the displaced one is kept. */
@@ -871,24 +794,18 @@ export default function AiStep({
   /**
    * One refinement turn on the PICKED direction. It replaces that entry in place — the other
    * directions keep their own designs and stay pickable — and re-stages the pick, so
-   * improving a direction before creating it still trains the preference data.
-   *
-   * `useSpec` chooses the level: a wording refinement of a still-house-shaped result refines
-   * at SPEC level (it re-assembles deterministically, src/ai/CLAUDE.md), while a fix works on
-   * the emitted CODE, because that is what the findings are about.
+   * improving a direction before creating it still trains the preference data. The level
+   * (`refineResult` in src/ai/creation.ts): a refinement works on the spec, a fix on the code.
    */
-  const applyRefinement = (instruction: string, useSpec: boolean, label: string) => {
+  const applyRefinement = (instruction: string, level: RefineLevel) => {
     if (!result) return;
     void (async () => {
-      setBusy(label);
       setError(null);
       try {
-        const change = await getAiProvider(liteActive ? 'lite' : undefined).modify(instruction, result, contextFor(), {
-          validate,
-          onProgress: (stage) => setBusy(stage),
-          ...(liteActive ? { profile: 'lite' as const } : {}),
-          ...(useSpec && lastSpec ? { spec: lastSpec } : {}),
-        });
+        const change = await refineResult(
+          { result, instruction, level, spec: lastSpec, context: contextFor(), lite: liteActive },
+          creationIo,
+        );
         setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));
         showChange(change);
         stagePick(change, originals);
@@ -907,25 +824,13 @@ export default function AiStep({
     say({ kind: 'you', text: p, attached: uploads.length });
     setPrompt('');
     setArmedExample(null);
-    applyRefinement(p, true, 'Refining…');
+    applyRefinement(p, 'spec');
   };
 
-  /**
-   * User-pressed repair on a failing result: the exact validator findings go back as the
-   * instruction. This is NOT an automatic repair loop on grounded assemblies — one of those
-   * failing its own bench is a platform bug worth surfacing (src/ai/CLAUDE.md) — it is a
-   * button, so the user decides whether to spend a call rather than reading raw findings
-   * they have no way to act on.
-   */
+  /** User-pressed repair on a failing result: the exact findings go back (`fixInstruction`). */
   const fixNow = () => {
     if (!validation || validation.ok) return;
-    const findings = validation.errors.map((e) => `- ${e.message}`).join('\n');
-    applyRefinement(
-      `The template fails these checks. Fix every one of them and change nothing else about ` +
-        `the design:\n${findings}`,
-      false,
-      'Fixing the findings…',
-    );
+    applyRefinement(fixInstruction(validation), 'code');
   };
 
   /** Undo every refinement of the picked direction, back to what the AI first proposed. */
@@ -1121,13 +1026,7 @@ export default function AiStep({
               }
             />
           ))}
-          {proMode && (
-            <p className="hint" data-testid="pro-upload-note">
-              An as-is mark is seated in the design and its shape and ink are measured, so the
-              look is chosen around it. Style references do not steer the design yet. Colours
-              read from your image can be applied as the exact brand accent below.
-            </p>
-          )}
+          {proMode && <ProUploadNote />}
           {images.length > 0 && (
             <button
               onClick={() => onUseTemplates(images)}
@@ -1525,91 +1424,7 @@ export default function AiStep({
               </label>
               {/* Fixed on, not merely ticked: with no hosted path there is nothing to switch
                   back to. The hosted note above already says why it cannot move. */}
-              {/* Pro has NO chooser at all — no provider, no model, no key. The copy states the
-                  outcome and stops there, so replacing what runs underneath costs no wording
-                  and promises nothing about how it is done. */}
-              {proMode && (
-                <div style={{ marginTop: 10 }} data-testid="ai-pro-settings">
-                  {/* Nothing to choose, know, or supply — no provider, no model, no key. The
-                      allowance read-back is the only thing worth showing, because it is the one
-                      limit the user can actually run into. The tier is not offered at all where
-                      that is not true, so there is no second branch here asking for a key. */}
-                  <p className="hint" data-testid="ai-pro-hosted-note">
-                    NoaCG Pro runs on NoaCG&apos;s own service. There is nothing to configure and
-                    no key to supply. It picks its own model, and the real cost of each
-                    generation is shown on the result.
-                    {proStatus?.allowance
-                      // THE SMALLER OF THE TWO, because the allowance is two counters and a user
-                      // meets whichever runs out first. Measured 2026-08-15: the panel read
-                      // "1 generation(s) left today" from the STARTS counter while the SUCCESSES
-                      // counter was already spent, so Create came back disabled under a sentence
-                      // promising another go - the exact drift api/_lib/lite/status.ts warns
-                      // about, arriving on the read-back side instead of the gate side.
-                      ? ` ${Math.min(
-                        proStatus.allowance.dailyStartsRemaining,
-                        proStatus.allowance.dailySuccessesRemaining,
-                      )} generation(s) left today,
-                          ${Math.min(
-                        proStatus.allowance.monthlyStartsRemaining,
-                        proStatus.allowance.monthlySuccessesRemaining,
-                      )} this month.`
-                      : ''}
-                  </p>
-                  {/* ── THE PACKAGE (docs/NOACG_PRO_PLAN.md §15.9) ─────────────────────────
-                      This is the ONE thing a Pro user chooses, and it is here rather than
-                      beside the prompt because it is a property of the RUN, like the tier
-                      itself, not part of the brief. Every box is ticked by default: the whole
-                      package costs exactly one model call, so the only reason to untick one is
-                      that the show does not need that graphic.
-                      The LAST tick cannot be removed - a generation that makes nothing is not
-                      a choice anyone means to express - so the sole remaining box is disabled
-                      rather than silently re-added on the next load. */}
-                  <fieldset className="ai-pro-package" data-testid="pro-package">
-                    <legend className="dlg-caption">What this makes</legend>
-                    {PRO_PACKAGE_LIST.map((spec) => {
-                      const on = proPackage.includes(spec.id);
-                      const onlyOne = on && proPackage.length === 1;
-                      return (
-                        <label
-                          key={spec.id}
-                          className="dlg-check"
-                          data-testid={`pro-package-${spec.id}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            disabled={!!busy || onlyOne}
-                            onChange={() => {
-                              // Rebuilt from the canonical ORDER rather than by pushing onto the
-                              // end: the first member is the graphic the step previews, and a
-                              // tick further down the list must not move it.
-                              const next = PRO_PACKAGE_LIST
-                                .map((s) => s.id)
-                                .filter((id) => (id === spec.id ? !on : proPackage.includes(id)));
-                              setProPackage(next);
-                              saveAiSettings({ proPackage: next });
-                            }}
-                          />
-                          <span>
-                            <strong>{spec.label}</strong>
-                            <span className="hint">
-                              {spec.id === primaryGraphic
-                                ? 'Shown in the preview, and the one a refinement changes.'
-                                : 'Composed from the same design language, with no extra generation.'}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                    <p className="hint">
-                      One generation, {proPackage.length === 1 ? 'one graphic' : `${proPackage.length} graphics`}
-                      {proPackage.length > 1
-                        ? ' that belong to each other. Only the design language is generated; the platform composes each graphic from it.'
-                        : '.'}
-                    </p>
-                  </fieldset>
-                </div>
-              )}
+              {proMode && <ProSettings tier={proTier} busy={busy} />}
               {ownKeyMode && (
                 <div style={{ marginTop: 10 }}>
                   {/* The tier's promise IS the key, so the managed route is not on offer here. */}
@@ -1698,7 +1513,7 @@ export default function AiStep({
                           data-variant={variant.id}
                           aria-pressed={current}
                           title={variant.description}
-                          onClick={() => void rebuildOnChassis(variant.id)}
+                          onClick={() => void swapChassis(variant.id)}
                         >
                           <MiniPreview variant={variant} />
                           {/* The NAME gets the whole caption. A style-family tag beside it read
@@ -1716,97 +1531,7 @@ export default function AiStep({
                 </div>
               )}
               {routeLabel(lastPath) && <p className="hint" style={{ marginTop: 4 }}>{routeLabel(lastPath)}</p>}
-              {/* The Pro result's own story: the DESIGN LANGUAGE the model decided, and every
-                  place the platform decided something for it. There is no concept image to show
-                  any more - the graphic IS the answer, rendered live above this card, and the
-                  picture the old engine displayed was the one thing it could not keep (§16). */}
-              {lastPath === 'pro' && (() => {
-                const pro = proDetails.current.get(result);
-                if (!pro) return null;
-                const swatches: [string, string][] = [
-                  ['accent', pro.language.palette.accent],
-                  ['panel', pro.language.palette.panel],
-                  ['text', pro.language.palette.text],
-                  ['supporting', pro.language.palette.textDim],
-                ];
-                return (
-                  <div className="wz-pro-concept" style={{ marginTop: 8 }} data-testid="pro-report">
-                    {/* The RATIONALE is not repeated here: it is already the result summary one
-                        line above, which is the slot every path writes its reasoning into. */}
-                    {/* `wrap`, because this row carries a model-chosen NAME beside four swatches
-                        and three enum words - a long look name on a narrow step would otherwise
-                        push the palette off the card. */}
-                    <div className="row wrap" style={{ gap: 6, alignItems: 'center' }} data-testid="pro-palette">
-                      <strong style={{ marginRight: 2 }}>{pro.language.name}</strong>
-                      {swatches.map(([role, hex]) => (
-                        <span
-                          key={role}
-                          title={`${role} ${hex}`}
-                          style={{
-                            width: 18, height: 18, borderRadius: 4, background: hex,
-                            border: '1px solid rgba(255,255,255,0.2)', display: 'inline-block',
-                          }}
-                        />
-                      ))}
-                      <span className="hint">
-                        {pro.language.typography.fontId} · {pro.language.density} · {pro.language.motion.character}
-                      </span>
-                    </div>
-                    {/* WHAT THE PLATFORM DECIDED, said out loud. A repair the user cannot see is
-                        a promise nobody can check (the Lite brand rule), and these are the same
-                        divergences the ledger row now carries as `pro-` codes. */}
-                    <ul className="hint" data-testid="pro-outcomes">
-                      {pro.notes.map((note, index) => (
-                        <li key={index}>{note}</li>
-                      ))}
-                    </ul>
-                    {/* ── THE PACKAGE, as it actually looks (§15.9) ──────────────────────────
-                        A list of names cannot answer the only question a package raises - do
-                        these belong to each other - so the members are rendered, small, beside
-                        the primary the preview shows large. Same reasoning as the kit Finish
-                        step's thumbnail grid, one surface earlier: the claim is checkable here,
-                        before anything is created. */}
-                    {(() => {
-                      const pack = proPack.current.get(result) ?? [];
-                      if (pack.length < 2) return null;
-                      return (
-                        <div className="wz-kit-built-wrap" data-testid="pro-package-built">
-                          <p className="hint">
-                            The whole package, from this one design language:
-                          </p>
-                          <ul className="wz-kit-built">
-                            {pack.map((member, index) => (
-                              <li key={`${member.id}-${index}`} className="wz-kit-built-cell">
-                                <MiniPreview template={member.template} lazy />
-                                <span className="wz-kit-built-name">{PRO_GRAPHICS[member.id].label}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })()}
-                    {proDropped.length > 0 && (
-                      // A short package is never a SILENT one. The composer cannot emit invalid
-                      // code, so a member the gate refused is a platform defect worth naming
-                      // rather than a graphic to quietly leave out of the set.
-                      <p className="hint status-bad" data-testid="pro-package-dropped">
-                        ⚠ {proDropped.join(' and ')} did not pass the platform&apos;s own checks and
-                        {proDropped.length === 1 ? ' is' : ' are'} not in this set.
-                      </p>
-                    )}
-                    {pro.fallbacks.length > 0 && (
-                      <p className="hint" data-testid="pro-warning">
-                        ⚠ {pro.fallbacks.length} design decision(s) came back unreadable and fell
-                        back to the house look.
-                      </p>
-                    )}
-                    <p className="hint">
-                      Designed by {pro.model}
-                      {pro.costUsd > 0 ? ` · $${pro.costUsd.toFixed(4)}` : ''}
-                    </p>
-                  </div>
-                );
-              })()}
+              {lastPath === 'pro' && <ProReport tier={proTier} result={result} />}
               {lastSpec && (!activeSpec || activeSpec.category === 'auto') && (
                 // The category the AI inferred — surfaced as EDITABLE metadata, never a
                 // silent decision. Changing it pins the next generation.
@@ -1891,12 +1616,7 @@ export default function AiStep({
                   This is a NoaCG platform failure, so no further model call is spent trying to rewrite generated code.
                 </p>
               )}
-              {validation && !validation.ok && proMode && (
-                <p className="hint" style={{ marginTop: 8 }}>
-                  NoaCG builds this graphic deterministically, so a failing check here is a NoaCG
-                  platform defect. Generate a new design rather than spending repair calls.
-                </p>
-              )}
+              {validation && !validation.ok && proMode && <ProFailingNote />}
               {spent && (
                 <p className="hint" style={{ marginTop: 6 }} data-testid="ai-spent">
                   This run: {formatDuration(spent.ms)}

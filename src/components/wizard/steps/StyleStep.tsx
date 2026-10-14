@@ -37,17 +37,6 @@ interface Props {
 }
 
 
-/** #rrggbb for the native color input; rgba()/other values fall back to a neutral swatch.
- *  Shared with the AI step's brand-colour rows (steps/ai/MoreControlPanel) — one conversion,
- *  so a colour swatch means the same thing wherever the user picks one. */
-export function pickerHex(value: string): string {
-  if (/^#[0-9a-f]{6}$/i.test(value)) return value;
-  const m = value.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-  if (!m) return '#888888';
-  const h = (n: string) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0');
-  return `#${h(m[1])}${h(m[2])}${h(m[3])}`;
-}
-
 /**
  * THE FOUR PALETTE ROLES, each with the `:root` variable a design paints it through.
  *

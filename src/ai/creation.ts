@@ -1,7 +1,7 @@
 // THE CREATE WITH AI RUN, without React (docs/work-specs/wizard-ai/spec.md, sections 2 and 4).
 //
-// Which provider call runs for which tier, with which checks, and what the result carries back.
-// The step (`components/wizard/steps/AiStep.tsx`) owns the screen: the composer, the thread, the
+// Which provider call runs for which tier, with which checks, and what the result carries back;
+// how a result is refined, fixed or rebuilt on another design; and the talk turn. The step (`components/wizard/steps/AiStep.tsx`) owns the screen: the composer, the thread, the
 // busy line, the result card. Everything the browser has to supply comes in through `io` - the
 // provider, the validator the step builds, the structural check and the mark probe (both need a
 // live DOM) and the busy line - so `scripts/ai-creation.test.mjs` runs every route in Node with a
@@ -23,6 +23,9 @@ import type {
 } from './provider';
 import type { CreativeAiProfileId } from './lite/types';
 import { LiteUnsupportedError } from './lite/client';
+import { assembleGroundedTemplate } from './lite/pipeline';
+import { brainstorm, type ChatMessage } from './brainstorm';
+import type { DesignSpec } from './designSpec';
 import { mergeSafety } from './safety';
 import { demoteSpecFields } from './spec/specValidate';
 import { PRO_STANDARD_ROUTES } from './pro/contract';
@@ -171,6 +174,112 @@ export function creationError(error: unknown, route: CreationRoute): string {
  */
 export function screenChange(change: AiTemplateChange, source?: SpxTemplate | null): ValidationResult {
   return mergeSafety(change.validation ?? validateTemplate(change.template), change.template, source);
+}
+
+// ── Once a result stands: refine, fix, rebuild; and the talk ─────────────────────────────
+
+/**
+ * The level a refinement works at. A wording refinement of a still-house-shaped result refines
+ * at SPEC level (it re-assembles deterministically, src/ai/CLAUDE.md), while a fix works on the
+ * emitted CODE, because that is what the findings are about.
+ */
+export type RefineLevel = 'spec' | 'code';
+
+export interface RefineInput {
+  /** The result standing now, the one the instruction acts on. */
+  result: SpxTemplate;
+  instruction: string;
+  level: RefineLevel;
+  /** The design spec the result was assembled from, if any; only a spec-level refinement sends it. */
+  spec: DesignSpec | null;
+  context: GenerateContext;
+  /** Lite is active: the refinement runs on the Lite profile. */
+  lite: boolean;
+}
+
+/**
+ * One refinement turn, or a fix, on the picked result: one `modify` call with the step's
+ * validator and the busy line (spec D3). The structural check does not travel: a refinement
+ * keeps the kind the result already has. Errors reach the caller as thrown, and the step shows
+ * their plain message, without the "Try:" suffix of a whole-result route.
+ */
+export async function refineResult(input: RefineInput, io: CreationIO): Promise<AiTemplateChange> {
+  const { result, instruction, level, spec, context, lite } = input;
+  io.onProgress(level === 'spec' ? 'Refining…' : 'Fixing the findings…');
+  return io.provider(lite ? 'lite' : undefined).modify(instruction, result, context, {
+    validate: io.validate,
+    onProgress: io.onProgress,
+    ...(lite ? { profile: 'lite' as const } : {}),
+    ...(level === 'spec' && spec ? { spec } : {}),
+  });
+}
+
+/**
+ * The instruction behind "Fix these": the exact validator findings, sent back as the request.
+ * This is NOT an automatic repair loop on grounded assemblies - one of those failing its own
+ * bench is a platform bug worth surfacing (src/ai/CLAUDE.md) - it is a button, so the user
+ * decides whether to spend a call rather than reading raw findings they have no way to act on.
+ */
+export function fixInstruction(validation: ValidationResult): string {
+  const findings = validation.errors.map((e) => `- ${e.message}`).join('\n');
+  return `The template fails these checks. Fix every one of them and change nothing else about ` +
+    `the design:\n${findings}`;
+}
+
+/**
+ * Re-assemble a direction on a DIFFERENT design from the shortlist it was chosen from -
+ * deterministically, with no model call and no cost. Everything the design stage decided
+ * (lines, palette, typography, density, motion, shape) is in the spec and applies to the new
+ * chassis exactly as it did to the old one; only the proven design underneath swaps.
+ *
+ * No structural KIND check is needed here, unlike a generation: every design on the shortlist
+ * satisfies the anchor the brief resolved to, by construction (src/ai/retrieval.ts), so a swap
+ * inside it cannot produce the wrong kind of graphic. Null when there is nothing to rebuild: a
+ * result with no spec, or the design it already stands on.
+ */
+export async function rebuildOnChassis(
+  current: AiTemplateChange | undefined,
+  variantId: string,
+  context: GenerateContext,
+  io: Pick<CreationIO, 'validate' | 'onProgress'>,
+): Promise<AiTemplateChange | null> {
+  if (!current?.spec || current.spec.variantId === variantId) return null;
+  io.onProgress('Rebuilding on that design…');
+  const spec: DesignSpec = { ...current.spec, variantId };
+  const { template } = assembleGroundedTemplate(spec, context, { keepChassisZone: true });
+  return {
+    ...current,
+    template,
+    spec,
+    // A plain grounded assembly is what this now IS. Spreading `current` would carry a
+    // 'grounded+polish' path onto a template the polish pass never touched, so the card
+    // would keep promising "plus a bounded custom flourish" for a flourish that is gone.
+    path: 'grounded',
+    validation: demoteSpecFields(await io.validate(template)),
+  };
+}
+
+/**
+ * How many talk turns travel with a request. The whole conversation is the brief, but an
+ * unbounded transcript would grow the design-stage prompt without bound - and the last
+ * exchanges are where the decisions actually live.
+ */
+export const CONVERSATION_TURNS = 10;
+
+/** What the model is told the conversation was: the talk turns, bounded, oldest first. */
+export function conversationOf(talk: { kind: 'you' | 'ai'; text: string }[]): ChatMessage[] {
+  return talk
+    .slice(-CONVERSATION_TURNS)
+    .map((t) => ({ role: t.kind === 'you' ? 'user' : 'assistant', text: t.text }));
+}
+
+/**
+ * One talk turn: the conversation so far plus what was just said, to the brainstorm. It bypasses
+ * the provider, as it always has (spec section 4), and returns the reply and the brief the talk
+ * arrived at; a failure is thrown for the step to put the turn back in the box.
+ */
+export function chat(conversation: ChatMessage[], text: string): Promise<{ reply: string; brief: string | null }> {
+  return brainstorm([...conversation, { role: 'user', text }]);
 }
 
 /**

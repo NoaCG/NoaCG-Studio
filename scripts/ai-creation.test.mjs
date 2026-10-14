@@ -11,14 +11,18 @@
 // the busy line only and is screened on display instead), what a late or thrown answer does, and
 // that an answer arriving after the caller abandoned the run still goes to whoever awaits it -
 // the module keeps no state between runs, so placing or dropping a late result stays the step's
-// decision (issue #1165; `e2e/ai.spec.ts` pins what the step does with it today).
+// decision (issue #1165; `e2e/ai.spec.ts` pins what the step does with it today). The turns on a
+// standing result are held the same way: refine and fix (one `modify` call), the rebuild on
+// another design (no model call; its only wait is the step's validator) and the talk (the
+// brainstorm, which reaches the gateway past the provider, so its `fetch` is the stub).
 //
 // The Pro tier is never selected while its door is closed (issue #771) but must keep running as
 // written. It reaches no provider: its network is the reservation, the design-language call and
 // the outcome report, so it runs against a stubbed `fetch`. Up to the design call that is plain
 // Node; composing the graphic creates a catalog design, which parses html with `DOMParser`
 // (`scripts/catalog-emit.mjs` measured every design failing in bare Node), so the one test that
-// lets a Pro run finish does it on a blank Chromium page, as the catalog gates do.
+// lets a Pro run finish does it on a blank Chromium page, as the catalog gates do. The rebuild
+// assembles a catalog design too, so its held, thrown and abandoned cases run on such a page.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -65,8 +69,14 @@ const [esm, PAGE_SCRIPT] = [await emit('esm'), await emit('iife')];
 await built.close();
 
 const {
+  chat,
+  conversationOf,
+  CONVERSATION_TURNS,
   creationError,
   creationRoute,
+  fixInstruction,
+  rebuildOnChassis,
+  refineResult,
   runCreation,
   screenChange,
   LiteUnsupportedError,
@@ -326,6 +336,250 @@ test('the screen validates a result that carries no verdict and adds the safety 
 
   // A construct the imported source already had is not reported as the AI's.
   assert.equal(screenChange({ ...leaky, validation: PASS }, leaky.template), PASS);
+});
+
+// ── Refine and fix: one modify call on the standing result ───────────────────────────────
+
+const RESULT = template('Standing');
+const SPEC = { fit: 'catalog', reason: 'r', name: 'Standing', summary: 's', category: 'lower-third', variantId: 'lt02', lines: [{ title: 'Name', sample: 'Jane Doe' }] };
+
+function refineInput(over = {}) {
+  return { result: RESULT, instruction: 'bigger name', level: 'spec', spec: SPEC, context: input('raw').context, lite: false, ...over };
+}
+
+/** The refine rows: the level and tier decide the busy line, the profile and whether the spec travels. */
+const REFINE_ROWS = [
+  { name: 'refine', over: {}, label: 'Refining…', profile: undefined, spec: true },
+  { name: 'refine on Lite', over: { lite: true }, label: 'Refining…', profile: 'lite', spec: true },
+  { name: 'refine with no spec', over: { spec: null }, label: 'Refining…', profile: undefined, spec: false },
+  { name: 'fix', over: { level: 'code', instruction: 'fix it' }, label: 'Fixing the findings…', profile: undefined, spec: false },
+  { name: 'fix on Lite', over: { level: 'code', instruction: 'fix it', lite: true }, label: 'Fixing the findings…', profile: 'lite', spec: false },
+];
+
+for (const row of REFINE_ROWS) {
+  test(`${row.name}: one modify call with the step's validator, answered late`, async () => {
+    const { stub, progress, io } = harness();
+    const given = refineInput(row.over);
+    const run = refineResult(given, io);
+    const state = watch(run);
+    await settle();
+    assert.equal(progress[0], row.label);
+    assert.equal(state.done, false);
+    assert.deepEqual(stub.calls.map((c) => c.method), ['modify']);
+    assert.deepEqual(stub.profiles, [row.profile]);
+    const [call] = stub.calls;
+    assert.deepEqual(call.args.slice(0, -1), [given.instruction, RESULT, given.context]);
+    assert.equal(call.args[1], RESULT, 'the standing result itself');
+    const options = call.args.at(-1);
+    // The validator and the busy line travel; the structural check never does. A fix works on
+    // the code, so the spec stays home even when the result has one.
+    const keys = ['onProgress', 'validate', ...(row.profile ? ['profile'] : []), ...(row.spec ? ['spec'] : [])].sort();
+    assert.deepEqual(Object.keys(options).sort(), keys);
+    assert.equal(options.validate, io.validate);
+    assert.equal(options.onProgress, io.onProgress);
+    if (row.profile) assert.equal(options.profile, 'lite');
+    if (row.spec) assert.equal(options.spec, SPEC);
+
+    const answer = change('Refined');
+    call.resolve(answer);
+    assert.equal(await run, answer, 'the answer itself, not a copy');
+  });
+}
+
+test('refine: a thrown answer reaches the caller unchanged, for the step to show plainly', async () => {
+  const { stub, io } = harness();
+  const run = refineResult(refineInput(), io);
+  await settle();
+  const refusal = new LiteUnsupportedError('unsupported_category', 'Only lower thirds today.', 'a lower third for the news');
+  stub.calls[0].reject(refusal);
+  assert.equal(await run.then(() => null, (e) => e), refusal);
+});
+
+test('refine: an answer after the caller abandoned the turn still goes to that turn', async () => {
+  const first = harness();
+  const abandoned = refineResult(refineInput(), first.io);
+  await settle();
+  const second = harness();
+  const fresh = refineResult(refineInput({ level: 'code', instruction: 'fix it' }), second.io);
+  await settle();
+  const freshAnswer = change('Fresh');
+  second.stub.calls[0].resolve(freshAnswer);
+  assert.equal(await fresh, freshAnswer);
+  first.stub.calls[0].args.at(-1).onProgress('Testing it live…');
+  const lateAnswer = change('Late');
+  first.stub.calls[0].resolve(lateAnswer);
+  assert.equal(await abandoned, lateAnswer);
+  assert.deepEqual(first.progress, ['Refining…', 'Testing it live…']);
+  assert.deepEqual(second.progress, ['Fixing the findings…']);
+});
+
+test('fix: the instruction is the failing findings, word for word', () => {
+  const failing = { ok: false, errors: [{ rule: 'a', message: 'Name is clipped.' }, { rule: 'b', message: 'No stop().' }], warnings: [{ rule: 'c', message: 'ignored' }] };
+  assert.equal(
+    fixInstruction(failing),
+    'The template fails these checks. Fix every one of them and change nothing else about the design:\n- Name is clipped.\n- No stop().',
+  );
+});
+
+// ── Rebuild on another design: no model call ────────────────────────────────────────────
+
+/** A direction that stands on `lt02`, as a grounded result carries it. */
+const DIRECTION = { ...change('Direction'), path: 'grounded+polish', spec: SPEC, generationId: 'gen-1', shortlist: ['lt02', 'lt25'] };
+
+test('rebuild: nothing to rebuild without a spec or onto the same design, and nothing runs', async () => {
+  const { progress, io } = harness();
+  io.validate = () => assert.fail('nothing to validate');
+  assert.equal(await rebuildOnChassis(DIRECTION, 'lt02', input('raw').context, io), null);
+  assert.equal(await rebuildOnChassis(change('No spec'), 'lt25', input('raw').context, io), null);
+  assert.equal(await rebuildOnChassis(undefined, 'lt25', input('raw').context, io), null);
+  assert.deepEqual(progress, []);
+});
+
+test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild, with no provider asked', async () => {
+  // Assembling a catalog design parses html with `DOMParser`, which bare Node lacks.
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.addScriptTag({ content: PAGE_SCRIPT });
+    const seen = await page.evaluate(async ({ direction, context }) => {
+      const { rebuildOnChassis } = window.NOACG_CREATION;
+      const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+      const noProvider = () => { throw new Error('a rebuild asks no provider'); };
+      const specField = { rule: 'spec-fields', message: 'A requested field is missing.' };
+
+      // Late: the run waits on the held verdict, then carries it, a spec-field finding demoted.
+      const progress = [];
+      const validated = [];
+      let release;
+      const late = rebuildOnChassis(direction, 'lt25', context, {
+        provider: noProvider,
+        validate: (t) => {
+          validated.push(t);
+          return new Promise((resolve) => { release = resolve; });
+        },
+        onProgress: (stage) => progress.push(stage),
+      });
+      let lateDone = false;
+      void late.then(() => { lateDone = true; });
+      await tick();
+      const pendingWhileHeld = !lateDone;
+      release({ ok: false, errors: [specField], warnings: [] });
+      const rebuilt = await late;
+
+      // Thrown: the verdict's failure reaches the caller.
+      const thrown = await rebuildOnChassis(direction, 'lt25', context, {
+        provider: noProvider,
+        validate: async () => { throw new Error('The live bench crashed.'); },
+        onProgress: () => {},
+      }).then(() => null, (e) => e.message);
+
+      // Abandoned: the first rebuild's verdict lands after a second one finished.
+      const held = [];
+      const io = { provider: noProvider, validate: () => new Promise((resolve) => held.push(resolve)), onProgress: () => {} };
+      const abandoned = rebuildOnChassis(direction, 'lt25', context, io);
+      const fresh = rebuildOnChassis({ ...direction, spec: { ...direction.spec, variantId: 'lt25' } }, 'lt02', context, io);
+      await tick();
+      held[1]({ ok: true, errors: [], warnings: [] });
+      const freshOk = (await fresh).validation.ok;
+      held[0]({ ok: false, errors: [{ rule: 'stub', message: 'fails' }], warnings: [] });
+      const abandonedOk = (await abandoned).validation.ok;
+
+      return {
+        progress,
+        pendingWhileHeld,
+        validatedIsResult: validated.length === 1 && validated[0] === rebuilt.template,
+        hasHtml: rebuilt.template.html.length > 0,
+        spec: rebuilt.spec,
+        path: rebuilt.path,
+        validation: rebuilt.validation,
+        generationId: rebuilt.generationId,
+        shortlist: rebuilt.shortlist,
+        standing: direction.spec.variantId,
+        thrown,
+        freshOk,
+        abandonedOk,
+      };
+    }, { direction: DIRECTION, context: input('raw').context });
+    assert.deepEqual(seen.progress, ['Rebuilding on that design…']);
+    assert.equal(seen.pendingWhileHeld, true, 'the run waits on the late verdict');
+    assert.equal(seen.validatedIsResult, true, "the step's validator ran on the rebuilt template");
+    assert.equal(seen.hasHtml, true);
+    assert.deepEqual(seen.spec, { ...SPEC, variantId: 'lt25' });
+    assert.equal(seen.path, 'grounded', 'a plain assembly is what it now is');
+    assert.deepEqual(seen.validation, { ok: true, errors: [], warnings: [{ rule: 'spec-fields', message: 'A requested field is missing.' }] });
+    assert.equal(seen.generationId, 'gen-1');
+    assert.deepEqual(seen.shortlist, DIRECTION.shortlist);
+    assert.equal(seen.standing, 'lt02', 'the standing direction is untouched');
+    assert.equal(seen.thrown, 'The live bench crashed.');
+    assert.deepEqual([seen.freshOk, seen.abandonedOk], [true, false]);
+  } finally {
+    await browser.close();
+  }
+});
+
+// ── Talk: the brainstorm, past the provider ──────────────────────────────────────────────
+
+test('talk: the conversation that travels is the last talk turns, oldest first, as roles', () => {
+  const talk = Array.from({ length: CONVERSATION_TURNS + 3 }, (_, i) => ({ kind: i % 2 ? 'ai' : 'you', text: `turn ${i}` }));
+  const sent = conversationOf(talk);
+  assert.equal(sent.length, CONVERSATION_TURNS);
+  assert.deepEqual(sent[0], { role: 'assistant', text: 'turn 3' });
+  assert.deepEqual(sent.at(-1), { role: 'user', text: `turn ${CONVERSATION_TURNS + 2}` });
+  assert.deepEqual(conversationOf([]), []);
+});
+
+/** The gateway the brainstorm calls. Each request is held until the test answers it. */
+function chatNetwork() {
+  const requests = [];
+  const fetch = (url, init = {}) => {
+    const d = deferred();
+    requests.push({ url, body: JSON.parse(init.body), ...d });
+    return d.promise;
+  };
+  const reply = (text) => new Response(JSON.stringify({ output: text, usage: {}, model: 'stub-model' }), { status: 200, headers: { 'content-type': 'application/json' } });
+  const refuse = (message) => new Response(JSON.stringify({ error: { code: 'invalid_request', message, retryable: false } }), { status: 400, headers: { 'content-type': 'application/json' } });
+  return { requests, fetch, reply, refuse };
+}
+
+test('talk: one brainstorm call with the conversation and the new words, answered late', async () => {
+  const network = chatNetwork();
+  await withFetch(network, async () => {
+    const conversation = [{ role: 'user', text: 'a derby' }, { role: 'assistant', text: 'Home or away?' }];
+    const run = chat(conversation, 'home, calm');
+    const state = watch(run);
+    await settle();
+    assert.equal(state.done, false);
+    assert.deepEqual(network.requests.map((r) => r.url), ['/api/ai/generate']);
+    assert.deepEqual(
+      network.requests[0].body.request.messages,
+      [...conversation, { role: 'user', text: 'home, calm' }].map((m) => ({ role: m.role, content: [{ type: 'text', text: m.text }] })),
+    );
+    network.requests[0].resolve(network.reply('A calm strap fits.\nBRIEF: A calm home-side lower third.'));
+    assert.deepEqual(await run, { reply: 'A calm strap fits.', brief: 'A calm home-side lower third.' });
+  });
+});
+
+test('talk: a refused turn reaches the caller with the gateway words', async () => {
+  const network = chatNetwork();
+  await withFetch(network, async () => {
+    const run = chat([], 'hello');
+    await settle();
+    network.requests[0].resolve(network.refuse('Add a key first.'));
+    assert.equal((await run.then(() => null, (e) => e)).message, 'Add a key first.');
+  });
+});
+
+test('talk: a reply after the caller abandoned the turn still goes to that turn', async () => {
+  const network = chatNetwork();
+  await withFetch(network, async () => {
+    const abandoned = chat([], 'first');
+    const fresh = chat([], 'second');
+    await settle();
+    network.requests[1].resolve(network.reply('Second answer.\nBRIEF: second'));
+    assert.deepEqual(await fresh, { reply: 'Second answer.', brief: 'second' });
+    network.requests[0].resolve(network.reply('First answer.'));
+    assert.deepEqual(await abandoned, { reply: 'First answer.', brief: null });
+  });
 });
 
 // ── The Pro tier, kept as written ────────────────────────────────────────────────────────
