@@ -602,7 +602,7 @@ test('every command block is one copy-paste, with a copy button', async ({ page 
 test('the agent guide offers both install routes, and they are the real ones', async ({ page }) => {
   await page.goto('/docs');
   const agents = page.locator('#claude-code');
-  // The plugin route is the one that carries the skill and the /noacg:graphic command, so it
+  // The plugin route is the one that carries the /noacg:graphic skill, so it
   // leads. `owner/repo` is the documented GitHub shorthand and the marketplace name comes from
   // the `name` field in .claude-plugin/marketplace.json - if either half drifts the command
   // silently installs nothing (owner, 2026-08-26: a personal handle here is fine, it is normal

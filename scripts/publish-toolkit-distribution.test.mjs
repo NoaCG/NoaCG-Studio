@@ -1,5 +1,5 @@
 // gate: build
-// guards: cli/scripts/publish-toolkit-distribution.mjs, cli/scripts/toolkit-distribution.mjs, .github/workflows/release-cli.yml
+// guards: cli/scripts/publish-toolkit-distribution.mjs, cli/scripts/toolkit-distribution.mjs, cli/scripts/plugin-skill.mjs, .github/workflows/release-cli.yml
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -15,7 +15,7 @@ test('distribution branch has only generated history, preserves parents and refu
   const source=path.join(dir,'source');
   mkdirSync(source);
   const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe'],windowsHide:true}).trim();
-  for (const file of ['cli/package.json','cli/package-lock.json','cli/LICENSE','cli/NOTICE','cli/scripts/toolkit-distribution.mjs','.claude-plugin','cli/plugin','cli/plugin-mcp','cli/skill']) {
+  for (const file of ['cli/package.json','cli/package-lock.json','cli/LICENSE','cli/NOTICE','cli/scripts/toolkit-distribution.mjs','cli/scripts/plugin-skill.mjs','.claude-plugin','cli/plugin','cli/plugin-mcp','cli/skill']) {
     mkdirSync(path.dirname(path.join(source,file)),{recursive:true});
     cpSync(path.join(ROOT,file),path.join(source,file),{recursive:true});
   }

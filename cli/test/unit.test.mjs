@@ -1114,17 +1114,16 @@ test('the opt-in tools exist, are off by default, and are reachable in both host
   // line in the user's own project instructions (which both hosts load with no plugin cost).
   assert.match(optIn, /"critique my\s+graphic"/, 'the critique can no longer be asked for in plain words');
   assert.match(optIn, /`NoaCG design guidelines: on`/, 'the guidelines switch lost its project-instructions line');
-  // Claude Code also gets them as flags on the one command the plugin already has.
-  const command = await fs.readFile(path.join(here, '..', 'plugin', 'commands', 'graphic.md'), 'utf8');
-  assert.match(command, /--guidelines/, '/noacg:graphic lost its --guidelines switch');
-  assert.match(command, /--critique/, '/noacg:graphic lost its --critique switch');
+  // Claude Code also gets them as flags on /noacg:graphic, which is the plugin's skill itself.
+  assert.match(optIn, /--guidelines/, '/noacg:graphic lost its --guidelines switch');
+  assert.match(optIn, /--critique/, '/noacg:graphic lost its --critique switch');
 });
 
-test('the plugin costs an unrelated session no more than it did before the opt-in tools', async () => {
-  // docs/AGENT_CLI.md "What a session pays": a skill's and a command's description sit in every
-  // session where the plugin is enabled. The opt-in tools ride the existing skill and command, so
-  // the plugin keeps ONE skill and ONE command, and neither description grows past what 0.7.0
-  // shipped before them (483 and 104 characters). Raising a ceiling is a deliberate decision.
+test('the plugin costs an unrelated session one short skill entry', async () => {
+  // docs/AGENT_CLI.md "What a session pays": a skill's description sits in every session where
+  // the plugin is enabled. The plugin keeps ONE skill and no command: the skill is named `graphic`,
+  // so it is /noacg:graphic itself (Claude Code namespaces plugin skills). 0.10.1 listed a 483-
+  // character skill and a 104-character command; raising the ceiling is a deliberate decision.
   const description = (text) => {
     const front = /^---\n([\s\S]*?)\n---/.exec(text.replace(/\r\n/g, '\n'))?.[1] ?? '';
     const folded = /description: >-\n((?: {2}.*\n?)+)/.exec(front)?.[1];
@@ -1132,11 +1131,11 @@ test('the plugin costs an unrelated session no more than it did before the opt-i
   };
   const plugin = path.join(here, '..', 'plugin');
   assert.deepEqual(await fs.readdir(path.join(plugin, 'skills')), ['noacg-graphic'], 'the plugin ships a second skill');
-  assert.deepEqual(await fs.readdir(path.join(plugin, 'commands')), ['graphic.md'], 'the plugin ships a second command');
+  await assert.rejects(fs.access(path.join(plugin, 'commands')), 'the plugin ships a command again: the skill is /noacg:graphic');
+  const copy = await fs.readFile(path.join(plugin, 'skills', 'noacg-graphic', 'SKILL.md'), 'utf8');
+  assert.match(copy, /^---\r?\nname: graphic\r?\n/, 'the plugin skill is no longer named graphic, so /noacg:graphic stops working');
   const skill = description(await shippedSkill());
-  const command = description(await fs.readFile(path.join(plugin, 'commands', 'graphic.md'), 'utf8'));
-  assert.ok(skill.length > 100 && skill.length <= 483, `the skill description is ${skill.length} characters (ceiling 483)`);
-  assert.ok(command.length > 40 && command.length <= 104, `the command description is ${command.length} characters (ceiling 104)`);
+  assert.ok(skill.length > 100 && skill.length <= 260, `the skill description is ${skill.length} characters (ceiling 260)`);
 });
 
 // ---------------------------------------------------------------- a re-derived steps count
