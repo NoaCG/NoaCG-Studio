@@ -37,6 +37,12 @@
 // between two CI runs goes under `volatile` in the snapshot with its reason, and is compared
 // within VOLATILE_TOLERANCE rather than exactly; never dropped.
 //
+// READINGS ARE THE WIZARD WALK'S OWN SMALL FILES. A few rules of the reader turn on a shape no
+// corpus file is drawn in (a layer-name prefix, a source line wrapped by a pretty-printer, an event
+// handler). Their files, each lifted verbatim from the `e2e/import-svg.spec.ts` test it replaced
+// (`## Test maintenance` in docs/work-specs/svg-import-engine/spec.md), run through the same read,
+// draft and build here, and READINGS states what each must give: their sidecar, held in this file.
+//
 // SIDECARS ARE THE TRUTH, NOT THIS RECORD. Every run cross-checks each file against its
 // `.expect.json` (accepted, size, text fields ON, labels as a prefix, picture rows, outline rows,
 // the growth default and the growing shape). A disagreement is a FINDING: listed in the snapshot's
@@ -275,6 +281,114 @@ const NAMING = () => {
   };
 };
 
+/** The wizard walk's own small files, and what each must read as. `expect` is the case's sidecar:
+ *  written from the promise the retired test stated, never from this harness's output. A row is
+ *  the reader's candidate t0, t1, ... as the step names them. */
+const READINGS = [
+  {
+    name: 'f-prefix',
+    retired: 'svg import: the f: layer-name prefix names a field without switching the others off',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <text id="f_x3A_Name" x="20" y="80" font-size="30" fill="#fff">Alexandra Riva</text>
+      <text id="Watermark" x="20" y="180" font-size="10" fill="#666">station ident</text>
+    </svg>`,
+    // The prefix names the field and guarantees it; it never turns an unmarked row off.
+    expect: { rows: [{ title: 'Name', on: true }, { on: true }] },
+  },
+  {
+    name: 'static-prefix',
+    retired: 'svg import: the static: prefix says a text layer is DRAWING, and its words stay drawn',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200">
+      <text id="static_x3A_Rank" data-name="static:Rank" x="20" y="60" font-size="30" fill="#8a8f98">10.</text>
+      <text id="Item" x="90" y="60" font-size="30" fill="#fff">The buzzer is a kazoo</text>
+    </svg>`,
+    // Offered unticked with its words kept, and the template has one field while the numeral
+    // stays drawn and unbound.
+    expect: {
+      rows: [{ title: 'Rank', on: false, kept: true }, { on: true }],
+      fields: ['f0:Item'],
+      bound: [/<text\b[^>]*data-name="static:Rank"[^>]*>\s*10\.\s*<\/text>/],
+      notBound: [/<text[^>]*id="f1"/],
+    },
+  },
+  {
+    name: 'kerned-figma-wrapper',
+    retired: 'svg import: kerning a Figma text layer does not turn its wrapper into a group of many',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300">
+      <g id="Venue"><text id="HelsinkiLive" font-size="24" fill="#fff"><tspan x="40" y="120">Helsinki</tspan><tspan x="300" y="120">Live</tspan></text></g>
+    </svg>`,
+    // Two rows out of one text layer, and it is still ONE layer, so its wrapper names both.
+    expect: {
+      rows: [{ title: 'Venue', sample: 'Helsinki', namedByGroup: true }, { title: 'Venue 2', sample: 'Live' }],
+    },
+  },
+  {
+    name: 'hidden-and-symbol-text',
+    retired: 'svg import: text a designer switched off, or parked in a symbol, is never offered as a field',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <defs><symbol id="Badge"><text id="In_x20_symbol" x="0" y="0">Never shown</text></symbol></defs>
+      <g id="Old_x20_draft" style="display:none"><text id="Draft_x20_copy" x="20" y="40">Draft copy</text></g>
+      <g id="Retired" display="none"><text id="Retired_x20_line" x="20" y="60">Retired line</text></g>
+      <use href="#Badge" x="300" y="20"/>
+      <text id="Headline" x="20" y="120" font-size="30" fill="#fff">Alexandra Riva</text>
+    </svg>`,
+    // One text layer: hidden by style or by attribute, or defined in a symbol, is never a row; the
+    // symbol's text, drawn by the <use>, is said out loud.
+    expect: { rows: [{ title: 'Headline', on: true }], notices: [/reusable symbol/] },
+  },
+  {
+    name: 'wrapped-source-line',
+    retired: 'svg import: a wrapped source line becomes one clean sample, unless the file preserved it',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <text id="Body" x="20" y="80" font-size="20" fill="#fff">
+        Breaking news from
+        the capital
+      </text>
+      <text id="Spaced" xml:space="preserve" x="20" y="140" font-size="20" fill="#fff">A   B</text>
+    </svg>`,
+    expect: { rows: [{ sample: 'Breaking news from the capital' }, { sample: 'A   B' }] },
+  },
+  {
+    name: 'sanitizer',
+    retired: 'svg import: sanitizer — script, handlers, foreignObject, SMIL and network refs never reach the template',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+      <script>alert('never')</script>
+      <foreignObject x="0" y="0" width="100" height="100"><div>html</div></foreignObject>
+      <rect x="0" y="0" width="400" height="200" fill="#111" onload="alert('never')"/>
+      <image href="https://evil.example/logo.png" x="0" y="0" width="50" height="50"/>
+      <text id="Headline" x="20" y="100" font-size="30" fill="#fff">Breaking
+        <animate attributeName="opacity" values="0;1" dur="1s" repeatCount="indefinite"/>
+      </text>
+    </svg>`,
+    // The import says what it removed, and none of it reaches the template.
+    expect: {
+      notices: [/Script code inside the SVG was removed/, /Event-handler attributes/, /foreignObject block was removed/,
+        /SVG-native \(SMIL\) animation was removed/, /References to files on the internet were removed/],
+      notBound: [/<script/, /foreignObject/, /onload/, /evil\.example/, /<animate/],
+    },
+  },
+];
+
+/** Runs in the browser: one small file through the read, the drop's draft and the build. */
+const READ_ONE = ({ markup }) => {
+  const w0 = window;
+  const svg = w0.NOACG_SVG.importSvgMarkup(markup);
+  const draft = w0.__importDraft(svg);
+  const template = w0.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: w0.NOACG_DRAFT.svgDesignOptions(draft) });
+  // In the reader's order (t0, t1, ...), which is how the step's rows are named; the draft
+  // itself lists furniture last.
+  const rowOf = new Map(draft.svgFields.map((f) => [f.candidateId, f]));
+  return {
+    notices: svg.notices,
+    rows: svg.candidates.filter((c) => rowOf.has(c.id)).map((c) => {
+      const f = rowOf.get(c.id);
+      return { title: f.title, sample: f.sample, on: f.on, kept: !f.on && f.whenOff !== 'remove', namedByGroup: c.namedByGroup };
+    }),
+    fields: template.fields.map((f) => `${f.field}:${f.title}`),
+    html: template.html,
+  };
+};
+
 const sha = (s) => createHash('sha256').update(s ?? '').digest('hex');
 
 /** The bound <svg> as the emitted html carries it, without the indent the assembler adds. */
@@ -372,6 +486,7 @@ function diff(before, after, tol, path = '', out = []) {
 const started = Date.now();
 const fontBytes = new Map();
 let naming = null;
+let readings = null;
 const raws = await withBundledPage(SPECS, async (page) => {
   // Offline and the same everywhere: the harness origin serves the bundled faces, nothing else
   // leaves the page.
@@ -391,6 +506,8 @@ const raws = await withBundledPage(SPECS, async (page) => {
       .catch((e) => { throw new Error(`${file.name}: ${e.message}`); });
   }
   naming = await page.evaluate(NAMING);
+  readings = {};
+  for (const r of READINGS) readings[r.name] = await page.evaluate(READ_ONE, { markup: r.markup });
   return out;
 });
 const seconds = ((Date.now() - started) / 1000).toFixed(1);
@@ -452,6 +569,21 @@ test('a drop names the graphic after its file unless the reader named it, and a 
   const empty = { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null };
   assert.deepEqual(naming.clears, [{ ...empty, name: '' }, { ...empty, name: 'Final' }]);
 });
+
+for (const { name, retired, expect } of READINGS) {
+  test(`reading ${name}: ${retired.replace(/^svg import: /, '')}`, () => {
+    const got = readings[name];
+    assert.equal(got.rows.length, expect.rows?.length ?? got.rows.length, `${name}: ${got.rows.length} rows`);
+    (expect.rows ?? []).forEach((want, i) => {
+      for (const [k, v] of Object.entries(want)) assert.equal(got.rows[i][k], v, `${name}: row ${i + 1} ${k}`);
+    });
+    if (expect.fields) assert.deepEqual(got.fields, expect.fields, `${name}: the template's fields`);
+    const bound = boundSvg(got.html) ?? '';
+    for (const re of expect.bound ?? []) assert.match(bound, re, `${name}: the bound svg`);
+    for (const re of expect.notBound ?? []) assert.doesNotMatch(bound, re, `${name}: the bound svg`);
+    for (const re of expect.notices ?? []) assert.ok(got.notices.some((n) => re.test(n)), `${name}: no notice matching ${re}, only ${JSON.stringify(got.notices)}`);
+  });
+}
 
 test('the findings against the sidecars are the recorded ones', () => {
   assert.deepEqual(findings, snapshot.findings);
