@@ -18,9 +18,8 @@
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { chooseNoacgAgent } from './_ai-step';
-import { awaitPreviewRebuild } from './_preview';
-import { enableAdvancedMode } from './_create';
-import { durableValue } from './_storage';
+import { addToProductionFromFinish } from './_create';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // AI mode (Create with AI): the normalized gateway endpoint is mocked at the network level, so these
 // specs verify the full app flow — settings gate, generation, the harness's validation +
@@ -198,19 +197,67 @@ async function openAiStep(page: Page) {
 }
 
 /**
- * Create with AI now ends on the shared FINISH step, like every other mode: a valid result
- * enables Next, and the editor door lives there. This walks that flow and takes the editor
- * door (the classic ending — the name reaches the topbar, nothing is saved yet).
+ * Create with AI ends on the shared FINISH step, like every other mode: a valid result enables
+ * Next. The export door saves the graphic to the library and opens the export window over the
+ * wizard (wizard-finish.spec.ts pins the door itself), so the library record is where a test
+ * reads what the walk made. These tests used to end in the old code editor's door, which is
+ * closed (https://github.com/NoaCG/NoaCG-Studio/issues/800); only the ending moved.
  */
-async function finishInEditor(page: Page): Promise<void> {
+async function finishThroughExport(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-editor').click();
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
 }
 
-/** The tag of a test that never walks into an editor, so the Advanced opt-in below is not its. */
-const NO_EDITOR = '@no-editor';
+/** The Finish step's production door: save, pool into a new production, land on its page. */
+async function finishIntoProduction(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Next →' }).click();
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+}
 
-test.beforeEach(async ({ page }, testInfo) => {
+interface SavedAiGraphic {
+  /** Every library record's name: one walk, one record. */
+  names: string[];
+  css: string;
+  js: string;
+  fields: string[];
+  assets: string[];
+  /** The conversation the graphic was made from, both sides, oldest first. */
+  thread: string[];
+  /** Per production name, the names in its rundown. */
+  rundowns: Record<string, string[]>;
+}
+
+/** What the walk saved: the newest library record, read from the model the doors write. */
+async function savedGraphic(page: Page): Promise<SavedAiGraphic> {
+  return page.evaluate(async () => {
+    const { loadGraphics } = await import('/src/model/library.ts');
+    const { loadShows } = await import('/src/model/shows.ts');
+    const graphics = loadGraphics();
+    const last = graphics[graphics.length - 1];
+    return {
+      names: graphics.map((g) => g.name),
+      css: last?.template.css ?? '',
+      js: last?.template.js ?? '',
+      fields: last?.template.fields.map((f) => f.field) ?? [],
+      assets: last?.template.assets.map((a) => a.path) ?? [],
+      thread: last?.aiThread?.messages.map((m) => m.text) ?? [],
+      rundowns: Object.fromEntries(loadShows().map((s) => [s.name, s.graphics.map((g) => g.name)])),
+    };
+  });
+}
+
+/** How many provider runs the telemetry ring holds. A run is recorded as it finishes. */
+async function runsRecorded(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const { aiRunRecords } = await import('/src/ai/telemetry.ts');
+    return aiRunRecords().length;
+  });
+}
+
+test.beforeEach(async ({ page }) => {
   // A generation plus its benches, then a project create with a preview rebuild, sits at
   // 10-15 s per test and was observed over 30 s under worker contention - the suite-wide
   // 30 s cap is the wrong ceiling for this file.
@@ -221,13 +268,6 @@ test.beforeEach(async ({ page }, testInfo) => {
   await page.addInitScript(() =>
     localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: true })),
   );
-  // These specs finish through the Finish step's EDITOR door, which has been Advanced-only
-  // since step 6 (docs/GOALS_ARCHIVE.md "Student release"; FinishStep `showEditorDoor`) - the same
-  // opt-in every other editor-walking spec makes. That opt-in now SKIPS the test (e2e/_create.ts,
-  // the old editor is closed), so a test that never reaches an editor is tagged NO_EDITOR and
-  // stays out of it - otherwise it would be skipped along with the rest and prove nothing.
-  if (testInfo.tags.includes(NO_EDITOR)) return;
-  await enableAdvancedMode(page);
 });
 
 test('harness off (the toggle): one raw model call, no design stage', async ({ page }) => {
@@ -245,13 +285,13 @@ test('harness off (the toggle): one raw model call, no design stage', async ({ p
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', GENERATED);
   expect(tools).toEqual(['emit_template']); // one call, straight to the coder tool
-  await finishInEditor(page);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Test Slate');
+  await finishThroughExport(page);
+  expect((await savedGraphic(page)).names).toEqual(['Test Slate']);
 });
 
 const NOACG_WARNING = "The NoaCG agent's results are not yet proven to be consistently good.";
 
-test('the step opens on the coding-agent route alone; the NoaCG agent is one click away, with its warning', { tag: NO_EDITOR }, async ({ page }) => {
+test('the step opens on the coding-agent route alone; the NoaCG agent is one click away, with its warning', async ({ page }) => {
   // Owner, 2026-09-28: the step carried too much information. On arrival the user's own coding
   // agent is the first and ONLY primary content; the one other thing is a secondary button into
   // the NoaCG agent with a plain warning under it (wizard/open-create-step-user-own-coding).
@@ -317,7 +357,7 @@ test('the step opens on the coding-agent route alone; the NoaCG agent is one cli
   await expect(page.getByTestId('ai-builtin')).toHaveCount(0);
 });
 
-test('a template dropped before the choice opens the NoaCG agent with the file on its import card', { tag: NO_EDITOR }, async ({ page }) => {
+test('a template dropped before the choice opens the NoaCG agent with the file on its import card', async ({ page }) => {
   // The no-AI "open as code" import lives behind the NoaCG agent's drop zone, and somebody
   // holding an .html should not have to know that: a drop anywhere on the step before the
   // choice opens the section with the file already in it.
@@ -362,12 +402,13 @@ test('describe-it: prompt → validated template → create project', async ({ p
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', GENERATED);
   // The result renders live in the wizard preview.
   await expect(page.locator('.wz-side iframe')).toBeVisible();
-  await awaitPreviewRebuild(page, async () => {
-    await finishInEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-    await expect(page.locator('.topbar .tpl-name')).toHaveText('Test Slate');
-  });
-  await expect(page.frameLocator('iframe.preview-frame').locator('#f0')).toHaveText('Hello AI');
+  // The production door: the graphic is saved, pooled into a new production, and the reader
+  // lands on that production's page.
+  await finishIntoProduction(page);
+  const saved = await savedGraphic(page);
+  expect(saved.names).toEqual(['Test Slate']);
+  expect(saved.fields).toEqual(['f0']);
+  expect(Object.values(saved.rundowns)).toEqual([['Test Slate']]);
 });
 
 test('finish: Create with AI reaches the shared Finish step, gated on a valid result', async ({ page }) => {
@@ -386,7 +427,7 @@ test('finish: Create with AI reaches the shared Finish step, gated on a valid re
   // A valid result opens the gate; Next lands on the same Finish step every catalog mode ends on.
   await page.getByRole('button', { name: 'Next →' }).click();
   await expect(page.locator('.wz-dot').last()).toHaveText(/Finish/);
-  await expect(page.getByTestId('wz-finish-editor')).toBeVisible();
+  await expect(page.getByTestId('wz-finish-production-go')).toBeVisible();
   await expect(page.getByTestId('wz-finish-export')).toBeVisible();
   // The name defaults to the generated design, and the read-back is taken off the result itself.
   await expect(page.getByTestId('wz-finish-name')).toHaveAttribute('placeholder', 'Test Slate');
@@ -453,9 +494,8 @@ test('harness on: three grounded alternatives, zero coder calls, the pick is rem
   // Pick option 2 — the preview and result card follow.
   await page.locator('[data-alt="2"]').click();
   await expect(page.locator('.change-preview strong')).toHaveText('Grounded Two');
-  await finishInEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded Two');
+  await finishThroughExport(page);
+  expect((await savedGraphic(page)).names).toEqual(['Grounded Two']);
 
   // The committed pick landed in the aggregated preference data (chosen 1 of 3 shown).
   const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-ai-preferences') ?? '{}'));
@@ -567,8 +607,8 @@ test('harness on: refining a direction keeps the others, and the pick still trai
   await expect(page.locator('[data-alt="1"]')).toContainText('Grounded One');
   await expect(page.locator('[data-alt="3"]')).toContainText('Grounded Three');
 
-  await finishInEditor(page);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded Two Warmer');
+  await finishThroughExport(page);
+  expect((await savedGraphic(page)).names).toEqual(['Grounded Two Warmer']);
   // Refining used to CLEAR the staged pick, so a user who improved a direction before
   // creating it trained the preference data with nothing at all.
   const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-ai-preferences') ?? '{}'));
@@ -751,15 +791,11 @@ test('an image attached to a refinement reaches the model and is bundled', async
   expect(refineText).toContain('images/badge.png');
   expect(refineText).toContain('put this badge on the left');
 
-  await finishInEditor(page);
-  // The apply is async — read the store only once the created project is actually up, or
-  // the read lands on the boot template and the assertion says nothing about this test.
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('With The Badge');
-  const assets = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.assets.map((a: { path: string }) => a.path);
-  });
-  expect(assets).toContain('images/badge.png');
+  // The export window opens only after the save, so the record read here is the one this walk made.
+  await finishThroughExport(page);
+  const saved = await savedGraphic(page);
+  expect(saved.names).toEqual(['With The Badge']);
+  expect(saved.assets).toContain('images/badge.png');
 });
 
 // A 4×4 PNG: half a strong teal, a quarter warm cream, a quarter near-black ink — a logo,
@@ -812,13 +848,10 @@ test('brand: the colours in an uploaded logo are offered, and the pick locks the
   // The picked colour reaches the model as an exact instruction…
   expect(designText).toContain('#1e9e8a');
   // …and survives assembly, whatever the model asked for (applySpecLocks).
-  await finishInEditor(page);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded One');
-  const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.css;
-  });
-  expect(css).toContain('#1e9e8a');
+  await finishThroughExport(page);
+  const saved = await savedGraphic(page);
+  expect(saved.names).toEqual(['Grounded One']);
+  expect(saved.css).toContain('#1e9e8a');
 });
 
 test('readiness: a passing result reports what was checked, and the raw path admits what was not', async ({ page }) => {
@@ -944,12 +977,9 @@ test('describe-it: a flourish runs the polish pass and lands as a marked overrid
   await page.locator('.wz-step textarea').fill('A lower third with a hairline edge');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', GENERATED);
-  await finishInEditor(page);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded Strap');
-  const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.css;
-  });
+  await finishThroughExport(page);
+  const { names, css } = await savedGraphic(page);
+  expect(names).toEqual(['Grounded Strap']);
   expect(css).toContain('Polish (AI flourish');
   expect(css).toContain('box-shadow: 0 0 0 calc(1px * var(--scale)) var(--accent)');
 });
@@ -973,12 +1003,9 @@ test('describe-it: a contract-breaking polish patch reverts to the assembled tem
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   // The bad patch is rejected and the assembled template stands — still fully valid.
   await expect(page.locator('.wz-step .status-ok')).toContainText('Passes validation', GENERATED);
-  await finishInEditor(page);
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded Strap');
-  const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.css;
-  });
+  await finishThroughExport(page);
+  const { names, css } = await savedGraphic(page);
+  expect(names).toEqual(['Grounded Strap']);
   expect(css).not.toContain('Polish (AI flourish');
   expect(css).not.toContain('#a855f7');
 });
@@ -1033,35 +1060,21 @@ test('the conversation that produced an AI graphic travels with it, and survives
   await expect(page.getByTestId('ai-thread')).toContainText('side by side');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.locator('[data-alt]')).toHaveCount(3, GENERATED);
-  // Next → the Finish step's "open in the editor" door (the same ending every AI create takes).
-  await page.getByRole('button', { name: 'Next →' }).click();
-  await page.getByTestId('wz-finish-editor').click();
-  // The picked grounded direction becomes the project (harness on assembles from the catalog).
-  await expect(page.locator('.topbar .tpl-name')).toHaveText('Grounded One');
+  // The picked grounded direction becomes the graphic (harness on assembles from the catalog),
+  // and its library record carries the conversation it was created from: both sides of the
+  // exchange, not just the picked brief.
+  await finishThroughExport(page);
+  const saved = await savedGraphic(page);
+  expect(saved.names).toEqual(['Grounded One']);
+  expect(saved.thread.join('\n')).toContain('halftime of a local derby');
+  expect(saved.thread.join('\n')).toContain('side by side');
 
-  // The editor's AI panel carries the conversation the graphic was created from, read-only —
-  // both sides of the exchange, not just the picked brief.
-  await page.getByTestId('dock-tab-ai').click();
-  const origin = page.getByTestId('ai-origin');
-  await expect(origin).toContainText('halftime of a local derby');
-  await expect(origin).toContainText('side by side');
-
-  // It rode the autosave slot, so a fresh session restores it — the whole point of (c) over a
-  // session-only thread.
-  // Wait for the slot to be DURABLE, not merely accepted: a reload restores what the database
-  // holds, and the app's own read answers from the durable store's mirror a moment earlier
-  // (e2e/_storage.ts durableValue explains the gap and why this reads past the app).
-  await expect
-    .poll(async () => {
-      const raw = await durableValue(page, 'spx-gfx-project');
-      if (!raw) return false;
-      const p = JSON.parse(raw) as { aiThread?: { messages?: unknown[] } };
-      return !!p.aiThread?.messages?.length;
-    })
-    .toBe(true);
+  // It rides the saved record, so a fresh session still has it. Wait for the write to be
+  // DURABLE, not merely accepted: a reload restores what the database holds (e2e/_durable.ts).
+  await settleDurableWrites(page);
   await page.reload();
-  await page.getByTestId('dock-tab-ai').click();
-  await expect(page.getByTestId('ai-origin')).toContainText('halftime of a local derby');
+  await awaitDurableReady(page);
+  expect((await savedGraphic(page)).thread.join('\n')).toContain('halftime of a local derby');
 });
 
 test('describe-it: without a key, generation is gated and settings open', async ({ page }) => {
@@ -1145,4 +1158,88 @@ test('a modify keeps the code the user put there themselves', async ({ page }) =
 
   expect(verdicts.keptOk, 'the user’s own fetch must not be reported as an AI addition').toBe(0);
   expect(verdicts.addedRules).toEqual(['unsafe-js-data']);
+});
+
+// LATE COMPLETION (docs/work-specs/wizard-ai/spec.md 1.3 A1). A generation the reader walked
+// away from still answers. The step's run holds no reference to the walk it started in, so the
+// answer reaches the shell through `onResult` whether or not the step is still on screen. These
+// two tests RECORD today's behaviour so the run's extraction keeps it; they do not endorse it.
+// Changing it is its own fix with its own regression test.
+
+/** The raw path, one call per generation: the first answers at once, the second waits. */
+async function holdSecondAnswer(page: Page): Promise<{ arrived: Promise<void>; release: () => void }> {
+  await page.addInitScript(() =>
+    localStorage.setItem('spx-gfx-ai', JSON.stringify({ provider: 'anthropic', configuredProviders: ['anthropic'], model: 'claude-sonnet-5', useHarness: false })),
+  );
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let reached!: () => void;
+  const arrived = new Promise<void>((resolve) => (reached = resolve));
+  let calls = 0;
+  await page.route('/api/ai/generate', async (route: Route) => {
+    calls += 1;
+    if (calls === 1) return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
+    reached();
+    await held;
+    return route.fulfill(toolUse('emit_template', { ...VALID_TEMPLATE, name: 'Late Slate' }));
+  });
+  return { arrived, release };
+}
+
+/** Make one result, then start a second generation whose answer is held. */
+async function resultThenHeldGeneration(page: Page, arrived: Promise<void>): Promise<void> {
+  await openAiStep(page);
+  await page.locator('.wz-step textarea').fill('A simple test slate');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.locator('.change-preview strong')).toHaveText('Test Slate', GENERATED);
+  await page.locator('.wz-step textarea').fill('A bolder slate');
+  await page.getByRole('button', { name: '↻ Start over' }).click();
+  await arrived;
+}
+
+test('late completion: an answer released after Home lands in the held walk, and a fresh open shows none of it', async ({ page }) => {
+  const { arrived, release } = await holdSecondAnswer(page);
+  await resultThenHeldGeneration(page, arrived);
+
+  // Leave by the wizard's Home door while the answer is out, then let it land.
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('creation-wizard')).toBeHidden();
+  release();
+  await expect.poll(() => runsRecorded(page), GENERATED).toBe(2);
+
+  // Continue into the held walk: the step mounts again with its own thread and directions gone,
+  // and the result it shows is the LATE one, which reached the shell after the wizard closed.
+  await page.locator('[data-door="new-graphic"]').click();
+  const guard = page.getByTestId('confirm-switch');
+  await guard.getByTestId('switch-resume').click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await chooseNoacgAgent(page);
+  await expect(page.locator('.change-preview strong')).toHaveText('Late Slate');
+  await expect(page.getByTestId('ai-past')).toHaveCount(0);
+
+  // A fresh open keeps nothing of either generation.
+  await page.getByTestId('wz-home').click();
+  await page.locator('[data-door="new-graphic"]').click();
+  await guard.getByTestId('switch-discard').click();
+  await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
+  await expect(page.locator('.change-preview')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next →' })).toBeDisabled();
+});
+
+test('late completion: an answer released after ✕ rewound the walk comes back when Create with AI is picked again', async ({ page }) => {
+  const { arrived, release } = await holdSecondAnswer(page);
+  await resultThenHeldGeneration(page, arrived);
+
+  // ✕ on a working step rewinds to the front page and clears the result ("discards this draft").
+  await page.locator('[data-testid="creation-wizard"] .gallery-close').click();
+  await expect(page.locator('[data-entry="ai"]')).toBeVisible();
+  release();
+  await expect.poll(() => runsRecorded(page), GENERATED).toBe(2);
+
+  // The wizard stayed open on its front page; picking the AI card again shows the late answer.
+  await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
+  await expect(page.locator('.change-preview strong')).toHaveText('Late Slate');
+  await expect(page.getByRole('button', { name: 'Next →' })).toBeEnabled();
 });
