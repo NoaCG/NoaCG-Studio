@@ -359,6 +359,99 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
 
+### A2 check on `main` (2026-10-14): PASS
+
+- **Shas:** checked `main` at `591213fca`, the merge of #1178.
+- **Browser evidence (CI; the local queue refused, about 2 GB free):** #1178's merge-group run
+  38536443430 ran the tree `591213fca` and passed. Its merged report: `ai` 35 passed (the two
+  arrival tests among them), `ai-lite` 2, `ai-tiers` 8, `ai-depth` 2, `pro` 2, `ai-consent` 1
+  plus 1 old skip, `wizard-finish` 22 plus 1, `import` 1 plus 3, `import-svg` 54 plus 47,
+  `image-purpose` 1 plus 5, `project-format` 9 plus 3; `adapt-first`, `ai-more-control`,
+  `design-rules-product` and `flows` skip as before (#800). The same counts as main's full run
+  38526192545 before A2, except `project-format`, revived by `519d1ee4e`, not by A2. All ten
+  offline covering specs and the fourteen offline driving specs were in the plan; the two
+  `configured/` specs need credentials. #1178's e2e diff is empty (AC-2, AC-15).
+- **The Node guard runs on CI:** the Factory gates job 115760358442 of that run, step
+  "Factory-tier tests" (`gates.mjs run --gate factory`, every factory file): `ai-creation` 19 of
+  19, the Chromium Pro case `ok 19`; 152 passed, 0 skipped. Locally the 18 Node cases and
+  `ai-lite-bench` 28 of 28 pass; `npm run depcruise` clean, config unchanged.
+- **Mutation, red where it should be:** in `creation.ts`, convert without the structural check,
+  raw forwarding the validator, and directions with a wrapped validator each failed exactly its
+  row's test (17 of 18 passed); in the step, `validate: safeValidate` in `creationIo` failed the
+  bench's validator guard. Each reverted, nothing committed.
+- **Move, not a rewrite:** the step's lines 890-1027 at `591213fca^1`, indentation stripped,
+  against `runPro`: only the IO swaps (`io.validate`, `io.probeMark`, `io.onProgress`), the
+  upload lookup lifted to the step's input, the WeakMap writes and `setProDropped` lifted out, a
+  comment's "above" made "in the step", and the return shape. `primaryGraphic` is derived as
+  before; nothing under `src/ai/pro/` changed.
+- **D3, AC-9, AC-10:** forwarding matches section 4 route by route; the raw screen is
+  `screenChange`, tested; the step still builds `productionSpxValidator` + `withSpecChecks`.
+  `src` diff is the two allowed files. Budget JSON still 2,152, the step 1,940.
+- **Judgements:** dropping D2's `now` is right: nothing in `creation.ts` or the step reads the
+  clock; A3 adds it if a moved function does. #1179 predates A2: the `imported?.template` source
+  of the display screen came with `04da7bc8d` (2026-07-24).
+- **For A3:** lower the budget to the actual count; the factory-tier note above holds for new
+  Node cases.
+
+### A2. The tier dispatch in `src/ai/creation.ts` (built 2026-10-14)
+
+- **Check's findings (A1 check, main `29883468f`):** `ai` 35 passed, 0 skipped; `ai-lite` 2,
+  `ai-tiers` 8, `ai-depth` 2, `pro` 2, `ai-consent` 1 plus 1 old skip, `wizard-finish` 22 plus 1
+  old skip (main run 38526192545); mutation probe 4 of 4 red; the size gate fails at 2,153; the
+  Finish door swap (D9) and the budget exception judged sanctioned. Carried, still untested: + New
+  graphic while busy; the shell's `aiThread` after Continue (A1's note on `onThread` null). Open:
+  #1165 (a late result after close), #1166 (capacity over 95%). Plan widths: 45 for the step, 15
+  for `creation.ts`.
+- **Shas:** previous verified `main` `9fd10aed3`; built on `claude/plan-wizard-ai-p2-build`, pull
+  request #1178; the merge sha is the one the queue records. **Revert:** `git revert -m 1` the
+  merge commit; nothing else depends on the module yet.
+- **What landed** (`evidence/phase-2.md`): `creation.ts` holds `creationRoute`, `runCreation`,
+  `creationError` and `screenChange`; the step builds the validator and calls them; 2,152 to 1,940
+  lines, budget JSON untouched. `ai-creation.test.mjs` (19 tests, factory tier) covers every A2
+  row late, thrown and abandoned; twelve hand mutants all red. Assessment A: FAIL on the test's
+  missing tier header, fixed; the rest passed.
+- **Decisions** (each revertible as stated):
+  - *Route choice in the module, as a pure function.* `creationRoute` returns the route or the
+    refusal text, so the step refuses synchronously before any busy line, as before. Revert:
+    inline it.
+  - *The busy label is the run's first progress call.* Each route in `runCreation` calls `io.onProgress(label)`
+    synchronously before its first await, so the step needs no label table. Revert: return the
+    label from `creationRoute`.
+  - *`runCreation` throws; `creationError(e, route)` words it.* The step keeps one
+    try/catch/finally around the run and its own `showChange`, as `run` did. Revert: return
+    `{ error }`.
+  - *The display screen is `screenChange` in the module*, called by `showChange` for every path
+    (restore, select and revert too), so the raw route's screen is testable in Node. Revert:
+    inline `mergeSafety`.
+  - *No `now` in `CreationIO`* (D2 lists it): nothing moved reads the clock. Add it when a moved
+    function does.
+  - *The Pro success path runs on a Chromium page*: composing a catalog design needs `DOMParser`,
+    which bare Node lacks. The file is `gate: factory`, `needs: browser`, so the Factory job runs
+    it, not Build. Revert: split the Pro success test into its own file and drop the header.
+  - *No covers header edited* (outside the row's files): five of the eleven covering specs are
+    not selected by `creation.ts` alone; A4 rewrites the eleven headers and adds it there.
+- **A3 must allow for:**
+  - Refine and fix errors use the plain message; do not route them through `creationError`,
+    whose "Try:" suffix only the whole-result routes had.
+  - `alternatives` and `originals` are separate arrays (the step copies the result list into
+    `originals`); keep updating them with `.map`, never in place.
+  - Found by the review, existing before A2 and left as they were: `showChange` screens every
+    displayed result against `imported?.template`, not only a convert's (#1179); a Pro package
+    member whose composition throws skips the outcome report (Pro is unreachable).
+  - The Pro generate branch already lives in `creation.ts` (`runPro`). AC-14's move check diffs
+    across A2: `origin/main` before #1178, lines 890-1027 of the step, against `runPro`, with
+    the WeakMap writes lifted into the step's `generate` and `setProDropped(pro.dropped)`.
+  - `ai-creation.test.mjs` is factory tier because of its Chromium case; extended Node cases
+    belong there too, or in a new build-tier file without the page.
+  - The late answer still reaches `showChange` and `onResult` after the step was left (#1165
+    unchanged); the module keeps returning results to whoever awaits them.
+  - Lower the budget from 2,152 (the step is 1,940 now).
+- **Traps:** a rolldown bundle of anything reaching `ai/settings.ts` needs
+  `transform.define['import.meta.env'] = '{}'`, and anything reaching `backend/auth.ts` pulls
+  supabase-js whose externals a `data:` import cannot resolve; the test stubs `getAccessToken`
+  with a plugin. `namedPackage` returns renamed copies for a package of two or more, so a
+  package's first member is not the result's template object.
+
 ### A1 check on `main` (2026-10-14): PASS
 
 - **Shas:** checked `main` at `29883468f`, which contains A1's merge `bd6fd764d` (#1164).

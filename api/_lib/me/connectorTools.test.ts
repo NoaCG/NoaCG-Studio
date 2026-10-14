@@ -10,6 +10,8 @@ import {
   createReadTools,
   fieldsView,
   libraryView,
+  LIBRARY_FIELDS_UP_TO,
+  LIBRARY_MAX_ROWS,
   productionView,
   readCatalogIndex,
   resetCatalogIndexCache,
@@ -184,8 +186,24 @@ test('the library: words narrow every list, and long lists are capped and counte
   assert.deepEqual(church.graphics.map((g) => g.id), ['g1'], 'a folder name finds its graphics');
   const big: LibraryRows = { ...ROWS, graphics: Array.from({ length: 105 }, (_, i) => ({ ...ROWS.graphics[1], id: `g${i}` })) };
   const capped = libraryView(big) as { graphics: unknown[]; more: { graphics: number } };
-  assert.equal(capped.graphics.length, 100);
-  assert.equal(capped.more.graphics, 5);
+  assert.equal(capped.graphics.length, LIBRARY_MAX_ROWS);
+  assert.equal(capped.more.graphics, 105 - LIBRARY_MAX_ROWS);
+});
+
+/** A library wider than the fields threshold, its oldest graphic past the list cap. */
+const WIDE_ID = 'a1b2c3d4-0000-4000-8000-000000000105';
+const WIDE: LibraryRows = {
+  ...ROWS,
+  graphics: Array.from({ length: 30 }, (_, i) => ({ ...ROWS.graphics[1], id: i === 29 ? WIDE_ID : `w${i}`, name: `Score ${i}` })),
+};
+
+test('a graphic id answers that graphic alone, even one past the list cap', () => {
+  const one = libraryView(WIDE, ` ${WIDE_ID} `) as Record<string, unknown> & { graphics: Array<{ id: string }> };
+  assert.deepEqual(one.graphics.map((g) => g.id), [WIDE_ID]);
+  assert.deepEqual(Object.keys(one), ['graphics'], 'no brands or productions beside it');
+  const missing = 'a1b2c3d4-0000-4000-8000-000000000999';
+  assert.deepEqual(libraryView(WIDE, missing), { graphics: [] });
+  assert.match(String((libraryView({ ...WIDE, scanLimited: true }, missing) as { searched?: string }).searched), /newest 1000/, 'a capped scan does not claim the graphic is absent');
 });
 
 
@@ -227,12 +245,12 @@ const CLIENT = '6c1f0c3e-6a0e-4a43-9d0a-1c2b3d4e5f60';
 const TOKEN = 'connector-token';
 const PRODUCTION = '0b7e3d58-4f0e-4b8f-9d61-6f3c2a1b0c9d';
 
-async function endpoint(permissions: string[]) {
+async function endpoint(permissions: string[], rows: LibraryRows = ROWS) {
   const asked: string[] = [];
   const library: LibraryStore = {
     async library(userId) {
       asked.push(`library:${userId}`);
-      return ROWS;
+      return rows;
     },
     async graphicFields(userId, ids) {
       asked.push(`fields:${userId}:${ids.join(',')}`);
@@ -291,6 +309,24 @@ test('noacg_library reads only the connector user\'s library, and only with grap
   const refused = await createOnly.call('noacg_library');
   assert.equal(refused.isError, true);
   assert.deepEqual(createOnly.asked, [], 'a withheld permission reads nothing');
+});
+
+test('a wide list is names and ids; a few graphics, by search or id, carry their fields', async () => {
+  const wide = await endpoint(['graphics:read'], WIDE);
+  const listed = await wide.call('noacg_library');
+  const graphics = listed.structuredContent!.graphics as Array<Record<string, unknown>>;
+  assert.equal(graphics.length, LIBRARY_MAX_ROWS);
+  assert.ok(graphics.every((g) => !('fields' in g)), 'no fields in a wide list');
+  assert.deepEqual(wide.asked, [`library:${USER}`], 'a wide list reads no fields at all');
+
+  const few = await wide.call('noacg_library', { query: 'score 7' });
+  const found = few.structuredContent!.graphics as Array<{ id: string; fields?: unknown[] }>;
+  assert.ok(found.length > 0 && found.length <= LIBRARY_FIELDS_UP_TO);
+  assert.ok(found.every((g) => Array.isArray(g.fields)));
+
+  const byId = await wide.call('noacg_library', { query: WIDE_ID });
+  assert.deepEqual((byId.structuredContent!.graphics as Array<{ id: string }>).map((g) => g.id), [WIDE_ID]);
+  assert.equal(wide.asked[wide.asked.length - 1], `fields:${USER}:${WIDE_ID}`);
 });
 
 test('noacg_catalog is public data, read from the index on the request\'s own origin', async () => {
