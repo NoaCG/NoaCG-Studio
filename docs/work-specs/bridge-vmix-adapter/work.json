@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "baf85bc3e11e4315f3b653c881ef43352513bf06d3b8ab7cef482a94ff93509b",
+  "specSha256": "8fb07fbf8b142cb4da8fa918bd93334bad8963eda3656a22dad215eee4f2053e",
   "authority": {
     "status": "agreed",
     "source": "owner, 2026-10-14: make vMix a NoaCG playout target through NoaCG Bridge used the way CasparCG is (NoaCG the playout client, vMix the mixer): a vMix connection in Settings > Playout and per-production buttons like the CasparCG ones, graphics on vMix overlay channels mapped with evidence, clips and other inserts as vMix inputs that play files on the vMix computer, driving NoaCG from vMix buttons out of scope; research and plan only, registered as the runnable plan vmix. Also docs/GOALS.md outcome 5 and issue #760 (owner, 2026-09-29). The three owner decisions in the spec are recommendations awaiting his answer; the decisions marked derived are open to his overrule. The 2026-10-12 revision and its slice-1 evidence (AC-1 and AC-3 met) are kept in evidence/slice-1.md."
