@@ -1237,7 +1237,8 @@ test('late completion: an answer released after ✕ rewound the walk comes back 
   release();
   await expect.poll(() => runsRecorded(page), GENERATED).toBe(2);
 
-  // The wizard stayed open on its front page; picking the AI card again shows the late answer.
+  // The wizard stayed open on its front page; picking the AI card again shows the late answer
+  // (https://github.com/NoaCG/NoaCG-Studio/issues/1165).
   await page.locator('[data-entry="ai"]').click();
   await chooseNoacgAgent(page);
   await expect(page.locator('.change-preview strong')).toHaveText('Late Slate');

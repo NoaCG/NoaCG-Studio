@@ -348,8 +348,67 @@ Before A1: this spec and `work.json` on `main`, `work-spec.mjs status` clean, th
 plans" line present; `origin/main` CI green; the browser queue idle; `gh auth status` ok; no
 open plan run on these files; the owner's window supplied. Before A4: no shell phase that recompiles contracts (S1a, S7) is open.
 
+## Budget exceptions
+
+- e2e/ai.spec.ts: 4.4 min, protects the Create with AI run chain (create raw and in three directions, pick, refine, undo, fix, thread, the Finish doors, late completion; AC-16), expires 2026-11-13
+- e2e/ai-lite.spec.ts: 0.3 min, protects the Lite create, its allowance and the unsupported brief (AC-16), expires 2026-11-13
+
 ## Phase notes
 
 Each phase's pull request adds here what the next phase must allow for, newest first: the
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
+
+### A1. Baseline on the existing step (built 2026-10-14)
+
+- **Check's findings:** none (no check preceded this phase).
+- **Shas:** previous verified `main` `1e9ff904b`; built on `claude/plan-wizard-ai-p1-build`, pull
+  request #1164; the merge sha is the one the queue records. **Revert:** `git revert -m 1` the
+  merge commit; nothing under `src/` changed, so the skips come back and nothing else depends on
+  it.
+- **What landed** (`evidence/phase-1.md`): `ai.spec.ts` runs all 35 tests (31 revived, 2 new) and
+  `ai-lite.spec.ts` both of its tests, with no runtime skip, 37 of 37 green on CI run
+  38520085781; the step's budget at 2,152 and the gate's `// guards:` naming the step; plan
+  widths 44 for the step and 15 for `src/ai/creation.ts`.
+- **Decisions** (each revertible as stated):
+  - *Eight endings through the export door, one through the production door.* The export door
+    saves before it opens its window and leaves the wizard where it was, so it is the cheaper
+    read; the "create project" test takes the production door so both doors run from an AI
+    result. Both read the library record (`savedGraphic` in the spec), which replaced the old
+    editor's topbar and store reads. Revert: swap the helper per test.
+  - *Two late-completion tests, not one.* Section 1.3 names the close control first; the Home test
+    carries the fresh-open assertion the row asks for, and the ✕ test pins a probable defect,
+    issue #1165. Today: a late answer reaches the shell after Home (Continue shows it, a fresh
+    open shows nothing) and after ✕ (picking Create with AI again shows it, Next enabled).
+    Recorded, not endorsed. Revert: delete the ✕ test.
+  - *Budget exception.* Measured on CI the revival adds 4.4 table-minutes and puts the suite at
+    96.3% of its envelope, over the 95% line; the exceptions above cover this plan's two files
+    until 2026-11-13, and issue #1166 records that the line stays over for everyone once the
+    durations refresh lands. Revert: delete the section and make the change cheaper.
+  - *`scripts/check-file-budgets.mjs` gained the step on its guards line* (outside the row's file
+    list; S1b's notes say a plan that budgets a file adds it there, or `gates run --changed`
+    skips the gate for it). The Lite test's title says "saves it for export" instead of "opens
+    the normal editor"; the `NO_EDITOR` tag went with the skip it existed for.
+- **A2 must allow for:**
+  - The late-completion tests pin that `run` hands a late answer to `showChange` and `onResult`
+    after the step unmounted. `runCreation` must keep returning the result to whoever awaits it;
+    dropping or ignoring a late answer is #1165's fix, its own pull request, which flips the ✕
+    test's last assertions.
+  - The tests wait on `aiRunRecords()` (`src/ai/telemetry.ts`) counting the second run, then on
+    the result card; they read `loadGraphics()` and `loadShows()` for every Finish ending.
+  - `ai.spec.ts` is now 4.4 table-minutes; a further edit to it before 2026-11-13 is covered by
+    the exception above, an edit to another spec that adds minutes is not.
+  - For A3 and A4: the budget JSON names `src/components/wizard/steps/AiStep.tsx`. A3 lowers its
+    `lines`. A4 must point the JSON's `file` and the gate's guards line at
+    `src/components/wizard/ai/AiStep.tsx`: the one-line shim left at the old path would pass a
+    2,152-line budget while the real step grew.
+- **Noticed, not reproduced:** Continue into an AI walk mounts the step again with empty state,
+  and by the code its `onThread` effect then reports `null`, so the shell's `aiThread`, which the
+  parent's keep/clear table lists as kept on Continue, is overwritten. A Finish after Continue
+  would save no conversation. The Home test asserts only that the past generations are gone.
+- **Traps:** the local browser queue refused every job (0.9 GB free against its 4 GB floor), so all
+  browser evidence is CI's. `e2e-capacity --changed` locally counts an edited spec at its table
+  value (+0.00) and the plan job's estimate does the same, so CI gate passes; only the Combined E2E
+  report's measured line shows REFUSE. A held route that is never released keeps the test waiting
+  to its timeout, so each late-completion test releases before its first assertion after the
+  close.
