@@ -669,6 +669,90 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S1c. Defect decisions (built 2026-10-14)
+
+- **Check's findings (S1b check: PASS).** Node 16/16 and the factory draft test 15/15, two
+  mutations each turned one test red, the gate fails at 2,400 and passes at 2,485 of 2,601, the
+  twelve journeys ran green on main's CI run 38481678067, selection 53 specs, capacity 93.8%.
+  Carried: the local browser queue refused every job (1.3 to 2.0 GB free against its 4 GB
+  floor), so journey evidence came from CI; still unpinned after S1b: the AI and file production
+  and export doors, Continue for a dropped file (pinned now, below), reloads on non-template step
+  URLs (pinned now, below). S1b's three candidates are decided below.
+- **Shas:** previous verified `main` `d8c967270`. Fix pull requests, landed one after another,
+  each from `main` after the one before: #1146 `e47c39627` (S1), #1149 `ef2ca46ee` (S1b's
+  Continue), #1151 `2fee11e04` (S2), #1154 `cc888e7d0` (S3), #1155 `1b00addc0` (S5, the format
+  Change), #1158 `PR6SHA` (R7). This phase's own pull request carries the evidence, the
+  characterisation tests and these notes; its merge sha is the one the queue records.
+  **Revert:** `git revert -m 1` the merge commit of a fix to restore that defect (each is one
+  hunk group in `CreationWizard.tsx` plus its journey); this phase's own pull request adds only
+  tests and docs.
+- **Evidence:** `evidence/phase-s1c.md`, one row per item: reproduced or refuted, the journey, what
+  it showed, the decision. Every reproduction ran on unfixed `d8c967270` from the probe branch
+  `claude/plan-wizard-shell-p3-probe` (CI runs 38485638743 and 38486142632), then green in its
+  fix's own CI.
+- **Decided, item by item:** S1 reproduced, fixed. S1b's Continue reproduced, fixed. S2 reproduced
+  on Browse, fixed; refuted for the deep link (it starts from `initialDraft()`), which now sends
+  the same reset anyway so the three picks are one patch. S3 reproduced (also reachable without
+  the rare one-shot pair: any brand in force when a link lands), fixed. S5's format Change
+  reproduced, fixed; S5's `editSummaryStep` refuted (it is passed only to the one-graphic Finish,
+  which renders when `!kit`), characterised; `kitBusy` refuted (the save's own `finally` clears
+  it; a reset on open would let a second set save start while the first still writes),
+  characterised. S1b's reload refuted, characterised: a reload keeps no walk's material, so Entry
+  is the honest landing. R7's second press decided a defect (a reader pressing twice expects one
+  production; the entry's New production already ignores a second press), fixed. **D9 note:**
+  that fix changed one assertion of an S1b journey, the one S1b wrote as "recorded, not
+  endorsed" for this decision, from two productions to one: more protection, not less, and the
+  test count is unchanged.
+- **The walk's keep/clear table (section 4, decided; S5's reducer pins it).** Changed by a fix:
+  bold.
+
+  | Field | Continue | Restore | Fresh | Rewind | Close |
+  |---|---|---|---|---|---|
+  | draft, mode, step | kept; step = `lastStep`, **counted from the step a mode change happened on** (#1149) | from the snapshot; URL replaced with the ended step | `initialDraft()` + the production's brand; mode template; step from the URL (template walk only) or 0 | reset to Entry, the project format kept | step 0 |
+  | browseFilters, aiResult, aiThread | kept | from the snapshot | cleared | cleared | kept |
+  | importedFile, importedFileError | kept | from the snapshot; error cleared | **cleared** (#1146) | **cleared** (#1146) | kept |
+  | contextProductionId | kept | the production the walk landed in, else the snapshot's | the one-shot `pendingProductionId` | kept: the production is why the wizard opened, and a rewind changes the road, not the destination | kept |
+  | brandChoices, brandId | kept | from the snapshot | saved looks; None, or the production's brand | choices kept, brand None: on purpose (the code says so), since the rewind clears the draft that carried it and the chooser still offers it first | kept |
+  | acceptedAiGeneration | kept | kept | cleared | kept: unobservable (the rewind clears the `aiResult` it is compared with, and generation ids are unique), so S5 keeps today's value | kept |
+  | kit state | kept | `resetKit` | `resetKit` | `resetKit` | kept |
+  | kitBusy | the save's, in every intent: set at the press, cleared by the save's own end | | | | |
+  | stretchDemo | kept | cleared | cleared | cleared | kept |
+  | SVG overlays, replayKey | no reset in any intent: the mapping step clears the overlays on unmount, which every intent causes, and `replayKey` is a replay counter whose value means nothing | | | | |
+  | `heldWalk` | cleared on open | cleared on open | cleared on open | n/a | set when left with work (`walkHasWork`) |
+  | `resumeAsk` | none | raised | cleared | n/a | n/a |
+
+  Deep link: Fresh followed by `pickDesign` on Fields in template mode, **carrying the brand in
+  force exactly as the Browse pick** (#1154), with `animation.steps: null` as every pick (#1151).
+- **S2 must allow for (what changed in `CreationWizard.tsx`, 2,485 to 2,516 lines with the
+  svg-import-engine landings; budget 2,601):**
+  - The fresh branch of the open effect and `leaveStep` each clear `importedFile` and
+    `importedFileError`. The Entry card's own clear (Import graphic) stays.
+  - The two `lastStep` effects are one effect over `[open, mode, step]` with a `lastMode` ref.
+  - The Browse pick and the deep link send `animation: { presetId: null, outPresetId: null,
+    steps: null }`, as the images walk's Template step does.
+  - The deep link spreads `brandPatch(brandInForce.current)` or the three-field clear, a fifth
+    copy of the brand-or-clear spread for D5's `brandOrClearPatch` (2120, 2186, the Browse pick,
+    the Template step pick, and this one). `brandInForce` is a ref written at render and by the
+    open effect's fresh and restore branches, because a warm link lands in the same commit as the
+    open; S5 removes it when the deep link becomes Fresh + `pickDesign` in the reducer.
+  - `revealFormatPicker`'s fallback goes through `moveKitTo` in a kit (S3's walks table and S6's
+    `useKit` take it with the rail interception).
+  - `addingToProduction` (a ref beside `creatingProduction`) and `pressProductionDoor` wrap the
+    catalog, AI and file production doors: a press while one is in flight is ignored. S4's
+    `addToProduction` door takes the guard, and its Node second-press row asserts one production.
+- **Noticed, not reproduced (for S5):** a step URL after a deep link carries the design
+  (`#/new/<id>/step/<name>`, the route sync keeps `design`). By the code, browser Back onto such a
+  URL after a door closed the walk opens the wizard with that design pending, so the restore and
+  the deep link run in one commit and the link resets the draft under the walk-back warning. S5's
+  lifecycle hook reads the route and should characterise this before it decides the intent.
+- **Traps:** landed fix branches lose their local ref, and this phase's own branch, which still
+  equalled `main` while the fixes landed, was gone too: recreate it from `origin/main`. The rail's
+  format Change shares the class `wz-rail-change` with the kit's "All graphics" link, so a kit
+  journey names it `.wz-rail-foot .wz-rail-change`. A held kit save's landing still moves the
+  reader after they left and opened another walk (recorded in wizard-finish, not judged: the window
+  needs a durable write held for seconds). `e2e-capacity --changed` read 94% (table values) on
+  every pull request of this phase.
+
 ### S1b. Characterisation and the gate (built 2026-10-13)
 
 - **Check's findings (S1a check: PASS).** Carried: S1a's evidence states its limitations inline
