@@ -1,0 +1,26 @@
+{
+  "name": "illustrator-live-badge-strap",
+  "family": "illustrator",
+  "exporter": "Adobe Illustrator 2024 - Export As SVG",
+  "story": "A designer drew a headline strap for a live stream: one navy plate with the headline on the left and a red live dot inside the same plate near its right end, and exported it with Export As SVG, internal CSS and layer names as ids.",
+  "idioms": [
+    "<svg id=\"Layer_1\" data-name=\"Layer 1\"> with a viewBox and no width or height",
+    "internal CSS in <defs><style> with generated .cls-N classes",
+    "PostScript name first in font-family (Inter-SemiBold, Inter) and the weight as a number",
+    "layer names as ids with spaces turned to underscores and the real name in data-name",
+    "the <text> placed by transform=\"translate(...)\" with its <tspan x=\"0\" y=\"0\">",
+    "rx and ry both written on a rounded rect"
+  ],
+  "expect": {
+    "accepted": true,
+    "width": 1920,
+    "height": 1080,
+    "textFields": 1,
+    "textLabels": ["Headline"],
+    "imageFields": 0,
+    "outlineRows": 0,
+    "noticeAbout": [],
+    "growth": "grow-xy"
+  },
+  "whyThisMatters": "A live marker drawn inside the headline's plate is common on news graphics, and the headline is bounded by the marker, not by the plate: a long headline has to stop short of the dot rather than run under it, and the dot has to stay where it was drawn. With the player strap, it gives the runtime's neighbour rule files where the neighbour is drawn furniture rather than another line."
+}

@@ -1,0 +1,28 @@
+{
+  "name": "inkscape-player-number-strap",
+  "family": "inkscape",
+  "exporter": "Inkscape 1.3",
+  "story": "A club volunteer drew a player strap on a 1920x1080 pixel page: one dark plate with the player's name on the left and a yellow shirt-number tile inside the same plate, set in from its right end, and saved it as Inkscape SVG.",
+  "idioms": [
+    "<?xml?> prolog with standalone=\"no\" and the 'Created with Inkscape' comment",
+    "<sodipodi:namedview> with inkscape:document-units=\"px\"",
+    "<g inkscape:label=\"Pelaaja\" inkscape:groupmode=\"layer\"> holding every layer",
+    "inkscape:label on each rect and text, with generic ids (rect1, text1)",
+    "the paint and the font in one style attribute, with -inkscape-font-specification",
+    "sodipodi:role=\"line\" on each <tspan>, its x and y repeated from the <text>",
+    "text-anchor:middle in the style of the number, repeated on its tspan"
+  ],
+  "expect": {
+    "accepted": true,
+    "width": 1920,
+    "height": 1080,
+    "textFields": 2,
+    "textLabels": ["Player", "Number"],
+    "imageFields": 0,
+    "outlineRows": 0,
+    "noticeAbout": [],
+    "growth": "shrink"
+  },
+  "growthNote": "Shrink, because the name's room is bounded by the number tile and not by the plate: the tile is a plate of its own holding the number, drawn where it stands, so widening the dark plate would buy the name nothing. The name fills the room up to the tile, then shrinks.",
+  "whyThisMatters": "The thing a long name runs into here is a shape, not a text: the number tile is drawn inside the name's plate, on the name's row, and set in from the plate's end so it is a neighbour rather than an end cap. A long name has to stop short of the tile, and the tile has to stay where it was drawn. It gives the runtime's neighbour rule a file where the neighbour is drawn furniture."
+}

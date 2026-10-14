@@ -4,17 +4,24 @@
 //
 // THE FIT LADDER'S RUNGS AND THE STEP'S MIRROR OF THEM, ON EVERY CORPUS FILE, WITHOUT THE WIZARD.
 //
-// The runtime every imported SVG carries (`src/templates/importedDesign/runtime/*.js`) is loaded
-// here as text, filled the way `svg.ts` fills it, into a blank page holding one corpus file's bound
-// artwork and its layout table, and nothing else: no template script, no boot, no timeline. The
+// The runtime every imported SVG carries is loaded here as text, filled the way `svg.ts` fills it,
+// into a blank page holding one corpus file's bound artwork and its layout table, and nothing else:
+// no template script, no timeline. Three of the four runtime files are loaded: `svgFit.js`, and
+// `svgShapeShift.js` and `svgGrowth.js` where the table carries a growth rule. `svgFitBoot.js` is
+// not: it only wires `refitSvgText` to the page's load, font and resize events, and the test calls
+// the passes itself instead. The
 // rungs are then driven by calling the runtime's own functions (`svgRestAndMeasure`, `fitSvgText`,
 // `refitSvgText`, which run `measureSvgRoom`, `growSvgLayout` and `growSvgHeights`), and each
 // contract rule of `src/templates/importedDesign/AGENTS.md` is asserted on every file it applies
 // to, at rest and at every `LADDER_VALUES` length:
 //
-//   room          a line's room stops at its box's edge and at what is drawn beside it on its own
-//                 rows: unless it is reported too long, it never paints out of its box sideways
-//                 or across a neighbour that pens it
+//   room          a line's room stops at its box's edge: unless it is reported too long, it never
+//                 paints out of its box sideways
+//   neighbour     a line's room stops at what is drawn beside it on its own rows: unless it is
+//                 reported too long, it never paints across the neighbour that pens it. Which
+//                 thing pens which line is found here, from the artwork's geometry at rest, never
+//                 from the runtime's own `svgFitNeighbour` or `room.penned`, so a runtime that
+//                 stops finding the neighbour fails this rung rather than skipping it
 //   snap          a line the designer centred is anchored on its box's middle, and a block centred
 //                 vertically sits on its band's middle, whatever its length
 //   margin        growth never passes the margin the design kept on the anchored side, mirrored
@@ -98,6 +105,7 @@ const MIRROR_FINDINGS = [
   'illustrator-internal-css-lower-third f0: law: inset y',
   'illustrator-kerned-headline f0: box: the step and the runtime choose different boxes',
   'illustrator-kerned-headline f1: box: the step groups it under no box, the runtime measures it in one',
+  'illustrator-live-badge-strap f0: law: inset x (penned by a neighbour)',
   'illustrator-mixed-outlines f0: law: nudge x, inset y',
   'illustrator-owner-quiz-board-rotated f1: law: inset y',
   'illustrator-owner-quiz-board-rotated f3: law: inset y',
@@ -115,6 +123,7 @@ const MIRROR_FINDINGS = [
   'inkscape-millimetre-scorebug f0: law: inset x (penned by a neighbour)',
   'inkscape-millimetre-scorebug f1: law: inset x (penned by a neighbour)',
   'inkscape-millimetre-scorebug f2: law: inset x (penned by a neighbour)',
+  'inkscape-player-number-strap f0: law: inset x (penned by a neighbour)',
   'inkscape-text-on-path-bumper f1: box: the step groups it under no box, the runtime measures it in one',
   'logo-square-badge f0: law: inset y',
   'nested-svg-sub-artboard f0: box: the step groups it under no box, the runtime measures it in one',
@@ -129,10 +138,11 @@ const MIRROR_FINDINGS = [
   'ticker-strip-3840 f1: law: inset x (penned by a neighbour)',
   'ticker-strip-3840 f2: box: the step groups it under no box, the runtime measures it in one',
 ];
-const RULES = ['room', 'snap', 'margin', 'settle', 'fits', 'floors'];
-/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1148 and #1144, settle #1143. */
+const RULES = ['room', 'neighbour', 'snap', 'margin', 'settle', 'fits', 'floors'];
+/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, neighbour #1148, settle #1143. */
 const RUNG_FINDINGS = {
-  room: ['effects-symbol-library-ticker', 'illustrator-rotated-sidebar-strip'],
+  room: ['illustrator-rotated-sidebar-strip'],
+  neighbour: ['effects-symbol-library-ticker'],
   settle: [
     'effects-smil-animated-bug',
     'figma-offset-centred-endboard',
@@ -365,13 +375,6 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
     const local = panel ? w.svgLocalBox(panel, el) : null;
     containers[el.id] = panel;
     restLocal[el.id] = local;
-    // The neighbour that pens a line, found the way its room found it.
-    // Kept as the element, so its edge is read where it stands after a panel has grown.
-    if (panel && room.penned) {
-      const edge = w.svgFitNeighbour(el, panel.getBoundingClientRect()).edge;
-      neighbours[el.id] = [...art.querySelectorAll(`text, tspan, image, ${SHAPES}`)]
-        .find((o) => o !== el && !o.contains(el) && !el.contains(o) && Math.abs(o.getBoundingClientRect().left - edge) < 0.01);
-    }
     const own = el.getBBox();
     const b = local;                              // the box, in the line's own units
     // The inset the runtime's room keeps, on each axis, read back off the room it measured: the
@@ -411,6 +414,43 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
       stepLaw: shapeIdx >= 0 && sameShapes ? stepOn(stepSide[el.id]?.candidateId, shapeIdx) : null,
     };
   }
+  // THE NEIGHBOUR THAT PENS EACH LINE, read off the artwork at rest by this test alone: the nearest
+  // thing drawn inside the line's box, on the line's own rows, to its right. Not the box itself, and
+  // not a plate as big as the box. A part of another bound line stands for that line, since a value
+  // written into it replaces its parts. Kept as the element, so its edge is read where it stands
+  // after a panel has grown (an end cap travels with the edge it hugs).
+  const lineOfPart = (o) => nodes.find((n) => n === o || n.contains(o)) || o;
+  for (const el of drawnNodes) {
+    const panel = containers[el.id];
+    if (!panel || !w.svgFitLaidOut(el)) continue;
+    const p = rect(panel);
+    const me = rect(el);
+    if (!(me.width > 0)) continue;
+    let pen = null;
+    let penLeft = Infinity;
+    for (const o of art.querySelectorAll(`text, tspan, image, ${SHAPES}`)) {
+      if (o === panel || o === el || o.contains(el) || el.contains(o)) continue;
+      const r = rect(o);
+      if (!(r.width > 0) || !(r.height > 0)) continue;
+      if (r.left < p.left - 1 || r.right > p.right + 1 || r.top < p.top - 1 || r.bottom > p.bottom + 1) continue;
+      if (r.width >= p.width - 1 && r.height >= p.height - 1) continue;
+      if (Math.min(r.bottom, me.bottom) - Math.max(r.top, me.top) < 1) continue;
+      if (r.left < me.right - 1) continue;
+      if (r.left < penLeft) { penLeft = r.left; pen = lineOfPart(o); }
+    }
+    if (pen) neighbours[el.id] = pen;
+  }
+  // The bound lines the mirror cannot compare, each with the reason, so none drops out unseen.
+  const notCompared = {};
+  for (const l of lineOf) {
+    if (runtimeSide[l.id]?.measured) continue;
+    const el = art.querySelector(`[id="${l.id}"]`) || box.querySelector(`[id="${l.id}"]`);
+    notCompared[l.id] = runtimeSide[l.id] ? 'hidden at rest, so the runtime measures no box for it'
+      : !el ? 'not in the artwork as a line (a display the runtime paints, such as a clock or credits)'
+      : !nodes.includes(el) ? `a <${el.tagName.toLowerCase()}> the fit does not walk`
+      : w.svgFitPlaced(el) ? 'placed in a slot, with no drawn box to read'
+      : 'the runtime records no room for it';
+  }
   stage.remove();
   style.remove();
   w.fitSvgText();
@@ -445,23 +485,73 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
       top: Math.min(...rs.map((r) => r.top)), bottom: Math.max(...rs.map((r) => r.bottom)),
     };
   };
+  // Which axes the margin rung saw grow, and which grew until the margin stopped them.
+  const grew = { x: false, y: false };
+  const atCap = { x: false, y: false };
   const restRules = layoutEls.map((el, i) => (el ? { panel: rect(el), moving: movingBox(el, i) } : null));
+  // A value painted at the drawn size on one line: its advance in the line's units and its width
+  // on screen. Measured on a copy of the line, so the line itself is written only the way update()
+  // writes it.
+  const atDrawnSize = (el, value) => {
+    const copy = el.cloneNode(false);
+    copy.removeAttribute('id');
+    copy.style.fontSize = '';
+    copy.removeAttribute('textLength');
+    copy.textContent = value;
+    el.parentNode.insertBefore(copy, el);
+    const out = { advance: copy.getComputedTextLength(), width: copy.getBoundingClientRect().width };
+    copy.remove();
+    return out;
+  };
+  // Would a value that wide, painted from where the line is anchored, reach the neighbour that
+  // pens it? Only such a value tests the neighbour rung.
+  const reachesPen = (el, width) => {
+    const pen = neighbours[el.id];
+    const drawn = restRects[el.id];
+    if (!pen || !drawn) return false;
+    const h = w.svgFitAlign[el.id]?.h;
+    const right = h === 'end' ? drawn.right : h === 'middle' ? (drawn.left + drawn.right) / 2 + width / 2 : drawn.left + width;
+    return right > rect(pen).left + 1;
+  };
+  // ROOM and NEIGHBOUR, on the given lines.
+  const sideways = (key, lines, reaching) => {
+    // ROOM: a line stays inside its box sideways, unless it is reported too long. A line the
+    // designer drew past an edge may stand where it was drawn.
+    for (const el of lines) {
+      const panel = containers[el.id];
+      if (!panel || !restRects[el.id] || w.svgFitOver[el.id] || !w.svgFitLaidOut(el)) continue;
+      exercised.room = true;
+      const now = rect(el);
+      const drawn = restRects[el.id];
+      const p = rect(panel);
+      const right = Math.max(p.right, drawn.right);
+      const left = Math.min(p.left, drawn.left);
+      if (now.right > right + 1) say('room', `${key}: ${el.id} paints to ${r2(now.right)}, past its box at ${r2(right)}`);
+      if (now.left < left - 1) say('room', `${key}: ${el.id} paints from ${r2(now.left)}, left of its box at ${r2(left)}`);
+    }
+    // NEIGHBOUR: a line stays short of the neighbour that pens it, where that neighbour stands
+    // now, unless it is reported too long. A line drawn past its neighbour may stand where it was
+    // drawn. The rung is reached by a value long enough to have crossed the neighbour without it.
+    for (const el of lines) {
+      const pen = neighbours[el.id];
+      if (!pen || !restRects[el.id] || w.svgFitOver[el.id] || !w.svgFitLaidOut(el)) continue;
+      if (reaching[el.id]) exercised.neighbour = true;
+      const now = rect(el);
+      const edge = Math.max(rect(pen).left, restRects[el.id].right);
+      if (now.right > edge + 1) say('neighbour', `${key}: ${el.id} paints to ${r2(now.right)}, past the neighbour that pens it at ${r2(edge)}`);
+    }
+  };
   const values = Object.entries(ladder);
   for (const [key, value] of values) {
-    // Does the value fit the room at the drawn size, as one line? Measured on a copy of the line,
-    // so the line itself is written only the way update() writes it.
+    // Does the value fit the room at the drawn size, as one line? And would it cross a neighbour?
     const fitsRoom = {};
+    const reaching = {};
     for (const el of drawnNodes) {
       const room = w.svgFitRoom[el.id];
       if (!room || !w.svgFitLaidOut(el)) continue;
-      const copy = el.cloneNode(false);
-      copy.removeAttribute('id');
-      copy.style.fontSize = '';
-      copy.removeAttribute('textLength');
-      copy.textContent = value;
-      el.parentNode.insertBefore(copy, el);
-      fitsRoom[el.id] = copy.getComputedTextLength() <= room.width - 0.5;
-      copy.remove();
+      const at = atDrawnSize(el, value);
+      fitsRoom[el.id] = at.advance <= room.width - 0.5;
+      reaching[el.id] = reachesPen(el, at.width);
     }
     for (const el of nodes) el.textContent = value;
     w.fitSvgText();
@@ -516,23 +606,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
       }
     }
 
-    // ROOM: a line stays inside its box sideways and short of a neighbour that pens it, unless it
-    // is reported too long. A line the designer drew past either may stand where it was drawn.
-    for (const el of drawnNodes) {
-      const panel = containers[el.id];
-      if (!panel || !restRects[el.id] || w.svgFitOver[el.id] || !w.svgFitLaidOut(el)) continue;
-      exercised.room = true;
-      const now = rect(el);
-      const drawn = restRects[el.id];
-      const p = rect(panel);
-      const pen = neighbours[el.id];
-      const right = Math.max(pen ? Math.min(rect(pen).left, p.right) : p.right, drawn.right);
-      const left = Math.min(p.left, drawn.left);
-      if (now.right > right + 1) {
-        say('room', `${key}: ${el.id} paints to ${r2(now.right)}, past ${pen ? 'the neighbour that pens it' : 'its box'} at ${r2(right)}`);
-      }
-      if (now.left < left - 1) say('room', `${key}: ${el.id} paints from ${r2(now.left)}, left of its box at ${r2(left)}`);
-    }
+    sideways(key, drawnNodes, reaching);
 
     // SNAP: a centred line stays on its box's middle, sideways and down.
     for (const el of drawnNodes) {
@@ -577,6 +651,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
       const grewHi = now[hi] - rest.panel[hi] > 0.5;
       if (!grewLo && !grewHi) return;
       exercised.margin = true;
+      grew[y ? 'y' : 'x'] = true;
       const safe = span * rule.safe;
       // An author's cap replaces the mirrored margin; the safe margin floors either (svgCapMargin).
       const capped = rule.cap != null ? Math.max(span * rule.cap, safe) : null;
@@ -586,6 +661,7 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
       if (grewLo && grewHi) {
         // From the middle: the nearer margin, spent half on each side.
         const room = Math.max(0, Math.min(inset(rest.moving, lo), inset(rest.moving, hi)) - (capped ?? safe));
+        if (Math.max(inset(rest.moving, lo) - inset(m, lo), inset(rest.moving, hi) - inset(m, hi)) >= room - 1) atCap[y ? 'y' : 'x'] = true;
         if (inset(rest.moving, lo) - inset(m, lo) > room + 1 || inset(rest.moving, hi) - inset(m, hi) > room + 1) {
           say('margin', `${key}: rule ${i} widened from its middle past its nearer margin`);
         }
@@ -593,11 +669,35 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
         // One way: the margin the panel keeps on the side it is anchored to, mirrored.
         const side = grewHi ? hi : lo;
         const keep = capped ?? Math.max(inset(rest.panel, side === hi ? lo : hi), safe);
+        // Growth that stops on the margin it keeps is what reaches the rule, not growth alone.
+        if (inset(m, side) <= keep + 1) atCap[y ? 'y' : 'x'] = true;
         if (inset(m, side) < Math.min(keep, inset(rest.moving, side)) - 1) {
           say('margin', `${key}: rule ${i} grew to ${r2(inset(m, side))} from the frame, inside the ${r2(keep)} it mirrors`);
         }
       }
     });
+  }
+
+  // JUST PAST THE NEIGHBOUR. The ladder steps from a value every slot holds to values no slot
+  // beside a neighbour holds unreported, and the case the neighbour rung is about lies between: a
+  // value that would cross the neighbour at the drawn size and fits once wrapped or shrunk. Each
+  // line a neighbour pens takes its own drawn value repeated until it is a third wider than the
+  // gap to the neighbour; every other line keeps its drawn value, as when one name is typed long.
+  for (const el of drawnNodes) {
+    const pen = neighbours[el.id];
+    const drawn = restRects[el.id];
+    if (!pen || !drawn) continue;
+    for (const n of nodes) n.textContent = w.svgFitDrawn[n.id];
+    w.refitSvgText();
+    const word = String(w.svgFitDrawn[el.id] ?? '').trim();
+    if (!word) continue;
+    const gap = rect(pen).left - drawn.left;
+    let value = word;
+    for (let i = 0; i < 40 && atDrawnSize(el, value).width < gap * 1.34; i++) value += ` ${word}`;
+    const reaching = { [el.id]: reachesPen(el, atDrawnSize(el, value).width) };
+    el.textContent = value;
+    w.fitSvgText();
+    sideways(`just past (${JSON.stringify(value.length > 40 ? `${value.slice(0, 40)}...` : value)})`, [el], reaching);
   }
 
   // Back to the drawn values: the artwork comes back to the design (svgLayoutRest).
@@ -606,7 +706,10 @@ const RUNG = async ({ markup, origin, ladder, prefix, ruleNames }) => {
   if (furniture() !== pristineFurniture) say('fits', 'the drawn values again: the artwork did not come back to the design');
   frame.remove();
 
-  return { shipped, sameShapes, unfitted, penned: Object.keys(neighbours).length, lines: lineOf.map((l) => l.id), stepSide, runtimeSide, rules: rulesOut, exercised };
+  return {
+    shipped, sameShapes, unfitted, penned: Object.keys(neighbours), grew, atCap, notCompared,
+    lines: lineOf.map((l) => l.id), stepSide, runtimeSide, rules: rulesOut, exercised,
+  };
 };
 
 const started = Date.now();
@@ -679,19 +782,20 @@ function mirrorOf(step, run) {
 
 const mirror = [];
 const mirrorDetail = [];
+/** Every bound line the mirror does not compare, with the reason, printed and counted. */
+const notCompared = [];
+let boundLines = 0;
 let mirrorLines = 0;
 let agreeing = 0;
-let unmeasured = 0;
 const sameBox = { yes: 0, no: 0 };
 const sameLaw = { yes: 0, no: 0 };
 for (const { name } of accepted) {
   const raw = raws[name];
   for (const id of raw.lines) {
-    const run = raw.runtimeSide[id];
-    if (!run) continue;                           // not a drawn line (a clock display, a credits sample)
+    boundLines++;
+    if (raw.notCompared[id]) { notCompared.push(`${name} ${id}: ${raw.notCompared[id]}`); continue; }
     mirrorLines++;
-    const m = mirrorOf(raw.stepSide[id], run);
-    if (!m.measured) { unmeasured++; continue; }
+    const m = mirrorOf(raw.stepSide[id], raw.runtimeSide[id]);
     (m.box.length ? sameBox.no++ : sameBox.yes++);
     (m.law.length ? sameLaw.no++ : sameLaw.yes++);
     if (!m.box.length && !m.law.length) agreeing++;
@@ -700,7 +804,8 @@ for (const { name } of accepted) {
   }
 }
 measured(mirrorLines, 'bound lines mirrored');
-console.log(`[svg-fit-rungs] mirror: ${mirrorLines} bound lines, ${agreeing} agree on box and law, ${unmeasured} hidden at rest (the runtime cannot measure them); box ${sameBox.yes} agree / ${sameBox.no} differ; law ${sameLaw.yes} agree / ${sameLaw.no} differ`);
+console.log(`[svg-fit-rungs] mirror: ${boundLines} bound lines, ${mirrorLines} compared, ${agreeing} agree on box and law; box ${sameBox.yes} agree / ${sameBox.no} differ; law ${sameLaw.yes} agree / ${sameLaw.no} differ`);
+console.log(`[svg-fit-rungs] ${notCompared.length} bound lines not compared:\n  ${notCompared.join('\n  ')}`);
 console.log(`[svg-fit-rungs] ${mirror.length} mirror findings:\n  ${mirror.join('\n  ')}`);
 console.log(`[svg-fit-rungs] the numbers behind the law findings, step -> runtime:\n  ${mirrorDetail.join('\n  ')}`);
 if (process.env.SVG_FIT_RUNGS_SHOW === '1') console.log(`const MIRROR_FINDINGS = ${JSON.stringify(mirror, null, 2)};`);
@@ -723,8 +828,10 @@ for (const rule of RULES) {
     const brokenOn = accepted.filter((f) => raws[f.name].rules[rule].length).map((f) => f.name);
     const said = accepted.flatMap((f) => raws[f.name].rules[rule].map((s) => `${f.name}: ${s}`));
     const holds = reached.filter((n) => !brokenOn.includes(n)).length;
-    const penned = rule === 'room' ? ` (${accepted.filter((f) => raws[f.name].penned).length} with a line a neighbour pens)` : '';
-    console.log(`[svg-fit-rungs] ${rule}: holds on ${holds} of the ${reached.length} files it reaches${penned}${said.length ? `; broken:\n  ${said.join('\n  ')}` : ''}`);
+    const reach = rule === 'neighbour' ? ` (${accepted.filter((f) => raws[f.name].penned.length).length} files have a line a neighbour pens; reached where a value is long enough to cross it)`
+      : rule === 'margin' ? ` (${['x', 'y'].map((a) => `${a === 'x' ? 'sideways' : 'vertically'} ${accepted.filter((f) => raws[f.name].grew[a]).length} grow and ${accepted.filter((f) => raws[f.name].atCap[a]).length} reach the margin`).join('; ')})`
+      : '';
+    console.log(`[svg-fit-rungs] ${rule}: holds on ${holds} of the ${reached.length} files it reaches${reach}${said.length ? `; broken:\n  ${said.join('\n  ')}` : ''}`);
     assert.deepEqual(brokenOn, RUNG_FINDINGS[rule] ?? [], `the files the "${rule}" rung breaks on are not the recorded ones:\n  ${said.join('\n  ')}`);
     assert.ok(holds >= MIN_FILES, `the "${rule}" rung holds on only ${holds} corpus files`);
   });

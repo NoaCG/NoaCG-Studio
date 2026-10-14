@@ -567,6 +567,101 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
 
+### Phase 6: rungs and the mirror gate (repair, 2026-10-14)
+
+- **Last check's findings (phase 6 build, FAIL):** the room rung found the pen through the
+  runtime's own `svgFitNeighbour`. A probe that made it find nothing left the rung reporting "0
+  with a line a neighbour pens" and no overlap; a copy of the test that found the pen with the
+  unchanged function showed 6 files painting past their neighbour (`figma-duplicate-ids-scorebug:
+  over1: f0 paints to 1065.92, past the neighbour that pens it at 819.27`), and the real test failed
+  only because #1148's recorded finding vanished. The neighbour rule reached only 8 files (7 held),
+  below the 10 asked, and counted as 44 only folded into the room rung. Minor: the margin rung
+  reached the vertical cap on 1 file; the mirror skipped 2 bound lines
+  (`illustrator-question-timer-board f1`, the clock, and `inkscape-text-on-path-bumper f0`, a
+  `textPath`) without counting or printing them; the notes said four runtime files, and
+  `svgFitBoot.js` is not loaded.
+- **Main before:** `74d1149ae` (the merge of #1150, another plan's notes; phase 6's merge
+  `06045b28` is below it). Merge sha: the queue's merge of this pull request. Revert: `git revert
+  -m 1 <merge sha>` on its own branch through `/check` and `/queue-merge`; it takes the two corpus
+  files and their snapshot records with it.
+- **Built:**
+  - The neighbour rule is its own rung, `neighbour`, and the test finds the pen itself: at rest,
+    the nearest thing drawn inside the line's box, on the line's rows, to its right; not the box
+    and not a plate as big as it; a part of another bound line stands for that line. Neither
+    `svgFitNeighbour` nor `room.penned` is read by any rung (the mirror still labels an inset
+    finding "penned by a neighbour" from `room.penned`, its own record). The rung checks that an
+    unreported line never paints past that thing where it stands now, and `room` now checks only
+    the box's edges.
+  - A file is reached by the rung only where a value would have crossed the neighbour at the drawn
+    size. The ladder jumps from `short` to values no narrow slot holds unreported, so each penned
+    line also takes its own drawn value repeated until it is a third wider than the gap ("just
+    past"), on that line alone.
+  - Two corpus files, written from the promise like the rest:
+    `inkscape-player-number-strap` (a name bounded by a number tile drawn inside its plate;
+    growth `shrink`, with the reason in its sidecar) and `illustrator-live-badge-strap` (a
+    headline bounded by a live dot inside its plate; `grow-xy`). The pass harness snapshot gained
+    their records (re-recorded with `UPDATE_SVG_CORPUS_PASSES=1`; the diff is additions only, no
+    existing record changed); their `runtime` records are Linux's, taken from this pull request's
+    CI log with `SVG_CORPUS_RUNTIME_FROM`.
+  - The mirror prints and counts every bound line it does not compare, with the reason: 3 of 141
+    (`illustrator-live-vote-band f0`, hidden at rest; `illustrator-question-timer-board f1`, a
+    `<div>` the fit does not walk, the clock; `inkscape-text-on-path-bumper f0`, a `<textpath>`).
+    Of the 138 compared, on Linux 79 agree on box and law, the box on 126 and the law on 87; on
+    Windows 80, 126 and 88. The Linux list matched on CI's first run with the two new entries.
+  - The margin rung prints, per axis, how many files grow and how many grow until the margin
+    stops them.
+  - **Runtime files loaded:** three of the four. `svgFit.js` always, `svgShapeShift.js` and
+    `svgGrowth.js` where the table carries a growth rule. `svgFitBoot.js` is not loaded: it only
+    wires `refitSvgText` to load, font and resize events, and the test calls the passes itself.
+    The phase 6 build note's "four runtime files" was wrong.
+- **The seven rungs** (files where the rule holds, of the files it reaches; Windows and CI's Linux
+  factory job, job 115617128417, agree except where noted). Run time 7.7 s for 51 files here:
+
+  | Rung | Holds |
+  |---|---|
+  | `room` | 45 of 46 |
+  | `neighbour` | 10 of 11 (11 files have a penned line; all 11 reached) |
+  | `snap` | 24 of 24 (23 of 23 on Linux) |
+  | `margin` | 20 of 20. Sideways 17 files grow and 16 reach the margin; vertically 18 grow and **0 reach the margin**, on both platforms, so the vertical margin is checked only as "never passed", never at its limit. Raising that needs a value or a file that grows a plate up to its vertical margin; not done here (#1153) |
+  | `settle` | 37 of 49 |
+  | `fits` | 48 of 48 |
+  | `floors` | 29 of 29 |
+
+- **Proof that the neighbour rung bites** (each made with `sed` in this worktree, the test run,
+  then `git checkout --` the file):
+
+  | Probe | Result |
+  |---|---|
+  | `svgFitNeighbour` returns `{ edge: panel.right, cap: false }` (finds nothing) | `neighbour` holds on 2 of 11 and fails: breaks on 9 files against the 1 recorded, e.g. `figma-duplicate-ids-scorebug: over1: f0 paints to 1065.92, past the neighbour that pens it at 819.27`, `inkscape-player-number-strap`, `illustrator-live-badge-strap: over1: f0 paints to 1663.98, past the neighbour that pens it at 1262` |
+  | `measureSvgRoom`: `var edge = bound.edge;` to `var edge = panel.right;` (the fit ignores the neighbour) | the same: `neighbour` holds on 2 of 11 and fails on 9 files |
+
+  Both probes also move `settle` (a room that changes changes what settles); `room` is unmoved.
+- **Findings (D10):** none new. `neighbour` breaks only on `effects-symbol-library-ticker`
+  (#1148), moved there from `room`; `room` keeps `illustrator-rotated-sidebar-strip` (#1144). The
+  mirror's list gains the two new files' `f0: law: inset x (penned by a neighbour)` (#1145). A
+  third file drafted for this, a Figma place-and-time strap whose time is a bound line, broke the
+  neighbour rung the #1148 way (the time, read as right-anchored, grows left over the place) and
+  `settle` (#1143), and its sidecar's `grow-xy` disagreed with the step's `shrink`; it was dropped
+  rather than land a third disagreement. It is a clean repro for #1148 if wanted.
+- **Decisions:**
+  - Reach means a value that would have crossed the neighbour, not any value checked: a short
+    value that stops short of the neighbour tests nothing about it.
+  - The "just past" value is the line's own drawn value repeated, so it reads as a real long
+    entry in that slot, and only that line takes it, as when one name is typed long.
+  - The independent finder counts an end cap and a neighbour alike: text stays off both, and a
+    cap is read where it stands after it travels with a growing edge.
+  - New corpus files rather than more ladder values: `LADDER_VALUES` is shared with the harness
+    and the sweep, and changing it would change existing records.
+- **What the next phase must allow for:** the neighbour rung holds on exactly 10 files; a corpus
+  change that drops one fails it, by design. A fix for #1148 takes `effects-symbol-library-ticker`
+  off `RUNG_FINDINGS.neighbour`. The rung looks only to the right of a line: an end-anchored line
+  that grows left over a neighbour (#1148's shape) is caught only where its neighbour is the line
+  being checked.
+- **Traps:** the corpus spec's growth column (`e2e/import-svg-corpus.spec.ts`) reads every
+  sidecar, so a new file's `growth` must be the step's answer or a listed finding; the pass
+  harness prints the disagreement locally (`growth default ..., sidecar ...`) in seconds, which is
+  how the dropped file was caught without a browser walk.
+
 ### Phase 6: rungs and the mirror gate (build, 2026-10-14)
 
 - **Last check's findings (phase 5, PASS):** byte identity held on the checker's own literal

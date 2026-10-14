@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- NoaCG SVG corpus / family "inkscape".
+     Exporter: Inkscape 1.3 (0e150ed6c4, 2023-07-21), File > Save As... > Inkscape SVG.
+     What they drew: a player strap for a club stream. One dark plate holds the player's name on
+     the left and, inside the same plate, a small yellow tile with the shirt number, set in from
+     the plate's right end. The name and the tile share a row, so the tile is what a long name
+     would run into. Page in pixels, 1920x1080. -->
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="1920"
+   height="1080"
+   viewBox="0 0 1920 1080"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   sodipodi:docname="pelaajapalkki.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="px"
+     inkscape:zoom="0.5"
+     inkscape:cx="960"
+     inkscape:cy="540"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Pelaaja"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#14171f;fill-opacity:0.95;stroke:none"
+       id="rect1"
+       width="900"
+       height="96"
+       x="120"
+       y="880"
+       ry="4"
+       inkscape:label="Plate" />
+    <rect
+       style="fill:#ffd23f;fill-opacity:1;stroke:none"
+       id="rect2"
+       width="96"
+       height="72"
+       x="860"
+       y="892"
+       ry="3"
+       inkscape:label="Number tile" />
+    <text
+       xml:space="preserve"
+       style="font-weight:600;font-size:44px;font-family:Inter;-inkscape-font-specification:'Inter Semi-Bold';fill:#ffffff"
+       x="160"
+       y="943.5"
+       id="text1"
+       inkscape:label="Player"><tspan
+         sodipodi:role="line"
+         id="tspan1"
+         x="160"
+         y="943.5">Aino Virtanen</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-weight:700;font-size:44px;font-family:Inter;-inkscape-font-specification:'Inter Bold';text-align:center;text-anchor:middle;fill:#14171f"
+       x="908"
+       y="943.5"
+       id="text2"
+       inkscape:label="Number"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         x="908"
+         y="943.5"
+         style="text-align:center;text-anchor:middle">17</tspan></text>
+  </g>
+</svg>

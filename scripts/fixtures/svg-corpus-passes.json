@@ -9070,6 +9070,358 @@
     }
    }
   },
+  "illustrator-live-badge-strap": {
+   "inventory": {
+    "width": 1920,
+    "height": 1080,
+    "candidates": [
+     {
+      "id": "t0",
+      "label": "Headline",
+      "sample": "Parliament votes on the budget",
+      "marked": false,
+      "drawing": false,
+      "namedByGroup": false,
+      "numeric": false,
+      "clock": false
+     }
+    ],
+    "images": [],
+    "outlines": [],
+    "groups": [],
+    "shapes": [
+     {
+      "id": "s0",
+      "label": "Strap plate",
+      "x": 160,
+      "y": 870,
+      "width": 1180,
+      "height": 92
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Inter-SemiBold",
+      "lookup": "Inter",
+      "weight": 600
+     }
+    ],
+    "notices": [],
+    "markupSha256": "49391ce3176c85e7188bc176617d5e9cd6ddb37acbcf229f1900c49875058334"
+   },
+   "proposal": {
+    "behaviour": null,
+    "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
+   "fieldList": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "fields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Headline",
+      "sample": "Parliament votes on the budget",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "images": [],
+    "outlines": [],
+    "fonts": [
+     {
+      "family": "Inter-SemiBold",
+      "lookup": "Inter",
+      "weight": 600,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ]
+   },
+   "step": {
+    "growth": {
+     "on": true,
+     "shapeId": "s0",
+     "axis": "xy",
+     "label": "Strap plate"
+    },
+    "fillGap": null
+   },
+   "bind": "<svg xmlns=\"http://www.w3.org/2000/svg\" id=\"Layer_1\" data-name=\"Layer 1\" viewBox=\"0 0 1920 1080\" class=\"imported-design-art\">\n  <defs>\n    <style>\n      .cls-1 {\n        fill: #0f1d33;\n      }\n\n      .cls-2 {\n        fill: #e2231a;\n      }\n\n      .cls-3 {\n        fill: #fff;\n        font-family: Inter-SemiBold, Inter;\n        font-size: 42px;\n        font-weight: 600;\n      }\n    </style>\n  </defs>\n  <rect id=\"Strap_plate\" data-name=\"Strap plate\" class=\"cls-1\" x=\"160\" y=\"870\" width=\"1180\" height=\"92\" rx=\"4\" ry=\"4\" data-noacg-el=\"g0 g1\"/>\n  <circle id=\"Live_dot\" data-name=\"Live dot\" class=\"cls-2\" cx=\"1280\" cy=\"916\" r=\"18\"/>\n  <text id=\"f0\" class=\"cls-3\" transform=\"translate(200 931.26)\" x=\"0\" y=\"0\"><tspan x=\"0\" y=\"0\">Parliament votes on the budget</tspan></text>\n</svg>",
+   "layout": {
+    "version": 1,
+    "rules": [
+     {
+      "el": "g0",
+      "axis": "x",
+      "safe": 0.04
+     },
+     {
+      "el": "g1",
+      "axis": "y",
+      "safe": 0.04
+     }
+    ]
+   },
+   "behaviour": null,
+   "fields": [
+    {
+     "field": "f0",
+     "ftype": "textfield",
+     "title": "Headline",
+     "value": "Parliament votes on the budget"
+    }
+   ],
+   "fontCss": [
+    "@font-face {\n  font-family: \"Inter-SemiBold\";\n  src: url(\"fonts/inter.woff2\") format(\"woff2\");\n  font-weight: 600;            /* the name says this one weight, and the artwork states no other: pin the variable file to it */\n  font-display: swap;          /* show fallback text until the font loads */\n}"
+   ],
+   "emit": {
+    "html": "b172e72fc8054b941b2ca3bc9d1e2d1b49fad0227505c67657f9babaaff63355",
+    "css": "ef08b8749d57444d68cadccff8fa2ac447e07a977f20010be796c6d6cdbfdf9c",
+    "js": "d0863c7396a5c26ad36cf18912d0f86b02eac257f2bc0caa70c609636c6ae264"
+   },
+   "runtime": {
+    "rest": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      }
+     ]
+    },
+    "textFields": 1,
+    "short": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      }
+     ]
+    },
+    "over1": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      }
+     ]
+    },
+    "over2": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      }
+     ]
+    },
+    "over3": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 3,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 770,
+        "w": 1180,
+        "h": 192
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 770,
+        "w": 1180,
+        "h": 192
+       }
+      }
+     ]
+    },
+    "absurd": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 5,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 669,
+        "w": 1180,
+        "h": 293
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 669,
+        "w": 1180,
+        "h": 293
+       }
+      }
+     ]
+    },
+    "unbroken": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 73,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      }
+     ]
+    }
+   }
+  },
   "illustrator-live-vote-band": {
    "inventory": {
     "width": 1920,
@@ -16709,6 +17061,293 @@
        "lines": 1,
        "sizePct": 55,
        "over": true
+      }
+     ],
+     "rules": []
+    }
+   }
+  },
+  "inkscape-player-number-strap": {
+   "inventory": {
+    "width": 1920,
+    "height": 1080,
+    "candidates": [
+     {
+      "id": "t0",
+      "label": "Player",
+      "sample": "Aino Virtanen",
+      "marked": false,
+      "drawing": false,
+      "namedByGroup": false,
+      "numeric": false,
+      "clock": false
+     },
+     {
+      "id": "t1",
+      "label": "Number",
+      "sample": "17",
+      "marked": false,
+      "drawing": false,
+      "namedByGroup": false,
+      "numeric": true,
+      "clock": false
+     }
+    ],
+    "images": [],
+    "outlines": [],
+    "groups": [
+     {
+      "id": "g0",
+      "label": "Pelaaja",
+      "hidden": false
+     }
+    ],
+    "shapes": [
+     {
+      "id": "s0",
+      "label": "Plate",
+      "x": 120,
+      "y": 880,
+      "width": 900,
+      "height": 96
+     },
+     {
+      "id": "s1",
+      "label": "Number tile",
+      "x": 860,
+      "y": 892,
+      "width": 96,
+      "height": 72
+     }
+    ],
+    "fonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null
+     }
+    ],
+    "notices": [
+     "Removed 1 KB of non-rendering design metadata. Artwork was retained."
+    ],
+    "markupSha256": "eab8d92f5c4fec44bcee09399e6f8856ee066aa66cebfad4476b940b2cedfc85"
+   },
+   "proposal": {
+    "behaviour": null,
+    "extras": []
+   },
+   "draft": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "restIsTheRead": true,
+    "svgStretch": {
+     "on": false,
+     "shapeId": "s0"
+    },
+    "designArt": null,
+    "importedImages": [],
+    "designOriginal": null,
+    "designErases": [],
+    "designFields": [],
+    "name": "",
+    "category": "imported-design",
+    "variantId": "svg01",
+    "lines": [],
+    "zone": null,
+    "animation": {
+     "presetId": null,
+     "outPresetId": null
+    }
+   },
+   "fieldList": {
+    "size": {
+     "width": 1920,
+     "height": 1080
+    },
+    "fields": [
+     {
+      "candidateId": "t0",
+      "on": true,
+      "title": "Player",
+      "sample": "Aino Virtanen",
+      "numeric": false,
+      "clock": false,
+      "kind": "text"
+     },
+     {
+      "candidateId": "t1",
+      "on": true,
+      "title": "Number",
+      "sample": "17",
+      "numeric": true,
+      "clock": false,
+      "kind": "text"
+     }
+    ],
+    "images": [],
+    "outlines": [],
+    "fonts": [
+     {
+      "family": "Inter",
+      "lookup": "Inter",
+      "weight": null,
+      "fontId": "inter",
+      "customFont": null
+     }
+    ]
+   },
+   "step": {
+    "growth": {
+     "on": false,
+     "shapeId": "s0",
+     "label": "Plate"
+    },
+    "fillGap": null
+   },
+   "bind": "<svg xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" xmlns:sodipodi=\"http://sodipodi.sourceforge.net/DTD/sodipodi-0.0.dtd\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:svg=\"http://www.w3.org/2000/svg\" width=\"1920\" height=\"1080\" viewBox=\"0 0 1920 1080\" version=\"1.1\" id=\"svg1\" inkscape:version=\"1.3 (0e150ed6c4, 2023-07-21)\" sodipodi:docname=\"pelaajapalkki.svg\" class=\"imported-design-art\">\n  \n  <defs id=\"defs1\"/>\n  <g inkscape:label=\"Pelaaja\" inkscape:groupmode=\"layer\" id=\"layer1\">\n    <rect id=\"rect1\" width=\"900\" height=\"96\" x=\"120\" y=\"880\" ry=\"4\" inkscape:label=\"Plate\" class=\"noacg-s0\"/>\n    <rect id=\"rect2\" width=\"96\" height=\"72\" x=\"860\" y=\"892\" ry=\"3\" inkscape:label=\"Number tile\" class=\"noacg-s1\"/>\n    <text x=\"160\" y=\"943.5\" id=\"f0\" inkscape:label=\"Player\" class=\"noacg-s2\"><tspan sodipodi:role=\"line\" id=\"tspan1\" x=\"160\" y=\"943.5\">Aino Virtanen</tspan></text>\n    <text x=\"908\" y=\"943.5\" id=\"f1\" inkscape:label=\"Number\" class=\"noacg-s3\"><tspan sodipodi:role=\"line\" id=\"tspan2\" x=\"908\" y=\"943.5\" class=\"noacg-s4\">17</tspan></text>\n  </g>\n<style>\n/* Styles this file wrote inline, moved onto classes so a reset cannot\n   clear them. Same declarations, same order, same look. */\n.noacg-s0{fill:#14171f;fill-opacity:0.95;stroke:none;}\n.noacg-s1{fill:#ffd23f;fill-opacity:1;stroke:none;}\n.noacg-s2{font-weight:600;font-size:44px;font-family:Inter;-inkscape-font-specification:'Inter Semi-Bold';fill:#ffffff;}\n.noacg-s3{font-weight:700;font-size:44px;font-family:Inter;-inkscape-font-specification:'Inter Bold';text-align:center;text-anchor:middle;fill:#14171f;}\n.noacg-s4{text-align:center;text-anchor:middle;}\n</style></svg>",
+   "layout": null,
+   "behaviour": null,
+   "fields": [
+    {
+     "field": "f0",
+     "ftype": "textfield",
+     "title": "Player",
+     "value": "Aino Virtanen"
+    },
+    {
+     "field": "f1",
+     "ftype": "number",
+     "title": "Number",
+     "value": "17"
+    }
+   ],
+   "fontCss": [
+    "@font-face {\n  font-family: \"Inter\";\n  src: url(\"fonts/inter.woff2\") format(\"woff2\");\n  font-weight: 400 800;  /* variable font: covers this weight range */\n  font-display: swap;          /* show fallback text until the font loads */\n}"
+   ],
+   "emit": {
+    "html": "8f7da8681939fe1d6a2d045d357980a41ae5c23da6308742ed5bd17d4b38e53e",
+    "css": "708a85adf60e0a882032921faf3956a8b87b484ca208215de787eb7f078da184",
+    "js": "481593eea884edd3ec33ac589c7eaf1541a3a6fa67ae46864ffac0894461e3e4"
+   },
+   "runtime": {
+    "rest": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "textFields": 1,
+    "short": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "over1": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 55,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "over2": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 50,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "over3": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 45,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "absurd": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 30,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "unbroken": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 55,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
       }
      ],
      "rules": []
