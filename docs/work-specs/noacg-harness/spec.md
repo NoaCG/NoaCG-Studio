@@ -956,6 +956,41 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H2 second check (2026-10-15, on `f430c0b97`)
+
+- **Verdict: PASS.** Checked on `main` `f430c0b97`, the merge of the H2 repair (PR #1231); no
+  product code changed, nothing spent, no `claude -p` judgement run.
+- **AC-3 and 4.3:** the lock's hashes recompute on the LF-normalised files (prompt `3060b854`,
+  rubric `82311f0d`; a Windows checkout's CRLF bytes hash differently, which the lock's own hashing
+  allows for). `git diff f85a356d5 f430c0b97 -- benchmarks/harness/judge/` shows only
+  `calibration.mjs`, `results-heldout.jsonl` and `score-heldout.json`; prompt, rubric, lock, split,
+  set and `plant.mjs` are byte-identical. A copy of the committed results, scored outside the
+  repository, gives the committed `score-heldout.json` exactly (line endings aside): agreement 38 of
+  41 (Wilson 80.6% to 97.5%), no basic-defect FAIL aired, pairwise 16 of 16 (80.6% to 100%), 0
+  flips, 0 unanswered, PASS. The file is the temp work file, line endings aside, and holds one judge
+  fingerprint (`60bfb08e18a4`): 41 single, 16 pair answers, 11 error records that the scorer
+  supersedes. Every pair answer has two orders, each served by `claude-fable-5-1` only; the 11
+  re-judged pairs are stamped 21:48 to 21:51Z, after the 21:20Z reset. The leaky run's
+  results (`results-heldout.leaky-cwd.jsonl`, 20:23Z) are not in the committed file, and the
+  blinded run started at 20:35Z. The records keep no working directory, so `nj-` rests on the
+  code at `f85a356d5` and its test; the kept per-order prompts name only `A-1.png` and the like.
+  The labels spot-checked against the archived notes agree (`rr:X-07` OK*, `rr:X-13` AIR,
+  `ts:X-10` TWEAKS, `ts:X-11` FAIL with the accent over the text, `ts:X-19` FAIL empty, `ff:X-55`).
+- **Ledger:** $0 credit (`spentCents` 0); `phaseCompleted` is true for H0, H1 and H2 and false for
+  H3. The call counts add up: 59 + 161 + 161 + 73 + 2 probes + 51 blinded = 507, then 22 = 529; the
+  notional $155.43 + $8.78 = $164.21, and the runs log gives $8.78 for the repair run.
+- **Code and tests:** `harness-bench.test.mjs` 24 of 24; eslint clean on the four changed scripts.
+  The `scripts/harness-bench.mjs` edit is the pass-back only. PR #1231 touched no `src/`, `cli/`,
+  `api/` or migration.
+- **Try-out (H5's builder):** `--judge` on an empty run directory signed in on the subscription and
+  judged nothing ("Judged with claude-fable-5-1 (60bfb08e18a4)"). With one line added to
+  `prompt.md` it refused before any call ("prompt.md changed after it was frozen (lock 3060b854176a,
+  now 12be17878efa)"); restored after. The resume is pinned on `judgePair`; the runners' wiring was
+  read, not run.
+- **Minor, for H5:** the repair entry below names its merge as "the one the queue records": it is
+  `f430c0b97`. A run stopped during a pause still re-judges an answered order on its next start, as
+  that entry says.
+
 ### H2 repair. The blind pairs (2026-10-15)
 
 - **Check's findings (H2, on `f85a356d5`):** fail on product: AC-3's blind pairwise figure did not
