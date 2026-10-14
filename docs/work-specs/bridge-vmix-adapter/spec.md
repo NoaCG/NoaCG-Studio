@@ -188,7 +188,7 @@ channel or layer: a movie or a still plays in `NoaCG Clips`, an audio file in `N
 
 | NoaCG | vMix, on the player input by key |
 |---|---|
-| Take | `LoopOn` or `LoopOff` as the cue's ending says, and `AutoPlayNextOff` (both are settings of the input, not of an item, so every Take sets both, measured: research §7); `SetAlpha 255`, `SetVolume` and `SetGain` for the cue's level (gain 0 when the level is at or below 0 dB), all reset on every Take because they too stay on the input; `ListAdd` the file, `SelectIndex` to it, and only once the XML shows the new `selectedIndex` (it lands about 0.3 s after the `OK`, research §8) `SetPosition` to its in point when trimmed; `Play`; read back until that item is `Running`; then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V3 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
+| Take | `LoopOn` or `LoopOff` as the cue's ending says, and `AutoPlayNextOff` (both are settings of the input, not of an item, so every Take sets both, measured: research §7); `SetAlpha 255`, `SetVolume` and `SetGain` for the cue's level (gain 0 when the level is at or below 0 dB), all reset on every Take because they too stay on the input; `ListAdd` the file, `SelectIndex` to it, `Play`; read back until that item is `Running`. A trimmed Take differs, because `SelectIndex` on a running list starts the new item at once while the XML still shows the old one for about 0.3 s (research §8), so seeking after that read would air the file's first 0.3 s: it sends `Pause` first, then `ListAdd` and `SelectIndex`, waits until the XML shows the new item selected, `SetPosition` to the in point, and only then `Play`. No frame before the in point may air; if V6's Program snapshots show the paused new item's first frame during that wait, the Take also sets `SetAlpha 0` from before `SelectIndex` until the seek is done (a cut through black of about 0.3 s, recorded); then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V3 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
 | Fade in | the Take starts at `SetAlpha 0` and volume 0, then the Bridge steps `SetAlpha` up once per frame and sends `SetVolumeFade` to the cue's level over the fade. One input shows one file, so a fade in from a clip that was playing goes through black, where CasparCG's `MIX` crossfades |
 | Trim | in point: `SetPosition` before `Play`; out point: the Bridge's clip timer acts there (below), since marks do nothing on a list (measured) |
 | At the end: Hold (default) | untrimmed: vMix holds the last frame (`Completed`); trimmed: `Pause` at the out point |
@@ -598,8 +598,10 @@ reading older than the last accepted action is ignored, as for CasparCG.
 
 ### AC-12: Trim, fades, the end and the level
 
-Against the fake vMix and its clock: a trimmed Take seeks to the in point only after the XML shows
-the new item selected, and reads back a position at or after it; at the out point Hold pauses,
+Against the fake vMix and its clock: a trimmed Take pauses the list before it selects the new
+item, seeks to the in point only after the XML shows that item selected, sends `Play` only after
+the seek, and reads back a position at or after the in point, so no `Running` reading of the new
+item ever comes before its in point; at the out point Hold pauses,
 Loop goes back to the in point and Clear removes; an untrimmed clip set to Clear is removed once it
 reads `Completed`; a fade in starts at alpha 0 and volume 0 and reaches full alpha and the cue's
 level over the fade, one `SetAlpha` per frame and one `SetVolumeFade`; a fade out on Out or at a
@@ -608,7 +610,8 @@ Clear ends at black and silence at its time; a gain sends `SetVolume` 100 x gain
 arming a Clear included, works for trimmed and untrimmed clips; every step the Bridge sends by
 itself is dropped once the player's generation moved; the cue editor offers Clear, fades, trim and
 level for a vMix cue because `/status` lists `end`, `fade`, `trim` and `level`. On the real vMix
-29: how close a Pause lands to an out point, a fade to black seen in Program snapshots, the
+29: a trimmed Take over a playing clip, in Program snapshots, airs no frame before its in point
+(or the black-cover fallback is built and recorded); how close a Pause lands to an out point, a fade to black seen in Program snapshots, the
 shape of a `SetVolumeFade` from full level, and `SetGain` at +6 dB, recorded.
 
 ### AC-13: Play next and folders
