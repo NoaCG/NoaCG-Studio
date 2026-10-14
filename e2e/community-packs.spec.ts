@@ -5,6 +5,10 @@
 // seeded packs with a preview; Install puts the pack in as a ready production through
 // `installPack`, with no editing step, and the production's graphic takes, reveals and goes out.
 // Everything here runs offline against the built shelf under public/packs/community/.
+//
+// The build-mode switch and the shelf's footer rule (no Next on the shelf) are the template
+// road's: its kit hook and its walks.
+// covers: src/components/wizard/template/{useKit,walk}.ts
 
 import { test, expect, type Page } from '@playwright/test';
 
