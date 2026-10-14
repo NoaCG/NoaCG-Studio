@@ -196,8 +196,12 @@ export interface LibraryStore {
   production(userId: string, id: string): Promise<ProductionDetailRow | null>;
 }
 
-/** Lists are answered newest first, this many at most; the rest are counted. */
-export const LIBRARY_MAX_ROWS = 100;
+/** Lists are answered newest first, this many at most; the rest are counted. A tool result is what
+ *  a connector costs its user in tokens, so a plain call answers names and ids only. */
+export const LIBRARY_MAX_ROWS = 25;
+/** An answer with at most this many graphics carries their fields: a search that found a few, a
+ *  graphic id, or a small library. A wide list stays names and ids. */
+export const LIBRARY_FIELDS_UP_TO = 5;
 /** Rows of each kind the store reads, newest first: PostgREST's own row cap on Supabase. */
 export const LIBRARY_SCAN_ROWS = 1000;
 /** A stored value longer than this is not repeated back (it is a paragraph, not a sample). */
@@ -243,6 +247,13 @@ export type LibraryView = Record<string, unknown> & { graphics: Array<Record<str
 
 /** The library as the tool answers it, before the answered graphics' fields are read. Pure. */
 export function libraryView(rows: LibraryRows, query = ''): LibraryView {
+  // A graphic id asks for that graphic alone, so its fields come back with it.
+  const id = query.trim();
+  if (UUID.test(id)) {
+    const graphics = libraryView({ ...rows, graphics: rows.graphics.filter((g) => g.id === id) }).graphics;
+    // Not found in a capped scan is not "no such graphic": say how far the search went.
+    return { graphics, ...(graphics.length === 0 && rows.scanLimited ? { searched: `the newest ${LIBRARY_SCAN_ROWS} of each kind` } : {}) };
+  }
   const asked = wordsOf(query);
   const wanted = (...texts: Array<string | null | undefined>) => {
     if (asked.length === 0) return true;
@@ -467,11 +478,11 @@ export function createReadTools(deps: ReadToolsDeps = {}): McpTool[] {
       name: 'noacg_library',
       title: "Read the user's library",
       description:
-        "The user's graphics with their fields, brands and productions, their own and their teams'. Pass a production id for its graphics and cues. Never returns graphic code.",
+        "The user's graphics, brands and productions, their own and their teams': names and ids, newest first. Fields come with a few graphics: search by name or pass a graphic id. Pass a production id for its graphics and cues. Never returns graphic code.",
       inputSchema: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Words in a name' },
+          query: { type: 'string', description: 'Words in a name, or a graphic id' },
           production: { type: 'string', description: 'A production id' },
         },
         additionalProperties: false,
@@ -486,8 +497,10 @@ export function createReadTools(deps: ReadToolsDeps = {}): McpTool[] {
           if (!row) return refusal(`No production "${wanted}" in this user's library. noacg_library without arguments lists their productions.`);
           return result(productionView(row));
         }
-        // Fields are read for the answered graphics only: a stored field can hold an inlined file.
+        // Fields are read for a few answered graphics only: a stored field can hold an inlined file,
+        // and a wide list with every field would cost the user thousands of tokens.
         const view = libraryView(await store.library(userId), text(args.query));
+        if (view.graphics.length > LIBRARY_FIELDS_UP_TO) return result(view);
         const fields = await store.graphicFields(userId, view.graphics.map((g) => g.id));
         return result({ ...view, graphics: view.graphics.map((g) => ({ ...g, fields: fieldsView(fields.get(g.id)) })) });
       },
