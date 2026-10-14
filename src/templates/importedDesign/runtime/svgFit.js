@@ -156,6 +156,17 @@ function svgFitSlot(el) {
   return cap > 0 ? cap : slot.offsetWidth;
 }
 
+/** SET A LINE'S TYPE SIZE, or clear it with '' - and write its style ATTRIBUTE at once.
+ *
+ *  Chrome writes the attribute lazily, where it is first read, so on a line's first fit the size
+ *  landed after whatever the pass wrote next (a squeeze's textLength, a growth's transform) and
+ *  on every later fit before it: the same value fitted twice serialized differently (#1143).
+ *  Reading it back is what writes it now. */
+function svgSetSize(el, size) {
+  el.style.fontSize = size;
+  el.getAttribute('style');
+}
+
 // ── THE LAST RUNG: NOTHING PAINTS OUTSIDE ITS ROOM (owner ruling, 2026-08-26) ──
 // The ladder used to stop at the readability floor and simply REPORT a value it could not fit,
 // which left the floored line running straight across whatever the designer drew beside it. So a
@@ -310,7 +321,7 @@ function measureSvgBudgets() {
     var drawn = svgFitDrawn[el.id];
     if (!svgFitLaidOut(el)) { svgFitOwed[el.id] = true; continue; }   // no box to read (above)
     // Any previous fit has to come off first, or the measurement compounds.
-    el.style.fontSize = '';
+    svgSetSize(el, '');
     svgUnsqueeze(el);
     // Measure the design, put the value back. A BLOCK is restored even when the value matches,
     // because the previous pass repainted its lines - see measureSvgRoom for what that cost.
@@ -815,21 +826,25 @@ function svgIsEndCap(o, r, panel, axis, dir) {
     : r.right >= panel.right - Math.max(2, panel.width * 0.02) && r.left > panel.left + 1;
 }
 
-/** The nearest drawn thing to the RIGHT of this line, on its own rows - what a longer value would
- *  run into (owner, 2026-08-26: "a line's room is bounded by what is drawn next to it"). Two
- *  labels placed apart on ONE baseline is how an exporter writes a strap's place and its time, and
- *  the panel behind them says nothing about where the first one has to stop: HELSINKI is bounded by
- *  19:30, not by the banner, and widening the banner moves neither. The panel's own right edge is
- *  the backstop, so a line with nothing beside it is unchanged. The bound is returned WITH what
- *  it is - an end CAP bounds the room without penning the line (see svgIsEndCap).
+/** The nearest drawn thing BESIDE this line on its own rows - to its right (dir 1), or to its left
+ *  (dir -1) for a line anchored at its end, which grows leftwards - what a longer value would run
+ *  into (owner, 2026-08-26: "a line's room is bounded by what is drawn next to it"). Two labels
+ *  placed apart on ONE baseline is how an exporter writes a strap's place and its time, and the
+ *  panel behind them says nothing about where the first one has to stop: HELSINKI is bounded by
+ *  19:30, not by the banner, and widening the banner moves neither. The panel's own edge is the
+ *  backstop, so a line with nothing beside it is unchanged. The bound is returned WITH what it
+ *  is - an end CAP bounds the room without penning the line (see svgIsEndCap).
  *
  *  Only what is drawn INSIDE the panel is a neighbour, for the same reason svgFitCeiling only
- *  looks inside it: a plate standing beside this one is not this line's furniture. */
-function svgFitNeighbour(el, panel) {
+ *  looks inside it: a plate standing beside this one is not this line's furniture. The neighbour
+ *  itself is returned too, so measureSvgRoom can tell when it is part of another bound line. */
+function svgFitNeighbour(el, panel, dir) {
   var art = document.querySelector('.__PREFIX__-art');
   var box = el.getBoundingClientRect();
   var others = art.querySelectorAll('text, tspan, image, rect, path, polygon, ellipse, circle');
-  var left = panel.right;
+  var left = dir < 0;
+  var edge = left ? panel.left : panel.right;
+  var near = null;
   var cap = false;
   for (var i = 0; i < others.length; i++) {
     var o = others[i];
@@ -839,10 +854,14 @@ function svgFitNeighbour(el, panel) {
     if (r.width * r.height >= panel.width * panel.height) continue;   // that IS the panel
     if (!svgInsidePanel(r, panel)) continue;                          // drawn outside this box
     if (r.bottom < box.top + 1 || r.top > box.bottom - 1) continue;   // not on this line's rows
-    if (r.left < box.right - 1) continue;                             // not to the right of it
-    if (r.left < left) { left = r.left; cap = svgIsEndCap(o, r, panel, 'x', 1); }
+    if (left ? r.right > box.left + 1 : r.left < box.right - 1) continue;   // not on that side
+    if (left ? r.right > edge : r.left < edge) {
+      edge = left ? r.right : r.left;
+      near = o;
+      cap = svgIsEndCap(o, r, panel, 'x', dir);
+    }
   }
-  return { edge: left, cap: cap };
+  return { edge: edge, cap: cap, near: cap ? null : near };
 }
 
 function measureSvgRoom() {
@@ -871,9 +890,14 @@ function measureSvgRoom() {
     var drawn = svgFitDrawn[nodes[a].id];
     live.push(was);
     swapped.push(drawn != null && svgFitStale(nodes[a], was));
-    nodes[a].style.fontSize = '';
+    svgSetSize(nodes[a], '');
     if (swapped[a]) svgShowDrawn(nodes[a], drawn);
   }
+  // What pens each line on its right, each line's own measures, and every end-anchored line with
+  // something drawn on its left: the pairs that may share the gap between them (below).
+  var penNear = {};
+  var measured = {};
+  var facing = [];
   for (var i = 0; i < nodes.length; i++) {
     var el = nodes[i];
     // No box to read, so nothing is recorded and the line stays owed (svgFitLaidOut). Asked
@@ -910,19 +934,43 @@ function measureSvgRoom() {
       // nothing - so it must not drive the growth either. A bound that is an end CAP does not
       // pen: the cap is the panel's own furniture and travels with its growing edge, so
       // widening genuinely buys the line room - the text just stays off the cap meanwhile.
-      var bound = svgFitNeighbour(el, panel);
+      var bound = svgFitNeighbour(el, panel, 1);
       var edge = bound.edge;
       room.penned = edge < panel.right - 0.5 && !bound.cap;
       // The gap to keep: half the drawn type beside a neighbour (a readable space between two
       // labels), the design's own left margin mirrored when the panel - or its cap - is the
       // bound.
-      var pad = room.penned ? ((svgFitSizes[el.id] || 0) * 0.5) / scale : inset;
+      var gap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
+      var pad = room.penned ? gap : inset;
       room.width = Math.max(svgFitWidths[el.id], (edge - pad - box.left) * scale);
+      if (room.penned) penNear[el.id] = bound.near;
+      measured[el.id] = { box: box, scale: scale, gap: gap };
       // A line anchored to the middle or the right of its box fills BOTH ways, so its room is
       // the box's own inside rather than the distance from where it was drawn to the far margin.
       // Not for a PENNED line: something else drawn beside it is the real bound, and the box
       // says nothing about where that is.
       if (align.width > 0 && !room.penned) room.width = Math.max(svgFitWidths[el.id], align.width);
+      // An END-anchored line grows LEFTWARDS from its anchor, so what is drawn to its left bounds
+      // it as well (#1148): a neighbour pens it, half the drawn type short, and a cap bounds it
+      // by the margin the design keeps on the anchored side, without penning - exactly as the
+      // two bound a line on its right.
+      if (align.h === 'end') {
+        var before = svgFitNeighbour(el, panel, -1);
+        if (before.edge > panel.left + 0.5) {
+          // Where the line is anchored, which an author's declared anchor moves off where it
+          // was drawn (svgAlignOf).
+          var own = el.getBBox();
+          var shift = align.anchor != null ? (align.anchor - (own.x + own.width)) / scale : 0;
+          var keep = before.cap ? Math.max(0, panel.right - box.right - shift) : gap;
+          var reach = Math.max(svgFitWidths[el.id], (box.right + shift - keep - before.edge) * scale);
+          if (!before.cap) facing.push({ near: before.near, right: el, shift: shift, reach: box.right + shift - room.width / scale });
+          room.width = Math.min(room.width, reach);
+          // Penned on its left ALONE, it still gains from a panel widening rightwards: its anchor
+          // travels with the right edge and the neighbour stays (svgGrowDir grows a penned line's
+          // panel rightwards), so it may still ask for that growth.
+          if (!before.cap) { room.widens = !room.penned; room.penned = true; }
+        }
+      }
       // A LINE ALWAYS HAS ROOM FOR ITSELF, whatever the margins say - the floor is the block as
       // drawn, never zero. Zero would read as "this line overflows its room by its own height"
       // to everything downstream, and the lowest line of a stack (whose ceiling is the panel's
@@ -998,6 +1046,30 @@ function measureSvgRoom() {
       }
     }
     svgFitRoom[el.id] = room;
+  }
+  // TWO LINES THAT GROW TOWARDS EACH OTHER SHARE THE GAP between them. A ticker's story fills
+  // rightwards and its end-anchored source leftwards: bounded each by where the other was DRAWN,
+  // both may fill the same gap, and with two long values they painted over each other,
+  // unreported (#1148). The room is measured once, at rest, so it cannot depend on which value is
+  // the long one: they meet at the middle of the gap, unless the right one could never reach that
+  // far left anyway (a score figure penned on its other side), and then where it stops is the
+  // left one's bound. Each keeps its half type short of where they meet.
+  for (var f = 0; f < facing.length; f++) {
+    var pair = facing[f];
+    var left = null;
+    for (var n = 0; n < nodes.length; n++) if (nodes[n].contains(pair.near)) { left = nodes[n]; break; }
+    var leftRoom = left && svgFitRoom[left.id];
+    var l = left && measured[left.id];
+    var r = measured[pair.right.id];
+    var penned = left && penNear[left.id];
+    if (!l || !leftRoom.align || leftRoom.align.h === 'end' || !penned || !pair.right.contains(penned)) continue;
+    var middle = (l.box.right + r.box.left + pair.shift) / 2;
+    var meet = Math.max(middle, pair.reach);
+    leftRoom.width = Math.max(svgFitWidths[left.id], Math.min(leftRoom.width, (meet - l.gap - l.box.left) * l.scale));
+    if (pair.reach < middle) {
+      var rightRoom = svgFitRoom[pair.right.id];
+      rightRoom.width = Math.max(svgFitWidths[pair.right.id], Math.min(rightRoom.width, (r.box.right + pair.shift - r.gap - middle) * r.scale));
+    }
   }
   // Put each value back in the shape it was in - the drawn LINES where the value is the drawn
   // one, so a block skipped by the ladder is not left flattened (measureSvgBudgets says why).
@@ -1282,7 +1354,7 @@ function fitSvgText() {
     // reveal. Owed instead, and the reveal pays it.
     if (!room || !svgFitLaidOut(el)) { svgFitOwed[el.id] = true; continue; }
     svgFitOwed[el.id] = false;
-    el.style.fontSize = '';                     // back to the drawn size before measuring
+    svgSetSize(el, '');                         // back to the drawn size before measuring
     svgUnsqueeze(el);                           // …and out of any previous pass's squeeze
     svgApplyAnchor(el, room);                   // before any line is painted: a tspan reads it
     var budget = room.width + (svgFitExtra[el.id] || 0);
@@ -1315,7 +1387,7 @@ function fitSvgText() {
     for (var attempt = 0; attempt < 2; attempt++) {
       var stopAt = attempt === 0 ? floor : hardFloor;
       for (var pass = 0; pass < 8; pass++) {
-      el.style.fontSize = size === drawnSize ? '' : size.toFixed(2) + 'px';
+      svgSetSize(el, size === drawnSize ? '' : size.toFixed(2) + 'px');
       // HOW MANY LINES THE ROOM COULD HOLD - an upper bound the measured check below prunes,
       // never the answer on its own. A block of n lines is (n-1) line STEPS plus one line's own
       // box, not n steps: counting it as n steps loses the last line of every block that fills

@@ -312,6 +312,24 @@ function svgLayoutRest() {
   }
   svgFitExtra = {};
   svgFitShift = {};
+  // AND EVERY LINE BACK ON ITS RESTING ANCHOR, at the drawn size and on one line, holding the
+  // value it has now. The next pass reads which lines a panel holds off where each one stands
+  // (svgLinesInside), and the last pass left its own answer on the node: an anchor moved by the
+  // panel's growth, a size, a squeeze, a wrap. A line that pass had carried past its panel's
+  // edge then read as outside it, and the same value grew the panel on one update and not on
+  // the next (#1143). A placed line has no anchor or wrap of its own, only a size and a squeeze. A line that is not
+  // laid out is left as it is: no panel can count it, and the fit would skip it, owed, leaving it
+  // flattened.
+  var lines = svgFitNodes();
+  for (var k = 0; k < lines.length; k++) {
+    var line = lines[k];
+    if (!svgFitRoom[line.id] || !svgFitLaidOut(line)) continue;
+    svgSetSize(line, '');
+    svgUnsqueeze(line);
+    if (svgFitPlaced(line)) continue;
+    if (svgWrappedBlock(line)) line.textContent = svgFitValue(line);
+    svgApplyAnchor(line, svgFitRoom[line.id]);
+  }
 }
 
 // WHAT TRAVELS, when the table does not say. A shape drawn entirely past the growing edge has
@@ -609,13 +627,15 @@ function growOneRule(rule, index) {
     if (svgFitRoom[el.id] == null) continue;
     // A PENNED line is bounded by whatever is drawn beside it, not by the panel, so widening
     // the panel gives it nothing and it may not ask for any. Its own room already stops it
-    // short of its neighbour; the fit answers the rest.
-    if (svgFitRoom[el.id].penned) continue;
+    // short of its neighbour; the fit answers the rest. The one exception is an end-anchored
+    // line penned on its left alone (room.widens): the panel grows rightwards for a penned line
+    // (svgGrowDir), its anchor travels with that edge, and the neighbour stays.
+    if (svgFitRoom[el.id].penned && !svgFitRoom[el.id].widens) continue;
     // EVERY TRACE OF THE LAST PASS COMES OFF FIRST, or the measurement compounds - the same rule
     // measureSvgBudgets keeps. A line left squeezed from a floored value answers
     // getComputedTextLength with the TEXTLENGTH it was given, so a short value arriving after a
     // long one measured as long as the long one and the panel never came back to the design.
-    el.style.fontSize = '';                     // at the drawn size - the panel gives the room
+    svgSetSize(el, '');                         // at the drawn size - the panel gives the room
     svgUnsqueeze(el);
     // …and as ONE line: a block still painted as wrapped tspans from a previous pass measures
     // its widest line, which understates what the panel actually has to hold. The fit below
@@ -643,7 +663,7 @@ function growOneRule(rule, index) {
     // Same two skips as the measuring loop above, for the same reasons: a line nobody could
     // measure is not given a share of the grant, and a penned one never asked for any.
     if (svgFitRoom[svgPanelTexts[k].id] == null) continue;
-    if (svgFitRoom[svgPanelTexts[k].id].penned) continue;
+    if (svgFitRoom[svgPanelTexts[k].id].penned && !svgFitRoom[svgPanelTexts[k].id].widens) continue;
     var scale = svgUserScale(svgPanelTexts[k]);
     svgFitExtra[svgPanelTexts[k].id] = grant / scale;
     // AND HOW FAR THIS LINE'S OWN ANCHOR TRAVELLED, which is not the same distance for every
