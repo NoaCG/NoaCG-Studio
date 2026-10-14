@@ -1,0 +1,430 @@
+// guards: benchmarks/harness/**, agents/noacg-harness/**, api/_lib/harness/**, cli/scripts/build-skill.mjs, scripts/harness-agent-sync.mjs
+//
+// THE HARNESS BENCH WORKS BEFORE A MODEL IS PAID (docs/work-specs/noacg-harness/spec.md AC-1,
+// with AC-2's seal and AC-16's cap). Everything here runs at zero tokens and without a browser:
+//
+//   - the ledger's wall refuses a session the remainder cannot cover, and the committed ledger
+//     reads, holds only phases and sessions it can account for, and says $0 so far;
+//   - `--build` refuses a phase the ledger already holds as completed;
+//   - one brief goes through the fake arm and through the managed-agents arm on the stub that
+//     replays the documented Managed Agents events and files: record, the save door's own shape
+//     check, capture, the digests, the ledger at $0, and the session and its files deleted after;
+//     a session paused at its budget hands in as not ready; a short ledger starts nothing;
+//   - the gallery is blind;
+//   - a subscription child's environment is built from scratch, carries no key, and nothing
+//     starts unless `claude auth status` there says the OAuth token;
+//   - the judge runner refuses a judge changed after it was frozen;
+//   - the exam briefs are sealed (format and refusal everywhere, the hash where the private
+//     passphrase is on this machine) and the container's system prompt is plumbing in 25 lines;
+//   - the Skills API bundle is the skill's own bytes.
+//
+// The CLI and the bridge are stood in for by a fake `cli` that writes what the real verbs write:
+// `node scripts/harness-bench.mjs --control` is the same pipeline on the real CLI and bridge.
+
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { createCipheriv, createHash, randomBytes, scryptSync } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { after, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
+import { readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
+import { claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } from '../benchmarks/harness/lib/arms.mjs';
+import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
+import { judgeInvocation, loadJudge, lockFor } from '../benchmarks/harness/lib/judge.mjs';
+import { admit, appendEntry, emptyLedger, phaseCompleted, readLedger, remainingCents, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
+import { digestCheck, missingActions, runCell } from '../benchmarks/harness/lib/pipeline.mjs';
+import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
+import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
+import { CONTROL_BRIEFS, LEDGER_FILE, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
+import { syncPlan } from './harness-agent-sync.mjs';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
+const made = [];
+const tmp = () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'noacg-harness-test-'));
+  made.push(dir);
+  return dir;
+};
+
+const api = await loadHarnessApi();
+after(async () => {
+  await api.cleanup();
+  for (const dir of made) rmSync(dir, { recursive: true, force: true });
+});
+
+// ── the ledger ─────────────────────────────────────────────────────────────────────────────
+
+test('the wall refuses a session when what is left, less the overshoot margin, cannot cover its budget', () => {
+  const ledger = emptyLedger();
+  assert.equal(admit(ledger, { budgetCents: 300 }).ok, true);
+  appendEntry(ledger, { kind: 'session', phase: 'H3', funding: 'credit', sessionId: 'sesn_a', listCostCents: 9_600, outcome: 'delivered' });
+  assert.equal(remainingCents(ledger), 400);
+  assert.equal(admit(ledger, { budgetCents: 300, overshootCents: 50 }).ok, true, '$4 left covers $3 + $0.50');
+  const short = admit(ledger, { budgetCents: 300, overshootCents: 50, concurrency: 2 });
+  assert.equal(short.ok, false, 'two at once need $7');
+  assert.match(short.reason, /\$4\.00 left/);
+  assert.equal(admit(ledger, { budgetCents: 300, overshootCents: 50, criticCents: 100 }).ok, false, 'the critic\'s worst thread counts too');
+  assert.throws(() => admit(ledger, { budgetCents: 0 }), /positive whole number/);
+});
+
+test('an entry the credit did not fund carries no cost, and a credit session names its session', () => {
+  const ledger = emptyLedger();
+  assert.throws(() => appendEntry(ledger, { kind: 'session', phase: 'H5', funding: 'subscription', listCostCents: 120, outcome: 'delivered' }), /did not fund/);
+  assert.throws(() => appendEntry(ledger, { kind: 'session', phase: 'H5', funding: 'credit', listCostCents: 120, outcome: 'delivered' }), /no session id/);
+  assert.throws(() => appendEntry(ledger, { kind: 'session', phase: 'five', funding: 'none', outcome: 'delivered' }), /phase/);
+  appendEntry(ledger, { kind: 'session', phase: 'H5', funding: 'credit', listCostCents: 0, outcome: 'refused' });
+  appendEntry(ledger, { kind: 'phase', phase: 'H5', funding: 'none', outcome: 'completed' });
+  assert.equal(phaseCompleted(ledger, 'H5'), true);
+  assert.equal(phaseCompleted(ledger, 'H6'), false);
+});
+
+test('the committed ledger reads, starts at $0 and holds H0 as completed', () => {
+  const ledger = readLedger(LEDGER_FILE);
+  assert.equal(ledger.runBudgetCents, 10_000, 'decision 11: $100 across every run of the plan');
+  assert.equal(spentCents(ledger), 0);
+  assert.equal(phaseCompleted(ledger, 'H0'), true);
+});
+
+test('--build refuses a phase the ledger already holds as completed, and anything not a phase', () => {
+  const ledger = readLedger(LEDGER_FILE);
+  assert.match(refuseCompletedPhase(ledger, 'H0'), /already holds H0 as completed/);
+  assert.equal(refuseCompletedPhase(ledger, 'H3'), null);
+  assert.match(refuseCompletedPhase(ledger, 'feasibility'), /phase like H3/);
+});
+
+// ── one brief through both arms, on a stand-in CLI ─────────────────────────────────────────
+
+const DIGEST = `sha256:${'d'.repeat(64)}`;
+
+function template() {
+  return {
+    name: 'Control board',
+    type: 'scoreboard',
+    resolution: { width: 1920, height: 1080, label: '1920×1080' },
+    fps: 50,
+    html: '<!doctype html><html><body><script>window.SPXGCTemplateDefinition = { DataFields: [] };</script><div id="f0"></div></body></html>',
+    css: '',
+    js: 'function play(){} function stop(){} function update(d){} function next(){}',
+    fields: [{ field: 'f0', ftype: 'textfield', title: 'Home team', value: 'Home' }],
+    settings: { playserver: 'OVERLAY' },
+    assets: [],
+    layers: [],
+  };
+}
+
+/** What the CLI's verbs write and print, without a browser. `digest` is the version it reports. */
+function fakeCli({ digest = DIGEST, buttons = ['goalA', 'clearFlag', 'final'] } = {}) {
+  const calls = [];
+  const cli = async (args, { cwd } = {}) => {
+    calls.push(args);
+    const [verb] = args;
+    const out = (flag) => args[args.indexOf(flag) + 1];
+    let json = { ok: true };
+    if (verb === 'scaffold') mkdirSync(out('--out'), { recursive: true });
+    if (verb === 'validate') json = { ok: true, digest, validation: { merged: { errors: [], warnings: [] } } };
+    if (verb === 'record') {
+      const file = out('--out');
+      mkdirSync(path.dirname(file), { recursive: true });
+      const zip = file.replace(/\.json$/, '.zip');
+      writeFileSync(zip, 'PK-fake');
+      writeFileSync(file, JSON.stringify({ format: 'noacg-record-v1', digest, doc: api.graphicDoc.newGraphicDoc(template(), { name: 'Control board', origin: { tool: 'noacg-cli', version: 'test' } }) }));
+      json = { ok: true, file, zip, digest };
+    }
+    if (verb === 'coverage') {
+      const dir = out('--out');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(path.join(dir, 'sample-video.jpg'), 'jpg');
+      writeFileSync(path.join(dir, 'take-00020ms.jpg'), 'jpg');
+      writeFileSync(path.join(dir, 'coverage.json'), JSON.stringify({ digest, frames: [{ file: 'sample-video.jpg', render: 'sample-video', state: 'on air, settled', values: 'sample', ground: 'video', atMs: 1500 }, { file: 'take-00020ms.jpg', render: 'take', state: 'the Take', values: 'sample', ground: 'video', atMs: 20 }], crops: [] }));
+      json = { ok: true, frames: 2, crops: 0, findings: [], failures: [], digest };
+    }
+    if (verb === 'inspect') json = { ok: true, inspection: { descriptors: [{ key: 'f0' }], buttons: buttons.map((event) => ({ event })) } };
+    void cwd;
+    return { code: 0, json, stdout: JSON.stringify(json), stderr: '' };
+  };
+  cli.calls = calls;
+  cli.url = 'http://stand-in';
+  return cli;
+}
+
+const BRIEF = { id: 'test-board', kind: 'noacg', type: 'scoreboard', neutral: true, prompt: 'A scoreboard', stress: { f0: 'A very long team name' }, expect: { fields: 1, actions: ['clearFlag', 'final'] } };
+const ENTRY = { phase: 'H1', stage: 'test', budgetCents: 300, overshootCents: 50 };
+
+/** The managed-agents arm on the stub, its agent being the fake arm's work through the stand-in CLI. */
+function stubbedArm({ scenario = 'end_turn', funding = 'none', cli, client = api.client }) {
+  const briefs = new Map();
+  const stub = api.stub.createManagedAgentsStub({
+    scenario,
+    runningReads: 1,
+    agent: async (sessionId, params) => {
+      const brief = briefs.get(params.metadata.run_id);
+      const dir = tmp();
+      await cli([...scaffoldArgs(brief, path.join(dir, 'graphic')), '--json']);
+      await cli(['validate', path.join(dir, 'graphic'), '--json']);
+      await cli(['record', path.join(dir, 'graphic'), '--out', path.join(dir, 'out', 'record.json'), '--json']);
+      return {
+        outputs: [{ filename: 'record.json', bytes: readFileSync(path.join(dir, 'out', 'record.json')) }, { filename: 'record.zip', bytes: readFileSync(path.join(dir, 'out', 'record.zip')) }],
+        commands: [{ command: 'noacg validate /workspace/graphic --json', output: JSON.stringify({ ok: true, digest: DIGEST }) }, { command: 'noacg record /workspace/graphic --out /mnt/session/outputs/record.json', output: `Digest: ${DIGEST}` }],
+      };
+    },
+  });
+  const arm = managedAgentsArm({ api: stub, client, agent: { id: 'agent_t', version: 1 }, environmentId: 'env_t', budgetCents: 300, model: 'stub', funding, pollMs: 0 });
+  const run = arm.run;
+  return { ...arm, stub, run: (ctx) => { briefs.set(ctx.runId, ctx.brief); return run(ctx); } };
+}
+
+test('the fake arm and the stubbed managed-agents arm deliver through record, shape check, capture and ledger at $0', async () => {
+  const cli = fakeCli();
+  const ledger = emptyLedger();
+  const dir = tmp();
+  const fake = await runCell({ arm: fakeArm(), brief: BRIEF, cellDir: path.join(dir, 'fake'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r1' });
+  const ma = stubbedArm({ cli });
+  const managed = await runCell({ arm: ma, brief: BRIEF, cellDir: path.join(dir, 'ma'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r2' });
+  for (const cell of [fake, managed]) {
+    assert.equal(cell.outcome, 'delivered');
+    assert.deepEqual(cell.shape, { ok: true }, 'the save door\'s own shape check passes the handed-in record');
+    assert.equal(cell.validation.ok, true);
+    assert.equal(cell.capture.frames, 2);
+    assert.deepEqual(cell.digest.problems, [], 'the record, the delivered zip and the last reviewed version are one');
+    assert.deepEqual(cell.operator.missing, []);
+    assert.equal(cell.functional, true);
+  }
+  assert.deepEqual(scaffoldArgs(BRIEF, 'g').slice(0, 5), ['scaffold', '--type', 'scoreboard', '--design', 'neutral'], 'a neutral type starts from its neutral spine');
+  assert.ok(cli.calls.some((a) => a[0] === 'coverage' && a.includes('--stress')), 'the bench captures with the brief\'s stress values');
+  assert.deepEqual(managed.cleanup, { filesDeleted: 2, sessionDeleted: true, sessionGone: true, filesLeft: 0 }, 'the session and its files answer not found after');
+  assert.deepEqual(managed.progress, ['Checking the graphic', 'Handing it in']);
+  const created = ma.stub.calls.find((c) => c.method === 'sessions.create').args[0];
+  assert.deepEqual(created.budget, { type: 'limit', max_list_cost: { amount: '300', currency: 'USD' } });
+  assert.equal(created.initial_events[0].content[0].text, 'Brief: A scoreboard\nGraphic type: scoreboard (the user chose it).');
+  assert.equal(ledger.entries.length, 2);
+  assert.equal(spentCents(ledger), 0, '$0 recorded');
+  assert.deepEqual(ledger.entries.map((e) => [e.arm, e.outcome, e.listCostCents]), [['fake', 'delivered', 0], ['managed-agents', 'delivered', 0]]);
+});
+
+test('a session paused at its budget hands in its last record as not ready; a refusal hands in nothing', async () => {
+  const cli = fakeCli();
+  const ledger = emptyLedger();
+  const dir = tmp();
+  const budget = await runCell({ arm: stubbedArm({ scenario: 'budget_reached', cli }), brief: BRIEF, cellDir: path.join(dir, 'b'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r3' });
+  assert.equal(budget.outcome, 'not-ready');
+  assert.equal(budget.shape.ok, true);
+  const refusal = await runCell({ arm: stubbedArm({ scenario: 'refusal', cli }), brief: BRIEF, cellDir: path.join(dir, 'r'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r4' });
+  assert.equal(refusal.outcome, 'failed');
+  assert.equal(refusal.reason, 'refusal');
+});
+
+test('a short ledger starts nothing: the session is refused before it is created, and the refusal is recorded', async () => {
+  const cli = fakeCli();
+  const ledger = emptyLedger();
+  appendEntry(ledger, { kind: 'session', phase: 'H3', funding: 'credit', sessionId: 'sesn_spent', listCostCents: 9_900, outcome: 'delivered' });
+  const arm = stubbedArm({ cli, funding: 'credit' });
+  const cell = await runCell({ arm, brief: BRIEF, cellDir: path.join(tmp(), 'w'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r5' });
+  assert.match(cell.refused, /\$1\.00 left/);
+  assert.equal(arm.stub.sessions.size, 0, 'no session was created');
+  assert.equal(cli.calls.length, 0, 'nothing ran');
+  assert.deepEqual(ledger.entries.at(-1).outcome, 'refused');
+});
+
+test('a session that fails after it was created is still stopped, read, deleted and named in the ledger', async () => {
+  const cli = fakeCli();
+  const ledger = emptyLedger();
+  const broken = { ...api.client, downloadFile: async () => { throw new Error('download failed'); } };
+  const arm = stubbedArm({ cli, client: broken });
+  const cell = await runCell({ arm, brief: BRIEF, cellDir: path.join(tmp(), 'f'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r6' });
+  assert.equal(cell.outcome, 'failed');
+  assert.match(cell.reason, /download failed/);
+  assert.ok(cell.sessionId, 'the cell names the session it paid for');
+  assert.equal(cell.cleanup.sessionGone, true, 'and the session is gone');
+  assert.equal(ledger.entries.at(-1).sessionId, cell.sessionId);
+});
+
+test('a resumed --build runs only what the ledger does not already hold for that phase', () => {
+  const ledger = emptyLedger();
+  appendEntry(ledger, { kind: 'session', phase: 'H3', brief: 'a', arm: 'managed-agents', funding: 'credit', sessionId: 's1', listCostCents: 120, outcome: 'delivered' });
+  appendEntry(ledger, { kind: 'session', phase: 'H3', brief: 'b', arm: 'managed-agents', funding: 'credit', listCostCents: 0, outcome: 'refused' });
+  appendEntry(ledger, { kind: 'session', phase: 'H2', brief: 'c', arm: 'managed-agents', funding: 'credit', sessionId: 's2', listCostCents: 90, outcome: 'failed' });
+  const arm = { id: 'managed-agents' };
+  const cells = ['a', 'b', 'c'].map((id) => ({ id, brief: { id }, arm }));
+  assert.deepEqual(pendingCells(ledger, 'H3', cells).map((c) => c.id), ['b', 'c'], 'a paid cell is never paid twice; a refused one, or another phase\'s, runs');
+});
+
+test('a delivered version that is not the one last reviewed, or a missing action, is caught', () => {
+  assert.equal(digestCheck({ delivered: 'sha256:a', benchValidated: 'sha256:a', reviewed: 'sha256:b' }).ok, false);
+  assert.equal(digestCheck({ delivered: 'sha256:a', benchValidated: 'sha256:c', reviewed: 'sha256:a' }).ok, false);
+  assert.equal(digestCheck({ delivered: 'sha256:a', benchValidated: 'sha256:a', reviewed: null }).ok, false, 'no review is never assumed');
+  assert.deepEqual(missingActions(BRIEF, [{ event: 'Final' }]), ['clearFlag'], 'case-insensitive, and a missing one named');
+  assert.equal(lastReviewed([{ args: ['validate'], digest: 'sha256:1' }, { args: ['coverage'], digest: 'sha256:2' }, { args: ['record'], digest: 'sha256:3' }]), 'sha256:2');
+});
+
+test('the gallery shows opaque ids, never an arm, and keeps the key beside it', async () => {
+  const cli = fakeCli();
+  const ledger = emptyLedger();
+  const runDir = tmp();
+  const cells = [];
+  for (const arm of [fakeArm(), stubbedArm({ cli })]) {
+    const id = `${BRIEF.id}.${arm.id}`;
+    const dir = path.join(runDir, 'cells', id);
+    const cell = await runCell({ arm, brief: BRIEF, cellDir: dir, cli, ledger, entry: ENTRY, shape: api.shape, runId: id });
+    cells.push({ id, dir, brief: BRIEF.id, arm: arm.id, model: arm.model, cell });
+  }
+  const g = buildGallery({ runDir, cells, briefs: [BRIEF] });
+  const html = readFileSync(g.review, 'utf8');
+  assert.equal(g.ids.length, 2);
+  for (const id of g.ids) assert.ok(html.includes(id));
+  assert.doesNotMatch(html, /managed-agents|fake|claude-code/, 'no arm name on the page');
+  assert.match(html, /take-00020ms\.jpg/, 'the strips are on it');
+  const key = JSON.parse(readFileSync(g.key, 'utf8'));
+  assert.deepEqual(Object.values(key).map((k) => k.arm).sort(), ['fake', 'managed-agents']);
+  assert.ok(existsSync(g.notes));
+});
+
+// ── the subscription half (5.4) ────────────────────────────────────────────────────────────
+
+test('a subscription child\'s environment is built from scratch and carries no key', () => {
+  const home = tmp();
+  const env = subscriptionEnv({ token: 'oauth-token', home, noacgUrl: 'https://noacg.studio', pathDirs: ['/bin/a', '/bin/b'], platform: 'win32', from: { ANTHROPIC_API_KEY: 'k', ANTHROPIC_BENCH_API_KEY: 'b', SystemRoot: 'C:\\Windows', SECRET_THING: 'x', PATH: '/everything' } });
+  assert.equal(env.ANTHROPIC_API_KEY, undefined);
+  assert.equal(env.ANTHROPIC_BENCH_API_KEY, undefined);
+  assert.equal(env.SECRET_THING, undefined, 'nothing is copied but what Windows needs to start a process');
+  assert.equal(env.SystemRoot, 'C:\\Windows');
+  assert.equal(env.PATH, ['/bin/a', '/bin/b'].join(path.delimiter));
+  assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, 'oauth-token');
+  assert.equal(env.CLAUDE_CODE_DISABLE_CLAUDE_MDS, '1', 'HOME alone does not stop the owner\'s CLAUDE.md loading on Windows');
+  assert.equal(env.CLAUDE_CODE_DISABLE_AUTO_MEMORY, '1');
+  for (const name of ['HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'TEMP', 'TMP', 'CLAUDE_CONFIG_DIR']) assert.ok(env[name].startsWith(home), `${name} inside the fresh home`);
+  assert.equal(env.NOACG_URL, 'https://noacg.studio');
+  assert.throws(() => assertNoKeys({ ...env, ANTHROPIC_API_KEY: 'k' }), /ANTHROPIC_API_KEY/);
+  assert.throws(() => assertNoKeys({ ...env, ANTHROPIC_AUTH_TOKEN: 't' }), /ANTHROPIC_AUTH_TOKEN/);
+  assert.throws(() => subscriptionEnv({ token: '', home, pathDirs: [] }), /CLAUDE_CODE_OAUTH_TOKEN/);
+});
+
+test('nothing starts unless claude auth status in that environment reports the OAuth token', () => {
+  const answering = (status) => () => ({ status: 0, stdout: JSON.stringify(status), stderr: '' });
+  assert.throws(() => checkSubscriptionAuth({ claude: 'claude', env: {}, run: answering({ loggedIn: true, authMethod: 'api_key' }) }), /did not report the OAuth token/);
+  assert.throws(() => checkSubscriptionAuth({ claude: 'claude', env: {}, run: answering({ loggedIn: false, authMethod: 'oauth_token' }) }), /did not report/);
+  assert.throws(() => checkSubscriptionAuth({ claude: 'claude', env: {}, run: () => ({ status: 1, stdout: '', stderr: 'boom' }) }), /boom/);
+  assert.equal(checkSubscriptionAuth({ claude: 'claude', env: {}, run: answering({ loggedIn: true, authMethod: 'oauth_token' }) }).authMethod, 'oauth_token');
+  assert.deepEqual(usageLimit({ result: 'Claude AI usage limit reached|1792000000' }), { resetsAt: new Date(1792000000 * 1000).toISOString() });
+  assert.equal(usageLimit({ result: 'done' }), null);
+});
+
+test('the reference arm runs claude -p outside the repository, on the subscription, with the plugin and the shimmed CLI', async () => {
+  const seen = [];
+  const run = (file, args, opts) => {
+    seen.push({ args, env: opts.env, cwd: opts.cwd });
+    if (args.includes('status')) return { status: 0, stdout: JSON.stringify({ loggedIn: true, authMethod: 'oauth_token' }), stderr: '' };
+    mkdirSync(path.join(opts.cwd, 'outputs'), { recursive: true });
+    writeFileSync(path.join(opts.cwd, 'outputs', 'record.json'), '{}');
+    writeFileSync(path.join(opts.cwd, 'outputs', 'record.zip'), 'PK');
+    return { status: 0, stdout: JSON.stringify({ session_id: 'cc-1', num_turns: 12, total_cost_usd: 4.2, is_error: false, result: 'done' }), stderr: '' };
+  };
+  const arm = claudeCodeArm({ claude: 'claude', token: 'oauth-token', model: 'claude-opus-5-5', url: 'https://noacg.studio', run });
+  const result = await arm.run({ brief: BRIEF, cellDir: tmp() });
+  assert.equal(result.outcome, 'delivered');
+  assert.equal(result.costCents, 0, 'the subscription spends no credit');
+  assert.equal(result.notionalUsd, 4.2);
+  assert.equal(arm.funding, 'subscription');
+  const [auth, session] = seen;
+  assert.ok(auth.args.includes('status'), 'auth status first');
+  assert.deepEqual(auth.env, session.env, 'checked in the very environment the session gets');
+  assert.equal(Object.keys(session.env).filter((k) => /API_KEY|BENCH/.test(k)).length, 0);
+  assert.ok(session.args.includes('--plugin-dir') && session.args.includes('--strict-mcp-config'));
+  assert.ok(!path.resolve(session.cwd).startsWith(ROOT + path.sep), 'outside the repository');
+  assert.ok(session.env.PATH.split(path.delimiter)[0].endsWith('bin'), 'the shimmed noacg comes first on PATH');
+  await assert.rejects(() => arm.run({ brief: BRIEF, cellDir: path.join(ROOT, 'benchmarks', 'harness', 'never') }), /outside the repository/);
+});
+
+// ── the judge runner skeleton ──────────────────────────────────────────────────────────────
+
+test('the judge is not frozen before H2, and a frozen judge whose files changed is refused', () => {
+  assert.equal(loadJudge(path.join(HARNESS, 'judge')).frozen, false);
+  assert.throws(() => judgeInvocation(loadJudge(path.join(HARNESS, 'judge')), { brief: BRIEF, arms: [] }), /no judgement before the judge is frozen/);
+  const dir = tmp();
+  writeFileSync(path.join(dir, 'prompt.md'), 'Judge these.\n');
+  writeFileSync(path.join(dir, 'rubric.json'), JSON.stringify({ schema: { type: 'object' } }));
+  writeFileSync(path.join(dir, 'judge.lock.json'), JSON.stringify(lockFor(dir, 'claude-opus-5-5')));
+  const judge = loadJudge(dir);
+  assert.equal(judge.frozen, true);
+  const call = judgeInvocation(judge, { brief: BRIEF, arms: [{ label: 'X', frames: [{ file: 'a.jpg', state: 'the Take' }] }] });
+  assert.deepEqual(call.args.slice(0, 4), ['--model', 'claude-opus-5-5', '--tools', 'Read']);
+  assert.match(call.prompt, /Graphic X/);
+  writeFileSync(path.join(dir, 'prompt.md'), 'Judge these more kindly.\n');
+  assert.throws(() => loadJudge(dir), /changed after it was frozen/);
+});
+
+// ── AC-2: the sealed exam ──────────────────────────────────────────────────────────────────
+
+test('the exam briefs are sealed: the committed file has the seal\'s shape, and a wrong passphrase gets nothing', () => {
+  const sealed = readSealed(path.join(HARNESS, 'exam', 'briefs.sealed'));
+  assert.equal(sealedShape(sealed), null);
+  assert.match(readFileSync(path.join(HARNESS, 'exam', 'briefs.sha256'), 'utf8').trim(), /^[0-9a-f]{64}\s+briefs\.json$/);
+  assert.throws(() => openSealed(sealed, 'not the passphrase'), /unable to authenticate|Unsupported state/);
+  // The refusal is the cipher's, not a format check: a file sealed here opens with its own passphrase only.
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const key = scryptSync('right', salt, 32, { N: 16384, r: 8, p: 1 });
+  const c = createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([c.update('{"briefs":[]}'), c.final()]);
+  const mine = { format: 'noacg-sealed-v1', cipher: 'aes-256-gcm', kdf: 'scrypt', N: 16384, r: 8, p: 1, salt: salt.toString('base64'), iv: iv.toString('base64'), tag: c.getAuthTag().toString('base64'), ciphertext: ciphertext.toString('base64') };
+  assert.equal(openSealed(mine, 'right').toString(), '{"briefs":[]}');
+  assert.throws(() => openSealed(mine, 'wrong'));
+  assert.equal(sealedShape({ ...mine, iv: 'AAAA' }), 'iv is not 12 bytes');
+});
+
+test('the sealed briefs decrypt to the committed hash, where the private passphrase is on this machine', (t) => {
+  const file = privatePassphraseFile(ROOT);
+  if (!file) {
+    t.skip('no docs/private/harness-exam/passphrase.txt in the main checkout here (CI): the shape and the refusal above are what can be checked');
+    return;
+  }
+  assert.equal(verifySealed({ sealedFile: path.join(HARNESS, 'exam', 'briefs.sealed'), hashFile: path.join(HARNESS, 'exam', 'briefs.sha256'), passphrase: readFileSync(file, 'utf8').trim() }), true);
+});
+
+test('no tuning run can reach an exam brief: the runner reads the tuning set only', () => {
+  const source = readFileSync(path.join(ROOT, 'scripts', 'harness-bench.mjs'), 'utf8');
+  assert.doesNotMatch(source, /briefs\.sealed|harness-exam/, 'the runner never names the sealed set or its private folder');
+  assert.deepEqual(tuningBriefs(CONTROL_BRIEFS).map((b) => b.id), CONTROL_BRIEFS);
+});
+
+// ── AC-16: the container's system prompt, and the definitions it lives in ──────────────────
+
+test('the container\'s system prompt is plumbing within 25 lines, on an agent with the web off', () => {
+  const agent = readAgentDefinition(path.join(ROOT, 'agents', 'noacg-harness'));
+  assert.ok(agent.systemLines <= SYSTEM_PROMPT_MAX_LINES, `${agent.systemLines} lines`);
+  assert.match(agent.system, /noacg save/, 'it says save is never run');
+  assert.match(agent.system, /\/mnt\/session\/outputs\/record\.json/, 'and where the record goes');
+  const toolset = agent.config.tools.find((t) => t.type === 'agent_toolset_20260401');
+  assert.deepEqual(toolset.configs.filter((c) => c.enabled === false).map((c) => c.name).sort(), ['web_fetch', 'web_search']);
+  assert.equal(toolset.default_config.permission_policy.type, 'always_allow');
+  assert.deepEqual(agent.config.model, { id: 'claude-opus-5-5', effort: 'high' }, 'D6: quality is established on Opus 5.5 at high');
+  assert.equal(agent.config.multiagent, undefined, 'the critic is off until a measurement turns it on (3.8)');
+  const env = readEnvironmentDefinition(path.join(ROOT, 'agents', 'noacg-harness'));
+  assert.equal(env.config.networking.type, 'limited');
+  assert.deepEqual(env.config.networking.allowed_hosts, ['noacg.studio']);
+  const steps = syncPlan({ lock: null, environment: env, agent, bundle: { sha256: 'x' } });
+  assert.deepEqual(steps.map((s) => s.action), ['create', 'create', 'create']);
+  const lock = { environment: { sha256: steps[0].sha256 }, skill: { bundleSha256: 'x' }, agent: { sha256: steps[2].sha256 } };
+  assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep'], 'a second sync changes nothing');
+  assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'y' } }).map((s) => s.action), ['keep', 'version', 'update'], 'a skill change is a new skill version and a new agent version');
+  assert.throws(() => syncPlan({ lock, environment: env, agent: { ...agent, systemLines: 26 }, bundle: { sha256: 'x' } }), /25/);
+});
+
+test('the Skills API bundle is the skill\'s own bytes under one top folder', () => {
+  const dir = tmp();
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'cli', 'scripts', 'build-skill.mjs'), '--skills-api', dir], { encoding: 'utf8', windowsHide: true });
+  assert.equal(r.status, 0, r.stderr);
+  const bundle = JSON.parse(readFileSync(path.join(dir, 'bundle.json'), 'utf8'));
+  const source = path.join(ROOT, 'cli', 'skill', 'noacg-graphic');
+  const walk = (d, base = d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name), base) : [path.relative(base, path.join(d, e.name)).split(path.sep).join('/')]));
+  assert.deepEqual(bundle.files.map((f) => f.path).sort(), walk(source).map((f) => `noacg-graphic/${f}`).sort());
+  for (const f of bundle.files) {
+    const bytes = readFileSync(path.join(dir, ...f.path.split('/')));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), f.sha256);
+    assert.equal(bytes.toString('utf8').replace(/\r\n/g, '\n'), readFileSync(path.join(source, ...f.path.split('/').slice(1)), 'utf8').replace(/\r\n/g, '\n'), `${f.path} is the source's bytes`);
+  }
+});

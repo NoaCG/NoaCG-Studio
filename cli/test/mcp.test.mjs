@@ -155,6 +155,8 @@ const TERMINAL_ONLY = {
   whoami: 'reports that key',
   caspar: 'drives live playout hardware',
   bridge: 'drives a playout server',
+  coverage: 'writes a folder of frames for a host to collect; an answer cannot carry them',
+  record: 'writes hand-in files for a host to collect; save is the door into the library',
 };
 
 test('every verb is a terminal command, and every terminal command is a verb or named terminal-only', async () => {
