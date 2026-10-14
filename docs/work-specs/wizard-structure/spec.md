@@ -669,6 +669,78 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S3. Walks table (built 2026-10-14)
+
+- **Check's findings (S2 check: PASS).** Fence 4 `src` files; 11/11 Node, 5 mutations each turned
+  one red; depcruise clean; budget 2,482 of 2,482; counter 15 of 48 on main; browser evidence from
+  merge-group run 38523362578 (import-svg, import-graphic, import-prepare, name-collision 7/7,
+  wizard-brand 7/7, wizard-shell 18/18, entry-fit 23/23, finish, draft-guard 8/8; every skip is
+  #800); the refused-zip try-out green on probe 38527215742. Carried: `evidence/phase-s2.md` and
+  S2's notes said the base count was 13 of 44, which their own command gives as 13 of 43 (both
+  corrected in this pull request); no e2e drops a brand over an SVG or a picture (Node pins it);
+  the refused-template-package path has no e2e (this phase does not touch it, so not pinned); the
+  local browser queue still refuses jobs (RAM), so browser evidence comes from CI.
+- **Shas:** previous verified `main` `7f07a0b24` (S2's merge); built from `29883468f`.
+  Prerequisite: #1173 revives `e2e/project-format.spec.ts`, its own pull request, queued first
+  (its CI: 9 passed, 3 skipped, run 38529200781). This phase's merge sha is the one the queue
+  records. **Revert:** `git revert -m 1` this phase's merge commit (the shell takes its arrays and
+  index comparisons back; #1173 stays, it only revives tests).
+- **What landed** (`evidence/phase-s3.md`): `shell/walks.ts` with one `WalkSpec` per walk (titles,
+  subs, URL names, a `StepId` per step, the furniture each step carries, `animStep`, `finishStep`,
+  `designBy`, the Finish read-back map) and the functions the shell asks (`walkOf`, `stepIndex`,
+  `slugIndex`, `railIndex`, `stepAfter`, `summaryStep`, `previewOn`, `offersBrand`,
+  `needsCatalogOn`, `offersSkip`, `canProceed`, `railJump`); the shell's ladder re-keyed by
+  `StepId`; `scripts/wizard-walks.test.mjs` (10 Node tests, seven mutations each turned one red);
+  the shell 2,482 to 2,357 lines and its budget lowered to 2,357; `// covers:` gains
+  `shell/walks.ts` on `template-deep-link` and `wizard-draft-guard`, the two specs that name the
+  shell by path and walk through the moved rules (the rest select it through `wizard/**`).
+- **Decisions** (each revertible by the revert above):
+  - *A `StepId` names what a step is, never its URL.* The URL stays the slugged title, so the SVG
+    walk's mapping step is `map` but "Fields" in the URL, and the Import graphic card's drop zone
+    is `artwork` on the design and SVG walks and `file` on the file walk (its Next asks for the
+    file, not a category).
+  - *The shared furniture is per-step flags* (`preview`, `brand`, `skip`, `catalog`), with two
+    rules left as code because they read state: a BUILT kit previews only its editing steps, and
+    the template walk's Skip stands down off "one graphic". `BRAND_MODES` is gone; its role is the
+    `brand` flag (the rule `wizard/offer-control-can-change-graphic-front` still names it: S7
+    rewords it).
+  - *Every moved rule is checked against the expression it replaced*, transcribed into the Node
+    test from `29883468f` and compared over every walk, build mode, kit state, step and input
+    (more than a thousand states for Next alone), not only against hand-picked cases.
+  - *The three Animation branches of the ladder are one* (`stepId === 'animation' && variant`):
+    same component, same props, mutually exclusive by walk.
+  - *`animStep` is 4 on the walks without an Animation step (ai, file, video)*, today's number,
+    because the kit's inline moves read it in whatever walk a kit plan is carried into (below).
+    `finishStep` is one past the end on the video walk (it was 5; both are past its last step).
+  - *The SVG preview markers are keyed through `walkOf('svg', false)`, not the on-screen
+    `stepId`,* so the preview template recomputes on exactly the dependencies it did: a
+    recompute is a new object, and a new object rebuilds the preview iframe.
+  - *The AI step's dropped file lands on `stepIndex(walkOf('file', false), 'finish')`*, the name
+    S2 asked for; the deep link on the template walk's `fields`; the images walk's Continue on
+    `template`; Text's way back on `prepare`.
+- **Noticed, not reproduced, kept as today (D10):**
+  - *A kit plan outlives Back to Entry.* By the code: build a kit, Back to the Kit step, Back to
+    Entry, choose Import graphics (or Create with AI from Browse); `kit` is still set, so the kit's
+    inline moves fire in that walk (the tray on its steps 2 to 4, "← All graphics", the hub). Only
+    a fresh open, a rewind or a restore calls `resetKit`. It is why `animStep` keeps 4 above. S6
+    owns the kit: reproduce it before moving the kit's moves into `useKit`.
+  - *The design walk's Finish read-back rows go to odd steps:* "Fields" returns to Prepare and
+    "Look" to Text (the table's `summary` for `design` says so in plain words now).
+- **S4 must allow for:** the shell's budget is 2,357, its exact length, so a line added beside
+  this plan fails `check:file-budgets` until a phase lowers it. The shell now holds `walkSpec`
+  and `stepId` beside `step`; the Finish branches of the ladder test `stepId === 'finish'` plus the
+  mode, and the doors they call are untouched. The kit's own moves stay inline and numeric
+  (`isKitEditStep`, `goToStep`'s kit branches, `moveKitTo`, the Back and Next labels) and read
+  `walkSpec.animStep` and `walkSpec.finishStep`; S6 replaces them with the kit `WalkSpec` and can
+  then drop the `animStep` 4 of the walks without one. `onOpenImported`'s `setMode('file')` and the
+  import `setMode` calls are still inline (S5's).
+- **Traps:** the worktree's files are CRLF (`core.autocrlf`); a script that splits on `\n` and
+  writes lines back leaves mixed endings, so normalise or edit through the editor. The Node test
+  imports `walks.ts` through `scripts/wizard-load.mjs`; its `import type` of `SummaryStepKey` from
+  `steps/FinishStep` is erased, so the module loads without the step components. A queued
+  prerequisite needs its own `/check` stamp (`npm run stamp`) on its own branch before
+  `queue:merge`; the `Reviewed` check fails until then.
+
 ### S2. Import drop doors (built 2026-10-14)
 
 - **Check's findings (S1c check: PASS).** Six fixes verified red before green on probe runs
@@ -694,7 +766,7 @@ and the check's findings. The AI track's notes live in its own spec.
   covered the shell but not `import/`.
 - **Section 5 counter (AC-6): 15 of the 48 `import/index.ts` exports are named outside
   `import/`** (by text, as the old counter: 13 in code; `armTimerClock` and `DesignFieldSpec` in
-  comments only). On `1e9ff904b` the same count was 13 of 44: the shell's two `import/draft.ts`
+  comments only). On `1e9ff904b` the same count was 13 of 43: the shell's two `import/draft.ts`
   reads (`svgDraftFromImport`, `svgDraftCleared`) left and the four drop doors came in. No later
   phase may raise 15. The shell reads no `import/draft.ts` function. The command is in
   `evidence/phase-s2.md`; S7 writes it into `docs/ARCHITECTURE.md` section 5.
