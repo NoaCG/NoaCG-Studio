@@ -246,3 +246,15 @@ test('a walk started over holds no dropped file: Start fresh and the ✕ both le
   await expect(page.locator('[data-entry="template"]')).toBeVisible();
   expect(await leaveAndReadHeld(page), 'the ✕').toBe(false);
 });
+
+test('Continue keeps a dropped template file', async ({ page }) => {
+  await openFromHome(page);
+  await dropTemplateFile(page);
+  const card = page.getByTestId('import-template-card');
+  await expect(card).toContainText('operator field: Name');
+
+  await leaveThenPressNew(page);
+  await page.getByTestId('confirm-switch').getByTestId('switch-resume').click();
+  await expect(card).toContainText('studio strap');
+  await expect(card).toContainText('operator field: Name');
+});
