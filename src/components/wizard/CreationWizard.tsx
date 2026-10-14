@@ -1,8 +1,7 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState, type SetStateAction } from 'react';
 import { useTemplateStore } from '../../store/templateStore';
 import { CatalogLoading, lazyStep, useCatalog } from '../catalogOnDemand';
 import {
-  brandClearPatch,
   brandOrClearPatch,
   brandPatch,
   buildDraftTemplate,
@@ -10,13 +9,8 @@ import {
   draftName,
   draftResolution,
   formatDraftPatch,
-  initialDraft,
-  mergeDraft,
   type DraftPatch,
-  type WizardDraft,
 } from './draft';
-import { type ProjectBrand } from '../../model/brand';
-import { loadLooks } from '../../model/packets';
 import { FONTS } from '../../model/fonts';
 import { commitStagedSelection } from '../../ai/preferences';
 import { formatTemplate } from '../../format/formatCode';
@@ -48,11 +42,11 @@ import {
   commitKitGraphic,
   defaultSelectionFor,
   kitKeys,
-  rebrandKit,
   reconcileKit,
   type KitPlan,
 } from './kitPlan';
-import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../templates/browseFilters';
+import type { BrowseFilters } from '../../templates/browseFilters';
+import type { AiThread } from '../../model/aiThread';
 import { IMPORTED_VARIANTS } from '../../templates/importedDesign/variants';
 import StyleStep from './steps/StyleStep';
 import AnimationStep from './steps/AnimationStep';
@@ -63,12 +57,11 @@ import FinishStep, {
   importedSummaryRows,
   type SummaryStepKey,
 } from './steps/FinishStep';
-import { importTemplateFile, type ImportedTemplateResult } from '../../model/importTemplate';
+import { importTemplateFile } from '../../model/importTemplate';
 import { useExportUi } from '../ExportWindow';
 import { useMarkLegibility } from './useMarkLegibility';
 import type { SpxTemplate } from '../../model/types';
-import { clearSpecDraft, type GenerationSpec } from '../../model/generationSpec';
-import type { AiThread } from '../../model/aiThread';
+import { clearSpecDraft } from '../../model/generationSpec';
 import type { VideoProject } from '../../model/videoTypes';
 import { useVideoProjectStore } from '../../store/videoProjectStore';
 import { useDocKindStore } from '../../store/docKindStore';
@@ -77,8 +70,8 @@ import { useIsMobile } from '../useIsMobile';
 import { useRouter, type Route } from '../../app/router';
 import { openNewEditor } from '../editorFoundation/openNewEditor';
 import NewGraphicButton from '../NewGraphicButton';
-import { saveCurrentGraphic, saveGraphicAs, useSaveUi } from '../../store/saveActions';
-import { graphicById, graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
+import { saveCurrentGraphic, saveGraphicAs } from '../../store/saveActions';
+import { graphicNameIndex, librarySaveEffect, type LibraryNameEntry } from '../../model/library';
 import WizardConfirm, { wizardConfirmOpen } from './WizardConfirm';
 import { recordLiteOutcome } from '../../ai/lite/client';
 import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectFormat';
@@ -105,9 +98,22 @@ import {
   stepIndex,
   summaryStep,
   walkOf,
-  type WizardMode,
 } from './shell/walks';
 import { makeDoors } from './shell/doors';
+import {
+  brandOf,
+  committedKit,
+  emptyWalk,
+  isKitEditStep,
+  noteMade,
+  reduce,
+  rememberWalk,
+  saveBuiltGraphic,
+  type FinishedWalk,
+  type LibraryIo,
+  type WalkMemory,
+} from './shell/walkState';
+import { useWalkLifecycle } from './shell/useWalkLifecycle';
 
 // The steps that list or build on catalog designs load with the catalog, never with the wizard:
 // the Entry step must open without it (components/catalogOnDemand.tsx).
@@ -133,77 +139,14 @@ const STUDIO_DOOR_IO = {
   setShowLook, captureLookFromTemplate, saveTemplateSetToProduction, trackEvent,
 };
 
-/** One entry in the footer's brand chooser: a saved brand, by the name its owner gave it.
- *
- *  It is a shape of its own rather than a `SavedLook` because one entry is NOT a saved record -
- *  a production that carries a captured look and has never chosen a brand is offered its own
- *  look under a synthetic id, so the chooser can show what the graphic is actually being created
- *  in instead of showing None over a preselected look. */
-interface BrandChoice {
-  id: string;
-  name: string;
-  brand: ProjectBrand;
-}
-
-/** The synthetic entry above. Never a look id, so it can never collide with one. */
-const PRODUCTION_LOOK_ID = 'production-look';
-
-/** The AI step's current result, previewed live like any draft. Named because the walk
- *  snapshot below has to hold one too, and two inline copies of this shape would drift. */
-type AiResultState = {
-  template: SpxTemplate;
-  valid: boolean;
-  spec?: GenerationSpec | null;
-  generationId?: string;
-  /** Pipeline provenance — 'pro' marks a Pro-tier result for the activation event. */
-  path?: string | null;
-  /**
-   * The whole PACKAGE this result belongs to, LEADING with `template` (§15.9): a Pro
-   * generation renders ONE design language as every graphic type the user asked for, and a
-   * set of several is finished into a PRODUCTION rather than opened as one project.
-   */
-  pack?: SpxTemplate[] | null;
-} | null;
-
-/**
- * THE WALK JUST FINISHED — everything needed to step back INTO it (
- * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md, entry point 1: "the draft is still in memory; this is undo the last
- * screen").
- *
- * The wizard wipes itself on every open ("Fresh wizard every time"), which is right for the
- * door marked "+ New graphic" and wrong for a reader who pressed Back thirty seconds after
- * creating and wanted the animation step. So the walk is snapshotted at the moment a door
- * closes the wizard, and offered back — behind a warning — when the reader returns to a STEP
- * url rather than to the wizard's front page.
- */
-interface FinishedWalk {
-  draft: WizardDraft;
-  mode: WizardMode;
-  step: number;
-  browseFilters: BrowseFilters;
-  aiResult: AiResultState;
-  aiThread: AiThread | null;
-  importedFile: ImportedTemplateResult | null;
-  contextProductionId: string | null;
-  brandChoices: BrandChoice[];
-  brandId: string | null;
-  /** What the walk produced, filled in once the door has finished doing it. */
-  made: MadeGraphic | null;
-}
-
-/** The graphic a finished walk left behind — what the warning NAMES, and what a second pass
- *  down the same walk must write over rather than duplicate. */
-interface MadeGraphic {
-  name: string;
-  /** The library record, when the door saved one (the editor door does not). */
-  graphicId: string | null;
-  /** The production it joined, by name, when it joined one. */
-  production: string | null;
-  /** Where the door LANDED the reader. Declining the walk back returns them exactly there,
-   *  rather than to the Home page a plain wizard close would rewind to. Null when the door
-   *  kept the wizard open (export), where there is nothing to walk back from. */
-  landedOn: Route | null;
-}
+/** The library as the walk's save sees it (shell/walkState.ts `saveBuiltGraphic`). */
+const LIBRARY_IO: LibraryIo = {
+  index: graphicNameIndex,
+  effect: librarySaveEffect,
+  linkTo: (id) => useTemplateStore.getState().setSaved({ graphicId: id, dirty: true, status: 'idle' }),
+  saveCurrent: (name) => saveCurrentGraphic({ name }),
+  saveAs: (name) => saveGraphicAs(name, { kind: 'standalone' }),
+};
 
 /**
  * The choose-first creation wizard (replaces the old template gallery). Six steps —
@@ -229,11 +172,6 @@ export default function CreationWizard() {
     closedByWizard.current = true;
     leaveGallery();
   }, [leaveGallery]);
-  /** The draft this walk started from, so "has work" means the reader changed something. */
-  const startDraft = useRef<WizardDraft | null>(null);
-  /** The furthest step this walk reached: where Continue returns. Not the step at close, which
-   *  browser Back has already rewound through every step to the front page. */
-  const lastStep = useRef(0);
   // Has the created graphic been touched since the door saved it? The app's own answer, so the
   // walk-back warning promises to write over hand edits only when there are some. A door that
   // saved nothing (the editor one) reads dirty from birth, which is the right answer there too.
@@ -241,49 +179,27 @@ export default function CreationWizard() {
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
 
   const isMobile = useIsMobile();
-  const [step, setStep] = useState(0);
-  const [mode, setMode] = useState<WizardMode>('template');
-  /** A finished template file dropped on the Import graphic step — parsed, never rebuilt. */
-  const [importedFile, setImportedFile] = useState<ImportedTemplateResult | null>(null);
-  const [importedFileError, setImportedFileError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<WizardDraft>(initialDraft);
-  // Browse-step facet state lives here (not in the step) so Back returns with the
-  // filters intact for the wizard session; a fresh open starts clean.
-  const [browseFilters, setBrowseFilters] = useState<BrowseFilters>(NO_BROWSE_FILTERS);
+  // THE WALK: one record, one reducer (shell/walkState.ts), every open, rewind, restore and close
+  // one of its tested transitions. The brand in force is DERIVED from the chooser's two fields.
+  const [walk, dispatch] = useReducer(reduce, undefined, emptyWalk);
+  const { draft, mode, step, browseFilters, aiResult, aiThread, importedFile, importedFileError } = walk;
+  const { contextProductionId, brandChoices, brandId, buildMode, kitPack, kitSelected, kit } = walk;
+  const brand = brandOf(walk);
+  // Stable, as the steps hold them in effects and as functional updates (BrowseStep's chips).
+  const onFilters = useCallback((update: SetStateAction<BrowseFilters>) => dispatch({ type: 'filters', update }), []);
+  const onThread = useCallback((thread: AiThread | null) => dispatch({ type: 'ai', thread }), []);
+  const onBuildMode = useCallback((next: BuildMode) => dispatch({ type: 'buildMode', buildMode: next }), []);
+  const onKitSelected = useCallback((selected: string[]) => dispatch({ type: 'kitPick', selected }), []);
   const [replayKey, setReplayKey] = useState(0);
-  // Describe-it mode: the AI's current (validated) result, previewed live like any draft —
-  // plus the structured setup it was generated under (saved with the created project).
-  const [aiResult, setAiResult] = useState<AiResultState>(null);
-  // The Create-with-AI conversation as it stands (talk turns only), reported by AiStep on every
-  // change — committed to the created project so the graphic carries the reasoning that made it.
-  const [aiThread, setAiThread] = useState<AiThread | null>(null);
   const acceptedAiGeneration = useRef<string | null>(null);
-  // THE BRAND CHOOSER (docs/BRAND_PLAN.md §5). `brandChoices` is what the footer offers -
-  // every saved brand, plus a production's own captured look when it has one and no brand;
-  // `brandId` is which of them is chosen, null being None. The chosen brand is DERIVED rather
-  // than held: two states saying which brand is in force is two states that can disagree.
-  const [brandChoices, setBrandChoices] = useState<BrandChoice[]>([]);
-  const [brandId, setBrandId] = useState<string | null>(null);
-  const brand = brandId ? brandChoices.find((b) => b.id === brandId)?.brand ?? null : null;
-  /** The brand in force, for the deep link below. A link can land in the same commit as the open,
-   *  before the brand that open chose has rendered, so the open writes its choice here at once. */
-  const brandInForce = useRef<ProjectBrand | null>(null);
-  brandInForce.current = brand;
-  // The production this open is FOR (one-shot from pendingProductionId; Finish preselects it).
-  const [contextProductionId, setContextProductionId] = useState<string | null>(null);
   // ── BACK INTO THE WALK ──
-  // The walk the last door closed the wizard on. A REF, not state: it has to survive the
-  // closed wizard's null render, and nothing on screen depends on it until the reader
-  // returns.
-  const finishedWalk = useRef<FinishedWalk | null>(null);
+  // The walk the last door closed the wizard on, and the graphic this stretch of wizard made. A
+  // REF, not state: it has to survive the closed wizard's null render, and the save reads it
+  // across awaits, where a value captured at render would be stale under a second press.
+  const memory = useRef<WalkMemory>({ finished: null, made: null });
   // The walk being offered back, which IS on screen — the warning naming what re-entering
   // resets. Null while nothing is being asked.
   const [resumeAsk, setResumeAsk] = useState<FinishedWalk | null>(null);
-  /** The graphic this stretch of wizard has ALREADY made — set by the door that made it, and
-   *  carried across a walk-back until the wizard is opened fresh. It is what stops a second
-   *  pass down the same walk minting a second library record under the same name, whether the
-   *  second pass came from a resume or from pressing Export twice without leaving Finish. */
-  const madeThisOpen = useRef<MadeGraphic | null>(null);
   /** True while the entry's New production waits for its durable write, so a second press in
    *  that window does not mint a second "Untitled production". */
   const creatingProduction = useRef(false);
@@ -363,15 +279,7 @@ export default function CreationWizard() {
       ),
     ].map((id) => `[${SVG_CANDIDATE_ATTR}="${id}"]`);
   }, [draft.designSvg]);
-  // ── THE KIT HALF of the Browse step (one graphic, or the whole set) ──
-  // Its picker state lives here, not in the step, for the same reason `browseFilters` does:
-  // Back must return to the set exactly as it was left.
-  const [buildMode, setBuildMode] = useState<BuildMode>('one');
-  const [kitPack, setKitPack] = useState<TemplatePack | null>(null);
-  const [kitSelected, setKitSelected] = useState<string[]>([]);
-  /** The kit under construction — set when Browse's Next is taken in kit mode, null otherwise.
-   *  Its presence is what makes every step below behave as one graphic OF A SET. */
-  const [kit, setKit] = useState<KitPlan | null>(null);
+  // ── THE KIT'S TRANSIENT UI (its picker and plan are the walk's) ──
   /** The two questions a kit asks before acting: switching to another kit over an edited one,
    *  and applying the open graphic's Style to the rest. Both answer in `WizardConfirm`. */
   const [kitSwitchAsk, setKitSwitchAsk] = useState(false);
@@ -421,7 +329,7 @@ export default function CreationWizard() {
       // walk had other steps, or a step this mode does not have) degrades to the front page
       // rather than to a step that means something else here.
       const idx = slugIndex(walkSpec, urlKey);
-      setStep(idx >= 0 ? idx : 0);
+      dispatch({ type: 'go', step: idx >= 0 ? idx : 0 });
     }
   }, [open, route, stepKey, walkSpec]);
 
@@ -431,16 +339,6 @@ export default function CreationWizard() {
   useEffect(() => {
     if (stepRef.current) stepRef.current.scrollTop = 0;
   }, [step, mode]);
-  // A new mode is a new walk, with other steps, and it starts on the step the mode changed on.
-  // A dropped file turns the design walk into the file walk without moving the reader, so a
-  // reset to 0 there sent Continue back to Entry with the file out of sight.
-  const lastMode = useRef(mode);
-  useEffect(() => {
-    if (mode !== lastMode.current) {
-      lastMode.current = mode;
-      lastStep.current = step;
-    } else if (open && step > lastStep.current) lastStep.current = step;
-  }, [open, mode, step]);
   useEffect(() => {
     if (!open) return;
     const el = stepRef.current;
@@ -460,189 +358,7 @@ export default function CreationWizard() {
     };
   }, [open]);
 
-  /** Back to "one graphic". Declared as a plain function (not a hook) so both the open reset
-   *  and the ✕ rewind clear the same seven pieces of state — a kit half-cleared is a wizard
-   *  whose rail says Browse and whose footer is still building somebody else's show. */
-  function resetKit() {
-    setBuildMode('one');
-    setKitPack(null);
-    setKitSelected([]);
-    setKit(null);
-    setKitSwitchAsk(false);
-    setKitApplyAsk(false);
-    setKitProductionName('');
-    setKitError(null);
-  }
-
-  /** Forget the walk that has ended. Declared beside `resetKit` and for the same reason: a
-   *  fresh open and the ✕ rewind both mean "this walk is over", and the two refs have to go
-   *  together — `madeThisOpen` is what makes the next save write OVER a record instead of
-   *  minting one, and `finishedWalk` is what a later browser Back would restore. */
-  function forgetWalk() {
-    madeThisOpen.current = null;
-    finishedWalk.current = null;
-  }
-
-  /** Has the reader done anything in this walk that a fresh open would wipe? The same rule as
-   *  the working document's guard (saveActions `hasUnsavedWork`): compared with what the walk
-   *  started from. The project format alone is not work - ✕ keeps it over a discarded draft,
-   *  and it is one select to set again. */
-  const walkHasWork = () => {
-    // A door already made something of it (the export door keeps the wizard open).
-    if (madeThisOpen.current) return false;
-    if (aiResult || importedFile || kit || kitPack) return true;
-    const base = startDraft.current ?? initialDraft();
-    const { aspectId, resolutionId, fps, formatTouched } = base;
-    return JSON.stringify({ ...draft, aspectId, resolutionId, fps, formatTouched }) !== JSON.stringify(base);
-  };
-  // Read by the open effect through a ref, as `leaveStepRef` is, so that effect keeps its
-  // `[open]` dependencies rather than re-running on every keystroke.
-  const walkHasWorkRef = useRef(walkHasWork);
-  walkHasWorkRef.current = walkHasWork;
-
-  // Fresh wizard every time it opens; reload the brand (it may have just been saved).
-  useEffect(() => {
-    if (open) {
-      const opening = useRouter.getState().route;
-      // ── BACK INTO A WALK THE READER LEFT ── The guard's Continue (saveActions `heldWalk`):
-      // everything is still in state, because a closed wizard renders null rather than
-      // unmounting, so only the step it was left on is put back.
-      closedByWizard.current = false;
-      const { resumeWalk } = useSaveUi.getState();
-      useSaveUi.setState({ heldWalk: false, resumeWalk: false });
-      if (resumeWalk) {
-        setStep(lastStep.current);
-        return;
-      }
-      // ── BACK INTO THE WALK, NOT A FRESH ONE ──
-      // A re-open onto a STEP url with a finished walk still in memory is the reader coming
-      // BACK: browser Back off the production page (or the editor) lands on the step entry the
-      // walk itself pushed. The wizard's own "+ New graphic" door goes to the plain `#/new`
-      // instead, which is how the two are told apart — and why that door still gets the fresh
-      // wizard it promises, discarding the walk on the way.
-      const walk = finishedWalk.current;
-      if (walk && opening.view === 'new' && opening.step) {
-        setDraft(walk.draft);
-        setMode(walk.mode);
-        setStep(walk.step);
-        setBrowseFilters(walk.browseFilters);
-        setAiResult(walk.aiResult);
-        setAiThread(walk.aiThread);
-        setImportedFile(walk.importedFile);
-        setImportedFileError(null);
-        // A walk that ENDED in a production comes back POINTING at it. The warning promises
-        // the copy in that rundown is replaced, and Finish's picker defaults to the first
-        // saved production when nothing points it anywhere - the OLDEST one - so without this
-        // a second finish would quietly append a copy to a show the reader never named, and
-        // leave the stale one where it was.
-        const landed = walk.made?.landedOn;
-        setContextProductionId(landed?.view === 'production' ? landed.id : walk.contextProductionId);
-        // The editor door saves nothing, so the walk recorded no library record. If the reader
-        // saved it themselves before coming back, the working document is still linked to that
-        // record and this walk should write over it rather than mint a twin under one name.
-        const made = walk.made;
-        if (made && !made.graphicId) {
-          const live = useTemplateStore.getState().saved.graphicId;
-          if (live && graphicById(live)?.name === made.name) made.graphicId = live;
-        }
-        madeThisOpen.current = made;
-        setBrandChoices(walk.brandChoices);
-        setBrandId(walk.brandId);
-        brandInForce.current = walk.brandChoices.find((b) => b.id === walk.brandId)?.brand ?? null;
-        setStretchDemo(null);
-        resetKit();
-        // The step the walk ENDED on, not the one the history entry happens to name: the
-        // reader wants the last screen back (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md), and leaving
-        // the URL on an earlier step would make the rail and the address bar disagree.
-        useRouter.getState().replace({
-          view: 'new',
-          step: walkOf(walk.mode, false).slugs[walk.step] ?? '',
-        });
-        // Nothing is restored silently: re-entering REGENERATES, so the warning naming what
-        // that writes over goes up with it.
-        setResumeAsk(walk);
-        return;
-      }
-      forgetWalk();
-      setResumeAsk(null);
-      // A `#/new/step/<name>` OPEN starts on the step the URL names — a reload three steps in,
-      // or a link somebody was sent. This reset runs AFTER the route sync above on the same
-      // mount, so a hard-coded 0 here silently won and every step link landed on Entry.
-      // Resolved against the walk this reset installs (mode 'template', no kit), which is the
-      // only walk a cold open can be on; a name that walk does not have degrades to the front
-      // page rather than to whatever step happens to sit at some index.
-      const named =
-        opening.view === 'new' && opening.step
-          ? slugIndex(walkOf('template', false), opening.step)
-          : -1;
-      setStep(named > 0 ? named : 0);
-      lastStep.current = 0;
-      setMode('template');
-      let start = initialDraft();
-      setBrowseFilters(NO_BROWSE_FILTERS);
-      setAiResult(null);
-      acceptedAiGeneration.current = null;
-      setAiThread(null);
-      // A dropped template file is this walk's material like the draft: kept, it held an empty
-      // walk (`walkHasWork` counts it) and the guard asked about nothing.
-      setImportedFile(null);
-      setImportedFileError(null);
-      setStretchDemo(null);
-      resetKit();
-      // Every saved brand, offered by name. NONE is selected: matching is an explicit act, and
-      // a person with no brands sees no chooser at all (docs/BRAND_PLAN.md decision 1). The
-      // DEFAULT brand does not preselect itself here either - it is what Home's "Use for new
-      // graphics" star means, and the wizard still asks.
-      const saved = loadLooks().map((l) => ({ id: l.id, name: l.name, brand: l.brand }));
-      setBrandChoices(saved);
-      setBrandId(null);
-      brandInForce.current = null;
-      // PRODUCTION CONTEXT (step 6): opened FOR a production (its page's "+ New graphic"),
-      // the wizard pre-applies that production's look — the unified brand its graphics
-      // share — and the Finish step preselects it. One-shot, like pendingDesignId.
-      const forProduction = useTemplateStore.getState().pendingProductionId;
-      useTemplateStore.setState({ pendingProductionId: null });
-      setContextProductionId(forProduction);
-      if (forProduction) {
-        const show = loadShows().find((s) => s.id === forProduction);
-        // The REFERENCE wins over the captured copy (model/shows.ts `brandId`): a production
-        // that named a brand gets whatever that brand says today, and one that only ever
-        // captured a look is offered that look under a synthetic entry, so the chooser names
-        // what the graphic is being created in rather than reading None over a preselection.
-        const named = show?.brandId ? saved.find((b) => b.id === show.brandId) : undefined;
-        const chosen: BrandChoice | null =
-          named ?? (show?.look ? { id: PRODUCTION_LOOK_ID, name: `${show.name} (this production's look)`, brand: show.look } : null);
-        if (chosen) {
-          if (!named) setBrandChoices([chosen, ...saved]);
-          setBrandId(chosen.id);
-          brandInForce.current = chosen.brand;
-          start = mergeDraft(start, brandPatch(chosen.brand));
-        }
-      }
-      setDraft(start);
-      startDraft.current = start;
-    } else {
-      // Left with work in it (see `closedByWizard`)? Then hold it.
-      const left = !closedByWizard.current;
-      closedByWizard.current = false;
-      useSaveUi.setState({ heldWalk: left && walkHasWorkRef.current() });
-      // BACK TO STEP 0 ON CLOSE TOO. This component stays mounted and renders null when it is
-      // closed, so a closed wizard still holds the step its last walk ended on. The route sync
-      // above would read that stale step at the NEXT open and push it into the URL - so "+ New
-      // graphic" after finishing a walk reopened the wizard on Finish instead of on Entry.
-      setStep(0);
-    }
-  }, [open]);
-
-  // A `#/new/<designId>` deep link (docs/PRERENDER.md's template-page CTA) preselects that
-  // catalog design and drops straight to Fields — the same patch BrowseStep's onPickVariant
-  // applies — WITHOUT creating a project; Finish is still the only door that does. A
-  // subscribed selector (not a getState() read in the effect above) because a first-ever
-  // visit already opens the wizard by default, before the router's `openGallery(designId)`
-  // call reaches the store — `open` never flips false→true in that race, so only a change in
-  // `pendingDesignId` itself can trigger this. It clears `pendingDesignId` itself the moment
-  // it runs, so it fires exactly once per deep link and never re-applies after the user has
-  // moved on.
+  // A `#/new/<designId>` deep link's one-shot design: the catalog has to load for it.
   const pendingDesignId = useTemplateStore((s) => s.pendingDesignId);
   // The catalog loads once a step lists designs, the draft names a catalog design, or a deep
   // link does (which holds Entry until it resolves, so nothing done there is overwritten). The AI
@@ -652,31 +368,28 @@ export default function CreationWizard() {
   const needsCatalog =
     needsCatalogOn(walkSpec, step) || Boolean(pendingDesignId) || (step > 0 && Boolean(draft.variantId) && !importedVariant);
   const catalog = useCatalog(open && needsCatalog);
-  useEffect(() => {
-    if (!open || !pendingDesignId || !catalog) return;
-    const pending = catalog.variantById(pendingDesignId);
-    useTemplateStore.setState({ pendingDesignId: null });
-    // Imported-design designs create BARE through a dedicated setup flow (mode 'design'),
-    // never through the Browse pick path — excluded here for the same reason Browse never
-    // lists it. An id that fails to resolve at all (missing, retired, or a manually edited
-    // URL) leaves the wizard exactly where the reset effect above put it: Entry.
-    if (!pending || pending.category === 'imported-design') return;
-    setMode('template');
-    // The link chose this design, not the reader in this walk: it is where the walk starts.
-    startDraft.current = mergeDraft(initialDraft(), {
-      category: pending.category,
-      variantId: pending.id,
-      lines: pending.suggestedLines.map((l) => ({ ...l })),
-      zone: null,
-      logoEnabled: null,
-      animation: { presetId: null, outPresetId: null, steps: null },
-      // The brand in force carries its look, as on the Browse pick: the chooser keeps naming it,
-      // so a draft without it had the chooser and the preview disagreeing.
-      ...brandOrClearPatch(brandInForce.current),
-    });
-    setDraft(startDraft.current);
-    setStep(stepIndex(walkOf('template', false), 'fields'));
-  }, [open, pendingDesignId, catalog]);
+  // Fresh wizard every time it opens, the walk back into a finished one, Continue, and the close:
+  // what each does is the walk's (shell/walkState.ts `transition`), the IO the hook's.
+  const { rewind } = useWalkLifecycle({
+    open,
+    state: walk,
+    dispatch,
+    memory,
+    closedByWizard,
+    catalog,
+    pendingDesignId,
+    resetScreen: () => {
+      setStretchDemo(null);
+      setKitSwitchAsk(false);
+      setKitApplyAsk(false);
+      setKitProductionName('');
+      setKitError(null);
+    },
+    clearAcceptedAi: () => {
+      acceptedAiGeneration.current = null;
+    },
+    setResumeAsk,
+  });
 
   useEffect(() => {
     if (open || !aiResult?.generationId || acceptedAiGeneration.current === aiResult.generationId) return;
@@ -753,7 +466,7 @@ export default function CreationWizard() {
   //
   // The step answers one question - what does the name in the field already mean? - and both
   // halves of that answer move with NO render behind them: the library (another tab, or this
-  // walk's own door press, both of which announce `spx-data-changed`) and `madeThisOpen`, a ref
+  // walk's own door press, both of which announce `spx-data-changed`) and the made record, a ref
   // so it survives the closed wizard's null render. Read once when the step opened, the answer
   // went stale the moment either moved, and the step then said nothing while the save wrote
   // over a record anyway - the exact case the disclosure exists for. Refreshing on the same
@@ -773,31 +486,12 @@ export default function CreationWizard() {
     window.addEventListener('spx-data-changed', rereadFinish);
     return () => window.removeEventListener('spx-data-changed', rereadFinish);
   }, [onFinish, rereadFinish]);
-  const finishMadeId = madeThisOpen.current?.graphicId ?? null;
+  const finishMadeId = memory.current.made?.graphicId ?? null;
 
   if (!open) return null;
 
-  const patch = (p: DraftPatch) => setDraft((d) => mergeDraft(d, p));
-
-  /**
-   * The footer chooser's one move. A brand writes exactly four fields and None clears the same
-   * four, so switching brands needs no unwinding pass: there is nothing of the previous one
-   * left anywhere else on the draft to take back (wizard/draft.ts `brandLogo`).
-   */
-  const chooseBrand = (nextId: string | null) => {
-    const next = nextId ? brandChoices.find((b) => b.id === nextId)?.brand ?? null : null;
-    setBrandId(next ? nextId : null);
-    // THE BRAND REACHES EVERY GRAPHIC OF A KIT, not only the one on screen: the set is built
-    // up front, so every graphic's answers take it and are rebuilt - and None hands each one
-    // back the kit's own palette rather than no palette at all (wizard/kitPlan.ts).
-    if (kit && buildMode === 'kit') {
-      const plan = rebrandKit(committedKit(kit), next ? brandPatch(next) : null);
-      setKit(plan);
-      setDraft(plan.drafts[plan.current]);
-      return;
-    }
-    patch(next ? brandPatch(next) : brandClearPatch());
-  };
+  const patch = (p: DraftPatch) => dispatch({ type: 'patch', patch: p });
+  const go = (target: number) => dispatch({ type: 'go', step: target });
 
   /** What the chooser promises, in the words of the walk it is standing in. The brand's own
    *  notes ride along, because "how should this look" is the thing the name cannot say. */
@@ -827,43 +521,8 @@ export default function CreationWizard() {
    * is the same door on every topbar in the product.
    */
   const leaveStep = () => {
-    if (step === 0) {
-      closeGallery();
-      return;
-    }
-    setDraft((d) => {
-      const fresh = initialDraft();
-      return {
-        ...fresh,
-        aspectId: d.aspectId,
-        resolutionId: d.resolutionId,
-        fps: d.fps,
-        formatTouched: d.formatTouched,
-      };
-    });
-    setMode('template');
-    setStep(0);
-    // A rewind is a fresh start: what it keeps (the format) is not work, and nor is a brand the
-    // open had pre-applied, which it drops.
-    startDraft.current = null;
-    lastStep.current = 0;
-    setBrowseFilters(NO_BROWSE_FILTERS);
-    setAiResult(null);
-    setAiThread(null);
-    // The dropped file goes with the walk, as on a fresh open.
-    setImportedFile(null);
-    setImportedFileError(null);
-    setStretchDemo(null);
-    resetKit();
-    // THE WALK THIS REWIND DISCARDS IS NOT A WALK TO COME BACK TO. Without this, a graphic
-    // built after the rewind under the same default name would write OVER the record the
-    // rewound walk had already made — the export door mints one and leaves the wizard open, so
-    // it takes no browser navigation to reach.
-    forgetWalk();
-    // Back to what a fresh open sets. The chooser WRITES the brand into the draft, so leaving a
-    // brand selected over a draft that was just cleared would name a look the graphic no longer
-    // carries — the chooser and the preview disagreeing about the same fact.
-    setBrandId(null);
+    if (step === 0) closeGallery();
+    else rewind();
   };
   // Escape's handler reads this rather than closing over `leaveStep` directly (see below).
   leaveStepRef.current = leaveStep;
@@ -909,88 +568,19 @@ export default function CreationWizard() {
    * Deliberately out of scope here and recorded in
    * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md rather than half-wired.
    */
-  const rememberWalk = () => {
-    finishedWalk.current = {
-      draft,
-      mode,
-      step,
-      browseFilters,
-      aiResult,
-      aiThread,
-      importedFile,
-      contextProductionId,
-      brandChoices,
-      brandId,
-      made: null,
-    };
-  };
-
-  /** What the door actually produced, once it has. The warning names it, and a second pass
-   *  down the same walk writes over it. */
-  const noteMade = (name: string, production: string | null, landedOn: Route | null = null) => {
-    const made: MadeGraphic = {
-      name,
-      graphicId: useTemplateStore.getState().saved.graphicId,
-      production,
-      landedOn,
-    };
-    if (finishedWalk.current) finishedWalk.current.made = made;
-    madeThisOpen.current = made;
-    // A REF the Finish step reads: nothing re-renders on its own, and the step is still on
-    // screen after the export door (the production door routes away instead).
-    rereadFinish();
-  };
-
-  /**
-   * Save the built graphic — into the record THIS WALK already made, over the record that
-   * already carries this name, or as a new one.
-   *
-   * A saved graphic's name is its identity. `saveGraphicAs` always mints, so without this the
-   * wizard is a duplicate factory: the walk that made "Match Score" and the walk that
-   * re-imports the student's second version of it left TWO records under one name, and the
-   * production's pool copy — which replaces by name — quietly re-pointed its back-link at the
-   * new one, detaching the graphic the cues were prepared against. Measured 2026-09-08 through
-   * all four import doors (e2e/import-name-collision.spec.ts). Writing over the record keeps
-   * its id, so every production pooling it keeps pointing at the same graphic.
-   *
-   * It is NOT a silent overwrite: the production door confirms every press, and the Finish
-   * step's warning says which of the four things this one does before it happens — both read
-   * `librarySaveEffect`, so the sentence and the write cannot disagree.
-   *
-   * A RENAME mid-walk moves the record THIS WALK MADE onto the new name. It never resolves the
-   * new name against the library, because that reaches across to whatever graphic already
-   * carries it and overwrites artwork this walk never opened (`librarySaveEffect` carries the
-   * reasoning and the measurement). Ending the walk with the ✕ is what says "a different
-   * graphic": `forgetWalk` drops the record, and the next save resolves by name again.
-   */
-  const saveBuiltGraphic = async (name: string): Promise<{ ok: boolean; error: string | null }> => {
-    const again = madeThisOpen.current;
-    const effect = librarySaveEffect(graphicNameIndex(), name, again?.graphicId ?? null);
-    const over = effect.targetId;
-    if (over) {
-      useTemplateStore.getState().setSaved({ graphicId: over, dirty: true, status: 'idle' });
-      const result = await saveCurrentGraphic({ name });
-      if (result === 'saved') return { ok: true, error: null };
-      // 'needs-name' means the record went between the check above and the write (deleted on
-      // another device or tab). Minting is then the right answer, not an error - the work is
-      // what matters, and there is no longer anything to write over.
-      if (result === 'needs-name') return saveGraphicAs(name, { kind: 'standalone' });
-      return {
-        ok: false,
-        error:
-          effect.kind === 'over'
-            ? `The graphic could not be saved over the “${name}” already in your library.`
-            : `“${name}” could not be saved to your library.`,
-      };
-    }
-    return saveGraphicAs(name, { kind: 'standalone' });
-  };
+  const remember = () => rememberWalk(memory.current, walk);
 
   /** Every ending of the walk (shell/doors.ts), each taking the mode's applier below. */
   const doors = makeDoors({
     ...STUDIO_DOOR_IO,
-    saveBuiltGraphic,
-    noteMade,
+    saveBuiltGraphic: (name) => saveBuiltGraphic(memory.current, name, LIBRARY_IO),
+    // The record's id is read from the store, so only once the save has linked it.
+    noteMade: (name, production, landedOn = null) => {
+      noteMade(memory.current, { name, graphicId: useTemplateStore.getState().saved.graphicId, production, landedOn });
+      // A REF the Finish step reads: nothing re-renders on its own, and the step is still on
+      // screen after the export door (the production door routes away instead).
+      rereadFinish();
+    },
     closeGallery,
     productionPress: addingToProduction,
     setSetBusy: setKitBusy,
@@ -1023,11 +613,7 @@ export default function CreationWizard() {
      all read it. */
 
   /** Is this one of the steps that edit the open kit graphic? */
-  const isKitEditStep = (s: number) => s >= 2 && s <= animStep;
-
-  /** The kit with the open graphic's answers recorded - what every move away from it keeps. */
-  const committedKit = (plan: KitPlan): KitPlan =>
-    isKitEditStep(step) ? commitKitGraphic(plan, draft) : plan;
+  const editsKitGraphic = (s: number) => isKitEditStep(walk, s);
 
   /**
    * THE ONE WAY A KIT CHANGES STEP. Leaving the editing steps records the graphic in hand first,
@@ -1040,25 +626,22 @@ export default function CreationWizard() {
     // otherwise stay wrapped around a design that is not part of it.
     if (step === 1 && target > 1) {
       if (buildMode === 'one') {
-        setKit(null);
-        setStep(target);
+        dispatch({ type: 'kit', kit: null, step: target });
       } else {
         buildFromKitStep(target);
       }
       return;
     }
-    if (kit && isKitEditStep(step) && !isKitEditStep(target)) setKit(commitKitGraphic(kit, draft));
-    setStep(target);
+    const leaving = kit && editsKitGraphic(step) && !editsKitGraphic(target);
+    dispatch({ type: 'kit', kit: leaving ? commitKitGraphic(kit, draft) : kit, step: target });
   };
 
   /** Open kit graphic `index` on `target` (Fields by default, or the step already on screen when
    *  the tray jumps), recording the one being left. */
   const openKitGraphic = (index: number, target: number = 2) => {
     if (!kit) return;
-    const plan = committedKit(kit);
-    setKit({ ...plan, current: index });
-    setDraft(plan.drafts[index]);
-    setStep(target);
+    const plan = committedKit(walk, kit);
+    dispatch({ type: 'kit', kit: { ...plan, current: index }, draft: plan.drafts[index], step: target });
   };
 
   /** The footer brand as a draft patch, for graphics being built now. */
@@ -1082,11 +665,9 @@ export default function CreationWizard() {
       setKitProductionName('');
     }
     setKitError(null);
-    setKit(plan);
     // The draft in hand is always the open graphic's, so a rail click into Fields from the hub
     // opens a real graphic rather than whatever the Kit step left behind.
-    setDraft(plan.drafts[plan.current]);
-    setStep(target);
+    dispatch({ type: 'kit', kit: plan, draft: plan.drafts[plan.current], step: target });
   };
 
   /** Leave the Kit step forward to `target`. Switching to ANOTHER kit discards the edited one,
@@ -1102,7 +683,7 @@ export default function CreationWizard() {
   const applyKitStyle = () => {
     setKitApplyAsk(false);
     if (!kit) return;
-    setKit(applyStyleToKit(committedKit(kit), draft));
+    dispatch({ type: 'kit', kit: applyStyleToKit(committedKit(walk, kit), draft) });
   };
 
   /**
@@ -1112,7 +693,7 @@ export default function CreationWizard() {
    */
   const saveKit = async (dest: ProductionDest): Promise<Show | null> => {
     if (!kit) return null;
-    return doors.saveSet(committedKit(kit).built, kit.pack.name, dest, 'kit');
+    return doors.saveSet(committedKit(walk, kit).built, kit.pack.name, dest, 'kit');
   };
 
   /** What "Apply this Style to all" is actually offering to carry, in the user's own words -
@@ -1161,7 +742,7 @@ export default function CreationWizard() {
    */
   const applyAiProject = async (): Promise<SpxTemplate | null> => {
     if (!aiResult?.valid) return null;
-    rememberWalk();
+    remember();
     if (aiResult.generationId) acceptedAiGeneration.current = aiResult.generationId;
     commitStagedSelection();
     const name = aiName();
@@ -1197,7 +778,7 @@ export default function CreationWizard() {
    */
   const applyDraftProject = async (): Promise<SpxTemplate | null> => {
     if (!previewTemplate || !variant) return null;
-    rememberWalk();
+    remember();
     // The two modes whose preview carries preview-only extras rebuild without them — design's
     // stretch-demo line, and the SVG mapping step's candidate markers. Create is reachable from
     // any step (Skip to finish), so this cannot be left to the step the reader happens to be on.
@@ -1230,7 +811,7 @@ export default function CreationWizard() {
 
   const applyImportedFile = (): SpxTemplate | null => {
     if (!importedFile) return null;
-    rememberWalk();
+    remember();
     const template = { ...importedFile.template, name: importedName() };
     applyTemplate(template, { resetSampleData: true, keepGalleryOpen: true });
     trackEvent('activation', 'file');
@@ -1284,14 +865,14 @@ export default function CreationWizard() {
     }
     const target = stepAfter(walkSpec, step, delta);
     if (kit) moveKitTo(target);
-    else setStep(target);
+    else go(target);
   };
 
   /* Finish's read-back rows are clickable: each goes back to the step it was decided on, by the
      decision it names (the walk table's `summary`), never by a step number. */
   const editSummaryStep = (key: SummaryStepKey) => {
     const target = summaryStep(walkSpec, key);
-    if (target !== null) setStep(target);
+    if (target !== null) go(target);
   };
 
   // The rail's format read-back. The real CONTROL stays in the step that owns it, so this is
@@ -1310,7 +891,7 @@ export default function CreationWizard() {
     // other move (`moveKitTo`).
     const target = 1;
     if (kit) moveKitTo(target);
-    else setStep(target);
+    else go(target);
   };
 
   /* The step footer. It belongs to the CENTRE COLUMN, not to the whole sheet: the preview
@@ -1341,7 +922,7 @@ export default function CreationWizard() {
             className="wz-brand-select"
             data-testid="wz-brand"
             value={brandId ?? ''}
-            onChange={(e) => chooseBrand(e.target.value || null)}
+            onChange={(e) => dispatch({ type: 'chooseBrand', id: e.target.value || null })}
           >
             <option value="">None</option>
             {brandChoices.map((b) => (
@@ -1363,7 +944,7 @@ export default function CreationWizard() {
         <button
           className="wz-skip"
           disabled={mode === 'template' ? !draft.variantId : !previewTemplate}
-          onClick={() => setStep(finishStep)}
+          onClick={() => go(finishStep)}
           title="Happy with the defaults? Jump straight to naming it and choosing where it goes"
           data-testid="wz-skip-to-finish"
         >
@@ -1537,7 +1118,7 @@ export default function CreationWizard() {
                     // Next presses. Other modes keep their sequential walks - their steps
                     // build state a jump would skip.
                     disabled={!railJump(walkSpec, step, s, { onShelf, kitBuilt: !!kit, designPicked: !!draft.variantId })}
-                    onClick={() => (kit ? moveKitTo(s) : setStep(s))}
+                    onClick={() => (kit ? moveKitTo(s) : go(s))}
                     title={t}
                   >
                     <span className="wz-dot-num" aria-hidden="true">{done ? '✓' : s + 1}</span>
@@ -1567,7 +1148,7 @@ export default function CreationWizard() {
           <div className="wz-main">
           {/* THE KIT TRAY: which graphic of the set is open, and the door to any other. Shown
               on the editing steps; the hub lays the whole set out itself. See KitTray.tsx. */}
-          {kit && isKitEditStep(step) && (
+          {kit && editsKitGraphic(step) && (
             <KitTray
               plan={kit}
               onOpen={(index) => openKitGraphic(index, step)}
@@ -1580,21 +1161,18 @@ export default function CreationWizard() {
             {needsCatalog && !catalog ? <CatalogLoading /> : <>
             {stepId === 'start' && (
               <EntryStep
-                onTemplates={() => { setMode('template'); setStep(1); }}
+                onTemplates={() => dispatch({ type: 'walk', mode: 'template', step: 1 })}
                 onImportGraphic={() => {
                   // Entering the flow again starts it: a template file left over from a
                   // previous pass would otherwise re-appear on a walk the user restarted,
                   // with the artwork branch's steps around it.
-                  setImportedFile(null);
-                  setImportedFileError(null);
-                  setMode('design');
-                  setStep(1);
+                  dispatch({ type: 'file', file: null, error: null });
+                  dispatch({ type: 'walk', mode: 'design', step: 1 });
                 }}
-                onAi={() => { setMode('ai'); setStep(1); }}
+                onAi={() => dispatch({ type: 'walk', mode: 'ai', step: 1 })}
                 onVideo={() => {
                   if (!draft.formatTouched) patch(DEFAULT_VIDEO_FORMAT);
-                  setMode('video');
-                  setStep(1);
+                  dispatch({ type: 'walk', mode: 'video', step: 1 });
                 }}
                 onHome={(section = null) => {
                   leaveGallery();
@@ -1654,26 +1232,28 @@ export default function CreationWizard() {
                   brandPalette={brand ? brand.palette : null}
                   result={aiResult?.template ?? null}
                   onResult={(template, valid, spec, generationId, path, pack) =>
-                    setAiResult(template ? { template, valid, spec, generationId, path, pack: pack ?? null } : null)}
-                  onThread={setAiThread}
+                    dispatch({ type: 'ai', result: template ? { template, valid, spec, generationId, path, pack: pack ?? null } : null })}
+                  onThread={onThread}
                   onOpenImported={(imported) => {
                     // THERE IS NO CODE EDITOR TO OPEN (owner, 2026-09-21 and 2026-09-24), so the
                     // file takes the Import graphic card's road instead: `file` mode's Finish,
                     // whose doors apply it exactly as written. The reader has already confirmed
                     // its project format on this card, so the detection is certain.
-                    setImportedFile({
-                      template: imported,
-                      detection: { resolution: imported.resolution, fps: imported.fps, certain: true, messages: [] },
+                    dispatch({
+                      type: 'file',
+                      file: {
+                        template: imported,
+                        detection: { resolution: imported.resolution, fps: imported.fps, certain: true, messages: [] },
+                      },
+                      error: null,
                     });
-                    setImportedFileError(null);
-                    setMode('file');
-                    setStep(stepIndex(walkOf('file', false), 'finish'));
+                    dispatch({ type: 'walk', mode: 'file', step: stepIndex(walkOf('file', false), 'finish') });
                   }}
                   onUseTemplates={(images) => {
                     // Skip the AI: design AROUND the images with the catalog — the existing
                     // images -> category -> template-picker continuation (logo-slot first).
                     patch({ importedImages: images, logoAssetPath: images[0]?.path ?? null });
-                    setMode('import');
+                    dispatch({ type: 'walk', mode: 'import' });
                   }}
                 />
                 </Suspense>
@@ -1689,30 +1269,29 @@ export default function CreationWizard() {
                   });
                   // The walk changes shape the moment the file is read: an SVG has nothing
                   // to erase and nothing to place — its one setup step is the mapping.
-                  setMode('svg');
+                  dispatch({ type: 'walk', mode: 'svg' });
                 }}
                 onClearSvg={() => {
                   patch(clearSvgPatch(draft));
-                  setMode('design');
+                  dispatch({ type: 'walk', mode: 'design' });
                 }}
                 templateFile={importedFile}
                 onTemplateFile={(file) => {
-                  setImportedFileError(null);
+                  dispatch({ type: 'file', error: null });
                   void templateFileDropped(file, { importTemplateFile }).then((read) => {
                     if (!read.ok) {
-                      setImportedFileError(read.error);
+                      dispatch({ type: 'file', error: read.error });
                       return;
                     }
-                    setImportedFile(read.file);
+                    dispatch({ type: 'file', file: read.file });
                     // The walk changes shape the moment the file is read: a template has no
                     // artwork to prepare and no field to place.
-                    setMode('file');
+                    dispatch({ type: 'walk', mode: 'file' });
                   });
                 }}
                 onClearTemplate={() => {
-                  setImportedFile(null);
-                  setImportedFileError(null);
-                  setMode('design');
+                  dispatch({ type: 'file', file: null, error: null });
+                  dispatch({ type: 'walk', mode: 'design' });
                 }}
                 fileError={importedFileError}
                 art={draft.designArt}
@@ -1724,7 +1303,7 @@ export default function CreationWizard() {
                   patch({ ...artDropPatch(designArt, importedImages), ...brandOrClearPatch(brand) });
                   // A raster drop is the classic prepare/place walk — also the way back from
                   // an SVG drop replaced by a picture.
-                  setMode('design');
+                  dispatch({ type: 'walk', mode: 'design' });
                 }}
                 onClear={() =>
                   patch({
@@ -1747,7 +1326,7 @@ export default function CreationWizard() {
                 }
                 onContinue={(category) => {
                   patch({ category });
-                  setStep(stepIndex(walkSpec, 'template'));
+                  go(stepIndex(walkSpec, 'template'));
                 }}
               />
             )}
@@ -1756,7 +1335,7 @@ export default function CreationWizard() {
               <BrowseStep
                 draft={draft}
                 filters={browseFilters}
-                onFilters={setBrowseFilters}
+                onFilters={onFilters}
                 onDraft={patch}
                 onPickVariant={(v) =>
                   patch({
@@ -1771,21 +1350,20 @@ export default function CreationWizard() {
                     ...brandOrClearPatch(brand),
                   })
                 }
-                onAi={() => { setMode('ai'); setStep(1); }}
+                onAi={() => dispatch({ type: 'walk', mode: 'ai', step: 1 })}
                 // Ranking context, not a filter: with the footer's brand toggle on, the
                 // package's siblings lead the results (proposal §13.3).
                 brandFamily={brand ? brand.styleTag : null}
                 buildMode={buildMode}
-                onBuildMode={setBuildMode}
+                onBuildMode={onBuildMode}
                 kitPack={kitPack}
                 kitSelected={kitSelected}
                 // A new kit brings its OWN starter. Picking the kit that is already built
                 // brings back the contents it was built with, not the starter again.
                 onKitPack={(pack) => {
-                  setKitPack(pack);
-                  setKitSelected(kit && kit.pack.id === pack.id ? kitKeys(kit) : defaultSelectionFor(pack));
+                  dispatch({ type: 'kitPick', pack, selected: kit && kit.pack.id === pack.id ? kitKeys(kit) : defaultSelectionFor(pack) });
                 }}
-                onKitSelected={setKitSelected}
+                onKitSelected={onKitSelected}
                 // A community pack installs as a ready production with no editing step, so
                 // the wizard closes and the production opens, as a kit's first door does.
                 onPackInstalled={(show) => {
@@ -1800,7 +1378,7 @@ export default function CreationWizard() {
                 art={draft.designArt}
                 draft={draft}
                 onDraft={patch}
-                onBackToPrepare={() => setStep(stepIndex(walkSpec, 'prepare'))}
+                onBackToPrepare={() => go(stepIndex(walkSpec, 'prepare'))}
               />
             )}
             {/* The SVG walk's one setup step: which text layers the operator can edit. */}
@@ -2031,8 +1609,7 @@ export default function CreationWizard() {
           onCancel={() => {
             // Keeping the edited kit puts the picker back on it, as it was built.
             setKitSwitchAsk(false);
-            setKitPack(kit.pack);
-            setKitSelected(kitKeys(kit));
+            dispatch({ type: 'kitPick', pack: kit.pack, selected: kitKeys(kit) });
           }}
           testid="kit-switch-confirm"
         >

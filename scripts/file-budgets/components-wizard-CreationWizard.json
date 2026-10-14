@@ -1,5 +1,5 @@
 {
   "file": "src/components/wizard/CreationWizard.tsx",
-  "lines": 2105,
+  "lines": 1682,
   "why": "The wizard shell is being split into tested modules (docs/work-specs/wizard-structure/spec.md D8). Lowered to the actual count by each phase that shrinks it; never raised."
 }
