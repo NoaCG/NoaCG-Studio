@@ -63,7 +63,7 @@ test('every section-nav link points at a section that exists', async ({ page }) 
 // "Only the most important information on the left" (owner, 2026-08-26): a newcomer's first view
 // of the nav is the five topic heads, and a topic's pages unfold when it is being read or its
 // toggle is pressed. Every page stays one click away, and without the module every link shows.
-const TOPICS = ['Getting started', 'Make a graphic', 'Put it on air', 'Run the show', 'Coding agents & the CLI'];
+const TOPICS = ['Getting started', 'Make a graphic', 'Put it on air', 'Run the show', 'AI agents & the CLI'];
 
 // Scroll a section to the top and wait for the nav to highlight it. The page can still grow above
 // the section while it settles (fonts and pictures arriving), so the scroll repeats until it holds.
@@ -317,6 +317,11 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
   await expect(agents).toContainText('validate');
   await expect(agents).toContainText('save');
   await expect(agents).toContainText('Claude Code');
+
+  // The chat connector: the address a reader pastes into a chat app, and what it will not do.
+  const connector = page.locator('#chat-connector');
+  await expect(connector).toContainText('https://noacg.studio/mcp');
+  await expect(connector).toContainText('does not edit, delete, publish or play anything');
 
   // (b) CasparCG: the live-link command, and the honesty note. NoaCG Bridge has driven a real
   // 2.5.0 on the maintainer's machine (docs/BRIDGE.md §8) and the docs say exactly that, with
