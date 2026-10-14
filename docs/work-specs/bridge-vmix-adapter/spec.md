@@ -188,7 +188,7 @@ channel or layer: a movie or a still plays in `NoaCG Clips`, an audio file in `N
 
 | NoaCG | vMix, on the player input by key |
 |---|---|
-| Take | `LoopOn` or `LoopOff` as the cue's ending says, and `AutoPlayNextOff` (both are settings of the input, not of an item, so every Take sets both, measured: research §7); `SetAlpha 255` and the level unless the cue fades in; `ListAdd` the file, `SelectIndex` to it, `SetPosition` to its in point when trimmed, `Play`; read back until that item is `Running`; then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V3 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
+| Take | `LoopOn` or `LoopOff` as the cue's ending says, and `AutoPlayNextOff` (both are settings of the input, not of an item, so every Take sets both, measured: research §7); `SetAlpha 255`, `SetVolume` and `SetGain` for the cue's level (gain 0 when the level is at or below 0 dB), all reset on every Take because they too stay on the input; `ListAdd` the file, `SelectIndex` to it, and only once the XML shows the new `selectedIndex` (it lands about 0.3 s after the `OK`, research §8) `SetPosition` to its in point when trimmed; `Play`; read back until that item is `Running`; then `ListRemove` the items before it. Replacing in that order keeps the old clip on screen until the new one plays, as CasparCG's `PLAY` does, where `ListRemoveAll` first would flash black (measured, research §8 and §10); V3 measures it, and falls back to `ListRemoveAll` first if removing earlier items disturbs the one playing |
 | Fade in | the Take starts at `SetAlpha 0` and volume 0, then the Bridge steps `SetAlpha` up once per frame and sends `SetVolumeFade` to the cue's level over the fade. One input shows one file, so a fade in from a clip that was playing goes through black, where CasparCG's `MIX` crossfades |
 | Trim | in point: `SetPosition` before `Play`; out point: the Bridge's clip timer acts there (below), since marks do nothing on a list (measured) |
 | At the end: Hold (default) | untrimmed: vMix holds the last frame (`Completed`); trimmed: `Pause` at the out point |
@@ -198,7 +198,7 @@ channel or layer: a movie or a still plays in `NoaCG Clips`, an audio file in `N
 | Change the ending while it plays | `LoopOn` / `LoopOff` for an untrimmed clip, else the clip timer's ending; arming a Clear |
 | Pause, Resume | `Pause`, `Play` (the clip timer pauses with it) |
 | Out, Clear, All out | `Pause`, `ListRemoveAll` (black); Out with a fade out fades first, as above |
-| Level | at or below 0 dB: `SetVolume` 100 x 10^(L/80) (measured curve); above 0 dB: `SetVolume 100` and `SetGain` L (documented, measured in V6) |
+| Level | the page sends a linear gain (`MediaPlayback.gain` = 10^(dB/20), from a cue level of -60 to +6 dB). Gain at or below 1: `SetVolume` 100 x gain^(1/4) (the measured curve) and `SetGain 0`; above 1: `SetVolume 100` and `SetGain` 20 x log10(gain) dB (documented 0 to 24 dB, measured in V6). Each Take sets the cue's level, as CasparCG sends each clip's own; a vMix operator who rides the level does it on a bus or the master, not on `NoaCG Clips` |
 
 **The clip timer.** CasparCG ends a trimmed clip by itself (`LENGTH`), and a fade by itself
 (`MIX`). vMix does neither for a list item, so the Bridge does what the CasparCG runner already
@@ -233,9 +233,13 @@ named in its own configuration; vMix has none (documented absence). So:
   by the Bridge per vMix, beside its token, so every browser paired with it sees the same folder,
   as it keeps a CasparCG server's studio setup. **The page never sends a path**: a paired page can
   ask for the picker and read the folder's contents, never point the Bridge somewhere itself.
-- If the Bridge cannot open the picker (V3 measures it from the unsigned exe; it is a PowerShell
-  `FolderBrowserDialog` child process), the Bridge's own window asks for the folder instead, as it
-  already offers a pairing link there, and the page says where to look.
+- The picker is a PowerShell `FolderBrowserDialog` child process with a top-most owner window, so
+  it opens over the browser rather than behind it; one picker at a time (a second request answers
+  that one is open), and it holds neither the per-vMix action lock nor a verb's 7 s budget while
+  it waits for the operator. If the Bridge cannot open it (V3 measures it from the unsigned exe,
+  and records any security tool that objects to an exe starting PowerShell), the Bridge's own
+  window asks for the folder instead, as it already offers a pairing link there, and the page says
+  where to look.
 
 ### What Load and Unload need beyond studio UI
 
@@ -296,18 +300,25 @@ the trial (vMix 28, Basic HD) cannot be measured here and stay documented only.
 ### The production: one playout system
 
 The production's output setup already holds the CasparCG switch (`caspar?` in
-`src/model/outputSetup.ts`, read through `casparSwitch` in six files: `ProductionPage.tsx` in 14
-places, `CueRundown.tsx`, `PlayoutSettingsDialog.tsx`, `RundownColors.tsx`, `playoutStatus.ts`,
-`DefaultOutputPreference.tsx`). It gains `vmix?`, and one function, `playoutSystem`, answers
-`'casparcg'`, `'vmix'` or `null` for a production, so every place that asks "is CasparCG on" asks
-it the same way and a vMix branch has one place to start:
+`src/model/outputSetup.ts`). `casparSwitch` is called only in `ProductionPage.tsx` (the page's
+`casparOn`, used in 14 places, and the first-publish branch); `CueRundown.tsx`,
+`PlayoutSettingsDialog.tsx`, `RundownColors.tsx` and `playoutStatus.ts` take `casparOn` as a
+prop and stay as they are. Every write and read of the setup passes through `readOutputSetup`,
+which rebuilds it as `{ v, destinations, caspar? }` and drops anything else (`setShowOutputSetup`
+in `shows.ts`, `readOutputPayload` in `hostedControl.ts`, `auth.ts`), and `withCasparSwitch`
+builds a fresh object. The setup gains `vmix?`, kept by both, and one function, `playoutSystem`,
+answers `'casparcg'`, `'vmix'` or `null` for a production, so the page asks it one way and a vMix
+branch has one place to start:
 
-- the operator's choice wins; switching one on switches the other off, stored together;
+- the operator's choice wins; choosing vMix stores `vmix: true` with `caspar: false`; choosing
+  CasparCG or neither stores exactly today's shape, with no `vmix` field (`vmix` appears only when
+  true, so the tests that compare the stored setup exactly keep passing);
 - until the operator chooses: CasparCG exactly as `casparSwitch` decides today (a CasparCG
-  destination, server cues, the account default, legacy activity); vMix only for a production
-  that already has vMix cues. The older `vmix` output profile does not turn vMix on: it means a
-  Browser input added by hand, and loading a second one over it would double the graphics. There
-  is no account default for vMix;
+  destination, CasparCG cues, the account default, legacy activity); vMix only for a production
+  that already has vMix cues. Cues count by `PlayoutItem.adapter`, so a vMix cue never reads as a
+  CasparCG one. The older `vmix` output profile does not turn vMix on: it means a Browser input
+  added by hand, and loading a second one over it would double the graphics. There is no account
+  default for vMix, and the first-publish branch keeps a vMix choice;
 - a cue for the system that is not chosen stays in the rundown, disabled with the reason ("This
   cue plays on CasparCG; this production plays out through vMix"), as a server cue is today when
   CasparCG is off.
@@ -324,8 +335,8 @@ URL named `vMix Overlay 8` (so the playout status names it) with the production'
 `label`, which names the input `NoaCG <title>`. First publish loads it only when the operator has
 switched vMix on, as CasparCG does when its switch is on.
 
-With vMix chosen, the rundown's **From the playout server…** picker offers **From vMix…**: the
-media folder, browsed by folder, added as vMix cues. The cue editor says where it plays
+With vMix chosen, the rundown's add menu offers **vMix files…** where it offers **CasparCG
+files…** today (`CueRundown.tsx`): the media folder, browsed by folder, added as vMix cues. The cue editor says where it plays
 (**NoaCG Clips** or **NoaCG Audio**) where a CasparCG cue has its channel and layer, and offers
 the same clip controls (At the end, fades, trim, level) as for CasparCG, each shown only when
 `/status` lists its capability for vMix, as today.
@@ -374,15 +385,17 @@ read, so it happens by itself; a vMix that does not answer adds nothing there.
   `cueId`, `generation`), with a new optional `player` naming it and `layer` 0, so the required
   field keeps its meaning for every CasparCG reading. A vMix `PlayoutItem` likewise keeps `layer`
   0 and no `channel`, so a stored item stays valid for an older page.
-- `capabilities` for vMix: `state` (V2); `end` (V3); `fade`, `trim`, `level` (V6); `sequence` (V7);
-  never `image-fit` (vMix scales a still itself). Verbs: `take`, `out`, `clear` (V2); `pause`,
-  `resume`, `ending` (V3); `sequence` (V7). Features `sequence-loop` and `ending` apply as today.
+- `capabilities` for vMix: `state` (V2); `end`, `fade`, `trim`, `level` (V6, with the clip timer
+  that carries out a Clear at the end); `sequence` (V7); never `image-fit` (vMix scales a still
+  itself). Verbs: `take`, `out`, `clear` (V2); `pause`, `resume` (V3); `ending` (V3 for Loop and
+  Hold, Clear from V6); `sequence` (V7). Features `sequence-loop` and `ending` apply as today.
+  Without `end`, the editor offers a vMix cue Hold and Loop only, as `cuePlayback.ts` gates today.
 - The players are made when first needed: `AddInput Value=VideoList|`, then `SetInputName`
   (`NoaCG Clips`, `NoaCG Audio`), `AutoPlayOff`, `AutoPauseOff`, `AutoRestartOff`,
   `AutoPlayNextOff`; for audio also `AudioAutoOff` and `AudioOn`. Found by the key the Bridge
   kept, else by `shortTitle`, reused when it is a `VideoList`, refused when that name is another
-  kind of input. Load also makes the players a production's cues need, so the vMix operator can
-  put them on a button before the show.
+  kind of input. A player appears in vMix at its first Take and stays, kept by key, so the vMix
+  operator puts it on a button once.
 
 ### Session, failure and security
 
@@ -480,12 +493,18 @@ and edition; nothing listening is `not-running`, a port that greets wrongly is `
 ### AC-2: One playout system per production, CasparCG unchanged
 
 `playoutSystem` answers `'casparcg'`, `'vmix'` or `null` for every stored output setup (CasparCG
-on, off and unset; a CasparCG destination; server cues; legacy activity; the account default;
-vMix on; vMix cues; the older `vmix` profile), proven by a Node test; storing one choice clears the
-other; every place that read `casparSwitch` reads the choice through it; and every CasparCG
-journey (`e2e/bridge-connect.spec.ts`, `e2e/playout-cues.spec.ts`, `e2e/playout-sequence.spec.ts`,
-`e2e/playout-clock.spec.ts`, `e2e/playout-folders.spec.ts`) passes with no change to the spec
-files, with nothing about vMix visible yet.
+on, off and unset; a CasparCG destination; CasparCG cues; vMix cues, counted by adapter; legacy
+activity; the account default; vMix on; the older `vmix` profile), proven by a Node test;
+`readOutputSetup` and `withCasparSwitch` keep `vmix`, and a round trip through
+`setShowOutputSetup` and the first-publish branch keeps a vMix choice (Node tests); a CasparCG or
+no choice stores exactly today's shape; the page reads its `casparOn` through it; and every
+journey that touches the playout panel or the stored setup passes with no change to its spec
+file: `e2e/bridge-connect.spec.ts`, `e2e/playout-cues.spec.ts`, `e2e/playout-sequence.spec.ts`,
+`e2e/playout-clock.spec.ts`, `e2e/playout-folders.spec.ts`, `e2e/publish-output-setup.spec.ts`,
+`e2e/studio-feedback.spec.ts`, `e2e/playout-feedback-health.spec.ts`, `e2e/playout-nav.spec.ts`,
+`e2e/productions.spec.ts`, the configured `panel-production-page`, `playout-status` and
+`publish-output-default` specs, and `scripts/output-setup.test.mjs` unchanged; nothing about vMix
+is visible yet.
 
 ### AC-3: Settings and pairing know vMix
 
@@ -558,8 +577,9 @@ audio files (by extension), one level at a time with `path`, with the length rea
 and WAV headers; a `path` with `..`, an absolute path, a drive letter or a link leading outside the
 folder is refused; the folder is the user's Videos folder until `/vmix/choose-folder` sets
 another from the picker, and survives a Bridge restart; no route takes a folder path from a page;
-nothing outside the folder is ever listed or played. On this laptop: the picker opens from the
-built exe and its choice is listed, or the Bridge-window fallback is built and recorded.
+nothing outside the folder is ever listed or played; a second picker request while one is open is
+answered without opening another. On this laptop: the picker opens from the built exe, visible
+over the browser, and its choice is listed, or the Bridge-window fallback is built and recorded.
 
 ### AC-10: vMix clip cues in the rundown
 
@@ -578,15 +598,18 @@ reading older than the last accepted action is ignored, as for CasparCG.
 
 ### AC-12: Trim, fades, the end and the level
 
-Against the fake vMix and its clock: a trimmed Take sets the in point before `Play`, and at the
-out point Hold pauses, Loop goes back to the in point and Clear removes; a fade in starts at alpha
-0 and volume 0 and reaches full alpha and the cue's level over the fade, one `SetAlpha` per frame
-and one `SetVolumeFade`; a fade out on Out or at a Clear ends at black and silence at its time; a
-level sends `SetVolume` by the measured curve, and above 0 dB `SetGain`; changing the ending while
-it plays works for trimmed and untrimmed clips; every step the Bridge sends by itself is dropped
-once the player's generation moved; the cue editor offers these controls for a vMix cue because
-`/status` lists `fade`, `trim` and `level`. On the real vMix 29: how close a Pause lands to an out
-point, a fade to black seen in Program snapshots, and `SetGain` at +6 dB, recorded.
+Against the fake vMix and its clock: a trimmed Take seeks to the in point only after the XML shows
+the new item selected, and reads back a position at or after it; at the out point Hold pauses,
+Loop goes back to the in point and Clear removes; an untrimmed clip set to Clear is removed once it
+reads `Completed`; a fade in starts at alpha 0 and volume 0 and reaches full alpha and the cue's
+level over the fade, one `SetAlpha` per frame and one `SetVolumeFade`; a fade out on Out or at a
+Clear ends at black and silence at its time; a gain sends `SetVolume` 100 x gain^(1/4) and
+`SetGain 0`, and above 1 `SetVolume 100` and `SetGain` in dB; changing the ending while it plays,
+arming a Clear included, works for trimmed and untrimmed clips; every step the Bridge sends by
+itself is dropped once the player's generation moved; the cue editor offers Clear, fades, trim and
+level for a vMix cue because `/status` lists `end`, `fade`, `trim` and `level`. On the real vMix
+29: how close a Pause lands to an out point, a fade to black seen in Program snapshots, the
+shape of a `SetVolumeFade` from full level, and `SetGain` at +6 dB, recorded.
 
 ### AC-13: Play next and folders
 
@@ -623,12 +646,15 @@ A checker re-runs the fake-based tests and the e2e journeys and reads the builde
 evidence; it starts vMix itself only when that evidence is missing or contradicts the code.
 
 1. **V1. One playout system per production, with no visible change** (AC-2). `playoutSystem` and
-   `vmix?` in `src/model/outputSetup.ts` with a Node test in `scripts/`; `casparOn` in
-   `src/components/home/ProductionPage.tsx` derived from it, and the other five readers
-   (`CueRundown.tsx`, `PlayoutSettingsDialog.tsx`, `RundownColors.tsx`, `src/control/playoutStatus.ts`,
-   `DefaultOutputPreference.tsx`) moved onto it where they read the switch; `withCasparSwitch`
-   storing the one choice. No UI for vMix, no Bridge change, no e2e spec file changed:
-   the CasparCG journeys listed in AC-2 are the guard and run in the pull request's CI.
+   `vmix?` in `src/model/outputSetup.ts` (`readOutputSetup` keeps it, `withCasparSwitch` keeps it
+   when CasparCG goes off, a choice setter stores the one choice), with a new Node test
+   `scripts/playout-system.test.mjs`; in `src/components/home/ProductionPage.tsx`, `casparOn`
+   derived from it with cues counted by adapter, and the first-publish branch and
+   `wantsAccountDefault` keeping a vMix choice. The components that take `casparOn` as a prop
+   (`CueRundown.tsx`, `PlayoutSettingsDialog.tsx`, `RundownColors.tsx`, `src/control/playoutStatus.ts`)
+   and `DefaultOutputPreference.tsx` stay unchanged. No UI for vMix, no Bridge change, no existing
+   test file changed: the journeys and tests listed in AC-2 are the guard and run in the pull
+   request's CI.
 2. **V2. vMix in Settings and on the production, and the first Bridge download** (AC-3, AC-4,
    AC-5, AC-6; the review also records AC-1 from `evidence/slice-1.md`; **real vMix**: whether
    the XML names a Browser input's address, then the built exe with Load and Unload from the dev
@@ -638,7 +664,9 @@ evidence; it starts vMix itself only when that evidence is missing or contradict
    setup sentences, the row's words) with `scripts/vmix-playout.test.mjs`,
    `src/components/PlayoutSettingsPanel.tsx` with a new `VmixSettingsSection.tsx`,
    `src/components/home/PlayoutPanel.tsx` (`VmixSection`), `src/components/home/ProductionPage.tsx`
-   (wiring only, no new logic), `src/components/BridgePairPage.tsx`, `src/control/playoutStatus.ts`,
+   (wiring only, no new logic), `src/components/home/CueRundown.tsx` (the reason a CasparCG cue
+   is disabled when vMix is chosen; today it says to switch CasparCG on),
+   `src/components/BridgePairPage.tsx`, `src/control/playoutStatus.ts`,
    `e2e/_fakeBridge.ts` and the vMix journeys in `e2e/bridge-connect.spec.ts`,
    `cli/src/playout/adapters/vmix.ts`, a new `cli/src/playout/vmixOutputs.ts` (the kept keys),
    `cli/test/_fakeVmix.mjs` and `cli/test/vmix.test.mjs` (the output identity only),
@@ -663,7 +691,9 @@ evidence; it starts vMix itself only when that evidence is missing or contradict
    `src/components/home/ServerCueEditor.tsx` (where it plays), `src/control/serverPlayout.ts` and
    `src/control/playoutLink.ts` (the item's target and slot from its adapter),
    `src/control/cuePlayback.ts` (the capability gating for vMix), `src/components/home/ProductionPage.tsx`
-   (wiring only), the media folder line and **Choose folder…** in `VmixSettingsSection.tsx`,
+   (wiring only; its two CasparCG-only lookups, the media-facts backfill through
+   `listLibrary(…, 'media')` and the readiness check for missing server files, ask the item's own
+   target), the media folder line and **Choose folder…** in `VmixSettingsSection.tsx`,
    `e2e/_fakeBridge.ts` and a vMix journey in `e2e/playout-cues.spec.ts`, `evidence/phase-v4.md`.
    No release: without the clock (V5) a vMix clip is not yet usable on air.
 5. **V5. The clip clock, the reload, and the second download** (AC-6, AC-11). Files:
@@ -712,7 +742,7 @@ start template:
 ```
 
 **Estimate:** about 2 to 3 hours each for V1, V4 and V5, 3 to 4 hours each for V2, V3, V6 and V7
-(real vMix, and three of them a release), and 2 hours for V8, each with its check: 22 to 28 hours
+(real vMix, and three of them a release), and 2 hours for V8, each with its check: 20 to 27 hours
 of run time, so two windows (the plan-run ceiling is 24 hours), V1 to V4 and V5 to V8. It must
 finish before the trial ends (about 2026-11-28).
 
@@ -787,5 +817,8 @@ the check's findings.
 - From the plan's review: the studio's state path is keyed by CasparCG channel and layer
   (`serverState.ts` `applyReading`, `playoutSlots.ts`, the page's poll), which is why V5 exists
   apart from V4; a protocol change to `VmixSlot` reaches `playoutSlots.ts` already in V3.
-- Loop and Auto Next are settings of the list input, not of an item, and so are alpha and volume:
-  a Take that does not set them inherits the last cue's.
+- Loop and Auto Next are settings of the list input, not of an item, and so are alpha, volume and
+  gain: a Take that does not set them inherits the last cue's.
+- The page sends a level as a linear gain (`MediaPlayback.gain`), never dB.
+- `SetVolumeFade` moves the fader linearly, which is a fourth-power fade in gain: a different shape
+  from CasparCG's. V6 records it and decides whether the Bridge steps the volume itself instead.
