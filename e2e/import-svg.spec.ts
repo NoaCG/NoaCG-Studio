@@ -288,50 +288,6 @@ test('svg import: overflow-only text fit — a long value shrinks, a short one s
   await expect(name).toHaveCSS('font-size', drawnSize);
 });
 
-test('svg import: sanitizer — script, handlers, foreignObject, SMIL and network refs never reach the template', async ({ page }) => {
-  skipOldEditor();
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
-      <script>alert('never')</script>
-      <foreignObject x="0" y="0" width="100" height="100"><div>html</div></foreignObject>
-      <rect x="0" y="0" width="400" height="200" fill="#111" onload="alert('never')"/>
-      <image href="https://evil.example/logo.png" x="0" y="0" width="50" height="50"/>
-      <text id="Headline" x="20" y="100" font-size="30" fill="#fff">Breaking
-        <animate attributeName="opacity" values="0;1" dur="1s" repeatCount="indefinite"/>
-      </text>
-    </svg>`,
-  );
-
-  // The import says what it removed rather than silently altering the file.
-  const card = page.getByTestId('import-svg-card');
-  await expect(card).toContainText('Script code inside the SVG was removed');
-  await expect(card).toContainText('foreignObject block was removed');
-  await expect(card).toContainText('SVG-native (SMIL) animation was removed');
-  await expect(card).toContainText('References to files on the internet were removed');
-
-  await finishIntoNewEditor(page);
-
-  const verdict = await page.evaluate(async () => {
-    const [{ useTemplateStore }, { validateTemplate }] = await Promise.all([
-      import('/src/store/templateStore.ts'),
-      import('/src/validation/validateTemplate.ts'),
-    ]);
-    const t = useTemplateStore.getState().template;
-    const v = validateTemplate(t);
-    return { html: t.html, ok: v.ok, errors: v.errors.map((e) => e.rule) };
-  });
-  const svgMarkup = verdict.html.match(/<svg[\s\S]*?<\/svg>/i)![0];
-  expect(svgMarkup).not.toContain('<script');
-  expect(svgMarkup).not.toContain('foreignObject');
-  expect(svgMarkup).not.toContain('onload');
-  expect(svgMarkup).not.toContain('evil.example');
-  expect(svgMarkup).not.toContain('<animate');
-  // …and the export gate agrees (its own SVG checks re-verify what the importer stripped).
-  expect(verdict.errors).toEqual([]);
-  expect(verdict.ok).toBe(true);
-});
-
 test('svg import: outlined text gets the honest answer, and still imports as a fixed graphic', async ({ page }) => {
   await dropSvgMarkup(
     page,
@@ -432,63 +388,10 @@ test('svg import: a picture layer binds as a filelist field — swap by value, e
   await expect(frame.locator('#f4')).toHaveAttribute('href', /^data:image\/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNg/);
 });
 
-test('svg import: the f: layer-name prefix names a field without switching the others off', async ({ page }) => {
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
-      <text id="f_x3A_Name" x="20" y="80" font-size="30" fill="#fff">Alexandra Riva</text>
-      <text id="Watermark" x="20" y="180" font-size="10" fill="#666">station ident</text>
-    </svg>`,
-    'prefixed.svg',
-  );
-  await page.locator('.wz-next').click();
-
-  // The prefix names the field (it is stripped from the label) and guarantees it is on. It is
-  // NOT a filter: one layer exported as `f:Name` used to turn every unmarked text OFF, which
-  // read as detection having missed them — the owner's first walk found six of seven rows
-  // unticked on a scorebug whose only marked layer was the competition strap. Unticking one
-  // row costs a click; finding six that were never offered costs the feature.
-  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Name');
-  await expect(page.getByTestId('map-svg-row-t0').locator('input[type=checkbox]')).toBeChecked();
-  await expect(page.getByTestId('map-svg-row-t1').locator('input[type=checkbox]')).toBeChecked();
-});
-
-test('svg import: the static: prefix says a text layer is DRAWING, and its words stay drawn', async ({ page }) => {
-  // The opposite of `f:`, and the answer to the numerals trap: a top ten's ranks and a bingo
-  // grid's numbers are furniture a student typed, and every one of them used to arrive as a
-  // ticked field to untick, two clicks each
-  // (https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/decorative-numerals-arrive-as-fields.md). The row is still OFFERED - unticked,
-  // words kept - because the one numeral that really is a field is then a single click away.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200">
-      <text id="static_x3A_Rank" data-name="static:Rank" x="20" y="60" font-size="30" fill="#8a8f98">10.</text>
-      <text id="Item" x="90" y="60" font-size="30" fill="#fff">The buzzer is a kazoo</text>
-    </svg>`,
-    'ranked.svg',
-  );
-  await page.locator('.wz-next').click();
-
-  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Rank');
-  await expect(page.getByTestId('map-svg-row-t0').locator('input[type=checkbox]')).not.toBeChecked();
-  await expect(page.getByTestId('map-svg-off-t0')).toHaveText('stays as drawn');
-  await expect(page.getByTestId('map-svg-row-t1').locator('input[type=checkbox]')).toBeChecked();
-
-  await finishIntoNewEditor(page);
-
-  // ONE field, and the numeral is still on the artwork: drawn, unbound, its words intact.
-  const state = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    const t = useTemplateStore.getState().template;
-    return { fields: t.fields.map((f) => `${f.field}:${f.title}`), html: t.html };
-  });
-  expect(state.fields).toEqual(['f0:Item']);
-  // Matched across the formatter's line breaks: the emitted template is Prettier-printed, so a
-  // <text> with several attributes has its words on their own line.
-  expect(state.html).toMatch(/<text\b[^>]*data-name="static:Rank"[^>]*>\s*10\.\s*<\/text>/);
-  expect(state.html).not.toMatch(/<text[^>]*id="f1"/);
-});
-
+// What the reader alone decides (prefixes, numbering, hidden and symbol text, the sanitizer, font
+// names) is pinned in seconds by scripts/svg-import-passes.test.mjs, not walked here; the
+// `## Test maintenance` lines of docs/work-specs/svg-import-engine/spec.md say which record holds
+// each. The walks below keep what needs the step, the preview or a hand.
 test('svg import: a layer named after its own words keeps that name unless the group names it alone', async ({ page }) => {
   // Figma auto-names every text layer after the words in it, so climbing to the group above is
   // right there - and wrong for a designer who deliberately named a slot after its placeholder
@@ -519,78 +422,6 @@ test('svg import: a layer named after its own words keeps that name unless the g
 
   // Untouched by any of it: a layer whose name is not its own words.
   await expect(page.getByTestId('map-svg-title-t2')).toHaveValue('Runner up');
-});
-
-test('svg import: kerning a Figma text layer does not turn its wrapper into a group of many', async ({ page }) => {
-  // The evidence is TEXT LAYERS, not candidate rows, and one <text> can raise several rows: two
-  // labels far apart on one baseline are two fields (see the kerned-headline case above). Counting
-  // rows would read this wrapper as holding two layers, refuse the climb, and label both boxes
-  // "HelsinkiLive" - the very Figma defect the climb exists to prevent, brought back by kerning.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300">
-      <g id="Venue"><text id="HelsinkiLive" font-size="24" fill="#fff"><tspan x="40" y="120">Helsinki</tspan><tspan x="300" y="120">Live</tspan></text></g>
-    </svg>`,
-    'kerned-figma.svg',
-  );
-  await page.locator('.wz-next').click();
-
-  // Two rows out of one text layer, and the group still names them both.
-  await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('Helsinki');
-  await expect(page.getByTestId('map-svg-sample-t1')).toHaveValue('Live');
-  // The <text> is named after its own words (Figma's default), so the wrapper names it - and it
-  // is ONE layer however many runs the kerning left, so the wrapper's name still wins.
-  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Venue');
-  await expect(page.getByTestId('map-svg-title-t1')).toHaveValue('Venue 2');
-  await expect(page.getByTestId('map-svg-named-by-group-t0')).toBeVisible();
-});
-
-test('svg import: an Inkscape file is labelled by its layer names, not its serial ids', async ({ page }) => {
-  // Illustrator and Figma write the layer's NAME into `id`; Inkscape writes a serial number
-  // there ("text123") and keeps the name in `inkscape:label`. Read the id first and every row
-  // reads "text123" — the one word the designer chose, on the layer ABOVE, never surfaces.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 400 200">
-      <g inkscape:groupmode="layer" id="layer1" inkscape:label="Presenter name">
-        <text id="text123" x="20" y="80" font-size="30" fill="#fff"><tspan id="tspan124" x="20" y="80">Alexandra Riva</tspan></text>
-      </g>
-      <g inkscape:groupmode="layer" id="layer2" inkscape:label="Role">
-        <text id="text125" x="20" y="140" font-size="18" fill="#b7bcc4">Chief Correspondent</text>
-      </g>
-    </svg>`,
-    'inkscape.svg',
-  );
-  await page.locator('.wz-next').click();
-
-  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Presenter name');
-  await expect(page.getByTestId('map-svg-title-t1')).toHaveValue('Role');
-});
-
-test('svg import: text a designer switched off, or parked in a symbol, is never offered as a field', async ({ page }) => {
-  // Two ways a file carries copy nobody can see: a HIDDEN layer (a draft the designer turned
-  // off, exported as display:none) and a DEFINITION (<symbol>/<defs>, which paints only where
-  // a <use> copies it — so binding the original by id is not a promise this import can keep).
-  // Both used to arrive as operator fields for invisible text.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
-      <defs><symbol id="Badge"><text id="In_x20_symbol" x="0" y="0">Never shown</text></symbol></defs>
-      <g id="Old_x20_draft" style="display:none"><text id="Draft_x20_copy" x="20" y="40">Draft copy</text></g>
-      <g id="Retired" display="none"><text id="Retired_x20_line" x="20" y="60">Retired line</text></g>
-      <use href="#Badge" x="300" y="20"/>
-      <text id="Headline" x="20" y="120" font-size="30" fill="#fff">Alexandra Riva</text>
-    </svg>`,
-    'hidden-layers.svg',
-  );
-
-  await expect(page.getByTestId('import-svg-layers')).toContainText('1 text layer');
-  // The symbol's text is DRAWN by the <use> below it, so the file says why it is not a field —
-  // silence there reads as a layer the import simply missed.
-  await expect(page.getByTestId('import-svg-card')).toContainText('reusable symbol');
-  await page.locator('.wz-next').click();
-  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Headline');
-  await expect(page.getByTestId('map-svg-row-t1')).toHaveCount(0);
 });
 
 test('svg import: a kerned headline is ONE field, and two labels on one baseline are two', async ({ page }) => {
@@ -827,119 +658,6 @@ test('svg import: a wrapping block keeps the LEADING the designer set', async ({
   expect(step.dy).toBeCloseTo(50, 0);
 });
 
-test('svg import: layer names that repeat are numbered, so no two fields read the same', async ({ page }) => {
-  // A layer name is a designer's private note; it becomes an OPERATOR'S label. Three rows
-  // reading "Name" is a control page nobody can use without clicking each one.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240">
-      <g id="Name"><text x="20" y="60" font-size="24" fill="#fff">Alexandra Riva</text></g>
-      <g id="Name" data-name="Name"><text x="20" y="110" font-size="24" fill="#fff">Jonas Berg</text></g>
-      <g id="Role"><text x="20" y="160" font-size="18" fill="#b7bcc4">Correspondent</text></g>
-    </svg>`,
-    'repeated-names.svg',
-  );
-  await page.locator('.wz-next').click();
-
-  await expect(page.getByTestId('map-svg-title-t0')).toHaveValue('Name');
-  await expect(page.getByTestId('map-svg-title-t1')).toHaveValue('Name 2');
-  // A name that appears once is left exactly as the designer wrote it.
-  await expect(page.getByTestId('map-svg-title-t2')).toHaveValue('Role');
-});
-
-test('svg import: text on a path binds the path run, and keeps its curve when an operator types', async ({ page }) => {
-  skipOldEditor();
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
-      <defs><path id="curve" d="M20 150 Q200 40 380 150"/></defs>
-      <text id="Arc" font-size="24" fill="#fff"><textPath href="#curve">Around the bend</textPath></text>
-    </svg>`,
-    'text-on-path.svg',
-  );
-  await page.locator('.wz-next').click();
-  await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('Around the bend');
-  await finishIntoNewEditor(page);
-
-  // The field id is on the <textPath>, not the <text>: update() writes textContent, and writing
-  // it on the <text> would REPLACE the textPath element — the first typed word would straighten
-  // the curve the designer drew. The check is the live document, after an update.
-  const shape = await page.evaluate(async () => {
-    const [{ useTemplateStore }, { validateTemplate }] = await Promise.all([
-      import('/src/store/templateStore.ts'),
-      import('/src/validation/validateTemplate.ts'),
-    ]);
-    const t = useTemplateStore.getState().template;
-    const doc = new DOMParser().parseFromString(t.html, 'text/html');
-    const bound = doc.getElementById('f0');
-    return {
-      tag: bound?.tagName.toLowerCase() ?? null,
-      href: bound?.getAttribute('href') ?? null,
-      errors: validateTemplate(t).errors.map((e) => e.rule),
-    };
-  });
-  expect(shape.tag).toBe('textpath');
-  expect(shape.href).toBe('#curve');
-  // …and the export gate reads that binding as bound (rule 'svg-binding' checks the id exists).
-  expect(shape.errors).toEqual([]);
-});
-
-test('svg import: a wrapped source line becomes one clean sample, unless the file preserved it', async ({ page }) => {
-  // A pretty-printed export wraps a long line across several SOURCE lines. The renderer
-  // collapses that whitespace and nothing on screen shows it — but the raw text becomes the
-  // FIELD'S DEFAULT VALUE, where a run of newlines and indentation is real.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
-      <text id="Body" x="20" y="80" font-size="20" fill="#fff">
-        Breaking news from
-        the capital
-      </text>
-      <text id="Spaced" xml:space="preserve" x="20" y="140" font-size="20" fill="#fff">A   B</text>
-    </svg>`,
-    'wrapped-source.svg',
-  );
-  await page.locator('.wz-next').click();
-
-  await expect(page.getByTestId('map-svg-sample-t0')).toHaveValue('Breaking news from the capital');
-  // …and a file that asked for its spacing to be literal keeps it.
-  await expect(page.getByTestId('map-svg-sample-t1')).toHaveValue('A   B');
-});
-
-test('svg import: a PostScript font name finds the bundled face, and ships under its own name', async ({ page }) => {
-  skipOldEditor();
-  // Illustrator writes PostScript names, so a file set in Archivo Bold asks for "Archivo-Bold".
-  // Matched literally that finds nothing, and the graphic goes to air in a substitute face.
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
-      <text id="Name" x="20" y="90" font-size="34" font-family="Archivo-Bold" fill="#fff">Alexandra Riva</text>
-      <text id="Role" x="20" y="140" font-size="20" font-family="JetBrainsMono-Regular" fill="#b7bcc4">Correspondent</text>
-    </svg>`,
-    'postscript-fonts.svg',
-  );
-  await page.locator('.wz-next').click();
-
-  // Both rows resolve, and each says WHICH bundled face it is — the design never mentions
-  // "Archivo" anywhere, so a bare tick would be a claim the reader cannot check.
-  await expect(page.getByTestId('map-svg-font-ok-Archivo-Bold')).toContainText('(Archivo)');
-  await expect(page.getByTestId('map-svg-font-ok-JetBrainsMono-Regular')).toContainText('(JetBrains Mono)');
-  await expect(page.getByTestId('map-svg-font-warn-Archivo-Bold')).toHaveCount(0);
-
-  await finishIntoNewEditor(page);
-
-  // The @font-face is declared under the name the ARTWORK asks for, over the bundled file: a
-  // face declared as "Archivo" answers nothing in an SVG whose own CSS says "Archivo-Bold".
-  const css = await page.evaluate(async () => {
-    const { useTemplateStore } = await import('/src/store/templateStore.ts');
-    return useTemplateStore.getState().template.css;
-  });
-  expect(css).toContain('font-family: "Archivo-Bold"');
-  expect(css).toContain('fonts/archivo.woff2');
-  expect(css).toContain('font-family: "JetBrainsMono-Regular"');
-  expect(css).not.toContain('UNRESOLVED');
-});
-
 test('svg import: the Google door is offered only for a family Google actually has', async ({ page }) => {
   // A licensed face is not on Google, so the button's only outcome there is an error — which
   // reads as the product being broken rather than as the font being private. The family list is
@@ -1016,22 +734,6 @@ test('svg import: outline rows are ranked — a word of glyphs leads, an icon is
   // measured as, so the reader can skip it.
   await expect(page.getByTestId('map-svg-outline-artwork-o0')).toBeVisible();
   await expect(page.getByTestId('map-svg-outline-artwork-o1')).toHaveCount(0);
-});
-
-test('svg import: Inkscape flowed text is called out, since no browser draws it', async ({ page }) => {
-  await dropSvgMarkup(
-    page,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
-      <flowRoot id="flowRoot10"><flowRegion><rect x="20" y="20" width="200" height="60"/></flowRegion><flowPara id="flowPara12">Paragraph copy</flowPara></flowRoot>
-      <text id="Headline" x="20" y="120" font-size="30" fill="#fff">Alexandra Riva</text>
-    </svg>`,
-    'flowed.svg',
-  );
-
-  // The copy is already missing from the picture before we look at it, so the card says so and
-  // names the fix rather than leaving a designer hunting for a lost paragraph.
-  await expect(page.getByTestId('import-svg-card')).toContainText('flowed text');
-  await expect(page.getByTestId('import-svg-card')).toContainText('Convert to Text');
 });
 
 test('svg import: the export door ships the bound SVG unchanged through the gate', async ({ page }) => {

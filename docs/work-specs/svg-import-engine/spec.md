@@ -561,11 +561,130 @@ Registered under "Runnable plans" in `.agent-workflows/plan-run.md`. The owner s
 answered with one question for it. Phase 7 is optional: the coordinator asks before launching it
 only if the owner's start prompt did not already say.
 
+## Test maintenance
+
+Phase 7, 2026-10-14. Each line is one test retired from `e2e/import-svg.spec.ts`, by its title,
+and what guards its behaviour now. "Record" means a record of `scripts/fixtures/svg-corpus-passes.json`,
+compared on every run of `scripts/svg-import-passes.test.mjs`. "Sidecar" means the corpus file's
+`.expect.json`. That run cross-checks its `textFields`, `textLabels` and counts, but not its
+`noticeAbout`, which only the nightly sweep scores. So where a line cites a notice, the guard is
+the `inventory` record, which holds every notice word for word. A `reading` is one of that
+harness's `READINGS`: the retired test's own file, put through the same `RECORD` as every corpus
+file and then the export gate (`validateTemplate`), with the walk's assertions as the `expect`
+beside it. A reading is used where no corpus file is drawn in the shape. Receipt: the phase 7 notes below, with a probe per line that
+breaks the rule and shows the guard failing.
+
+- e2e/import-svg.spec.ts: "sanitizer — script, handlers, foreignObject, SMIL and network refs never reach the template" (skipped since #800): reading `sanitizer` (all five notices said; no script, handler, foreignObject, external href or animate in the bound svg; the export gate accepts it); records `inventory` (the notices) and `bind` of effects-external-ref-and-script, illustrator-save-as-foreignobject and effects-smil-animated-bug, sidecars `textLabels`
+- e2e/import-svg.spec.ts: "the f: layer-name prefix names a field without switching the others off": reading `f-prefix` (row t0 titled Name and on, row t1 on); no corpus file is drawn with the prefix
+- e2e/import-svg.spec.ts: "the static: prefix says a text layer is DRAWING, and its words stay drawn": reading `static-prefix` (row t0 titled Rank and off, row t1 on, the template's one field f0:Item, the numeral's words still in the bound svg and unbound); no corpus file is drawn with the prefix
+- e2e/import-svg.spec.ts: "kerning a Figma text layer does not turn its wrapper into a group of many": reading `kerned-figma-wrapper` (two rows Helsinki and Live titled Venue and Venue 2, t0 named by its group); the badge that says so on the row stays walked by "a layer named after its own words keeps that name unless the group names it alone"
+- e2e/import-svg.spec.ts: "an Inkscape file is labelled by its layer names, not its serial ids": record `fieldList` of inkscape-lower-third-layers (row 3, serial `text847` in layer "Copy", titled Copy) and of inkscape-text-on-path-bumper, inkscape-hidden-state-layers-quiz and inkscape-millimetre-scorebug, sidecars `textLabels`
+- e2e/import-svg.spec.ts: "text a designer switched off, or parked in a symbol, is never offered as a field": reading `hidden-and-symbol-text` (one text layer, Headline, past a `style="display:none"` layer, a `display="none"` layer and symbol text, which a notice names); records `inventory` and `fieldList` of inkscape-hidden-state-layers-quiz and illustrator-save-as-quiz-board (`style="display:none"`, `visibility:hidden`), illustrator-four-team-scoreboard and illustrator-question-timer-board (Illustrator's `.st10{display:none}` class rule) and effects-symbol-library-ticker (symbol text, and its notice in `inventory`), sidecars `textFields` and `textLabels`
+- e2e/import-svg.spec.ts: "layer names that repeat are numbered, so no two fields read the same": record `fieldList` of figma-duplicate-ids-scorebug, illustrator-internal-css-lower-third and illustrator-save-as-quiz-board, sidecars `textLabels` (Team 2 and Score 2, Name 2, Letters 2 to 4)
+- e2e/import-svg.spec.ts: "text on a path binds the path run, and keeps its curve when an operator types" (skipped since #800): reading `text-on-path` (the walk's own SVG 2 `href` form: `f0` on the `<textPath>`, `href` kept, the export gate accepts it); records `inventory` and `bind` of inkscape-text-on-path-bumper (the same with Inkscape's `xlink:href`), sidecar `textLabels`
+- e2e/import-svg.spec.ts: "a wrapped source line becomes one clean sample, unless the file preserved it": reading `wrapped-source-line` (samples "Breaking news from the capital" and "A   B"); no corpus file wraps a sample across source lines
+- e2e/import-svg.spec.ts: "a PostScript font name finds the bundled face, and ships under its own name" (skipped since #800): records `fieldList` (fonts matched to archivo and jetbrains-mono) and `fontCss` (`@font-face` declared as "Archivo-Bold" and "JetBrainsMono-Regular" over the bundled files, no unresolved note) of illustrator-rotated-sidebar-strip, and of affinity-point-sized-nameplate for Archivo-Bold and Inter-Medium. The step's font row wording ("(Archivo)") was guarded only by this skipped walk, before and after; import-svg-corpus.spec.ts still walks a resolved PostScript row (`map-svg-font-ok-Archivo-SemiBold`, `-Inter-Regular`)
+- e2e/import-svg.spec.ts: "Inkscape flowed text is called out, since no browser draws it": record `inventory` of inkscape-flowed-text-card (its notice naming flowed text and Convert to Text, word for word), sidecar `textLabels`
+
 ## Phase notes
 
 Each phase's pull request adds here what the next phase must allow for, newest first: the previous
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
+
+### Phase 7: coverage moves (build, 2026-10-14)
+
+- **Last check's findings (phase 6, check 2, PASS):** the neighbour rung is independent and
+  holds on 10 of 11 files, the margin rung on 20 of 20 (vertically 0 reach the limit, #1153),
+  the mirror compares 138 of 141 lines. Nothing in it changes this phase.
+- **Main before:** `591213fcaa68d252f262d9647694fcefce783deb` (the merge of #1178, another plan's).
+  Merge sha: the queue's merge of this pull request. Revert: `git revert -m 1 <merge sha>` on its
+  own branch through `/check` and `/queue-merge`. It brings the eleven walks back and takes the
+  readings out of the harness. No product file changed.
+- **What was found first: most of `import-svg.spec.ts` is not running.** Its `createProject`
+  calls `switchToAdvancedMode`, which since #800 skips the calling test. So 38 tests that create
+  a project are skipped, and so are 9 more that call `skipOldEditor()` themselves. Of the 100
+  declarations 53 run, which is 54 tests because the checklist test runs at two sizes (CI
+  merge_group: `import-svg` 54). The brief named two of them
+  (1070, the fitSvgText marker, and 1782, the same ladder). Most of the growth and ladder walks
+  in this file are skipped the same way. That is why "don't retire what only a skipped test
+  guards" decided several of the calls below.
+- **Retired, 11** (each has its own line under `## Test maintenance`): 8 that ran (the `f:` and
+  `static:` prefixes, kerning under a Figma wrapper, Inkscape layer labels, hidden and symbol
+  text, numbering of repeats, a wrapped source line, flowed text) and 3 skipped since #800 whose
+  behaviour the harness now carries (the sanitizer, text on a path, PostScript font names).
+  `import-svg.spec.ts` goes from 100 declarations to 89, and from 54 running tests to 46. The saving is
+  their walk time, about 3 s each at the file's average (5.07 recorded minutes over about 100
+  tests), so roughly half a minute. The recorded minutes fall at the next
+  `e2e-durations-refresh` and were not edited by hand.
+- **Departure from the brief, and why.** The brief says to retire what the harness snapshot
+  carries, naming a record and a sidecar. For five of the behaviours no corpus file is drawn in
+  the shape the walk tested: the `f:` prefix, the `static:` prefix, kerned runs under a Figma
+  wrapper, a sample wrapped across source lines, and an event-handler attribute or a bare
+  `display="none"`. So the snapshot does not carry them. Keeping the five walks would keep CI
+  slower to protect rules a blank page proves in milliseconds. Adding them to the corpus would
+  break its rule (honest exporter artwork, written from a designer's promise) and add them to
+  the corpus walk's minutes. Instead, the harness gained `READINGS`: each walk's own file
+  verbatim, run through the corpus's own `RECORD` (read, draft, the step's measurements, build,
+  place, mount), with the walk's assertions as an `expect` beside it. That `expect` stands in for a sidecar, and the maintenance line names the
+  reading. Each reading also goes through the export gate, as the walks that finished a graphic
+  did. Readings are asserted, never written to the snapshot. There are seven
+  readings. The sanitizer, hidden-text and text-on-path walks have both a reading and corpus
+  records. The text-on-path walk needed one for its SVG 2 `href`, because the corpus has only
+  Inkscape's `xlink:href`.
+- **Kept, with the reason** (nothing about growth, the ladder, gestures or the preview moved):
+  - "mapping — labels from layer names, all on by default, edits carried to the template"
+    (skipped, #800). The corpus carries the labels, but not the edits carried to the template,
+    the font rows or `update()`.
+  - "a layer named after its own words keeps that name unless the group names it alone". It is
+    the only walk of the row's `map-svg-named-by-group` badge.
+  - "a kerned headline is ONE field, and two labels on one baseline are two". The reader half
+    is carried (illustrator-kerned-headline), but the merged field keeping its place through
+    `update()` is read in the preview.
+  - "a question typed with hard returns is ONE field that NoaCG wraps" (skipped, #800). The
+    reader half is carried (illustrator-quiz-board-multiline), but the rest is the ladder
+    wrapping at the drawn size inside the card.
+  - "outline rows are ranked — a word of glyphs leads, an icon is badged artwork". Its only
+    other guard is 1070, skipped since #800. The corpus's outlined file is itself a finding
+    (`figma-outline-text-title-card: 0 outline rows, sidecar 2`), so no record carries the
+    ranking. Noted on #800.
+  - "the tracking the designer set survives the import untouched" (skipped, #800). It reads the
+    preview's computed style.
+  - "outlined text gets the honest answer", "the Google door", "the Finish step names a
+    typeface". These are the step's and Finish's own words, not the transform.
+- **Proof that each guard bites** (each break made with `sed` in this worktree, the harness run,
+  then `git checkout --` the file; the tree clean after):
+
+  | Break in `src/` | What fails |
+  |---|---|
+  | `stripFieldPrefix` keeps the `f:` in the label | reading `f-prefix` only |
+  | `f:` turns every unmarked row off (`on: ... && (c.marked \|\| !any marked)` in `draft.ts`) | reading `f-prefix` only |
+  | `static:` no longer marks drawing | reading `static-prefix` only |
+  | `candidateName` never names from the group | reading `kerned-figma-wrapper` only |
+  | `candidateSample` stops collapsing whitespace | reading `wrapped-source-line` only |
+  | an event handler is counted but not removed | reading `sanitizer` only (the export gate refuses the template first) |
+  | the `display="none"` attribute no longer hides | reading `hidden-and-symbol-text` only |
+  | a single `<textPath>` no longer bound | reading `text-on-path`, and `inventory` and `bind` of inkscape-text-on-path-bumper |
+  | `layerName` ignores `inkscape:label` | sidecar labels of inkscape-lower-third-layers (row 3 "Text 3", sidecar "Copy"), inkscape-hidden-state-layers-quiz, inkscape-millimetre-scorebug, inkscape-flowed-text-card |
+  | `HIDES` matches nothing | sidecar counts: illustrator-four-team-scoreboard 14 fields ON against 9, illustrator-question-timer-board 5 against 3, illustrator-save-as-quiz-board 6 against 5 |
+  | `numberRepeats` not called | sidecar labels of figma-duplicate-ids-scorebug ("Team", sidecar "Team 2"), illustrator-internal-css-lower-third, illustrator-save-as-quiz-board; `fieldList` and `fields` records |
+  | `symbol` dropped from `NON_RENDERED_TAGS` | effects-symbol-library-ticker: 3 fields ON against 2, and its `inventory`, `fieldList`, `bind` records |
+  | `fontLookup` never cuts a PostScript suffix | `fieldList` and `fontCss` of illustrator-rotated-sidebar-strip (`fontId: "archivo" -> null`, the `@font-face` blocks replaced by `UNRESOLVED FONTS: Archivo-Bold, JetBrainsMono-Regular`), and of every Archivo-Bold file |
+  | the flowed-text notice not pushed | `inventory` of inkscape-flowed-text-card |
+
+- **Run time:** the harness ran 51 files and 601 records in 13.8 s in this cloud container; the seven
+  readings add milliseconds. `check:e2e-protection`: OK, 11 declarations fewer, covered by the
+  entries.
+- **A trap in this container, not a finding:** on unchanged `main` the harness here disagrees with
+  the committed snapshot: `nested-svg-sub-artboard` in `step`, `bind`, `layout` and `emit`, the
+  `runtime` record on 11 files, and so 4 findings instead of the recorded 5. This branch shows
+  the same set. CI's Linux runner is the record's authority (`RUNTIME_PINNED`), and its factory
+  job decides this pull request. The difference is the container's own rendering (the step's
+  growth default on that file moves with measured text), and the next builder in a cloud
+  session should expect it.
+- **Findings (D10):** none new. The snapshot and its `findings` are unchanged.
+- **#800:** commented there: the three skipped walks that left its list and what carries them
+  now, and the ones kept because a skipped test was their only other guard.
 
 ### Phase 6: rungs and the mirror gate (check 2, 2026-10-14)
 
