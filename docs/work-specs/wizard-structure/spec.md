@@ -681,7 +681,7 @@ and the check's findings. The AI track's notes live in its own spec.
 - **Shas:** previous verified `main` `d8c967270`. Fix pull requests, landed one after another,
   each from `main` after the one before: #1146 `e47c39627` (S1), #1149 `ef2ca46ee` (S1b's
   Continue), #1151 `2fee11e04` (S2), #1154 `cc888e7d0` (S3), #1155 `1b00addc0` (S5, the format
-  Change), #1158 `PR6SHA` (R7). This phase's own pull request carries the evidence, the
+  Change), #1158 `1f7d994a0` (R7). This phase's own pull request carries the evidence, the
   characterisation tests and these notes; its merge sha is the one the queue records.
   **Revert:** `git revert -m 1` the merge commit of a fix to restore that defect (each is one
   hunk group in `CreationWizard.tsx` plus its journey); this phase's own pull request adds only
