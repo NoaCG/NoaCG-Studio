@@ -359,6 +359,59 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
 
+### A4. Folder move (built 2026-10-14)
+
+- **Check's findings (A3 check, main `9f89075c3`):** merge-group run 38545131904 green, the
+  counts equal to the A2 check's; `ai-creation` 33 of 33 on CI and locally; AC-14 holds (17 Pro
+  symbols used, a line-by-line move, `tsc` strict with `proMode` false); the pro-status request
+  count unchanged; the adapt-first shortlist test passes with its skip removed; budget 1,659 of
+  1,659; D5 holds. Carried: `StyleStep.tsx` was in A3's `src` diff (the unused `pickerHex`
+  definition removed, within the row's intent); `keepChassisZone` is not pinned (a surviving
+  mutant); rebuild has no live e2e while `adapt-first` is skipped (#800), though its shortlist
+  test could be revived alone; stale spec text for A5: section 2's signatures, and section 4's
+  rebuild progress "none" (it shows "Rebuilding on that design...").
+- **Shas:** previous verified `main` `a5992ed97`; built on `claude/plan-wizard-ai-p4-build`; the
+  merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge commit, then
+  `npm run contracts:compile -- --prune` and commit what it changes.
+- **What landed** (`evidence/phase-4.md`): the step and `steps/ai/*` (ProPanel included) under
+  `src/components/wizard/ai/` by `git mv`, imports only; `steps/AiStep.tsx` a one-line
+  re-export; the marker `wizard/ai/AGENTS.md` (23 rules) and its generated `.gitattributes`;
+  `steps/ai/`'s generated pair deleted; 31 rule scopes rewritten (26 active, 5 retired) and the
+  contracts recompiled; the eleven covers headers, the configured-flag pin, the budget JSON
+  (renamed `components-wizard-ai-AiStep.json`, 1,659), the gate's and the bench's guards. The
+  AI-step chain 52,023 -> 44,599 bytes, `steps/` 42,980 -> 42,338. Plan widths: the step 43,
+  `creation.ts` 19.
+- **Decisions** (each revertible as stated):
+  - *Retired rules rescoped too.* The compiler refuses a scope matching no file, and the shim is
+    not where the code is. Revert: none needed; scopes of retired rules load nothing.
+  - *`steps/VideoStep.tsx` edited* (one import path; outside the row's list, the build needs it).
+    Revert: with the move.
+  - *`src/ai/creation.ts` added to five headers only* (`ai-consent`, `ai-more-control`,
+    `design-rules-product`, `image-purpose`, `configured/pro-wizard`): `ai` and `ai-depth` already
+    cover `src/ai/**`, which selects them for `creation.ts`; naming it there too is redundant.
+    The Pro spec also names `ProPanel.tsx`, where A3 put the Pro markup. Revert: edit the headers.
+  - *`e2e-traced.json` not hand-edited:* it is the nightly's output with its sha. Until the next
+    nightly, the moved step's plan misses the traced-only `wizard-draft-guard.spec.ts` (43
+    instead of 44); this pull request's own plan includes it through the shim's old path.
+  - *The budget JSON renamed* to match its file, so the directory names what it budgets. Revert:
+    `git mv` it back.
+- **A5 must allow for:**
+  - Comments still naming the old paths, outside A4's fence: `src/ai/creation.ts:5`,
+    `src/model/aiThread.ts:2`, `src/model/cssVars.ts:21`, `src/styles/wizard-describe.css:200`.
+    A5's file list has no `src`; fold them into the shell's S7 (which deletes the shim) or a
+    one-line follow-up.
+  - Rule texts and records citing paths: `contracts/records/ai/2026-09-07-*` (D4) still cite the
+    old step; the rule pass reads the rules in `wizard/ai/AGENTS.md` now. Recompiling after any
+    scope change renames `.claude/rules/*` files and can need `-- --prune`.
+  - The chain targets after A4: the AI step 3,639 over 40,960, `steps/` 1,378, `import/` 1,500.
+  - The A3 check's carried items above (section 2 signatures, section 4 rebuild progress text,
+    `keepChassisZone`, the adapt-first shortlist revival) are A5's or an issue's.
+- **Traps:** a `git mv` of a whole folder would carry the generated pair into a folder the marker
+  then fights; delete them first. `contracts:compile` refuses more than four deletions without
+  `-- --prune`; the eleven are the renamed Claude rule files, each with a successor. A file
+  `git rm --cached` and rewritten in place (the shim) shows as an add, so the move and the shim
+  are separate commits to keep `git log --follow` on the step.
+
 ### A3. Refine, rebuild and talk in the module; the Pro quarantine (built 2026-10-14)
 
 - **Check's findings (A2 check, main `591213fca`):** merge-group run 38536443430 green, the AI
