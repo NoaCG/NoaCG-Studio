@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/BrowseStep.tsx, src/components/wizard/steps/CommunityPacks.tsx, src/components/wizard/KitTray.tsx, src/templates/kit.ts
+scope: src/components/wizard/steps/BrowseStep.tsx, src/components/wizard/steps/CommunityPacks.tsx, src/components/wizard/KitTray.tsx, src/templates/kit.ts, src/components/wizard/template/useKit.ts, src/components/wizard/template/walk.ts
 kind: invariant
 fires: contract
 status: active

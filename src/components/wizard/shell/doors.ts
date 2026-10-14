@@ -30,9 +30,10 @@ export type DoorName = () => string;
 export type SaveSet = (dest: ProductionDest) => Promise<Show | null>;
 
 export interface DoorIo {
-  /** The library save by name (spec R2). The shell's until S5, which moves the record it reads. */
+  /** The library save by name (spec R2), over the walk memory (`saveBuiltGraphic` in walkState.ts). */
   saveBuiltGraphic(name: string): Promise<{ ok: boolean; error: string | null }>;
-  /** Record what the door made, for the walk-back warning and a second pass. The shell's until S5. */
+  /** Record what the door made, for the walk-back warning and a second pass (`noteMade` in
+   *  walkState.ts). Called after the save: the shell's binding reads the id the save gave. */
   noteMade(name: string, production: string | null, landedOn?: Route | null): void;
   /** True from a production-door press until it lands or fails: the shell's ref. */
   productionPress: { current: boolean };
@@ -57,7 +58,7 @@ export interface DoorIo {
   captureLookFromTemplate: typeof captureLookFromTemplate;
   saveTemplateSetToProduction: typeof saveTemplateSetToProduction;
   trackEvent(event: 'activation', detail: string): void;
-  /** The set doors' busy flag and error line (the shell's `kitBusy` and `kitError`). */
+  /** The set doors' busy flag and error line, which `useKit` owns (template/useKit.ts). */
   setSetBusy(busy: boolean): void;
   setSetError(error: string | null): void;
 }

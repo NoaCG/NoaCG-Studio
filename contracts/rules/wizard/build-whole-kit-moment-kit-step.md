@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/kitPlan.ts, src/components/wizard/KitTray.tsx, src/components/wizard/steps/KitFinishStep.tsx
+scope: src/components/wizard/kitPlan.ts, src/components/wizard/KitTray.tsx, src/components/wizard/steps/KitFinishStep.tsx, src/components/wizard/template/useKit.ts
 kind: invariant
 fires: contract
 status: active

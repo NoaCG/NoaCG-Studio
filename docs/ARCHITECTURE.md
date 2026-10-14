@@ -179,29 +179,59 @@ Concretely: calling a `blocks/`/`model/` function and passing the result to `app
 the pattern; assembling document coherence inline -
 `applyTemplate({ ...template, js, settings, html: replaceDefinitionInHtml(...) })` - is not.
 When a change needs a transform that does not exist, write it as a named, exported function in
-`blocks/` (or `model/` for parse/serialize concerns) and call it. Logic files without JSX do not
-live under `components/`.
+`blocks/` (or `model/` for parse/serialize concerns) and call it. Transforms over documents live
+below `components/`; a UI state machine that reads the store or the draft lives as a `.ts` file
+beside its component.
 
 Grandfathered offenders (hoist the inline assembly into `blocks/` **when you are already
 touching that code path** - never as a drive-by campaign). Each count below is inline-assembly
 sites, not total `applyTemplate` calls, and is reproduced by
 `grep -c 'applyTemplate({ *\.\.\.template' <file>`: `src/components/canvas/CanvasInteraction.tsx`
-(5 sites), `src/components/timeline/StepTimeline.tsx` (6 sites), `src/components/timeline/Inspector.tsx`
-(4 sites), and `components/wizard/draft/` (`core.ts`, `template.ts`, `format.ts`, with `draft.ts`
-re-exporting them - wizard row 1 split the file by capability and left it under `components/`, so
-the hoist toward `blocks/`/`templates/` is still open).
+(5 sites), `src/components/timeline/StepTimeline.tsx` (6 sites) and
+`src/components/timeline/Inspector.tsx` (4 sites).
 
-**The wizard's Import-graphic capability is a standing exception to the last sentence, and the
-reason is measured rather than historical.** `src/components/wizard/import/` holds four no-JSX
-files - `draft.ts`, `stageMeasure.ts`, `fieldAutoMap.ts` and the `index.ts` barrel - and they are
-3,280 of the 8,082 no-JSX lines under `components/`
-(`find src/components -name '*.ts' -not -name '*.d.ts' | xargs wc -l`). Moving them down a domain
+**The wizard's draft stays in `components/wizard/draft/`** (`core.ts`, `template.ts`, `format.ts`;
+`draft.ts` re-exports them for the e2e and script loaders that import it by path). It is the
+wizard's own state, not a document transform, and moving it was measured and refused
+(docs/work-specs/wizard-structure/spec.md D1): `blocks/` may not import the `WizardDraft` type
+(§3 invariant 4); a `templates/` path widens the affected-spec plan of the most-edited wizard files
+from about 40 specs to 59-132; `buildDraftTemplate` calls the import road's `withSvgImportPasses`
+through `../import`; and the files rarely change. Node tests need no move: they bundle a
+`src/**.ts` entry with rolldown (`scripts/wizard-load.mjs`).
+
+**The wizard shell is a thin component over tested walk modules.** `CreationWizard.tsx` keeps the
+screen state, the header, rail, footer and preview chrome, the step ladder and the three appliers
+(one per mode, each building the graphic into the store). What a walk is and does lives beside it:
+
+- `wizard/shell/walks.ts` - every walk as data (a `StepId` per step, titles, URL names, the
+  furniture each step carries) and the rules the shell asks: Next, rail jumps, preview, brand,
+  Skip. `wizard/template/walk.ts` writes the template and kit walks with their own rules.
+- `wizard/shell/walkState.ts` - the walk's durable record in one `useReducer`: `transition` for
+  the five intents (fresh, rewind, restore, continue, close), `reduce` for the moves, the one pick
+  patch, and the walk memory a second Finish saves over.
+- `wizard/shell/useWalkLifecycle.ts` - the open, close and deep-link effects as IO only.
+- `wizard/shell/doors.ts` - `makeDoors(io)`: one implementation of each Finish door (export, add
+  to a production, edit, and the set doors) over the mode's applier.
+- `wizard/template/useKit.ts` and `KitConfirms.tsx` - the kit's moves, tray, hub, its two confirms
+  and its transient UI.
+
+They runtime-import only wizard siblings and the lower domains through their seams; the store, the
+router, durable writes and telemetry reach them through `io`, so each has a Node test under
+`scripts/wizard-*.test.mjs` (with `import-drop.test.mjs` for the import road's drop doors). The
+shell's size is gated (`scripts/file-budgets/components-wizard-CreationWizard.json`), and the
+budget only goes down.
+
+**The wizard's Import-graphic capability is a standing exception to "transforms over documents
+live below `components/`", and the reason is measured rather than historical.**
+`src/components/wizard/import/` holds five no-JSX files - `draft.ts`, `drop.ts`, `stageMeasure.ts`,
+`fieldAutoMap.ts` and the `index.ts` barrel - and they are 3,367 of the 9,853 no-JSX lines under
+`components/` (`find src/components -name '*.ts' -not -name '*.d.ts' | xargs wc -l`). Moving them down a domain
 was tried on paper and refused, because it costs more than the rule buys:
 
 - **The affected-spec plan widens.** `scripts/e2e-affected.mjs` unions its rules rather than taking
   the first match, so a file's plan is as wide as the widest rule it matches. Measured with the
   tool itself - `node -e "import('./scripts/e2e-affected.mjs').then(m=>console.log(m.planFor(['<path>']).specs.length))"`
-  - the plan is **13** specs where these files are, **62** under `templates/importedDesign/`, and
+  - the plan is **13** specs where these files are, **60** under `templates/importedDesign/`, and
   **15** under `blocks/`. The `templates/` move would undo, for the most-churned file in the
   wizard, the narrowing wizard row 2 existed to make (38 down to 13). `blocks/` costs little here
   and is refused on the two counts below instead - and on a third: the four `with*(template, draft)`
@@ -211,35 +241,37 @@ was tried on paper and refused, because it costs more than the rule buys:
   `contracts/rules/wizard/let-geometry-propose-followers-author-edit.md` and
   `keep-prepare-erase-offer-never-applied.md` both carry `scope: src/components/wizard/import/**`
   and both name symbols in these files. A file outside that scope stops loading them.
-- **The area contract says so.** `wizard/keep-whole-import-graphic-capability-inside` names the
+- **The area contract says so.** `wizard/hold-whole-import-graphic-capability-inside` names the
   draft slice as part of the capability, and `.dependency-cruiser.cjs`
   (`wizard-import-through-its-index`) enforces its one door.
 
 What the rule is actually protecting - UI that cannot be reused from below and transforms hiding
 in the render tree - is answered instead by keeping the capability's boundary narrow, and by
-MEASURING that rather than asserting it. Of the 18 functions and 20 types `import/draft.ts`
-exports, **five functions and one type are named in code outside `import/`**:
-`svgDraftFromImport` and `svgDraftCleared` (the draft a dropped SVG starts from and the patch
-that takes it back, the whole of what `CreationWizard.tsx` takes; the corpus harness
-`scripts/svg-import-passes.test.mjs` builds its draft through the same function),
-`svgDesignOptions` and `withSvgImportPasses` (the two build doors `draft/core.ts` takes),
-`behaviourSummary` (read by `FinishStep.tsx`), and the `SvgImportDraft` shape `WizardDraft`
-extends. `stageMeasure.ts` and `fieldAutoMap.ts` cross out not at all - they measure and propose
-over the step's own render, which nothing below the UI could call anyway.
+MEASURING that rather than asserting it. The count is taken over everything the `import/index.ts`
+door exports (every export of the files it re-exports with `export *`, plus its named
+re-exports): **15 of its 48 names appear in code outside `import/`**, by text. The shell takes the
+four drop doors of `drop.ts` (`svgDropPatch`, `clearSvgPatch`, `artDropPatch`,
+`templateFileDropped`) and the five step components, and reads no `import/draft.ts` function;
+`draft/core.ts` takes the `SvgImportDraft` shape `WizardDraft` extends and the two build doors
+`svgDesignOptions` and `withSvgImportPasses`; `FinishStep.tsx` reads `behaviourSummary`; and
+`armTimerClock` and `DesignFieldSpec` appear outside only in comments. `stageMeasure.ts` and
+`fieldAutoMap.ts` cross out not at all - they measure and propose over the step's own render,
+which nothing below the UI could call anyway.
 
-**Five functions and one type are the number to watch, and this is how to count it** - re-open
-the exception if it grows. The command matches text, so it prints eight names today: those six,
-and two that appear outside `import/` only in comments, `armTimerClock`
-(`templates/behaviours/naming.ts`) and `DesignFieldSpec` (`blocks/designFields.ts`,
-`ai/importAnalysis/normalize.ts`). It has no backslash; in an interactive bash, run `set +H` first.
+**15 is the number to watch, and this is how to count it** - re-open the exception if it grows.
+It has no backslash; in an interactive bash, run `set +H` first.
 
 ```
-node -e "const fs=require('fs');const p='src/components/wizard/import/draft.ts';const s=fs.readFileSync(p,'utf8');
-const names=[...s.matchAll(/^export (?:async )?function ([A-Za-z0-9_]+)|^export (?:interface|type) ([A-Za-z0-9_]+)/gm)].map(m=>m[1]??m[2]);
-const w=(d,o=[])=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const q=d+'/'+e.name;
-if(e.isDirectory())w(q,o);else if((e.name.endsWith('.ts')||e.name.endsWith('.tsx'))&&!q.includes('/import/'))o.push(q)}return o};
-const f=w('src').map(x=>[x,fs.readFileSync(x,'utf8')]);
-for(const n of names){const re=new RegExp('(^|[^A-Za-z0-9_$])'+n+'($|[^A-Za-z0-9_$])');const hits=f.filter(([,t])=>re.test(t)).map(([x])=>x);if(hits.length)console.log(n,'<-',hits.join(', '))}"
+node -e "const fs=require('fs');const d='src/components/wizard/import/';const names=[];
+for(const l of fs.readFileSync(d+'index.ts','utf8').split(String.fromCharCode(10))){if(l.startsWith('export * from ')){
+const s=fs.readFileSync(d+l.split(String.fromCharCode(39))[1].slice(2)+'.ts','utf8');
+for(const m of s.matchAll(/^export (?:async )?(?:function|interface|type|const|class) ([A-Za-z0-9_]+)/gm))names.push(m[1])}
+else if(l.startsWith('export {'))for(const p of l.slice(8,l.indexOf('}')).split(','))names.push(p.split(' as ').pop().trim())}
+const w=(q,o=[])=>{for(const e of fs.readdirSync(q,{withFileTypes:true})){const p=q+'/'+e.name;
+if(e.isDirectory())w(p,o);else if((e.name.endsWith('.ts')||e.name.endsWith('.tsx'))&&!p.includes('/wizard/import/'))o.push(p)}return o};
+const f=w('src').map(x=>[x,fs.readFileSync(x,'utf8')]);let c=0;
+for(const n of names){const re=new RegExp('(^|[^A-Za-z0-9_$])'+n+'($|[^A-Za-z0-9_$])');const h=f.filter(([,t])=>re.test(t)).map(([x])=>x);
+if(h.length){c++;console.log(n,'<-',h.join(', '))}}console.log(c,'of',names.length,'import/index.ts exports named outside import/')"
 ```
 
 ## 6. Known debts (grandfathered, shrink-only)
@@ -300,6 +332,11 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
   landing/ *   the landing page's GSAP motion system. POLICY: never fakes product UI
   components/ * the React app: AppShell, CodeEditor, timeline dock, Inspector, canvas/, wizard/,
                auth/, save/, home/, video/, icons.tsx
+    wizard/ *  the creation wizard (§5): CreationWizard.tsx is the thin shell over shell/ (the
+               walks, the walk state, the Finish doors, open and close) and template/ (the
+               template and kit walks, the kit's moves and confirms); draft/ the walk's draft;
+               import/ * the Import-graphic capability behind its one door, index.ts; ai/ * the
+               Create with AI step; steps/ * the other steps
   styles/ *    the app's stylesheet in 30 PARTS, one per surface. styles/index.css IS the
                cascade order - append a new part where its rules already sat, never re-sort;
                the DIALOG ANATOMY every dialog shares is binding and lives there

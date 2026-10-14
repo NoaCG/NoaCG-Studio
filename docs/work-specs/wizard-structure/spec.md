@@ -669,6 +669,71 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S7. Close-out (built 2026-10-14)
+
+- **Check's findings (S6 check: PASS).** Try-out probes 38627070754 (`2df104e67`) and 38627074089
+  (`33fa907c4`) gave 29 of 30 observation lines identical, the one difference #1224's held kit;
+  merge group 38623598707 on `33fa907c4` green (wizard-kit 22, wizard-filters 21, community-packs
+  4); Node 12/12 and 82/82; D9, D10, D11, D13, AC-9 and AC-10 hold, budget 1,419 of 1,419; the
+  moved code equal statement for statement. Carried: 29 of 35 checker mutations red, and four Node
+  gaps (Next from Style to the hub, which e2e catches; the draft in hand after a build, because
+  the fixture is always on graphic 0; "Back to the kit" with a different kit picked; the
+  template-only guard on the kit footer labels). Probe answer 1 holds only for Next: a gate that
+  also holds "Skip to finish" edits the shell, whose Skip button computes its own disabled state;
+  answers 2 and 3 hold (recorded in the metrics file). Open review items unchanged from `main`: the
+  build's read after an await, the step builder written twice (`shell/walks.ts`,
+  `template/walk.ts`), the `animStep` fallback 4.
+- **Shas:** previous verified `main` `33fa907c4` (S6's merge); built from `33fa907c4`. The AI
+  track's A4 (#1199) and A5 (#1203) had landed, so this rule pass is the last writer of section
+  8's order. This phase's merge sha is the one the queue records. **Revert:** `git revert -m 1`
+  this phase's merge commit, then `npm run contracts:compile -- --prune` and commit what it changes
+  (the `.claude/rules` files renamed with the scopes).
+- **What landed** (`evidence/phase-s7.md`): the lazy import retargeted to `ai/AiStep` and the A4
+  re-export deleted; the three `doors.ts` comments; the
+  two `walkState.ts` simplifications S6 named, with a Node assertion pinning `isKitEditStep` on
+  every kit-walk step (two mutations that passed every test before now fail); the co-change
+  matcher by prefix with `shell/` shared; the rule pass (three retired, nine rescoped, one symbol
+  corrected, seven retired rules' e2e scopes dropped, recompiled); `docs/ARCHITECTURE.md` sections
+  5 and 8; `docs/metrics/2026-10-14-wizard-shell.md` (chains at S1a and S7, co-change, the probe,
+  budgets, plan widths). `npm run audit:instructions` ran. Chains after S7: shell 33,996 (under
+  40,960), `import/` 41,536, `steps/` 41,414, the AI step 43,741, each 924 bytes lower; the next
+  candidates are named in the metrics file. Budget 1,419, unchanged (AC-10).
+- **Decisions** (each revertible by the revert above unless it says otherwise):
+  - *No `template/` marker; it goes with S8.* While `kitPlan.ts` and `KitTray.tsx` stay in
+    `wizard/`, every kit rule names a `wizard/` file and compiles into the wizard contract anyway,
+    so a marker now would hold no rule and add a contract header to the `template/` chain. With S8
+    the four kit rules (1,663 bytes) leave the wizard contract, the largest single cut left for
+    the `import/` and AI chains. Revert: none needed.
+  - *Retirements and rescopes are edits of `status:` and `scope:`, recompiled; `learn` wrote the
+    reasons.* `npm run learn` writes new rules and supersessions only (contracts/README.md: retire
+    by setting `status: retired`); it appended each retired rule's reason to its record and
+    recorded the pass as one observation.
+  - *`offer-control-can-change-graphic-front` corrected in place*, not reworded through
+    `--supersedes`: its demand is unchanged, and a reword renames the id that two `import/` files,
+    an e2e spec and a doc cite.
+  - *`spread-every-handler-patches-make-visible` kept:* the drop doors did not absorb it.
+  - *`ai/UploadCard.tsx` stays in `ai/`.* It is the AI step's card that `steps/VideoStep.tsx` also
+    renders; no rule is scoped to it, and moving it would change two imports for no rule or test
+    gain. Revert: none needed.
+  - *The `animStep` 4 of the walks without Animation stays.* `shell/walks.ts` is outside this
+    phase's list, `scripts/wizard-walks.test.mjs` pins the value against the old shell's
+    expression, and nothing reads it off the template walk now that a kit acts only there.
+  - *The AI track's four stale path comments wait for their files' next change (#1227).* A
+    comment edit in `src/model/aiThread.ts`, `src/model/cssVars.ts` or
+    `src/styles/wizard-describe.css` selects the whole browser suite, and in `src/ai/creation.ts`
+    adds 11 AI specs; this pull request's plan stays the shell's 53.
+  - *The Node assertion* is in `scripts/wizard-walk-state.test.mjs`, a shell-track file the
+    phase list does not name; it guards this phase's own `isKitEditStep` edit.
+- **For the owner (section 10, item 5):** read the probe in the metrics file and decide whether
+  S8 and S9 join the phase list. The builder's view: S8 is worth its width for the instruction
+  chains alone (above); S9 is needed only if template or import capability work keeps touching
+  the shell, which the Skip gate and the import road (probe answers 1 and 3) still do.
+- **Traps:** the command guard reads `--kind trap` in a shell line as the `trap` builtin and
+  refuses it, so `learn` ran from a small script given an argument array. A scope change renames
+  the per-path `.claude/rules` files, which `contracts:compile` refuses past four deletions without
+  `--prune`. `npm run gates -- run --changed` fails `test:ai-gateway` on a machine whose
+  `node_modules` lacks `@anthropic-ai/sdk`; CI installs it.
+
 ### S6. The kit as operations, and the probe (built 2026-10-14)
 
 - **Check's findings (S5 check: PASS).** Try-out probes 38612104009 (before S5) and 38612112538
