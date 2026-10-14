@@ -93,11 +93,29 @@ export function checkSubscriptionAuth({ claude, env, run = spawnSync }) {
 }
 
 /** A child that hit the subscription's usage limit says when it resets: pause until then. */
-export function usageLimit(result) {
+export function usageLimit(result, now = Date.now()) {
   const text = `${result?.result ?? ''} ${result?.stderr ?? ''}`;
-  if (!/usage limit|rate limit/i.test(text)) return null;
+  // Claude Code has said both "Claude AI usage limit reached|<epoch>" and, by 2.1.296, "You've hit
+  // your session limit · resets 12:20am (Europe/Kyiv)".
+  if (!/usage limit|rate limit|session limit|hit your [a-z ]*limit/i.test(text)) return null;
   const epoch = /\|(\d{10})\b/.exec(text);
-  return { resetsAt: epoch ? new Date(Number(epoch[1]) * 1000).toISOString() : null };
+  if (epoch) return { resetsAt: new Date(Number(epoch[1]) * 1000).toISOString() };
+  const clock = /resets (\d{1,2})(?::(\d{2}))?\s*([ap]m)\s*\(([^)]+)\)/i.exec(text);
+  return { resetsAt: clock ? nextLocalTime({ hour: (Number(clock[1]) % 12) + (clock[3].toLowerCase() === 'pm' ? 12 : 0), minute: Number(clock[2] ?? 0), timeZone: clock[4], now }) : null };
+}
+
+/** The next instant, within a day of `now`, whose wall clock in `timeZone` reads hour:minute. */
+export function nextLocalTime({ hour, minute, timeZone, now = Date.now() }) {
+  let fmt;
+  try {
+    fmt = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  } catch {
+    return null;
+  }
+  const want = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const start = Math.ceil(now / 60_000) * 60_000;
+  for (let t = start; t < start + 25 * 3_600_000; t += 60_000) if (fmt.format(t) === want) return new Date(t).toISOString();
+  return null;
 }
 
 /** How long a stage paused by the usage limit waits: until the reset and a minute, or 15 minutes when no reset was given. */
@@ -128,19 +146,27 @@ export function spawnAsync(file, args, { input, timeout, ...opts }) {
     const out = [];
     const err = [];
     let error = null;
+    let done = false;
+    const finish = (status, signal) => {
+      if (done) return;
+      done = true;
+      if (timer) clearTimeout(timer);
+      resolve({ status, signal, error, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8') });
+    };
     const timer = timeout ? setTimeout(() => {
       error = Object.assign(new Error('timed out'), { code: 'ETIMEDOUT' });
       child.kill();
+      // A grandchild behind a .cmd shim can hold the pipes open after the kill: answer anyway.
+      setTimeout(() => finish(null, 'SIGTERM'), 5000).unref();
     }, timeout) : null;
     child.stdout.on('data', (d) => out.push(d));
     child.stderr.on('data', (d) => err.push(d));
     child.on('error', (e) => {
       error = e;
     });
-    child.on('close', (status, signal) => {
-      if (timer) clearTimeout(timer);
-      resolve({ status, signal, error, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8') });
-    });
+    child.on('close', finish);
+    // A child that exits before reading its prompt closes stdin under us: its exit says what happened.
+    child.stdin.on('error', () => undefined);
     child.stdin.end(input ?? '');
   });
 }

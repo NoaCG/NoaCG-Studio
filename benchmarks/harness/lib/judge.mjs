@@ -7,15 +7,17 @@
 //
 // Host-neutral (D5): the judge sees a brief and frames, never an arm, a model or a cost. It runs
 // on the subscription (`subscription.mjs`): one `claude -p` per judgement, with the frozen prompt
-// as its system prompt, Read as its only tool and the rubric's schema as its answer, in a
-// directory holding nothing but that judgement's frames under opaque names.
+// as its system prompt, Read as its only tool and the rubric's schema as its answer, working in a
+// fresh directory under an opaque name that holds nothing but that judgement's frames, themselves
+// under opaque names. Claude Code tells the model its working directory, so that name matters.
 //
 //   single     would this air; which basic mistakes; which operator actions are missing
 //   pairwise   which would air, which is better, what is wrong, why: judged in both orders, and
 //              an answer that flips with the order is a tie
 
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { runClaudeAsync } from './subscription.mjs';
 
@@ -83,18 +85,33 @@ export function judgeInvocation(judge, { task = 'single', brief, graphics, opera
   };
 }
 
-/** Copy frames into the judgement's directory under opaque names: `<label>-<n>.<ext>`. */
-function stage(dir, label, frames) {
-  mkdirSync(dir, { recursive: true });
+/**
+ * Where the judge works: a fresh directory under an opaque name, holding that judgement's frames
+ * and nothing else, removed afterwards. Claude Code tells the model its working directory, so the
+ * caller's record directory (named after the item, the arm or the label) must never be it.
+ */
+function stagingDir() {
+  return mkdtempSync(path.join(os.tmpdir(), 'nj-'));
+}
+
+/** Frames under opaque names, `<label>-<n>.<ext>`, copied into the staging directory. */
+function stage(into, label, frames) {
   return frames.map((f, i) => {
     const name = `${label}-${i + 1}${path.extname(f.file) || '.png'}`;
-    copyFileSync(f.file, path.join(dir, name));
+    copyFileSync(f.file, path.join(into, name));
     return { file: name, caption: f.caption };
   });
 }
 
+/** A judgement's answer must be the schema's shape, or it is an error and never a silent default. */
+function shapeError(task, answer) {
+  if (task === 'single') return typeof answer.airable === 'boolean' ? null : 'the answer carries no boolean airable';
+  if (!['A', 'B'].includes(answer.better)) return 'the answer names neither A nor B as better';
+  return typeof answer.airable?.A === 'boolean' && typeof answer.airable?.B === 'boolean' ? null : 'the answer carries no airable verdict for A and B';
+}
+
 /** The answer of one `claude -p` judgement, the model that gave it, and what it took. */
-function answerOf(r, judge) {
+function answerOf(r, judge, task) {
   if (r.paused) return { paused: r.paused };
   let json = null;
   try {
@@ -102,12 +119,16 @@ function answerOf(r, judge) {
   } catch {
     /* no json */
   }
-  const models = Object.keys(json?.modelUsage ?? {});
+  const usage = json?.modelUsage ?? {};
+  const models = Object.keys(usage);
   const base = { sessionId: r.sessionId, notionalUsd: r.notionalUsd ?? 0, ms: r.ms, turns: r.turns, models };
   if (!json || r.exit !== 0 || json.is_error) return { ...base, error: `claude -p failed (exit ${r.exit}): ${(r.result || r.stderr || '').slice(0, 300)}` };
-  // The pinned model must be the one that answered: a judge served by another model is not the
-  // judge that was calibrated, and the exam stops for a re-pin rather than judging on.
-  if (!models.includes(judge.lock.model)) return { ...base, error: `the judgement was not served by the pinned model ${judge.lock.model} (got ${models.join(', ') || 'none'})` };
+  // The pinned model must be the one that answered: no other model may have written more. A judge
+  // served by another model is not the judge that was calibrated, and the exam stops for a re-pin
+  // rather than judging on.
+  const wrote = (m) => usage[m]?.outputTokens ?? 0;
+  const outwrote = models.some((m) => m !== judge.lock.model && wrote(m) > wrote(judge.lock.model));
+  if (!models.includes(judge.lock.model) || outwrote) return { ...base, error: `the judgement was not served by the pinned model ${judge.lock.model} (got ${models.join(', ') || 'none'})` };
   let answer = json.structured_output ?? null;
   if (!answer && typeof json.result === 'string') {
     try {
@@ -117,22 +138,33 @@ function answerOf(r, judge) {
     }
   }
   if (!answer || typeof answer !== 'object') return { ...base, error: 'the judge answered no JSON object' };
-  return { ...base, answer };
+  const bad = shapeError(task, answer);
+  return bad ? { ...base, error: bad, answer } : { ...base, answer };
 }
 
-/** A runner for one judgement: `run` is injectable so the bench's tests need no Claude Code. */
+/**
+ * One judgement. `graphics`: `[{ label, frames: [{ file, caption }] }]` with real paths; `dir` is
+ * where the prompt and the raw answer are kept. `run` is injectable so the bench's tests need no
+ * Claude Code.
+ */
 async function judgeOnce(judge, { task, brief, graphics, operator, actions, dir, claude, env, run, timeoutMs = 15 * 60_000 }) {
-  const call = judgeInvocation(judge, { task, brief, graphics, operator, actions });
-  writeFileSync(path.join(dir, 'prompt.md'), call.prompt);
-  const r = await runClaudeAsync({ claude, args: call.args, env, cwd: dir, input: call.prompt, timeoutMs, ...(run ? { run } : {}) });
-  writeFileSync(path.join(dir, 'claude.json'), r.stdout || r.stderr || '');
-  return answerOf(r, judge);
+  mkdirSync(dir, { recursive: true });
+  const cwd = stagingDir();
+  try {
+    const staged = graphics.map((g) => ({ label: g.label, frames: stage(cwd, g.label, g.frames) }));
+    const call = judgeInvocation(judge, { task, brief, graphics: staged, operator, actions });
+    writeFileSync(path.join(dir, 'prompt.md'), call.prompt);
+    const r = await runClaudeAsync({ claude, args: call.args, env, cwd, input: call.prompt, timeoutMs, ...(run ? { run } : {}) });
+    writeFileSync(path.join(dir, 'claude.json'), r.stdout || r.stderr || '');
+    return answerOf(r, judge, task);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 }
 
 /** Single airability. `frames`: `[{ file, caption }]` with real paths. */
 export async function judgeSingle(judge, { brief, frames, operator = null, actions = [], dir, claude, env, run }) {
-  const staged = stage(dir, 'G', frames);
-  return judgeOnce(judge, { task: 'single', brief, graphics: [{ label: 'G', frames: staged }], operator: operator ? { G: operator } : null, actions, dir, claude, env, run });
+  return judgeOnce(judge, { task: 'single', brief, graphics: [{ label: 'G', frames }], operator: operator ? { G: operator } : null, actions, dir, claude, env, run });
 }
 
 /** The graphic one answer preferred: A or B, as the ids of that order. */
@@ -155,10 +187,9 @@ export async function judgePair(judge, { brief, x, y, xFirst = true, actions = [
   const answers = [];
   let notionalUsd = 0;
   for (const [i, [a, b]] of orders.entries()) {
-    const sub = path.join(dir, `order-${i + 1}`);
-    const graphics = [{ label: 'A', frames: stage(sub, 'A', a.frames) }, { label: 'B', frames: stage(sub, 'B', b.frames) }];
+    const graphics = [{ label: 'A', frames: a.frames }, { label: 'B', frames: b.frames }];
     const operator = a.operator || b.operator ? { A: a.operator ?? [], B: b.operator ?? [] } : null;
-    const out = await judgeOnce(judge, { task: 'pairwise', brief, graphics, operator, actions, dir: sub, claude, env, run });
+    const out = await judgeOnce(judge, { task: 'pairwise', brief, graphics, operator, actions, dir: path.join(dir, `order-${i + 1}`), claude, env, run });
     notionalUsd += out.notionalUsd ?? 0;
     if (out.paused || out.error) return { ...out, notionalUsd };
     answers.push({ a: a.id, b: b.id, ...out });

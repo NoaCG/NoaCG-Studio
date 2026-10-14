@@ -315,6 +315,9 @@ test('nothing starts unless claude auth status in that environment reports the O
   assert.equal(checkSubscriptionAuth({ claude: 'claude', env: {}, run: answering({ loggedIn: true, authMethod: 'oauth_token' }) }).authMethod, 'oauth_token');
   assert.deepEqual(usageLimit({ result: 'Claude AI usage limit reached|1792000000' }), { resetsAt: new Date(1792000000 * 1000).toISOString() });
   assert.equal(usageLimit({ result: 'done' }), null);
+  // Claude Code 2.1.296's wording, a wall-clock reset in a named zone (Kyiv is UTC+3 in October).
+  assert.deepEqual(usageLimit({ result: "You've hit your session limit · resets 12:20am (Europe/Kyiv)" }, Date.parse('2026-10-14T20:57:00Z')), { resetsAt: '2026-10-14T21:20:00.000Z' });
+  assert.deepEqual(usageLimit({ result: "You've hit your session limit · resets 3pm (Europe/Kyiv)" }, Date.parse('2026-10-14T20:57:00Z')), { resetsAt: '2026-10-15T12:00:00.000Z' });
 });
 
 test('the reference arm runs claude -p outside the repository, on the subscription, with the plugin and the shimmed CLI', async () => {
@@ -356,7 +359,7 @@ function judgeCopy() {
 
 /** A stand-in `claude -p` judging run: answers `better` (or `airable`) from the model `model`. */
 const judging = ({ model, answer, calls = [] }) => (file, args, opts) => {
-  calls.push({ args, cwd: opts.cwd, input: opts.input });
+  calls.push({ args, cwd: opts.cwd, input: opts.input, files: Object.fromEntries(readdirSync(opts.cwd).map((f) => [f, readFileSync(path.join(opts.cwd, f), 'utf8')])) });
   return { status: 0, stdout: JSON.stringify({ session_id: `j-${calls.length}`, num_turns: 3, total_cost_usd: 0.3, is_error: false, result: '', structured_output: typeof answer === 'function' ? answer(opts.input, calls.length) : answer, modelUsage: { [model]: {} } }), stderr: '' };
 };
 
@@ -406,13 +409,22 @@ test('a pair is judged in both orders, and a preference that flips with the orde
   const stable = await judgePair(judge, { brief: 'b', x, y, xFirst: true, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: judge.lock.model, calls, answer: (input, n) => pick(n === 1 ? 'A' : 'B') }) });
   assert.equal(calls.length, 2, 'both orders');
   assert.equal(stable.combined, 'good', 'good was A first and B second, and was preferred both times');
-  assert.equal(readFileSync(path.join(calls[0].cwd, 'A-1.png'), 'utf8'), 'good');
-  assert.equal(readFileSync(path.join(calls[1].cwd, 'A-1.png'), 'utf8'), 'bad', 'the second order swaps them');
+  assert.equal(calls[0].files['A-1.png'], 'good');
+  assert.equal(calls[1].files['A-1.png'], 'bad', 'the second order swaps them');
+  for (const c of calls) {
+    assert.match(path.basename(c.cwd), /^nj-/, 'the judge works in a directory whose name says nothing');
+    assert.deepEqual(Object.keys(c.files).sort(), ['A-1.png', 'B-1.png'], 'holding only the frames');
+    assert.equal(existsSync(c.cwd), false, 'and removed afterwards');
+  }
   const flipped = await judgePair(judge, { brief: 'b', x, y, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: judge.lock.model, answer: pick('A') }) });
   assert.equal(flipped.combined, 'tie', 'always "A" is an order effect, not a preference');
   assert.equal(combinePair({ a: 'p', b: 'q', answer: { better: 'B' } }, { a: 'q', b: 'p', answer: { better: 'A' } }), 'q');
   const other = await judgeSingle(judge, { brief: 'b', frames: x.frames, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: 'claude-other-1-0', answer: { airable: true } }) });
   assert.match(other.error, /not served by the pinned model/, 'an answer from another model is not the calibrated judge');
+  const helped = (file, args, opts) => ({ status: 0, stdout: JSON.stringify({ is_error: false, structured_output: { airable: true }, modelUsage: { [judge.lock.model]: { outputTokens: 10 }, 'claude-other-1-0': { outputTokens: 900 } } }), stderr: '', cwd: opts.cwd });
+  assert.match((await judgeSingle(judge, { brief: 'b', frames: x.frames, dir: tmp(), claude: 'claude', env: {}, run: helped })).error, /not served by the pinned model/, 'nor one another model mostly wrote');
+  const shapeless = await judgePair(judge, { brief: 'b', x, y, dir: tmp(), claude: 'claude', env: {}, run: judging({ model: judge.lock.model, answer: { airable: { A: true, B: true } } }) });
+  assert.match(shapeless.error, /neither A nor B/, 'an answer without a preference is an error, never a silent B');
 });
 
 test('the exam\'s judge runner refuses a judge whose hash differs, before any judgement starts', async () => {

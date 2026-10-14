@@ -4,13 +4,34 @@ Phase 3 of `docs/work-specs/noacg-harness/spec.md` (AC-3, section 4.3), built 20
 `origin/main` `e349156e6`. Credit spent: $0. Every judgement ran as a `claude -p` child on the
 owner's subscription in the 5.4 environment (`benchmarks/harness/lib/subscription.mjs`: built from
 scratch, `claude auth status` reported `loggedIn: true`, `authMethod: oauth_token` before each
-run). Notional subscription cost $143.56. No usage-limit pause happened, so the ledger holds no
-`paused` entry.
+run). Notional subscription cost $155.43. The blinded re-run hit the subscription's session
+limit at 20:42 UTC; the ledger holds two `paused` entries (resets 21:20 UTC), and the run was
+stopped there when the run window closed.
 
-**Result: PASS.** On the held-back 30%, read once by the frozen judge: airability agreement with
-the owner 38 of 41 (92.7%, Wilson 95% interval 80.6% to 97.5%) with no basic-defect FAIL called
-airable (16 of 16 rejected); pairwise good-versus-bad 15 of 16 (93.8%, interval 71.7% to 98.9%),
-the one miss an order flip counted as an error.
+**Result: airability PASS; pairwise not yet confirmed.** The first held-back run passed both
+thresholds (agreement 38 of 41, pairwise 15 of 16), but review found that the judge's working
+directory, which Claude Code shows the model, was named after the item (`plant~<cell>~overlap`,
+`pair~<good>~<bad>`): see "The directory leak" below. Re-run with the same frozen judge in opaque
+directories: airability agreement 38 of 41 (92.7%, Wilson 95% interval 80.6% to 97.5%), the same
+three disagreements, no basic-defect FAIL called airable (16 of 16 rejected). Pairwise: 5 of the
+16 held-back pairs judged before the usage limit, all 5 correct, no flip; **11 pairs remain**.
+`node benchmarks/harness/judge/calibration.mjs run --part heldout` resumes exactly those (the
+runner skips what it already holds for this judge) and `score --part heldout` gives the final
+figure. Until then AC-3's pairwise half rests on the leaky run's 15 of 16.
+
+## The directory leak
+
+`claude -p` puts its working directory into the model's context, also under `--system-prompt`
+(probed: the model quoted `...\plant~secret-word-zebra~overlap`). The first runner used each
+judgement's record directory, named after the calibration id, as the working directory, so a
+planted item's directory named its defect and a pair's named the good item first. The development
+figures below and the first held-back run were measured that way. Fixed in `judge.mjs`: every
+judgement now works in a fresh `nj-XXXXXX` temporary directory holding only its frames, removed
+afterwards (a test pins this); the same applied to `harness-bench --judge`, whose record
+directories carry arm names. The prompt was not changed, and the frozen lock still matches; the
+re-run measures the same judge without the leak. The leaky results are kept beside the new ones
+as `results-heldout.leaky-cwd.jsonl`. Planted items were never development errors, so no prompt
+change was driven by the leak.
 
 ## What exists now
 
@@ -97,7 +118,7 @@ defect classes the owner names across many rounds.
 Development by source for v3: August 16 of 17, re-read 13 of 14, type sweep 17 of 20, free-form
 20 of 22, instruments 3 of 3, planted 15 of 15; pairs: planted 15 of 15, type sweep 19 of 20.
 
-## The held-back part (frozen judge, read once)
+## The held-back part (frozen judge, first run, with the directory leak)
 
 `calibration.mjs run --part heldout` then `score --part heldout`:
 
@@ -150,8 +171,9 @@ No rejected graphic was approved with high confidence. 29 of the 41 answers were
 | v1, development (archived items) | `ff53a39f7021` | 59 | $13.11 |
 | v2, development | `4e1122e9c04a` | 91 single, 35 pairs (161) | $54.75 |
 | v3, development | `60bfb08e18a4` | 91 single, 35 pairs (161) | $54.45 |
-| v3, held back | `60bfb08e18a4` | 41 single, 16 pairs (73) | $21.08 |
-| Total | | 456 | $143.56 notional, $0 credit |
+| v3, held back (directory leak) | `60bfb08e18a4` | 41 single, 16 pairs (73) | $21.08 |
+| v3, held back, blinded re-run | `60bfb08e18a4` | 41 single, 5 pairs; 11 pairs stopped by the usage limit | $11.87 |
+| Total | | about 520 | $155.43 notional, $0 credit |
 
 A single judgement took a median 22 s. The ledger holds H2 as completed with the notional figure.
 

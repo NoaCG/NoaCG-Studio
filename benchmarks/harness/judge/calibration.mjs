@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { makeCli } from '../lib/cli.mjs';
 import { draftJudge, judgePair, judgeSingle, loadJudge, lockFor } from '../lib/judge.mjs';
 import { appendEntry, readLedger, writeLedger } from '../lib/ledger.mjs';
-import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../lib/subscription.mjs';
+import { checkSubscriptionAuth, claudeExecutable, invocation, pauseMs, subscriptionEnv } from '../lib/subscription.mjs';
 import { changedFraction, DEFECT_KIND, DEFECTS, injection } from './plant.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -272,6 +272,8 @@ function renderedFrames(work, item) {
   const file = path.join(work, 'renders', keyOf(item.id), 'render.json');
   if (!existsSync(file)) return null;
   const r = readJson(file);
+  // A plant that changed nothing is its original under a bad label: never judged as bad.
+  if (r.planted === false) throw new Error(`${item.id}: the planted defect changed nothing visible (render.json); fix the plant before judging it`);
   return r.frames;
 }
 
@@ -501,6 +503,10 @@ if (isMain) {
       // Read once: a second judge on the same held-back part would be a judge tuned on it.
       const earlier = readResults(path.join(work, 'results-heldout.jsonl')).find((r) => r.judge !== judge.fingerprint);
       if (earlier) fail(`the held-back part was already read by another judge (${earlier.judge.slice(0, 12)}): a re-pin needs a new held-back set, never this one again`);
+      // And it is the held-back part the judge was frozen against, drawn from this set.
+      const split = readJson(SPLIT_FILE);
+      if (JSON.stringify(split.heldout.sha256) !== JSON.stringify(judge.lock.split)) fail('split.json\'s held-back part is not the one judge.lock.json was frozen against');
+      if (makeSplit(readJson(SET_FILE), split.seed).setSha256 !== split.setSha256) fail('calibration-set.json changed since the split was drawn');
     } else {
       judge = draftJudge(HERE, { model: value('model', ''), effort: value('effort', '') });
     }
@@ -522,7 +528,9 @@ if (isMain) {
     const effort = value('effort', '');
     if (!model || !effort) fail('freeze needs --model <the exact id claude -p reported> and --effort <level>');
     // The Claude Code version that reported the id is kept beside it: a re-pin starts by comparing both.
-    const version = spawnSync(claudeExecutable(), ['--version'], { encoding: 'utf8', windowsHide: true }).stdout.trim();
+    const call = invocation(claudeExecutable(), ['--version']);
+    const version = String(spawnSync(call.file, call.args, { encoding: 'utf8', windowsHide: true }).stdout ?? '').trim();
+    if (!version) fail('claude --version printed nothing: the lock records which Claude Code reported the model id');
     const lock = { ...lockFor(HERE, model, effort), claudeCode: version, frozenAt: new Date().toISOString(), split: readJson(SPLIT_FILE).heldout.sha256 };
     writeFileSync(path.join(HERE, 'judge.lock.json'), `${JSON.stringify(lock, null, 2)}\n`);
     console.log(JSON.stringify(lock, null, 2));

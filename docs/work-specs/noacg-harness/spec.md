@@ -982,9 +982,15 @@ the spend added to the ledger, and the check's findings.
   `calibration-set.json`, `split.json`); `benchmarks/harness/lib/judge.mjs` filled in (single and
   pairwise, both orders, the model check, `coverageFrames`); `harness-bench.mjs --judge <runDir>`,
   which refuses a judge whose hash differs; `runClaudeAsync` and `pauseMs` in `subscription.mjs`;
-  five tests; `evidence/instruments.md` (3.5 fired). **PASS** on the held-back 30%: agreement 38 of
-  41 (92.7%), no basic-defect FAIL called airable, pairwise 15 of 16 (93.8%) with one order flip
-  counted as an error. Spend: $0 credit, $143.56 notional on the subscription, no pause.
+  five tests; `evidence/instruments.md` (3.5 fired). Held-back 30%: agreement 38 of 41 (92.7%) and
+  no basic-defect FAIL called airable, in both runs; pairwise 15 of 16 (93.8%, one flip) in the
+  first run, which leaked the item's name through the judge's working directory (fixed). The
+  blinded re-run judged 5 of 16 pairs (5 correct) before the subscription's session limit; **the
+  next session runs `node benchmarks/harness/judge/calibration.mjs run --part heldout` and `score
+  --part heldout` to finish the 11 pairs, and records the figure in `evidence/phase-2.md`** before
+  H5 relies on the judge. Spend: $0 credit, $155.43 notional on the subscription, two `paused`
+  ledger entries. Review findings left open: `judgePair` re-runs a finished first order when the
+  second pauses.
 - **H3 must allow for:** nothing of the judge; H3 measures the container. The ledger now holds H0 to
   H2 as completed.
 - **H5 must allow for:**
