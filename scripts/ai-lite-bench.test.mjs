@@ -82,14 +82,15 @@ test('lite/pipeline holds the exact production assembly order', () => {
 
 test('the app injects the shared production validator', () => {
   // The step builds the one validator the bench runners share and hands it to the run module
-  // as `io.validate`; the module builds none of its own (scripts/ai-creation.test.mjs pins that
-  // each route forwards that very function, spec wizard-ai D3).
+  // as `io.validate`; the module builds none of its own and forwards that one per route
+  // (scripts/ai-creation.test.mjs pins the forwarding, spec wizard-ai D3).
   const step = read('src/components/wizard/steps/AiStep.tsx');
   assert.match(step, /productionSpxValidator\(/);
   assert.doesNotMatch(step, /withSafetyChecks\(/);
-  assert.match(step, /const creationIo: CreationIO = \{[^;]*\bvalidate\b/);
+  assert.match(step, /const creationIo: CreationIO = \{[^}]*\svalidate,/);
   const run = read('src/ai/creation.ts');
   assert.doesNotMatch(run, /productionSpxValidator|withSafetyChecks\(/);
+  assert.match(run, /validate: io\.validate/);
 });
 
 test('the benchmark runners compile through the shared pipeline, never inline', () => {
