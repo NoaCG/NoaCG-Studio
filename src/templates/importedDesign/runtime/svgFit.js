@@ -954,7 +954,10 @@ function measureSvgRoom() {
           var reach = Math.max(svgFitWidths[el.id], (box.right + shift - keep - before.edge) * scale);
           if (!before.cap) facing.push({ near: before.near, right: el, shift: shift, reach: box.right + shift - room.width / scale });
           room.width = Math.min(room.width, reach);
-          if (!before.cap) room.penned = true;
+          // Penned on its left ALONE, it still gains from a panel widening rightwards: its anchor
+          // travels with the right edge and the neighbour stays (svgGrowDir grows a penned line's
+          // panel rightwards), so it may still ask for that growth.
+          if (!before.cap) { room.widens = !room.penned; room.penned = true; }
         }
       }
       // A LINE ALWAYS HAS ROOM FOR ITSELF, whatever the margins say - the floor is the block as
