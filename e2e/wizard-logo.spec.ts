@@ -38,30 +38,34 @@ async function createThroughExport(page: Page) {
 const PREVIEW = '.wz-side iframe';
 
 /**
- * Wait until the preview's graphic has come to REST. The wizard's preview plays the entrance on
- * every rebuild, and Finish is a rebuild, so a box measured straight away can be a line still
- * sliding in (CI run 38596113603 read the first line 12px below where it settles). Rest is the
- * measured boxes unchanged over ten consecutive frames: a frame count, not a sleep, so it waits
- * exactly as long as the entrance takes.
+ * Wait until the preview's graphic is ON AIR and at rest. The wizard's preview plays the entrance
+ * on every rebuild, and Finish is a rebuild: until it has played, the lines sit below their masks
+ * and the shared slot has not sized the mark (CI runs 38596113603 and 38602525381 read the first
+ * line translated 62px down and the mark 1px square). On air is every measured element carrying
+ * no transform of its own; at rest is their boxes then unchanged over ten consecutive frames. A
+ * frame count, not a sleep, so it waits exactly as long as the entrance takes.
  */
 async function awaitAtRest(page: Page, selectors: string[]) {
   await page.frameLocator(PREVIEW).locator(selectors[0]).evaluate(
     (_el, sel) =>
       new Promise<void>((done, fail) => {
+        const still = (t: string) => t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)';
         let last = '';
         let same = 0;
         let frames = 0;
         const tick = () => {
-          const now = sel
-            .map((s) => {
-              const r = document.querySelector(s)?.getBoundingClientRect();
+          const els = sel.map((s) => document.querySelector(s));
+          const now = els
+            .map((el) => {
+              const r = el?.getBoundingClientRect();
               return r ? `${r.left},${r.top},${r.width},${r.height}` : 'none';
             })
             .join('|');
-          same = now === last ? same + 1 : 0;
+          const onAir = els.every((el) => el && still(getComputedStyle(el).transform));
+          same = onAir && now === last ? same + 1 : 0;
           last = now;
           if (same >= 10) done();
-          else if (++frames > 900) fail(new Error(`the preview never came to rest: ${now}`));
+          else if (++frames > 1200) fail(new Error(`the preview never came to rest: ${now}`));
           else requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
