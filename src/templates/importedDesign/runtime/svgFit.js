@@ -815,21 +815,30 @@ function svgIsEndCap(o, r, panel, axis, dir) {
     : r.right >= panel.right - Math.max(2, panel.width * 0.02) && r.left > panel.left + 1;
 }
 
-/** The nearest drawn thing to the RIGHT of this line, on its own rows - what a longer value would
- *  run into (owner, 2026-08-26: "a line's room is bounded by what is drawn next to it"). Two
- *  labels placed apart on ONE baseline is how an exporter writes a strap's place and its time, and
- *  the panel behind them says nothing about where the first one has to stop: HELSINKI is bounded by
- *  19:30, not by the banner, and widening the banner moves neither. The panel's own right edge is
- *  the backstop, so a line with nothing beside it is unchanged. The bound is returned WITH what
- *  it is - an end CAP bounds the room without penning the line (see svgIsEndCap).
+/** The nearest drawn thing BESIDE this line on its own rows - to its right (dir 1), or to its left
+ *  (dir -1) for a line anchored at its end, which grows leftwards - what a longer value would run
+ *  into (owner, 2026-08-26: "a line's room is bounded by what is drawn next to it"). Two labels
+ *  placed apart on ONE baseline is how an exporter writes a strap's place and its time, and the
+ *  panel behind them says nothing about where the first one has to stop: HELSINKI is bounded by
+ *  19:30, not by the banner, and widening the banner moves neither. The panel's own edge is the
+ *  backstop, so a line with nothing beside it is unchanged. The bound is returned WITH what it
+ *  is - an end CAP bounds the room without penning the line (see svgIsEndCap).
  *
  *  Only what is drawn INSIDE the panel is a neighbour, for the same reason svgFitCeiling only
- *  looks inside it: a plate standing beside this one is not this line's furniture. */
-function svgFitNeighbour(el, panel) {
+ *  looks inside it: a plate standing beside this one is not this line's furniture.
+ *
+ *  TWO LINES THAT GROW TOWARDS EACH OTHER SHARE THE GAP between them, half each. A ticker's story
+ *  fills rightwards and its end-anchored source leftwards: bounded each by where the other was
+ *  DRAWN, both may fill the same gap, and with two long values they painted over each other,
+ *  unreported (#1148). The room is measured once, at rest, so it cannot depend on which of the
+ *  two values is the long one; the middle of the gap is the one bound both can keep. */
+function svgFitNeighbour(el, panel, dir) {
   var art = document.querySelector('.__PREFIX__-art');
   var box = el.getBoundingClientRect();
   var others = art.querySelectorAll('text, tspan, image, rect, path, polygon, ellipse, circle');
-  var left = panel.right;
+  var left = dir < 0;
+  var edge = left ? panel.left : panel.right;
+  var near = null;
   var cap = false;
   for (var i = 0; i < others.length; i++) {
     var o = others[i];
@@ -839,10 +848,30 @@ function svgFitNeighbour(el, panel) {
     if (r.width * r.height >= panel.width * panel.height) continue;   // that IS the panel
     if (!svgInsidePanel(r, panel)) continue;                          // drawn outside this box
     if (r.bottom < box.top + 1 || r.top > box.bottom - 1) continue;   // not on this line's rows
-    if (r.left < box.right - 1) continue;                             // not to the right of it
-    if (r.left < left) { left = r.left; cap = svgIsEndCap(o, r, panel, 'x', 1); }
+    if (left ? r.right > box.left + 1 : r.left < box.right - 1) continue;   // not on that side
+    if (left ? r.right > edge : r.left < edge) {
+      edge = left ? r.right : r.left;
+      near = o;
+      cap = svgIsEndCap(o, r, panel, 'x', left ? -1 : 1);
+    }
   }
-  return { edge: left, cap: cap };
+  var other = near && !cap ? svgFitLineOf(near) : null;
+  if (other && svgFitLaidOut(other) && !svgFitPlaced(other)) {
+    var mine = svgAlignOf(el, svgFitContainer(el)).h;
+    var theirs = svgAlignOf(other, svgFitContainer(other)).h;
+    // Left of the pair grows right unless it is end-anchored; right of the pair grows left
+    // only when it is.
+    var facing = left ? mine === 'end' && theirs !== 'end' : mine !== 'end' && theirs === 'end';
+    if (facing) edge = (edge + (left ? box.left : box.right)) / 2;
+  }
+  return { edge: edge, cap: cap };
+}
+
+/** The bound line a drawn thing belongs to (a line, or one of its own runs), else null. */
+function svgFitLineOf(o) {
+  var nodes = svgFitNodes();
+  for (var i = 0; i < nodes.length; i++) if (nodes[i] === o || nodes[i].contains(o)) return nodes[i];
+  return null;
 }
 
 function measureSvgRoom() {
@@ -910,14 +939,25 @@ function measureSvgRoom() {
       // nothing - so it must not drive the growth either. A bound that is an end CAP does not
       // pen: the cap is the panel's own furniture and travels with its growing edge, so
       // widening genuinely buys the line room - the text just stays off the cap meanwhile.
-      var bound = svgFitNeighbour(el, panel);
+      var bound = svgFitNeighbour(el, panel, 1);
       var edge = bound.edge;
       room.penned = edge < panel.right - 0.5 && !bound.cap;
       // The gap to keep: half the drawn type beside a neighbour (a readable space between two
       // labels), the design's own left margin mirrored when the panel - or its cap - is the
       // bound.
-      var pad = room.penned ? ((svgFitSizes[el.id] || 0) * 0.5) / scale : inset;
+      var gap = ((svgFitSizes[el.id] || 0) * 0.5) / scale;
+      var pad = room.penned ? gap : inset;
       room.width = Math.max(svgFitWidths[el.id], (edge - pad - box.left) * scale);
+      // An END-anchored line grows LEFTWARDS, so what is drawn to its left pens it as well, the
+      // same half type short of it (#1148).
+      if (align.h === 'end') {
+        var before = svgFitNeighbour(el, panel, -1);
+        if (before.edge > panel.left + 0.5 && !before.cap) {
+          var reach = Math.max(svgFitWidths[el.id], (box.right - gap - before.edge) * scale);
+          room.width = room.penned ? Math.min(room.width, reach) : reach;
+          room.penned = true;
+        }
+      }
       // A line anchored to the middle or the right of its box fills BOTH ways, so its room is
       // the box's own inside rather than the distance from where it was drawn to the far margin.
       // Not for a PENNED line: something else drawn beside it is the real bound, and the box

@@ -84,6 +84,7 @@ const MIRROR_FINDINGS = [
   'effects-figma-masked-reveal f0: law: inset y',
   'effects-gradient-shadow-lower-third f0: law: inset y',
   'effects-symbol-library-ticker f0: law: inset x (penned by a neighbour)',
+  'effects-symbol-library-ticker f1: law: inset x (penned by a neighbour)',
   'figma-centred-title-card f0: law: inset y',
   'figma-duplicate-ids-scorebug f0: law: inset x (penned by a neighbour)',
   'figma-duplicate-ids-scorebug f2: law: inset x (penned by a neighbour)',
@@ -116,6 +117,7 @@ const MIRROR_FINDINGS = [
   'illustrator-save-as-foreignobject f0: law: inset y',
   'illustrator-save-as-quiz-board f0: law: inset x (penned by a neighbour), inset y',
   'illustrator-scoreboard-lower-third f1: law: inset x (penned by a neighbour)',
+  'illustrator-scoreboard-lower-third f2: law: inset x (penned by a neighbour)',
   'illustrator-scoreboard-lower-third f3: law: inset x (penned by a neighbour)',
   'inkscape-flowed-text-card f0: law: inset y',
   'inkscape-flowed-text-card f1: law: inset y',
@@ -123,9 +125,12 @@ const MIRROR_FINDINGS = [
   'inkscape-millimetre-scorebug f0: law: inset x (penned by a neighbour)',
   'inkscape-millimetre-scorebug f1: law: inset x (penned by a neighbour)',
   'inkscape-millimetre-scorebug f2: law: inset x (penned by a neighbour)',
+  'inkscape-millimetre-scorebug f3: law: inset x (penned by a neighbour)',
   'inkscape-player-number-strap f0: law: inset x (penned by a neighbour)',
   'inkscape-text-on-path-bumper f1: box: the step groups it under no box, the runtime measures it in one',
   'logo-square-badge f0: law: inset y',
+  'logo-tall-crest f0: law: inset x (penned by a neighbour)',
+  'logo-transparent-ground f0: law: inset x (penned by a neighbour)',
   'nested-svg-sub-artboard f0: box: the step groups it under no box, the runtime measures it in one',
   'nested-svg-sub-artboard f1: box: the step groups it under no box, the runtime measures it in one',
   'nested-svg-sub-artboard f1: law: inset y',
@@ -134,15 +139,17 @@ const MIRROR_FINDINGS = [
   'origin-shifted-quiz-board f0: box: the step groups it under no box, the runtime measures it in one',
   'student-illustrator-scoreboard f0: law: inset x (penned by a neighbour)',
   'student-illustrator-scoreboard f1: law: inset x (penned by a neighbour)',
+  'student-illustrator-scoreboard f2: law: inset x (penned by a neighbour)',
+  'student-illustrator-scoreboard f3: law: inset x (penned by a neighbour)',
   'ticker-strip-3840 f1: box: the step groups it under no box, the runtime measures it in one',
   'ticker-strip-3840 f1: law: inset x (penned by a neighbour)',
   'ticker-strip-3840 f2: box: the step groups it under no box, the runtime measures it in one',
+  'ticker-strip-3840 f2: law: inset x (penned by a neighbour)',
 ];
 const RULES = ['room', 'neighbour', 'snap', 'margin', 'settle', 'fits', 'floors'];
-/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, neighbour #1148, settle #1143. */
+/** The corpus files on which the runtime breaks a rung today (D10), by rung: room #1144, settle #1143. */
 const RUNG_FINDINGS = {
   room: ['illustrator-rotated-sidebar-strip'],
-  neighbour: ['effects-symbol-library-ticker'],
   settle: [
     'effects-smil-animated-bug',
     'figma-offset-centred-endboard',
@@ -153,7 +160,6 @@ const RUNG_FINDINGS = {
     'inkscape-text-on-path-bumper',
     'logo-small-favicon',
     'logo-tall-crest',
-    'logo-transparent-ground',
     'nested-svg-sub-artboard',
     'ticker-strip-3840',
   ],
