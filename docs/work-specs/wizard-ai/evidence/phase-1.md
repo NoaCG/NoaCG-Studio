@@ -54,7 +54,11 @@ Both passed on CI as predicted from the code (`run` resolves on an unmounted ste
 
 CI run 38520085781 on `5f05909c2` (the plan selected exactly `ai-lite.spec.ts` and
 `ai.spec.ts`): `Running 37 tests using 1 worker`, `37 passed (4.8m)`, nothing skipped. Build,
-Factory gates and CI gate passed.
+Factory gates and CI gate passed. After the review's fixes (an `ai-past` count of 1 before the
+reader leaves, the saved HTML's sample text, the Lite read guarded), CI run 38521655425 on
+`507033857`: `Running 44 tests using 1 worker`, `44 passed (5.4m)` (the plan also ran
+`wizard-brand.spec.ts`, which `main` had changed since this branch's base; the branch then merged
+`main` at `25218ca58`).
 
 The other specs of section 5's A1 row (`ai-tiers`, `ai-depth`, `ai-consent`, `pro`,
 `wizard-finish`) are not touched by this change and import none of the edited files; they passed
