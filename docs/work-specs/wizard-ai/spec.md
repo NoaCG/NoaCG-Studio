@@ -359,6 +359,40 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings.
 
+### A2 check on `main` (2026-10-14): PASS
+
+- **Shas:** checked `main` at `591213fca`, the merge of #1178.
+- **Browser evidence (CI; the local queue refused, about 2 GB free):** #1178's merge-group run
+  38536443430 ran the tree `591213fca` and passed. Its merged report: `ai` 35 passed (the two
+  arrival tests among them), `ai-lite` 2, `ai-tiers` 8, `ai-depth` 2, `pro` 2, `ai-consent` 1
+  plus 1 old skip, `wizard-finish` 22 plus 1, `import` 1 plus 3, `import-svg` 54 plus 47,
+  `image-purpose` 1 plus 5, `project-format` 9 plus 3; `adapt-first`, `ai-more-control`,
+  `design-rules-product` and `flows` skip as before (#800). The same counts as main's full run
+  38526192545 before A2, except `project-format`, revived by `519d1ee4e`, not by A2. All ten
+  offline covering specs and the fourteen offline driving specs were in the plan; the two
+  `configured/` specs need credentials. #1178's e2e diff is empty (AC-2, AC-15).
+- **The Node guard runs on CI:** the Factory gates job 115760358442 of that run, step
+  "Factory-tier tests" (`gates.mjs run --gate factory`, every factory file): `ai-creation` 19 of
+  19, the Chromium Pro case `ok 19`; 152 passed, 0 skipped. Locally the 18 Node cases and
+  `ai-lite-bench` 28 of 28 pass; `npm run depcruise` clean, config unchanged.
+- **Mutation, red where it should be:** in `creation.ts`, convert without the structural check,
+  raw forwarding the validator, and directions with a wrapped validator each failed exactly its
+  row's test (17 of 18 passed); in the step, `validate: safeValidate` in `creationIo` failed the
+  bench's validator guard. Each reverted, nothing committed.
+- **Move, not a rewrite:** the step's lines 890-1027 at `591213fca^1`, indentation stripped,
+  against `runPro`: only the IO swaps (`io.validate`, `io.probeMark`, `io.onProgress`), the
+  upload lookup lifted to the step's input, the WeakMap writes and `setProDropped` lifted out, a
+  comment's "above" made "in the step", and the return shape. `primaryGraphic` is derived as
+  before; nothing under `src/ai/pro/` changed.
+- **D3, AC-9, AC-10:** forwarding matches section 4 route by route; the raw screen is
+  `screenChange`, tested; the step still builds `productionSpxValidator` + `withSpecChecks`.
+  `src` diff is the two allowed files. Budget JSON still 2,152, the step 1,940.
+- **Judgements:** dropping D2's `now` is right: nothing in `creation.ts` or the step reads the
+  clock; A3 adds it if a moved function does. #1179 predates A2: the `imported?.template` source
+  of the display screen came with `04da7bc8d` (2026-07-24).
+- **For A3:** lower the budget to the actual count; the factory-tier note above holds for new
+  Node cases.
+
 ### A2. The tier dispatch in `src/ai/creation.ts` (built 2026-10-14)
 
 - **Check's findings (A1 check, main `29883468f`):** `ai` 35 passed, 0 skipped; `ai-lite` 2,
