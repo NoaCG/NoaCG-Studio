@@ -82,7 +82,7 @@ async function createdTemplate(page: Page) {
   });
 }
 
-test.skip('logo toggle + custom upload: the created template carries the field, asset, and <img>', async ({ page }) => {
+test('logo toggle + custom upload: the created template carries the field, asset, and <img>', async ({ page }) => {
   await toFieldsStep(page, 'Topic', 'Hairline Card');
 
   // The optional-logo section is offered; turn it on and upload a custom logo.
@@ -192,7 +192,7 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
   expect(Math.abs(centres.logo - centres.stack)).toBeLessThan(1);
 });
 
-test.skip('a wide lockup is sized by the words, and the strap pays in width', async ({ page }) => {
+test('a wide lockup is sized by the words, and the strap pays in width', async ({ page }) => {
   // The owner's blind value-gate ballot (2026-08-14): "the logo is too small compared to the
   // name and title", on four of eight briefs. Measured over all 23 mark-capable lower thirds,
   // the cause was arithmetic - the slot's WIDTH cap bound before its height cap, so a 4:1
@@ -257,7 +257,7 @@ test.skip('a wide lockup is sized by the words, and the strap pays in width', as
   expect(measured.markHeight).toBeLessThanOrEqual(measured.wordsHeight + 1);
 });
 
-test.skip('a design that draws its own slot is left alone by the shared one', async ({ page }) => {
+test('a design that draws its own slot is left alone by the shared one', async ({ page }) => {
   // `designHasLogoSlot` is what keeps the shared slot away from a design that hand-authors one,
   // and until 2026-08-15 both this file's neighbour docs and src/templates/AGENTS.md recorded
   // that five designs slipped past it. Swept over all 24 mark-capable lower thirds, none does:
@@ -295,7 +295,7 @@ test.skip('a design that draws its own slot is left alone by the shared one', as
   await expect(frame.locator('.lower-third-lockup')).toHaveCount(0);
 });
 
-test.skip('logo toggle off: nothing is injected', async ({ page }) => {
+test('logo toggle off: nothing is injected', async ({ page }) => {
   await toFieldsStep(page, 'Topic', 'Hairline Card');
   // Offered but left off (the default when no image was imported).
   await expect(page.locator('.panel-section', { hasText: 'Include a logo slot' })).toBeVisible();
@@ -306,7 +306,7 @@ test.skip('logo toggle off: nothing is injected', async ({ page }) => {
   expect(t.html).not.toContain('info-card-logo');
 });
 
-test.skip('a no-logo design offers no logo section', async ({ page }) => {
+test('a no-logo design offers no logo section', async ({ page }) => {
   await toFieldsStep(page, 'Lower thirds', 'Hairline');
   await expect(page.locator('.wz-line-row').first()).toBeVisible();
   await expect(page.locator('.panel-section', { hasText: 'Include a logo slot' })).toBeHidden();
@@ -324,7 +324,7 @@ test.skip('a no-logo design offers no logo section', async ({ page }) => {
 // VARIANT record, then `applyLogoSlot` reading the resolved options - rather than a template
 // build, because a design's placement is declared on its variant and `create` closes over its
 // own meta: spreading a copy of the record proves nothing (it silently did, first attempt).
-test.skip('a design places its own mark, and silence keeps the category default', async ({ page }) => {
+test('a design places its own mark, and silence keeps the category default', async ({ page }) => {
   await page.goto('/app');
   await page.locator('.topbar').waitFor();
 
