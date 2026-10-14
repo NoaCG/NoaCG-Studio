@@ -1,0 +1,19 @@
+{
+  "workspace": "bench",
+  "environment": {
+    "id": "env_01PFiXgBUuDv5aFgEwHXayiY",
+    "sha256": "f6f4db7bd9df2e7017b41003a830a608b629fd340ff0ded54f715a0b5d0d5a26"
+  },
+  "skill": {
+    "id": "skill_01G2iMqxJJJr4GJQe6q94ddo",
+    "version": "skver_01X2F1VAisMcvT5tj1ZDFHpj",
+    "bundleSha256": "7f130e3e6099127b5ab30b3540112f5f4b43a02d38f23503ecdaf7cb7d496dde",
+    "cliVersion": "0.11.0"
+  },
+  "agent": {
+    "id": "agent_0183yBA1miijGFNvm5bkMv6B",
+    "version": 1,
+    "sha256": "f38d726d2ffe7583037e56572c61efdafbb66954d0e00933b3aeda32c6b0b4b9"
+  },
+  "syncedAt": "2026-10-14T22:43:19.541Z"
+}
