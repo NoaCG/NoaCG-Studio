@@ -449,6 +449,10 @@ server. Unit tests: `api/_lib/me/mcp.test.ts`, `connectors.test.ts`.
 - *A 2026-07-28 tool list says how long it may be cached* (`ttlMs`, an hour, and `cacheScope`
   `private`): Claude Code 2.1.295 refused the whole list without them and showed the connector with
   0 tools (owner's staging try-out, 2026-10-14). The SDK client in the specs (1.30) predates the rule.
+- *A plain `noacg_library` call is names and ids* (newest 25 of each kind, the rest counted); an
+  answer with five graphics or fewer, from a search by name or a graphic id, carries their fields.
+  A tool result is what a connector costs its user in tokens: 100 graphics with six fields each
+  was about 73,000 characters with fields and is about 3,800 without (2026-10-14).
 - *`last_used_at` is written at most once a minute per grant* (`connector_grant_resolve`), so a
   chatty client does not write a row per message.
 - *Off.* "On" is read from Auth's discovery document (cached a minute per instance): without a
