@@ -95,6 +95,20 @@ export function pendingCells(ledger, phase, cells) {
   return cells.filter((c) => !ran(c));
 }
 
+/** The packages proofs are one measurement: a cold start in a fresh environment, then a cached one
+ *  in the same environment. Their environment lives for one run, so both run in one invocation,
+ *  cold first, and neither may already be in the ledger; anything else would record a cold start
+ *  as the cached one. */
+export function packagesProofRefusal(ledger, phase, proofIds) {
+  const pair = Object.keys(PROOFS).filter((id) => PROOFS[id].environment === 'packages');
+  const asked = proofIds.filter((id) => pair.includes(id));
+  if (!asked.length) return null;
+  if (asked.join() !== pair.join()) return `the packages proofs run together and in order: --proof ${pair.join(',')}`;
+  const ran = pair.filter((id) => ledger.entries.some((e) => e.kind === 'session' && e.phase === phase && e.brief === id && !['refused', 'paused'].includes(e.outcome)));
+  if (ran.length) return `the ledger already holds ${ran.join(' and ')} for ${phase}: a cached start cannot be measured again in a new environment`;
+  return null;
+}
+
 function printLedger(ledger) {
   const s = summary(ledger);
   console.log(`Ledger ${path.relative(ROOT, LEDGER_FILE)}: ${dollars(s.spentCents)} of ${dollars(ledger.runBudgetCents)} credit spent, ${dollars(s.remainingCents)} left.`);
@@ -251,6 +265,8 @@ async function build(phase) {
   for (const a of arms) if (!['managed-agents', 'claude-code'].includes(a)) fail(`unknown arm ${a}`);
   if (proofIds.length && (phase !== 'H3' || arms.join() !== 'managed-agents')) fail('--proof is H3\'s, on the managed-agents arm alone');
   for (const id of proofIds) if (!PROOFS[id]) fail(`no H3 proof ${id} (${Object.keys(PROOFS).join(', ')})`);
+  const pairRefusal = packagesProofRefusal(ledger, phase, proofIds);
+  if (pairRefusal) fail(pairRefusal);
   ensureCli();
   const url = process.env.NOACG_URL || 'https://noacg.studio';
   const cli = makeCli({ url });

@@ -45,7 +45,7 @@ import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySeale
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
-import { CONTROL_BRIEFS, judgeRun, LEDGER_FILE, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
+import { CONTROL_BRIEFS, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
 import { syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -126,6 +126,13 @@ test('H3\'s proofs: the planted defect validates clean, and the packages environ
   assert.deepEqual(withPackages.config.packages, { npm: [PUBLISHED_CLI] });
   assert.deepEqual({ ...withPackages.config, packages: undefined }, { ...env.config, packages: undefined }, 'the same networking');
   assert.notEqual(withPackages.name, env.name);
+  // The cached start is measured only after the cold one, in the same run's environment.
+  const fresh = emptyLedger();
+  assert.equal(packagesProofRefusal(fresh, 'H3', ['h3-defect']), null);
+  assert.equal(packagesProofRefusal(fresh, 'H3', ['h3-packages-cold', 'h3-packages-warm']), null);
+  for (const ids of [['h3-packages-warm'], ['h3-packages-cold'], ['h3-packages-warm', 'h3-packages-cold']]) assert.match(packagesProofRefusal(fresh, 'H3', ids), /together and in order/, ids.join());
+  appendEntry(fresh, { kind: 'session', phase: 'H3', brief: 'h3-packages-cold', arm: 'managed-agents', funding: 'credit', sessionId: 's1', listCostCents: 1, outcome: 'failed' });
+  assert.match(packagesProofRefusal(fresh, 'H3', ['h3-packages-cold', 'h3-packages-warm']), /already holds h3-packages-cold/, 'a resume cannot measure the cached start in a new environment');
 });
 
 test('an entry the credit did not fund carries no cost, and a credit session names its session', () => {
