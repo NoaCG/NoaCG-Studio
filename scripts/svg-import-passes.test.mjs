@@ -306,12 +306,14 @@ const READINGS = [
       <text id="static_x3A_Rank" data-name="static:Rank" x="20" y="60" font-size="30" fill="#8a8f98">10.</text>
       <text id="Item" x="90" y="60" font-size="30" fill="#fff">The buzzer is a kazoo</text>
     </svg>`,
-    // Offered unticked, and the template has one field while the numeral stays drawn and unbound.
+    // Offered unticked and kept ("stays as drawn"), and the template has one field while the
+    // numeral stays drawn and unbound: not taken off the artwork, which would keep its words but
+    // hide them under the removed class.
     expect: {
-      rows: [{ title: 'Rank', on: false }, { on: true }],
+      rows: [{ title: 'Rank', on: false, kept: true }, { on: true }],
       fields: ['f0:Item'],
       bound: [/<text\b[^>]*data-name="static:Rank"[^>]*>\s*10\.\s*<\/text>/],
-      notBound: [/<text[^>]*id="f1"/],
+      notBound: [/<text[^>]*id="f1"/, /imported-design-removed/],
     },
   },
   {
@@ -332,11 +334,13 @@ const READINGS = [
       <defs><symbol id="Badge"><text id="In_x20_symbol" x="0" y="0">Never shown</text></symbol></defs>
       <g id="Old_x20_draft" style="display:none"><text id="Draft_x20_copy" x="20" y="40">Draft copy</text></g>
       <g id="Retired" display="none"><text id="Retired_x20_line" x="20" y="60">Retired line</text></g>
+      <symbol id="Bug"><text id="Bare_x20_symbol" x="0" y="0">Bare symbol</text></symbol>
       <use href="#Badge" x="300" y="20"/>
+      <use href="#Bug" x="300" y="60"/>
       <text id="Headline" x="20" y="120" font-size="30" fill="#fff">Alexandra Riva</text>
     </svg>`,
-    // One text layer: hidden by style or by attribute, or defined in a symbol, is never a row; the
-    // symbol's text, drawn by the <use>, is said out loud.
+    // One text layer: hidden by style or by attribute, or defined in a symbol (inside <defs> or
+    // bare), is never a row; the symbol's text, drawn by the <use>, is said out loud.
     expect: { rows: [{ title: 'Headline', on: true }], notices: [/reusable symbol/] },
   },
   {
@@ -582,7 +586,7 @@ for (const { name, retired, expect } of READINGS) {
       assert.equal(c.id, `t${i}`, `${name}: the reader's text layers are t0, t1, ...`);
       const f = rowOf.get(c.id);
       assert.ok(f, `${name}: text layer ${c.id} has no row in the draft`);
-      return { title: f.title, sample: f.sample, on: f.on, namedByGroup: c.namedByGroup };
+      return { title: f.title, sample: f.sample, on: f.on, kept: !f.on && f.whenOff !== 'remove', namedByGroup: c.namedByGroup };
     });
     if (expect.rows) {
       const picked = rows.map((row, i) => Object.fromEntries(Object.keys(expect.rows[i] ?? {}).map((k) => [k, row[k]])));
