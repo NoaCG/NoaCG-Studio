@@ -316,6 +316,36 @@ test('the SVG practice library plans the specs that load it, while the rest of d
   assert.equal(planFor(['docs/acceptance/owner-queue/example.txt']).mode, 'none');
 });
 
+// The What's new notes are markdown under docs/, so both halves of IGNORE swallowed them and the
+// `docs/whats-new/**` lines in the landing and public-chrome headers never ran. Vite builds the
+// landing, /whats-new and /roadmap from them, so a note can move a footer the baselines pin.
+test("a What's new note plans the public page specs, while its README and other docs plan nothing", () => {
+  for (const note of ['docs/whats-new/2026-10-08.md', 'docs/whats-new/roadmap.md']) {
+    const { mode, specs } = planFor([note]);
+    assert.equal(mode, 'subset', note);
+    assert.deepEqual(specs, ['landing.spec.ts', 'public-chrome-baseline.spec.ts'], note);
+  }
+  assert.equal(planFor(['docs/whats-new/README.md']).mode, 'none');
+  assert.equal(planFor(['docs/GOALS.md']).mode, 'none');
+  assert.equal(planFor(['docs/ARCHITECTURE.md']).mode, 'none');
+});
+
+// THE GUARD for the carve-outs above: IGNORE runs before the header lookup, so a spec that names a
+// docs/ path its folder is not carved out for has a dead `covers:` line and nobody is told. Every
+// tracked docs/ file a header names must plan that spec, apart from the writers' READMEs.
+test('every docs file a spec header names plans that spec', () => {
+  const unread = new Set(['docs/svg-samples/README.md', 'docs/whats-new/README.md']);
+  const dead = [];
+  for (const file of repositoryFiles().filter((f) => f.startsWith('docs/'))) {
+    if (unread.has(file)) continue;
+    const named = COVERAGE.filter((c) => c.test(file)).map((c) => c.spec);
+    if (named.length === 0) continue;
+    const { specs } = planFor([file]);
+    for (const spec of named) if (!specs.includes(spec)) dead.push(`${file} -> ${spec}`);
+  }
+  assert.deepEqual(dead, []);
+});
+
 // THE RULE: a change no spec can observe runs no specs, and the agent harness is that kind of
 // change for the same reason `.github/` is. Measured over the 119 first-parent commits on `main`
 // to 2026-09-04, eight escalated on nothing but `.claude/settings.json` or `.codex/config.toml`

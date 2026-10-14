@@ -258,8 +258,21 @@ const SUITE_CRITICAL_SCRIPTS =
 // the eol rules for every generated artefact in the repository, and a mistake there is the kind
 // that makes a clean tree read as dirty.
 const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
+// `docs/` and every `.md` are prose no spec reads, EXCEPT the folders below, which a spec or the
+// site build loads and whose spec headers say so. IGNORE runs before the header lookup, so a
+// folder missing here leaves its `covers:` line dead and its edits plan `mode: none`; the test
+// "every docs file a spec header names plans that spec" fails when that happens. Each one:
+//   - svg-samples/ and tutorials/svg-examples/: the practice SVGs the import specs and the
+//     downloads pack load (the latter's README ships in the pack, so it counts too).
+//   - whats-new/: Vite builds the landing's latest update and /whats-new from the notes and
+//     /roadmap from roadmap.md (scripts/whats-new.mjs, scripts/roadmap.mjs). A note changes the
+//     page's height and so can move its footer by a pixel row, which is how a content edit turned
+//     main red in #1198 with no E2E on its PR. Its README is the writers' guide; the build skips it.
+//   - research/editor-r1-1d/baseline/: the recorded wizard baseline editor-fidelity-trim reads.
+const DOCS_LOADED = String.raw`svg-samples\/|tutorials\/svg-examples\/|whats-new\/|research\/editor-r1-1d\/baseline\/`;
+const MD_LOADED = String.raw`docs\/tutorials\/svg-examples\/README\.md$|docs\/whats-new\/(?!README\.md$)`;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
-const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/svg-examples\/)/, /^(?!docs\/tutorials\/svg-examples\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
+const IGNORE = [new RegExp(`^docs/(?!${DOCS_LOADED})`), new RegExp(`^(?!${MD_LOADED}).*\\.md$`),/^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, /^scripts\/e2e-traced\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as
