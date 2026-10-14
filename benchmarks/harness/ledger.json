@@ -23,6 +23,19 @@
       "funding": "none",
       "outcome": "completed",
       "note": "the bench and the dry run: --control at $0 against the production bridge (evidence/phase-1.md); no session created, no credit spent"
+    },
+    {
+      "at": "2026-10-14T20:24:12.472Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H2",
+      "stage": "calibration",
+      "arm": "judge",
+      "model": "claude-fable-5-1",
+      "funding": "subscription",
+      "notionalUsd": 143.56,
+      "outcome": "completed",
+      "note": "the frozen judge: 454 claude -p judgement calls (three prompt drafts on the 70% development part, one frozen run on the held-back 30%) and two model probes on the subscription, no usage-limit pause, no credit (evidence/phase-2.md)"
     }
   ]
 }

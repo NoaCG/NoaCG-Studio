@@ -956,6 +956,76 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H2. The judge (built 2026-10-14)
+
+- **Check's findings (H1, on `e349156e6`):** AC-1 holds: `--control` CONTROL PASSED at $0 (both
+  arms deliver school-scoreboard 57 frames and debate-clock 27, `budget_reached` hands in not-ready,
+  cleanup 404, a $1 ledger refuses a $3 session); the stub matches the Managed Agents docs and SDK
+  0.133.0 (cents as strings, event order, the `/mnt/session/uploads` mount, `scope_id` outputs); the
+  gallery is blind (235 images, the 3.2 states and crops present); `harness-bench.test` 20 of 20
+  with the passphrase, 19 and 1 skip without; the system prompt 14 lines, `build-skill --check` OK,
+  coverage and record derive from inspect and stress; cli 276 pass; API tests 394 of 394; the 5.4
+  child environment holds no key-like name, reports `oauth_token`, refuses with the token blanked;
+  `agent-sync --workspace bench` shows create x3 and applies nothing. Carried: a reused `--control
+  --out` directory fails ("graphic is not empty": the runner clears `cells/`, not `stub-sessions/`,
+  and stub ids restart at 000001), so use the default timestamped directory; H1's "bridge flakes"
+  trap is probably that collision, not the bridge; H1's merge sha is `e349156e6`; the published
+  `@noacg/cli` 0.11.0 lacks `coverage` and `record`, so the next release needs a version bump; H3's
+  gaps were already recorded (the Chromium download host, the Haiku re-sync, the arm passing
+  files); the MISSING actions on v1 briefs are the alias gap, to map before H5.
+- **Shas:** previous verified `main` `e349156e6`; built on `claude/plan-noacg-harness-p3-build`; the
+  split was committed in `c5cc0367e` before any prompt existed and the lock in `851f23255` before the
+  held-back part was read; the merge sha is the one the queue records. **Revert:** `git revert -m 1`
+  the merge commit; no Anthropic resource exists, nothing to clean up.
+- **What landed** (`benchmarks/harness/evidence/phase-2.md`): the judge in `benchmarks/harness/judge/`
+  (`prompt.md`, `rubric.json`, `judge.lock.json`, `calibration.mjs`, `plant.mjs`,
+  `calibration-set.json`, `split.json`); `benchmarks/harness/lib/judge.mjs` filled in (single and
+  pairwise, both orders, the model check, `coverageFrames`); `harness-bench.mjs --judge <runDir>`,
+  which refuses a judge whose hash differs; `runClaudeAsync` and `pauseMs` in `subscription.mjs`;
+  five tests; `evidence/instruments.md` (3.5 fired). **PASS** on the held-back 30%: agreement 38 of
+  41 (92.7%), no basic-defect FAIL called airable, pairwise 15 of 16 (93.8%) with one order flip
+  counted as an error. Spend: $0 credit, $143.56 notional on the subscription, no pause.
+- **H3 must allow for:** nothing of the judge; H3 measures the container. The ledger now holds H0 to
+  H2 as completed.
+- **H5 must allow for:**
+  - Judge a round with `node scripts/harness-bench.mjs --judge <runDir> --phase H5`. It reads every
+    cell's `frames/coverage.json` (frames and crops, captioned) and its operator surface from
+    `cell.json`, judges each cell alone and every two arms on one brief in both orders, writes
+    `judgements.jsonl` in the run directory and resumes past what it already holds. A usage-limit
+    pause is written to the ledger and waited out.
+  - The calibration judged 2 to 5 stills a graphic at a median 22 s and about $0.25 to $0.40 a
+    judgement; a coverage matrix is 30 to 60 images a graphic, so a pair is several times that.
+    Pace it across usage windows.
+  - The judge's `missingActions` is uncalibrated (the owner judged frames, not surfaces): keep the
+    mechanical gate of 3.6, with the alias list, as the count of missing actions.
+  - Read `evidence/instruments.md` first: a count-up captured before it settles reads as broken
+    (check the coverage's 10 s Take frame), and `bench-field-unpainted` fires on computed fields
+    the owner aired.
+- **Decisions** (each revertible by repeating H2, which needs a new held-back set):
+  - *The judge is `claude-fable-5-1` at effort `high`*: the subscription serves Fable 5.1 and Opus 5.5
+    through `claude -p --model`, and D6 ranks Fable above Opus. Revert: re-pin on Opus.
+  - *The prompt is the system prompt* (`--system-prompt`), not a user message under Claude Code's
+    coding persona; Read is the only tool and the frames sit alone in the judgement's directory.
+  - *Labels:* good and bad as 4.3 names them; TWEAKS is bad; a bad item carries a basic mistake only
+    where the owner's note names one. The owner judged pictures without operator surfaces, so the
+    calibration passes none.
+  - *The split holds back briefs, not items*, so a pair and its two graphics are on one side.
+  - *Planted defects* are a script appended to the graphic's own `template.js` (the most prominent
+    text: font size times width), one per August library cell, round-robin over the three kinds, each
+    checked by a pixel measurement against its original.
+  - *Three drafts, then frozen*: v1 to v3 on the development part only (76%, then 91.2%, then 92.3%);
+    the remaining misses were design calls the prompt could not name without fitting to them.
+  - *The held-back part is read once*: the runner refuses an unfrozen judge there, and a second judge
+    on a part another judge already read.
+- **Traps:**
+  - `claude -p` children must not run through `spawnSync` when several should run at once: it blocks
+    the event loop, and "four at a time" ran one at a time. The judge uses `runClaudeAsync`.
+  - The CLI's own stress frame doubles every value (each set twice over), unlike the archived
+    rounds' brief stress values; the captions say so.
+  - Probing `--model fable` with `--tools ""` listed `claude-opus-4-8` beside Fable in
+    `modelUsage`; judgement runs list only the pinned id, and the runner rejects an answer that
+    lacks it.
+
 ### H1. The bench and the dry run (built 2026-10-14)
 
 - **Check's findings (H0, on `78a429895`):** AC-2 holds: the sealed file (noacg-sealed-v1,
@@ -975,7 +1045,7 @@ the spend added to the ledger, and the check's findings.
   The AC-2 test checks the hash only where the private passphrase is present; CI checks the
   format and the wrong-passphrase refusal.
 - **Shas:** previous verified `main` `78a429895`; built on `claude/plan-noacg-harness-p2-build`;
-  the merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge commit; no
+  merged as `e349156e6`. **Revert:** `git revert -m 1` the merge commit; no
   Anthropic resource exists to clean up (nothing was synced).
 - **What landed** (`benchmarks/harness/evidence/phase-1.md`): `noacg coverage`, `noacg record`
   and the digest in `validate --json`, with offline tests (`cli/test/coverage.test.mjs`); the
