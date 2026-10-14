@@ -285,6 +285,12 @@ function reached(prev: WalkState, next: WalkState): WalkState {
   return next.step > next.lastStep ? { ...next, lastStep: next.step } : next;
 }
 
+/** `state` with `changes`, or `state` itself when every change is the value already held. */
+function settle(state: WalkState, changes: Partial<WalkState>): WalkState {
+  const keys = Object.keys(changes) as (keyof WalkState)[];
+  return keys.every((k) => Object.is(state[k], changes[k])) ? state : { ...state, ...changes };
+}
+
 const outcome = (state: WalkState, parts: Partial<Omit<Outcome, 'state'>>): Outcome => ({
   state,
   memory: 'keep',
@@ -489,27 +495,26 @@ export function reduce(state: WalkState, action: WalkAction): WalkState {
       }
       return { ...state, brandId, draft: mergeDraft(state.draft, next ? brandPatch(next) : brandClearPatch()) };
     }
+    // The plain setters keep the record when nothing changed, as a React state setter bails out:
+    // AiStep reports its thread on mount, and that must not cost the shell a render.
     case 'filters':
-      return {
-        ...state,
+      return settle(state, {
         browseFilters: typeof action.update === 'function' ? action.update(state.browseFilters) : action.update,
-      };
+      });
     case 'ai':
-      return {
-        ...state,
+      return settle(state, {
         ...(action.result !== undefined ? { aiResult: action.result } : {}),
         ...(action.thread !== undefined ? { aiThread: action.thread } : {}),
-      };
+      });
     case 'file':
-      return {
-        ...state,
+      return settle(state, {
         ...(action.file !== undefined ? { importedFile: action.file } : {}),
         ...(action.error !== undefined ? { importedFileError: action.error } : {}),
-      };
+      });
     case 'buildMode':
-      return { ...state, buildMode: action.buildMode };
+      return settle(state, { buildMode: action.buildMode });
     case 'kitPick':
-      return { ...state, ...(action.pack !== undefined ? { kitPack: action.pack } : {}), kitSelected: action.selected };
+      return settle(state, { ...(action.pack !== undefined ? { kitPack: action.pack } : {}), kitSelected: action.selected });
     case 'kit':
       return reached(state, {
         ...state,

@@ -377,6 +377,10 @@ test('filters compose as functional updates; the AI, file and kit moves set only
   assert.equal(moved.draft, plan.drafts[1]);
   assert.equal(moved.step, 2);
   assert.equal(W.reduce(moved, { type: 'kit', kit: null }).step, 2, 'no step named: the reader stays');
+  // A setter that changes nothing keeps the record, as a React state setter bails out.
+  assert.equal(W.reduce(ai, { type: 'ai', thread: THREAD }), ai);
+  assert.equal(W.reduce(file, { type: 'file', file: FILE, error: 'bad' }), file);
+  assert.equal(W.reduce(f, { type: 'filters', update: (p) => p }), f);
 });
 
 test('committedKit records the open graphic only on its editing steps', () => {

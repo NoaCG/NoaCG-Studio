@@ -1337,19 +1337,9 @@ export default function CreationWizard() {
                 filters={browseFilters}
                 onFilters={onFilters}
                 onDraft={patch}
-                onPickVariant={(v) =>
-                  patch({
-                    category: v.category,
-                    variantId: v.id,
-                    lines: v.suggestedLines.map((l) => ({ ...l })),
-                    zone: null,
-                    logoEnabled: null, // the logo decision belongs to the picked design
-                    // Motion and the steps decision too, as on the images walk's Template step.
-                    animation: { presetId: null, outPresetId: null, steps: null },
-                    // The chosen brand carries its look into every new graphic.
-                    ...brandOrClearPatch(brand),
-                  })
-                }
+                // One pick patch for Browse, the images walk's Template step and a deep link
+                // (walkState.ts `pickPatch`).
+                onPickVariant={(v) => dispatch({ type: 'pickDesign', variant: v })}
                 onAi={() => dispatch({ type: 'walk', mode: 'ai', step: 1 })}
                 // Ranking context, not a filter: with the footer's brand toggle on, the
                 // package's siblings lead the results (proposal §13.3).
@@ -1426,20 +1416,9 @@ export default function CreationWizard() {
                 variants={orderedVariants}
                 draft={draft}
                 onDraft={patch}
-                onPickVariant={(v) =>
-                  patch({
-                    variantId: v.id,
-                    lines: v.suggestedLines.map((l) => ({ ...l })),
-                    zone: null,
-                    logoEnabled: null, // the logo decision belongs to the picked design
-                    // Motion AND the steps decision belong to the picked design too: a
-                    // checklist is stepped by construction and a name strap is not, so
-                    // switching design re-asks instead of carrying the last answer across.
-                    animation: { presetId: null, outPresetId: null, steps: null },
-                    // The chosen brand carries its look into every new graphic.
-                    ...brandOrClearPatch(brand),
-                  })
-                }
+                // The same pick as Browse and a deep link (walkState.ts `pickPatch`): the logo,
+                // motion and steps decisions belong to the picked design, the brand carries.
+                onPickVariant={(v) => dispatch({ type: 'pickDesign', variant: v })}
               />
             )}
             {/* The catalog walks' later steps; Animation is every animated walk's. */}
