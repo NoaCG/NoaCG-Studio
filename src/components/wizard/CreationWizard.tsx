@@ -106,7 +106,7 @@ import KitConfirms from './template/KitConfirms';
 // the Entry step must open without it (components/catalogOnDemand.tsx).
 const BrowseStep = lazyStep(() => import('./steps/BrowseStep'));
 const FieldsStep = lazyStep(() => import('./steps/FieldsStep'));
-const AiStep = lazyStep(() => import('./steps/AiStep'));
+const AiStep = lazyStep(() => import('./ai/AiStep'));
 
 /** What the doors (shell/doors.ts) reach in the studio beyond the walk: stores, writes, routes. */
 const STUDIO_DOOR_IO = {

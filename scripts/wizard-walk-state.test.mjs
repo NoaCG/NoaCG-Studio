@@ -424,6 +424,12 @@ test('committedKit records the open graphic only on its editing steps', () => {
   assert.equal(W.committedKit(onFields, plan).drafts[0], edited);
   assert.equal(W.isKitEditStep(onFields, 1), false);
   assert.equal(W.committedKit({ ...onFields, step: 1 }, plan), plan, 'off the editing steps nothing is recorded');
+  // The editing steps are the kit walk's Fields to Animation, in either template walk.
+  const kitWalk = walkOf('template', true);
+  const editing = [stepIndex(kitWalk, 'fields'), stepIndex(kitWalk, 'style'), stepIndex(kitWalk, 'animation')];
+  for (const s of [onFields, { ...onFields, buildMode: 'one' }]) {
+    for (let step = 0; step < kitWalk.steps.length; step++) assert.equal(W.isKitEditStep(s, step), editing.includes(step), `${s.buildMode} ${step}`);
+  }
 });
 
 // ── The walk memory and the library save ─────────────────────────────────────────────────────

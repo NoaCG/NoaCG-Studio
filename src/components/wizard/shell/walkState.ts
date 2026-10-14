@@ -188,9 +188,10 @@ export function activeKit(state: WalkState): KitPlan | null {
   return state.mode === 'template' ? state.kit : null;
 }
 
-/** Is `step` one of the steps that edit the open kit graphic? Only on the template walk. */
+/** Is `step` one of the steps that edit the open kit graphic (the kit walk's Fields to Animation)?
+ *  Only on the template walk. */
 export function isKitEditStep(state: WalkState, step: number): boolean {
-  return state.mode === 'template' && step >= 2 && step <= walkOf(state.mode, !!state.kit || state.buildMode === 'kit').animStep;
+  return state.mode === 'template' && step >= 2 && step <= walkOf('template', true).animStep;
 }
 
 /** The kit with the open graphic's answers recorded - what every move away from it keeps. */
@@ -504,7 +505,7 @@ export function reduce(state: WalkState, action: WalkAction): WalkState {
       const draft = mergeDraft(state.draft, next ? brandPatch(next) : brandClearPatch());
       if (state.kit && state.buildMode === 'kit') {
         const open = activeKit(state);
-        const plan = rebrandKit(open ? committedKit(state, open) : state.kit, next ? brandPatch(next) : null);
+        const plan = rebrandKit(committedKit(state, state.kit), next ? brandPatch(next) : null);
         return { ...state, brandId, kit: plan, draft: open ? plan.drafts[plan.current] : draft };
       }
       return { ...state, brandId, draft };
