@@ -679,3 +679,42 @@ test('a plain #/new after the production door discards the finished walk', async
   await expect(page.getByTestId('wz-stepcount')).toHaveText(/Step\s*5\s*\/\s*6/);
   await expect(page.getByTestId('wz-resume-confirm')).toHaveCount(0);
 });
+
+test('a kit save held across a close outlives it: the next walk waits for it, then it lands', async ({ page }) => {
+  // Decided in S1c (spec section 1.3, S5): `kitBusy` belongs to the set save, not to the walk.
+  // Its own end clears it, so no second set save starts while one is still writing, whichever
+  // walk is on screen; and when the held save ends, its landing still moves the reader.
+  await armWriteSwitch(page);
+  await page.goto('/app');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  const go = page.getByTestId('kit-finish-production-go');
+  /** From Entry: a two-graphic kit, built, on its hub. */
+  const buildShortKit = async () => {
+    await page.locator('[data-entry="template"]').click();
+    await page.locator('[data-build-mode="kit"]').click();
+    await page.locator('[data-kit="ceremony"]').click();
+    await expect(page.getByTestId('kit-detail')).toBeVisible();
+    const items = page.locator('[data-testid="kit-contents"] [data-kit-item]');
+    const total = await items.count();
+    for (let i = 2; i < total; i++) await items.nth(i).uncheck();
+    await page.locator('.wz-next').click();
+    await expect(page.getByTestId('kit-finish')).toBeVisible();
+  };
+  await buildShortKit();
+  await settleDurableWrites(page);
+  await setWriteSwitch(page, { hold: 'spx-gfx-graphics' });
+  await go.click();
+  await expect(go).toBeDisabled();
+
+  // Left mid-save, and a fresh walk opened over it: that walk's kit doors wait too.
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.locator('[data-door="new-graphic"]').click();
+  await page.getByTestId('confirm-switch').getByTestId('switch-discard').click();
+  await buildShortKit();
+  await expect(go).toBeDisabled();
+
+  // The first save ends, and its landing takes the reader to the production it made.
+  await setWriteSwitch(page, {});
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+});

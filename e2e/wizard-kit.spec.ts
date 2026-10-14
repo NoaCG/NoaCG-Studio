@@ -675,3 +675,12 @@ test('the rail\'s format Change from a kit graphic keeps the edit made on it', a
   await page.locator('[data-kit-open="0"]').click();
   await expect(firstLine(page)).toHaveValue('Kept across Change');
 });
+
+test('a kit hub has no read-back rows, so no summary jump can skip recording a graphic', async ({ page }) => {
+  // S5 (spec section 1.3), decided in S1c: `editSummaryStep` serves the one-graphic Finish only.
+  // The hub lists the graphics instead, and each opens through `openKitGraphic`.
+  await pickShortKit(page, 2);
+  await buildKit(page, 2);
+  await expect(page.locator('.wz-finish-summary')).toHaveCount(0);
+  await expect(page.getByTestId('wz-finish-name')).toHaveCount(0);
+});
