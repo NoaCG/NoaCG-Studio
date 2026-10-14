@@ -669,6 +669,72 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S2. Import drop doors (built 2026-10-14)
+
+- **Check's findings (S1c check: PASS).** Six fixes verified red before green on probe runs
+  38485638743 and 38486142632 and green on each pull request's CI; main run 38500380159 on
+  `1dc34cebd` green including the nine new tests; the D9 exception confirmed (#1158's one
+  assertion); gates, protection, capacity 94%, budget 2,516 of 2,601, ledger clean. Carried:
+  S1c's note said `wizard-shell` was quarantined by #1160, which is still open; that line is
+  corrected below. The local browser queue refused jobs (about 1.4 GB free against its 4 GB
+  floor), so browser evidence came from CI.
+- **Shas:** previous verified `main` `1dc34cebd` (built from `1e9ff904b`). Prerequisite: #1163
+  revives `e2e/wizard-brand.spec.ts` through the export door, in its own pull request landed
+  first. This phase's merge sha is the one the queue records. **Revert:** `git revert -m 1` this
+  phase's merge commit (the shell takes its inline handlers back; #1163 stays, it only revives
+  tests).
+- **What landed** (`evidence/phase-s2.md`): `import/drop.ts` with `svgDropPatch`, `clearSvgPatch`,
+  `artDropPatch` and `templateFileDropped`, exported through `import/index.ts`;
+  `brandOrClearPatch` in `draft/template.ts`, replacing the five brand-or-clear spreads (the SVG
+  and picture drops, the Browse and Template picks, the deep link); `scripts/import-drop.test.mjs`
+  (11 Node tests; two mutations each turned one red); the shell 2,516 to 2,482 lines and its
+  budget lowered to 2,482; `// covers: src/components/wizard/import/drop.ts` on
+  `import-name-collision` and `wizard-draft-guard`, the two specs that drop a template file and
+  covered the shell but not `import/`.
+- **Section 5 counter (AC-6): 15 of the 48 `import/index.ts` exports are named outside
+  `import/`** (by text, as the old counter: 13 in code; `armTimerClock` and `DesignFieldSpec` in
+  comments only). On `1e9ff904b` the same count was 13 of 44: the shell's two `import/draft.ts`
+  reads (`svgDraftFromImport`, `svgDraftCleared`) left and the four drop doors came in. No later
+  phase may raise 15. The shell reads no `import/draft.ts` function. The command is in
+  `evidence/phase-s2.md`; S7 writes it into `docs/ARCHITECTURE.md` section 5.
+- **Decisions** (each revertible as stated):
+  - *`svgDropPatch` and `clearSvgPatch` call the SVG road's `svgDraftFromImport` and
+    `svgDraftCleared` rather than moving them.* Since the baseline the svg-import-engine plan put
+    the whole drop and clear into those two functions in `import/draft.ts`; that file is the
+    neighbour's (non-goals), and the corpus harness, `scripts/svg-fit-rungs.test.mjs` and
+    `scripts/driven-clock.mjs` build "as the wizard would" through those names. So the shell's
+    door is a one-line call, and the fit, furniture, prefix and naming decisions stay where the
+    corpus tests them; `import-drop` pins them again over hand-made inventories. Revert: move
+    the two bodies into `drop.ts` once the svg-import-engine plan is done, and repoint the three
+    scripts.
+  - *`artDropPatch(designArt, importedImages)`, not `(file, ctx)`.* The handler receives the
+    artwork the step already measured; there is no file to read and, with the brand the
+    caller's, no context. Revert: none needed.
+  - *`templateFileDropped` resolves to `{ ok, file }` or `{ ok: false, error }` and never
+    throws*, with `importTemplateFile` injected (it pulls JSZip). The two setters and the mode
+    change stay in the shell, which owns that state until S5.
+  - *The mode each drop switches to stays in the shell* beside its call (`svg`, `design`,
+    `file`): the walk is S3's and S5's, and a drop door returning a mode would be a second owner
+    of it.
+  - *`brandOrClearPatch(null)` is the three-field clear the five sites sent* (palette, custom
+    palette, typeface), not `brandClearPatch()`, which also clears `customFont` and `brandLogo`;
+    the chooser's own None keeps `brandClearPatch`.
+  - *The prerequisite went through the export door with one wait changed.* The revived tests
+    waited for the editor door to close the wizard; the export door keeps the wizard open by
+    design, so they wait for the export window instead. No assertion changed.
+- **S3 must allow for:** the shell's budget is 2,482, its exact length, so any line a
+  beside-running plan adds to the shell fails `check:file-budgets` until S3 lowers it again; a
+  plan that must add lines says so in its own notes rather than raising the number. The import
+  ladder branch (`step === 1 && (mode === 'design' || mode === 'svg' || mode === 'file')`) still
+  holds the `setMode` calls beside each drop door; S3 re-keys it by `StepId` and leaves the
+  calls. The AI step's `onOpenImported` still writes `importedFile` and jumps to file mode's
+  Finish with `setStep(2)` inline: the walks table must give that Finish a name. With #1163
+  landed, `wizard-brand` (7 tests) runs on every shell change, and S3's `project-format` revival
+  adds more minutes to a capacity line already at 94%.
+- **Traps:** the local browser queue refused every job again (RAM). A worktree-isolated session
+  cannot drive git in a second worktree, so the prerequisite was built as a second branch in this
+  one; `npm run queue:merge -- <branch>` queues a branch by name.
+
 ### S1c. Defect decisions (built 2026-10-14)
 
 - **Check's findings (S1b check: PASS).** Node 16/16 and the factory draft test 15/15, two
@@ -751,11 +817,13 @@ and the check's findings. The AI track's notes live in its own spec.
   journey names it `.wz-rail-foot .wz-rail-change`. A held kit save's landing still moves the
   reader after they left and opened another walk (recorded in wizard-finish, not judged: the window
   needs a durable write held for seconds). `e2e-capacity --changed` read 94% (table values) on
-  every pull request of this phase. **`e2e/wizard-shell.spec.ts` is quarantined** (#1160): S1b's
-  deep-link journey read the Fields rows before their lazy chunk had rendered (0 rows on #1158's
-  first run 38496838758, green on its re-run); this phase's pull request waits for the first row
-  before reading. Until the quarantine releases it, the file runs in `quarantine.yml`, not in the
-  blocking shards, which AC-15 and S2 to S5 must allow for.
+  every pull request of this phase. **`e2e/wizard-shell.spec.ts` is proposed for quarantine, not
+  quarantined** (#1160, still open when S2 was built; `e2e/quarantine.json` on main lists only
+  `editor-foundation` and `rundown-history`): S1b's deep-link journey read the Fields rows before
+  their lazy chunk had rendered (0 rows on #1158's first run 38496838758, green on its re-run);
+  this phase's pull request waits for the first row before reading. The file runs in the blocking
+  shards; if #1160 lands, it moves to `quarantine.yml` until released, which AC-15 and S2 to S5
+  must then allow for.
 
 ### S1b. Characterisation and the gate (built 2026-10-13)
 
