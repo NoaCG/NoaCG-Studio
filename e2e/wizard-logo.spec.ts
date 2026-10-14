@@ -161,7 +161,7 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
     const img = box.querySelector('img') as HTMLImageElement | null;
     return { box: rect(box), all, natural: img ? [img.naturalWidth, img.naturalHeight, img.complete] : null, root: rect(box.closest('.lower-third') ?? box), rootTransform: getComputedStyle(box).transform };
   });
-  console.log('PROBE-RECTS', JSON.stringify(probe));
+  expect(JSON.stringify({ probe, css: t.css.slice(t.css.indexOf('.lower-third-logo') - 100, t.css.indexOf('.lower-third-logo') + 1800) })).toBe('PROBE');
   const boxes =await frame.locator('.lower-third-box').evaluate((box) => {
     const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
     const line = box.querySelector('#f0')!.getBoundingClientRect();
