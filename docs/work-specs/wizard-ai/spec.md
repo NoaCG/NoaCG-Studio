@@ -400,6 +400,37 @@ and the check's findings.
   citations of the old id still resolve. `learn` with an existing rule's exact text and
   `--evidence` appends to that rule's record instead of writing a rule.
 
+### A4 check on `main` (2026-10-14): PASS
+
+- **Shas:** checked `main` at `15b26a6c9`, the merge of #1199 (`origin/main` had not moved).
+- **Browser evidence (CI):** #1199's merge-group run 38552822347 ran `15b26a6c9` and passed,
+  0 unexpected and 0 flaky of 562. Its merged report: `ai` 35, `ai-lite` 2, `ai-tiers` 8,
+  `ai-depth` 2, `pro` 2, `ai-consent` 1 plus 1 skip, `wizard-finish` 22 plus 1,
+  `ai-more-control` 3 skipped (#800): the A3 check's counts exactly. The e2e diff is the eleven
+  covers headers and nothing else (AC-2). Production's deploy-verify passed on the same sha.
+- **AC-9:** the moved files, diffed blob to blob against `15b26a6c9^1`, differ in relative
+  imports only, plus two comments in the step naming `ProPanel.tsx` and `AgentRouteCard.tsx`;
+  each new path resolves to the same module. The shim is `export { default } from
+  '../ai/AiStep';`, and `CreationWizard.tsx:116`'s lazy import is unchanged and untouched.
+  `steps/VideoStep.tsx`'s one line (`./ai/UploadCard` -> `../ai/UploadCard`) is outside the
+  list but required by the move: accepted.
+- **Rules (AC-11, D6):** 31 rule files changed, each a `scope:` line only, `steps/ai/` ->
+  `ai/` and `steps/AiStep.tsx` -> `ai/AiStep.tsx`; 561 rule files before and after. The rule
+  ids in every compiled `AGENTS.md` (442 entries, 428 distinct) and in `.claude/rules/*` (443)
+  are the same multiset before and after: none lost, none duplicated. The 11 `.claude/rules`
+  files are renames, each with its successor. `npm run check:contracts`: `OK - 561 rule(s),
+  259 generated file(s) current`. `npm run rules -- src/components/wizard/ai/AiStep.tsx`
+  lists the wizard AI rules from the folder's own contract (23 rules in `wizard/ai/AGENTS.md`).
+- **Measurements reproduced:** chains (LF, 2 bytes per join) AI step 44,599 (was 2,863 +
+  8,987 + 11,697 + 11,367 + 8,058 + 9,041 + 10 = 52,023), `steps/` 42,338, shell 34,920. Plan
+  widths: the step 43, `ProPanel.tsx` 43, `UploadCard.tsx` 43, `creation.ts` 19, the shim 44
+  (the traced-only `wizard-draft-guard`). Node: `e2e-affected` 81 of 81, `ai-lite-bench` 28 of
+  28. Budget (AC-10): 1,659 before and after; a probe line in `ai/AiStep.tsx` makes the gate
+  fail at `1660 of 1659`, the same line in the shim passes (not guarded). Probes reverted.
+- **For A5:** besides the builder's list, `docs/AI_WIZARD_PLAN.md:13`, `docs/BRAND_PLAN.md:246`
+  and `docs/PROMISE_AUDIT.md` still cite the old paths. Not checked: local `tsc` and
+  `depcruise` (CI's Build and Factory gates passed on the sha).
+
 ### A4. Folder move (built 2026-10-14)
 
 - **Check's findings (A3 check, main `9f89075c3`):** merge-group run 38545131904 green, the
