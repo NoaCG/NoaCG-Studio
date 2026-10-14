@@ -220,8 +220,8 @@ async function finishIntoProduction(page: Page): Promise<void> {
 interface SavedAiGraphic {
   /** Every library record's name: one walk, one record. */
   names: string[];
+  html: string;
   css: string;
-  js: string;
   fields: string[];
   assets: string[];
   /** The conversation the graphic was made from, both sides, oldest first. */
@@ -239,8 +239,8 @@ async function savedGraphic(page: Page): Promise<SavedAiGraphic> {
     const last = graphics[graphics.length - 1];
     return {
       names: graphics.map((g) => g.name),
+      html: last?.template.html ?? '',
       css: last?.template.css ?? '',
-      js: last?.template.js ?? '',
       fields: last?.template.fields.map((f) => f.field) ?? [],
       assets: last?.template.assets.map((a) => a.path) ?? [],
       thread: last?.aiThread?.messages.map((m) => m.text) ?? [],
@@ -408,6 +408,7 @@ test('describe-it: prompt → validated template → create project', async ({ p
   const saved = await savedGraphic(page);
   expect(saved.names).toEqual(['Test Slate']);
   expect(saved.fields).toEqual(['f0']);
+  expect(saved.html).toContain('Hello AI');
   expect(Object.values(saved.rundowns)).toEqual([['Test Slate']]);
 });
 
@@ -1181,8 +1182,10 @@ async function holdSecondAnswer(page: Page): Promise<{ arrived: Promise<void>; r
     if (calls === 1) return route.fulfill(toolUse('emit_template', VALID_TEMPLATE));
     reached();
     await held;
-    return route.fulfill(toolUse('emit_template', { ...VALID_TEMPLATE, name: 'Late Slate' }));
+    // A test that failed before its release lets go as the page closes; nothing is left to answer.
+    return route.fulfill(toolUse('emit_template', { ...VALID_TEMPLATE, name: 'Late Slate' })).catch(() => undefined);
   });
+  page.once('close', () => release());
   return { arrived, release };
 }
 
@@ -1195,6 +1198,8 @@ async function resultThenHeldGeneration(page: Page, arrived: Promise<void>): Pro
   await page.locator('.wz-step textarea').fill('A bolder slate');
   await page.getByRole('button', { name: '↻ Start over' }).click();
   await arrived;
+  // The first result moved into the step's thread when the second generation started.
+  await expect(page.getByTestId('ai-past')).toHaveCount(1);
 }
 
 test('late completion: an answer released after Home lands in the held walk, and a fresh open shows none of it', async ({ page }) => {
@@ -1208,7 +1213,7 @@ test('late completion: an answer released after Home lands in the held walk, and
   await expect.poll(() => runsRecorded(page), GENERATED).toBe(2);
 
   // Continue into the held walk: the step mounts again with its own thread and directions gone,
-  // and the result it shows is the LATE one, which reached the shell after the wizard closed.
+  // and the result it shows is the LATE one, whose answer arrived while the wizard was closed.
   await page.locator('[data-door="new-graphic"]').click();
   const guard = page.getByTestId('confirm-switch');
   await guard.getByTestId('switch-resume').click();

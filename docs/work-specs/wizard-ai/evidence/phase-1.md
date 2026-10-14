@@ -39,7 +39,7 @@ route until the test releases it, `aiRunRecords()` polled until the second run i
 
 - **Home while busy.** The late answer reaches the shell after the wizard closed. Home's
   + New graphic asks (the walk held a result), Continue reopens the AI step, which mounts again:
-  its past generations are gone and the result card shows the late `Late Slate`, not the
+  the past generation its thread held before Home is gone and the result card shows the late `Late Slate`, not the
   `Test Slate` that stood when the reader left. A fresh open (Discard) shows no result card and
   Next is disabled.
 - **✕ while busy.** ✕ rewinds to the front page and clears the result, but the late answer then
@@ -64,8 +64,9 @@ Local (Node only; the browser queue's 4 GB floor refused Playwright, 0.9 GB free
 
 ```
 node scripts/check-file-budgets.mjs
-ok      src/components/wizard/CreationWizard.tsx  2516 of 2601 lines
-ok      src/components/wizard/steps/AiStep.tsx  2152 of 2152 lines
+[measured] 2 budgeted files
+ok      src/components/wizard/CreationWizard.tsx  2516 of 2601 lines  (scripts/file-budgets/components-wizard-CreationWizard.json)
+ok      src/components/wizard/steps/AiStep.tsx  2152 of 2152 lines  (scripts/file-budgets/components-wizard-steps-AiStep.json)
 node --test scripts/check-file-budgets.test.mjs        6 pass, 0 fail
 node --test scripts/ai-lite-bench.test.mjs             28 pass, 0 fail
 node scripts/gates.mjs run --changed origin/main       all ok (file-budgets among them), 13 tests pass

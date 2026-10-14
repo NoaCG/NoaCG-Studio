@@ -156,12 +156,12 @@ test('Lite creates one grounded graphic, records usability and acceptance, and s
     const { loadGraphics } = await import('/src/model/library.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');
     const graphics = loadGraphics();
-    const template = graphics[graphics.length - 1].template;
+    const template = graphics.at(-1)?.template;
     return {
       names: graphics.map((g) => g.name),
-      fields: template.fields.map((field) => field.field),
-      timeline: Boolean(parseAnimData(template.js)),
-      generationIdInTemplate: JSON.stringify(template).includes('11111111-1111-4111-8111-111111111111'),
+      fields: template?.fields.map((field) => field.field) ?? [],
+      timeline: Boolean(template && parseAnimData(template.js)),
+      generationIdInTemplate: JSON.stringify(template ?? null).includes('11111111-1111-4111-8111-111111111111'),
     };
   });
   expect(templateFacts.names).toEqual(['Campus News Strap']);

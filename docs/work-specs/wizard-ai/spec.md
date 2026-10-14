@@ -409,6 +409,7 @@ and the check's findings.
 - **Traps:** the local browser queue refused every job (0.9 GB free against its 4 GB floor), so all
   browser evidence is CI's. `e2e-capacity --changed` locally counts an edited spec at its table
   value (+0.00) and the plan job's estimate does the same, so CI gate passes; only the Combined E2E
-  report's measured line shows REFUSE. A held route that is never released keeps the test waiting
-  to its timeout, so each late-completion test releases before its first assertion after the
-  close.
+  report's measured line shows REFUSE. A held route that is never released keeps its handler
+  parked, so the late-completion helper also releases it when the page closes. Playwright leaves
+  the order of several `addInitScript` calls undefined; these tests, like the file's older
+  harness-off tests, rely on the test's own settings script running after the `beforeEach` one.
