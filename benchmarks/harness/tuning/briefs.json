@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "notes": "The tuning briefs of the NoaCG harness plan (docs/work-specs/noacg-harness/spec.md, 4.1): the 6 briefs of benchmarks/agent/v1/briefs.json verbatim, then 10 new ones from the same child session that wrote the sealed exam (benchmarks/harness/evidence/phase-0.md). These are the only briefs the harness is tuned on. `third-party-ograf` is a hand-written OGraf package, not a library graphic, and stays out of the tuning rounds (4.2). Shape as v1: stress keys f0..fN follow the field order (the registered type's, or the typeless brief's `fields` string); an image field's stress value describes the test picture, a logo starting \"bright:\" or \"dark:\"; `logo` carries a logo for a type with no image field; `background` starting \"busy:\" describes the picture behind the graphic. Ids are stable.",
+  "briefs": [
+    {
+      "id": "news-lower-third",
+      "kind": "noacg",
+      "type": "lower-third",
+      "chassis": "lt02",
+      "neutral": true,
+      "prompt": "A lower third for a public-broadcast evening news programme: the speaker's name and their role. Calm and authoritative, nothing decorative. It must carry a very long name - 'Alexandra Konstantopoulos-Vandermeulen', 'Senior European Economics Correspondent' - without wrapping badly or leaving the panel.",
+      "stress": {
+        "f0": "Alexandra Konstantopoulos-Vandermeulen",
+        "f1": "Senior European Economics Correspondent"
+      },
+      "expect": {
+        "fields": 2,
+        "actions": []
+      },
+      "judge": "airable as a news strap; long-name behaviour; hierarchy name > role"
+    },
+    {
+      "id": "school-scoreboard",
+      "kind": "noacg",
+      "type": "scoreboard",
+      "chassis": "sb02",
+      "neutral": true,
+      "prompt": "A football scoreboard for a school channel's live stream: two team names, two scores the operator bumps live, a visible 'goal' flag moment for either side the operator can trigger and clear, and a 'final' look when the match ends. Sits top-left, out of the way of the pitch.",
+      "stress": {
+        "f0": "Helsingin Koulujen Urheiluseura",
+        "f1": "12",
+        "f2": "Vantaan Lukio",
+        "f3": "9"
+      },
+      "expect": {
+        "fields": 4,
+        "actions": [
+          "flag",
+          "clearFlag",
+          "final"
+        ]
+      },
+      "judge": "readable scores at a glance; the goal flag and final state exist and are operable; long team names"
+    },
+    {
+      "id": "lecture-countdown",
+      "kind": "noacg",
+      "type": "countdown",
+      "chassis": "gt01",
+      "neutral": false,
+      "prompt": "A 'lecture begins in' countdown for a university's stream: a label the operator writes ('Introduction to Broadcast Graphics begins in') and the minutes they set; the operator can pause and resume it live. Full-width holding look, readable from the back of a lecture hall.",
+      "stress": {
+        "f0": "Introduction to Broadcast Graphics and Interactive Playout begins in",
+        "f1": "12"
+      },
+      "expect": {
+        "fields": 2,
+        "actions": [
+          "pause",
+          "resume"
+        ]
+      },
+      "judge": "the clock runs and reads; pause/resume operable; the label survives a long value"
+    },
+    {
+      "id": "live-vote",
+      "kind": "noacg",
+      "type": "poll",
+      "chassis": "ig13",
+      "neutral": false,
+      "prompt": "An audience vote graphic: the question and three to five answer options with live percentages the operator updates during the show; the leading option visibly ahead. Lower half of the frame, leaves room for the presenter.",
+      "stress": {
+        "f0": "Which of the three proposals should the student union bring to the board this semester?",
+        "f1": "A longer, more elaborate answer option the presenter would read in full|A second long option that competes|Third"
+      },
+      "expect": {
+        "fields": 2,
+        "actions": []
+      },
+      "judge": "five options still fit; percentages read; the lead is visible"
+    },
+    {
+      "id": "debate-clock",
+      "kind": "noacg",
+      "type": null,
+      "chassis": null,
+      "neutral": true,
+      "novel": true,
+      "fields": "Speaker A:text=Government,Time A:number=180,Speaker B:text=Opposition,Time B:number=180,Active:select=A|B",
+      "prompt": "A two-speaker debate clock for a school debating stream: each speaker's name and their remaining speaking time in seconds, the ACTIVE speaker's clock counting down; a 'switch speaker' action that pauses the current speaker and starts the other; a 'penalty' action that takes ten seconds off the active speaker; a 'reset' action that puts both clocks back to their set time. The operator must be able to run the whole debate from NoaCG's control panel without touching code.",
+      "stress": {
+        "f0": "Government (Helsinki Model United Nations)",
+        "f1": "180",
+        "f2": "Opposition (Espoo Debating Society)",
+        "f3": "180"
+      },
+      "expect": {
+        "fields": 5,
+        "actions": [
+          "switch",
+          "penalty",
+          "reset"
+        ]
+      },
+      "judge": "OPERABLE WITHOUT CATEGORY CODE: does `noacg inspect` show the switch/penalty/reset actions, and do they work from the panel; is it airable"
+    },
+    {
+      "id": "third-party-ograf",
+      "kind": "ograf",
+      "type": null,
+      "chassis": null,
+      "neutral": false,
+      "prompt": "Answer this as a plain, hand-written OGraf v1 Graphic package - an `.ograf.json` manifest plus the Web Component module - NOT as a NoaCG template: a 'now playing' music bug for a radio station's video stream: artist, song title and a 0-100 progress the controller updates; a custom action 'nextTrack' that clears the bug to the next values; one step. It must pass `noacg validate` as a third-party OGraf package (the host drives load / update / nextTrack / play / stop) and `noacg inspect` must derive its operator surface from the manifest alone.",
+      "stress": {
+        "artist": "Panagiotis Oikonomopoulos & The Northern Lights Orchestra",
+        "song": "A Very Long Song Title That Keeps Going (Extended Radio Edit)",
+        "progress": 87
+      },
+      "expect": {
+        "fields": 3,
+        "actions": [
+          "nextTrack"
+        ]
+      },
+      "judge": "the OGraf contract alone yields the operator surface; the host lifecycle answers 2xx; airable"
+    },
+    {
+      "id": "market-reporter-lower-third",
+      "kind": "noacg",
+      "type": "lower-third",
+      "chassis": null,
+      "neutral": true,
+      "prompt": "A lower third for our community radio's video stream, where our reporter goes live from the Saturday market every week. The reporter's name and role sit bottom-left on a friendly, bold teal plate with a small yellow accent, so it feels local rather than corporate. It goes on when the reporter starts talking and comes off after a few seconds, and nothing else changes live. The reporter's name is long, with Vietnamese and French accents, and we are always over a crowded, colourful market shot, so the text has to hold its own against striped awnings and fruit stalls.",
+      "stress": {
+        "f0": "Nguyễn Thị Phương Thảo-Lefèvre",
+        "f1": "Community Reporter · Saturday Market Live, Southside Radio",
+        "background": "busy: outdoor market crowd with striped awnings and colourful produce"
+      },
+      "expect": {
+        "fields": 2,
+        "actions": []
+      },
+      "judge": "the long accented name and role fit without wrapping badly or leaving the plate; the strap reads clearly over the busy market; name outranks role"
+    },
+    {
+      "id": "basketball-club-scorebug",
+      "kind": "noacg",
+      "type": "scorebug",
+      "chassis": null,
+      "neutral": true,
+      "prompt": "A scorebug for our club basketball games in Normandy, streamed on YouTube by parent volunteers. It sits in the top-left corner, slim and sporty: both team names on their club colours, the score, the quarter and the game clock. The operator types or bumps the scores, starts and stops the clock with every whistle, calls the interval at half time and calls full time at the end. Our team names are long French place names with accents, and both have to fit without the strip growing across the court.",
+      "stress": {
+        "f0": "Basket Club Saint-Étienne-du-Rouvray",
+        "f1": "58",
+        "f2": "Le Havre Pointe-de-Caux",
+        "f3": "61",
+        "f4": "Q4",
+        "f5": "1:47",
+        "f6": "#d7263d",
+        "f7": "#1b998b"
+      },
+      "expect": {
+        "fields": 8,
+        "actions": [
+          "clockStart",
+          "clockStop",
+          "interval",
+          "final"
+        ]
+      },
+      "judge": "long accented names fit the compact strip; team colours distinguish the sides; the clock starts and stops; interval and full time are distinct and operable"
+    },
+    {
+      "id": "pub-darts-duel",
+      "kind": "noacg",
+      "type": "duel-score",
+      "chassis": null,
+      "neutral": false,
+      "prompt": "A legs score for our pub darts league's Thursday night stream, small in the bottom-right corner so the board stays clear. Dark pub-green with cream type: the two players and the legs each has won. After each checkout I add a leg for that player, undo it if I pressed the wrong side, reset to 0-0 when the next match starts, and call the final, which marks the winner. The names are Irish and Welsh, one of them long and hyphenated, and both sides must stay level and balanced.",
+      "stress": {
+        "f0": "Siobhán Ní Bhriain",
+        "f1": "3",
+        "f2": "Rhodri Llewellyn-Pritchard",
+        "f3": "2"
+      },
+      "expect": {
+        "fields": 4,
+        "actions": [
+          "pointA",
+          "pointB",
+          "undoA",
+          "undoB",
+          "newGame",
+          "final"
+        ]
+      },
+      "judge": "both names fit side by side and stay balanced; point and undo work per player; reset to 0-0 works; the final call clearly marks the winner"
+    },
+    {
+      "id": "brass-band-sponsor-strip",
+      "kind": "noacg",
+      "type": "sponsor-strip",
+      "chassis": null,
+      "neutral": true,
+      "prompt": "A 'supported by' strip for our community brass band's spring concert, streamed for members who can't make it to the hall. It runs along the bottom of the frame during the interval and between pieces, with the kicker and three partner logos in a row, in deep maroon to match the band's uniforms. The operator only takes it on and off. One logo is white, one is black and one is a square full-colour mark, and they all have to stay visible over the band on a glittering, spot-lit stage.",
+      "stress": {
+        "f0": "SUPPORTED BY",
+        "f1": "bright: a white and pale grey wordmark on a transparent background",
+        "f2": "dark: a black and dark brown bakery logo on a transparent background",
+        "f3": "a full-colour square credit-union logo on a transparent background",
+        "background": "busy: brass band on stage with shiny instruments and spotlights"
+      },
+      "expect": {
+        "fields": 4,
+        "actions": []
+      },
+      "judge": "the white and black logos are both visible over the busy stage; three logos of different shapes sit evenly beside the kicker"
+    },
+    {
+      "id": "youth-summit-event-bug",
+      "kind": "noacg",
+      "type": "event-bug",
+      "chassis": null,
+      "neutral": true,
+      "prompt": "An event ident for the Nordic Youth Climate Summit, streamed from a school hall over three days by the student media team. Our logo, the event name and the day and room sit together in the top-left corner for every session, small and calm in white and green so it never competes with the speakers. Each morning the operator retypes the day and the room. Our logo is a dark green leaf, so it must not sink into a dark background, and the room names have Swedish letters.",
+      "stress": {
+        "f0": "NORDIC YOUTH CLIMATE SUMMIT 2026",
+        "f1": "DAY 2 · AUDITORIUM ÅSA",
+        "f2": "dark: a dark green leaf emblem on a transparent background"
+      },
+      "expect": {
+        "fields": 3,
+        "actions": []
+      },
+      "judge": "the dark green logo stays visible; the event name and the detail with Å read at corner size without crowding the frame"
+    },
+    {
+      "id": "choir-final-audience-vote",
+      "kind": "noacg",
+      "type": "live-poll",
+      "chassis": null,
+      "neutral": false,
+      "prompt": "An audience vote for our school choir competition final, streamed and shown on the hall screen. It has the question, the three finalist choirs with bars that grow as the audience votes on their phones, the vote count, and a 'vote now' badge while voting is open. It sits in the right half of the frame beside the stage shot, in elegant midnight blue and gold. Live I close voting, show the result and call the winner. The choir names mix Swedish, English and Spanish, and two of them are close in the count.",
+      "stress": {
+        "f0": "Which choir should win the audience prize?",
+        "f1": "Kammerkören Ljus | 412\nSt. Brigid's Youth Choir | 388\nCoro Voces del Río | 205",
+        "f2": "1,005 votes · voting open",
+        "f3": "VOTE NOW"
+      },
+      "expect": {
+        "fields": 4,
+        "actions": [
+          "close",
+          "result",
+          "call"
+        ]
+      },
+      "judge": "the bars match the counts and the close race is still readable; close voting, show result and call the winner are distinct states; the winner is marked"
+    },
+    {
+      "id": "campus-news-ticker",
+      "kind": "noacg",
+      "type": "ticker",
+      "chassis": null,
+      "neutral": false,
+      "prompt": "A news ticker for our campus TV's weekly newscast, run by journalism students. It is a strip along the bottom of the frame with a 'CAMPUS' label in the university's red, cycling through the items on its own. Live I skip to the next item when one is out of date, pause it while the anchor is reading that story, and resume it afterwards. Some items are very long, with Finnish street names, and they must never be cut off or run under the label.",
+      "stress": {
+        "f0": "Library extends opening hours to midnight during the exam period from 2 December\nStudent union elections: candidate registration closes Friday at 16:00 in the Main Building lobby\nCampus shuttle cancelled today because of roadworks on Yliopistonkatu",
+        "f1": "CAMPUS"
+      },
+      "expect": {
+        "fields": 2,
+        "actions": [
+          "skip",
+          "pause",
+          "resume"
+        ]
+      },
+      "judge": "long items run without clipping or overlapping the label; the items cycle on their own; next item, pause and resume work"
+    },
+    {
+      "id": "christmas-mass-holding",
+      "kind": "noacg",
+      "type": "holding-screen",
+      "chassis": null,
+      "neutral": false,
+      "prompt": "A pre-service holding screen for our Swedish-speaking church's Christmas midnight Mass stream. It is full frame, quiet and festive in deep blue with soft candle-gold: the title in Swedish and English, the service name, a countdown to the start, and our white and gold star logo. I set the minutes before we go live, and pause and resume the clock if the procession is late. The bilingual title is long, and the bright logo has to show clearly on the dark background.",
+      "stress": {
+        "f0": "BÖRJAR SNART · STARTING SOON",
+        "f1": "Julnattsmässa · Christmas Midnight Mass",
+        "f2": "15",
+        "logo": "bright: a white and gold star emblem on a transparent background"
+      },
+      "expect": {
+        "fields": 3,
+        "actions": [
+          "pause",
+          "resume"
+        ]
+      },
+      "judge": "the countdown runs from the set minutes, pauses and resumes; the bright logo is visible; the bilingual title fits"
+    },
+    {
+      "id": "futsal-cup-winner-card",
+      "kind": "noacg",
+      "type": "winner-card",
+      "chassis": null,
+      "neutral": false,
+      "prompt": "A winner card for our university futsal cup final, streamed by the sports society. It comes up full frame after the final whistle with the champion, the score, the runner-up, the competition name and the winner's crest, in black and electric orange. I trigger the celebration when the team lifts the trophy, then settle it back to a calm card while the presenter talks. The club name has Finnish letters, and the crest is black and dark orange, so it must not vanish into the design.",
+      "stress": {
+        "f0": "FINAL",
+        "f1": "Futsal Club Kärpät Oulu",
+        "f2": "4 — 3",
+        "f3": "Sporting Club Ilves",
+        "f4": "UNIVERSITY FUTSAL CUP 2026",
+        "f5": "dark: a black and dark orange owl crest on a transparent background"
+      },
+      "expect": {
+        "fields": 6,
+        "actions": [
+          "celebrate",
+          "settle"
+        ]
+      },
+      "judge": "the winner, score and runner-up read in that order; the dark crest stays visible on the black design; celebrate and settle are distinct"
+    },
+    {
+      "id": "cross-country-race-clock",
+      "kind": "noacg",
+      "type": null,
+      "chassis": null,
+      "neutral": false,
+      "novel": true,
+      "fields": "Race:text=5 km,Elapsed:number=0,State:select=Ready|Running|Stopped",
+      "prompt": "A count-up race clock for our athletics club's cross-country relays, streamed from the finish field. It sits in the top right with the race name and the elapsed time in minutes and seconds, big enough to read on a phone, in a sporty yellow and black. I start it at the gun, stop it when the last runner finishes, and reset it to zero for the next race. Race names are long, with the age group, the distance and the event name in Finnish.",
+      "stress": {
+        "f0": "Girls' U16 · 4 km · Sääksmäki Cross-Country Relays",
+        "f1": "0",
+        "f2": "Ready"
+      },
+      "expect": {
+        "fields": 3,
+        "actions": [
+          "start",
+          "stop",
+          "reset"
+        ]
+      },
+      "judge": "operable without category code: start, stop and reset appear in the panel and drive a count-up clock in minutes and seconds; the long race name fits"
+    }
+  ]
+}

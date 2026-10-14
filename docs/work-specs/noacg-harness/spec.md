@@ -955,3 +955,56 @@ remainder. Before H11: the webhook registration and its signing key in Vercel.
 Each phase's pull request adds here what the next phase must allow for, newest first: the
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
+
+### H0. The sealed briefs (built 2026-10-14)
+
+- **Check's findings:** none; this is the plan's first phase (the run opened 2026-10-14 on
+  `origin/main` `afca974f1`).
+- **Shas:** previous verified `main` `e4d7b0841`; built on `claude/plan-noacg-harness-p1-build`;
+  the merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge commit; the
+  private folder can stay, it is gitignored.
+- **What landed** (`benchmarks/harness/evidence/phase-0.md`): `exam/briefs.sealed` and
+  `exam/briefs.sha256` (20 briefs, 18 registered types and 2 typeless), `tuning/briefs.json` (the
+  6 v1 briefs verbatim, then 10 new), the evidence. Private, in the main checkout's
+  `docs/private/harness-exam/`: `briefs.json` (plaintext), `passphrase.txt`, `seal.mjs`, and
+  `child/` with the prompt, the runner, the coverage script, both raw answers and the transcript.
+  Child session `cd7d9f1d-94ad-47ad-8b3d-ea3835646bfa`. Spend: $0 credit; about $1.47 notional
+  on the subscription. There is no ledger yet; H1 creates it and records H0 as $0.
+- **Decisions** (each revertible by re-running the child, which needs a new seal):
+  - *The brief writer had no tools* (`--tools ""`) and its three inputs inline, so "exactly the
+    permitted inputs" is the prompt file itself. Model Opus 5.5.
+  - *The product docs* are `docs.html` (the noacg.studio/docs page) as text; *the type registry*
+    is `noacg types --json` from production, without designs.
+  - *Stress keys for pictures:* an image field's value describes the test picture, a logo
+    starting `bright:` or `dark:`; `logo` holds a logo for a type with no image field;
+    `background` starting `busy:` is the picture behind the graphic. 4.1 names these cases; v1
+    had no key for them.
+  - *Minimum counts* for the exam's stress cases (long 4, two-sided 3, bright and dark logo 2
+    each, busy 3, actions 8); the child exceeded every one. 4.1 names the cases, not the counts.
+  - *One follow-up* in the same session made the tuning prompts as detailed as the exam's; the
+    exam briefs were returned unchanged (deep-equal).
+  - *Seal format:* AES-256-GCM, key `scrypt(passphrase, salt, 32, N 16384, r 8, p 1)`, as a JSON
+    file `{ format: "noacg-sealed-v1", cipher, kdf, N, r, p, salt, iv, tag, ciphertext }`;
+    `briefs.sha256` is `<hex>  briefs.json`. GCM makes a wrong passphrase fail outright.
+- **H1 must allow for:**
+  - *AC-2's test.* The passphrase exists only on this machine, in the main checkout
+    (`<git common dir>/../docs/private/harness-exam/passphrase.txt` from a worktree). Where it is
+    present, the test decrypts in memory and compares the sha256 to `briefs.sha256`, and never
+    writes or prints the plaintext. Everywhere (CI included) it checks the file's shape and that
+    a wrong passphrase throws. The Node verify one-liner in `evidence/phase-0.md` is the
+    reference; it printed `ok` on 2026-10-14. A Windows checkout rewrites both committed files
+    with CRLF, so read them whitespace-tolerant, as the one-liner does; the hash is of the
+    private plaintext, which is LF.
+  - *The bench's stress mapping:* `bright:`, `dark:` and `busy:` descriptions need fixture
+    pictures (a bright and a dark logo, busy background plates). Both sets use them; typeless
+    briefs carry v1's `fields` string, keyed `f0..fN` in its order.
+  - `third-party-ograf` is in `tuning/briefs.json` as v1 has it, but stays out of the rounds (4.2).
+  - *The 5.4 environment on Windows:* `HOME` and `USERPROFILE` do not stop the owner's
+    `~/.claude/CLAUDE.md` from loading; Claude Code finds it through the Windows profile.
+    `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1` and `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` do, with a fresh
+    `CLAUDE_CONFIG_DIR`. The judge needs the same. The reference arm loads the plugin with
+    `--plugin-dir`, so test there that nothing else loads besides it.
+- **Traps:** editing this file changes the spec's sha256, so `work-spec.mjs` reports "spec
+  changed" against `work.json`. Earlier plans' phase-note pull requests left that as it is, and
+  so did this one. A tuning session must never open `docs/private/harness-exam/`; the checker of
+  each tuning phase greps that session's evidence for the folder name (D7).
