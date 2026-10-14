@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/**, src/styles/wizard-and-dialogs.css
+scope: src/components/wizard/ai/**, src/styles/wizard-and-dialogs.css
 kind: trap
 fires: contract
 status: active

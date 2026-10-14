@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/MoreControlPanel.tsx, e2e/ai-more-control.spec.ts
+scope: src/components/wizard/ai/MoreControlPanel.tsx, e2e/ai-more-control.spec.ts
 kind: rule
 fires: contract
 status: active

@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/**, e2e/ai.spec.ts
+scope: src/components/wizard/ai/**, e2e/ai.spec.ts
 kind: rule
 fires: contract
 status: active

@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/EntryStep.tsx, src/components/wizard/steps/AiStep.tsx
+scope: src/components/wizard/steps/EntryStep.tsx, src/components/wizard/ai/AiStep.tsx
 kind: rule
 fires: contract
 status: retired

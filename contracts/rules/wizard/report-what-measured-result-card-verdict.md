@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/ai/**, src/validation/readiness.ts
+scope: src/components/wizard/ai/**, src/validation/readiness.ts
 kind: invariant
 fires: contract
 status: active
