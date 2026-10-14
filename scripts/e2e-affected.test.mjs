@@ -318,25 +318,28 @@ test('the SVG practice library plans the specs that load it, while the rest of d
 
 // The What's new notes are markdown under docs/, so both halves of IGNORE swallowed them and the
 // `docs/whats-new/**` lines in the landing and public-chrome headers never ran. Vite builds the
-// landing, /whats-new and /roadmap from them, so a note can move a footer the baselines pin.
-test("a What's new note plans the public page specs, while its README and other docs plan nothing", () => {
-  for (const note of ['docs/whats-new/2026-10-08.md', 'docs/whats-new/roadmap.md']) {
-    const { mode, specs } = planFor([note]);
-    assert.equal(mode, 'subset', note);
-    assert.deepEqual(specs, ['landing.spec.ts', 'public-chrome-baseline.spec.ts'], note);
+// landing, /whats-new and /roadmap from them and from GOALS.md, so an edit to any of them can move
+// a footer the baselines pin.
+test("a What's new note or GOALS.md plans the public page specs, while the README and other docs plan nothing", () => {
+  for (const input of ['docs/whats-new/2026-10-08.md', 'docs/whats-new/roadmap.md', 'docs/GOALS.md']) {
+    const { mode, specs } = planFor([input]);
+    assert.equal(mode, 'subset', input);
+    assert.deepEqual(specs, ['landing.spec.ts', 'public-chrome-baseline.spec.ts'], input);
   }
   assert.equal(planFor(['docs/whats-new/README.md']).mode, 'none');
-  assert.equal(planFor(['docs/GOALS.md']).mode, 'none');
   assert.equal(planFor(['docs/ARCHITECTURE.md']).mode, 'none');
+  assert.equal(planFor(['docs/GOALS_ARCHIVE.md']).mode, 'none');
 });
 
-// THE GUARD for the carve-outs above: IGNORE runs before the header lookup, so a spec that names a
-// docs/ path its folder is not carved out for has a dead `covers:` line and nobody is told. Every
-// tracked docs/ file a header names must plan that spec, apart from the writers' READMEs.
-test('every docs file a spec header names plans that spec', () => {
+// THE GUARD for the carve-outs above and the suite-critical scripts: IGNORE runs before the header
+// lookup, so a spec that names a docs/ or scripts/ path IGNORE still swallows has a dead `covers:`
+// line and nobody is told. Every such file a header names must plan that spec, apart from the
+// writers' READMEs and the scripts' own tests (the node --test block in the build runs those).
+test('every docs or scripts file a spec header names plans that spec', () => {
   const unread = new Set(['docs/svg-samples/README.md', 'docs/whats-new/README.md']);
   const dead = [];
-  for (const file of repositoryFiles().filter((f) => f.startsWith('docs/'))) {
+  const guarded = (f) => f.startsWith('docs/') || (f.startsWith('scripts/') && !f.endsWith('.test.mjs'));
+  for (const file of repositoryFiles().filter(guarded)) {
     if (unread.has(file)) continue;
     const named = COVERAGE.filter((c) => c.test(file)).map((c) => c.spec);
     if (named.length === 0) continue;
@@ -1724,7 +1727,7 @@ test('an uncertain change (a new file no header names) escalates to the shared-c
   assert.deepEqual(plan.unmapped, ['src/sync/replication.ts']);
   const helper = planFor(['e2e/_newhelper.ts'], { sprintFocus: true });
   assert.equal(helper.focusApplied, true, 'a new e2e helper is shared code');
-  assert.equal(planFor(['docs/GOALS.md'], { sprintFocus: true }).mode, 'none', 'a doc plans nothing');
+  assert.equal(planFor(['docs/ARCHITECTURE.md'], { sprintFocus: true }).mode, 'none', 'a doc plans nothing');
 });
 
 test('a full run still knows whether the change it carries needs the catalog gate', () => {
