@@ -500,3 +500,53 @@ test('a design picked again on Browse asks the steps question again', async ({ p
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next →' }).click();
   await expect(steps).toBeChecked();
 });
+
+/** The accent the live preview's document is drawn in. */
+async function previewAccent(page: Page): Promise<string | null> {
+  return /--accent:\s*([^;]+);/.exec(await previewDoc(page))?.[1]?.trim().toLowerCase() ?? null;
+}
+
+test('a deep link builds in the brand in force, and a fresh open takes none from the walk before', async ({ page }) => {
+  // S3 (spec section 1.3): the deep link is the Browse pick of the same design, brand included.
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  await awaitDurableReady(page);
+  const ids = await page.evaluate(async () => {
+    const { createLook } = await import('/src/model/packets.ts');
+    const { createShowNamedChecked, setShowBrand } = await import('/src/model/shows.ts');
+    const { PALETTES } = await import('/src/model/wizard.ts');
+    const palette = PALETTES.find((p) => p.id === 'signal')!;
+    const look = createLook('Signal Brand', { styleTag: 'minimal', palette, fontId: null, customFont: null });
+    const { show } = createShowNamedChecked('Brand Show');
+    setShowBrand(show.id, look.id);
+    return { brand: look.id, show: show.id, accent: palette.accent.toLowerCase() };
+  });
+  await settleDurableWrites(page);
+  await page.evaluate((id) => {
+    window.location.hash = `#/production/${id}`;
+  }, ids.show);
+  await page.getByTestId('production-new-graphic').click();
+  await page.locator('[data-entry="template"]').click();
+  await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);
+
+  // A deep link over the production's brand: the chooser and the preview both carry it.
+  await page.evaluate(() => {
+    window.location.hash = '#/new/lt01';
+  });
+  await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);
+  await expect(page.getByTestId('wz-brand')).toHaveValue(ids.brand);
+  expect(await previewAccent(page)).toBe(ids.accent);
+
+  // A deep link that opens the wizard fresh lands in the same commit as that open: it takes the
+  // brand the open chose (None here), never the one the closed walk still holds.
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await page.evaluate(() => {
+    window.location.hash = '#/new/lt01';
+  });
+  await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);
+  await expect(page.getByTestId('wz-brand')).toHaveValue('');
+  const fresh = await previewAccent(page);
+  expect(fresh).toMatch(/^#[0-9a-f]{6}$/);
+  expect(fresh).not.toBe(ids.accent);
+});
