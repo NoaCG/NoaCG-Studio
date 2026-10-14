@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "6f72acc1df9cb6b5d10091b6e5c47ff6ad0971f75f317fd39e3839303d6c0185",
+  "authority": {
+    "status": "agreed",
+    "source": "owner, 2026-10-14: the brief docs/private/prompts/noacg-harness-plan-prompt.md (research and plan the NoaCG harness, produce a verified plan registered as the runnable plan noacg-harness and land it, writing no product code), with its thirteen owner decisions of 2026-10-14 recorded in spec section 1.1 as final: funding straight from the Max 20x credit through the Anthropic API, no-training with short retention, one engine with no name, Managed Agents as the first host with our own loop as a documented fallback, quality over volume, one graphic per request, server-side limits, an honest resting note when out of credit, about ten minutes with progress, an owner-only end state, a $100 run budget, subscription-first for everything but the harness own runs, and a local plan run. The owner starts execution later with /plan-run noacg-harness and supplies the window then."
+  },
+  "review": null
+}
