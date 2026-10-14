@@ -9207,6 +9207,219 @@
     "html": "b172e72fc8054b941b2ca3bc9d1e2d1b49fad0227505c67657f9babaaff63355",
     "css": "ef08b8749d57444d68cadccff8fa2ac447e07a977f20010be796c6d6cdbfdf9c",
     "js": "d0863c7396a5c26ad36cf18912d0f86b02eac257f2bc0caa70c609636c6ae264"
+   },
+   "runtime": {
+    "rest": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      }
+     ]
+    },
+    "textFields": 1,
+    "short": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      }
+     ]
+    },
+    "over1": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      }
+     ]
+    },
+    "over2": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 820,
+        "w": 1180,
+        "h": 142
+       }
+      }
+     ]
+    },
+    "over3": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 3,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 770,
+        "w": 1180,
+        "h": 192
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 770,
+        "w": 1180,
+        "h": 192
+       }
+      }
+     ]
+    },
+    "absurd": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 5,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 669,
+        "w": 1180,
+        "h": 293
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 669,
+        "w": 1180,
+        "h": 293
+       }
+      }
+     ]
+    },
+    "unbroken": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 73,
+       "over": false
+      }
+     ],
+     "rules": [
+      {
+       "el": "g0",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      },
+      {
+       "el": "g1",
+       "box": {
+        "x": 160,
+        "y": 870,
+        "w": 1180,
+        "h": 92
+       }
+      }
+     ]
+    }
    }
   },
   "illustrator-live-vote-band": {
@@ -17017,6 +17230,128 @@
     "html": "8f7da8681939fe1d6a2d045d357980a41ae5c23da6308742ed5bd17d4b38e53e",
     "css": "708a85adf60e0a882032921faf3956a8b87b484ca208215de787eb7f078da184",
     "js": "481593eea884edd3ec33ac589c7eaf1541a3a6fa67ae46864ffac0894461e3e4"
+   },
+   "runtime": {
+    "rest": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "textFields": 1,
+    "short": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "over1": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 55,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "over2": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 50,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "over3": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 45,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "absurd": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 2,
+       "sizePct": 30,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    },
+    "unbroken": {
+     "lines": [
+      {
+       "id": "f0",
+       "lines": 1,
+       "sizePct": 55,
+       "over": true
+      },
+      {
+       "id": "f1",
+       "lines": 1,
+       "sizePct": 100,
+       "over": false
+      }
+     ],
+     "rules": []
+    }
    }
   },
   "inkscape-text-on-path-bumper": {
