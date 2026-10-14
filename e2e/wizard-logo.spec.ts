@@ -37,6 +37,39 @@ async function createThroughExport(page: Page) {
 /** The wizard's live preview: the created graphic's code, composed as every preview composes it. */
 const PREVIEW = '.wz-side iframe';
 
+/**
+ * Wait until the preview's graphic has come to REST. The wizard's preview plays the entrance on
+ * every rebuild, and Finish is a rebuild, so a box measured straight away can be a line still
+ * sliding in (CI run 38596113603 read the first line 12px below where it settles). Rest is the
+ * measured boxes unchanged over ten consecutive frames: a frame count, not a sleep, so it waits
+ * exactly as long as the entrance takes.
+ */
+async function awaitAtRest(page: Page, selectors: string[]) {
+  await page.frameLocator(PREVIEW).locator(selectors[0]).evaluate(
+    (_el, sel) =>
+      new Promise<void>((done, fail) => {
+        let last = '';
+        let same = 0;
+        let frames = 0;
+        const tick = () => {
+          const now = sel
+            .map((s) => {
+              const r = document.querySelector(s)?.getBoundingClientRect();
+              return r ? `${r.left},${r.top},${r.width},${r.height}` : 'none';
+            })
+            .join('|');
+          same = now === last ? same + 1 : 0;
+          last = now;
+          if (same >= 10) done();
+          else if (++frames > 900) fail(new Error(`the preview never came to rest: ${now}`));
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+    selectors,
+  );
+}
+
 async function createdTemplate(page: Page) {
   return page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -119,7 +152,8 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
   const frame = page.frameLocator(PREVIEW);
   await expect(frame.locator('.lower-third-logo')).toBeVisible();
   await expect(frame.locator('.lower-third-box')).toHaveCSS('display', 'grid');
-  const boxes = await frame.locator('.lower-third-box').evaluate((box) => {
+  await awaitAtRest(page, ['.lower-third-logo', '#f0', '#f1', '.lower-third-box']);
+  const boxes =await frame.locator('.lower-third-box').evaluate((box) => {
     const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
     const line = box.querySelector('#f0')!.getBoundingClientRect();
     return { logo: { right: logo.right, top: logo.top, bottom: logo.bottom }, line: { left: line.left, top: line.top, bottom: line.bottom } };
@@ -181,7 +215,8 @@ test('a wide lockup is sized by the words, and the strap pays in width', async (
 
   const frame = page.frameLocator(PREVIEW);
   await expect(frame.locator('.lower-third-logo')).toBeVisible();
-  const measured = await frame.locator('.lower-third-box').evaluate((box) => {
+  await awaitAtRest(page, ['.lower-third-logo', '#f0', '#f1', '.lower-third-box']);
+  const measured =await frame.locator('.lower-third-box').evaluate((box) => {
     const win = box.ownerDocument.defaultView!;
     const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
     const name = box.querySelector('#f0')!;
