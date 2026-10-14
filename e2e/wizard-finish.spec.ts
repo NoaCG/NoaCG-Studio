@@ -616,9 +616,9 @@ test('export door: a refused save still opens the export window, over the unsave
   expect((await saved(page)).library).toEqual([]);
 });
 
-test('production door pressed twice while its save is held: today both presses run (R7)', async ({ page }) => {
-  // RECORDED, NOT ENDORSED. The catalog door has no press guard during its awaits (spec section
-  // 3.1, R7); S1c decides whether this is a defect. Until then this is what a second press does.
+test('production door pressed twice while its save is held: one production (R7)', async ({ page }) => {
+  // Decided in S1c (spec section 3.1, R7): a second press while the first is still on its way
+  // adds nothing, as the entry's New production. One press, one production.
   await armWriteSwitch(page);
   await toFinishStep(page);
   await page.getByTestId('wz-finish-name').fill('Guest Strap');
@@ -638,10 +638,7 @@ test('production door pressed twice while its save is held: today both presses r
   });
   expect({ library: (await saved(page)).library, productions }).toEqual({
     library: ['Guest Strap'],
-    productions: [
-      ['Friday Show', ['Guest Strap']],
-      ['Friday Show', ['Guest Strap']],
-    ],
+    productions: [['Friday Show', ['Guest Strap']]],
   });
 });
 

@@ -339,6 +339,8 @@ export default function CreationWizard() {
   /** True while the entry's New production waits for its durable write, so a second press in
    *  that window does not mint a second "Untitled production". */
   const creatingProduction = useRef(false);
+  /** The same for Finish's "Add to the production", from the press until it lands or fails. */
+  const addingToProduction = useRef(false);
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
@@ -1336,14 +1338,23 @@ export default function CreationWizard() {
     });
   };
 
-  /** The AI production door - the same primary ending as the catalog one (byte-identical
-   *  doors doctrine: both route through applyAiProject). */
-  const createFromAiAndAddToProduction = (dest: ProductionDest) => {
-    void applyAiProject().then((template) => {
-      if (!template) return;
-      void addToProduction(dest, aiName());
+  /** One press, one production. A second press of "Add to the production" while the first is
+   *  still building and saving adds nothing: it made a second production under the same name,
+   *  each pooling the graphic. Released when the door lands or fails, so a retry still works. */
+  const pressProductionDoor = (run: () => Promise<void>) => {
+    if (addingToProduction.current) return;
+    addingToProduction.current = true;
+    void run().finally(() => {
+      addingToProduction.current = false;
     });
   };
+
+  /** The AI production door - the same primary ending as the catalog one (byte-identical
+   *  doors doctrine: both route through applyAiProject). */
+  const createFromAiAndAddToProduction = (dest: ProductionDest) =>
+    pressProductionDoor(async () => {
+      if (await applyAiProject()) await addToProduction(dest, aiName());
+    });
 
   /**
    * Build the drafted graphic and make it the working project. BOTH Finish doors go through
@@ -1536,17 +1547,15 @@ export default function CreationWizard() {
     })();
   };
 
-  const createFromFileAndAddToProduction = (dest: ProductionDest) => {
-    if (!applyImportedFile()) return;
-    void addToProduction(dest, importedName());
-  };
-
-  const createAndAddToProduction = (dest: ProductionDest) => {
-    void applyDraftProject().then((template) => {
-      if (!template || !variant) return;
-      void addToProduction(dest, draftName(variant, draft));
+  const createFromFileAndAddToProduction = (dest: ProductionDest) =>
+    pressProductionDoor(async () => {
+      if (applyImportedFile()) await addToProduction(dest, importedName());
     });
-  };
+
+  const createAndAddToProduction = (dest: ProductionDest) =>
+    pressProductionDoor(async () => {
+      if ((await applyDraftProject()) && variant) await addToProduction(dest, draftName(variant, draft));
+    });
 
   /** Kit mode's Browse step is satisfied by a picked SHOW with at least one graphic ticked,
    *  never by a `draft.variantId` — no single design has been chosen at that point. */
