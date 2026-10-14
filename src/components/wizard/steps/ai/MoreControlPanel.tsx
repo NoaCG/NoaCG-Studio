@@ -36,7 +36,7 @@ import {
 } from '../../../../model/imagePurpose';
 import type { FieldKind } from '../../../../model/fieldModel';
 import FontPicker from '../../FontPicker';
-import { pickerHex } from '../StyleStep';
+import { pickerHex } from '../../../../model/cssVars';
 
 /** The four :root colours, in the Style step's order and words. */
 const COLOR_KEYS: { key: 'accent' | 'text' | 'textDim' | 'panel'; label: string }[] = [

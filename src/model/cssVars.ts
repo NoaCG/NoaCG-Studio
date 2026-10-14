@@ -17,6 +17,17 @@ export function toHex(value: string): string | null {
   return `#${h(r)}${h(g)}${h(b)}`;
 }
 
+/** #rrggbb for the native color input; rgba()/other values fall back to a neutral swatch.
+ *  The AI step's brand-colour rows (wizard/steps/ai/MoreControlPanel) read it. Unlike `toHex`
+ *  it never returns null and does not expand #rgb (that becomes the neutral swatch). */
+export function pickerHex(value: string): string {
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value;
+  const m = value.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (!m) return '#888888';
+  const h = (n: string) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0');
+  return `#${h(m[1])}${h(m[2])}${h(m[3])}`;
+}
+
 /** Does a :root value read as a COLOR (the generic enumeration's filter)? */
 export function looksLikeColor(value: string): boolean {
   return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value) || /^(rgb|rgba|hsl|hsla)\(/i.test(value);

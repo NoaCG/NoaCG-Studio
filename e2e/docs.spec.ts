@@ -322,6 +322,8 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
   const connector = page.locator('#chat-connector');
   await expect(connector).toContainText('https://noacg.studio/mcp');
   await expect(connector).toContainText('does not edit, delete, publish or play anything');
+  // Only the clients really tried are named as working; the rest are said to be expected.
+  await expect(connector).toContainText('have not been tried yet');
 
   // (b) CasparCG: the live-link command, and the honesty note. NoaCG Bridge has driven a real
   // 2.5.0 on the maintainer's machine (docs/BRIDGE.md §8) and the docs say exactly that, with
