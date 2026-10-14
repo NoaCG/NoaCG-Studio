@@ -669,6 +669,80 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S5. Walk reducer and lifecycle (built 2026-10-14)
+
+- **Check's findings (S4 check: PASS).** Fence 2 `src` files plus the `no-old-editor` covers line;
+  budget 2,105 of 2,105; one implementation per door, the removed bodies match `doors.ts`; Node
+  24/24, seven own mutations each red; depcruise clean; merge group 38551994094 on `d343b655a`
+  all 11 shards green. Carried: no door catches an applier or save that throws (decided below);
+  a held second Export checked by names and ids only; the file walk's Edit this graphic has
+  probe-only browser evidence, no spec on `main` presses it; `saveBuiltGraphic` owed Node tests
+  with held writes (done); `productionPress` must stay a ref (it does); `noteMade` must run after
+  the save (it does, and its binding reads the record's id at call time).
+- **Shas:** previous verified `main` `d343b655a` (S4's merge); built from `afca974f1`.
+  Prerequisite: #1212 revives `e2e/wizard-logo.spec.ts` and `e2e/wizard-setup-fields.spec.ts`
+  through the export door, its own pull request, landed first. This phase's merge sha is the one
+  the queue records. **Revert:** `git revert -m 1` this phase's merge commit (the shell takes its
+  state, open effect and save back; #1212 stays, it only revives tests).
+- **What landed** (`evidence/phase-s5.md`): `shell/walkState.ts` (the record of D2 in one
+  `useReducer`, `transition` for the five intents, `reduce`, `snapshotWalk`, `walkHasWork`,
+  `pickPatch`, and the walk memory's `rememberWalk`, `noteMade` and `saveBuiltGraphic`);
+  `shell/useWalkLifecycle.ts` (the open, close and deep-link effects as IO, and the rewind);
+  `scripts/wizard-walk-state.test.mjs` (25 Node tests: every section 4 cell as S1c decided it,
+  "has work" after a fresh open in all seven modes, the snapshot round trip, the reducer's moves,
+  the save with late, failed, vanished and throwing writes; eleven mutations each turned one red);
+  the shell 2,105 to 1,661 lines and its budget lowered to 1,661; `// covers:` on
+  `wizard-draft-guard`, `template-deep-link`, `route-transition-flash` and `new-graphic-guard`
+  gains the two modules (each walks the moved open, close, held walk or deep link).
+- **Decisions** (each revertible by the revert above):
+  - *The walk memory is one ref, `{ finished, made }`*, as D2 keeps `finishedWalk` and
+    `madeThisOpen` refs. `saveBuiltGraphic` and `noteMade` now live in `walkState.ts` over it.
+    `shell/doors.ts` is outside this phase's fence, so its `io.saveBuiltGraphic` and `io.noteMade`
+    keys stay and the shell binds them to the module's functions; the binding adds only the
+    store read of the record's id and the Finish re-read. The two `DoorIo` comments saying "the
+    shell's until S5" are stale; the next phase that edits `doors.ts` rewords them.
+  - *What an intent does beside the record is part of its result.* `transition` returns an
+    `Outcome`: the memory (kept, forgotten, restored), the warning (kept, cleared, raised), one
+    `resetScreen` flag (the stretch demo and the kit's two asks, production name and error line,
+    which share every cell), `clearAcceptedAi`, the held flag and the URL step. Those stay screen
+    state or refs (D2); the hook applies them, so every cell is a Node assertion.
+  - *`importedFileError` is in the record*: its lifetime is `importedFile`'s in every intent.
+  - *The furthest step is the reducer's rule, not an effect.* Each action's final mode and step
+    feed it; a `walk` action carries the mode and the step together so the rule sees both, as
+    the effect did after the commit.
+  - *One pick patch* (`pickPatch`) for a Browse card, the images walk's Template step and a deep
+    link. The Template step's copy had left out `category`; every catalog design's category is the
+    key it is listed under (528 of 528, checked in Node), so sending it is a no-op there. The deep
+    link reads the brand from the record, which the fresh transition queued before it has
+    already set, so `brandInForce` is gone.
+  - *`LibraryIo` carries `librarySaveEffect` too*, so the Node bundle never loads
+    `model/library` and the durable store behind it.
+  - *The plain setters keep the record when nothing changed*, as a React setter bails out:
+    AiStep reports its thread on mount.
+- **D10, decided on evidence:**
+  - *A save that throws:* refuted by reading. `saveCurrentGraphic` and `saveGraphicAs` return
+    their failures and never throw; a scripted throwing write rejects the save, recorded in Node
+    as today's behaviour. *An applier that throws:* not reproduced (Prettier's failure is caught in
+    `formatTemplate`; no draft found that makes `buildDraftTemplate` throw); still carried.
+  - *Restore and a deep link in one open* (S1c's note): characterised in Node. By `App.tsx`,
+    Back onto `#/new/<id>/step/<name>` hands the design to `openGallery`, so the link replaces
+    the restored draft under the warning, and the surviving made record would take the link's
+    design on the next finish. Not reproduced in a browser: #1220, reproduction first.
+- **S6 must allow for:** the budget is 1,661, the shell's exact length. The kit's picker and plan
+  are the record's (`buildMode`, `kitPick`, `kit` actions; a `kit` action may carry the draft and
+  the step); `isKitEditStep` and `committedKit` are exported from `walkState.ts` and the shell
+  wraps the first as `editsKitGraphic`. The kit's moves (`moveKitTo`, `openKitGraphic`,
+  `buildKitAndOpenHub`, `applyKitStyle`, `saveKit`) are still inline and dispatch. Its transient
+  UI (the two asks, the production name, `kitBusy`, `kitError`) is still shell `useState`, reset
+  through the hook's `resetScreen` callback: `useKit` must supply that reset. A kit plan still
+  outlives Back to Entry (S3's note; a mode change does not reset it).
+- **Traps:** Git Bash rewrites an argument that starts with `/` into a Windows path, so a script
+  argument like `//` or `/` arrives as `C:/Program Files/Git/...`. Each rolldown `load()` is its
+  own bundle, so `NO_BROWSE_FILTERS` from two loads are equal but not the same object. A
+  worktree-isolated session refuses compound shell lines that name git: one git command per call.
+  The revived `wizard-logo` reads the wizard's preview, which plays the entrance on every
+  rebuild, so its geometry waits until the boxes are at rest.
+
 ### S4. Doors (built 2026-10-14)
 
 - **Check's findings (S3 check: PASS).** Fence 2 `src` files plus two covers lines; budget 2,357

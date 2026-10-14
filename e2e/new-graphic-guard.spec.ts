@@ -1,5 +1,5 @@
 // covers: src/store/saveActions.ts, src/components/NewGraphicButton.tsx, src/components/save/SaveDialogs.tsx
-// covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
+// covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx, src/components/wizard/shell/{walkState,useWalkLifecycle}.ts
 // covers: src/app/router.ts, src/components/editorFoundation/EditorFoundation.tsx
 //
 // + NEW GRAPHIC FROM HOME, ACROSS THE WHOLE HOME -> WIZARD FLOW: the unsaved-changes dialog
