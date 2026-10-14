@@ -1,7 +1,6 @@
 // covers: src/templates/**
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { chooseType, pickDesign } from './_browse';
 
@@ -21,13 +20,25 @@ import { chooseType, pickDesign } from './_browse';
 // reaches it with no control page, so the key must be real at build.
 
 async function toFieldsStep(page: Page, category: string, variantName: string) {
-  await enableAdvancedMode(page);
-  await page.goto('/app');
+  // A boot onto `#/new` opens the wizard on Entry whatever the app already holds (App.tsx
+  // `decideBootRoute`), so a second walk in one test starts as the first did. From the blank
+  // page, so that boot is a real load and not a hash change under the wizard still open.
+  await page.goto('about:blank');
+  await page.goto('/app#/new');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, category);
   await pickDesign(page, variantName);
   await page.getByRole('button', { name: 'Next →' }).click(); // Fields
+}
+
+/** Skip to Finish and take the EXPORT door. Like every Finish door it first builds the graphic
+ *  into the working document, then it opens the export window over the wizard, so the document
+ *  `createdFields` reads is the created graphic. */
+async function createThroughExport(page: Page) {
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
 }
 
 async function createdFields(page: Page) {
@@ -49,8 +60,7 @@ test('a quiz created in the wizard marks the answer the author chose', async ({ 
   // choice is one press either way, which is the whole reason that control exists.
   await setup.getByTestId('wz-setup-correctAnswer-opt-C').click();
 
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await createThroughExport(page);
 
   const fields = await createdFields(page);
   expect(fields['Correct answer']).toBe('C');
@@ -78,18 +88,16 @@ test('a countdown\'s duration and a scorebug\'s colours are setup too', async ({
   await toFieldsStep(page, 'Timers & clocks', 'Clean Clock');
   const clock = page.getByTestId('wz-setup');
   await clock.getByTestId('wz-setup-minutes').fill('12');
-  await finishIntoEditor(page);
-  // The store is read only once the wizard has closed: the create lands as the modal goes, and
+  // The store is read only once the export window is up: the create lands before it opens, and
   // reading straight after the click returns the PREVIOUS project's fields.
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await createThroughExport(page);
   expect((await createdFields(page))['Timer (minutes)']).toBe('12');
 
   await toFieldsStep(page, 'Scoreboards', 'House Scorebug');
   const board = page.getByTestId('wz-setup');
   // The colour control is a swatch plus its hex box; the box is the one a spec can type into.
   await board.getByTestId('wz-setup-colourA').locator('..').locator('input.grow').fill('#123456');
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await createThroughExport(page);
   expect((await createdFields(page))['Team A colour']).toBe('#123456');
 });
 
@@ -156,7 +164,6 @@ test('a design with no setup values shows no setup section', async ({ page }) =>
 
 /** Search Browse for a design by name, take it, and land on the Style step. */
 async function toStyleStep(page: Page, variantName: string) {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();

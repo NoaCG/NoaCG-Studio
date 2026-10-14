@@ -2,9 +2,7 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 // focus
 
-import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
-import { awaitPreviewRebuild } from './_preview';
 import { chooseType, pickDesign } from './_browse';
 
 // The wizard's logo option: a variant that declares `logo: 'optional'` offers a toggle +
@@ -19,7 +17,6 @@ const PNG = Buffer.from(
 );
 
 async function toFieldsStep(page: Page, category: string, variantName: string) {
-  await enableAdvancedMode(page);
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="template"]').click();
@@ -27,6 +24,18 @@ async function toFieldsStep(page: Page, category: string, variantName: string) {
   await pickDesign(page, variantName);
   await page.getByRole('button', { name: 'Next →' }).click(); // Fields
 }
+
+/** Skip to Finish and take the EXPORT door. Like every Finish door it first builds the graphic
+ *  into the working document, then it opens the export window over the wizard, so the document
+ *  `createdTemplate` reads is the created graphic, and the wizard's own preview still shows it. */
+async function createThroughExport(page: Page) {
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+}
+
+/** The wizard's live preview: the created graphic's code, composed as every preview composes it. */
+const PREVIEW = '.wz-side iframe';
 
 async function createdTemplate(page: Page) {
   return page.evaluate(async () => {
@@ -53,10 +62,7 @@ test('logo toggle + custom upload: the created template carries the field, asset
   });
   await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
 
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await createThroughExport(page);
 
   const t = await createdTemplate(page);
   // The logo is a real SPX image field after the three text lines…
@@ -67,11 +73,10 @@ test('logo toggle + custom upload: the created template carries the field, asset
   // …and the design carries the bound <img> with the shared slot's class.
   expect(t.html).toContain('<img id="f3" class="info-card-logo"');
 
-  // The preview (already rebuilt above) resolves images/ through the asset shim.
-  const src = await page
-    .frameLocator('iframe.preview-frame')
-    .locator('#f3')
-    .evaluate((el) => (el as HTMLImageElement).src);
+  // The preview resolves images/ through the asset shim, once its document carries the slot.
+  const slot = page.frameLocator(PREVIEW).locator('#f3');
+  await expect(slot).toBeAttached();
+  const src = await slot.evaluate((el) => (el as HTMLImageElement).src);
   expect(src.startsWith('data:image/png')).toBeTruthy();
 });
 
@@ -94,10 +99,7 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
   });
   await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
 
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await createThroughExport(page);
 
   const t = await createdTemplate(page);
   // The slot is the shared one…
@@ -114,7 +116,8 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
 
   // Rendered: the box is a grid and the mark sits BESIDE the first text line - overlapping
   // it vertically, wholly to its left - rather than in a row of its own above it.
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = page.frameLocator(PREVIEW);
+  await expect(frame.locator('.lower-third-logo')).toBeVisible();
   await expect(frame.locator('.lower-third-box')).toHaveCSS('display', 'grid');
   const boxes = await frame.locator('.lower-third-box').evaluate((box) => {
     const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
@@ -174,12 +177,9 @@ test('a wide lockup is sized by the words, and the strap pays in width', async (
     buffer: WORDMARK,
   });
   await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await createThroughExport(page);
 
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = page.frameLocator(PREVIEW);
   await expect(frame.locator('.lower-third-logo')).toBeVisible();
   const measured = await frame.locator('.lower-third-box').evaluate((box) => {
     const win = box.ownerDocument.defaultView!;
@@ -233,10 +233,7 @@ test('a design that draws its own slot is left alone by the shared one', async (
     buffer: PNG,
   });
   await expect(logoSection.locator('img[alt="Logo preview"]')).toBeVisible();
-  await awaitPreviewRebuild(page, async () => {
-    await finishIntoEditor(page);
-    await expect(page.locator('.wz-modal')).toBeHidden();
-  });
+  await createThroughExport(page);
 
   const t = await createdTemplate(page);
   // The design's OWN slot is there - one field, one <img>, no duplicate.
@@ -249,7 +246,7 @@ test('a design that draws its own slot is left alone by the shared one', async (
   expect(t.html).not.toContain('lower-third-lockup');
 
   // Rendered: the mark is inside the design's own badge, not a column of the box's grid.
-  const frame = page.frameLocator('iframe.preview-frame');
+  const frame = page.frameLocator(PREVIEW);
   await expect(frame.locator('.lower-third-accent > .lower-third-logo')).toBeVisible();
   await expect(frame.locator('.lower-third-lockup')).toHaveCount(0);
 });
@@ -258,8 +255,7 @@ test('logo toggle off: nothing is injected', async ({ page }) => {
   await toFieldsStep(page, 'Topic', 'Hairline Card');
   // Offered but left off (the default when no image was imported).
   await expect(page.locator('.panel-section', { hasText: 'Include a logo slot' })).toBeVisible();
-  await finishIntoEditor(page);
-  await expect(page.locator('.wz-modal')).toBeHidden();
+  await createThroughExport(page);
 
   const t = await createdTemplate(page);
   expect(t.fields.some((f: { ftype: string }) => f.ftype === 'filelist')).toBeFalsy();
