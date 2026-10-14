@@ -688,7 +688,7 @@ and the check's findings. The AI track's notes live in its own spec.
   `useReducer`, `transition` for the five intents, `reduce`, `snapshotWalk`, `walkHasWork`,
   `pickPatch`, and the walk memory's `rememberWalk`, `noteMade` and `saveBuiltGraphic`);
   `shell/useWalkLifecycle.ts` (the open, close and deep-link effects as IO, and the rewind);
-  `scripts/wizard-walk-state.test.mjs` (24 Node tests: every section 4 cell as S1c decided it,
+  `scripts/wizard-walk-state.test.mjs` (25 Node tests: every section 4 cell as S1c decided it,
   "has work" after a fresh open in all seven modes, the snapshot round trip, the reducer's moves,
   the save with late, failed, vanished and throwing writes; eleven mutations each turned one red);
   the shell 2,105 to 1,661 lines and its budget lowered to 1,661; `// covers:` on

@@ -8,7 +8,7 @@ free against its 4 GB floor (#1067), so every journey runs on CI.
 
 | Command | Result |
 |---|---|
-| `node --test scripts/wizard-walk-state.test.mjs` | 24 of 24 pass |
+| `node --test scripts/wizard-walk-state.test.mjs` | 25 of 25 pass |
 | eleven mutations of `shell/walkState.ts` (fresh keeps the file; Continue stays put; a mode change not resetting the furthest step; close ignoring `left`; `needs-name` not minting; restore keeping the kit; restore ignoring the landed production; rewind keeping the brand; the deep link dropping the brand; "has work" counting the format; fresh keeping the accepted AI generation) | each turned at least one test red (3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1) |
 | `node --test` over `wizard-doors`, `wizard-walks`, `wizard-kit-plan`, `import-drop` | 55 of 55 pass |
 | `npx tsc --noEmit -p tsconfig.json` | clean |
@@ -41,6 +41,21 @@ first (done before queueing); Browse and Template still built their own pick pat
 `da6022343`, also raised by Codex on the pull request); the phase notes and this file (added); the
 restore plus deep-link case (filed as #1220); an extra render from a setter that changed nothing
 (fixed: the plain setters keep the record).
+
+## The /check review
+
+A delegated `code-review` pass over the eleven changed files, base `afca974f1`, returned eight
+findings. Taken: the restore asks the library for the working document's name only when the
+walk's door saved no record (as `main` did); a Node case pins that every catalog design's category
+is the list it is filed under, which is what makes the Template step's pick sending `category` a
+no-op. Kept, with the reason: the furthest step is the reducer's per-action rule (above; the one
+in-batch case is the route sync's `go` before a restore, which Continue never reads after a
+restore, and a closed wizard dispatches nothing that moves a step); an intent's side effects are
+read from the render's record, and only the close's held flag depends on it, with nothing
+dispatched in the commit that closes; `latest.current` is written at render, as `main`'s
+`walkHasWorkRef` and `leaveStepRef` were; a deep link landing on a Continue or a restore keeps the
+walk's other fields as `main`'s deep link did (#1220); the kit picker's new selection array
+re-renders as `setKitSelected` did.
 
 ## Shell size
 

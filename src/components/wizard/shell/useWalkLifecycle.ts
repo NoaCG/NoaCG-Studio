@@ -80,7 +80,8 @@ export function useWalkLifecycle(args: WalkLifecycle): { rewind(): void } {
     const route = useRouter.getState().route;
     const walk = memory.current.finished;
     if (walk && route.view === 'new' && route.step) {
-      const id = useTemplateStore.getState().saved.graphicId;
+      // The working document's record, asked only for a walk whose door saved none (the editor's).
+      const id = walk.made && !walk.made.graphicId ? useTemplateStore.getState().saved.graphicId : null;
       const out = run({ kind: 'restore', walk, live: id ? { id, name: graphicById(id)?.name ?? null } : null });
       if (out.replaceStep !== null) useRouter.getState().replace({ view: 'new', step: out.replaceStep });
       return;

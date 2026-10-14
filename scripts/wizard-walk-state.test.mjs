@@ -340,6 +340,15 @@ test('one pick patch for Browse, the images walk\'s Template step and a deep lin
   assert.equal(bare.draft.paletteId, null, 'no brand in force: cleared');
 });
 
+test('every catalog design\'s category is the list it is filed under, so the Template step\'s pick keeps the category', async () => {
+  // The images walk's Template step lists `variantsFor(draft.category)` and used to send no
+  // category; the one pick patch sends the design's own. That is a no-op only while this holds.
+  const { CATALOG } = await load(path.join(projectRoot, 'src/templates/catalog.ts'));
+  const filed = Object.entries(CATALOG).flatMap(([key, list]) => list.map((v) => [key, v]));
+  assert.ok(filed.length > 100, 'the catalog loaded');
+  assert.deepEqual(filed.filter(([key, v]) => v.category !== key).map(([key, v]) => `${v.id} in ${key}`), []);
+});
+
 test('the brand chooser writes the brand into the draft, or onto every graphic of a kit', () => {
   const s = W.transition(W.emptyWalk(), fresh()).state;
   const on = W.reduce(s, { type: 'chooseBrand', id: 'look-b' });
