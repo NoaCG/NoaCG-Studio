@@ -154,8 +154,10 @@ judge's calibration failed, and opening the harness to students waits.
   with no authoring history that reads the frames and the brief and answers the inspection
   questions of `references/critique.md`, phrased as what earns a pass. It is Anthropic machinery
   used because it costs no NoaCG code; in our own loop it is a second model call with the same
-  prompt. Its model and its effect are measured, not assumed (section 3.4). Revert: turn the
-  roster off; the author re-reads its own frames.
+  prompt. The `multiagent` block carries the roster only and no `workflows` setting: dynamic
+  workflows stay off, so a session idle with `end_turn` is the end of the work and never hides
+  an open run. Its model and its effect are measured, not assumed (section 3.4). Revert: turn
+  the roster off; the author re-reads its own frames.
 - **D5 The bench is host-neutral behind one arm interface.** `benchmarks/harness/` holds the
   ledger, the arms (`managed-agents` on the credit, `claude-code` on the subscription, `fake` at
   zero tokens), the coverage capture, the judge runner and the gallery. An arm returns the
@@ -175,13 +177,15 @@ judge's calibration failed, and opening the harness to students waits.
   open the folder, and the checker of each tuning phase confirms no path under it was read by
   grepping the session's evidence for the folder name. Revert: keep the plaintext in a private
   gist.
-- **D8 Completion has three paths into one idempotent finalizer.** Polling by an open page
+- **D8 Completion has four paths into one idempotent finalizer.** Polling by an open page
   (primary, inline), the Managed Agents webhook `session.status_idled` and
-  `session.status_terminated` (second), and the existing daily cron `/api/render/cleanup`
-  (backstop). All three call `finalizeRun(sessionId)`, which claims the run row, downloads the
-  record, shape-checks it, inserts it and marks the row in one database transaction (an RPC),
-  then deletes the output files and the session. Revert: drop the webhook; polling and the
-  sweep remain.
+  `session.status_terminated` (second), a bounded sweep of stale runs on every harness route
+  call (third, because Hobby cron jobs run once a day), and the existing daily cron
+  `/api/render/cleanup` (last). All four call `finalizeRun(sessionId)`, which takes a leased
+  claim on the run row, downloads the record, shape-checks it, inserts it and marks the row in
+  one database transaction (an RPC), then deletes the output files and the session, interrupting
+  it first if it is still running. The fleet lease expires at the hard time cap. Revert: drop the
+  webhook; polling and the sweeps remain.
 - **D9 Engine interface.** `api/_lib/harness/engine.ts` declares `start`, `progress`, `collect`
   and `dispose`; `managedAgentsEngine` is the first implementation; the routes and the step
   speak only to the interface. Revert: none; this is what lets a later engine swap in.
@@ -598,31 +602,52 @@ implementation and a re-run of the exam through the bench's arm interface.
 - `POST /api/ai/harness-runs` reserves, creates the session with the budget, stores the run row
   (`ai_harness_runs`: id, user, session id unique, status, interim and final record file ids,
   graphic id, cost, timestamps) and returns at once; Vercel functions stop at 300 s.
-- `GET /api/ai/harness-run?id=` polls: it reads the session's events and status; while running
-  it returns progress lines; on `idle` (any stop reason, since `requires_action` cannot occur
-  with the web tools off and no custom tool) or `terminated`, it calls `finalizeRun` inline and
-  returns the result or the "checked, and not ready" state; `budget_reached` is the not-ready
-  case.
+- `GET /api/ai/harness-run?id=` polls: it reads the session's status and its latest
+  `session.status_idle` event; while running it returns progress lines. Work is done when the
+  session is `idle` with `stop_reason` `end_turn`: the agent has no `workflows` setting, so no
+  workflow run can stay open behind an idle, and session status aggregates thread status, so an
+  idle session has no critic thread still working. Then, and on `terminated`, it calls
+  `finalizeRun` inline and returns the result. `budget_reached` is the not-ready case (the
+  interim record is saved as such); `retries_exhausted` or `refusal` with no record fails the
+  run; `requires_action` cannot occur with the web tools off and no custom tool, and is treated
+  as a failure if it ever does.
 - `POST /api/ai/harness-webhook` verifies the HMAC with the SDK's `webhooks.unwrap`
   (`ANTHROPIC_WEBHOOK_SIGNING_KEY`), dedupes on the event id, and calls `finalizeRun` for
   `session.status_idled` and `session.status_terminated`.
-- The daily cron `/api/render/cleanup` sweeps runs older than the hard time cap that are not
-  final: finalizes those with a record, fails the rest, interrupts and deletes their sessions.
-- `finalizeRun(sessionId)` is retry-safe: an RPC claims the row (`status = 'finishing'` only from
-  a non-final status), the server lists the session's files by `scope_id`, downloads the record
+- The backstop for a missed webhook is not the daily cron alone: the deployment is on Vercel's
+  Hobby plan, whose cron jobs run at most once a day (`vercel.json`, `30 3 * * *`), and
+  Anthropic's own guidance is to list sessions on a schedule because a delivery can be missed.
+  So every harness route call (`harness-status`, `harness-runs`, `harness-run`) first sweeps at
+  most three runs past the hard time cap that are not final, the same way the render status
+  path finalizes inline and the cron "only has to be eventually right"; the fleet slot is a
+  lease that expires at the hard cap, so a missed completion never holds capacity; and the
+  daily cron `/api/render/cleanup` sweeps whatever traffic did not reach. A sweep finalizes a
+  run that has a record, fails the rest, and interrupts a session that is still running before
+  deleting it, since a running session cannot be deleted.
+- `finalizeRun(sessionId)` is retry-safe and single-writer through a leased claim: an RPC sets
+  `status = 'finishing'` with a fresh claim token and `claimed_at`, from a non-final status or
+  from a `finishing` whose claim is older than the lease (two minutes, longer than one
+  invocation can live). The holder lists the session's files by `scope_id`, downloads the record
   (and the interim one when there is no final), runs `graphicSaveShape`, and one SQL transaction
-  inserts the document and marks the row final with the graphic id. A crash between the insert
-  and the mark cannot save twice: the transaction is one statement, and a retry that finds the
-  row already final returns the stored graphic id. A crash before the claim retries from the
-  start. The settled cost is read from the session before deletion.
+  inserts the document and marks the row final with the graphic id, conditioned on the row still
+  carrying its token; a holder whose lease was taken over gets zero rows and stops. A crash
+  between the insert and the mark cannot save twice: the transaction is one statement, and a
+  retry that finds the row already final returns the stored graphic id. A crash right after the
+  claim strands nothing: the next poll, webhook or sweep re-claims after the lease. The settled
+  cost is read from the session before deletion.
 
 ### 7.4 Cleanup and retention
 
 Once the graphic is saved, or the run failed for good, the server deletes the output files and
-the session (`DELETE /v1/sessions/{id}`: session, event history, container and checkpoints),
-which is what makes decision 2's "short retention" true. No-training is Anthropic's API default
+the session (`DELETE /v1/sessions/{id}`: the session, its event history and its files), which
+is what makes decision 2's "short retention" true for the brief and the graphic. The honest
+limit, from Anthropic's monitoring page (read 2026-10-14): sandbox state is kept for 30 days
+after the sandbox is created regardless of deletion, and Managed Agents is not eligible for
+zero data retention, which decision 2 no longer requires. Nothing of the student's but the
+brief and the graphic's sources is ever in that sandbox. No-training is Anthropic's API default
 and is asserted in the retention test (AC-11). The consent notice (`src/ai/consentNotice.ts`)
-is checked for truth under decision 2; a wording change bumps `AI_NOTICE_VERSION`.
+is checked for truth under decision 2 and this limit; a wording change bumps
+`AI_NOTICE_VERSION`.
 
 ### 7.5 Security boundary
 
@@ -750,8 +775,12 @@ model spend releases its reservation; the kill switch refuses new runs.
 
 ### AC-9: A run finishes after the student leaves, and never saves twice
 **Layer:** Node tests with the stubbed client; a journey in the configured suite.
-Polling, the webhook and the sweep each finalize a run; a second call on a final run returns the
-stored graphic id; a crash before the claim retries; an interim record is saved as not ready.
+Polling, the webhook, the on-traffic sweep and the cron sweep each finalize a run; a second call
+on a final run returns the stored graphic id; a crash before the claim retries; a crash right
+after the claim is recovered by the next caller once the lease expires, and two concurrent
+callers produce exactly one save; a stale fleet lease frees its slot; an interim record is
+saved as not ready; an idle with `budget_reached`, `retries_exhausted` or `refusal` takes its
+own path.
 
 ### AC-10: No credential or graphic code crosses the boundary
 **Layer:** a Node test of the create payload and the environment config.
@@ -762,7 +791,8 @@ check and is re-validated in the browser.
 ### AC-11: Retention matches decision 2
 **Layer:** a Node test.
 After a save or a final failure, the output files and the session are deleted; no managed task
-requires ZDR by default; the consent wording is true for the providers in use.
+requires ZDR by default; the consent wording is true for the providers in use, the 30-day
+sandbox retention included.
 
 ### AC-12: One Create with AI
 **Layer:** the `ai-tiers` journey, updated, and a journey in `e2e/ai.spec.ts`.
