@@ -569,9 +569,9 @@ compared on every run of `scripts/svg-import-passes.test.mjs`. "Sidecar" means t
 `.expect.json`. That run cross-checks its `textFields`, `textLabels` and counts, but not its
 `noticeAbout`, which only the nightly sweep scores. So where a line cites a notice, the guard is
 the `inventory` record, which holds every notice word for word. A `reading` is one of that
-harness's `READINGS`: the retired test's own file, read, drafted, built and placed as the wizard
-does, then put through the export gate (`validateTemplate`), with the walk's assertions as the
-`expect` beside it. A reading is used where no corpus file is drawn in the shape. Receipt: the phase 7 notes below, with a probe per line that
+harness's `READINGS`: the retired test's own file, put through the same `RECORD` as every corpus
+file and then the export gate (`validateTemplate`), with the walk's assertions as the `expect`
+beside it. A reading is used where no corpus file is drawn in the shape. Receipt: the phase 7 notes below, with a probe per line that
 breaks the rule and shows the guard failing.
 
 - e2e/import-svg.spec.ts: "sanitizer — script, handlers, foreignObject, SMIL and network refs never reach the template" (skipped since #800): reading `sanitizer` (all five notices said; no script, handler, foreignObject, external href or animate in the bound svg; the export gate accepts it); records `inventory` (the notices) and `bind` of effects-external-ref-and-script, illustrator-save-as-foreignobject and effects-smil-animated-bug, sidecars `textLabels`
@@ -625,10 +625,10 @@ run time, the findings recorded, and the check's findings.
   slower to protect rules a blank page proves in milliseconds. Adding them to the corpus would
   break its rule (honest exporter artwork, written from a designer's promise) and add them to
   the corpus walk's minutes. Instead, the harness gained `READINGS`: each walk's own file
-  verbatim, run through the same read, draft and build, with the walk's assertions as an
-  `expect` beside it. That `expect` stands in for a sidecar, and the maintenance line names the
-  reading. Each reading is also built and placed as the wizard does (`withSvgImportPasses`) and
-  put through the export gate, as the walks that finished a graphic did. There are seven
+  verbatim, run through the corpus's own `RECORD` (read, draft, the step's measurements, build,
+  place, mount), with the walk's assertions as an `expect` beside it. That `expect` stands in for a sidecar, and the maintenance line names the
+  reading. Each reading also goes through the export gate, as the walks that finished a graphic
+  did. Readings are asserted, never written to the snapshot. There are seven
   readings. The sanitizer, hidden-text and text-on-path walks have both a reading and corpus
   records. The text-on-path walk needed one for its SVG 2 `href`, because the corpus has only
   Inkscape's `xlink:href`.

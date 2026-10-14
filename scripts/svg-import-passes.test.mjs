@@ -40,9 +40,9 @@
 // READINGS ARE THE WIZARD WALK'S OWN SMALL FILES. A few rules of the reader turn on a shape no
 // corpus file is drawn in (a layer-name prefix, a source line wrapped by a pretty-printer, an event
 // handler). Their files, each lifted verbatim from the `e2e/import-svg.spec.ts` test it replaced
-// (`## Test maintenance` in docs/work-specs/svg-import-engine/spec.md), run through the same read,
-// draft, build and placing passes here and then the export gate, and READINGS states what each must
-// give: their sidecar, held in this file.
+// (`## Test maintenance` in docs/work-specs/svg-import-engine/spec.md), go through RECORD like any
+// corpus file and then the export gate, and READINGS states what each must give: their sidecar, held
+// in this file. They are asserted, never recorded.
 //
 // SIDECARS ARE THE TRUTH, NOT THIS RECORD. Every run cross-checks each file against its
 // `.expect.json` (accepted, size, text fields ON, labels as a prefix, picture rows, outline rows,
@@ -258,6 +258,8 @@ const RECORD = async ({ markup, origin, ladder }) => {
     template: { html: template.html, css: template.css, js: template.js, fields: template.fields },
     tables,
     runtime,
+    // The export gate's refusals, read by the readings; no record carries them.
+    gate: w0.NOACG_VALIDATE.validateTemplate(template).errors.map((e) => e.rule),
   };
 };
 
@@ -385,29 +387,6 @@ const READINGS = [
   },
 ];
 
-/** Runs in the browser: one small file through the read, the drop's draft, the build and the
- *  placing passes, as the wizard runs them, then the export gate. */
-const READ_ONE = ({ markup }) => {
-  const w0 = window;
-  const D = w0.NOACG_DRAFT;
-  const svg = w0.NOACG_SVG.importSvgMarkup(markup);
-  const draft = w0.__importDraft(svg);
-  const template = D.withSvgImportPasses(w0.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: D.svgDesignOptions(draft) }), draft);
-  // One row per text layer the reader found, in its order (t0, t1, ...), which is how the step
-  // names its rows; the draft itself lists furniture last.
-  const rowOf = new Map(draft.svgFields.map((f) => [f.candidateId, f]));
-  return {
-    notices: svg.notices,
-    rows: svg.candidates.map((c) => {
-      const f = rowOf.get(c.id);
-      return { id: c.id, title: f?.title, sample: f?.sample, on: f?.on, namedByGroup: c.namedByGroup };
-    }),
-    fields: template.fields.map((f) => `${f.field}:${f.title}`),
-    html: template.html,
-    gate: w0.NOACG_VALIDATE.validateTemplate(template).errors.map((e) => e.rule),
-  };
-};
-
 const sha = (s) => createHash('sha256').update(s ?? '').digest('hex');
 
 /** The bound <svg> as the emitted html carries it, without the indent the assembler adds. */
@@ -527,7 +506,7 @@ const raws = await withBundledPage(SPECS, async (page) => {
   naming = await page.evaluate(NAMING);
   readings = {};
   for (const r of READINGS) {
-    readings[r.name] = await page.evaluate(READ_ONE, { markup: r.markup })
+    readings[r.name] = await page.evaluate(RECORD, { markup: r.markup, origin: ORIGIN, ladder: {} })
       .catch((e) => { throw new Error(`reading ${r.name}: ${e.message}`); });
   }
   return out;
@@ -593,16 +572,23 @@ test('a drop names the graphic after its file unless the reader named it, and a 
 });
 
 for (const { name, retired, expect } of READINGS) {
-  test(`reading ${name}: ${retired.replace(/^svg import: /, '')}`, () => {
-    const got = readings[name];
-    got.rows.forEach((row, i) => {
-      assert.equal(row.id, `t${i}`, `${name}: the reader's text layers are t0, t1, ...`);
-      assert.ok(row.title !== undefined, `${name}: text layer ${row.id} has no row in the draft`);
+  test(`reading ${name}: ${retired}`, () => {
+    const raw = readings[name];
+    assert.ok(!raw.refused, `${name}: refused: ${raw.refused}`);
+    // One row per text layer the reader found, in its order (t0, t1, ...), which is how the step
+    // names its rows; the draft itself lists furniture last.
+    const rowOf = new Map(raw.fieldList.fields.map((f) => [f.candidateId, f]));
+    const rows = raw.inventory.candidates.map((c, i) => {
+      assert.equal(c.id, `t${i}`, `${name}: the reader's text layers are t0, t1, ...`);
+      const f = rowOf.get(c.id);
+      assert.ok(f, `${name}: text layer ${c.id} has no row in the draft`);
+      return { title: f.title, sample: f.sample, on: f.on, namedByGroup: c.namedByGroup };
     });
-    if (expect.rows) assert.equal(got.rows.length, expect.rows.length, `${name}: ${got.rows.length} text layers`);
-    (expect.rows ?? []).forEach((want, i) => {
-      for (const [k, v] of Object.entries(want)) assert.equal(got.rows[i][k], v, `${name}: row ${got.rows[i].id} ${k}`);
-    });
+    if (expect.rows) {
+      const picked = rows.map((row, i) => Object.fromEntries(Object.keys(expect.rows[i] ?? {}).map((k) => [k, row[k]])));
+      assert.deepEqual(picked, expect.rows, `${name}: the rows`);
+    }
+    const got = { notices: raw.inventory.notices, fields: raw.template.fields.map((f) => `${f.field}:${f.title}`), html: raw.template.html, gate: raw.gate };
     if (expect.fields) assert.deepEqual(got.fields, expect.fields, `${name}: the template's fields`);
     assert.deepEqual(got.gate, [], `${name}: the export gate refuses the template`);
     const bound = boundSvg(got.html);
