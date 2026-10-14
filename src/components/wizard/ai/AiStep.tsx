@@ -276,7 +276,7 @@ export default function AiStep({
       alive = false;
     };
   }, [needsSignIn]);
-  // The quarantined Pro tier's state and its status read (steps/ai/ProPanel.tsx), in the place
+  // The quarantined Pro tier's state and its status read (ProPanel.tsx), in the place
   // they always ran.
   const proTier = useProTier(needsSignIn);
   const [settings, setSettings] = useState(loadAiSettings);
@@ -347,7 +347,7 @@ export default function AiStep({
   // configured needs the setup in front of them, a Lite visitor does not.
   const [showSettings, setShowSettings] = useState(false);
   const settingsAutoOpened = useRef(false);
-  // THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the
+  // THE AGENT ROUTE (AgentRouteCard.tsx): the user's own coding agent is the
   // RECOMMENDED way to make graphics with NoaCG, so it is the first block of the step, always
   // open, above the built-in generator. The settings sheet's pointer scrolls back up to it.
   const agentRouteRef = useRef<HTMLElement>(null);

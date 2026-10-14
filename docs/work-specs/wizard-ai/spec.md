@@ -404,6 +404,10 @@ and the check's findings.
     old step; the rule pass reads the rules in `wizard/ai/AGENTS.md` now. Recompiling after any
     scope change renames `.claude/rules/*` files and can need `-- --prune`.
   - The chain targets after A4: the AI step 3,639 over 40,960, `steps/` 1,378, `import/` 1,500.
+  - `ai/UploadCard.tsx` is shared: `steps/VideoStep.tsx` imports it across the folders, and an
+    edit to it now loads the AI rules but not `steps/`'s video rules. D6 moves all of
+    `steps/ai/*`; whether the card belongs in `wizard/` beside the other shared parts is the
+    shell's call (S7) or a follow-up, not A5's.
   - The A3 check's carried items above (section 2 signatures, section 4 rebuild progress text,
     `keepChassisZone`, the adapt-first shortlist revival) are A5's or an issue's.
 - **Traps:** a `git mv` of a whole folder would carry the generated pair into a folder the marker

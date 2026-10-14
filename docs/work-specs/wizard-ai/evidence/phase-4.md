@@ -7,7 +7,7 @@ Before = `origin/main` at `a5992ed97`. Candidate = the branch head the queue lan
 
 | Path | What it does |
 |---|---|
-| `src/components/wizard/ai/{AiStep,AgentRouteCard,MoreControlPanel,ProPanel,UploadCard}.tsx` | `git mv` from `steps/AiStep.tsx` and `steps/ai/*`. The only edits are relative imports: `./ai/X` -> `./X` in the step (it stays at the same depth), one `../` fewer in the four former `steps/ai/` files. `git diff -M origin/main` shows renames with 1 to 12 changed import lines each |
+| `src/components/wizard/ai/{AiStep,AgentRouteCard,MoreControlPanel,ProPanel,UploadCard}.tsx` | `git mv` from `steps/AiStep.tsx` and `steps/ai/*`. The only edits are relative imports: `./ai/X` -> `./X` in the step (it stays at the same depth), one `../` fewer in the four former `steps/ai/` files; two comments in the step that cited `steps/ai/` paths. The move commit alone shows renames with 1 to 12 changed import lines each |
 | `src/components/wizard/steps/AiStep.tsx` | one line, `export { default } from '../ai/AiStep';`, so `CreationWizard.tsx:115`'s lazy import is untouched |
 | `src/components/wizard/steps/VideoStep.tsx` | its `UploadCard` import follows the file (`./ai/UploadCard` -> `../ai/UploadCard`); not in the row's file list, but the move breaks the build without it |
 | `src/components/wizard/ai/AGENTS.md`, `.gitattributes` | the marker (line 1 of the wizard contract), then the compiler's output: 23 rules |
@@ -83,4 +83,5 @@ metrics:contracts` no longer lists the AI step among the five tightest chains (t
   queue was not used (the moved files change no behaviour; the plan is 43+ specs).
 - Comments in `src/ai/creation.ts:5`, `src/model/aiThread.ts:2`, `src/model/cssVars.ts:21` and
   `src/styles/wizard-describe.css:200` still name the old paths; they sit outside A4's `src`
-  fence and are left for A5 or the shell's S7.
+  fence and are left for A5 or the shell's S7. The two hand-kept copies of the agent route's
+  install lines (`docs.html`, `docs/AGENT_CLI.md`) now point at `ai/AgentRouteCard.tsx`.
