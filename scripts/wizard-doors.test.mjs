@@ -24,13 +24,7 @@ const { makeDoors } = await load(path.join(projectRoot, 'src/components/wizard/s
 const test = (name, fn) => nodeTest(name, { timeout: 5000 }, fn);
 
 /** A promise the test resolves when it chooses: a durable write held in flight. */
-function held() {
-  let resolve;
-  const promise = new Promise((r) => {
-    resolve = r;
-  });
-  return { promise, resolve };
-}
+const held = () => Promise.withResolvers();
 
 /** Let every queued microtask and timer run, so a door that is not held has finished. */
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -113,7 +107,7 @@ function studio(script = {}) {
   return { io, log, alerts, productions, doors: makeDoors(io) };
 }
 
-/** The three appliers, in the shape of the shell's: `applied` counts the builds. */
+/** The three appliers, in the shape of the shell's; each logs its build. */
 function appliers(log) {
   return {
     catalog: async () => {

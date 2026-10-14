@@ -905,8 +905,8 @@ export default function CreationWizard() {
    * later inherits it.
    *
    * The KIT and Pro-PACKAGE endings reach no applier (the set doors, `openSet` and `exportSet`,
-   * save a SET, not a document), so they still leave the
-   * wizard with no way back in. Deliberately out of scope here and recorded in
+   * save a SET, not a document), so they still leave the wizard with no way back in.
+   * Deliberately out of scope here and recorded in
    * https://github.com/NoaCG/NoaCG-Studio/blob/745c6f2dcd9ce5e82cc6655c652e08f0568800fd/docs/backlog/back-to-the-wizard.md rather than half-wired.
    */
   const rememberWalk = () => {
@@ -1188,7 +1188,7 @@ export default function CreationWizard() {
   };
 
   /**
-   * Build the drafted graphic and make it the working project. BOTH Finish doors go through
+   * Build the drafted graphic and make it the working project. EVERY Finish door goes through
    * here — including the export one, which is what keeps the two endings byte-identical: the
    * editor path formats through Prettier (applyGenerated), so an export path that skipped it
    * would ship different HTML for the same choices.

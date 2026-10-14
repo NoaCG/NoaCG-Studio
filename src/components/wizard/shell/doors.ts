@@ -186,14 +186,14 @@ export function makeDoors(io: DoorIo) {
    * made a second production under the same name, each pooling the graphic). Released when the
    * door lands or fails, so a retry still works.
    */
-  const addToProduction = (apply: Apply, dest: ProductionDest, name: DoorName): Promise<void> => {
-    if (io.productionPress.current) return Promise.resolve();
+  const addToProduction = async (apply: Apply, dest: ProductionDest, name: DoorName): Promise<void> => {
+    if (io.productionPress.current) return;
     io.productionPress.current = true;
-    return (async () => {
+    try {
       if (await apply()) await landInProduction(dest, name());
-    })().finally(() => {
+    } finally {
       io.productionPress.current = false;
-    });
+    }
   };
 
   /** The editor door saves nothing: it opens the built document in the new editor, and keeps
@@ -239,28 +239,23 @@ export function makeDoors(io: DoorIo) {
     }
   };
 
-  /** Set door 1: save the set, land on the production page. */
-  const openSet = async (save: SaveSet, dest: ProductionDest): Promise<void> => {
-    const show = await save(dest);
-    if (!show) return;
-    io.closeGallery();
-    io.navigate({ view: 'production', id: show.id });
-  };
-
   /**
-   * Set door 2: save the set, then export it as ONE package - without the editor ever opening
+   * Both set doors: save the set, then land on the production page. The export door also asks
+   * that page for its whole-show export as ONE package - without the editor ever opening
    * (src/components/AGENTS.md: export is not a reward for opening the editor). The target
    * picker and the validation gate live on ProductionExportDialog, so the wizard asks for that
    * surface through the store's one-shot `pendingProductionExport` (the `pendingProductionId`
    * idiom) rather than growing a second whole-show export screen that could disagree with it.
    */
-  const exportSet = async (save: SaveSet, dest: ProductionDest): Promise<void> => {
+  const landSet = async (save: SaveSet, dest: ProductionDest, thenExport: boolean): Promise<void> => {
     const show = await save(dest);
     if (!show) return;
-    io.requestProductionExport(show.id);
+    if (thenExport) io.requestProductionExport(show.id);
     io.closeGallery();
     io.navigate({ view: 'production', id: show.id });
   };
+  const openSet = (save: SaveSet, dest: ProductionDest) => landSet(save, dest, false);
+  const exportSet = (save: SaveSet, dest: ProductionDest) => landSet(save, dest, true);
 
   return { export: exportDoor, addToProduction, editArtwork, saveSet, openSet, exportSet };
 }
