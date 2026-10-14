@@ -567,6 +567,54 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 verified `main` sha, the merge sha, the revert command, decisions taken, traps found, the harness's
 run time, the findings recorded, and the check's findings.
 
+### Phase 6: rungs and the mirror gate (check 2, 2026-10-14)
+
+- **Verdict: PASS**, on `main` at `16339862` (the merge of #1152). No product code changed here.
+- **Runs here (Windows):** `node --test scripts/svg-fit-rungs.test.mjs` 9 pass, 1 skip (the
+  mirror list is Linux's), 51 files in 8.1 s, the seven rung counts as the repair note states.
+  `node --test scripts/svg-import-passes.test.mjs` 14 pass, 1 skip (the Linux runtime record),
+  601 records. CI merge_group run 38493372158 on `16339862`: the factory job ran both with 133 of
+  133 passing and none skipped, so the mirror list was compared on Linux (63 findings, 141 lines,
+  3 not compared); the corpus shard passed 21 and skipped 3 (the three picture-swap tests that
+  call the retired `switchToAdvancedMode`), the sidecar walk among the passes, so both new
+  sidecars hold.
+- **The neighbour rung is independent.** The pen is found from the artwork's geometry (lines
+  417-442 of the test). It reads the runtime's `svgFitContainer` for the box it searches inside,
+  but nothing from the runtime decides which thing pens a line. Two probes of this check's own,
+  each made with `sed`, run, then reverted with `git checkout --`:
+
+  | Probe in `svgFit.js` | Result |
+  |---|---|
+  | `measureSvgRoom` honours only half the gap: `var edge = bound.edge + (panel.right - bound.edge) / 2;` (`room.penned` still true) | `neighbour` holds on 2 of 11 and fails on 8 new files, e.g. `figma-duplicate-ids-scorebug: short: f0 paints to 880.92, past the neighbour that pens it at 819.08`; `room` and `fits` also fail |
+  | `svgFitNeighbour` measures the neighbour 40 px further right: `left = Math.min(r.left + 40, panel.right)` | only `neighbour` fails: holds on 5 of 11, breaking on 5 new files, 3 of them only at the "just past" value (`illustrator-scoreboard-lower-third: just past ("0 0 0 0 0"): f1 paints to 1024.28, past the neighbour that pens it at 1012.3`) |
+
+- **Neighbour reach, 10 holding of 11 reached, judged fair.** Logging which value reaches each
+  file: 8 files are reached by `LADDER_VALUES` (7 hold, plus #1148's ticker) and 3 only by the
+  "just past" value (`figma-duplicate-ids-scorebug`, `student-illustrator-scoreboard`,
+  `inkscape-player-number-strap`). The "just past" value does not count a file by itself: a file
+  counts only where the value, at the drawn size, would cross the neighbour and the line is
+  painted unreported, so the fit really had to stop it. The second probe shows those values are
+  where an edge 40 px wrong is caught at all. Without them the rung would hold on 7 files;
+  without the two new files, on 8. Both are needed, and both are honest.
+- **The two new corpus files are honest strap artwork:** a player strap with a shirt-number tile
+  set inside the plate, and a news headline strap with a live dot inside the plate. Each is
+  written in its exporter's idioms with a designer's story, like the rest of the corpus.
+  Comparing the pass snapshot as JSON against `06045b28` shows exactly two differences, both
+  added files (`illustrator-live-badge-strap`, `inkscape-player-number-strap`). No existing record
+  changed.
+- **Margin, AC-6 met.** The rule is asserted on 20 files and reached at its limit sideways on 16,
+  above the 10 asked. Vertically 0 files reach the limit, which the test prints and #1153 tracks
+  (open). A third probe shows the vertical side is still guarded:
+  `svgGrowCap`'s `var marginY = 0;` (the vertical cap ignores the margin) fails `margin` on
+  `inkscape-flowed-text-card: over2: rule 1 grew to 208.8 from the frame, inside the 240 it
+  mirrors`, and the counter then reads "vertically 19 grow and 1 reach the margin". So "never
+  passed" is checked on the vertical axis, and only the at-limit count is missing.
+- **Mirror:** 141 bound lines, 138 compared. The 3 not compared are printed with their reasons
+  here and on CI.
+- **Observation, not a finding:** #1152 added two corpus files and their snapshot records,
+  outside the scope §7 lists for phase 6. This is the only way to reach 10 files without changing
+  `LADDER_VALUES`, which would change existing records. Its notes say so and give the revert.
+
 ### Phase 6: rungs and the mirror gate (repair, 2026-10-14)
 
 - **Last check's findings (phase 6 build, FAIL):** the room rung found the pen through the
