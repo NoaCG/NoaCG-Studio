@@ -151,7 +151,8 @@ test('the committed ledger reads: no credit before H3, H3 within its $10, and H0
 test('--build refuses a phase the ledger already holds as completed, and anything not a phase', () => {
   const ledger = readLedger(LEDGER_FILE);
   assert.match(refuseCompletedPhase(ledger, 'H0'), /already holds H0 as completed/);
-  assert.equal(refuseCompletedPhase(ledger, 'H3'), null);
+  assert.match(refuseCompletedPhase(ledger, 'H3'), /already holds H3 as completed/, 'a resumed H3 never spends again');
+  assert.equal(refuseCompletedPhase(ledger, 'H4'), null);
   assert.match(refuseCompletedPhase(ledger, 'feasibility'), /phase like H3/);
 });
 

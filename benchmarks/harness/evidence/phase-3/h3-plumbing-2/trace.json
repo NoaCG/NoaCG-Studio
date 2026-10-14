@@ -23,7 +23,8 @@
   "coldStart": {
     "firstModelRequest": 1,
     "firstToolCall": 2.5,
-    "firstNoacgCommand": 2.5
+    "firstNoacgCommand": 2.5,
+    "bridgeReady": 26.8
   },
   "turns": {
     "modelRequests": 6,
@@ -32,7 +33,7 @@
   "images": 2,
   "largestRequest": {
     "at": "2026-10-14T22:55:33.629183Z",
-    "usd": 0.0021,
+    "usd": 0.0107,
     "usage": {
       "cache_creation_input_tokens": 15294,
       "cache_read_input_tokens": 14109,
@@ -40,7 +41,7 @@
       "output_tokens": 182
     }
   },
-  "pricedCents": 1,
+  "pricedCents": 3,
   "activeSeconds": 68.497,
   "steps": [
     {

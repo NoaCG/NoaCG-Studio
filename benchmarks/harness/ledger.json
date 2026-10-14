@@ -132,6 +132,44 @@
       "wallSeconds": 56,
       "outcome": "failed",
       "note": "agent_not_ready"
+    },
+    {
+      "at": "2026-10-14T23:08:38.865Z",
+      "listCostCents": 109,
+      "phase": "H3",
+      "stage": "defect",
+      "arm": "managed-agents",
+      "model": "claude-opus-5-5",
+      "funding": "credit",
+      "brief": "h3-defect",
+      "kind": "session",
+      "sessionId": "sesn_019f5PZLggQKVufQfNjrxZNs",
+      "wallSeconds": 189,
+      "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-14T23:18:01.865Z",
+      "listCostCents": 149,
+      "phase": "H3",
+      "stage": "graphic",
+      "arm": "managed-agents",
+      "model": "claude-opus-5-5",
+      "funding": "credit",
+      "brief": "school-scoreboard",
+      "kind": "session",
+      "sessionId": "sesn_01YNuBgof1beHZkofTWJLb1G",
+      "wallSeconds": 471,
+      "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-14T23:23:54.916Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H3",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "feasibility: all four proofs of section 6 in six sessions on the bench key, $2.66 of the $10 ceiling (evidence/phase-3.md)"
     }
   ]
 }

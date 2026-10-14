@@ -1,0 +1,102 @@
+{
+  "costUnread": false,
+  "brief": "h3-defect",
+  "arm": "managed-agents",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "sesn_019f5PZLggQKVufQfNjrxZNs",
+  "costCents": 109,
+  "notionalUsd": 0,
+  "wallSeconds": 189,
+  "cleanup": {
+    "filesDeleted": 30,
+    "sessionDeleted": true,
+    "sessionGone": true,
+    "filesLeft": 0
+  },
+  "progress": [
+    "Getting ready",
+    "Checking the graphic"
+  ],
+  "trace": [
+    {
+      "command": "mkdir -p /workspace/graphic && cd /workspace/graphic && tar xzf /mnt/session/uploads/graphic.tgz && find . -type f | head -50; noacg --version",
+      "digest": null
+    },
+    {
+      "command": "npm install -g /mnt/session/uploads/noacg-cli.tgz >/dev/null 2>&1; noacg --version; export NOACG_URL=https://noacg.studio; which certutil || apt-get install -y libnss3-tools >/dev/null 2>&1; mkdir -p ~/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -N --empty-password 2>/dev/null; for c in /usr/local/share/ca-certificates/*.crt; do certutil -d sql:$HOME/.pki/nssdb -A -t C,, -n \"$(basename \"$c\")\" -i \"$c\"; done); noacg doctor 2>&1 | tail -20",
+      "digest": null
+    },
+    {
+      "command": "cd /workspace && export NOACG_URL=https://noacg.studio && noacg validate ./graphic --screenshots ./shots 2>&1 | tail -40; ls shots",
+      "digest": "sha256:331a3458a9635f4e233aae6d682ef68623b56ed615a957e29254eb57bc67fe2a"
+    },
+    {
+      "command": "cd /workspace && export NOACG_URL=https://noacg.studio && noacg validate ./graphic --screenshots ./shots 2>&1 | tail -8 && noacg record /workspace/graphic --out /mnt/session/outputs/record.json 2>&1 | tail -3 && noacg coverage /workspace/graphic --out /mnt/session/outputs/coverage 2>&1 | tail -5; cat /mnt/session/outputs/coverage/coverage.json | head -60",
+      "digest": "sha256:dab6dad9b851ae5bcb3ed72016d828e2a71b34de2a84a632ab545b5040cdd214"
+    },
+    {
+      "command": "cd /workspace && export NOACG_URL=https://noacg.studio && noacg validate ./graphic --screenshots ./shots 2>&1 | grep -E \"error|WARN|OK\" | head; noacg record /workspace/graphic --out /mnt/session/outputs/record.json 2>&1 | tail -1 && rm -rf /mnt/session/outputs/coverage && noacg coverage /workspace/graphic --out /mnt/session/outputs/coverage 2>&1 | tail -2",
+      "digest": "sha256:2bf730654e51a5e02e6415ea8f46609e5cf2de8cc5a43b5a42ad22369fbfd753"
+    }
+  ],
+  "metrics": {
+    "model": "claude-opus-5-5",
+    "coldStart": {
+      "firstModelRequest": 1.1,
+      "firstToolCall": 3.4,
+      "firstNoacgCommand": 3.4,
+      "bridgeReady": 32.1
+    },
+    "turns": {
+      "modelRequests": 16,
+      "toolCalls": 46
+    },
+    "images": 34,
+    "largestRequest": {
+      "at": "2026-10-14T23:05:51.706398Z",
+      "usd": 0.2162,
+      "usage": {
+        "cache_creation_input_tokens": 41856,
+        "cache_read_input_tokens": 11817,
+        "input_tokens": 2,
+        "output_tokens": 228
+      }
+    },
+    "pricedCents": 109,
+    "activeSeconds": 159.497
+  },
+  "outputsListed": 30,
+  "undownloadable": [],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H3-2026-10-14T23-05-03\\cells\\h3-defect.managed-agents\\frames",
+    "frames": 23,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:2bf730654e51a5e02e6415ea8f46609e5cf2de8cc5a43b5a42ad22369fbfd753"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:2bf730654e51a5e02e6415ea8f46609e5cf2de8cc5a43b5a42ad22369fbfd753",
+    "benchValidated": "sha256:2bf730654e51a5e02e6415ea8f46609e5cf2de8cc5a43b5a42ad22369fbfd753",
+    "reviewed": "sha256:2bf730654e51a5e02e6415ea8f46609e5cf2de8cc5a43b5a42ad22369fbfd753",
+    "problems": []
+  },
+  "functional": true
+}
