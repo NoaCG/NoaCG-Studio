@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/ai/**
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/wizard/2026-09-07-inject-harness-validator-every-provider-call.md
 ---
