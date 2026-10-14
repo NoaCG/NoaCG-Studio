@@ -153,15 +153,14 @@ test('a lower third places the logo BESIDE the text, not above it', async ({ pag
   await expect(frame.locator('.lower-third-logo')).toBeVisible();
   await expect(frame.locator('.lower-third-box')).toHaveCSS('display', 'grid');
   await awaitAtRest(page, ['.lower-third-logo', '#f0', '#f1', '.lower-third-box']);
-  console.log('PROBE-TEMPLATE-CSS', JSON.stringify(t.css.slice(t.css.indexOf('lower-third-logo') - 200, t.css.indexOf('lower-third-logo') + 1500)));
-  console.log('PROBE-TEMPLATE-HTML', JSON.stringify(t.html));
   const probe = await frame.locator('.lower-third-box').evaluate((box) => {
     const rect = (el: Element) => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
     const all = [...box.querySelectorAll('*')].map((el) => ({ tag: el.tagName, id: el.id, cls: el.className, rect: rect(el), transform: getComputedStyle(el).transform, display: getComputedStyle(el).display }));
     const img = box.querySelector('img') as HTMLImageElement | null;
     return { box: rect(box), all, natural: img ? [img.naturalWidth, img.naturalHeight, img.complete] : null, root: rect(box.closest('.lower-third') ?? box), rootTransform: getComputedStyle(box).transform };
   });
-  expect(JSON.stringify({ probe, css: t.css.slice(t.css.indexOf('.lower-third-logo') - 100, t.css.indexOf('.lower-third-logo') + 1800) })).toBe('PROBE');
+  const css = await page.evaluate(async () => { const { useTemplateStore } = await import('/src/store/templateStore.ts'); const c = useTemplateStore.getState().template.css; const i = c.indexOf('.lower-third-logo'); return c.slice(Math.max(0, i - 100), i + 2500); });
+  expect(JSON.stringify({ probe, css })).toBe('PROBE');
   const boxes =await frame.locator('.lower-third-box').evaluate((box) => {
     const logo = box.querySelector('.lower-third-logo')!.getBoundingClientRect();
     const line = box.querySelector('#f0')!.getBoundingClientRect();
