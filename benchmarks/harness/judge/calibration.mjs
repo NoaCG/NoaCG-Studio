@@ -366,6 +366,7 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
       const job = jobs[next++];
       const dir = path.join(work, 'judgements', part, job.task, keyOf(job.id));
       rmSync(dir, { recursive: true, force: true });
+      let answered = [];
       for (let attempt = 0; ; attempt++) {
         let out;
         try {
@@ -377,7 +378,8 @@ async function runPart({ set, split, part, task, work, concurrency, judge, only 
             const bad = byId.get(job.bad);
             // The order of the first judgement is seeded by the pair, so neither side is always first.
             const goodFirst = parseInt(sha(job.id).slice(0, 2), 16) % 2 === 0;
-            out = await judgePair(judge, { brief: good.brief.text, x: { id: good.id, frames: resolveFrames(work, good) }, y: { id: bad.id, frames: resolveFrames(work, bad) }, xFirst: goodFirst, dir, claude, env });
+            out = await judgePair(judge, { brief: good.brief.text, x: { id: good.id, frames: resolveFrames(work, good) }, y: { id: bad.id, frames: resolveFrames(work, bad) }, xFirst: goodFirst, answered, dir, claude, env });
+            answered = out.answered ?? [];
           }
         } catch (e) {
           out = { error: e instanceof Error ? e.message : String(e) };
