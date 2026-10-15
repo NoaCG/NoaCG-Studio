@@ -44,6 +44,9 @@ create table if not exists public.agent_deliveries (
 
 create index if not exists agent_deliveries_user_operation_idx
   on public.agent_deliveries (user_id, operation_id);
+-- The readback by resource id (the unique index leads with `kind`, which the readback lacks).
+create index if not exists agent_deliveries_user_resource_idx
+  on public.agent_deliveries (user_id, resource_id);
 -- Covers the key foreign key (the advisors' unindexed_foreign_keys) and the per-key readback.
 create index if not exists agent_deliveries_key_idx
   on public.agent_deliveries (key_id);

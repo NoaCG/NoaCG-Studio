@@ -211,9 +211,7 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
     const sent = await deliverAndConfirm(origin, key.key, 'package', (operationId) => savePackageToHome(origin, key.key, pack, operationId));
     outcome.receipt = sent.receipt;
     if (!sent.ok) {
-      if (sent.receipt.state === 'delivery_unverified') {
-        return { ...outcome, ok: false, reason: 'unverified', error: `${sent.error ?? 'Unconfirmed.'} ${sent.receipt.nextAction ?? ''}`.trim() };
-      }
+      if (sent.reason === 'unverified') return { ...outcome, ok: false, reason: 'unverified', error: sent.error };
       const message = sent.error ?? 'Refused.';
       const error = share
         ? `Not sent to your Home: ${message.replace(/[.\s]*$/, '.')} It is shared, so pack it again without sharing to put it on your Home.`
@@ -289,9 +287,6 @@ export function describePack(outcome: PackOutcome): string {
   if (outcome.url && outcome.receipt) {
     lines.push(`Sent "${outcome.name}" (${outcome.graphics} graphic(s)) to your NoaCG Home.`);
     lines.push(...describeReceipt(outcome.receipt));
-  } else if (outcome.url) {
-    lines.push(`Sent "${outcome.name}" (${outcome.graphics} graphic(s)) to your NoaCG Home -> ${outcome.url}`);
-    lines.push('It is waiting on Home → Productions: press Install and the production opens with its rundown.');
   }
   const share = outcome.share;
   if (share && 'id' in share) {

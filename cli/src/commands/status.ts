@@ -8,15 +8,13 @@
 
 import { noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { ApiError, explainFailure, readDelivery, resolveKey } from '../auth.js';
-import { describeReceipt } from '../receipt.js';
+import { explainError, readDelivery, resolveKey } from '../auth.js';
+import { describeReceipt, isUuid } from '../receipt.js';
 import { notLoggedIn } from './save.js';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function runStatus(args: ParsedArgs, out: Out): Promise<number> {
   const id = args._[1]?.trim();
-  if (!id || !UUID.test(id)) throw new UsageError('status needs the operation or resource id a save or pack --save printed.');
+  if (!id || !isUuid(id)) throw new UsageError('status needs the operation or resource id a save or pack --save printed.');
   refuseStrayArgs(args, 1);
   const origin = noacgUrl();
   const found = await resolveKey(origin);
@@ -38,7 +36,7 @@ export async function runStatus(args: ParsedArgs, out: Out): Promise<number> {
     for (const line of describeReceipt(receipt)) out.say(line);
     return EXIT_OK;
   } catch (e) {
-    const error = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
+    const error = explainError(e);
     out.result({ ok: false, reason: 'refused', error });
     out.say(`Could not check it: ${error}`);
     return EXIT_FINDINGS;

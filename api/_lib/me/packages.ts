@@ -27,7 +27,7 @@ import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { packageSaveShape } from './packageShape.js';
 import { MAX_SAVE_BODY_BYTES } from './graphics.js';
 import { writeReceipt } from './deliveries.js';
-import { operationIdOf, packageLink, type DeliveryReceipt } from './deliveryReceipt.js';
+import { packageLink, type DeliveryReceipt } from './deliveryReceipt.js';
 import { permits } from '../../../src/entitlements/permissions.js';
 
 /** How many packages may wait on one account at once. Installing or dismissing one frees a
@@ -105,12 +105,7 @@ export function createPackagesHandler(deps: PackagesDeps = {}): { fetch(req: Req
         });
 
         const origin = new URL(req.url).origin;
-        const receipt = await writeReceipt(
-          store,
-          { operationId: operationIdOf(req), userId: principal.userId, keyId: principal.keyId ?? null, kind: 'package', resourceId: id, state: 'pending_install' },
-          origin,
-          now(),
-        );
+        const receipt = await writeReceipt(store, req, { userId: principal.userId, keyId: principal.keyId }, 'package', id, now());
         const response: PackageSaveResponse = { id, url: packageLink(origin, id), receipt };
         return json(response, 201);
       } catch (e) {

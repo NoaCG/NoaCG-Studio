@@ -33,7 +33,8 @@ import {
   type RecordedDeliveryState,
 } from '../agentAccessStore.js';
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
-import { buildReceipt, isUuid, type DeliveryReceipt } from './deliveryReceipt.js';
+import { buildReceipt, isUuid, operationIdOf, type DeliveryReceipt } from './deliveryReceipt.js';
+import type { Principal } from '../../../src/entitlements/permissions.js';
 
 export interface DeliveriesDeps extends PrincipalDeps {
   store?: AgentAccessStore;
@@ -51,13 +52,21 @@ export async function accountFor(store: AgentAccessStore, userId: string): Promi
   }
 }
 
-/** Record one delivered resource and answer the write's receipt (`verified: false`). */
+/** What a door's write is on arrival: a graphic is in the library, a package waits for Install. */
+const ARRIVED: Record<DeliveryKind, RecordedDeliveryState> = { graphic: 'saved', package: 'pending_install' };
+
+/** Record one delivered resource and answer the write's receipt (`verified: false`). The operation
+ *  is the one the request named, the writer the principal's key. */
 export async function writeReceipt(
   store: AgentAccessStore,
-  delivery: { operationId: string; userId: string; keyId: string | null; kind: DeliveryKind; resourceId: string; state: RecordedDeliveryState },
-  deployment: string,
+  req: Request,
+  principal: Pick<Principal, 'keyId'> & { userId: string },
+  kind: DeliveryKind,
+  resourceId: string,
   at: Date,
 ): Promise<DeliveryReceipt> {
+  const delivery = { operationId: operationIdOf(req), userId: principal.userId, keyId: principal.keyId ?? null, kind, resourceId, state: ARRIVED[kind] };
+  const deployment = new URL(req.url).origin;
   const [account] = await Promise.all([
     accountFor(store, delivery.userId),
     store.recordDelivery(delivery).catch((e: unknown) => console.error('[deliveries] record', e instanceof Error ? e.message : e)),
@@ -90,6 +99,7 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
     const store = storeOf();
     // A key reads back only its own writes; null (a session) is the whole account's.
     const keyId = principal.kind === 'agent-key' ? principal.keyId! : null;
+    const accountLookup = accountFor(store, principal.userId);
     const rows = await store.findDeliveries(principal.userId, id, keyId);
     if (!rows.length) {
       return apiError('not_found', 'Nothing delivered under this id by this credential, in this account.', 404);
@@ -105,7 +115,7 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
     const receipt = buildReceipt({
       operationId,
       deployment: new URL(req.url).origin,
-      account: await accountFor(store, principal.userId),
+      account: await accountLookup,
       rows: checked,
       verified: true,
       checkedAt: now().toISOString(),

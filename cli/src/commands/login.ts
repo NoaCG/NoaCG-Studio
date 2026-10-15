@@ -22,7 +22,7 @@ import os from 'node:os';
 import type { AddressInfo } from 'node:net';
 import { noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagNumber, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { ApiError, challengeFor, displayPrefix, explainFailure, isAgentKey, newState, newVerifier, redeemCode, storeKey } from '../auth.js';
+import { accountLabel, ApiError, challengeFor, displayPrefix, explainFailure, isAgentKey, newState, newVerifier, redeemCode, storeKey } from '../auth.js';
 
 /** How long the listener waits for the browser before giving up. */
 const DEFAULT_WAIT_SEC = 300;
@@ -204,7 +204,7 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
     const { stored, account } = await redeemCode(origin, code, verifier);
     await storeKey(origin, stored);
     out.result({ ok: true, url: origin, id: stored.id, name: stored.name, prefix: stored.prefix, createdAt: stored.createdAt, account });
-    const who = account ? ` as ${account.email ?? `account ${account.id}`}` : '';
+    const who = account ? ` as ${accountLabel(account)}` : '';
     out.say(`Logged in to ${origin}${who} - key "${stored.name}" (${stored.prefix}). The key can only save graphics to that account's library; revoke it any time in Settings → Account → Agent access, or with \`noacg logout\`.`);
     return EXIT_OK;
   } catch (e) {

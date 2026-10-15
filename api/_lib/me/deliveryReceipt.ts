@@ -64,7 +64,7 @@ export const packageLink = (origin: string, id: string): string => `${origin}/ap
 export const productionLink = (origin: string, id: string): string => `${origin}/app#/production/${encodeURIComponent(id)}`;
 
 /** The state a recorded delivery is in NOW, given whether its resource is still there. */
-export function currentState(row: Pick<DeliveryRow, 'kind' | 'state'>, present: boolean): DeliveryState {
+export function currentState(row: Pick<DeliveryRow, 'state'>, present: boolean): DeliveryState {
   if (row.state === 'installed' || row.state === 'dismissed') return row.state;
   return present ? row.state : 'missing';
 }

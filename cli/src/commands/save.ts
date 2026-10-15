@@ -67,16 +67,13 @@ export async function savePackage(
   const doc = await bridge.graphicDoc(template, { name, ...(opts.folder ? { folder: opts.folder } : {}), origin: { tool: 'noacg-cli', version: cliVersion() } });
   const sent = await deliverAndConfirm(origin, found.key, 'graphic', (operationId) => saveGraphic(origin, found.key, doc, operationId));
   if (sent.ok) return { ok: true, id: sent.id, url: sent.url, name, validation, receipt: sent.receipt };
-  if (sent.receipt.state === 'delivery_unverified') {
-    return { ok: false, reason: 'unverified', validation, receipt: sent.receipt, error: `${sent.error ?? 'Unconfirmed.'} ${sent.receipt.nextAction ?? ''}`.trim() };
-  }
-  return { ok: false, reason: 'refused', validation, receipt: sent.receipt, error: `Not saved: ${sent.error ?? 'Refused.'}` };
+  const error = sent.reason === 'unverified' ? sent.error : `Not saved: ${sent.error}`;
+  return { ok: false, reason: sent.reason, validation, receipt: sent.receipt, error };
 }
 
 /** What a finished save says to a person, in the terminal and in the MCP tool. */
 export function describeSave(outcome: SaveOutcome): string[] {
-  if (!outcome.ok) return [outcome.error ?? 'Not saved.'];
-  if (!outcome.receipt) return [`Saved "${outcome.name}" to your NoaCG library -> ${outcome.url}`];
+  if (!outcome.ok || !outcome.receipt) return [outcome.error ?? 'Not saved.'];
   return [`Saved "${outcome.name}".`, ...describeReceipt(outcome.receipt)];
 }
 

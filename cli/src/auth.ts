@@ -225,14 +225,8 @@ export interface SaveResult {
 }
 
 /** POST one library record to the save door (`noacg save`), under the operation id named first. */
-export async function saveGraphic(origin: string, key: string, doc: Record<string, unknown>, operationId?: string): Promise<SaveResult> {
-  const response = await fetch(`${origin}/api/me/graphics`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, ...(operationId ? { 'x-noacg-operation': operationId } : {}) },
-    body: JSON.stringify(doc),
-  });
-  if (!response.ok) throw new ApiError(await failureOf(response));
-  return (await response.json()) as SaveResult;
+export function saveGraphic(origin: string, key: string, doc: Record<string, unknown>, operationId?: string): Promise<SaveResult> {
+  return postAsAgent(origin, key, 'graphics', doc, operationId);
 }
 
 /** POST a JSON body to one of the agent doors under /api/me as this key, naming the CLI version. */
@@ -279,6 +273,16 @@ export function shareCommunityPack(
   body: { name: string; description: string; author: string; license: string; pack: Record<string, unknown> },
 ): Promise<ShareResult> {
   return postAsAgent(origin, key, 'community-packs', body);
+}
+
+/** Any thrown value in the CLI's words: an API refusal through the table below, else its message. */
+export function explainError(e: unknown): string {
+  return e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
+}
+
+/** How the CLI names an account: its email, or its id when it has none. */
+export function accountLabel(account: AccountIdentity): string {
+  return account.email ?? `account ${account.id}`;
 }
 
 /** The error table of docs/AGENT_SAVE.md, in the CLI's words. */

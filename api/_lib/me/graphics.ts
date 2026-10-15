@@ -28,7 +28,7 @@ import { agentAccessConfigured, supabaseAgentAccessStore, type AgentAccessStore 
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { graphicSaveShape } from './graphicShape.js';
 import { writeReceipt } from './deliveries.js';
-import { graphicLink, operationIdOf, type DeliveryReceipt } from './deliveryReceipt.js';
+import { graphicLink, type DeliveryReceipt } from './deliveryReceipt.js';
 import { newGraphicDoc } from '../../../src/model/graphicDoc.js';
 import { permits } from '../../../src/entitlements/permissions.js';
 
@@ -108,12 +108,7 @@ export function createGraphicsHandler(deps: GraphicsDeps = {}): { fetch(req: Req
         await store.insertGraphic(principal.userId, doc);
 
         const origin = new URL(req.url).origin;
-        const receipt = await writeReceipt(
-          store,
-          { operationId: operationIdOf(req), userId: principal.userId, keyId: principal.keyId ?? null, kind: 'graphic', resourceId: doc.id, state: 'saved' },
-          origin,
-          now(),
-        );
+        const receipt = await writeReceipt(store, req, { userId: principal.userId, keyId: principal.keyId }, 'graphic', doc.id, now());
         const response: SaveResponse = { id: doc.id, url: graphicLink(origin, doc.id), receipt };
         return json(response, 201);
       } catch (e) {

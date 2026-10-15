@@ -93,12 +93,12 @@ const receiptOf = async (res: Response): Promise<DeliveryReceipt> => ((await res
 // ── the pure rules ─────────────────────────────────────────────────────────────────────────
 
 test('a recorded delivery reads as what is true now', () => {
-  assert.equal(currentState({ kind: 'graphic', state: 'saved' }, true), 'saved');
-  assert.equal(currentState({ kind: 'graphic', state: 'saved' }, false), 'missing', 'a deleted graphic is not still saved');
-  assert.equal(currentState({ kind: 'package', state: 'pending_install' }, true), 'pending_install');
-  assert.equal(currentState({ kind: 'package', state: 'pending_install' }, false), 'missing', 'gone with no install recorded (an older tab deleted it)');
-  assert.equal(currentState({ kind: 'package', state: 'installed' }, false), 'installed', 'installed outlives the waiting row');
-  assert.equal(currentState({ kind: 'package', state: 'dismissed' }, false), 'dismissed');
+  assert.equal(currentState({ state: 'saved' }, true), 'saved');
+  assert.equal(currentState({ state: 'saved' }, false), 'missing', 'a deleted graphic is not still saved');
+  assert.equal(currentState({ state: 'pending_install' }, true), 'pending_install');
+  assert.equal(currentState({ state: 'pending_install' }, false), 'missing', 'gone with no install recorded (an older tab deleted it)');
+  assert.equal(currentState({ state: 'installed' }, false), 'installed', 'installed outlives the waiting row');
+  assert.equal(currentState({ state: 'dismissed' }, false), 'dismissed');
 });
 
 test('a set is only as delivered as its least delivered part', () => {

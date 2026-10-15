@@ -189,7 +189,7 @@ export default function ProductionsSection({
   // never look alike, and the last list stays on screen meanwhile.
   const { backendConfigured, signedIn, needsSignIn, user } = useAuthState();
   const [waiting, setWaiting] = useState<WaitingPackage[]>([]);
-  const [waitingLoad, setWaitingLoad] = useState<{ status: 'idle' | 'loading' | 'ready' | 'error'; error?: string }>({ status: 'idle' });
+  const [waitingError, setWaitingError] = useState<string | null>(null);
   const reloadWaiting = useRef<() => void>(() => undefined);
   const [waitingNote, setWaitingNote] = useState<string | null>(null);
   const [waitingConfirm, setWaitingConfirm] = useState<string | null>(null);
@@ -228,22 +228,21 @@ export default function ProductionsSection({
   useEffect(() => {
     if (!backendConfigured || !signedIn) {
       setWaiting([]);
-      setWaitingLoad({ status: 'idle' });
+      setWaitingError(null);
       setListAnswered(false);
       return;
     }
     let stale = false;
     const load = () => {
-      setWaitingLoad((s) => ({ ...s, status: 'loading' }));
+      setWaitingError(null);
       listWaitingPackages().then(
         (list) => {
           if (stale) return;
           setWaiting(list);
-          setWaitingLoad({ status: 'ready' });
           setListAnswered(true);
         },
         (e: unknown) => {
-          if (!stale) setWaitingLoad({ status: 'error', error: e instanceof Error ? e.message : String(e) });
+          if (!stale) setWaitingError(e instanceof Error ? e.message : String(e));
         },
       );
     };
@@ -578,9 +577,9 @@ export default function ProductionsSection({
       {focusPackage && needsSignIn && (
         <SignInPrompt feature="Sign in to see this package" reason="It is waiting in the account your agent saved it to." />
       )}
-      {waitingLoad.status === 'error' && (
+      {waitingError !== null && (
         <div className="pack-waiting" role="alert" data-testid="waiting-packages-error">
-          <p className="status-bad">Waiting packages could not be loaded ({waitingLoad.error}).</p>
+          <p className="status-bad">Waiting packages could not be loaded ({waitingError}).</p>
           <div>
             <button onClick={() => reloadWaiting.current()} data-testid="waiting-packages-retry">Retry</button>
           </div>

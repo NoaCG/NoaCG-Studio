@@ -8,7 +8,7 @@
 // the account. Nothing here ever claims a browser opened anything.
 
 import { randomUUID } from 'node:crypto';
-import { ApiError, explainFailure, readDelivery, type AccountIdentity } from './auth.js';
+import { accountLabel, ApiError, explainError, explainFailure, readDelivery, type AccountIdentity } from './auth.js';
 
 export type DeliveryState = 'saved' | 'pending_install' | 'installed' | 'dismissed' | 'missing' | 'failed' | 'delivery_unverified';
 
@@ -35,6 +35,9 @@ export interface DeliveryReceipt {
 }
 
 export const newOperationId = (): string => randomUUID();
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isUuid = (value: string): boolean => UUID.test(value);
 
 /** A receipt the CLI writes itself: the refusal, or the answer that never came. */
 export function localReceipt(
@@ -87,7 +90,9 @@ export interface Delivered {
   id?: string;
   url?: string;
   receipt: DeliveryReceipt;
-  /** The refusal in the CLI's words, when the server said no. */
+  /** Why it is not delivered: the server said no, or the answer was lost and a readback found nothing. */
+  reason?: 'refused' | 'unverified';
+  /** In the CLI's words; an unverified one already says what to do next. */
   error?: string;
 }
 
@@ -112,7 +117,7 @@ export async function deliverAndConfirm(
     // A refusal the server SENT (4xx) is an answer: nothing was written.
     if (e instanceof ApiError && e.failure.status >= 400 && e.failure.status < 500) {
       const error = explainFailure(e.failure);
-      return { ok: false, error, receipt: localReceipt(operationId, origin, destination, 'failed', error) };
+      return { ok: false, reason: 'refused', error, receipt: localReceipt(operationId, origin, destination, 'failed', error) };
     }
     // Anything else - a 5xx, a dropped connection - may have landed. Ask before saying anything.
     const found = await readDelivery(origin, key, operationId).catch(() => null);
@@ -120,11 +125,12 @@ export async function deliverAndConfirm(
       const resource = found.resources.find((r) => r.kind === kind);
       return { ok: true, id: resource?.id, url: resource?.link, receipt: found };
     }
-    const reason = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
+    const next = `It may or may not have arrived. Check it with \`noacg status ${operationId}\` before sending it again.`;
     return {
       ok: false,
-      error: `Unconfirmed: ${reason}`,
-      receipt: localReceipt(operationId, origin, destination, 'delivery_unverified', `It may or may not have arrived. Check it with \`noacg status ${operationId}\` before sending it again.`),
+      reason: 'unverified',
+      error: `Unconfirmed: ${explainError(e)} ${next}`,
+      receipt: localReceipt(operationId, origin, destination, 'delivery_unverified', next),
     };
   }
   const confirmed = await readDelivery(origin, key, operationId).catch(() => null);
@@ -138,7 +144,7 @@ export async function deliverAndConfirm(
 
 /** Who and where, as one phrase: "maker@example.com on https://noacg.studio". */
 export function destinationOf(receipt: Pick<DeliveryReceipt, 'account' | 'deployment'>): string {
-  const who = receipt.account?.email ?? (receipt.account ? `account ${receipt.account.id}` : 'the logged-in account');
+  const who = receipt.account ? accountLabel(receipt.account) : 'the logged-in account';
   return `${who} on ${receipt.deployment}`;
 }
 
