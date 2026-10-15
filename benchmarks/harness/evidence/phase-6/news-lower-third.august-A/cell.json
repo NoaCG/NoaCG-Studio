@@ -1,0 +1,58 @@
+{
+  "costUnread": false,
+  "brief": "news-lower-third",
+  "arm": "august-A",
+  "model": null,
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": null,
+  "costCents": 0,
+  "notionalUsd": 0,
+  "wallSeconds": 10,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg validate (after the regenerating one)",
+      "code": 0,
+      "digest": "sha256:cdb49f477061d794c06852c189758802041e0d70a1da66048bd16f4a7a033038"
+    },
+    {
+      "command": "noacg record",
+      "code": 0,
+      "digest": "sha256:cdb49f477061d794c06852c189758802041e0d70a1da66048bd16f4a7a033038"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H6-round2\\cells\\news-lower-third.august-A\\frames",
+    "frames": 23,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c174c336ee6ef7a6bdadc030de4e12b423681be365cee8ac9124792f5104ca91"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": false,
+    "delivered": "sha256:cdb49f477061d794c06852c189758802041e0d70a1da66048bd16f4a7a033038",
+    "benchValidated": "sha256:c174c336ee6ef7a6bdadc030de4e12b423681be365cee8ac9124792f5104ca91",
+    "reviewed": "sha256:cdb49f477061d794c06852c189758802041e0d70a1da66048bd16f4a7a033038",
+    "problems": [
+      "the delivered zip is not the version the record names"
+    ]
+  },
+  "functional": true
+}

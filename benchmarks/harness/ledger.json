@@ -442,6 +442,16 @@
       "sessionId": "sesn_01Y8aPDLThzBv1Di459FWMJL",
       "wallSeconds": 265,
       "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-15T09:45:06.898Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H6",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "tuning round 2, the fresh-eyes critic: three Opus 5.5 critic sessions (news-lower-third, school-scoreboard, live-vote), all stopped at their 300-cent cap (the critic thread $1.31 to $1.68), none delivered, so the critic is dropped by the cost rule; one no-critic control (agent v3, the coverage fix of #1246) on live-vote delivered for $0.91, airable, no defect. $10.08 of the $15 ceiling; lecture-countdown and debate-clock cut from the critic arm to keep the control. Judged on the subscription against the August A cells (17 answered claude -p calls, $50.90 notional, no pause, no credit): harness preferred on school-scoreboard and both live-vote cells, tie on news-lower-third; no basic visual defect, no missing action. Agent back to the no-critic configuration as v5; reserve unchanged (evidence/phase-6.md)"
     }
   ]
 }

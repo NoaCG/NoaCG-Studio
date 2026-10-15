@@ -28,6 +28,17 @@ critic, and my own look at the frames named.
     `reshoot-...managed-agents-v3-kicker-...`: the chip grows, nothing overlaps). No defect hides
     in the state either arm was not put in, so the pairs stand as captured. `news-lower-third` and
     `school-scoreboard` updated the same kind of field (a name) in both arms.
+12. **The critic found a clipped word that no frame of the matrix shows, and the judge passed the
+    graphic.** In the critic arm's `live-vote`, the critic shot five options with a decimal leader
+    and saw the LEADING chip cut to "LEADINC"; the frozen judge, reading the bench's capture (three
+    options, as the brief's stress gives them), called it airable with no basic mistake. Re-shot from
+    the delivered zip (`noacg screenshot --data "f0=Live on TV | 33.33\n...` five lines,
+    `H6-round2\reshoot-live-vote.managed-agents-five-decimal.png`): the chip is clipped, so the
+    critic was right. The control's package with the same five lines (`reshoot-...-v3-five-decimal.png`)
+    is clean. Resolution: no instrument is wrong about the frames it has; the matrix never drives a
+    list at its largest count. Counted as the round fixed it (the judge's single), reported beside it,
+    and issue #1251 for the coverage. **For H7 and H8:** a list brief's verdict covers only the item
+    count its stress gives.
 
 ## H5 (2026-10-15): tuning round 1
 

@@ -956,6 +956,73 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H6. Tuning round 2: the fresh-eyes critic (built 2026-10-15)
+
+- **Check's findings (H5, on `4a089f9bb`):** AC-6, AC-16, AC-17 and the round ceiling hold: the
+  hypothesis `1b6f5db84` (alias rule included) was pushed before the first session (06:05:35Z), no
+  force push; ledger H5 624 cents, total 890 of 10,000, `m` 128.8, `B` 194, `R` 4,660, `T` 4,450 (two
+  $15 rounds), median 337 s; raw events 129 requests, minimum cache read 99.927%, largest $0.3899,
+  tokens $6.20 plus running time = $6.24; sessions 404, file lists empty; 15 counted judgements, 4
+  void, pairs 2-2-1, judge files hash to the lock; the live vote re-judged on the subscription not
+  airable, overlap seen in the frame; missing actions re-run on 10 cells match; prompt 15 lines,
+  tests 32 of 32, `--control` passed at $0; no `cli/`, skill, `agents/`, `src/` or `api/` change. New:
+  coverage's Update drives only `textKeys[0]`, so the arms were updated on different fields (August
+  re-shot with the options Update handles it, verdict stands; `instruments.md` entry 9). The
+  work-spec status reading "spec changed: reconcile acceptance" predates H5.
+- **Shas:** previous verified `main` `384f0eff2`; built on `claude/plan-noacg-harness-p7-build`. The
+  hypothesis, ceiling and signal committed in `ed28a2320` (08:29:11Z, pushed at once) before the
+  first session (08:31:08Z); the mid-round cut in `108c85147` (08:45:37Z) before the next new session
+  (08:58:37Z). The merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge,
+  then restore `benchmarks/harness/ledger.json` from the merge (the spend stays recorded, and a
+  ledger without it would let `--build H6` pay again), and `node scripts/harness-agent-sync.mjs
+  --workspace bench --apply`. Nothing on the bench workspace to clean up (every session and output
+  deleted, the CLI upload deleted; agents v4 and the critic agent stay, unused).
+- **What landed** (`benchmarks/harness/evidence/phase-6.md`): **#1246 fixed first** (`noacg coverage`
+  grows the label of a `Label | value` line, to at least 32 characters), measured at $0 and with a
+  control. **The critic** (agent v4: the critic, `critic.md`, the only subagent, Opus 5.5 high,
+  read-only, the skill's new fresh-eyes review) ran on three briefs at 300 cents: all three stopped
+  at the cap (critic threads $1.31 to $1.68, 48% of the arm), **none delivered**, median 705 s; the
+  frozen judge called all three airable with no defect, preferred them to August A on two and tied
+  the third. The **control** (v3, no critic, the fixed CLI) on the live vote: **$0.91**, 265 s,
+  delivered, airable, no defect, preferred to August A and to the critic arm. H5's defect is gone,
+  by the fix. `lecture-countdown` and `debate-clock` were cut from the critic arm after the first
+  capped session, to keep the control inside the ceiling. **$10.08** of $15. The critic is dropped
+  by the cost rule fixed before the round; `agent.md` and `critique.md` are back to H5's text and the
+  bench is on **agent v5** (v3's definition, hash `c47526c8...`). The bench gained subagent sync,
+  per-thread measurement, `--agent-version` and `--adopt`. 17 judge calls, $50.90 notional.
+- **H7 must allow for:**
+  - **H7 is Sonnet 5.5 on agent v5** (3.8: the configuration that won, no critic, the fixed CLI): the
+    same five briefs, `--model claude-sonnet-5-5` on `--build H7 --arms managed-agents,august`, budget
+    224 (`agent.md`), `--ceiling-cents 1500`, no `--critic-cents`. Progress is measured against the
+    Opus estimate: 5 of 5 accepted, **$1.20 per accepted graphic**, harness 3, tie 1, August 1 (H5's
+    four untouched briefs plus the control). H6 counted as progress (the fix), so a third round
+    without progress is not yet in play; H7 without progress is the first.
+  - The reserve is unchanged (`B` 194, `o` 39, `R` $46.60); `T` **$34.42**. H7 names the winner and
+    sets `B` and `o` for it in `agent.md` (re-synced) and the reserve alike.
+  - A list brief's verdict covers only the item count its stress gives: the critic found the live
+    vote's LEADING chip clipped at five options with a decimal leader, a state no frame shows and the
+    judge passed (`instruments.md` entry 12, #1251). Also for H8.
+  - Before pair judging, compare each pair's Update op (`instruments.md` entries 9 and 11); on
+    `live-vote` August A updates its kicker, the harness its options. Re-shoot both ways.
+  - Lecture countdown and debate clock have no H6 sample: H5's are the Opus figures for them.
+- **Decisions** (each with its reasons in `phase-6.md`):
+  - DECIDED: #1246 fixed before the round, with a no-critic control on the only brief it touches.
+    Revert: `git revert` the fix commit (`fc693944f`).
+  - DECIDED: 300 cents for a critic session (224 plus the critic's thread). Revert: `--budget-cents 224`.
+  - DECIDED: after the first capped session, cut two briefs from the critic arm to keep the control.
+    Revert: run them with the same flags within what the ceiling admits.
+  - DECIDED: the critic dropped and its skill text reverted; `o` kept at $0.39 though the critic
+    wait caused a $0.41 request. Revert: re-apply `c9f1a27f7`, re-sync, `--reserve` with `o` 41.
+- **Traps:**
+  - Stopping `--build` between sessions can create a session the bench does not track. Stop it while
+    a session works and resume with `--adopt <brief>=<session>`.
+  - A critic on the same model doubles the cost of a graphic and makes the author wait past the
+    five-minute cache, so its next request rewrites the whole context.
+  - The H5 August A cells read as two versions in their digest check again (`news-lower-third` and
+    `live-vote`); the captured version is the recorded one, as H5 found.
+- **Spend:** $10.08 credit; the ledger at $18.98 of $100, $46.60 held for H8, $34.42 for H7 and
+  after. $50.90 notional on the subscription.
+
 ### H5 check (2026-10-15, on `384f0eff2`)
 
 - **Verdict: PASS.** Checked on `main` `384f0eff2` (H5 merged as `4a089f9bb`, PR #1247); no product

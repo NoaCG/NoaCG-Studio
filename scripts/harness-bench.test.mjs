@@ -166,10 +166,11 @@ test('--build refuses a $0 phase, a completed one, tuning before the exam is res
   assert.match(refuseBuild(ledger, 'H3'), /already holds H3 as completed/, 'a resumed H3 never spends again');
   assert.match(refuseBuild(emptyLedger(), 'H4'), /H4 spends nothing \(5\.1\): it creates no session/, 'the reservation is $0 whatever the ledger says');
   assert.match(refuseBuild(ledger, 'H5'), /already holds H5 as completed/, 'round 1 is closed and never spends again');
-  assert.equal(refuseBuild(ledger, 'H6'), null, 'the committed ledger holds the reserve, so round 2 may spend');
+  assert.match(refuseBuild(ledger, 'H6'), /already holds H6 as completed/, 'round 2 is closed and never spends again');
+  assert.equal(refuseBuild(ledger, 'H7'), null, 'the committed ledger holds the reserve, so round 3 may spend');
   assert.match(refuseBuild(emptyLedger(), 'H5'), /no exam reserve/);
   assert.equal(refuseBuild(emptyLedger(), 'H3'), null, 'feasibility comes before the reserve');
-  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H6, H7 not closed/);
+  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H7 not closed/);
   assert.match(refuseBuild(ledger, 'feasibility'), /phase like H3/);
   assert.match(refuseBuild(ledger, 'H04'), /phase like H3/, 'no alias slips past the $0 and completed refusals');
 });
