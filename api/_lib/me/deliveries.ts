@@ -110,7 +110,14 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
     const { operationId, keyId: writer } = rows[0];
     const own = rows.filter((r) => r.operationId === operationId && r.keyId === writer);
     const checked = await Promise.all(
-      own.map(async (row) => ({ ...row, present: await store.resourcePresent(row.userId, row.kind, row.resourceId) })),
+      own.map(async (row) => ({
+        ...row,
+        // An installed package's row is gone by design; what must still be there is its production.
+        present:
+          row.state === 'installed'
+            ? !(row.productionId && (await store.productionDeleted(row.userId, row.productionId)))
+            : await store.resourcePresent(row.userId, row.kind, row.resourceId),
+      })),
     );
     const receipt = buildReceipt({
       operationId,

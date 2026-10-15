@@ -97,7 +97,8 @@ test('a recorded delivery reads as what is true now', () => {
   assert.equal(currentState({ state: 'saved' }, false), 'missing', 'a deleted graphic is not still saved');
   assert.equal(currentState({ state: 'pending_install' }, true), 'pending_install');
   assert.equal(currentState({ state: 'pending_install' }, false), 'missing', 'gone with no install recorded (an older tab deleted it)');
-  assert.equal(currentState({ state: 'installed' }, false), 'installed', 'installed outlives the waiting row');
+  assert.equal(currentState({ state: 'installed' }, true), 'installed');
+  assert.equal(currentState({ state: 'installed' }, false), 'missing', 'its production was deleted since');
   assert.equal(currentState({ state: 'dismissed' }, false), 'dismissed');
 });
 
@@ -114,7 +115,7 @@ test('an installed package\'s receipt names the production and opens it', () => 
     operationId: OP,
     deployment: ORIGIN,
     account: { id: USER, email: 'maker@example.test' },
-    rows: [{ kind: 'package', resourceId: 'p1', state: 'installed', productionId: 's1', present: false }],
+    rows: [{ kind: 'package', resourceId: 'p1', state: 'installed', productionId: 's1', present: true }],
     verified: true,
     checkedAt: '2026-10-15T00:00:00.000Z',
   });
@@ -215,6 +216,13 @@ test('a package is pending Install until the studio settles it; the receipt outl
   assert.equal(installed.state, 'installed');
   assert.equal(installed.link, `${ORIGIN}/app#/production/${production}`);
   assert.equal(await w.store.settlePackage(USER, sent.id, production), false, 'a package settles once');
+
+  // The production deleted in the studio since: the receipt no longer claims it.
+  w.store.deletedProductions.add(production);
+  const gone = await receiptOf(await status(w, sent.id));
+  assert.equal(gone.state, 'missing');
+  assert.equal(gone.resources.some((r) => r.kind === 'production'), false);
+  w.store.deletedProductions.delete(production);
 
   // An older studio deleted a second one directly: gone, and no install recorded - said as such.
   const op2 = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';

@@ -98,6 +98,9 @@ export interface AgentAccessStore {
   /** Whether a delivered resource is still there: the library record not deleted, or the package
    *  still waiting. */
   resourcePresent(userId: string, kind: DeliveryKind, id: string): Promise<boolean>;
+  /** Whether the production Install made has been deleted since: its synced record is a tombstone.
+   *  A production not yet synced (local-first) is not deleted - it is simply not up yet. */
+  productionDeleted(userId: string, productionId: string): Promise<boolean>;
   /** Install (with the production it made) or dismiss (`productionId` null) a waiting package: its
    *  row goes and its receipt records the outcome, in one statement. False when the user had no
    *  such package waiting. */
@@ -389,6 +392,18 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       if (error) throw new Error(error.message);
       return Boolean(data);
     },
+    async productionDeleted(userId, productionId) {
+      const { data, error } = await (await serviceRoleDb())
+        .from('documents')
+        .select('id')
+        .eq('id', productionId)
+        .eq('user_id', userId)
+        .eq('kind', 'show')
+        .eq('deleted', true)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    },
     async settlePackage(userId, packageId, productionId) {
       const { data, error } = await (await serviceRoleDb()).rpc('agent_package_settle', {
         p_user_id: userId,
@@ -432,6 +447,8 @@ export interface MemoryAgentAccessStore extends AgentAccessStore {
   emails: Map<string, string>;
   /** Library records the user deleted since (`documents.deleted`). */
   deletedGraphics: Set<string>;
+  /** Productions the user deleted since (a `show` tombstone). */
+  deletedProductions: Set<string>;
   /** When set, every delivery record fails, as a missing table would. */
   failDeliveries: boolean;
   /** When set, the next community submit is refused with this sentence, as the gate would. */
@@ -458,6 +475,7 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     deliveries: [],
     emails: new Map(),
     deletedGraphics: new Set(),
+    deletedProductions: new Set(),
     failDeliveries: false,
     refuseCommunityPack: null,
     now,
@@ -535,6 +553,9 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
       return kind === 'graphic'
         ? store.graphics.some((g) => g.userId === userId && g.doc.id === id && !store.deletedGraphics.has(id))
         : store.packages.some((p) => p.userId === userId && p.id === id);
+    },
+    async productionDeleted(_userId, productionId) {
+      return store.deletedProductions.has(productionId);
     },
     async settlePackage(userId, packageId, productionId) {
       const at = store.packages.findIndex((p) => p.id === packageId && p.userId === userId);

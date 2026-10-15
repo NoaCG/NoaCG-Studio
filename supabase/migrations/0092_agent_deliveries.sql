@@ -119,3 +119,44 @@ begin
     raise exception '0092: agent_package_settle settled a package nobody owns';
   end if;
 end $$;
+
+-- Self-check, the behaviour: a real owner's throwaway package is installed through the function,
+-- which must delete the waiting row and leave an `installed` receipt naming the production; a
+-- second settle finds nothing. Everything it wrote is rolled back by raising a sentinel the block
+-- catches, so no row is left and nothing here deletes. Skipped on an instance with no account yet
+-- (0036's pattern), where there is nobody to own the package.
+do $$
+declare
+  v_owner      uuid;
+  v_package    uuid := '00000000-0092-4000-8000-000000000092';
+  v_production uuid := '00000000-0092-4000-8000-000000000093';
+begin
+  select id into v_owner from auth.users limit 1;
+  if v_owner is null then
+    raise notice '0092 settle self-check skipped: no account on this instance';
+    return;
+  end if;
+  begin
+  insert into public.agent_packages (id, user_id, name, graphic_count, body)
+    values (v_package, v_owner, '0092 self-check', 1, '{}'::jsonb);
+  if not public.agent_package_settle(v_owner, v_package, v_production) then
+    raise exception '0092: agent_package_settle did not settle its owner''s waiting package';
+  end if;
+  if exists (select 1 from public.agent_packages p where p.id = v_package) then
+    raise exception '0092: agent_package_settle left the waiting row behind';
+  end if;
+  if not exists (
+    select 1 from public.agent_deliveries d
+     where d.kind = 'package' and d.resource_id = v_package and d.user_id = v_owner
+       and d.state = 'installed' and d.production_id = v_production
+  ) then
+    raise exception '0092: agent_package_settle recorded no installed receipt naming the production';
+  end if;
+  if public.agent_package_settle(v_owner, v_package, null) then
+    raise exception '0092: agent_package_settle settled the same package twice';
+  end if;
+  raise exception '0092 self-check rollback';
+  exception when raise_exception then
+    if sqlerrm <> '0092 self-check rollback' then raise; end if;
+  end;
+end $$;
