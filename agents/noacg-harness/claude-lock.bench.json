@@ -6,14 +6,21 @@
   },
   "skill": {
     "id": "skill_01G2iMqxJJJr4GJQe6q94ddo",
-    "version": "skver_01X2F1VAisMcvT5tj1ZDFHpj",
-    "bundleSha256": "7f130e3e6099127b5ab30b3540112f5f4b43a02d38f23503ecdaf7cb7d496dde",
+    "version": "skver_01KYSyzgjnYhPv8QF7rEXUjT",
+    "bundleSha256": "db32beffb6a0ebed9e61db22b4bbef3892b6de02c3ea976ff060bfbcb11f1393",
     "cliVersion": "0.11.0"
   },
   "agent": {
     "id": "agent_0183yBA1miijGFNvm5bkMv6B",
-    "version": 3,
-    "sha256": "c47526c8f99f9ff951bfd1704780acbc200ec4ab2f86c89fa5b411bb8f6fae7a"
+    "version": 4,
+    "sha256": "a68e6edbd7955a3a7536715eaabe89736a5cbb36ed4a65c486393562d95a4425"
   },
-  "syncedAt": "2026-10-15T00:28:37.107Z"
+  "syncedAt": "2026-10-15T08:27:42.366Z",
+  "subagents": {
+    "critic.md": {
+      "id": "agent_01HSHf5nbrnRVkTx591MJNJj",
+      "version": 1,
+      "sha256": "8774f4c51cef9e10a54921718fab3067b49475c7e6ac859053ae4a28df0839ef"
+    }
+  }
 }
