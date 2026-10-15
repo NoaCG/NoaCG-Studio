@@ -117,10 +117,10 @@ export function managedAgentsArm({ id = 'managed-agents', api, client, agent, en
           sessionId = adopt[brief.id];
           started = Date.parse((await api.beta.sessions.retrieve(sessionId)).created_at);
         } else {
-        if (brief.mounts?.length && !upload) throw new Error(`brief ${brief.id} mounts files, and this arm has no upload`);
-        for (const m of brief.mounts ?? []) mounted.push({ fileId: await upload(m.file), mountPath: m.mountPath });
-        // A brief may name its own environment (H3's `packages` proof) and go without the tarball.
-        ({ sessionId } = await client.startSession(api, { agent, environmentId: brief.environmentId ?? environmentId, brief: brief.prompt, type: brief.type, budgetCents, runId, files: [...(brief.withoutCli ? [] : files), ...mounted], ...(modelOverride ? { model: modelOverride } : {}) }));
+          if (brief.mounts?.length && !upload) throw new Error(`brief ${brief.id} mounts files, and this arm has no upload`);
+          for (const m of brief.mounts ?? []) mounted.push({ fileId: await upload(m.file), mountPath: m.mountPath });
+          // A brief may name its own environment (H3's `packages` proof) and go without the tarball.
+          ({ sessionId } = await client.startSession(api, { agent, environmentId: brief.environmentId ?? environmentId, brief: brief.prompt, type: brief.type, budgetCents, runId, files: [...(brief.withoutCli ? [] : files), ...mounted], ...(modelOverride ? { model: modelOverride } : {}) }));
         }
       } catch (e) {
         await dropMounted();

@@ -221,7 +221,7 @@ defect hides in a state either arm was not put in.
 
 ## Checks run
 
-`node --test scripts/harness-bench.test.mjs` 35 of 35; `node --test cli/test/coverage.test.mjs` 9 of
+`node --test scripts/harness-bench.test.mjs` 36 of 36; `node --test cli/test/coverage.test.mjs` 9 of
 9; eslint clean on the changed scripts; `NOACG_URL=https://noacg.studio node scripts/harness-bench.mjs
 --control` before the first session: CONTROL PASSED at $0; `harness-agent-sync --workspace bench`:
 v4 read back with the critic pinned and v3 with no `multiagent`, then v5. Not checked: the Console's

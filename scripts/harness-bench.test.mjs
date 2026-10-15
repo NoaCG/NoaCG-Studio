@@ -311,7 +311,7 @@ const BRIEF = { id: 'test-board', kind: 'noacg', type: 'scoreboard', neutral: tr
 const ENTRY = { phase: 'H1', stage: 'test', budgetCents: 300, overshootCents: 50 };
 
 /** The managed-agents arm on the stub, its agent being the fake arm's work through the stand-in CLI. */
-function stubbedArm({ scenario = 'end_turn', funding = 'none', cli, client = api.client }) {
+function stubbedArm({ scenario = 'end_turn', funding = 'none', cli, client = api.client, adopt = {} }) {
   const briefs = new Map();
   const stub = api.stub.createManagedAgentsStub({
     scenario,
@@ -328,9 +328,9 @@ function stubbedArm({ scenario = 'end_turn', funding = 'none', cli, client = api
       };
     },
   });
-  const arm = managedAgentsArm({ api: stub, client, agent: { id: 'agent_t', version: 1 }, environmentId: 'env_t', budgetCents: 300, model: 'stub', funding, pollMs: 0 });
+  const arm = managedAgentsArm({ api: stub, client, agent: { id: 'agent_t', version: 1 }, environmentId: 'env_t', budgetCents: 300, model: 'stub', funding, pollMs: 0, adopt });
   const run = arm.run;
-  return { ...arm, stub, run: (ctx) => { briefs.set(ctx.runId, ctx.brief); return run(ctx); } };
+  return { ...arm, stub, briefs, run: (ctx) => { briefs.set(ctx.runId, ctx.brief); return run(ctx); } };
 }
 
 test('the fake arm and the stubbed managed-agents arm deliver through record, shape check, capture and ledger at $0', async () => {
@@ -371,6 +371,21 @@ test('a session paused at its budget hands in its last record as not ready; a re
   const refusal = await runCell({ arm: stubbedArm({ scenario: 'refusal', cli }), brief: BRIEF, cellDir: path.join(dir, 'r'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r4' });
   assert.equal(refusal.outcome, 'failed');
   assert.equal(refusal.reason, 'refusal');
+});
+
+test('--adopt collects a session a stopped run left working, and creates none', async () => {
+  const cli = fakeCli();
+  const adopt = {};
+  const arm = stubbedArm({ cli, adopt });
+  // The stopped run: its session exists and works, and nobody collected it.
+  arm.briefs.set('r-stopped', BRIEF);
+  const { sessionId } = await api.client.startSession(arm.stub, { agent: { id: 'agent_t', version: 1 }, environmentId: 'env_t', brief: BRIEF.prompt, budgetCents: 300, runId: 'r-stopped' });
+  adopt[BRIEF.id] = sessionId;
+  const cell = await runCell({ arm, brief: BRIEF, cellDir: path.join(tmp(), 'a'), cli, ledger: emptyLedger(), entry: ENTRY, shape: api.shape, runId: 'r-resumed' });
+  assert.equal(cell.outcome, 'delivered');
+  assert.equal(cell.sessionId, sessionId);
+  assert.equal(arm.stub.calls.filter((c) => c.method === 'sessions.create').length, 1, 'only the stopped run created a session');
+  assert.equal(cell.cleanup.sessionGone, true);
 });
 
 test('a short ledger starts nothing: the session is refused before it is created, and the refusal is recorded', async () => {
