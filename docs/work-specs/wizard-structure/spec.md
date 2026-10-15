@@ -673,6 +673,47 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
 
+### S8 check (2026-10-15): PASS
+
+Checked on `origin/main` `50ce0911d` (S8 merged in #1240 as `6e44a0abe`) by a session that did
+not build it. S8 is the last phase on the list; nothing is carried to a next builder.
+
+- **AC-2.** Merge group 38693224255 on `6e44a0abe` ran the 67-spec plan: 705 passed, 0 failed,
+  0 flaky (merged blob reports), among them `wizard-kit` 22, `wizard-shell` 18 (quarantined,
+  #1160, and green), `wizard-finish` 22, `wizard-entry-fit` 23, `wizard-filters` 19,
+  `wizard-draft-guard` 8, `community-packs` 4, `template-deep-link` 2, `storage-full` 3. The next
+  merge group (38693691361, `50ce0911d`) is green too. Locally the seven wizard Node files pass
+  109 of 109, and `gates.mjs run --changed 6e44a0abe^1` passes. The e2e and script diff is the
+  `kitPlan.ts` path in two `page.evaluate` loaders, three Node loaders and one `// guards:` line.
+- **AC-9.** `git diff --name-only 6e44a0abe^1 6e44a0abe -- src` lists the two moved files, the
+  four importers (`CreationWizard.tsx`, `shell/walkState.ts`, `steps/KitPicker.tsx`,
+  `template/useKit.ts`) and the generated `wizard/`, `steps/` and `template/` contracts with the
+  `.gitattributes`. The moved files differ only in relative imports. No old path is left in
+  `src/`, `e2e/` or `scripts/`, except `scripts/e2e-traced.json`, which the nightly regenerates.
+  Until then the covers headers select the same 40 specs at either path (lists identical).
+- **AC-11 and AC-7.** `contracts:compile` leaves no diff; `check:contracts` is OK (562 rules);
+  `audit:instructions` runs and lists only `order-entry-step-four-equal-start` among the wizard
+  rules. ARCHITECTURE section 8 matches the folder and the depcruise rule. The chains, recomputed
+  from the committed `AGENTS.md` files at `6e44a0abe`, match the metrics file exactly: shell
+  32,333, `template/` 34,255, `import/` 39,873, `steps/` 40,970, AI 42,078. Before the merge the
+  same count gives S7's 33,996 / 41,536 / 41,414 / 43,741.
+- **AC-10 and the matrix row.** The budget is 1,419 of 1,419 and has only gone down
+  (2,601 to 1,419). `npm run depcruise` is clean, and CI Build passed on the merge group. The
+  plan widths are as recorded: `template/kitPlan.ts`, `template/KitTray.tsx` and `KitConfirms.tsx`
+  40 each, `steps/KitPicker.tsx` 62 and `CreationWizard.tsx` 53.
+- **The D13 departure stands.** The sibling rule `wizard-template-only-from-the-walk` keeps D13's
+  intent: one declared way into the capability, and no new ARCHITECTURE edge. It is better
+  suited to a folder with no barrel, since a barrel would pull React into the Node bundles of
+  `shell/`. A mutation of mine was refused from `import/drop.ts`, `ai/AiStep.tsx` and
+  `home/ActionLog.tsx`. D13's text in 1.2 still says "extends it", and these notes record the
+  change.
+- **The owner's items are in the spec.** S8 is phase 10 of the numbered list. S9 is optional
+  and "not joining", with its revisit criteria (`metrics:cochange` after 2 to 4 weeks, and only if
+  Template or Import commits still touch `CreationWizard.tsx`). The owner's decisions are in S8's
+  notes.
+- **Open, not this phase's:** `steps/` is 10 bytes over 40,960 and the AI chain 1,118 over; the
+  next candidates are named in the metrics file. #1227 is still open.
+
 ### S8. Template folder move (built 2026-10-15)
 
 - **Check's findings (S7 check: PASS on `origin/main` `7b25eb2a8`).** Chains reproduced at
