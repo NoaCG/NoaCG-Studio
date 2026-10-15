@@ -548,3 +548,34 @@ Next phase must allow for:
   production would add its own receipt row and must stay in the same transaction.
 - The readback lists a set in its order through `position`; an older database without 0093 still
   reads back (the select asks for every column rather than naming `position`).
+
+### Phase 3 (check), 2026-10-15
+
+Checked on `origin/main` `15f00669f` (the landing of #1270). Verdict: FAIL product, with the
+user-level run blocked.
+
+- Rollout: Post-landing run 38789232409 applied 0093 to production and staging (13 statements;
+  its diff lists `agent_operations`, `agent_deliveries.position`, the service-role grants and the
+  function's service-role execute grant, nothing for a browser role). Both projects hold accounts,
+  so 0093's own self-check (a set created whole, replayed with the same ids, a changed payload
+  refused, a failing record leaving nothing) ran inside the apply and passed on hosted Postgres.
+  The run is still red: the advisor step found `rls_enabled_no_policy` on `agent_operations`,
+  new since `supabase/advisor-baseline.json`. The table is deny-all on purpose (service role
+  only), the class the baseline already accepts for 33 other tables, so the fix is to
+  re-record the baseline with that judgement written down (docs/STACK_FRESHNESS.md). Nothing
+  after the advisor step was skipped. This is the finding that makes the verdict FAIL product.
+- Backend journey: the configured suite on the landing commit, run 38789232433 (local Supabase
+  stack, 0093 applied), passed 100 with the 8 allowed skips and 0 flaky; `agent-access.spec.ts`
+  (step 4e included) passed first time. Step 4e covers three graphics in one operation with
+  every link, the readback verifying them in order, a rebuilt replay with the same ids, a changed
+  set refused with 409, an invalid set refused with nothing under its operation, and a fresh
+  signed-in browser finding all three once each and opening every link. It sends with `fetch`,
+  not through the CLI.
+- Not checked, blocked: the run as a user with the CLI built from `main` (`noacg save a b c`, a
+  killed request rerun, the same command repeated, a changed set, an invalid graphic, two
+  concurrent CLIs). The local stack could not start: Docker Desktop's WSL VM failed with
+  `HCS/ERROR_NO_SYSTEM_RESOURCES` on this shared machine. Reading staging's keys to run against
+  the hosted test project was refused by the session's permission policy, which then also refused
+  local test and build commands. So the CLI's journal, lock, resend and concurrency behaviour has
+  only the builder's unit tests and the bridge run without a backend as evidence, and AC-7's
+  user-level retry scenario stays open.
