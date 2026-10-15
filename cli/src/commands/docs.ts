@@ -7,8 +7,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EXIT_OK, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 
-const TOPICS = ['skill', 'contract', 'package', 'validator', 'control', 'design-notes'] as const;
-export type DocTopic = (typeof TOPICS)[number];
+/** The reference texts, one file each under references/ (benchmarks/harness/lib/skill-pin.mjs reads
+ *  this list as written). `skill` is SKILL.md itself, listed before them. */
+const TOPICS = ['contract', 'package', 'validator', 'control', 'design-notes'] as const;
+const ALL_TOPICS = ['skill', ...TOPICS] as const;
+export type DocTopic = (typeof ALL_TOPICS)[number];
 
 /** The skill directory: `<package>/skill/noacg-graphic`, resolved beside dist/. */
 export function skillDir(): string {
@@ -16,8 +19,8 @@ export function skillDir(): string {
 }
 
 export async function readDoc(topic: string): Promise<string> {
-  if (!(TOPICS as readonly string[]).includes(topic)) {
-    throw new UsageError(`Unknown topic "${topic}". Topics: ${TOPICS.join(', ')}.`);
+  if (!(ALL_TOPICS as readonly string[]).includes(topic)) {
+    throw new UsageError(`Unknown topic "${topic}". Topics: ${ALL_TOPICS.join(', ')}.`);
   }
   if (topic === 'skill') {
     // The skill without its front matter, which only a plugin loader reads.
@@ -27,15 +30,15 @@ export async function readDoc(topic: string): Promise<string> {
 }
 
 export function docTopics(): readonly string[] {
-  return TOPICS;
+  return ALL_TOPICS;
 }
 
 export async function runDocs(args: ParsedArgs, out: Out): Promise<number> {
   refuseStrayArgs(args, 1);
   const topic = args._[1];
   if (!topic) {
-    out.result({ ok: true, topics: TOPICS });
-    out.say(`Topics: ${TOPICS.join(', ')}  (noacg docs <topic>)`);
+    out.result({ ok: true, topics: ALL_TOPICS });
+    out.say(`Topics: ${ALL_TOPICS.join(', ')}  (noacg docs <topic>)`);
     return EXIT_OK;
   }
   const text = await readDoc(topic);
