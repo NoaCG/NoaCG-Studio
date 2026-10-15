@@ -991,7 +991,7 @@ function cmdPresence() {
       if (now.setAt) console.log(`  declared ${new Date(now.setAt).toISOString()}${now.setBy ? ` by ${now.setBy}` : ''}`);
       if (now.expired && now.until) console.log(`  that declaration EXPIRED ${new Date(now.until).toISOString()} - back to the schedule, which says ${now.state}`);
       else if (now.expired) console.log('  that declaration carried no deadline, so it counts as expired - write it with `presence away` rather than by hand');
-      else console.log(`  holds until ${new Date(now.until).toISOString()}, then back to in-use`);
+      else console.log(`  holds until ${new Date(now.until).toISOString()}, then back to the schedule, which then says ${presenceAt(dir, now.until).state}`);
     } else if (now.expired) {
       console.log('  something is in presence.json that carries no deadline - it counts as expired');
     } else {
@@ -1022,7 +1022,7 @@ function cmdPresence() {
   const record = writePresence(dir, asked, { by: currentBranch() ?? 'unknown branch', ...(ttlMs ? { ttlMs } : {}) });
   const floor = freeMemFloorFor(record.state);
   console.log(`Machine marked ${record.state}. Floor for one suite-equivalent is now ${(floor / 1024).toFixed(1)} GB.`);
-  console.log(`  holds until ${new Date(record.until).toISOString()}, then back to in-use on its own.`);
+  console.log(`  holds until ${new Date(record.until).toISOString()}, then back to the schedule, which then says ${presenceAt(dir, record.until).state}.`);
 }
 
 // --- the drain loop --------------------------------------------------------------------------

@@ -5,13 +5,13 @@
 // do (alive, unknown, waiting): such a firing spends no tokens. Otherwise it hands the model the
 // check's output, so the firing acts on it without running it again.
 //
-// Only a prompt the scheduled task wrapped in its own `<scheduled-task name="noacg-run-wake"` tag is
-// gated; every other prompt passes untouched, and run-wake.mjs is imported only for that one. FAILS
+// Only a prompt that is wholly the scheduled task's own envelope, `<scheduled-task name="noacg-run-wake"
+// ...>` to `</scheduled-task>`, is gated (a prompt quoting the tag is not); every other prompt passes untouched, and run-wake.mjs is imported only for that one. FAILS
 // OPEN: when the check throws, the prompt goes through and the firing runs the check as before.
 
 import { readHookInput } from './lib.mjs';
 
-const FIRING = /<scheduled-task name="noacg-run-wake"/;
+const FIRING = /^\s*<scheduled-task name="noacg-run-wake"[^>]*>[\s\S]*<\/scheduled-task>\s*$/;
 
 const input = await readHookInput();
 if (!input || !FIRING.test(String(input.prompt ?? ''))) process.exit(0);

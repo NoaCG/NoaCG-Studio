@@ -155,6 +155,7 @@
       "Bash(node scripts/run-wake.mjs check)",
       "PowerShell(node scripts/run-wake.mjs check)",
       "mcp__ccd_session_mgmt__send_message",
+      "mcp__scheduled-tasks__list_task_runs",
       "mcp__scheduled-tasks__update_scheduled_task"
     ]
   },

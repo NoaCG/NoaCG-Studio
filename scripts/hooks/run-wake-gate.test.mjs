@@ -1,6 +1,6 @@
 // The run wake-up's prompt gate, verified the way docs/MISTAKE_TRIGGERS.md asks for: real event JSON
 // piped into the REAL hook file. What is pinned: any prompt but the wake-up task's own passes
-// untouched; a firing with nothing to do (here `unknown`, the inventory not answering) is blocked
+// untouched, also one quoting the task's tag; a firing with nothing to do (here `unknown`, the inventory not answering) is blocked
 // before the model; a firing with something to do (here `idle`) reaches the model with the check's
 // output; and the hook is wired.
 import assert from 'node:assert/strict';
@@ -25,7 +25,8 @@ function store(plans = {}) {
 const run = (prompt, dir = store()) => runHook(HOOK, { hook_event_name: 'UserPromptSubmit', prompt }, { NOACG_JOBS_DIR: dir, CLAUDE_BIN: path.join(dir, 'no-claude.exe') });
 
 test('every other prompt, and malformed input, passes untouched', () => {
-  for (const prompt of ['run the wake-up check', 'noacg-run-wake is broken, look at it', '']) {
+  const quoted = `Why does this block? ${FIRING}`;
+  for (const prompt of ['run the wake-up check', 'noacg-run-wake is broken, look at it', '', quoted, `${FIRING}\nand also this`]) {
     assert.deepEqual(run(prompt), { status: 0, message: '', output: '' });
   }
   assert.equal(runHook(HOOK, 'not json').status, 0);
