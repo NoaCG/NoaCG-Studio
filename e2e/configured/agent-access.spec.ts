@@ -15,11 +15,17 @@
 // covers: api/_lib/{principal,agentAccessStore}.ts, api/me/?...path?.ts, scripts/meDevPlugin.mjs
 // covers: api/_lib/me/{deliveries,deliveryReceipt,packages}.ts, supabase/migrations/0092_agent_deliveries.sql
 // covers: api/_lib/me/graphicSets.ts, supabase/migrations/0093_agent_graphic_sets.sql
+// covers: cli/src/commands/save.ts, cli/src/receipt.ts, cli/src/operations.ts, cli/src/auth.ts
 // covers: src/backend/agentPackages.ts, src/components/home/sections/ProductionsSection.tsx, src/app/router.ts
 
-import { test, expect } from '@playwright/test';
+import { test, expect, chromium, type Page } from '@playwright/test';
 import http from 'node:http';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { appendFile, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
@@ -44,6 +50,11 @@ import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, 
 //   4c. POST /api/me/community-packs with the key -> refused without the licence; with it, the
 //      pack waits for review under the account's Your packs;
 //   5. Settings -> Account -> Agent access lists the key; Revoke -> the same key is 401.
+//
+// THE CLI ITSELF (docs/AGENT_SAVE.md §10), the second test: the built `noacg` drives the real
+// bridge and the real set door. A save killed mid-write and run again, the same command repeated
+// and two runs at once each leave ONE set; an invalid graphic writes nothing; a changed set sent
+// under the journaled operation is refused.
 
 /** The delivery receipt the doors and the readback answer (docs/AGENT_SAVE.md §9). */
 interface Receipt {
@@ -460,4 +471,167 @@ test.describe('agent access (configured)', () => {
       }).catch(() => undefined);
     }
   });
+
+  test('the CLI delivers a set once, however its save is interrupted, repeated or doubled', async ({ page, baseURL }) => {
+    test.setTimeout(480_000);
+    const origin = baseURL!.replace(/\/+$/, '');
+    buildCli();
+    await signIn(page);
+    await dismissWizard(page);
+    await settleSync(page);
+    const name = 'Claude Code CLI on E2E';
+    await wipeE2EKeys(page, name);
+    const work = await mkdtemp(path.join(os.tmpdir(), 'noacg-cli-e2e-'));
+    try {
+      const key = await mintKey(page, origin, name);
+      const env = { NOACG_URL: origin, NOACG_AGENT_KEY: key, NOACG_CREDENTIALS_DIR: path.join(work, 'config'), NOACG_BROWSER: chromium.executablePath() };
+      const tag = randomBytes(3).toString('hex');
+      const pkg = (n: string) => path.join(work, n);
+      for (const n of ['A', 'B', 'C']) {
+        const made = await noacg(['scaffold', '--type', 'lower-third', '--name', `CLI set ${tag} ${n}`, '--out', pkg(n), '--json'], env);
+        expect(made.code, made.stderr).toBe(0);
+      }
+      const inLibrary = () => libraryIds(page, `CLI set ${tag}`);
+      const readBack = async (operation: string) =>
+        ((await (await fetch(`${origin}/api/me/deliveries?id=${operation}`, { headers: { authorization: `Bearer ${key}` } })).json()) as { receipt?: Receipt }).receipt;
+      const set = [pkg('A'), pkg('B'), pkg('C')];
+
+      // KILLED MID-SAVE, THEN RUN AGAIN: the process dies once it has named its operation, whether
+      // or not the write got out. The rerun resumes that operation and the account holds one set.
+      const killed = await noacg(['save', ...set, '--no-bench', '--json'], env, { killWhen: /under operation [0-9a-f-]{36}/ });
+      const operation = /under operation ([0-9a-f-]{36})/.exec(killed.stderr)?.[1];
+      expect(operation, killed.stderr).toBeTruthy();
+      const resumed = await noacg(['save', ...set, '--no-bench', '--json'], env);
+      expect(resumed.code, resumed.stderr).toBe(0);
+      expect(resumed.stderr).toContain(`Resuming 3 graphics under operation ${operation}`);
+      const first = JSON.parse(resumed.stdout) as { ok: boolean; operationId: string; graphics: Array<{ id: string; name: string; url: string }>; receipt: Receipt };
+      expect(first.operationId).toBe(operation);
+      expect(first.graphics.map((g) => g.name)).toEqual(['A', 'B', 'C'].map((n) => `CLI set ${tag} ${n}`));
+      expect(first.receipt).toMatchObject({ state: 'saved', verified: true, operationId: operation });
+      const ids = first.graphics.map((g) => g.id);
+      expect((await readBack(operation!))?.resources.map((r) => [r.id, r.state])).toEqual(ids.map((id) => [id, 'saved']));
+      await expect.poll(inLibrary, { timeout: 30_000 }).toEqual([...ids].sort());
+
+      // THE SAME COMMAND AGAIN: the first delivery's ids, nothing new saved.
+      const repeated = await noacg(['save', ...set, '--no-bench', '--json'], env);
+      expect(repeated.code, repeated.stderr).toBe(0);
+      const again = JSON.parse(repeated.stdout) as { replayed: boolean; graphics: Array<{ id: string }> };
+      expect(again.replayed).toBe(true);
+      expect(again.graphics.map((g) => g.id)).toEqual(ids);
+      await expect.poll(inLibrary, { timeout: 30_000 }).toEqual([...ids].sort());
+
+      // AN INVALID GRAPHIC refuses the whole set before anything is sent.
+      await cp(pkg('C'), pkg('Broken'), { recursive: true });
+      await appendFile(path.join(pkg('Broken'), 'js', 'template.js'), '\nfunction play( {\n');
+      const invalid = await noacg(['save', pkg('A'), pkg('Broken'), '--no-bench', '--json'], env);
+      expect(invalid.code).toBe(1);
+      expect(JSON.parse(invalid.stdout)).toMatchObject({ ok: false, reason: 'invalid' });
+      expect(invalid.stderr).not.toContain('under operation');
+
+      // TWO RUNS AT ONCE on a set not yet sent: one operation (the journal's lock), one set.
+      const pair = [pkg('A'), pkg('B')];
+      const [one, other] = await Promise.all([noacg(['save', ...pair, '--no-bench', '--json'], env), noacg(['save', ...pair, '--no-bench', '--json'], env)]);
+      expect(one.code, one.stderr).toBe(0);
+      expect(other.code, other.stderr).toBe(0);
+      const pairOne = JSON.parse(one.stdout) as { operationId: string; graphics: Array<{ id: string }> };
+      const pairOther = JSON.parse(other.stdout) as { operationId: string; graphics: Array<{ id: string }> };
+      expect(pairOther.operationId).toBe(pairOne.operationId);
+      expect(pairOther.graphics).toEqual(pairOne.graphics);
+      const afterPair = [...ids, ...pairOne.graphics.map((g) => g.id)].sort();
+      await expect.poll(inLibrary, { timeout: 30_000 }).toEqual(afterPair);
+
+      // A CHANGED SET under the journaled operation: refused, nothing written, and forgotten.
+      await appendFile(path.join(pkg('C'), 'css', 'template.css'), '\n/* changed */\n');
+      const changed = await noacg(['save', ...set, '--no-bench', '--json'], env);
+      expect(changed.code, changed.stderr).toBe(0);
+      const changedOperation = (JSON.parse(changed.stdout) as { operationId: string }).operationId;
+      expect(changedOperation, 'changed content is a new delivery of its own').not.toBe(operation);
+      const afterChanged = await libraryIdsSettled(page, `CLI set ${tag}`, afterPair.length + 3);
+      const journalFile = path.join(env.NOACG_CREDENTIALS_DIR, 'operations.json');
+      const tiedTo = async (op: string) => (await readFile(journalFile, 'utf8')).split(op).length - 1;
+      await writeFile(journalFile, (await readFile(journalFile, 'utf8')).replace(changedOperation, operation!));
+      expect(await tiedTo(operation!), 'the first set and the changed one both journaled under it').toBe(2);
+      const conflict = await noacg(['save', ...set, '--no-bench', '--json'], env);
+      expect(conflict.code).toBe(1);
+      expect(JSON.parse(conflict.stdout)).toMatchObject({ ok: false, reason: 'conflict', operationId: operation });
+      expect(await tiedTo(operation!), 'the changed set is no longer tied to it; the first set still is').toBe(1);
+      await expect.poll(inLibrary, { timeout: 30_000 }).toEqual(afterChanged);
+      expect((await readBack(operation!))?.resources.map((r) => r.id)).toEqual(ids);
+    } finally {
+      await rm(work, { recursive: true, force: true }).catch(() => undefined);
+      await page.goto('/app').catch(() => undefined);
+      await wipeE2EKeys(page, name).catch(() => undefined);
+      await wipeMyGraphics(page).catch(() => undefined);
+    }
+  });
 });
+
+// ── the CLI, built and run (the second test) ──────────────────────────────────────────────
+
+const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+const CLI = path.join(ROOT, 'cli', 'dist', 'index.js');
+
+/** Build the CLI from this checkout with the root TypeScript. The terminal verbs need only what the
+ *  root install already has; the MCP server's SDK, which they never load, is not installed here,
+ *  so its file reports type errors and is emitted all the same. What matters is that it runs. */
+function buildCli(): void {
+  const tsc = createRequire(import.meta.url).resolve('typescript/bin/tsc');
+  spawnSync(process.execPath, [tsc, '-p', path.join(ROOT, 'cli', 'tsconfig.json')], { cwd: ROOT, encoding: 'utf8' });
+  expect(existsSync(CLI), 'the CLI built').toBe(true);
+  const version = spawnSync(process.execPath, [CLI, '--version'], { encoding: 'utf8' });
+  expect(version.status, version.stderr).toBe(0);
+}
+
+/** Run `noacg` to its end, or kill it as soon as its stderr matches `killWhen`. */
+function noacg(args: string[], env: Record<string, string>, opts: { killWhen?: RegExp } = {}): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [CLI, ...args], { env: { ...process.env, ...env }, cwd: ROOT });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+    child.stderr.on('data', (d: Buffer) => {
+      stderr += d.toString();
+      if (opts.killWhen?.test(stderr) && child.exitCode === null) child.kill();
+    });
+    child.on('close', (code) => resolve({ code, stdout, stderr }));
+  });
+}
+
+/** The library ids, after a sync pass, of the graphics whose name holds `tag`, sorted. */
+async function libraryIds(page: Page, tag: string): Promise<string[]> {
+  return page.evaluate(async (t) => {
+    const { syncNow } = await import('/src/backend/syncController.ts');
+    await syncNow();
+    const { loadGraphics } = await import('/src/model/library.ts');
+    return loadGraphics().filter((g) => g.name.includes(t)).map((g) => g.id).sort();
+  }, tag);
+}
+
+/** `libraryIds` once it holds `count` graphics. */
+async function libraryIdsSettled(page: Page, tag: string, count: number): Promise<string[]> {
+  await expect.poll(async () => (await libraryIds(page, tag)).length, { timeout: 30_000 }).toBe(count);
+  return libraryIds(page, tag);
+}
+
+/** Consent and redeem, as `noacg login` does, for a key the CLI is then handed. */
+async function mintKey(page: Page, origin: string, name: string): Promise<string> {
+  const verifier = randomBytes(32).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('hex');
+  const state = randomBytes(16).toString('base64url');
+  const listener = await loopback(state);
+  try {
+    await page.goto(`/app?agent=${state}&port=${listener.port}&name=${encodeURIComponent(name)}&challenge=${challenge}`);
+    await page.getByTestId('agent-consent-allow').click();
+    const code = await listener.code;
+    const redeem = await fetch(`${origin}/api/me/agent-keys`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'redeem', code, verifier }),
+    });
+    expect(redeem.status, await redeem.clone().text()).toBe(201);
+    return ((await redeem.json()) as { key: string }).key;
+  } finally {
+    listener.close();
+    await page.goto('/app');
+  }
+}
