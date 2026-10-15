@@ -956,6 +956,114 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H7 repair: the exam runs the skill v7 pins (2026-10-15, on `ef7ed795d`)
+
+- **Check's findings (H7 check, on `dd31ec76d`):** FAIL product. H7's round holds and the stop rule
+  lets H8 run (5.5 measures progress on the tuning set; H6 moved cost and verdict; 3.8 the winner
+  runs the exam), but H8 could not start as written. PR #1258 (`37329aa4f`, the agent-delivery plan)
+  changed `cli/skill/noacg-graphic` (`SKILL.md`, `references/setup.md`) just before H7 merged. On
+  `main` the dry sync planned `skill version, agent update`; with `cli/skill` and the plugin copy
+  restored to `1d3aade23` it planned all `keep`, so that change was the whole difference. A re-sync
+  would put the exam on an untuned v8 (AC-16) whose skill says to run `noacg login` before the
+  brief, which the container prompt forbids. `--build H8` refused before any session, naming
+  `agents/noacg-harness` and pointing at the re-sync. Everything else held: v7 on the server equals
+  its definition (Opus 5.5 high, budget 194, `multiagent` null, the lock's skill), ledger $21.34,
+  reserve $46.60, $32.06 left, tests 38 of 38, `--control` passed.
+- **DECIDED: path (a), the exam runs agent v7 as tuned, on the lock's skill, in both arms.**
+  Reasons: (1) AC-7 and AC-16: the exam scores what tuning chose, and v7 pins
+  `skver_01KXt4Xf4msx422tocc44dmh` (bundle `7f130e3e...`), the bytes H5 to H7 measured. (2) #1258's
+  change is the delivery flow of a user's own session (connect first, save every graphic, a
+  package pending Install). The harness never logs in or saves (the host saves), the change touches
+  no design or contract text, and it contradicts the container prompt. Measuring a v8 would spend
+  about $6 of the $32.06 left (H5's five Opus graphics cost $6.24) on a change that cannot improve a
+  harness graphic, and it would first need the login conflict resolved in the skill (AC-16), which
+  is product work. (3) The tuned bytes are the skill of the published `@noacg/cli` 0.11.0 (npm's
+  `gitHead` `e4d7b0841` holds the same skill as `2128d984d`, the release commit). So the reference
+  arm, "Claude Code with the published plugin" (4.2), gets the released skill too.
+  The exam then holds the shared skill constant and measures the harness against Claude Code.
+  **Revert:** `git revert -m 1` the merge; the freeze and the pin go and `--build H8` refuses as
+  before. To take (b) instead: revert, resolve the `noacg login` conflict in `cli/skill`, sync to
+  v8, measure it on the tuning set as a round before the exam, and re-reserve if `B` moves.
+- **What landed:** `benchmarks/harness/lib/skill-pin.mjs` finds the lock's skill in git (the newest
+  commit whose `cli/skill/noacg-graphic` hashes to the lock's bundle: `2128d984d` today) and builds
+  the reference arm's plugin from it. `examSkill` decides what a `--build` runs. With the same bytes,
+  the run goes on. With different bytes, a tuning round is refused and the cause named. In the
+  exam, the lock's skill runs, refused only where a session would still meet the checkout's text:
+  a `noacg docs` topic (contract, package, validator, control, design-notes) that differs, or a
+  CLI version other than the lock's 0.11.0 (the topics are read from `cli/src`, which every CLI
+  build a session runs is compiled from). `examPending` (ledger) is the window from the close of
+  tuning to the close of the exam. In it, `harness-agent-sync` plans against the lock's skill and
+  says what the exam's `--build` will say of the checkout's skill, `--apply` refuses any change,
+  and `--build` refuses every phase but the exam. `--build <H#> --dry` makes every check before
+  the first session and stops at $0, with no briefs; any spelling (`--dry=1`, `--dry-run`) counts.
+  A build now checks the reference arm's subscription before any arm's first session, so a
+  reference that cannot start is found before the credit arm spends. `--build`'s messages name
+  `cli/skill` and the commit; in the exam they never say sync. Five new tests (43 of 43).
+- **Dry outputs on this branch** (current `origin/main` `ef7ed795d` plus this change):
+  ```
+  $ node scripts/harness-agent-sync.mjs --workspace bench
+    environment  keep
+    skill        keep
+    agent        keep
+    frozen for H8's exam: agent v7 keeps skill skver_01KXt4Xf4msx422tocc44dmh as tuned.
+    cli/skill/noacg-graphic is bundle c9e114cc79e5, not the 7f130e3e6099 that agent v7 pins
+    (changed by 37329aa4f Lead Downloads with one short coding-agent prompt that needs no plugin):
+    H8 runs the lock's skill as tuned, from 2128d984d. ...; H9 reconciles the product's skill with it
+  $ node scripts/harness-agent-sync.mjs --workspace bench --apply
+  Everything matches the lock; nothing to do.
+  $ node scripts/harness-bench.mjs --build H8 --dry --arms managed-agents,claude-code --model claude-opus-5-5
+    skill: cli/skill/noacg-graphic is bundle c9e114cc79e5, not the 7f130e3e6099 that agent v7 pins
+    (changed by 37329aa4f ...): H8 runs the lock's skill as tuned, from 2128d984d. ...
+    agent: agent_0183yBA1miijGFNvm5bkMv6B v7 read back from the server as agents/noacg-harness
+    defines it, skill skver_01KXt4Xf4msx422tocc44dmh
+    reference: claude-code on claude-opus-5-5, the subscription's oauth_token, plugin cli/plugin
+    with the lock's skill in <run dir>\plugin
+  DRY H8: every check before the first session passed. Nothing uploaded, no session created, $0.
+  $ node scripts/harness-bench.mjs --build H9 --dry --arms managed-agents
+  harness-bench: tuning is closed and H8's exam is pending: the bench is frozen for it until it closes
+  ```
+  The built plugin's nine skill files equal `2128d984d`'s plugin copy, and its other files equal
+  the checkout's `cli/plugin`. The lock file is unchanged after `--apply`.
+- **H8 must allow for:**
+  - Run with no sync: the bench stays frozen until `--close H8`. Read the run's first lines: the
+    `skill:` line must name the lock's bundle and `2128d984d`, the `agent:` line v7. Run the dry
+    form first, with the arms and the reference `--model` the exam uses.
+  - `--build` reads only the tuning briefs. H8 adds the sealed briefs' path (decrypt and verify, 4.1).
+    The dry form needs no briefs.
+  - The pin covers the skill only. The container installs this checkout's CLI (`npm pack` of `cli/`),
+    and the bench captures with it. `cli/src` is unchanged since H7's base `1d3aade23` as of this
+    repair. If it has changed by H8, say so in the report (`git diff --stat 1d3aade23 HEAD -- cli/src`).
+  - If the exam is refused for a `noacg docs` topic or the CLI version, another plan moved them.
+    Decide then: pack the CLI from a copy of `cli/` with the lock's skill, or record the
+    difference. Never sync.
+  - **H9 must reconcile the product's current skill with the bench lock.** The shipped skill now
+    says to connect first (`noacg login`) and save every graphic, which the container's plumbing
+    forbids. Resolve that in the skill (AC-16), then sync the production agent and measure the
+    harness on it before AC-14.
+- **Decisions** (each revertible in the merge):
+  - DECIDED: path (a), above.
+  - DECIDED: the reference plugin is the checkout's `cli/plugin` with the lock's skill copied in as
+    build-skill copies it (`name: graphic`), so its manifests carry this CLI's version and
+    `noacg doctor` sees one. Not `cli/plugin` at `2128d984d`.
+  - DECIDED: the CLI the sessions run (the container's tarball, the reference arm's shim) is not
+    repacked with the lock's skill. `noacg docs` is the only way it shows skill text, and none of
+    its topics differ today (#1258 changed `SKILL.md` and `setup.md`, which it does not print), so
+    a refusal when one does is simpler and is never silent.
+  - DECIDED: the lock's bytes are found in git, not recorded beside the lock: the lock is untouched,
+    and a later lock is found the same way. The freeze has no override flag; leaving it early is a
+    revert.
+- **Traps:** finding the bytes needs history, so on a shallow clone, or after a sync from
+  uncommitted files, the exam is refused ("no commit on this branch holds those bytes"). The dry
+  form reads the server (free), runs `claude auth status` and builds the api runtime; it creates
+  nothing. `--agent-version` still runs another version unchecked. The freeze reads this
+  checkout's ledger: a branch older than H7's close is not frozen, and its `--apply` would update
+  the shared environment in place (the bench reads the agent back, not the environment) and move
+  its own lock. Before H8 spends, check that `claude-lock.bench.json` still names v7 and
+  `env_01PFiXgBUuDv5aFgEwHXayiY`, as on `ef7ed795d`.
+- **Spend:** none. No session, no sync, no upload; the read-backs are free. The ledger is unchanged:
+  $21.34 spent, $46.60 held for H8, $32.06 left. **Shas:** built on `ef7ed795d`; the merge sha is
+  the one the queue records. Nothing on the bench workspace to undo.
+
 ### H7 check (2026-10-15, on `dd31ec76d`)
 
 - **Verdict: FAIL product.** The round holds; H8 cannot start as carried. Checked on `main`

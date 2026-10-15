@@ -17,7 +17,9 @@
 // tuning round can never spend the exam; the exam itself may use it.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
+export const LEDGER_FILE = fileURLToPath(new URL('../ledger.json', import.meta.url));
 export const LEDGER_FORMAT = 'noacg-harness-ledger-v1';
 /** Decision 11: at most $100 of credit on measuring and tuning, across all runs of the plan. */
 export const RUN_BUDGET_CENTS = 10_000;
@@ -29,8 +31,11 @@ const EXAM_BRIEFS = 20;
 const ROUND_CEILINGS_CENTS = [1_500, 900];
 /** 5.1's $0 stages: no `--build` session is ever created for them. */
 export const ZERO_CREDIT_PHASES = ['H0', 'H1', 'H2', 'H4'];
+/** 5.2: the phase that reserves the exam; every phase after it up to the exam is tuning. */
+export const RESERVING_PHASE = 'H4';
 /** A phase id in its one spelling: `H4`, never `H04`, so no alias slips past a refusal. */
 export const PHASE = /^H(?:0|[1-9]\d*)$/;
+export const phaseNumber = (phase) => Number(phase.slice(1));
 
 export const FUNDING = ['credit', 'subscription', 'none'];
 export const OUTCOMES = ['delivered', 'not-ready', 'failed', 'paused', 'refused', 'completed'];
@@ -151,6 +156,22 @@ export const phaseSpentCents = (ledger, phase) => spentCents(ledger, phase);
 /** True once the ledger holds the phase's completed entry: `--build` refuses to run it again. */
 export function phaseCompleted(ledger, phase) {
   return ledger.entries.some((e) => e.phase === phase && e.kind === 'phase' && e.outcome === 'completed');
+}
+
+/** The tuning phases (after RESERVING_PHASE, before `phase`) the ledger does not hold as completed. */
+export function openTuning(ledger, phase) {
+  const open = [];
+  for (let n = phaseNumber(RESERVING_PHASE) + 1; n < phaseNumber(phase); n++) {
+    if (!phaseCompleted(ledger, `H${n}`)) open.push(`H${n}`);
+  }
+  return open;
+}
+
+/** The exam phase from the moment tuning closes until the exam closes, else null. In that window
+ *  the bench runs the configuration tuning chose and nothing re-syncs it (AC-7, AC-16). */
+export function examPending(ledger) {
+  const exam = ledger.reserve?.phase;
+  return exam && !phaseCompleted(ledger, exam) && !openTuning(ledger, exam).length ? exam : null;
 }
 
 export function dollars(cents) {

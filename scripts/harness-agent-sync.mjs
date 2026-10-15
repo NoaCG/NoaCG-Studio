@@ -18,6 +18,10 @@
 // synced version back (free, when the workspace's key is in .env) and updates it when the server
 // differs: H6's v5 kept v4's critic though the files and the lock said it was gone.
 //
+// From the close of tuning to the close of the exam the bench is frozen (`workspacePlan`): the
+// exam measures the agent and skill tuning chose, so a cli/skill another plan changed is reported,
+// not synced, and `--apply` refuses any change.
+//
 //   node scripts/harness-agent-sync.mjs --workspace bench               the plan, from the lock and a read-back
 //   node scripts/harness-agent-sync.mjs --workspace bench --apply       carry it out on the bench key
 //   node scripts/harness-agent-sync.mjs --workspace production --apply  the production key (H9)
@@ -30,6 +34,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agentCreateBody, agentUpdateBody, definitionHash, readAgentDefinition, readEnvironmentDefinition, serverDrift, subagentFiles, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
+import { examPending, LEDGER_FILE, readLedger } from '../benchmarks/harness/lib/ledger.mjs';
+import { examSkill } from '../benchmarks/harness/lib/skill-pin.mjs';
 import { benchEnv, mainEnv } from './lite-eval-paths.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -69,6 +75,18 @@ export function syncPlan({ lock, environment, agent, bundle, subagents = {}, dri
   const agentHash = definitionHash({ config: agent.config, system: agent.system, skillBundle: bundle.sha256, ...(Object.keys(subagentHashes).length ? { subagents: subagentHashes } : {}) });
   steps.push({ resource: 'agent', action: !lock?.agent ? 'create' : lock.agent.sha256 !== agentHash || below || drift.length ? 'update' : 'keep', sha256: agentHash, ...(drift.length ? { drift } : {}) });
   return steps;
+}
+
+/** The plan for `workspace`, and why `--apply` must not carry it out. While the exam is pending
+ *  (`examPending`) the bench agent is the configuration tuning chose (AC-7, AC-16): the plan reads
+ *  the skill as the lock pins it, whatever cli/skill now holds (the product's, which other plans
+ *  change; H9 reconciles the two), and anything else the plan would change is refused. */
+export function workspacePlan({ workspace, ledger, lock, environment, agent, subagents, bundle, drift }) {
+  const frozen = workspace === 'bench' && lock?.skill ? examPending(ledger) : null;
+  const steps = syncPlan({ lock, environment, agent, subagents, drift, bundle: frozen ? { sha256: lock.skill.bundleSha256 } : bundle });
+  const changes = steps.filter((s) => s.action !== 'keep').map((s) => `${s.action} ${s.resource}`);
+  const refusal = frozen && changes.length ? `the bench agent is frozen for ${frozen}'s exam, which runs v${lock.agent.version} as tuned, and this plan would ${changes.join(', ')}: that would be measured untuned (AC-7, AC-16). Restore what changed; a re-sync before the exam is a decision for the spec's phase notes, made by reverting the freeze` : null;
+  return { steps, frozen, refusal };
 }
 
 /** The agent version the lock names, as the server has it, and the fields in which it differs
@@ -179,13 +197,23 @@ if (isMain) {
         unread = e instanceof Error ? e.message : String(e);
       }
     }
-    const steps = syncPlan({ lock, environment, agent, bundle, subagents, drift: readBack?.drift });
+    const ledger = readLedger(LEDGER_FILE);
+    const { steps, frozen, refusal } = workspacePlan({ workspace, ledger, lock, environment, agent, subagents, bundle, drift: readBack?.drift });
     console.log(`Plan for the ${workspace} workspace (${path.relative(ROOT, lockFile)}${lock ? '' : ', none yet'}):`);
     for (const s of steps) console.log(`  ${s.resource.padEnd(12)} ${s.action}${s.drift ? ` (the server's v${lock.agent.version} differs in ${s.drift.join(', ')})` : ''}`);
     if (lock?.agent && !readBack) console.log(`  the server's v${lock.agent.version} not read back (${unread}): this plan is from the lock alone`);
+    if (frozen) {
+      // What the exam's own --build will say of this checkout's skill, in its words.
+      const exam = examSkill({ ledger, phase: frozen, lock, bundle });
+      const said = exam.refusal ? `${frozen}'s --build refuses: ${exam.refusal}` : exam.note;
+      console.log(`  frozen for ${frozen}'s exam: agent v${lock.agent.version} keeps skill ${lock.skill.version} as tuned. ${said}`);
+    }
     for (const [file, def] of Object.entries(subagents)) console.log(`  ${file} system prompt ${def.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines`);
-    console.log(`  system prompt ${agent.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines; skill ${bundle.files.length} file(s) of noacg v${bundle.cliVersion}`);
-    if (!argv.includes('--apply')) {
+    console.log(`  system prompt ${agent.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines; cli/skill ${bundle.files.length} file(s) of noacg v${bundle.cliVersion}`);
+    if (refusal) {
+      console.log(`Nothing to apply: ${refusal}.`);
+      if (argv.includes('--apply')) process.exitCode = 1;
+    } else if (!argv.includes('--apply')) {
       console.log('Nothing changed: add --apply to carry it out.');
     } else if (steps.every((s) => s.action === 'keep')) {
       console.log('Everything matches the lock; nothing to do.');
