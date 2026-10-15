@@ -978,7 +978,7 @@ the spend added to the ledger, and the check's findings.
   refused "past the $49.20 held for H8's exam"; H6 at 6,000 refused, H8 at 6,000 admitted; after
   a simulated 4,700 of tuning, H7 at 224 is refused, H7 at 92 and H8 at 224 admitted. The
   committed ledger was unchanged. `--build H4` ("spends nothing (5.1)") and `--build H8` ("H5,
-  H6, H7 not closed") exit 2 with no key in the environment.
+  H6, H7 not closed") exit 2, refused after reading only the ledger, before any key.
 - **Code and tests:** `harness-bench.test.mjs` 30 of 30; eslint clean on the four changed
   scripts; PR #1235 touched no `src/`, `cli/`, `api/` or migration.
 - **For H5 (minor):** the control's wall row still reads "$1 left, a $3 session", but with the
