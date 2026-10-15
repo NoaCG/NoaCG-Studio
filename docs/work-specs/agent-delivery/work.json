@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "77068be910848f8e0700fdbe972a2d743059e8dc91bc3373f27a9a2fa2b6a29c",
+  "specSha256": "5ef068d67ea51eb92cb59321b33ea16a04da6337178326d67ad5f208caf21783",
   "authority": {
     "status": "agreed",
     "source": "Owner in this chat, 2026-10-15: requested review of agentic-tool feedback, Home after signup/login, automatic account delivery, early connection and a short Downloads starter prompt. Selected \"Review and concrete plan first\", then asked \"can the plan made to a plan-run, so I can start it at some point I have time?\" Authorizes preparing and landing the plan and its registration only. No implementation phase, run window, worker, heartbeat or schedule starts now. A future /plan-run agent-delivery invocation with an explicit stop time authorizes the bounded phases; credential changes still require explicit scoped consent."

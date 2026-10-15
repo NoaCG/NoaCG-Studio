@@ -334,8 +334,8 @@ Checked on `origin/main` `3977d47be`, which noacg.studio was serving (`doctor`: 
   opens from the wizard before sign-up, right after it and after a later login in a fresh browser,
   at 1440, 768 and 390px. `agent-access.spec.ts` (consent, save 201, deep link, revoke) passed.
   The pull request's plan ran `wizard-shell`, `downloads` and `docs` green.
-- The prompt alone does not carry the ambiguous-write rule or the pending-package wording; a
-  plugin-less session gets those only from the plugin skill, which it does not load. Phase 5
+- The prompt alone does not carry the ambiguous-write rule or the pending-package wording; only
+  the skill does, and a plugin-less session never loads the skill. Phase 5
   decides whether a `docs` topic or the prompt carries them (the build note above already flags it).
 - Pre-existing, outside this phase: at 1440px the `/plugin install …` line on Downloads runs under
   its Copy button. `doctor` in a plugin-less session still reports an installed older plugin
