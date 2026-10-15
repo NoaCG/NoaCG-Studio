@@ -76,8 +76,7 @@ How many rows run at once follows the machine, not the wave's kind, so the lapto
 memory to work and browser jobs do not collide. At the start and as each row finishes, read
 `node scripts/worktree-activity.mjs`, the `Schedule:` line of `npm run jobs` (live sessions, budget)
 and free memory. Alone, run more rows (about four; docs-only counts half); beside busy sessions,
-stay modest; when they finish, add rows. Under the launch floor on the `Schedule:` line (4 GB
-while the owner is at the computer, 1.5 GB while he is away), launch no more. Rows run in their
+stay modest; when they finish, add rows. Under the `Schedule:` line's launch floor, launch no more. Rows run in their
 own worktrees on `<tool>/<letter>-<name>`, letters A, B, C never repeating in a wave; log each
 launch in the wave file: letter, branch, goal, time.
 
