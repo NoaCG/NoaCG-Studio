@@ -20,6 +20,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { ApiError, explainFailure, resolveKey, savePackageToHome, shareCommunityPack } from '../auth.js';
+import { deliverAndConfirm, describeReceipt, type DeliveryReceipt } from '../receipt.js';
 import { BridgeClient, type BridgeValidation, type SpxTemplate } from '../bridgeClient.js';
 import { noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagList, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
@@ -93,8 +94,11 @@ export interface PackOutcome {
   id?: string;
   url?: string;
   error?: string;
-  /** For an agent reading `--json`: which refusal this was. */
-  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'bad-rundown';
+  /** For an agent reading `--json`: which refusal this was. `unverified`: the answer was lost and
+   *  a readback did not find it - check with `noacg status` before sending again. */
+  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'bad-rundown' | 'unverified';
+  /** The delivery receipt of the Home copy (docs/AGENT_SAVE.md §9). */
+  receipt?: DeliveryReceipt;
   /** Per graphic, when a sent package was refused for validation errors. */
   failures?: Array<{ input: string; validation: BridgeValidation }>;
   /** The Community packs share, when the user asked for one. */
@@ -204,17 +208,18 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
   if (share) outcome.share = share;
   if (share && !('id' in share)) return { ...outcome, ok: false, reason: 'refused', error: share.error };
   if (opts.save && key) {
-    try {
-      const sent = await savePackageToHome(origin, key.key, pack);
-      outcome.id = sent.id;
-      outcome.url = sent.url;
-    } catch (e) {
-      const message = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
+    const sent = await deliverAndConfirm(origin, key.key, 'package', (operationId) => savePackageToHome(origin, key.key, pack, operationId));
+    outcome.receipt = sent.receipt;
+    if (!sent.ok) {
+      if (sent.reason === 'unverified') return { ...outcome, ok: false, reason: 'unverified', error: sent.error };
+      const message = sent.error ?? 'Refused.';
       const error = share
         ? `Not sent to your Home: ${message.replace(/[.\s]*$/, '.')} It is shared, so pack it again without sharing to put it on your Home.`
         : `Not sent: ${message}`;
       return { ...outcome, ok: false, reason: 'refused', error };
     }
+    outcome.id = sent.id;
+    outcome.url = sent.url;
   }
   return outcome;
 }
@@ -279,9 +284,9 @@ export function describePack(outcome: PackOutcome): string {
     return lines.join('\n\n');
   }
   if (outcome.file) lines.push(`Wrote ${outcome.file} with ${outcome.graphics} graphic(s) - import it on the studio's Home → Productions → Import a package.`);
-  if (outcome.url) {
-    lines.push(`Sent "${outcome.name}" (${outcome.graphics} graphic(s)) to your NoaCG Home -> ${outcome.url}`);
-    lines.push('It is waiting on Home → Productions: press Install and the production opens with its rundown.');
+  if (outcome.url && outcome.receipt) {
+    lines.push(`Sent "${outcome.name}" (${outcome.graphics} graphic(s)) to your NoaCG Home.`);
+    lines.push(...describeReceipt(outcome.receipt));
   }
   const share = outcome.share;
   if (share && 'id' in share) {

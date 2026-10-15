@@ -2,9 +2,11 @@
 // (docs/AGENT_SAVE.md, migration 0050).
 //
 //   POST { action: 'begin',  name, challenge }   JWT required   -> { code, expiresIn }
-//   POST { action: 'redeem', code, verifier }    no auth        -> 201 { key, id, name, prefix, scopes, createdAt }
+//   POST { action: 'redeem', code, verifier }    no auth        -> 201 { key, id, name, prefix, scopes, createdAt,
+//                                                                       account, deployment }
 //   GET                                          JWT or key     -> a session: { keys: [...] };
-//                                                                  an agent key: { key: {...its own row} }
+//                                                                  an agent key: { key: {...its own row},
+//                                                                                  account, deployment }
 //   DELETE ?id=<uuid>                            JWT            -> { revoked: true }
 //   DELETE (no id)                               an agent key   -> revokes ITSELF (noacg logout)
 //
@@ -21,6 +23,12 @@
 // minted here, never taken from the request - a consent page cannot ask for more than the
 // release offers, and `playout:operate` is refused structurally (NEVER_ON_AGENT_KEYS).
 //
+// WHICH ACCOUNT. Redeem and a key describing itself (`noacg whoami`) also answer `account` - the
+// account's id and sign-in email - and `deployment`, the origin that answered: the identity the
+// consent page showed and every delivery receipt carries (deliveries.ts), so the key, the consent
+// and the saves visibly name one account. It is the key owner's own identity, not access to
+// anything in the account.
+//
 // The handler is a FACTORY over the store interface so every decision here runs under
 // `node --test` with no network (agentKeys.test.ts). The default export binds the Supabase
 // store; an instance with no service key answers every route with one honest 503.
@@ -30,6 +38,7 @@ import { verifyUser } from '../auth.js';
 import { checkAgentKeysRateLimit, checkAgentRedeemRateLimit } from '../rateLimit.js';
 import { agentAccessConfigured, supabaseAgentAccessStore, type AgentAccessStore, type AgentKeyRow } from '../agentAccessStore.js';
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
+import { accountFor } from './deliveries.js';
 import {
   AGENT_KEY_PERMISSIONS,
   AGENT_KEY_PREFIX,
@@ -150,7 +159,8 @@ export function createAgentKeysHandler(deps: AgentKeysDeps = {}): { fetch(req: R
       scopes: bound.scopes.filter((s) => !NEVER_ON_AGENT_KEYS.has(s as never)),
     });
     // The plaintext, ONCE. Nothing stores it; nothing can return it again.
-    return json({ key: plaintext, ...keyView(row) }, 201);
+    const account = await accountFor(store, bound.userId);
+    return json({ key: plaintext, ...keyView(row), account, deployment: new URL(req.url).origin }, 201);
   }
 
   async function list(req: Request): Promise<Response> {
@@ -158,7 +168,8 @@ export function createAgentKeysHandler(deps: AgentKeysDeps = {}): { fetch(req: R
     const store = storeOf();
     if (principal.kind === 'agent-key' && principal.keyId) {
       const row = await store.keyById(principal.keyId);
-      return row ? json({ key: keyView(row) }) : apiError('unauthorized', 'This key is no longer valid.', 401);
+      if (!row) return apiError('unauthorized', 'This key is no longer valid.', 401);
+      return json({ key: keyView(row), account: await accountFor(store, row.userId), deployment: new URL(req.url).origin });
     }
     if (principal.kind !== 'session' || !principal.userId) {
       return apiError('unauthorized', 'Sign in to see your agent keys.', 401);

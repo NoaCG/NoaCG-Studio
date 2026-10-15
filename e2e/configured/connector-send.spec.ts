@@ -146,7 +146,9 @@ test.describe('remote MCP connector: send a package', () => {
       };
       const sent = await callTool(client, 'noacg_send_package', args);
       expect(sent.isError, sent.content[0]?.text).not.toBe(true);
-      expect(sent.structuredContent).toMatchObject({ url: `${origin}/app#/home/productions`, graphics: 4, cues: 4 });
+      // The link opens Home → Productions with this package selected (docs/AGENT_SAVE.md §9).
+      const sentId = (sent.structuredContent as { id: string }).id;
+      expect(sent.structuredContent).toMatchObject({ url: `${origin}/app#/home/productions/${sentId}`, graphics: 4, cues: 4 });
       const stored = await waitingOf(userA);
       expect(stored).toHaveLength(1);
       expect(stored[0]).toMatchObject({ name: args.name, graphic_count: 4, origin: { tool: 'noacg-connector', client: provider.info?.client_id } });

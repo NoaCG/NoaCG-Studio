@@ -340,3 +340,78 @@ Checked on `origin/main` `3977d47be`, which noacg.studio was serving (`doctor`: 
 - Pre-existing, outside this phase: at 1440px the `/plugin install …` line on Downloads runs under
   its Copy button. `doctor` in a plugin-less session still reports an installed older plugin
   skill if one exists elsewhere on the machine, which a plugin-less user may find confusing.
+
+### Phase 2 (build), 2026-10-15
+
+Last check's findings (Phase 1 check, PASS): the Downloads prompt alone lacks the ambiguous-write
+and pending-package wording, which only the skill carries (a Phase 5 question); "Don't allow" on
+the consent page did not end `noacg login`, which waited out its five-minute timeout (taken here);
+the saved-with-links half was not exercised on production for lack of a test account there and
+rests on the configured agent-access journey; pre-existing, the `/plugin install` line on Downloads
+runs under its Copy button at 1440px, and `doctor` flags an older installed plugin skill even when
+working without the plugin.
+
+Landed:
+- **One identity, three places.** The consent card names the account and deployment ("Saves go to
+  <email> on <host>"); redeem and `whoami` answer `account { id, email }` and `deployment`; every
+  receipt carries both. `noacg login` and `whoami` print them.
+- **Receipt v1** (`api/_lib/me/deliveryReceipt.ts`, `cli/src/receipt.ts`, docs/AGENT_SAVE.md §9):
+  operation id, deployment, account, destination, state, resources with exact links, link, next
+  action, and `verified` (false on the write's own answer, true only from a readback). Additive on
+  `POST /api/me/graphics` and `/packages`; old clients keep reading `id` and `url`.
+- **Narrow readback**, `GET /api/me/deliveries?id=<operation or resource>`: a key finds only what
+  it wrote (`agent_deliveries.key_id`, migration 0092), with state and link only; every miss is
+  the same 404. No key gained a scope. `noacg status <id>` reads it; `save` and `pack --save` read
+  back after each write and, on a lost answer, ask by operation id instead of resending.
+- **Packages**: the link is `/app#/home/productions/<id>` and selects and focuses that row. Install
+  and Dismiss settle through the server (`agent_package_settle`, one statement), so the receipt
+  records `installed` with the production or `dismissed`, and the same link says so afterwards (a production deleted since reads `missing`). A
+  failed waiting-list load shows its error with Retry; an empty list still shows nothing. A link
+  this account has no package for, and a graphic link it has no graphic for, name the signed-in
+  account and nothing else.
+- **"Don't allow" ends the login**: a CLI that sends `deny=1` is told through the same loopback
+  callback (`#error=access_denied`) and exits 1 at once with nothing stored.
+
+Evidence: API unit tests (`node scripts/run-ai-gateway-tests.mjs`, 404 pass, including the new
+`deliveries.test.ts`: key-only readback, identical misses across key, account and unknown id,
+settle refused to keys, a failed receipt record never failing the save); CLI `unit.test.mjs` (54)
+and `mcp.test.mjs` (17) pass, with new tests for deny, write-then-readback, a lost answer found and
+not found, a refusal, and `status`; `tsc` for app and API, eslint on every changed file. The
+configured agent-access journey now walks consent identity, redeem/whoami account, receipts,
+readback and its 404, the package link selection and focus, an injected list failure and Retry,
+install and dismiss receipts, the link after install, and a foreign package link. The configured
+suite dispatched on this branch (run 38768514330, local Supabase stack with 0092 applied) passed it
+first time, 99 passed; the run's one red was `late-send-abandoned.spec.ts` failing then passing, a
+spec already in `e2e/quarantine.json` whose quarantine is honoured only on `main` runs. 0092's
+behaviour self-check (a real owner's throwaway package settled, then rolled back) skips on that
+fresh stack, which has no account when migrations apply; it runs on the hosted projects, and the
+settle itself runs in the journey's Install. Screenshots of the error,
+selection, installed and not-in-account states at 1440 and 390px, the consent card and the graphic
+not-found page were looked at, not committed.
+
+Decisions:
+- The account is named by its sign-in email plus id. A masked email could not tell two similar
+  accounts apart, and the key owner already knows their own address.
+- Readback needs no new permission: a key may ask about what it created and nothing else, and the
+  route lists nothing. Sessions read their own account's receipts.
+- Recording a receipt is best effort after the resource INSERT, so a save is never failed over its
+  receipt (that would invite a duplicate retry); a missed record reads back as unverified. Phase 3
+  makes the write and its receipt one transaction.
+- Settle is a service-role function called by the API, not a browser RPC, so no security-definer
+  function is exposed to `authenticated` (no new advisor finding).
+- `status` is terminal-only for now; the MCP `save` and `pack` answers already carry the confirmed
+  receipt. Adding it to the tool is Phase 5's call with the MCP descriptions.
+
+Rollback: revert the pull request. Migration 0092 is additive (one table, one function); left in
+place it costs nothing, and old clients, URLs and packs keep working (`#/home/productions/<id>` in
+an older build lands on the list). No user data changes.
+
+Next phase must allow for:
+- `agent_deliveries` is the receipt store Phase 3 extends: an operation already groups several
+  rows and `operation_id` is client-named, but nothing yet makes it unique per payload. Phase 3
+  adds the payload hash, the idempotent replay and the single transaction.
+- The CLI never retries a write; Phase 3's idempotent route is what lets it retry safely.
+- The skill does not yet mention `noacg status` or the receipt lines, because the published 0.11.0
+  CLI lacks them. Phase 5 updates the skill, the MCP description and the CHANGELOG with the release.
+- Packages uploaded through the chat connector also get the specific link but no receipt row until
+  they are settled; connector readback is out of this plan's scope.

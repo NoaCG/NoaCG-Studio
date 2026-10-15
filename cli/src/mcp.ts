@@ -29,7 +29,7 @@ import { describeInspection } from './commands/inspect.js';
 import { docTopics, readDoc } from './commands/docs.js';
 import { scaffoldRequestFrom } from './commands/scaffold.js';
 import { describePack, makePack, rundownFrom, shareProblem } from './commands/pack.js';
-import { notLoggedIn, savePackage } from './commands/save.js';
+import { describeSave, notLoggedIn, savePackage } from './commands/save.js';
 import { describeNormalize, describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
 import { EXIT_OK, parseArgs, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from './output.js';
@@ -286,7 +286,7 @@ async function save(input: Input): Promise<Result> {
   const outcome = await savePackage(target, { name: input.name, folder: input.folder, bench: input.bench ?? true, houseContract: input.houseContract ?? true }, b, () => undefined);
   const lines: string[] = [];
   if (outcome.validation) lines.push(describeValidation(outcome.validation));
-  lines.push(outcome.ok ? `Saved "${outcome.name}" to the NoaCG library -> ${outcome.url}` : (outcome.error ?? 'Not saved.'));
+  lines.push(describeSave(outcome).join('\n'));
   return { content: text(lines.join('\n\n')), isError: !outcome.ok };
 }
 

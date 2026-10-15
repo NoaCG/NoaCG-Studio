@@ -10,6 +10,11 @@
 // single use, bound to the verifier, and dead in 120 s. `--key <noacg_ak_…>` is the paste
 // fallback for a machine with no browser (a key minted elsewhere); `--no-browser` prints the
 // URL instead of opening it.
+//
+// "Don't allow" ends the login at once: the consent URL carries `deny=1`, which tells the page
+// this listener takes a refusal, and the page then sends `error=access_denied` to the same
+// /callback instead of a code. (A consent URL without it - an older CLI - only says on the page
+// that nothing was granted, and that CLI waits out its timeout as it always did.)
 
 import { execFile } from 'node:child_process';
 import http from 'node:http';
@@ -17,7 +22,7 @@ import os from 'node:os';
 import type { AddressInfo } from 'node:net';
 import { noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagNumber, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { ApiError, challengeFor, displayPrefix, explainFailure, isAgentKey, newState, newVerifier, redeemCode, storeKey } from '../auth.js';
+import { accountLabel, ApiError, challengeFor, displayPrefix, explainFailure, isAgentKey, newState, newVerifier, redeemCode, storeKey } from '../auth.js';
 
 /** How long the listener waits for the browser before giving up. */
 const DEFAULT_WAIT_SEC = 300;
@@ -33,7 +38,8 @@ const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>noacg login</
   var frag=location.hash.replace(/^#/,'');
   if(!frag){h.textContent='Nothing to finish';p.textContent='This page expects a code from NoaCG. Run noacg login again.';return;}
   fetch('/complete',{method:'POST',headers:{'content-type':'text/plain'},body:frag}).then(function(r){return r.text().then(function(t){return {ok:r.ok,text:t};});}).then(function(r){
-    if(r.ok){h.textContent='Done - you can close this tab';p.textContent='noacg is logged in on this computer. The key is stored locally and can only save graphics to your library.';}
+    if(r.ok&&r.text==='denied'){h.textContent='Nothing was granted';p.textContent='noacg login has stopped. You can close this tab.';}
+    else if(r.ok){h.textContent='Done - you can close this tab';p.textContent='noacg is logged in on this computer. The key is stored locally and can only save graphics to your library.';}
     else{h.textContent='That did not work';p.textContent=r.text||'Run noacg login again.';}
     history.replaceState(null,'',location.pathname);
   }).catch(function(){h.textContent='The noacg command is no longer waiting';p.textContent='Run noacg login again.';});
@@ -108,6 +114,14 @@ function listenForCode(state: string, waitMs: number): Promise<{ port: number; h
           const params = new URLSearchParams(body);
           const code = params.get('code') ?? '';
           const got = params.get('state') ?? '';
+          // "Don't allow" in the browser: stop now rather than wait out the timeout.
+          if (got === state && params.get('error') === 'access_denied') {
+            res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
+            res.end('denied');
+            fail?.(new Error('Access was not allowed in the browser - nothing was granted. Carry on locally, or run `noacg login` again.'));
+            setTimeout(() => shutdown(server), 200);
+            return;
+          }
           if (!code || got !== state) {
             res.writeHead(400, { 'content-type': 'text/plain; charset=utf-8' });
             res.end('This reply does not belong to the login that is waiting. Run noacg login again.');
@@ -166,6 +180,7 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
   consent.searchParams.set('port', String(port));
   consent.searchParams.set('name', name);
   consent.searchParams.set('challenge', challengeFor(verifier));
+  consent.searchParams.set('deny', '1');
 
   out.log(`Open this page in your browser to allow "${name}" to save graphics to your NoaCG library:\n\n  ${consent.href}\n`);
   if (flagBool(args, 'browser', true)) {
@@ -186,10 +201,11 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
   }
 
   try {
-    const stored = await redeemCode(origin, code, verifier);
+    const { stored, account } = await redeemCode(origin, code, verifier);
     await storeKey(origin, stored);
-    out.result({ ok: true, url: origin, id: stored.id, name: stored.name, prefix: stored.prefix, createdAt: stored.createdAt });
-    out.say(`Logged in to ${origin} as "${stored.name}" (${stored.prefix}). The key can only save graphics to your library; revoke it any time in Settings → Account → Agent access, or with \`noacg logout\`.`);
+    out.result({ ok: true, url: origin, id: stored.id, name: stored.name, prefix: stored.prefix, createdAt: stored.createdAt, account });
+    const who = account ? ` as ${accountLabel(account)}` : '';
+    out.say(`Logged in to ${origin}${who} - key "${stored.name}" (${stored.prefix}). The key can only save graphics to that account's library; revoke it any time in Settings → Account → Agent access, or with \`noacg logout\`.`);
     return EXIT_OK;
   } catch (e) {
     const message = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);

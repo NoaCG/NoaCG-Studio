@@ -141,11 +141,14 @@ test('redeem mints the key ONCE, with the verifier, inside the TTL - and burns t
   const again = await handler.fetch(request({ body: { action: 'redeem', code: burnt, verifier: VERIFIER } }));
   assert.equal(again.status, 400, 'a code a wrong party spent must not remain redeemable');
 
-  // Right verifier: the key, exactly once.
+  // Right verifier: the key, exactly once - naming the account and deployment it is for.
+  store.emails.set(USER, 'maker@example.test');
   const code = await plantCode(store, t.iso());
   const ok = await handler.fetch(request({ body: { action: 'redeem', code, verifier: VERIFIER } }));
   assert.equal(ok.status, 201);
-  const minted = (await ok.json()) as { key: string; id: string; prefix: string; scopes: string[]; name: string };
+  const minted = (await ok.json()) as { key: string; id: string; prefix: string; scopes: string[]; name: string; account: unknown; deployment: string };
+  assert.deepEqual(minted.account, { id: USER, email: 'maker@example.test' });
+  assert.equal(minted.deployment, 'http://localhost');
   assert.ok(minted.key.startsWith(AGENT_KEY_PREFIX));
   assert.equal(minted.prefix, keyPrefix(minted.key));
   assert.deepEqual(minted.scopes, ['graphics:create']);
@@ -187,10 +190,13 @@ test('the minted key resolves to a scoped principal; revocation ends it; it can 
   assert.equal(permits(principal, 'playout:operate'), false);
   assert.ok(store.keys[0].lastUsedAt, 'resolving stamps last-used');
 
-  // A key describes itself on GET, and may not mint another key.
+  // A key describes itself on GET - with its account and deployment - and may not mint another key.
   const me = await handler.fetch(request({ token: minted.key }));
   assert.equal(me.status, 200);
-  assert.equal(((await me.json()) as { key: { id: string } }).key.id, minted.id);
+  const described = (await me.json()) as { key: { id: string }; account: { id: string; email: string | null }; deployment: string };
+  assert.equal(described.key.id, minted.id);
+  assert.deepEqual(described.account, { id: USER, email: null }, 'an account with no email is still named by its id');
+  assert.equal(described.deployment, 'http://localhost');
   const mint = await handler.fetch(request({ token: minted.key, body: { action: 'begin', name: 'x', challenge: CHALLENGE } }));
   assert.equal(mint.status, 403, 'a key is not a session: begin needs a signed-in user');
 

@@ -29,6 +29,9 @@ export interface AgentAccessRequest {
   challenge: string;
   /** What the key will be allowed to do - the release's fixed authoring list. */
   permissions: readonly PermissionKey[];
+  /** The CLI's listener also takes a REFUSAL (`deny=1`): "Don't allow" then tells it at once
+   *  instead of leaving it to time out. An older CLI does not send this and is never sent one. */
+  acceptsDeny: boolean;
 }
 
 const STATE = /^[A-Za-z0-9_-]{8,128}$/;
@@ -45,7 +48,7 @@ export function parseAgentRequest(params: URLSearchParams): AgentAccessRequest |
   const challenge = (params.get('challenge') ?? '').toLowerCase();
   if (!CHALLENGE.test(challenge)) return null;
   const name = (params.get('name') ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_AGENT_NAME) || 'noacg CLI';
-  return { state, port, name, challenge, permissions: AGENT_KEY_PERMISSIONS };
+  return { state, port, name, challenge, permissions: AGENT_KEY_PERMISSIONS, acceptsDeny: params.get('deny') === '1' };
 }
 
 /** Is this page load an agent consent request at all (well-formed or not)? */
@@ -57,6 +60,11 @@ export function isAgentRequestUrl(params: URLSearchParams): boolean {
  *  fragment (never the query, never a request line the server would log). */
 export function agentCallbackUrl(port: number, code: string, state: string): string {
   return `http://127.0.0.1:${port}/callback#code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+}
+
+/** The same listener, told that the user pressed "Don't allow". It carries no code. */
+export function agentDenyUrl(port: number, state: string): string {
+  return `http://127.0.0.1:${port}/callback#error=access_denied&state=${encodeURIComponent(state)}`;
 }
 
 // ── the calls ─────────────────────────────────────────────────────────────────────────────

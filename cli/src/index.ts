@@ -26,6 +26,7 @@ import { runDocs } from './commands/docs.js';
 import { runLogin } from './commands/login.js';
 import { runLogout } from './commands/logout.js';
 import { runWhoami } from './commands/whoami.js';
+import { runStatus } from './commands/status.js';
 import { runSave } from './commands/save.js';
 import { runCaspar } from './commands/caspar.js';
 import { runBridge } from './commands/bridge.js';
@@ -64,6 +65,7 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   whoami                         Which key this machine holds, and whether it is still valid.
   save <dir|zip> [--name N] [--folder F] [--no-bench]
                                  Validate, then put the graphic in your NoaCG library.
+  status <id>                    What a save or pack --save delivered, and whether it is there now.
   bridge [--port 8899] [--origin URL]... [--vmix-port 8099] [--no-open] [--quiet]
                                  Run NoaCG Bridge: the local process that lets the NoaCG page
                                  drive a playout server (docs/BRIDGE.md). 127.0.0.1 only.
@@ -93,6 +95,7 @@ const COMMANDS: Record<string, Command> = {
   logout: runLogout,
   whoami: runWhoami,
   save: runSave,
+  status: runStatus,
   caspar: runCaspar,
   bridge: runBridge,
 };

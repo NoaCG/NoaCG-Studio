@@ -37,11 +37,14 @@ test('a malformed request is refused before anything else - no port, no challeng
   // refusal rules hold in the configured build too (where the page reads them).
   await page.goto('/app');
   const verdicts = await page.evaluate(async () => {
-    const { parseAgentRequest, agentCallbackUrl } = await import('/src/backend/agentAccess.ts');
+    const { parseAgentRequest, agentCallbackUrl, agentDenyUrl } = await import('/src/backend/agentAccess.ts');
     const p = (q: string) => parseAgentRequest(new URLSearchParams(q));
     const ok = p('agent=state_12345678&port=43123&name=Claude%20Code&challenge=' + 'a'.repeat(64));
     return {
-      ok: ok ? { port: ok.port, name: ok.name, permissions: [...ok.permissions] } : null,
+      ok: ok ? { port: ok.port, name: ok.name, permissions: [...ok.permissions], acceptsDeny: ok.acceptsDeny } : null,
+      // A CLI that takes a refusal says so; only then does "Don't allow" go to its listener.
+      acceptsDeny: p('agent=state_12345678&port=43123&name=x&deny=1&challenge=' + 'a'.repeat(64))?.acceptsDeny,
+      deny: agentDenyUrl(43123, 'state_12345678'),
       noPort: p('agent=state_12345678&name=x&challenge=' + 'a'.repeat(64)),
       lowPort: p('agent=state_12345678&port=80&name=x&challenge=' + 'a'.repeat(64)),
       badChallenge: p('agent=state_12345678&port=43123&name=x&challenge=nope'),
@@ -50,7 +53,10 @@ test('a malformed request is refused before anything else - no port, no challeng
       callback: agentCallbackUrl(43123, 'c0de', 'state_12345678'),
     };
   });
-  expect(verdicts.ok).toEqual({ port: 43123, name: 'Claude Code', permissions: ['graphics:create'] });
+  expect(verdicts.ok).toEqual({ port: 43123, name: 'Claude Code', permissions: ['graphics:create'], acceptsDeny: false });
+  expect(verdicts.acceptsDeny).toBe(true);
+  // The refusal takes the same loopback-only door, and carries no code.
+  expect(verdicts.deny).toBe('http://127.0.0.1:43123/callback#error=access_denied&state=state_12345678');
   expect(verdicts.noPort).toBeNull();
   expect(verdicts.lowPort).toBeNull();
   expect(verdicts.badChallenge).toBeNull();
@@ -73,10 +79,12 @@ test('offline: Settings carries no Agent access list, and the two API routes ref
   const statuses = await page.evaluate(async () => {
     const keys = await fetch('/api/me/agent-keys', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'begin', name: 'x', challenge: 'a'.repeat(64) }) });
     const save = await fetch('/api/me/graphics', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer noacg_ak_nope' }, body: '{}' });
-    return { keys: keys.status, save: save.status, keysBody: await keys.json(), saveBody: await save.json() };
+    const status = await fetch('/api/me/deliveries?id=0b7c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8', { headers: { authorization: 'Bearer noacg_ak_nope' } });
+    return { keys: keys.status, save: save.status, status: status.status, keysBody: await keys.json(), saveBody: await save.json() };
   });
   expect(statuses.keys).toBe(503);
   expect(statuses.save).toBe(503);
+  expect(statuses.status).toBe(503);
   expect((statuses.keysBody as { error: { message: string } }).error.message).toContain('no account backend');
   expect((statuses.saveBody as { error: { message: string } }).error.message).toContain('no account backend');
 });

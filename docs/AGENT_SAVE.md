@@ -65,9 +65,19 @@ on air.
    mints the key with the scopes the code was minted with, and returns the plaintext once. A
    wrong verifier still burns the code - an intercepted code must not stay redeemable.
 5. The CLI stores the key. `noacg whoami` asks the deployment to describe it (prefix, name,
-   scopes, last used); `noacg logout` revokes it (a key may revoke ITSELF and nothing else) and
-   forgets it; Settings → Account → **Agent access** lists every live key with a Revoke button.
-   Revocation takes effect on the key's next request.
+   scopes, last used, and the ACCOUNT it saves into); `noacg logout` revokes it (a key may revoke
+   ITSELF and nothing else) and forgets it; Settings → Account → **Agent access** lists every live
+   key with a Revoke button. Revocation takes effect on the key's next request.
+
+**One account, named three times.** The consent card says which account and deployment the key
+will save into ("Saves go to <email> on <host>"), redeem and `whoami` answer the same `account`
+(`{ id, email }`) and `deployment` (the origin that answered), and every delivery receipt (§9)
+carries them again. That is the key owner's own identity, not access to anything in the account.
+
+**"Don't allow" ends the login.** A CLI that takes a refusal adds `deny=1` to the consent URL; the
+page then sends `#error=access_denied&state=…` to the same loopback `/callback` (`agentDenyUrl`),
+and `noacg login` stops at once with exit 1 and nothing stored. A consent URL without `deny=1` (an
+older CLI) only shows "Nothing was granted", and that CLI waits out its timeout as before.
 
 ## 3. The save door: `POST /api/me/graphics`
 
@@ -94,7 +104,8 @@ In order - the order IS the posture (`api/_lib/me/graphics.ts`):
    `body.updatedAt` - never a client clock), `origin {tool, version}` (provenance, never proof),
    AI provenance nulled;
 7. `INSERT` into `documents` (kind `graphic`, `user_id` set by the service role) - never an
-   upsert; `201 { id, url }` with `url = <origin>/app#/graphic/<id>`.
+   upsert; `201 { id, url, receipt }` with `url = <origin>/app#/graphic/<id>` and the delivery
+   receipt of §9 (additive: an older client reads `id` and `url`).
 
 The link opens the graphic's CONTROL page: the studio rewrites `#/graphic/<id>` to
 `#/control/<id>` (the old code editor it used to open is closed, `src/App.tsx`). The record then
@@ -164,11 +175,12 @@ the programmatic builders, exported - this closes both. Ratified by the owner 20
 | `/api/me/agent-keys` | `api/_lib/me/agentKeys.ts` (+ `.test.ts`) |
 | `/api/me/graphics` + the pure shape guard | `api/_lib/me/graphics.ts`, `graphicShape.ts` (+ `.test.ts`) |
 | `/api/me/packages` + its shape guard (§7) | `api/_lib/me/packages.ts`, `packageShape.ts` (+ `packages.test.ts`) |
-| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql` |
+| `/api/me/deliveries`, the receipt (§9) | `api/_lib/me/deliveries.ts`, `deliveryReceipt.ts` (+ `deliveries.test.ts`) |
+| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql`, `0092_agent_deliveries.sql` |
 | waiting packages in the studio (§7) | `src/backend/agentPackages.ts`, `src/components/home/sections/ProductionsSection.tsx` |
 | consent page, browser client | `src/components/auth/AgentAccessConsent.tsx`, `src/backend/agentAccess.ts` |
 | Settings list | `SettingsDialog.tsx` `AgentAccessSection` |
-| CLI | `cli/src/auth.ts`, `cli/src/commands/{login,logout,whoami,save,pack}.ts`, the `save` and `pack` verbs of the `noacg` tool in `cli/src/mcp.ts` |
+| CLI | `cli/src/auth.ts`, `cli/src/receipt.ts`, `cli/src/commands/{login,logout,whoami,save,pack,status}.ts`, the `save` and `pack` verbs of the `noacg` tool in `cli/src/mcp.ts` |
 | gates | `src/validation/{publishGate,productionGate}.ts` |
 | specs | `e2e/agent-access.spec.ts` (offline), `e2e/configured/agent-access.spec.ts` (live), `e2e/production-gate.spec.ts` |
 
@@ -200,10 +212,11 @@ cloud. So a whole package travels through the account, not through a file:
 ```
  noacg pack ./a ./b ./c --name "Show" [--rundown cues.json] [--layer 10] --save
    validate every graphic in the bridge (gate + bench) -> packEntry per graphic
-   -> POST /api/me/packages (Bearer key) -> 201 { id, url: <origin>/app#/home/productions }
- studio, signed in: Home -> Productions lists it under "Waiting to install"
+   -> POST /api/me/packages (Bearer key) -> 201 { id, url: <origin>/app#/home/productions/<id>, receipt }
+ studio, signed in: the link opens Home -> Productions with that package selected
    Install -> parsePack -> installPack (validateTemplate per graphic, production, layers, cues)
-           -> the waiting row is deleted -> the production page opens with its rundown
+           -> settle: the waiting row goes, the receipt records the production (§9)
+           -> the production page opens with its rundown
 ```
 
 **Decided 2026-09-24 (owner asked for "prompt a package, it appears on Home, press Install").**
@@ -232,11 +245,15 @@ the code inside is never run on the server), then a cap of 25 waiting packages p
 
 **In the studio.** `ProductionsSection` loads the list when a session exists and again whenever
 the tab becomes visible - the usual moment is switching back to the studio after the agent says
-it sent something. It shows on the Home dashboard as well as the full Productions page. Install
-deletes the row once the production exists (a failed delete leaves the row for Dismiss, never a
-failed install). Dismiss deletes it unseen. An offline build, or a signed-out visitor, asks
-nothing and shows no row (`e2e/pack-import.spec.ts`); the live walk - send, list, dismiss,
-install, the rundown - is `e2e/configured/agent-access.spec.ts` step 4b.
+it sent something. It shows on the Home dashboard as well as the full Productions page. A load
+that FAILS shows its error with Retry, never the empty list it used to pass for. The package
+link (`#/home/productions/<id>`) selects and focuses that row; once the package no longer waits,
+the same link says what became of it from its receipt - installed (with its production), dismissed,
+no longer waiting, or not in the account you are signed in to. Install settles the package once
+the production exists (a failed settle leaves the row for Dismiss, never a failed install); Dismiss
+settles it unseen. An offline build, or a signed-out visitor, asks nothing and shows no row
+(`e2e/pack-import.spec.ts`); the live walk - send, the link, a failed load and Retry, dismiss,
+install, the rundown, the receipt afterwards - is `e2e/configured/agent-access.spec.ts` step 4b.
 
 **No account.** `noacg pack --out <file>` writes the same package; Home → Productions →
 **Import a package** installs it. The MCP tool's `pack` verb sends when the machine holds a key
@@ -294,3 +311,42 @@ comes back as 409 with the database's own sentence, which the CLI prints as it i
 is the same 4 MB, below the shelf's 8 MB; a larger pack is shared from the studio. The bridge
 check is additive (`BRIDGE_V` stays 1): a deployment without it gets a plain "cannot check a
 pack for Community packs yet" rather than a late failure.
+
+## 9. Delivery receipts and readback: `GET /api/me/deliveries`
+
+Every write answers a **receipt** (`api/_lib/me/deliveryReceipt.ts`, version 1, additive) and
+records it (`agent_deliveries`, migration 0092), so "which account received what, and is it really
+there?" has one answer:
+
+| Field | Meaning |
+|---|---|
+| `operationId` | Named by the CLI before it writes (`x-noacg-operation`, a uuid), or minted by the server |
+| `deployment`, `account` | The origin that answered, and the account's `{ id, email }` (§2) |
+| `destination` | `library` (Home → Graphics) or `home` (waiting on Home → Productions) |
+| `state` | `saved`, `pending_install`, `installed`, `dismissed`, `missing`; the CLI adds `failed` and `delivery_unverified` |
+| `resources` | Each delivered item with its id, state and exact link; an installed package adds its production |
+| `link`, `nextAction` | The one link to open (the production over its package), and what to do, if anything |
+| `verified` | `false` on the write's own answer (accepted and stored); `true` only from a readback that found it |
+
+Acceptance, verified availability and "a browser opened it" are three different claims. A receipt
+makes the first two and never the third.
+
+**Readback is narrow.** `GET /api/me/deliveries?id=<operation or resource id>` with an agent key
+finds only the receipts THAT key wrote, in its own account, and answers each one's current state
+(a deleted graphic reads `missing`, an installed package `installed`). It returns no names and no
+content and lists nothing; another key's id, another account's id and an id that never existed are
+the same 404. A session (the studio) reads its own account's receipts. No key gained a scope: a
+key that may create may ask what became of what it created.
+
+**Install and Dismiss settle.** The studio posts `{ action: 'settle', package, production }` with
+the user's session; `agent_package_settle` deletes the waiting row and records `installed` (with
+the production) or `dismissed` in one statement. An agent key cannot settle anything. A package
+from before 0092 gets its receipt at settle time; a waiting row an older studio deleted directly
+reads `missing`.
+
+**The CLI never sends twice.** `save` and `pack --save` read the delivery back after the write. If
+the answer is lost (a 5xx, a dropped connection), they ask by the operation id: found means it
+landed; not found leaves it `delivery_unverified`, with `noacg status <operationId>` as the next
+action. `noacg status <id>` reads any of this key's deliveries back later. Recording a receipt is
+best effort - a save is never failed over its receipt, since that would invite a duplicate retry -
+so a missed record reads back as a 404 and the CLI reports it unverified.

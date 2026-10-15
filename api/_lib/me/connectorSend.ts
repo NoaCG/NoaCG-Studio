@@ -24,10 +24,12 @@
 //   4. the package door's own shape guard (packageSaveShape) over the pack it built;
 //   5. the waiting cap; then the INSERT, with `origin` naming the client and grant.
 
+import { randomUUID } from 'node:crypto';
 import { serviceRoleDb, supabaseAgentAccessStore, type NewWaitingPackage } from '../agentAccessStore.js';
 import { checkConnectorSendRateLimit } from '../rateLimit.js';
 import { MAX_WAITING_PACKAGES } from './packages.js';
 import { PACKAGE_LIMITS, packageSaveShape } from './packageShape.js';
+import { packageLink } from './deliveryReceipt.js';
 import { readCatalogIndex } from './connectorTools.js';
 import type { McpTool, McpToolResult } from './mcp.js';
 import type { CatalogIndex, CatalogType } from '../../../src/templates/catalogIndex.js';
@@ -103,7 +105,15 @@ export function supabaseSendStore(): SendStore {
       return `data:${data.type || 'application/octet-stream'};base64,${bytes}`;
     },
     countWaitingPackages: (userId) => packages.countWaitingPackages(userId),
-    insertPackage: (userId, row) => packages.insertPackage(userId, row),
+    async insertPackage(userId, row) {
+      const id = await packages.insertPackage(userId, row);
+      // Its receipt, so the package link answers in the studio while it waits (docs/AGENT_SAVE.md
+      // §9). Best effort, as on the CLI's door: the package is already there.
+      await packages
+        .recordDelivery({ operationId: randomUUID(), userId, keyId: null, kind: 'package', resourceId: id, state: 'pending_install' })
+        .catch((e: unknown) => console.error('[connector-send] receipt', e instanceof Error ? e.message : e));
+      return id;
+    },
   };
 }
 
@@ -428,7 +438,7 @@ export function createSendTool(deps: SendToolDeps = {}): McpTool {
           origin: { tool: 'noacg-connector', ...(principal.clientId ? { client: principal.clientId } : {}), ...(principal.grantId ? { grant: principal.grantId } : {}) },
           body: shaped.pack,
         });
-        const url = `${ctx.origin}/app#/home/productions`;
+        const url = packageLink(ctx.origin, id);
         const data = { id, url, graphics: shaped.pack.graphics.length, cues: rundown.length };
         return {
           content: [{ type: 'text', text: `Sent "${shaped.pack.name}" to the user's Home: ${url}. It waits there until they press Install.` }],

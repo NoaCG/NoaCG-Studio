@@ -117,7 +117,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
   // needs one, and without this the reader signs in and the offer stays on screen for ever
   // because nothing asks again. Only that answer is worth asking again for, so the effect
   // returns early on every other one.
-  const { signedIn } = useAuthState();
+  const { signedIn, user } = useAuthState();
   useEffect(() => {
     const local = graphicById(id);
     if (local) {
@@ -369,7 +369,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
             ) : (
               <>
                 <h2>Graphic not found</h2>
-                <p className="hint">It may have been deleted, or it lives in another browser profile.</p>
+                <p className="hint">It may have been deleted, or it lives in another browser profile or account.</p>
+                {/* The account mismatch an agent's link can meet (docs/AGENT_SAVE.md §9): say which
+                    account this is, never anything about the graphic. */}
+                {user?.email && <p className="hint" data-testid="control-lookup-account">You are signed in as {user.email}.</p>}
                 <button className="primary" onClick={() => navigate({ view: 'home', section: null })}>← Home</button>
               </>
             )}

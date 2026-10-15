@@ -646,8 +646,10 @@ function stubDoors(status = { packages: 201, 'community-packs': 201 }) {
       req.resume();
       req.on('end', () => {
         const door = req.url.replace('/api/me/', '');
-        posts.push(door);
-        const code = status[door] ?? 404;
+        // Only what was SENT: the readback after a delivery (GET deliveries) is not a post, and a
+        // stub too old to know it answers 404, which leaves the receipt unconfirmed.
+        if (req.method === 'POST') posts.push(door);
+        const code = req.method === 'POST' ? status[door] ?? 404 : 404;
         res.writeHead(code, { 'content-type': 'application/json' });
         res.end(JSON.stringify(code === 201
           ? (door === 'packages' ? { id: 'p1', url: 'https://example.test/home' } : { id: 'c1', state: 'in_review' })
@@ -950,6 +952,127 @@ test('a login whose code never arrives exits non-zero within its wait, and says 
   } finally {
     session.release();
   }
+});
+
+test('"Don\'t allow" in the browser ends the login at once, and says nothing was granted', async () => {
+  // Phase 1 of the agent-delivery plan found the consent page's refusal never reached the CLI,
+  // which then waited out its whole timeout. The page now sends the refusal to the same callback.
+  const session = await drivenLogin({ waitSec: 60 });
+  try {
+    const refused = await session.complete(`error=access_denied&state=${session.state}`);
+    assert.equal(refused.status, 200);
+    assert.equal(refused.text, 'denied', 'the callback page is told, so it can say so');
+    const exit = await session.waitForExit(5000);
+    assert.equal(exit.code, 1, 'a refusal is exit 1, the documented "refused" code');
+    const { stdout } = session.out();
+    assert.match(stdout, /not allowed in the browser - nothing was granted/);
+    await assert.rejects(fs.readFile(path.join(session.home, 'credentials.json'), 'utf8'), 'no key was stored');
+  } finally {
+    session.release();
+  }
+});
+
+test('the consent URL tells the page this login takes a refusal', async () => {
+  const session = await drivenLogin({ waitSec: 6 });
+  try {
+    const { stderr } = session.out();
+    assert.match(/http:\/\/\S+\/app\?\S+/.exec(stderr)?.[0] ?? '', /[?&]deny=1(&|$)/);
+    await session.waitForExit(20_000);
+  } finally {
+    session.release();
+  }
+});
+
+// ---------------------------------------------------------------- delivery receipts
+//
+// docs/AGENT_SAVE.md §9: a write names its operation BEFORE it is sent, so a lost answer can be
+// asked about; a readback is what turns "accepted" into "verified"; and the CLI never sends twice.
+
+/** A deployment whose save door answers `writeStatus` and whose readback answers `readStatus`. */
+function receiptDeployment({ writeStatus = 201, readStatus = 200 } = {}) {
+  const seen = { writes: [], reads: [] };
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      req.resume();
+      req.on('end', () => {
+        const op = req.headers['x-noacg-operation'];
+        const receipt = (verified) => ({
+          version: 1, operationId: op ?? seen.writes[0], deployment: 'https://noacg.test',
+          account: { id: 'u1', email: 'maker@example.test' }, destination: 'library', state: 'saved',
+          resources: [{ kind: 'graphic', id: 'g1', state: 'saved', link: 'https://noacg.test/app#/graphic/g1' }],
+          link: 'https://noacg.test/app#/graphic/g1', nextAction: null, verified, checkedAt: '2026-10-15T00:00:00.000Z',
+        });
+        if (req.method === 'POST') {
+          seen.writes.push(op);
+          res.writeHead(writeStatus, { 'content-type': 'application/json' });
+          res.end(JSON.stringify(writeStatus === 201 ? { id: 'g1', url: 'https://noacg.test/app#/graphic/g1', receipt: receipt(false) } : { error: { code: 'x', message: 'Refused by the stub.' } }));
+          return;
+        }
+        seen.reads.push(new URL(req.url, 'http://x').searchParams.get('id'));
+        res.writeHead(readStatus, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(readStatus === 200 ? { receipt: receipt(true) } : { error: { code: 'not_found', message: 'Nothing.' } }));
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, seen, origin: `http://127.0.0.1:${server.address().port}` }));
+  });
+}
+
+test('a delivery is written once under a named operation, then confirmed by reading it back', async (t) => {
+  const { deliverAndConfirm, describeReceipt } = await import('../dist/receipt.js');
+  const { saveGraphic } = await import('../dist/auth.js');
+  const d = await receiptDeployment();
+  t.after(() => d.server.close());
+  const done = await deliverAndConfirm(d.origin, 'k', 'graphic', (op) => saveGraphic(d.origin, 'k', {}, op));
+  assert.equal(done.ok, true);
+  assert.equal(d.seen.writes.length, 1);
+  assert.match(d.seen.writes[0], /^[0-9a-f-]{36}$/, 'the operation id travels with the write');
+  assert.deepEqual(d.seen.reads, [d.seen.writes[0]], 'and the readback asks about that same operation');
+  assert.equal(done.receipt.verified, true);
+  const said = describeReceipt(done.receipt).join('\n');
+  assert.match(said, /library of maker@example\.test on https:\/\/noacg\.test \(confirmed by reading it back/);
+  assert.doesNotMatch(said, /opened/, 'a readback never claims a browser opened it');
+});
+
+test('a lost answer is asked about, never resent: found means delivered, not found means unverified', async (t) => {
+  const { deliverAndConfirm } = await import('../dist/receipt.js');
+  const { saveGraphic } = await import('../dist/auth.js');
+
+  const landed = await receiptDeployment({ writeStatus: 502, readStatus: 200 });
+  t.after(() => landed.server.close());
+  const found = await deliverAndConfirm(landed.origin, 'k', 'graphic', (op) => saveGraphic(landed.origin, 'k', {}, op));
+  assert.equal(found.ok, true, 'the readback found it, so it arrived despite the 502');
+  assert.equal(found.receipt.state, 'saved');
+  assert.equal(landed.seen.writes.length, 1, 'never written twice');
+
+  const lost = await receiptDeployment({ writeStatus: 502, readStatus: 404 });
+  t.after(() => lost.server.close());
+  const unknown = await deliverAndConfirm(lost.origin, 'k', 'graphic', (op) => saveGraphic(lost.origin, 'k', {}, op));
+  assert.equal(unknown.ok, false);
+  assert.equal(unknown.receipt.state, 'delivery_unverified');
+  assert.equal(unknown.receipt.verified, false);
+  assert.match(unknown.receipt.nextAction, new RegExp(`noacg status ${lost.seen.writes[0]}`));
+  assert.equal(lost.seen.writes.length, 1, 'never written twice');
+
+  const refused = await receiptDeployment({ writeStatus: 409 });
+  t.after(() => refused.server.close());
+  const no = await deliverAndConfirm(refused.origin, 'k', 'graphic', (op) => saveGraphic(refused.origin, 'k', {}, op));
+  assert.equal(no.receipt.state, 'failed', 'a refusal the server sent is an answer: nothing was written');
+  assert.deepEqual(refused.seen.reads, [], 'so there is nothing to ask about');
+});
+
+test('status reads back by id, and an unknown id says nothing is visible to this key', async (t) => {
+  const d = await receiptDeployment({ readStatus: 404 });
+  t.after(() => d.server.close());
+  const env = { ...process.env, NOACG_URL: d.origin, NOACG_AGENT_KEY: `${AGENT_KEY_PREFIX}${'e'.repeat(32)}` };
+  const missing = await new Promise((resolve) => {
+    execFile(process.execPath, [cli, 'status', '0b7c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8'], { env }, (error, stdout) => resolve({ code: error?.code ?? 0, stdout }));
+  });
+  assert.equal(missing.code, 1);
+  assert.match(missing.stdout, /Nothing delivered under 0b7c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8 by this key/);
+  const bad = await new Promise((resolve) => {
+    execFile(process.execPath, [cli, 'status', 'nope'], { env }, (error) => resolve(error?.code ?? 0));
+  });
+  assert.equal(bad, 2, 'a malformed id is a usage error');
 });
 
 // ---------------------------------------------------------------- the shipped skill text
