@@ -23,6 +23,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { cliVersion, credentialsDir, noacgUrl } from './config.js';
+import type { DeliveryReceipt } from './receipt.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -162,17 +163,30 @@ async function failureOf(response: Response): Promise<ApiFailure> {
   return { status: response.status, code, message };
 }
 
-/** Redeem a one-time code for a key (the second half of `noacg login`). */
-export async function redeemCode(origin: string, code: string, verifier: string): Promise<StoredKey> {
+/** Which account a key acts for, as the deployment names it (null email: the account has none). */
+export interface AccountIdentity {
+  id: string;
+  email: string | null;
+}
+
+/** The account a deployment answered with, or null from one too old to say. */
+function accountOf(body: { account?: unknown }): AccountIdentity | null {
+  const account = body.account as Partial<AccountIdentity> | undefined;
+  if (!account || typeof account.id !== 'string') return null;
+  return { id: account.id, email: typeof account.email === 'string' ? account.email : null };
+}
+
+/** Redeem a one-time code for a key (the second half of `noacg login`), with the account it is for. */
+export async function redeemCode(origin: string, code: string, verifier: string): Promise<{ stored: StoredKey; account: AccountIdentity | null }> {
   const response = await fetch(`${origin}/api/me/agent-keys`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action: 'redeem', code, verifier }),
   });
   if (!response.ok) throw new ApiError(await failureOf(response));
-  const body = (await response.json()) as { key: string; id: string; name: string; prefix: string; createdAt: string };
+  const body = (await response.json()) as { key: string; id: string; name: string; prefix: string; createdAt: string; account?: unknown };
   if (!body.key || !isAgentKey(body.key)) throw new Error('The server returned no usable key.');
-  return { key: body.key, id: body.id, name: body.name, prefix: body.prefix, createdAt: body.createdAt };
+  return { stored: { key: body.key, id: body.id, name: body.name, prefix: body.prefix, createdAt: body.createdAt }, account: accountOf(body) };
 }
 
 export interface KeyInfo {
@@ -182,6 +196,8 @@ export interface KeyInfo {
   scopes: string[];
   createdAt: string;
   lastUsedAt: string | null;
+  /** The account the key acts for; null from a deployment too old to say. */
+  account: AccountIdentity | null;
 }
 
 /** Ask the deployment what this key is (`noacg whoami`). Null = the key is not valid there. */
@@ -189,8 +205,8 @@ export async function describeKey(origin: string, key: string): Promise<KeyInfo 
   const response = await fetch(`${origin}/api/me/agent-keys`, { headers: { authorization: `Bearer ${key}` } });
   if (response.status === 401) return null;
   if (!response.ok) throw new ApiError(await failureOf(response));
-  const body = (await response.json()) as { key?: KeyInfo };
-  return body.key ?? null;
+  const body = (await response.json()) as { key?: Omit<KeyInfo, 'account'>; account?: unknown };
+  return body.key ? { ...body.key, account: accountOf(body) } : null;
 }
 
 /** Revoke this key on the server (`noacg logout`). True when it was live. */
@@ -204,24 +220,40 @@ export async function revokeSelf(origin: string, key: string): Promise<boolean> 
 export interface SaveResult {
   id: string;
   url: string;
+  /** The deployment's receipt (docs/AGENT_SAVE.md §9); absent from a deployment too old to send one. */
+  receipt?: DeliveryReceipt;
 }
 
-/** POST one library record to the save door (`noacg save`). */
-export async function saveGraphic(origin: string, key: string, doc: Record<string, unknown>): Promise<SaveResult> {
-  const response = await fetch(`${origin}/api/me/graphics`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-    body: JSON.stringify(doc),
-  });
-  if (!response.ok) throw new ApiError(await failureOf(response));
-  return (await response.json()) as SaveResult;
+/** POST one library record to the save door (`noacg save`), under the operation id named first. */
+export function saveGraphic(origin: string, key: string, doc: Record<string, unknown>, operationId?: string): Promise<SaveResult> {
+  return postAsAgent(origin, key, 'graphics', doc, operationId);
+}
+
+export interface SetResult {
+  operationId: string;
+  /** True when the deployment answered the first delivery of this operation again. */
+  replayed: boolean;
+  /** In the order they were sent. */
+  graphics: Array<{ id: string; name: string; url: string }>;
+  receipt?: DeliveryReceipt;
+}
+
+/** POST several library records to the set door (`noacg save a b c`) as ONE operation: all of
+ *  them or none, and the same operation sent again answers the first delivery (docs/AGENT_SAVE.md §10). */
+export function saveGraphicSet(origin: string, key: string, docs: Array<Record<string, unknown>>, operationId: string): Promise<SetResult> {
+  return postAsAgent(origin, key, 'graphic-sets', { graphics: docs }, operationId);
 }
 
 /** POST a JSON body to one of the agent doors under /api/me as this key, naming the CLI version. */
-async function postAsAgent<T>(origin: string, key: string, door: string, body: unknown): Promise<T> {
+async function postAsAgent<T>(origin: string, key: string, door: string, body: unknown, operationId?: string): Promise<T> {
   const response = await fetch(`${origin}/api/me/${door}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, 'x-noacg-cli-version': cliVersion() },
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${key}`,
+      'x-noacg-cli-version': cliVersion(),
+      ...(operationId ? { 'x-noacg-operation': operationId } : {}),
+    },
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new ApiError(await failureOf(response));
@@ -230,8 +262,17 @@ async function postAsAgent<T>(origin: string, key: string, door: string, body: u
 
 /** POST a whole graphics package to the package door (`noacg pack --save`). It waits on the
  *  user's Home → Productions until they press Install. */
-export function savePackageToHome(origin: string, key: string, pack: Record<string, unknown>): Promise<SaveResult> {
-  return postAsAgent(origin, key, 'packages', pack);
+export function savePackageToHome(origin: string, key: string, pack: Record<string, unknown>, operationId?: string): Promise<SaveResult> {
+  return postAsAgent(origin, key, 'packages', pack, operationId);
+}
+
+/** Read back what this key delivered under an operation or resource id (`noacg status`). Null when
+ *  the deployment knows nothing by that id for this key - or is too old to have the route. */
+export async function readDelivery(origin: string, key: string, id: string): Promise<DeliveryReceipt | null> {
+  const response = await fetch(`${origin}/api/me/deliveries?id=${encodeURIComponent(id)}`, { headers: { authorization: `Bearer ${key}` } });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new ApiError(await failureOf(response));
+  return ((await response.json()) as { receipt?: DeliveryReceipt }).receipt ?? null;
 }
 
 export interface ShareResult {
@@ -247,6 +288,16 @@ export function shareCommunityPack(
   body: { name: string; description: string; author: string; license: string; pack: Record<string, unknown> },
 ): Promise<ShareResult> {
   return postAsAgent(origin, key, 'community-packs', body);
+}
+
+/** Any thrown value in the CLI's words: an API refusal through the table below, else its message. */
+export function explainError(e: unknown): string {
+  return e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
+}
+
+/** How the CLI names an account: its email, or its id when it has none. */
+export function accountLabel(account: AccountIdentity): string {
+  return account.email ?? `account ${account.id}`;
 }
 
 /** The error table of docs/AGENT_SAVE.md, in the CLI's words. */

@@ -228,6 +228,17 @@ h2 + .lib-row,
 .pack-waiting-row { display: flex; align-items: center; gap: 8px; }
 .pack-waiting-row .lib-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .pack-waiting-row .primary { min-height: 40px; }
+/* The package a link named (#/home/productions/<id>): the library's selected-row look. It takes
+   focus on arrival, and the highlight is what shows it, so no second ring. */
+.pack-waiting-row.selected {
+  margin: 0 -8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--accent-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.pack-waiting-row:focus { outline: none; }
+.pack-waiting p { margin: 0; }
 
 /* ── The Graphics section's organisation layer: multi-select + flat folders ─────────── */
 /* ── GRID vs LIST (re-design/handoff.md §5b/§5c) ──────────────────────────────────────────

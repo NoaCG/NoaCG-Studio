@@ -356,6 +356,15 @@ hold no privilege on it (0090 revokes them and its self-check asserts it), so it
 `agent_keys`: only the service role behind `/api/me` reads and writes it, and its one lookup is the
 service-role-only `connector_grant_resolve`. A policy would only add a way in. Recorded by hand:
 that run listed 181 findings against 180 accepted, so this was the only difference.
+It holds **176** as of 2026-10-15: the one failing entry is migration 0093's
+(`0093_agent_graphic_sets.sql`, a set of graphics delivered as one operation), which post-land run
+38789232409 reported once the landing of #1270 had applied it. `agent_operations` has RLS on and no
+policy, and `anon` and `authenticated` hold no privilege on it; read on production the same day: no
+policy, no client grant, and neither role may execute `agent_deliver_graphics`, which is security
+invoker and the service role's alone. So it is deny-all like `connector_grants`: only the API behind
+`/api/me` writes and reads it. One index from each of 0093 and 0092 reads as unused, a class that never
+fails, and 8 unused-index entries had gone, so the file was re-recorded with
+`--update-baseline` rather than by hand.
 The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused

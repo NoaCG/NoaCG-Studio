@@ -55,6 +55,7 @@ export function useWalkLifecycle(args: WalkLifecycle): { rewind(): void } {
     if (out.resetScreen) resetScreen();
     if (out.clearAcceptedAi) clearAcceptedAi();
     if (out.held !== null) useSaveUi.setState({ heldWalk: out.held });
+    if (out.dropLink) useTemplateStore.setState({ pendingDesignId: null });
     return out;
   };
 
@@ -106,10 +107,12 @@ export function useWalkLifecycle(args: WalkLifecycle): { rewind(): void } {
   // wizard by default before the router's `openGallery(designId)` reaches the store, so `open`
   // never flips in that race. It clears the one-shot the moment it runs, so it fires once per
   // link. Imported designs create through their own setup walk, never through a pick, and an id
-  // that does not resolve leaves the wizard where the open put it: Entry.
+  // that does not resolve leaves the wizard where the open put it: Entry. Read live, because the
+  // open effect above runs first in the same commit and may have dropped it (`dropLink`).
   useEffect(() => {
-    if (!open || !pendingDesignId || !catalog) return;
-    const pending = catalog.variantById(pendingDesignId);
+    const designId = useTemplateStore.getState().pendingDesignId;
+    if (!open || !designId || !catalog) return;
+    const pending = catalog.variantById(designId);
     useTemplateStore.setState({ pendingDesignId: null });
     if (!pending || pending.category === 'imported-design') return;
     dispatch({ type: 'deepLink', variant: pending });

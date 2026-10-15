@@ -124,6 +124,7 @@ test('Continue keeps the whole walk and returns to the furthest step it reached'
   assert.equal(out.clearAcceptedAi, false);
   assert.equal(out.held, false, 'the held flag is cleared on open');
   assert.equal(out.replaceStep, null);
+  assert.equal(out.dropLink, true, 'a pending deep link does not start the continued walk over');
 });
 
 // ── Restore ──────────────────────────────────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ test('Restore puts the finished walk back, kit reset, error cleared, and raises 
   assert.equal(out.clearAcceptedAi, false, 'the accepted generation is kept');
   assert.equal(out.held, false);
   assert.equal(out.replaceStep, walkOf('svg', false).slugs[3], 'the URL names the step the walk ended on');
+  assert.equal(out.dropLink, true, 'the design its step URL carries does not start it over (#1220)');
 });
 
 test('Restore points a walk that landed in a production at that production', () => {
@@ -191,6 +193,7 @@ test('Fresh clears the walk, keeps nothing of the last one, and forgets it', () 
   assert.equal(out.clearAcceptedAi, true);
   assert.equal(out.held, false);
   assert.equal(out.replaceStep, null);
+  assert.equal(out.dropLink, false, 'a deep link starts this walk');
 });
 
 test('Fresh starts on the step the URL names, in the template walk only', () => {
@@ -523,15 +526,20 @@ test('a write that THROWS rejects the save (today\'s behaviour, recorded: the re
   await assert.rejects(W.saveBuiltGraphic({ finished: null, made: MADE }, 'Score', lib), /boom/);
 });
 
-test('a deep link in the same open as a restore replaces the restored draft (today\'s behaviour, recorded, not endorsed)', () => {
+test('a deep link starts a walk: an open that brings one back drops it, and a link ends a kit (#1220)', () => {
   // Browser Back onto `#/new/<id>/step/<name>` after a door closed the walk: the step URL
-  // restores the walk, and the design in the same URL is a deep link (App.tsx hands it to
-  // `openGallery`), which the lifecycle dispatches after the restore. Characterised for the
-  // decision S1c's notes left to this phase; the spec's phase notes say where it went.
+  // restores the walk, and the design the same URL carries is a pending deep link. The open
+  // decides both, so the link never reaches the restored or continued walk.
   const walk = { ...W.snapshotWalk({ ...loaded('template'), ...NO_KIT }), step: 5, made: MADE };
-  const restored = W.transition(W.emptyWalk(), { kind: 'restore', walk, live: null }).state;
-  const linked = W.reduce(restored, { type: 'deepLink', variant: B });
-  assert.equal(linked.draft.variantId, 'b', 'the link\'s design, under the warning that offers the walk back');
-  assert.equal(linked.draft.name, '', 'the walk\'s answers are gone');
-  assert.equal(linked.step, stepIndex(walkOf('template', false), 'fields'));
+  assert.equal(W.transition(W.emptyWalk(), { kind: 'restore', walk, live: null }).dropLink, true);
+  assert.equal(W.transition(loaded('template'), { kind: 'continue' }).dropLink, true);
+  for (const intent of [fresh(), { kind: 'rewind' }, { kind: 'close', left: true, made: null }]) {
+    assert.equal(W.transition(loaded('template'), intent).dropLink, false, intent.kind);
+  }
+  // A link that does land (a warm open, the wizard already up) starts the walk, so it takes no
+  // kit with it: kept, the tray would wrap the link's design and record it into the kit.
+  const linked = W.reduce(loaded('template'), { type: 'deepLink', variant: B });
+  assert.deepEqual(kitOf(linked), NO_KIT);
+  assert.equal(W.activeKit(linked), null);
+  assert.equal(linked.draft.variantId, 'b');
 });

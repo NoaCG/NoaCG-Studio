@@ -65,9 +65,19 @@ on air.
    mints the key with the scopes the code was minted with, and returns the plaintext once. A
    wrong verifier still burns the code - an intercepted code must not stay redeemable.
 5. The CLI stores the key. `noacg whoami` asks the deployment to describe it (prefix, name,
-   scopes, last used); `noacg logout` revokes it (a key may revoke ITSELF and nothing else) and
-   forgets it; Settings → Account → **Agent access** lists every live key with a Revoke button.
-   Revocation takes effect on the key's next request.
+   scopes, last used, and the ACCOUNT it saves into); `noacg logout` revokes it (a key may revoke
+   ITSELF and nothing else) and forgets it; Settings → Account → **Agent access** lists every live
+   key with a Revoke button. Revocation takes effect on the key's next request.
+
+**One account, named three times.** The consent card says which account and deployment the key
+will save into ("Saves go to <email> on <host>"), redeem and `whoami` answer the same `account`
+(`{ id, email }`) and `deployment` (the origin that answered), and every delivery receipt (§9)
+carries them again. That is the key owner's own identity, not access to anything in the account.
+
+**"Don't allow" ends the login.** A CLI that takes a refusal adds `deny=1` to the consent URL; the
+page then sends `#error=access_denied&state=…` to the same loopback `/callback` (`agentDenyUrl`),
+and `noacg login` stops at once with exit 1 and nothing stored. A consent URL without `deny=1` (an
+older CLI) only shows "Nothing was granted", and that CLI waits out its timeout as before.
 
 ## 3. The save door: `POST /api/me/graphics`
 
@@ -94,7 +104,8 @@ In order - the order IS the posture (`api/_lib/me/graphics.ts`):
    `body.updatedAt` - never a client clock), `origin {tool, version}` (provenance, never proof),
    AI provenance nulled;
 7. `INSERT` into `documents` (kind `graphic`, `user_id` set by the service role) - never an
-   upsert; `201 { id, url }` with `url = <origin>/app#/graphic/<id>`.
+   upsert; `201 { id, url, receipt }` with `url = <origin>/app#/graphic/<id>` and the delivery
+   receipt of §9 (additive: an older client reads `id` and `url`).
 
 The link opens the graphic's CONTROL page: the studio rewrites `#/graphic/<id>` to
 `#/control/<id>` (the old code editor it used to open is closed, `src/App.tsx`). The record then
@@ -164,11 +175,13 @@ the programmatic builders, exported - this closes both. Ratified by the owner 20
 | `/api/me/agent-keys` | `api/_lib/me/agentKeys.ts` (+ `.test.ts`) |
 | `/api/me/graphics` + the pure shape guard | `api/_lib/me/graphics.ts`, `graphicShape.ts` (+ `.test.ts`) |
 | `/api/me/packages` + its shape guard (§7) | `api/_lib/me/packages.ts`, `packageShape.ts` (+ `packages.test.ts`) |
-| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql` |
+| `/api/me/deliveries`, the receipt (§9) | `api/_lib/me/deliveries.ts`, `deliveryReceipt.ts` (+ `deliveries.test.ts`) |
+| `/api/me/graphic-sets`, a set in one delivery (§10) | `api/_lib/me/graphicSets.ts` (+ `graphicSets.test.ts`) |
+| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql`, `0092_agent_deliveries.sql`, `0093_agent_graphic_sets.sql` |
 | waiting packages in the studio (§7) | `src/backend/agentPackages.ts`, `src/components/home/sections/ProductionsSection.tsx` |
 | consent page, browser client | `src/components/auth/AgentAccessConsent.tsx`, `src/backend/agentAccess.ts` |
 | Settings list | `SettingsDialog.tsx` `AgentAccessSection` |
-| CLI | `cli/src/auth.ts`, `cli/src/commands/{login,logout,whoami,save,pack}.ts`, the `save` and `pack` verbs of the `noacg` tool in `cli/src/mcp.ts` |
+| CLI | `cli/src/auth.ts`, `cli/src/receipt.ts`, `cli/src/operations.ts`, `cli/src/commands/{login,logout,whoami,save,pack,status}.ts`, the `save` and `pack` verbs of the `noacg` tool in `cli/src/mcp.ts` |
 | gates | `src/validation/{publishGate,productionGate}.ts` |
 | specs | `e2e/agent-access.spec.ts` (offline), `e2e/configured/agent-access.spec.ts` (live), `e2e/production-gate.spec.ts` |
 
@@ -200,10 +213,11 @@ cloud. So a whole package travels through the account, not through a file:
 ```
  noacg pack ./a ./b ./c --name "Show" [--rundown cues.json] [--layer 10] --save
    validate every graphic in the bridge (gate + bench) -> packEntry per graphic
-   -> POST /api/me/packages (Bearer key) -> 201 { id, url: <origin>/app#/home/productions }
- studio, signed in: Home -> Productions lists it under "Waiting to install"
+   -> POST /api/me/packages (Bearer key) -> 201 { id, url: <origin>/app#/home/productions/<id>, receipt }
+ studio, signed in: the link opens Home -> Productions with that package selected
    Install -> parsePack -> installPack (validateTemplate per graphic, production, layers, cues)
-           -> the waiting row is deleted -> the production page opens with its rundown
+           -> settle: the waiting row goes, the receipt records the production (§9)
+           -> the production page opens with its rundown
 ```
 
 **Decided 2026-09-24 (owner asked for "prompt a package, it appears on Home, press Install").**
@@ -232,11 +246,15 @@ the code inside is never run on the server), then a cap of 25 waiting packages p
 
 **In the studio.** `ProductionsSection` loads the list when a session exists and again whenever
 the tab becomes visible - the usual moment is switching back to the studio after the agent says
-it sent something. It shows on the Home dashboard as well as the full Productions page. Install
-deletes the row once the production exists (a failed delete leaves the row for Dismiss, never a
-failed install). Dismiss deletes it unseen. An offline build, or a signed-out visitor, asks
-nothing and shows no row (`e2e/pack-import.spec.ts`); the live walk - send, list, dismiss,
-install, the rundown - is `e2e/configured/agent-access.spec.ts` step 4b.
+it sent something. It shows on the Home dashboard as well as the full Productions page. A load
+that FAILS shows its error with Retry, never the empty list it used to pass for. The package
+link (`#/home/productions/<id>`) selects and focuses that row; once the package no longer waits,
+the same link says what became of it from its receipt - installed (with its production), dismissed,
+no longer waiting, or not in the account you are signed in to. Install settles the package once
+the production exists (a failed settle leaves the row for Dismiss, never a failed install); Dismiss
+settles it unseen. An offline build, or a signed-out visitor, asks nothing and shows no row
+(`e2e/pack-import.spec.ts`); the live walk - send, the link, a failed load and Retry, dismiss,
+install, the rundown, the receipt afterwards - is `e2e/configured/agent-access.spec.ts` step 4b.
 
 **No account.** `noacg pack --out <file>` writes the same package; Home → Productions →
 **Import a package** installs it. The MCP tool's `pack` verb sends when the machine holds a key
@@ -294,3 +312,103 @@ comes back as 409 with the database's own sentence, which the CLI prints as it i
 is the same 4 MB, below the shelf's 8 MB; a larger pack is shared from the studio. The bridge
 check is additive (`BRIDGE_V` stays 1): a deployment without it gets a plain "cannot check a
 pack for Community packs yet" rather than a late failure.
+
+## 9. Delivery receipts and readback: `GET /api/me/deliveries`
+
+Every write answers a **receipt** (`api/_lib/me/deliveryReceipt.ts`, version 1, additive) and
+records it (`agent_deliveries`, migration 0092), so "which account received what, and is it really
+there?" has one answer:
+
+| Field | Meaning |
+|---|---|
+| `operationId` | Named by the CLI before it writes (`x-noacg-operation`, a uuid), or minted by the server |
+| `deployment`, `account` | The origin that answered, and the account's `{ id, email }` (§2) |
+| `destination` | `library` (Home → Graphics) or `home` (waiting on Home → Productions) |
+| `state` | `saved`, `pending_install`, `installed`, `dismissed`, `missing`; the CLI adds `failed` and `delivery_unverified` |
+| `resources` | Each delivered item with its id, state and exact link; an installed package adds its production |
+| `link`, `nextAction` | The one link to open (the production over its package), and what to do, if anything |
+| `verified` | `false` on the write's own answer (accepted and stored); `true` only from a readback that found it |
+
+Acceptance, verified availability and "a browser opened it" are three different claims. A receipt
+makes the first two and never the third.
+
+**Readback is narrow.** `GET /api/me/deliveries?id=<operation or resource id>` with an agent key
+finds only the receipts THAT key wrote, in its own account, and answers each one's current state
+(a deleted graphic reads `missing`, an installed package `installed`). It returns no names and no
+content and lists nothing; another key's id, another account's id and an id that never existed are
+the same 404. A session (the studio) reads its own account's receipts. No key gained a scope: a
+key that may create may ask what became of what it created.
+
+**Install and Dismiss settle.** The studio posts `{ action: 'settle', package, production }` with
+the user's session; `agent_package_settle` deletes the waiting row and records `installed` (with
+the production) or `dismissed` in one statement. An agent key cannot settle anything. A package
+from before 0092 gets its receipt at settle time; a waiting row an older studio deleted directly
+reads `missing`.
+
+**The CLI never sends a single write twice.** `pack --save`, and `save` on a deployment without
+the set door, read the delivery back after the write. If
+the answer is lost (a 5xx, a dropped connection), they ask by the operation id: found means it
+landed; not found leaves it `delivery_unverified`, with `noacg status <operationId>` as the next
+action. `noacg status <id>` reads any of this key's deliveries back later. Recording a receipt is
+best effort - a save is never failed over its receipt, since that would invite a duplicate retry -
+so a missed record reads back as a 404 and the CLI reports it unverified.
+
+## 10. A set in one delivery: `POST /api/me/graphic-sets`
+
+`noacg save ./a ./b ./c` puts every graphic of a set in the library as ONE operation, with no
+Install step, and sending it again never adds a second copy. One graphic takes the same path.
+
+```
+ noacg save ./a ./b ./c [--folder F]
+   validate every graphic in the bridge (gate + bench); one error refuses the set, nothing is sent
+   bridge.graphicDoc per graphic -> the operation id: the journal's for this set, or a new one,
+     written to <config>/operations.json BEFORE the write
+   -> POST /api/me/graphic-sets (Bearer key, x-noacg-operation) { graphics: [record, ...] }
+      201 { operationId, replayed: false, graphics: [{ id, name, url }], receipt }
+      200 the same answer with replayed: true   (this operation, this payload, this key, again)
+      409 conflict                              (this operation, a different payload or key)
+   -> GET /api/me/deliveries?id=<operation>     (§9: every graphic, verified, in the order sent)
+```
+
+**All or nothing.** The door checks every record with the save door's shape guard (§3) before
+anything is written, mints the ids and timestamps through the same `libraryRecord`, and hands the
+set to `agent_deliver_graphics` (migration 0093). That one database call claims the operation in
+`agent_operations`, inserts every `documents` row and every `agent_deliveries` receipt (with its
+`position` in the set), and is one transaction: a failure part way leaves no record, no receipt
+and no claim. Unlike the single save door, where the receipt is best effort (§9), a set's receipts
+commit with its records.
+
+**Sending it again is safe, so the CLI does.** The same operation with the same payload from the
+same key answers the first delivery's ids and writes nothing. "The same payload" is the records as
+stored without the ids and timestamps the bridge mints on every build, so the same packages built
+again by a restarted CLI are the same set. A lost answer (a 5xx, a dropped connection) is sent
+again twice under the same operation; if every answer is lost and a readback finds nothing, the
+receipt is `delivery_unverified` and running the same command again resumes the operation. The
+journal reuses an operation for the same deployment, key and content for 24 hours. A replay
+reports what is there now: a graphic deleted since reads `missing`, the CLI says the set is not
+all in the library and forgets the operation, and the same save run again delivers it anew.
+A replay after the CLI's own lost answer is reported as this run's save, not an earlier one, and a
+refusal that follows a lost answer (a rate limit the first send used up) is checked by readback
+before it is reported. The journal is locked while it is read and written, so two saves of the same
+set at once share one operation.
+
+**Limits, against the existing ones.** One set holds 1 to 40 graphics, a pack's own cap
+(`packageShape.ts`), so any pack's graphics fit one set. The whole body shares the save door's
+4 MB read cap, under the platform's ~4.5 MB; the CLI measures the set before sending and asks for
+smaller groups above it. Each record keeps the save door's per-graphic limits (`SHAPE_LIMITS`,
+3 MB of inline assets). The per-IP and per-account save rate limits count one set as one request.
+
+**Compatibility and rollback.** Additive: a route, a table, a nullable column and a function. The
+single save door, the package door and Import are unchanged. `save` with one graphic falls back to
+the single save door when a deployment answers 404 for the set door (one from before 0093); with
+several it says the deployment cannot take a set yet. Reverting the code leaves every delivered
+record, receipt and claim in place; nothing user-made is removed.
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid` | no `x-noacg-operation` uuid, not 1-40 records, or one record fails the shape guard (named by its place and name) |
+| 409 | `conflict` | the operation already delivered a different payload, was sent by another credential, or is a single save's |
+| 413 | `too_large` | the set's body is over 4 MB |
+| 500 | `internal` | the call failed: all of it was saved or none, and sending the same request again settles which |
+
+The other codes are the save door's (§3).

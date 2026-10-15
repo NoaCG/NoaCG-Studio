@@ -340,3 +340,288 @@ Checked on `origin/main` `3977d47be`, which noacg.studio was serving (`doctor`: 
 - Pre-existing, outside this phase: at 1440px the `/plugin install …` line on Downloads runs under
   its Copy button. `doctor` in a plugin-less session still reports an installed older plugin
   skill if one exists elsewhere on the machine, which a plugin-less user may find confusing.
+
+### Phase 2 (build), 2026-10-15
+
+Last check's findings (Phase 1 check, PASS): the Downloads prompt alone lacks the ambiguous-write
+and pending-package wording, which only the skill carries (a Phase 5 question); "Don't allow" on
+the consent page did not end `noacg login`, which waited out its five-minute timeout (taken here);
+the saved-with-links half was not exercised on production for lack of a test account there and
+rests on the configured agent-access journey; pre-existing, the `/plugin install` line on Downloads
+runs under its Copy button at 1440px, and `doctor` flags an older installed plugin skill even when
+working without the plugin.
+
+Landed:
+- **One identity, three places.** The consent card names the account and deployment ("Saves go to
+  <email> on <host>"); redeem and `whoami` answer `account { id, email }` and `deployment`; every
+  receipt carries both. `noacg login` and `whoami` print them.
+- **Receipt v1** (`api/_lib/me/deliveryReceipt.ts`, `cli/src/receipt.ts`, docs/AGENT_SAVE.md §9):
+  operation id, deployment, account, destination, state, resources with exact links, link, next
+  action, and `verified` (false on the write's own answer, true only from a readback). Additive on
+  `POST /api/me/graphics` and `/packages`; old clients keep reading `id` and `url`.
+- **Narrow readback**, `GET /api/me/deliveries?id=<operation or resource>`: a key finds only what
+  it wrote (`agent_deliveries.key_id`, migration 0092), with state and link only; every miss is
+  the same 404. No key gained a scope. `noacg status <id>` reads it; `save` and `pack --save` read
+  back after each write and, on a lost answer, ask by operation id instead of resending.
+- **Packages**: the link is `/app#/home/productions/<id>` and selects and focuses that row. Install
+  and Dismiss settle through the server (`agent_package_settle`, one statement), so the receipt
+  records `installed` with the production or `dismissed`, and the same link says so afterwards (a production deleted since reads `missing`). A
+  failed waiting-list load shows its error with Retry; an empty list still shows nothing. A link
+  this account has no package for, and a graphic link it has no graphic for, name the signed-in
+  account and nothing else.
+- **"Don't allow" ends the login**: a CLI that sends `deny=1` is told through the same loopback
+  callback (`#error=access_denied`) and exits 1 at once with nothing stored.
+
+Evidence: API unit tests (`node scripts/run-ai-gateway-tests.mjs`, 404 pass, including the new
+`deliveries.test.ts`: key-only readback, identical misses across key, account and unknown id,
+settle refused to keys, a failed receipt record never failing the save); CLI `unit.test.mjs` (54)
+and `mcp.test.mjs` (17) pass, with new tests for deny, write-then-readback, a lost answer found and
+not found, a refusal, and `status`; `tsc` for app and API, eslint on every changed file. The
+configured agent-access journey now walks consent identity, redeem/whoami account, receipts,
+readback and its 404, the package link selection and focus, an injected list failure and Retry,
+install and dismiss receipts, the link after install, and a foreign package link. The configured
+suite dispatched on this branch (run 38768514330, local Supabase stack with 0092 applied) passed it
+first time, 99 passed; the run's one red was `late-send-abandoned.spec.ts` failing then passing, a
+spec already in `e2e/quarantine.json` whose quarantine is honoured only on `main` runs. 0092's
+behaviour self-check (a real owner's throwaway package settled, then rolled back) skips on that
+fresh stack, which has no account when migrations apply; it runs on the hosted projects, and the
+settle itself runs in the journey's Install. Screenshots of the error,
+selection, installed and not-in-account states at 1440 and 390px, the consent card and the graphic
+not-found page were looked at, not committed.
+
+Decisions:
+- The account is named by its sign-in email plus id. A masked email could not tell two similar
+  accounts apart, and the key owner already knows their own address.
+- Readback needs no new permission: a key may ask about what it created and nothing else, and the
+  route lists nothing. Sessions read their own account's receipts.
+- Recording a receipt is best effort after the resource INSERT, so a save is never failed over its
+  receipt (that would invite a duplicate retry); a missed record reads back as unverified. Phase 3
+  makes the write and its receipt one transaction.
+- Settle is a service-role function called by the API, not a browser RPC, so no security-definer
+  function is exposed to `authenticated` (no new advisor finding).
+- `status` is terminal-only for now; the MCP `save` and `pack` answers already carry the confirmed
+  receipt. Adding it to the tool is Phase 5's call with the MCP descriptions.
+
+Rollback: revert the pull request. Migration 0092 is additive (one table, one function); left in
+place it costs nothing, and old clients, URLs and packs keep working (`#/home/productions/<id>` in
+an older build lands on the list). No user data changes.
+
+Next phase must allow for:
+- `agent_deliveries` is the receipt store Phase 3 extends: an operation already groups several
+  rows and `operation_id` is client-named, but nothing yet makes it unique per payload. Phase 3
+  adds the payload hash, the idempotent replay and the single transaction.
+- The CLI never retries a write; Phase 3's idempotent route is what lets it retry safely.
+- The skill does not yet mention `noacg status` or the receipt lines, because the published 0.11.0
+  CLI lacks them. Phase 5 updates the skill, the MCP description and the CHANGELOG with the release.
+- Packages uploaded through the chat connector also get the specific link but no receipt row until
+  they are settled; connector readback is out of this plan's scope.
+
+### Phase 2 (check), 2026-10-15
+
+Checked on `origin/main` `83e4025f7` (the landing of #1263). Verdict: PASS.
+
+- Rollout: Post-landing run 38776827995 applied 0092 to production and staging (16 statements;
+  its diff lists only `agent_deliveries`, its policy and grants, and the settle function's
+  service-role grant; `agent_keys` is untouched, so no existing key gained a scope). The
+  configured suite on the landing commit, run 38776828153 (local Supabase stack), passed 100 with
+  the 8 allowed skips. Its report shows `agent-access.spec.ts` passed first time and the sign-up
+  test that keeps Home passed. The merge-group CI run ran the API tests (2912 pass, including
+  `deliveries.test.ts`); the CLI's `unit` and `mcp` tests pass here (71 pass, 4 skipped).
+- Run as a user (AC-4, AC-5): the CLI built from `main` against this checkout's dev server on a
+  local Supabase stack with 0092 applied, with two throwaway accounts made for the check and
+  deleted after it. `noacg login --no-browser` printed the consent link; the consent card said
+  "Saves go to <account A> on localhost:5230"; `login` and `whoami` named the same account and
+  deployment, with `graphics:create` only. "Don't allow" ended `login` 0.25 s after the click,
+  exit 1, nothing stored. `save` printed the account, deployment, link and operation and said it
+  was confirmed by readback; its `--json` receipt is v1 with `verified: true`. `pack --save` said
+  pending Install with a `#/home/productions/<id>` link. `noacg status` answered by operation id
+  and by resource id, then `installed` with the production link after Install, and `dismissed`
+  after Dismiss.
+- Boundaries: a second key on the same account, a key on another account and a random id all get
+  the same 404 body; the readback with no id is a 400 and lists nothing; `GET /api/me/graphics`
+  with a key is a 405. In the browser the package link selected and focused its own row at 1440
+  and 390px, a second link selected its own row, an injected list failure showed "Waiting packages
+  could not be loaded" with Retry and Retry recovered, and an empty account showed no error and no
+  list. Account B on A's package link saw "This package is not in the account you are signed in to
+  (B)", and on A's graphic link "Graphic not found ... You are signed in as B", with nothing of A's
+  on either page. Signed out, both links ask to sign in. After Install the package link says
+  "This package is installed. Open its production".
+- Not checked: hosted behaviour on noacg.studio or staging with a real key, because there is no
+  test account there and staging's keys were not available to this check. The local stack runs
+  the same migrations and the same API code.
+- The retry/error check lives in the agent-access journey rather than a separate Home journey;
+  it walks the Home Productions screen, so this departs from the plan's wording, not its intent.
+
+### Phase 3 (build), 2026-10-15
+
+Last check's findings (Phase 2 check, PASS): post-landing applied 0092 to production and staging,
+and no existing key gained a scope; the readback boundaries hold (the same 404 for another key,
+another account and an unknown id, 400 without an id, 405 on a list); noacg.studio and staging
+were not exercised with a real key, for lack of a test account there, so the local Supabase stack
+stood in; the retry/error check lives in the agent-access journey rather than a separate Home
+journey. Decisions built on: a single save's receipt is best effort, `noacg status` is
+terminal-only, and consent shows the email in full.
+
+Landed:
+- **The set door**, `POST /api/me/graphic-sets` (`api/_lib/me/graphicSets.ts`, docs/AGENT_SAVE.md
+  §10). It requires the client's `x-noacg-operation` uuid, shape-checks every record with the save
+  door's guard before any write, mints ids and timestamps through the same `libraryRecord` the
+  single door now uses, and never parses or runs the code. 201 created, 200 `replayed`, 409
+  `conflict`, 400/413 refusals that write nothing.
+- **One transaction**, migration 0093: `agent_deliver_graphics` claims the operation in
+  `agent_operations` (account, operation, key, payload hash), inserts every `documents` row and
+  every `agent_deliveries` receipt (new nullable `position`), and returns the ids in order. The
+  same operation, hash and key replays those ids and writes nothing; anything else under the
+  operation, or an operation a single save already used, is a conflict. The payload hash leaves
+  out the ids and timestamps the bridge mints, so a rebuild is the same payload.
+- **CLI and MCP**: `noacg save a b c` (MCP `save` with `paths`) validates every graphic, refuses
+  the whole set on one error, measures it against 4 MB, and sends it once under an operation
+  written to `<config>/operations.json` first. A lost answer is resent under the same operation (up
+  to three sends), then read back; a rerun of the same command within a day resumes the operation;
+  a replay that finds graphics deleted since is reported as not in the library and forgets the
+  operation, so the same save again puts the set back. One graphic takes the same
+  path and falls back to the single door on a deployment without the set door (404).
+
+Size limits and compatibility: 1 to 40 graphics, a pack's own cap, so any pack's graphics fit one
+set; the whole body shares the save door's 4 MB read cap under the platform's ~4.5 MB, and the CLI
+says to send smaller groups above it; each record keeps the single door's limits (3 MB of inline
+assets). A set counts as one request against the per-IP and per-account save limits. A typical
+generated lower third is tens of kilobytes, so the count, not the bytes, is the usual bound.
+
+Evidence: API tests (`graphicSets.test.ts`, 9, with deliveries, graphics, packages and agentKeys,
+37 pass): three graphics created whole and verified through the Phase 2 readback in order; one
+invalid record refuses the set with nothing written; an injected failure on the third insert
+leaves no record, receipt or claim, the same request then creates the set once and three more
+sends replay the same ids with the counts unchanged; a changed payload, a subset, another key and
+a single save's operation are refused; a database without 0093 answers 404 having written
+nothing; a single save reusing a set's operation does not change its replay; a replay reports a graphic deleted since as `missing`;
+missing operation, empty set, 41 graphics, bad JSON, over 4 MB, no key and a key without
+`graphics:create` all write nothing. A mutation that hashed the minted ids failed three of them.
+Database: 0092 and 0093 applied to an embedded Postgres (PGlite) with stub `auth.users`,
+`documents` and `agent_keys`; with an account the self-check ran (created, replayed, conflict,
+and a duplicate-id second record leaving nothing) and left no row; two mutations of the function
+(replay order reversed, hash not compared) each failed the self-check. The hosted projects run the
+same self-check at post-land. CLI: `unit.test.mjs` and `mcp.test.mjs`, 79 pass and 4 skipped without a bridge (the set door is
+written once and read back; lost answers resent under the same operation; every answer lost and
+nothing found is `delivery_unverified` with "run the same command again"; a conflict, a refusal,
+an offline 503 and a missing door are not resent; the journal's same set, other set, expiry and
+forgetting, six concurrent runs sharing one operation under the journal's lock file (failing with
+the lock removed) and a stale lock taken over; a refusal after a lost answer reading back first;
+the single-door fallback asking about its operation first and refusing a deleted one; the
+argument refusals). Run through the real bridge against this
+checkout's dev server with no backend: three scaffolded lower thirds validated, the offline answer
+came back once, and running the same command again said "Resuming 3 graphics under operation
+<the same id>", so a rebuild through the bridge is the same set; two of the three got a new
+operation. The configured agent-access journey adds step 4e: three graphics in one operation,
+the readback, a rebuilt replay with the same ids, a changed set refused, an invalid set writing
+nothing, and a fresh signed-in browser finding all three and opening every link.
+The configured suite dispatched on this branch (run 38784179722, local Supabase stack with 0093
+applied) passed 100 with the 8 allowed skips, `agent-access.spec.ts` with step 4e first time. On
+that fresh stack 0093's behaviour self-check skips (no account when migrations apply); the hosted
+projects run it at post-land.
+
+Decisions:
+- Every `noacg save` uses the set door, one graphic included, so "run the same command again" is
+  true for any save. The single door stays for older deployments and is unchanged on the server.
+- A set is all or nothing in one transaction rather than a resumable partial state: the set is
+  bounded, and a partial state would need its own recovery path.
+- Replay requires the same key as well as the same payload, so a key never learns another key's
+  ids through an operation id.
+- The journal keys on deployment, a hash of the key, and the content, and keeps an operation for
+  24 hours: long enough for any retry, and short enough that the same graphics made again next
+  week are a new delivery. It holds no key.
+- No `--operation` or `--new` flag: the journal resumes a set, a conflict or a replay with deleted
+  graphics forgets its operation so the next run starts a new one, and the MCP schema gained only
+  `paths` for `save` (it sits at its size ceiling).
+- A new error code, `conflict`, joins the shared API error vocabulary (`src/render/types.ts`).
+
+Rollback: revert the pull request. 0093 is additive (a table, a nullable column, a function); left
+in place it costs nothing, and the single save door, the package door and Import are unchanged.
+Delivered records, receipts and claims stay; nothing user-made is removed.
+
+Next phase must allow for:
+- The skill's default ending still saves each graphic with its own `noacg save`: the CLI with the
+  set door is not published (0.11.0 has none). Phase 5 switches the skill to one `noacg save a b
+  c`, adds "run the same command again" to its interrupted-save wording, and writes the CHANGELOG.
+- Phase 4 extends this door (or a sibling) with a production destination. `agent_operations`
+  already holds the claim and the payload hash; `agent_deliveries.position` orders a set; a
+  production would add its own receipt row and must stay in the same transaction.
+- The readback lists a set in its order through `position`; an older database without 0093 still
+  reads back (the select asks for every column rather than naming `position`).
+
+### Phase 3 (check), 2026-10-15
+
+Checked on `origin/main` `15f00669f` (the landing of #1270). Verdict: FAIL product, with the
+user-level run blocked.
+
+- Rollout: Post-landing run 38789232409 applied 0093 to production and staging (13 statements;
+  its diff lists `agent_operations`, `agent_deliveries.position`, the service-role grants and the
+  function's service-role execute grant, nothing for a browser role). Both projects hold accounts,
+  so 0093's own self-check (a set created whole, replayed with the same ids, a changed payload
+  refused, a failing record leaving nothing) ran inside the apply and passed on hosted Postgres.
+  The run is still red: the advisor step found `rls_enabled_no_policy` on `agent_operations`,
+  new since `supabase/advisor-baseline.json`. The table is deny-all on purpose (service role
+  only), the class the baseline already accepts for 33 other tables, so the fix is to
+  re-record the baseline with that judgement written down (docs/STACK_FRESHNESS.md). Nothing
+  after the advisor step was skipped. This is the finding that makes the verdict FAIL product.
+- Backend journey: the configured suite on the landing commit, run 38789232433 (local Supabase
+  stack, 0093 applied), passed 100 with the 8 allowed skips and 0 flaky; `agent-access.spec.ts`
+  (step 4e included) passed first time. Step 4e covers three graphics in one operation with
+  every link, the readback verifying them in order, a rebuilt replay with the same ids, a changed
+  set refused with 409, an invalid set refused with nothing under its operation, and a fresh
+  signed-in browser finding all three once each and opening every link. It sends with `fetch`,
+  not through the CLI.
+- Not checked, blocked: the run as a user with the CLI built from `main` (`noacg save a b c`, a
+  killed request rerun, the same command repeated, a changed set, an invalid graphic, two
+  concurrent CLIs). The local stack could not start: Docker Desktop's WSL VM failed with
+  `HCS/ERROR_NO_SYSTEM_RESOURCES` on this shared machine. Reading staging's keys to run against
+  the hosted test project was refused by the session's permission policy, which then also refused
+  local test and build commands. So the CLI's journal, lock, resend and concurrency behaviour has
+  only the builder's unit tests and the bridge run without a backend as evidence, and AC-7's
+  user-level retry scenario stays open.
+
+### Phase 3 (repair), 2026-10-15
+
+The landing of #1270 applied 0093 to production and staging; post-land then failed on one advisor
+finding new since the baseline, `rls_enabled_no_policy` on `agent_operations`. Read on production:
+RLS on, no policy, no client grant, and only the service role may run `agent_deliver_graphics`, so
+it is the accepted deny-all posture; the baseline was re-recorded (176) with that judgement in
+docs/STACK_FRESHNESS.md. The independent check could not run the real CLI against a backend
+(Docker's VM on that machine had no room, and staging refuses its keys), so the configured
+agent-access journey now builds and drives the CLI itself: a save killed mid-write and run again,
+the same command repeated and two runs at once each leave one set with the same ids; an invalid
+graphic writes nothing; a changed set sent under the journaled operation is refused and forgotten.
+The CLI now loads its MCP server only for `noacg mcp`, so the terminal verbs run on the root
+install, whose zod is a major version ahead of the CLI's. Configured suite run 38795738884 on this branch (local Supabase stack)
+passed 101 with the 8 allowed skips; the CLI walk passed first time in 26 s, its killed save
+confirmed killed by SIGKILL before the rerun. A lost answer inside one running process stays
+covered by the CLI unit tests only; on the configured stack it would need a fault-injecting proxy.
+
+### Phase 3 (check 2), 2026-10-15
+
+Checked on `origin/main` `b5c559e2b` (the landing of #1272). Verdict: PASS.
+
+- Rollout: Post-landing run 38800728112 is green. Production and staging hold all 91 migrations,
+  and the advisor step really asked (176 findings, 176 in the baseline, no change), so the red
+  from the first check is gone.
+- Backend journey: configured suite run 38800728080 on `b5c559e2b` (local Supabase stack) ran 101
+  tests: 101 passed, 0 failed, 0 flaky, 8 allowed skips. Both agent-access tests passed first
+  time: the step 4e journey (three graphics, readback in order, replay with the same ids, 409 on
+  a changed set, invalid set writing nothing, a fresh signed-in browser opening every link) and
+  the CLI walk (36.5 s). Read its code: it builds `cli/dist` fresh, spawns `node cli/dist/index.js
+  save` (no `fetch` for the save), kills the process group with SIGKILL and asserts the signal,
+  and asserts operation ids, exact graphic ids, the readback and the library's id list after the
+  rerun, the repeat, the two concurrent runs and the refused changed set.
+- The CLI as a user, built from `main` with its own install (`tsc` clean, `unit` and `mcp` tests
+  79 pass, 4 skipped), against a local stand-in deployment: noacg.studio's `/bridge` served on
+  127.0.0.1, with `/api` either dropping every connection or answering 503 `unavailable`. Three
+  scaffolded lower thirds. An invalid graphic in the set: exit 1, `invalid`, no API request, no
+  journal entry. Ten graphics with 420 KB of CSS each: `too-large` at 5.8 MB, no request. Every answer lost:
+  three sends under one operation, one readback, then `unverified` with "Run the same command
+  again"; the same command said "Resuming 3 graphics under operation" with the same id. A save
+  killed once it named its operation left the journal entry and no lock, and the rerun resumed
+  that operation. Two concurrent saves of the same new set sent one operation and kept one journal
+  entry (a first try timed out loading `/bridge` through the stand-in before it cached the app). The offline 503 was sent once and reported "Not saved". No browser was left running.
+- Not done here: Docker was not started and no hosted key was read, so the backend side of the
+  user walk is the CI run above. Minor wording follow-up, not a blocker: a lost answer reads
+  "Unconfirmed: fetch failed Run the same command again" (no full stop after the cause).

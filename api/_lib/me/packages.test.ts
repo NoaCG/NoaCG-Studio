@@ -6,6 +6,7 @@ import { afterEach, beforeEach, test } from 'node:test';
 import { createPackagesHandler, MAX_WAITING_PACKAGES } from './packages.js';
 import { PACKAGE_LIMITS, packageSaveShape } from './packageShape.js';
 import { memoryAgentAccessStore } from '../agentAccessStore.js';
+import type { DeliveryReceipt } from './deliveryReceipt.js';
 import { sha256 } from '../http.js';
 import { AGENT_KEY_PREFIX } from '../../../src/entitlements/permissions.js';
 
@@ -152,10 +153,19 @@ test('an anonymous caller is 401, a key without the permission is 403, a revoked
 test('a package is stored narrowed, with the server\'s origin, and answers where it waits', async () => {
   const store = await seeded();
   const handler = createPackagesHandler({ store, configured: () => true });
-  const res = await handler.fetch(post(pack({ evil: 'payload' }), KEY, { 'x-noacg-cli-version': '0.9.0' }));
+  const operation = '0b7c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8';
+  const res = await handler.fetch(post(pack({ evil: 'payload' }), KEY, { 'x-noacg-cli-version': '0.9.0', 'x-noacg-operation': operation }));
   assert.equal(res.status, 201);
-  const body = (await res.json()) as { id: string; url: string };
-  assert.equal(body.url, 'https://noacg.test/app#/home/productions');
+  const body = (await res.json()) as { id: string; url: string; receipt: DeliveryReceipt };
+  // The link opens Home → Productions with THIS package selected, and the receipt says it waits.
+  assert.equal(body.url, `https://noacg.test/app#/home/productions/${body.id}`);
+  assert.equal(body.receipt.state, 'pending_install');
+  assert.equal(body.receipt.destination, 'home');
+  assert.equal(body.receipt.operationId, operation);
+  assert.equal(body.receipt.link, body.url);
+  assert.equal(body.receipt.verified, false, 'the write acknowledges; only a readback verifies');
+  assert.match(body.receipt.nextAction ?? '', /press Install/);
+  assert.deepEqual(store.deliveries.map((d) => [d.kind, d.resourceId, d.state, d.keyId]), [['package', body.id, 'pending_install', store.keys[0].id]]);
   assert.equal(store.packages.length, 1);
   const row = store.packages[0];
   assert.equal(row.id, body.id);

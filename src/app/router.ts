@@ -10,6 +10,11 @@
 //   #/home[/<section>]     Home — no section = the dashboard (productions first, then top
 //                          graphics + videos); sections: productions / graphics / videos /
 //                          looks. Retired section names (recent, controls) land on the dashboard
+//   #/home/productions/<packageId>
+//                          Productions with ONE waiting package selected: the link `noacg pack
+//                          --save` answers with (docs/AGENT_SAVE.md §9). After Install it shows
+//                          what the package became. An older build ignores the third segment and
+//                          lands on the list, which is the degradation the link was built for
 //   #/graphic/<id>         RETIRED as a surface: App.tsx opens that graphic's control page and
 //                          rewrites the address to #/control/<id> (`noacg save` still prints it)
 //   #/control/<graphicId>  the graphic's control panel
@@ -51,7 +56,7 @@ export type ProductionSub = 'data' | 'audience';
 export type Route =
   | { view: 'editor' }
   | { view: 'editor-foundation' }
-  | { view: 'home'; section: string | null }
+  | { view: 'home'; section: string | null; item?: string }
   | { view: 'graphic'; id: string }
   | { view: 'control'; id: string }
   | { view: 'production'; id: string; sub?: ProductionSub }
@@ -68,7 +73,7 @@ export function parseRoute(hash: string): Route {
     case 'editor-foundation':
       return { view: 'editor-foundation' };
     case 'home':
-      return { view: 'home', section: parts[1] ?? null };
+      return parts[1] && parts[2] ? { view: 'home', section: parts[1], item: parts[2] } : { view: 'home', section: parts[1] ?? null };
     case 'package':
       // Retired route: a bookmarked package link lands on Home rather than a dead surface.
       return { view: 'home', section: null };
@@ -107,7 +112,8 @@ export function routeHash(route: Route): string {
     case 'editor-foundation':
       return '#/editor-foundation';
     case 'home':
-      return route.section ? `#/home/${encodeURIComponent(route.section)}` : '#/home';
+      if (!route.section) return '#/home';
+      return `#/home/${encodeURIComponent(route.section)}${route.item ? `/${encodeURIComponent(route.item)}` : ''}`;
     case 'graphic':
       return `#/graphic/${encodeURIComponent(route.id)}`;
     case 'control':

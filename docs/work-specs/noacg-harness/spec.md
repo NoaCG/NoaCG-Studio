@@ -1028,6 +1028,54 @@ the spend added to the ledger, and the check's findings.
   17:36:26Z; the merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge,
   then restore `benchmarks/harness/ledger.json` from the merge (the spend stays recorded).
 
+### H7 second check (2026-10-15, on `c7c5ae224`)
+
+- **Verdict: PASS.** H7's round, the Opus 5.5 winner and the stop-rule reading hold as the first
+  check found, and the repair (PR #1264) lets H8 start on the skill tuning measured. Checked on
+  `main` `c7c5ae224` in a fresh worktree; no product code changed, no session, no credit.
+- **The decision, against the spec:** path (a) is the reading AC-7 and AC-16 support. The exam
+  scores what tuning chose, and #1258's skill change was never measured on the tuning set, so an
+  exam on v8 would score an untuned skill (AC-16) and need a round first. Holding the skill
+  constant in both arms keeps 4.5's comparison to one variable, the harness against Claude Code.
+  It also keeps the reference arm, which never saves (4.2), off the new "connect first" text.
+  `2128d984d` and npm's `gitHead` `e4d7b0841` hold the same `cli/skill`. One nuance: the
+  marketplace serves `./cli/plugin` from `main`, so a user who installs plugin "0.11.0" today gets
+  #1258's skill. "Published" in 4.2 is true of the npm package only. That does not change the
+  verdict, and H9's reconciliation covers it.
+- **Dry runs on `main`:** `harness-agent-sync --workspace bench` planned environment, skill and
+  agent `keep` with the frozen note naming bundle `c9e114cc79e5` against `7f130e3e6099`, cause
+  `37329aa4f`, source `2128d984d`. `--apply` printed "Everything matches the lock; nothing to do",
+  and the lock and ledger hashes were the same before and after. With one line added to
+  `agent.md`, the dry plan showed `agent update (the server's v7 differs in system)` and "Nothing
+  to apply: the bench agent is frozen for H8's exam" (restored after). `--build H8 --dry --arms
+  managed-agents,claude-code --model claude-opus-5-5` (after `npm run build` in `cli/`) printed
+  the `skill:`, `agent:` v7 and `reference:` lines and "DRY H8: every check before the first
+  session passed ... $0" in 5.6 s. Its plugin's 15 files equal `cli/plugin` and, for the 9 skill
+  files, `2128d984d`'s plugin copy. `--build H9 --dry` refused (frozen), and `--build H7 --dry`
+  refused (completed).
+- **The server, my own free read:** agent `agent_0183yBA1miijGFNvm5bkMv6B` latest version 7, Opus
+  5.5 effort high, `session_budget_cents` 194, `multiagent` null, `mcp_servers` empty, one tool
+  set, skill `skill_01G2iMqxJJJr4GJQe6q94ddo` `skver_01KXt4Xf4msx422tocc44dmh`, system prompt 15
+  lines and contained in `agent.md`. Environment `env_01PFiXgBUuDv5aFgEwHXayiY` is active and
+  never updated since it was created (2026-10-14 22:43Z). Its networking equals `environment.yaml`,
+  as the lock names it.
+- **The drift test bites:** `harness-bench.test.mjs` passed 43 of 43. With the freeze disabled
+  (`examPending` returning null, the pre-repair behaviour), 3 failed: the freeze window, the
+  changed `cli/skill`, and the frozen sync. The dry sync then planned `skill version, agent update`
+  again. The code at `ef7ed795d` planned the same. `--control` was run directly in the shell with
+  `NOACG_URL=https://noacg.studio` (without it the CLI looks for a local bridge) and printed
+  CONTROL PASSED at $0.
+- **Spend:** none. The ledger is unchanged since `c360a1515`: H3 266, H5 624, H6 1,008, H7 236
+  (35, 53, 53, 60, 35), $21.34 spent, reserve $46.60 (20 x (194 + 39)), $32.06 left,
+  `examPending` H8. `cli/src` is unchanged since `1d3aade23`.
+- **Still missing for H8, H8's own build, not a defect of this phase:** `--build` reads only
+  `tuning/briefs.json`. The sealed-brief path (decrypt with the private passphrase, verify against
+  `briefs.sha256`, 4.1), the 20-brief exam run, and `exam/REPORT.md` with 4.4's figures and Wilson
+  intervals are not wired yet. The parts exist (`sealed.mjs` `openSealed`/`verifySealed`,
+  `calibration.mjs` `wilson`, `judgeRun` judging in both orders, `buildGallery`). H8's phase line
+  names decrypt, verify, report and gallery as its own work. H7's scope (AC-6, the round ceiling)
+  does not include them.
+
 ### H7 repair: the exam runs the skill v7 pins (2026-10-15, on `ef7ed795d`)
 
 - **Check's findings (H7 check, on `dd31ec76d`):** FAIL product. H7's round holds and the stop rule

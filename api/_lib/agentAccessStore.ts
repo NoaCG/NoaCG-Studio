@@ -87,6 +87,72 @@ export interface AgentAccessStore {
    *  gate (`community_pack_submit_for`, migration 0087). Returns the submission's id; a refusal
    *  of that gate throws a `CommunityPackRefusal` carrying its sentence. */
   submitCommunityPack(userId: string, row: NewCommunityPack): Promise<string>;
+  /** The account a user id is: its id and sign-in email, for the receipts and `whoami`. The email
+   *  is null when the account has none (or the lookup found no user). */
+  accountOf(userId: string): Promise<AccountIdentity>;
+  /** Record what a write delivered (migration 0092). Called after the resource INSERT. */
+  recordDelivery(row: NewDelivery): Promise<void>;
+  /** The receipts of one operation or one resource, as `id` names either - the user's own, and
+   *  only those `keyId` wrote when it is given (an agent key reads back nothing else). */
+  findDeliveries(userId: string, id: string, keyId: string | null): Promise<DeliveryRow[]>;
+  /** Whether a delivered resource is still there: the library record not deleted, or the package
+   *  still waiting. */
+  resourcePresent(userId: string, kind: DeliveryKind, id: string): Promise<boolean>;
+  /** Whether the production Install made has been deleted since: its synced record is a tombstone.
+   *  A production not yet synced (local-first) is not deleted - it is simply not up yet. */
+  productionDeleted(userId: string, productionId: string): Promise<boolean>;
+  /** Install (with the production it made) or dismiss (`productionId` null) a waiting package: its
+   *  row goes and its receipt records the outcome, in one statement. False when the user had no
+   *  such package waiting. */
+  settlePackage(userId: string, packageId: string, productionId: string | null): Promise<boolean>;
+  /** Deliver a set of library records as ONE operation (migration 0093, `agent_deliver_graphics`):
+   *  the claim, every record and every receipt commit together or not at all. The same operation
+   *  with the same payload hash and writer replays the first call's ids; anything else under that
+   *  operation is a conflict and writes nothing. */
+  deliverGraphicSet(set: NewGraphicSet): Promise<GraphicSetOutcome>;
+}
+
+/** A set of library records, ids already minted, in the order they were sent. */
+export interface NewGraphicSet {
+  userId: string;
+  keyId: string | null;
+  operationId: string;
+  /** sha256 hex of the payload minus server-minted ids and timestamps (graphicSets.ts). */
+  payloadHash: string;
+  docs: GraphicDocBase[];
+}
+
+export interface GraphicSetOutcome {
+  outcome: 'created' | 'replayed' | 'conflict';
+  /** The library ids in the order the set was sent; empty on a conflict. */
+  ids: string[];
+}
+
+/** Which account a credential acts for. */
+export interface AccountIdentity {
+  id: string;
+  email: string | null;
+}
+
+export type DeliveryKind = 'graphic' | 'package';
+/** What the server RECORDED; the readback derives the current state from it (deliveryReceipt.ts). */
+export type RecordedDeliveryState = 'saved' | 'pending_install' | 'installed' | 'dismissed';
+
+export interface NewDelivery {
+  operationId: string;
+  userId: string;
+  keyId: string | null;
+  kind: DeliveryKind;
+  resourceId: string;
+  state: RecordedDeliveryState;
+}
+
+export interface DeliveryRow extends NewDelivery {
+  productionId: string | null;
+  /** The item's place in its set (0093); null for a single save. */
+  position?: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** A pack an agent shares for review: its words and the `noacg-pack` file, with no cues. */
@@ -97,6 +163,9 @@ export interface NewCommunityPack {
   author: string;
   pack: unknown;
 }
+
+/** The database has no set function yet (0093 not applied): the set door answers as absent. */
+export class SetDoorUnavailable extends Error {}
 
 /** The submit gate said no: the sentence is the database's own, written for the maker. */
 export class CommunityPackRefusal extends Error {}
@@ -176,6 +245,43 @@ function toKeyRow(row: KeyRowDb): AgentKeyRow {
 }
 
 const KEY_COLUMNS = 'id, user_id, name, prefix, scopes, created_at, last_used_at, revoked_at';
+
+interface DeliveryRowDb {
+  operation_id: string;
+  user_id: string;
+  key_id: string | null;
+  kind: DeliveryKind;
+  resource_id: string;
+  state: RecordedDeliveryState;
+  production_id: string | null;
+  position?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Every column, not a list: `position` arrived in 0093, and a readback that named it would fail on
+// a database the migration has not reached yet.
+const DELIVERY_COLUMNS = '*';
+
+/** A set's rows share one timestamp (one transaction); their `position` orders them. */
+function byDeliveryOrder(a: DeliveryRow, b: DeliveryRow): number {
+  return a.createdAt.localeCompare(b.createdAt) || (a.position ?? 0) - (b.position ?? 0);
+}
+
+function toDeliveryRow(row: DeliveryRowDb): DeliveryRow {
+  return {
+    operationId: row.operation_id,
+    userId: row.user_id,
+    keyId: row.key_id,
+    kind: row.kind,
+    resourceId: row.resource_id,
+    state: row.state,
+    productionId: row.production_id,
+    position: row.position ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 export function supabaseAgentAccessStore(): AgentAccessStore {
   return {
@@ -283,6 +389,82 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       if (error) throw error.code === 'P0001' ? new CommunityPackRefusal(error.message) : new Error(error.message);
       return String(data);
     },
+    async accountOf(userId) {
+      const { data, error } = await (await serviceRoleDb()).auth.admin.getUserById(userId);
+      if (error) throw new Error(error.message);
+      return { id: userId, email: data.user?.email ?? null };
+    },
+    async recordDelivery(row) {
+      const { error } = await (await serviceRoleDb()).from('agent_deliveries').insert({
+        operation_id: row.operationId,
+        user_id: row.userId,
+        key_id: row.keyId,
+        kind: row.kind,
+        resource_id: row.resourceId,
+        state: row.state,
+      });
+      if (error) throw new Error(error.message);
+    },
+    async findDeliveries(userId, id, keyId) {
+      // `id` is a uuid by the time it gets here (deliveries.ts refuses anything else), so it cannot
+      // carry PostgREST filter syntax into the `or`.
+      let query = (await serviceRoleDb())
+        .from('agent_deliveries')
+        .select(DELIVERY_COLUMNS)
+        .eq('user_id', userId)
+        .or(`operation_id.eq.${id},resource_id.eq.${id}`);
+      if (keyId !== null) query = query.eq('key_id', keyId);
+      const { data, error } = await query.order('created_at', { ascending: true }).limit(100);
+      if (error) throw new Error(error.message);
+      return ((data ?? []) as DeliveryRowDb[]).map(toDeliveryRow).sort(byDeliveryOrder);
+    },
+    async resourcePresent(userId, kind, id) {
+      const db = await serviceRoleDb();
+      const { data, error } =
+        kind === 'graphic'
+          ? await db.from('documents').select('id').eq('id', id).eq('user_id', userId).eq('kind', 'graphic').eq('deleted', false).maybeSingle()
+          : await db.from('agent_packages').select('id').eq('id', id).eq('user_id', userId).maybeSingle();
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    },
+    async productionDeleted(userId, productionId) {
+      const { data, error } = await (await serviceRoleDb())
+        .from('documents')
+        .select('id')
+        .eq('id', productionId)
+        .eq('user_id', userId)
+        .eq('kind', 'show')
+        .eq('deleted', true)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return Boolean(data);
+    },
+    async settlePackage(userId, packageId, productionId) {
+      const { data, error } = await (await serviceRoleDb()).rpc('agent_package_settle', {
+        p_user_id: userId,
+        p_package_id: packageId,
+        p_production_id: productionId,
+      });
+      if (error) throw new Error(error.message);
+      return data === true;
+    },
+    async deliverGraphicSet(set) {
+      // One RPC is one transaction: the claim, the records and the receipts commit together.
+      const { data, error } = await (await serviceRoleDb()).rpc('agent_deliver_graphics', {
+        p_user_id: set.userId,
+        p_key_id: set.keyId,
+        p_operation_id: set.operationId,
+        p_payload_hash: set.payloadHash,
+        p_graphics: set.docs.map((doc) => ({ id: doc.id, name: doc.name, body: doc })),
+      });
+      // PGRST202: no such function - a database 0093 has not reached yet. Nothing was written.
+      if (error) throw error.code === 'PGRST202' ? new SetDoorUnavailable(error.message) : new Error(error.message);
+      const answer = (data ?? {}) as { outcome?: string; ids?: unknown };
+      if (answer.outcome !== 'created' && answer.outcome !== 'replayed' && answer.outcome !== 'conflict') {
+        throw new Error(`agent_deliver_graphics answered ${JSON.stringify(data)}`);
+      }
+      return { outcome: answer.outcome, ids: Array.isArray(answer.ids) ? answer.ids.map(String) : [] };
+    },
     async insertPackage(userId, row) {
       // INSERT, never upsert, and the id is the database's own - the same rule as insertGraphic.
       const { data, error } = await (await serviceRoleDb())
@@ -312,6 +494,22 @@ export interface MemoryAgentAccessStore extends AgentAccessStore {
   graphics: Array<{ userId: string; doc: GraphicDocBase }>;
   packages: Array<NewWaitingPackage & { id: string; userId: string }>;
   communityPacks: Array<NewCommunityPack & { id: string; userId: string }>;
+  deliveries: DeliveryRow[];
+  /** The sign-in email per user id; an unlisted user has none. */
+  emails: Map<string, string>;
+  /** Library records the user deleted since (`documents.deleted`). */
+  deletedGraphics: Set<string>;
+  /** Productions the user deleted since (a `show` tombstone). */
+  deletedProductions: Set<string>;
+  /** When set, every delivery record fails, as a missing table would. */
+  failDeliveries: boolean;
+  /** The set claims (0093 `agent_operations`), by `${userId}:${operationId}`. */
+  operations: Map<string, { keyId: string | null; payloadHash: string }>;
+  /** Failure injection: a set fails on its record at this index (0-based), as a failing INSERT
+   *  would, and - like the one transaction it stands for - leaves nothing behind. */
+  failSetAt: number | null;
+  /** When set, the database has no set function yet (0093 not applied). */
+  noSetFunction: boolean;
   /** When set, the next community submit is refused with this sentence, as the gate would. */
   refuseCommunityPack: string | null;
   /** The clock the store compares expiries against - a test advances it. */
@@ -333,6 +531,14 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     graphics: [],
     packages: [],
     communityPacks: [],
+    deliveries: [],
+    emails: new Map(),
+    deletedGraphics: new Set(),
+    deletedProductions: new Set(),
+    failDeliveries: false,
+    operations: new Map(),
+    failSetAt: null,
+    noSetFunction: false,
     refuseCommunityPack: null,
     now,
     async createCode(row) {
@@ -392,6 +598,72 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
       const id = nextId();
       store.packages.push({ ...row, id, userId });
       return id;
+    },
+    async accountOf(userId) {
+      return { id: userId, email: store.emails.get(userId) ?? null };
+    },
+    async recordDelivery(row) {
+      if (store.failDeliveries) throw new Error('relation "public.agent_deliveries" does not exist');
+      store.deliveries.push({ ...row, productionId: null, createdAt: store.now(), updatedAt: store.now() });
+    },
+    async findDeliveries(userId, id, keyId) {
+      return store.deliveries
+        .filter((d) => d.userId === userId && (d.operationId === id || d.resourceId === id) && (keyId === null || d.keyId === keyId))
+        .sort(byDeliveryOrder);
+    },
+    async resourcePresent(userId, kind, id) {
+      return kind === 'graphic'
+        ? store.graphics.some((g) => g.userId === userId && g.doc.id === id && !store.deletedGraphics.has(id))
+        : store.packages.some((p) => p.userId === userId && p.id === id);
+    },
+    async productionDeleted(_userId, productionId) {
+      return store.deletedProductions.has(productionId);
+    },
+    async settlePackage(userId, packageId, productionId) {
+      const at = store.packages.findIndex((p) => p.id === packageId && p.userId === userId);
+      if (at < 0) return false;
+      store.packages.splice(at, 1);
+      const state = productionId ? 'installed' : 'dismissed';
+      const known = store.deliveries.find((d) => d.kind === 'package' && d.resourceId === packageId && d.userId === userId);
+      if (known) Object.assign(known, { state, productionId, updatedAt: store.now() });
+      else {
+        store.deliveries.push({
+          operationId: nextId(), userId, keyId: null, kind: 'package', resourceId: packageId, state, productionId,
+          createdAt: store.now(), updatedAt: store.now(),
+        });
+      }
+      return true;
+    },
+    async deliverGraphicSet(set) {
+      if (store.noSetFunction) throw new SetDoorUnavailable('Could not find the function public.agent_deliver_graphics');
+      const claim = `${set.userId}:${set.operationId}`;
+      const known = store.operations.get(claim);
+      const ownRows = (): DeliveryRow[] =>
+        store.deliveries
+          .filter((d) => d.userId === set.userId && d.operationId === set.operationId && d.kind === 'graphic' && d.position != null)
+          .sort(byDeliveryOrder);
+      // An operation id a single save already used is not this set's (0093 says the same).
+      if (!known && store.deliveries.some((d) => d.userId === set.userId && d.operationId === set.operationId)) return { outcome: 'conflict', ids: [] };
+      if (known) {
+        if (known.payloadHash !== set.payloadHash || known.keyId !== set.keyId) return { outcome: 'conflict', ids: [] };
+        return { outcome: 'replayed', ids: ownRows().map((d) => d.resourceId) };
+      }
+      // Stage everything, then commit at once: a failure part way leaves the store untouched.
+      const graphics: MemoryAgentAccessStore['graphics'] = [];
+      const rows: DeliveryRow[] = [];
+      set.docs.forEach((doc, position) => {
+        if (store.failSetAt === position) throw new Error('injected: the insert of this record failed');
+        if ([...store.graphics, ...graphics].some((g) => g.doc.id === doc.id)) throw new Error('duplicate key value violates unique constraint');
+        graphics.push({ userId: set.userId, doc });
+        rows.push({
+          operationId: set.operationId, userId: set.userId, keyId: set.keyId, kind: 'graphic', resourceId: doc.id, state: 'saved',
+          productionId: null, position, createdAt: store.now(), updatedAt: store.now(),
+        });
+      });
+      store.operations.set(claim, { keyId: set.keyId, payloadHash: set.payloadHash });
+      store.graphics.push(...graphics);
+      store.deliveries.push(...rows);
+      return { outcome: 'created', ids: set.docs.map((d) => d.id) };
     },
     async submitCommunityPack(userId, row) {
       if (store.refuseCommunityPack) throw new CommunityPackRefusal(store.refuseCommunityPack);

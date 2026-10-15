@@ -75,7 +75,7 @@ const EXPECTED_COMMANDS = ['types', 'scaffold', 'validate', 'inspect', 'screensh
  *  open with. Only `command` is required at the schema level; each verb checks its own. */
 const EXPECTED_ARGUMENTS = {
   path: ['validate', 'inspect', 'screenshot', 'save'],
-  paths: ['pack'],
+  paths: ['save', 'pack'],
   out: ['scaffold', 'pack'],
   type: ['scaffold'],
   design: ['scaffold'],
@@ -153,6 +153,7 @@ const TERMINAL_ONLY = {
   login: 'stores a key: a person does that once, in a terminal',
   logout: 'removes that key',
   whoami: 'reports that key',
+  status: 'reads back a delivery later; the save and pack answers already carry the confirmed receipt',
   caspar: 'drives live playout hardware',
   bridge: 'drives a playout server',
   coverage: 'writes a folder of frames for a host to collect; an answer cannot carry them',
@@ -205,6 +206,21 @@ test('docs answers off the shipped skill - no deployment, no browser, no key', a
   assert.notEqual(result.isError, true, 'docs must not need a deployment');
   assert.equal(result.content[0].type, 'text');
   assert.ok(result.content[0].text.length > 500, 'the contract reference came back empty');
+});
+
+test('save takes one "path" or several "paths" as one delivery, and refuses a mix before any browser', async () => {
+  await withServer(async (client) => {
+    const both = await call(client, { command: 'save', path: 'a', paths: ['b'] });
+    assert.equal(both.isError, true);
+    assert.match(both.content[0].text, /"path" or "paths", not both/);
+    const named = await call(client, { command: 'save', paths: ['a', 'b'], name: 'Both' });
+    assert.equal(named.isError, true);
+    assert.match(named.content[0].text, /"name" names one graphic/);
+    // Past the grammar, a set with no key is the ordinary no-login refusal.
+    const unkeyed = await call(client, { command: 'save', paths: ['a', 'b'] });
+    assert.equal(unkeyed.isError, true);
+    assert.match(unkeyed.content[0].text, /noacg login/);
+  });
 });
 
 test('an unknown doc topic is an error that names the topics, not a hang', async () => {

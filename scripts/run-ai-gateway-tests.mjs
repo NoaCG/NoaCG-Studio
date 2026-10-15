@@ -37,6 +37,8 @@ const sources = [
   'api/_lib/me/agentKeys.test.ts',
   'api/_lib/me/graphics.test.ts',
   'api/_lib/me/packages.test.ts',
+  'api/_lib/me/deliveries.test.ts',
+  'api/_lib/me/graphicSets.test.ts',
   'api/_lib/me/communityPacks.test.ts',
   'api/_lib/me/mcp.test.ts',
   'api/_lib/me/connectors.test.ts',

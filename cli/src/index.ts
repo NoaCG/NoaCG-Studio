@@ -26,10 +26,10 @@ import { runDocs } from './commands/docs.js';
 import { runLogin } from './commands/login.js';
 import { runLogout } from './commands/logout.js';
 import { runWhoami } from './commands/whoami.js';
+import { runStatus } from './commands/status.js';
 import { runSave } from './commands/save.js';
 import { runCaspar } from './commands/caspar.js';
 import { runBridge } from './commands/bridge.js';
-import { runMcp } from './mcp.js';
 
 const USAGE = `noacg v${cliVersion()} - the NoaCG CLI: make broadcast graphics for NoaCG Studio.
 
@@ -62,8 +62,10 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
                                  Get a scoped agent key for this machine (opens the consent page).
   logout [--local]               Revoke and forget this machine's key.
   whoami                         Which key this machine holds, and whether it is still valid.
-  save <dir|zip> [--name N] [--folder F] [--no-bench]
-                                 Validate, then put the graphic in your NoaCG library.
+  save <dir|zip>... [--name N] [--folder F] [--no-bench]
+                                 Validate, then put the graphics in your NoaCG library in one
+                                 delivery; the same command again resumes it, never a second copy.
+  status <id>                    What a save or pack --save delivered, and whether it is there now.
   bridge [--port 8899] [--origin URL]... [--vmix-port 8099] [--no-open] [--quiet]
                                  Run NoaCG Bridge: the local process that lets the NoaCG page
                                  drive a playout server (docs/BRIDGE.md). 127.0.0.1 only.
@@ -88,11 +90,14 @@ const COMMANDS: Record<string, Command> = {
   record: runRecord,
   pack: runPack,
   docs: runDocs,
-  mcp: runMcp,
+  // Loaded only when asked for: the MCP SDK and its schema library cost every other command a
+  // startup, and the terminal verbs never need them.
+  mcp: async (args, out) => (await import('./mcp.js')).runMcp(args, out),
   login: runLogin,
   logout: runLogout,
   whoami: runWhoami,
   save: runSave,
+  status: runStatus,
   caspar: runCaspar,
   bridge: runBridge,
 };
