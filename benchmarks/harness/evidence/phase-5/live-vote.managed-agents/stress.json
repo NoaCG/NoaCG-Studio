@@ -1,0 +1,17 @@
+{
+  "id": "live-vote",
+  "kind": "noacg",
+  "type": "poll",
+  "chassis": "ig13",
+  "neutral": false,
+  "prompt": "An audience vote graphic: the question and three to five answer options with live percentages the operator updates during the show; the leading option visibly ahead. Lower half of the frame, leaves room for the presenter.",
+  "stress": {
+    "f1": "Which of the three proposals should the student union bring to the board this semester?",
+    "f0": "A longer, more elaborate answer option the presenter would read in full | 41\nA second long option that competes | 35\nThird | 24"
+  },
+  "expect": {
+    "fields": 2,
+    "actions": []
+  },
+  "judge": "five options still fit; percentages read; the lead is visible"
+}

@@ -44,6 +44,26 @@ export function missingActions(brief, buttons) {
   });
 }
 
+/**
+ * The brief as `noacg coverage --stress` reads it, written beside the cell. A brief keys a stress
+ * value `f0`, `f1`... by position, which holds only for a package that keeps its type's field
+ * order; an authored package orders its fields its own way. So a brief may key a value by what the
+ * field is instead (`question`, `speaker a`), and that key goes to the first field whose label
+ * holds its words whole and in order, as `noacg inspect` lists it. A key no label holds is passed
+ * on, and coverage names it unmapped.
+ */
+export function stressFile({ brief, descriptors, cellDir }) {
+  const stress = {};
+  for (const [key, value] of Object.entries(brief.stress ?? {})) {
+    const positional = /^f\d+$/.test(key) || key === 'logo' || key === 'background';
+    const field = positional ? null : (descriptors ?? []).find((d) => containsWords(words(d.label ?? ''), words(key)));
+    stress[field ? field.key : key] = value;
+  }
+  const file = path.join(cellDir, 'stress.json');
+  writeFileSync(file, `${JSON.stringify({ ...brief, stress }, null, 2)}\n`);
+  return file;
+}
+
 /** Do the three digests name one version? Null ones are reported, never assumed equal. */
 export function digestCheck({ delivered, benchValidated, reviewed }) {
   const problems = [];
@@ -83,10 +103,11 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     const shaped = shape.graphicSaveShape(record.doc);
     cell.shape = shaped.ok ? { ok: true } : { ok: false, reason: shaped.reason };
     const frames = path.join(cellDir, 'frames');
-    const coverage = await cli(['coverage', result.zipFile, '--out', frames, '--stress', briefFile, '--json'], { cwd: cellDir });
+    const inspect = await cli(['inspect', result.zipFile, '--json'], { cwd: cellDir });
+    const stress = stressFile({ brief, descriptors: inspect.json?.inspection?.descriptors, cellDir });
+    const coverage = await cli(['coverage', result.zipFile, '--out', frames, '--stress', stress, '--json'], { cwd: cellDir });
     cell.capture = { exit: coverage.code, dir: frames, frames: coverage.json?.frames ?? 0, crops: coverage.json?.crops ?? 0, findings: coverage.json?.findings ?? [], failures: coverage.json?.failures ?? [coverage.stderr.slice(-300)], digest: coverage.json?.digest ?? null };
     const validate = await cli(['validate', result.zipFile, '--json'], { cwd: cellDir });
-    const inspect = await cli(['inspect', result.zipFile, '--json'], { cwd: cellDir });
     const merged = validate.json?.validation?.merged;
     cell.validation = { ok: validate.json?.ok ?? false, errors: (merged?.errors ?? []).map((e) => `${e.rule}: ${e.message}`), warnings: (merged?.warnings ?? []).length };
     const buttons = inspect.json?.inspection?.buttons ?? [];

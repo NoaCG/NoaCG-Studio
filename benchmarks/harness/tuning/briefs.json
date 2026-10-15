@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "The tuning briefs of the NoaCG harness plan (docs/work-specs/noacg-harness/spec.md, 4.1): the 6 briefs of benchmarks/agent/v1/briefs.json verbatim, then 10 new ones from the same child session that wrote the sealed exam (benchmarks/harness/evidence/phase-0.md). These are the only briefs the harness is tuned on. `third-party-ograf` is a hand-written OGraf package, not a library graphic, and stays out of the tuning rounds (4.2). Shape as v1: stress keys f0..fN follow the field order (the registered type's, or the typeless brief's `fields` string); an image field's stress value describes the test picture, a logo starting \"bright:\" or \"dark:\"; `logo` carries a logo for a type with no image field; `background` starting \"busy:\" describes the picture behind the graphic. Ids are stable. `expect.aliases` (added in H5) names other event names that offer an action, for the bench's operability gate only: the scoreboard type's goal press is this brief's flag.",
+  "notes": "The tuning briefs of the NoaCG harness plan (docs/work-specs/noacg-harness/spec.md, 4.1): the 6 briefs of benchmarks/agent/v1/briefs.json verbatim, then 10 new ones from the same child session that wrote the sealed exam (benchmarks/harness/evidence/phase-0.md). These are the only briefs the harness is tuned on. `third-party-ograf` is a hand-written OGraf package, not a library graphic, and stays out of the tuning rounds (4.2). Shape as v1: stress keys f0..fN follow the field order (the registered type's, or the typeless brief's `fields` string); an image field's stress value describes the test picture, a logo starting \"bright:\" or \"dark:\"; `logo` carries a logo for a type with no image field; `background` starting \"busy:\" describes the picture behind the graphic. Ids are stable. `expect.aliases` (added in H5) names other event names that offer an action, for the bench's operability gate only: the scoreboard type's goal press is this brief's flag. A stress key may also be words of the field's label (`question`, `speaker a`, added in H5): the bench gives that value to the package's first field whose label holds those words in order, whatever the field order. `live-vote` and `debate-clock` use it: positional keys landed on the wrong fields of both arms' authored packages there (the question in a kicker, a speaker's name in a round label), and `live-vote`'s options value was not in the `Answer | number` lines both arms' packages read.",
   "briefs": [
     {
       "id": "news-lower-third",
@@ -73,8 +73,8 @@
       "neutral": false,
       "prompt": "An audience vote graphic: the question and three to five answer options with live percentages the operator updates during the show; the leading option visibly ahead. Lower half of the frame, leaves room for the presenter.",
       "stress": {
-        "f0": "Which of the three proposals should the student union bring to the board this semester?",
-        "f1": "A longer, more elaborate answer option the presenter would read in full|A second long option that competes|Third"
+        "question": "Which of the three proposals should the student union bring to the board this semester?",
+        "options": "A longer, more elaborate answer option the presenter would read in full | 41\nA second long option that competes | 35\nThird | 24"
       },
       "expect": {
         "fields": 2,
@@ -92,10 +92,10 @@
       "fields": "Speaker A:text=Government,Time A:number=180,Speaker B:text=Opposition,Time B:number=180,Active:select=A|B",
       "prompt": "A two-speaker debate clock for a school debating stream: each speaker's name and their remaining speaking time in seconds, the ACTIVE speaker's clock counting down; a 'switch speaker' action that pauses the current speaker and starts the other; a 'penalty' action that takes ten seconds off the active speaker; a 'reset' action that puts both clocks back to their set time. The operator must be able to run the whole debate from NoaCG's control panel without touching code.",
       "stress": {
-        "f0": "Government (Helsinki Model United Nations)",
-        "f1": "180",
-        "f2": "Opposition (Espoo Debating Society)",
-        "f3": "180"
+        "speaker a": "Government (Helsinki Model United Nations)",
+        "clock a": "180",
+        "speaker b": "Opposition (Espoo Debating Society)",
+        "clock b": "180"
       },
       "expect": {
         "fields": 5,

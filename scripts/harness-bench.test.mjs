@@ -43,7 +43,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
 import { admit, appendEntry, emptyLedger, heldCents, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, spentCents, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
-import { digestCheck, missingActions, runCell } from '../benchmarks/harness/lib/pipeline.mjs';
+import { digestCheck, missingActions, runCell, stressFile } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
@@ -165,10 +165,11 @@ test('--build refuses a $0 phase, a completed one, tuning before the exam is res
   assert.match(refuseBuild(ledger, 'H0'), /H0 spends nothing/);
   assert.match(refuseBuild(ledger, 'H3'), /already holds H3 as completed/, 'a resumed H3 never spends again');
   assert.match(refuseBuild(emptyLedger(), 'H4'), /H4 spends nothing \(5\.1\): it creates no session/, 'the reservation is $0 whatever the ledger says');
-  assert.equal(refuseBuild(ledger, 'H5'), null, 'the committed ledger holds the reserve, so round 1 may spend');
+  assert.match(refuseBuild(ledger, 'H5'), /already holds H5 as completed/, 'round 1 is closed and never spends again');
+  assert.equal(refuseBuild(ledger, 'H6'), null, 'the committed ledger holds the reserve, so round 2 may spend');
   assert.match(refuseBuild(emptyLedger(), 'H5'), /no exam reserve/);
   assert.equal(refuseBuild(emptyLedger(), 'H3'), null, 'feasibility comes before the reserve');
-  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H5, H6, H7 not closed/);
+  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H6, H7 not closed/);
   assert.match(refuseBuild(ledger, 'feasibility'), /phase like H3/);
   assert.match(refuseBuild(ledger, 'H04'), /phase like H3/, 'no alias slips past the $0 and completed refusals');
 });
@@ -424,6 +425,18 @@ test('a delivered version that is not the one last reviewed, or a missing action
   assert.deepEqual(missingActions(board, ['clearFlag', 'final']), ['flag'], 'clearFlag offers only itself');
   assert.deepEqual(missingActions({ expect: { actions: ['switch', 'penalty', 'reset'] } }, ['switchSpeaker', 'addPenalty', 'reset-clocks']), []);
   assert.deepEqual(missingActions({ expect: { actions: ['pause', 'resume'] } }, ['paused', 'start']), ['pause', 'resume'], 'whole words only');
+});
+
+test('a stress value keyed by what the field is reaches that field in any field order', () => {
+  const brief = { id: 'vote', stress: { question: 'Q?', options: 'A | 1\nB | 2', f3: 'by position', logo: 'bright: a crest' } };
+  const read = (descriptors) => JSON.parse(readFileSync(stressFile({ brief, descriptors, cellDir: tmp() }), 'utf8')).stress;
+  // The registered poll's order, and an authored order with a kicker first (H5's live-vote cells).
+  assert.deepEqual(read([{ key: 'f0', label: 'Options (Answer | %)' }, { key: 'f1', label: 'Question' }]), { f1: 'Q?', f0: 'A | 1\nB | 2', f3: 'by position', logo: 'bright: a crest' });
+  assert.deepEqual(read([{ key: 'f0', label: 'Kicker' }, { key: 'f1', label: 'Question' }, { key: 'f2', label: 'Options - one per line: Label | 47' }]), { f1: 'Q?', f2: 'A | 1\nB | 2', f3: 'by position', logo: 'bright: a crest' });
+  assert.deepEqual(read([{ key: 'f0', label: 'Questionnaire' }]).question, 'Q?', 'a whole word, or the key stays for coverage to name unmapped');
+  const debate = { id: 'debate', stress: { 'speaker a': 'Government', 'clock a': '180' } };
+  const fields = [{ key: 'f0', label: 'Round label' }, { key: 'f1', label: 'Side A' }, { key: 'f2', label: 'Speaker A' }, { key: 'f5', label: 'Clock A (seconds left)' }];
+  assert.deepEqual(JSON.parse(readFileSync(stressFile({ brief: debate, descriptors: fields, cellDir: tmp() }), 'utf8')).stress, { f2: 'Government', f5: '180' }, 'several words, in order');
   assert.equal(lastReviewed([{ args: ['validate'], digest: 'sha256:1' }, { args: ['coverage'], digest: 'sha256:2' }, { args: ['record'], digest: 'sha256:3' }]), 'sha256:2');
 });
 
