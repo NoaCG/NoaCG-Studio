@@ -17,10 +17,31 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { admit, appendEntry } from './ledger.mjs';
 
-/** The actions a brief needs that the operator surface does not offer (3.6). */
+/** An event name as its lower-case words: `switchSpeaker` and `switch-speaker` are `switch speaker`. */
+const words = (name) => String(name).replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+
+/** Does `inner` occur in `outer` as consecutive whole words? */
+const containsWords = (outer, inner) => inner.length > 0 && outer.some((_, i) => inner.every((w, j) => outer[i + j] === w));
+
+/**
+ * The actions a brief needs that the operator surface does not offer (3.6). A brief names an
+ * action in its own words, and a package names its events its own way: an action is offered by a
+ * button whose event is the action's name (any case), one of the brief's `expect.aliases` for it,
+ * or a name holding the action's words whole (`switchSpeaker` offers `switch`). A button whose
+ * event is exactly another action the brief needs counts only for that one, so `clearFlag` never
+ * offers `flag`.
+ */
 export function missingActions(brief, buttons) {
-  const have = new Set((buttons ?? []).map((b) => String(b.event ?? b).toLowerCase()));
-  return (brief.expect?.actions ?? []).filter((a) => !have.has(a.toLowerCase()));
+  const needed = brief.expect?.actions ?? [];
+  const aliases = brief.expect?.aliases ?? {};
+  const events = (buttons ?? []).map((b) => String(b.event ?? b));
+  const exact = new Set(needed.map((a) => a.toLowerCase()));
+  return needed.filter((action) => {
+    const names = [action, ...(aliases[action] ?? [])];
+    if (events.some((e) => names.some((n) => n.toLowerCase() === e.toLowerCase()))) return false;
+    const free = events.filter((e) => !exact.has(e.toLowerCase()));
+    return !free.some((e) => names.some((n) => containsWords(words(e), words(n))));
+  });
 }
 
 /** Do the three digests name one version? Null ones are reported, never assumed equal. */

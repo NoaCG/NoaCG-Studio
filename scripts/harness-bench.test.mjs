@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url';
 
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
 import { readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
-import { claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } from '../benchmarks/harness/lib/arms.mjs';
+import { archivedArm, claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } from '../benchmarks/harness/lib/arms.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
@@ -416,7 +416,33 @@ test('a delivered version that is not the one last reviewed, or a missing action
   assert.equal(digestCheck({ delivered: 'sha256:a', benchValidated: 'sha256:c', reviewed: 'sha256:a' }).ok, false);
   assert.equal(digestCheck({ delivered: 'sha256:a', benchValidated: 'sha256:a', reviewed: null }).ok, false, 'no review is never assumed');
   assert.deepEqual(missingActions(BRIEF, [{ event: 'Final' }]), ['clearFlag'], 'case-insensitive, and a missing one named');
+  // A brief's words against a package's names (H1's alias trap): the scoreboard type's goal press is
+  // the brief's flag, an authored name may hold the action's words, and clearFlag is not a flag.
+  const board = { expect: { actions: ['flag', 'clearFlag', 'final'], aliases: { flag: ['goal'] } } };
+  assert.deepEqual(missingActions(board, ['goalA', 'goalB', 'clearFlag', 'final']), []);
+  assert.deepEqual(missingActions(board, ['flagA', 'flagB', 'clearFlag', 'final']), []);
+  assert.deepEqual(missingActions(board, ['clearFlag', 'final']), ['flag'], 'clearFlag offers only itself');
+  assert.deepEqual(missingActions({ expect: { actions: ['switch', 'penalty', 'reset'] } }, ['switchSpeaker', 'addPenalty', 'reset-clocks']), []);
+  assert.deepEqual(missingActions({ expect: { actions: ['pause', 'resume'] } }, ['paused', 'start']), ['pause', 'resume'], 'whole words only');
   assert.equal(lastReviewed([{ args: ['validate'], digest: 'sha256:1' }, { args: ['coverage'], digest: 'sha256:2' }, { args: ['record'], digest: 'sha256:3' }]), 'sha256:2');
+});
+
+test('the archived reference arm re-captures an August cell at $0 through the shared half', async () => {
+  const cli = fakeCli();
+  const cellsDir = tmp();
+  mkdirSync(path.join(cellsDir, `${BRIEF.id}.A`, 'graphic'), { recursive: true });
+  writeFileSync(path.join(cellsDir, `${BRIEF.id}.A`, 'graphic', 'graphic.html'), '<div></div>');
+  const ledger = emptyLedger();
+  const dir = tmp();
+  const cell = await runCell({ arm: archivedArm({ cellsDir }), brief: BRIEF, cellDir: path.join(dir, 'ref'), cli, ledger, entry: { ...ENTRY, stage: 'reference' }, shape: api.shape, runId: 'ref' });
+  assert.equal(cell.outcome, 'delivered');
+  assert.equal(cell.arm, 'august-A');
+  assert.ok(cell.digest.ok && cell.capture.frames > 0, 'recorded, captured, one version');
+  assert.ok(existsSync(path.join(dir, 'ref', 'work', 'graphic', 'graphic.html')), 'the archive is copied, never written');
+  assert.equal(ledger.entries.at(-1).funding, 'none');
+  assert.equal(ledger.entries.at(-1).listCostCents, 0);
+  const missing = await runCell({ arm: archivedArm({ cellsDir, configuration: 'B' }), brief: BRIEF, cellDir: path.join(dir, 'none'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'none' });
+  assert.equal(missing.outcome, 'failed', 'a configuration the round did not run fails, never stands in');
 });
 
 test('the gallery shows opaque ids, never an arm, and keeps the key beside it', async () => {

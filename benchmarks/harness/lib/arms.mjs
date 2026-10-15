@@ -18,7 +18,7 @@
 // equal (section 6, proof 2).
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, CLI_ENTRY } from './cli.mjs';
 import { checkSubscriptionAuth, runClaude, subscriptionEnv } from './subscription.mjs';
@@ -215,6 +215,52 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         outputsListed: listed.map((f) => f.filename),
         ...(undownloadable.length ? { undownloadable } : {}),
         cleanup,
+      };
+    },
+  };
+}
+
+// ── the archived reference arm ────────────────────────────────────────────────────────────
+
+/** Where the 2026-08-22 agent round keeps its cells (4.2): `<brief>.<configuration>/graphic`. */
+export const AUGUST_CELLS = path.join(process.env.NOACG_BENCH_ARCHIVE || 'C:\\claude\\noacg-bench-archive', 'agent-round-2026-08-22', 'cells');
+
+/**
+ * The reference for the v1 briefs (4.2): Claude Code's graphic from the August round, re-captured
+ * at zero cost. Its sources are copied, validated and recorded here, the last two commands a
+ * session would have run, so the shared half (capture, shape, gate, judge) sees it as it sees any
+ * arm's hand-in. `configuration` is the round's arm letter (A: the contract-only skill with free
+ * design, the default the round's verdict kept).
+ */
+export function archivedArm({ cellsDir = AUGUST_CELLS, configuration = 'A' } = {}) {
+  return {
+    id: `august-${configuration}`,
+    funding: 'none',
+    model: null,
+    async run({ brief, cellDir, cli }) {
+      const started = Date.now();
+      const source = path.join(cellsDir, `${brief.id}.${configuration}`, 'graphic');
+      if (!existsSync(source)) throw new Error(`no archived cell ${brief.id}.${configuration} under ${cellsDir}`);
+      const graphic = path.join(cellDir, 'work', 'graphic');
+      const outputs = path.join(cellDir, 'outputs');
+      mkdirSync(outputs, { recursive: true });
+      cpSync(source, graphic, { recursive: true });
+      const validate = await cli(['validate', graphic, '--json'], { cwd: cellDir });
+      const recordFile = path.join(outputs, 'record.json');
+      const record = await cli(['record', graphic, '--out', recordFile, '--json'], { cwd: cellDir });
+      if (record.code !== 0) throw new Error(`record failed on ${brief.id}.${configuration}: ${record.stderr.slice(-400)}`);
+      return {
+        outcome: 'delivered',
+        recordFile,
+        zipFile: record.json?.zip ?? path.join(outputs, 'record.zip'),
+        trace: [{ command: 'noacg validate', code: validate.code, digest: validate.json?.digest ?? null }, { command: 'noacg record', code: record.code, digest: record.json?.digest ?? null }],
+        reviewedDigest: validate.json?.digest ?? null,
+        costCents: 0,
+        notionalUsd: 0,
+        wallSeconds: Math.round((Date.now() - started) / 1000),
+        sessionId: null,
+        model: null,
+        cleanup: null,
       };
     },
   };

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "The tuning briefs of the NoaCG harness plan (docs/work-specs/noacg-harness/spec.md, 4.1): the 6 briefs of benchmarks/agent/v1/briefs.json verbatim, then 10 new ones from the same child session that wrote the sealed exam (benchmarks/harness/evidence/phase-0.md). These are the only briefs the harness is tuned on. `third-party-ograf` is a hand-written OGraf package, not a library graphic, and stays out of the tuning rounds (4.2). Shape as v1: stress keys f0..fN follow the field order (the registered type's, or the typeless brief's `fields` string); an image field's stress value describes the test picture, a logo starting \"bright:\" or \"dark:\"; `logo` carries a logo for a type with no image field; `background` starting \"busy:\" describes the picture behind the graphic. Ids are stable.",
+  "notes": "The tuning briefs of the NoaCG harness plan (docs/work-specs/noacg-harness/spec.md, 4.1): the 6 briefs of benchmarks/agent/v1/briefs.json verbatim, then 10 new ones from the same child session that wrote the sealed exam (benchmarks/harness/evidence/phase-0.md). These are the only briefs the harness is tuned on. `third-party-ograf` is a hand-written OGraf package, not a library graphic, and stays out of the tuning rounds (4.2). Shape as v1: stress keys f0..fN follow the field order (the registered type's, or the typeless brief's `fields` string); an image field's stress value describes the test picture, a logo starting \"bright:\" or \"dark:\"; `logo` carries a logo for a type with no image field; `background` starting \"busy:\" describes the picture behind the graphic. Ids are stable. `expect.aliases` (added in H5) names other event names that offer an action, for the bench's operability gate only: the scoreboard type's goal press is this brief's flag.",
   "briefs": [
     {
       "id": "news-lower-third",
@@ -38,7 +38,10 @@
           "flag",
           "clearFlag",
           "final"
-        ]
+        ],
+        "aliases": {
+          "flag": ["goal"]
+        }
       },
       "judge": "readable scores at a glance; the goal flag and final state exist and are operable; long team names"
     },
