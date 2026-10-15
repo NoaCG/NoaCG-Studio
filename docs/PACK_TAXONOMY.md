@@ -57,7 +57,7 @@ ink there disappears. Corporate Event's hub was mostly invisible in Porcelain; b
 With one family per kit this is now true of the SHAPE language: a kit's types all resolve in its
 own family, whose `FAMILY_TOKENS` carry type, spacing, shape, image treatment and motion. The
 palette is `TemplatePack.paletteId`, imposed on every kit graphic it is drawn for
-(`kitPaletteFor`, src/components/wizard/kitPlan.ts): an off-family EXTRA keeps its own default,
+(`kitPaletteFor`, src/components/wizard/template/kitPlan.ts): an off-family EXTRA keeps its own default,
 because a palette is tagged for the families it reads in (`Palette.styleTags`).
 
 **"Defaults, never locks" is the load-bearing half.** Every value stays a `:root` token the Style

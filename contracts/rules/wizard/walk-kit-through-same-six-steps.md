@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/kitPlan.ts, src/components/wizard/KitTray.tsx
+scope: src/components/wizard/template/kitPlan.ts, src/components/wizard/template/KitTray.tsx
 kind: invariant
 fires: contract
 status: retired

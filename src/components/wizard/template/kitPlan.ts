@@ -17,11 +17,11 @@
 // emitted CSS after the fact, and a design that does not declare a variable simply does not
 // receive it (buildDraftTemplate already skips those). See `kitLookPatch` for what does not travel.
 
-import type { SpxTemplate } from '../../model/types';
-import type { AnimPresetId, TemplateVariant } from '../../model/wizard';
-import { paletteById } from '../../model/wizard';
-import type { KitItem } from '../../templates/kit';
-import type { TemplatePack } from '../../templates/packs';
+import type { SpxTemplate } from '../../../model/types';
+import type { AnimPresetId, TemplateVariant } from '../../../model/wizard';
+import { paletteById } from '../../../model/wizard';
+import type { KitItem } from '../../../templates/kit';
+import type { TemplatePack } from '../../../templates/packs';
 import {
   brandClearPatch,
   buildDraftTemplate,
@@ -29,7 +29,7 @@ import {
   mergeDraft,
   type DraftPatch,
   type WizardDraft,
-} from './draft';
+} from '../draft';
 
 /** The kit being built, from the moment the Kit step's Next is taken. */
 export interface KitPlan {

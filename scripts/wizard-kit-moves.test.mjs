@@ -24,7 +24,7 @@ const { kitStepTarget, kitMove, kitBuilt, kitLabels } = await load(wizard('templ
 const W = await load(wizard('shell/walkState.ts'));
 const { walkOf, stepIndex } = await load(wizard('shell/walks.ts'));
 const { initialDraft, mergeDraft, brandPatch } = await load(wizard('draft.ts'));
-const { buildKit } = await load(wizard('kitPlan.ts'));
+const { buildKit } = await load(wizard('template/kitPlan.ts'));
 const { PALETTES } = await load(path.join(projectRoot, 'src/model/wizard.ts'));
 
 const test = (name, fn) => nodeTest(name, { timeout: 5000 }, fn);

@@ -1,8 +1,8 @@
 ---
 paths:
-  - "src/components/wizard/KitTray.tsx"
   - "src/components/wizard/steps/BrowseStep.tsx"
   - "src/components/wizard/steps/CommunityPacks.tsx"
+  - "src/components/wizard/template/KitTray.tsx"
   - "src/components/wizard/template/useKit.ts"
   - "src/components/wizard/template/walk.ts"
   - "src/templates/kit.ts"

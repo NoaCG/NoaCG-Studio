@@ -1,4 +1,4 @@
-// guards: src/components/wizard/kitPlan.ts
+// guards: src/components/wizard/template/kitPlan.ts
 //
 // THE KIT PLAN, PINNED BEFORE THE KIT BECOMES OPERATIONS OVER THE WALK'S STATE
 // (docs/work-specs/wizard-structure/spec.md section 5.3, D6). `kitPlan.ts` is what "build the
@@ -25,7 +25,7 @@ import { loadWizardModule as load } from './wizard-load.mjs';
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const { kitLookPatch, buildKit, reconcileKit, commitKitGraphic, applyStyleToKit, rebrandKit, kitPaletteFor } = await load(
-  path.join(projectRoot, 'src/components/wizard/kitPlan.ts'),
+  path.join(projectRoot, 'src/components/wizard/template/kitPlan.ts'),
 );
 const { initialDraft, mergeDraft, brandPatch } = await load(path.join(projectRoot, 'src/components/wizard/draft.ts'));
 const { PALETTES } = await load(path.join(projectRoot, 'src/model/wizard.ts'));

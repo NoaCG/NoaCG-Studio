@@ -434,7 +434,7 @@ test('clearing the brand gives every kit graphic its kit palette back', async ({
   const result = await page.evaluate(async () => {
     const { packById } = await import('/src/templates/packs.ts');
     const { kitSelection } = await import('/src/templates/kit.ts');
-    const { buildKit, rebrandKit, kitPaletteFor } = await import('/src/components/wizard/kitPlan.ts');
+    const { buildKit, rebrandKit, kitPaletteFor } = await import('/src/components/wizard/template/kitPlan.ts');
     const { initialDraft } = await import('/src/components/wizard/draft.ts');
     const pack = packById('newsroom')!;
     const items = kitSelection(pack, pack.starter);
@@ -619,7 +619,7 @@ test('every kit can run a show in one Style out of the box', async ({ page }) =>
   const report = await page.evaluate(async () => {
     const { PACKS, validatePacks, REFERENCE_FORMAT_COUNT } = await import('/src/templates/packs.ts');
     const { kitChoices, kitSelection } = await import('/src/templates/kit.ts');
-    const { kitItemDraft, kitPaletteFor } = await import('/src/components/wizard/kitPlan.ts');
+    const { kitItemDraft, kitPaletteFor } = await import('/src/components/wizard/template/kitPlan.ts');
     const { buildDraftTemplate, initialDraft } = await import('/src/components/wizard/draft.ts');
     const found: string[] = [];
     const accentsByKit: Record<string, string[]> = {};

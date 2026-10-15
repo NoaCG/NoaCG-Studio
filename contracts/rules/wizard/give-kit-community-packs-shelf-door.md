@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/steps/BrowseStep.tsx, src/components/wizard/steps/CommunityPacks.tsx, src/components/wizard/KitTray.tsx, src/templates/kit.ts
+scope: src/components/wizard/steps/BrowseStep.tsx, src/components/wizard/steps/CommunityPacks.tsx, src/components/wizard/template/KitTray.tsx, src/templates/kit.ts
 kind: invariant
 fires: contract
 status: retired

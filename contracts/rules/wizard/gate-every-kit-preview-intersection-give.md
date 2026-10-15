@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/KitTray.tsx, src/components/wizard/steps/BrowseStep.tsx
+scope: src/components/wizard/template/KitTray.tsx, src/components/wizard/steps/BrowseStep.tsx
 kind: trap
 fires: contract
 status: active

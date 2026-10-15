@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/CreationWizard.tsx, src/components/wizard/draft/**, src/components/wizard/kitPlan.ts, src/components/brand/**, src/model/brand.ts
+scope: src/components/wizard/CreationWizard.tsx, src/components/wizard/draft/**, src/components/wizard/template/kitPlan.ts, src/components/brand/**, src/model/brand.ts
 kind: rule
 fires: contract
 status: retired

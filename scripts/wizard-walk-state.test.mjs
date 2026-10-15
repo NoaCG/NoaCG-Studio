@@ -23,7 +23,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const W = await load(path.join(projectRoot, 'src/components/wizard/shell/walkState.ts'));
 const { walkOf, stepIndex } = await load(path.join(projectRoot, 'src/components/wizard/shell/walks.ts'));
 const { initialDraft, mergeDraft, brandPatch, brandClearPatch } = await load(path.join(projectRoot, 'src/components/wizard/draft.ts'));
-const { buildKit } = await load(path.join(projectRoot, 'src/components/wizard/kitPlan.ts'));
+const { buildKit } = await load(path.join(projectRoot, 'src/components/wizard/template/kitPlan.ts'));
 const { NO_BROWSE_FILTERS } = await load(path.join(projectRoot, 'src/templates/browseFilters.ts'));
 const { PALETTES } = await load(path.join(projectRoot, 'src/model/wizard.ts'));
 

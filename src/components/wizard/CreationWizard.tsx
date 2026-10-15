@@ -30,7 +30,7 @@ import {
   templateFileDropped,
 } from './import';
 import TemplateStep from './steps/TemplateStep';
-import KitTray from './KitTray';
+import KitTray from './template/KitTray';
 import KitFinishStep from './steps/KitFinishStep';
 import type { BrowseFilters } from '../../templates/browseFilters';
 import type { AiThread } from '../../model/aiThread';

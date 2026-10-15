@@ -333,8 +333,9 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
   components/ * the React app: AppShell, CodeEditor, timeline dock, Inspector, canvas/, wizard/,
                auth/, save/, home/, video/, icons.tsx
     wizard/ *  the creation wizard (§5): CreationWizard.tsx is the thin shell over shell/ (the
-               walks, the walk state, the Finish doors, open and close) and template/ (the
-               template and kit walks, the kit's moves and confirms); draft/ the walk's draft;
+               walks, the walk state, the Finish doors, open and close) and template/ * (the
+               template and kit walks, the kit plan, its tray, moves and confirms, reached only
+               from the shell, shell/ and steps/); draft/ the walk's draft;
                import/ * the Import-graphic capability behind its one door, index.ts; ai/ * the
                Create with AI step; steps/ * the other steps
   styles/ *    the app's stylesheet in 30 PARTS, one per surface. styles/index.css IS the
