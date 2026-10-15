@@ -98,23 +98,30 @@ export function fakeArm() {
  * `downloadAll` keeps every output file (the frames too), not only the record. The session's events
  * are kept beside the cell (`events.jsonl`) with what they measure (`trace.json`, lib/trace.mjs).
  */
-export function managedAgentsArm({ id = 'managed-agents', api, client, agent, environmentId, budgetCents, model, modelOverride = null, funding = 'credit', files = [], upload = null, downloadAll = false, pollMs = 5000, hardCapMinutes = 15, listRetries = 3 }) {
+export function managedAgentsArm({ id = 'managed-agents', api, client, agent, environmentId, budgetCents, model, modelOverride = null, funding = 'credit', files = [], upload = null, downloadAll = false, pollMs = 5000, hardCapMinutes = 15, listRetries = 3, adopt = {} }) {
   return {
     id,
     funding,
     model: modelOverride?.id ?? model,
     async run({ brief, cellDir, runId }) {
-      const started = Date.now();
+      let started = Date.now();
       const outputs = path.join(cellDir, 'outputs');
       mkdirSync(outputs, { recursive: true });
       const mounted = [];
       const dropMounted = () => Promise.all(mounted.map((m) => api.beta.files.delete(m.fileId).catch(() => undefined)));
       let sessionId;
       try {
+        if (adopt[brief.id]) {
+          // A session this arm created in a run that was stopped while it worked: taken over as it
+          // stands, never created again, its wall counted from its creation.
+          sessionId = adopt[brief.id];
+          started = Date.parse((await api.beta.sessions.retrieve(sessionId)).created_at);
+        } else {
         if (brief.mounts?.length && !upload) throw new Error(`brief ${brief.id} mounts files, and this arm has no upload`);
         for (const m of brief.mounts ?? []) mounted.push({ fileId: await upload(m.file), mountPath: m.mountPath });
         // A brief may name its own environment (H3's `packages` proof) and go without the tarball.
         ({ sessionId } = await client.startSession(api, { agent, environmentId: brief.environmentId ?? environmentId, brief: brief.prompt, type: brief.type, budgetCents, runId, files: [...(brief.withoutCli ? [] : files), ...mounted], ...(modelOverride ? { model: modelOverride } : {}) }));
+        }
       } catch (e) {
         await dropMounted();
         throw e;

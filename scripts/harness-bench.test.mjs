@@ -48,7 +48,7 @@ import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySeale
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
-import { agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
+import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
 import { readDefinitions, syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -795,6 +795,9 @@ test('--agent-version names an earlier synced version, as the round\'s control',
   assert.throws(() => controlVersion('4', 4), /earlier/);
   assert.throws(() => controlVersion('0', 4), /earlier/);
   assert.throws(() => controlVersion('v3', 4), /earlier/);
+  assert.deepEqual(adoptions(['live-vote=sesn_01Ab'], ['live-vote', 'debate-clock']), { 'live-vote': 'sesn_01Ab' });
+  assert.throws(() => adoptions(['news-lower-third=sesn_01Ab'], ['live-vote']), /this run names/, 'only a brief the run names');
+  assert.throws(() => adoptions(['live-vote=agent_01'], ['live-vote']), /session id/);
 });
 
 test('the Skills API bundle is the skill\'s own bytes under one top folder', () => {

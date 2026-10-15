@@ -14,7 +14,7 @@
 //   node scripts/harness-bench.mjs --build <H#> --arms managed-agents[,claude-code] --briefs id,..
 //                                  --ceiling-cents <n> [--budget-cents <n>] [--model <id>]
 //                                  [--overshoot-cents <n>] [--critic-cents <n>] [--out <dir>]
-//                                  [--august-config A] [--agent-version <n>]
+//                                  [--august-config A] [--agent-version <n>] [--adopt <brief>=<session>]
 //                                                    PAID. Real sessions: managed-agents on the bench
 //                                                    key's credit (scripts/bench-env.mjs --profile=harness),
 //                                                    claude-code on the owner's subscription; `august`
@@ -28,6 +28,8 @@
 //                                                    reserve's `o` and critic share. --agent-version
 //                                                    runs an earlier synced version as the round's
 //                                                    control (H6: v3, no critic), as its own arm.
+//                                                    --adopt takes over a session a stopped run
+//                                                    created, instead of creating that brief's again.
 //   node scripts/harness-bench.mjs --reserve --by <H#> --budget-cents <n> --overshoot-cents <n>
 //                                  [--critic-cents <n>] [--note "..."]
 //                                                    FREE. 5.2's arithmetic: the exam reserve R, what
@@ -157,6 +159,17 @@ export function controlVersion(raw, current) {
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 1 || n >= current) throw new Error(`--agent-version ${raw}: an earlier synced version, 1 to ${current - 1} (the lock's is ${current})`);
   return n;
+}
+
+/** `--adopt brief=sesn_...`: the sessions a stopped run left running, by the brief they belong to. */
+export function adoptions(pairs, briefIds) {
+  const out = {};
+  for (const pair of pairs) {
+    const m = /^([a-z0-9-]+)=(sesn_[A-Za-z0-9]+)$/.exec(pair);
+    if (!m || !briefIds.includes(m[1])) throw new Error(`--adopt ${pair}: <brief>=<session id>, for a brief this run names`);
+    out[m[1]] = m[2];
+  }
+  return out;
 }
 
 /** The cells of a `--build` the ledger does not already hold for that phase. A cell that ran
@@ -373,6 +386,7 @@ async function build(phase) {
       // A round's control runs an earlier version the sync made (immutable on the server), as its
       // own arm so the ledger and the judge keep it apart from the version under test.
       const agentVersion = orFail(() => controlVersion(value('agent-version'), lock.agent.version));
+      const adopt = orFail(() => adoptions(list('adopt'), ids));
       const agentModel = agentDef.config.model?.id ?? agentDef.config.model;
       // An override replaces the agent's model object in full, so an effort alone restates the model.
       const override = (id) => ((id && id !== agentModel) || effort ? { id: id || agentModel, ...(effort ? { effort } : {}) } : null);
@@ -383,7 +397,7 @@ async function build(phase) {
       const upload = async (file) => (await sdk.files.upload({ file: await toFile(readFileSync(file), path.basename(file), { type: 'application/gzip' }) })).id;
       const tarball = packCli(path.join(runDir, 'cli'));
       uploaded = { id: await upload(tarball) };
-      const arm = (cellBudget, modelOverride) => managedAgentsArm({ id: agentVersion ? `managed-agents-v${agentVersion}` : 'managed-agents', api: sdk, client: api.client, agent: { id: lock.agent.id, version: agentVersion ?? lock.agent.version }, environmentId: lock.environment.id, budgetCents: cellBudget, model: agentModel, modelOverride, funding: 'credit', files: [{ fileId: uploaded.id, mountPath: '/noacg-cli.tgz' }], upload, downloadAll: true });
+      const arm = (cellBudget, modelOverride) => managedAgentsArm({ id: agentVersion ? `managed-agents-v${agentVersion}` : 'managed-agents', api: sdk, client: api.client, agent: { id: lock.agent.id, version: agentVersion ?? lock.agent.version }, environmentId: lock.environment.id, budgetCents: cellBudget, model: agentModel, modelOverride, funding: 'credit', files: [{ fileId: uploaded.id, mountPath: '/noacg-cli.tgz' }], upload, downloadAll: true, adopt });
       for (const brief of briefs) {
         const a = arm(budgetCents, override(model));
         all.push({ id: `${brief.id}.${a.id}`, brief, arm: a, entry: { budgetCents } });

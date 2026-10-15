@@ -88,3 +88,27 @@ Written and committed before any H6 session was created (5.1, AC-6).
   - If the critic stays: `--reserve --by H6` with `m` re-measured over both threads, the critic's
     share its largest request, and the time re-checked against 600 s. If it is dropped, the reserve
     stands.
+
+## During the round: two briefs cut to keep the control
+
+Written after the first critic session and before any further session was created.
+
+- **The first critic session reached its 300-cent cap.** `news-lower-third` (`sesn_01AmXzxaKVhdWgF2HpPNkHFX`):
+  $3.04, 666 s, not ready (`budget_reached`). The critic thread alone cost **$1.68** (35 requests,
+  43 images, 403 s): it read the frames one by one, as the review asks, and shot nine frames of its
+  own. The author waited 350 s for its answer, past the cache's five minutes, and its next request
+  rewrote the whole context ($0.41, the round's largest so far). The critic would air the graphic for
+  the brief's values and raised three design findings, which the author was repairing when the cap
+  stopped it.
+- **What that settles, and what it does not.** The critic's thread alone costs more than H5's whole
+  cost per accepted graphic ($1.56), so the rule fixed above drops this critic whatever the other
+  briefs show. What is still open is the question the round exists for: does it catch the basic
+  defect H5 shipped, and does the coverage fix alone already catch it.
+- DECIDED: run the critic on `live-vote` and finish `school-scoreboard` (its session was already
+  working), skip `lecture-countdown` and `debate-clock` in the critic arm, and keep the control.
+  Run as planned, four capped critic sessions would have left the ceiling unable to admit the
+  control, and the live-vote reading would be uninterpretable without it. The run was stopped
+  while the scoreboard session worked (stopping between sessions could have created one untracked)
+  and resumed with `--adopt`, which takes over that session instead of creating it again. Revert:
+  `--build H6 --briefs lecture-countdown,debate-clock` with the same flags, within what the ceiling
+  then admits.
