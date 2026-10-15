@@ -75,7 +75,6 @@ import {
   pruneJobs,
   freeMemFloorFor,
   readJobs,
-  readPresence,
   presenceAt,
   launchFloorFor,
   writePresence,
@@ -985,7 +984,7 @@ function cmdPresence() {
     const floor = freeMemFloorFor(now.state);
     console.log(`Machine is ${now.state === 'away' ? 'AWAY - nobody at the keyboard' : 'IN USE - somebody may be at the keyboard'}.`);
     console.log(`  free-RAM floor for one suite-equivalent: ${(floor / 1024).toFixed(1)} GB (a walk ${(floor * COST.walk / 1024).toFixed(1)}, a landing ${(floor * COST.merge / 1024).toFixed(1)})`);
-    // `readPresence` normalises every field to a number or null, so nothing here can be handed a
+    // `presenceAt` (through `readPresence`) normalises every field to a number or null, so nothing here can be handed a
     // date it cannot format - which matters because this command is the one somebody runs to find
     // out why a hand-edited file is not doing what they meant.
     if (now.setAt || now.until) {
