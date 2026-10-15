@@ -118,6 +118,9 @@ async function apply({ workspace, steps, environment, agent, subagents, bundle, 
     next.subagents = { ...(next.subagents ?? {}), [step.resource]: { ...ref, sha256: step.sha256 } };
     save(next);
   }
+  // A subagent the agent no longer lists leaves the lock (its agent stays on the server, unused).
+  for (const file of Object.keys(next.subagents ?? {})) if (!subagents[file]) delete next.subagents[file];
+  if (next.subagents && !Object.keys(next.subagents).length) delete next.subagents;
 
   const body = agentCreateBody(agent, next.skill, next.subagents ?? {});
   if (agentStep.action === 'create') {

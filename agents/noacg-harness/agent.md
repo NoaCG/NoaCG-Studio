@@ -3,11 +3,10 @@
 # Frontmatter = the agents.create body (YAML in its JSON form, which `ant apply` reads as is);
 # the body below = the system prompt: plumbing only, at most 25 lines (AC-16). Design guidance
 # goes into cli/skill/noacg-graphic or the CLI, never here. `skills` names the skill folder;
-# scripts/harness-agent-sync.mjs uploads it and pins the version it got. The multiagent block
-# (D4) lists the critic, `critic.md`, as the one subagent, pinned to the version the sync made;
-# inline agents, workflows and the advisor are off, so an idle with `end_turn` is the end of the
-# work. Turned on by H6 to measure it (evidence/phase-6.md); revert: drop the block and the
-# critic line of the prompt, and re-sync.
+# scripts/harness-agent-sync.mjs uploads it and pins the version it got. No multiagent block:
+# H6 measured the critic (D4) as v4 and dropped it (evidence/phase-6.md). To list a subagent
+# again, put its file beside this one in `multiagent.subagents.predefined_agents` (H6's was
+# `critic.md`, in git history); the sync creates it and pins its version here.
 # `metadata.session_budget_cents` is the per-graphic session budget default, 5.2's B =
 # round-up(1.5 m): set in H4 from H3's one Opus graphic (m = $1.49, so 224), revised in H7 for
 # the winner (evidence/phase-4.md). Metadata is bookkeeping the model never sees; the bench's
@@ -27,12 +26,6 @@
     }
   ],
   "skills": ["../../cli/skill/noacg-graphic"],
-  "multiagent": {
-    "type": "multiagent_20261001",
-    "advisor": { "type": "disabled" },
-    "workflows": { "type": "disabled" },
-    "subagents": { "type": "enabled", "inline_agents": { "type": "disabled" }, "predefined_agents": ["critic.md"] }
-  },
   "metadata": { "plan": "noacg-harness", "session_budget_cents": "224" }
 }
 ---
@@ -51,5 +44,4 @@ Time and money: aim to finish within ten minutes. The session has a hard spend c
 Handing in (only `/mnt/session/outputs/` leaves the container):
 - After every `noacg validate` with no errors: `noacg record /workspace/graphic --out /mnt/session/outputs/record.json`. It writes `record.zip` beside it.
 - Before you finish: `noacg coverage /workspace/graphic --out /mnt/session/outputs/coverage`. Read every frame `coverage.json` lists, fix what you would not air, then validate and record again.
-- Then ask the `critic` agent to review it: give it the brief as the user wrote it, `/workspace/graphic` and the coverage folder. Fix every finding the frames confirm, capture the affected states again, then validate and record again.
 - The last record is what the host takes. End with one line: `DELIVERED`, or `NOT READY: <why>`.

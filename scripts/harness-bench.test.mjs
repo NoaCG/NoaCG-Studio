@@ -30,7 +30,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createCipheriv, createHash, randomBytes, scryptSync } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
@@ -724,43 +724,36 @@ test('the container\'s system prompt is plumbing within 25 lines, on an agent wi
   const env = readEnvironmentDefinition(path.join(ROOT, 'agents', 'noacg-harness'));
   assert.equal(env.config.networking.type, 'limited');
   assert.deepEqual(env.config.networking.allowed_hosts, ['noacg.studio']);
-  const bare = { ...agent, config: { ...agent.config, multiagent: undefined } };
-  const steps = syncPlan({ lock: null, environment: env, agent: bare, bundle: { sha256: 'x' } });
+  assert.equal(agent.config.multiagent, undefined, 'H6 measured the critic and dropped it (evidence/phase-6.md)');
+  const steps = syncPlan({ lock: null, environment: env, agent, bundle: { sha256: 'x' } });
   assert.deepEqual(steps.map((s) => s.action), ['create', 'create', 'create']);
   const lock = { environment: { sha256: steps[0].sha256 }, skill: { bundleSha256: 'x' }, agent: { sha256: steps[2].sha256 } };
-  assert.deepEqual(syncPlan({ lock, environment: env, agent: bare, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep'], 'a second sync changes nothing');
-  assert.deepEqual(syncPlan({ lock, environment: env, agent: bare, bundle: { sha256: 'y' } }).map((s) => s.action), ['keep', 'version', 'update'], 'a skill change is a new skill version and a new agent version');
+  assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep'], 'a second sync changes nothing');
+  assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'y' } }).map((s) => s.action), ['keep', 'version', 'update'], 'a skill change is a new skill version and a new agent version');
   assert.throws(() => syncPlan({ lock, environment: env, agent: { ...agent, systemLines: 26 }, bundle: { sha256: 'x' } }), /25/);
 });
 
-test('the critic is the one subagent (D4): no workflows, no inline agents, no advisor, and it cannot edit', () => {
-  const dir = path.join(ROOT, 'agents', 'noacg-harness');
+test('a subagent file the agent lists is synced first and pinned by version (D4, as H6 ran the critic)', () => {
+  // H6's shape: the critic the only predefined subagent, no workflows, no inline agents, no advisor.
+  const dir = tmp();
+  const real = readFileSync(path.join(ROOT, 'agents', 'noacg-harness', 'agent.md'), 'utf8');
+  const multiagent = { type: 'multiagent_20261001', advisor: { type: 'disabled' }, workflows: { type: 'disabled' }, subagents: { type: 'enabled', inline_agents: { type: 'disabled' }, predefined_agents: ['critic.md'] } };
+  writeFileSync(path.join(dir, 'agent.md'), real.replace('"metadata":', `"multiagent": ${JSON.stringify(multiagent)},\n  "metadata":`));
+  writeFileSync(path.join(dir, 'critic.md'), '---\n{ "name": "critic", "model": { "id": "claude-opus-5-5", "effort": "high" }, "skills": ["../../cli/skill/noacg-graphic"] }\n---\n\nYou review one graphic.\n');
+  copyFileSync(path.join(ROOT, 'agents', 'noacg-harness', 'environment.yaml'), path.join(dir, 'environment.yaml'));
   const { environment, agent, subagents } = readDefinitions(dir);
   assert.deepEqual(Object.keys(subagents), ['critic.md']);
-  const m = agent.config.multiagent;
-  assert.equal(m.type, 'multiagent_20261001');
-  assert.deepEqual(m.workflows, { type: 'disabled' }, 'workflows are on by default with this type, so off explicitly (D4, 7.3)');
-  assert.deepEqual(m.advisor, { type: 'disabled' });
-  assert.deepEqual(m.subagents, { type: 'enabled', inline_agents: { type: 'disabled' }, predefined_agents: ['critic.md'] });
-  assert.match(agent.system, /`critic` agent/, 'the author is told the critic exists and when to ask it');
-  const critic = subagents['critic.md'];
-  assert.ok(critic.systemLines <= SYSTEM_PROMPT_MAX_LINES, `${critic.systemLines} lines`);
-  assert.equal(critic.config.name, 'critic');
-  assert.equal(critic.config.multiagent, undefined, 'a listed agent may not list agents of its own');
-  assert.match(critic.system, /references\/critique\.md/, 'what it checks lives in the skill (AC-16)');
-  assert.match(critic.system, /noacg save/, 'it never saves');
-  const toolset = critic.config.tools.find((t) => t.type === 'agent_toolset_20260401');
-  assert.deepEqual(toolset.configs.filter((c) => c.enabled === false).map((c) => c.name).sort(), ['edit', 'web_fetch', 'web_search', 'write']);
-  assert.deepEqual(critic.config.model, agent.config.model, '3.4: the same model as the author in H6');
-  // The sync makes the critic first and pins its version on the agent.
+  assert.equal(subagents['critic.md'].system, 'You review one graphic.');
   const steps = syncPlan({ lock: null, environment, agent, subagents, bundle: { sha256: 'x' } });
   assert.deepEqual(steps.map((s) => `${s.resource} ${s.action}`), ['environment create', 'skill create', 'critic.md create', 'agent create']);
   const lock = { environment: { sha256: steps[0].sha256 }, skill: { bundleSha256: 'x' }, subagents: { 'critic.md': { id: 'agent_c', version: 1, sha256: steps[2].sha256 } }, agent: { sha256: steps[3].sha256 } };
   assert.deepEqual(syncPlan({ lock, environment, agent, subagents, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep', 'keep']);
-  const edited = { ...critic, system: `${critic.system}\nOne more line.` };
-  assert.deepEqual(syncPlan({ lock, environment, agent, subagents: { 'critic.md': edited }, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'update', 'update'], 'a new critic version is a new agent version');
+  const edited = { ...subagents['critic.md'], system: 'You review one graphic.\nOne more line.' };
+  assert.deepEqual(syncPlan({ lock, environment, agent, subagents: { 'critic.md': edited }, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'update', 'update'], 'a new subagent version is a new agent version');
+  assert.throws(() => syncPlan({ lock, environment, agent, subagents: { 'critic.md': { ...edited, systemLines: 26 } }, bundle: { sha256: 'x' } }), /critic\.md's system prompt/);
   const body = agentCreateBody(agent, { id: 'skill_1', version: 'skver_1' }, lock.subagents);
   assert.deepEqual(body.multiagent.subagents.predefined_agents, [{ type: 'agent', id: 'agent_c', version: 1 }]);
+  assert.deepEqual(body.multiagent.workflows, { type: 'disabled' });
   assert.equal(agent.config.multiagent.subagents.predefined_agents[0], 'critic.md', 'the definition itself is left as written');
   assert.throws(() => agentCreateBody(agent, { id: 'skill_1', version: 'skver_1' }), /not been synced/);
 });
