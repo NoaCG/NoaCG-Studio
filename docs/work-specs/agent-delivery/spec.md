@@ -515,7 +515,10 @@ came back once, and running the same command again said "Resuming 3 graphics und
 operation. The configured agent-access journey adds step 4e: three graphics in one operation,
 the readback, a rebuilt replay with the same ids, a changed set refused, an invalid set writing
 nothing, and a fresh signed-in browser finding all three and opening every link.
-CONFIGURED_RUN_PLACEHOLDER
+The configured suite dispatched on this branch (run 38784179722, local Supabase stack with 0093
+applied) passed 100 with the 8 allowed skips, `agent-access.spec.ts` with step 4e first time. On
+that fresh stack 0093's behaviour self-check skips (no account when migrations apply); the hosted
+projects run it at post-land.
 
 Decisions:
 - Every `noacg save` uses the set door, one graphic included, so "run the same command again" is
