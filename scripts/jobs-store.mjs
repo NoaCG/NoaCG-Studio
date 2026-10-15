@@ -199,6 +199,21 @@ export const POLICY = Object.freeze({
     away: overrideFloorMb() ?? 3584,
   }),
   /**
+   * WHEN THE OWNER IS AT THE MACHINE, when nobody has declared it (`presenceAt`): weekdays from
+   * 07:00 inclusive to 17:00 exclusive. Owner 2026-10-15: away from 17:00 to 07:00 and at weekends,
+   * at the computer 07:00 to 17:00 on weekdays. A declaration (`npm run jobs -- presence ...`)
+   * still overrides it, both ways.
+   */
+  presentDays: Object.freeze([1, 2, 3, 4, 5]),
+  presentFrom: 7,
+  presentTo: 17,
+  /**
+   * The free RAM below which a coordinator launches no more sessions or rows - not a job's need,
+   * which `freeMemFloorMb` sizes, but what is left for whoever is at the keyboard. Owner
+   * 2026-10-15: leave 4 GB while he is at the computer, use all but 1.5 GB while he is away.
+   */
+  launchFloorMb: Object.freeze({ present: 4096, away: 1536 }),
+  /**
    * A job killed at this age is recorded `timed-out` rather than sitting forever.
    *
    * DO NOT RAISE THIS TO FIT A LANDING THAT DID NOT FINISH. Measured 2026-09-04 over the 211
@@ -299,6 +314,24 @@ export function readPresence(dir, now = Date.now()) {
   // happen, so the missing field fails towards the safe answer like every other unknown.
   if (until === null || now >= until) return { ...safe, setAt, setBy, until, expired: true };
   return { ...safe, state: record.state, setAt, setBy, until };
+}
+
+/**
+ * Who is at the machine right now: a live declaration (`readPresence`) when there is one, else the
+ * owner's schedule (`POLICY.presentDays`, `presentFrom`, `presentTo`). The record carries
+ * `source`, `declared` or `schedule`, so a reader can tell which said so.
+ */
+export function presenceAt(dir, now = Date.now(), policy = POLICY) {
+  const declared = readPresence(dir, now);
+  if (declared.until !== null && !declared.expired) return { ...declared, source: 'declared' };
+  const clock = clockIn(now, policy.timeZone);
+  const present = policy.presentDays.includes(clock.weekday) && clock.hour >= policy.presentFrom && clock.hour < policy.presentTo;
+  return { ...declared, state: present ? 'present' : 'away', source: 'schedule' };
+}
+
+/** The free RAM below which no more sessions or rows are launched, given who is at the machine. */
+export function launchFloorFor(presence, policy = POLICY) {
+  return presence === 'away' ? policy.launchFloorMb.away : policy.launchFloorMb.present;
 }
 
 /**

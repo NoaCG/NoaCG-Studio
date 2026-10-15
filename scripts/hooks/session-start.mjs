@@ -370,7 +370,7 @@ if (isOrchestratorHome) {
 // and whether the runner is alive to drain any of it.
 try {
   const { readJobs, jobsDir } = await import('../jobs-store.mjs');
-  const { pending, finishedSince, schedule, readPresence } = await import('../jobs-store.mjs');
+  const { pending, finishedSince, schedule, presenceAt } = await import('../jobs-store.mjs');
   const dir = jobsDir();
   const jobs = dir ? readJobs(dir) : [];
 
@@ -465,7 +465,7 @@ try {
       const { freemem } = await import('node:os');
       // One read, used for both: the plan must be built on the same declaration this prints, or
       // the summary explains a wait with a floor the scheduler did not use.
-      const machine = readPresence(dir);
+      const machine = presenceAt(dir);
       // No `alone` here: reading the session inventory would slow every session start, and
       // leaving it out can only understate what the runner will start, never overstate it.
       const plan = schedule(jobs, {
@@ -475,7 +475,7 @@ try {
       console.log('');
       // An `away` declaration outlives the night it was set for, so a session starting in the
       // morning is one of the few places it can be caught before it costs somebody their machine.
-      if (machine.state === 'away') {
+      if (machine.state === 'away' && machine.source === 'declared') {
         console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()} - the queue's RAM floor is lowered.`);
         console.log('  `npm run jobs -- presence present` if somebody is at it.');
       }

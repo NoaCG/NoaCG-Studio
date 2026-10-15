@@ -363,6 +363,13 @@ just sat down. Anything the store cannot read as a live declaration - no file, a
 misspelt state, an expired window, a caller that passes no presence at all - reads as `present`,
 which is the answer that cannot hurt anybody.
 
+**Without a live declaration, the owner's schedule decides** (`presenceAt`, since 2026-10-15): at
+the computer on weekdays from 07:00 to 17:00 Helsinki time, away otherwise. Nothing has to be set
+before a night or a weekend; a declaration still overrides the schedule both ways. The same state
+picks the launch floor coordinators read on the `Schedule:` line: no more sessions or rows under
+4 GB free while he is present, under 1.5 GB while he is away. That floor is what is left for the
+person at the keyboard, not what a job needs, so it is separate from the job floors above.
+
 **A job held by the stricter floor says what would release it**, so a wait during a day wave is
 answerable rather than silent:
 

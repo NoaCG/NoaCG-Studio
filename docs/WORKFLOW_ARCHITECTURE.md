@@ -217,7 +217,9 @@ and `cancel` take a job id.
   `presence present` the opposite, and `presence` alone reports what the scheduler believes
   (`node scripts/jobs.mjs presence` is the same command). A declaration lasts twelve hours, or
   `--for <minutes>` (1 to 720) as a brief override, for example to let one blocked run through.
-  An expired or unreadable declaration reads as present.
+  With no live declaration the owner's schedule decides: present on weekdays 07:00-17:00
+  Helsinki, away otherwise. The same state sets the launch floor on the `Schedule:` line (4 GB
+  present, 1.5 GB away), below which coordinators launch no more sessions or rows.
 
 `docs/JOB_RUNNER_PLAN.md` has the measurements behind these numbers.
 

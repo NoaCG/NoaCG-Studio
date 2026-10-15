@@ -28,8 +28,8 @@ can see becomes a row.
 
 - **The window** is what the prompt names, in Helsinki time, written with its offset
   (`2026-10-09T06:00:00+03:00`). Unstated: ask if the owner is here, otherwise run to the next
-  06:00. A night wave first runs `npm run jobs -- presence away`, so the job queue may use more
-  memory; a day wave leaves presence alone.
+  06:00. Presence follows the owner's schedule (`npm run jobs -- presence`), so a wave sets none;
+  he declares it himself when he is at the computer out of hours or away during them.
 - **Open the wave**: `node scripts/wave-plan-store.mjs --open <date> <day|night> --until <iso>`.
   It refuses a second open wave and a window over 24 hours, and prints the wave file: the prompt,
   the work list, one line per launch and result, and the report go there. After a restart, open
@@ -76,7 +76,8 @@ How many rows run at once follows the machine, not the wave's kind, so the lapto
 memory to work and browser jobs do not collide. At the start and as each row finishes, read
 `node scripts/worktree-activity.mjs`, the `Schedule:` line of `npm run jobs` (live sessions, budget)
 and free memory. Alone, run more rows (about four; docs-only counts half); beside busy sessions,
-stay modest; when they finish, add rows. Under about 4 GB free, launch no more. Rows run in their
+stay modest; when they finish, add rows. Under the launch floor on the `Schedule:` line (4 GB
+while the owner is at the computer, 1.5 GB while he is away), launch no more. Rows run in their
 own worktrees on `<tool>/<letter>-<name>`, letters A, B, C never repeating in a wave; log each
 launch in the wave file: letter, branch, goal, time.
 
