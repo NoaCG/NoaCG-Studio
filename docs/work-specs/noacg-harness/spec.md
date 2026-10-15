@@ -956,6 +956,58 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H8 check (2026-10-15, on `e759c100c`)
+
+- **Verdict: FAIL blocked.** Everything that can be checked before the judge returns holds; the
+  verdict waits on the frozen judge, refused by the subscription's seven-day Fable cap until
+  2026-10-20T05:00Z. Then resume: 31 calls, 19 singles (the harness's alumni, charity, library,
+  parish, quiz and welsh graphics; Claude Code's other 13, the voided esports single and the
+  refused volleyball single among them) and the 6 pairs of those briefs in both orders. After
+  them come the action readings, `--tally`, the gallery, the report, `docs/AI_ATTEMPTS.md`,
+  `--close H8` and the owner's notice. No credit was spent and no judge call made.
+- **Checked, all hold.** The sealed set decrypts in memory to the committed sha256 `27b4e208...`,
+  byte-identical to the private plaintext. It holds 20 distinct `noacg` briefs over 18 types plus
+  2 typeless, each with `stress`, `expect` and `judge`, none in the tuning set. The 20 run briefs
+  are exactly these ids, and every cell's `brief.json` equals its sealed brief apart from stress
+  keys. The counting rules and hypothesis were committed in `2e981a9ae` at 17:35:39Z, with
+  GitHub's check suites at 17:35:43Z, before the first session's `createdAt` of 17:36:26.7Z.
+  The ledger sums to 5,468 cents (H8 3,334 over 20 credit sessions, at most 201 each, under the
+  233 the wall books). The H8 ceiling has $13.26 left, $32.06 remains for everything else, and
+  `admit` refuses a session once less than $2.33 is under the ceiling. A re-run `--build H8`
+  on the same model skips the 40 ledgered cells, and every other phase is refused while H8 is pending. All 20
+  sessions return 404 on free reads with the bench key, and the workspace and session file lists
+  are empty. The committed `prompt.md` and `rubric.json` hash to `judge.lock.json`, unchanged
+  since `851f23255`, and every answer carries fingerprint `60bfb08e18a4`. A re-tally from the
+  committed `cell.json` and `judgements.jsonl` (my own count and `tallyExam`) reproduces the
+  report: harness 12 delivered (8 `budget_reached`), 6 judged usable, 0 defects, 0 missing
+  actions; Claude Code 20 delivered, 5 usable (4 by the gate alone), 2 not, 13 unjudged; pairs
+  Claude Code 10 (2 judged, 8 by delivery), harness 3, 1 flip tie; median wall 527 s, 90th
+  percentile 744 s, 7 over ten minutes; no accepted graphic over 194 cents. Bench tests 49 of 49.
+  `--control` against `https://noacg.studio` after building `cli/` passed at $0, the wall
+  refusing before any session.
+- **The two rulings are not reinterpretations in the harness's favour.** The by-hand stress
+  moves follow the rule committed before the first session ("a value on a wrong field is
+  re-keyed and both arms re-captured"). All 14 re-captures ran 20:50 to 20:54Z, after the judge's
+  last answer (19:12Z). None of the 25 counted answers concerns a re-keyed brief, and the only
+  one whose frames postdate it is the voided single. On delivered graphics only Claude Code's
+  stress changed: moved, or dropped where its package has no field. The 3.5 reading was
+  committed at 19:02:54Z, after the judge had read Claude Code's bilingual notice (18:45Z). It
+  touches only that Claude Code cell, so it can only raise Claude Code's usable count, and
+  `--tally` also prints the gate-only figure. A PASS with the readings is therefore a PASS by
+  the gate alone.
+- **What the 31 calls can still change: a PASS is possible but narrow.** Five of Claude Code's 13
+  unjudged graphics already fail the gate (matchup `select`, bracket `advance`, volleyball
+  `undoPoint`/`endSet`, head-to-head `highlight`, podiums `spotlight`). So line 1 holds exactly
+  at the edge, 12 against at most 13, and only if all six remaining harness singles come back
+  airable with no defect. Line 1 then misses if any reading rescues one of the five, as the
+  ruling's own volleyball example would, unless another Claude Code graphic fails. Line 3 misses
+  on any Claude Code win among the 6 open pairs, and more than 4 further flip ties makes the
+  result inconclusive. If the verdict turns on a reading, the report must give both figures.
+- **Minor, for the resume:** the ruling says the judge named nothing missing on Claude Code's
+  volleyball board, but that single is the refused call and was never answered. The ledger's
+  judge note and the run commit say 18 singles and 30 calls; with the void it is 19 and 31. The
+  report's "1 of 8" defect row counts the void single (1 of 7 counted).
+
 ### H8. The held-out exam (run 2026-10-15; judging paused until 2026-10-20 05:00Z)
 
 - **Check's findings (H7 second check, on `c7c5ae224`):** PASS. The H7 round, the Opus 5.5 winner
