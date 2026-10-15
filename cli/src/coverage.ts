@@ -26,6 +26,8 @@ export const STRIP_MS = [0, 120, 300, 600, 1500] as const;
 export const LATER_MS = 10_000;
 /** How much longer than its sample a text is in the long-value frames, when the brief names none. */
 export const LONG_FACTOR = 1.7;
+/** The shortest long label of a `Label | value` line (a poll option, a standings row). */
+export const LONG_LABEL_MIN = 32;
 /** Next is walked at most this far: a 40-step quiz says nothing new at step 7. */
 export const MAX_NEXT_STEPS = 5;
 
@@ -77,12 +79,18 @@ export function fixtureLogo(polarity: 'bright' | 'dark'): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 }
 
-/** `value` grown to `factor` times its length by repeating its words, ending on a whole word. */
-export function longer(value: string, factor = LONG_FACTOR): string {
+/** `value` grown to `factor` times its length, and to at least `min` characters, by repeating its
+ *  words, ending on a whole word. */
+export function longer(value: string, factor = LONG_FACTOR, min = 0): string {
   if (value.includes('\n')) return value.split('\n').map((line) => longer(line, factor)).join('\n');
+  // A `Label | value` line grows its label, to at least a label an operator might really type: a
+  // runtime reads the cells after the first as numbers or codes, a long number column shows no
+  // long label, and a one-word sample (`Yes`) grown 1.7 times still fits any row (#1246).
+  const cell = value.indexOf('|');
+  if (cell > 0 && value.slice(0, cell).trim()) return `${longer(value.slice(0, cell), factor, LONG_LABEL_MIN)} ${value.slice(cell).trim()}`;
   const text = value.trim();
   if (!text) return 'A long value that fills the line';
-  const target = Math.ceil(text.length * factor);
+  const target = Math.max(Math.ceil(text.length * factor), min);
   const words = text.split(/\s+/);
   let out = text;
   for (let i = 0; out.length < target; i++) out += ` ${words[i % words.length]}`;

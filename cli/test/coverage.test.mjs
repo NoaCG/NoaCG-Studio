@@ -20,7 +20,7 @@ import { promisify } from 'node:util';
 import { test } from 'node:test';
 
 import { canonicalJson, sourceDigest } from '../dist/digest.js';
-import { coveragePlan, fixtureLogo, frameFile, LATER_MS, longer, mapStress, sidesOf, STRIP_MS } from '../dist/coverage.js';
+import { coveragePlan, fixtureLogo, frameFile, LATER_MS, LONG_LABEL_MIN, longer, mapStress, sidesOf, STRIP_MS } from '../dist/coverage.js';
 import { zipPathFor } from '../dist/commands/record.js';
 
 const exec = promisify(execFile);
@@ -76,6 +76,18 @@ test('a long value is about 1.7 times its sample and ends on a whole word', () =
   assert.ok(/(Senior|Correspondent)$/.test(v), v);
   assert.equal(longer('one\ntwo').split('\n').length, 2, 'each line of a list grows, the line count stays');
   assert.ok(longer('').length > 10, 'an empty sample still gets a long value');
+  // #1246: a `Label | value` line grows its label, to at least LONG_LABEL_MIN characters, and
+  // keeps its value, so a poll's long-value frames show a long option rather than `52 Yes`.
+  const [yes, no] = longer('Yes | 52\nNo | 33').split('\n');
+  assert.match(yes, /^Yes( Yes)+ \| 52$/);
+  assert.ok(yes.length - ' | 52'.length >= LONG_LABEL_MIN, yes);
+  assert.match(no, /^No( No)+ \| 33$/, 'every line grows its own label');
+  const long = 'A longer answer option the presenter reads in full';
+  assert.equal(longer(`${long} | 41`).split(' | ')[1], '41');
+  assert.ok(longer(`${long} | 41`).startsWith(`${long} A longer`), 'a label already long still grows 1.7 times');
+  assert.match(longer('Home | 2 | 1'), /^Home( Home)+ \| 2 \| 1$/, 'every cell after the label is kept as it is');
+  assert.ok(longer('| 15').startsWith('| 15 '), 'a line with no label grows as plain text');
+  assert.equal(longer('Senior Correspondent'), longer('Senior Correspondent', 1.7, 0), 'a plain text has no floor');
 });
 
 test('stress keys map by id first, then by field order, and say what they could not place', () => {
