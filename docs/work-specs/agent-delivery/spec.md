@@ -725,3 +725,52 @@ Next phase must allow for:
 - The MCP schema is 3 characters under its ceiling; another argument needs a measurement or a cut.
 - Install's identity check reads the browser's synced library; a package installed before the
   delivered graphics sync down gets no reuse and no warning (it names nothing it cannot see).
+
+### Phase 4 (check), 2026-10-16
+
+Checked on `origin/main` `5b6f8734a` (the landing of #1274). Verdict: PASS.
+
+- Rollout: Post-landing run 38821495133 is green. It applied 0094 to production and then staging
+  (7 statements each); both projects hold accounts, so 0094's behaviour self-check ran inside the
+  apply. The advisors were asked: 176 findings, 176 in the baseline, no change.
+- Backend journey: configured suite run 38821495103 on `5b6f8734a` (local Supabase stack, 0094
+  applied) ran 101: 101 passed, 0 failed, 0 flaky, 8 allowed skips. Both agent-access tests passed
+  first time. Read their assertions: step 4f sends a production with a graphics-only key and
+  expects the 403 sentence and a 404 readback of its operation; step 4g warns "may already be in
+  your library" for an identity-less package and Cancel installs nothing. The CLI walk spawns
+  `node cli/dist/index.js save` with a key consented to the production line, kills it with SIGKILL
+  once it names its operation, resumes the same operation, repeats it as a replay with the same
+  production and graphic ids, reads back by the production id (three graphics and the production,
+  all `saved`, verified), checks the cloud `documents` row (one `show`, pool = the three delivered
+  ids on three distinct layers, rundown in the order sent, no hosted or output slug, the three
+  graphics once), opens the link in a fresh signed-in browser with four cues in order, then
+  installs a `pack --save` of the same graphics: "Already delivered as", and Install anyway pools
+  the same three ids with no library copy. A library-only set from the same key reads back with
+  destination `library`. Looked at the run's screenshots: the consent card lists the production
+  line on its own; both warnings read clearly at 1440 and 390px.
+- Review of consent and permissions: `productions:create` reaches a key only through
+  `agentKeyPermissions`, which the consent page and the server share; the server mints from the
+  card's list filtered to the offer, so `playout:operate`, `graphics:read` or anything else asked
+  for is dropped (unit-tested). `AGENT_KEY_PERMISSIONS` is still `graphics:create` alone; connector
+  grants and existing keys are untouched. The set door checks `productions:create` with `permits`
+  before any write; 0094's function is service-role only (self-checked), takes the user from the
+  resolved principal, and writes a personal production with no slugs. Install reuses a library
+  record only on the same `origin.item` AND the same code; a name match only warns.
+- The CLI as a user, built from `main` (`tsc` clean; `unit` and `mcp` 82 pass, 4 skipped). Bare
+  `--production` and `--rundown` exit 2 "needs a value"; `--rundown` or `--layer` without
+  `--production`, an empty name, `--layer 20,abc`, `0`, `99` for three graphics (counts up past
+  100) and four layers for three graphics all exit 2 before any browser; `--layer 20 --layer 21`
+  is accepted. A rundown that is not JSON, not an array, a cue without `graphic`, or a missing file
+  exits 2; a cue naming a graphic not in the set is refused after validation with no request. A
+  stand-in deployment (noacg.studio's `/bridge` served on 127.0.0.1, `/api` answered locally, a
+  fake key) checked the old-deployment paths: a Phase 3 set door that ignores `production` gave
+  exit 1 `no-production` ("Saved the graphics to the library, but ... made no production"), the
+  graphic links in `--json`, and the operation forgotten; a 404 gave `no-production` "Not saved"
+  with one request and no fall-back to the single door, a single graphic included; the 403 was
+  shown verbatim after one request. `--layer 30` sent `[30, 31, 32]`, and every record carried
+  `origin.item`.
+- Not done: Docker was not started and no hosted key was read, so the backend half rests on the CI
+  run above, not on noacg.studio or staging; the published-CLI walk is Phase 5's.
+- Minor, for Phase 5: `noacg --help` does not list `--production`, `--rundown` or `--layer` on
+  `save`; the human `no-production` message names no graphic links (only `--json` has them); the
+  consent card's title still reads "to save to your library?" when it also offers productions.
