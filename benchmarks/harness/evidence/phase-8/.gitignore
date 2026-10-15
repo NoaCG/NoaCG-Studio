@@ -1,0 +1,10 @@
+# H8's evidence on this machine (spec 5.1, AC-7): frames, packages, the briefs, the stress files and
+# the raw session events stay in C:\claude\noacg-bench-archive\harness-exam-2026-10-15 and are never
+# committed; each cell's trace (trace.json), the bench's cell record (cell.json) and the judge's
+# answers (judgements*.jsonl) are.
+*
+!.gitignore
+!*/
+!*/trace.json
+!*/cell.json
+!judgements*.jsonl

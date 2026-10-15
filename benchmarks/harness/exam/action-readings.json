@@ -1,0 +1,9 @@
+{
+  "note": "H8 (evidence/phase-8.md, 'Two rulings made during the run'): actions the mechanical gate flagged missing that the operator surface offers under another name and that the frozen judge's single judgement did not name missing (3.5, AC-17). Each is an instrument disagreement logged in evidence/instruments.md. Key: the cell (<brief>.<arm>); value: the flagged action and the buttons (event, label) that do it. --tally applies these and also reports the gate alone.",
+  "readings": {
+    "borga-bilingual-notice.claude-code": {
+      "lang1": "holdFi ('Suomi'): shows language 1 and holds it",
+      "lang2": "holdSv ('Svenska'): shows language 2 and holds it"
+    }
+  }
+}

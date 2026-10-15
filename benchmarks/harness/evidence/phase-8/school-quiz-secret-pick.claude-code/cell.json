@@ -1,0 +1,139 @@
+{
+  "costUnread": false,
+  "brief": "school-quiz-secret-pick",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "02e22e34-86e0-4dcb-812b-89579b3f904f",
+  "costCents": 0,
+  "notionalUsd": 2.052648,
+  "wallSeconds": 331,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type quiz-board --design qz01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:e4eb672325f11c90bba73b6fea19fa110dfc78e56ab828dc160ae177b18464df"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:bcb2ec8cfc7c89166feccf26ca06ddce8734cdb268c590b51a199ebf9122ccae"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=In the 1960s, which British engineer, later knighted, designed the hovercraft after experimenting with an empty cat-food tin, a coffee tin, a kitchen scale and an industrial air blower in his garden shed? --data f1=Sir Christopher Cockerell, a former radio engineer who later ran a boatyard on the Norfolk Broads --data f2=Sir Frank Whittle, inventor of the jet engine --data f3=Barnes Wallis --data f4=Sir Alec Issigonis, designer of the original Mini motor car for the British Motor Corporation --data f5=A --data f7=12 --event lock --background video --out ./shots/long-sealed.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=In the 1960s, which British engineer, later knighted, designed the hovercraft after experimenting with an empty cat-food tin, a coffee tin, a kitchen scale and an industrial air blower in his garden shed? --data f1=Sir Christopher Cockerell, a former radio engineer who later ran a boatyard on the Norfolk Broads --data f2=Sir Frank Whittle, inventor of the jet engine --data f3=Barnes Wallis --data f4=Sir Alec Issigonis, designer of the original Mini motor car for the British Motor Corporation --data f5=A --data f6=C --data f7=12 --event lock --event revealChoice --background video --out ./shots/long-picked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=In the 1960s, which British engineer, later knighted, designed the hovercraft after experimenting with an empty cat-food tin, a coffee tin, a kitchen scale and an industrial air blower in his garden shed? --data f1=Sir Christopher Cockerell, a former radio engineer who later ran a boatyard on the Norfolk Broads --data f2=Sir Frank Whittle, inventor of the jet engine --data f3=Barnes Wallis --data f4=Sir Alec Issigonis, designer of the original Mini motor car for the British Motor Corporation --data f5=A --data f6=C --data f7=12 --event lock --event revealChoice --event judge --background video --out ./shots/long-reveal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f6=B --event select --background video --out ./shots/sel.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f6=B --event select --event lock --event judge --background video --out ./shots/sel-reveal.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:a5a54c8acaddfc3eff22157998cc4599cd5c5bfb844eac822778b08514342b44"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:a5a54c8acaddfc3eff22157998cc4599cd5c5bfb844eac822778b08514342b44"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\school-quiz-secret-pick.claude-code\\frames",
+    "frames": 56,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:a5a54c8acaddfc3eff22157998cc4599cd5c5bfb844eac822778b08514342b44",
+    "rekeyed": [
+      "Audience results"
+    ]
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 8,
+    "buttons": [
+      "select",
+      "lock",
+      "revealChoice",
+      "judge"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:a5a54c8acaddfc3eff22157998cc4599cd5c5bfb844eac822778b08514342b44",
+    "benchValidated": "sha256:a5a54c8acaddfc3eff22157998cc4599cd5c5bfb844eac822778b08514342b44",
+    "reviewed": "sha256:a5a54c8acaddfc3eff22157998cc4599cd5c5bfb844eac822778b08514342b44",
+    "problems": []
+  },
+  "functional": true
+}

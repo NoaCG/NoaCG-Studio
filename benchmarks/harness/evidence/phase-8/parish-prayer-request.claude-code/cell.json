@@ -1,0 +1,545 @@
+{
+  "costUnread": false,
+  "brief": "parish-prayer-request",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "49008f0b-2f78-45d7-ac43-20b677cd96a9",
+  "costCents": 0,
+  "notionalUsd": 1.4602014,
+  "wallSeconds": 374,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --fields Request:text,From:text,Place:text --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type statement-card --design card34 --out ./card34",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type statement-card --design card35 --out ./card35",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type statement-card --design card36 --out ./card36",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type statement-card --design card37 --out ./card37",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type statement-card --design card69 --out ./card69",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design card05 --out ./card05",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design card07 --out ./card07",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type title-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type headline-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type topic-card --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design [object --out ./x-[object",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sign-off --design Object] --out ./x-Object]",
+      "code": 2,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7996be740473ae1f2f94ee2dc4748e484dbca13b560bc9d776d8bfb9ce1dad38"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:d587e388ca32ed3fd57306641441a6ec2b383033ed546aba9a4c5ddf2cb46ff6"
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f0=Xin cầu nguyện cho bà nội Nguyễn Thị Hường được bình an và chữa lành sau ca phẫu thuật tim, và cho cả gia đình chúng con luôn vững tin vào lòng thương xót của Chúa trong thời gian khó khăn này. --data f1=Gia đình Nguyễn Trần Phương Thảo và Huỳnh Đức Khiêm --data f2=Westminster, California --out shots/vi.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f0=Por la salud de mi papá José Ángel, que se recupera en el hospital --data f1=Familia Muñoz Peña --data f2=Guadalajara, Jalisco, México --out shots/es.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f0=Pray for my mother --data f1= --data f2= --out shots/short.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f0=Xin cầu nguyện cho linh hồn ông cố Giuse Trần Văn Thịnh vừa được Chúa gọi về, cho bà cố Maria Lê Thị Tuyết đang đau yếu, cho các con cháu ở xa không về kịp, và cho tất cả những người đã giúp đỡ gia đình chúng con trong những ngày qua. Xin Chúa ban bình an. --data f1=Đại gia đình Trần Lê Nguyễn Hoàng Bảo Ngọc --data f2=Houston, Texas --out shots/vlong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:ccb7b92dfecf6ef22743b6720cbfaaf7f94f3475c135ca620b50a0aa457f5f13"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:4ad93e2f426e9e825da8a11f2ebb39f5258d6626d8ef16afb1c87292202a2b40"
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f0=Xin cầu nguyện cho linh hồn ông cố Giuse Trần Văn Thịnh vừa được Chúa gọi về, cho bà cố Maria Lê Thị Tuyết đang đau yếu, cho các con cháu ở xa không về kịp, và cho tất cả những người đã giúp đỡ gia đình chúng con trong những ngày qua. Xin Chúa ban bình an. --data f1=Đại gia đình Trần Lê Nguyễn Hoàng Bảo Ngọc --data f2=Houston, Texas --out shots/vlong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f0=Xin cầu nguyện cho linh hồn ông cố Giuse Trần Văn Thịnh vừa được Chúa gọi về, cho bà cố Maria Lê Thị Tuyết đang đau yếu, cho các con cháu ở xa không về kịp, và cho tất cả những người đã giúp đỡ gia đình chúng con trong những ngày qua. Xin Chúa ban bình an. --data f1=Đại gia đình Trần Lê Nguyễn Hoàng Bảo Ngọc --data f2=Houston, Texas --out shots/vlong.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:1a1ce31471a4f96537bfe33245eddab4c6ad683519b84306f2691aa917a8bc7d"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --name Prayer request card",
+      "code": 0,
+      "digest": "sha256:1a1ce31471a4f96537bfe33245eddab4c6ad683519b84306f2691aa917a8bc7d"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\parish-prayer-request.claude-code\\frames",
+    "frames": 23,
+    "crops": 3,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:1a1ce31471a4f96537bfe33245eddab4c6ad683519b84306f2691aa917a8bc7d",
+    "rekeyed": [
+      "From",
+      "Where"
+    ]
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 3,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:1a1ce31471a4f96537bfe33245eddab4c6ad683519b84306f2691aa917a8bc7d",
+    "benchValidated": "sha256:1a1ce31471a4f96537bfe33245eddab4c6ad683519b84306f2691aa917a8bc7d",
+    "reviewed": "sha256:1a1ce31471a4f96537bfe33245eddab4c6ad683519b84306f2691aa917a8bc7d",
+    "problems": []
+  },
+  "functional": true
+}

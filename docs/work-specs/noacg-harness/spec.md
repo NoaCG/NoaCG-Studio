@@ -956,6 +956,78 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H8. The held-out exam (run 2026-10-15; judging paused until 2026-10-20 05:00Z)
+
+- **Check's findings (H7 second check, on `c7c5ae224`):** PASS. The H7 round, the Opus 5.5 winner
+  and the stop rule's reading hold; repair #1264 lets H8 run on the tuned skill: path (a), agent v7
+  as tuned in both arms on the lock's skill bundle `7f130e3e` (= `2128d984d` = npm 0.11.0). The
+  marketplace serves `./cli/plugin` from `main`, so plugin users get #1258's skill today; H9
+  reconciles. Dry sync all keep with the frozen note, `--apply` no change, `--build H8 --dry` passes
+  every pre-session check at $0, `--build H9`/`H7` refuse. Agent v7 on the server equals the lock
+  (Opus 5.5 high, budget 194, `multiagent` null, the lock's skill); environment unchanged since
+  10-14. Tests 43 of 43; `--control` passed at $0. Ledger 2,134 cents spent, reserve 4,660, $32.06
+  left; `cli/src` unchanged since `1d3aade23`.
+- **Status: every session ran; the verdict is not decided.** The frozen judge (`claude-fable-5-1`)
+  answered 26 calls and was then refused by the subscription's seven-day Fable cap
+  (`seven_day_overage_included` at 100%, extra usage disabled for the organization) until
+  **2026-10-20T05:00Z**. 19 singles and 6 pairs (31 calls) wait; one of the 26 answers (Claude Code's esports scorebug single, read before that brief was re-captured) is void and asked again. No other model judges (4.3), and
+  nothing moves to the credit (5.4). H8 stays open in the ledger, so the bench stays frozen.
+- **What landed** (`evidence/phase-8.md`, `exam/REPORT.md`): the exam path in the bench (the sealed
+  briefs opened in memory and verified against the hash before anything else, only in the exam's
+  window; positional stress named by field label; each arm in its own lane; `--judge
+  --delivered-only --concurrency --briefs`; `--tally` computing 4.4 and 4.5; `--recapture` with
+  `exam/rekey.json`; `exam/action-readings.json`), the counting rules committed before the first
+  session, 20 harness and 20 reference sessions, the captures checked and seven briefs re-keyed
+  and re-captured before judging, `instruments.md` entries 17 to 19. Tests 49 of 49.
+- **The figures so far:** the harness delivered **12 of 20**; **8 sessions stopped at the
+  194-cent budget** while still revising (each with a validator-clean interim record). $33.34 of
+  the $46.60 reserve, $1.67 a session (H5: $1.29), median wall 527 s, 7 over ten minutes. Claude
+  Code delivered 20 of 20 ($45.22 notional, median 453.5 s). Judged so far: the harness's six read
+  graphics all airable with no defect; Claude Code not airable on the community bug and the ski
+  tower; pairs Claude Code 2, harness 3, one tie on an order flip. **Claude Code is already
+  preferred in 10 of 20 pairs** (8 by delivery), so one more Claude Code win among the 6 unjudged
+  pairs misses line 3; line 1 holds only if at least 5 of Claude Code's 13 unjudged graphics fail.
+- **The next session (on or after 2026-10-20T05:00Z) must:**
+  - Run `node scripts/harness-bench.mjs --judge C:\claude\noacg-bench-archive\harness-exam-2026-10-15
+    --phase H8 --delivered-only --concurrency 2`, then `--tally` on the same directory. The run
+    directory lives there now (moved out of `%TEMP%`); it holds the briefs in plain text, so it
+    never goes into the repository.
+  - Before the tally, read each new single for the open missing-action flags
+    (`instruments.md` entry 18: Claude Code's volleyball, matchup, head-to-head, podiums, bracket)
+    and the unmoved events (entry 19); add a reading to `exam/action-readings.json` only where the
+    judge named nothing missing and a button does the action, both arms alike.
+  - Then the gallery (`--review <runDir> --briefs <ten> --into benchmarks/harness/exam/gallery`,
+    the ten by `phase-8.md`'s rule), the verdict in `exam/REPORT.md` and the phase notes,
+    `docs/AI_ATTEMPTS.md`, `--close H8`, and the owner notified with the gallery path.
+  - If the verdict is MISSED, the run stops (5.5) and H9 does not start; the report names the
+    budget stops as the first thing a next plan changes.
+- **For H9, if it ever runs:** the per-graphic budget must come from briefs as dense as the exam's
+  (8 of 20 capped at 194); the product's skill still asks to `noacg login` and save first, which
+  the container forbids (the H7 repair's carry).
+- **Decisions** (each in `phase-8.md`, revertible in the merge):
+  - DECIDED: the reference arm on Opus 5.5, the model the harness runs. Revert: re-run the
+    reference with another `--model` into the same directory and judge again.
+  - DECIDED: positional stress named by the registry's field labels, and misplaced values re-keyed
+    by hand before judging, both arms of a brief re-captured alike. Revert: drop `exam/rekey.json`
+    and re-capture.
+  - DECIDED (during the run, before any tally): a missing-action flag the judge did not confirm, on
+    an action a button does under another name, counts as offered (3.5). Revert: drop
+    `exam/action-readings.json`; `--tally` also prints the gate-only figure.
+  - DECIDED: only delivered graphics are judged; a pair where one arm did not deliver goes to the
+    other. Revert: judge without `--delivered-only` and change `tallyExam`.
+  - DECIDED: no brief text in the repository: `cell.json`, `trace.json` and the judge's answers are
+    committed, the briefs and stress files stay in the archive.
+- **Traps:** "You've reached your Fable limit" was read as an error, not a pause (fixed, with a
+  test; the one refused call is judged again on resume). `--judge` during a build needs
+  `NOACG_ALLOW_PARALLEL_E2E=1`. A Fable judgement costs about $4.80 notional; 31 calls fit a fresh
+  week. The first exam session's certificate import returned at once (bridge ready at 36 s).
+- **Spend:** $33.34 credit (20 sessions), the ledger at $54.68 of $100, $13.26 of the reserve unspent
+  and still held for H8, $32.06 left. Subscription, notional: $45.22 reference, $124.62 judge. Every
+  session 404 and the bench file list empty on free reads after the run. **Shas:** built on
+  `c7c5ae224`, the counting rules in `2e981a9ae` (17:35:39Z, on GitHub 17:35:58Z), the first session
+  17:36:26Z; the merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge,
+  then restore `benchmarks/harness/ledger.json` from the merge (the spend stays recorded).
+
 ### H7 second check (2026-10-15, on `c7c5ae224`)
 
 - **Verdict: PASS.** H7's round, the Opus 5.5 winner and the stop-rule reading hold as the first

@@ -1,0 +1,27 @@
+{
+  "note": "H8, before the judge (evidence/phase-8.md): stress values the label rule put on a field they were not written for, moved by hand to the field that is, or to none when the package has no such field; both arms of each brief named here are captured again with node scripts/harness-bench.mjs --recapture. Keys are the stress keys (the registry's field labels), values the package's field keys.",
+  "rekey": {
+    "school-quiz-secret-pick": {
+      "claude-code": { "Audience results": null }
+    },
+    "collegiate-cs2-scorebug": {
+      "managed-agents": { "Stage / map": "f12" }
+    },
+    "welsh-chapel-reading": {
+      "claude-code": { "Label": null, "Second language": "f3", "Attribution": "f0" }
+    },
+    "parish-prayer-request": {
+      "claude-code": { "From": "f1", "Where": "f2" }
+    },
+    "library-conference-now-next": {
+      "claude-code": { "Now label": null, "Now": "f0", "Now detail": "f1", "Next label": null }
+    },
+    "school-table-tennis-bracket": {
+      "claude-code": { "Ties (one per line: \"Round | Side A score | Side B score\")": null, "Round being played": "f1" }
+    },
+    "school-auction-board": {
+      "claude-code": { "Stage": null },
+      "managed-agents": { "Stage": null }
+    }
+  }
+}

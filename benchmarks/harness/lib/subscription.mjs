@@ -96,8 +96,10 @@ export function checkSubscriptionAuth({ claude, env, run = spawnSync }) {
 export function usageLimit(result, now = Date.now()) {
   const text = `${result?.result ?? ''} ${result?.stderr ?? ''}`;
   // Claude Code has said both "Claude AI usage limit reached|<epoch>" and, by 2.1.296, "You've hit
-  // your session limit · resets 12:20am (Europe/Kyiv)".
-  if (!/usage limit|rate limit|session limit|hit your [a-z ]*limit/i.test(text)) return null;
+  // your session limit · resets 12:20am (Europe/Kyiv)", and for one model's own weekly cap (H8's
+  // judge, 2026-10-15) "You've reached your Fable limit. Switch to another model to continue.",
+  // which names no reset: the stage waits and asks again rather than judging on another model.
+  if (!/usage limit|rate limit|session limit|(hit|reached) your [a-z0-9 .-]*limit/i.test(text)) return null;
   const epoch = /\|(\d{10})\b/.exec(text);
   if (epoch) return { resetsAt: new Date(Number(epoch[1]) * 1000).toISOString() };
   const clock = /resets (\d{1,2})(?::(\d{2}))?\s*([ap]m)\s*\(([^)]+)\)/i.exec(text);

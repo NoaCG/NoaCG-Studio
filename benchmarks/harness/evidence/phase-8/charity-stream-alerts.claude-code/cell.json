@@ -1,0 +1,171 @@
+{
+  "costUnread": false,
+  "brief": "charity-stream-alerts",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "d409ea36-894e-47a3-b983-1cc9a90ba1ee",
+  "costCents": 0,
+  "notionalUsd": 2.0276984000000002,
+  "wallSeconds": 455,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type event-notification --design sn01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7d633e87dee53af8a3c32824bebea8ae059612be009e765e58457f3ce6c7f8c5"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:5bcdba6290857b63ba439ec904fa96420e8581e1105fab359cb5bdf46261e9dc"
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f1=Ääröläinen_Möröhöröpöröröö_der_Überkäsebrötchenfänger_2004 --data f2=€1 250.00 --data f0=MEGA DONATION --data f3=Für die Kinderklinik! Grüße aus Jyväskylä an alle Streamer, ihr seid großartig – und bitte noch eine Runde Bedwars, wir bleiben bis morgens wach! --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f1=Ääröläinen_Möröhöröpöröröö_der_Überkäsebrötchenfänger_2004 --data f2=€1 250.00 --data f0=MEGA DONATION --data f3=Für die Kinderklinik! Grüße aus Jyväskylä an alle Streamer, ihr seid großartig – und bitte noch eine Runde Bedwars, wir bleiben bis morgens wach! --out shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --background video --data f1=Jöökäröö Höyrylaivaöljyäöö --data f2= --data f0=NEW FOLLOWER --data f3= --data f4= --out shots/mid.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:230cc117a2ac140fce8500d47404226fb9d4dda072165b9fe13f6913d8bcbedf"
+    },
+    {
+      "command": "noacg screenshot ./graphic --event hold --at 3 --background video --out shots/held.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 5 --background video --out shots/hold5s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event skip --event replay --at 1.5 --background video --out shots/replay-from-off.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event hold --event resume --at 2 --background video --out shots/resumed.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event hold --at 1s --background video --out shots/held.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 6s --background video --out shots/hold6s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event skip --event replay --at 1.5s --background video --out shots/replay-from-off.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 11s --background video --out shots/after.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 0.4s --background video --out shots/entering.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:230cc117a2ac140fce8500d47404226fb9d4dda072165b9fe13f6913d8bcbedf"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:230cc117a2ac140fce8500d47404226fb9d4dda072165b9fe13f6913d8bcbedf"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\charity-stream-alerts.claude-code\\frames",
+    "frames": 61,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:230cc117a2ac140fce8500d47404226fb9d4dda072165b9fe13f6913d8bcbedf"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "hold",
+      "resume",
+      "replay",
+      "skip"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:230cc117a2ac140fce8500d47404226fb9d4dda072165b9fe13f6913d8bcbedf",
+    "benchValidated": "sha256:230cc117a2ac140fce8500d47404226fb9d4dda072165b9fe13f6913d8bcbedf",
+    "reviewed": "sha256:230cc117a2ac140fce8500d47404226fb9d4dda072165b9fe13f6913d8bcbedf",
+    "problems": []
+  },
+  "functional": true
+}

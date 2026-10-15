@@ -1,0 +1,200 @@
+{
+  "costUnread": false,
+  "brief": "fun-run-sponsor-rotation",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "a02cd155-b9d4-4083-8552-8604c1b29a69",
+  "costCents": 0,
+  "notionalUsd": 2.4831499999999997,
+  "wallSeconds": 475,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-rotator --design bug21 --out ./tmp/bug21",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-rotator --design bug22 --out ./tmp/bug22",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-rotator --design bug23 --out ./tmp/bug23",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-rotator --design bug24 --out ./tmp/bug24",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./tmp/bug21 --screenshots ./tmp/s21",
+      "code": 0,
+      "digest": "sha256:94de4b029108f3a103117b91fe0d7f7abdac2768b119c07dfeff53f35e4bd37e"
+    },
+    {
+      "command": "noacg inspect .",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-rotator --design bug21 --name Fun Run Sponsor Card --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:63bf8886bfac2148e06262d3e385f4ec4c76ef74415366660bbfa7f2eab19647"
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --out tshots/s1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --at 2 --out tshots/s2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --event skip --at 2 --out tshots/s3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event hold --event skip --at 9 --out tshots/held.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --at 0.2 --out tshots/k0.2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --at 0.5 --out tshots/k0.5.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --at 1 --out tshots/k1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --at 1.5 --out tshots/k1.5.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --at 2 --out tshots/k2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f2=./images/black.png --data f3=./images/wide.png --background testassets/crowd.png --event skip --at 4 --out tshots/k4.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 0,
+      "digest": "sha256:0a1094cf4189b9188d0b86614dd461066812a952806adbe124d00c47a9cfac1b"
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/wide.png --data f2=./images/white.png --background testassets/crowd.png --out tshots/wide.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test2 --data f1=./images/white.png --background testassets/crowd.png --out tshots/unk-white.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test2 --data f1=./images/black.png --background testassets/crowd.png --out tshots/unk-black.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./test --data f1=./images/white.png --data f0=CON EL APOYO DE NUESTROS PATROCINADORES --background video --out tshots/longkicker.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:2b4af17a77352030580df578c0f9293c940fa044a8e1111e9c6b35ea143a2f26"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:2b4af17a77352030580df578c0f9293c940fa044a8e1111e9c6b35ea143a2f26"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\fun-run-sponsor-rotation.claude-code\\frames",
+    "frames": 50,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:2b4af17a77352030580df578c0f9293c940fa044a8e1111e9c6b35ea143a2f26"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 1
+  },
+  "operator": {
+    "inputs": 7,
+    "buttons": [
+      "hold",
+      "skip",
+      "resume"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:2b4af17a77352030580df578c0f9293c940fa044a8e1111e9c6b35ea143a2f26",
+    "benchValidated": "sha256:2b4af17a77352030580df578c0f9293c940fa044a8e1111e9c6b35ea143a2f26",
+    "reviewed": "sha256:2b4af17a77352030580df578c0f9293c940fa044a8e1111e9c6b35ea143a2f26",
+    "problems": []
+  },
+  "functional": true
+}
