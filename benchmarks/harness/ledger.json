@@ -1202,7 +1202,7 @@
       "funding": "subscription",
       "notionalUsd": 124.62,
       "outcome": "paused",
-      "note": "the frozen judge on the subscription: 26 answered claude -p calls (14 singles, 6 pairs in both orders) on the exam's delivered graphics, then the subscription's Fable limit (rate limit seven_day_overage_included at 100%, extra usage disabled for the organization) refused the next call; paused until 2026-10-20T05:00:00Z, when that 7-day window resets. 18 singles and 6 pairs (30 calls) wait; nothing moved to the credit (evidence/phase-8.md)"
+      "note": "the frozen judge on the subscription: 26 answered claude -p calls (14 singles, 6 pairs in both orders) on the exam's delivered graphics, then the subscription's Fable limit (rate limit seven_day_overage_included at 100%, extra usage disabled for the organization) refused the next call; paused until 2026-10-20T05:00:00Z, when that 7-day window resets. 18 singles and 6 pairs (30 calls) wait, and one single answered on frames later re-captured is void (evidence/phase-8/judgements.void.jsonl), so 31 calls; nothing moved to the credit (evidence/phase-8.md)"
     }
   ]
 }

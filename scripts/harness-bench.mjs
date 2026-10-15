@@ -276,10 +276,19 @@ export async function runCells({ cells, runDir, cli, ledger, entry, api, runId, 
     }
   };
   const groups = lanes ? [...new Set(cells.map((c) => c.arm.id))].map((id) => cells.filter((c) => c.arm.id === id)) : [cells];
-  // A lane that stops (a cost that could not be read) stops alone: the other finishes its cell
-  // before the run reports the stop, so nothing it started is left without its cleanup.
+  // A lane that stops (a cost that could not be read) stops the run: every other lane finishes only
+  // the cell it is running, so nothing it started is left without its cleanup, and starts no more.
+  let halted = false;
   const settled = await Promise.allSettled(groups.map(async (group) => {
-    for (const c of group) await one(c);
+    try {
+      for (const c of group) {
+        if (halted) return;
+        await one(c);
+      }
+    } catch (e) {
+      halted = true;
+      throw e;
+    }
   }));
   const stopped = settled.find((s) => s.status === 'rejected');
   if (stopped) throw stopped.reason;
@@ -654,14 +663,27 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
  * stressKey: fieldKey or null for none } } }`, and BOTH arms of that brief are captured again from their delivered
  * zips, so the pair is judged on one capture rule. The first frames stay as `frames.before-rekey`.
  */
+/** Move a brief's answers out of `judgements.jsonl` into `judgements.void.jsonl`, kept and counting
+ *  for nothing, so `--judge` asks them again and `--tally` never reads them. Returns how many. */
+export function voidJudgements(runDir, brief) {
+  const file = path.join(runDir, 'judgements.jsonl');
+  if (!existsSync(file)) return 0;
+  const lines = readFileSync(file, 'utf8').split('\n').filter(Boolean);
+  const gone = lines.filter((l) => JSON.parse(l).brief === brief);
+  if (!gone.length) return 0;
+  writeFileSync(path.join(runDir, 'judgements.void.jsonl'), gone.map((l) => `${l}\n`).join(''), { flag: 'a' });
+  writeFileSync(file, lines.filter((l) => JSON.parse(l).brief !== brief).map((l) => `${l}\n`).join(''));
+  return gone.length;
+}
+
 export async function recaptureCells({ runDir, rekey, cli, log = console.log }) {
   const out = [];
   for (const [brief, byArm] of Object.entries(rekey)) {
     const dirs = readdirSync(path.join(runDir, 'cells')).filter((d) => d.startsWith(`${brief}.`) && existsSync(path.join(runDir, 'cells', d, 'cell.json')));
     if (!dirs.length) throw new Error(`--recapture: no cell of ${brief} in ${runDir}`);
-    // An answer the judge gave on the first frames would still count: re-capture before judging.
-    const judged = path.join(runDir, 'judgements.jsonl');
-    if (existsSync(judged) && readFileSync(judged, 'utf8').split('\n').some((l) => l && JSON.parse(l).brief === brief)) log(`  ${brief}: the judge already answered on its first frames; judge it again after this`);
+    // An answer the judge gave on the first frames judged frames that no longer stand: it is void.
+    const voided = voidJudgements(runDir, brief);
+    if (voided) log(`  ${brief}: ${voided} answer(s) on its first frames moved to judgements.void.jsonl; --judge asks them again`);
     for (const d of dirs) {
       const dir = path.join(runDir, 'cells', d);
       const cell = JSON.parse(readFileSync(path.join(dir, 'cell.json'), 'utf8'));

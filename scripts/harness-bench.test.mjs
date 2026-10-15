@@ -1153,7 +1153,9 @@ test('the exam\'s verdict is 4.5 as written: every line, the flip rule, and noth
   const five = examRun([...many(15, fine), ...many(5, { ...fine, pair: 'tie' })]);
   assert.deepEqual([five.verdict, five.preference.flipTies], ['PASSED', 5]);
   assert.equal(examRun([...many(14, fine), ...many(6, { ...fine, pair: 'tie' })]).verdict, 'INCONCLUSIVE');
-  // Anything unjudged decides nothing.
+  // Anything unjudged decides nothing, and nor does a run of fewer than the exam's twenty briefs.
+  const partial = examRun(many(19, fine));
+  assert.deepEqual([partial.verdict, partial.incomplete], ['incomplete', ["19 distinct brief(s), not the exam's 20"]], 'nineteen briefs, all judged, all passing, is no pass');
   const run = examRun(many(20, fine));
   assert.equal(tallyExam({ briefIds: ['b00', 'b01'], cells: [], judgements: [], budgetCents: 194 }).verdict, 'incomplete');
   assert.match(tallyMarkdown(run), /\*\*Verdict: PASSED\*\*/);
@@ -1184,6 +1186,18 @@ test('a build runs each arm in its own lane, side by side, and a paused referenc
   assert.deepEqual(waited, [15 * 60_000], 'after waiting out the limit');
   assert.deepEqual(done.map((d) => d.id).sort(), ['a.claude-code', 'a.managed-agents', 'b.claude-code', 'b.managed-agents']);
   assert.ok(done.every((d) => d.cell.outcome === 'delivered'));
+
+  // A lane that stops stops the run: the other finishes the cell it is running and starts no more.
+  const started = [];
+  const failing = async ({ arm, brief }) => {
+    started.push(`${brief.id}.${arm.id}`);
+    if (arm.id === 'managed-agents') throw new Error('cost unread');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    return { brief: brief.id, arm: arm.id, outcome: 'delivered' };
+  };
+  const three = ['a', 'b', 'c'].flatMap((id) => [{ id: `${id}.managed-agents`, brief: { id }, arm: credit }, { id: `${id}.claude-code`, brief: { id }, arm: reference }]);
+  await assert.rejects(() => runCells({ cells: three, runDir: tmp(), cli: null, ledger: emptyLedger(), entry: ENTRY, api: { shape: null }, runId: 'halt', lanes: true, cellRunner: failing }), /cost unread/);
+  assert.deepEqual(started, ['a.managed-agents', 'a.claude-code'], 'the reference lane ran only its running cell');
 });
 
 test('a misplaced stress value is moved by hand, and both arms of its brief are captured again', async () => {
@@ -1198,7 +1212,12 @@ test('a misplaced stress value is moved by hand, and both arms of its brief are 
     writeFileSync(path.join(dir, 'stress.json'), JSON.stringify({ id: 'x', stress: { f0: 'Long name', f4: 'Map 2' }, stressMap: { Name: { to: 'f0', by: 'label' }, 'Stage / map': { to: 'f4', by: 'position' } } }));
   }
   const cli = fakeCli();
+  // An answer on the first frames is void after the re-capture: kept apart, never tallied, asked again.
+  const answered = [{ task: 'single', id: 'x.claude-code', brief: 'x', answer: { airable: true } }, { task: 'single', id: 'y.claude-code', brief: 'y', answer: { airable: true } }];
+  writeFileSync(path.join(runDir, 'judgements.jsonl'), answered.map((a) => `${JSON.stringify(a)}\n`).join(''));
   const done = await recaptureCells({ runDir, rekey: { x: { 'managed-agents': { 'Stage / map': 'f12' }, 'claude-code': { 'Stage / map': null } } }, cli, log: () => undefined });
+  const lines = (f) => readFileSync(path.join(runDir, f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l).id);
+  assert.deepEqual([lines('judgements.jsonl'), lines('judgements.void.jsonl')], [['y.claude-code'], ['x.claude-code']]);
   assert.deepEqual(done.map((d) => [d.cell, d.rekeyed]).sort(), [['x.claude-code', ['Stage / map']], ['x.managed-agents', ['Stage / map']]]);
   const moved = JSON.parse(readFileSync(path.join(runDir, 'cells', 'x.managed-agents', 'stress.json'), 'utf8'));
   assert.deepEqual(moved.stress, { f0: 'Long name', f12: 'Map 2' });

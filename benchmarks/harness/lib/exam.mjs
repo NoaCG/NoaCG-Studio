@@ -153,11 +153,12 @@ const orderOf = (o, hId) => {
  * Every number of 4.4 and the verdict of 4.5 from a run's cells and the frozen judge's answers.
  * `cells` are the cells' `cell.json`; `judgements` the lines of `judgements.jsonl`. A pair is
  * judged only when both arms delivered; when one did, it is that one's; when neither did, a tie
- * that is no order flip. The verdict is `incomplete` while a cell has not run or a delivered
+ * that is no order flip. The verdict is `incomplete` while the run holds other than `briefCount`
+ * distinct briefs (the exam's twenty), while a cell has not run or a delivered
  * graphic or a pair of two is unjudged, `MISSED` when any line of 4.5 fails, `INCONCLUSIVE` when
  * every line holds but more than 5 pairs tied on an order flip, else `PASSED`.
  */
-export function tallyExam({ briefIds, cells, judgements, budgetCents, fingerprint = null, readings = {}, harness = 'managed-agents', reference = 'claude-code' }) {
+export function tallyExam({ briefIds, cells, judgements, budgetCents, fingerprint = null, readings = {}, briefCount = EXAM_BRIEF_COUNT, harness = 'managed-agents', reference = 'claude-code' }) {
   const { singles, pairs } = answers(judgements, fingerprint);
   const cellOf = (brief, arm) => cells.find((c) => c.brief === brief && c.arm === arm && c.outcome !== 'refused' && c.outcome !== 'paused') ?? null;
   const rows = briefIds.map((brief) => {
@@ -229,6 +230,8 @@ export function tallyExam({ briefIds, cells, judgements, budgetCents, fingerprin
     { rule: `median wall time at most ${PASS_RULE.medianWallSeconds / 60} minutes and no accepted graphic over the session budget`, holds: H.medianWallSeconds !== null && H.medianWallSeconds <= PASS_RULE.medianWallSeconds && overBudgetUsable.length === 0, figure: `median ${H.medianWallSeconds} s; ${overBudgetUsable.length} accepted graphic(s) over ${budgetCents} cents${overBudgetUsable.length ? ` (${overBudgetUsable.join(', ')})` : ''}` },
   ];
   const incomplete = [
+    // A verdict is on the whole exam: a run with fewer distinct briefs decides nothing.
+    ...(new Set(briefIds).size !== briefCount ? [`${new Set(briefIds).size} distinct brief(s), not the exam's ${briefCount}`] : []),
     ...rows.filter((x) => !x.harness.ran || !x.reference.ran).map((x) => `${x.brief}: ${!x.harness.ran ? harness : reference} not run`),
     ...rows.flatMap((x) => [x.harness, x.reference]).filter((g) => g.delivered && !g.judged).map((g) => `${g.id} unjudged`),
     ...rows.filter((x) => x.pair.result === 'unjudged').map((x) => `${x.brief} pair unjudged`),

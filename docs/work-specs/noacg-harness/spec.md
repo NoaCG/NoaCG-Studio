@@ -970,7 +970,7 @@ the spend added to the ledger, and the check's findings.
 - **Status: every session ran; the verdict is not decided.** The frozen judge (`claude-fable-5-1`)
   answered 26 calls and was then refused by the subscription's seven-day Fable cap
   (`seven_day_overage_included` at 100%, extra usage disabled for the organization) until
-  **2026-10-20T05:00Z**. 18 singles and 6 pairs (30 calls) wait. No other model judges (4.3), and
+  **2026-10-20T05:00Z**. 19 singles and 6 pairs (31 calls) wait; one of the 26 answers (Claude Code's esports scorebug single, read before that brief was re-captured) is void and asked again. No other model judges (4.3), and
   nothing moves to the credit (5.4). H8 stays open in the ledger, so the bench stays frozen.
 - **What landed** (`evidence/phase-8.md`, `exam/REPORT.md`): the exam path in the bench (the sealed
   briefs opened in memory and verified against the hash before anything else, only in the exam's
@@ -986,7 +986,7 @@ the spend added to the ledger, and the check's findings.
   graphics all airable with no defect; Claude Code not airable on the community bug and the ski
   tower; pairs Claude Code 2, harness 3, one tie on an order flip. **Claude Code is already
   preferred in 10 of 20 pairs** (8 by delivery), so one more Claude Code win among the 6 unjudged
-  pairs misses line 3; line 1 holds only if at least 5 of Claude Code's 12 unjudged graphics fail.
+  pairs misses line 3; line 1 holds only if at least 5 of Claude Code's 13 unjudged graphics fail.
 - **The next session (on or after 2026-10-20T05:00Z) must:**
   - Run `node scripts/harness-bench.mjs --judge C:\claude\noacg-bench-archive\harness-exam-2026-10-15
     --phase H8 --delivered-only --concurrency 2`, then `--tally` on the same directory. The run
@@ -1019,7 +1019,7 @@ the spend added to the ledger, and the check's findings.
     committed, the briefs and stress files stay in the archive.
 - **Traps:** "You've reached your Fable limit" was read as an error, not a pause (fixed, with a
   test; the one refused call is judged again on resume). `--judge` during a build needs
-  `NOACG_ALLOW_PARALLEL_E2E=1`. A Fable judgement costs about $4.80 notional; 30 calls fit a fresh
+  `NOACG_ALLOW_PARALLEL_E2E=1`. A Fable judgement costs about $4.80 notional; 31 calls fit a fresh
   week. The first exam session's certificate import returned at once (bridge ready at 36 s).
 - **Spend:** $33.34 credit (20 sessions), the ledger at $54.68 of $100, $13.26 of the reserve unspent
   and still held for H8, $32.06 left. Subscription, notional: $45.22 reference, $124.62 judge. Every

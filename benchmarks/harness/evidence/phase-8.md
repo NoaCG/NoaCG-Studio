@@ -126,8 +126,8 @@ added up. Each applies to both arms alike.
 **Status: incomplete, no verdict yet.** All 40 sessions ran and every graphic is captured, but the
 frozen judge (`claude-fable-5-1`) stopped after 26 answered calls: the subscription's own Fable
 cap (`rate_limit_event` `seven_day_overage_included`, utilization 1.0, extra usage disabled for
-the organization) refuses it until **2026-10-20T05:00Z**, when that seven-day window resets. 18
-single judgements and 6 pairs (30 calls) wait. The judge is frozen (4.3), so no other model
+the organization) refuses it until **2026-10-20T05:00Z**, when that seven-day window resets. 19
+single judgements and 6 pairs (31 calls) wait. The judge is frozen (4.3), so no other model
 judges, and nothing moves to the credit (decision 12, 5.4). The verdict is decided only when
 they are answered, by the rule above.
 
@@ -175,20 +175,27 @@ created at 17:36:26Z.
   judge's paused entry. Spent $54.68 of $100 (2,134 + 3,334), $13.26 of the reserve unspent and
   still held for H8, $32.06 left for everything else. The wall never refused: the last session
   started with $14.68 under the ceiling, against the $2.33 it books.
-- **The judge so far** (`judgements.jsonl`, 26 calls, $124.62 notional): 14 singles, 6 pairs. Every
+- **The judge so far** (`judgements.jsonl`, 26 calls, $124.62 notional): 14 singles, 6 pairs, one single now void (below). Every
   delivered harness graphic it has read was airable with no basic visual defect (6 of 12 read);
   Claude Code's community bug and ski timing tower were judged not airable. Pairs: Claude Code 2
   (fun run, film festival), the harness 3 (bilingual notice, ski timing tower, community bug),
   1 tie on an order flip (Spanish flood alert).
-- **What the verdict now turns on** (by 4.5 as written, without the 30 calls):
+- **What the verdict now turns on** (by 4.5 as written, without the 31 calls):
   - Claude Code is already preferred in 10 of 20 pairs: 2 judged, and 8 where only it delivered.
     One more Claude Code win among the 6 unjudged pairs fails line 3.
   - The harness can reach at most 12 usable graphics, so line 1 holds only if Claude Code has at
-    most 13: it has 6 judged usable, 2 judged not, and 12 delivered graphics not yet judged, so at
-    least 5 of those 12 must fail.
+    most 13: it has 5 judged usable, 2 judged not, and 13 delivered graphics not yet judged, so at
+    least 5 of those 13 must fail.
   - Lines 2 and 4 hold on what is read: no basic visible mistake in the six judged harness
     graphics and no missing action in any of its twelve delivered ones, median 527 s, no accepted
     graphic over 194 cents.
+- **One answer void (review of PR #1268).** Of the 26 answers, one was given on frames later
+  replaced: Claude Code's esports scorebug single (18:22Z), judged before its brief was re-captured
+  for the harness arm's map field (Claude Code's own stress did not change, so its frames are the
+  same, but no answer on replaced frames counts). It is moved to `judgements.void.jsonl` and asked
+  again on resume; no other recorded answer concerns a re-captured brief. `--recapture` now voids a
+  brief's earlier answers itself, `--tally` gives no verdict on fewer than the exam's 20 distinct
+  briefs, and a lane that stops lets the other finish only its running cell.
 - **Traps found:** the bench read "You've reached your Fable limit" as an error, not a pause
   (fixed in `subscription.mjs` with a test; the one refused call is in `judgements.jsonl` as an
   error and is judged again on resume). The guard counts `--judge` as browser work: during a
