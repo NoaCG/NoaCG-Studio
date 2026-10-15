@@ -415,3 +415,39 @@ Next phase must allow for:
   CLI lacks them. Phase 5 updates the skill, the MCP description and the CHANGELOG with the release.
 - Packages uploaded through the chat connector also get the specific link but no receipt row until
   they are settled; connector readback is out of this plan's scope.
+
+### Phase 2 (check), 2026-10-15
+
+Checked on `origin/main` `83e4025f7` (the landing of #1263). Verdict: PASS.
+
+- Rollout: Post-landing run 38776827995 applied 0092 to production and staging (16 statements;
+  its diff lists only `agent_deliveries`, its policy and grants, and the settle function's
+  service-role grant; `agent_keys` is untouched, so no existing key gained a scope). The
+  configured suite on the landing commit, run 38776828153 (local Supabase stack), passed 100 with
+  the 8 allowed skips. Its report shows `agent-access.spec.ts` passed first time and the sign-up
+  test that keeps Home passed. The merge-group CI run ran the API tests (2912 pass, including
+  `deliveries.test.ts`); the CLI's `unit` and `mcp` tests pass here (71 pass, 4 skipped).
+- Run as a user (AC-4, AC-5): the CLI built from `main` against this checkout's dev server on a
+  local Supabase stack with 0092 applied, with two throwaway accounts made for the check and
+  deleted after it. `noacg login --no-browser` printed the consent link; the consent card said
+  "Saves go to <account A> on localhost:5230"; `login` and `whoami` named the same account and
+  deployment, with `graphics:create` only. "Don't allow" ended `login` 0.25 s after the click,
+  exit 1, nothing stored. `save` printed the account, deployment, link and operation and said it
+  was confirmed by readback; its `--json` receipt is v1 with `verified: true`. `pack --save` said
+  pending Install with a `#/home/productions/<id>` link. `noacg status` answered by operation id
+  and by resource id, then `installed` with the production link after Install, and `dismissed`
+  after Dismiss.
+- Boundaries: a second key on the same account, a key on another account and a random id all get
+  the same 404 body; the readback with no id is a 400 and lists nothing; `GET /api/me/graphics`
+  with a key is a 405. In the browser the package link selected and focused its own row at 1440
+  and 390px, a second link selected its own row, an injected list failure showed "Waiting packages
+  could not be loaded" with Retry and Retry recovered, and an empty account showed no error and no
+  list. Account B on A's package link saw "This package is not in the account you are signed in to
+  (B)", and on A's graphic link "Graphic not found ... You are signed in as B", with nothing of A's
+  on either page. Signed out, both links ask to sign in. After Install the package link says
+  "This package is installed. Open its production".
+- Not checked: hosted behaviour on noacg.studio or staging with a real key, because there is no
+  test account there and staging's keys were not available to this check. The local stack runs
+  the same migrations and the same API code.
+- The retry/error check lives in the agent-access journey rather than a separate Home journey;
+  it walks the Home Productions screen, so this departs from the plan's wording, not its intent.
