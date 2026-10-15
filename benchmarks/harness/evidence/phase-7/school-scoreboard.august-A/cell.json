@@ -1,0 +1,60 @@
+{
+  "costUnread": false,
+  "brief": "school-scoreboard",
+  "arm": "august-A",
+  "model": null,
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": null,
+  "costCents": 0,
+  "notionalUsd": 0,
+  "wallSeconds": 9,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg validate (after the regenerating one)",
+      "code": 0,
+      "digest": "sha256:8549839bb1b3340e741de0207c924c337cb6ea76b4e86626e1238450b7d26086"
+    },
+    {
+      "command": "noacg record",
+      "code": 0,
+      "digest": "sha256:8549839bb1b3340e741de0207c924c337cb6ea76b4e86626e1238450b7d26086"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H7-round3\\cells\\school-scoreboard.august-A\\frames",
+    "frames": 27,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:8549839bb1b3340e741de0207c924c337cb6ea76b4e86626e1238450b7d26086"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 6,
+    "buttons": [],
+    "missing": [
+      "flag",
+      "clearFlag",
+      "final"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:8549839bb1b3340e741de0207c924c337cb6ea76b4e86626e1238450b7d26086",
+    "benchValidated": "sha256:8549839bb1b3340e741de0207c924c337cb6ea76b4e86626e1238450b7d26086",
+    "reviewed": "sha256:8549839bb1b3340e741de0207c924c337cb6ea76b4e86626e1238450b7d26086",
+    "problems": []
+  },
+  "functional": false
+}

@@ -1,0 +1,141 @@
+{
+  "costUnread": false,
+  "brief": "lecture-countdown",
+  "arm": "managed-agents",
+  "model": "claude-sonnet-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "sesn_01PEuWQMpwf5oUvpkoCC8EdD",
+  "costCents": 53,
+  "notionalUsd": 0,
+  "wallSeconds": 419,
+  "cleanup": {
+    "filesDeleted": 46,
+    "sessionDeleted": true,
+    "sessionGone": true,
+    "filesLeft": 0
+  },
+  "progress": [
+    "Getting ready",
+    "Designing",
+    "Checking the graphic",
+    "Checking the controls",
+    "Checking the graphic",
+    "Handing it in",
+    "Looking at it",
+    "Checking every state",
+    "Looking at it",
+    "Checking the controls"
+  ],
+  "trace": [
+    {
+      "command": "cd /workspace; noacg --version || npm install -g /mnt/session/uploads/noacg-cli.tgz; export NOACG_URL=https://noacg.studio; mkdir -p ~/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -N --empty-password 2>/dev/null; for c in /usr/local/share/ca-certificates/*.crt; do certutil -d sql:$HOME/.pki/nssdb -A -t C,, -n \"$(basename \"$c\")\" -i \"$c\"; done); noacg doctor; noacg types 2>&1 | head -60",
+      "digest": null
+    },
+    {
+      "command": "cd /workspace; export NOACG_URL=https://noacg.studio; for d in gt01 gt02 gt05 gt06 gt07 gt08 gt09; do noacg scaffold --type countdown --design $d --out /tmp/$d >/dev/null 2>&1; done; ls /tmp/gt01 /tmp/gt01/*; noacg scaffold --help 2>&1 | head -30",
+      "digest": null
+    },
+    {
+      "command": "cd /tmp; for d in gt01 gt02 gt05 gt06 gt07 gt08 gt09; do mkdir -p s_$d; (export NOACG_URL=https://noacg.studio; noacg validate /tmp/$d --screenshots /tmp/s_$d 2>&1 | tail -5); done; ls s_gt01",
+      "digest": "sha256:31462d1ea204848e6951add7228bcb46c570ef338b9f848229ef73c404707207"
+    },
+    {
+      "command": "cd /tmp/gt01; export NOACG_URL=https://noacg.studio; noacg inspect . ; grep -n \"ANIMATION\\|NOACG_ANIM = \\|STAGE_FIT\\|stageCalibrated\" js/template.js | head -40; wc -l js/template.js",
+      "digest": null
+    },
+    {
+      "command": "cd /tmp/gt01; python3 - <<'EOF'\np='js/template.js'\ns=open(p).read()\n# Enter\ns=s.replace('''      \"calls\": [\n        { \"time\": 0, \"call\": \"startClock\" }\n      ],\n      \"layers\": {\n        \".game-timer-accent\": {\n          \"scaleX\": [\n            { \"time\": 0, \"value\": 0 },\n            { \"time\": 0.45, \"value\": 1 }\n          ]\n        },''','''      \"calls\": [\n        { \"time\": 0, \"call\": \"startClock\" },\n        { \"time\": 0, \"call\": \"paintHeld\" }\n      ],\n      \"layers\": {\n        \".game-timer-box\": {\n          \"opacity\": [\n            { \"time\": 0, \"value\": 0 },\n            { \"time\": 0.5, \"value\": 1 }\n          ],\n          \"y\": [\n            { \"time\": 0, \"value\": 48 },\n            { \"time\": 0.7, \"value\": 0 }\n          ]\n        },\n        \".game-timer-accent\": {\n          \"scaleX\": [\n            { \"time\": 0.1, \"value\": 0 },\n            { \"time\": 0.8, \"value\": 1 }\n          ]\n        },''',1)\ns=s.replace('''          \"yPercent\": [\n            { \"time\": 0.3, \"value\": 110 },\n            { \"time\": 0.85, \"value\": 0 }\n          ]''','''          \"yPercent\": [\n            { \"time\": 0.35, \"value\": 110 },\n            { \"time\": 0.9, \"value\": 0 }\n          ]''',1)\n# Out: add box fade\ns=s.replace('''        \".game-timer-accent\": {\n          \"scaleX\": [\n            { \"time\": 0.2, \"value\": 1 },\n            { \"time\": 0.5, \"value\": 0 }\n          ]\n        }''','''        \".game-timer-accent\": {\n          \"scaleX\": [\n            { \"time\": 0.2, \"value\": 1 },\n            { \"time\": 0.5, \"value\": 0 }\n          ]\n        },\n        \".game-timer-box\": {\n          \"opacity\": [\n            { \"time\": 0.2, \"value\": 1 },\n            { \"time\": 0.5, \"value\": 0 }\n          ],\n          \"y\": [\n            { \"time\": 0.2, \"value\": 0 },\n            { \"time\": 0.5, \"value\": 32 }\n          ]\n        }''',1)\ns=s.replace('''              \"calls\": [\n                { \"time\": 0, \"call\": \"resumeClock\" }\n              ],''','''              \"calls\": [\n                { \"time\": 0, \"call\": \"resumeClock\" },\n                { \"time\": 0, \"call\": \"paintHeld\" }\n              ],''',1)\ns=s.replace('''              \"calls\": [\n                { \"time\": 0, \"call\": \"pauseClock\" }\n              ],''','''              \"calls\": [\n                { \"time\": 0, \"call\": \"pauseClock\" },\n                { \"time\": 0, \"call\": \"paintHeld\" }\n              ],''',1)\ns=s.replace('\"label\": \"Pause clock\"','\"label\": \"Pause\"').replace('\"label\": \"Resume clock\"','\"label\": \"Resume\"')\ns=s.replace('{ \"time\": 0, \"value\": 0.55 },\\n                    { \"time\": 0.25, \"value\": 1 }','{ \"time\": 0, \"value\": 0.6 },\\n                    { \"time\": 0.25, \"value\": 1 }')\ns=s.replace('{ \"time\": 0.25, \"value\": 0.55 }','{ \"time\": 0.25, \"value\": 0.6 }')\n# update hook\ns=s.replace('''  clockDataUpdated();\n  // Designs on a stage''','''  clockDataUpdated();\n  paintHeld();\n  fitLabel();\n  // Designs on a stage''',1)\ns+='''\n\n// ── Lecture countdown extras (outside the animation region) ──────────────\n// The word shown while the clock is held lives in the hidden source #f2; it is copied into\n// the visible slot here, and the root's \"paused\" class follows the clock state group. Safe to\n// run twice (a recovery snap re-fires it).\nfunction paintHeld() {\n  var word = document.getElementById('f2');\n  var shown = document.querySelector('.game-timer-held');\n  if (shown && word) shown.textContent = word.textContent;\n  var state = (typeof noacgMachineState === 'function') ? noacgMachineState() : null;\n  var held = !!(state && state.groups && state.groups.clock === 'paused');\n  var root = document.querySelector('.game-timer');\n  if (root) root.classList.toggle('game-timer-paused', held);\n}\n\n// The renderClock hook: drain the bar across the foot of the band.\nfunction clockPainted(left, total) {\n  var fill = document.querySelector('.game-timer-progress-fill');\n  if (fill && total > 0) fill.style.transform = 'scaleX(' + Math.max(0, Math.min(1, left / total)) + ')';\n}\n\n// Hold the label to three rows: it keeps its full size for any normal title and steps down\n// (never under 44px) only when the operator writes more than three rows' worth.\nfunction fitLabel() {\n  var el = document.getElementById('f0');\n  if (!el) return;\n  el.style.fontSize = '';\n  var cs = window.getComputedStyle(el);\n  var size = parseFloat(cs.fontSize);\n  if (!size) return;\n  var rows = 3;\n  var floor = Math.min(size, 44);\n  for (var i = 0; i < 12 && size > floor; i++) {\n    var line = parseFloat(window.getComputedStyle(el).lineHeight) || size * 1.14;\n    if (el.scrollHeight <= line * rows + 2) break;\n    size = Math.max(floor, size - 4);\n    el.style.fontSize = size + 'px';\n  }\n}\nif (document.readyState === 'loading') {\n  document.addEventListener('DOMContentLoaded', function () { fitLabel(); paintHeld(); });\n} else {\n  fitLabel(); paintHeld();\n}\nif (document.fonts && document.fonts.ready && document.fonts.ready.then) {\n  document.fonts.ready.then(function () { fitLabel(); });\n}\n'''\nopen(p,'w').write(s)\nEOF\nexport NOACG_URL=https://noacg.studio; mkdir -p /workspace/graphic; cp -r /tmp/gt01/. /workspace/graphic/; cd /workspace/graphic; noacg validate . --screenshots /workspace/shots 2>&1 | tail -40",
+      "digest": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39"
+    },
+    {
+      "command": "cd /workspace/graphic; export NOACG_URL=https://noacg.studio; noacg record . --out /mnt/session/outputs/record.json | tail -3; ls; cd /workspace/shots; python3 -c \"\nfrom PIL import Image\nfs=['onair','stress','clock-paused']\nW=960;H=540\nim=Image.new('RGB',(W*2,H*2))\nfor i,f in enumerate(fs):\n    a=Image.open(f+'.png').convert('RGBA').resize((W,H))\n    bg=Image.new('RGBA',(W,H),(70,100,70,255)); bg.alpha_composite(a)\n    im.paste(bg.convert('RGB'),((i%2)*W,(i//2)*H))\nim.save('c.png')\"",
+      "digest": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39"
+    },
+    {
+      "command": "cd /workspace/graphic; export NOACG_URL=https://noacg.studio; noacg screenshot . --data f0=\"Introduction to Broadcast Graphics begins in\" --data f1=45 --background video --out /workspace/shots/a.png; noacg screenshot . --data f0=\"Introduction to Broadcast Graphics begins in\" --data f1=45 --event pause --at 3 --background video --out /workspace/shots/b.png; noacg screenshot . --data f0=\"Introduction to Broadcast Graphics begins in\" --data f1=90 --background video --out /workspace/shots/c2.png",
+      "digest": null
+    },
+    {
+      "command": "cd /workspace/graphic; export NOACG_URL=https://noacg.studio; noacg screenshot . --data f1=45 --event pause --at 1.5 --background video --out /workspace/shots/b.png",
+      "digest": null
+    },
+    {
+      "command": "cd /workspace/graphic; export NOACG_URL=https://noacg.studio; noacg docs control 2>&1 | grep -n -i -B2 -A6 \"\\-\\-at\" | head -30; noacg screenshot --help 2>&1 | head -30",
+      "digest": null
+    },
+    {
+      "command": "cd /workspace/graphic; export NOACG_URL=https://noacg.studio; noacg coverage . --out /mnt/session/outputs/coverage 2>&1 | tail -5; python3 -c \"\nimport json;d=json.load(open('/mnt/session/outputs/coverage/coverage.json'));print(json.dumps(d,indent=1)[:3500])\"; ls /mnt/session/outputs/coverage",
+      "digest": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39"
+    },
+    {
+      "command": "cd /workspace/graphic; export NOACG_URL=https://noacg.studio; noacg screenshot . --data f1=0.05 --state onair --at 5 --background video --out /workspace/shots/d.png 2>&1 | tail -2",
+      "digest": null
+    },
+    {
+      "command": "cd /workspace/graphic; export NOACG_URL=https://noacg.studio; noacg inspect .; noacg validate . | head -3; noacg record . --out /mnt/session/outputs/record.json | tail -2; noacg coverage . --out /mnt/session/outputs/coverage | head -1",
+      "digest": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39"
+    }
+  ],
+  "metrics": {
+    "model": "claude-sonnet-5-5",
+    "coldStart": {
+      "firstModelRequest": 1.2,
+      "firstToolCall": 2.2,
+      "firstNoacgCommand": 9.5,
+      "bridgeReady": 38.7
+    },
+    "turns": {
+      "modelRequests": 21,
+      "toolCalls": 29
+    },
+    "images": 8,
+    "largestRequest": {
+      "at": "2026-10-15T13:54:31.314601Z",
+      "usd": 0.0815,
+      "usage": {
+        "cache_creation_input_tokens": 11211,
+        "cache_read_input_tokens": 50819,
+        "input_tokens": 2,
+        "output_tokens": 4835
+      }
+    },
+    "pricedCents": 53,
+    "activeSeconds": 375.581
+  },
+  "outputsListed": 46,
+  "undownloadable": [],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H7-round3\\cells\\lecture-countdown.managed-agents\\frames",
+    "frames": 41,
+    "crops": 1,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 2,
+    "buttons": [
+      "pause",
+      "resume"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39",
+    "benchValidated": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39",
+    "reviewed": "sha256:439ce4e1940d7f7f535bdc00dfa172495857e3e0b17665a8ce80d5e09ba87b39",
+    "problems": []
+  },
+  "functional": true
+}

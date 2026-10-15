@@ -6,6 +6,41 @@ disagreement is logged here with its frame and its resolution. Newest first. Fra
 the repository (named by their calibration id; `benchmarks/harness/judge/calibration.mjs render`
 rebuilds them at zero cost).
 
+## H7 (2026-10-15): tuning round 3
+
+Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`
+on the five Sonnet 5.5 cells and five August A cells (`%TEMP%\noacg-harness\H7-round3\cells\`).
+Pictures: the frozen judge and my own look at the frames named.
+
+13. **The validator is silent on a numeral its own mask cuts at rest** (`debate-clock`, Sonnet).
+    The opposition clock's `300` has its bottom cut off and sits on its "SECONDS LEFT" label in
+    every settled frame (`frames/sample-video.jpg`, `long-video.jpg`); the judge called it not
+    airable, high, and I see the cut. `noacg validate`: 0 errors, 0 warnings. Cause: the overflow
+    sweep's check (a) in `src/validation/runtimeBench.ts` measures a `*-mask` sideways only and
+    leaves the vertical axis exempt on purpose (a mask hugs a line box its glyphs overhang). The
+    shipped `speaking-timer` `dc01` scaffold the agent started from renders clean (re-shot at $0);
+    the agent's edits made the cut. Resolution: not fixed here, since a vertical check needs the
+    catalog calibration the sideways one had and the winner of this round is Opus. Issue #1259.
+14. **The validator is silent on a label the progress bar runs through after an Update**
+    (`live-vote`, Sonnet). At 1,500 ms after the Update to long options, the leading card's
+    wrapped label sits on its bar (`frames/update-01500ms.jpg`); the judge called it not airable,
+    high, and I see it. `bench-overlap` compares text and image leaves, and a bar fill is neither,
+    so nothing fires. The coverage frame shows it; the agent read `update-00300ms.jpg`, before the
+    label settled, and not the 1,500 ms frame. Resolution: no instrument change; the frame was
+    there, and reading it is the loop's job.
+15. **The judge read a Take wipe two ways.** On the Sonnet scoreboard it counted `AWAY` cut by
+    the panel edge 300 ms into the Take as clipped text (medium); on the Sonnet news lower third it
+    called cuts inside the designed wipe transient. Resolution: the count stands as the rule fixed
+    it (the judge's single), and the verdict does not rest on it: the same judgement found the
+    clear-flag press flashing GOAL beside the team that did not score, and
+    `event-clearflag-after-goala-00120ms.jpg` shows GOAL beside both HOME 1 and AWAY 0.
+16. **Update ops and the five-option state, checked before any pair** (entries 9, 11, 12). Only
+    `live-vote` updated different kinds of field (August A its kicker, the harness its options).
+    Re-shot at 1,500 ms over video: August A with the long options (rows grow, nothing overlaps)
+    and the harness with a doubled question (it shrinks to one line, nothing overlaps), so no
+    defect hides in a state one arm was never put in. Five options with a `33.33` leader (#1251):
+    both arms clean, the LEADING chip whole (`H7-round3\reshoot\`).
+
 ## H6 (2026-10-15): tuning round 2
 
 Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`

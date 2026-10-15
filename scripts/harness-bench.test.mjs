@@ -117,6 +117,10 @@ test('a session\'s trace measures its cold start, turns, images and largest requ
   assert.equal(m.steps.find((s) => s.command?.includes('validate')).digest, `sha256:${'d'.repeat(64)}`);
   assert.equal(m.steps.find((s) => s.tool === 'read').images, 1);
   assert.equal(requestUsd(usage(0, 0, 0, 1_000_000), LIST_PRICES['claude-opus-5-5'], 1), 8, 'a one-hour cache write is twice the input price');
+  // H7's live vote on Sonnet 5.5 (sesn_01Jo54zF3jpZUpNHthoZKcbo): its totals and 573 s of running
+  // time give its own list cost of 60 cents only at a $0.10 cache read; at $0.20 they gave 74.
+  const sonnet = requestUsd(usage(56, 16_894, 1_469_247, 107_422), LIST_PRICES['claude-sonnet-5-5']) + (573.149 / 3600) * 0.08;
+  assert.equal(Math.round(sonnet * 100), 60);
 });
 
 test('H3\'s proofs: the planted defect validates clean, and the packages environment adds only the published CLI', () => {
@@ -167,10 +171,13 @@ test('--build refuses a $0 phase, a completed one, tuning before the exam is res
   assert.match(refuseBuild(emptyLedger(), 'H4'), /H4 spends nothing \(5\.1\): it creates no session/, 'the reservation is $0 whatever the ledger says');
   assert.match(refuseBuild(ledger, 'H5'), /already holds H5 as completed/, 'round 1 is closed and never spends again');
   assert.match(refuseBuild(ledger, 'H6'), /already holds H6 as completed/, 'round 2 is closed and never spends again');
-  assert.equal(refuseBuild(ledger, 'H7'), null, 'the committed ledger holds the reserve, so round 3 may spend');
+  assert.match(refuseBuild(ledger, 'H7'), /already holds H7 as completed/, 'round 3 is closed and never spends again');
   assert.match(refuseBuild(emptyLedger(), 'H5'), /no exam reserve/);
   assert.equal(refuseBuild(emptyLedger(), 'H3'), null, 'feasibility comes before the reserve');
-  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H7 not closed/);
+  assert.equal(refuseBuild(ledger, 'H8'), null, 'tuning is closed and the reserve held, so the exam may spend it');
+  const beforeH7Closed = { ...ledger, entries: ledger.entries.filter((e) => !(e.kind === 'phase' && e.phase === 'H7' && e.outcome === 'completed')) };
+  assert.equal(refuseBuild(beforeH7Closed, 'H7'), null, 'with the reserve held, round 3 could spend before it closed');
+  assert.match(refuseBuild(beforeH7Closed, 'H8'), /H8 spends its reserve only on the exam, after tuning: H7 not closed/);
   assert.match(refuseBuild(ledger, 'feasibility'), /phase like H3/);
   assert.match(refuseBuild(ledger, 'H04'), /phase like H3/, 'no alias slips past the $0 and completed refusals');
 });
@@ -799,11 +806,12 @@ test('a critic thread is measured apart: its events kept, its usage and largest 
 });
 
 // The bench agent as the server returned it (2026-10-15): v3 single-threaded, v5 still carrying v4's
-// critic though agent.md had dropped it, because an update keeps a field it is not sent.
+// critic though agent.md had dropped it, because an update keeps a field it is not sent. Its system
+// prompt and metadata are read from agent.md, as each version the sync makes carries them.
 const serverAgent = (version, multiagent) => ({
   id: 'agent_0183yBA1miijGFNvm5bkMv6B', version, type: 'agent', name: 'NoaCG harness',
   description: 'Makes one NoaCG broadcast graphic from a brief, checks every state, and hands in a library record.',
-  mcp_servers: [], metadata: { plan: 'noacg-harness', session_budget_cents: '224' },
+  mcp_servers: [], metadata: readAgentDefinition(path.join(ROOT, 'agents', 'noacg-harness')).config.metadata,
   model: { effort: { type: 'high' }, id: 'claude-opus-5-5', speed: 'standard' }, multiagent,
   skills: [{ skill_id: 'skill_1', type: 'custom', version: 'skver_1' }],
   system: readAgentDefinition(path.join(ROOT, 'agents', 'noacg-harness')).system,
@@ -837,7 +845,7 @@ test('the sync clears a multiagent block the definition dropped, and its plan se
   assert.equal(sent[0].body.multiagent, null, 'null is what agents.update takes to clear it');
   assert.equal(sent[0].body.mcp_servers, null);
   assert.equal(sent[0].body.version, 5);
-  assert.deepEqual(sent[0].body.metadata, { plan: 'noacg-harness', session_budget_cents: '224', critic_cents: null });
+  assert.deepEqual(sent[0].body.metadata, { ...agent.config.metadata, critic_cents: null });
   assert.deepEqual(next.agent, { id: 'agent_0183yBA1miijGFNvm5bkMv6B', version: 6, sha256: lock.agent.sha256 });
   // A definition that lists a subagent still sends its block, and the server's must match it.
   const listed = { ...agent, config: { ...agent.config, multiagent: { ...CRITIC_ON_SERVER, subagents: { ...CRITIC_ON_SERVER.subagents, predefined_agents: ['critic.md'] } } } };

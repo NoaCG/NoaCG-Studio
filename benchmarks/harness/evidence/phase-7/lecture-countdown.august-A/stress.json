@@ -1,0 +1,20 @@
+{
+  "id": "lecture-countdown",
+  "kind": "noacg",
+  "type": "countdown",
+  "chassis": "gt01",
+  "neutral": false,
+  "prompt": "A 'lecture begins in' countdown for a university's stream: a label the operator writes ('Introduction to Broadcast Graphics begins in') and the minutes they set; the operator can pause and resume it live. Full-width holding look, readable from the back of a lecture hall.",
+  "stress": {
+    "f0": "Introduction to Broadcast Graphics and Interactive Playout begins in",
+    "f1": "12"
+  },
+  "expect": {
+    "fields": 2,
+    "actions": [
+      "pause",
+      "resume"
+    ]
+  },
+  "judge": "the clock runs and reads; pause/resume operable; the label survives a long value"
+}

@@ -20,7 +20,9 @@
 /** US dollars per million tokens: input, output, cache read, cache write 5 min, cache write 1 h. */
 export const LIST_PRICES = {
   'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, write5m: 5, write1h: 8 },
-  'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.2, write5m: 2.5, write1h: 4 },
+  // Sonnet 5.5's cache read at $0.10: what H7's five sessions' own list costs imply, each within a
+  // cent; at $0.20 every one priced 7 to 15 cents over the platform's figure.
+  'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1, write5m: 2.5, write1h: 4 },
   // Haiku 5.5 at $0.50 / $2.50: what H3's two plumbing sessions' own list costs imply (3 cents each
   // on about 50k price-weighted tokens); the $0.10 / $0.50 figure did not reproduce them.
   'claude-haiku-5-5': { input: 0.5, output: 2.5, cacheRead: 0.05, write5m: 0.625, write1h: 1 },
