@@ -956,6 +956,73 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H7. Tuning round 3: Sonnet 5.5 (built 2026-10-15)
+
+- **Check's findings (H6 second check, on `a8aa62e38`):** AC-6, AC-16, AC-17 and the round ceiling
+  hold after the repair: agent v6 read back by the checker (`multiagent` null while v5 still shows
+  the critic; prompt 15 lines, equal to v3's and `agent.md`; tools, model Opus 5.5 high, name and
+  description as v3; skill `skver_01KXt4Xf4msx422tocc44dmh` = lock bundle `7f130e3e...`; budget 224;
+  `mcp_servers` empty); the sync's dry plan all `keep`, compared with the server (v6 no diff, v5
+  differs in `multiagent`, v3 only in the skill id); bench file list empty; the new test fails on
+  the old update body, 38 of 38 now; `--control` passed at $0; ledger 1,898 cents (H3 266, H5 624,
+  H6 1,008), `T` $34.42, reserve 4,660, H6 figures untouched. Trap: `--agent-version N` skips the
+  server check. Carried: v6 never v5, Sonnet 5.5, five briefs, 224 cents, `--ceiling-cents 1500`, no
+  `--critic-cents`, the stop rule's reading before spend, Update ops before pairs, #1251's
+  five-option state outside the frames.
+- **Shas:** previous verified `main` `1d3aade23`; built on `claude/plan-noacg-harness-p8-build`. The
+  hypothesis, ceiling, signal, match rule and stop-rule reading committed in `cd4904409`
+  (13:36:09Z), on GitHub by 13:36:21Z (draft PR #1257), before the first session (13:36:41Z). The
+  merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge, then restore
+  `benchmarks/harness/ledger.json` from the merge (the spend stays recorded, and a ledger without
+  it would let `--build H7` pay again), and `node scripts/harness-agent-sync.mjs --workspace bench
+  --apply`, which makes a new version with v6's configuration. Nothing on the bench workspace to
+  clean up (every session 404, the file list empty).
+- **What landed** (`benchmarks/harness/evidence/phase-7.md`): five Sonnet 5.5 sessions (a
+  per-session override of v6, effort `high`) on the five v1 briefs, all delivered validator-clean
+  with every action, **$2.36** of $15, median **419 s**. The frozen judge: **3 graphics with a basic
+  visual defect** (the debate clock's numeral cut by its mask and on its label, the live vote's
+  label on its bar after the Update, the scoreboard flashing GOAL beside the side that did not
+  score on clear), **2 of 5 accepted, $1.18 per accepted graphic**, pairs harness 3, August 2, tie
+  0, no order flip. Sonnet read 0 to 6 coverage frames by name and missed defects in frames it
+  had. **DECIDED: Opus 5.5 wins** (the match rule fixed before spend: at least 4 accepted and no
+  basic defect). No progress (August 2 against 1); with H6 counted as progress, the stop rule does
+  not fire and H8 runs the winner. Haiku not measured (3.8: only after Sonnet matched). The
+  bench's Sonnet cache-read price corrected to $0.10 (every session's list cost reproduced to the
+  cent). `instruments.md` entries 13 to 16; the validator's silence on a vertical mask cut is
+  #1259.
+- **H8 must allow for:**
+  - **H8 runs agent v7** (`agent_0183yBA1miijGFNvm5bkMv6B`, lock hash `b1cf0534...`): Opus 5.5
+    effort `high`, no critic, budget **194** (`agent.md`), `o` 39, `R` **$46.60** set by H7. Run it
+    with no `--model`, `--effort` or `--agent-version`, so the server check reads v7 back. The
+    reference arm is Claude Code on the subscription (4.2), which needs `--model`.
+  - v7's certificate import closes stdin (`</dev/null`), new and not yet run on Opus: read the first
+    exam session's trace for the import (rc 0, `bridge ready` near 35 s) before trusting the rest.
+  - The 194 cap sits 5 cents over the dearest Opus graphic measured (H5's debate clock, $1.89). A
+    harder exam brief can stop at it (`budget_reached`, not ready, a delivery miss in 4.5): report
+    each capped session as such.
+  - Before the judge: compare each pair's Update ops and check each cell's `stress.json` against
+    its fields (the sealed briefs key stress by position); a list brief's verdict covers only the
+    item count its stress gives (#1251); the validator misses a line its mask cuts vertically at
+    rest (#1259), so a judge finding there is not an instrument disagreement to resolve against
+    the picture.
+  - The stop rule's reading is recorded in `phase-7.md`: if the owner reads it strictly (H6's
+    critic made no progress, so H7 is the second round in a row), H8 waits for the owner.
+- **Decisions** (each with its reasons in `phase-7.md`):
+  - DECIDED: `--effort high` on the Sonnet override. Revert: another round at `medium`.
+  - DECIDED: the match rule, the winner rule and the stop rule's reading, before any spend.
+  - DECIDED: `session_budget_cents` 194 (was 224), the reserve's `B`. Revert: 224 in `agent.md`,
+    re-sync, `--reserve --by H7 --budget-cents 224 --overshoot-cents 39`.
+  - DECIDED: `</dev/null` on the prompt's certificate import (two Sonnet sessions hung 295 s there).
+    Revert: drop it from `agent.md` and re-sync.
+- **Traps:**
+  - A `--model` override replaces the agent's model object in full: pass `--effort` with it, or the
+    session runs at the model's default effort.
+  - The certificate hang ends at the tool's 295 s timeout, four seconds inside the cache's five
+    minutes: a slower one would rewrite the whole context.
+  - The judge on ten cells and five pairs took about 31 minutes on the subscription.
+- **Spend:** $2.36 credit; the ledger at $21.34 of $100, $46.60 held for H8, $32.06 over. $68.76
+  notional on the subscription.
+
 ### H6 second check (2026-10-15, on `a8aa62e38`)
 
 - **Verdict: PASS.** The first check's blocker is gone. Checked on `main` `a8aa62e38` (the repair,

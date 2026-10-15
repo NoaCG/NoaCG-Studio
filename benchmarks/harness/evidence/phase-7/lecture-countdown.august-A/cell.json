@@ -1,0 +1,59 @@
+{
+  "costUnread": false,
+  "brief": "lecture-countdown",
+  "arm": "august-A",
+  "model": null,
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": null,
+  "costCents": 0,
+  "notionalUsd": 0,
+  "wallSeconds": 10,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg validate (after the regenerating one)",
+      "code": 0,
+      "digest": "sha256:ecd4ade7efc12c6eca808f7a2380c3716b4eee9dac198e78daadf432d6f20c60"
+    },
+    {
+      "command": "noacg record",
+      "code": 0,
+      "digest": "sha256:ecd4ade7efc12c6eca808f7a2380c3716b4eee9dac198e78daadf432d6f20c60"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H7-round3\\cells\\lecture-countdown.august-A\\frames",
+    "frames": 23,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:ecd4ade7efc12c6eca808f7a2380c3716b4eee9dac198e78daadf432d6f20c60"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [],
+    "missing": [
+      "pause",
+      "resume"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:ecd4ade7efc12c6eca808f7a2380c3716b4eee9dac198e78daadf432d6f20c60",
+    "benchValidated": "sha256:ecd4ade7efc12c6eca808f7a2380c3716b4eee9dac198e78daadf432d6f20c60",
+    "reviewed": "sha256:ecd4ade7efc12c6eca808f7a2380c3716b4eee9dac198e78daadf432d6f20c60",
+    "problems": []
+  },
+  "functional": false
+}

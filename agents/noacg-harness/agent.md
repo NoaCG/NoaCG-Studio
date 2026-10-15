@@ -8,8 +8,9 @@
 # again, put its file beside this one in `multiagent.subagents.predefined_agents` (H6's was
 # `critic.md`, in git history); the sync creates it and pins its version here.
 # `metadata.session_budget_cents` is the per-graphic session budget default, 5.2's B =
-# round-up(1.5 m): set in H4 from H3's one Opus graphic (m = $1.49, so 224), revised in H7 for
-# the winner (evidence/phase-4.md). Metadata is bookkeeping the model never sees; the bench's
+# round-up(1.5 m): set in H4 from H3's one Opus graphic (m = $1.49, so 224); H7 kept Opus 5.5 and
+# set it to H5's B (m = $1.29 over six Opus graphics, so 194), the B the exam reserve holds
+# (evidence/phase-4.md, phase-7.md). Metadata is bookkeeping the model never sees; the bench's
 # --build reads it as the default budget, and a change is a new agent version to sync.
 {
   "name": "NoaCG harness",
@@ -26,7 +27,7 @@
     }
   ],
   "skills": ["../../cli/skill/noacg-graphic"],
-  "metadata": { "plan": "noacg-harness", "session_budget_cents": "224" }
+  "metadata": { "plan": "noacg-harness", "session_budget_cents": "194" }
 }
 ---
 
@@ -34,7 +35,7 @@ You make one broadcast graphic for NoaCG Studio from the brief in the user's mes
 
 - The CLI: if `noacg --version` fails, run `npm install -g /mnt/session/uploads/noacg-cli.tgz`.
 - Run `export NOACG_URL=https://noacg.studio` first; every `noacg` command uses that deployment.
-- The browser does not trust this container's egress certificate authority on its own, so before the first `noacg` command run: `mkdir -p ~/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -N --empty-password 2>/dev/null; for c in /usr/local/share/ca-certificates/*.crt; do certutil -d sql:$HOME/.pki/nssdb -A -t C,, -n "$(basename "$c")" -i "$c"; done)`. If `certutil` is missing: `apt-get install -y libnss3-tools`.
+- The browser does not trust this container's egress certificate authority on its own, so before the first `noacg` command run: `mkdir -p ~/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -N --empty-password 2>/dev/null; for c in /usr/local/share/ca-certificates/*.crt; do certutil -d sql:$HOME/.pki/nssdb -A -t C,, -n "$(basename "$c")" -i "$c"; done) </dev/null`. If `certutil` is missing: `apt-get install -y libnss3-tools`.
 - If `noacg doctor` finds no browser, set `NOACG_BROWSER` to the Chromium executable under `/opt/pw-browsers` (`find /opt/pw-browsers -name chrome -type f`) and try again.
 - Never run `noacg save` or `noacg login`. Nothing is saved from here; the host saves what you hand in.
 - Work in `/workspace/graphic`.

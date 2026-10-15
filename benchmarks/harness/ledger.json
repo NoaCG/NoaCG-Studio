@@ -3,14 +3,14 @@
   "runBudgetCents": 10000,
   "reserve": {
     "phase": "H8",
-    "setBy": "H5",
+    "setBy": "H7",
     "briefs": 20,
     "sessionBudgetCents": 194,
     "overshootCents": 39,
     "criticCents": 0,
     "cents": 4660,
-    "at": "2026-10-15T06:48:35.323Z",
-    "note": "H5: m = mean of six Opus graphic sessions (H3 149; H5 99, 133, 88, 115, 189) = 128.8 cents, B = round-up(1.5 m) = 194; o = 39, the largest H5 request (school-scoreboard, 6,569 output tokens and 50,457 written to a warm cache); no cache lapse in H5's 124 follow-on requests (evidence/phase-5.md)"
+    "at": "2026-10-15T14:48:55.119Z",
+    "note": "H7 kept Opus 5.5 (Sonnet 5.5 did not match: 2 of 5 accepted, 3 graphics with a basic visual defect): B stays round-up(1.5 x $1.29) = 194 and o 39 from H5's six Opus graphics; agent.md's budget set to 194 (agent v7) so an exam session's cap is the B the reserve holds (evidence/phase-7.md)"
   },
   "entries": [
     {
@@ -592,6 +592,16 @@
       "sessionId": null,
       "wallSeconds": 17,
       "outcome": "delivered"
+    },
+    {
+      "at": "2026-10-15T14:50:49.374Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H7",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "tuning round 3, Sonnet 5.5 on agent v6 (no critic): five sessions on the v1 library briefs, all delivered validator-clean with every action, $2.36 of the $15 ceiling, median 419 s; judged on the subscription against the August A cells (20 answered claude -p calls, $68.76 notional, no pause, no credit): harness preferred 3, August 2, tie 0; three graphics with a basic visual defect, 2 of 5 accepted, $1.18 per accepted graphic. Sonnet does not match, so Opus 5.5 wins; agent v7 (budget 194, the certificate import's stdin closed); reserve re-recorded by H7 at $46.60 (evidence/phase-7.md)"
     }
   ]
 }
