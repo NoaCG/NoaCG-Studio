@@ -30,7 +30,6 @@ import { runStatus } from './commands/status.js';
 import { runSave } from './commands/save.js';
 import { runCaspar } from './commands/caspar.js';
 import { runBridge } from './commands/bridge.js';
-import { runMcp } from './mcp.js';
 
 const USAGE = `noacg v${cliVersion()} - the NoaCG CLI: make broadcast graphics for NoaCG Studio.
 
@@ -91,7 +90,9 @@ const COMMANDS: Record<string, Command> = {
   record: runRecord,
   pack: runPack,
   docs: runDocs,
-  mcp: runMcp,
+  // Loaded only when asked for: the MCP SDK and its schema library cost every other command a
+  // startup, and the terminal verbs never need them.
+  mcp: async (args, out) => (await import('./mcp.js')).runMcp(args, out),
   login: runLogin,
   logout: runLogout,
   whoami: runWhoami,

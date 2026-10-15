@@ -579,3 +579,20 @@ user-level run blocked.
   local test and build commands. So the CLI's journal, lock, resend and concurrency behaviour has
   only the builder's unit tests and the bridge run without a backend as evidence, and AC-7's
   user-level retry scenario stays open.
+
+### Phase 3 (repair), 2026-10-15
+
+The landing of #1270 applied 0093 to production and staging; post-land then failed on one advisor
+finding new since the baseline, `rls_enabled_no_policy` on `agent_operations`. Read on production:
+RLS on, no policy, no client grant, and only the service role may run `agent_deliver_graphics`, so
+it is the accepted deny-all posture; the baseline was re-recorded (176) with that judgement in
+docs/STACK_FRESHNESS.md. The independent check could not run the real CLI against a backend
+(Docker's VM on that machine had no room, and staging refuses its keys), so the configured
+agent-access journey now builds and drives the CLI itself: a save killed mid-write and run again,
+the same command repeated and two runs at once each leave one set with the same ids; an invalid
+graphic writes nothing; a changed set sent under the journaled operation is refused and forgotten.
+The CLI now loads its MCP server only for `noacg mcp`, so the terminal verbs run on the root
+install, whose zod is a major version ahead of the CLI's. Configured suite run 38795738884 on this branch (local Supabase stack)
+passed 101 with the 8 allowed skips; the CLI walk passed first time in 26 s, its killed save
+confirmed killed by SIGKILL before the rerun. A lost answer inside one running process stays
+covered by the CLI unit tests only; on the configured stack it would need a fault-injecting proxy.
