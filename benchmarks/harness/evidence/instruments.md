@@ -6,6 +6,29 @@ disagreement is logged here with its frame and its resolution. Newest first. Fra
 the repository (named by their calibration id; `benchmarks/harness/judge/calibration.mjs render`
 rebuilds them at zero cost).
 
+## H6 (2026-10-15): tuning round 2
+
+Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`
+on the four harness cells and three August A cells (`%TEMP%\noacg-harness\H6-round2\cells\`), the
+agents' own coverage in the container, and the critic's answers. Pictures: the frozen judge, the
+critic, and my own look at the frames named.
+
+10. **`noacg coverage` never showed a long label in a `Label | value` lines field** (entry 8, issue
+    #1246). Resolution: fixed in the CLI before the round (`cli/src/coverage.ts` `longer`): such a
+    line grows its label, to at least 32 characters, and keeps its value. Seen in the container: both
+    H6 live-vote authors' own Update frames show every option wrapping (`outputs/all/update-01500ms.jpg`:
+    `Live on TV Live on TV Live on TV`, `Yes, keep the late kick-off Yes, keep the late`), where H5's
+    read `52 Yes`. Neither delivered H5's overlap. No other cell of either round has such a field, so
+    the fix changed no other brief's matrix.
+11. **The Update strip drove different fields again on `live-vote`** (entry 9's check, done before
+    any pair was judged). August A's Update sets its kicker; the harness's two cells set their
+    options. Re-shot each way at 1,500 ms over video: August A with the brief's long options
+    (`H6-round2\reshoot-live-vote.august-A-options-update-01500ms.png`: rows grow, nothing
+    overlaps), and both harness cells with a doubled kicker (`reshoot-...managed-agents-kicker-...`,
+    `reshoot-...managed-agents-v3-kicker-...`: the chip grows, nothing overlaps). No defect hides
+    in the state either arm was not put in, so the pairs stand as captured. `news-lower-third` and
+    `school-scoreboard` updated the same kind of field (a name) in both arms.
+
 ## H5 (2026-10-15): tuning round 1
 
 Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`
