@@ -592,4 +592,7 @@ agent-access journey now builds and drives the CLI itself: a save killed mid-wri
 the same command repeated and two runs at once each leave one set with the same ids; an invalid
 graphic writes nothing; a changed set sent under the journaled operation is refused and forgotten.
 The CLI now loads its MCP server only for `noacg mcp`, so the terminal verbs run on the root
-install, whose zod is a major version ahead of the CLI's. Configured run: CONFIGURED_REPAIR_RUN.
+install, whose zod is a major version ahead of the CLI's. Configured suite run 38795738884 on this branch (local Supabase stack)
+passed 101 with the 8 allowed skips; the CLI walk passed first time in 26 s, its killed save
+confirmed killed by SIGKILL before the rerun. A lost answer inside one running process stays
+covered by the CLI unit tests only; on the configured stack it would need a fault-injecting proxy.
