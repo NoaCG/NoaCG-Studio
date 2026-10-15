@@ -6,13 +6,14 @@
 // The id is written here BEFORE the set is sent, so a process killed mid-write still finds it.
 // An entry is keyed by a fingerprint of the deployment, the key and the records' content (the
 // same content the deployment hashes: everything but the ids and timestamps the bridge mints each
-// time), and is reused for a day. `--operation <id>` names one explicitly; `--new` starts a fresh
-// one for a set the user really wants twice. The file holds fingerprints and ids, never a key.
+// time), and is reused for a day. A replay that finds the set's graphics deleted since forgets it
+// (save.ts), so saving the set again puts it back. The file holds fingerprints and ids, never a key.
 
 import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { credentialsDir } from './config.js';
+import { canonicalJson } from './digest.js';
 
 /** How long the same set keeps its operation: long enough for any retry, short enough that a set
  *  made again next week is a new delivery. */
@@ -52,18 +53,6 @@ async function writeJournal(journal: Journal): Promise<void> {
   await fs.rename(tmp, target);
 }
 
-/** JSON with every object's keys sorted (the deployment's `canonicalJson`, api/_lib/me/graphicSets.ts). */
-export function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map((v) => (v === undefined ? 'null' : canonicalJson(v))).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
-
 /** The set as "the same set": where it goes, by which key, and its content without the ids and
  *  timestamps the bridge mints on every build. */
 export function setFingerprint(origin: string, key: string, docs: Array<Record<string, unknown>>): string {
@@ -78,24 +67,22 @@ export interface ChosenOperation {
   resumed: boolean;
 }
 
-/**
- * The operation to send a set under, recorded before anything is sent: the one named, a fresh one
- * when asked, else the one this set was sent under in the last day, else a new one.
- */
-export async function operationFor(
-  fingerprint: string,
-  choice: { operation?: string; fresh?: boolean } = {},
-  now = Date.now(),
-): Promise<ChosenOperation> {
+/** The operation to send a set under, recorded before anything is sent: the one this set was sent
+ *  under in the last day, else a new one. */
+export async function operationFor(fingerprint: string, now = Date.now()): Promise<ChosenOperation> {
   const journal = await readJournal();
   const live = journal.entries.filter((e) => now - Date.parse(e.at) < OPERATION_REUSE_MS);
   const known = live.find((e) => e.fingerprint === fingerprint);
-  let chosen: ChosenOperation;
-  if (choice.operation) chosen = { operationId: choice.operation.toLowerCase(), resumed: known?.operationId === choice.operation.toLowerCase() };
-  else if (known && !choice.fresh) chosen = { operationId: known.operationId, resumed: true };
-  else chosen = { operationId: randomUUID(), resumed: false };
-  const entries = live.filter((e) => e.fingerprint !== fingerprint);
-  entries.push({ fingerprint, operationId: chosen.operationId, at: known && chosen.resumed ? known.at : new Date(now).toISOString() });
-  await writeJournal({ version: 1, entries: entries.slice(-MAX_ENTRIES) });
-  return chosen;
+  if (known) return { operationId: known.operationId, resumed: true };
+  const operationId = randomUUID();
+  await writeJournal({ version: 1, entries: [...live, { fingerprint, operationId, at: new Date(now).toISOString() }].slice(-MAX_ENTRIES) });
+  return { operationId, resumed: false };
+}
+
+/** Forget the operation a set was tied to, after the deployment refused it as a conflict, so the
+ *  next plain run starts a new one instead of meeting the same refusal for a day. */
+export async function forgetOperation(fingerprint: string, operationId: string): Promise<void> {
+  const journal = await readJournal();
+  const entries = journal.entries.filter((e) => !(e.fingerprint === fingerprint && e.operationId === operationId));
+  if (entries.length !== journal.entries.length) await writeJournal({ version: 1, entries });
 }

@@ -359,7 +359,7 @@ so a missed record reads back as a 404 and the CLI reports it unverified.
 Install step, and sending it again never adds a second copy. One graphic takes the same path.
 
 ```
- noacg save ./a ./b ./c [--folder F] [--operation <id> | --new]
+ noacg save ./a ./b ./c [--folder F]
    validate every graphic in the bridge (gate + bench); one error refuses the set, nothing is sent
    bridge.graphicDoc per graphic -> the operation id: the journal's for this set, or a new one,
      written to <config>/operations.json BEFORE the write
@@ -384,9 +384,10 @@ stored without the ids and timestamps the bridge mints on every build, so the sa
 again by a restarted CLI are the same set. A lost answer (a 5xx, a dropped connection) is sent
 again twice under the same operation; if every answer is lost and a readback finds nothing, the
 receipt is `delivery_unverified` and running the same command again resumes the operation. The
-journal reuses an operation for the same deployment, key and content for 24 hours, `--operation`
-names one, and `--new` delivers a set again on purpose (after deleting it, say). A replay reports
-what is there now: a graphic deleted since reads `missing`.
+journal reuses an operation for the same deployment, key and content for 24 hours. A replay
+reports what is there now: a graphic deleted since reads `missing`, the CLI says the set is not
+all in the library and forgets the operation, and the same save run again delivers it anew.
+A replay after the CLI's own lost answer is reported as this run's save, not an earlier one.
 
 **Limits, against the existing ones.** One set holds 1 to 40 graphics, a pack's own cap
 (`packageShape.ts`), so any pack's graphics fit one set. The whole body shares the save door's

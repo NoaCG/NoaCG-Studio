@@ -164,6 +164,9 @@ export interface NewCommunityPack {
   pack: unknown;
 }
 
+/** The database has no set function yet (0093 not applied): the set door answers as absent. */
+export class SetDoorUnavailable extends Error {}
+
 /** The submit gate said no: the sentence is the database's own, written for the maker. */
 export class CommunityPackRefusal extends Error {}
 
@@ -454,7 +457,8 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
         p_payload_hash: set.payloadHash,
         p_graphics: set.docs.map((doc) => ({ id: doc.id, name: doc.name, body: doc })),
       });
-      if (error) throw new Error(error.message);
+      // PGRST202: no such function - a database 0093 has not reached yet. Nothing was written.
+      if (error) throw error.code === 'PGRST202' ? new SetDoorUnavailable(error.message) : new Error(error.message);
       const answer = (data ?? {}) as { outcome?: string; ids?: unknown };
       if (answer.outcome !== 'created' && answer.outcome !== 'replayed' && answer.outcome !== 'conflict') {
         throw new Error(`agent_deliver_graphics answered ${JSON.stringify(data)}`);
@@ -504,6 +508,8 @@ export interface MemoryAgentAccessStore extends AgentAccessStore {
   /** Failure injection: a set fails on its record at this index (0-based), as a failing INSERT
    *  would, and - like the one transaction it stands for - leaves nothing behind. */
   failSetAt: number | null;
+  /** When set, the database has no set function yet (0093 not applied). */
+  noSetFunction: boolean;
   /** When set, the next community submit is refused with this sentence, as the gate would. */
   refuseCommunityPack: string | null;
   /** The clock the store compares expiries against - a test advances it. */
@@ -532,6 +538,7 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     failDeliveries: false,
     operations: new Map(),
     failSetAt: null,
+    noSetFunction: false,
     refuseCommunityPack: null,
     now,
     async createCode(row) {
@@ -628,10 +635,13 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
       return true;
     },
     async deliverGraphicSet(set) {
+      if (store.noSetFunction) throw new SetDoorUnavailable('Could not find the function public.agent_deliver_graphics');
       const claim = `${set.userId}:${set.operationId}`;
       const known = store.operations.get(claim);
       const ownRows = (): DeliveryRow[] =>
-        store.deliveries.filter((d) => d.userId === set.userId && d.operationId === set.operationId && d.kind === 'graphic').sort(byDeliveryOrder);
+        store.deliveries
+          .filter((d) => d.userId === set.userId && d.operationId === set.operationId && d.kind === 'graphic' && d.position != null)
+          .sort(byDeliveryOrder);
       // An operation id a single save already used is not this set's (0093 says the same).
       if (!known && store.deliveries.some((d) => d.userId === set.userId && d.operationId === set.operationId)) return { outcome: 'conflict', ids: [] };
       if (known) {

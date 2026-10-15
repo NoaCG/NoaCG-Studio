@@ -100,9 +100,11 @@ begin
     if v_hash is distinct from p_payload_hash or v_key is distinct from p_key_id then
       return jsonb_build_object('outcome', 'conflict', 'ids', '[]'::jsonb);
     end if;
+    -- The set's own rows only: a single save that later reused the operation id has no position.
     select coalesce(jsonb_agg(d.resource_id order by d.position), '[]'::jsonb) into v_ids
       from public.agent_deliveries d
-     where d.user_id = p_user_id and d.operation_id = p_operation_id and d.kind = 'graphic';
+     where d.user_id = p_user_id and d.operation_id = p_operation_id and d.kind = 'graphic'
+       and d.position is not null;
     return jsonb_build_object('outcome', 'replayed', 'ids', v_ids);
   end if;
 

@@ -1139,7 +1139,7 @@ test('a lost answer is sent again under the SAME operation - safe for a set - an
   t.after(() => flaky.server.close());
   const resent = await deliverSetAndConfirm(flaky.origin, 'k', OP_A, [], () => saveGraphicSet(flaky.origin, 'k', setDocs(), OP_A), [0, 0]);
   assert.equal(resent.ok, true);
-  assert.equal(resent.replayed, true, 'the third send was answered with the first delivery');
+  assert.equal(resent.replayed, false, 'a replay after this run lost its own answers is this run\'s save, not an earlier one');
   assert.deepEqual(flaky.seen.writes.map((w) => w.op), [OP_A, OP_A, OP_A], 'never a new operation');
 
   const landed = await setDeployment({ writes: [502] });
@@ -1197,15 +1197,37 @@ test('the journal gives the same set the same operation across runs, and a diffe
   const other = await operationFor(setFingerprint('https://noacg.test', 'key-1', setDocs().slice(1)));
   assert.notEqual(other.operationId, first.operationId);
 
-  const fresh = await operationFor(fp, { fresh: true });
-  assert.notEqual(fresh.operationId, first.operationId, '--new starts another delivery');
-  assert.deepEqual(await operationFor(fp), { operationId: fresh.operationId, resumed: true }, 'and that one is resumed from then on');
-  assert.equal((await operationFor(fp, { operation: OP_A.toUpperCase() })).operationId, OP_A, '--operation names it');
-  const later = await operationFor(fp, {}, Date.now() + OPERATION_REUSE_MS + 1000);
-  assert.notEqual(later.operationId, OP_A, 'a day later the same set is a new delivery');
+  const later = await operationFor(fp, Date.now() + OPERATION_REUSE_MS + 1000);
+  assert.equal(later.resumed, false, 'a day later the same set is a new delivery');
+  assert.notEqual(later.operationId, first.operationId);
+
+  // A conflict, or a replay whose graphics were deleted since: forgotten, so the next run starts a
+  // new delivery instead of meeting the same answer for a day.
+  const { forgetOperation } = await import('../dist/operations.js');
+  await forgetOperation(fp, later.operationId);
+  const after = await operationFor(fp);
+  assert.equal(after.resumed, false);
+  assert.notEqual(after.operationId, later.operationId);
 });
 
-test('save refuses before any browser: --name with several, a bad --operation, --operation with --new', async () => {
+test('one graphic on a deployment without the set door asks about its operation first, then uses the single door under it', async (t) => {
+  const { saveOneTheOldWay } = await import('../dist/commands/save.js');
+  const known = await receiptDeployment();
+  t.after(() => known.server.close());
+  const found = await saveOneTheOldWay(known.origin, 'k', OP_A, './a', 'Strap', {}, {});
+  assert.equal(found.ok, true);
+  assert.equal(found.replayed, true);
+  assert.equal(found.id, 'g1');
+  assert.deepEqual(known.seen.writes, [], 'already there under this operation: nothing is written');
+
+  const fresh = await receiptDeployment({ readStatus: 404 });
+  t.after(() => fresh.server.close());
+  const saved = await saveOneTheOldWay(fresh.origin, 'k', OP_A, './a', 'Strap', {}, {});
+  assert.deepEqual(fresh.seen.writes, [OP_A], 'written once, under the operation the CLI journaled');
+  assert.equal(saved.operationId, OP_A);
+});
+
+test('save refuses --name with several packages before any browser', async () => {
   const dir = await tmpdir();
   for (const g of ['a', 'b']) {
     await fs.mkdir(path.join(dir, g), { recursive: true });
@@ -1215,17 +1237,10 @@ test('save refuses before any browser: --name with several, a bad --operation, -
   const named = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--name', 'Both', '--json'], closed);
   assert.equal(named.code, 2);
   assert.match(JSON.parse(named.stdout).error, /--name names one graphic/);
-  const badOp = await run(['save', path.join(dir, 'a'), '--operation', 'nope', '--json'], closed);
-  assert.equal(badOp.code, 2);
-  assert.match(JSON.parse(badOp.stdout).error, /--operation must be the operation id/);
-  const both = await run(['save', path.join(dir, 'a'), '--operation', OP_A, '--new', '--json'], closed);
-  assert.equal(both.code, 2);
-  assert.match(JSON.parse(both.stdout).error, /give one of them/);
-  // `--new ./a ./b`: the parser hands "./a" to the switch; it comes back as a package, and with no
-  // key the save is the ordinary no-login refusal, not "no package".
-  const fresh = await run(['save', '--new', path.join(dir, 'a'), path.join(dir, 'b'), '--json'], closed);
-  assert.equal(fresh.code, 1);
-  assert.equal(JSON.parse(fresh.stdout).reason, 'not-logged-in');
+  // Several packages are a set, not stray words: with no key it is the ordinary no-login refusal.
+  const set = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--json'], closed);
+  assert.equal(set.code, 1);
+  assert.equal(JSON.parse(set.stdout).reason, 'not-logged-in');
 });
 
 // ---------------------------------------------------------------- the shipped skill text

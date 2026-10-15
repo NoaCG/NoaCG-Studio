@@ -180,6 +180,22 @@ test('a different payload, or another credential, under a used operation is refu
   assert.equal(reused.status, 409);
 });
 
+test('a database without 0093 answers as a deployment without the set door, having written nothing', async () => {
+  const w = await world();
+  w.store.noSetFunction = true;
+  const res = await w.send(threeRecords());
+  assert.equal(res.status, 404, 'the CLI saving one graphic then uses the single save door');
+  assert.deepEqual(footprint(w), NOTHING);
+});
+
+test('a single save that reuses the operation of a set does not change what the set replays', async () => {
+  const w = await world();
+  const first = (await (await w.send(threeRecords())).json()) as SetResponse;
+  assert.equal((await w.graphics.fetch(req('/api/me/graphics', { body: threeRecords()[0] }))).status, 201, 'the single door records its receipt under OP too');
+  const replay = (await (await w.send(threeRecords())).json()) as SetResponse;
+  assert.deepEqual(replay.graphics, first.graphics, 'still the three of the set, in order');
+});
+
 test('a replay says what is there now: a graphic deleted since reads missing', async () => {
   const w = await world();
   const first = (await (await w.send(threeRecords())).json()) as SetResponse;

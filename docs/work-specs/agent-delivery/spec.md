@@ -478,7 +478,8 @@ Landed:
   the whole set on one error, measures it against 4 MB, and sends it once under an operation
   written to `<config>/operations.json` first. A lost answer is resent under the same operation (up
   to three sends), then read back; a rerun of the same command within a day resumes the operation;
-  `--operation <id>` names one and `--new` delivers again on purpose. One graphic takes the same
+  a replay that finds graphics deleted since is reported as not in the library and forgets the
+  operation, so the same save again puts the set back. One graphic takes the same
   path and falls back to the single door on a deployment without the set door (404).
 
 Size limits and compatibility: 1 to 40 graphics, a pack's own cap, so any pack's graphics fit one
@@ -502,8 +503,8 @@ and a duplicate-id second record leaving nothing) and left no row; two mutations
 same self-check at post-land. CLI: `unit.test.mjs` 59 and `mcp.test.mjs` 18 pass (the set door is
 written once and read back; lost answers resent under the same operation; every answer lost and
 nothing found is `delivery_unverified` with "run the same command again"; a conflict, a refusal,
-an offline 503 and a missing door are not resent; the journal's same set, other set, `--new`,
-`--operation` and expiry; the argument refusals). Run through the real bridge against this
+an offline 503 and a missing door are not resent; the journal's same set, other set, expiry and
+forgetting; the single-door fallback asking about its operation first; the argument refusals). Run through the real bridge against this
 checkout's dev server with no backend: three scaffolded lower thirds validated, the offline answer
 came back once, and running the same command again said "Resuming 3 graphics under operation
 <the same id>", so a rebuild through the bridge is the same set; two of the three got a new
@@ -522,8 +523,9 @@ Decisions:
 - The journal keys on deployment, a hash of the key, and the content, and keeps an operation for
   24 hours: long enough for any retry, and short enough that the same graphics made again next
   week are a new delivery. It holds no key.
-- The MCP schema gained no argument beyond `paths` for `save` (its size ceiling); `--operation`
-  and `--new` are terminal-only, and the journal covers an MCP retry.
+- No `--operation` or `--new` flag: the journal resumes a set, a conflict or a replay with deleted
+  graphics forgets its operation so the next run starts a new one, and the MCP schema gained only
+  `paths` for `save` (it sits at its size ceiling).
 - A new error code, `conflict`, joins the shared API error vocabulary (`src/render/types.ts`).
 
 Rollback: revert the pull request. 0093 is additive (a table, a nullable column, a function); left

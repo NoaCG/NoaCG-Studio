@@ -63,7 +63,7 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
                                  Get a scoped agent key for this machine (opens the consent page).
   logout [--local]               Revoke and forget this machine's key.
   whoami                         Which key this machine holds, and whether it is still valid.
-  save <dir|zip>... [--name N] [--folder F] [--no-bench] [--operation <id> | --new]
+  save <dir|zip>... [--name N] [--folder F] [--no-bench]
                                  Validate, then put the graphics in your NoaCG library in one
                                  delivery; the same command again resumes it, never a second copy.
   status <id>                    What a save or pack --save delivered, and whether it is there now.

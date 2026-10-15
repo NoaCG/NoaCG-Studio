@@ -20,9 +20,9 @@ import path from 'node:path';
 import { BridgeClient, type BridgeValidation } from '../bridgeClient.js';
 import { cliVersion, noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { resolveKey, saveGraphic, saveGraphicSet } from '../auth.js';
-import { operationFor, setFingerprint } from '../operations.js';
-import { deliverAndConfirm, deliverSetAndConfirm, describeReceipt, destinationOf, isUuid, type DeliveryReceipt } from '../receipt.js';
+import { readDelivery, resolveKey, saveGraphic, saveGraphicSet } from '../auth.js';
+import { forgetOperation, operationFor, setFingerprint } from '../operations.js';
+import { deliverAndConfirm, deliverSetAndConfirm, describeReceipt, destinationOf, type DeliveryReceipt } from '../receipt.js';
 import { readPackageInput } from '../workspace.js';
 import { describeValidation } from './validate.js';
 
@@ -59,7 +59,7 @@ export interface SaveOutcome {
   error?: string;
   /** For an agent reading `--json`: which of the documented refusals this was. `unverified`: no
    *  answer came and a readback did not find it - run the same command again, it resumes. */
-  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'unverified' | 'too-large' | 'conflict';
+  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'unverified' | 'too-large' | 'conflict' | 'deleted';
   /** The delivery receipt (docs/AGENT_SAVE.md §9): account, deployment, state, and whether a
    *  readback confirmed it. */
   receipt?: DeliveryReceipt;
@@ -71,10 +71,6 @@ export interface SaveOptions {
   folder?: string;
   bench?: boolean;
   houseContract?: boolean;
-  /** Resume this operation instead of the journal's choice. */
-  operation?: string;
-  /** Deliver it again as a new operation, even if this set was sent in the last day. */
-  fresh?: boolean;
 }
 
 /** The refusal every entrance gives before it starts a browser. */
@@ -83,12 +79,10 @@ export function notLoggedIn(origin: string): string {
 }
 
 /** The usage problem with these arguments, or null - checked before any browser starts. */
-export function saveArgsProblem(inputs: string[], opts: Pick<SaveOptions, 'name' | 'operation' | 'fresh'>, names = { name: '--name', operation: '--operation', fresh: '--new' }): string | null {
+export function saveArgsProblem(inputs: string[], opts: Pick<SaveOptions, 'name'>, names = { name: '--name' }): string | null {
   if (!inputs.length) return 'save needs a package directory or .zip.';
   if (inputs.length > MAX_SET_GRAPHICS) return `save takes at most ${MAX_SET_GRAPHICS} graphics in one delivery; save the rest in another.`;
   if (opts.name && inputs.length > 1) return `${names.name} names one graphic; with several, each keeps the name its definition gives it.`;
-  if (opts.operation && !isUuid(opts.operation)) return `${names.operation} must be the operation id an earlier save printed.`;
-  if (opts.operation && opts.fresh) return `${names.operation} resumes a delivery and ${names.fresh} starts a new one; give one of them.`;
   return null;
 }
 
@@ -136,23 +130,20 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
     };
   }
 
-  const { operationId, resumed } = await operationFor(setFingerprint(origin, found.key, docs), { operation: opts.operation, fresh: opts.fresh });
+  const fingerprint = setFingerprint(origin, found.key, docs);
+  const { operationId, resumed } = await operationFor(fingerprint);
   log(`${resumed ? 'Resuming' : 'Saving'} ${docs.length === 1 ? `"${prepared[0].name}"` : `${docs.length} graphics`} under operation ${operationId}…`);
   const names = prepared.map((p) => p.name);
   const sent = await deliverSetAndConfirm(origin, found.key, operationId, names, () => saveGraphicSet(origin, found.key, docs, operationId));
-  if (!sent.ok && sent.reason === 'unsupported' && docs.length === 1) {
-    // A deployment from before the set door: the one save door it always had.
-    const one = await deliverAndConfirm(origin, found.key, 'graphic', (op) => saveGraphic(origin, found.key, docs[0], op));
-    if (!one.ok) return { ok: false, reason: one.reason, receipt: one.receipt, error: one.reason === 'unverified' ? one.error : `Not saved: ${one.error}`, ...reports };
-    const graphic = { input: inputs[0], id: one.id ?? '', name: names[0], url: one.url ?? '' };
-    return { ok: true, id: graphic.id, url: graphic.url, name: graphic.name, graphics: [graphic], operationId: one.receipt.operationId, receipt: one.receipt, ...reports };
-  }
+  if (!sent.ok && sent.reason === 'unsupported' && docs.length === 1) return saveOneTheOldWay(origin, found.key, operationId, inputs[0], names[0], docs[0], reports);
   if (!sent.ok) {
+    // A conflict ties this content to an operation that is not its own; let the next run start afresh.
+    if (sent.reason === 'conflict') await forgetOperation(fingerprint, operationId);
     const error = sent.reason === 'unverified' || sent.reason === 'conflict' ? sent.error : `Not saved: ${sent.error}`;
     return { ok: false, reason: sent.reason === 'unsupported' ? 'refused' : sent.reason, operationId, receipt: sent.receipt, error, ...reports };
   }
   const graphics = (sent.graphics ?? []).map((g, i) => ({ input: inputs[i], id: g.id, name: g.name || names[i], url: g.url }));
-  return {
+  const outcome: SaveOutcome = {
     ok: true,
     ...(graphics.length === 1 ? { id: graphics[0].id, url: graphics[0].url, name: graphics[0].name } : {}),
     graphics,
@@ -161,13 +152,45 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
     receipt: sent.receipt,
     ...reports,
   };
+  // An earlier delivery of this set, answered again, whose graphics were deleted since: they are
+  // NOT in the library, and saying "saved" would be the false claim this receipt exists to prevent.
+  const deleted = sent.receipt.resources.filter((r) => r.state === 'missing').length;
+  if (deleted) {
+    // Forgotten, so the same save run again is a new delivery that puts the set back.
+    await forgetOperation(fingerprint, operationId);
+    const error = `This set was saved earlier under operation ${operationId}, and ${deleted} of its graphics ${deleted === 1 ? 'was' : 'were'} deleted since, so ${deleted === 1 ? 'it is' : 'they are'} not in the library. Run the same save again to put the whole set back as a new delivery.`;
+    return { ...outcome, ok: false, reason: 'deleted', error };
+  }
+  return outcome;
+}
+
+/** One graphic to a deployment from before the set door: the single save door it always had, under
+ *  the same operation - asked about first, so a rerun after a lost answer never saves it twice. */
+export async function saveOneTheOldWay(
+  origin: string,
+  key: string,
+  operationId: string,
+  input: string,
+  name: string,
+  doc: Record<string, unknown>,
+  reports: Pick<SaveOutcome, 'validation' | 'validations'>,
+): Promise<SaveOutcome> {
+  const earlier = await readDelivery(origin, key, operationId).catch(() => null);
+  const graphicOf = (receipt: DeliveryReceipt) => receipt.resources.find((r) => r.kind === 'graphic');
+  if (earlier && graphicOf(earlier)) {
+    const g = graphicOf(earlier)!;
+    return { ok: true, id: g.id, url: g.link, name, graphics: [{ input, id: g.id, name, url: g.link }], operationId, replayed: true, receipt: earlier, ...reports };
+  }
+  const one = await deliverAndConfirm(origin, key, 'graphic', (op) => saveGraphic(origin, key, doc, op), operationId);
+  if (!one.ok) return { ok: false, reason: one.reason, operationId, receipt: one.receipt, error: one.reason === 'unverified' ? one.error : `Not saved: ${one.error}`, ...reports };
+  const graphic = { input, id: one.id ?? '', name, url: one.url ?? '' };
+  return { ok: true, id: graphic.id, url: graphic.url, name, graphics: [graphic], operationId, receipt: one.receipt, ...reports };
 }
 
 /** The validation reports a save carries (warnings included), one per graphic. */
 export function describeReports(outcome: SaveOutcome): string[] {
   if (outcome.validation) return [describeValidation(outcome.validation)];
-  return (outcome.validations ?? []).map((v) => `${v.input}:
-${describeValidation(v.validation)}`);
+  return (outcome.validations ?? []).map((v) => `${v.input}:\n${describeValidation(v.validation)}`);
 }
 
 /** What a finished save says to a person, in the terminal and in the MCP tool. */
@@ -195,17 +218,11 @@ export function describeSave(outcome: SaveOutcome): string[] {
 
 export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
   const inputs = args._.slice(1);
-  // `--new` is a switch, but the parser gives a flag the next word when it is not a flag - so
-  // `save --new ./a ./b` hands "./a" to it. Give it back to the packages.
-  const freshFlag = args.flags.new;
-  if (typeof freshFlag === 'string') inputs.unshift(freshFlag);
   const opts: SaveOptions = {
     name: flagString(args, 'name'),
     folder: flagString(args, 'folder'),
     bench: flagBool(args, 'bench', true),
     houseContract: flagBool(args, 'house-contract', true),
-    operation: flagString(args, 'operation'),
-    fresh: freshFlag !== undefined && freshFlag !== false && freshFlag !== 'false',
   };
   // Every input must exist BEFORE the browser starts. `save` takes several packages, so a stray
   // word cannot be refused by count - an unquoted `--name Football scoreboard` hands it

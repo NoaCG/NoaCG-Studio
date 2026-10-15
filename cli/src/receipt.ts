@@ -107,8 +107,8 @@ export async function deliverAndConfirm(
   key: string,
   kind: 'graphic' | 'package',
   write: (operationId: string) => Promise<{ id: string; url: string; receipt?: DeliveryReceipt }>,
+  operationId: string = newOperationId(),
 ): Promise<Delivered> {
-  const operationId = newOperationId();
   const destination = kind === 'graphic' ? 'library' : 'home';
   let written: { id: string; url: string; receipt?: DeliveryReceipt };
   try {
@@ -175,10 +175,14 @@ export async function deliverSetAndConfirm(
 ): Promise<SetDelivered> {
   let written: SetResult | null = null;
   let lost: unknown = null;
+  // Only the FIRST send can be answered with an earlier run's delivery. A replay after this run's
+  // own answer was lost is most likely this run's own write.
+  let earlier = false;
   for (let attempt = 0; attempt <= delays.length && !written; attempt += 1) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, delays[attempt - 1]));
     try {
       written = await write();
+      earlier = attempt === 0 && written.replayed;
     } catch (e) {
       // A refusal the server SENT is an answer, and so is a deployment with no account backend.
       const answered = e instanceof ApiError && ((e.failure.status >= 400 && e.failure.status < 500) || (e.failure.status === 503 && e.failure.code === 'unavailable'));
@@ -196,7 +200,7 @@ export async function deliverSetAndConfirm(
   }
   const confirmed = await readDelivery(origin, key, operationId).catch(() => null);
   if (written) {
-    return { ok: true, replayed: written.replayed, graphics: written.graphics, receipt: confirmed ?? written.receipt ?? localReceipt(operationId, origin, 'library', 'delivery_unverified', `Check it with \`noacg status ${operationId}\`.`) };
+    return { ok: true, replayed: earlier, graphics: written.graphics, receipt: confirmed ?? written.receipt ?? localReceipt(operationId, origin, 'library', 'delivery_unverified', `Check it with \`noacg status ${operationId}\`.`) };
   }
   if (confirmed) {
     // Every answer was lost, but it is in the account: the readback lists it in the order sent.

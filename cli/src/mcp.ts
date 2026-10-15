@@ -283,7 +283,7 @@ async function save(input: Input): Promise<Result> {
   if (input.path !== undefined && input.paths !== undefined) throw new UsageError('noacg save takes "path" or "paths", not both.');
   const inputs = input.paths ?? (input.path ? [input.path] : []);
   if (!inputs.length) throw new UsageError('noacg save needs "path" (one graphic) or "paths" (several).');
-  const problem = saveArgsProblem(inputs, { name: input.name }, { name: '"name"', operation: '', fresh: '' });
+  const problem = saveArgsProblem(inputs, { name: input.name }, { name: '"name"' });
   if (problem) throw new UsageError(problem);
   // The cheapest refusal first: no key means no save, and that answer needs no browser.
   const origin = noacgUrl();

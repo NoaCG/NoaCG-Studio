@@ -21,7 +21,7 @@
 
 import { apiError, json, methodGuard, readJson, sha256 } from '../http.js';
 import { checkAgentSaveIpRateLimit, checkAgentSavePrincipalRateLimit } from '../rateLimit.js';
-import { agentAccessConfigured, supabaseAgentAccessStore, type AgentAccessStore } from '../agentAccessStore.js';
+import { agentAccessConfigured, SetDoorUnavailable, supabaseAgentAccessStore, type AgentAccessStore } from '../agentAccessStore.js';
 import { resolvePrincipal } from '../principal.js';
 import { graphicSaveShape } from './graphicShape.js';
 import { libraryRecord, MAX_SAVE_BODY_BYTES, type GraphicsDeps } from './graphics.js';
@@ -151,6 +151,11 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
         };
         return json(response, replayed ? 200 : 201);
       } catch (e) {
+        // The code is here before its migration: answer as a deployment without the door, which a
+        // CLI saving one graphic meets by using the single save door instead.
+        if (e instanceof SetDoorUnavailable) {
+          return apiError('not_found', 'This NoaCG cannot take a set of graphics in one delivery yet. Nothing was saved.', 404);
+        }
         console.error('[agent-set]', e instanceof Error ? e.message : e);
         // Either all of it was saved or none of it; an answer lost after the commit cannot tell
         // which, and sending the same request again settles it without a second copy.
