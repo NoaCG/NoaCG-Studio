@@ -656,6 +656,27 @@ test('after the export door there is nothing to walk back from: Back is an ordin
   await expect(page.getByTestId('wz-resume-confirm')).toHaveCount(0);
 });
 
+test('back onto a deep-linked walk restores it, and the link does not start it over (#1220)', async ({ page }) => {
+  // A walk begun from `#/new/<id>` keeps the design in every step URL it pushes, so Back off the
+  // production page reopens the wizard on a step URL that is ALSO a deep link. The open that
+  // restores the walk must not then let the link replace it with a fresh pick on Fields.
+  await page.goto('/app#/new/lt01');
+  await expect(page.locator('.wz-dot.active')).toHaveText(/Fields/);
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Next →' }).click();
+  await page.getByTestId('wz-finish-name').fill('Guest Strap');
+  await page.getByTestId('wz-finish-production-name').fill('Friday Show');
+  await addToProductionFromFinish(page);
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+
+  await page.goBack();
+  const warn = page.getByTestId('wz-resume-confirm');
+  await expect(warn).toBeVisible();
+  await warn.getByTestId('wz-resume-confirm-go').click();
+  await expect(warn).toBeHidden();
+  await expect(page.locator('.wz-dot.active')).toHaveText(/Finish/);
+  await expect(page.getByTestId('wz-finish-name')).toHaveValue('Guest Strap');
+});
+
 test('a plain #/new after the production door discards the finished walk', async ({ page }) => {
   await toFinishStep(page);
   await page.getByTestId('wz-finish-name').fill('Guest Strap');

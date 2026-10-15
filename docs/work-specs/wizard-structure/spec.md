@@ -1250,9 +1250,10 @@ not build it. S8 is the last phase on the list; nothing is carried to a next bui
   | SVG overlays, replayKey | no reset in any intent: the mapping step clears the overlays on unmount, which every intent causes, and `replayKey` is a replay counter whose value means nothing | | | | |
   | `heldWalk` | cleared on open | cleared on open | cleared on open | n/a | set when left with work (`walkHasWork`) |
   | `resumeAsk` | none | raised | cleared | n/a | n/a |
+  | a pending `#/new/<id>` design | **dropped** (#1220) | **dropped**: the step URL that restores the walk carries it (#1220) | the deep link, below | n/a | n/a |
 
   Deep link: Fresh followed by `pickDesign` on Fields in template mode, **carrying the brand in
-  force exactly as the Browse pick** (#1154), with `animation.steps: null` as every pick (#1151).
+  force exactly as the Browse pick** (#1154), with `animation.steps: null` as every pick (#1151), **and no kit** (#1220).
 - **S2 must allow for (what changed in `CreationWizard.tsx`, 2,485 to 2,516 lines with the
   svg-import-engine landings; budget 2,601):**
   - The fresh branch of the open effect and `leaveStep` each clear `importedFile` and

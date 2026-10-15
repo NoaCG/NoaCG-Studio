@@ -284,6 +284,10 @@ export interface Outcome {
   held: boolean | null;
   /** The step the URL is replaced with: a restored walk shows the step it ENDED on. */
   replaceStep: string | null;
+  /** Drop a pending `#/new/<id>` design unused. A link STARTS a walk, so an open that brings one
+   *  back (Continue, a restore) ignores it: a walk's step URLs carry its design, and Back onto
+   *  one would otherwise restore the walk and then start it over on Fields (#1220). */
+  dropLink: boolean;
 }
 
 /**
@@ -310,6 +314,7 @@ const outcome = (state: WalkState, parts: Partial<Omit<Outcome, 'state'>>): Outc
   clearAcceptedAi: false,
   held: null,
   replaceStep: null,
+  dropLink: false,
   ...parts,
 });
 
@@ -319,7 +324,7 @@ export function transition(state: WalkState, intent: WalkIntent): Outcome {
     case 'continue':
       // Everything is still in state: a closed wizard renders null rather than unmounting, so
       // only the step it was left on is put back.
-      return outcome({ ...state, step: state.lastStep }, { held: false });
+      return outcome({ ...state, step: state.lastStep }, { held: false, dropLink: true });
 
     case 'restore': {
       const walk = intent.walk;
@@ -361,6 +366,7 @@ export function transition(state: WalkState, intent: WalkIntent): Outcome {
         // The step the walk ENDED on, not the one the history entry happens to name: leaving the
         // URL on an earlier step would make the rail and the address bar disagree.
         replaceStep: walkOf(walk.mode, false).slugs[walk.step] ?? '',
+        dropLink: true,
       });
     }
 
@@ -483,10 +489,12 @@ export function reduce(state: WalkState, action: WalkAction): WalkState {
       return { ...state, draft: mergeDraft(state.draft, pickPatch(action.variant, brandOf(state))) };
     case 'deepLink': {
       // The link chose this design, not the reader in this walk: it is where the walk starts. It
-      // carries the brand in force exactly as a Browse pick does.
+      // carries the brand in force exactly as a Browse pick does, and ends a kit as a fresh open
+      // does: the link's design is one graphic, never the open graphic of a set.
       const start = mergeDraft(initialDraft(), pickPatch(action.variant, brandOf(state)));
       return reached(state, {
         ...state,
+        ...noKit(),
         mode: 'template',
         draft: start,
         startDraft: start,
