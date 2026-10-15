@@ -956,6 +956,36 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H4 check (2026-10-15, on `fc0237bc8`)
+
+- **Verdict: PASS**, on the second check. Checked on `main` `fc0237bc8`, the merge of PR #1235;
+  no product code changed, nothing spent, no session, no `--reserve`, no `claude -p` call.
+- **The first check (01:18Z to 01:38Z, same sha) was FAIL blocked:** it queued `--control`
+  through the job queue, whose 4.0 GB RAM floor held it at 3.2 GB free, and cancelled it. Run
+  directly in the shell (`NOACG_URL=https://noacg.studio node scripts/harness-bench.mjs
+  --control`, default out dir) it passed: CONTROL PASSED at $0.00, five cells delivered or
+  not-ready as scripted, cleanup gone, the wall refused before any session. On this machine, run
+  the dry run directly, as the H1 to H3 checks did. A fresh worktree also needs `npm ci` and
+  `npm ci && npm run build` in `cli/` first, or the bench exits 2 on a missing `cli/dist`.
+- **AC-5 and 5.2, recomputed from the ledger:** six H3 sessions sum to 266 cents; `m` = 149
+  (one Opus graphic), `B` = ceil(223.5) = 224, `o` = 22 (the raw H3 events give 52 requests, the
+  largest $0.2162, no cache read under 99.9% of the previous context, longest gap 23.3 s),
+  `R` = 20 x 246 = 4,920, `T` = 10,000 - 266 - 4,920 = 4,814: 3 rounds at $15, 5 at $9.
+  `reservation()` and the committed `reserve` agree; `agent.md` reads 224. Time: 471 s plus the
+  slowest `bridgeReady` of H3's cells, 32.1 s, is 503 s against 600 s. `phase-4.md` holds the
+  three DECIDED lines (`o`, the $15 and 5-brief round, the 224 default) with their reverts.
+- **The wall, on a ledger copy:** an H5 session of 4,792 cents (`T - o`) is admitted and 4,793
+  refused "past the $49.20 held for H8's exam"; H6 at 6,000 refused, H8 at 6,000 admitted; after
+  a simulated 4,700 of tuning, H7 at 224 is refused, H7 at 92 and H8 at 224 admitted. The
+  committed ledger was unchanged. `--build H4` ("spends nothing (5.1)") and `--build H8` ("H5,
+  H6, H7 not closed") exit 2 with no key in the environment.
+- **Code and tests:** `harness-bench.test.mjs` 30 of 30; eslint clean on the four changed
+  scripts; PR #1235 touched no `src/`, `cli/`, `api/` or migration.
+- **For H5 (minor):** the control's wall row still reads "$1 left, a $3 session", but with the
+  reserve held its synthetic ledger now has -$50.86 left, so it no longer tests the boundary (the
+  copy test above and the unit tests do). It also prints a $0.50 margin from the control's own
+  entry while the reserve's is $0.22. Neither changes a verdict.
+
 ### H4. The exam reservation (built 2026-10-15)
 
 - **Check's findings (H3, on `55369d924`):** AC-4 holds: the hypothesis committed 22:44Z before the
