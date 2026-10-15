@@ -688,8 +688,18 @@ layers and whose rundown is in the order sent, and the three graphics once; a fr
 opens the link with the four cues in order; `noacg pack --save` of the same graphics then Install
 warns "Already delivered as", and Install anyway makes a second production pooling the same three
 ids with no library copy. Screenshots of the consent card and both warnings at 1440 and 390px were
-looked at, not committed; the 390px row squeezed the warning beside its buttons, so the row now wraps
-the buttons under the details.
+looked at, not committed; the 390px row squeezed the warning beside its buttons, so on a phone the
+details now take the whole line and the buttons sit under them, to the right.
+
+The pre-merge review then tightened Install's identity: a library record is pooled only when its
+identity AND its code still match the package's (an edited copy is the user's work, and Install asks
+instead); a waiting package's graphics record the tool that sent them when the package carries no
+origin, so installing the same identity-less package twice warns; `noacg pack` takes the identity
+over normalized sources even without `--save`; `save --layer N` counts up like `pack --layer N`; a
+save an older deployment answered without a production forgets its operation; and the production
+readback can no longer reject unhandled. One origin shaper (`shapeOrigin`, `src/model/graphicDoc.ts`)
+serves the doors and the studio. The configured suite on the reviewed code, run 38814821355, again
+passed 101 with 8 allowed skips and 0 flaky, both agent-access tests first time.
 
 Decisions:
 - `noacg login` requests the production line by default: it is a separate, visible line on the card
