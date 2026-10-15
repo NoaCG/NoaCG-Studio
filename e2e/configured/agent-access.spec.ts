@@ -16,7 +16,7 @@
 // covers: api/_lib/me/{deliveries,deliveryReceipt,packages}.ts, supabase/migrations/0092_agent_deliveries.sql
 // covers: api/_lib/me/graphicSets.ts, supabase/migrations/0093_agent_graphic_sets.sql
 // covers: supabase/migrations/0094_agent_production_delivery.sql, src/model/productionDelivery.ts
-// covers: cli/src/commands/save.ts, cli/src/commands/pack.ts, cli/src/commands/login.ts, cli/src/receipt.ts, cli/src/operations.ts, cli/src/auth.ts
+// covers: cli/src/commands/docs.ts, cli/src/commands/status.ts, cli/src/commands/save.ts, cli/src/commands/pack.ts, cli/src/commands/login.ts, cli/src/receipt.ts, cli/src/operations.ts, cli/src/auth.ts
 // covers: src/backend/agentPackages.ts, src/components/home/sections/ProductionsSection.tsx, src/app/router.ts
 // covers: src/packs/graphicsPack.ts, src/model/templateSet.ts
 
@@ -31,7 +31,8 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, signInOnHome, wipeMyGraphics } from './_helpers';
+import { createClient } from '@supabase/supabase-js';
+import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, mintAccount, SERVICE_ROLE_KEY, settleSync, signIn, signInOnHome, SUPABASE_URL, wipeMyGraphics } from './_helpers';
 
 // AGENT ACCESS, live (docs/AGENT_SAVE.md): the whole handoff a coding agent's `noacg login` +
 // `noacg save` make, against the real backend, with the CLI's side played by this spec:
@@ -64,6 +65,16 @@ import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, 
 // repeated - reads the production back from the cloud, opens it in a fresh browser, and installs
 // the same graphics' package after that recovery: Install warns it was already delivered, and
 // installing anyway pools the delivered graphics instead of copying them.
+//
+// THE PUBLISHED ENTRY PATH (the third test, docs/work-specs/agent-delivery/spec.md AC-10/AC-11):
+// what the Downloads prompt makes an agent do, from a home with nothing NoaCG in it, through
+// `npx -y @noacg/cli@<pin>` (this checkout packed the same way until npm has the pin), for an
+// account made for the run: doctor, `docs skill`, no login; "Don't allow" ends `login`; Allow on a
+// card that names graphics and productions and the account; three graphics of a novel brief
+// validated with their frames kept; one save with a production, killed and resumed, then replayed;
+// `status` reads it back verified; a fresh browser opens every link; another account opening one
+// sees only who it is; the same graphics' package reads back pending and Install says it was
+// already delivered; logout revokes the key; the account is deleted with everything it owns.
 
 /** The delivery receipt the doors and the readback answer (docs/AGENT_SAVE.md §9). */
 interface Receipt {
@@ -742,7 +753,234 @@ test.describe('agent access (configured)', () => {
       }).catch(() => undefined);
     }
   });
+
+  test('the published entry path: npx from a clean home, a new account, early consent, a three-graphic production opened', async ({ page, baseURL, browser }) => {
+    test.skip(!SERVICE_ROLE_KEY || !SUPABASE_URL, 'needs SUPABASE_SERVICE_ROLE_KEY to make and delete the new account');
+    test.setTimeout(900_000);
+    const origin = baseURL!.replace(/\/+$/, '');
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const email = `e2e-published-cli@${E2E_EMAIL.split('@')[1] || 'noacg.local'}`;
+    const password = 'noacg-e2e-published-cli-pw';
+    await mintAccount(admin, email, password);
+    const work = await mkdtemp(path.join(os.tmpdir(), 'noacg-published-e2e-'));
+    try {
+      // THE CLI AS A USER GETS IT. The Downloads prompt's own command, `npx -y @noacg/cli@<pin>`,
+      // when npm has the pinned version; before a release lands, this checkout packed exactly as
+      // `npm publish` would pack it, run through npx the same way. Which one ran is annotated.
+      const { env, run, source } = await cleanAgentCli(work, origin);
+      test.info().annotations.push({ type: 'noacg-cli', description: source });
+
+      // Preflight, as the prompt asks: the version, doctor, the skill, and no login yet.
+      const version = await run(['--version']);
+      expect(version.code, version.stderr).toBe(0);
+      expect(version.stdout.trim()).toBe(CLI_PIN);
+      expect((await run(['doctor'])).code).toBe(0);
+      const skill = await run(['docs', 'skill']);
+      expect(skill.code, skill.stderr).toBe(0);
+      expect(skill.stdout).toContain('Run the SAME');
+      const nobody = await run(['whoami', '--json']);
+      expect(JSON.parse(nobody.stdout)).toMatchObject({ loggedIn: false });
+      expect(existsSync(path.join(env.XDG_CONFIG_HOME, 'noacg')), 'a clean home holds no NoaCG config').toBe(false);
+
+      // The new account signs in where the consent page will open.
+      await signInOnHome(page, email, password);
+
+      // CANCELLED CONSENT: "Don't allow" ends `login` at once, nothing is stored.
+      const denied = await consent(page, run, 'deny');
+      expect(denied.code, denied.stderr).toBe(1);
+      expect(`${denied.stdout}${denied.stderr}`).toContain('not allowed');
+      expect(JSON.parse((await run(['whoami', '--json'])).stdout)).toMatchObject({ loggedIn: false });
+
+      // EARLY CONSENT, allowed: the card asks for graphics and productions and names the account.
+      const allowed = await consent(page, run, 'allow', email);
+      expect(allowed.code, allowed.stderr).toBe(0);
+      const who = JSON.parse((await run(['whoami', '--json'])).stdout) as { valid: boolean; account: { email: string }; key: { scopes: string[] } };
+      expect(who).toMatchObject({ valid: true, account: { email } });
+      expect(who.key.scopes).toEqual(['graphics:create', 'productions:create']);
+
+      // A NOVEL, SANITIZED BRIEF: a harbour regatta's name strap, start countdown and results ticker.
+      const tag = randomBytes(3).toString('hex');
+      const brief = [
+        { dir: 'strap', type: 'lower-third', name: `Regatta ${tag} name strap` },
+        { dir: 'countdown', type: 'countdown', name: `Regatta ${tag} start countdown` },
+        { dir: 'ticker', type: 'ticker', name: `Regatta ${tag} results ticker` },
+      ];
+      const dirs = brief.map((b) => path.join(work, b.dir));
+      for (const [i, b] of brief.entries()) {
+        const made = await run(['scaffold', '--type', b.type, '--name', b.name, '--out', dirs[i], '--json']);
+        expect(made.code, made.stderr).toBe(0);
+        // VISUAL VALIDATION: the frames an agent judges, kept with the run's results for a person.
+        const shots = path.join(work, `${b.dir}-shots`);
+        const checked = await run(['validate', dirs[i], '--screenshots', shots, '--json']);
+        expect(checked.code, checked.stderr).toBe(0);
+        expect(JSON.parse(checked.stdout)).toMatchObject({ ok: true });
+        for (const frame of ['onair', 'stress']) {
+          const file = path.join(shots, `${frame}.png`);
+          expect(readFileSync(file).length, `${b.dir} ${frame}.png is a real frame`).toBeGreaterThan(1000);
+          await cp(file, test.info().outputPath(`published-${b.dir}-${frame}.png`));
+        }
+      }
+
+      // DELIVERY WITH AN UNCERTAIN ANSWER: the save dies once it has named its operation, whether or
+      // not the write got out; the same command again resumes that operation, and a third run is a
+      // replay. One production, three graphics.
+      const show = `Regatta ${tag} evening`;
+      const cues = [
+        { graphic: brief[1].name, label: 'Start in 5' },
+        { graphic: brief[0].name, label: 'Race officer' },
+        { graphic: brief[2].name, label: 'Results' },
+      ];
+      const cuesFile = path.join(work, 'cues.json');
+      await writeFile(cuesFile, JSON.stringify(cues));
+      const saveArgs = ['save', ...dirs, '--production', show, '--rundown', cuesFile, '--layer', '10', '--no-bench', '--json'];
+      const killed = await run(saveArgs, { killWhen: /under operation [0-9a-f-]{36}/ });
+      expect(killed.signal, `the save was killed, not finished: ${killed.stderr}`).toBe('SIGKILL');
+      const operation = /under operation ([0-9a-f-]{36})/.exec(killed.stderr)?.[1];
+      const resumed = await run(saveArgs);
+      expect(resumed.code, resumed.stderr).toBe(0);
+      expect(resumed.stderr).toContain(`Resuming 3 graphics and the production "${show}" under operation ${operation}`);
+      type Delivered = { ok: boolean; replayed: boolean; operationId: string; graphics: Array<{ id: string; name: string; url: string }>; production: { id: string; url: string }; receipt: Receipt };
+      const delivered = JSON.parse(resumed.stdout) as Delivered;
+      expect(delivered.graphics.map((g) => g.name)).toEqual(brief.map((b) => b.name));
+      expect(delivered.receipt).toMatchObject({ operationId: operation, destination: 'production', state: 'saved', verified: true, account: { email } });
+      const replay = JSON.parse((await run(saveArgs)).stdout) as Delivered;
+      expect(replay.replayed).toBe(true);
+      expect(replay.graphics.map((g) => g.id)).toEqual(delivered.graphics.map((g) => g.id));
+      expect(replay.production).toEqual(delivered.production);
+
+      // READBACK through the CLI: every resource saved, verified, in the new account.
+      const status = JSON.parse((await run(['status', operation!, '--json'])).stdout) as { receipt: Receipt };
+      expect(status.receipt).toMatchObject({ verified: true, account: { email } });
+      expect(status.receipt.resources.map((r) => [r.kind, r.state])).toEqual([['graphic', 'saved'], ['graphic', 'saved'], ['graphic', 'saved'], ['production', 'saved']]);
+
+      // BROWSER-OPENED: a fresh browser, signed in as the new account, opens every link it was given.
+      const fresh = await browser.newContext();
+      try {
+        const reader = await fresh.newPage();
+        await signInOnHome(reader, email, password);
+        for (const g of delivered.graphics) {
+          await reader.goto(g.url);
+          await expect(reader.getByTestId('graphic-control-page')).toBeVisible({ timeout: 30_000 });
+          await expect.poll(() => reader.evaluate(() => location.hash)).toBe(`#/control/${g.id}`);
+        }
+        await reader.goto(delivered.production.url);
+        await expect(reader.getByTestId('production-page')).toContainText(show, { timeout: 30_000 });
+        const rows = reader.getByTestId('cue-list').locator('.pd-cue');
+        await expect(rows).toHaveCount(3);
+        for (const [i, c] of cues.entries()) await expect(rows.nth(i)).toContainText(c.label);
+      } finally {
+        await fresh.close();
+      }
+
+      // WRONG ACCOUNT: another account opening the same links is told who it is, and sees nothing.
+      const other = await browser.newContext();
+      try {
+        const stranger = await other.newPage();
+        await signInOnHome(stranger, E2E_EMAIL, E2E_PASSWORD);
+        await stranger.goto(delivered.graphics[0].url);
+        await expect(stranger.getByTestId('control-lookup')).toContainText('Graphic not found', { timeout: 30_000 });
+        await expect(stranger.getByTestId('control-lookup-account')).toContainText(E2E_EMAIL);
+        await expect(stranger.locator('body')).not.toContainText(brief[0].name);
+      } finally {
+        await other.close();
+      }
+
+      // LEGACY PENDING PACKAGE: the same graphics sent the older way wait for Install, read back as
+      // pending, and Install says the delivery already became a production.
+      const packed = await run(['pack', ...dirs, '--save', '--name', `${show} package`, '--rundown', cuesFile, '--no-bench', '--json']);
+      expect(packed.code, packed.stderr).toBe(0);
+      const packageId = (JSON.parse(packed.stdout) as { id: string }).id;
+      const pending = JSON.parse((await run(['status', packageId, '--json'])).stdout) as { receipt: Receipt };
+      expect(pending.receipt.resources.map((r) => r.state)).toEqual(['pending_install']);
+      await page.goto('/app#/home/graphics');
+      await expect.poll(() => libraryIds(page, `Regatta ${tag}`), { timeout: 30_000 }).toEqual(delivered.graphics.map((g) => g.id).sort());
+      await page.goto(`/app#/home/productions/${packageId}`);
+      const row = page.getByTestId(`waiting-package-${packageId}`);
+      await expect(row).toBeVisible({ timeout: 20_000 });
+      await row.getByTestId('install-waiting-package').click();
+      await expect(row.getByTestId('waiting-package-repeat')).toContainText(`Already delivered as “${show}”`);
+      await row.getByTestId('install-waiting-package-cancel').click();
+      await expect(row).toBeVisible();
+
+      // Logging out revokes the key: the next save is refused before anything is sent.
+      expect((await run(['logout', '--json'])).code).toBe(0);
+      expect(JSON.parse((await run(['whoami', '--json'])).stdout)).toMatchObject({ loggedIn: false });
+    } finally {
+      killAll();
+      await rm(work, { recursive: true, force: true }).catch(() => undefined);
+      // The account and everything it owns (documents, keys, deliveries, packages) go with it.
+      await deleteAccountByEmail(admin, email);
+    }
+  });
 });
+
+// ── the published CLI, from a clean home (the third test) ─────────────────────────────────
+
+/** The version the Downloads prompt pins: cli/package.json's. */
+const CLI_PIN = (JSON.parse(readFileSync(fileURLToPath(new URL('../../cli/package.json', import.meta.url)), 'utf8')) as { version: string }).version;
+
+type CliRun = (args: string[], opts?: { killWhen?: RegExp; timeoutMs?: number; watch?: (stderr: string) => void }) => ReturnType<typeof noacg>;
+
+/** A coding agent's machine with nothing NoaCG on it: its own HOME, config dir and npm cache, no
+ *  inherited NoaCG variable, and the CLI reached only through `npx -y`. The browser is the runner's
+ *  Chromium, named as the docs allow (NOACG_BROWSER), because the CLI bundles none. */
+async function cleanAgentCli(work: string, origin: string): Promise<{ env: Record<string, string>; run: CliRun; source: string }> {
+  const home = path.join(work, 'home');
+  const env: Record<string, string> = {
+    PATH: process.env.PATH ?? '',
+    HOME: home,
+    USERPROFILE: home,
+    XDG_CONFIG_HOME: path.join(home, '.config'),
+    APPDATA: path.join(home, 'AppData', 'Roaming'),
+    npm_config_cache: path.join(work, 'npm-cache'),
+    npm_config_update_notifier: 'false',
+    TMPDIR: work,
+    NOACG_URL: origin,
+    NOACG_BROWSER: chromium.executablePath(),
+    ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
+  };
+  const npm = (args: string[], cwd: string) => spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, { cwd, env, encoding: 'utf8', shell: process.platform === 'win32' });
+  const onNpm = npm(['view', `@noacg/cli@${CLI_PIN}`, 'version'], work).stdout.trim() === CLI_PIN;
+  let spec: string[];
+  let source: string;
+  if (onNpm) {
+    spec = ['-y', `@noacg/cli@${CLI_PIN}`];
+    source = `npm @noacg/cli@${CLI_PIN}`;
+  } else {
+    buildCli();
+    const packed = npm(['pack', '--ignore-scripts', '--pack-destination', work, '--json'], path.join(ROOT, 'cli'));
+    expect(packed.status, packed.stderr).toBe(0);
+    const tarball = path.join(work, (JSON.parse(packed.stdout) as Array<{ filename: string }>)[0].filename);
+    spec = ['-y', '--package', tarball, 'noacg'];
+    source = `this checkout packed as @noacg/cli@${CLI_PIN} (not on npm yet)`;
+  }
+  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  const run: CliRun = (args, opts = {}) => spawnCli(npx, [...spec, ...args], env, work, { timeoutMs: 240_000, ...opts });
+  return { env, run, source };
+}
+
+/** `noacg login --no-browser`, answered on the consent page it prints: Allow or Don't allow. */
+async function consent(page: Page, run: CliRun, answer: 'allow' | 'deny', email?: string): ReturnType<CliRun> {
+  let opened: (url: string) => void = () => undefined;
+  const url = new Promise<string>((r) => { opened = r; });
+  const login = run(['login', '--no-browser', '--name', 'Published CLI on E2E', '--wait', '120'], {
+    watch: (stderr) => {
+      const m = /(https?:\/\/\S+\/app\?agent=\S+)/.exec(stderr);
+      if (m) opened(m[1]);
+    },
+  });
+  await page.goto(await Promise.race([url, login.then((r) => { throw new Error(`login ended before printing its page: ${r.stderr}`); })]));
+  if (answer === 'allow') {
+    await expect(page.getByTestId('agent-consent-title')).toHaveText('Allow “Published CLI on E2E” to save graphics and productions to your NoaCG account?');
+    await expect(page.getByTestId('agent-consent-account')).toContainText(email!);
+    await page.getByTestId('agent-consent-allow').click();
+  } else {
+    await page.getByTestId('agent-consent-deny').click();
+  }
+  const done = await login;
+  await page.goto('/app#/home');
+  return done;
+}
 
 // ── the CLI, built and run (the second test) ──────────────────────────────────────────────
 
@@ -787,18 +1025,32 @@ function noacg(
   env: Record<string, string>,
   opts: { killWhen?: RegExp; timeoutMs?: number } = {},
 ): Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
+  return spawnCli(process.execPath, [CLI, ...args], { ...(process.env as Record<string, string>), ...env }, ROOT, opts);
+}
+
+/** `noacg`'s runner for any command line, with exactly `env` (nothing inherited) and its own
+ *  process group; `watch` sees the stderr so far each time it grows. */
+function spawnCli(
+  command: string,
+  argv: string[],
+  env: Record<string, string>,
+  cwd: string,
+  opts: { killWhen?: RegExp; timeoutMs?: number; watch?: (stderr: string) => void } = {},
+): Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
+  const shown = argv.filter((a) => a !== CLI).slice(0, 4).join(' ');
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [CLI, ...args], { env: { ...process.env, ...env }, cwd: ROOT, detached: process.platform !== 'win32' });
+    const child = spawn(command, argv, { env, cwd, detached: process.platform !== 'win32', shell: process.platform === 'win32' && command !== process.execPath });
     running.add(child);
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {
-      stderr += `\n[e2e] noacg ${args[0]} still running after ${(opts.timeoutMs ?? 120_000) / 1000} s - killed`;
+      stderr += `\n[e2e] ${shown} still running after ${(opts.timeoutMs ?? 120_000) / 1000} s - killed`;
       killTree(child);
     }, opts.timeoutMs ?? 120_000);
     child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
     child.stderr.on('data', (d: Buffer) => {
       stderr += d.toString();
+      opts.watch?.(stderr);
       if (opts.killWhen?.test(stderr)) killTree(child);
     });
     child.on('close', (code, signal) => {
@@ -847,7 +1099,10 @@ async function mintKey(page: Page, origin: string, name: string, scopes?: string
     await page.goto(`/app?agent=${state}&port=${listener.port}&name=${encodeURIComponent(name)}&challenge=${challenge}${scopes ? `&scopes=${scopes}` : ''}`);
     if (scopes) {
       await expect(page.getByTestId('agent-consent-permissions')).toContainText('Make new productions with rundowns from the graphics it saves (never publishes or plays them)');
+      await expect(page.getByTestId('agent-consent-title')).toContainText('to save graphics and productions to your NoaCG account?');
       await shot(page, page.getByTestId('agent-consent'), 'consent-with-productions');
+    } else {
+      await expect(page.getByTestId('agent-consent-title')).toContainText('to save graphics to your NoaCG library?');
     }
     await page.getByTestId('agent-consent-allow').click();
     await page.waitForURL((u) => u.hostname === '127.0.0.1' && u.pathname === '/callback', { timeout: 20_000 });

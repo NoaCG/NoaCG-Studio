@@ -19,14 +19,14 @@ test('the prompt is at most 80 words and runs the reviewed CLI version through n
 
 test('the prompt connects before the brief and asks for every graphic in the library', () => {
   // Preflight once, reuse a valid login or ask for one, then the brief (AC-3).
-  const order = ['doctor', 'docs contract', 'whoami', 'login', 'decline', 'ask what to make'].map((word) =>
+  const order = ['doctor', 'docs skill', 'whoami', 'login', 'decline', 'ask what to make'].map((word) =>
     AGENT_PROMPT.indexOf(word),
   );
   assert.ok(order.every((at) => at >= 0), `every step is named: ${order}`);
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'in that order');
   assert.match(AGENT_PROMPT, /work locally and say nothing was saved/);
   assert.match(AGENT_PROMPT, /save every graphic to my library, and return the direct links/);
-  assert.match(AGENT_PROMPT, /anything still pending/);
+  assert.match(AGENT_PROMPT, /anything still pending or unconfirmed/);
   // Public copy: no em dash (scripts/check-copy.mjs does not read this file).
   assert.doesNotMatch(AGENT_PROMPT, /—/);
 });

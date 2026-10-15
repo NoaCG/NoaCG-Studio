@@ -40,6 +40,8 @@ const skip = up ? false : `no NoaCG bridge at NOACG_URL=${url ?? '(unset)'} - st
 test('help prints usage', async () => {
   const r = await run(['--help']);
   assert.match(r.stdout, /Usage: noacg <command>/);
+  // Every flag `save` reads is in the usage, the production ones included.
+  for (const flag of ['--production N', '--rundown <cues.json>', '--layer n', '--folder F']) assert.ok(r.stdout.includes(flag), `help names ${flag}`);
 });
 
 test('types lists the registry', { skip }, async () => {

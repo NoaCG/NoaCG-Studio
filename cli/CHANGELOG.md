@@ -10,6 +10,39 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.12.0 - 2026-10-16
+
+**A set of graphics arrives in your library in one save.** `noacg save ./a ./b ./c` now validates
+every graphic, refuses the whole set if one has an error, and delivers them all in one
+operation. If the answer is lost or the command is interrupted, run the same command again: it
+resumes the same operation and never saves a second copy. A set you changed since is a new
+delivery. A self-hosted deployment needs the current NoaCG for this; noacg.studio has it.
+
+**A production in the same save, when you ask for one.** `noacg save ... --production "Show
+name" [--rundown cues.json] [--layer 10]` makes the graphics, the production, its layers and its
+running order together, and prints the production's link. There is no Install step and nothing
+is published or played. `noacg login` now asks for this as its own line on the consent page;
+keys made by an earlier login can only save graphics, and a production save with one is refused
+with nothing saved: log in again, or save without `--production`.
+
+**Every save says where it went, and whether that was checked.** `noacg login` and
+`noacg whoami` name the account and the deployment, and each save prints them with the links,
+an operation id, and whether reading it back from the account confirmed it. `noacg status <id>`
+reads back what a save or `pack --save` delivered and whether it is there now, including a
+package that was installed or dismissed. "Don't allow" on the consent page now ends
+`noacg login` at once instead of waiting out its timeout.
+
+**Fewer copies when you also install a package.** `noacg save` and `noacg pack` stamp each
+graphic with the same identity, so installing a package of graphics you already delivered
+reuses them, and Home warns before an Install that would make a second production of the same
+delivery.
+
+**Smaller things.** `noacg docs skill` prints the whole procedure, so a session that never
+installed the plugin follows the same steps. `noacg --help` lists the production flags on
+`save`. When a deployment is too old for a production, the message now lists the links of the
+graphics that were saved. `noacg coverage` writes every frame worth looking at before handing a
+graphic in, and `noacg record` writes the library record a save would send without saving it.
+
 ## 0.11.0 - 2026-10-14
 
 **One `/noacg:graphic` entry instead of two.** The `noacg` plugin used to add a skill and a

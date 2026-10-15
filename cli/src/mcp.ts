@@ -88,7 +88,7 @@ const READS: Record<McpCommand, readonly ArgName[]> = {
   pack: ['paths', 'name', 'rundown', 'out', 'bench', 'houseContract', 'share'],
 };
 
-const COMMAND = z.enum(MCP_COMMANDS).describe('types: the graphic types NoaCG knows | scaffold: write a package | validate: gate + runtime bench, regenerates the package | inspect: the operator surface | screenshot: one frame, as an image | docs: a reference text | save: validate, then into the user\'s library | pack: graphics + rundown to Home, to Install');
+const COMMAND = z.enum(MCP_COMMANDS).describe('types: the graphic types NoaCG knows | scaffold: write a package | validate: gate + runtime bench, regenerates the package | inspect: the operator surface | screenshot: one frame, as an image | docs: a reference text | save: validate, deliver to the library (+production) | pack: graphics + rundown to Home, to Install');
 
 type InputShape = { command: typeof COMMAND } & { [K in ArgName]: z.ZodOptional<(typeof ARGUMENTS)[K]['schema']> };
 type Input = z.infer<z.ZodObject<InputShape>>;
@@ -347,7 +347,7 @@ export async function runMcp(args: ParsedArgs, _out: Out): Promise<number> {
     'noacg',
     {
       title: 'NoaCG broadcast graphics',
-      description: 'NoaCG Studio broadcast graphics (lower third, scoreboard, ticker, countdown, any on-air graphic; SPX / CasparCG / OGraf packages): make, check and save one. The verbs of the `noacg` terminal CLI; the noacg-graphic skill is the procedure, docs "contract" the rulebook.',
+      description: 'NoaCG Studio broadcast graphics (lower third, scoreboard, ticker, countdown, any on-air graphic; SPX / CasparCG / OGraf packages): make, check and deliver them. The verbs of the `noacg` terminal CLI; docs "skill" is the procedure, "contract" the rulebook.',
       inputSchema: inputShape(),
     },
     // A throw - a usage error, an IO error, the bridge refusing - becomes a tool error carrying

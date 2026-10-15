@@ -1375,6 +1375,11 @@ test('a graphics-only key is told how to get a production; an older deployment t
   assert.equal(partial.reason, 'no-production');
   assert.equal(partial.graphics.length, 3, 'the graphics it did save are named');
   assert.match(partial.error, /made no production/);
+  // The person reading the terminal gets every saved link too, not only `--json`.
+  const { describeSave } = await import('../dist/commands/save.js');
+  const said = describeSave(partial).join('\n');
+  assert.match(said, /made no production/);
+  for (const g of partial.graphics) assert.ok(said.includes(`"${g.name}" -> ${g.url}`), `the link of "${g.name}" is printed`);
 });
 
 test('the same graphics for the library and as a production are two deliveries; a cause reads as its own sentence', async (t) => {
@@ -1643,4 +1648,15 @@ test('a re-derived SPX steps count is reported, in the summary and on the html i
   for (const c of changes) t.diagnostic(`changed: ${c}`);
   assert.deepEqual(changes, ['grown_path.html (SPX "steps" 1 -> 2, derived from the default path)']);
   assert.match(await fs.readFile(path.join(dir, 'grown_path.html'), 'utf8'), /"steps": "2"/);
+});
+
+test('docs skill prints the procedure without its front matter, for a session with no plugin', async () => {
+  const { readDoc, docTopics } = await import('../dist/commands/docs.js');
+  assert.ok(docTopics().includes('skill'));
+  const text = await readDoc('skill');
+  assert.match(text, /^# Make a NoaCG graphic/);
+  // The delivery rules the Downloads prompt relies on: one save, the same command again, pending Install.
+  assert.match(text, /save them ALL in ONE\s+command/);
+  assert.match(text, /Run the SAME\s+command again/);
+  assert.match(text, /pending Install/);
 });

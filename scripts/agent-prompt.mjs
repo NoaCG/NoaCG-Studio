@@ -23,12 +23,12 @@ export const CLI_VERSION = JSON.parse(readFileSync(new URL('../cli/package.json'
 /** The prompt, as the Copy button puts it on the clipboard. At most 80 words (AC-2). */
 export const AGENT_PROMPT = [
   `Use npx -y @noacg/cli@${CLI_VERSION} for every NoaCG command in this session.`,
-  'Run its doctor, read docs contract, and check whoami.',
+  'Run its doctor, read docs skill and follow it, and check whoami.',
   'If I am not logged in, run login so I can connect my account in the browser;',
   'if I decline, work locally and say nothing was saved.',
   'Then ask what to make.',
   'Build, validate with screenshots, save every graphic to my library, and return the direct links.',
-  'Clearly state anything still pending.',
+  'Clearly state anything still pending or unconfirmed.',
 ].join(' ');
 
 export const AGENT_PROMPT_MARKER = '<!--agent:prompt-->';
