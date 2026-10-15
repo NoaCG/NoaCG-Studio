@@ -23,7 +23,7 @@
 // record is logged and the readback later answers 404 for it, which the CLI reports as unverified.
 
 import { apiError, json, readJson } from '../http.js';
-import { checkAgentKeysRateLimit } from '../rateLimit.js';
+import { checkAgentDeliveriesRateLimit } from '../rateLimit.js';
 import {
   agentAccessConfigured,
   supabaseAgentAccessStore,
@@ -58,15 +58,14 @@ export async function writeReceipt(
   deployment: string,
   at: Date,
 ): Promise<DeliveryReceipt> {
-  try {
-    await store.recordDelivery(delivery);
-  } catch (e) {
-    console.error('[deliveries] record', e instanceof Error ? e.message : e);
-  }
+  const [account] = await Promise.all([
+    accountFor(store, delivery.userId),
+    store.recordDelivery(delivery).catch((e: unknown) => console.error('[deliveries] record', e instanceof Error ? e.message : e)),
+  ]);
   return buildReceipt({
     operationId: delivery.operationId,
     deployment,
-    account: await accountFor(store, delivery.userId),
+    account,
     rows: [{ kind: delivery.kind, resourceId: delivery.resourceId, state: delivery.state, productionId: null, present: true }],
     verified: false,
     checkedAt: at.toISOString(),
@@ -95,9 +94,11 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
     if (!rows.length) {
       return apiError('not_found', 'Nothing delivered under this id by this credential, in this account.', 404);
     }
-    // An id names one operation (all of its rows) or one resource (its row). Keep to one operation.
-    const operationId = rows[0].operationId;
-    const own = rows.filter((r) => r.operationId === operationId);
+    // An id names one operation (all of its rows) or one resource (its row). Keep to one operation
+    // AND one writer: the operation id is client-named, so two keys could share one, and a session
+    // reading it back must not merge their unrelated writes into one receipt.
+    const { operationId, keyId: writer } = rows[0];
+    const own = rows.filter((r) => r.operationId === operationId && r.keyId === writer);
     const checked = await Promise.all(
       own.map(async (row) => ({ ...row, present: await store.resourcePresent(row.userId, row.kind, row.resourceId) })),
     );
@@ -136,7 +137,7 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
       if (!configured()) {
         return apiError('unavailable', 'This NoaCG has no account backend, so there are no deliveries here.', 503);
       }
-      const refused = checkAgentKeysRateLimit(req);
+      const refused = checkAgentDeliveriesRateLimit(req);
       if (refused) {
         return apiError('rate_limited', 'Too many requests - slow down.', 429, {}, { 'retry-after': String(refused.retryAfterSec) });
       }

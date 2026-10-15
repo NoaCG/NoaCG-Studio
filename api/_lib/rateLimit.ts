@@ -228,6 +228,20 @@ export function checkAgentKeysRateLimit(req: Request): RateLimitDecision | null 
   return decision.allowed ? null : decision;
 }
 
+/** The delivery readback and the studio's settle (api/_lib/me/deliveries.ts): their own bucket,
+ *  because every save now reads back once and must not crowd out `login` and `whoami`. */
+export function agentDeliveriesRateLimitCaps(): RateLimitCaps {
+  return {
+    windowMs: Math.max(1, envInt('AGENT_DELIVERIES_RATE_WINDOW_SEC', 60)) * 1000,
+    max: envInt('AGENT_DELIVERIES_RATE_MAX', 120),
+  };
+}
+
+export function checkAgentDeliveriesRateLimit(req: Request): RateLimitDecision | null {
+  const decision = hitRateLimit(`agent-deliveries:${ipHash(req)}`, agentDeliveriesRateLimitCaps(), Date.now());
+  return decision.allowed ? null : decision;
+}
+
 export function agentRedeemRateLimitCaps(): RateLimitCaps {
   return {
     windowMs: Math.max(1, envInt('AGENT_REDEEM_RATE_WINDOW_SEC', 60)) * 1000,

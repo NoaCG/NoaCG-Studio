@@ -541,7 +541,7 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
       if (at < 0) return false;
       store.packages.splice(at, 1);
       const state = productionId ? 'installed' : 'dismissed';
-      const known = store.deliveries.find((d) => d.kind === 'package' && d.resourceId === packageId);
+      const known = store.deliveries.find((d) => d.kind === 'package' && d.resourceId === packageId && d.userId === userId);
       if (known) Object.assign(known, { state, productionId, updatedAt: store.now() });
       else {
         store.deliveries.push({

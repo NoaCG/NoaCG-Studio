@@ -84,7 +84,7 @@ export function nextActionFor(state: DeliveryState, operationId: string): string
     case 'dismissed':
       return 'The user dismissed it on Home without installing. Send it again only if they still want it.';
     case 'missing':
-      return 'It is no longer in the account: deleted, or removed by an older studio tab.';
+      return 'It is no longer in the account: deleted or removed in the studio.';
     case 'delivery_unverified':
       return `Check it with \`noacg status ${operationId}\` before sending it again.`;
     default:

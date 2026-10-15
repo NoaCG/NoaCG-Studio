@@ -13,7 +13,7 @@
 // INSTALL AND DISMISS SETTLE THE PACKAGE through the server (`POST /api/me/deliveries`, docs/
 // AGENT_SAVE.md §9): the waiting row goes and its delivery receipt records the outcome - and the
 // production Install made - in one statement, so the package's link keeps answering afterwards
-// (`waitingPackageReceipt`). A deployment without that route still gets the plain delete.
+// (`waitingPackageFate`). A deployment without that route still gets the plain delete.
 
 import { getSupabase } from './supabase';
 import { authedFetch, errorMessage } from './agentAccess';
@@ -79,19 +79,22 @@ export async function removeWaitingPackage(id: string): Promise<{ error: string 
 }
 
 /** Install (`productionId`, the production it made) or dismiss (null) a waiting package: the row
- *  goes and its receipt records which. Falls back to the plain delete where the route is missing. */
+ *  goes and its receipt records which. Only where the route is missing (404: an older deployment,
+ *  or the package is already gone) does it fall back to the plain delete; any other failure keeps
+ *  the row, since a delete then would leave an installed package reading as missing. */
 export async function settleWaitingPackage(id: string, productionId: string | null): Promise<{ error: string | null }> {
+  let response: Response;
   try {
-    const response = await authedFetch('/api/me/deliveries', {
+    response = await authedFetch('/api/me/deliveries', {
       method: 'POST',
       body: JSON.stringify({ action: 'settle', package: id, production: productionId }),
     });
-    if (response.ok) return { error: null };
-    // 404 from our handler means it is no longer waiting; the delete below then removes nothing.
-  } catch {
-    /* fall through to the delete */
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
   }
-  return removeWaitingPackage(id);
+  if (response.ok) return { error: null };
+  if (response.status === 404) return removeWaitingPackage(id);
+  return { error: await errorMessage(response, `Could not settle the package (${response.status}).`) };
 }
 
 /** What became of a package that is no longer waiting, from its receipt (docs/AGENT_SAVE.md §9). */

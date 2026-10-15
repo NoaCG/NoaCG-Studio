@@ -24,6 +24,7 @@
 //   4. the package door's own shape guard (packageSaveShape) over the pack it built;
 //   5. the waiting cap; then the INSERT, with `origin` naming the client and grant.
 
+import { randomUUID } from 'node:crypto';
 import { serviceRoleDb, supabaseAgentAccessStore, type NewWaitingPackage } from '../agentAccessStore.js';
 import { checkConnectorSendRateLimit } from '../rateLimit.js';
 import { MAX_WAITING_PACKAGES } from './packages.js';
@@ -104,7 +105,15 @@ export function supabaseSendStore(): SendStore {
       return `data:${data.type || 'application/octet-stream'};base64,${bytes}`;
     },
     countWaitingPackages: (userId) => packages.countWaitingPackages(userId),
-    insertPackage: (userId, row) => packages.insertPackage(userId, row),
+    async insertPackage(userId, row) {
+      const id = await packages.insertPackage(userId, row);
+      // Its receipt, so the package link answers in the studio while it waits (docs/AGENT_SAVE.md
+      // §9). Best effort, as on the CLI's door: the package is already there.
+      await packages
+        .recordDelivery({ operationId: randomUUID(), userId, keyId: null, kind: 'package', resourceId: id, state: 'pending_install' })
+        .catch((e: unknown) => console.error('[connector-send] receipt', e instanceof Error ? e.message : e));
+      return id;
+    },
   };
 }
 

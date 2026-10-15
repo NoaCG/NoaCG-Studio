@@ -17,13 +17,13 @@ import { newGraphicDoc } from '../../../src/model/graphicDoc.js';
 import { AGENT_KEY_PREFIX } from '../../../src/entitlements/permissions.js';
 import type { SpxTemplate } from '../../../src/model/types.js';
 
-const ENV = ['SUPABASE_URL', 'VITE_SUPABASE_URL', 'SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'AGENT_SAVE_RATE_MAX', 'AGENT_SAVE_USER_RATE_MAX', 'AGENT_KEYS_RATE_MAX'] as const;
+const ENV = ['SUPABASE_URL', 'VITE_SUPABASE_URL', 'SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY', 'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'AGENT_SAVE_RATE_MAX', 'AGENT_SAVE_USER_RATE_MAX', 'AGENT_DELIVERIES_RATE_MAX'] as const;
 const original = new Map(ENV.map((name) => [name, process.env[name]]));
 beforeEach(() => {
   for (const name of ENV) delete process.env[name];
   process.env.AGENT_SAVE_RATE_MAX = '1000';
   process.env.AGENT_SAVE_USER_RATE_MAX = '1000';
-  process.env.AGENT_KEYS_RATE_MAX = '1000';
+  process.env.AGENT_DELIVERIES_RATE_MAX = '1000';
 });
 afterEach(() => {
   for (const [name, value] of original) {

@@ -198,6 +198,10 @@ export default function ProductionsSection({
   const focusRow = useRef<HTMLDivElement | null>(null);
   const [fate, setFate] = useState<{ id: string; fate?: PackageFate; error?: string } | null>(null);
   const [fateAttempt, setFateAttempt] = useState(0);
+  // Whether the list has answered once this session: the receipt is asked after that, and not
+  // again on every refresh the tab's visibility triggers.
+  const [listAnswered, setListAnswered] = useState(false);
+  const reloadedFor = useRef<string | null>(null);
   // MINE AND THE TEAM'S, NEVER INTERLEAVED (TEAMS_PLAN §6, mockup `teams-home.html`). A production
   // somebody shared with you through a team must be findable at a glance, and one mixed into your
   // own list by date is not - so team productions get their own band per team, after yours.
@@ -224,6 +228,8 @@ export default function ProductionsSection({
   useEffect(() => {
     if (!backendConfigured || !signedIn) {
       setWaiting([]);
+      setWaitingLoad({ status: 'idle' });
+      setListAnswered(false);
       return;
     }
     let stale = false;
@@ -234,6 +240,7 @@ export default function ProductionsSection({
           if (stale) return;
           setWaiting(list);
           setWaitingLoad({ status: 'ready' });
+          setListAnswered(true);
         },
         (e: unknown) => {
           if (!stale) setWaitingLoad({ status: 'error', error: e instanceof Error ? e.message : String(e) });
@@ -261,20 +268,22 @@ export default function ProductionsSection({
   }, [focusWaits]);
 
   // A linked package that is not waiting: ask its receipt, once the list has answered.
-  const listReady = waitingLoad.status === 'ready';
   useEffect(() => {
     if (!focusPackage || focusWaits || !signedIn || !backendConfigured) {
       setFate(null);
       return;
     }
-    if (!listReady) return;
+    if (!listAnswered) return;
     let stale = false;
     waitingPackageFate(focusPackage).then(
       (f) => {
         if (stale) return;
         setFate({ id: focusPackage, fate: f });
-        // Sent after the list was read: read it again rather than say it is gone.
-        if (f.state === 'pending_install') reloadWaiting.current();
+        // Sent after the list was read: read it again (once) rather than say it is gone.
+        if (f.state === 'pending_install' && reloadedFor.current !== focusPackage) {
+          reloadedFor.current = focusPackage;
+          reloadWaiting.current();
+        }
       },
       (e: unknown) => {
         if (!stale) setFate({ id: focusPackage, error: e instanceof Error ? e.message : String(e) });
@@ -283,7 +292,7 @@ export default function ProductionsSection({
     return () => {
       stale = true;
     };
-  }, [focusPackage, focusWaits, listReady, signedIn, backendConfigured, fateAttempt]);
+  }, [focusPackage, focusWaits, listAnswered, signedIn, backendConfigured, fateAttempt]);
 
   /**
    * Parse, validate and install one pack's text; land on the new production's page. A failure
@@ -328,10 +337,11 @@ export default function ProductionsSection({
     }
     await importPackText(p.id, text, setWaitingNote, async (show) => {
       // The production exists now; settling records it on the package's receipt, so its link
-      // answers "installed" from here on. A failed settle only leaves the row to be dismissed by
-      // hand - never worth failing an install that already happened.
-      await settleWaitingPackage(p.id, show.id);
-      setWaiting((list) => list.filter((w) => w.id !== p.id));
+      // answers "installed" from here on. A failed settle leaves the row and says so - never
+      // worth failing an install that already happened.
+      const { error } = await settleWaitingPackage(p.id, show.id);
+      if (error) setWaitingNote(`Installed, but the package could not be marked installed (${error}).`);
+      else setWaiting((list) => list.filter((w) => w.id !== p.id));
     });
   };
 
