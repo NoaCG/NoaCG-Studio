@@ -12,13 +12,23 @@
 //                                                    Run it FIRST and after any change here: a broken
 //                                                    bench would be measured as a model.
 //   node scripts/harness-bench.mjs --build <H#> --arms managed-agents[,claude-code] --briefs id,..
-//                                  --budget-cents <n> --model <id> [--overshoot-cents 50] [--out <dir>]
+//                                  --ceiling-cents <n> [--budget-cents <n>] [--model <id>]
+//                                  [--overshoot-cents <n>] [--critic-cents <n>] [--out <dir>]
 //                                                    PAID. Real sessions: managed-agents on the bench
 //                                                    key's credit (scripts/bench-env.mjs --profile=harness),
 //                                                    claude-code on the owner's subscription. Refused
-//                                                    when the ledger already holds that phase as
-//                                                    completed, and per session when what is left
-//                                                    cannot cover its budget and the overshoot margin.
+//                                                    for a $0 phase, a phase the ledger already holds
+//                                                    as completed, tuning before the exam is reserved,
+//                                                    and the exam before tuning is closed; per session
+//                                                    when what is left, the exam reserve aside, cannot
+//                                                    cover its budget and the overshoot margin. The
+//                                                    budget defaults to agent.md's, the margin to the
+//                                                    reserve's `o` and critic share.
+//   node scripts/harness-bench.mjs --reserve --by <H#> --budget-cents <n> --overshoot-cents <n>
+//                                  [--critic-cents <n>] [--note "..."]
+//                                                    FREE. 5.2's arithmetic: the exam reserve R, what
+//                                                    is left for tuning and the rounds that fit, and
+//                                                    R recorded in the ledger for the wall to hold.
 //   node scripts/harness-bench.mjs --close <H#> [--note "..."]
 //                                                    Record a phase as completed in the ledger.
 //   node scripts/harness-bench.mjs --review <runDir> FREE. Rebuild a run's blind gallery.
@@ -41,7 +51,7 @@ import { claudeCodeArm, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, phaseCompleted, phaseSpentCents, readLedger, summary, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, PHASE, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, reserveTerms, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
@@ -80,11 +90,61 @@ export function tuningBriefs(ids) {
   return chosen;
 }
 
-/** `--build` may create sessions only for a phase the ledger does not already hold as completed. */
-export function refuseCompletedPhase(ledger, phase) {
-  if (!/^H\d+$/.test(phase ?? '')) return `--build needs a phase like H3, got "${phase}"`;
+const phaseNumber = (phase) => Number(phase.slice(1));
+
+/** `--build` may create sessions only for a paid phase the ledger does not already hold as
+ *  completed; after H4 only once the exam is reserved (5.2), so tuning never spends the exam; and
+ *  the exam itself only once every tuning phase before it is closed. */
+export function refuseBuild(ledger, phase) {
+  if (!PHASE.test(phase ?? '')) return `--build needs a phase like H3, got "${phase}"`;
+  if (ZERO_CREDIT_PHASES.includes(phase)) return `${phase} spends nothing (5.1): it creates no session`;
   if (phaseCompleted(ledger, phase)) return `the ledger already holds ${phase} as completed; a completed phase never spends again`;
+  if (phaseNumber(phase) > phaseNumber('H4') && !ledger.reserve) return 'the ledger holds no exam reserve: H4 reserves the exam before any tuning spends (5.2)';
+  if (phase === ledger.reserve?.phase) {
+    const open = [];
+    for (let n = phaseNumber('H4') + 1; n < phaseNumber(phase); n++) if (!phaseCompleted(ledger, `H${n}`)) open.push(`H${n}`);
+    if (open.length) return `${phase} spends its reserve only on the exam, after tuning: ${open.join(', ')} not closed`;
+  }
   return null;
+}
+
+/** The per-graphic session budget default (5.2's `B`), which agents/noacg-harness/agent.md carries. */
+export function agentSessionBudgetCents(def = readAgentDefinition(AGENT_DIR)) {
+  const cents = Number(def.config.metadata?.session_budget_cents);
+  return Number.isInteger(cents) && cents > 0 ? cents : null;
+}
+
+/** A flag that takes cents takes a whole number of them: an empty value is not zero. */
+function parseCents(raw, name) {
+  if (!/^\d+$/.test(String(raw ?? ''))) throw new Error(`--${name} takes a whole number of cents, got "${raw ?? ''}"`);
+  return Number(raw);
+}
+
+/** A cents flag's value, or undefined when the run does not name it. */
+const flagCents = (name) => (value(name) === undefined ? undefined : parseCents(value(name), name));
+
+/** What a library step throws ends the run with its message. */
+function orFail(step) {
+  try {
+    return step();
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : String(e));
+  }
+}
+
+/**
+ * `--reserve`: 5.2's arithmetic on the ledger as it stands, written as the ledger's reserve. Every
+ * term is named, `B` included: a revision never inherits a budget it did not state. When R no
+ * longer fits in what is left, nothing is written (`written: false`) and the run stops for the owner.
+ */
+export function recordReserve(file, { by, budget, overshoot, critic = '0', note } = {}) {
+  if (!PHASE.test(by ?? '')) throw new Error(`--reserve needs --by <H#>, the phase that sets or revises it, got "${by ?? ''}"`);
+  const ledger = readLedger(file);
+  const fit = reservation(ledger, { sessionBudgetCents: parseCents(budget, 'budget-cents'), overshootCents: parseCents(overshoot, 'overshoot-cents'), criticCents: parseCents(critic, 'critic-cents'), setBy: by });
+  if (fit.tuningCents < 0) return { fit, written: false };
+  const { entries, ...head } = ledger;
+  writeLedger(file, { ...head, reserve: { ...fit.reserve, at: new Date().toISOString(), ...(note ? { note } : {}) }, entries });
+  return { fit, written: true };
 }
 
 /** The cells of a `--build` the ledger does not already hold for that phase. A cell that ran
@@ -111,7 +171,9 @@ export function packagesProofRefusal(ledger, phase, proofIds) {
 
 function printLedger(ledger) {
   const s = summary(ledger);
-  console.log(`Ledger ${path.relative(ROOT, LEDGER_FILE)}: ${dollars(s.spentCents)} of ${dollars(ledger.runBudgetCents)} credit spent, ${dollars(s.remainingCents)} left.`);
+  const reserve = ledger.reserve;
+  const held = reserve ? `, ${dollars(s.heldCents)} held for ${reserve.phase}'s exam (${reserveTerms(reserve)}, set by ${reserve.setBy})` : '';
+  console.log(`Ledger ${path.relative(ROOT, LEDGER_FILE)}: ${dollars(s.spentCents)} of ${dollars(ledger.runBudgetCents)} credit spent${held}, ${dollars(s.remainingCents)} left${reserve ? ' for everything else' : ''}.`);
   for (const r of s.rows) console.log(`  ${r.phase} ${r.stage ?? '-'} ${r.model ?? '-'} (${r.funding}): ${r.sessions} session(s), ${dollars(r.listCostCents)}`);
   for (const e of ledger.entries.filter((x) => x.kind === 'phase')) console.log(`  ${e.phase} ${e.outcome}${e.note ? ` - ${e.note}` : ''}`);
 }
@@ -246,12 +308,16 @@ async function control() {
 
 async function build(phase) {
   const ledger = readLedger(LEDGER_FILE);
-  const refusal = refuseCompletedPhase(ledger, phase);
+  const refusal = refuseBuild(ledger, phase);
   if (refusal) fail(refusal);
   const proofIds = list('proof');
   const arms = proofIds.length && !list('arms').length ? ['managed-agents'] : list('arms');
   const ids = list('briefs');
-  const budgetCents = Number(value('budget-cents', ''));
+  // A brief's session runs at agent.md's budget unless the run names another; a proof keeps its own.
+  const budgetCents = value('budget-cents') !== undefined ? Number(value('budget-cents')) : ids.length ? (agentSessionBudgetCents() ?? 0) : 0;
+  // The wall's margin is the reserve's `o` and critic share unless a flag names others (H6 gives
+  // its critic a margin before measuring it).
+  const margin = orFail(() => ({ overshootCents: flagCents('overshoot-cents'), criticCents: flagCents('critic-cents') }));
   const model = value('model', '');
   const effort = value('effort', '');
   const ceilingCents = value('ceiling-cents') === undefined ? null : Number(value('ceiling-cents'));
@@ -324,12 +390,12 @@ async function build(phase) {
       for (const brief of briefs) all.push({ id: `${brief.id}.claude-code`, brief, arm: reference });
     }
     const runId = `${phase}-${stamp()}`;
-    const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, overshootCents: Number(value('overshoot-cents', String(DEFAULT_OVERSHOOT_CENTS))), ceilingCents };
+    const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, ...margin, ceilingCents };
     // A resumed run skips what the ledger already holds for this phase: a cell that ran (delivered,
     // not ready or failed) is never paid twice; only a refused or paused one runs again.
     const cells = pendingCells(ledger, phase, all);
     if (cells.length < all.length) console.log(`  ${all.length - cells.length} cell(s) already in the ledger for ${phase}, not run again: ${all.filter((c) => !cells.includes(c)).map((c) => c.id).join(', ')}`);
-    console.log(`BUILD ${phase}: ${cells.length} cell(s), ${dollars(summary(ledger).remainingCents)} left on the ledger${ceilingCents ? `, ${dollars(ceilingCents - phaseSpentCents(ledger, phase))} under ${phase}'s ceiling` : ''} -> ${runDir}`);
+    console.log(`BUILD ${phase}: ${cells.length} cell(s), ${dollars(remainingCents(ledger, phase))} left on the ledger for ${phase}${ceilingCents ? `, ${dollars(ceilingCents - phaseSpentCents(ledger, phase))} under ${phase}'s ceiling` : ''} -> ${runDir}`);
     // Each cell's entry is written to the committed ledger as soon as it is known: a crash
     // part way never loses spend, and a resumed run never spends it twice.
     const done = await runCells({
@@ -426,9 +492,18 @@ const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPat
 if (isMain) {
   if (has('control')) await control();
   else if (has('build')) await build(value('build', ''));
-  else if (has('close')) {
+  else if (has('reserve')) {
+    // 5.2: R = 20 (B + o + critic), each term named by the phase that sets or revises it.
+    const result = orFail(() => recordReserve(LEDGER_FILE, { by: value('by'), budget: value('budget-cents'), overshoot: value('overshoot-cents'), critic: value('critic-cents', '0'), note: value('note') }));
+    const { reserve: r, runBudgetCents: budget, spentCents: spent, tuningCents, rounds } = result.fit;
+    console.log(`R = ${reserveTerms(r)} = ${dollars(r.cents)} for ${r.phase}'s exam.`);
+    console.log(`T = ${dollars(budget)} - ${dollars(spent)} spent - ${dollars(r.cents)} = ${dollars(tuningCents)} for tuning: ${rounds.map((x) => `${x.rounds} round(s) at ${dollars(x.ceilingCents)}`).join(', ')}.`);
+    if (!result.written) fail(`the exam no longer fits in what is left (${dollars(budget - spent)}): the reserve is not recorded, and the run stops for the owner (5.2)`);
+    if (rounds.every((x) => x.rounds === 0)) console.log('No tuning round fits even at the smallest ceiling: the run stops with needs: decision (5.2, 5.5).');
+    printLedger(readLedger(LEDGER_FILE));
+  } else if (has('close')) {
     const phase = value('close', '');
-    if (!/^H\d+$/.test(phase)) fail('--close needs a phase like H3');
+    if (!PHASE.test(phase)) fail('--close needs a phase like H3');
     const ledger = readLedger(LEDGER_FILE);
     if (phaseCompleted(ledger, phase)) fail(`${phase} is already completed in the ledger`);
     appendEntry(ledger, { kind: 'phase', phase, stage: 'close', funding: 'none', listCostCents: 0, outcome: 'completed', ...(value('note') ? { note: value('note') } : {}) });
@@ -442,7 +517,7 @@ if (isMain) {
     const env = subscriptionEnv({ token: mainEnv().CLAUDE_CODE_OAUTH_TOKEN, home: path.join(runDir, 'judge', 'home'), pathDirs: [path.dirname(process.execPath), path.dirname(claude), system] });
     checkSubscriptionAuth({ claude, env });
     const phase = value('phase', null);
-    const r = await judgeRun({ runDir, phase: /^H\d+$/.test(phase ?? '') ? phase : null, claude, env }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, claude, env }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
     console.log(`Judged with ${r.judge.model} (${r.judge.fingerprint.slice(0, 12)}): ${r.file}`);
   } else if (has('review')) {
     const runDir = path.resolve(value('review', ''));

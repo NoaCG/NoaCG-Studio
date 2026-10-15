@@ -1,6 +1,17 @@
 {
   "format": "noacg-harness-ledger-v1",
   "runBudgetCents": 10000,
+  "reserve": {
+    "phase": "H8",
+    "setBy": "H4",
+    "briefs": 20,
+    "sessionBudgetCents": 224,
+    "overshootCents": 22,
+    "criticCents": 0,
+    "cents": 4920,
+    "at": "2026-10-15T00:29:00.122Z",
+    "note": "the exam reserve before any tuning: B = round-up(1.5 x m) with m = $1.49 (H3's one Opus graphic, one sample), o = $0.22 (the largest of H3's 52 Opus requests), no critic yet; revised by --reserve when H5 to H7 move B, o or the critic's share (evidence/phase-4.md)"
+  },
   "entries": [
     {
       "at": "2026-10-14T00:00:00.000Z",
@@ -170,6 +181,16 @@
       "funding": "none",
       "outcome": "completed",
       "note": "feasibility: all four proofs of section 6 in six sessions on the bench key, $2.66 of the $10 ceiling (evidence/phase-3.md)"
+    },
+    {
+      "at": "2026-10-15T00:29:00.478Z",
+      "listCostCents": 0,
+      "kind": "phase",
+      "phase": "H4",
+      "stage": "close",
+      "funding": "none",
+      "outcome": "completed",
+      "note": "the exam reservation: R = $49.20 held for H8, T = $48.14, three $15 rounds of 5 briefs for H5 to H7; the session budget default 224 cents in agent.md (agent v3); time 503 s against 600 s; no session created, no credit spent (evidence/phase-4.md)"
     }
   ]
 }

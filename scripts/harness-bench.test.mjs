@@ -5,7 +5,10 @@
 //
 //   - the ledger's wall refuses a session the remainder cannot cover, and the committed ledger
 //     reads, holds only phases and sessions it can account for, and says $0 so far;
-//   - `--build` refuses a phase the ledger already holds as completed;
+//   - the exam reserve (AC-5) is 5.2's arithmetic, held from every phase but the exam's, so the
+//     wall refuses a tuning session that would eat into it; the committed reserve is H4's;
+//   - `--build` refuses a $0 phase, a phase the ledger already holds as completed, and tuning
+//     before the exam is reserved;
 //   - one brief goes through the fake arm and through the managed-agents arm on the stub that
 //     replays the documented Managed Agents events and files: record, the save door's own shape
 //     check, capture, the digests, the ledger at $0, and the session and its files deleted after;
@@ -39,13 +42,13 @@ import { claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } 
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
-import { admit, appendEntry, emptyLedger, phaseCompleted, phaseSpentCents, readLedger, remainingCents, spentCents } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, emptyLedger, heldCents, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, spentCents, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
 import { digestCheck, missingActions, runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
-import { CONTROL_BRIEFS, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, refuseCompletedPhase, tuningBriefs } from './harness-bench.mjs';
+import { agentSessionBudgetCents, CONTROL_BRIEFS, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
 import { syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -157,12 +160,94 @@ test('the committed ledger reads: no credit before H3, H3 within its $10, and H0
   assert.equal(phaseCompleted(ledger, 'H0'), true);
 });
 
-test('--build refuses a phase the ledger already holds as completed, and anything not a phase', () => {
+test('--build refuses a $0 phase, a completed one, tuning before the exam is reserved, and anything not a phase', () => {
   const ledger = readLedger(LEDGER_FILE);
-  assert.match(refuseCompletedPhase(ledger, 'H0'), /already holds H0 as completed/);
-  assert.match(refuseCompletedPhase(ledger, 'H3'), /already holds H3 as completed/, 'a resumed H3 never spends again');
-  assert.equal(refuseCompletedPhase(ledger, 'H4'), null);
-  assert.match(refuseCompletedPhase(ledger, 'feasibility'), /phase like H3/);
+  assert.match(refuseBuild(ledger, 'H0'), /H0 spends nothing/);
+  assert.match(refuseBuild(ledger, 'H3'), /already holds H3 as completed/, 'a resumed H3 never spends again');
+  assert.match(refuseBuild(emptyLedger(), 'H4'), /H4 spends nothing \(5\.1\): it creates no session/, 'the reservation is $0 whatever the ledger says');
+  assert.equal(refuseBuild(ledger, 'H5'), null, 'the committed ledger holds the reserve, so round 1 may spend');
+  assert.match(refuseBuild(emptyLedger(), 'H5'), /no exam reserve/);
+  assert.equal(refuseBuild(emptyLedger(), 'H3'), null, 'feasibility comes before the reserve');
+  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H5, H6, H7 not closed/);
+  assert.match(refuseBuild(ledger, 'feasibility'), /phase like H3/);
+  assert.match(refuseBuild(ledger, 'H04'), /phase like H3/, 'no alias slips past the $0 and completed refusals');
+});
+
+// ── the exam reserve (AC-5, 5.2, 5.3) ──────────────────────────────────────────────────────
+
+test('the exam reserve is 5.2\'s arithmetic, and the wall holds it from every phase but the exam\'s', () => {
+  const ledger = emptyLedger();
+  appendEntry(ledger, { kind: 'session', phase: 'H3', funding: 'credit', sessionId: 'sesn_h3', listCostCents: 266, outcome: 'delivered' });
+  // H4's three candidates for `o` on B = $2.24 (evidence/phase-4.md): only the measured one leaves three $15 rounds.
+  const fit = (o) => reservation(ledger, { sessionBudgetCents: 224, overshootCents: o, setBy: 'H4' });
+  const row = ({ reserve, tuningCents, rounds }) => [reserve.cents, tuningCents, ...rounds.map((r) => r.rounds)];
+  assert.deepEqual([22, 50, 76].map((o) => row(fit(o))), [[4_920, 4_814, 3, 5], [5_480, 4_254, 2, 4], [6_000, 3_734, 2, 4]], 'R, T, rounds at $15, rounds at $9');
+  ledger.reserve = fit(22).reserve;
+  assert.equal(ledger.reserve.phase, 'H8');
+  assert.equal(remainingCents(ledger, 'H5'), 4_814, 'a tuning round sees the budget less the spend and the reserve');
+  assert.equal(remainingCents(ledger, 'H8'), 9_734, 'the exam may use its reserve');
+  // Tuning spends until $2.45 is left beside the reserve: one more $2.24 session with its $0.22 margin needs $2.46.
+  appendEntry(ledger, { kind: 'session', phase: 'H5', funding: 'credit', sessionId: 'sesn_h5', listCostCents: 4_814 - 245, outcome: 'delivered' });
+  const tuning = admit(ledger, { budgetCents: 224, overshootCents: 22, phase: 'H6' });
+  assert.equal(tuning.ok, false, 'a tuning session that would eat into the reserve is refused');
+  assert.match(tuning.reason, /past the \$49\.20 held for H8's exam, \$2\.45 left/);
+  assert.equal(admit({ ...ledger, reserve: undefined }, { budgetCents: 224, overshootCents: 22, phase: 'H6' }).ok, true, 'without the reserve the same session would start');
+  assert.equal(admit(ledger, { budgetCents: 224, overshootCents: 22, phase: 'H8', ceilingCents: 4_920 }).ok, true, 'the exam starts on its reserve');
+  appendEntry(ledger, { kind: 'session', phase: 'H8', funding: 'credit', sessionId: 'sesn_h8', listCostCents: 150, outcome: 'delivered' });
+  assert.equal(heldCents(ledger, 'H6'), 4_770, 'what the exam spent is no longer held');
+  appendEntry(ledger, { kind: 'phase', phase: 'H8', funding: 'none', outcome: 'completed' });
+  assert.equal(heldCents(ledger, 'H9'), 0, 'a closed exam holds nothing back');
+  assert.throws(() => reservation(ledger, { sessionBudgetCents: 0, overshootCents: 22, setBy: 'H4' }), /reserve for no session/);
+  // A reserve whose figure is not its own arithmetic does not read: the wall never trusts a hand-edited R.
+  const file = path.join(tmp(), 'ledger.json');
+  writeLedger(file, { ...ledger, reserve: { ...ledger.reserve, cents: 4_000 } });
+  assert.throws(() => readLedger(file), /cents 4000 is not 20 x \(224 \+ 22 \+ 0\)/);
+});
+
+test('--reserve names every term, records the reserve beside the entries, and writes nothing when the exam no longer fits', () => {
+  const file = path.join(tmp(), 'ledger.json');
+  const ledger = emptyLedger();
+  appendEntry(ledger, { kind: 'session', phase: 'H3', funding: 'credit', sessionId: 'sesn_h3', listCostCents: 266, outcome: 'delivered' });
+  writeLedger(file, { ...ledger, kept: 'another key' });
+  assert.throws(() => recordReserve(file, { by: 'H4', overshoot: '22' }), /--budget-cents takes a whole number of cents, got ""/, 'a revision never inherits a budget it did not state');
+  assert.throws(() => recordReserve(file, { by: 'H4', budget: '224', overshoot: '' }), /--overshoot-cents takes a whole number/, 'an empty value is not zero');
+  assert.throws(() => recordReserve(file, { by: 'H04', budget: '224', overshoot: '22' }), /--by <H#>/);
+  const set = recordReserve(file, { by: 'H4', budget: '224', overshoot: '22', note: 'n' });
+  assert.equal(set.written, true);
+  const after = readLedger(file);
+  assert.deepEqual({ ...after.reserve, at: undefined }, { phase: 'H8', setBy: 'H4', briefs: 20, sessionBudgetCents: 224, overshootCents: 22, criticCents: 0, cents: 4_920, at: undefined, note: 'n' });
+  assert.equal(after.kept, 'another key');
+  assert.equal(after.entries.length, 1);
+  const tooBig = recordReserve(file, { by: 'H5', budget: '500', overshoot: '22', critic: '22' });
+  assert.equal(tooBig.written, false, '20 x $5.44 is more than the $97.34 left');
+  assert.equal(readLedger(file).reserve.setBy, 'H4', 'the refused revision wrote nothing');
+  // The wall's margin follows the reserve unless the run names another, as H6 does for its critic.
+  assert.equal(admit(after, { budgetCents: 224, phase: 'H5' }).marginCents, 22);
+  assert.equal(admit(after, { budgetCents: 224, criticCents: 22, phase: 'H5' }).marginCents, 44);
+  assert.equal(admit(emptyLedger(), { budgetCents: 224 }).marginCents, 50, 'no reserve yet: 5.2\'s estimate');
+});
+
+test('the committed ledger holds the exam reserve the wall reads, and H4 closed at $0 with no session', () => {
+  const ledger = readLedger(LEDGER_FILE);
+  const r = ledger.reserve;
+  assert.deepEqual({ phase: r.phase, briefs: r.briefs }, { phase: 'H8', briefs: 20 });
+  assert.ok(r.overshootCents >= 22, 'o never below the largest request H3 measured');
+  assert.ok(Number.isInteger(agentSessionBudgetCents()), 'agent.md carries the session budget default');
+  if (r.setBy === 'H4') {
+    // H4's reserve, while it is the committed one; a revision in H5 to H7 states its own numbers in its evidence.
+    const graphic = ledger.entries.find((e) => e.phase === 'H3' && e.stage === 'graphic');
+    assert.equal(r.sessionBudgetCents, Math.ceil(1.5 * graphic.listCostCents), 'B = round-up(1.5 m), m the one Opus graphic H3 measured');
+    assert.equal(agentSessionBudgetCents(), r.sessionBudgetCents, 'the session budget default in agent.md is the B the reserve holds');
+    assert.deepEqual([r.overshootCents, r.criticCents, r.cents], [22, 0, 4_920], 'o as phase-4.md decides, no critic yet');
+  }
+  assert.equal(phaseCompleted(ledger, 'H4'), true);
+  assert.equal(ledger.entries.filter((e) => e.phase === 'H4' && e.kind === 'session').length, 0, 'H4 created no session');
+  assert.equal(phaseSpentCents(ledger, 'H4'), 0);
+  // The wall on a copy of the committed ledger: spend tuning down to one cent short of a session beside the reserve.
+  const copy = structuredClone(ledger);
+  appendEntry(copy, { kind: 'session', phase: 'H5', funding: 'credit', sessionId: 'sesn_synthetic', listCostCents: remainingCents(copy, 'H5') - (r.sessionBudgetCents + r.overshootCents) + 1, outcome: 'delivered' });
+  assert.equal(admit(copy, { budgetCents: r.sessionBudgetCents, overshootCents: r.overshootCents, phase: 'H6' }).ok, false);
+  assert.equal(admit(copy, { budgetCents: r.sessionBudgetCents, overshootCents: r.overshootCents, phase: 'H8', ceilingCents: r.cents }).ok, true);
 });
 
 // ── one brief through both arms, on a stand-in CLI ─────────────────────────────────────────
