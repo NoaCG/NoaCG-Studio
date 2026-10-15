@@ -1404,6 +1404,16 @@ test('save refuses --name with several packages before any browser', async () =>
   const named = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--name', 'Both', '--json'], closed);
   assert.equal(named.code, 2);
   assert.match(JSON.parse(named.stdout).error, /--name names one graphic/);
+  // A bare --production would read as absent and save library-only: refused instead, as is a bare
+  // --rundown, and a rundown without a production.
+  for (const flag of ['--production', '--rundown']) {
+    const bare = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--json', flag], closed);
+    assert.equal(bare.code, 2, flag);
+    assert.match(JSON.parse(bare.stdout).error, new RegExp(`${flag} needs a value`));
+  }
+  const stray = await run(['save', path.join(dir, 'a'), '--layer', '20,21', '--json'], closed);
+  assert.equal(stray.code, 2);
+  assert.match(JSON.parse(stray.stdout).error, /add --production/);
   // Several packages are a set, not stray words: with no key it is the ordinary no-login refusal.
   const set = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--json'], closed);
   assert.equal(set.code, 1);

@@ -362,7 +362,7 @@ export async function runPack(args: ParsedArgs, out: Out): Promise<number> {
       {
         name,
         description: flagString(args, 'description'),
-        layers: flagList(args, 'layer').map((n) => Number(n)),
+        layers: flagList(args, 'layer').flatMap((v) => v.split(',')).map((n) => Number(n)),
         rundown,
         save,
         outFile,

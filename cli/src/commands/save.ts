@@ -29,7 +29,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient, type BridgeValidation } from '../bridgeClient.js';
 import { cliVersion, noacgUrl } from '../config.js';
-import { EXIT_FINDINGS, EXIT_OK, flagBool, flagList, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_FINDINGS, EXIT_OK, flagBool, flagList, flagString, refuseBareFlags, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { readDelivery, resolveKey, saveGraphic, saveGraphicSet, type ProductionRequest } from '../auth.js';
 import { sourceDigest } from '../digest.js';
 import { readRundown } from './pack.js';
@@ -296,9 +296,11 @@ export function describeSave(outcome: SaveOutcome): string[] {
 
 export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
   const inputs = args._.slice(1);
+  // A bare `--production` or `--rundown` would otherwise read as absent and save library-only.
+  refuseBareFlags(args, ['production', 'rundown', 'layer']);
   const productionName = flagString(args, 'production');
   const rundownFile = flagString(args, 'rundown');
-  const layers = flagList(args, 'layer').map((n) => Number(n));
+  const layers = flagList(args, 'layer').flatMap((v) => v.split(',')).map((n) => Number(n));
   if ((rundownFile || layers.length) && productionName === undefined) throw new UsageError('--rundown and --layer describe a production: add --production "<its name>".');
   const opts: SaveOptions = {
     name: flagString(args, 'name'),
