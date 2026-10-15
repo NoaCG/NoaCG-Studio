@@ -365,7 +365,7 @@ Landed:
   back after each write and, on a lost answer, ask by operation id instead of resending.
 - **Packages**: the link is `/app#/home/productions/<id>` and selects and focuses that row. Install
   and Dismiss settle through the server (`agent_package_settle`, one statement), so the receipt
-  records `installed` with the production or `dismissed`, and the same link says so afterwards. A
+  records `installed` with the production or `dismissed`, and the same link says so afterwards (a production deleted since reads `missing`). A
   failed waiting-list load shows its error with Retry; an empty list still shows nothing. A link
   this account has no package for, and a graphic link it has no graphic for, name the signed-in
   account and nothing else.
@@ -379,8 +379,13 @@ and `mcp.test.mjs` (17) pass, with new tests for deny, write-then-readback, a lo
 not found, a refusal, and `status`; `tsc` for app and API, eslint on every changed file. The
 configured agent-access journey now walks consent identity, redeem/whoami account, receipts,
 readback and its 404, the package link selection and focus, an injected list failure and Retry,
-install and dismiss receipts, the link after install, and a foreign package link; it ran in the
-configured suite dispatched on this branch (result in the pull request). Screenshots of the error,
+install and dismiss receipts, the link after install, and a foreign package link. The configured
+suite dispatched on this branch (run 38768514330, local Supabase stack with 0092 applied) passed it
+first time, 99 passed; the run's one red was `late-send-abandoned.spec.ts` failing then passing, a
+spec already in `e2e/quarantine.json` whose quarantine is honoured only on `main` runs. 0092's
+behaviour self-check (a real owner's throwaway package settled, then rolled back) skips on that
+fresh stack, which has no account when migrations apply; it runs on the hosted projects, and the
+settle itself runs in the journey's Install. Screenshots of the error,
 selection, installed and not-in-account states at 1440 and 390px, the consent card and the graphic
 not-found page were looked at, not committed.
 
