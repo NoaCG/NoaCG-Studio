@@ -410,3 +410,19 @@ export function packCli(outDir) {
   return path.join(outDir, filename);
 }
 
+/** The name `npm pack` gives the CLI, which the bench uploads under that name. */
+export const CLI_UPLOAD_NAME = /^noacg-cli-.+\.tgz$/;
+
+/** Delete the CLI uploads an earlier run left on the workspace, and say which. A stopped run never
+ *  reaches the cleanup that deletes its own (H6's first run left one). Bench runs are one at a
+ *  time on the bench workspace, so any CLI upload there before a run starts is a leftover. */
+export async function deleteLeftCliUploads(api, log = console.log) {
+  const left = [];
+  for await (const file of api.beta.files.list()) if (CLI_UPLOAD_NAME.test(file.filename)) left.push(file);
+  for (const file of left) {
+    await api.beta.files.delete(file.id);
+    log(`  deleted ${file.id} (${file.filename}, ${file.created_at}), a CLI upload an earlier run left`);
+  }
+  return left.map((f) => f.id);
+}
+

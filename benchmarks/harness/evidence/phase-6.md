@@ -196,7 +196,8 @@ defect hides in a state either arm was not put in.
   $1.56), the judge preferring August A on **1** brief (the debate clock, H5's answer) against 2. One
   live-vote sample carries the change; the count of rounds without progress does not start here, and
   if H7 shows none, it is one.
-- **H7's rung** (3.8, 5.1): **Sonnet 5.5 on agent v5** (no critic, the fixed CLI), the same five
+- **H7's rung** (3.8, 5.1): **Sonnet 5.5 on agent v6** (no critic, the fixed CLI; v5 still
+  carried the critic on the server, see the repair below), the same five
   briefs and the same August A reference, run as `--model claude-sonnet-5-5` on the synced agent.
   Its signal is measured against that Opus estimate ($1.20; harness 3, tie 1, August 1).
 - **The reserve stands** (5.2): the critic is not kept, so there is no critic share. `m` stays H5's
@@ -226,3 +227,31 @@ defect hides in a state either arm was not put in.
 --control` before the first session: CONTROL PASSED at $0; `harness-agent-sync --workspace bench`:
 v4 read back with the critic pinned and v3 with no `multiagent`, then v5. Not checked: the Console's
 workspace usage against the ledger's $18.98 (the owner's glance, asked in the pull request).
+
+## Repair after the check: agent v6
+
+The H6 check found the configuration handed to H7 was not the one that won: a free read of
+`agent_0183yBA1miijGFNvm5bkMv6B` v5 showed v4's `multiagent` block (the critic
+`agent_01HSHf5nbrnRVkTx591MJNJj` v1, enabled). `agents.update` keeps every field it is not sent
+and clears one sent as `null` (the SDK's `AgentUpdateParams`: "Full replacement. Omit to preserve;
+send null to clear"), and the sync sent `multiagent` only when `agent.md` had one. The lock's hash
+is of the local files, so the plan saw no drift.
+
+- **Fix:** an update now sends `null` for every clearable field the definition leaves out
+  (`description`, `mcp_servers`, `multiagent`, `tools`) and for every metadata key the server has
+  and the definition does not. The plan reads the locked version back (free) and updates it when
+  the server differs; `--apply` reads the new version back and fails unless it matches; a credit
+  run refuses to start when the server's version differs from `agents/noacg-harness`.
+- **Re-synced, free:** the plan read `agent update (the server's v5 differs in multiagent)`; the
+  sync made **v6**. Read back: `multiagent` null, system prompt 15 lines and equal to v3's, tools and
+  model equal to v3's, metadata `plan`, `session_budget_cents` 224, `mcp_servers` empty, skill
+  `skill_01G2iMqxJJJr4GJQe6q94ddo` `skver_01KXt4Xf4msx422tocc44dmh` (bundle `7f130e3e...`, recorded
+  above as the bytes of v3's `skver_01X2F1VAisMcvT5tj1ZDFHpj`). The next plan: everything `keep`. **H7 runs v6**;
+  v5 is not a configuration any round measured as such and is not to be run.
+- **The CLI upload:** `file_01QppTruKxMVpKQdtubuC9Lc` (`noacg-cli-0.11.0.tgz`, 08:31:08Z, the
+  stopped first run's) is deleted; the workspace's file list is empty. A stopped run never reaches
+  the cleanup that deletes its upload, so a credit run now deletes any `noacg-cli-*.tgz` an earlier
+  run left before it uploads its own, and a failed delete is printed rather than swallowed.
+- **Checks:** `node --test scripts/harness-bench.test.mjs` 38 of 38; the new sync test fails on the
+  old update body (`multiagent` not null) and passes on the fix; `--control` after building `cli/`:
+  CONTROL PASSED at $0. No session, no credit.

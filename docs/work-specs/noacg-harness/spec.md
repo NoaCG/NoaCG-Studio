@@ -956,6 +956,37 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H6 repair: the sync clears what the definition dropped (2026-10-15, on `0305d47d5`)
+
+- **Check's findings (H6, on `06acc2e34`):** FAIL product. Bench agent v5 still carried v4's
+  `multiagent` block (the critic `agent_01HSHf5nbrnRVkTx591MJNJj` v1 as an enabled predefined
+  subagent; workflows, inline agents and advisor disabled) on the server: `agentCreateBody` sent
+  `multiagent` only when present, `agents.update` keeps unsent fields, and the lock hash
+  (`c47526c8...`) compares local files only, so the dry plan showed no drift. H7 on v5 would not run
+  the configuration that won. Also the first H6 run's CLI upload `file_01QppTruKxMVpKQdtubuC9Lc` was
+  still on the bench workspace. Everything else re-derived (order, ledger 1,898c, H6 1,008c, `T`
+  $34.42, reserve untouched, the $0.4105 cache lapse after a 332 s critic wait, sessions 404, judge
+  tally, defects 0, missing 0, the CLI fix, #1251, tests, `--control`). The departures stand as
+  recorded; the composite progress claim is valid arithmetic on n=1, so H7 states its stop-rule
+  reading before it spends.
+- **H7 runs agent v6** (`agent_0183yBA1miijGFNvm5bkMv6B`, lock `claude-lock.bench.json`). Read back
+  on the bench key: `multiagent` null, system prompt 15 lines equal to v3's, tools and model equal to
+  v3's, skill `skver_01KXt4Xf4msx422tocc44dmh` (bundle `7f130e3e...`), metadata `session_budget_cents`
+  224. Do not run v5. A credit run now refuses to start if the server's locked version differs from
+  `agents/noacg-harness`, so a drift shows before any session.
+- **Decisions:** an update sends `null` for each clearable field the definition omits
+  (`description`, `mcp_servers`, `multiagent`, `tools`) and for metadata keys the server has and the
+  definition does not, as the SDK documents for clearing. The plan reads back the agent only, not
+  subagents (none are listed now); the read compares what is sent, contained in what the server
+  returns, since the server fills defaults in. Leftover CLI uploads are deleted at the start of the
+  next credit run, by name (`noacg-cli-*.tgz`), on the rule that bench runs are one at a time on the
+  bench workspace; an age or liveness test was not needed for that.
+- **Traps:** a dry `harness-agent-sync` now makes a free read when the workspace key is in `.env`;
+  without it, it says the server was not read. A leftover upload from a run stopped mid-way is only
+  removed when the next credit run starts, not at once.
+- **Spend:** none. No session; sync, reads and the file deletion are free. Revert: `git revert` the
+  merge; v6 stays on the server and is v3's configuration on the same skill bytes.
+
 ### H6 check (2026-10-15, on `06acc2e34`)
 
 - **Verdict: FAIL product.** The round itself holds; the configuration it hands H7 does not. Checked

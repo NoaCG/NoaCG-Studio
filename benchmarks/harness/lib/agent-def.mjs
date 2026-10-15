@@ -64,3 +64,44 @@ export function agentCreateBody(def, skill, synced = {}) {
   }
   return body;
 }
+
+/** The fields agents.update keeps when they are not sent, and clears when sent as null. */
+const CLEARABLE = ['description', 'mcp_servers', 'multiagent', 'tools'];
+
+/** The agents.update body: the create body, with every clearable field the definition leaves out
+ *  sent as null and every metadata key the server has and the definition does not sent as null.
+ *  agents.update keeps whatever it is not sent, so without this a block taken out of agent.md
+ *  stays on the new version (H6's v5 kept v4's critic). */
+export function agentUpdateBody(def, skill, synced = {}, current = null) {
+  const body = agentCreateBody(def, skill, synced);
+  for (const field of CLEARABLE) if (body[field] === undefined) body[field] = null;
+  const dropped = Object.keys(current?.metadata ?? {}).filter((k) => !(k in (body.metadata ?? {})));
+  if (dropped.length) body.metadata = { ...(body.metadata ?? {}), ...Object.fromEntries(dropped.map((k) => [k, null])) };
+  return body;
+}
+
+/** The fields of an agent version on the server that differ from the body the sync sends. The
+ *  server fills defaults in (tool configs, model speed, effort as an object), so a sent object
+ *  only has to be contained in the server's; a field the body leaves out must be empty there. */
+export function serverDrift(body, server) {
+  const empty = (v) => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length) || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+  const contained = (want, have) => {
+    if (want === null || typeof want !== 'object') return want === have;
+    if (Array.isArray(want)) return Array.isArray(have) && want.length === have.length && want.every((w, i) => contained(w, have[i]));
+    return have !== null && typeof have === 'object' && Object.entries(want).every(([k, w]) => w === undefined || contained(w, have[k]));
+  };
+  const model = (m) => (typeof m === 'string' ? { id: m } : { id: m?.id, effort: typeof m?.effort === 'object' ? m.effort?.type : m?.effort });
+  const metadata = (m) => Object.fromEntries(Object.entries(m ?? {}).filter(([, v]) => v !== null));
+  const skills = (list) => (list ?? []).map((s) => `${s.skill_id}@${s.version}`);
+  const drift = [];
+  for (const field of ['name', 'description', 'system', 'mcp_servers', 'multiagent', 'tools']) {
+    const want = body[field];
+    if (empty(want) ? !empty(server[field]) : !contained(want, server[field])) drift.push(field);
+  }
+  const wantModel = model(body.model);
+  const haveModel = model(server.model);
+  if (wantModel.id !== haveModel.id || (wantModel.effort !== undefined && wantModel.effort !== haveModel.effort)) drift.push('model');
+  if (definitionHash(skills(body.skills)) !== definitionHash(skills(server.skills))) drift.push('skills');
+  if (definitionHash(metadata(body.metadata)) !== definitionHash(metadata(server.metadata))) drift.push('metadata');
+  return drift;
+}

@@ -53,7 +53,7 @@ import { fileURLToPath } from 'node:url';
 import { devPort } from './dev-port.mjs';
 import { mainEnv } from './lite-eval-paths.mjs';
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
-import { archivedArm, claudeCodeArm, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
+import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
@@ -62,7 +62,7 @@ import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibili
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
 import { readAgentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
-import { AGENT_DIR, keyFor, lockPath, readDefinitions, skillBundle, syncPlan } from './harness-agent-sync.mjs';
+import { AGENT_DIR, agentReadBack, keyFor, lockPath, readDefinitions, skillBundle, syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -394,6 +394,10 @@ async function build(phase) {
       if (!key) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
       const { default: Anthropic, toFile } = await import('@anthropic-ai/sdk');
       sdk = new Anthropic({ apiKey: key });
+      // The lock says what the sync sent; a session runs what the server kept (H6's v5 kept v4's critic).
+      const { drift: serverDrift } = await agentReadBack(sdk, lock, agentDef);
+      if (serverDrift.length) fail(`the server's agent v${lock.agent.version} differs from agents/noacg-harness in ${serverDrift.join(', ')}: run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);
+      await deleteLeftCliUploads(sdk);
       const upload = async (file) => (await sdk.files.upload({ file: await toFile(readFileSync(file), path.basename(file), { type: 'application/gzip' }) })).id;
       const tarball = packCli(path.join(runDir, 'cli'));
       uploaded = { id: await upload(tarball) };
@@ -453,7 +457,7 @@ async function build(phase) {
     printLedger(ledger);
     console.log(`Gallery: ${gallery.review}`);
   } finally {
-    if (uploaded && sdk) await sdk.files.delete(uploaded.id).catch(() => undefined);
+    if (uploaded && sdk) await sdk.files.delete(uploaded.id).catch((e) => console.error(`  CLI upload ${uploaded.id} NOT deleted (the next run deletes it): ${e instanceof Error ? e.message : String(e)}`));
     if (packagesEnv && sdk) await sdk.beta.environments.delete(packagesEnv.id).then(() => console.log(`  environment ${packagesEnv.id} deleted`), (e) => console.error(`  environment ${packagesEnv.id} NOT deleted: ${e instanceof Error ? e.message : String(e)}`));
     await api.cleanup();
   }
