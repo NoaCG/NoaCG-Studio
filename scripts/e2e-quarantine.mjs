@@ -7,6 +7,7 @@
 //   node scripts/e2e-quarantine.mjs enter --from-json '["e2e/x.spec.ts"]' --run <url> --queue
 //   node scripts/e2e-quarantine.mjs release <spec> [--queue]
 //   node scripts/e2e-quarantine.mjs release-due [--queue]     # reads main's status history
+//   node scripts/e2e-quarantine.mjs close-passed-enters       # closes an open enter PR whose specs have since passed on main
 //   node scripts/e2e-quarantine.mjs matrix [--all]            # quarantine.yml's job list, as JSON
 //   node scripts/e2e-quarantine.mjs filter <spec>             # the Playwright filter for one spec
 //   node scripts/e2e-quarantine.mjs status <spec> <outcome> --run <url>   # post one verdict
@@ -40,7 +41,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ghJsonLines, mainPushRuns } from './ci-failure-set.mjs';
+import { ghJsonLines, jobIdentity, mainPushRuns } from './ci-failure-set.mjs';
 import { planIdentity, specFilterArg, specPath } from './e2e-spec-names.mjs';
 import { alreadyQueued, configureBotIdentity, queuePullRequest, spawnRunner } from './queue-pr.mjs';
 
@@ -221,6 +222,70 @@ export function passHistories({ repo, specs, gh = ghJsonLines, limit = HISTORY_R
     }
   }
   return histories;
+}
+
+/** The branch prefix `enter` queues on: an open pull request on one is an entry that has not landed. */
+export const ENTER_BRANCH_PREFIX = 'quarantine/enter-';
+
+/** The specs an enter branch's store adds to main's. */
+export function enteredBy(branchStore, mainStore) {
+  return quarantinedSpecs(branchStore).filter((spec) => !mainStore.specs?.[spec]);
+}
+
+/**
+ * True when a run's jobs prove the whole blocking suite passed: it HAS E2E shards, and every one
+ * succeeded. A skipped shard is not a pass (a run that never got to E2E says nothing about a spec).
+ * @param {{ name: string, conclusion: string }[]} jobs
+ */
+export function shardsPassed(jobs) {
+  const shards = (jobs ?? []).filter((job) => jobIdentity(job?.name) === 'E2E shard');
+  return shards.length > 0 && shards.every((job) => job.conclusion === 'success');
+}
+
+/**
+ * The newest completed push run of ci.yml on main that began after `since` and ran every E2E shard
+ * green, or null. Main runs the full suite, minus the quarantine, so a spec that is not yet
+ * quarantined there has passed in such a run. Unreadable answers read as "no pass": the pull
+ * request stays open, which is the direction that loses nothing.
+ */
+export function passingMainRun({ repo, since, gh = ghJsonLines, limit = 20 }) {
+  const after = Date.parse(since);
+  const runs = gh([`repos/${repo}/actions/workflows/ci.yml/runs?branch=main&event=push&status=completed&per_page=${limit}`, '--jq', '.workflow_runs[] | {id, html_url, created_at}']);
+  for (const run of runs) {
+    if (!(Date.parse(run.created_at) > after)) continue;
+    const jobs = gh([`repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`, '--jq', '.jobs[] | {name, conclusion}']);
+    if (shardsPassed(jobs)) return run;
+  }
+  return null;
+}
+
+/**
+ * Close the open `quarantine/enter-*` pull requests whose specs have passed on main since the pull
+ * request was opened: the flake is not reproducing, so the entry has nothing to record, and a pull
+ * request that cannot land (its own Build red, a conflict) would otherwise sit open for good. The
+ * branch goes with it, so a spec that flakes again can enter again; a branch left behind on a
+ * closed pull request reads as "a person said no" (`alreadyQueued`).
+ * @returns {{ number: number, url: string, specs: string[], run: string }[]} what was closed
+ */
+export function closePassedEnters({ repo, mainStore, gh = ghJsonLines, ghRun = spawnRunner('gh') }) {
+  const open = gh([`repos/${repo}/pulls?state=open&base=main&per_page=100`, '--jq', `.[] | select(.head.ref | startswith("${ENTER_BRANCH_PREFIX}")) | {number, url: .html_url, ref: .head.ref, created_at}`]);
+  const closed = [];
+  for (const pr of open) {
+    const [content] = gh([`repos/${repo}/contents/e2e/quarantine.json?ref=${pr.ref}`, '--jq', '.content']);
+    let branchStore;
+    try {
+      branchStore = JSON.parse(Buffer.from(String(content ?? ''), 'base64').toString('utf8'));
+    } catch {
+      continue;
+    }
+    const specs = enteredBy({ specs: branchStore?.specs ?? {} }, mainStore);
+    if (specs.length === 0) continue;
+    const run = passingMainRun({ repo, since: pr.created_at, gh });
+    if (!run) continue;
+    ghRun(['pr', 'close', String(pr.number), '-R', repo, '--delete-branch', '--comment', `Closing: ${specs.join(', ')} passed on main since this was opened (${run.html_url}), so the flake is not reproducing and there is nothing to quarantine. If it fails again it enters again.`]);
+    closed.push({ number: pr.number, url: pr.url, specs, run: run.html_url });
+  }
+  return closed;
 }
 
 function today(now = new Date()) {
@@ -438,6 +503,17 @@ function main(argv) {
     return 0;
   }
 
+  if (command === 'close-passed-enters') {
+    if (!repo) {
+      console.error('close-passed-enters: GH_REPO (or GITHUB_REPOSITORY) must name the repository.');
+      return 2;
+    }
+    const closed = closePassedEnters({ repo, mainStore: readStore() });
+    for (const c of closed) console.log(`::notice title=Quarantine::closed ${c.url} - ${c.specs.join(', ')} passed on main (${c.run}).`);
+    if (closed.length === 0) console.log('quarantine: no open enter pull request has a spec that passed on main.');
+    return 0;
+  }
+
   if (command === 'release-due') {
     const store = readStore();
     const specs = quarantinedSpecs(store);
@@ -459,7 +535,7 @@ function main(argv) {
     return releaseSpecs(due, { queue, runUrl, reason: `${RELEASE_AFTER} consecutive passes on main` });
   }
 
-  console.error('usage: e2e-quarantine.mjs list | matrix | filter <spec> | status <spec> <outcome> --run <url> | enter <spec...> --run <url> [--queue] | release <spec> [--queue] | release-due [--queue] | stale [--issue] [--today YYYY-MM-DD]');
+  console.error('usage: e2e-quarantine.mjs list | matrix | filter <spec> | status <spec> <outcome> --run <url> | enter <spec...> --run <url> [--queue] | release <spec> [--queue] | release-due [--queue] | close-passed-enters | stale [--issue] [--today YYYY-MM-DD]');
   return 2;
 }
 

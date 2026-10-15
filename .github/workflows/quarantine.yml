@@ -70,6 +70,32 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/e2e-quarantine.mjs stale --issue --run "$RUN_URL"
 
+  # AN ENTRY THAT NEVER LANDED. An enter pull request can stall (its own Build red, a conflict)
+  # while the flake it records is fixed; once a main run after it has passed every shard, the spec
+  # has passed on main and the pull request is closed, with its branch, by `close-passed-enters`.
+  # Independent of the store, so it also runs when the store is empty.
+  enter-prs:
+    name: Close passed enter pull requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: write # delete the closed pull request's branch
+      pull-requests: write # close it
+      actions: read # the main runs' jobs
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            scripts
+            e2e/quarantine.json
+          sparse-checkout-cone-mode: false
+      - name: Close what has passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/e2e-quarantine.mjs close-passed-enters
+
   spec:
     name: Quarantine (${{ matrix.spec }})
     needs: list

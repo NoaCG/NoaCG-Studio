@@ -40,6 +40,7 @@ import {
   specFilterArg,
   summariseRuns,
 } from './e2e-affected.mjs';
+import { quarantinedSpecs, readStore } from './e2e-quarantine.mjs';
 import { copyEdit, cssEditClasses, phraseMeets, scanScript, specsNaming } from './e2e-affected-copy.mjs';
 import {
   budgetMinutes,
@@ -1350,7 +1351,11 @@ test('--files reports an unmapped path exactly like the ref mode does', () => {
   const shared = run();
   assert.equal(shared.mode, 'subset');
   assert.ok(shared.specs.length > 0, 'the shared set is not empty');
-  assert.deepEqual(shared.specs, planFor([unknown], { sprintFocus: true }).specs, 'the CLI and the module agree');
+  // The CLI plans what the shards will run, so it leaves the quarantined specs out; the module's plan
+  // does not. Without this split the test fails on any branch that quarantines a shared-set spec,
+  // which is exactly the quarantine/enter pull request that has to land.
+  const expected = splitQuarantined(planFor([unknown], { sprintFocus: true }).specs, quarantinedSpecs(readStore())).blocking;
+  assert.deepEqual(shared.specs, expected, 'the CLI and the module agree');
   assert.equal(run('--full-escalation').mode, 'full');
   assert.equal(run('--no-focus').mode, 'full', 'the older spelling still works');
 });

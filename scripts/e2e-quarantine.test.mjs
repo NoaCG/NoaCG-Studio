@@ -9,13 +9,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
+  ENTER_BRANCH_PREFIX,
   RELEASE_AFTER,
   STALE_AFTER_DAYS,
   STORE_VERSION,
   staleEntries,
   staleIssueBody,
+  closePassedEnters,
   consecutivePasses,
   dueForRelease,
+  enteredBy,
   emptyStore,
   enter,
   matrixOf,
@@ -25,6 +28,7 @@ import {
   readStore,
   release,
   serializeStore,
+  shardsPassed,
   slugOf,
   statusContext,
 } from './e2e-quarantine.mjs';
@@ -180,4 +184,44 @@ test('an entry older than STALE_AFTER_DAYS is stale, oldest first, and nothing y
   assert.match(body, /\| `e2e\/c\.spec\.ts` \| 2026-09-10 \| 32 \| 5 \| - \|/);
   assert.ok(body.endsWith('<!-- quarantine-stale-set: e2e/a.spec.ts e2e/c.spec.ts -->'), 'the last line identifies the set so a repeat edits nothing');
   assert.equal(STALE_AFTER_DAYS, 14);
+});
+
+test('an open enter pull request is closed once a main run after it ran every shard green, and not before', () => {
+  const branchStore = (specs) => Buffer.from(serializeStore(enter(emptyStore(), specs, { date: '2026-10-14', run: 'r' }).store)).toString('base64');
+  const shards = (conclusions) => conclusions.map((conclusion, i) => ({ name: `E2E ${i + 1}/${conclusions.length} (chromium)`, conclusion }));
+  assert.equal(shardsPassed(shards(['success', 'success'])), true);
+  assert.equal(shardsPassed(shards(['success', 'failure'])), false);
+  assert.equal(shardsPassed(shards(['success', 'skipped'])), false, 'a shard that did not run proves nothing');
+  assert.equal(shardsPassed([{ name: 'Build', conclusion: 'success' }]), false, 'a run with no shards says nothing about a spec');
+  assert.deepEqual(enteredBy(JSON.parse(Buffer.from(branchStore([A, B]), 'base64')), enter(emptyStore(), [B]).store), [A], 'what main already holds is not the pull request\'s');
+
+  const world = (runs) => {
+    const closes = [];
+    const gh = (args) => {
+      const url = args[0];
+      if (url.includes('/pulls?')) return [
+        { number: 7, url: 'u7', ref: `${ENTER_BRANCH_PREFIX}2026-10-14-aaaa`, created_at: '2026-10-14T01:58:40Z' },
+        { number: 8, url: 'u8', ref: `${ENTER_BRANCH_PREFIX}2026-10-14-bbbb`, created_at: '2026-10-14T01:58:40Z' },
+      ];
+      if (url.includes('/contents/')) return [url.includes('aaaa') ? branchStore([A]) : serializeStore(emptyStore())];
+      if (url.includes('/workflows/ci.yml/runs')) return runs;
+      return url.includes('/runs/1/') ? shards(['success', 'success']) : shards(['failure', 'success']);
+    };
+    const ghRun = (args) => { closes.push(args); return { status: 0, out: '', err: '' }; };
+    return { gh, ghRun, closes };
+  };
+
+  const passed = world([
+    { id: 3, html_url: 'run3', created_at: '2026-10-14T05:00:00Z' },
+    { id: 1, html_url: 'run1', created_at: '2026-10-14T03:00:00Z' },
+    { id: 0, html_url: 'run0', created_at: '2026-10-14T01:00:00Z' },
+  ]);
+  const closed = closePassedEnters({ repo: 'o/r', mainStore: emptyStore(), gh: passed.gh, ghRun: passed.ghRun });
+  assert.deepEqual(closed.map((c) => [c.number, c.specs, c.run]), [[7, [A], 'run1']], 'run3 failed a shard, run1 passed; the pull request adding nothing is left alone');
+  assert.deepEqual(passed.closes[0].slice(0, 5), ['pr', 'close', '7', '-R', 'o/r']);
+  assert.ok(passed.closes[0].includes('--delete-branch'), 'so the spec can enter again if it flakes again');
+
+  const before = world([{ id: 1, html_url: 'run1', created_at: '2026-10-14T01:00:00Z' }]);
+  assert.deepEqual(closePassedEnters({ repo: 'o/r', mainStore: emptyStore(), gh: before.gh, ghRun: before.ghRun }), [], 'a pass from before the pull request opened is not a pass since');
+  assert.deepEqual(before.closes, []);
 });
