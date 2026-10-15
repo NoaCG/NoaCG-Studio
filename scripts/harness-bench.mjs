@@ -659,6 +659,9 @@ export async function recaptureCells({ runDir, rekey, cli, log = console.log }) 
   for (const [brief, byArm] of Object.entries(rekey)) {
     const dirs = readdirSync(path.join(runDir, 'cells')).filter((d) => d.startsWith(`${brief}.`) && existsSync(path.join(runDir, 'cells', d, 'cell.json')));
     if (!dirs.length) throw new Error(`--recapture: no cell of ${brief} in ${runDir}`);
+    // An answer the judge gave on the first frames would still count: re-capture before judging.
+    const judged = path.join(runDir, 'judgements.jsonl');
+    if (existsSync(judged) && readFileSync(judged, 'utf8').split('\n').some((l) => l && JSON.parse(l).brief === brief)) log(`  ${brief}: the judge already answered on its first frames; judge it again after this`);
     for (const d of dirs) {
       const dir = path.join(runDir, 'cells', d);
       const cell = JSON.parse(readFileSync(path.join(dir, 'cell.json'), 'utf8'));
