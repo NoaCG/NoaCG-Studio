@@ -956,6 +956,34 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H6 second check (2026-10-15, on `a8aa62e38`)
+
+- **Verdict: PASS.** The first check's blocker is gone. Checked on `main` `a8aa62e38` (the repair,
+  PR #1254); no product code changed, no session, no credit.
+- **Agent v6 on the server**, my own free read of `agent_0183yBA1miijGFNvm5bkMv6B` on the bench
+  key: v6 is the latest version, `multiagent` null (v5 still shows the critic, as recorded),
+  system prompt 15 lines and equal to v3's and to `agent.md`, tools, model (Opus 5.5, effort high),
+  name and description equal to v3's, skill `skver_01KXt4Xf4msx422tocc44dmh` (lock bundle
+  `7f130e3e...`), metadata `session_budget_cents` 224, `mcp_servers` empty.
+- **The sync's dry plan:** environment, skill and agent all `keep`, with no "not read back" line,
+  so it compared the server. Its read-back on the same definition gives no drift for v6,
+  `multiagent` for v5 and `skills` for v3 (another skill version id, the same bytes).
+- **Bench workspace files:** none; `file_01QppTruKxMVpKQdtubuC9Lc` is gone.
+- **Tests:** with the update body's null clearing removed, the new sync test fails ("null is what
+  agents.update takes to clear it"); restored, `harness-bench.test.mjs` passes 38 of 38.
+  `--control` run directly, after `cli/` was built and with this checkout's dev server up:
+  CONTROL PASSED at $0.
+- **H6 figures unchanged:** since H6's merge `06acc2e34`, the ledger, judge files, `cli/`, `src/`
+  and `api/` are untouched. The ledger still sums to 1,898 cents (H3 266, H5 624, H6 1,008), so `T`
+  is $34.42 and the reserve is 4,660. In `phase-6.md` the only line changed is H7's rung, now v6;
+  the rest of the change is the added repair section. The H6 ledger note still says "v5"; it is a
+  record and stays as written.
+- **Carry for H7** (from the first check and the repair, all written above): agent v6, never v5;
+  Sonnet 5.5 (`--model claude-sonnet-5-5`) on the five briefs, 224 cents, `--ceiling-cents 1500`,
+  no `--critic-cents`. Say which stop-rule reading applies before any spend. Compare Update ops
+  before judging pairs. A credit run now checks the server copy of the lock's version before it
+  starts, and `--agent-version` runs another version unchecked.
+
 ### H6 repair: the sync clears what the definition dropped (2026-10-15, on `0305d47d5`)
 
 - **Check's findings (H6, on `06acc2e34`):** FAIL product. Bench agent v5 still carried v4's
