@@ -682,8 +682,8 @@ not build it. S8 is the last phase on the list; nothing is carried to a next bui
   0 flaky (merged blob reports), among them `wizard-kit` 22, `wizard-shell` 18 (quarantined,
   #1160, and green), `wizard-finish` 22, `wizard-entry-fit` 23, `wizard-filters` 19,
   `wizard-draft-guard` 8, `community-packs` 4, `template-deep-link` 2, `storage-full` 3. The next
-  merge group (38693691361, `50ce0911d`) is green too. Locally the seven wizard Node files pass
-  109 of 109, and `gates.mjs run --changed 6e44a0abe^1` passes. The e2e and script diff is the
+  merge group (38693691361, `50ce0911d`) is green too. Locally the six wizard Node files and
+  `import-drop` pass 109 of 109, and `gates.mjs run --changed 6e44a0abe^1` passes. The e2e and script diff is the
   `kitPlan.ts` path in two `page.evaluate` loaders, three Node loaders and one `// guards:` line.
 - **AC-9.** `git diff --name-only 6e44a0abe^1 6e44a0abe -- src` lists the two moved files, the
   four importers (`CreationWizard.tsx`, `shell/walkState.ts`, `steps/KitPicker.tsx`,
@@ -704,7 +704,7 @@ not build it. S8 is the last phase on the list; nothing is carried to a next bui
 - **The D13 departure stands.** The sibling rule `wizard-template-only-from-the-walk` keeps D13's
   intent: one declared way into the capability, and no new ARCHITECTURE edge. It is better
   suited to a folder with no barrel, since a barrel would pull React into the Node bundles of
-  `shell/`. A mutation of mine was refused from `import/drop.ts`, `ai/AiStep.tsx` and
+  `shell/`. My mutations were refused from `import/drop.ts`, `ai/AiStep.tsx` and
   `home/ActionLog.tsx`. D13's text in 1.2 still says "extends it", and these notes record the
   change.
 - **The owner's items are in the spec.** S8 is phase 10 of the numbered list. S9 is optional
