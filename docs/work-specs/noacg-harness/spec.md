@@ -956,6 +956,80 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H5. Tuning round 1: the August reproduction (built 2026-10-15)
+
+- **Check's findings (H4, on `fc0237bc8`):** AC-5 holds: `--control` run directly passed at $0
+  (five cells as scripted, the wall refused before any session, `spentCents` 0; a fresh worktree
+  needs `cli/` built first); `B` 224, `o` 22, `R` 4,920, `T` 4,814, 3 rounds at $15, 5 at $9, 503 s
+  of 600, three DECIDED lines with reverts; the raw H3 events gave 52 requests, the largest
+  $0.2162, a minimum cache-read ratio of 0.99927 and a longest gap of 23.3 s; the wall on a ledger
+  copy admits 4,792 and refuses 4,793 for H5, refuses H6 at 6,000 and admits H8, and after 4,700 of
+  tuning refuses H7 at 224 and admits 92; `--build H4` and `--build H8` exit 2 before reading a key;
+  tests 30 of 30, lint and scope clean. Carried into H5: the control's wall row no longer tests the
+  boundary (-$50.86 left with the reserve held) and prints a $0.50 margin where the reserve's is
+  $0.22 (the unit tests cover it); run `--control` directly, not through the job queue; re-run
+  `--reserve --by H5` with the mean of H3 and H5; report each session's largest request and any
+  cache lapse; `agent.md` stays 224 until H7; the contact sheets; map v1 action names to event
+  names before counting missing actions; `instruments.md` entries 1 to 4; a judge run stopped
+  during a pause re-judges the answered order on its next start.
+- **Shas:** previous verified `main` `7b25eb2a8`; built on `claude/plan-noacg-harness-p6-build`;
+  the hypothesis, ceiling and signal committed in `1b6f5db84` (06:05:11Z) before the first session
+  (06:05:34Z); the merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge
+  commit, then restore `benchmarks/harness/ledger.json` from the merge, since spend that happened
+  stays recorded and a ledger without it would let `--build H5` pay again. Nothing on the bench workspace to clean up (every
+  session and output deleted, the CLI upload deleted).
+- **What landed** (`benchmarks/harness/evidence/phase-5.md`): five Opus 5.5 sessions on the five v1
+  library briefs, all delivered validator-clean, **$6.24** of the $15 ceiling, median **337 s**,
+  none near the 224-cent budget. Against the August A cells, re-captured at $0 by a new `august`
+  arm, the frozen judge preferred **the harness 2, August 2, tie 1** (one order flip). The harness:
+  **1 basic visual defect** (the live vote: after an Update to long options the first row wraps
+  without growing and covers the second), **0 missing actions**, 4 of 5 accepted, **$1.56 per
+  accepted graphic**; August A: 2 graphics missing actions, 3 of 5 accepted. Largest request
+  **$0.39** (the scoreboard writing its design in one turn into a warm cache), no cache lapse in
+  124 follow-on requests. Judging: 24 answered `claude -p` calls, $79.03 notional, no pause.
+  `--reserve --by H5`: `m` $1.29 over six Opus graphics, `B` **$1.94**, `o` **$0.39**, `R`
+  **$46.60**, `T` **$44.50**: two $15 rounds left. The bench gained the alias and word rule for
+  missing actions (`expect.aliases` on `school-scoreboard`), label-keyed stress (`stressFile`,
+  `stress.json` per cell), and the reference arm. No `cli/`, `cli/skill/` or `agents/` change.
+- **H6 must allow for:**
+  - **H6 tests the critic** (3.8: a basic defect was delivered), same five briefs, Opus 5.5, agent
+    v3's configuration plus the `multiagent` block of D4, `--critic-cents 22` on `--build` until
+    its own largest request is measured, and the margin the reserve now holds (`o` 39). Run the
+    reference in the same run directory (`--arms managed-agents,august`) so the pairs judge on one
+    capture; the five `august-A` cells cost $0 and a few minutes.
+  - **The critic cannot find this round's defect in the frames it gets.** In the container the
+    agent's `noacg coverage` has no brief stress, and the CLI lengthens a `Label | value` lines field
+    by growing its number column (`52 Yes`), so no frame shows a long option label (issue #1246).
+    Either keep the matrix as is and say a critic that misses the live vote measured the matrix, or
+    land #1246 first and re-run the no-critic arm too. Decide before spending, in `phase-6.md`.
+  - The bench's capture now writes the stress it used beside each cell (`stress.json`): read it for
+    any new brief before judging. The other ten tuning briefs still key stress by position.
+  - The debate clock judged airable alone but not in either pair order (no active speaker after the
+    Take, so Penalty shows nothing): a behaviour a critic could raise, not a counted defect.
+  - Progress for the stop rule is measured against $1.56 per accepted graphic and the 2-1-2 verdict.
+- **H8 must allow for:** the sealed briefs key stress by position. Before the judge reads, check each
+  cell's `stress.json` against its fields, both arms, and re-key or re-capture a wrong one alike
+  (`instruments.md` entry 6).
+- **Decisions** (each with its reasons in `phase-5.md`):
+  - DECIDED: the reference is the August **arm A** cells, the configuration the August verdict kept
+    as the skill's default; one reference a brief keeps judging to five pairs. Revert: `--build H5
+    --arms august --august-config <B..E>` into the same run directory and judge again ($0 credit).
+  - DECIDED: the stress mapping was fixed and the four affected cells re-judged before any pair, both
+    arms alike; the first answers are kept and count for nothing. Revert: judge on
+    `frames.v1-positional`, which would count a swapped question as the harness's defect.
+  - DECIDED: no CLI or validator change in H5 (#1244, #1246), so H6 changes one thing.
+- **Traps:**
+  - The guard counts `--judge` as browser work: `--reserve` during a judge run needs
+    `NOACG_ALLOW_PARALLEL_E2E=1` (it drives no browser).
+  - Stopping a judge run leaves its staging directory (`%TEMP%\nj-*`); delete it.
+  - The first `validate` of an archived August package regenerates its files, so its digest is not
+    the recorded one; the arm validates twice now.
+  - `news-lower-third.A` carries a stray `news-lower-third.html`; its zip and folder digests differ.
+  - The judge's single and pairwise airability can disagree on one graphic (the debate clock):
+    report both, count the single.
+- **Spend:** $6.24 credit; the ledger at $8.90 of $100, $46.60 held for H8, $44.50 for H6 and H7.
+  $79.03 notional on the subscription.
+
 ### H4 check (2026-10-15, on `fc0237bc8`)
 
 - **Verdict: PASS**, on the second check. Checked on `main` `fc0237bc8`, the merge of PR #1235;

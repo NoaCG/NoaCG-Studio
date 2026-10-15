@@ -14,9 +14,11 @@
 //   node scripts/harness-bench.mjs --build <H#> --arms managed-agents[,claude-code] --briefs id,..
 //                                  --ceiling-cents <n> [--budget-cents <n>] [--model <id>]
 //                                  [--overshoot-cents <n>] [--critic-cents <n>] [--out <dir>]
+//                                  [--august-config A]
 //                                                    PAID. Real sessions: managed-agents on the bench
 //                                                    key's credit (scripts/bench-env.mjs --profile=harness),
-//                                                    claude-code on the owner's subscription. Refused
+//                                                    claude-code on the owner's subscription; `august`
+//                                                    re-captures the 2026-08-22 round's cells at $0. Refused
 //                                                    for a $0 phase, a phase the ledger already holds
 //                                                    as completed, tuning before the exam is reserved,
 //                                                    and the exam before tuning is closed; per session
@@ -47,7 +49,7 @@ import { fileURLToPath } from 'node:url';
 import { devPort } from './dev-port.mjs';
 import { mainEnv } from './lite-eval-paths.mjs';
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
-import { claudeCodeArm, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
+import { archivedArm, claudeCodeArm, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
@@ -328,7 +330,7 @@ async function build(phase) {
   // admitted against the whole run budget.
   if (arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
   if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
-  for (const a of arms) if (!['managed-agents', 'claude-code'].includes(a)) fail(`unknown arm ${a}`);
+  for (const a of arms) if (!['managed-agents', 'claude-code', 'august'].includes(a)) fail(`unknown arm ${a}`);
   if (proofIds.length && (phase !== 'H3' || arms.join() !== 'managed-agents')) fail('--proof is H3\'s, on the managed-agents arm alone');
   for (const id of proofIds) if (!PROOFS[id]) fail(`no H3 proof ${id} (${Object.keys(PROOFS).join(', ')})`);
   const pairRefusal = packagesProofRefusal(ledger, phase, proofIds);
@@ -388,6 +390,11 @@ async function build(phase) {
       const token = mainEnv().CLAUDE_CODE_OAUTH_TOKEN;
       const reference = claudeCodeArm({ claude: claudeExecutable(), token, model, url });
       for (const brief of briefs) all.push({ id: `${brief.id}.claude-code`, brief, arm: reference });
+    }
+    if (arms.includes('august')) {
+      // The v1 briefs' reference (4.2): the August round's Claude Code cells, re-captured at $0.
+      const reference = archivedArm({ configuration: value('august-config', 'A') });
+      for (const brief of briefs) all.push({ id: `${brief.id}.${reference.id}`, brief, arm: reference, entry: { stage: 'reference' } });
     }
     const runId = `${phase}-${stamp()}`;
     const entry = { phase, stage: value('stage', 'build'), budgetCents: budgetCents || 1, ...margin, ceilingCents };

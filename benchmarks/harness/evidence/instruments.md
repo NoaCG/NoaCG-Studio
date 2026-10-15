@@ -6,6 +6,73 @@ disagreement is logged here with its frame and its resolution. Newest first. Fra
 the repository (named by their calibration id; `benchmarks/harness/judge/calibration.mjs render`
 rebuilds them at zero cost).
 
+## H5 (2026-10-15): tuning round 1
+
+Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`
+on the five harness cells and the five August A cells (`%TEMP%\noacg-harness\H5-round1\cells\`),
+the agents' own validates in their traces, and the H2 entries re-measured at this sha
+(`%TEMP%\noacg-harness\H5-instruments\`). Pictures: the frozen judge, and my own look at the frames
+named.
+
+6. **The bench's stress capture put brief values on the wrong fields.** `noacg coverage --stress`
+   maps a brief's `f0`, `f1`... by position among the package's fields; the v1 briefs key them in
+   one order and authored packages choose their own. On `live-vote` the harness's `long-video.jpg`
+   showed the question as the only option row and the options as a raw `a|b|Third` string in the
+   question slot; the judge called it not airable with four basic mistakes, all from that. The
+   August A cell got the same swap (`long-video.jpg`: the question in its kicker, the pipe string as
+   its question) and the judge passed it. `debate-clock` was swapped for both arms too (a speaker's
+   name in the round label, `180` in a name slot; the judge noticed it on August A). Resolution:
+   fixed in the bench. A brief may key stress by the words of a field's label
+   (`benchmarks/harness/lib/pipeline.mjs` `stressFile`, written per cell as `stress.json` from
+   `noacg inspect`); `live-vote` and `debate-clock` are re-keyed in `tuning/briefs.json`, and
+   `live-vote`'s options value is now in the `Answer | number` lines both arms' packages read. The
+   four cells were re-captured at $0 (the first frames kept as `frames.v1-positional`) and
+   re-judged; the first answers are kept in `judgements.positional-stress.jsonl` and count for
+   nothing. The other three briefs mapped onto the right fields in both arms (checked field by
+   field). Re-judged, the harness's live vote still fails, now on a real defect: after an Update to
+   the long options the first row wraps to four lines without growing and lands on the second
+   (`update-01500ms.jpg`, seen). **For H8:** the sealed briefs key stress by position; read each
+   cell's `stress.json` against its fields before the judge reads, and re-key or re-capture a
+   wrong one for both arms alike.
+7. **`bench-field-unpainted` fires on all four shipped poll designs.** `noacg scaffold --type poll
+   --design ig02|ig11|ig12|ig13`, then `noacg validate`: "Field Bars (f0) ... reaches no pixels in
+   ANY of the graphic's states" on every one, while their frames show the bars. The sentinel
+   (`src/validation/fieldPaint.ts` `sentinelFor`) turns the number column of a `Label | 47` line
+   into a text tag and the poll runtime skips a line without a number. The H5 live-vote agent
+   checked the warning on the untouched scaffold, then changed its runtime partly to quiet it
+   (lines without a number now show with an empty bar: harmless here, but the warning steered
+   it). Resolution: a warning, it blocks nothing; the fix (keep a numeric cell numeric) is issue
+   #1244, deferred past H7 because changing the validator between H5 and H6 adds a second variable.
+8. **Did the contact sheets miss anything?** (H3's carry, not an instrument disagreement.) All five
+   agents read their coverage as contact sheets they built with Pillow (0 or 1 coverage frames
+   read singly; sheets of four at half size, or crops of the graphic's corner). The one basic
+   defect the judge found (entry 6, the live vote's update overlap) is in a state the agent's own
+   coverage never drove: in the container the agent runs `noacg coverage` without the brief's
+   stress values, and the CLI lengthens a lines field by doubling the whole string, so its own
+   update frame showed three short rows reading `52 Yes`, `33 No`, `15 Not sure`
+   (`outputs/all/update-01500ms.jpg`, seen), never a long option. One graphic: not evidence that
+   sheets miss what single frames show, nor that they do not. It is evidence that the agent's
+   matrix (and so a critic reading it) does not exercise a long value in a lines field.
+
+Entries 1 to 4 below, re-measured at H5's sha:
+
+- **1 (count-up before it settles): closed for the exam.** The coverage of `aug:live-vote.C`
+  shows 47, 28, 17 and 8 in every settled frame (1.5 s and the 10 s Take); only the Take strip,
+  captioned with its milliseconds, shows the count in progress (`take-00600ms.jpg`: 30, 9, 17, 8).
+  The judge reads coverage, so the H2 contradiction cannot recur there. Whether `validate
+  --screenshots` should wait for a count-up stays a CLI question no H5 graphic raised (none counts).
+- **2 (`bench-field-unpainted` on a reformatted value): stands, folded into #1244.** `debate-clock.B`
+  still warns on Time A and Time B; it is entry 7's class (the runtime paints `180` as `3:00`). No
+  H5 cell of either arm fires it.
+- **3 (flag words only a flag state shows): not settled, no action.** No H5 cell carries the flag as
+  fields with the warning: the August A board carries it as fields and fires nothing, the
+  harness's board carries `goalA`, `goalB`, `clearFlag` and `final` as events.
+- **4 (`bench-stress` on a line the stress frame shows whole): narrowed, folded into #1244.**
+  Reproduced on `school-scoreboard.B`: the warning says the league line is cut by its mask, and
+  `stress.png` shows it wrapped onto two whole lines. The shipped corpus is silent: `sb01` to
+  `sb04` and the neutral scoreboard scaffold validate with no `bench-stress`. Limited to an authored
+  mask; no H5 cell fires it.
+
 ## H2 (2026-10-14): the judge's calibration
 
 Instruments run: `noacg validate --screenshots` (the capture of the August cells and their planted
