@@ -72,10 +72,13 @@ export function syncPlan({ lock, environment, agent, bundle, subagents = {}, dri
 }
 
 /** The agent version the lock names, as the server has it, and the fields in which it differs
- *  from what the definition sends with the lock's skill and subagent versions. A free read. */
+ *  from what the definition sends with the lock's skill and subagent versions. A free read. A
+ *  subagent the lock has not synced yet leaves no body to compare, and the plan updates the agent
+ *  for it anyway. */
 export async function agentReadBack(client, lock, agent) {
   const server = await client.beta.agents.retrieve(lock.agent.id, { version: lock.agent.version });
-  return { server, drift: serverDrift(agentCreateBody(agent, lock.skill, lock.subagents ?? {}), server) };
+  const unsynced = subagentFiles(agent).some((file) => !lock.subagents?.[file]);
+  return { server, drift: unsynced ? [] : serverDrift(agentCreateBody(agent, lock.skill, lock.subagents ?? {}), server) };
 }
 
 /** An SDK client on the workspace's key, or null when .env has none. */
@@ -131,7 +134,7 @@ export async function applySync({ client, workspace, steps, environment, agent, 
     const synced = next.subagents?.[step.resource];
     let ref = synced ? { id: synced.id, version: synced.version } : null;
     if (step.action === 'create') ref = await client.beta.agents.create(agentCreateBody(subagents[step.resource], next.skill)).then((a) => ({ id: a.id, version: a.version }));
-    else if (step.action === 'update') ref = await client.beta.agents.update(synced.id, { ...agentUpdateBody(subagents[step.resource], next.skill, {}, await client.beta.agents.retrieve(synced.id)), version: synced.version }).then((a) => ({ id: a.id, version: a.version }));
+    else if (step.action === 'update') ref = await client.beta.agents.update(synced.id, { ...agentUpdateBody(subagents[step.resource], next.skill, {}, await client.beta.agents.retrieve(synced.id, { version: synced.version })), version: synced.version }).then((a) => ({ id: a.id, version: a.version }));
     next.subagents = { ...(next.subagents ?? {}), [step.resource]: { ...ref, sha256: step.sha256 } };
     save(next);
   }
@@ -167,11 +170,19 @@ if (isMain) {
   try {
     const bundle = skillBundle(bundleDir);
     const client = await workspaceClient(workspace);
-    const readBack = lock?.agent && client ? await agentReadBack(client, lock, agent) : null;
+    let readBack = null;
+    let unread = `no key for the ${workspace} workspace in .env`;
+    if (lock?.agent && client) {
+      try {
+        readBack = await agentReadBack(client, lock, agent);
+      } catch (e) {
+        unread = e instanceof Error ? e.message : String(e);
+      }
+    }
     const steps = syncPlan({ lock, environment, agent, bundle, subagents, drift: readBack?.drift });
     console.log(`Plan for the ${workspace} workspace (${path.relative(ROOT, lockFile)}${lock ? '' : ', none yet'}):`);
     for (const s of steps) console.log(`  ${s.resource.padEnd(12)} ${s.action}${s.drift ? ` (the server's v${lock.agent.version} differs in ${s.drift.join(', ')})` : ''}`);
-    if (lock?.agent && !client) console.log(`  the server's v${lock.agent.version} not read back: no key for the ${workspace} workspace in .env`);
+    if (lock?.agent && !readBack) console.log(`  the server's v${lock.agent.version} not read back (${unread}): this plan is from the lock alone`);
     for (const [file, def] of Object.entries(subagents)) console.log(`  ${file} system prompt ${def.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines`);
     console.log(`  system prompt ${agent.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines; skill ${bundle.files.length} file(s) of noacg v${bundle.cliVersion}`);
     if (!argv.includes('--apply')) {
@@ -186,7 +197,7 @@ if (isMain) {
       console.log(`Synced: agent ${next.agent.id} v${next.agent.version}, environment ${next.environment.id}, skill ${next.skill.id} ${next.skill.version}. Lock: ${path.relative(ROOT, lockFile)}`);
       // Done only when the server's copy of the new version is what was sent.
       const after = await agentReadBack(client, next, agent);
-      console.log(`Read back v${after.server.version}: multiagent ${after.server.multiagent ? JSON.stringify(after.server.multiagent) : 'null'}, system prompt ${(after.server.system ?? '').split('\n').length} lines, skills ${after.server.skills.map((s) => `${s.skill_id} ${s.version}`).join(', ')}`);
+      console.log(`Read back v${after.server.version}: multiagent ${after.server.multiagent ? JSON.stringify(after.server.multiagent) : 'null'}, system prompt ${(after.server.system ?? '').split('\n').length} lines, skills ${(after.server.skills ?? []).map((s) => `${s.skill_id} ${s.version}`).join(', ')}`);
       if (after.drift.length) throw new Error(`the server's v${after.server.version} differs from the definition in ${after.drift.join(', ')}`);
     }
   } finally {

@@ -90,7 +90,7 @@ export function serverDrift(body, server) {
     if (Array.isArray(want)) return Array.isArray(have) && want.length === have.length && want.every((w, i) => contained(w, have[i]));
     return have !== null && typeof have === 'object' && Object.entries(want).every(([k, w]) => w === undefined || contained(w, have[k]));
   };
-  const model = (m) => (typeof m === 'string' ? { id: m } : { id: m?.id, effort: typeof m?.effort === 'object' ? m.effort?.type : m?.effort });
+  const model = (m) => (typeof m === 'string' ? { id: m } : { ...m, effort: typeof m?.effort === 'object' ? m.effort?.type : m?.effort });
   const metadata = (m) => Object.fromEntries(Object.entries(m ?? {}).filter(([, v]) => v !== null));
   const skills = (list) => (list ?? []).map((s) => `${s.skill_id}@${s.version}`);
   const drift = [];
@@ -98,9 +98,7 @@ export function serverDrift(body, server) {
     const want = body[field];
     if (empty(want) ? !empty(server[field]) : !contained(want, server[field])) drift.push(field);
   }
-  const wantModel = model(body.model);
-  const haveModel = model(server.model);
-  if (wantModel.id !== haveModel.id || (wantModel.effort !== undefined && wantModel.effort !== haveModel.effort)) drift.push('model');
+  if (!contained(model(body.model), model(server.model))) drift.push('model');
   if (definitionHash(skills(body.skills)) !== definitionHash(skills(server.skills))) drift.push('skills');
   if (definitionHash(metadata(body.metadata)) !== definitionHash(metadata(server.metadata))) drift.push('metadata');
   return drift;

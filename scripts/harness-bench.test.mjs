@@ -49,7 +49,7 @@ import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
 import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
-import { applySync, readDefinitions, syncPlan } from './harness-agent-sync.mjs';
+import { agentReadBack, applySync, readDefinitions, syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -840,6 +840,10 @@ test('the sync clears a multiagent block the definition dropped, and its plan se
   assert.deepEqual(serverDrift(withCritic, v5), []);
   assert.deepEqual(serverDrift(withCritic, serverAgent(3, null)), ['multiagent']);
   assert.deepEqual(serverDrift(agentCreateBody(agent, { id: 'skill_1', version: 'skver_2' }), serverAgent(3, null)), ['skills']);
+  assert.deepEqual(serverDrift(agentCreateBody({ ...agent, config: { ...agent.config, model: { ...agent.config.model, speed: 'fast' } } }, skill), serverAgent(3, null)), ['model']);
+  // A subagent listed again before the lock has it: the read-back has nothing to compare, and the plan updates the agent for the new subagent anyway.
+  const reader = { beta: { agents: { retrieve: async () => serverAgent(6, null) } } };
+  assert.deepEqual((await agentReadBack(reader, lock, listed)).drift, []);
 });
 
 test('a run deletes the CLI uploads a stopped run left, and only those', async () => {
@@ -854,7 +858,8 @@ test('a run deletes the CLI uploads a stopped run left, and only those', async (
   assert.deepEqual(deleted, ['file_cli']);
   assert.match(lines[0], /file_cli \(noacg-cli-0\.11\.0\.tgz/);
   const source = readFileSync(path.join(ROOT, 'scripts', 'harness-bench.mjs'), 'utf8');
-  assert.ok(source.indexOf('deleteLeftCliUploads(sdk)') < source.indexOf('uploaded = { id: await upload('), 'before the run uploads its own');
+  const sweep = source.indexOf('deleteLeftCliUploads(sdk)');
+  assert.ok(sweep > 0 && sweep < source.indexOf('uploaded = { id: await upload('), 'before the run uploads its own');
 });
 
 test('--agent-version names an earlier synced version, as the round\'s control', () => {

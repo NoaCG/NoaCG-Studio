@@ -982,7 +982,9 @@ the spend added to the ledger, and the check's findings.
   next credit run, by name (`noacg-cli-*.tgz`), on the rule that bench runs are one at a time on the
   bench workspace; an age or liveness test was not needed for that.
 - **Traps:** a dry `harness-agent-sync` now makes a free read when the workspace key is in `.env`;
-  without it, it says the server was not read. A leftover upload from a run stopped mid-way is only
+  without it, or when the read fails, it says the plan is from the lock alone. The run's guard
+  checks the locked version only: `--agent-version 5` would still run v5 with the critic, so a
+  control names v3. A leftover upload from a run stopped mid-way is only
   removed when the next credit run starts, not at once.
 - **Spend:** none. No session; sync, reads and the file deletion are free. Revert: `git revert` the
   merge; v6 stays on the server and is v3's configuration on the same skill bytes.
