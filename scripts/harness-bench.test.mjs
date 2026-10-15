@@ -37,8 +37,8 @@ import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
-import { agentCreateBody, readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
-import { archivedArm, claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs, sessionThreads } from '../benchmarks/harness/lib/arms.mjs';
+import { agentCreateBody, agentUpdateBody, definitionHash, readAgentDefinition, readEnvironmentDefinition, serverDrift, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
+import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs, sessionThreads } from '../benchmarks/harness/lib/arms.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
@@ -49,7 +49,7 @@ import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
 import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
-import { readDefinitions, syncPlan } from './harness-agent-sync.mjs';
+import { agentReadBack, applySync, readDefinitions, syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -796,6 +796,75 @@ test('a critic thread is measured apart: its events kept, its usage and largest 
   assert.equal(threads[0].steps, undefined, 'the compact trace stays in the events file');
   assert.ok(existsSync(path.join(dir, 'threads', 'sthr_critic.events.jsonl')));
   assert.deepEqual(await sessionThreads({ beta: { sessions: {} } }, 'sesn_1', { cellDir: dir, model: 'claude-opus-5-5' }), [], 'the stub has no threads');
+});
+
+// The bench agent as the server returned it (2026-10-15): v3 single-threaded, v5 still carrying v4's
+// critic though agent.md had dropped it, because an update keeps a field it is not sent.
+const serverAgent = (version, multiagent) => ({
+  id: 'agent_0183yBA1miijGFNvm5bkMv6B', version, type: 'agent', name: 'NoaCG harness',
+  description: 'Makes one NoaCG broadcast graphic from a brief, checks every state, and hands in a library record.',
+  mcp_servers: [], metadata: { plan: 'noacg-harness', session_budget_cents: '224' },
+  model: { effort: { type: 'high' }, id: 'claude-opus-5-5', speed: 'standard' }, multiagent,
+  skills: [{ skill_id: 'skill_1', type: 'custom', version: 'skver_1' }],
+  system: readAgentDefinition(path.join(ROOT, 'agents', 'noacg-harness')).system,
+  tools: [{ type: 'agent_toolset_20260401', default_config: { enabled: true, permission_policy: { type: 'always_allow' } }, configs: [{ enabled: false, name: 'web_fetch', permission_policy: { type: 'always_allow' }, type: 'web_fetch', url_sources: null }, { enabled: false, name: 'web_search', permission_policy: { type: 'always_allow' }, type: 'web_search' }] }],
+});
+const CRITIC_ON_SERVER = { type: 'multiagent_20261001', advisor: { type: 'disabled' }, workflows: { type: 'disabled' }, subagents: { type: 'enabled', inline_agents: { type: 'disabled' }, predefined_agents: [{ id: 'agent_critic', type: 'agent', version: 1 }] } };
+
+test('the sync clears a multiagent block the definition dropped, and its plan sees what the server kept', async () => {
+  const { environment, agent, subagents } = readDefinitions();
+  const skill = { id: 'skill_1', version: 'skver_1', bundleSha256: 'x' };
+  const lock = { environment: { id: 'env_1', sha256: definitionHash(environment) }, skill, agent: { id: 'agent_0183yBA1miijGFNvm5bkMv6B', version: 5 } };
+  lock.agent.sha256 = syncPlan({ lock: null, environment, agent, bundle: { sha256: 'x' } }).at(-1).sha256;
+  const v5 = serverAgent(5, CRITIC_ON_SERVER);
+  // The files and the lock agree, so only the read-back shows the critic.
+  assert.equal(syncPlan({ lock, environment, agent, bundle: { sha256: 'x' } }).at(-1).action, 'keep');
+  const drift = serverDrift(agentCreateBody(agent, skill), v5);
+  assert.deepEqual(drift, ['multiagent']);
+  assert.deepEqual(serverDrift(agentCreateBody(agent, skill), serverAgent(3, null)), [], 'v3 is what the definition sends, server defaults and all');
+  const steps = syncPlan({ lock, environment, agent, bundle: { sha256: 'x' }, drift });
+  assert.deepEqual(steps.map((s) => s.action), ['keep', 'keep', 'update']);
+  // Carried out on a stub: the update clears the block and the metadata key the files dropped.
+  const sent = [];
+  const read = [];
+  const client = { beta: { agents: {
+    retrieve: async (id, { version }) => { read.push(version); return { ...v5, metadata: { ...v5.metadata, critic_cents: '76' } }; },
+    update: async (id, body) => { sent.push({ id, body }); return { id, version: 6 }; },
+  } } };
+  const next = await applySync({ client, workspace: 'bench', steps, environment, agent, subagents, bundle: { sha256: 'x' }, bundleDir: tmp(), lock, save: () => {} });
+  assert.deepEqual(read, [5], 'the update is built against the locked version as the server has it');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.multiagent, null, 'null is what agents.update takes to clear it');
+  assert.equal(sent[0].body.mcp_servers, null);
+  assert.equal(sent[0].body.version, 5);
+  assert.deepEqual(sent[0].body.metadata, { plan: 'noacg-harness', session_budget_cents: '224', critic_cents: null });
+  assert.deepEqual(next.agent, { id: 'agent_0183yBA1miijGFNvm5bkMv6B', version: 6, sha256: lock.agent.sha256 });
+  // A definition that lists a subagent still sends its block, and the server's must match it.
+  const listed = { ...agent, config: { ...agent.config, multiagent: { ...CRITIC_ON_SERVER, subagents: { ...CRITIC_ON_SERVER.subagents, predefined_agents: ['critic.md'] } } } };
+  const withCritic = agentUpdateBody(listed, skill, { 'critic.md': { id: 'agent_critic', version: 1 } });
+  assert.deepEqual(serverDrift(withCritic, v5), []);
+  assert.deepEqual(serverDrift(withCritic, serverAgent(3, null)), ['multiagent']);
+  assert.deepEqual(serverDrift(agentCreateBody(agent, { id: 'skill_1', version: 'skver_2' }), serverAgent(3, null)), ['skills']);
+  assert.deepEqual(serverDrift(agentCreateBody({ ...agent, config: { ...agent.config, model: { ...agent.config.model, speed: 'fast' } } }, skill), serverAgent(3, null)), ['model']);
+  // A subagent listed again before the lock has it: the read-back has nothing to compare, and the plan updates the agent for the new subagent anyway.
+  const reader = { beta: { agents: { retrieve: async () => serverAgent(6, null) } } };
+  assert.deepEqual((await agentReadBack(reader, lock, listed)).drift, []);
+});
+
+test('a run deletes the CLI uploads a stopped run left, and only those', async () => {
+  const files = [
+    { id: 'file_cli', filename: 'noacg-cli-0.11.0.tgz', created_at: '2026-10-15T08:31:08Z' },
+    { id: 'file_other', filename: 'graphic.tgz', created_at: '2026-10-15T08:32:00Z' },
+  ];
+  const deleted = [];
+  const api = { beta: { files: { list: () => ({ async *[Symbol.asyncIterator]() { yield* files; } }), delete: async (id) => { deleted.push(id); } } } };
+  const lines = [];
+  assert.deepEqual(await deleteLeftCliUploads(api, (l) => lines.push(l)), ['file_cli']);
+  assert.deepEqual(deleted, ['file_cli']);
+  assert.match(lines[0], /file_cli \(noacg-cli-0\.11\.0\.tgz/);
+  const source = readFileSync(path.join(ROOT, 'scripts', 'harness-bench.mjs'), 'utf8');
+  const sweep = source.indexOf('deleteLeftCliUploads(sdk)');
+  assert.ok(sweep > 0 && sweep < source.indexOf('uploaded = { id: await upload('), 'before the run uploads its own');
 });
 
 test('--agent-version names an earlier synced version, as the round\'s control', () => {
