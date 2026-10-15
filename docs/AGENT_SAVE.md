@@ -176,11 +176,12 @@ the programmatic builders, exported - this closes both. Ratified by the owner 20
 | `/api/me/graphics` + the pure shape guard | `api/_lib/me/graphics.ts`, `graphicShape.ts` (+ `.test.ts`) |
 | `/api/me/packages` + its shape guard (§7) | `api/_lib/me/packages.ts`, `packageShape.ts` (+ `packages.test.ts`) |
 | `/api/me/deliveries`, the receipt (§9) | `api/_lib/me/deliveries.ts`, `deliveryReceipt.ts` (+ `deliveries.test.ts`) |
-| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql`, `0092_agent_deliveries.sql` |
+| `/api/me/graphic-sets`, a set in one delivery (§10) | `api/_lib/me/graphicSets.ts` (+ `graphicSets.test.ts`) |
+| migrations | `supabase/migrations/0050_agent_keys.sql`, `0065_agent_packages.sql`, `0092_agent_deliveries.sql`, `0093_agent_graphic_sets.sql` |
 | waiting packages in the studio (§7) | `src/backend/agentPackages.ts`, `src/components/home/sections/ProductionsSection.tsx` |
 | consent page, browser client | `src/components/auth/AgentAccessConsent.tsx`, `src/backend/agentAccess.ts` |
 | Settings list | `SettingsDialog.tsx` `AgentAccessSection` |
-| CLI | `cli/src/auth.ts`, `cli/src/receipt.ts`, `cli/src/commands/{login,logout,whoami,save,pack,status}.ts`, the `save` and `pack` verbs of the `noacg` tool in `cli/src/mcp.ts` |
+| CLI | `cli/src/auth.ts`, `cli/src/receipt.ts`, `cli/src/operations.ts`, `cli/src/commands/{login,logout,whoami,save,pack,status}.ts`, the `save` and `pack` verbs of the `noacg` tool in `cli/src/mcp.ts` |
 | gates | `src/validation/{publishGate,productionGate}.ts` |
 | specs | `e2e/agent-access.spec.ts` (offline), `e2e/configured/agent-access.spec.ts` (live), `e2e/production-gate.spec.ts` |
 
@@ -344,9 +345,66 @@ the production) or `dismissed` in one statement. An agent key cannot settle anyt
 from before 0092 gets its receipt at settle time; a waiting row an older studio deleted directly
 reads `missing`.
 
-**The CLI never sends twice.** `save` and `pack --save` read the delivery back after the write. If
+**The CLI never sends a single write twice.** `pack --save`, and `save` on a deployment without
+the set door, read the delivery back after the write. If
 the answer is lost (a 5xx, a dropped connection), they ask by the operation id: found means it
 landed; not found leaves it `delivery_unverified`, with `noacg status <operationId>` as the next
 action. `noacg status <id>` reads any of this key's deliveries back later. Recording a receipt is
 best effort - a save is never failed over its receipt, since that would invite a duplicate retry -
 so a missed record reads back as a 404 and the CLI reports it unverified.
+
+## 10. A set in one delivery: `POST /api/me/graphic-sets`
+
+`noacg save ./a ./b ./c` puts every graphic of a set in the library as ONE operation, with no
+Install step, and sending it again never adds a second copy. One graphic takes the same path.
+
+```
+ noacg save ./a ./b ./c [--folder F] [--operation <id> | --new]
+   validate every graphic in the bridge (gate + bench); one error refuses the set, nothing is sent
+   bridge.graphicDoc per graphic -> the operation id: the journal's for this set, or a new one,
+     written to <config>/operations.json BEFORE the write
+   -> POST /api/me/graphic-sets (Bearer key, x-noacg-operation) { graphics: [record, ...] }
+      201 { operationId, replayed: false, graphics: [{ id, name, url }], receipt }
+      200 the same answer with replayed: true   (this operation, this payload, this key, again)
+      409 conflict                              (this operation, a different payload or key)
+   -> GET /api/me/deliveries?id=<operation>     (§9: every graphic, verified, in the order sent)
+```
+
+**All or nothing.** The door checks every record with the save door's shape guard (§3) before
+anything is written, mints the ids and timestamps through the same `libraryRecord`, and hands the
+set to `agent_deliver_graphics` (migration 0093). That one database call claims the operation in
+`agent_operations`, inserts every `documents` row and every `agent_deliveries` receipt (with its
+`position` in the set), and is one transaction: a failure part way leaves no record, no receipt
+and no claim. Unlike the single save door, where the receipt is best effort (§9), a set's receipts
+commit with its records.
+
+**Sending it again is safe, so the CLI does.** The same operation with the same payload from the
+same key answers the first delivery's ids and writes nothing. "The same payload" is the records as
+stored without the ids and timestamps the bridge mints on every build, so the same packages built
+again by a restarted CLI are the same set. A lost answer (a 5xx, a dropped connection) is sent
+again twice under the same operation; if every answer is lost and a readback finds nothing, the
+receipt is `delivery_unverified` and running the same command again resumes the operation. The
+journal reuses an operation for the same deployment, key and content for 24 hours, `--operation`
+names one, and `--new` delivers a set again on purpose (after deleting it, say). A replay reports
+what is there now: a graphic deleted since reads `missing`.
+
+**Limits, against the existing ones.** One set holds 1 to 40 graphics, a pack's own cap
+(`packageShape.ts`), so any pack's graphics fit one set. The whole body shares the save door's
+4 MB read cap, under the platform's ~4.5 MB; the CLI measures the set before sending and asks for
+smaller groups above it. Each record keeps the save door's per-graphic limits (`SHAPE_LIMITS`,
+3 MB of inline assets). The per-IP and per-account save rate limits count one set as one request.
+
+**Compatibility and rollback.** Additive: a route, a table, a nullable column and a function. The
+single save door, the package door and Import are unchanged. `save` with one graphic falls back to
+the single save door when a deployment answers 404 for the set door (one from before 0093); with
+several it says the deployment cannot take a set yet. Reverting the code leaves every delivered
+record, receipt and claim in place; nothing user-made is removed.
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid` | no `x-noacg-operation` uuid, not 1-40 records, or one record fails the shape guard (named by its place and name) |
+| 409 | `conflict` | the operation already delivered a different payload, was sent by another credential, or is a single save's |
+| 413 | `too_large` | the set's body is over 4 MB |
+| 500 | `internal` | the call failed: all of it was saved or none, and sending the same request again settles which |
+
+The other codes are the save door's (§3).

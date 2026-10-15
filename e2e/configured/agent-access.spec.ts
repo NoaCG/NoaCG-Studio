@@ -14,6 +14,7 @@
 // covers: api/_lib/me/{agentKeys,graphics,graphicShape,communityPacks}.ts, supabase/migrations/0087_community_pack_submit_for.sql
 // covers: api/_lib/{principal,agentAccessStore}.ts, api/me/?...path?.ts, scripts/meDevPlugin.mjs
 // covers: api/_lib/me/{deliveries,deliveryReceipt,packages}.ts, supabase/migrations/0092_agent_deliveries.sql
+// covers: api/_lib/me/graphicSets.ts, supabase/migrations/0093_agent_graphic_sets.sql
 // covers: src/backend/agentPackages.ts, src/components/home/sections/ProductionsSection.tsx, src/app/router.ts
 
 import { test, expect } from '@playwright/test';
@@ -22,7 +23,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { dismissWizard, E2E_EMAIL, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
+import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, signInOnHome, wipeMyGraphics } from './_helpers';
 
 // AGENT ACCESS, live (docs/AGENT_SAVE.md): the whole handoff a coding agent's `noacg login` +
 // `noacg save` make, against the real backend, with the CLI's side played by this spec:
@@ -35,6 +36,9 @@ import { dismissWizard, E2E_EMAIL, haveCreds, settleSync, signIn, wipeMyGraphics
 //   4b. POST /api/me/packages with the key -> the package waits on Home -> Productions; its link
 //      selects it, a failed list load shows Retry, Install makes the production with its rundown,
 //      and the link and the readback then say "installed"; Dismiss removes one unseen;
+//   4e. A SET (docs/AGENT_SAVE.md §10): three graphics in one operation arrive whole with every
+//      link; sent again they answer the same ids; a changed set is refused, an invalid one writes
+//      nothing; a fresh signed-in browser finds all three and opens each link;
 //   4d. IDENTITY AND RECEIPTS (docs/AGENT_SAVE.md §9): consent, redeem, whoami and every receipt
 //      name the same account and deployment; the readback finds only this key's deliveries;
 //   4c. POST /api/me/community-packs with the key -> refused without the licence; with it, the
@@ -106,7 +110,7 @@ test.describe('agent access (configured)', () => {
   test.skip(!haveCreds, 'needs E2E_EMAIL/E2E_PASSWORD');
   test.setTimeout(120_000);
 
-  test('consent -> loopback code -> redeem -> save 201 -> deep link -> revoke -> 401', async ({ page, request, baseURL }) => {
+  test('consent -> loopback code -> redeem -> save 201 -> deep link -> revoke -> 401', async ({ page, request, baseURL, browser }) => {
     const origin = baseURL!.replace(/\/+$/, '');
 
     // The agent-key routes are SERVER-side: api/_lib/agentAccessStore.ts mints and honours keys
@@ -232,6 +236,81 @@ test.describe('agent access (configured)', () => {
           { timeout: 30_000 },
         )
         .toEqual({ present: true, origin: 'noacg-cli', open: true, hash: `#/control/${saved.id}` });
+
+      // 4e. A SET (docs/AGENT_SAVE.md §10): `noacg save a b c` sends three records as ONE operation
+      // to the set door. All three arrive without Install, with every link; the readback verifies
+      // them; sending it again - the records rebuilt, as a restarted CLI would - answers the same
+      // ids and saves nothing; a changed set under that operation is refused; an invalid set is
+      // refused before any write; and a fresh signed-in browser finds all three.
+      const setTag = randomBytes(3).toString('hex');
+      const setNames = ['Strap', 'Score', 'Clock'].map((n) => `Agent E2E set ${setTag} ${n}`);
+      const buildSet = (names: string[]) =>
+        page.evaluate(async (list) => {
+          const { variantsFor } = await import('/src/templates/catalog.ts');
+          const { graphicDoc } = await import('/src/bridge/bridgeApi.ts');
+          return list.map((n) => graphicDoc({ ...variantsFor('lower-third')[0].create({}), name: n }, { name: n, origin: { tool: 'noacg-cli', version: 'e2e' } }));
+        }, names);
+      const sendSet = (graphics: unknown[], operation: string) =>
+        fetch(`${origin}/api/me/graphic-sets`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.key}`, 'x-noacg-operation': operation },
+          body: JSON.stringify({ graphics }),
+        });
+      type SetAnswer = { operationId: string; replayed: boolean; graphics: Array<{ id: string; name: string; url: string }>; receipt: Receipt };
+      const setOperation = randomUUID();
+      const setRecords = await buildSet(setNames);
+      // What a rebuild changes: the ids and timestamps the bridge mints each time.
+      const rebuilt = () => setRecords.map((r) => ({ ...r, id: randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
+      const created = await sendSet(setRecords, setOperation);
+      expect(created.status, await created.clone().text()).toBe(201);
+      const set = (await created.json()) as SetAnswer;
+      expect(set.replayed).toBe(false);
+      expect(set.graphics.map((g) => g.name)).toEqual(setNames);
+      for (const g of set.graphics) expect(g.url).toBe(`${origin}/app#/graphic/${g.id}`);
+      expect(set.receipt).toMatchObject({ operationId: setOperation, account: minted.account, deployment: origin, destination: 'library', state: 'saved', verified: false });
+      const setBack = (await (await readBack(setOperation)).json()) as { receipt: Receipt };
+      expect(setBack.receipt).toMatchObject({ state: 'saved', verified: true });
+      expect(setBack.receipt.resources.map((r) => [r.id, r.state])).toEqual(set.graphics.map((g) => [g.id, 'saved']));
+
+      const resent = await sendSet(rebuilt(), setOperation);
+      expect(resent.status, await resent.clone().text()).toBe(200);
+      const replay = (await resent.json()) as SetAnswer;
+      expect(replay.replayed).toBe(true);
+      expect(replay.graphics).toEqual(set.graphics);
+      const changed = await sendSet(rebuilt().map((r, i) => (i === 2 ? { ...r, name: `${setNames[2]} changed` } : r)), setOperation);
+      expect(changed.status).toBe(409);
+      // Invalid input is refused before any write: nothing under that operation exists afterwards.
+      const invalidOperation = randomUUID();
+      const broken = await buildSet([`Agent E2E set ${setTag} broken`, `Agent E2E set ${setTag} fine`]);
+      (broken[0] as { template: { html: string } }).template.html = '<p>no definition</p>';
+      expect((await sendSet(broken, invalidOperation)).status).toBe(400);
+      expect((await readBack(invalidOperation)).status).toBe(404);
+
+      // A fresh browser, signed in: all three are in the library, once each, and every link opens.
+      const fresh = await browser.newContext();
+      try {
+        const reader = await fresh.newPage();
+        await signInOnHome(reader, E2E_EMAIL, E2E_PASSWORD);
+        await expect
+          .poll(
+            () =>
+              reader.evaluate(async (tag) => {
+                const { loadGraphics } = await import('/src/model/library.ts');
+                return loadGraphics().filter((g) => g.name.includes(`Agent E2E set ${tag}`)).map((g) => g.id).sort();
+              }, setTag),
+            { timeout: 30_000 },
+          )
+          .toEqual(set.graphics.map((g) => g.id).sort());
+        await reader.goto('/app#/home/graphics');
+        for (const n of setNames) await expect(reader.getByTestId('home-page').getByText(n, { exact: true }).first()).toBeVisible();
+        for (const g of set.graphics) {
+          await reader.goto(`/app#/graphic/${g.id}`);
+          await expect(reader.getByTestId('graphic-control-page')).toBeVisible({ timeout: 30_000 });
+          await expect.poll(() => reader.evaluate(() => location.hash)).toBe(`#/control/${g.id}`);
+        }
+      } finally {
+        await fresh.close();
+      }
 
       // 4b. A whole PACKAGE (docs/AGENT_SAVE.md §7): `noacg pack --save` posts the pack file with
       // the same key; it waits on Home → Productions; Install makes the production and opens its

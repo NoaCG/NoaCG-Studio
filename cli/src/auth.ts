@@ -229,6 +229,21 @@ export function saveGraphic(origin: string, key: string, doc: Record<string, unk
   return postAsAgent(origin, key, 'graphics', doc, operationId);
 }
 
+export interface SetResult {
+  operationId: string;
+  /** True when the deployment answered the first delivery of this operation again. */
+  replayed: boolean;
+  /** In the order they were sent. */
+  graphics: Array<{ id: string; name: string; url: string }>;
+  receipt?: DeliveryReceipt;
+}
+
+/** POST several library records to the set door (`noacg save a b c`) as ONE operation: all of
+ *  them or none, and the same operation sent again answers the first delivery (docs/AGENT_SAVE.md §10). */
+export function saveGraphicSet(origin: string, key: string, docs: Array<Record<string, unknown>>, operationId: string): Promise<SetResult> {
+  return postAsAgent(origin, key, 'graphic-sets', { graphics: docs }, operationId);
+}
+
 /** POST a JSON body to one of the agent doors under /api/me as this key, naming the CLI version. */
 async function postAsAgent<T>(origin: string, key: string, door: string, body: unknown, operationId?: string): Promise<T> {
   const response = await fetch(`${origin}/api/me/${door}`, {

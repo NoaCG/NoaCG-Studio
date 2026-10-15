@@ -29,7 +29,7 @@ import { describeInspection } from './commands/inspect.js';
 import { docTopics, readDoc } from './commands/docs.js';
 import { scaffoldRequestFrom } from './commands/scaffold.js';
 import { describePack, makePack, rundownFrom, shareProblem } from './commands/pack.js';
-import { describeSave, notLoggedIn, savePackage } from './commands/save.js';
+import { describeReports, describeSave, notLoggedIn, saveArgsProblem, savePackages } from './commands/save.js';
 import { describeNormalize, describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
 import { EXIT_OK, parseArgs, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from './output.js';
@@ -48,7 +48,7 @@ const arg = <S extends z.ZodTypeAny>(schema: S, about = '') => ({ schema, about 
  *  read it are prefixed from READS, never typed here. */
 const ARGUMENTS = {
   path: arg(z.string(), 'package dir or .zip'),
-  paths: arg(z.array(z.string()), 'package dirs or .zips, in rundown order'),
+  paths: arg(z.array(z.string()), 'package dirs or .zips, in order'),
   out: arg(z.string(), 'a new dir (scaffold) or a .noacgpack.json (pack)'),
   type: arg(z.string(), 'a type id (see types)'),
   design: arg(z.string(), 'a design id, or "neutral"'),
@@ -83,7 +83,7 @@ const READS: Record<McpCommand, readonly ArgName[]> = {
   inspect: ['path'],
   screenshot: ['path', 'state', 'data', 'events', 'at', 'background'],
   docs: ['topic'],
-  save: ['path', 'name', 'folder', 'bench', 'houseContract'],
+  save: ['path', 'paths', 'name', 'folder', 'bench', 'houseContract'],
   pack: ['paths', 'name', 'rundown', 'out', 'bench', 'houseContract', 'share'],
 };
 
@@ -277,16 +277,20 @@ async function docs(input: Input): Promise<Result> {
   return { content: text(await readDoc(need(input, 'topic'))) };
 }
 
+/** One graphic (`path`) or several as one delivery (`paths`); the same set sent again answers its
+ *  first delivery and saves nothing twice (docs/AGENT_SAVE.md §10). */
 async function save(input: Input): Promise<Result> {
-  const target = need(input, 'path');
+  if (input.path !== undefined && input.paths !== undefined) throw new UsageError('noacg save takes "path" or "paths", not both.');
+  const inputs = input.paths ?? (input.path ? [input.path] : []);
+  if (!inputs.length) throw new UsageError('noacg save needs "path" (one graphic) or "paths" (several).');
+  const problem = saveArgsProblem(inputs, { name: input.name }, { name: '"name"', operation: '', fresh: '' });
+  if (problem) throw new UsageError(problem);
   // The cheapest refusal first: no key means no save, and that answer needs no browser.
   const origin = noacgUrl();
   if (!(await resolveKey(origin))) return refuse(notLoggedIn(origin));
   const b = await bridge();
-  const outcome = await savePackage(target, { name: input.name, folder: input.folder, bench: input.bench ?? true, houseContract: input.houseContract ?? true }, b, () => undefined);
-  const lines: string[] = [];
-  if (outcome.validation) lines.push(describeValidation(outcome.validation));
-  lines.push(describeSave(outcome).join('\n'));
+  const outcome = await savePackages(inputs, { name: input.name, folder: input.folder, bench: input.bench ?? true, houseContract: input.houseContract ?? true }, b, () => undefined);
+  const lines = [...describeReports(outcome), describeSave(outcome).join('\n')];
   return { content: text(lines.join('\n\n')), isError: !outcome.ok };
 }
 

@@ -78,6 +78,8 @@ export interface RenderApiError {
       | 'concurrent'
       | 'busy'
       | 'duplicate'
+      // An operation id already used for a different request (api/_lib/me/graphicSets.ts).
+      | 'conflict'
       | 'unauthorized'
       | 'forbidden'
       | 'not_found'

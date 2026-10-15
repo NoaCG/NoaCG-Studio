@@ -8,7 +8,7 @@
 // the account. Nothing here ever claims a browser opened anything.
 
 import { randomUUID } from 'node:crypto';
-import { accountLabel, ApiError, explainError, explainFailure, readDelivery, type AccountIdentity } from './auth.js';
+import { accountLabel, ApiError, explainError, explainFailure, readDelivery, type AccountIdentity, type SetResult } from './auth.js';
 
 export type DeliveryState = 'saved' | 'pending_install' | 'installed' | 'dismissed' | 'missing' | 'failed' | 'delivery_unverified';
 
@@ -139,6 +139,76 @@ export async function deliverAndConfirm(
     id: written.id,
     url: written.url,
     receipt: confirmed ?? written.receipt ?? acknowledgedReceipt(operationId, origin, kind, written),
+  };
+}
+
+export interface SetDelivered {
+  ok: boolean;
+  /** The deployment answered this operation's first delivery: nothing new was saved. */
+  replayed?: boolean;
+  /** In the order sent; the names are the ones sent. */
+  graphics?: Array<{ id: string; name: string; url: string }>;
+  receipt: DeliveryReceipt;
+  /** `conflict`: the operation already delivered different graphics. `unsupported`: the deployment
+   *  has no set door (404). `unverified`: no answer, and a readback found nothing. */
+  reason?: 'refused' | 'conflict' | 'unsupported' | 'unverified';
+  error?: string;
+}
+
+/** Waits between sends of the same set when no answer came (the first send is immediate). */
+export const SET_RETRY_DELAYS_MS = [1_000, 4_000];
+
+/**
+ * Send a set under an operation named BEFORE the write, then confirm it by reading it back. Unlike
+ * a single save, a set is safe to send again - the deployment answers the same operation's first
+ * delivery and never saves it twice - so a lost answer (a 5xx, a dropped connection) is simply sent
+ * again, a few times. Only when every answer is lost does it ask by the operation id, and if that
+ * finds nothing either the set is `delivery_unverified`: running the same command again resumes it.
+ */
+export async function deliverSetAndConfirm(
+  origin: string,
+  key: string,
+  operationId: string,
+  names: string[],
+  write: () => Promise<SetResult>,
+  delays: number[] = SET_RETRY_DELAYS_MS,
+): Promise<SetDelivered> {
+  let written: SetResult | null = null;
+  let lost: unknown = null;
+  for (let attempt = 0; attempt <= delays.length && !written; attempt += 1) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, delays[attempt - 1]));
+    try {
+      written = await write();
+    } catch (e) {
+      // A refusal the server SENT is an answer, and so is a deployment with no account backend.
+      const answered = e instanceof ApiError && ((e.failure.status >= 400 && e.failure.status < 500) || (e.failure.status === 503 && e.failure.code === 'unavailable'));
+      if (e instanceof ApiError && answered) {
+        const { status, code, message } = e.failure;
+        const reason = status === 409 && code === 'conflict' ? 'conflict' : status === 404 ? 'unsupported' : 'refused';
+        const error =
+          reason === 'conflict' ? message
+          : reason === 'unsupported' ? `The NoaCG at ${origin} does not take a set of graphics in one delivery yet; save them one at a time.`
+          : explainFailure(e.failure);
+        return { ok: false, reason, error, receipt: localReceipt(operationId, origin, 'library', 'failed', error) };
+      }
+      lost = e;
+    }
+  }
+  const confirmed = await readDelivery(origin, key, operationId).catch(() => null);
+  if (written) {
+    return { ok: true, replayed: written.replayed, graphics: written.graphics, receipt: confirmed ?? written.receipt ?? localReceipt(operationId, origin, 'library', 'delivery_unverified', `Check it with \`noacg status ${operationId}\`.`) };
+  }
+  if (confirmed) {
+    // Every answer was lost, but it is in the account: the readback lists it in the order sent.
+    const graphics = confirmed.resources.filter((r) => r.kind === 'graphic').map((r, i) => ({ id: r.id, name: names[i] ?? '', url: r.link }));
+    return { ok: true, graphics, receipt: confirmed };
+  }
+  const next = `Run the same command again: it resumes operation ${operationId} and cannot save the set twice (or check it with \`noacg status ${operationId}\`).`;
+  return {
+    ok: false,
+    reason: 'unverified',
+    error: `Unconfirmed: ${explainError(lost)} ${next}`,
+    receipt: localReceipt(operationId, origin, 'library', 'delivery_unverified', next),
   };
 }
 

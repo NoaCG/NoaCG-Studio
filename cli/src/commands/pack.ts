@@ -137,7 +137,7 @@ export async function readRundown(file: string): Promise<RundownCue[]> {
 }
 
 /** Build the package from package folders / zips, then send and/or write it. Shared by the
- *  terminal command and the MCP tool, the way `savePackage` is. */
+ *  terminal command and the MCP tool, the way `savePackages` is. */
 export async function makePack(inputs: string[], opts: PackOptions, bridge: BridgeClient, log: (line: string) => void): Promise<PackOutcome> {
   const base: PackOutcome = { ok: false, name: opts.name, graphics: inputs.length };
   const origin = noacgUrl();
