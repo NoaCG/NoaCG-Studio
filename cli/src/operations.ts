@@ -53,10 +53,12 @@ async function writeJournal(journal: Journal): Promise<void> {
   await fs.rename(tmp, target);
 }
 
-/** The set as "the same set": where it goes, by which key, and its content without the ids and
- *  timestamps the bridge mints on every build. */
-export function setFingerprint(origin: string, key: string, docs: Array<Record<string, unknown>>): string {
-  const content = docs.map(({ id: _id, createdAt: _c, updatedAt: _u, ...rest }) => rest);
+/** The set as "the same set": where it goes, by which key, its content without the ids and
+ *  timestamps the bridge mints on every build, and the production it asks for - the same graphics
+ *  for the library alone and as a production are two deliveries. */
+export function setFingerprint(origin: string, key: string, docs: Array<Record<string, unknown>>, production?: unknown): string {
+  const records = docs.map(({ id: _id, createdAt: _c, updatedAt: _u, ...rest }) => rest);
+  const content = production ? { graphics: records, production } : records;
   const keyHash = createHash('sha256').update(key).digest('hex');
   return createHash('sha256').update(`${origin}\n${keyHash}\n${canonicalJson(content)}`).digest('hex');
 }

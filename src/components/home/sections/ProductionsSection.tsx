@@ -3,7 +3,7 @@ import { createShowNamedChecked, deleteShow, duplicateShowChecked, type Show } f
 import { destinationUrl } from '../../../model/outputSetup';
 import { commitDurableWrites } from '../../../model/durableStore';
 import { outputPageUrl, unpublishControlShow } from '../../../control/hostedControl';
-import { installPack, parsePack } from '../../../packs/graphicsPack';
+import { installOverlap, installPack, parsePack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
 import {
   listWaitingPackages,
@@ -193,6 +193,9 @@ export default function ProductionsSection({
   const reloadWaiting = useRef<() => void>(() => undefined);
   const [waitingNote, setWaitingNote] = useState<string | null>(null);
   const [waitingConfirm, setWaitingConfirm] = useState<string | null>(null);
+  /** A waiting package whose Install would repeat an earlier delivery, held for the user's choice:
+   *  the production it already became, or the graphics a library copy of the same name may be. */
+  const [waitingRepeat, setWaitingRepeat] = useState<{ id: string; text: string; production: Show | null; unidentified: string[] } | null>(null);
   // The linked package: its row when it waits, else what its receipt says became of it.
   const focusWaits = !!focusPackage && waiting.some((p) => p.id === focusPackage);
   const focusRow = useRef<HTMLDivElement | null>(null);
@@ -321,18 +324,30 @@ export default function ProductionsSection({
     }
   };
 
-  /** Install a waiting package: the same parse → validate → install as a file, then the row goes. */
-  const installWaiting = async (p: WaitingPackage) => {
+  /** Install a waiting package: the same parse → validate → install as a file, then the row goes.
+   *  `anyway` is the user's answer to the repeat warning; without it, an Install that would repeat
+   *  an earlier delivery stops and says so first (graphicsPack.ts `installOverlap`). */
+  const installWaiting = async (p: WaitingPackage, anyway?: string) => {
     // Busy from the first click, not from when the text arrives - a second click during the
     // fetch would otherwise install the package twice.
     setPackBusy(p.id);
+    setWaitingRepeat(null);
     let text: string;
     try {
-      text = await waitingPackageText(p.id);
+      text = anyway ?? (await waitingPackageText(p.id));
     } catch (error) {
       setWaitingNote(error instanceof Error ? error.message : String(error));
       setPackBusy(null);
       return;
+    }
+    if (anyway === undefined) {
+      const { pack } = parsePack(text);
+      const repeat = pack ? installOverlap(pack) : null;
+      if (repeat && (repeat.production || repeat.unidentified.length)) {
+        setWaitingRepeat({ id: p.id, text, ...repeat });
+        setPackBusy(null);
+        return;
+      }
     }
     await importPackText(p.id, text, setWaitingNote, async (show) => {
       // The production exists now; settling records it on the package's receipt, so its link
@@ -613,15 +628,49 @@ export default function ProductionsSection({
                   {new Date(p.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
                 {p.description && <span className="muted">{p.description}</span>}
+                {waitingRepeat?.id === p.id && (
+                  <span className="status-warn" role="status" data-testid="waiting-package-repeat">
+                    {waitingRepeat.production ? (
+                      <>
+                        Already delivered as “{waitingRepeat.production.name}”.{' '}
+                        <button className="link-inline" onClick={() => onOpen(waitingRepeat.production!)} data-testid="waiting-package-repeat-open">
+                          Open it
+                        </button>
+                        , or install a second production.
+                      </>
+                    ) : (
+                      <>
+                        {waitingRepeat.unidentified.map((n) => `“${n}”`).join(', ')} may already be in your library.
+                        Installing adds {waitingRepeat.unidentified.length === 1 ? 'another copy' : 'another copy of each'}.
+                      </>
+                    )}
+                  </span>
+                )}
               </div>
-              <button
-                className="primary"
-                disabled={packBusy !== null}
-                onClick={() => void installWaiting(p)}
-                data-testid="install-waiting-package"
-              >
-                {packBusy === p.id ? 'Installing…' : 'Install'}
-              </button>
+              {waitingRepeat?.id === p.id ? (
+                <>
+                  <button disabled={packBusy !== null} onClick={() => setWaitingRepeat(null)} data-testid="install-waiting-package-cancel">
+                    Cancel
+                  </button>
+                  <button
+                    className="primary"
+                    disabled={packBusy !== null}
+                    onClick={() => void installWaiting(p, waitingRepeat.text)}
+                    data-testid="install-waiting-package-anyway"
+                  >
+                    Install anyway
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="primary"
+                  disabled={packBusy !== null}
+                  onClick={() => void installWaiting(p)}
+                  data-testid="install-waiting-package"
+                >
+                  {packBusy === p.id ? 'Installing…' : 'Install'}
+                </button>
+              )}
               {waitingConfirm === p.id ? (
                 <button
                   className="destructive"

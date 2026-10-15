@@ -18,6 +18,15 @@
 // "The same payload" is the records as the server would store them, minus what the server mints
 // (ids, timestamps): the same packages built again by the bridge hash the same. The template code
 // is still never parsed or run here (graphicShape.ts says why).
+//
+// A PRODUCTION DESTINATION (§11, migration 0094). A body with `production: { name, layers?, cues? }`
+// also makes a NEW production of the set - its pool, layers and ordered rundown, the record
+// model/productionDelivery.ts builds - in the same transaction, and answers its link. It needs the
+// credential's `productions:create` as well, which only a key consented with that line carries; a
+// graphics-only key is refused before anything is written and told about the library-only route.
+// The production joins the payload hash, so the same graphics without it, or with another
+// production, are another delivery. Without `production` the door is exactly the library door it
+// was: a library-only set never makes a production. Nothing here publishes or plays anything.
 
 import { apiError, json, methodGuard, readJson, sha256 } from '../http.js';
 import { checkAgentSaveIpRateLimit, checkAgentSavePrincipalRateLimit } from '../rateLimit.js';
@@ -26,9 +35,12 @@ import { resolvePrincipal } from '../principal.js';
 import { graphicSaveShape } from './graphicShape.js';
 import { libraryRecord, MAX_SAVE_BODY_BYTES, type GraphicsDeps } from './graphics.js';
 import { accountFor } from './deliveries.js';
-import { buildReceipt, graphicLink, isUuid, type DeliveryReceipt } from './deliveryReceipt.js';
+import { buildReceipt, graphicLink, isUuid, productionLink, type DeliveryReceipt } from './deliveryReceipt.js';
+import { productionRequestShape } from './packageShape.js';
 import { permits } from '../../../src/entitlements/permissions.js';
 import type { GraphicDocBase } from '../../../src/model/graphicDoc.js';
+import { deliveredProduction, type ProductionRequest } from '../../../src/model/productionDelivery.js';
+import { randomUUID } from 'node:crypto';
 
 /** At most this many graphics in one set: a pack's own cap (packageShape.ts), so any pack's
  *  graphics fit one set. The body cap is the save door's 4 MB for the whole set. */
@@ -40,6 +52,8 @@ export interface SetResponse {
   replayed: boolean;
   /** In the order they were sent. */
   graphics: Array<{ id: string; name: string; url: string }>;
+  /** The production the delivery made, when it named one (§11). */
+  production?: { id: string; name: string; url: string };
   receipt: DeliveryReceipt;
 }
 
@@ -55,9 +69,12 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(value) ?? 'null';
 }
 
-/** What makes two sets "the same payload": the stored records without what the server mints. */
-export function payloadHash(docs: GraphicDocBase[]): string {
-  return sha256(canonicalJson(docs.map(({ id: _id, createdAt: _c, updatedAt: _u, ...content }) => content)));
+/** What makes two sets "the same payload": the stored records without what the server mints, and
+ *  the production asked for. A library-only set hashes as it always has, so an operation a CLI
+ *  journaled before the production destination existed still replays. */
+export function payloadHash(docs: GraphicDocBase[], production?: ProductionRequest): string {
+  const records = docs.map(({ id: _id, createdAt: _c, updatedAt: _u, ...content }) => content);
+  return sha256(canonicalJson(production ? { graphics: records, production } : records));
 }
 
 const refusedSet = (reason: string): Response => apiError('invalid', `${reason} Nothing was saved.`, 400);
@@ -117,11 +134,35 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
           }
           docs.push(libraryRecord(shaped.doc, at, deps.uuid?.()));
         }
+        // The production destination, checked as completely as the records, and only for a
+        // credential that was consented to make productions.
+        const asked = (body as { production?: unknown }).production;
+        let request: ProductionRequest | undefined;
+        if (asked !== undefined && asked !== null) {
+          if (!permits(principal, 'productions:create')) {
+            return apiError(
+              'forbidden',
+              'This key may save graphics to the library but not make productions. Nothing was saved. Run `noacg login` again and allow productions, or save without a production to put the graphics in the library only.',
+              403,
+            );
+          }
+          const shaped = productionRequestShape(asked, docs.map((d) => d.name));
+          if (!shaped.ok) return refusedSet(shaped.reason);
+          request = shaped.request;
+        }
+        const mint = deps.uuid ?? randomUUID;
+        const production = request
+          ? (() => {
+              const id = mint();
+              const record = deliveredProduction({ id, at, request, graphics: docs.map((d) => ({ id: d.id, name: d.name, template: d.template })), mintId: mint });
+              return { id, name: record.name, body: record };
+            })()
+          : undefined;
 
         const store = storeOf();
         const keyId = principal.keyId ?? null;
         const accountLookup = accountFor(store, principal.userId);
-        const delivered = await store.deliverGraphicSet({ userId: principal.userId, keyId, operationId, payloadHash: payloadHash(docs), docs });
+        const delivered = await store.deliverGraphicSet({ userId: principal.userId, keyId, operationId, payloadHash: payloadHash(docs, request), docs, ...(production ? { production } : {}) });
         if (delivered.outcome === 'conflict') {
           return apiError(
             'conflict',
@@ -135,11 +176,13 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
         const present = await Promise.all(
           delivered.ids.map((id) => (replayed ? store.resourcePresent(principal.userId!, 'graphic', id) : Promise.resolve(true))),
         );
+        const productionId = delivered.productionId ?? null;
+        const productionPresent = productionId && replayed ? await store.resourcePresent(principal.userId, 'production', productionId) : true;
         const receipt = buildReceipt({
           operationId,
           deployment: origin,
           account: await accountLookup,
-          rows: delivered.ids.map((id, i) => ({ kind: 'graphic' as const, resourceId: id, state: 'saved' as const, productionId: null, present: present[i] })),
+          rows: delivered.ids.map((id, i) => ({ kind: 'graphic' as const, resourceId: id, state: 'saved' as const, productionId, present: present[i], productionPresent })),
           verified: false,
           checkedAt: now().toISOString(),
         });
@@ -147,6 +190,7 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
           operationId,
           replayed,
           graphics: delivered.ids.map((id, i) => ({ id, name: docs[i]?.name ?? '', url: graphicLink(origin, id) })),
+          ...(productionId && request ? { production: { id: productionId, name: request.name, url: productionLink(origin, productionId) } } : {}),
           receipt,
         };
         return json(response, replayed ? 200 : 201);
@@ -154,7 +198,8 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
         // The code is here before its migration: answer as a deployment without the door, which a
         // CLI saving one graphic meets by using the single save door instead.
         if (e instanceof SetDoorUnavailable) {
-          return apiError('not_found', 'This NoaCG cannot take a set of graphics in one delivery yet. Nothing was saved.', 404);
+          const what = e.message.includes('agent_deliver_production') ? 'make a production in a delivery' : 'take a set of graphics in one delivery';
+          return apiError('not_found', `This NoaCG cannot ${what} yet. Nothing was saved.`, 404);
         }
         console.error('[agent-set]', e instanceof Error ? e.message : e);
         // Either all of it was saved or none of it; an answer lost after the commit cannot tell

@@ -15,9 +15,10 @@
 // through the browser at all.
 
 import { getAccessToken } from './auth';
-import { AGENT_KEY_PERMISSIONS, type PermissionKey } from '../entitlements/permissions';
+import { agentKeyPermissions, type PermissionKey } from '../entitlements/permissions';
 
-/** The consent URL's query, parsed: `/app?agent=<state>&port=<n>&name=<host>&challenge=<hex>`. */
+/** The consent URL's query, parsed: `/app?agent=<state>&port=<n>&name=<host>&challenge=<hex>`, with
+ *  `&scopes=<permission,...>` when the tool asks for an optional permission too. */
 export interface AgentAccessRequest {
   /** The CLI's opaque state, echoed back so the listener can match the reply to its own request. */
   state: string;
@@ -27,7 +28,8 @@ export interface AgentAccessRequest {
   name: string;
   /** Hex sha256 of the CLI's verifier. */
   challenge: string;
-  /** What the key will be allowed to do - the release's fixed authoring list. */
+  /** What the key will be allowed to do: the authoring list, plus the optional permissions the tool
+   *  asked for (`scopes=`) that the release offers - each one a line on the card. */
   permissions: readonly PermissionKey[];
   /** The CLI's listener also takes a REFUSAL (`deny=1`): "Don't allow" then tells it at once
    *  instead of leaving it to time out. An older CLI does not send this and is never sent one. */
@@ -48,7 +50,8 @@ export function parseAgentRequest(params: URLSearchParams): AgentAccessRequest |
   const challenge = (params.get('challenge') ?? '').toLowerCase();
   if (!CHALLENGE.test(challenge)) return null;
   const name = (params.get('name') ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_AGENT_NAME) || 'noacg CLI';
-  return { state, port, name, challenge, permissions: AGENT_KEY_PERMISSIONS, acceptsDeny: params.get('deny') === '1' };
+  const asked = (params.get('scopes') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return { state, port, name, challenge, permissions: agentKeyPermissions(asked), acceptsDeny: params.get('deny') === '1' };
 }
 
 /** Is this page load an agent consent request at all (well-formed or not)? */
@@ -98,10 +101,11 @@ export async function errorMessage(response: Response, fallback: string): Promis
 
 /** Consent: mint the one-time code for this request. Returns the plaintext code the page then
  *  hands to the loopback listener (and nothing else - the key does not exist yet). */
-export async function beginAgentKey(req: Pick<AgentAccessRequest, 'name' | 'challenge'>): Promise<{ code: string; expiresIn: number }> {
+export async function beginAgentKey(req: Pick<AgentAccessRequest, 'name' | 'challenge' | 'permissions'>): Promise<{ code: string; expiresIn: number }> {
+  // The permissions the card SHOWED: the server mints exactly the offered subset of them.
   const response = await authedFetch('/api/me/agent-keys', {
     method: 'POST',
-    body: JSON.stringify({ action: 'begin', name: req.name, challenge: req.challenge }),
+    body: JSON.stringify({ action: 'begin', name: req.name, challenge: req.challenge, scopes: req.permissions }),
   });
   if (!response.ok) throw new Error(await errorMessage(response, `Could not start agent access (${response.status}).`));
   const body = (await response.json()) as { code?: unknown; expiresIn?: unknown };

@@ -53,7 +53,7 @@ const ARGUMENTS = {
   type: arg(z.string(), 'a type id (see types)'),
   design: arg(z.string(), 'a design id, or "neutral"'),
   fields: arg(z.string(), 'typeless: "Label:kind[=value],..."; kinds text|lines|number|color|select|toggle|image; select options as Label:select=a|b|c'),
-  name: arg(z.string(), 'the graphic, library or production name'),
+  name: arg(z.string(), 'graphic or production name'),
   values: arg(z.record(z.string()), 'starting values by field key'),
   palette: arg(z.string()),
   font: arg(z.string()),
@@ -69,6 +69,7 @@ const ARGUMENTS = {
   topic: arg(z.string(), docTopics().join('|')),
   folder: arg(z.string(), 'a library folder'),
   rundown: arg(z.array(z.record(z.unknown())), '[{graphic,label,values}]'),
+  production: arg(z.string(), 'make a production too'),
   // Sharing to Community packs is opt-in and never offered (docs/AGENT_SAVE.md §8): the schema
   // says only where the instructions live, so a session that never shares pays one line for it.
   share: arg(z.object({ license: z.string(), shownAs: z.string(), description: z.string() }), "see the skill's references/share.md"),
@@ -83,11 +84,11 @@ const READS: Record<McpCommand, readonly ArgName[]> = {
   inspect: ['path'],
   screenshot: ['path', 'state', 'data', 'events', 'at', 'background'],
   docs: ['topic'],
-  save: ['path', 'paths', 'name', 'folder', 'bench', 'houseContract'],
+  save: ['path', 'paths', 'name', 'folder', 'production', 'rundown', 'bench', 'houseContract'],
   pack: ['paths', 'name', 'rundown', 'out', 'bench', 'houseContract', 'share'],
 };
 
-const COMMAND = z.enum(MCP_COMMANDS).describe('types: the graphic types NoaCG knows | scaffold: write a package | validate: gate + runtime bench, regenerates the package | inspect: the operator surface | screenshot: one frame, as an image | docs: a reference text | save: validate, then into the user\'s NoaCG library | pack: several graphics + rundown to the user\'s Home, to Install as a production');
+const COMMAND = z.enum(MCP_COMMANDS).describe('types: the graphic types NoaCG knows | scaffold: write a package | validate: gate + runtime bench, regenerates the package | inspect: the operator surface | screenshot: one frame, as an image | docs: a reference text | save: validate, then into the user\'s library | pack: graphics + rundown to Home, to Install');
 
 type InputShape = { command: typeof COMMAND } & { [K in ArgName]: z.ZodOptional<(typeof ARGUMENTS)[K]['schema']> };
 type Input = z.infer<z.ZodObject<InputShape>>;
@@ -283,13 +284,17 @@ async function save(input: Input): Promise<Result> {
   if (input.path !== undefined && input.paths !== undefined) throw new UsageError('noacg save takes "path" or "paths", not both.');
   const inputs = input.paths ?? (input.path ? [input.path] : []);
   if (!inputs.length) throw new UsageError('noacg save needs "path" (one graphic) or "paths" (several).');
-  const problem = saveArgsProblem(inputs, { name: input.name }, { name: '"name"' });
+  if (input.rundown && input.production === undefined) throw new UsageError('"rundown" describes a production: add "production" (its name).');
+  const production = input.production !== undefined
+    ? { name: input.production, ...(input.rundown ? { cues: rundownFrom(input.rundown, 'rundown') } : {}) }
+    : undefined;
+  const problem = saveArgsProblem(inputs, { name: input.name, production }, { name: '"name"', production: '"production"', layer: '"layer"' });
   if (problem) throw new UsageError(problem);
   // The cheapest refusal first: no key means no save, and that answer needs no browser.
   const origin = noacgUrl();
   if (!(await resolveKey(origin))) return refuse(notLoggedIn(origin));
   const b = await bridge();
-  const outcome = await savePackages(inputs, { name: input.name, folder: input.folder, bench: input.bench ?? true, houseContract: input.houseContract ?? true }, b, () => undefined);
+  const outcome = await savePackages(inputs, { name: input.name, folder: input.folder, bench: input.bench ?? true, houseContract: input.houseContract ?? true, ...(production ? { production } : {}) }, b, () => undefined);
   const lines = [...describeReports(outcome), describeSave(outcome).join('\n')];
   return { content: text(lines.join('\n\n')), isError: !outcome.ok };
 }

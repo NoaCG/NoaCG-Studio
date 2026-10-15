@@ -1,7 +1,7 @@
 // /api/me/deliveries - READ BACK what an agent delivered, and SETTLE a waiting package
 // (docs/AGENT_SAVE.md §9, migration 0092).
 //
-//   GET  ?id=<operation or resource uuid>      agent key or session -> 200 { receipt } | 404
+//   GET  ?id=<operation, resource or delivered production uuid>   key or session -> 200 { receipt } | 404
 //   POST { action: 'settle', package, production }   session only   -> 200 { settled: true } | 404
 //
 // THE READBACK IS NARROW BY CONSTRUCTION. An agent key finds only the receipts IT wrote
@@ -104,11 +104,15 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
     if (!rows.length) {
       return apiError('not_found', 'Nothing delivered under this id by this credential, in this account.', 404);
     }
-    // An id names one operation (all of its rows) or one resource (its row). Keep to one operation
+    // An id names one operation (all of its rows), one resource (its row) or the production a set
+    // delivery made (the rows that name it). Keep to one operation
     // AND one writer: the operation id is client-named, so two keys could share one, and a session
     // reading it back must not merge their unrelated writes into one receipt.
     const { operationId, keyId: writer } = rows[0];
     const own = rows.filter((r) => r.operationId === operationId && r.keyId === writer);
+    // A set delivered with a production names it on each graphic's row: asked about once.
+    const madeProduction = own.find((r) => r.kind === 'graphic' && r.productionId)?.productionId ?? null;
+    const productionPresent = madeProduction ? store.resourcePresent(principal.userId, 'production', madeProduction) : null;
     const checked = await Promise.all(
       own.map(async (row) => ({
         ...row,
@@ -117,6 +121,7 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
           row.state === 'installed'
             ? !(row.productionId && (await store.productionDeleted(row.userId, row.productionId)))
             : await store.resourcePresent(row.userId, row.kind, row.resourceId),
+        ...(row.kind === 'graphic' && productionPresent ? { productionPresent: await productionPresent } : {}),
       })),
     );
     const receipt = buildReceipt({

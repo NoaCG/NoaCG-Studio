@@ -77,7 +77,7 @@ export interface GraphicDocBase<TSpec = unknown, TThread = unknown, TLegibility 
    * admin usage count and a library badge read it, nothing gates on it. Additive optional
    * (rule 6), absent on every record the app itself creates.
    */
-  origin?: { tool: string; version?: string } | null;
+  origin?: GraphicOrigin | null;
   /**
    * The COMMUNITY PACK this graphic was installed from (docs/work-specs/community-packs/spec.md
    * D7). Install writes it; the submit picker leaves a stamped graphic out, and the design lock
@@ -85,6 +85,21 @@ export interface GraphicDocBase<TSpec = unknown, TThread = unknown, TLegibility 
    */
   fromPack?: PackStamp | null;
 }
+
+/** Where a record came from (`GraphicDocBase.origin`). `item` is the DELIVERED ITEM's identity: a
+ *  digest the CLI takes of the graphic it built (name, type, code, assets, format), written on the
+ *  library record a save delivers and on the same graphic's entry in a package it sends. Installing
+ *  that package later finds the record by it and pools it instead of saving a second copy
+ *  (packs/graphicsPack.ts). Provenance, never authority: it is only ever compared within one
+ *  account's own library. */
+export interface GraphicOrigin {
+  tool: string;
+  version?: string;
+  item?: string;
+}
+
+/** A delivered item's identity: a hex sha256, as the CLI writes it. */
+export const ITEM_IDENTITY = /^[0-9a-f]{64}$/;
 
 /** Where a community pack's graphic came from: the shelf's pack id (a seed's slug, or
  *  `community:<lineage>` for a shared pack), its version, the name it was published under and,
@@ -132,7 +147,7 @@ export interface NewGraphicDocOptions<TSpec = unknown, TThread = unknown, TLegib
   aiThread?: TThread | null;
   legibility?: TLegibility | null;
   folder?: string;
-  origin?: { tool: string; version?: string } | null;
+  origin?: GraphicOrigin | null;
   fromPack?: PackStamp | null;
 }
 

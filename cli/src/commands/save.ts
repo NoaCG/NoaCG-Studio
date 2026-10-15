@@ -13,14 +13,26 @@
 // first delivery's links and never saves a second copy. One graphic takes the same path; a
 // deployment too old for the set door gets it through the single save door it always had.
 //
-// Vocabulary: SAVE = the library. It does not publish, add to a production, or air anything.
+// A PRODUCTION AS WELL (§11): `--production <name>` (with `--rundown cues.json` and `--layer`) makes
+// the same delivery also create a new production of the set - its layers and ordered rundown -
+// ready to open, with no Install step. It needs a key consented to make productions (`noacg login`
+// asks for it); a graphics-only key is refused before anything is saved and told so.
+//
+// Every library record carries its ITEM IDENTITY (`origin.item`, the graphic's source digest), the
+// same one `noacg pack` writes on the graphic's package entry, so installing a package of a graphic
+// a save already delivered pools that record instead of saving it twice.
+//
+// Vocabulary: SAVE = the library, and with `--production` a new production. It never publishes or
+// airs anything.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient, type BridgeValidation } from '../bridgeClient.js';
 import { cliVersion, noacgUrl } from '../config.js';
-import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { readDelivery, resolveKey, saveGraphic, saveGraphicSet } from '../auth.js';
+import { EXIT_FINDINGS, EXIT_OK, flagBool, flagList, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { readDelivery, resolveKey, saveGraphic, saveGraphicSet, type ProductionRequest } from '../auth.js';
+import { sourceDigest } from '../digest.js';
+import { readRundown } from './pack.js';
 import { forgetOperation, operationFor, setFingerprint } from '../operations.js';
 import { deliverAndConfirm, deliverSetAndConfirm, describeReceipt, destinationOf, type DeliveryReceipt } from '../receipt.js';
 import { readPackageInput } from '../workspace.js';
@@ -46,6 +58,8 @@ export interface SaveOutcome {
   name?: string;
   /** Every graphic saved, in the order given. */
   graphics?: SavedGraphic[];
+  /** The production the same delivery made, when one was asked for. */
+  production?: { id: string; name: string; url: string };
   /** The operation the delivery went under; the same command again resumes it. */
   operationId?: string;
   /** The deployment answered this operation's earlier delivery: nothing new was saved. */
@@ -59,7 +73,7 @@ export interface SaveOutcome {
   error?: string;
   /** For an agent reading `--json`: which of the documented refusals this was. `unverified`: no
    *  answer came and a readback did not find it - run the same command again, it resumes. */
-  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'unverified' | 'too-large' | 'conflict' | 'deleted';
+  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'unverified' | 'too-large' | 'conflict' | 'deleted' | 'no-production';
   /** The delivery receipt (docs/AGENT_SAVE.md §9): account, deployment, state, and whether a
    *  readback confirmed it. */
   receipt?: DeliveryReceipt;
@@ -71,6 +85,8 @@ export interface SaveOptions {
   folder?: string;
   bench?: boolean;
   houseContract?: boolean;
+  /** Also make a new production of the set (§11). */
+  production?: ProductionRequest;
 }
 
 /** The refusal every entrance gives before it starts a browser. */
@@ -79,10 +95,21 @@ export function notLoggedIn(origin: string): string {
 }
 
 /** The usage problem with these arguments, or null - checked before any browser starts. */
-export function saveArgsProblem(inputs: string[], opts: Pick<SaveOptions, 'name'>, names = { name: '--name' }): string | null {
+export function saveArgsProblem(
+  inputs: string[],
+  opts: Pick<SaveOptions, 'name' | 'production'>,
+  names = { name: '--name', production: '--production', layer: '--layer' },
+): string | null {
   if (!inputs.length) return 'save needs a package directory or .zip.';
   if (inputs.length > MAX_SET_GRAPHICS) return `save takes at most ${MAX_SET_GRAPHICS} graphics in one delivery; save the rest in another.`;
   if (opts.name && inputs.length > 1) return `${names.name} names one graphic; with several, each keeps the name its definition gives it.`;
+  const production = opts.production;
+  if (production) {
+    if (!production.name.trim()) return `${names.production} needs the production's name.`;
+    if ((production.layers?.length ?? 0) > inputs.length || production.layers?.some((l) => !Number.isInteger(l) || l < 1 || l > 100)) {
+      return `${names.layer} gives each graphic's layer, a whole number from 1 to 100, in the order the packages are given.`;
+    }
+  }
   return null;
 }
 
@@ -108,7 +135,8 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
       continue;
     }
     const name = (inputs.length === 1 && opts.name?.trim()) || template.name || path.basename(input).replace(/\.zip$/i, '');
-    const doc = await bridge.graphicDoc(template, { name, ...(opts.folder ? { folder: opts.folder } : {}), origin: { tool: 'noacg-cli', version: cliVersion() } });
+    const origin = { tool: 'noacg-cli', version: cliVersion(), item: itemIdentity(template) };
+    const doc = await bridge.graphicDoc(template, { name, ...(opts.folder ? { folder: opts.folder } : {}), origin });
     prepared.push({ input, name, doc, validation });
   }
   const single = inputs.length === 1 ? failures[0]?.validation : undefined;
@@ -121,7 +149,15 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
   // Warnings travel with the outcome, apart from whether it was delivered.
   const reports = inputs.length === 1 ? { validation: prepared[0].validation } : { validations: prepared.map(({ input, validation }) => ({ input, validation })) };
   const docs = prepared.map((p) => p.doc);
-  const bytes = Buffer.byteLength(JSON.stringify({ graphics: docs }));
+  // The rundown names graphics by the names they are saved under: say a stray one before sending.
+  const names = prepared.map((p) => p.name);
+  if (opts.production) {
+    const twice = names.find((n, i) => names.indexOf(n) !== i);
+    if (twice) return { ok: false, reason: 'invalid', error: `Not saved - two graphics are both named "${twice}"; a production tells its graphics apart by name. Rename one (its definition's name).`, ...reports };
+    const stray = opts.production.cues?.find((c) => !names.includes(c.graphic));
+    if (stray) return { ok: false, reason: 'invalid', error: `Not saved - the rundown cues "${stray.graphic}", which is not one of: ${names.map((n) => `"${n}"`).join(', ')}.`, ...reports };
+  }
+  const bytes = Buffer.byteLength(JSON.stringify({ graphics: docs, ...(opts.production ? { production: opts.production } : {}) }));
   if (bytes > MAX_SET_BYTES) {
     return {
       ok: false,
@@ -130,11 +166,16 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
     };
   }
 
-  const fingerprint = setFingerprint(origin, found.key, docs);
+  const fingerprint = setFingerprint(origin, found.key, docs, opts.production);
   const { operationId, resumed } = await operationFor(fingerprint);
-  log(`${resumed ? 'Resuming' : 'Saving'} ${docs.length === 1 ? `"${prepared[0].name}"` : `${docs.length} graphics`} under operation ${operationId}…`);
-  const names = prepared.map((p) => p.name);
-  const sent = await deliverSetAndConfirm(origin, found.key, operationId, names, () => saveGraphicSet(origin, found.key, docs, operationId));
+  const what = `${docs.length === 1 ? `"${prepared[0].name}"` : `${docs.length} graphics`}${opts.production ? ` and the production "${opts.production.name}"` : ''}`;
+  log(`${resumed ? 'Resuming' : 'Saving'} ${what} under operation ${operationId}…`);
+  const sent = await deliverSetAndConfirm(origin, found.key, operationId, names, () => saveGraphicSet(origin, found.key, docs, operationId, opts.production), undefined, opts.production?.name);
+  // The single door saves a graphic, never a production: a deployment without the production
+  // destination is told as such, not silently given the library half.
+  if (!sent.ok && sent.reason === 'unsupported' && opts.production) {
+    return { ok: false, reason: 'no-production', operationId, receipt: sent.receipt, error: `Not saved: the NoaCG at ${origin} cannot make a production in a delivery yet. Save without --production for the library only, or send it with \`noacg pack --save\` to install on Home.`, ...reports };
+  }
   if (!sent.ok && sent.reason === 'unsupported' && docs.length === 1) {
     const old = await saveOneTheOldWay(origin, found.key, operationId, inputs[0], names[0], docs[0], reports);
     if (old.reason === 'deleted') await forgetOperation(fingerprint, operationId);
@@ -147,10 +188,24 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
     return { ok: false, reason: sent.reason === 'unsupported' ? 'refused' : sent.reason, operationId, receipt: sent.receipt, error, ...reports };
   }
   const graphics = (sent.graphics ?? []).map((g, i) => ({ input: inputs[i], id: g.id, name: g.name || names[i], url: g.url }));
+  // A deployment from before the production destination reads only the graphics: the set is in the
+  // library, but no production was made - which is not what was asked, so it is not `ok`.
+  if (opts.production && !sent.production) {
+    return {
+      ok: false,
+      reason: 'no-production',
+      graphics,
+      operationId,
+      receipt: sent.receipt,
+      error: `Saved the graphics to the library, but the NoaCG at ${origin} made no production: it is too old for one. Add them to a production in the studio, or send them with \`noacg pack --save\` to install on Home.`,
+      ...reports,
+    };
+  }
   const outcome: SaveOutcome = {
     ok: true,
     ...(graphics.length === 1 ? { id: graphics[0].id, url: graphics[0].url, name: graphics[0].name } : {}),
     graphics,
+    ...(sent.production ? { production: sent.production } : {}),
     operationId,
     replayed: Boolean(sent.replayed),
     receipt: sent.receipt,
@@ -158,14 +213,25 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
   };
   // An earlier delivery of this set, answered again, whose graphics were deleted since: they are
   // NOT in the library, and saying "saved" would be the false claim this receipt exists to prevent.
-  const deleted = sent.receipt.resources.filter((r) => r.state === 'missing').length;
-  if (deleted) {
+  const deleted = sent.receipt.resources.filter((r) => r.state === 'missing' && r.kind === 'graphic').length;
+  const productionGone = sent.receipt.resources.some((r) => r.state === 'missing' && r.kind === 'production');
+  if (deleted || productionGone) {
     // Forgotten, so the same save run again is a new delivery that puts the set back.
     await forgetOperation(fingerprint, operationId);
-    const error = `This set was saved earlier under operation ${operationId}, and ${deleted} of its graphics ${deleted === 1 ? 'was' : 'were'} deleted since, so ${deleted === 1 ? 'it is' : 'they are'} not in the library. Run the same save again to put the whole set back as a new delivery.`;
+    const gone = [
+      ...(deleted ? [`${deleted} of its graphics ${deleted === 1 ? 'was' : 'were'} deleted since`] : []),
+      ...(productionGone ? ['its production was deleted since'] : []),
+    ].join(' and ');
+    const error = `This set was saved earlier under operation ${operationId}, and ${gone}, so it is not all there. Run the same save again to deliver the whole set again as a new delivery.`;
     return { ...outcome, ok: false, reason: 'deleted', error };
   }
   return outcome;
+}
+
+/** A graphic's ITEM IDENTITY: the digest of its normalized sources (digest.ts), as hex. `save` writes
+ *  it on the library record and `pack` on the package entry, so the two name one graphic alike. */
+export function itemIdentity(template: Parameters<typeof sourceDigest>[0]): string {
+  return sourceDigest(template).slice('sha256:'.length);
 }
 
 /** One graphic to a deployment from before the set door: the single save door it always had, under
@@ -208,16 +274,21 @@ export function describeSave(outcome: SaveOutcome): string[] {
   }
   const graphics = outcome.graphics ?? [];
   const lines: string[] = [];
-  if (outcome.replayed) lines.push('Already saved under this operation - nothing new was saved, and these are the same graphics:');
-  if (graphics.length <= 1 && !outcome.replayed) return [`Saved "${outcome.name ?? graphics[0]?.name}".`, ...describeReceipt(outcome.receipt)];
-  if (!outcome.replayed) lines.push(`Saved ${graphics.length} graphics in one delivery:`);
+  const production = outcome.production;
+  if (outcome.replayed) lines.push(`Already saved under this operation - nothing new was saved, and these are the same ${production ? 'graphics and production' : 'graphics'}:`);
+  if (graphics.length <= 1 && !outcome.replayed && !production) return [`Saved "${outcome.name ?? graphics[0]?.name}".`, ...describeReceipt(outcome.receipt)];
+  if (!outcome.replayed) lines.push(production ? `Saved ${graphics.length === 1 ? '1 graphic' : `${graphics.length} graphics`} and the production "${production.name}" in one delivery:` : `Saved ${graphics.length} graphics in one delivery:`);
+  if (production) {
+    const state = outcome.receipt.resources.find((r) => r.kind === 'production')?.state;
+    lines.push(`- production "${production.name}" -> ${production.url}${state && state !== 'saved' ? ` (${state})` : ''}`);
+  }
   const states = new Map(outcome.receipt.resources.map((r) => [r.id, r.state]));
   for (const g of graphics) {
     const state = states.get(g.id);
     lines.push(`- "${g.name}" -> ${g.url}${state && state !== 'saved' ? ` (${state})` : ''}`);
   }
   const checked = outcome.receipt.verified ? 'confirmed by reading it back from the account' : 'accepted by the server, not yet read back';
-  lines.push(`In the library of ${destinationOf(outcome.receipt)} (${checked}).`);
+  lines.push(`In ${production ? 'the account' : 'the library'} of ${destinationOf(outcome.receipt)} (${checked}).`);
   if (outcome.receipt.nextAction) lines.push(outcome.receipt.nextAction);
   lines.push(`Operation ${outcome.receipt.operationId}.`);
   return lines;
@@ -225,11 +296,18 @@ export function describeSave(outcome: SaveOutcome): string[] {
 
 export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
   const inputs = args._.slice(1);
+  const productionName = flagString(args, 'production');
+  const rundownFile = flagString(args, 'rundown');
+  const layers = flagList(args, 'layer').map((n) => Number(n));
+  if ((rundownFile || layers.length) && productionName === undefined) throw new UsageError('--rundown and --layer describe a production: add --production "<its name>".');
   const opts: SaveOptions = {
     name: flagString(args, 'name'),
     folder: flagString(args, 'folder'),
     bench: flagBool(args, 'bench', true),
     houseContract: flagBool(args, 'house-contract', true),
+    ...(productionName !== undefined
+      ? { production: { name: productionName, ...(layers.length ? { layers } : {}), ...(rundownFile ? { cues: await readRundown(rundownFile) } : {}) } }
+      : {}),
   };
   // Every input must exist BEFORE the browser starts. `save` takes several packages, so a stray
   // word cannot be refused by count - an unquoted `--name Football scoreboard` hands it
@@ -257,7 +335,11 @@ export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
     for (const report of describeReports(outcome)) out.say(report);
     for (const line of describeSave(outcome)) out.say(line);
     if (outcome.ok) {
-      out.say(`${(outcome.graphics?.length ?? 1) > 1 ? 'They are' : 'It is'} in Home → Graphics the next time the studio opens (or at once on the link); add ${(outcome.graphics?.length ?? 1) > 1 ? 'them' : 'it'} to a production from there.`);
+      out.say(
+        outcome.production
+          ? 'The production link opens it ready to run; nothing is published or on air until the operator does that.'
+          : `${(outcome.graphics?.length ?? 1) > 1 ? 'They are' : 'It is'} in Home → Graphics the next time the studio opens (or at once on the link); add ${(outcome.graphics?.length ?? 1) > 1 ? 'them' : 'it'} to a production from there.`,
+      );
       return EXIT_OK;
     }
     return EXIT_FINDINGS;

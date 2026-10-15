@@ -36,6 +36,10 @@ export const PERMISSION_KEYS = [
   'graphics:update',
   /** Pool a graphic into a production without touching what is on air (reserved - `noacg add`). */
   'productions:attach',
+  /** Make a NEW production, with its layers and ordered rundown, out of the graphics the same
+   *  delivery saves (`noacg save a b c --production <name>`, POST /api/me/graphic-sets with a
+   *  `production`). Never an existing production, never publishing, never playout. */
+  'productions:create',
   /** Take / Update / Next / Out on a published production (reserved; high-risk; NEVER granted to
    *  an authoring key - see NEVER_ON_AGENT_KEYS). */
   'playout:operate',
@@ -50,6 +54,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'graphics:read': 'Read your library',
   'graphics:update': 'Replace graphics it created',
   'productions:attach': 'Add graphics to a production',
+  'productions:create': 'Make new productions with rundowns from the graphics it saves (never publishes or plays them)',
   'playout:operate': 'Operate a live production (Take / Update / Next / Out)',
 };
 
@@ -57,16 +62,30 @@ export function isPermissionKey(value: string): value is PermissionKey {
   return (PERMISSION_KEYS as readonly string[]).includes(value);
 }
 
-/** The permissions a server path actually CHECKS today: the save and package doors, and the
- *  connector's library read - and says so, rather than listing five switches of which three stop
- *  nothing. Add a key here in the SAME change that adds its `permits()` call site. */
-export const ENFORCED_PERMISSION_KEYS: ReadonlySet<PermissionKey> = new Set(['graphics:create', 'graphics:read']);
+/** The permissions a server path actually CHECKS today: the save and package doors, the set
+ *  door's production destination, and the connector's library read - and says so, rather than
+ *  listing switches that stop nothing. Add a key here in the SAME change that adds its `permits()`
+ *  call site. */
+export const ENFORCED_PERMISSION_KEYS: ReadonlySet<PermissionKey> = new Set(['graphics:create', 'graphics:read', 'productions:create']);
 
 /** What a scoped AGENT KEY minted through `noacg login` carries in this release. Authoring
  *  only: the key can put a graphic in the library and nothing else - it cannot read the
  *  library, touch a production, use AI, or delete anything. The consent card states exactly
  *  this list; the redeem handler mints exactly this list. */
 export const AGENT_KEY_PERMISSIONS: readonly PermissionKey[] = ['graphics:create'];
+
+/** What a consent request MAY add to that list when the CLI asks (`scopes=` on the consent URL).
+ *  The consent card lists it as its own line, so a key gets it only when the person allowing it
+ *  saw it; a request for anything else is ignored. A key minted without it - every key from
+ *  before it existed included - keeps exactly what it had. */
+export const AGENT_KEY_OPTIONAL_PERMISSIONS: readonly PermissionKey[] = ['productions:create'];
+
+/** The permissions a key minted for this request carries: the authoring list, plus whichever
+ *  optional ones were asked for. Used by the consent page (what it shows) and the server (what it
+ *  mints), so the two cannot disagree. */
+export function agentKeyPermissions(requested: readonly string[] = []): PermissionKey[] {
+  return [...AGENT_KEY_PERMISSIONS, ...AGENT_KEY_OPTIONAL_PERMISSIONS.filter((key) => requested.includes(key))];
+}
 
 /** Permissions that are NEVER granted to an agent key, whatever a future consent flow offers
  *  for authoring. Live playout is a separate, explicitly consented, high-risk grant when it
@@ -89,6 +108,7 @@ export const PERMISSION_FEATURE: Record<PermissionKey, FeatureKey | null> = {
   'graphics:read': 'sync.cloud',
   'graphics:update': 'sync.cloud',
   'productions:attach': 'sync.cloud',
+  'productions:create': 'sync.cloud',
   'playout:operate': 'control.hosted',
 };
 

@@ -8,6 +8,7 @@
 
 import { commitDurableWrites } from './durableStore';
 import { createGraphic, type GraphicDoc } from './library';
+import type { GraphicOrigin } from './graphicDoc';
 import { captureLookFromTemplate } from './packets';
 import {
   addGraphicToShow,
@@ -41,14 +42,24 @@ export async function saveTemplateSetToProduction(
   dest: ProductionDest,
   /** Each template's community pack stamp, by position (a community pack's install, D7). */
   fromPacks?: ReadonlyArray<GraphicDoc['fromPack']>,
+  /** By position: `reuse` - a library record that already IS this graphic (an agent package whose
+   *  graphic a save delivered), pooled instead of saved again; `origins` - the provenance a new
+   *  record carries, its delivered item identity included. */
+  opts: { reuse?: ReadonlyArray<GraphicDoc | null | undefined>; origins?: ReadonlyArray<GraphicOrigin | undefined> } = {},
 ): Promise<Show> {
   if (!templates.length) throw new Error('There are no graphics to save.');
 
   // Library records first, so the production is only created once every graphic in it
   // saved — a quota failure mid-way never leaves an empty production on Home.
-  const docs = [];
+  const docs: Array<Pick<GraphicDoc, 'id' | 'template'>> = [];
   for (const [i, template] of templates.entries()) {
-    const { doc, error } = createGraphic(template, { name: template.name, packageId: null, fromPack: fromPacks?.[i] });
+    const kept = opts.reuse?.[i];
+    if (kept) {
+      // Pooled under the name this set gives it: its rundown addresses the graphic by that name.
+      docs.push({ id: kept.id, template: { ...kept.template, name: template.name } });
+      continue;
+    }
+    const { doc, error } = createGraphic(template, { name: template.name, packageId: null, fromPack: fromPacks?.[i], origin: opts.origins?.[i] });
     const failure = error ?? (await commitDurableWrites());
     if (failure || !doc) throw new Error(failure ?? 'The graphic could not be saved.');
     docs.push(doc);

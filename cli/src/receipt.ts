@@ -25,7 +25,7 @@ export interface DeliveryReceipt {
   deployment: string;
   /** Null only on a receipt the CLI wrote itself, when the server never named the account. */
   account: AccountIdentity | null;
-  destination: 'library' | 'home';
+  destination: 'library' | 'home' | 'production';
   state: DeliveryState;
   resources: ReceiptResource[];
   link: string | null;
@@ -35,6 +35,9 @@ export interface DeliveryReceipt {
 }
 
 export const newOperationId = (): string => randomUUID();
+
+/** A cause as a sentence of its own ("fetch failed" -> "fetch failed."), so the next one reads apart. */
+const sentence = (text: string): string => text.replace(/[.\s]*$/, '.');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (value: string): boolean => UUID.test(value);
@@ -129,7 +132,7 @@ export async function deliverAndConfirm(
     return {
       ok: false,
       reason: 'unverified',
-      error: `Unconfirmed: ${explainError(e)} ${next}`,
+      error: `Unconfirmed: ${sentence(explainError(e))} ${next}`,
       receipt: localReceipt(operationId, origin, destination, 'delivery_unverified', next),
     };
   }
@@ -148,6 +151,8 @@ export interface SetDelivered {
   replayed?: boolean;
   /** In the order sent; the names are the ones sent. */
   graphics?: Array<{ id: string; name: string; url: string }>;
+  /** The production the delivery made, when it asked for one. */
+  production?: { id: string; name: string; url: string };
   receipt: DeliveryReceipt;
   /** `conflict`: the operation already delivered different graphics. `unsupported`: the deployment
    *  has no set door (404). `unverified`: no answer, and a readback found nothing. */
@@ -172,18 +177,24 @@ export async function deliverSetAndConfirm(
   names: string[],
   write: () => Promise<SetResult>,
   delays: number[] = SET_RETRY_DELAYS_MS,
+  /** The production asked for, named in an answer found only by readback. */
+  productionName?: string,
 ): Promise<SetDelivered> {
   let written: SetResult | null = null;
   let lost: unknown = null;
   // Only the FIRST send can be answered with an earlier run's delivery. A replay after this run's
   // own answer was lost is most likely this run's own write.
   let earlier = false;
-  const found = (receipt: DeliveryReceipt): SetDelivered => ({
-    ok: true,
-    // The readback lists the set in the order it was sent.
-    graphics: receipt.resources.filter((r) => r.kind === 'graphic').map((r, i) => ({ id: r.id, name: names[i] ?? '', url: r.link })),
-    receipt,
-  });
+  const found = (receipt: DeliveryReceipt): SetDelivered => {
+    // The readback lists the set in the order it was sent, then the production it made, if any.
+    const made = receipt.destination === 'production' ? receipt.resources.find((r) => r.kind === 'production') : undefined;
+    return {
+      ok: true,
+      graphics: receipt.resources.filter((r) => r.kind === 'graphic').map((r, i) => ({ id: r.id, name: names[i] ?? '', url: r.link })),
+      ...(made ? { production: { id: made.id, name: productionName ?? '', url: made.link } } : {}),
+      receipt,
+    };
+  };
   for (let attempt = 0; attempt <= delays.length && !written; attempt += 1) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, delays[attempt - 1]));
     try {
@@ -210,7 +221,13 @@ export async function deliverSetAndConfirm(
   }
   const confirmed = await readDelivery(origin, key, operationId).catch(() => null);
   if (written) {
-    return { ok: true, replayed: earlier, graphics: written.graphics, receipt: confirmed ?? written.receipt ?? localReceipt(operationId, origin, 'library', 'delivery_unverified', `Check it with \`noacg status ${operationId}\`.`) };
+    return {
+      ok: true,
+      replayed: earlier,
+      graphics: written.graphics,
+      ...(written.production ? { production: written.production } : {}),
+      receipt: confirmed ?? written.receipt ?? localReceipt(operationId, origin, 'library', 'delivery_unverified', `Check it with \`noacg status ${operationId}\`.`),
+    };
   }
   // Every answer was lost, but it is in the account.
   if (confirmed) return found(confirmed);
@@ -218,7 +235,7 @@ export async function deliverSetAndConfirm(
   return {
     ok: false,
     reason: 'unverified',
-    error: `Unconfirmed: ${explainError(lost)} ${next}`,
+    error: `Unconfirmed: ${sentence(explainError(lost))} ${next}`,
     receipt: localReceipt(operationId, origin, 'library', 'delivery_unverified', next),
   };
 }
@@ -235,7 +252,7 @@ export function describeReceipt(receipt: DeliveryReceipt): string[] {
   const checked = receipt.verified ? 'confirmed by reading it back from the account' : 'accepted by the server, not yet read back';
   switch (receipt.state) {
     case 'saved':
-      lines.push(`In the library of ${destinationOf(receipt)} (${checked}) -> ${receipt.link}`);
+      lines.push(`In the ${receipt.destination === 'production' ? 'account' : 'library'} of ${destinationOf(receipt)} (${checked}) -> ${receipt.link}`);
       break;
     case 'pending_install':
       lines.push(`Waiting on Home → Productions of ${destinationOf(receipt)}, pending Install (${checked}) -> ${receipt.link}`);

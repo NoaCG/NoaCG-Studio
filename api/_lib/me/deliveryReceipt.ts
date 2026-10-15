@@ -33,8 +33,9 @@ export interface DeliveryReceipt {
   /** The deployment's origin, e.g. https://noacg.studio. */
   deployment: string;
   account: AccountIdentity;
-  /** `library`: Home → Graphics. `home`: waiting on Home → Productions for Install. */
-  destination: 'library' | 'home';
+  /** `library`: Home → Graphics. `home`: waiting on Home → Productions for Install. `production`:
+   *  the graphics in the library and the production a set delivery made of them (§11). */
+  destination: 'library' | 'home' | 'production';
   state: DeliveryState;
   resources: ReceiptResource[];
   /** The one link to open: the graphic, the waiting package, or the production Install made. */
@@ -98,14 +99,18 @@ export interface ReceiptInput {
   operationId: string;
   deployment: string;
   account: AccountIdentity;
-  /** Each delivered resource as recorded, with whether it is still there. */
-  rows: Array<Pick<DeliveryRow, 'kind' | 'resourceId' | 'state' | 'productionId'> & { present: boolean }>;
+  /** Each delivered resource as recorded, with whether it is still there - and, for a set's graphic
+   *  whose delivery made a production, whether that production is (false when not asked). */
+  rows: Array<Pick<DeliveryRow, 'kind' | 'resourceId' | 'state' | 'productionId'> & { present: boolean; productionPresent?: boolean }>;
   verified: boolean;
   checkedAt: string;
 }
 
 export function buildReceipt(input: ReceiptInput): DeliveryReceipt {
   const resources: ReceiptResource[] = [];
+  // A set delivered with a production names it on every graphic's row; the receipt lists it once,
+  // after the graphics, as `saved` while it is there.
+  let delivered: ReceiptResource | null = null;
   for (const row of input.rows) {
     const state = currentState(row, row.present);
     const link = row.kind === 'graphic' ? graphicLink(input.deployment, row.resourceId) : packageLink(input.deployment, row.resourceId);
@@ -113,7 +118,11 @@ export function buildReceipt(input: ReceiptInput): DeliveryReceipt {
     if (state === 'installed' && row.productionId) {
       resources.push({ kind: 'production', id: row.productionId, state, link: productionLink(input.deployment, row.productionId) });
     }
+    if (row.kind === 'graphic' && row.productionId && !delivered) {
+      delivered = { kind: 'production', id: row.productionId, state: row.productionPresent === false ? 'missing' : 'saved', link: productionLink(input.deployment, row.productionId) };
+    }
   }
+  if (delivered) resources.push(delivered);
   const state = overallState(resources.map((r) => r.state));
   // The link to open is the finished thing: the production over the package it came from.
   const open = resources.find((r) => r.kind === 'production') ?? resources[0];
@@ -122,7 +131,7 @@ export function buildReceipt(input: ReceiptInput): DeliveryReceipt {
     operationId: input.operationId,
     deployment: input.deployment,
     account: input.account,
-    destination: input.rows.some((r) => r.kind === 'package') ? 'home' : 'library',
+    destination: delivered ? 'production' : input.rows.some((r) => r.kind === 'package') ? 'home' : 'library',
     state,
     resources,
     link: open?.link ?? null,

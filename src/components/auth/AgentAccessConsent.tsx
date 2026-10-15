@@ -108,7 +108,7 @@ function ConsentCard({ request }: { request: AgentAccessRequest }) {
     setBusy(true);
     setError(null);
     try {
-      const { code } = await beginAgentKey({ name: request.name, challenge: request.challenge });
+      const { code } = await beginAgentKey(request);
       setState('sent');
       // The ONE place the code may go (backend/agentAccess.ts agentCallbackUrl): the user's
       // own machine, in the fragment, one shot. `replace` keeps this page out of Back.
@@ -161,8 +161,8 @@ function ConsentCard({ request }: { request: AgentAccessRequest }) {
         ))}
       </ul>
       <p className="hint">
-        It cannot control a production, use AI, read your other work, or delete anything. The key
-        is yours to revoke at any time in Settings → Account → Agent access.
+        It cannot publish or play a production, use AI, read your other work, or delete anything.
+        The key is yours to revoke at any time in Settings → Account → Agent access.
       </p>
       {/* WHICH ACCOUNT, on which deployment: what `noacg whoami` and every delivery receipt will
           name too (docs/AGENT_SAVE.md §9), so the user can see where the saves will go. */}

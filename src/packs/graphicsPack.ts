@@ -31,17 +31,18 @@ import {
   setShowBrand,
   type Show,
 } from '../model/shows';
-import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, packStampFor } from '../model/library';
+import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, packStampFor, type GraphicDoc } from '../model/library';
 import { applyLookToTemplate, loadLooks } from '../model/packets';
 import type { ProjectBrand } from '../model/brand';
 import { templateFromRecipe, type TemplateRecipe } from '../templates/types/recipeTemplate';
-import { readPackStamp, type PackStamp } from '../model/graphicDoc';
+import { ITEM_IDENTITY, readPackStamp, type GraphicOrigin, type PackStamp } from '../model/graphicDoc';
 import { isProductionSounds } from '../assets/productionSounds';
 import { rememberSound, soundBlob, materializeSoundAssets, isSoundAssetRef } from '../assets/soundAssets';
 import { fileToDataUrl as blobToDataUrl, dataUrlToBlob } from '../assets/assetUtils';
 import { readSound } from '../assets/graphicSound';
 import type { ProductionSounds, SoundAssetRef } from '../model/types';
 import { saveTemplateSetToProduction, type ProductionDest } from '../model/templateSet';
+import { deliveredCopy, deliveryOverlap } from '../model/productionDelivery';
 import {
   DEFAULT_SETTINGS,
   TEMPLATE_TYPE_LABELS,
@@ -73,6 +74,10 @@ export interface PackGraphic {
   /** A RECIPE entry: a catalog design to build at install, not code. Until `installPack` builds
    *  it, `template` is a placeholder carrying only the name. */
   recipe?: TemplateRecipe;
+  /** The tool that built it and the DELIVERED ITEM's identity (model/graphicDoc.ts GraphicOrigin):
+   *  a library record with the same `item` is this graphic already delivered, which Install pools
+   *  instead of saving a second copy. */
+  origin?: GraphicOrigin;
 }
 
 /**
@@ -124,6 +129,8 @@ export interface PackGraphicFile {
   cues?: PackCue[];
   /** The library record's community pack stamp (spec D7), written by a production export. */
   fromPack?: PackStamp;
+  /** Where it came from, with the delivered item's identity (`noacg pack` writes it). */
+  origin?: GraphicOrigin;
 }
 
 /** One row of a pack's WHOLE-SHOW rundown: a cue addressing a graphic by pool name. */
@@ -290,9 +297,11 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     };
 
     const stamp = readPackStamp(entry.fromPack);
+    const origin = readOrigin(entry.origin);
     graphics.push({
       template,
       ...(stamp ? { fromPack: stamp } : {}),
+      ...(origin ? { origin } : {}),
       ...(entry.sounds ? { sounds: { ...entry.sounds as ProductionSounds, assets: (entry.sounds as ProductionSounds).assets.map(a=>{ const {storageKey:_cloud,...ref}=a; return ref; }) } } : {}),
       ...layer,
       cues,
@@ -347,6 +356,29 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     },
     error: null,
   };
+}
+
+/** A pack entry's origin, or null when it carries none worth keeping. */
+function readOrigin(v: unknown): GraphicOrigin | null {
+  if (!isRecord(v) || typeof v.tool !== 'string' || !v.tool.trim()) return null;
+  return {
+    tool: v.tool.slice(0, 40),
+    ...(typeof v.version === 'string' && v.version ? { version: v.version.slice(0, 40) } : {}),
+    ...(typeof v.item === 'string' && ITEM_IDENTITY.test(v.item) ? { item: v.item } : {}),
+  };
+}
+
+/**
+ * What installing this pack would repeat (model/productionDelivery.ts `deliveryOverlap`): the
+ * production its delivery already became, or graphics a library copy of the same name may be.
+ * Asked before a waiting package's Install, so the user chooses instead of finding a duplicate.
+ */
+export function installOverlap(
+  pack: GraphicsPack,
+  library: readonly GraphicDoc[] = loadGraphics(),
+  shows: readonly Show[] = loadShows(),
+): { production: Show | null; unidentified: string[] } {
+  return deliveryOverlap(pack.graphics.map((g) => ({ name: g.template.name, origin: g.origin })), library, shows);
 }
 
 /** A graphic's prepared cues as the file carries them; a row without a label is skipped. */
@@ -495,11 +527,16 @@ export async function installPack(
   }
 
   const templates = pack.graphics.map((g) => g.template);
+  // A graphic a save already delivered is POOLED from the library, not saved again: the package and
+  // the save are one delivery of it (its item identity says so). Everything else is a new record,
+  // carrying the identity on, so a later Install of the same graphic finds this one.
+  const library = loadGraphics();
   const show = await saveTemplateSetToProduction(
     templates,
     pack.name,
     dest ?? { kind: 'new', name: pack.name },
     pack.graphics.map((g) => fromPack ?? g.fromPack),
+    { reuse: pack.graphics.map((g) => deliveredCopy(g.origin, library)), origins: pack.graphics.map((g) => g.origin) },
   );
 
   // The pack's playout intent, applied over the defaults the pool assign gave. Pool entries

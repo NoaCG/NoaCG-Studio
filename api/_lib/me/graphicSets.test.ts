@@ -36,6 +36,7 @@ const USER = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
 const KEY = `${AGENT_KEY_PREFIX}${'ab'.repeat(32)}`;
 const SECOND_KEY = `${AGENT_KEY_PREFIX}${'cd'.repeat(32)}`;
 const READ_ONLY_KEY = `${AGENT_KEY_PREFIX}${'ef'.repeat(32)}`;
+const PRODUCTION_KEY = `${AGENT_KEY_PREFIX}${'01'.repeat(32)}`;
 const OP = '0b7c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8';
 const OTHER_OP = '1c8d4e5f-6071-4b82-9ca3-b4c5d6e7f809';
 
@@ -75,6 +76,7 @@ async function world() {
   await store.createKey({ userId: USER, name: 'Claude Code', keyHash: sha256(KEY), prefix: 'a', scopes: ['graphics:create'] });
   await store.createKey({ userId: USER, name: 'Codex', keyHash: sha256(SECOND_KEY), prefix: 'b', scopes: ['graphics:create'] });
   await store.createKey({ userId: USER, name: 'read only', keyHash: sha256(READ_ONLY_KEY), prefix: 'c', scopes: ['graphics:read'] });
+  await store.createKey({ userId: USER, name: 'Claude Code, productions', keyHash: sha256(PRODUCTION_KEY), prefix: 'd', scopes: ['graphics:create', 'productions:create'] });
   store.emails.set(USER, 'maker@example.test');
   const deps = { store, configured: () => true };
   const sets = createGraphicSetsHandler(deps);
@@ -82,7 +84,8 @@ async function world() {
   return {
     store,
     graphics: createGraphicsHandler(deps),
-    send: (records: unknown[], init: { token?: string | null; op?: string | null } = {}) => sets.fetch(req('/api/me/graphic-sets', { body: { graphics: records }, ...init })),
+    send: (records: unknown[], init: { token?: string | null; op?: string | null; production?: unknown } = {}) =>
+      sets.fetch(req('/api/me/graphic-sets', { body: { graphics: records, ...(init.production !== undefined ? { production: init.production } : {}) }, ...init })),
     sendRaw: (raw: string) => sets.fetch(req('/api/me/graphic-sets', { raw })),
     readBack: async (id: string): Promise<{ status: number; receipt?: DeliveryReceipt }> => {
       const res = await deliveries.fetch(req(`/api/me/deliveries?id=${id}`));
@@ -231,4 +234,144 @@ test('the payload hash is the content: key order, ids and timestamps do not chan
   assert.notEqual(payloadHash(a), payloadHash([a[1], a[0], a[2]]), 'the order is part of the set');
   assert.notEqual(payloadHash(a), payloadHash(threeRecords(['Strap', 'Score', 'Clock!'])));
   assert.match(payloadHash(a), /^[0-9a-f]{64}$/, 'the shape 0093\'s check constraint accepts');
+  // A production joins the payload; a library-only set hashes exactly as before it existed.
+  assert.equal(payloadHash(a, undefined), payloadHash(a));
+  assert.notEqual(payloadHash(a, { name: 'News' }), payloadHash(a));
+  assert.notEqual(payloadHash(a, { name: 'News' }), payloadHash(a, { name: 'News 2' }));
+  assert.equal(payloadHash(a, { name: 'News' }), payloadHash(b, { name: 'News' }));
+});
+
+// ── The production destination (docs/AGENT_SAVE.md §11, migration 0094) ─────────────────────
+
+const RUNDOWN = {
+  name: 'Evening news',
+  cues: [
+    { graphic: 'Score', label: 'Kick-off', values: { f0: '0-0' } },
+    { graphic: 'Strap', label: 'Anna Andersson' },
+    { graphic: 'Score', label: 'Half time', values: { f0: '1-0' } },
+  ],
+};
+const madeProductions = (w: Awaited<ReturnType<typeof world>>) => w.store.productions.length;
+
+test('a set with a production destination arrives as its graphics and a ready production, verified by readback', async () => {
+  const w = await world();
+  const res = await w.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN });
+  assert.equal(res.status, 201, await res.clone().text());
+  const body = (await res.json()) as SetResponse;
+  assert.deepEqual(footprint(w), { graphics: 3, receipts: 3, claims: 1 });
+  assert.equal(madeProductions(w), 1);
+  const made = w.store.productions[0];
+  assert.equal(made.userId, USER, 'in the account of the key that delivered it');
+  assert.deepEqual(body.production, { id: made.id, name: 'Evening news', url: `${ORIGIN}/app#/production/${made.id}` });
+  // The record: the set's graphics pooled by their library ids, the rundown in the order sent, and
+  // the graphic the rundown never named still reachable at the end.
+  assert.equal(made.body.id, made.id);
+  assert.deepEqual(made.body.graphics.map((g) => g.graphicId), body.graphics.map((g) => g.id));
+  const pool = new Map(made.body.graphics.map((g) => [g.id, g.name]));
+  assert.deepEqual(made.body.cues.map((c) => [pool.get(c.sourceId), c.label, c.values.f0]), [
+    ['Score', 'Kick-off', '0-0'],
+    ['Strap', 'Anna Andersson', 'Strap'],
+    ['Score', 'Half time', '1-0'],
+    ['Clock', 'Clock', 'Clock'],
+  ]);
+  // The receipt opens the production, and lists it after the graphics.
+  assert.equal(body.receipt.destination, 'production');
+  assert.equal(body.receipt.link, body.production!.url);
+  assert.deepEqual(body.receipt.resources.map((r) => [r.kind, r.state]), [['graphic', 'saved'], ['graphic', 'saved'], ['graphic', 'saved'], ['production', 'saved']]);
+
+  // Readback by the operation, and by the production's own id, verifies the same delivery.
+  for (const id of [OP, made.id]) {
+    const back = await (async () => {
+      const r = await createDeliveriesHandler({ store: w.store, configured: () => true }).fetch(req(`/api/me/deliveries?id=${id}`, { token: PRODUCTION_KEY }));
+      return (await r.json()) as { receipt: DeliveryReceipt };
+    })();
+    assert.equal(back.receipt.verified, true);
+    assert.equal(back.receipt.operationId, OP);
+    assert.equal(back.receipt.link, body.production!.url);
+  }
+});
+
+test('the same production delivery again answers the same production; another production under it is refused', async () => {
+  const w = await world();
+  const first = (await (await w.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN })).json()) as SetResponse;
+  for (let i = 0; i < 3; i += 1) {
+    const again = await w.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN });
+    assert.equal(again.status, 200);
+    const replay = (await again.json()) as SetResponse;
+    assert.equal(replay.replayed, true);
+    assert.deepEqual(replay.graphics, first.graphics);
+    assert.deepEqual(replay.production, first.production, 'the same production, not a second one');
+  }
+  assert.equal((await w.send(threeRecords(), { token: PRODUCTION_KEY, production: { ...RUNDOWN, name: 'Late news' } })).status, 409);
+  assert.equal((await w.send(threeRecords(), { token: PRODUCTION_KEY })).status, 409, 'the same graphics without the production are another delivery');
+  assert.deepEqual(footprint(w), { graphics: 3, receipts: 3, claims: 1 });
+  assert.equal(madeProductions(w), 1);
+
+  // Deleted since: the replay says so rather than claiming a production that is gone.
+  w.store.deletedProductions.add(first.production!.id);
+  const gone = (await (await w.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN })).json()) as SetResponse;
+  assert.equal(gone.receipt.resources[gone.receipt.resources.length - 1].state, 'missing');
+  assert.equal(gone.receipt.state, 'missing');
+});
+
+test('a library-only set stays library-only, whatever the key may do', async () => {
+  const w = await world();
+  const res = await w.send(threeRecords(), { token: PRODUCTION_KEY });
+  assert.equal(res.status, 201);
+  const body = (await res.json()) as SetResponse;
+  assert.equal(body.production, undefined);
+  assert.equal(body.receipt.destination, 'library');
+  assert.ok(body.receipt.resources.every((r) => r.kind === 'graphic'));
+  assert.equal(madeProductions(w), 0);
+});
+
+test('a graphics-only key is refused a production clearly, and nothing is written', async () => {
+  const w = await world();
+  const res = await w.send(threeRecords(), { production: RUNDOWN });
+  assert.equal(res.status, 403);
+  const { error } = (await res.json()) as { error: { message: string } };
+  assert.match(error.message, /not make productions\. Nothing was saved\./);
+  assert.match(error.message, /noacg login/);
+  assert.match(error.message, /library only/);
+  assert.deepEqual(footprint(w), NOTHING);
+  assert.equal(madeProductions(w), 0);
+  assert.equal((await w.readBack(OP)).status, 404);
+});
+
+test('a production that fails to write leaves nothing, and the same request then makes it once', async () => {
+  const w = await world();
+  w.store.failSetAt = 3; // after the three records, the production's insert fails
+  assert.equal((await w.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN })).status, 500);
+  assert.deepEqual(footprint(w), NOTHING, 'no record, receipt or claim survives a failed production');
+  assert.equal(madeProductions(w), 0);
+  w.store.failSetAt = null;
+  assert.equal((await w.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN })).status, 201);
+  assert.equal((await w.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN })).status, 200);
+  assert.equal(madeProductions(w), 1);
+
+  // A database without 0094 says it cannot make a production, having written nothing.
+  const old = await world();
+  old.store.noProductionFunction = true;
+  const res = await old.send(threeRecords(), { token: PRODUCTION_KEY, production: RUNDOWN });
+  assert.equal(res.status, 404);
+  assert.match(((await res.json()) as { error: { message: string } }).error.message, /cannot make a production in a delivery yet/);
+  assert.deepEqual(footprint(old), NOTHING);
+});
+
+test('a production request it cannot build is refused before any write', async () => {
+  const w = await world();
+  const refused = async (production: unknown, records = threeRecords()) => {
+    const res = await w.send(records, { token: PRODUCTION_KEY, production });
+    assert.equal(res.status, 400, JSON.stringify(production));
+    return ((await res.json()) as { error: { message: string } }).error.message;
+  };
+  assert.match(await refused({ name: '  ' }), /production\.name/);
+  assert.match(await refused('Evening news'), /must be an object/);
+  assert.match(await refused({ name: 'x', cues: [{ graphic: 'Nope', label: 'a' }] }), /"Nope", which is not a graphic in this set/);
+  assert.match(await refused({ name: 'x', cues: [{ graphic: 'Strap' }] }), /label/);
+  assert.match(await refused({ name: 'x', layers: [0] }), /layers/);
+  assert.match(await refused({ name: 'x', layers: [20, 21, 22, 23] }), /layers/);
+  assert.match(await refused({ name: 'x' }, threeRecords(['Strap', 'Strap', 'Clock'])), /both named "Strap"/);
+  assert.deepEqual(footprint(w), NOTHING);
+  assert.equal(madeProductions(w), 0);
 });

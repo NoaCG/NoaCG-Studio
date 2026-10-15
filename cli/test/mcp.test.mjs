@@ -95,7 +95,8 @@ const EXPECTED_ARGUMENTS = {
   background: ['validate', 'screenshot'],
   topic: ['docs'],
   folder: ['save'],
-  rundown: ['pack'],
+  rundown: ['save', 'pack'],
+  production: ['save'],
   share: ['pack'],
 };
 

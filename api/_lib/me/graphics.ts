@@ -64,7 +64,12 @@ export function libraryRecord(sent: GraphicDocBase, at: string, id?: string): Gr
     entries: sent.entries,
     activeEntryId: sent.activeEntryId,
     folder: sent.folder,
-    origin: { tool: sent.origin?.tool ?? 'noacg-cli', ...(sent.origin?.version ? { version: sent.origin.version } : {}) },
+    origin: {
+      tool: sent.origin?.tool ?? 'noacg-cli',
+      ...(sent.origin?.version ? { version: sent.origin.version } : {}),
+      // The delivered item's identity, which a later Install of the same graphic finds it by.
+      ...(sent.origin?.item ? { item: sent.origin.item } : {}),
+    },
   });
 }
 

@@ -177,16 +177,17 @@ function accountOf(body: { account?: unknown }): AccountIdentity | null {
 }
 
 /** Redeem a one-time code for a key (the second half of `noacg login`), with the account it is for. */
-export async function redeemCode(origin: string, code: string, verifier: string): Promise<{ stored: StoredKey; account: AccountIdentity | null }> {
+export async function redeemCode(origin: string, code: string, verifier: string): Promise<{ stored: StoredKey; account: AccountIdentity | null; scopes: string[] }> {
   const response = await fetch(`${origin}/api/me/agent-keys`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ action: 'redeem', code, verifier }),
   });
   if (!response.ok) throw new ApiError(await failureOf(response));
-  const body = (await response.json()) as { key: string; id: string; name: string; prefix: string; createdAt: string; account?: unknown };
+  const body = (await response.json()) as { key: string; id: string; name: string; prefix: string; createdAt: string; account?: unknown; scopes?: unknown };
   if (!body.key || !isAgentKey(body.key)) throw new Error('The server returned no usable key.');
-  return { stored: { key: body.key, id: body.id, name: body.name, prefix: body.prefix, createdAt: body.createdAt }, account: accountOf(body) };
+  const scopes = Array.isArray(body.scopes) ? body.scopes.filter((s): s is string => typeof s === 'string') : [];
+  return { stored: { key: body.key, id: body.id, name: body.name, prefix: body.prefix, createdAt: body.createdAt }, account: accountOf(body), scopes };
 }
 
 export interface KeyInfo {
@@ -235,13 +236,30 @@ export interface SetResult {
   replayed: boolean;
   /** In the order they were sent. */
   graphics: Array<{ id: string; name: string; url: string }>;
+  /** The production the delivery made, when it asked for one - absent from a deployment too old to. */
+  production?: { id: string; name: string; url: string };
   receipt?: DeliveryReceipt;
 }
 
+/** A set delivery's production destination (docs/AGENT_SAVE.md §11): its name, each graphic's layer
+ *  in the set's order, and an ordered rundown naming the graphics. */
+export interface ProductionRequest {
+  name: string;
+  layers?: number[];
+  cues?: Array<{ graphic: string; label: string; values?: Record<string, string>; note?: string }>;
+}
+
 /** POST several library records to the set door (`noacg save a b c`) as ONE operation: all of
- *  them or none, and the same operation sent again answers the first delivery (docs/AGENT_SAVE.md §10). */
-export function saveGraphicSet(origin: string, key: string, docs: Array<Record<string, unknown>>, operationId: string): Promise<SetResult> {
-  return postAsAgent(origin, key, 'graphic-sets', { graphics: docs }, operationId);
+ *  them or none, and the same operation sent again answers the first delivery (docs/AGENT_SAVE.md §10).
+ *  With a `production`, the same operation also makes that production of them (§11). */
+export function saveGraphicSet(
+  origin: string,
+  key: string,
+  docs: Array<Record<string, unknown>>,
+  operationId: string,
+  production?: ProductionRequest,
+): Promise<SetResult> {
+  return postAsAgent(origin, key, 'graphic-sets', { graphics: docs, ...(production ? { production } : {}) }, operationId);
 }
 
 /** POST a JSON body to one of the agent doors under /api/me as this key, naming the CLI version. */
@@ -306,7 +324,8 @@ export function explainFailure(f: ApiFailure): string {
     case 401:
       return `${f.message} (not logged in, or the key was revoked - run \`noacg login\`).`;
     case 403:
-      return `${f.message} (this key or account may not create graphics here).`;
+      // A refusal that says what to do already (a key without the production permission) stands alone.
+      return /noacg login/.test(f.message) ? f.message : `${f.message} (this key or account may not create graphics here).`;
     case 409:
       return `${f.message} (packages already waiting on Home → Productions).`;
     case 413:
