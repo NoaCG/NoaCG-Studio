@@ -73,6 +73,23 @@ module.exports = {
         pathNot: '^src/components/wizard/import/index\\.ts$',
       },
     },
+    {
+      name: 'wizard-template-only-from-the-walk',
+      severity: 'error',
+      comment:
+        'The template and kit capability (src/components/wizard/template/, ' +
+        'docs/ARCHITECTURE.md §5) is reached only by the walk that runs it: the shell ' +
+        '(CreationWizard.tsx), its walk modules (shell/) and the steps that render it (steps/). ' +
+        'It has no index.ts door because those callers are the whole list, and the folder is ' +
+        'worth having only while a template change stays out of the other capabilities: an ' +
+        'import from import/, ai/, draft/ or outside the wizard makes a kit file part of their ' +
+        'contract. A new caller is a decision about the capability, not an allowance here.',
+      from: {
+        path: '^src/',
+        pathNot: '^src/components/wizard/(CreationWizard\\.tsx$|shell/|steps/|template/)',
+      },
+      to: { path: '^src/components/wizard/template/' },
+    },
   ],
 
   allowed: [

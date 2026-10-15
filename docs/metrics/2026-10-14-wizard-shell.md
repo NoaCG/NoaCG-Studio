@@ -3,23 +3,27 @@
 The `wizard-shell` plan (`docs/work-specs/wizard-structure/spec.md`) split
 `src/components/wizard/CreationWizard.tsx` into Node-tested walk modules (`shell/walks.ts`,
 `shell/walkState.ts`, `shell/useWalkLifecycle.ts`, `shell/doors.ts`, `import/drop.ts`,
-`template/useKit.ts`, `template/walk.ts`) between 2026-10-13 and 2026-10-14. These are its sizes
-before and after. Phase evidence: `docs/work-specs/wizard-structure/evidence/phase-s1a.md` to
-`phase-s7.md`. The AI step's own numbers are in `2026-10-14-wizard-ai.md`.
+`template/useKit.ts`, `template/walk.ts`) between 2026-10-13 and 2026-10-14, and S8 moved
+`kitPlan.ts` and `KitTray.tsx` under `template/` with its own contract on 2026-10-15. These are its
+sizes before and after. Phase evidence: `docs/work-specs/wizard-structure/evidence/phase-s1a.md` to
+`phase-s8.md`. The AI step's own numbers are in `2026-10-14-wizard-ai.md`.
 
 ## Instruction chains (AC-7)
 
 Counted as `scripts/check-shared-instructions.mjs` counts a chain: every `AGENTS.md` from the root
 to the edited file's folder, LF-normalised, plus 2 bytes per join. Target: 40,960 bytes
 (`docs/METRICS.md`), reported and not gated. "Before S7" is `origin/main` at `33fa907c4`; between
-S1a and S7 the root contract grew 113 bytes and the AI track moved the step to `wizard/ai/`.
+S1a and S7 the root contract grew 113 bytes and the AI track moved the step to `wizard/ai/`. "After
+S8" is measured from the committed `AGENTS.md` files of the S8 branch, built on `7b25eb2a8`, where
+the S7 column reproduced exactly.
 
-| Edited file | Before S1a | After S1a | Before S7 | After S7 | Over the target |
-|---|---:|---:|---:|---:|---:|
-| `CreationWizard.tsx`, `shell/*`, `template/*` | 58,678 | 34,807 | 34,920 | 33,996 | under |
-| `import/*` | 58,678 | 42,347 | 42,460 | 41,536 | 576 |
-| `steps/*` | 58,678 | 42,867 | 42,338 | 41,414 | 454 |
-| the AI step (`steps/ai/` at S1a, `ai/` after the AI track) | 58,678 | 51,910 | 44,665 | 43,741 | 2,781 |
+| Edited file | Before S1a | After S1a | Before S7 | After S7 | After S8 | Over the target |
+|---|---:|---:|---:|---:|---:|---:|
+| `CreationWizard.tsx`, `shell/*` | 58,678 | 34,807 | 34,920 | 33,996 | 32,333 | under |
+| `template/*` (its own contract from S8) | 58,678 | 34,807 | 34,920 | 33,996 | 34,255 | under |
+| `import/*` | 58,678 | 42,347 | 42,460 | 41,536 | 39,873 | under |
+| `steps/*` | 58,678 | 42,867 | 42,338 | 41,414 | 40,970 | 10 |
+| the AI step (`steps/ai/` at S1a, `ai/` after the AI track) | 58,678 | 51,910 | 44,665 | 43,741 | 42,078 | 1,118 |
 
 S1a split the wizard contract by folder (markers on `import/`, `steps/`, `steps/ai/`). S7 retired
 three rules the walk modules turned into structure (`keep-browse-filter-state-creationwizard-back`,
@@ -29,20 +33,23 @@ lifecycle and kit rules were rescoped to the modules that hold their behaviour; 
 `template/` compile into the same contract, so the rescopes change which files load them, not
 the bytes.
 
-**Next candidates** for the three chains still over 40,960:
+S8 moved `kitPlan.ts` and `KitTray.tsx` under `template/` and gave the folder its own contract.
+The four kit rules (`put-door-each-kit-community-packs` 552, `build-whole-kit-moment-kit-step`
+457, `make-apply-style-all-deterministic-transform` 444, `gate-every-kit-preview-intersection-give`
+210; 1,663 bytes) left the wizard contract (10,443 to 8,780 bytes), so every chain through it
+fell by 1,663. Three of the four also name `steps/` files; before S8 the compiler dropped their
+`steps/` home because its ancestor `wizard/` was one, and now they land in `steps/` and
+`template/` (the `steps/` contract 7,416 to 8,635), so the `steps/` chain fell by only the 444.
+The `template/` contract is the four rules, 1,920 bytes.
 
-- *The template folder move with its marker (optional S8).* With `kitPlan.ts` and `KitTray.tsx`
-  under `template/`, the four kit rules leave the wizard contract (`put-door-each-kit-community-packs`
-  552, `build-whole-kit-moment-kit-step` 457, `make-apply-style-all-deterministic-transform` 444,
-  `gate-every-kit-preview-intersection-give` 210; 1,663 bytes): `import/` falls to about 39,870,
-  the AI step to about 42,080. Three of the four also name `steps/` files and would land in the
-  `steps/` contract, so that chain gains only the 444.
-- *`steps/`:* `wizard/order-entry-step-four-equal-start` (552) is one that
+**Next candidates** for the two chains still over 40,960:
+
+- *`steps/` (10 bytes over):* `wizard/order-entry-step-four-equal-start` (552) is one that
   `npm run audit:instructions` lists as carryable by the spec it names (`e2e/wizard-entry-fit.spec.ts`
   printing it through `rules.text`), which takes it off every loaded surface.
 - *Every capability chain:* `wizard/treat-shared-facet-never-reads-never` (469) is scoped to
   `src/components/wizard/**` but governs the Browse step's format picker; scoped to its files it
-  would leave the `import/` and AI chains.
+  would leave the `import/`, `template/` and AI chains.
 - *The AI step:* beyond the above, its own contract's largest rules
   (`open-create-step-user-own-coding` 642, `name-proven-design-result-adapted-show` 509,
   `keep-smallest-managed-tier-smallest-result` 507) are the AI track's to review.
@@ -104,6 +111,7 @@ length by every phase that shrank it; never raised.
 | S5 walk reducer and lifecycle | 1,661 | 1,661 |
 | S6 the kit | 1,419 | 1,419 |
 | S7 close-out | 1,419 | 1,419 |
+| S8 template folder move | 1,419 | 1,419 |
 
 The AI step's budget (`components-wizard-ai-AiStep.json`) is 1,659, unchanged since the AI track's
 A3.
@@ -114,3 +122,10 @@ A3.
 `CreationWizard.tsx` 53 (50 at the plan's baseline), `shell/walkState.ts` and
 `shell/useWalkLifecycle.ts` 44, `shell/walks.ts` 42, `shell/doors.ts`, `template/useKit.ts` and
 `template/walk.ts` 41, `draft/core.ts` 40, `import/drop.ts` 15.
+
+After S8 (the traced map of `7b25eb2a8`): `template/kitPlan.ts` and `template/KitTray.tsx` 40 each,
+the same 40 specs as at their old paths, because the `src/components/wizard/**` covers headers
+select them and the traced map named only `wizard-finish` and `wizard-kit` (already in) for
+`kitPlan.ts` and kept `KitTray.tsx` broad. `template/KitConfirms.tsx` 40, `steps/KitPicker.tsx` 62;
+every other width above unchanged except `import/drop.ts`, now 34 because the nightly's traced map
+has grown since S7.

@@ -1,6 +1,6 @@
 ---
 v: 1
-scope: src/components/wizard/kitPlan.ts
+scope: src/components/wizard/template/kitPlan.ts
 kind: rule
 fires: contract
 status: retired

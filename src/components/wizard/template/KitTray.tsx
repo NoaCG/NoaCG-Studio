@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import MiniPreview from './MiniPreview';
+import MiniPreview from '../MiniPreview';
 import type { KitPlan } from './kitPlan';
 
 /**

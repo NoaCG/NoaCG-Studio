@@ -30,7 +30,7 @@ import { NO_BROWSE_FILTERS, type BrowseFilters } from '../../../templates/browse
 import type { TemplatePack } from '../../../templates/packs';
 import { initialDraft, mergeDraft, type DraftPatch, type WizardDraft } from '../draft/core';
 import { brandClearPatch, brandOrClearPatch, brandPatch } from '../draft/template';
-import { commitKitGraphic, rebrandKit, type KitPlan } from '../kitPlan';
+import { commitKitGraphic, rebrandKit, type KitPlan } from '../template/kitPlan';
 import type { BuildMode } from '../steps/BrowseStep';
 import { slugIndex, stepIndex, walkOf, type WizardMode } from './walks';
 
@@ -499,7 +499,7 @@ export function reduce(state: WalkState, action: WalkAction): WalkState {
       const brandId = next ? action.id : null;
       // THE BRAND REACHES EVERY GRAPHIC OF A KIT, not only the one on screen: the set is built up
       // front, so every graphic's answers take it - and None hands each one back the kit's own
-      // palette rather than no palette at all (wizard/kitPlan.ts).
+      // palette rather than no palette at all (wizard/template/kitPlan.ts).
       // A kit held while another walk is on screen takes the brand too, and the draft in hand
       // stays that walk's.
       const draft = mergeDraft(state.draft, next ? brandPatch(next) : brandClearPatch());

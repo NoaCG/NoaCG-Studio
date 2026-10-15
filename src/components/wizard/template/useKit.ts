@@ -5,7 +5,7 @@
  * Style and lands on the kit's Finish step, which is its HUB - every graphic laid out, any of
  * them one click from editing, and the production doors below. Editing is not a walk: the
  * ordinary Fields/Style/Animation steps configure whichever graphic is open, the tray jumps
- * between graphics on the same step, and each graphic keeps its own answers (wizard/kitPlan.ts).
+ * between graphics on the same step, and each graphic keeps its own answers (wizard/template/kitPlan.ts).
  * `kit.built` is always the whole set - the tray, the hub and the save all read it.
  *
  * The kit's picker and plan are the walk's (shell/walkState.ts); this hook owns only what is on
@@ -25,7 +25,7 @@ import {
   defaultSelectionFor,
   kitKeys,
   reconcileKit,
-} from '../kitPlan';
+} from './kitPlan';
 import type { makeDoors, SaveSet } from '../shell/doors';
 import { activeKit, committedKit, isKitEditStep, type WalkAction, type WalkState } from '../shell/walkState';
 import { stepAfter, type WalkSpec } from '../shell/walks';
@@ -240,7 +240,7 @@ export function useKit({ state, dispatch, walk, brand }: KitArgs) {
       if (kit) dispatch({ type: 'kitPick', pack: kit.pack, selected: kitKeys(kit) });
     },
     /** "Apply this Style to all": the open graphic's Style reaches every other graphic in the kit
-     *  through the `:root` contract (wizard/kitPlan.ts `applyStyleToKit`). */
+     *  through the `:root` contract (wizard/template/kitPlan.ts `applyStyleToKit`). */
     applyAsk: applyAsk && kit ? { kit: kit.pack.name, others: kit.items.length - 1 } : null,
     applyStyle: () => {
       setApplyAsk(false);

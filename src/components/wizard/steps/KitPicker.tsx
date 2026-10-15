@@ -4,7 +4,7 @@ import { kitChoices, kitItemFor, kitSize, type KitChoice } from '../../../templa
 import type { TemplateVariant } from '../../../model/wizard';
 import { paletteById } from '../../../model/wizard';
 import type { Palette } from '../../../model/templateVocabulary';
-import { kitPaletteFor } from '../kitPlan';
+import { kitPaletteFor } from '../template/kitPlan';
 import MiniPreview from '../MiniPreview';
 
 /** The palette a kit builds this design in (`kitPaletteFor`), as the value a preview takes. */

@@ -636,15 +636,19 @@ the shell still owns the state; each is removed in the phase that moves that sta
    `docs/metrics/<date>-wizard-shell.md`, `scripts/metrics/cochange.mjs`, the budgets, the rule
    files through `npm run learn` and the regenerated contracts, `CreationWizard.tsx:100` if A4
    landed, `evidence/*`. Lands after the child's A5 when that track is running (section 8).
+10. **S8. Template folder move** (AC-2, AC-9, AC-11). Added by the owner on 2026-10-15 (phase
+   notes). Files: `kitPlan.ts` and `KitTray.tsx` moved under `template/`, their importers, the
+   covers and guards headers and e2e loaders that name them, rule scopes and the regenerated
+   contracts, the `template/` marker, `.dependency-cruiser.cjs`, `docs/ARCHITECTURE.md` section 8,
+   the metrics file, `evidence/phase-s8.md`. No logic change.
 
 Optional, added to this list by the owner after reading S6 and S7:
 
-- **S8. Template folder move** (AC-2, AC-9, AC-11). Files: the moved template files and
-  `kitPlan.ts` under `template/`, covers headers, rule scopes, `.dependency-cruiser.cjs`, the
-  marker, `docs/ARCHITECTURE.md` section 8. No logic change.
 - **S9. Capability `Steps` components** (AC-2, AC-8, AC-9). Only if S6's probe still named the
   shell for a template-only change. Files: `template/TemplateSteps.tsx`,
-  `import/ImportSteps.tsx`, `CreationWizard.tsx`.
+  `import/ImportSteps.tsx`, `CreationWizard.tsx`. Not joining (owner, 2026-10-15): re-read
+  `npm run metrics:cochange` after 2 to 4 weeks of real work on the new layout, and add S9 only
+  if Template or Import capability commits still touch `CreationWizard.tsx` (S8's phase notes).
 
 ## What the plan can demonstrate, and what stays uncertain
 
@@ -668,6 +672,63 @@ evidence; the baseline recorded.
 Each phase's pull request adds here what the next phase must allow for, newest first: the
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 and the check's findings. The AI track's notes live in its own spec.
+
+### S8. Template folder move (built 2026-10-15)
+
+- **Check's findings (S7 check: PASS on `origin/main` `7b25eb2a8`).** Chains reproduced at
+  `9dfb0f25f` and `7b25eb2a8` (shell 33,996; `import/` 41,536; `steps/` 41,414; AI 43,741; each
+  -924); `contracts:compile` no diff, `check:contracts` 562 rules, `audit:instructions` lists of
+  the wizard rules only `order-entry-step-four-equal-start`, already a named candidate; the
+  co-change table reproduced at `33fa907c4` under both matchers; the budget history only goes
+  down, 1,419 of 1,419; ARCHITECTURE sections 5 and 8 match the code (counter 15 of 48, widths
+  13/60/15/40/53/44/42/41/15); the lazy import is `ai/AiStep`; merge group 38633403216 on
+  `9dfb0f25f` ran the 56-spec plan with 0 failures and main 38685471623 is green. Carried: the
+  comment at `e2e/wizard-shell.spec.ts:444` cites the retired
+  `wizard/resolve-deep-linked-through-hit-apply` (left: see decisions); #1227 still open; the
+  checker ran neither depcruise nor the wizard Node tests locally (no `node_modules`), CI Build
+  and Factory did.
+- **Owner decisions (2026-10-15).** S8 joins the phase list as phase 10: it takes the four kit
+  rules off the wizard contract (instruction weight, the AC-7 target) and is mechanical and low
+  risk. S9 does not join: revisit after 2 to 4 weeks of real work on the new layout with
+  `npm run metrics:cochange`, and add S9 only if Template or Import capability commits still
+  touch `CreationWizard.tsx`. The Skip-to-finish gate (probe answer 1) may be fixed alone, in its
+  own pull request, if it bites.
+- **Shas:** previous verified `main` `7b25eb2a8` (S7's check); built from `7b25eb2a8`. This
+  phase's merge sha is the one the queue records. **Revert:** `git revert -m 1` this phase's merge
+  commit, then `npm run contracts:compile` and commit what it changes (the `.claude/rules` files
+  renamed with the scopes, and the `template/` contract it no longer owns once the marker is gone).
+- **What landed** (`evidence/phase-s8.md`): `kitPlan.ts` and `KitTray.tsx` under `template/`
+  (git renames; only their relative imports changed), the four importers and two path comments,
+  the Node tests' paths and `// guards:` header, `e2e/wizard-kit.spec.ts`'s two Vite-path loaders,
+  `docs/PACK_TAXONOMY.md`'s path; nine rule scopes (four active, five retired) and the recompile;
+  the `template/` marker; the `.dependency-cruiser.cjs` rule `wizard-template-only-from-the-walk`;
+  `docs/ARCHITECTURE.md` section 8; the metrics file. Chains after S8: shell 32,333, `template/`
+  34,255, `import/` 39,873 (under 40,960), `steps/` 40,970, the AI step 42,078. Plan widths:
+  `template/kitPlan.ts` and `template/KitTray.tsx` 40 each, the same specs as at the old paths.
+  Budget 1,419, unchanged (AC-10).
+- **Decisions** (each revertible by the revert above):
+  - *D13's "extends it to `template/`" is a sibling rule, not the index rule widened.* `template/`
+    has no `index.ts`, and a barrel would put `useKit` (react) and `KitTray` (JSX) into every
+    Node bundle that loads `shell/walks.ts` or `shell/walkState.ts`, and close a cycle with
+    `template/walk.ts`'s type import of `shell/walks.ts`. The rule names the callers instead: the
+    shell, `shell/` and `steps/` may import `template/`; `import/`, `ai/`, `draft/` and everything
+    outside the wizard may not. A mutation (a `kitPlan` import in `import/drop.ts`) is refused.
+  - *Retired rules were rescoped too*, so `contracts/index.md` names paths that exist and a
+    revived rule loads where its code is.
+  - *The `e2e/wizard-shell.spec.ts:444` comment stays.* That spec's covers header did not change,
+    and editing the quarantined spec (#1160) would make it blocking in this plan for a comment.
+  - *No `npm run learn` observation.* S7 recorded one for a rule pass of retirements with reasons;
+    here every scope edit is a path rename, which the rule files' history shows.
+  - *`docs/GOALS_ARCHIVE.md` and the evidence and record files keep the old paths:* they are
+    history.
+- **For whoever re-reads co-change (S9's revisit):** a template-only commit now touches
+  `template/` alone; `scripts/metrics/cochange.mjs` already counts `template/` as the template
+  capability's prefix, so no matcher change is needed. `steps/` is 10 bytes over 40,960: the
+  first candidate in the metrics file (`order-entry-step-four-equal-start`, 552) takes it under.
+- **Traps:** a rule whose globs span `template/` and `steps/` now lands in both contracts, where
+  before the move the compiler dropped the `steps/` home under its `wizard/` ancestor; a scope
+  that adds a `wizard/` file again pulls the rule back into the wizard contract. The command guard
+  refuses `xargs` feeding `sed -i`; loop over the files instead.
 
 ### S7. Close-out (built 2026-10-14)
 
