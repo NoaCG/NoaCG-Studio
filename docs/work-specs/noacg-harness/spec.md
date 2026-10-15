@@ -956,6 +956,75 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H6 check (2026-10-15, on `06acc2e34`)
+
+- **Verdict: FAIL product.** The round itself holds; the configuration it hands H7 does not. Checked
+  on `main` `06acc2e34` (H6 merged from PR #1252); no product code changed, no credit spent, no
+  session created. One `claude -p` re-judgement on the subscription ($1.59 notional, not in the
+  ledger).
+- **Blocker: agent v5 on the bench still carries the critic.** A free read of
+  `agent_0183yBA1miijGFNvm5bkMv6B` shows v5 with v4's `multiagent` block (the critic
+  `agent_01HSHf5nbrnRVkTx591MJNJj` v1 as a predefined subagent, enabled); v3 has `multiagent: null`.
+  v5's system prompt and tools equal v3's. The cause is in the sync: `agentCreateBody` sets
+  `multiagent` only when the definition has one, and `agents.update` keeps a field it is not sent,
+  so dropping the block removed nothing on the server. The lock's `c47526c8...` is the hash of the
+  local files, and the sync's plan compares only files to the lock, so it reports nothing to do.
+  H7 as carried (Sonnet 5.5 "on agent v5, no critic") would run with an Opus critic in the roster.
+  Fix before H7 spends: clear the block on update (or create a fresh agent), re-sync, and read the
+  new version back from the server to confirm `multiagent` is null; a test that an update without
+  subagents sends the clearing value. A stopgap is `--agent-version 3` (same prompt, tools and skill
+  bytes, `7f130e3e...`).
+- **Also on the bench:** one CLI upload is still there (`file_01QppTruKxMVpKQdtubuC9Lc`,
+  `noacg-cli-0.11.0.tgz`, created 08:31:08Z, the first H6 run's), against "the CLI upload deleted".
+  It costs nothing; delete it with the fix. The likely cause is the stopped run, which never reached
+  its cleanup.
+- **Order (AC-6):** `fc693944f` and `c9f1a27f7` committed 08:27:33Z and 08:27:34Z, `ed28a2320`
+  08:29:11Z, and its first check run started 08:29:23Z, so it was on GitHub before the first
+  session's first event (08:31:09Z). `108c85147` (the cut) had checks at 08:45:51Z, before the next
+  new session (live vote, 08:58:38Z). The scoreboard session began at 08:42:32Z, before the cut, as
+  recorded. The PR timeline shows nine commits and no force push.
+- **Spend:** the ledger sums to 1,898 cents (H3 266, H5 624, H6 1,008: 304, 301, 312, 91);
+  `T` = 10,000 - 1,898 - 4,660 = 3,442. From a copy of the raw events: per thread, requests,
+  images, largest request and minimum cache read are as `phase-6.md` says (author + critic: 25 + 35,
+  36 + 31, 37 + 25; control 21). The only lapse is the news lower third's $0.4105 rewrite of 76,947
+  tokens after the author sat idle 332 s (request end to next start) waiting on the critic. Each
+  session's priced tokens plus running time give its list cost. All four sessions 404, with no
+  files scoped to them.
+- **Verdict figures:** 12 judgement lines, 7 singles and 5 pairs, $50.90 notional. The judge files
+  hash to the lock as committed. Re-tallied: news lower third a tie (each order preferred the
+  first shown); scoreboard harness, high; live vote harness (critic and control), medium; the
+  control over the critic arm in both orders. Re-judging the control alone gave airable, no basic
+  mistake (medium, was high). Its Update frame shows labels shrunk to fit, without overlap.
+- **The fix and #1251:** the CLI diff touches only a `Label | value` line. Among the H5 and H6
+  captures only the live-vote cells hold a `|` value. The fixed `coverage` on H5's live-vote zip
+  now shows every option wrapped in the long and Update frames. Re-shot with five options and a
+  `33.33` leader, the critic arm's live vote clips LEADING to "LEADINC" (#1251 is real), and the
+  control's holds.
+- **Tests and scope:** `harness-bench.test.mjs` 36 of 36, `cli/test/coverage.test.mjs` 9 of 9;
+  `--control` run directly after `cli/` was built: CONTROL PASSED at $0. The merge changes no
+  `cli/skill/`, `src/` or `api/` file. In `agents/` only `agent.md`'s comment and the lock changed.
+  The system prompt is 15 lines on the server.
+- **The departures, judged:**
+  - *The fix and the critic in one round:* acceptable. The fix was decided in writing before any
+    spend. It changes only the live vote's matrix, and the no-critic control isolates it there.
+  - *300 cents against 224:* recorded before the first session, and it does not change the
+    outcome. The critic thread alone ($1.31 to $1.68) plus an author thread (at least $1.36) is
+    above $1.56 a graphic at any budget, so the cost rule drops the critic either way.
+  - *The cut briefs:* recorded and pushed before the next new session. The drop was already
+    settled by cost, and the control was the only reading left that the round needed.
+  - *The composite progress claim* is arithmetically right (99 + 133 + 88 + 189 + 91 = $6.00 over
+    5 accepted; 3-1-1), but it rests on one live-vote sample and credits the round with a change
+    that was not its variable. Read strictly, the critic round made no progress, and H7 without
+    progress would be the second round in a row (5.5). H7 should state which reading it applies
+    before it spends. Its fresh five-brief Sonnet measurement settles it either way.
+  - *Reserve and `o`:* they follow 5.2. The critic is dropped, so there is no critic share. The one
+    larger request came from a wait the winning configuration never has: the control's longest gap
+    was 24 s.
+- **Carry for H7:** fix and verify the agent's roster on the server first (above). Then run as
+  carried: Sonnet 5.5 on the five briefs, 224 cents, `--ceiling-cents 1500`, no `--critic-cents`.
+  Name the stop-rule reading, and compare Update ops before judging pairs. The live vote's
+  five-option state is outside every frame until #1251 lands.
+
 ### H6. Tuning round 2: the fresh-eyes critic (built 2026-10-15)
 
 - **Check's findings (H5, on `4a089f9bb`):** AC-6, AC-16, AC-17 and the round ceiling hold: the
