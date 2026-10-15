@@ -306,12 +306,16 @@ export default function ProductionsSection({
     text: string,
     report: (message: string | null) => void = setPackNote,
     beforeOpen?: (show: Show) => Promise<void>,
+    /** The tool that sent a waiting package: what its graphics' records name when the package
+     *  carries no origin, so a later Install of the same graphics can say they may be there. */
+    sentBy?: string,
   ) => {
     setPackBusy(label);
     report(null);
     try {
       const { pack, error } = parsePack(text);
       if (!pack) throw new Error(error ?? 'That file is not a NoaCG graphics pack.');
+      if (sentBy) for (const g of pack.graphics) g.origin ??= { tool: sentBy };
       const show = await installPack(pack);
       trackEvent('activation', 'pack');
       await beforeOpen?.(show);
@@ -356,7 +360,7 @@ export default function ProductionsSection({
       const { error } = await settleWaitingPackage(p.id, show.id);
       if (error) setWaitingNote(`Installed, but the package could not be marked installed (${error}).`);
       else setWaiting((list) => list.filter((w) => w.id !== p.id));
-    });
+    }, p.tool);
   };
 
   const dismissWaiting = async (p: WaitingPackage) => {

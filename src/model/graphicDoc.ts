@@ -101,6 +101,22 @@ export interface GraphicOrigin {
 /** A delivered item's identity: a hex sha256, as the CLI writes it. */
 export const ITEM_IDENTITY = /^[0-9a-f]{64}$/;
 
+/** An `origin` as a record or a pack entry carries it, narrowed to tool, version and item; null
+ *  when there is none, or the reason it is not one. The save and package doors refuse on the
+ *  reason; a pack file read in the studio drops an unreadable origin. */
+export function shapeOrigin(raw: unknown): GraphicOrigin | null | string {
+  if (raw === undefined || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof raw !== 'object' || Array.isArray(raw) || typeof o.tool !== 'string' || !o.tool || o.tool.length > 40) return '`origin.tool` must be a short string.';
+  if (o.version !== undefined && (typeof o.version !== 'string' || o.version.length > 40)) return '`origin.version` must be a short string.';
+  if (o.item !== undefined && (typeof o.item !== 'string' || !ITEM_IDENTITY.test(o.item))) return '`origin.item` must be a hex sha256.';
+  return {
+    tool: o.tool,
+    ...(typeof o.version === 'string' ? { version: o.version } : {}),
+    ...(typeof o.item === 'string' ? { item: o.item } : {}),
+  };
+}
+
 /** Where a community pack's graphic came from: the shelf's pack id (a seed's slug, or
  *  `community:<lineage>` for a shared pack), its version, the name it was published under and,
  *  on stamps written since the design lock, the pack's own name. */

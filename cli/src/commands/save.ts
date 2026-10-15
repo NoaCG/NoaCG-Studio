@@ -191,6 +191,8 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
   // A deployment from before the production destination reads only the graphics: the set is in the
   // library, but no production was made - which is not what was asked, so it is not `ok`.
   if (opts.production && !sent.production) {
+    // Saved under a library-only hash: the same command after an upgrade must not meet it as a conflict.
+    await forgetOperation(fingerprint, operationId);
     return {
       ok: false,
       reason: 'no-production',
@@ -222,7 +224,8 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
       ...(deleted ? [`${deleted} of its graphics ${deleted === 1 ? 'was' : 'were'} deleted since`] : []),
       ...(productionGone ? ['its production was deleted since'] : []),
     ].join(' and ');
-    const error = `This set was saved earlier under operation ${operationId}, and ${gone}, so it is not all there. Run the same save again to deliver the whole set again as a new delivery.`;
+    const kept = deleted === 0 ? ' Its graphics are still in the library: add them to a production in the studio, or run the same save again for a new delivery, which saves another copy of each.' : ' Run the same save again to deliver the whole set again as a new delivery.';
+    const error = `This set was saved earlier under operation ${operationId}, and ${gone}, so it is not all there.${kept}`;
     return { ...outcome, ok: false, reason: 'deleted', error };
   }
   return outcome;
@@ -300,7 +303,9 @@ export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
   refuseBareFlags(args, ['production', 'rundown', 'layer']);
   const productionName = flagString(args, 'production');
   const rundownFile = flagString(args, 'rundown');
-  const layers = flagList(args, 'layer').flatMap((v) => v.split(',')).map((n) => Number(n));
+  // As `pack` reads it: one number is the first graphic's layer, the rest counting up.
+  const listed = flagList(args, 'layer').flatMap((v) => v.split(',')).map((n) => Number(n));
+  const layers = listed.length === 1 ? inputs.map((_, i) => listed[0] + i) : listed;
   if ((rundownFile || layers.length) && productionName === undefined) throw new UsageError('--rundown and --layer describe a production: add --production "<its name>".');
   const opts: SaveOptions = {
     name: flagString(args, 'name'),

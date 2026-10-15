@@ -168,7 +168,9 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
     }
     const layer = layers.length === 1 ? layers[0] + i : layers[i];
     const entry = await bridge.packEntry(template, Number.isFinite(layer) ? { layer } : {});
-    graphics.push({ ...entry, origin: { tool: 'noacg-cli', version: cliVersion(), item: itemIdentity(template) } });
+    // The identity `save` gives the same graphic: over its normalized sources, sent or not.
+    const item = itemIdentity(opts.save ? template : (await bridge.normalize(template)).template);
+    graphics.push({ ...entry, origin: { tool: 'noacg-cli', version: cliVersion(), item } });
     templates.push(template);
   }
   if (failures.length) {

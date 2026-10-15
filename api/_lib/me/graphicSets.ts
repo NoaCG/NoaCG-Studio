@@ -94,6 +94,7 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
       const ip = checkAgentSaveIpRateLimit(req);
       if (ip) return apiError('rate_limited', 'Too many requests - slow down.', 429, {}, { 'retry-after': String(ip.retryAfterSec) });
 
+      let wantsProduction = false;
       try {
         const principal = await resolvePrincipal(req, { store: deps.store, configured });
         if (!principal.userId) {
@@ -149,6 +150,7 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
           const shaped = productionRequestShape(asked, docs.map((d) => d.name));
           if (!shaped.ok) return refusedSet(shaped.reason);
           request = shaped.request;
+          wantsProduction = true;
         }
         const mint = deps.uuid ?? randomUUID;
         const production = request
@@ -198,7 +200,7 @@ export function createGraphicSetsHandler(deps: GraphicsDeps = {}): { fetch(req: 
         // The code is here before its migration: answer as a deployment without the door, which a
         // CLI saving one graphic meets by using the single save door instead.
         if (e instanceof SetDoorUnavailable) {
-          const what = e.message.includes('agent_deliver_production') ? 'make a production in a delivery' : 'take a set of graphics in one delivery';
+          const what = wantsProduction ? 'make a production in a delivery' : 'take a set of graphics in one delivery';
           return apiError('not_found', `This NoaCG cannot ${what} yet. Nothing was saved.`, 404);
         }
         console.error('[agent-set]', e instanceof Error ? e.message : e);

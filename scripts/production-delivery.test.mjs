@@ -63,32 +63,38 @@ test('an ordered rundown interleaves graphics, values over the defaults, and a g
 });
 
 const ITEM = (c) => c.repeat(64);
+const code = (name) => ({ html: `<p>${name}</p>`, css: '', js: '' });
 const library = [
-  { id: 'lib-a', name: 'Strap', origin: { tool: 'noacg-cli', item: ITEM('a') } },
-  { id: 'lib-b', name: 'Score', origin: { tool: 'noacg-cli', item: ITEM('b') } },
-  { id: 'lib-old', name: 'Clock', origin: { tool: 'noacg-cli' } },
-  { id: 'lib-studio', name: 'Bug' },
-  { id: 'lib-gone', name: 'Ticker', deleted: true, origin: { tool: 'noacg-cli', item: ITEM('d') } },
+  { id: 'lib-a', name: 'Strap', origin: { tool: 'noacg-cli', item: ITEM('a') }, template: code('Strap') },
+  { id: 'lib-b', name: 'Score', origin: { tool: 'noacg-cli', item: ITEM('b') }, template: code('Score') },
+  { id: 'lib-old', name: 'Clock', origin: { tool: 'noacg-cli' }, template: code('Clock') },
+  { id: 'lib-studio', name: 'Bug', template: code('Bug') },
+  { id: 'lib-gone', name: 'Ticker', deleted: true, origin: { tool: 'noacg-cli', item: ITEM('d') }, template: code('Ticker') },
+  { id: 'lib-edited', name: 'Lower', origin: { tool: 'noacg-cli', item: ITEM('g') }, template: { ...code('Lower'), css: '.x{color:red}' } },
 ];
+const item = (name, c) => ({ name, origin: c ? { item: ITEM(c) } : undefined, template: code(name) });
 
-test('a delivered copy is found by its item identity, never by its name', () => {
-  assert.equal(deliveredCopy({ item: ITEM('a') }, library)?.id, 'lib-a');
-  assert.equal(deliveredCopy({ item: ITEM('d') }, library), null, 'a deleted record is not a copy');
-  assert.equal(deliveredCopy({ item: ITEM('e') }, library), null);
-  assert.equal(deliveredCopy(undefined, library), null, 'no identity, no match - whatever the name');
+test('a delivered copy is found by its item identity and unchanged code, never by its name', () => {
+  assert.equal(deliveredCopy(item('Strap', 'a'), library)?.id, 'lib-a');
+  assert.equal(deliveredCopy(item('Ticker', 'd'), library), null, 'a deleted record is not a copy');
+  assert.equal(deliveredCopy(item('Strap', 'e'), library), null);
+  assert.equal(deliveredCopy(item('Strap'), library), null, 'no identity, no match - whatever the name');
+  assert.equal(deliveredCopy(item('Lower', 'g'), library), null, 'edited since: the user\'s work now, not the package\'s graphic');
 });
 
 test('installing again names the production the delivery became, or the graphics identity cannot speak for', () => {
   const made = { id: 'show-1', deleted: false, graphics: [{ graphicId: 'lib-a' }, { graphicId: 'lib-b' }] };
-  const both = [{ name: 'Strap', origin: { item: ITEM('a') } }, { name: 'Score', origin: { item: ITEM('b') } }];
+  const both = [item('Strap', 'a'), item('Score', 'b')];
   assert.deepEqual(deliveryOverlap(both, library, [made]), { production: made, unidentified: [] });
   assert.deepEqual(deliveryOverlap(both, library, [{ ...made, deleted: true }]), { production: null, unidentified: [] }, 'a deleted production is not one');
   assert.deepEqual(deliveryOverlap(both.slice(0, 1), library, []), { production: null, unidentified: [] }, 'found by identity: Install pools it, no word needed');
 
   // No identity on the package: a same-named record made outside the studio may be this graphic.
-  assert.deepEqual(deliveryOverlap([{ name: 'Strap' }, { name: 'Bug' }, { name: 'New' }], library, [made]).unidentified, ['Strap']);
+  assert.deepEqual(deliveryOverlap([item('Strap'), item('Bug'), item('New')], library, [made]).unidentified, ['Strap']);
   // No identity on the library record (an older CLI's save): the same.
-  assert.deepEqual(deliveryOverlap([{ name: 'Clock', origin: { item: ITEM('c') } }], library, []).unidentified, ['Clock']);
+  assert.deepEqual(deliveryOverlap([item('Clock', 'c')], library, []).unidentified, ['Clock']);
+  // The same identity, edited since: it may be there, so the user is asked.
+  assert.deepEqual(deliveryOverlap([item('Lower', 'g')], library, []).unidentified, ['Lower']);
   // Both carry identities and they differ: different work, however alike the names.
-  assert.deepEqual(deliveryOverlap([{ name: 'Strap', origin: { item: ITEM('f') } }], library, []).unidentified, []);
+  assert.deepEqual(deliveryOverlap([item('Strap', 'f')], library, []).unidentified, []);
 });

@@ -167,13 +167,30 @@ export function deliveredProduction(input: {
 
 // ── The same delivery, installed again (spec AC-9) ───────────────────────────────────────────
 
+/** A graphic's code, as much of it as "is it still the same graphic" needs. */
+interface Code {
+  html: string;
+  css: string;
+  js: string;
+}
+
 /** A library record, as much of it as identity needs. */
 interface LibraryItem {
   id: string;
   name: string;
   deleted?: boolean;
   origin?: { tool: string; item?: string } | null;
+  template: Code;
 }
+
+/** A graphic a package carries: its name, origin and code. */
+interface PackageItem {
+  name: string;
+  origin?: { item?: string };
+  template: Code;
+}
+
+const sameCode = (a: Code, b: Code): boolean => a.html === b.html && a.css === b.css && a.js === b.js;
 
 /** A production, as much of it as "does it pool these graphics" needs. */
 interface PoolingProduction {
@@ -182,11 +199,12 @@ interface PoolingProduction {
 }
 
 /** The library record that IS this graphic, delivered earlier: the same item identity
- *  (graphicDoc.ts GraphicOrigin). Never a name match - two graphics may share a name and be
+ *  (graphicDoc.ts GraphicOrigin) and still the same code - a record edited since is the user's
+ *  work now, not the package's graphic. Never a name match: two graphics may share a name and be
  *  different work. */
-export function deliveredCopy<T extends LibraryItem>(origin: { item?: string } | undefined, library: readonly T[]): T | null {
-  const item = origin?.item;
-  return item ? library.find((d) => !d.deleted && d.origin?.item === item) ?? null : null;
+export function deliveredCopy<T extends LibraryItem>(graphic: Pick<PackageItem, 'origin' | 'template'>, library: readonly T[]): T | null {
+  const item = graphic.origin?.item;
+  return item ? library.find((d) => !d.deleted && d.origin?.item === item && sameCode(d.template, graphic.template)) ?? null : null;
 }
 
 /**
@@ -195,20 +213,23 @@ export function deliveredCopy<T extends LibraryItem>(origin: { item?: string } |
  *   - `production`: every graphic is already in the library from its delivery, and a production
  *     already pools all of them - the delivery became a production already;
  *   - `unidentified`: graphics the identity cannot speak for - the package's graphic or the library
- *     record of the same name, made outside the studio, carries no item identity - so a library
- *     graphic of that name MAY be this one. Named for the user, never merged.
+ *     record of the same name, made outside the studio, carries no item identity, or the record
+ *     with its identity was edited since - so a library graphic MAY be this one. Named for the
+ *     user, never merged.
  * A graphic the identity finds needs no word: Install pools the library record instead of saving a
  * second copy.
  */
 export function deliveryOverlap<S extends PoolingProduction>(
-  graphics: ReadonlyArray<{ name: string; origin?: { item?: string } }>,
+  graphics: readonly PackageItem[],
   library: readonly LibraryItem[],
   productions: readonly S[],
 ): { production: S | null; unidentified: string[] } {
-  const found = graphics.map((g) => deliveredCopy(g.origin, library));
-  const unidentified = graphics
-    .filter((g, i) => !found[i] && library.some((d) => !d.deleted && d.name === g.name && d.origin && !(d.origin.item && g.origin?.item)))
-    .map((g) => g.name);
+  const found = graphics.map((g) => deliveredCopy(g, library));
+  // Not found, yet maybe there: the same item edited since, or a same-named record made outside the
+  // studio where either side has no identity to tell.
+  const mayBe = (g: PackageItem, d: LibraryItem): boolean =>
+    !d.deleted && ((!!g.origin?.item && d.origin?.item === g.origin.item) || (d.name === g.name && !!d.origin && !(d.origin.item && g.origin?.item)));
+  const unidentified = graphics.filter((g, i) => !found[i] && library.some((d) => mayBe(g, d))).map((g) => g.name);
   const ids = found.flatMap((d) => (d ? [d.id] : []));
   const production = ids.length === graphics.length
     ? productions.find((p) => !p.deleted && ids.every((id) => p.graphics.some((e) => e.graphicId === id))) ?? null

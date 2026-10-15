@@ -112,7 +112,7 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
     const own = rows.filter((r) => r.operationId === operationId && r.keyId === writer);
     // A set delivered with a production names it on each graphic's row: asked about once.
     const madeProduction = own.find((r) => r.kind === 'graphic' && r.productionId)?.productionId ?? null;
-    const productionPresent = madeProduction ? store.resourcePresent(principal.userId, 'production', madeProduction) : null;
+    const productionPresent = madeProduction ? await store.resourcePresent(principal.userId, 'production', madeProduction) : null;
     const checked = await Promise.all(
       own.map(async (row) => ({
         ...row,
@@ -121,7 +121,7 @@ export function createDeliveriesHandler(deps: DeliveriesDeps = {}): { fetch(req:
           row.state === 'installed'
             ? !(row.productionId && (await store.productionDeleted(row.userId, row.productionId)))
             : await store.resourcePresent(row.userId, row.kind, row.resourceId),
-        ...(row.kind === 'graphic' && productionPresent ? { productionPresent: await productionPresent } : {}),
+        ...(row.kind === 'graphic' && productionPresent !== null ? { productionPresent } : {}),
       })),
     );
     const receipt = buildReceipt({

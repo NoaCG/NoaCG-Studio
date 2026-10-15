@@ -35,7 +35,7 @@ import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc, packStam
 import { applyLookToTemplate, loadLooks } from '../model/packets';
 import type { ProjectBrand } from '../model/brand';
 import { templateFromRecipe, type TemplateRecipe } from '../templates/types/recipeTemplate';
-import { ITEM_IDENTITY, readPackStamp, type GraphicOrigin, type PackStamp } from '../model/graphicDoc';
+import { readPackStamp, shapeOrigin, type GraphicOrigin, type PackStamp } from '../model/graphicDoc';
 import { isProductionSounds } from '../assets/productionSounds';
 import { rememberSound, soundBlob, materializeSoundAssets, isSoundAssetRef } from '../assets/soundAssets';
 import { fileToDataUrl as blobToDataUrl, dataUrlToBlob } from '../assets/assetUtils';
@@ -297,7 +297,8 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
     };
 
     const stamp = readPackStamp(entry.fromPack);
-    const origin = readOrigin(entry.origin);
+    const shapedOrigin = shapeOrigin(entry.origin);
+    const origin = typeof shapedOrigin === 'string' ? null : shapedOrigin;
     graphics.push({
       template,
       ...(stamp ? { fromPack: stamp } : {}),
@@ -358,16 +359,6 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
   };
 }
 
-/** A pack entry's origin, or null when it carries none worth keeping. */
-function readOrigin(v: unknown): GraphicOrigin | null {
-  if (!isRecord(v) || typeof v.tool !== 'string' || !v.tool.trim()) return null;
-  return {
-    tool: v.tool.slice(0, 40),
-    ...(typeof v.version === 'string' && v.version ? { version: v.version.slice(0, 40) } : {}),
-    ...(typeof v.item === 'string' && ITEM_IDENTITY.test(v.item) ? { item: v.item } : {}),
-  };
-}
-
 /**
  * What installing this pack would repeat (model/productionDelivery.ts `deliveryOverlap`): the
  * production its delivery already became, or graphics a library copy of the same name may be.
@@ -378,7 +369,7 @@ export function installOverlap(
   library: readonly GraphicDoc[] = loadGraphics(),
   shows: readonly Show[] = loadShows(),
 ): { production: Show | null; unidentified: string[] } {
-  return deliveryOverlap(pack.graphics.map((g) => ({ name: g.template.name, origin: g.origin })), library, shows);
+  return deliveryOverlap(pack.graphics.map((g) => ({ name: g.template.name, origin: g.origin, template: g.template })), library, shows);
 }
 
 /** A graphic's prepared cues as the file carries them; a row without a label is skipped. */
@@ -536,7 +527,7 @@ export async function installPack(
     pack.name,
     dest ?? { kind: 'new', name: pack.name },
     pack.graphics.map((g) => fromPack ?? g.fromPack),
-    { reuse: pack.graphics.map((g) => deliveredCopy(g.origin, library)), origins: pack.graphics.map((g) => g.origin) },
+    { reuse: pack.graphics.map((g) => deliveredCopy(g, library)), origins: pack.graphics.map((g) => g.origin) },
   );
 
   // The pack's playout intent, applied over the defaults the pool assign gave. Pool entries

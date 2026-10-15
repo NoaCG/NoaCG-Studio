@@ -15,7 +15,9 @@
 // parsed in the browser, and the server re-stamps what a server must own (id, timestamps,
 // origin) and stores nothing it did not check the shape of.
 
-import { isGraphicDocShape, ITEM_IDENTITY, type GraphicDocBase, type GraphicOrigin } from '../../../src/model/graphicDoc.js';
+import { isGraphicDocShape, shapeOrigin, type GraphicDocBase } from '../../../src/model/graphicDoc.js';
+
+export { shapeOrigin };
 import { DEFAULT_SETTINGS, TEMPLATE_TYPE_LABELS, type TemplateType } from '../../../src/model/types.js';
 
 /** The caps, in bytes of STRING LENGTH (a UTF-16 unit each - close enough to wire bytes for a
@@ -159,20 +161,6 @@ export function graphicSaveShape(body: unknown): ShapeResult {
     ...(origin ? { origin } : {}),
   };
   return { ok: true, doc };
-}
-
-/** A record's `origin` narrowed (tool, version and the delivered item's identity), null when it
- *  has none, or the reason it is not one. The package door reads a pack entry's the same way. */
-export function shapeOrigin(raw: unknown): GraphicOrigin | null | string {
-  if (raw === undefined || raw === null) return null;
-  if (!isRecord(raw) || typeof raw.tool !== 'string' || raw.tool.length > SHAPE_LIMITS.originTool) return '`origin.tool` must be a short string.';
-  if (raw.version !== undefined && (typeof raw.version !== 'string' || raw.version.length > SHAPE_LIMITS.originVersion)) return '`origin.version` must be a short string.';
-  if (raw.item !== undefined && (typeof raw.item !== 'string' || !ITEM_IDENTITY.test(raw.item))) return '`origin.item` must be a hex sha256.';
-  return {
-    tool: raw.tool,
-    ...(typeof raw.version === 'string' ? { version: raw.version } : {}),
-    ...(typeof raw.item === 'string' ? { item: raw.item } : {}),
-  };
 }
 
 function isSize(v: unknown): v is number {
