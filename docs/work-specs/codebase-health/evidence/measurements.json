@@ -1,0 +1,83 @@
+{
+  "pin": "50ce0911d9f37f5d1116e51a1cb34541ed03aef5",
+  "start": "2026-09-15T06:38:54+00:00",
+  "end": "2026-10-15T06:38:54+00:00",
+  "baseline": "d0a097e00a9ab2f8ae992fdb8997236c808546eb",
+  "baselineTime": "2026-09-15T06:38:21Z",
+  "integrations": 743,
+  "firstParentTotal": 2143,
+  "allReachable": 7277,
+  "files": 1553,
+  "historyCoverage": {
+    "shallow": false,
+    "roots": 1,
+    "rootRevision": "4273bdc3d296353687d75285bb94019c51fd72d4",
+    "rootTime": "2026-06-07T06:37:09Z",
+    "missingReachableObjects": 0,
+    "replaceRefs": 0
+  },
+  "scope": "Current tracked .ts/.tsx/.js/.mjs/.cjs/.css in src/, api/, cli/src/, render-worker/, player-host/; omit src/assets/, /vendor paths, /generated/ paths and .test. files. Scripts/tooling inspected separately. Static index screened after ranking.",
+  "lineCount": "LF-normalized physical lines including blanks/comments; final non-newline line counts. Counts are descriptive.",
+  "integrationMethod": "First-parent main commit diff against first parent, --no-renames; each integration touches a path at most once. Commit timestamps delimit window, not GitHub mergedAt.",
+  "hotspots": [
+    {"path": "src/components/home/ProductionPage.tsx", "lines": 5699, "baseline": 2699, "netGrowth": 3000, "integrations30": 70, "integrations14": 28, "added": 6053, "deleted": 3053},
+    {"path": "src/styles/playout-dashboard.css", "lines": 2770, "baseline": 1363, "netGrowth": 1407, "integrations30": 40, "integrations14": 16, "added": 1852, "deleted": 445},
+    {"path": "src/components/HostedControlPage.tsx", "lines": 2149, "baseline": 1156, "netGrowth": 993, "integrations30": 36, "integrations14": 15, "added": 1910, "deleted": 917},
+    {"path": "src/control/hostedControl.ts", "lines": 2124, "baseline": 1090, "netGrowth": 1034, "integrations30": 36, "integrations14": 15, "added": 1370, "deleted": 336},
+    {"path": "src/components/wizard/CreationWizard.tsx", "lines": 1419, "baseline": 2466, "netGrowth": -1047, "integrations30": 33, "integrations14": 21, "added": 1048, "deleted": 2095},
+    {"path": "src/model/shows.ts", "lines": 1923, "baseline": 921, "netGrowth": 1002, "integrations30": 22, "integrations14": 12, "added": 1112, "deleted": 110},
+    {"path": "src/export/targets/ograf.ts", "lines": 2246, "baseline": 1462, "netGrowth": 784, "integrations30": 12, "integrations14": 10, "added": 1093, "deleted": 309},
+    {"path": "src/components/home/CueRundown.tsx", "lines": 1162, "baseline": null, "netGrowth": 1162, "integrations30": 24, "integrations14": 15, "added": 1587, "deleted": 425, "interpretation": "new path: do not infer new responsibility from path growth"},
+    {"path": "src/components/canvas/CanvasInteraction.tsx", "lines": 2240, "baseline": 2240, "netGrowth": 0, "integrations30": 0, "integrations14": 0, "added": 0, "deleted": 0},
+    {"path": "src/ai/lite/contract.ts", "lines": 2206, "baseline": 2206, "netGrowth": 0, "integrations30": 0, "integrations14": 0, "added": 0, "deleted": 0},
+    {"path": "src/model/googleFontsIndex.ts", "lines": 1950, "baseline": 1950, "netGrowth": 0, "integrations30": 0, "integrations14": 0, "added": 0, "deleted": 0, "interpretation": "static index; exclude from maintenance priority"},
+    {"path": "src/components/wizard/ai/AiStep.tsx", "lines": 1659, "baseline": null, "netGrowth": 1659, "integrations30": 1, "integrations14": 1, "added": 1659, "deleted": 0, "interpretation": "new path: do not infer new responsibility from path growth"},
+    {"path": "src/templates/importedDesign/runtime/svgFit.js", "lines": 1538, "baseline": null, "netGrowth": 1538, "integrations30": 3, "integrations14": 3, "added": 1557, "deleted": 19, "interpretation": "new path: do not infer new responsibility from path growth"}
+  ],
+  "aiLineage": {
+    "oldPath": "src/components/wizard/steps/AiStep.tsx",
+    "newPath": "src/components/wizard/ai/AiStep.tsx",
+    "baseline": 2133,
+    "lines": 1659,
+    "netGrowth": -474,
+    "integrations30IncludingMoveAndShimRemoval": 9
+  },
+  "modelPageCochange": {
+    "both": 18,
+    "modelIntegrations": 22,
+    "pageIntegrations": 70,
+    "interpretation": "Association, not proof of unnecessary coupling."
+  },
+  "budgetReplay": {
+    "activeIntegrationSnapshots": 73,
+    "transitions": [
+      {"sha": "1114685c1b0234e7f2015f80f4e3bd79bea268d8", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2601, "lines": 2485, "over": false, "previous": null},
+      {"sha": "e47c39627a89a042b717ad3970e090e72372f6af", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2601, "lines": 2492, "over": false, "previous": [2601, 2485]},
+      {"sha": "ef2ca46ee3d7634c27fa6f75967350ab6760c684", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2601, "lines": 2494, "over": false, "previous": [2601, 2492]},
+      {"sha": "2fee11e040be4357644120ae86dda596aa92ddc7", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2601, "lines": 2495, "over": false, "previous": [2601, 2494]},
+      {"sha": "cc888e7d091f1a73c61be37a18202d4bb4bb08ab", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2601, "lines": 2504, "over": false, "previous": [2601, 2495]},
+      {"sha": "1b00addc0e715049846cac0d513fe1971761d5b9", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2601, "lines": 2507, "over": false, "previous": [2601, 2504]},
+      {"sha": "1f7d994a0635a71dc0bc3c6fec7350d2abbcf867", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2601, "lines": 2516, "over": false, "previous": [2601, 2507]},
+      {"sha": "7f07a0b24bb7b67cbc6acb858f18f3a743aedcd6", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2482, "lines": 2482, "over": false, "previous": [2601, 2516]},
+      {"sha": "bd6fd764da58e3e339a81394ace7f6005bd08bd2", "file": "src/components/wizard/steps/AiStep.tsx", "budget": 2152, "lines": 2152, "over": false, "previous": null},
+      {"sha": "591213fcaa68d252f262d9647694fcefce783deb", "file": "src/components/wizard/steps/AiStep.tsx", "budget": 2152, "lines": 1940, "over": false, "previous": [2152, 2152]},
+      {"sha": "8474e38df9d2d6ff98ba4c195c2d8de0ec8cc8c1", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2357, "lines": 2357, "over": false, "previous": [2482, 2482]},
+      {"sha": "9f89075c35aa05fa5e91ebf5ad4c269f3def2d70", "file": "src/components/wizard/steps/AiStep.tsx", "budget": 1659, "lines": 1659, "over": false, "previous": [2152, 1940]},
+      {"sha": "d343b655a06cfdc77c20ca9371aa675047db1e27", "file": "src/components/wizard/CreationWizard.tsx", "budget": 2105, "lines": 2105, "over": false, "previous": [2357, 2357]},
+      {"sha": "15b26a6c9ec2ff64713097f2a8c6203ecd1ec1f6", "file": "src/components/wizard/ai/AiStep.tsx", "budget": 1659, "lines": 1659, "over": false, "previous": null},
+      {"sha": "2df104e67bbe63e5f28d9a8fb73fc20139d110f0", "file": "src/components/wizard/CreationWizard.tsx", "budget": 1661, "lines": 1661, "over": false, "previous": [2105, 2105]},
+      {"sha": "33fa907c4da9fb15737a28ba6248694bdd74bae3", "file": "src/components/wizard/CreationWizard.tsx", "budget": 1419, "lines": 1419, "over": false, "previous": [1661, 1661]}
+    ],
+    "zeroHeadroomCounterfactual": [
+      {"file": "src/components/home/ProductionPage.tsx", "changes": 70, "positive": 63, "neutral": 2, "negative": 5},
+      {"file": "src/model/shows.ts", "changes": 22, "positive": 21, "neutral": 1, "negative": 0},
+      {"file": "src/components/wizard/CreationWizard.tsx", "changes": 33, "positive": 20, "neutral": 5, "negative": 8}
+    ]
+  },
+  "limitations": [
+    "Successful main history omits rejected and unmerged work.",
+    "No inference of safety, defect causation or architecture from line counts or replay.",
+    "Purposeful case review is not exhaustive classification.",
+    "No live cross-machine execution inventory; open PRs are a point-in-time view."
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "63bbeda01d5aea746c8a3b2ba3b6a52ee5fc9fe9d4617ed8295c809f69aca1a8",
+  "authority": {
+    "status": "draft",
+    "source": "Owner, this session, 2026-10-15: \"Research and prepare a NoaCG codebase-health work spec. Do not implement the proposed guardrails or launch an automated execution run.\" Research and spec preparation only; implementation is considered after owner review. No registration, launch, scheduling or merge authorized. Subsequent answers: \"Use pinned main as the baseline\" (50ce0911d9f37f5d1116e51a1cb34541ed03aef5) and \"Keep existing budgets pending evidence\" (the two existing wizard budgets). Proposed phases and production-plan policy reconciliation remain draft, not approved for execution."
+  },
+  "review": null
+}
