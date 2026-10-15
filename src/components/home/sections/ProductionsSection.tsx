@@ -7,11 +7,15 @@ import { installPack, parsePack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
 import {
   listWaitingPackages,
-  removeWaitingPackage,
+  settleWaitingPackage,
+  waitingPackageFate,
   waitingPackageText,
+  type PackageFate,
   type WaitingPackage,
 } from '../../../backend/agentPackages';
+import { useRouter } from '../../../app/router';
 import { useAuthState } from '../../auth/useAuthState';
+import SignInPrompt from '../../auth/SignInPrompt';
 import { copyLink } from '../copyLink';
 import ProductionExportDialog from '../ProductionExportDialog';
 import GraphicThumb from '../GraphicThumb';
@@ -146,6 +150,7 @@ export default function ProductionsSection({
   onChanged,
   limit,
   heading = true,
+  focusPackage,
 }: {
   productions: Show[];
   onOpen: (p: Show) => void;
@@ -154,6 +159,9 @@ export default function ProductionsSection({
   /** Dashboard mode shows the top few; the full section shows everything. */
   limit?: number;
   heading?: boolean;
+  /** The waiting package a link named (`#/home/productions/<id>`, docs/AGENT_SAVE.md §9): selected
+   *  while it waits, and what became of it once it does not. */
+  focusPackage?: string;
 }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // The team doors (docs/TEAMS_PLAN.md §6): the card menu's Share and the Join a team card.
@@ -177,10 +185,19 @@ export default function ProductionsSection({
   // listed here with Install until the user installs or dismisses it. Signed-in and backed only -
   // an offline build asks nothing and grows no row. `waitingConfirm` is the one package whose
   // Dismiss is asking "sure?", the same two-step the production Delete uses.
-  const { backendConfigured, signedIn, user } = useAuthState();
+  // A failed LOAD is its own state with Retry: "nothing is waiting" and "we could not ask" must
+  // never look alike, and the last list stays on screen meanwhile.
+  const { backendConfigured, signedIn, needsSignIn, user } = useAuthState();
   const [waiting, setWaiting] = useState<WaitingPackage[]>([]);
+  const [waitingLoad, setWaitingLoad] = useState<{ status: 'idle' | 'loading' | 'ready' | 'error'; error?: string }>({ status: 'idle' });
+  const reloadWaiting = useRef<() => void>(() => undefined);
   const [waitingNote, setWaitingNote] = useState<string | null>(null);
   const [waitingConfirm, setWaitingConfirm] = useState<string | null>(null);
+  // The linked package: its row when it waits, else what its receipt says became of it.
+  const focusWaits = !!focusPackage && waiting.some((p) => p.id === focusPackage);
+  const focusRow = useRef<HTMLDivElement | null>(null);
+  const [fate, setFate] = useState<{ id: string; fate?: PackageFate; error?: string } | null>(null);
+  const [fateAttempt, setFateAttempt] = useState(0);
   // MINE AND THE TEAM'S, NEVER INTERLEAVED (TEAMS_PLAN §6, mockup `teams-home.html`). A production
   // somebody shared with you through a team must be findable at a glance, and one mixed into your
   // own list by date is not - so team productions get their own band per team, after yours.
@@ -211,10 +228,19 @@ export default function ProductionsSection({
     }
     let stale = false;
     const load = () => {
-      void listWaitingPackages().then((list) => {
-        if (!stale) setWaiting(list);
-      });
+      setWaitingLoad((s) => ({ ...s, status: 'loading' }));
+      listWaitingPackages().then(
+        (list) => {
+          if (stale) return;
+          setWaiting(list);
+          setWaitingLoad({ status: 'ready' });
+        },
+        (e: unknown) => {
+          if (!stale) setWaitingLoad({ status: 'error', error: e instanceof Error ? e.message : String(e) });
+        },
+      );
     };
+    reloadWaiting.current = load;
     load();
     const onVisible = () => {
       if (document.visibilityState === 'visible') load();
@@ -222,9 +248,42 @@ export default function ProductionsSection({
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       stale = true;
+      reloadWaiting.current = () => undefined;
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [backendConfigured, signedIn]);
+
+  // A link to a waiting package lands ON it: scrolled to, selected and focused.
+  useEffect(() => {
+    if (!focusWaits) return;
+    focusRow.current?.scrollIntoView({ block: 'center' });
+    focusRow.current?.focus({ preventScroll: true });
+  }, [focusWaits]);
+
+  // A linked package that is not waiting: ask its receipt, once the list has answered.
+  const listReady = waitingLoad.status === 'ready';
+  useEffect(() => {
+    if (!focusPackage || focusWaits || !signedIn || !backendConfigured) {
+      setFate(null);
+      return;
+    }
+    if (!listReady) return;
+    let stale = false;
+    waitingPackageFate(focusPackage).then(
+      (f) => {
+        if (stale) return;
+        setFate({ id: focusPackage, fate: f });
+        // Sent after the list was read: read it again rather than say it is gone.
+        if (f.state === 'pending_install') reloadWaiting.current();
+      },
+      (e: unknown) => {
+        if (!stale) setFate({ id: focusPackage, error: e instanceof Error ? e.message : String(e) });
+      },
+    );
+    return () => {
+      stale = true;
+    };
+  }, [focusPackage, focusWaits, listReady, signedIn, backendConfigured, fateAttempt]);
 
   /**
    * Parse, validate and install one pack's text; land on the new production's page. A failure
@@ -235,7 +294,7 @@ export default function ProductionsSection({
     label: string,
     text: string,
     report: (message: string | null) => void = setPackNote,
-    beforeOpen?: () => Promise<void>,
+    beforeOpen?: (show: Show) => Promise<void>,
   ) => {
     setPackBusy(label);
     report(null);
@@ -244,7 +303,7 @@ export default function ProductionsSection({
       if (!pack) throw new Error(error ?? 'That file is not a NoaCG graphics pack.');
       const show = await installPack(pack);
       trackEvent('activation', 'pack');
-      await beforeOpen?.();
+      await beforeOpen?.(show);
       onChanged();
       onOpen(show);
     } catch (error) {
@@ -267,20 +326,67 @@ export default function ProductionsSection({
       setPackBusy(null);
       return;
     }
-    await importPackText(p.id, text, setWaitingNote, async () => {
-      // The production exists now. A failed delete only leaves the row to be dismissed by hand -
-      // never worth failing an install that already happened.
-      await removeWaitingPackage(p.id);
+    await importPackText(p.id, text, setWaitingNote, async (show) => {
+      // The production exists now; settling records it on the package's receipt, so its link
+      // answers "installed" from here on. A failed settle only leaves the row to be dismissed by
+      // hand - never worth failing an install that already happened.
+      await settleWaitingPackage(p.id, show.id);
       setWaiting((list) => list.filter((w) => w.id !== p.id));
     });
   };
 
   const dismissWaiting = async (p: WaitingPackage) => {
     setWaitingConfirm(null);
-    const { error } = await removeWaitingPackage(p.id);
+    const { error } = await settleWaitingPackage(p.id, null);
     if (error) setWaitingNote(error);
     else setWaiting((list) => list.filter((w) => w.id !== p.id));
   };
+
+  /** Open the production an installed package became: the local record when this browser has it,
+   *  else its page, which fetches it. */
+  const openProductionById = (id: string) => {
+    const show = productions.find((p) => p.id === id);
+    if (show) onOpen(show);
+    else useRouter.getState().navigate({ view: 'production', id });
+  };
+
+  /** What became of a linked package that is not waiting. */
+  const fateNote = (() => {
+    if (!fate || fate.id !== focusPackage) return null;
+    if (fate.error) {
+      return (
+        <p className="status-bad">
+          This package could not be checked ({fate.error}).{' '}
+          <button className="link-inline" onClick={() => setFateAttempt((n) => n + 1)} data-testid="waiting-package-fate-retry">
+            Retry
+          </button>
+        </p>
+      );
+    }
+    switch (fate.fate?.state) {
+      case 'installed': {
+        const productionId = fate.fate.productionId;
+        return (
+          <p>
+            This package is installed.{' '}
+            {productionId && (
+              <button className="link-inline" onClick={() => openProductionById(productionId)} data-testid="waiting-package-open-production">
+                Open its production
+              </button>
+            )}
+          </p>
+        );
+      }
+      case 'dismissed':
+        return <p>This package was dismissed without installing.</p>;
+      case 'missing':
+        return <p>This package is no longer waiting.</p>;
+      case 'not_found':
+        return <p>This package is not in the account you are signed in to{user?.email ? ` (${user.email})` : ''}.</p>;
+      default:
+        return null;
+    }
+  })();
 
   const importPackFile = async (file: File | undefined) => {
     if (!file) return;
@@ -458,13 +564,37 @@ export default function ProductionsSection({
     <>
       {duplicateError && <p className="status-bad" role="alert">{duplicateError}</p>}
       {heading && <h2><IconTv size={18} /> Productions</h2>}
+      {/* A package link while signed out: the package is in an account, so sign in, in place. */}
+      {focusPackage && needsSignIn && (
+        <SignInPrompt feature="Sign in to see this package" reason="It is waiting in the account your agent saved it to." />
+      )}
+      {waitingLoad.status === 'error' && (
+        <div className="pack-waiting" role="alert" data-testid="waiting-packages-error">
+          <p className="status-bad">Waiting packages could not be loaded ({waitingLoad.error}).</p>
+          <div>
+            <button onClick={() => reloadWaiting.current()} data-testid="waiting-packages-retry">Retry</button>
+          </div>
+        </div>
+      )}
+      {fateNote && (
+        <div className="pack-waiting" role="status" data-testid="waiting-package-fate" data-state={fate?.fate?.state ?? 'error'}>
+          {fateNote}
+        </div>
+      )}
       {/* Packages a coding agent or a connected app sent - one row each, Install turns it into a production and
           opens its rundown. Shown on the Home dashboard too: arriving is news. */}
       {waiting.length > 0 && (
         <div className="pack-waiting" data-testid="waiting-packages">
           <strong>Waiting to install</strong>
           {waiting.map((p) => (
-            <div className="pack-waiting-row" key={p.id} data-testid={`waiting-package-${p.id}`}>
+            <div
+              className={`pack-waiting-row${p.id === focusPackage ? ' selected' : ''}`}
+              key={p.id}
+              data-testid={`waiting-package-${p.id}`}
+              aria-current={p.id === focusPackage ? 'true' : undefined}
+              tabIndex={p.id === focusPackage ? -1 : undefined}
+              ref={p.id === focusPackage ? focusRow : undefined}
+            >
               <div className="lib-info">
                 <strong>{p.name}</strong>
                 <span className="muted">

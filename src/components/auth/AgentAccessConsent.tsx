@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { isBackendConfigured } from '../../backend/config';
 import {
   agentCallbackUrl,
+  agentDenyUrl,
   beginAgentKey,
   parseAgentRequest,
   type AgentAccessRequest,
@@ -91,6 +92,7 @@ function Frame({ children }: { children: React.ReactNode }) {
 }
 
 function ConsentCard({ request }: { request: AgentAccessRequest }) {
+  const { user } = useAuthState();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [state, setState] = useState<'ask' | 'sent' | 'denied'>('ask');
@@ -115,6 +117,13 @@ function ConsentCard({ request }: { request: AgentAccessRequest }) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
+  };
+
+  // "Don't allow": a CLI that takes a refusal is told at once, through the same loopback-only
+  // door the code would have used; an older one is left to time out, as the page then says.
+  const deny = () => {
+    setState('denied');
+    if (request.acceptsDeny) window.location.replace(agentDenyUrl(request.port, request.state));
   };
 
   if (state === 'denied') {
@@ -155,12 +164,17 @@ function ConsentCard({ request }: { request: AgentAccessRequest }) {
         It cannot control a production, use AI, read your other work, or delete anything. The key
         is yours to revoke at any time in Settings → Account → Agent access.
       </p>
+      {/* WHICH ACCOUNT, on which deployment: what `noacg whoami` and every delivery receipt will
+          name too (docs/AGENT_SAVE.md §9), so the user can see where the saves will go. */}
+      <p className="hint" data-testid="agent-consent-account">
+        Saves go to <strong>{user?.email ?? 'this account'}</strong> on <code>{window.location.host}</code>.
+      </p>
       <p className="hint agent-consent-target">
         The code will be sent to <code>{callbackHost}</code> on this computer only.
       </p>
       {error && <p className="status-bad" data-testid="agent-consent-error">{error}</p>}
       <div className="agent-consent-actions">
-        <button onClick={() => setState('denied')} disabled={busy} data-testid="agent-consent-deny">Don’t allow</button>
+        <button onClick={deny} disabled={busy} data-testid="agent-consent-deny">Don’t allow</button>
         <button className="primary" onClick={() => void allow()} disabled={busy} data-testid="agent-consent-allow">
           {busy ? 'Allowing…' : 'Allow'}
         </button>

@@ -13,14 +13,16 @@
 // auth.spec.ts can only pin that it says neither.
 // covers: api/_lib/me/{agentKeys,graphics,graphicShape,communityPacks}.ts, supabase/migrations/0087_community_pack_submit_for.sql
 // covers: api/_lib/{principal,agentAccessStore}.ts, api/me/?...path?.ts, scripts/meDevPlugin.mjs
+// covers: api/_lib/me/{deliveries,deliveryReceipt,packages}.ts, supabase/migrations/0092_agent_deliveries.sql
+// covers: src/backend/agentPackages.ts, src/components/home/sections/ProductionsSection.tsx, src/app/router.ts
 
 import { test, expect } from '@playwright/test';
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
+import { dismissWizard, E2E_EMAIL, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
 
 // AGENT ACCESS, live (docs/AGENT_SAVE.md): the whole handoff a coding agent's `noacg login` +
 // `noacg save` make, against the real backend, with the CLI's side played by this spec:
@@ -30,11 +32,27 @@ import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './
 //   3. POST /api/me/graphics with the key -> 201 { id, url }; the record is the studio's own
 //      shape, server-stamped (origin noacg-cli);
 //   4. the deep link opens the graphic on first load (a miss while signed in runs one sync pass);
-//   4b. POST /api/me/packages with the key -> the package waits on Home -> Productions; Install
-//      makes the production with its rundown and removes the row; Dismiss removes one unseen;
+//   4b. POST /api/me/packages with the key -> the package waits on Home -> Productions; its link
+//      selects it, a failed list load shows Retry, Install makes the production with its rundown,
+//      and the link and the readback then say "installed"; Dismiss removes one unseen;
+//   4d. IDENTITY AND RECEIPTS (docs/AGENT_SAVE.md §9): consent, redeem, whoami and every receipt
+//      name the same account and deployment; the readback finds only this key's deliveries;
 //   4c. POST /api/me/community-packs with the key -> refused without the licence; with it, the
 //      pack waits for review under the account's Your packs;
 //   5. Settings -> Account -> Agent access lists the key; Revoke -> the same key is 401.
+
+/** The delivery receipt the doors and the readback answer (docs/AGENT_SAVE.md §9). */
+interface Receipt {
+  version: number;
+  operationId: string;
+  deployment: string;
+  account: { id: string; email: string | null };
+  destination: string;
+  state: string;
+  resources: Array<{ kind: string; id: string; state: string; link: string }>;
+  link: string | null;
+  verified: boolean;
+}
 
 /** A real pack file (`noacg-pack` v1) - what `noacg pack --save` sends. */
 const UUTISHUONE = fileURLToPath(new URL('../../public/packs/uutishuone.noacgpack.json', import.meta.url));
@@ -119,6 +137,10 @@ test.describe('agent access (configured)', () => {
       await expect(page.getByTestId('agent-consent')).toBeVisible();
       await expect(page.getByTestId('agent-consent-permissions')).toContainText('Create graphics in your library and send graphics packages to your Home');
       await expect(page.getByTestId('agent-consent')).toContainText(`127.0.0.1:${listener.port}`);
+      // Which account and deployment the key will save into - what whoami and every receipt say too.
+      const host = new URL(origin).host;
+      await expect(page.getByTestId('agent-consent-account')).toContainText(E2E_EMAIL.toLowerCase(), { ignoreCase: true });
+      await expect(page.getByTestId('agent-consent-account')).toContainText(host);
       await page.getByTestId('agent-consent-allow').click();
       // The browser lands on the loopback page; the code rode the FRAGMENT and never the query.
       await page.waitForURL((u) => u.hostname === '127.0.0.1' && u.pathname === '/callback', { timeout: 20_000 });
@@ -134,10 +156,24 @@ test.describe('agent access (configured)', () => {
       });
       const redeemText = await redeem.text();
       expect(redeem.status, redeemText).toBe(201);
-      const minted = JSON.parse(redeemText) as { key: string; id: string; name: string; prefix: string; scopes: string[] };
+      const minted = JSON.parse(redeemText) as {
+        key: string; id: string; name: string; prefix: string; scopes: string[];
+        account: { id: string; email: string | null }; deployment: string;
+      };
       expect(minted.key.startsWith('noacg_ak_')).toBe(true);
       expect(minted.name).toBe(name);
       expect(minted.scopes).toEqual(['graphics:create']);
+      expect(minted.account.email?.toLowerCase()).toBe(E2E_EMAIL.toLowerCase());
+      expect(minted.deployment).toBe(origin);
+      const sessionUser = await page.evaluate(async () => {
+        const { getSupabase } = await import('/src/backend/supabase.ts');
+        return (await (await getSupabase())!.auth.getUser()).data.user?.id ?? null;
+      });
+      expect(minted.account.id, 'the key is minted for the account that consented').toBe(sessionUser);
+      // whoami: the key describes itself with the same account and deployment.
+      const whoami = (await (await fetch(`${origin}/api/me/agent-keys`, { headers: { authorization: `Bearer ${minted.key}` } })).json()) as { account: unknown; deployment: string };
+      expect(whoami.account).toEqual(minted.account);
+      expect(whoami.deployment).toBe(origin);
       const again = await fetch(`${origin}/api/me/agent-keys`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -155,14 +191,23 @@ test.describe('agent access (configured)', () => {
         const template = variantsFor('lower-third')[0].create({});
         return graphicDoc({ ...template, name: 'Agent E2E L3' }, { name: 'Agent E2E L3', origin: { tool: 'noacg-cli', version: 'e2e' } });
       });
+      const saveOperation = randomUUID();
       const save = await fetch(`${origin}/api/me/graphics`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.key}` },
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.key}`, 'x-noacg-operation': saveOperation },
         body: JSON.stringify(doc),
       });
       expect(save.status, await save.clone().text()).toBe(201);
-      const saved = (await save.json()) as { id: string; url: string };
+      const saved = (await save.json()) as { id: string; url: string; receipt: Receipt };
       expect(saved.url).toContain(`/app#/graphic/${saved.id}`);
+      // 4d. The write's receipt: same account and deployment, accepted but not yet read back.
+      expect(saved.receipt).toMatchObject({ version: 1, operationId: saveOperation, deployment: origin, account: minted.account, destination: 'library', state: 'saved', link: saved.url, verified: false });
+      // The readback by this key confirms it; an id it never delivered is a plain 404.
+      const readBack = (id: string, key = minted.key) => fetch(`${origin}/api/me/deliveries?id=${id}`, { headers: { authorization: `Bearer ${key}` } });
+      const savedBack = await readBack(saveOperation);
+      expect(savedBack.status, await savedBack.clone().text()).toBe(200);
+      expect(((await savedBack.json()) as { receipt: Receipt }).receipt).toMatchObject({ state: 'saved', verified: true, account: minted.account });
+      expect((await readBack(randomUUID())).status).toBe(404);
 
       // 4. The printed deep link opens the graphic on first load (one sync pass on the miss). It
       // lands on the graphic's CONTROL page, rewritten to `#/control/<id>`: the old code editor
@@ -199,24 +244,62 @@ test.describe('agent access (configured)', () => {
         });
       const sent = await sendPack(packName);
       expect(sent.status, await sent.clone().text()).toBe(201);
-      expect(((await sent.json()) as { url: string }).url).toContain('/app#/home/productions');
+      const sentBody = (await sent.json()) as { id: string; url: string; receipt: Receipt };
+      // The link names THIS package, and the receipt says it waits for Install - not installed.
+      expect(sentBody.url).toBe(`${origin}/app#/home/productions/${sentBody.id}`);
+      expect(sentBody.receipt).toMatchObject({ state: 'pending_install', destination: 'home', account: minted.account, link: sentBody.url });
       const dismissName = `${packName} (dismiss)`;
-      expect((await sendPack(dismissName)).status).toBe(201);
+      const dismissSent = await sendPack(dismissName);
+      expect(dismissSent.status).toBe(201);
+      const dismissId = ((await dismissSent.json()) as { id: string }).id;
 
-      await page.goto('/app#/home/productions');
-      const waitingRow = page.getByTestId('waiting-packages').locator('.pack-waiting-row').filter({ hasText: packName });
-      const dismissRow = page.getByTestId('waiting-packages').locator('.pack-waiting-row').filter({ hasText: dismissName });
-      await expect(waitingRow.first()).toBeVisible({ timeout: 20_000 });
-      await expect(waitingRow.first()).toContainText('6 graphics');
+      // A FAILED list load is an error with Retry - never the empty list it used to look like.
+      const failList = (url: URL) => url.pathname.endsWith('/rest/v1/agent_packages');
+      await page.route(failList, (route) =>
+        route.request().method() === 'GET'
+          ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'injected outage' }) })
+          : route.fallback(),
+      );
+      // The package link: Home → Productions with this one package selected.
+      await page.goto(`/app#/home/productions/${sentBody.id}`);
+      await expect(page.getByTestId('waiting-packages-error')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId('waiting-packages')).toHaveCount(0);
+      await page.unroute(failList);
+      await page.getByTestId('waiting-packages-retry').click();
+      await expect(page.getByTestId('waiting-packages-error')).toHaveCount(0);
+      const waitingRow = page.getByTestId(`waiting-package-${sentBody.id}`);
+      const dismissRow = page.getByTestId(`waiting-package-${dismissId}`);
+      await expect(waitingRow).toBeVisible({ timeout: 20_000 });
+      await expect(waitingRow).toContainText('6 graphics');
+      await expect(waitingRow).toHaveAttribute('aria-current', 'true');
+      await expect(waitingRow).toBeFocused();
+      await expect(dismissRow).not.toHaveAttribute('aria-current', 'true');
 
       await dismissRow.getByTestId('dismiss-waiting-package').click();
       await dismissRow.getByTestId('dismiss-waiting-package-confirm').click();
       await expect(dismissRow).toHaveCount(0);
 
-      await waitingRow.filter({ hasNotText: '(dismiss)' }).getByTestId('install-waiting-package').click();
+      await waitingRow.getByTestId('install-waiting-package').click();
       await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 30_000 });
       await expect(page.getByTestId('production-page')).toContainText(packName);
       await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(10);
+      const productionId = decodeURIComponent(new URL(page.url()).hash.split('/')[2] ?? '');
+
+      // The install is a durable receipt: the readback names the production, and so does the link.
+      await expect
+        .poll(async () => ((await (await readBack(sentBody.id)).json()) as { receipt?: Receipt }).receipt?.state)
+        .toBe('installed');
+      const installed = ((await (await readBack(sentBody.id)).json()) as { receipt: Receipt }).receipt;
+      expect(installed.link).toBe(`${origin}/app#/production/${productionId}`);
+      expect(((await (await readBack(dismissId)).json()) as { receipt: Receipt }).receipt.state).toBe('dismissed');
+      await page.goto(`/app#/home/productions/${sentBody.id}`);
+      await expect(page.getByTestId('waiting-package-fate')).toHaveAttribute('data-state', 'installed', { timeout: 20_000 });
+      await page.getByTestId('waiting-package-open-production').click();
+      await expect(page.getByTestId('production-page')).toContainText(packName);
+      // A link this account has no package for: account guidance, nothing about anything else.
+      await page.goto(`/app#/home/productions/${randomUUID()}`);
+      await expect(page.getByTestId('waiting-package-fate')).toHaveAttribute('data-state', 'not_found', { timeout: 20_000 });
+      await expect(page.getByTestId('waiting-package-fate')).toContainText(E2E_EMAIL.toLowerCase(), { ignoreCase: true });
       // Installed means gone from the waiting list - for good, not just on this screen.
       await expect
         .poll(() => page.evaluate(async (n) => {

@@ -398,6 +398,7 @@ export default function HomePage({ route }: { route: Route }) {
 
           {view === 'productions' && (
             <ProductionsSection
+              focusPackage={route.view === 'home' ? route.item : undefined}
               productions={productions}
               onOpen={(p) => navigate({ view: 'production', id: p.id })}
               onBrowseGraphics={(showId) => {
