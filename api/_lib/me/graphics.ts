@@ -29,7 +29,7 @@ import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { graphicSaveShape } from './graphicShape.js';
 import { writeReceipt } from './deliveries.js';
 import { graphicLink, type DeliveryReceipt } from './deliveryReceipt.js';
-import { newGraphicDoc } from '../../../src/model/graphicDoc.js';
+import { newGraphicDoc, type GraphicDocBase } from '../../../src/model/graphicDoc.js';
 import { permits } from '../../../src/entitlements/permissions.js';
 
 /** Our own cap, under the platform's. The shape limits (graphicShape.ts) sum to less than this
@@ -49,6 +49,23 @@ export interface SaveResponse {
   url: string;
   /** Additive (receipt v1): older clients read `id` and `url` and ignore it. */
   receipt: DeliveryReceipt;
+}
+
+/** The record the server stores for a shaped one: re-minted through the ONE builder every writer
+ *  uses, so a record saved from a terminal is byte-for-byte the shape the studio itself would have
+ *  saved - with the server's id, the server's clock, and an origin the record cannot forge. The
+ *  set door (graphicSets.ts) stores exactly this too. */
+export function libraryRecord(sent: GraphicDocBase, at: string, id?: string): GraphicDocBase {
+  return newGraphicDoc(sent.template, {
+    name: sent.name,
+    id,
+    now: at,
+    baseline: sent.baseline,
+    entries: sent.entries,
+    activeEntryId: sent.activeEntryId,
+    folder: sent.folder,
+    origin: { tool: sent.origin?.tool ?? 'noacg-cli', ...(sent.origin?.version ? { version: sent.origin.version } : {}) },
+  });
 }
 
 export function createGraphicsHandler(deps: GraphicsDeps = {}): { fetch(req: Request): Promise<Response> } {
@@ -89,21 +106,7 @@ export function createGraphicsHandler(deps: GraphicsDeps = {}): { fetch(req: Req
         const shaped = graphicSaveShape(body);
         if (!shaped.ok) return apiError('invalid', shaped.reason, 400);
 
-        // The server re-mints the record through the ONE builder every writer uses, so a record
-        // saved from a terminal is byte-for-byte the shape the studio itself would have saved -
-        // with the server's id, the server's clock, and an origin the record cannot forge.
-        const at = now().toISOString();
-        const sent = shaped.doc;
-        const doc = newGraphicDoc(sent.template, {
-          name: sent.name,
-          id: deps.uuid?.(),
-          now: at,
-          baseline: sent.baseline,
-          entries: sent.entries,
-          activeEntryId: sent.activeEntryId,
-          folder: sent.folder,
-          origin: { tool: sent.origin?.tool ?? 'noacg-cli', ...(sent.origin?.version ? { version: sent.origin.version } : {}) },
-        });
+        const doc = libraryRecord(shaped.doc, now().toISOString(), deps.uuid?.());
         const store = storeOf();
         await store.insertGraphic(principal.userId, doc);
 

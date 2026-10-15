@@ -989,7 +989,7 @@ test('the consent URL tells the page this login takes a refusal', async () => {
 // asked about; a readback is what turns "accepted" into "verified"; and the CLI never sends twice.
 
 /** A deployment whose save door answers `writeStatus` and whose readback answers `readStatus`. */
-function receiptDeployment({ writeStatus = 201, readStatus = 200 } = {}) {
+function receiptDeployment({ writeStatus = 201, readStatus = 200, readState = 'saved' } = {}) {
   const seen = { writes: [], reads: [] };
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
@@ -1010,7 +1010,10 @@ function receiptDeployment({ writeStatus = 201, readStatus = 200 } = {}) {
         }
         seen.reads.push(new URL(req.url, 'http://x').searchParams.get('id'));
         res.writeHead(readStatus, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(readStatus === 200 ? { receipt: receipt(true) } : { error: { code: 'not_found', message: 'Nothing.' } }));
+        const read = receipt(true);
+        read.state = readState;
+        read.resources = read.resources.map((r) => ({ ...r, state: readState }));
+        res.end(JSON.stringify(readStatus === 200 ? { receipt: read } : { error: { code: 'not_found', message: 'Nothing.' } }));
       });
     });
     server.listen(0, '127.0.0.1', () => resolve({ server, seen, origin: `http://127.0.0.1:${server.address().port}` }));
@@ -1073,6 +1076,211 @@ test('status reads back by id, and an unknown id says nothing is visible to this
     execFile(process.execPath, [cli, 'status', 'nope'], { env }, (error) => resolve(error?.code ?? 0));
   });
   assert.equal(bad, 2, 'a malformed id is a usage error');
+});
+
+// ---------------------------------------------------------------- a set, as one delivery
+//
+// docs/AGENT_SAVE.md §10: `noacg save a b c` sends every graphic in one request under an operation
+// named and journaled BEFORE the write. The deployment saves all or none and answers the same
+// operation's first delivery when it is sent again, so here - unlike a single save - a lost answer
+// IS resent, under the same operation, and a rerun after a restart finds the same operation.
+
+const SET_IDS = ['g1', 'g2', 'g3'];
+
+/** A deployment with the set door. `writes` is the status of each POST in turn (the last repeats). */
+function setDeployment({ writes = [201], readStatus = 200, conflictMessage = 'Operation already delivered different graphics.' } = {}) {
+  const seen = { writes: [], reads: [] };
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => { body += c; });
+      req.on('end', () => {
+        const op = req.headers['x-noacg-operation'];
+        const resources = SET_IDS.map((id) => ({ kind: 'graphic', id, state: 'saved', link: `https://noacg.test/app#/graphic/${id}` }));
+        const receipt = (verified) => ({
+          version: 1, operationId: op ?? seen.writes[0]?.op, deployment: 'https://noacg.test', account: { id: 'u1', email: 'maker@example.test' },
+          destination: 'library', state: 'saved', resources, link: resources[0].link, nextAction: null, verified, checkedAt: '2026-10-15T00:00:00.000Z',
+        });
+        const answer = (status, payload) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(payload)); };
+        if (req.method === 'POST') {
+          const status = writes[Math.min(seen.writes.length, writes.length - 1)];
+          seen.writes.push({ op, path: req.url, count: JSON.parse(body).graphics?.length });
+          if (status === 201 || status === 200) {
+            return answer(status, { operationId: op, replayed: status === 200, graphics: SET_IDS.map((id, i) => ({ id, name: `N${i}`, url: `https://noacg.test/app#/graphic/${id}` })), receipt: receipt(false) });
+          }
+          return answer(status, { error: { code: status === 409 ? 'conflict' : status === 404 ? 'not_found' : status === 503 ? 'unavailable' : 'internal', message: status === 409 ? conflictMessage : 'Down.' } });
+        }
+        seen.reads.push(new URL(req.url, 'http://x').searchParams.get('id'));
+        return readStatus === 200 ? answer(200, { receipt: receipt(true) }) : answer(404, { error: { code: 'not_found', message: 'Nothing.' } });
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, seen, origin: `http://127.0.0.1:${server.address().port}` }));
+  });
+}
+
+const OP_A = '0b7c3d4e-5f60-4a71-8b92-a3b4c5d6e7f8';
+const setDocs = () => ['N0', 'N1', 'N2'].map((name) => ({ id: crypto.randomUUID(), name, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), template: { html: name } }));
+
+test('a set is written once under its operation, to the set door, then confirmed by reading it back', async (t) => {
+  const { deliverSetAndConfirm } = await import('../dist/receipt.js');
+  const { saveGraphicSet } = await import('../dist/auth.js');
+  const d = await setDeployment();
+  t.after(() => d.server.close());
+  const done = await deliverSetAndConfirm(d.origin, 'k', OP_A, ['N0', 'N1', 'N2'], () => saveGraphicSet(d.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(done.ok, true);
+  assert.deepEqual(d.seen.writes, [{ op: OP_A, path: '/api/me/graphic-sets', count: 3 }]);
+  assert.deepEqual(d.seen.reads, [OP_A]);
+  assert.equal(done.receipt.verified, true);
+  assert.deepEqual(done.graphics.map((g) => g.id), SET_IDS, 'every exact link, in the order sent');
+});
+
+test('a lost answer is sent again under the SAME operation - safe for a set - and only then asked about', async (t) => {
+  const { deliverSetAndConfirm } = await import('../dist/receipt.js');
+  const { saveGraphicSet } = await import('../dist/auth.js');
+
+  const flaky = await setDeployment({ writes: [502, 500, 200] });
+  t.after(() => flaky.server.close());
+  const resent = await deliverSetAndConfirm(flaky.origin, 'k', OP_A, [], () => saveGraphicSet(flaky.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(resent.ok, true);
+  assert.equal(resent.replayed, false, 'a replay after this run lost its own answers is this run\'s save, not an earlier one');
+  assert.deepEqual(flaky.seen.writes.map((w) => w.op), [OP_A, OP_A, OP_A], 'never a new operation');
+
+  const landed = await setDeployment({ writes: [502] });
+  t.after(() => landed.server.close());
+  const found = await deliverSetAndConfirm(landed.origin, 'k', OP_A, ['N0', 'N1', 'N2'], () => saveGraphicSet(landed.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(found.ok, true, 'every answer lost, but the readback finds it');
+  assert.deepEqual(found.graphics.map((g) => [g.name, g.id]), [['N0', 'g1'], ['N1', 'g2'], ['N2', 'g3']]);
+  assert.equal(landed.seen.writes.length, 3);
+
+  const gone = await setDeployment({ writes: [502], readStatus: 404 });
+  t.after(() => gone.server.close());
+  const unknown = await deliverSetAndConfirm(gone.origin, 'k', OP_A, [], () => saveGraphicSet(gone.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(unknown.ok, false);
+  assert.equal(unknown.reason, 'unverified');
+  assert.equal(unknown.receipt.state, 'delivery_unverified');
+  assert.match(unknown.receipt.nextAction, new RegExp(`Run the same command again: it resumes operation ${OP_A} and cannot save the set twice`));
+});
+
+test('a refusal after a lost answer is not the last word: the earlier send may have saved the set', async (t) => {
+  const { deliverSetAndConfirm } = await import('../dist/receipt.js');
+  const { saveGraphicSet } = await import('../dist/auth.js');
+  // The first send's answer is lost, the second is refused (it met the rate limit the first used up).
+  const landed = await setDeployment({ writes: [502, 429] });
+  t.after(() => landed.server.close());
+  const saved = await deliverSetAndConfirm(landed.origin, 'k', OP_A, ['N0', 'N1', 'N2'], () => saveGraphicSet(landed.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(saved.ok, true, 'the readback found the set the first send saved');
+  assert.deepEqual(saved.graphics.map((g) => g.id), SET_IDS);
+  assert.deepEqual(landed.seen.reads, [OP_A]);
+
+  const refused = await setDeployment({ writes: [502, 429], readStatus: 404 });
+  t.after(() => refused.server.close());
+  const no = await deliverSetAndConfirm(refused.origin, 'k', OP_A, [], () => saveGraphicSet(refused.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(no.ok, false);
+  assert.equal(no.reason, 'refused', 'asked, and nothing is there: the refusal stands');
+});
+
+test('a conflict, a refusal, an offline deployment and one without the set door are answers: nothing is resent', async (t) => {
+  const { deliverSetAndConfirm } = await import('../dist/receipt.js');
+  const { saveGraphicSet } = await import('../dist/auth.js');
+  for (const [status, reason] of [[409, 'conflict'], [403, 'refused'], [404, 'unsupported'], [503, 'refused']]) {
+    const d = await setDeployment({ writes: [status], conflictMessage: `Operation ${OP_A} already delivered different graphics.` });
+    t.after(() => d.server.close());
+    const answer = await deliverSetAndConfirm(d.origin, 'k', OP_A, [], () => saveGraphicSet(d.origin, 'k', setDocs(), OP_A), [0, 0]);
+    assert.equal(answer.ok, false);
+    assert.equal(answer.reason, reason, `${status}`);
+    assert.equal(answer.receipt.state, 'failed');
+    assert.equal(d.seen.writes.length, 1, `${status} is not resent`);
+    assert.deepEqual(d.seen.reads, [], `${status}: nothing to ask about`);
+    if (status === 409) assert.match(answer.error, /already delivered different graphics/, 'the deployment\'s own sentence');
+  }
+});
+
+test('the journal gives the same set the same operation across runs, and a different set a new one', async (t) => {
+  const dir = await tmpdir();
+  const before = process.env.NOACG_CREDENTIALS_DIR;
+  process.env.NOACG_CREDENTIALS_DIR = dir;
+  t.after(() => { if (before === undefined) delete process.env.NOACG_CREDENTIALS_DIR; else process.env.NOACG_CREDENTIALS_DIR = before; });
+  const { operationFor, setFingerprint, journalPath, OPERATION_REUSE_MS } = await import('../dist/operations.js');
+
+  // Rebuilt by the bridge: new ids and timestamps, the same content - the same set.
+  const fp = setFingerprint('https://noacg.test', 'key-1', setDocs());
+  assert.equal(setFingerprint('https://noacg.test', 'key-1', setDocs()), fp);
+  assert.notEqual(setFingerprint('https://noacg.test', 'key-2', setDocs()), fp, 'another key is another delivery');
+  assert.notEqual(setFingerprint('https://other.test', 'key-1', setDocs()), fp);
+  assert.notEqual(setFingerprint('https://noacg.test', 'key-1', setDocs().reverse()), fp);
+
+  const first = await operationFor(fp);
+  assert.equal(first.resumed, false);
+  const journal = await fs.readFile(journalPath(), 'utf8');
+  assert.ok(journal.includes(first.operationId), 'recorded BEFORE anything is sent');
+  assert.doesNotMatch(journal, /key-1/, 'the journal never holds a key');
+  assert.deepEqual(await operationFor(fp), { operationId: first.operationId, resumed: true }, 'a rerun resumes it');
+  const other = await operationFor(setFingerprint('https://noacg.test', 'key-1', setDocs().slice(1)));
+  assert.notEqual(other.operationId, first.operationId);
+
+  const later = await operationFor(fp, Date.now() + OPERATION_REUSE_MS + 1000);
+  assert.equal(later.resumed, false, 'a day later the same set is a new delivery');
+  assert.notEqual(later.operationId, first.operationId);
+
+  // A conflict, or a replay whose graphics were deleted since: forgotten, so the next run starts a
+  // new delivery instead of meeting the same answer for a day.
+  const { forgetOperation } = await import('../dist/operations.js');
+  await forgetOperation(fp, later.operationId);
+  const after = await operationFor(fp);
+  assert.equal(after.resumed, false);
+  assert.notEqual(after.operationId, later.operationId);
+
+  // Two saves of a new set at once share one operation: the journal's lock serialises them.
+  const racing = setFingerprint('https://noacg.test', 'key-1', setDocs().slice(0, 1));
+  const ids = new Set((await Promise.all(Array.from({ length: 6 }, () => operationFor(racing)))).map((c) => c.operationId));
+  assert.equal(ids.size, 1, 'one set, one operation, however many ran together');
+  // A lock left by a crashed process is taken over rather than waited on for ever.
+  const lock = `${journalPath()}.lock`;
+  await fs.writeFile(lock, '');
+  const old = new Date(Date.now() - 60_000);
+  await fs.utimes(lock, old, old);
+  assert.equal((await operationFor(racing)).resumed, true);
+  await assert.rejects(fs.stat(lock), 'and released after');
+});
+
+test('one graphic on a deployment without the set door asks about its operation first, then uses the single door under it', async (t) => {
+  const { saveOneTheOldWay } = await import('../dist/commands/save.js');
+  const known = await receiptDeployment();
+  t.after(() => known.server.close());
+  const found = await saveOneTheOldWay(known.origin, 'k', OP_A, './a', 'Strap', {}, {});
+  assert.equal(found.ok, true);
+  assert.equal(found.replayed, true);
+  assert.equal(found.id, 'g1');
+  assert.deepEqual(known.seen.writes, [], 'already there under this operation: nothing is written');
+
+  const gone = await receiptDeployment({ readState: 'missing' });
+  t.after(() => gone.server.close());
+  const deleted = await saveOneTheOldWay(gone.origin, 'k', OP_A, './a', 'Strap', {}, {});
+  assert.equal(deleted.ok, false, 'saved earlier and deleted since is not in the library');
+  assert.equal(deleted.reason, 'deleted');
+  assert.deepEqual(gone.seen.writes, []);
+
+  const fresh = await receiptDeployment({ readStatus: 404 });
+  t.after(() => fresh.server.close());
+  const saved = await saveOneTheOldWay(fresh.origin, 'k', OP_A, './a', 'Strap', {}, {});
+  assert.deepEqual(fresh.seen.writes, [OP_A], 'written once, under the operation the CLI journaled');
+  assert.equal(saved.operationId, OP_A);
+});
+
+test('save refuses --name with several packages before any browser', async () => {
+  const dir = await tmpdir();
+  for (const g of ['a', 'b']) {
+    await fs.mkdir(path.join(dir, g), { recursive: true });
+    await fs.writeFile(path.join(dir, g, 'graphic.html'), '<h1/>');
+  }
+  const closed = { NOACG_URL: 'http://127.0.0.1:1' };
+  const named = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--name', 'Both', '--json'], closed);
+  assert.equal(named.code, 2);
+  assert.match(JSON.parse(named.stdout).error, /--name names one graphic/);
+  // Several packages are a set, not stray words: with no key it is the ordinary no-login refusal.
+  const set = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--json'], closed);
+  assert.equal(set.code, 1);
+  assert.equal(JSON.parse(set.stdout).reason, 'not-logged-in');
 });
 
 // ---------------------------------------------------------------- the shipped skill text

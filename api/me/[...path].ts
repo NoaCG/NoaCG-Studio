@@ -19,10 +19,11 @@
 //
 // The AGENT ACCESS routes (docs/AGENT_SAVE.md) are the exception, by their nature: `agent-keys`
 // mints / lists / revokes the scoped keys a coding agent's CLI holds (a session consents; the
-// key is minted through a one-time code), `graphics` is the save door a key opens and
+// key is minted through a one-time code), `graphics` is the save door a key opens,
+// `graphic-sets` the same for several graphics as one idempotent operation (§10),
 // `packages` its whole-package sibling (a package waits on Home for Install), `deliveries` reads
 // back what a key delivered and settles a package on Install (docs/AGENT_SAVE.md §9), and
-// `community-packs` sends a pack for review to Community packs when the user asks - all five
+// `community-packs` sends a pack for review to Community packs when the user asks - all six
 // resolve a principal through api/_lib/principal.ts and refuse an anonymous caller. They live
 // here because they are things a visitor does ABOUT THEMSELVES, and because this catch-all is
 // where they cost no function slot.
@@ -40,6 +41,7 @@ import graphics from '../_lib/me/graphics.js';
 import packages from '../_lib/me/packages.js';
 import communityPacks from '../_lib/me/communityPacks.js';
 import deliveries from '../_lib/me/deliveries.js';
+import graphicSets from '../_lib/me/graphicSets.js';
 import mcp, { MCP_PATH, PROTECTED_RESOURCE_PATH, protectedResource } from '../_lib/me/mcp.js';
 import connectors from '../_lib/me/connectors.js';
 
@@ -55,6 +57,7 @@ const ROUTES: Record<string, Handler> = {
   packages,
   'community-packs': communityPacks,
   deliveries,
+  'graphic-sets': graphicSets,
   mcp,
   'oauth-protected-resource': protectedResource,
   connectors,

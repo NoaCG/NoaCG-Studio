@@ -105,6 +105,27 @@ export interface AgentAccessStore {
    *  row goes and its receipt records the outcome, in one statement. False when the user had no
    *  such package waiting. */
   settlePackage(userId: string, packageId: string, productionId: string | null): Promise<boolean>;
+  /** Deliver a set of library records as ONE operation (migration 0093, `agent_deliver_graphics`):
+   *  the claim, every record and every receipt commit together or not at all. The same operation
+   *  with the same payload hash and writer replays the first call's ids; anything else under that
+   *  operation is a conflict and writes nothing. */
+  deliverGraphicSet(set: NewGraphicSet): Promise<GraphicSetOutcome>;
+}
+
+/** A set of library records, ids already minted, in the order they were sent. */
+export interface NewGraphicSet {
+  userId: string;
+  keyId: string | null;
+  operationId: string;
+  /** sha256 hex of the payload minus server-minted ids and timestamps (graphicSets.ts). */
+  payloadHash: string;
+  docs: GraphicDocBase[];
+}
+
+export interface GraphicSetOutcome {
+  outcome: 'created' | 'replayed' | 'conflict';
+  /** The library ids in the order the set was sent; empty on a conflict. */
+  ids: string[];
 }
 
 /** Which account a credential acts for. */
@@ -128,6 +149,8 @@ export interface NewDelivery {
 
 export interface DeliveryRow extends NewDelivery {
   productionId: string | null;
+  /** The item's place in its set (0093); null for a single save. */
+  position?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -140,6 +163,9 @@ export interface NewCommunityPack {
   author: string;
   pack: unknown;
 }
+
+/** The database has no set function yet (0093 not applied): the set door answers as absent. */
+export class SetDoorUnavailable extends Error {}
 
 /** The submit gate said no: the sentence is the database's own, written for the maker. */
 export class CommunityPackRefusal extends Error {}
@@ -228,11 +254,19 @@ interface DeliveryRowDb {
   resource_id: string;
   state: RecordedDeliveryState;
   production_id: string | null;
+  position?: number | null;
   created_at: string;
   updated_at: string;
 }
 
-const DELIVERY_COLUMNS = 'operation_id, user_id, key_id, kind, resource_id, state, production_id, created_at, updated_at';
+// Every column, not a list: `position` arrived in 0093, and a readback that named it would fail on
+// a database the migration has not reached yet.
+const DELIVERY_COLUMNS = '*';
+
+/** A set's rows share one timestamp (one transaction); their `position` orders them. */
+function byDeliveryOrder(a: DeliveryRow, b: DeliveryRow): number {
+  return a.createdAt.localeCompare(b.createdAt) || (a.position ?? 0) - (b.position ?? 0);
+}
 
 function toDeliveryRow(row: DeliveryRowDb): DeliveryRow {
   return {
@@ -243,6 +277,7 @@ function toDeliveryRow(row: DeliveryRowDb): DeliveryRow {
     resourceId: row.resource_id,
     state: row.state,
     productionId: row.production_id,
+    position: row.position ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -381,7 +416,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       if (keyId !== null) query = query.eq('key_id', keyId);
       const { data, error } = await query.order('created_at', { ascending: true }).limit(100);
       if (error) throw new Error(error.message);
-      return ((data ?? []) as DeliveryRowDb[]).map(toDeliveryRow);
+      return ((data ?? []) as DeliveryRowDb[]).map(toDeliveryRow).sort(byDeliveryOrder);
     },
     async resourcePresent(userId, kind, id) {
       const db = await serviceRoleDb();
@@ -412,6 +447,23 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       });
       if (error) throw new Error(error.message);
       return data === true;
+    },
+    async deliverGraphicSet(set) {
+      // One RPC is one transaction: the claim, the records and the receipts commit together.
+      const { data, error } = await (await serviceRoleDb()).rpc('agent_deliver_graphics', {
+        p_user_id: set.userId,
+        p_key_id: set.keyId,
+        p_operation_id: set.operationId,
+        p_payload_hash: set.payloadHash,
+        p_graphics: set.docs.map((doc) => ({ id: doc.id, name: doc.name, body: doc })),
+      });
+      // PGRST202: no such function - a database 0093 has not reached yet. Nothing was written.
+      if (error) throw error.code === 'PGRST202' ? new SetDoorUnavailable(error.message) : new Error(error.message);
+      const answer = (data ?? {}) as { outcome?: string; ids?: unknown };
+      if (answer.outcome !== 'created' && answer.outcome !== 'replayed' && answer.outcome !== 'conflict') {
+        throw new Error(`agent_deliver_graphics answered ${JSON.stringify(data)}`);
+      }
+      return { outcome: answer.outcome, ids: Array.isArray(answer.ids) ? answer.ids.map(String) : [] };
     },
     async insertPackage(userId, row) {
       // INSERT, never upsert, and the id is the database's own - the same rule as insertGraphic.
@@ -451,6 +503,13 @@ export interface MemoryAgentAccessStore extends AgentAccessStore {
   deletedProductions: Set<string>;
   /** When set, every delivery record fails, as a missing table would. */
   failDeliveries: boolean;
+  /** The set claims (0093 `agent_operations`), by `${userId}:${operationId}`. */
+  operations: Map<string, { keyId: string | null; payloadHash: string }>;
+  /** Failure injection: a set fails on its record at this index (0-based), as a failing INSERT
+   *  would, and - like the one transaction it stands for - leaves nothing behind. */
+  failSetAt: number | null;
+  /** When set, the database has no set function yet (0093 not applied). */
+  noSetFunction: boolean;
   /** When set, the next community submit is refused with this sentence, as the gate would. */
   refuseCommunityPack: string | null;
   /** The clock the store compares expiries against - a test advances it. */
@@ -477,6 +536,9 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     deletedGraphics: new Set(),
     deletedProductions: new Set(),
     failDeliveries: false,
+    operations: new Map(),
+    failSetAt: null,
+    noSetFunction: false,
     refuseCommunityPack: null,
     now,
     async createCode(row) {
@@ -545,9 +607,9 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
       store.deliveries.push({ ...row, productionId: null, createdAt: store.now(), updatedAt: store.now() });
     },
     async findDeliveries(userId, id, keyId) {
-      return store.deliveries.filter(
-        (d) => d.userId === userId && (d.operationId === id || d.resourceId === id) && (keyId === null || d.keyId === keyId),
-      );
+      return store.deliveries
+        .filter((d) => d.userId === userId && (d.operationId === id || d.resourceId === id) && (keyId === null || d.keyId === keyId))
+        .sort(byDeliveryOrder);
     },
     async resourcePresent(userId, kind, id) {
       return kind === 'graphic'
@@ -571,6 +633,37 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
         });
       }
       return true;
+    },
+    async deliverGraphicSet(set) {
+      if (store.noSetFunction) throw new SetDoorUnavailable('Could not find the function public.agent_deliver_graphics');
+      const claim = `${set.userId}:${set.operationId}`;
+      const known = store.operations.get(claim);
+      const ownRows = (): DeliveryRow[] =>
+        store.deliveries
+          .filter((d) => d.userId === set.userId && d.operationId === set.operationId && d.kind === 'graphic' && d.position != null)
+          .sort(byDeliveryOrder);
+      // An operation id a single save already used is not this set's (0093 says the same).
+      if (!known && store.deliveries.some((d) => d.userId === set.userId && d.operationId === set.operationId)) return { outcome: 'conflict', ids: [] };
+      if (known) {
+        if (known.payloadHash !== set.payloadHash || known.keyId !== set.keyId) return { outcome: 'conflict', ids: [] };
+        return { outcome: 'replayed', ids: ownRows().map((d) => d.resourceId) };
+      }
+      // Stage everything, then commit at once: a failure part way leaves the store untouched.
+      const graphics: MemoryAgentAccessStore['graphics'] = [];
+      const rows: DeliveryRow[] = [];
+      set.docs.forEach((doc, position) => {
+        if (store.failSetAt === position) throw new Error('injected: the insert of this record failed');
+        if ([...store.graphics, ...graphics].some((g) => g.doc.id === doc.id)) throw new Error('duplicate key value violates unique constraint');
+        graphics.push({ userId: set.userId, doc });
+        rows.push({
+          operationId: set.operationId, userId: set.userId, keyId: set.keyId, kind: 'graphic', resourceId: doc.id, state: 'saved',
+          productionId: null, position, createdAt: store.now(), updatedAt: store.now(),
+        });
+      });
+      store.operations.set(claim, { keyId: set.keyId, payloadHash: set.payloadHash });
+      store.graphics.push(...graphics);
+      store.deliveries.push(...rows);
+      return { outcome: 'created', ids: set.docs.map((d) => d.id) };
     },
     async submitCommunityPack(userId, row) {
       if (store.refuseCommunityPack) throw new CommunityPackRefusal(store.refuseCommunityPack);
