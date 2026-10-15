@@ -1,8 +1,8 @@
 // The run wake-up's prompt gate, verified the way docs/MISTAKE_TRIGGERS.md asks for: real event JSON
-// piped into the REAL hook file. What is pinned: any prompt but the wake-up task's own passes
-// untouched, also one quoting the task's tag; a firing with nothing to do (here `unknown`, the inventory not answering) is blocked
-// before the model; a firing with something to do (here `idle`) reaches the model with the check's
-// output; and the hook is wired.
+// piped into the REAL hook file. What is pinned: any prompt but the wake-up task's own envelope
+// passes untouched, one quoting the task's tag included; a firing with nothing to do (here
+// `unknown`, the inventory not answering) is blocked before the model; a firing with something to
+// do (here `idle`) reaches the model with the check's output; and the hook is wired.
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
