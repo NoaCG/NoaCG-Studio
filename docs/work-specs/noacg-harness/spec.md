@@ -969,7 +969,7 @@ the spend added to the ledger, and the check's findings.
   so it compared the server. Its read-back on the same definition gives no drift for v6,
   `multiagent` for v5 and `skills` for v3 (another skill version id, the same bytes).
 - **Bench workspace files:** none; `file_01QppTruKxMVpKQdtubuC9Lc` is gone.
-- **Tests:** with the update body's null clearing removed, the new sync test fails ("null is what
+- **Tests:** with the update body no longer sending `null` for omitted fields, the new sync test fails ("null is what
   agents.update takes to clear it"); restored, `harness-bench.test.mjs` passes 38 of 38.
   `--control` run directly, after `cli/` was built and with this checkout's dev server up:
   CONTROL PASSED at $0.
