@@ -308,3 +308,35 @@ Next phase must allow for:
 - Installing a pending package saves its own copies, so per-graphic saves plus Install leave the
   set twice in the library. The skill and docs say so; Phase 4's source identity removes it.
 - `whoami` still names no account; Phase 2 adds it.
+
+### Phase 1 (check), 2026-10-15
+
+Checked on `origin/main` `3977d47be`, which noacg.studio was serving (`doctor`: bridge
+`main@3977d47be5`). Verdict: PASS.
+
+- AC-2: the live Downloads page at 1440, 768 and 390px shows the 72-word prompt first in the
+  CLI card, the Node/Chrome-or-Edge line above it and the plugin below as optional. Its Copy
+  button put the exact shown text on the clipboard at each width, with no sideways scroll.
+  `/docs` serves the same rendered text. The pin `@0.11.0` equals `cli/package.json` and npm's
+  `latest`. `agent-prompt.test.mjs` (5/5) and `build-skill.mjs --check` (30 files) pass.
+- AC-3, run as a user: a fresh agent session was given only the prompt and an empty credential
+  store. It ran `doctor`, `docs contract`, `whoami` (not logged in) and `login --no-browser`, which
+  printed the consent link. The login was left unapproved, so the store stayed empty. The agent
+  built the requested lower third, validated it with screenshots (re-run here: 0 errors,
+  0 warnings) and reported it as local only, with "not saved to your NoaCG library" and no
+  invented links. The saved-with-links half needs an account on a configured backend; production
+  had none for this check, so it rests on the skill text and the configured agent-access journey.
+  The skill (source and plugin copy) connects before the brief, saves each graphic, reports an
+  unanswered save with its known IDs and no blind retry, and lists a package only as pending
+  Install.
+- AC-1: configured-suite run 38756002331 on `3977d47be` (local Supabase stack) passed, 100 run and
+  8 allowed skips. Its report shows the sign-up test that keeps Home ran and passed (18.8 s): Home
+  opens from the wizard before sign-up, right after it and after a later login in a fresh browser,
+  at 1440, 768 and 390px. `agent-access.spec.ts` (consent, save 201, deep link, revoke) passed.
+  The pull request's plan ran `wizard-shell`, `downloads` and `docs` green.
+- The prompt alone does not carry the ambiguous-write rule or the pending-package wording; a
+  plugin-less session gets those only from the plugin skill, which it does not load. Phase 5
+  decides whether a `docs` topic or the prompt carries them (the build note above already flags it).
+- Pre-existing, outside this phase: at 1440px the `/plugin install …` line on Downloads runs under
+  its Copy button. `doctor` in a plugin-less session still reports an installed older plugin
+  skill if one exists elsewhere on the machine, which a plugin-less user may find confusing.
