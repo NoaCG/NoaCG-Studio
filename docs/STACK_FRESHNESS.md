@@ -362,7 +362,7 @@ It holds **176** as of 2026-10-15: the one failing entry is migration 0093's
 policy, and `anon` and `authenticated` hold no privilege on it; read on production the same day: no
 policy, no client grant, and neither role may execute `agent_deliver_graphics`, which is security
 invoker and the service role's alone. So it is deny-all like `connector_grants`: only the API behind
-`/api/me` writes and reads it. Two of 0093's and 0092's indexes read as unused, a class that never
+`/api/me` writes and reads it. One index from each of 0093 and 0092 reads as unused, a class that never
 fails, and 8 unused-index entries had gone, so the file was re-recorded with
 `--update-baseline` rather than by hand.
 The last full breakdown was taken at 70 on

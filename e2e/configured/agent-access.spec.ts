@@ -20,7 +20,7 @@
 
 import { test, expect, chromium, type Page } from '@playwright/test';
 import http from 'node:http';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { appendFile, cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -485,6 +485,8 @@ test.describe('agent access (configured)', () => {
     try {
       const key = await mintKey(page, origin, name);
       const env = { NOACG_URL: origin, NOACG_AGENT_KEY: key, NOACG_CREDENTIALS_DIR: path.join(work, 'config'), NOACG_BROWSER: chromium.executablePath() };
+      // The first CLI run must not be the dev server's first /bridge (the CLI gives it 30 s).
+      await page.goto('/bridge');
       const tag = randomBytes(3).toString('hex');
       const pkg = (n: string) => path.join(work, n);
       for (const n of ['A', 'B', 'C']) {
@@ -499,6 +501,7 @@ test.describe('agent access (configured)', () => {
       // KILLED MID-SAVE, THEN RUN AGAIN: the process dies once it has named its operation, whether
       // or not the write got out. The rerun resumes that operation and the account holds one set.
       const killed = await noacg(['save', ...set, '--no-bench', '--json'], env, { killWhen: /under operation [0-9a-f-]{36}/ });
+      expect(killed.signal, `the save was killed, not finished: ${killed.stderr}`).toBe('SIGKILL');
       const operation = /under operation ([0-9a-f-]{36})/.exec(killed.stderr)?.[1];
       expect(operation, killed.stderr).toBeTruthy();
       const resumed = await noacg(['save', ...set, '--no-bench', '--json'], env);
@@ -558,6 +561,7 @@ test.describe('agent access (configured)', () => {
       await expect.poll(inLibrary, { timeout: 30_000 }).toEqual(afterChanged);
       expect((await readBack(operation!))?.resources.map((r) => r.id)).toEqual(ids);
     } finally {
+      killAll();
       await rm(work, { recursive: true, force: true }).catch(() => undefined);
       await page.goto('/app').catch(() => undefined);
       await wipeE2EKeys(page, name).catch(() => undefined);
@@ -571,29 +575,63 @@ test.describe('agent access (configured)', () => {
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const CLI = path.join(ROOT, 'cli', 'dist', 'index.js');
 
-/** Build the CLI from this checkout with the root TypeScript. The terminal verbs need only what the
- *  root install already has; the MCP server's SDK, which they never load, is not installed here,
- *  so its file reports type errors and is emitted all the same. What matters is that it runs. */
+/** Build the CLI from this checkout with the root TypeScript into a fresh `cli/dist`, so a stale
+ *  build can never stand in for this one. The root install is not the CLI's own: its zod is a major
+ *  version ahead of the CLI's, so `mcp.ts` (which the terminal verbs never load) reports type
+ *  errors and is emitted all the same. What matters is that the CLI built and runs. */
 function buildCli(): void {
+  rmSync(path.join(ROOT, 'cli', 'dist'), { recursive: true, force: true });
   const tsc = createRequire(import.meta.url).resolve('typescript/bin/tsc');
-  spawnSync(process.execPath, [tsc, '-p', path.join(ROOT, 'cli', 'tsconfig.json')], { cwd: ROOT, encoding: 'utf8' });
-  expect(existsSync(CLI), 'the CLI built').toBe(true);
+  const built = spawnSync(process.execPath, [tsc, '-p', path.join(ROOT, 'cli', 'tsconfig.json')], { cwd: ROOT, encoding: 'utf8' });
+  expect(existsSync(CLI), `the CLI built:\n${built.stdout}${built.stderr}`).toBe(true);
   const version = spawnSync(process.execPath, [CLI, '--version'], { encoding: 'utf8' });
   expect(version.status, version.stderr).toBe(0);
 }
 
-/** Run `noacg` to its end, or kill it as soon as its stderr matches `killWhen`. */
-function noacg(args: string[], env: Record<string, string>, opts: { killWhen?: RegExp } = {}): Promise<{ code: number | null; stdout: string; stderr: string }> {
+/** Every CLI process a run started and that may still be alive, with its browser. */
+const running = new Set<ReturnType<typeof spawn>>();
+
+/** Kill a CLI and everything it started (its headless browser): on POSIX its own process group. */
+function killTree(child: ReturnType<typeof spawn>): void {
+  if (child.exitCode !== null || child.signalCode !== null || !child.pid) return;
+  try {
+    if (process.platform === 'win32') child.kill('SIGKILL');
+    else process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    /* already gone */
+  }
+}
+
+function killAll(): void {
+  for (const child of running) killTree(child);
+}
+
+/** Run `noacg` to its end, or SIGKILL it (a crash, which nothing in it can catch) as soon as its
+ *  stderr matches `killWhen`. A run that takes longer than `timeoutMs` is killed too and fails. */
+function noacg(
+  args: string[],
+  env: Record<string, string>,
+  opts: { killWhen?: RegExp; timeoutMs?: number } = {},
+): Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [CLI, ...args], { env: { ...process.env, ...env }, cwd: ROOT });
+    const child = spawn(process.execPath, [CLI, ...args], { env: { ...process.env, ...env }, cwd: ROOT, detached: process.platform !== 'win32' });
+    running.add(child);
     let stdout = '';
     let stderr = '';
+    const timer = setTimeout(() => {
+      stderr += `\n[e2e] noacg ${args[0]} still running after ${(opts.timeoutMs ?? 120_000) / 1000} s - killed`;
+      killTree(child);
+    }, opts.timeoutMs ?? 120_000);
     child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
     child.stderr.on('data', (d: Buffer) => {
       stderr += d.toString();
-      if (opts.killWhen?.test(stderr) && child.exitCode === null) child.kill();
+      if (opts.killWhen?.test(stderr)) killTree(child);
     });
-    child.on('close', (code) => resolve({ code, stdout, stderr }));
+    child.on('close', (code, signal) => {
+      clearTimeout(timer);
+      running.delete(child);
+      resolve({ code, signal, stdout, stderr });
+    });
   });
 }
 
@@ -622,6 +660,7 @@ async function mintKey(page: Page, origin: string, name: string): Promise<string
   try {
     await page.goto(`/app?agent=${state}&port=${listener.port}&name=${encodeURIComponent(name)}&challenge=${challenge}`);
     await page.getByTestId('agent-consent-allow').click();
+    await page.waitForURL((u) => u.hostname === '127.0.0.1' && u.pathname === '/callback', { timeout: 20_000 });
     const code = await listener.code;
     const redeem = await fetch(`${origin}/api/me/agent-keys`, {
       method: 'POST',
