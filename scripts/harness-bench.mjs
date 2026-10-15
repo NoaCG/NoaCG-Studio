@@ -62,7 +62,7 @@ import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibili
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
 import { readAgentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
-import { AGENT_DIR, agentReadBack, keyFor, lockPath, readDefinitions, skillBundle, syncPlan } from './harness-agent-sync.mjs';
+import { AGENT_DIR, agentReadBack, lockPath, readDefinitions, skillBundle, syncPlan, workspaceClient } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -390,10 +390,9 @@ async function build(phase) {
       const agentModel = agentDef.config.model?.id ?? agentDef.config.model;
       // An override replaces the agent's model object in full, so an effort alone restates the model.
       const override = (id) => ((id && id !== agentModel) || effort ? { id: id || agentModel, ...(effort ? { effort } : {}) } : null);
-      const key = keyFor('bench');
-      if (!key) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
-      const { default: Anthropic, toFile } = await import('@anthropic-ai/sdk');
-      sdk = new Anthropic({ apiKey: key });
+      sdk = await workspaceClient('bench');
+      if (!sdk) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
+      const { toFile } = await import('@anthropic-ai/sdk');
       // The lock says what the sync sent; a session runs what the server kept (H6's v5 kept v4's critic).
       const { drift: serverDrift } = await agentReadBack(sdk, lock, agentDef);
       if (serverDrift.length) fail(`the server's agent v${lock.agent.version} differs from agents/noacg-harness in ${serverDrift.join(', ')}: run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);

@@ -826,8 +826,13 @@ test('the sync clears a multiagent block the definition dropped, and its plan se
   assert.deepEqual(steps.map((s) => s.action), ['keep', 'keep', 'update']);
   // Carried out on a stub: the update clears the block and the metadata key the files dropped.
   const sent = [];
-  const client = { beta: { agents: { update: async (id, body) => { sent.push({ id, body }); return { id, version: 6 }; } } } };
-  const next = await applySync({ client, workspace: 'bench', steps, environment, agent, subagents, bundle: { sha256: 'x' }, bundleDir: tmp(), lock, current: { ...v5, metadata: { ...v5.metadata, critic_cents: '76' } }, save: () => {} });
+  const read = [];
+  const client = { beta: { agents: {
+    retrieve: async (id, { version }) => { read.push(version); return { ...v5, metadata: { ...v5.metadata, critic_cents: '76' } }; },
+    update: async (id, body) => { sent.push({ id, body }); return { id, version: 6 }; },
+  } } };
+  const next = await applySync({ client, workspace: 'bench', steps, environment, agent, subagents, bundle: { sha256: 'x' }, bundleDir: tmp(), lock, save: () => {} });
+  assert.deepEqual(read, [5], 'the update is built against the locked version as the server has it');
   assert.equal(sent.length, 1);
   assert.equal(sent[0].body.multiagent, null, 'null is what agents.update takes to clear it');
   assert.equal(sent[0].body.mcp_servers, null);

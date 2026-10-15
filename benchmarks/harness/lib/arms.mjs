@@ -410,8 +410,8 @@ export function packCli(outDir) {
   return path.join(outDir, filename);
 }
 
-/** The name `npm pack` gives the CLI, which the bench uploads under that name. */
-export const CLI_UPLOAD_NAME = /^noacg-cli-.+\.tgz$/;
+/** The name `npm pack` gives the CLI (cli/package.json's name), which the bench uploads it under. */
+const CLI_UPLOAD_NAME = /^noacg-cli-.+\.tgz$/;
 
 /** Delete the CLI uploads an earlier run left on the workspace, and say which. A stopped run never
  *  reaches the cleanup that deletes its own (H6's first run left one). Bench runs are one at a

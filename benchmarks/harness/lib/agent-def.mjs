@@ -75,8 +75,8 @@ const CLEARABLE = ['description', 'mcp_servers', 'multiagent', 'tools'];
 export function agentUpdateBody(def, skill, synced = {}, current = null) {
   const body = agentCreateBody(def, skill, synced);
   for (const field of CLEARABLE) if (body[field] === undefined) body[field] = null;
-  const dropped = Object.keys(current?.metadata ?? {}).filter((k) => !(k in (body.metadata ?? {})));
-  if (dropped.length) body.metadata = { ...(body.metadata ?? {}), ...Object.fromEntries(dropped.map((k) => [k, null])) };
+  const metadata = { ...Object.fromEntries(Object.keys(current?.metadata ?? {}).map((k) => [k, null])), ...body.metadata };
+  if (Object.keys(metadata).length) body.metadata = metadata;
   return body;
 }
 
@@ -94,7 +94,7 @@ export function serverDrift(body, server) {
   const metadata = (m) => Object.fromEntries(Object.entries(m ?? {}).filter(([, v]) => v !== null));
   const skills = (list) => (list ?? []).map((s) => `${s.skill_id}@${s.version}`);
   const drift = [];
-  for (const field of ['name', 'description', 'system', 'mcp_servers', 'multiagent', 'tools']) {
+  for (const field of ['name', 'system', ...CLEARABLE]) {
     const want = body[field];
     if (empty(want) ? !empty(server[field]) : !contained(want, server[field])) drift.push(field);
   }

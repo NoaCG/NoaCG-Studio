@@ -102,9 +102,14 @@ export function keyFor(workspace) {
   return mainEnv().ANTHROPIC_API_KEY;
 }
 
-/** Carry a plan out on `client`; `current` is the server's copy of the locked agent version. */
-export async function applySync({ client, workspace, steps, environment, agent, subagents, bundle, bundleDir, lock, current, save }) {
+const refOf = (a) => ({ id: a.id, version: a.version });
+
+/** Carry a plan out on `client`. */
+export async function applySync({ client, workspace, steps, environment, agent, subagents, bundle, bundleDir, lock, save }) {
   const { toFile } = await import('@anthropic-ai/sdk');
+  // An update is built against the synced version as the server has it, so what it kept that
+  // the definition dropped (a metadata key) is sent as null.
+  const update = async (ref, body) => refOf(await client.beta.agents.update(ref.id, { ...body(await client.beta.agents.retrieve(ref.id, { version: ref.version })), version: ref.version }));
   const next = { workspace, ...(lock ?? {}) };
   const [envStep, skillStep] = steps;
   const agentStep = steps[steps.length - 1];
@@ -133,8 +138,8 @@ export async function applySync({ client, workspace, steps, environment, agent, 
   for (const step of steps.slice(2, -1)) {
     const synced = next.subagents?.[step.resource];
     let ref = synced ? { id: synced.id, version: synced.version } : null;
-    if (step.action === 'create') ref = await client.beta.agents.create(agentCreateBody(subagents[step.resource], next.skill)).then((a) => ({ id: a.id, version: a.version }));
-    else if (step.action === 'update') ref = await client.beta.agents.update(synced.id, { ...agentUpdateBody(subagents[step.resource], next.skill, {}, await client.beta.agents.retrieve(synced.id, { version: synced.version })), version: synced.version }).then((a) => ({ id: a.id, version: a.version }));
+    if (step.action === 'create') ref = refOf(await client.beta.agents.create(agentCreateBody(subagents[step.resource], next.skill)));
+    else if (step.action === 'update') ref = await update(synced, (current) => agentUpdateBody(subagents[step.resource], next.skill, {}, current));
     next.subagents = { ...(next.subagents ?? {}), [step.resource]: { ...ref, sha256: step.sha256 } };
     save(next);
   }
@@ -142,13 +147,8 @@ export async function applySync({ client, workspace, steps, environment, agent, 
   for (const file of Object.keys(next.subagents ?? {})) if (!subagents[file]) delete next.subagents[file];
   if (next.subagents && !Object.keys(next.subagents).length) delete next.subagents;
 
-  if (agentStep.action === 'create') {
-    const created = await client.beta.agents.create(agentCreateBody(agent, next.skill, next.subagents ?? {}));
-    next.agent = { id: created.id, version: created.version };
-  } else if (agentStep.action === 'update') {
-    const updated = await client.beta.agents.update(lock.agent.id, { ...agentUpdateBody(agent, next.skill, next.subagents ?? {}, current), version: lock.agent.version });
-    next.agent = { id: updated.id, version: updated.version };
-  }
+  if (agentStep.action === 'create') next.agent = refOf(await client.beta.agents.create(agentCreateBody(agent, next.skill, next.subagents ?? {})));
+  else if (agentStep.action === 'update') next.agent = await update(lock.agent, (current) => agentUpdateBody(agent, next.skill, next.subagents ?? {}, current));
   next.agent = { ...next.agent, sha256: agentStep.sha256 };
   next.syncedAt = new Date().toISOString();
   return next;
@@ -192,7 +192,7 @@ if (isMain) {
     } else {
       if (!client) throw new Error(`no key for the ${workspace} workspace in .env (${workspace === 'bench' ? 'ANTHROPIC_BENCH_API_KEY' : 'ANTHROPIC_API_KEY'})`);
       const save = (state) => writeFileSync(lockFile, `${JSON.stringify(state, null, 2)}\n`);
-      const next = await applySync({ client, workspace, steps, environment, agent, subagents, bundle, bundleDir, lock, current: readBack?.server ?? null, save });
+      const next = await applySync({ client, workspace, steps, environment, agent, subagents, bundle, bundleDir, lock, save });
       save(next);
       console.log(`Synced: agent ${next.agent.id} v${next.agent.version}, environment ${next.environment.id}, skill ${next.skill.id} ${next.skill.version}. Lock: ${path.relative(ROOT, lockFile)}`);
       // Done only when the server's copy of the new version is what was sent.
