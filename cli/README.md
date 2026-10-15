@@ -29,35 +29,11 @@ It is not about authoring and needs nothing from this package.
 
 ## Paste this to your agent
 
-The short way in. The agent installs the entrance that matches it, checks the setup, and then
-asks what to make. It runs a couple of install commands you have to approve.
-
-```
-Set up NoaCG Studio so you can build broadcast graphics for me, then ask me what to make.
-
-1. Install the entrance that matches you. Claude Code:
-     claude plugin marketplace add NoaCG/NoaCG-Studio
-     claude plugin install noacg@noacg-studio
-   Codex:
-     codex plugin marketplace add NoaCG/NoaCG-Studio
-     codex plugin add noacg@noacg-studio
-   Any other agent that speaks MCP: register a stdio server, command "npx", arguments
-   "-y @noacg/cli mcp". I will approve these commands as you run them.
-
-2. Do not wait for the install. A plugin only loads in your next session, so use
-   "npx -y @noacg/cli <command>" for everything today, starting with
-   "npx -y @noacg/cli docs contract" to read what a NoaCG graphic must expose.
-
-3. Verify: "npx -y @noacg/cli doctor" prints the deployment, the browser it will drive and
-   the bridge version it found. If it does not, tell me what failed and stop.
-
-4. Then tell me in one or two lines that NoaCG is ready, and ask me to describe the graphic
-   I want.
-
-The loop after that: scaffold or author, "npx -y @noacg/cli validate <dir> --screenshots
-./shots", fix what it reports, then "npx -y @noacg/cli save <dir>". Saving needs
-"npx -y @noacg/cli login" once, which opens a browser for me to approve.
-```
+The short way in: one prompt that runs this CLI through npx in the session you have open, with
+nothing installed first. The agent checks its setup, connects your NoaCG account in the browser
+if needed, asks what to make, and saves each finished graphic to your library with its link.
+Copy it from [noacg.studio/downloads](https://noacg.studio/downloads#cli-prompt); it names the
+exact CLI version to run.
 
 The commands it runs are below, for anyone who would rather run them by hand.
 

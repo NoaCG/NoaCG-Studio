@@ -274,6 +274,37 @@ open; no local or upload-only success closes it. Layer: independent final check 
 
 ## Phase notes
 
-No implementation phases started. The baseline receipt preserves prior navigation evidence;
-it does not mark this plan's implementation criteria complete. Builders append findings,
-decisions, migrations/compatibility notes, rollback and downstream dependencies here.
+The baseline receipt preserves prior navigation evidence; it does not mark this plan's
+implementation criteria complete. Builders append findings, decisions, migrations/compatibility
+notes, rollback and downstream dependencies here.
+
+### Phase 1 (build), 2026-10-15
+
+Last check's findings: none (first phase).
+
+Landed: one prompt source, `scripts/agent-prompt.mjs`, 72 words, `npx -y @noacg/cli@<version>`
+read from `cli/package.json`. The generated-pages plugin renders its marker into Downloads
+(`/downloads#cli-prompt`, first in the CLI card, Node and Chrome/Edge above it, plugin below as
+optional) and the docs (`/docs#agent-install`, replacing the plugin-install prompt). The wizard's
+card keeps its install lines and links the docs copy; `cli/README.md` links Downloads instead of
+carrying a copy. The skill now connects before the brief (doctor, whoami, login or local-only),
+saves every graphic individually, reports unconfirmed saves with known IDs and no blind retry,
+and lists a `pack --save` package only as pending Install. Checks: `scripts/agent-prompt.test.mjs`,
+`e2e/downloads.spec.ts` (copy, order, 1440/768/390 fit), `e2e/docs.spec.ts`, and the configured
+sign-up journey in `e2e/configured/anonymous.spec.ts` (Home before sign-up, right after it and
+after a later login in a fresh browser, at the three widths).
+
+Decisions: the prompt is rendered at build, not by script, so both pages are complete without
+JavaScript and cannot diverge. The wizard card was not redesigned (its invariant keeps the install
+lines and the docs link); only its hint now says the prompt needs no install. Rollback: revert the
+pull request; nothing persisted changes.
+
+Next phase must allow for:
+- The published 0.11.0 has no `docs` topic for the skill itself, so a plugin-less session gets the
+  workflow only from the prompt. Phase 5 may add one, or keep the prompt carrying it.
+- "Don't allow" on the consent page does not reach the CLI, which waits out its five-minute
+  timeout. The skill tells the agent to carry on locally then; a deny that ends `login` at once
+  belongs with Phase 2's consent and identity work.
+- Installing a pending package saves its own copies, so per-graphic saves plus Install leave the
+  set twice in the library. The skill and docs say so; Phase 4's source identity removes it.
+- `whoami` still names no account; Phase 2 adds it.

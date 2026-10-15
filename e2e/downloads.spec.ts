@@ -13,12 +13,17 @@
 // per-section download links, the footer - and the tests below assert them. Without this line a
 // landing change planned landing.spec.ts alone and broke main here (PR #477, reverted by #479).
 // covers: src/landing/**, index.html
+//
+// THE CODING-AGENT PROMPT (scripts/agent-prompt.mjs) is rendered into this page at build, so a
+// change to its text or to the CLI version it names rides along here.
+// covers: scripts/agent-prompt.mjs, cli/package.json
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { SVG_EXAMPLES_URL, SVG_EXAMPLES_ZIP_URL } from '../src/downloads/links';
+import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 
 /** The seven graphics the SVG examples package ships, by file name. */
 const EXAMPLES = ['title', 'lower-third', 'quiz', 'scoreboard', 'countdown', 'ticker', 'end-credits'];
@@ -221,4 +226,48 @@ test('the top bar is the landing top bar, with Downloads as the current page', a
   const nav = page.locator('header.top nav');
   await expect(nav.locator('a')).toHaveText(['Create', 'Play or export', 'OGraf', "What's new", 'Docs', 'Downloads', 'Start creating']);
   await expect(nav.locator('a[aria-current="page"]')).toHaveAttribute('href', '/downloads');
+});
+
+// THE PROMPT LEADS THE CLI CARD (docs/work-specs/agent-delivery/spec.md AC-2). Owner, 2026-10-15:
+// one short prompt a person pastes into the agent session they already have open, with nothing
+// installed first; the plugin is optional, below it. The words, the 80-word limit and the pinned
+// version are scripts/agent-prompt.test.mjs's; this is what a reader gets: the block before the
+// plugin lines, readable at every width, and a Copy button that puts the whole prompt on the
+// clipboard.
+test('the CLI card leads with one short prompt that copies whole and reads at every width', async ({ page, context }) => {
+  await fakeChannels(page, 'down');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/downloads#cli-prompt');
+  const cli = page.getByTestId('download-cli');
+  const prompt = cli.getByTestId('agent-prompt');
+  await expect(prompt).toHaveText(AGENT_PROMPT);
+  // What it needs stays on the card, and the plugin is the optional route after the prompt.
+  await expect(cli.getByTestId('cli-needs')).toContainText('Node.js 20 or newer, and Chrome or Edge');
+  const before = (a: string, b: string) =>
+    cli.evaluate((card, [x, y]) => {
+      const first = card.querySelector(x);
+      const second = Array.from(card.querySelectorAll('pre')).find((pre) => pre.textContent?.includes(y));
+      return Boolean(first && second && first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+    }, [a, b]);
+  expect(await before('[data-testid="agent-prompt"]', '/plugin install noacg')).toBe(true);
+  expect(await before('[data-testid="agent-prompt"]', 'codex plugin add')).toBe(true);
+
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await prompt.scrollIntoViewIfNeeded();
+    await expect(prompt, `the prompt at ${width}px`).toBeInViewport();
+    // Prose wraps inside the block: no sideways scroll in it, and none on the page.
+    const fit = await prompt.evaluate((el) => ({
+      block: el.scrollWidth - el.clientWidth,
+      page: document.documentElement.scrollWidth - window.innerWidth,
+    }));
+    expect(fit, `nothing scrolls sideways at ${width}px`).toEqual({ block: 0, page: 0 });
+  }
+
+  // src/docs/docs.ts wraps the block in `.cmd` and puts its Copy button beside it.
+  const copy = prompt.locator('xpath=..').locator('.cmd-copy');
+  await copy.click();
+  await expect(copy).toHaveText('Copied');
+  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboard.trim()).toBe(AGENT_PROMPT);
 });

@@ -14,11 +14,15 @@
 // zip the page links, and downloads.spec.ts fetches it.
 // covers: {downloads.html,src/downloads/**,public/downloads/**}
 //
+// The coding-agent prompt both pages render at build (scripts/agent-prompt.mjs).
+// covers: scripts/agent-prompt.mjs
+//
 // The public docs home: the guides students and operators follow to get on air at all.
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { AGENT_PROMPT } from '../scripts/agent-prompt.mjs';
 
 // The public docs home lives at /docs (docs.html - static, indexed, no React; the tenth MPA
 // entry). Dev/preview serve the clean URL through the app-clean-url Vite plugin, production
@@ -308,10 +312,11 @@ test('the four guides carry their load-bearing content', async ({ page }) => {
   // (a) Coding agents: the one install command that has to work when copied cold, plus the
   // loop's verbs.
   const agents = page.locator('#claude-code');
-  // The lead is one paste-to-agent prompt, and the warning that the user approves the installs
-  // it runs belongs beside it rather than only inside the pasted text.
+  // The lead is one paste-to-agent prompt that needs no install (owner, 2026-10-15), and what
+  // the user does during it, approving the account connection, is said beside it.
   await expect(agents).toContainText('Paste this to your agent');
-  await expect(agents).toContainText('install commands that you have to approve');
+  await expect(agents).toContainText('with nothing to install first');
+  await expect(agents).toContainText('connect your NoaCG account in the browser');
   await expect(agents).toContainText('npm i -g @noacg/cli');
   await expect(agents).toContainText('scaffold');
   await expect(agents).toContainText('validate');
@@ -581,22 +586,18 @@ test('every command block is one copy-paste, with a copy button', async ({ page 
   await expect(page.locator('.doc-body .cmd-copy')).toHaveCount(count);
 
   // The bootstrap prompt is the block a beginner copies first, so prove that button really
-  // writes the whole prompt to the clipboard - all four steps, not a truncated first line.
+  // writes the whole prompt to the clipboard, not a truncated first line. It is the one
+  // Downloads shows, from the same source.
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   const bootstrap = page.locator('#claude-code .cmd').first();
   await expect(bootstrap.locator('pre')).toHaveClass(/prompt/);
   await bootstrap.locator('.cmd-copy').click();
   await expect(bootstrap.locator('.cmd-copy')).toHaveText('Copied');
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clipboard).toContain('Set up NoaCG Studio');
-  expect(clipboard).toContain('claude plugin install noacg@noacg-studio');
-  expect(clipboard).toContain('codex plugin add noacg@noacg-studio');
-  // The npx fallback is the reason the prompt exists: a freshly installed plugin only loads in
-  // the next session, so the current one has to work without it.
-  expect(clipboard).toContain('npx -y @noacg/cli doctor');
-  // The angle brackets are written as entities in the markup; the clipboard must carry the
-  // characters, or the pasted prompt tells the agent to type "&lt;dir&gt;".
-  expect(clipboard).toContain('npx -y @noacg/cli save <dir>');
+  // npx is the reason the prompt works at once: a freshly installed plugin only loads in the
+  // next session, so the current one has to run without it.
+  expect(clipboard.trim()).toBe(AGENT_PROMPT);
+  expect(clipboard).toContain('npx -y @noacg/cli@');
 });
 
 test('the agent guide offers both install routes, and they are the real ones', async ({ page }) => {

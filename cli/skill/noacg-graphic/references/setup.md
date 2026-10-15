@@ -24,9 +24,11 @@ changed graphic needs the CLI.
 4. Commands use https://noacg.studio by default. For a self-hosted deployment, explicitly set
    `NOACG_URL` to its origin and rerun doctor. Its `/bridge` page must serve the existing CLI
    protocol. Reachability or protocol failures are setup failures, not a validated graphic.
-5. Author, inspect and validate a local package before saving. Use `noacg login` for browser
-   consent, then `noacg whoami`. If consent is cancelled or a key is revoked, log in again or
-   deliver the validated ZIP/offline pack. Do not read inherited credentials to bypass consent.
+5. Connect once, before the brief: `noacg whoami` reuses a valid key; otherwise `noacg login`
+   opens browser consent for the user to approve. If consent is cancelled or a key is revoked,
+   log in again or deliver the validated ZIP/offline pack, and say nothing was saved. Do not
+   read inherited credentials to bypass consent. Author, inspect and validate each package
+   locally before saving it.
 
 The optional MCP plugin runs the same CLI version. With no installation, or another version
 installed, it uses pinned npx, which downloads from registry.npmjs.org and costs an extra process.

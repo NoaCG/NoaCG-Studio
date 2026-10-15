@@ -227,11 +227,11 @@ const CORE = [
 // 759-spec run.
 // The last group are scripts a spec header names, so IGNORE must let them through to that header:
 // the dev-server API plugins vite.config.ts mounts, the builders of the public pages and their
-// shared chrome, and the pack builders. The test "every docs or scripts file a spec header names
+// shared chrome, the coding-agent prompt they render, and the pack builders. The test "every docs or scripts file a spec header names
 // plans that spec" fails when a header names a script this list leaves ignored.
 const SUITE_CRITICAL_SCRIPTS =
   'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists|e2e-trace|' +
-  'adminDevPlugin|meDevPlugin|whats-new|roadmap|site-nav|build-news-pack|build-production-pack|packs/';
+  'adminDevPlugin|meDevPlugin|whats-new|roadmap|site-nav|agent-prompt|build-news-pack|build-production-pack|packs/';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
 // it ran 53 specs to prove nothing. It already has a real gate in `npm run build`:

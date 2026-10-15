@@ -523,8 +523,14 @@ Every channel below ships the same one artifact; what differs is which entrance 
 | **Codex** (`.codex-plugin/plugin.json` in each plugin directory, the same `skills/`, the same root marketplace) | the whole plugin directory: the skill copy (`noacg`), or `.mcp.json` (`noacg-mcp`) | `codex plugin marketplace add NoaCG/NoaCG-Studio` then `codex plugin add noacg@noacg-studio` (and `noacg-mcp@noacg-studio` for the server) |
 | **In-repo dogfooding** | the thin adapter triple (`.agent-workflows/noacg-graphic.md`, `.claude/skills/`, `.agents/skills/`) - POINTERS at the source | already there |
 
+**The session prompt has one source**, `scripts/agent-prompt.mjs` (since 2026-10-15). It runs
+the CLI through `npx -y @noacg/cli@<cli/package.json version>` in the session already open, so it
+needs no plugin; it connects the account before the brief and asks for every graphic to be saved
+to the library with its link. The build renders it into Downloads (`/downloads#cli-prompt`) and the
+docs (`/docs#agent-install`), and `scripts/agent-prompt.test.mjs` holds it to 80 words.
+
 **Two hand-kept copies of the install lines exist outside `build-skill.mjs`'s reach** - the docs
-page's Reference (`docs.html#agent-setup`, and the paste-prompt above it) and the studio's own
+page's Reference (`docs.html#agent-setup`) and the studio's own
 steer, `src/components/wizard/ai/AgentRouteCard.tsx` (the AI step's *Recommended* block, which
 shows Claude Code's one-command install, the Codex pair and `/noacg:graphic`). A change to the marketplace
 name, the plugin name or the command updates both in the same commit; nothing measures the drift
