@@ -4,7 +4,9 @@
 # the body below = the system prompt: plumbing only, at most 25 lines (AC-16). Design guidance
 # goes into cli/skill/noacg-graphic or the CLI, never here. `skills` names the skill folder;
 # scripts/harness-agent-sync.mjs uploads it and pins the version it got. No multiagent block:
-# the critic (D4) is off until a tuning round's measurement turns it on.
+# H6 measured the critic (D4) as v4 and dropped it (evidence/phase-6.md). To list a subagent
+# again, put its file beside this one in `multiagent.subagents.predefined_agents` (H6's was
+# `critic.md`, in git history); the sync creates it and pins its version here.
 # `metadata.session_budget_cents` is the per-graphic session budget default, 5.2's B =
 # round-up(1.5 m): set in H4 from H3's one Opus graphic (m = $1.49, so 224), revised in H7 for
 # the winner (evidence/phase-4.md). Metadata is bookkeeping the model never sees; the bench's

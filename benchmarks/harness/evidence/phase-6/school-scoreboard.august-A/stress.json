@@ -1,0 +1,28 @@
+{
+  "id": "school-scoreboard",
+  "kind": "noacg",
+  "type": "scoreboard",
+  "chassis": "sb02",
+  "neutral": true,
+  "prompt": "A football scoreboard for a school channel's live stream: two team names, two scores the operator bumps live, a visible 'goal' flag moment for either side the operator can trigger and clear, and a 'final' look when the match ends. Sits top-left, out of the way of the pitch.",
+  "stress": {
+    "f0": "Helsingin Koulujen Urheiluseura",
+    "f1": "12",
+    "f2": "Vantaan Lukio",
+    "f3": "9"
+  },
+  "expect": {
+    "fields": 4,
+    "actions": [
+      "flag",
+      "clearFlag",
+      "final"
+    ],
+    "aliases": {
+      "flag": [
+        "goal"
+      ]
+    }
+  },
+  "judge": "readable scores at a glance; the goal flag and final state exist and are operable; long team names"
+}

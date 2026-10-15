@@ -14,7 +14,7 @@
 //   node scripts/harness-bench.mjs --build <H#> --arms managed-agents[,claude-code] --briefs id,..
 //                                  --ceiling-cents <n> [--budget-cents <n>] [--model <id>]
 //                                  [--overshoot-cents <n>] [--critic-cents <n>] [--out <dir>]
-//                                  [--august-config A]
+//                                  [--august-config A] [--agent-version <n>] [--adopt <brief>=<session>]
 //                                                    PAID. Real sessions: managed-agents on the bench
 //                                                    key's credit (scripts/bench-env.mjs --profile=harness),
 //                                                    claude-code on the owner's subscription; `august`
@@ -25,7 +25,11 @@
 //                                                    when what is left, the exam reserve aside, cannot
 //                                                    cover its budget and the overshoot margin. The
 //                                                    budget defaults to agent.md's, the margin to the
-//                                                    reserve's `o` and critic share.
+//                                                    reserve's `o` and critic share. --agent-version
+//                                                    runs an earlier synced version as the round's
+//                                                    control (H6: v3, no critic), as its own arm.
+//                                                    --adopt takes over a session a stopped run
+//                                                    created, instead of creating that brief's again.
 //   node scripts/harness-bench.mjs --reserve --by <H#> --budget-cents <n> --overshoot-cents <n>
 //                                  [--critic-cents <n>] [--note "..."]
 //                                                    FREE. 5.2's arithmetic: the exam reserve R, what
@@ -57,8 +61,8 @@ import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, PHASE, phaseCompl
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
 import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
-import { readAgentDefinition, readEnvironmentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
-import { AGENT_DIR, keyFor, lockPath, skillBundle, syncPlan } from './harness-agent-sync.mjs';
+import { readAgentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
+import { AGENT_DIR, keyFor, lockPath, readDefinitions, skillBundle, syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -147,6 +151,25 @@ export function recordReserve(file, { by, budget, overshoot, critic = '0', note 
   const { entries, ...head } = ledger;
   writeLedger(file, { ...head, reserve: { ...fit.reserve, at: new Date().toISOString(), ...(note ? { note } : {}) }, entries });
   return { fit, written: true };
+}
+
+/** `--agent-version`: an earlier version than the lock's, or nothing (the lock's own). */
+export function controlVersion(raw, current) {
+  if (raw === undefined) return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n >= current) throw new Error(`--agent-version ${raw}: an earlier synced version, 1 to ${current - 1} (the lock's is ${current})`);
+  return n;
+}
+
+/** `--adopt brief=sesn_...`: the sessions a stopped run left running, by the brief they belong to. */
+export function adoptions(pairs, briefIds) {
+  const out = {};
+  for (const pair of pairs) {
+    const m = /^([a-z0-9-]+)=(sesn_[A-Za-z0-9]+)$/.exec(pair);
+    if (!m || !briefIds.includes(m[1])) throw new Error(`--adopt ${pair}: <brief>=<session id>, for a brief this run names`);
+    out[m[1]] = m[2];
+  }
+  return out;
 }
 
 /** The cells of a `--build` the ledger does not already hold for that phase. A cell that ran
@@ -356,11 +379,14 @@ async function build(phase) {
       // The sessions run the agent as it was synced: a definition changed since the sync would be
       // measured as something it is not. Another model runs as a per-session override of the
       // synced version (`agent_with_overrides`), never as a silent edit of the agent.
-      const agentDef = readAgentDefinition(AGENT_DIR);
-      const environmentDef = readEnvironmentDefinition(AGENT_DIR);
+      const { environment: environmentDef, agent: agentDef, subagents } = readDefinitions(AGENT_DIR);
       const bundleDir = path.join(runDir, 'skill');
-      const drift = syncPlan({ lock, environment: environmentDef, agent: agentDef, bundle: skillBundle(bundleDir) }).filter((step) => step.action !== 'keep');
+      const drift = syncPlan({ lock, environment: environmentDef, agent: agentDef, subagents, bundle: skillBundle(bundleDir) }).filter((step) => step.action !== 'keep');
       if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);
+      // A round's control runs an earlier version the sync made (immutable on the server), as its
+      // own arm so the ledger and the judge keep it apart from the version under test.
+      const agentVersion = orFail(() => controlVersion(value('agent-version'), lock.agent.version));
+      const adopt = orFail(() => adoptions(list('adopt'), ids));
       const agentModel = agentDef.config.model?.id ?? agentDef.config.model;
       // An override replaces the agent's model object in full, so an effort alone restates the model.
       const override = (id) => ((id && id !== agentModel) || effort ? { id: id || agentModel, ...(effort ? { effort } : {}) } : null);
@@ -371,8 +397,11 @@ async function build(phase) {
       const upload = async (file) => (await sdk.files.upload({ file: await toFile(readFileSync(file), path.basename(file), { type: 'application/gzip' }) })).id;
       const tarball = packCli(path.join(runDir, 'cli'));
       uploaded = { id: await upload(tarball) };
-      const arm = (cellBudget, modelOverride) => managedAgentsArm({ api: sdk, client: api.client, agent: { id: lock.agent.id, version: lock.agent.version }, environmentId: lock.environment.id, budgetCents: cellBudget, model: agentModel, modelOverride, funding: 'credit', files: [{ fileId: uploaded.id, mountPath: '/noacg-cli.tgz' }], upload, downloadAll: true });
-      for (const brief of briefs) all.push({ id: `${brief.id}.managed-agents`, brief, arm: arm(budgetCents, override(model)), entry: { budgetCents } });
+      const arm = (cellBudget, modelOverride) => managedAgentsArm({ id: agentVersion ? `managed-agents-v${agentVersion}` : 'managed-agents', api: sdk, client: api.client, agent: { id: lock.agent.id, version: agentVersion ?? lock.agent.version }, environmentId: lock.environment.id, budgetCents: cellBudget, model: agentModel, modelOverride, funding: 'credit', files: [{ fileId: uploaded.id, mountPath: '/noacg-cli.tgz' }], upload, downloadAll: true, adopt });
+      for (const brief of briefs) {
+        const a = arm(budgetCents, override(model));
+        all.push({ id: `${brief.id}.${a.id}`, brief, arm: a, entry: { budgetCents } });
+      }
       for (const id of proofIds) {
         const proof = PROOFS[id];
         const cellBudget = Number.isInteger(budgetCents) && budgetCents > 0 ? budgetCents : proof.budgetCents;

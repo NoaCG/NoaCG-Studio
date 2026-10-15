@@ -14,10 +14,11 @@ import path from 'node:path';
 /** AC-16: the container's system prompt is plumbing, and plumbing fits in this many lines. */
 export const SYSTEM_PROMPT_MAX_LINES = 25;
 
-export function readAgentDefinition(dir) {
-  const text = readFileSync(path.join(dir, 'agent.md'), 'utf8').replace(/\r\n/g, '\n');
+/** An agent file: `agent.md` (the harness agent) or `critic.md` (the subagent it lists, D4). */
+export function readAgentDefinition(dir, file = 'agent.md') {
+  const text = readFileSync(path.join(dir, file), 'utf8').replace(/\r\n/g, '\n');
   const m = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/.exec(text);
-  if (!m) throw new Error(`${path.join(dir, 'agent.md')} has no frontmatter`);
+  if (!m) throw new Error(`${path.join(dir, file)} has no frontmatter`);
   const config = JSON.parse(m[1].replace(/^#.*$/gm, ''));
   const system = m[2].trim();
   return { config, system, systemLines: system.split('\n').length };
@@ -41,8 +42,25 @@ export function definitionHash(value) {
   return createHash('sha256').update(canonical(value)).digest('hex');
 }
 
-/** The agents.create body: the frontmatter, the system prompt and the pinned skill version. */
-export function agentCreateBody(def, skill) {
+/** The agent files a definition lists as its subagents (`multiagent.subagents.predefined_agents`
+ *  entries naming a file beside it, such as `critic.md`). */
+export function subagentFiles(def) {
+  return (def.config.multiagent?.subagents?.predefined_agents ?? []).filter((a) => typeof a === 'string' && a.endsWith('.md'));
+}
+
+/** The agents.create body: the frontmatter, the system prompt and the pinned skill version, and
+ *  each subagent file resolved to the agent and version the sync made of it (`synced[file]`). */
+export function agentCreateBody(def, skill, synced = {}) {
   const { skills: _declared, ...rest } = def.config;
-  return { ...rest, system: def.system, skills: skill ? [{ type: 'custom', skill_id: skill.id, version: skill.version }] : [] };
+  const body = { ...rest, system: def.system, skills: skill ? [{ type: 'custom', skill_id: skill.id, version: skill.version }] : [] };
+  const listed = subagentFiles(def);
+  if (listed.length) {
+    const predefined = def.config.multiagent.subagents.predefined_agents.map((a) => {
+      if (!listed.includes(a)) return a;
+      if (!synced[a]) throw new Error(`${a} is listed as a subagent and has not been synced`);
+      return { type: 'agent', id: synced[a].id, version: synced[a].version };
+    });
+    body.multiagent = { ...def.config.multiagent, subagents: { ...def.config.multiagent.subagents, predefined_agents: predefined } };
+  }
+  return body;
 }

@@ -30,15 +30,15 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createCipheriv, createHash, randomBytes, scryptSync } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
-import { readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
-import { archivedArm, claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } from '../benchmarks/harness/lib/arms.mjs';
+import { agentCreateBody, readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
+import { archivedArm, claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs, sessionThreads } from '../benchmarks/harness/lib/arms.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
@@ -48,8 +48,8 @@ import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySeale
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
-import { agentSessionBudgetCents, CONTROL_BRIEFS, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
-import { syncPlan } from './harness-agent-sync.mjs';
+import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
+import { readDefinitions, syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -166,10 +166,11 @@ test('--build refuses a $0 phase, a completed one, tuning before the exam is res
   assert.match(refuseBuild(ledger, 'H3'), /already holds H3 as completed/, 'a resumed H3 never spends again');
   assert.match(refuseBuild(emptyLedger(), 'H4'), /H4 spends nothing \(5\.1\): it creates no session/, 'the reservation is $0 whatever the ledger says');
   assert.match(refuseBuild(ledger, 'H5'), /already holds H5 as completed/, 'round 1 is closed and never spends again');
-  assert.equal(refuseBuild(ledger, 'H6'), null, 'the committed ledger holds the reserve, so round 2 may spend');
+  assert.match(refuseBuild(ledger, 'H6'), /already holds H6 as completed/, 'round 2 is closed and never spends again');
+  assert.equal(refuseBuild(ledger, 'H7'), null, 'the committed ledger holds the reserve, so round 3 may spend');
   assert.match(refuseBuild(emptyLedger(), 'H5'), /no exam reserve/);
   assert.equal(refuseBuild(emptyLedger(), 'H3'), null, 'feasibility comes before the reserve');
-  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H6, H7 not closed/);
+  assert.match(refuseBuild(ledger, 'H8'), /H8 spends its reserve only on the exam, after tuning: H7 not closed/);
   assert.match(refuseBuild(ledger, 'feasibility'), /phase like H3/);
   assert.match(refuseBuild(ledger, 'H04'), /phase like H3/, 'no alias slips past the $0 and completed refusals');
 });
@@ -310,7 +311,7 @@ const BRIEF = { id: 'test-board', kind: 'noacg', type: 'scoreboard', neutral: tr
 const ENTRY = { phase: 'H1', stage: 'test', budgetCents: 300, overshootCents: 50 };
 
 /** The managed-agents arm on the stub, its agent being the fake arm's work through the stand-in CLI. */
-function stubbedArm({ scenario = 'end_turn', funding = 'none', cli, client = api.client }) {
+function stubbedArm({ scenario = 'end_turn', funding = 'none', cli, client = api.client, adopt = {} }) {
   const briefs = new Map();
   const stub = api.stub.createManagedAgentsStub({
     scenario,
@@ -327,9 +328,9 @@ function stubbedArm({ scenario = 'end_turn', funding = 'none', cli, client = api
       };
     },
   });
-  const arm = managedAgentsArm({ api: stub, client, agent: { id: 'agent_t', version: 1 }, environmentId: 'env_t', budgetCents: 300, model: 'stub', funding, pollMs: 0 });
+  const arm = managedAgentsArm({ api: stub, client, agent: { id: 'agent_t', version: 1 }, environmentId: 'env_t', budgetCents: 300, model: 'stub', funding, pollMs: 0, adopt });
   const run = arm.run;
-  return { ...arm, stub, run: (ctx) => { briefs.set(ctx.runId, ctx.brief); return run(ctx); } };
+  return { ...arm, stub, briefs, run: (ctx) => { briefs.set(ctx.runId, ctx.brief); return run(ctx); } };
 }
 
 test('the fake arm and the stubbed managed-agents arm deliver through record, shape check, capture and ledger at $0', async () => {
@@ -370,6 +371,21 @@ test('a session paused at its budget hands in its last record as not ready; a re
   const refusal = await runCell({ arm: stubbedArm({ scenario: 'refusal', cli }), brief: BRIEF, cellDir: path.join(dir, 'r'), cli, ledger, entry: ENTRY, shape: api.shape, runId: 'r4' });
   assert.equal(refusal.outcome, 'failed');
   assert.equal(refusal.reason, 'refusal');
+});
+
+test('--adopt collects a session a stopped run left working, and creates none', async () => {
+  const cli = fakeCli();
+  const adopt = {};
+  const arm = stubbedArm({ cli, adopt });
+  // The stopped run: its session exists and works, and nobody collected it.
+  arm.briefs.set('r-stopped', BRIEF);
+  const { sessionId } = await api.client.startSession(arm.stub, { agent: { id: 'agent_t', version: 1 }, environmentId: 'env_t', brief: BRIEF.prompt, budgetCents: 300, runId: 'r-stopped' });
+  adopt[BRIEF.id] = sessionId;
+  const cell = await runCell({ arm, brief: BRIEF, cellDir: path.join(tmp(), 'a'), cli, ledger: emptyLedger(), entry: ENTRY, shape: api.shape, runId: 'r-resumed' });
+  assert.equal(cell.outcome, 'delivered');
+  assert.equal(cell.sessionId, sessionId);
+  assert.equal(arm.stub.calls.filter((c) => c.method === 'sessions.create').length, 1, 'only the stopped run created a session');
+  assert.equal(cell.cleanup.sessionGone, true);
 });
 
 test('a short ledger starts nothing: the session is refused before it is created, and the refusal is recorded', async () => {
@@ -721,16 +737,76 @@ test('the container\'s system prompt is plumbing within 25 lines, on an agent wi
   assert.deepEqual(toolset.configs.filter((c) => c.enabled === false).map((c) => c.name).sort(), ['web_fetch', 'web_search']);
   assert.equal(toolset.default_config.permission_policy.type, 'always_allow');
   assert.deepEqual(agent.config.model, { id: 'claude-opus-5-5', effort: 'high' }, 'D6: quality is established on Opus 5.5 at high');
-  assert.equal(agent.config.multiagent, undefined, 'the critic is off until a measurement turns it on (3.8)');
   const env = readEnvironmentDefinition(path.join(ROOT, 'agents', 'noacg-harness'));
   assert.equal(env.config.networking.type, 'limited');
   assert.deepEqual(env.config.networking.allowed_hosts, ['noacg.studio']);
+  assert.equal(agent.config.multiagent, undefined, 'H6 measured the critic and dropped it (evidence/phase-6.md)');
   const steps = syncPlan({ lock: null, environment: env, agent, bundle: { sha256: 'x' } });
   assert.deepEqual(steps.map((s) => s.action), ['create', 'create', 'create']);
   const lock = { environment: { sha256: steps[0].sha256 }, skill: { bundleSha256: 'x' }, agent: { sha256: steps[2].sha256 } };
   assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep'], 'a second sync changes nothing');
   assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'y' } }).map((s) => s.action), ['keep', 'version', 'update'], 'a skill change is a new skill version and a new agent version');
   assert.throws(() => syncPlan({ lock, environment: env, agent: { ...agent, systemLines: 26 }, bundle: { sha256: 'x' } }), /25/);
+});
+
+test('a subagent file the agent lists is synced first and pinned by version (D4, as H6 ran the critic)', () => {
+  // H6's shape: the critic the only predefined subagent, no workflows, no inline agents, no advisor.
+  const dir = tmp();
+  const real = readFileSync(path.join(ROOT, 'agents', 'noacg-harness', 'agent.md'), 'utf8');
+  const multiagent = { type: 'multiagent_20261001', advisor: { type: 'disabled' }, workflows: { type: 'disabled' }, subagents: { type: 'enabled', inline_agents: { type: 'disabled' }, predefined_agents: ['critic.md'] } };
+  writeFileSync(path.join(dir, 'agent.md'), real.replace('"metadata":', `"multiagent": ${JSON.stringify(multiagent)},\n  "metadata":`));
+  writeFileSync(path.join(dir, 'critic.md'), '---\n{ "name": "critic", "model": { "id": "claude-opus-5-5", "effort": "high" }, "skills": ["../../cli/skill/noacg-graphic"] }\n---\n\nYou review one graphic.\n');
+  copyFileSync(path.join(ROOT, 'agents', 'noacg-harness', 'environment.yaml'), path.join(dir, 'environment.yaml'));
+  const { environment, agent, subagents } = readDefinitions(dir);
+  assert.deepEqual(Object.keys(subagents), ['critic.md']);
+  assert.equal(subagents['critic.md'].system, 'You review one graphic.');
+  const steps = syncPlan({ lock: null, environment, agent, subagents, bundle: { sha256: 'x' } });
+  assert.deepEqual(steps.map((s) => `${s.resource} ${s.action}`), ['environment create', 'skill create', 'critic.md create', 'agent create']);
+  const lock = { environment: { sha256: steps[0].sha256 }, skill: { bundleSha256: 'x' }, subagents: { 'critic.md': { id: 'agent_c', version: 1, sha256: steps[2].sha256 } }, agent: { sha256: steps[3].sha256 } };
+  assert.deepEqual(syncPlan({ lock, environment, agent, subagents, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep', 'keep']);
+  const edited = { ...subagents['critic.md'], system: 'You review one graphic.\nOne more line.' };
+  assert.deepEqual(syncPlan({ lock, environment, agent, subagents: { 'critic.md': edited }, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'update', 'update'], 'a new subagent version is a new agent version');
+  assert.throws(() => syncPlan({ lock, environment, agent, subagents: { 'critic.md': { ...edited, systemLines: 26 } }, bundle: { sha256: 'x' } }), /critic\.md's system prompt/);
+  const body = agentCreateBody(agent, { id: 'skill_1', version: 'skver_1' }, lock.subagents);
+  assert.deepEqual(body.multiagent.subagents.predefined_agents, [{ type: 'agent', id: 'agent_c', version: 1 }]);
+  assert.deepEqual(body.multiagent.workflows, { type: 'disabled' });
+  assert.equal(agent.config.multiagent.subagents.predefined_agents[0], 'critic.md', 'the definition itself is left as written');
+  assert.throws(() => agentCreateBody(agent, { id: 'skill_1', version: 'skver_1' }), /not been synced/);
+});
+
+test('a critic thread is measured apart: its events kept, its usage and largest request beside the session', async () => {
+  const dir = tmp();
+  const pages = (items) => ({ async *[Symbol.asyncIterator]() { yield* items; } });
+  const usage = { input_tokens: 10, output_tokens: 1000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, list_cost: { amount: '3', currency: 'USD' } };
+  const listed = [];
+  const api = { beta: { sessions: { threads: {
+    list: () => pages([{ id: 'sthr_primary', parent_thread_id: null }, { id: 'sthr_critic', parent_thread_id: 'sthr_primary', agent: { name: 'critic' }, status: 'idle', created_at: '2026-10-15T10:00:00Z', usage, stats: { active_seconds: 40 } }]),
+    events: { list: (threadId, params) => {
+      listed.push([threadId, params.session_id]);
+      return pages([{ type: 'span.model_request_start', processed_at: '2026-10-15T10:00:02Z' }, { type: 'span.model_request_end', processed_at: '2026-10-15T10:00:09Z', model_usage: { input_tokens: 10, output_tokens: 1000 } }]);
+    } },
+  } } } };
+  const threads = await sessionThreads(api, 'sesn_1', { cellDir: dir, model: 'claude-opus-5-5' });
+  assert.deepEqual(listed, [['sthr_critic', 'sesn_1']], 'only the child thread, read by its session');
+  assert.equal(threads.length, 1);
+  assert.equal(threads[0].agent, 'critic');
+  assert.equal(threads[0].usage.list_cost.amount, '3');
+  assert.equal(threads[0].turns.modelRequests, 1);
+  assert.equal(threads[0].largestRequest.usd, 0.02);
+  assert.equal(threads[0].steps, undefined, 'the compact trace stays in the events file');
+  assert.ok(existsSync(path.join(dir, 'threads', 'sthr_critic.events.jsonl')));
+  assert.deepEqual(await sessionThreads({ beta: { sessions: {} } }, 'sesn_1', { cellDir: dir, model: 'claude-opus-5-5' }), [], 'the stub has no threads');
+});
+
+test('--agent-version names an earlier synced version, as the round\'s control', () => {
+  assert.equal(controlVersion(undefined, 4), null);
+  assert.equal(controlVersion('3', 4), 3);
+  assert.throws(() => controlVersion('4', 4), /earlier/);
+  assert.throws(() => controlVersion('0', 4), /earlier/);
+  assert.throws(() => controlVersion('v3', 4), /earlier/);
+  assert.deepEqual(adoptions(['live-vote=sesn_01Ab'], ['live-vote', 'debate-clock']), { 'live-vote': 'sesn_01Ab' });
+  assert.throws(() => adoptions(['news-lower-third=sesn_01Ab'], ['live-vote']), /this run names/, 'only a brief the run names');
+  assert.throws(() => adoptions(['live-vote=agent_01'], ['live-vote']), /session id/);
 });
 
 test('the Skills API bundle is the skill\'s own bytes under one top folder', () => {
