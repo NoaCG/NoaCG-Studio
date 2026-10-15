@@ -1,8 +1,10 @@
 # Codebase health: preserve responsibilities without new size gates
 
-**Research-only draft, 2026-10-15.** Baseline: main
+**Prepared for `/plan-run codebase-health`, 2026-10-15.** Research baseline: main
 `50ce0911d9f37f5d1116e51a1cb34541ed03aef5` (commit time 06:38:54 UTC / 09:38:54 Europe/Kyiv).
-No implementation, registration, run, schedule or merge is authorized by this spec.
+The owner subsequently authorized preparing the command registration for later use. No phase
+has started; a future invocation with an owner-supplied window authorizes the documentation run.
+Product changes, new size policies and an agent-signal trial remain outside scope.
 
 ## Recommendation
 
@@ -42,12 +44,19 @@ and reserves implementation approval until after review. This is not approval of
   scheduler or execution ledger. Authorized windows remain at most 24 hours.
 - Change documents only in this task. Keep customer, partner and event names out of artifacts.
 
-Two subsequent owner answers in this session:
+Research-stage owner answers in this session:
 
 1. “Use pinned main as the baseline” after being shown the incomplete production-page evidence.
 2. “Keep existing budgets pending evidence” after being offered unchanged wizard budgets versus a
    proposed reporting-only replacement. This preserves existing budgets, authorizes no new one,
    and is not a run authorization.
+
+Later preparation authorization, same session: “Can you prepare it so I can just use the `plan run`
+command? What should I avoid running at the same time?” This supersedes the earlier restriction
+on preparing and landing the registration only. It authorizes making this documented plan
+invocable, not starting phases, supplying a window, or deciding the production-plan size policy.
+The initial research receipts remain historical; [registration receipt](evidence/registration.md)
+records this preparation separately.
 
 ## Observed facts
 
@@ -156,23 +165,56 @@ belongs to `control/outputRecovery.ts`; reuse it and prove the raced-response be
 grow when that is the clearest implementation. Ownership here means module/state responsibility,
 not a new mandatory reviewer, CODEOWNERS rule, or assigned person.
 
-## Proposed execution phases — inactive
+## Start and concurrent work
 
-These phases implement the **documentation and existing-review recommendation only**. They are a
-proposal, not tasks in `work.json`. No new product code, gates, budgets, instructions or automation
-is proposed. A later extraction or check requires its own concrete evidence and owner review;
+After this registration lands on main, use:
+
+```text
+/plan-run codebase-health until <YYYY-MM-DD HH:MM Europe/Kyiv>
+```
+
+Codex also accepts `$plan-run`. Give an explicit end time no more than 24 hours away. Invoking
+the command authorizes only the three documentation/evidence phases below for that window.
+Registration itself creates no wave, worker, heartbeat or wake task. Use the existing plan-run
+continuation and wake mechanism only when the owner actually starts the run.
+
+| Other work | Coordination requirement | Reason |
+|---|---|---|
+| Another `codebase-health` run | Never overlap | Same spec, evidence and phase notes |
+| Any wave | Do not run alongside it | Existing plan-run rule: a wave runs alone |
+| `production-page` | Run sequentially by default; finish or pause its active phase first | Phase 1 writes its spec/digest; both may write architecture; older acceptance/budget language needs owner resolution |
+| `wizard-shell`, `svg-import-engine`, `noacg-harness` | Serialize phases that write `docs/ARCHITECTURE.md`; other disjoint phases can coexist | Their published plans name that shared document; wizard evidence also has its existing S9 revisit |
+| `wizard-ai`, `vmix`, `editor`, `guided-mod`, `ci-plan`, `remote-mcp`, other work | May coexist only after checking the actual phase file allocation | Shared subject matter or files read by this plan are not by themselves write conflicts; architecture/plan edits still need one writer |
+
+Before launch and every phase, fetch main, read existing run/wave records and PR allocations on
+the executing machine, and reserve the actual write paths listed below. A repository PR snapshot
+cannot establish that another machine is idle. Wait for a conflicting writer; do not cancel,
+retarget or alter another run. Read product code at pinned revisions so ongoing disjoint code
+changes do not make a receipt ambiguous. No new lock manager or coordination ledger.
+
+## Phases
+
+1. Phase 1 — reconcile ownership and the production-plan handoff (AC-6).
+2. Phase 2 — apply the boundary map to real maintenance evidence (AC-7).
+3. Phase 3 — record maintenance value and stop or retain the practice (AC-8).
+
+These phases implement the **documentation and existing-review recommendation only**, after the
+owner invokes the command with a window. They are not tasks in `work.json`. No new product code,
+gates, budgets, agent instructions or separate automation is proposed. A later extraction or check
+requires its own concrete evidence and owner review;
 these phases cannot expand themselves to create it.
 
-**Prerequisites after owner review:** explicit green light for the chosen phases, an owner-supplied
-window of at most 24 hours, a fresh-main overlap check, and registration using the existing
-`/plan-run` convention. Registration is a later authorized change to the existing runnable-plan
-mapping, never an operation of this research. The coordinator records build/check/repair/stop
-state only in existing plan/wave records. Advance automatically only after an independent check
-passes, within the authorized window. Stop for policy decisions; do not decide them unattended.
+**Launch prerequisites:** this spec and registration landed on main, the owner's command with an
+explicit window of at most 24 hours, and a fresh-main overlap check. `work.json.authority` records
+agreed preparation/scope only; it is not an open run or permission to start autonomously. The
+coordinator records build/check/repair/stop state only in existing plan/wave records. Advance
+automatically only after an independent check passes within the window. Stop and ask for reserved
+policy decisions; do not decide them unattended. Every phase adds its findings to `## Phase notes`
+and keeps this spec's digest in `work.json` current, clearing stale review under existing conventions.
 
 ### Phase 1 — Reconcile ownership and the production-plan handoff
 
-- **Depends on:** explicit implementation approval; current production-plan coordinator/file
+- **Depends on:** the owner's bounded invocation; current production-plan coordinator/file
   allocation reconciled. It need not wait for all fourteen phases, but must not edit shared plan
   or architecture files concurrently. A production run already owning them takes precedence.
 - **Affected files:** `docs/ARCHITECTURE.md`,
@@ -250,8 +292,9 @@ trial run or recurring collection is designed or launched here.
 
 ## Unresolved owner decisions and evidence limits
 
-No implementation approval has been requested or inferred. The owner still decides whether to adopt
-any proposed phase and the exact production-plan D8/AC-11 reconciliation before that plan runs.
+Preparation and registration are authorized; no execution window has been supplied and no phase
+has started. A future bounded invocation authorizes the three documentation phases. The owner
+still decides the exact production-plan D8/AC-11 reconciliation before that plan runs.
 Recommendation: accept responsibility/behavior proof and omit the uninstalled size gate. Existing
 wizard budgets stay unchanged by the explicit answer above; a future exception requires its actual
 case. The implementation window is not supplied. These are approval boundaries, not open executions.
@@ -260,9 +303,10 @@ Ordinary post-split maintenance value, blocked-branch friction, actual cross-mac
 full production behavior and live hardware performance are unverified. The measured history and
 selected diffs do not prove regression safety, defect causation, or long-term architectural quality.
 
-## Research acceptance inventory
+## Acceptance inventory
 
-These criteria accept this research package, not the proposed implementation or a plan-run launch.
+AC-1 through AC-5 cover research and command preparation. AC-6 through AC-8 are the phase
+acceptance inventory for future execution. No criterion or ledger status opens a run.
 
 ### AC-1: Authority and current state are explicit
 
@@ -288,13 +332,42 @@ Each proposed phase specifies dependencies, affected files, acceptance, verifica
 coordination; uses existing continuation; and cannot authorize code, ceilings or an agent trial.
 Layer: document/workflow comparison; evidence: `evidence/verification.md`.
 
-### AC-5: The delivered change is research documents only
+### AC-5: Preparation registers the command without starting it
 
-Only this work-spec directory changes in an isolated branch/worktree; no product, gate, budget,
-instruction, registration, automation or merge changes. Ledger v2 has a matching digest, draft
-authority and no execution state. All artifacts omit customer, partner and event names.
-Layer: Git scope, JSON/digest, link and content review; evidence: `evidence/verification.md`.
+The preparation changes only this work-spec directory and the existing runnable-plan mapping in
+`.agent-workflows/plan-run.md`. No product, gate, budget or agent-rule changes. Ledger v2 has a
+matching digest, accurately bounded authority, no execution state and no claim of completed phases.
+The registration maps `codebase-health` to this spec through the existing shared workflow; no new
+scheduler, window, wave or worker is created. Artifacts omit customer, partner and event names.
+Layer: Git scope, registration lookup, JSON/digest, link and content review;
+evidence: `evidence/registration.md` (initial research checks: `evidence/verification.md`).
+
+### AC-6: The ownership handoff is current and policy remains owner-controlled
+
+Phase 1's acceptance and verification above pass on an independently checked main revision.
+Current/planned ownership is explicit, overlapping writers are reconciled, and behavior protections
+remain intact. The exact D8/AC-11 decision has owner evidence before any policy text changes;
+without that answer, stop the affected phase and ask. No size gate is installed by this plan.
+Layer: independent source/plan comparison and targeted document checks; future receipt:
+`evidence/phase-1.md`, plus Phase notes.
+
+### AC-7: Maintenance feedback identifies behavior ownership rather than a size target
+
+Phase 2's acceptance and verification above pass. The receipt includes justified growth and a
+move/extraction, distinguishes ordinary work from migration, and explains the separate model
+concern. Every suggested action identifies responsibility and its existing proof location;
+no-action or insufficient new evidence is an explicit, supported outcome.
+Layer: independent diff and test-inventory review; future receipt: `evidence/maintenance-review.md`.
+
+### AC-8: Close-out measures value and leaves no unapproved continuation
+
+Phase 3's acceptance and verification above pass. Pinned arithmetic is reproducible, available
+wizard S9 evidence is reused, and recommendations distinguish observed maintenance value from
+unknowns. No new numeric threshold, trial, recurring collection or follow-up run is created.
+Layer: independent reproduction and document review; future receipt: `evidence/phase-3.md` and
+the phase's dated metrics document.
 
 ## Phase notes
 
-Research preparation only. No implementation phase has started. Proposed execution remains inactive.
+Registration prepared at the owner's request after research. No phase has started; no window,
+worker or wake task is open. Phase checks and the production-plan policy decision remain unverified.
