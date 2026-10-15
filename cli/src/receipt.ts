@@ -178,6 +178,12 @@ export async function deliverSetAndConfirm(
   // Only the FIRST send can be answered with an earlier run's delivery. A replay after this run's
   // own answer was lost is most likely this run's own write.
   let earlier = false;
+  const found = (receipt: DeliveryReceipt): SetDelivered => ({
+    ok: true,
+    // The readback lists the set in the order it was sent.
+    graphics: receipt.resources.filter((r) => r.kind === 'graphic').map((r, i) => ({ id: r.id, name: names[i] ?? '', url: r.link })),
+    receipt,
+  });
   for (let attempt = 0; attempt <= delays.length && !written; attempt += 1) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, delays[attempt - 1]));
     try {
@@ -193,6 +199,10 @@ export async function deliverSetAndConfirm(
           reason === 'conflict' ? message
           : reason === 'unsupported' ? `The NoaCG at ${origin} does not take a set of graphics in one delivery yet; save them one at a time.`
           : explainFailure(e.failure);
+        // After an earlier send whose answer was lost, this refusal (a rate limit, say) speaks only
+        // for THIS send: the earlier one may have saved the set, so ask before calling it failed.
+        const landed = lost === null ? null : await readDelivery(origin, key, operationId).catch(() => null);
+        if (landed) return found(landed);
         return { ok: false, reason, error, receipt: localReceipt(operationId, origin, 'library', 'failed', error) };
       }
       lost = e;
@@ -202,11 +212,8 @@ export async function deliverSetAndConfirm(
   if (written) {
     return { ok: true, replayed: earlier, graphics: written.graphics, receipt: confirmed ?? written.receipt ?? localReceipt(operationId, origin, 'library', 'delivery_unverified', `Check it with \`noacg status ${operationId}\`.`) };
   }
-  if (confirmed) {
-    // Every answer was lost, but it is in the account: the readback lists it in the order sent.
-    const graphics = confirmed.resources.filter((r) => r.kind === 'graphic').map((r, i) => ({ id: r.id, name: names[i] ?? '', url: r.link }));
-    return { ok: true, graphics, receipt: confirmed };
-  }
+  // Every answer was lost, but it is in the account.
+  if (confirmed) return found(confirmed);
   const next = `Run the same command again: it resumes operation ${operationId} and cannot save the set twice (or check it with \`noacg status ${operationId}\`).`;
   return {
     ok: false,

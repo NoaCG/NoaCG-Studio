@@ -135,7 +135,11 @@ export async function savePackages(inputs: string[], opts: SaveOptions, bridge: 
   log(`${resumed ? 'Resuming' : 'Saving'} ${docs.length === 1 ? `"${prepared[0].name}"` : `${docs.length} graphics`} under operation ${operationId}…`);
   const names = prepared.map((p) => p.name);
   const sent = await deliverSetAndConfirm(origin, found.key, operationId, names, () => saveGraphicSet(origin, found.key, docs, operationId));
-  if (!sent.ok && sent.reason === 'unsupported' && docs.length === 1) return saveOneTheOldWay(origin, found.key, operationId, inputs[0], names[0], docs[0], reports);
+  if (!sent.ok && sent.reason === 'unsupported' && docs.length === 1) {
+    const old = await saveOneTheOldWay(origin, found.key, operationId, inputs[0], names[0], docs[0], reports);
+    if (old.reason === 'deleted') await forgetOperation(fingerprint, operationId);
+    return old;
+  }
   if (!sent.ok) {
     // A conflict ties this content to an operation that is not its own; let the next run start afresh.
     if (sent.reason === 'conflict') await forgetOperation(fingerprint, operationId);
@@ -177,9 +181,12 @@ export async function saveOneTheOldWay(
 ): Promise<SaveOutcome> {
   const earlier = await readDelivery(origin, key, operationId).catch(() => null);
   const graphicOf = (receipt: DeliveryReceipt) => receipt.resources.find((r) => r.kind === 'graphic');
-  if (earlier && graphicOf(earlier)) {
-    const g = graphicOf(earlier)!;
-    return { ok: true, id: g.id, url: g.link, name, graphics: [{ input, id: g.id, name, url: g.link }], operationId, replayed: true, receipt: earlier, ...reports };
+  const g = earlier ? graphicOf(earlier) : undefined;
+  if (earlier && g) {
+    const outcome: SaveOutcome = { ok: true, id: g.id, url: g.link, name, graphics: [{ input, id: g.id, name, url: g.link }], operationId, replayed: true, receipt: earlier, ...reports };
+    if (g.state === 'saved') return outcome;
+    // Saved earlier and deleted since: not in the library. The caller forgets the operation.
+    return { ...outcome, ok: false, reason: 'deleted', error: `"${name}" was saved earlier under operation ${operationId} and deleted since, so it is not in the library. Run the same save again to put it back.` };
   }
   const one = await deliverAndConfirm(origin, key, 'graphic', (op) => saveGraphic(origin, key, doc, op), operationId);
   if (!one.ok) return { ok: false, reason: one.reason, operationId, receipt: one.receipt, error: one.reason === 'unverified' ? one.error : `Not saved: ${one.error}`, ...reports };

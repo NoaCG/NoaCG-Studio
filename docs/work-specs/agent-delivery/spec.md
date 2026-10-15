@@ -488,23 +488,27 @@ says to send smaller groups above it; each record keeps the single door's limits
 assets). A set counts as one request against the per-IP and per-account save limits. A typical
 generated lower third is tens of kilobytes, so the count, not the bytes, is the usual bound.
 
-Evidence: API tests (`graphicSets.test.ts`, 7, with deliveries, graphics, packages and agentKeys,
-35 pass): three graphics created whole and verified through the Phase 2 readback in order; one
+Evidence: API tests (`graphicSets.test.ts`, 9, with deliveries, graphics, packages and agentKeys,
+37 pass): three graphics created whole and verified through the Phase 2 readback in order; one
 invalid record refuses the set with nothing written; an injected failure on the third insert
 leaves no record, receipt or claim, the same request then creates the set once and three more
 sends replay the same ids with the counts unchanged; a changed payload, a subset, another key and
-a single save's operation are refused; a replay reports a graphic deleted since as `missing`;
+a single save's operation are refused; a database without 0093 answers 404 having written
+nothing; a single save reusing a set's operation does not change its replay; a replay reports a graphic deleted since as `missing`;
 missing operation, empty set, 41 graphics, bad JSON, over 4 MB, no key and a key without
 `graphics:create` all write nothing. A mutation that hashed the minted ids failed three of them.
 Database: 0092 and 0093 applied to an embedded Postgres (PGlite) with stub `auth.users`,
 `documents` and `agent_keys`; with an account the self-check ran (created, replayed, conflict,
 and a duplicate-id second record leaving nothing) and left no row; two mutations of the function
 (replay order reversed, hash not compared) each failed the self-check. The hosted projects run the
-same self-check at post-land. CLI: `unit.test.mjs` 59 and `mcp.test.mjs` 18 pass (the set door is
+same self-check at post-land. CLI: `unit.test.mjs` and `mcp.test.mjs`, 79 pass and 4 skipped without a bridge (the set door is
 written once and read back; lost answers resent under the same operation; every answer lost and
 nothing found is `delivery_unverified` with "run the same command again"; a conflict, a refusal,
 an offline 503 and a missing door are not resent; the journal's same set, other set, expiry and
-forgetting; the single-door fallback asking about its operation first; the argument refusals). Run through the real bridge against this
+forgetting, six concurrent runs sharing one operation under the journal's lock file (failing with
+the lock removed) and a stale lock taken over; a refusal after a lost answer reading back first;
+the single-door fallback asking about its operation first and refusing a deleted one; the
+argument refusals). Run through the real bridge against this
 checkout's dev server with no backend: three scaffolded lower thirds validated, the offline answer
 came back once, and running the same command again said "Resuming 3 graphics under operation
 <the same id>", so a rebuild through the bridge is the same set; two of the three got a new

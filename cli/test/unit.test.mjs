@@ -989,7 +989,7 @@ test('the consent URL tells the page this login takes a refusal', async () => {
 // asked about; a readback is what turns "accepted" into "verified"; and the CLI never sends twice.
 
 /** A deployment whose save door answers `writeStatus` and whose readback answers `readStatus`. */
-function receiptDeployment({ writeStatus = 201, readStatus = 200 } = {}) {
+function receiptDeployment({ writeStatus = 201, readStatus = 200, readState = 'saved' } = {}) {
   const seen = { writes: [], reads: [] };
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
@@ -1010,7 +1010,10 @@ function receiptDeployment({ writeStatus = 201, readStatus = 200 } = {}) {
         }
         seen.reads.push(new URL(req.url, 'http://x').searchParams.get('id'));
         res.writeHead(readStatus, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(readStatus === 200 ? { receipt: receipt(true) } : { error: { code: 'not_found', message: 'Nothing.' } }));
+        const read = receipt(true);
+        read.state = readState;
+        read.resources = read.resources.map((r) => ({ ...r, state: readState }));
+        res.end(JSON.stringify(readStatus === 200 ? { receipt: read } : { error: { code: 'not_found', message: 'Nothing.' } }));
       });
     });
     server.listen(0, '127.0.0.1', () => resolve({ server, seen, origin: `http://127.0.0.1:${server.address().port}` }));
@@ -1158,6 +1161,24 @@ test('a lost answer is sent again under the SAME operation - safe for a set - an
   assert.match(unknown.receipt.nextAction, new RegExp(`Run the same command again: it resumes operation ${OP_A} and cannot save the set twice`));
 });
 
+test('a refusal after a lost answer is not the last word: the earlier send may have saved the set', async (t) => {
+  const { deliverSetAndConfirm } = await import('../dist/receipt.js');
+  const { saveGraphicSet } = await import('../dist/auth.js');
+  // The first send's answer is lost, the second is refused (it met the rate limit the first used up).
+  const landed = await setDeployment({ writes: [502, 429] });
+  t.after(() => landed.server.close());
+  const saved = await deliverSetAndConfirm(landed.origin, 'k', OP_A, ['N0', 'N1', 'N2'], () => saveGraphicSet(landed.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(saved.ok, true, 'the readback found the set the first send saved');
+  assert.deepEqual(saved.graphics.map((g) => g.id), SET_IDS);
+  assert.deepEqual(landed.seen.reads, [OP_A]);
+
+  const refused = await setDeployment({ writes: [502, 429], readStatus: 404 });
+  t.after(() => refused.server.close());
+  const no = await deliverSetAndConfirm(refused.origin, 'k', OP_A, [], () => saveGraphicSet(refused.origin, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(no.ok, false);
+  assert.equal(no.reason, 'refused', 'asked, and nothing is there: the refusal stands');
+});
+
 test('a conflict, a refusal, an offline deployment and one without the set door are answers: nothing is resent', async (t) => {
   const { deliverSetAndConfirm } = await import('../dist/receipt.js');
   const { saveGraphicSet } = await import('../dist/auth.js');
@@ -1208,6 +1229,18 @@ test('the journal gives the same set the same operation across runs, and a diffe
   const after = await operationFor(fp);
   assert.equal(after.resumed, false);
   assert.notEqual(after.operationId, later.operationId);
+
+  // Two saves of a new set at once share one operation: the journal's lock serialises them.
+  const racing = setFingerprint('https://noacg.test', 'key-1', setDocs().slice(0, 1));
+  const ids = new Set((await Promise.all(Array.from({ length: 6 }, () => operationFor(racing)))).map((c) => c.operationId));
+  assert.equal(ids.size, 1, 'one set, one operation, however many ran together');
+  // A lock left by a crashed process is taken over rather than waited on for ever.
+  const lock = `${journalPath()}.lock`;
+  await fs.writeFile(lock, '');
+  const old = new Date(Date.now() - 60_000);
+  await fs.utimes(lock, old, old);
+  assert.equal((await operationFor(racing)).resumed, true);
+  await assert.rejects(fs.stat(lock), 'and released after');
 });
 
 test('one graphic on a deployment without the set door asks about its operation first, then uses the single door under it', async (t) => {
@@ -1219,6 +1252,13 @@ test('one graphic on a deployment without the set door asks about its operation 
   assert.equal(found.replayed, true);
   assert.equal(found.id, 'g1');
   assert.deepEqual(known.seen.writes, [], 'already there under this operation: nothing is written');
+
+  const gone = await receiptDeployment({ readState: 'missing' });
+  t.after(() => gone.server.close());
+  const deleted = await saveOneTheOldWay(gone.origin, 'k', OP_A, './a', 'Strap', {}, {});
+  assert.equal(deleted.ok, false, 'saved earlier and deleted since is not in the library');
+  assert.equal(deleted.reason, 'deleted');
+  assert.deepEqual(gone.seen.writes, []);
 
   const fresh = await receiptDeployment({ readStatus: 404 });
   t.after(() => fresh.server.close());

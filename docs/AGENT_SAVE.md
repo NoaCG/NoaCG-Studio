@@ -387,7 +387,10 @@ receipt is `delivery_unverified` and running the same command again resumes the 
 journal reuses an operation for the same deployment, key and content for 24 hours. A replay
 reports what is there now: a graphic deleted since reads `missing`, the CLI says the set is not
 all in the library and forgets the operation, and the same save run again delivers it anew.
-A replay after the CLI's own lost answer is reported as this run's save, not an earlier one.
+A replay after the CLI's own lost answer is reported as this run's save, not an earlier one, and a
+refusal that follows a lost answer (a rate limit the first send used up) is checked by readback
+before it is reported. The journal is locked while it is read and written, so two saves of the same
+set at once share one operation.
 
 **Limits, against the existing ones.** One set holds 1 to 40 graphics, a pack's own cap
 (`packageShape.ts`), so any pack's graphics fit one set. The whole body shares the save door's

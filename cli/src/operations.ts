@@ -70,19 +70,56 @@ export interface ChosenOperation {
 /** The operation to send a set under, recorded before anything is sent: the one this set was sent
  *  under in the last day, else a new one. */
 export async function operationFor(fingerprint: string, now = Date.now()): Promise<ChosenOperation> {
-  const journal = await readJournal();
-  const live = journal.entries.filter((e) => now - Date.parse(e.at) < OPERATION_REUSE_MS);
-  const known = live.find((e) => e.fingerprint === fingerprint);
-  if (known) return { operationId: known.operationId, resumed: true };
-  const operationId = randomUUID();
-  await writeJournal({ version: 1, entries: [...live, { fingerprint, operationId, at: new Date(now).toISOString() }].slice(-MAX_ENTRIES) });
-  return { operationId, resumed: false };
+  return withJournalLock(async () => {
+    const journal = await readJournal();
+    const live = journal.entries.filter((e) => now - Date.parse(e.at) < OPERATION_REUSE_MS);
+    const known = live.find((e) => e.fingerprint === fingerprint);
+    if (known) return { operationId: known.operationId, resumed: true };
+    const operationId = randomUUID();
+    await writeJournal({ version: 1, entries: [...live, { fingerprint, operationId, at: new Date(now).toISOString() }].slice(-MAX_ENTRIES) });
+    return { operationId, resumed: false };
+  });
 }
 
 /** Forget the operation a set was tied to, after the deployment refused it as a conflict, so the
  *  next plain run starts a new one instead of meeting the same refusal for a day. */
 export async function forgetOperation(fingerprint: string, operationId: string): Promise<void> {
-  const journal = await readJournal();
-  const entries = journal.entries.filter((e) => !(e.fingerprint === fingerprint && e.operationId === operationId));
-  if (entries.length !== journal.entries.length) await writeJournal({ version: 1, entries });
+  await withJournalLock(async () => {
+    const journal = await readJournal();
+    const entries = journal.entries.filter((e) => !(e.fingerprint === fingerprint && e.operationId === operationId));
+    if (entries.length !== journal.entries.length) await writeJournal({ version: 1, entries });
+  });
+}
+
+/** A lock held longer than this is a crashed process's, and is taken over. */
+const LOCK_STALE_MS = 10_000;
+
+/**
+ * Run `fn` holding the journal's lock file, so two saves at once in processes sharing this
+ * directory cannot both mint an operation for the same set (two copies) or drop each other's
+ * entry. The lock is an exclusively created file; one older than LOCK_STALE_MS is a crashed
+ * holder's and is removed. Waiting longer than that is a failure, said in words.
+ */
+export async function withJournalLock<T>(fn: () => Promise<T>): Promise<T> {
+  const lock = `${journalPath()}.lock`;
+  await fs.mkdir(path.dirname(lock), { recursive: true });
+  const deadline = Date.now() + LOCK_STALE_MS * 2;
+  for (;;) {
+    try {
+      const handle = await fs.open(lock, 'wx');
+      await handle.close();
+      break;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+      const held = await fs.stat(lock).catch(() => null);
+      if (held && Date.now() - held.mtimeMs > LOCK_STALE_MS) await fs.rm(lock, { force: true });
+      else if (Date.now() > deadline) throw new Error(`Another noacg save is holding ${lock}; try again when it has finished.`);
+      else await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    await fs.rm(lock, { force: true });
+  }
 }
