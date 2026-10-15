@@ -46,10 +46,16 @@
 //                                                    R recorded in the ledger for the wall to hold.
 //   node scripts/harness-bench.mjs --close <H#> [--note "..."]
 //                                                    Record a phase as completed in the ledger.
-//   node scripts/harness-bench.mjs --review <runDir> FREE. Rebuild a run's blind gallery.
+//   node scripts/harness-bench.mjs --judge <runDir> [--phase <H#>] [--delivered-only] [--concurrency <1-4>]
+//                                                    SUBSCRIPTION. The frozen judge on a run's cells.
+//   node scripts/harness-bench.mjs --tally <runDir>  FREE. 4.4's numbers and 4.5's verdict for an exam run.
+//   node scripts/harness-bench.mjs --review <runDir> [--briefs id,..] [--into <dir>]
+//                                                    FREE. Rebuild a run's blind gallery.
 //
-// The briefs are the unsealed tuning set (benchmarks/harness/tuning/briefs.json). The exam set is
-// sealed (benchmarks/harness/exam/) and this runner never opens it before H8.
+// The briefs are the unsealed tuning set (benchmarks/harness/tuning/briefs.json), except in the
+// exam: `--build` of the exam phase, once tuning is closed and until the exam is, runs the sealed
+// set (benchmarks/harness/lib/exam.mjs), opened in memory and verified against its committed hash
+// before anything else. No other phase can open it.
 //
 // Named `*bench*` so the one-job-per-machine guard sees it: every cell drives Chromium through the
 // CLI. Coverage runs against this checkout's dev server, or the deployment NOACG_URL names.
@@ -65,6 +71,7 @@ import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
 import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeAgentWork, fakeArm, isLibraryBrief, managedAgentsArm, packCli } from '../benchmarks/harness/lib/arms.mjs';
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
+import { examBriefs, labelStress, tallyExam, tallyMarkdown } from '../benchmarks/harness/lib/exam.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
@@ -102,6 +109,25 @@ export function tuningBriefs(ids) {
   const bank = JSON.parse(readFileSync(TUNING, 'utf8')).briefs;
   const chosen = ids.map((id) => bank.find((b) => b.id === id) ?? fail(`no tuning brief ${id}`));
   for (const b of chosen) if (!isLibraryBrief(b)) fail(`${b.id} is not a library graphic brief (4.2)`);
+  return chosen;
+}
+
+/** The exam's briefs (4.1): the sealed twenty, opened in memory and verified against the committed
+ *  hash before anything else, their positional stress named by field label (lib/exam.mjs), or the
+ *  ones of them `--briefs` names. Said by id, type, stress key and action; no brief text is printed. */
+async function sealedRunBriefs({ cli, ledger, phase, ids }) {
+  const sealed = orFail(() => examBriefs({ root: ROOT, ledger, phase }));
+  const types = await cli(['types', '--json']);
+  if (types.code !== 0 || !Array.isArray(types.json?.types)) fail(`noacg types --json failed, so the exam's stress cannot be named by field: ${types.stderr.slice(-300)}`);
+  const briefs = sealed.map((b) => labelStress(b, types.json.types));
+  const unknown = ids.filter((id) => !briefs.some((b) => b.id === id));
+  if (unknown.length) fail(`no exam brief ${unknown.join(', ')}`);
+  const chosen = ids.length ? briefs.filter((b) => ids.includes(b.id)) : briefs;
+  console.log(`  briefs: the ${sealed.length} exam briefs, opened and verified against the committed sha256${ids.length ? `; this run takes ${chosen.length}` : ''}`);
+  for (const b of chosen) {
+    const stress = Object.keys(b.stress).map((k) => (b.stressPositions[k] ? `${b.stressPositions[k]} as "${k}"` : k));
+    console.log(`    ${b.id.padEnd(30)} ${(b.type ?? 'typeless').padEnd(18)} stress ${stress.join(', ') || 'none'}; actions ${(b.expect?.actions ?? []).join(', ') || 'none'}`);
+  }
   return chosen;
 }
 
@@ -221,17 +247,39 @@ async function ensureBridge(cli) {
   if (r.code !== 0) fail(`no NoaCG bridge at ${cli.url}: start this checkout's dev server (npm run dev) or set NOACG_URL\n${r.stderr.slice(-400)}`);
 }
 
-async function runCells({ cells, runDir, cli, ledger, entry, api, runId, onCell }) {
+/**
+ * The cells, one at a time; with `lanes`, one lane per arm, the lanes side by side and each one a
+ * cell at a time, so the credit arm still runs one session at a time (the wall's concurrency) while
+ * the reference works on the subscription. A subscription cell the usage limit paused waits for the
+ * reset and runs again, as the judge does; nothing moves to the credit.
+ */
+export async function runCells({ cells, runDir, cli, ledger, entry, api, runId, onCell, lanes = false, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), cellRunner = runCell }) {
   const done = [];
-  for (const c of cells) {
+  const one = async (c) => {
     const cellDir = path.join(runDir, 'cells', c.id);
-    rmSync(cellDir, { recursive: true, force: true });
-    const t = Date.now();
-    const cell = await runCell({ arm: c.arm, brief: c.brief, cellDir, cli, ledger, entry: { ...entry, ...(c.entry ?? {}) }, shape: api.shape, runId: `${runId}-${c.id}`, log: (l) => console.log(l) });
-    done.push({ id: c.id, dir: cellDir, brief: c.brief.id, arm: c.arm.id, model: c.arm.model, cell });
-    console.log(`  ${c.id.padEnd(40)} ${describe(cell)} [${Math.round((Date.now() - t) / 1000)}s]`);
-    if (onCell) onCell(cell);
-  }
+    for (;;) {
+      rmSync(cellDir, { recursive: true, force: true });
+      const t = Date.now();
+      const cell = await cellRunner({ arm: c.arm, brief: c.brief, cellDir, cli, ledger, entry: { ...entry, ...(c.entry ?? {}) }, shape: api.shape, runId: `${runId}-${c.id}`, log: (l) => console.log(l) });
+      console.log(`  ${c.id.padEnd(40)} ${describe(cell)} [${Math.round((Date.now() - t) / 1000)}s]`);
+      if (onCell) onCell(cell);
+      if (cell.outcome === 'paused' && c.arm.funding === 'subscription') {
+        console.log(`  ${c.id}: paused by the usage limit until ${cell.resetsAt ?? 'an unknown reset'}; this lane waits, then runs it again`);
+        await wait(pauseMs({ resetsAt: cell.resetsAt ?? null }));
+        continue;
+      }
+      done.push({ id: c.id, dir: cellDir, brief: c.brief.id, arm: c.arm.id, model: c.arm.model, cell });
+      return;
+    }
+  };
+  const groups = lanes ? [...new Set(cells.map((c) => c.arm.id))].map((id) => cells.filter((c) => c.arm.id === id)) : [cells];
+  // A lane that stops (a cost that could not be read) stops alone: the other finishes its cell
+  // before the run reports the stop, so nothing it started is left without its cleanup.
+  const settled = await Promise.allSettled(groups.map(async (group) => {
+    for (const c of group) await one(c);
+  }));
+  const stopped = settled.find((s) => s.status === 'rejected');
+  if (stopped) throw stopped.reason;
   return done;
 }
 
@@ -347,8 +395,10 @@ async function build(phase) {
   const proofIds = list('proof');
   const arms = proofIds.length && !list('arms').length ? ['managed-agents'] : list('arms');
   const ids = list('briefs');
+  // The exam names its own briefs, the sealed twenty (4.1); `--briefs` may pick some of them.
+  const examPhase = examPending(ledger) === phase;
   // A brief's session runs at agent.md's budget unless the run names another; a proof keeps its own.
-  const budgetCents = value('budget-cents') !== undefined ? Number(value('budget-cents')) : ids.length ? (agentSessionBudgetCents() ?? 0) : 0;
+  const budgetCents = value('budget-cents') !== undefined ? Number(value('budget-cents')) : ids.length || examPhase ? (agentSessionBudgetCents() ?? 0) : 0;
   // The wall's margin is the reserve's `o` and critic share unless a flag names others (H6 gives
   // its critic a margin before measuring it).
   const margin = orFail(() => ({ overshootCents: flagCents('overshoot-cents'), criticCents: flagCents('critic-cents') }));
@@ -356,11 +406,19 @@ async function build(phase) {
   const effort = value('effort', '');
   const ceilingCents = value('ceiling-cents') === undefined ? null : Number(value('ceiling-cents'));
   // --dry makes every check that comes before the first session, then stops: nothing uploaded, no
-  // session, $0. It needs no briefs, so the exam can be checked before its briefs are opened. Any
-  // spelling of it (`--dry=1`, `--dry-run`) counts, so a typo never turns it into a paid run.
+  // session, $0. It needs no briefs; in the exam it opens and verifies the sealed ones, which is
+  // the check before the exam's first session. Any spelling of it (`--dry=1`, `--dry-run`) counts,
+  // so a typo never turns it into a paid run.
   const dry = argv.some((a) => /^--dry\b/.test(a));
-  if (!arms.length || !(dry || ids.length || proofIds.length)) fail('--build needs --arms and --briefs (or --proof): a paid run names exactly what it spends on');
-  if (ids.length && arms.includes('managed-agents') && !(Number.isInteger(budgetCents) && budgetCents > 0)) fail('--build with managed-agents needs --budget-cents <n>, the per-session cap');
+  if (!arms.length || !(dry || ids.length || proofIds.length || examPhase)) fail('--build needs --arms and --briefs (or --proof): a paid run names exactly what it spends on');
+  if ((ids.length || examPhase) && arms.includes('managed-agents') && !(Number.isInteger(budgetCents) && budgetCents > 0)) fail('--build with managed-agents needs --budget-cents <n>, the per-session cap');
+  if (examPhase) {
+    // The exam runs what tuning chose, at the budget its reserve holds and inside that reserve.
+    const r = ledger.reserve;
+    if (budgetCents !== r.sessionBudgetCents) fail(`the exam's sessions run at the reserve's B, ${r.sessionBudgetCents} cents, not ${budgetCents}: agent.md's budget and the reserve must agree`);
+    if (!dry && arms.includes('managed-agents') && ceilingCents > r.cents) fail(`the exam's ceiling is at most its reserve, ${r.cents} cents, not ${ceilingCents}`);
+    if (effort || value('agent-version') !== undefined) fail("the exam runs the lock's agent as tuned: no --effort or --agent-version");
+  }
   if (arms.includes('claude-code') && !model) fail('--build with claude-code needs --model, the exact model id the reference session runs');
   // Every paid phase has its own ceiling (5.1): a run that does not name it is refused, never
   // admitted against the whole run budget.
@@ -375,7 +433,7 @@ async function build(phase) {
   const url = process.env.NOACG_URL || 'https://noacg.studio';
   const cli = makeCli({ url });
   await ensureBridge(cli);
-  const briefs = tuningBriefs(ids);
+  const briefs = examPhase ? await sealedRunBriefs({ cli, ledger, phase, ids }) : tuningBriefs(ids);
   const runDir = path.resolve(value('out', path.join(os.tmpdir(), 'noacg-harness', `${phase}-${stamp()}`)));
   if (runDir.startsWith(ROOT + path.sep)) fail(`--out must be outside the repository (${ROOT}): a reference session there would load this repo's instructions`);
   mkdirSync(runDir, { recursive: true });
@@ -419,6 +477,8 @@ async function build(phase) {
       const agentModel = agentDef.config.model?.id ?? agentDef.config.model;
       // An override replaces the agent's model object in full, so an effort alone restates the model.
       const override = (id) => ((id && id !== agentModel) || effort ? { id: id || agentModel, ...(effort ? { effort } : {}) } : null);
+      // The reference's --model must not become the exam sessions' model: the exam runs v7's own.
+      if (exam && override(model)) fail(`the exam's sessions run agent v${lock.agent.version}'s own model, ${agentModel}: --model ${model} would override it (the reference arm takes the same model)`);
       sdk = await workspaceClient('bench');
       if (!sdk) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
       // The lock says what the sync sent; a session runs what the server kept (H6's v5 kept v4's critic).
@@ -489,6 +549,8 @@ async function build(phase) {
       entry,
       api,
       runId,
+      // Each arm in its own lane, side by side: the credit arm still one session at a time.
+      lanes: true,
       onCell: (cell) => {
         writeLedger(LEDGER_FILE, ledger);
         // Thrown, not exited: the finally below still deletes the uploaded CLI and the build dir.
@@ -513,15 +575,18 @@ async function build(phase) {
  * brief as a pair in both orders. Refused before anything starts when the judge's files differ
  * from judge.lock.json: a judge changed after calibration is not the judge that was calibrated.
  * Writes `judgements.jsonl` in the run directory; a usage-limit pause is recorded in the ledger and
- * waited out, never moved to the credit.
+ * waited out, never moved to the credit. `deliveredOnly` judges only the cells that delivered (the
+ * exam: a graphic not handed in as ready is not one a pair weighs, phase-8.md); `concurrency`
+ * judgements run at once.
  */
-export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), phase = null, claude, env, run, log = console.log }) {
+export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), phase = null, claude, env, run, log = console.log, deliveredOnly = false, concurrency = 1 }) {
   const judge = loadJudge(judgeDir);
   if (!judge.frozen) throw new Error(`the exam judges only with a frozen judge: ${judge.reason}`);
   const cellsDir = path.join(runDir, 'cells');
   const cells = readdirSync(cellsDir)
     .filter((d) => existsSync(path.join(cellsDir, d, 'cell.json')) && existsSync(path.join(cellsDir, d, 'frames', 'coverage.json')))
-    .map((d) => ({ id: d, dir: path.join(cellsDir, d), cell: JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8')), brief: JSON.parse(readFileSync(path.join(cellsDir, d, 'brief.json'), 'utf8')) }));
+    .map((d) => ({ id: d, dir: path.join(cellsDir, d), cell: JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8')), brief: JSON.parse(readFileSync(path.join(cellsDir, d, 'brief.json'), 'utf8')) }))
+    .filter((c) => !deliveredOnly || c.cell.outcome === 'delivered');
   const out = path.join(runDir, 'judgements.jsonl');
   const seen = new Set((existsSync(out) ? readFileSync(out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []).filter((r) => r.judge === judge.fingerprint && !r.error).map((r) => `${r.task}:${r.id}`));
   const record = (r) => writeFileSync(out, `${JSON.stringify({ judge: judge.fingerprint, at: new Date().toISOString(), ...r })}\n`, { flag: 'a' });
@@ -542,30 +607,39 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
     }
   };
   const graphic = (c) => ({ id: c.id, frames: coverageFrames(path.join(c.dir, 'frames')), operator: c.cell.operator?.buttons ?? [] });
-  for (const c of cells) {
+  // Every judgement as a task, singles first, then pairs; `concurrency` of them at once.
+  const tasks = cells.map((c) => async () => {
     const r = await once(`single:${c.id}`, () => judgeSingle(judge, { brief: c.brief.prompt, frames: graphic(c).frames, operator: graphic(c).operator, actions: c.brief.expect?.actions ?? [], dir: path.join(runDir, 'judge', 'single', c.id), claude, env, run }));
     if (r) {
       record({ task: 'single', id: c.id, brief: c.cell.brief, ...r });
       log(`  single   ${c.id.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `airable ${r.answer.airable}`}`);
     }
-  }
+  });
   const byBrief = new Map();
   for (const c of cells) byBrief.set(c.cell.brief, [...(byBrief.get(c.cell.brief) ?? []), c]);
   for (const [brief, list] of byBrief) {
     for (let i = 0; i < list.length; i++) {
       for (let j = i + 1; j < list.length; j++) {
         if (list[i].cell.arm === list[j].cell.arm) continue;
-        const id = `${list[i].id}|${list[j].id}`;
+        const [x, y] = [list[i], list[j]];
+        const id = `${x.id}|${y.id}`;
         // Which one goes first is decided by the pair's own hash: no arm is always A.
         const xFirst = parseInt(createHash('sha256').update(id).digest('hex').slice(0, 2), 16) % 2 === 0;
-        const r = await once(`pairwise:${id}`, (answered) => judgePair(judge, { brief: list[i].brief.prompt, x: graphic(list[i]), y: graphic(list[j]), xFirst, actions: list[i].brief.expect?.actions ?? [], answered, dir: path.join(runDir, 'judge', 'pairwise', id.replace('|', '~')), claude, env, run }));
-        if (r) {
-          record({ task: 'pairwise', id, brief, ...r });
-          log(`  pairwise ${id.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `prefers ${r.combined}`}`);
-        }
+        tasks.push(async () => {
+          const r = await once(`pairwise:${id}`, (answered) => judgePair(judge, { brief: x.brief.prompt, x: graphic(x), y: graphic(y), xFirst, actions: x.brief.expect?.actions ?? [], answered, dir: path.join(runDir, 'judge', 'pairwise', id.replace('|', '~')), claude, env, run }));
+          if (r) {
+            record({ task: 'pairwise', id, brief, ...r });
+            log(`  pairwise ${id.padEnd(48)} ${r.error ? `ERROR ${r.error}` : `prefers ${r.combined}`}`);
+          }
+        });
       }
     }
   }
+  let next = 0;
+  const worker = async () => {
+    while (next < tasks.length) await tasks[next++]();
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, tasks.length)) }, worker));
   return { judge: { model: judge.lock.model, fingerprint: judge.fingerprint }, file: out };
 }
 
@@ -600,17 +674,38 @@ if (isMain) {
     const env = subscriptionEnv({ token: mainEnv().CLAUDE_CODE_OAUTH_TOKEN, home: path.join(runDir, 'judge', 'home'), pathDirs: [path.dirname(process.execPath), path.dirname(claude), system] });
     checkSubscriptionAuth({ claude, env });
     const phase = value('phase', null);
-    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, claude, env }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+    const concurrency = Number(value('concurrency', '1'));
+    if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) fail('--concurrency takes 1 to 4 judgements at once');
+    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, claude, env, deliveredOnly: has('delivered-only'), concurrency }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
     console.log(`Judged with ${r.judge.model} (${r.judge.fingerprint.slice(0, 12)}): ${r.file}`);
+  } else if (has('tally')) {
+    // 4.4's numbers and 4.5's verdict for an exam run, as phase-8.md fixed the counting.
+    const runDir = path.resolve(value('tally', ''));
+    const cellsDir = path.join(runDir, 'cells');
+    if (!existsSync(cellsDir)) fail('--tally needs a run directory holding cells/');
+    const cells = readdirSync(cellsDir).filter((d) => existsSync(path.join(cellsDir, d, 'cell.json'))).map((d) => JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8')));
+    const file = path.join(runDir, 'judgements.jsonl');
+    const judgements = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
+    const ledger = readLedger(LEDGER_FILE);
+    const tally = tallyExam({ briefIds: [...new Set(cells.map((c) => c.brief))].sort(), cells, judgements, budgetCents: ledger.reserve?.sessionBudgetCents ?? null, fingerprint: loadJudge(path.join(HARNESS, 'judge')).fingerprint });
+    writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify(tally, null, 2)}\n`);
+    console.log(tallyMarkdown(tally));
+    console.log(`\n${path.join(runDir, 'tally.json')}`);
   } else if (has('review')) {
     const runDir = path.resolve(value('review', ''));
     const cellsDir = path.join(runDir, 'cells');
     if (!existsSync(cellsDir)) fail('--review needs a run directory holding cells/');
+    // `--briefs` picks the briefs the page shows (the exam's owner gallery is about ten pairs, 4.6);
+    // `--into` builds it elsewhere (benchmarks/harness/exam/gallery/, never committed).
+    const only = list('briefs');
     const cells = readdirSync(cellsDir).filter((d) => existsSync(path.join(cellsDir, d, 'cell.json'))).map((d) => {
       const cell = JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8'));
       return { id: d, dir: path.join(cellsDir, d), brief: cell.brief, arm: cell.arm, model: cell.model, cell };
-    });
-    const bank = JSON.parse(readFileSync(TUNING, 'utf8')).briefs;
-    console.log(buildGallery({ runDir, cells, briefs: bank }).review);
+    }).filter((c) => !only.length || only.includes(c.brief));
+    // Each cell keeps the brief it ran (an exam brief is in no bank here).
+    const briefs = cells.map((c) => (existsSync(path.join(c.dir, 'brief.json')) ? JSON.parse(readFileSync(path.join(c.dir, 'brief.json'), 'utf8')) : null)).filter(Boolean);
+    const into = value('into') ? path.resolve(value('into')) : runDir;
+    mkdirSync(into, { recursive: true });
+    console.log(buildGallery({ runDir: into, cells, briefs: [...briefs, ...JSON.parse(readFileSync(TUNING, 'utf8')).briefs], salt: path.basename(runDir) }).review);
   } else printLedger(readLedger(LEDGER_FILE));
 }

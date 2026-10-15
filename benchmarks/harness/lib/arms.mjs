@@ -21,7 +21,7 @@ import { spawnSync } from 'node:child_process';
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, CLI_ENTRY } from './cli.mjs';
-import { checkSubscriptionAuth, runClaude, subscriptionEnv } from './subscription.mjs';
+import { checkSubscriptionAuth, runClaudeAsync, subscriptionEnv } from './subscription.mjs';
 import { traceMetrics } from './trace.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -380,7 +380,8 @@ export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join
       const prompt = referencePrompt(brief);
       writeFileSync(path.join(sessionDir, 'prompt.md'), prompt);
       const args = ['--permission-mode', 'acceptEdits', '--allowedTools', 'Bash,Read,Write,Edit,Glob,Grep', '--plugin-dir', pluginDir, '--strict-mcp-config', ...(model ? ['--model', model] : [])];
-      const r = runClaude({ claude, args, env, cwd: work, input: prompt, timeoutMs: timeoutMinutes * 60_000, ...(run ? { run } : {}) });
+      // Not blocking: a build runs the reference beside the credit arm, whose session it polls.
+      const r = await runClaudeAsync({ claude, args, env, cwd: work, input: prompt, timeoutMs: timeoutMinutes * 60_000, ...(run ? { run } : {}) });
       writeFileSync(path.join(sessionDir, 'claude.json'), r.stdout);
       const calls = readShimLedger(ledgerFile);
       const recordFile = path.join(work, 'outputs', 'record.json');
