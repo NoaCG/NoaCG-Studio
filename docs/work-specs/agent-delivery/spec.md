@@ -451,3 +451,91 @@ Checked on `origin/main` `83e4025f7` (the landing of #1263). Verdict: PASS.
   the same migrations and the same API code.
 - The retry/error check lives in the agent-access journey rather than a separate Home journey;
   it walks the Home Productions screen, so this departs from the plan's wording, not its intent.
+
+### Phase 3 (build), 2026-10-15
+
+Last check's findings (Phase 2 check, PASS): post-landing applied 0092 to production and staging,
+and no existing key gained a scope; the readback boundaries hold (the same 404 for another key,
+another account and an unknown id, 400 without an id, 405 on a list); noacg.studio and staging
+were not exercised with a real key, for lack of a test account there, so the local Supabase stack
+stood in; the retry/error check lives in the agent-access journey rather than a separate Home
+journey. Decisions built on: a single save's receipt is best effort, `noacg status` is
+terminal-only, and consent shows the email in full.
+
+Landed:
+- **The set door**, `POST /api/me/graphic-sets` (`api/_lib/me/graphicSets.ts`, docs/AGENT_SAVE.md
+  §10). It requires the client's `x-noacg-operation` uuid, shape-checks every record with the save
+  door's guard before any write, mints ids and timestamps through the same `libraryRecord` the
+  single door now uses, and never parses or runs the code. 201 created, 200 `replayed`, 409
+  `conflict`, 400/413 refusals that write nothing.
+- **One transaction**, migration 0093: `agent_deliver_graphics` claims the operation in
+  `agent_operations` (account, operation, key, payload hash), inserts every `documents` row and
+  every `agent_deliveries` receipt (new nullable `position`), and returns the ids in order. The
+  same operation, hash and key replays those ids and writes nothing; anything else under the
+  operation, or an operation a single save already used, is a conflict. The payload hash leaves
+  out the ids and timestamps the bridge mints, so a rebuild is the same payload.
+- **CLI and MCP**: `noacg save a b c` (MCP `save` with `paths`) validates every graphic, refuses
+  the whole set on one error, measures it against 4 MB, and sends it once under an operation
+  written to `<config>/operations.json` first. A lost answer is resent under the same operation (up
+  to three sends), then read back; a rerun of the same command within a day resumes the operation;
+  `--operation <id>` names one and `--new` delivers again on purpose. One graphic takes the same
+  path and falls back to the single door on a deployment without the set door (404).
+
+Size limits and compatibility: 1 to 40 graphics, a pack's own cap, so any pack's graphics fit one
+set; the whole body shares the save door's 4 MB read cap under the platform's ~4.5 MB, and the CLI
+says to send smaller groups above it; each record keeps the single door's limits (3 MB of inline
+assets). A set counts as one request against the per-IP and per-account save limits. A typical
+generated lower third is tens of kilobytes, so the count, not the bytes, is the usual bound.
+
+Evidence: API tests (`graphicSets.test.ts`, 7, with deliveries, graphics, packages and agentKeys,
+35 pass): three graphics created whole and verified through the Phase 2 readback in order; one
+invalid record refuses the set with nothing written; an injected failure on the third insert
+leaves no record, receipt or claim, the same request then creates the set once and three more
+sends replay the same ids with the counts unchanged; a changed payload, a subset, another key and
+a single save's operation are refused; a replay reports a graphic deleted since as `missing`;
+missing operation, empty set, 41 graphics, bad JSON, over 4 MB, no key and a key without
+`graphics:create` all write nothing. A mutation that hashed the minted ids failed three of them.
+Database: 0092 and 0093 applied to an embedded Postgres (PGlite) with stub `auth.users`,
+`documents` and `agent_keys`; with an account the self-check ran (created, replayed, conflict,
+and a duplicate-id second record leaving nothing) and left no row; two mutations of the function
+(replay order reversed, hash not compared) each failed the self-check. The hosted projects run the
+same self-check at post-land. CLI: `unit.test.mjs` 59 and `mcp.test.mjs` 18 pass (the set door is
+written once and read back; lost answers resent under the same operation; every answer lost and
+nothing found is `delivery_unverified` with "run the same command again"; a conflict, a refusal,
+an offline 503 and a missing door are not resent; the journal's same set, other set, `--new`,
+`--operation` and expiry; the argument refusals). Run through the real bridge against this
+checkout's dev server with no backend: three scaffolded lower thirds validated, the offline answer
+came back once, and running the same command again said "Resuming 3 graphics under operation
+<the same id>", so a rebuild through the bridge is the same set; two of the three got a new
+operation. The configured agent-access journey adds step 4e: three graphics in one operation,
+the readback, a rebuilt replay with the same ids, a changed set refused, an invalid set writing
+nothing, and a fresh signed-in browser finding all three and opening every link.
+CONFIGURED_RUN_PLACEHOLDER
+
+Decisions:
+- Every `noacg save` uses the set door, one graphic included, so "run the same command again" is
+  true for any save. The single door stays for older deployments and is unchanged on the server.
+- A set is all or nothing in one transaction rather than a resumable partial state: the set is
+  bounded, and a partial state would need its own recovery path.
+- Replay requires the same key as well as the same payload, so a key never learns another key's
+  ids through an operation id.
+- The journal keys on deployment, a hash of the key, and the content, and keeps an operation for
+  24 hours: long enough for any retry, and short enough that the same graphics made again next
+  week are a new delivery. It holds no key.
+- The MCP schema gained no argument beyond `paths` for `save` (its size ceiling); `--operation`
+  and `--new` are terminal-only, and the journal covers an MCP retry.
+- A new error code, `conflict`, joins the shared API error vocabulary (`src/render/types.ts`).
+
+Rollback: revert the pull request. 0093 is additive (a table, a nullable column, a function); left
+in place it costs nothing, and the single save door, the package door and Import are unchanged.
+Delivered records, receipts and claims stay; nothing user-made is removed.
+
+Next phase must allow for:
+- The skill's default ending still saves each graphic with its own `noacg save`: the CLI with the
+  set door is not published (0.11.0 has none). Phase 5 switches the skill to one `noacg save a b
+  c`, adds "run the same command again" to its interrupted-save wording, and writes the CHANGELOG.
+- Phase 4 extends this door (or a sibling) with a production destination. `agent_operations`
+  already holds the claim and the payload hash; `agent_deliveries.position` orders a set; a
+  production would add its own receipt row and must stay in the same transaction.
+- The readback lists a set in its order through `position`; an older database without 0093 still
+  reads back (the select asks for every column rather than naming `position`).
