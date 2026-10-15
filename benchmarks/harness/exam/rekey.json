@@ -1,0 +1,8 @@
+{
+  "note": "H8, before the judge (evidence/phase-8.md): stress values the label rule put on a field they were not written for, moved by hand to the field that is, or to none when the package has no such field; both arms of each brief named here are captured again with node scripts/harness-bench.mjs --recapture. Keys are the stress keys (the registry's field labels), values the package's field keys.",
+  "rekey": {
+    "school-quiz-secret-pick": {
+      "claude-code": { "Audience results": null }
+    }
+  }
+}

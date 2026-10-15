@@ -108,11 +108,14 @@ function answers(judgements, fingerprint) {
 }
 
 /** One arm's graphic for one brief, counted as the tuning rounds counted it (phase-8.md). */
-function graphicOf(cell, single, budgetCents) {
+function graphicOf(cell, single, budgetCents, readings = {}) {
   if (!cell) return { ran: false, delivered: false, usable: false, judged: false, defects: [], missing: [], unmoved: [], validatorErrors: [] };
   const delivered = cell.outcome === 'delivered';
   const defects = (single?.answer?.basicMistakes ?? []).filter((m) => m.kind !== 'missing-action');
-  const missing = cell.operator?.missing ?? [];
+  // An action the gate flagged and the operator surface offers under another name (3.5) counts as offered.
+  const read = readings[`${cell.brief}.${cell.arm}`] ?? {};
+  const gateMissing = cell.operator?.missing ?? [];
+  const missing = gateMissing.filter((a) => !read[a]);
   const validatorErrors = cell.validation ? cell.validation.errors ?? [] : ['no validation'];
   const unmoved = (cell.capture?.findings ?? []).filter((f) => /did not move the machine/.test(f));
   const functional = Boolean(cell.validation?.ok && cell.shape?.ok) && missing.length === 0;
@@ -128,6 +131,7 @@ function graphicOf(cell, single, budgetCents) {
     confidence: single?.answer?.confidence ?? null,
     defects,
     missing,
+    readAsOffered: gateMissing.filter((a) => read[a]),
     unmoved,
     validatorErrors,
     functional,
@@ -153,12 +157,12 @@ const orderOf = (o, hId) => {
  * graphic or a pair of two is unjudged, `MISSED` when any line of 4.5 fails, `INCONCLUSIVE` when
  * every line holds but more than 5 pairs tied on an order flip, else `PASSED`.
  */
-export function tallyExam({ briefIds, cells, judgements, budgetCents, fingerprint = null, harness = 'managed-agents', reference = 'claude-code' }) {
+export function tallyExam({ briefIds, cells, judgements, budgetCents, fingerprint = null, readings = {}, harness = 'managed-agents', reference = 'claude-code' }) {
   const { singles, pairs } = answers(judgements, fingerprint);
   const cellOf = (brief, arm) => cells.find((c) => c.brief === brief && c.arm === arm && c.outcome !== 'refused' && c.outcome !== 'paused') ?? null;
   const rows = briefIds.map((brief) => {
-    const h = graphicOf(cellOf(brief, harness), singles.get(`${brief}.${harness}`), budgetCents);
-    const r = graphicOf(cellOf(brief, reference), singles.get(`${brief}.${reference}`), null);
+    const h = graphicOf(cellOf(brief, harness), singles.get(`${brief}.${harness}`), budgetCents, readings);
+    const r = graphicOf(cellOf(brief, reference), singles.get(`${brief}.${reference}`), null, readings);
     let pair;
     if (h.delivered && r.delivered) {
       const p = pairs.get(brief);
@@ -239,7 +243,7 @@ const usd = (cents) => `$${(cents / 100).toFixed(2)}`;
 /** A tally as the report's tables: the verdict's lines, the arms side by side, one row per brief. */
 export function tallyMarkdown(t) {
   const { harness: H, reference: R, preference: P } = t;
-  const mark = (g) => (!g.ran ? 'not run' : !g.delivered ? g.outcome : [g.usable ? 'usable' : 'not usable', g.airable === false ? 'not airable' : null, g.defects.length ? `${g.defects.length} basic mistake(s)` : null, g.missing.length ? `missing ${g.missing.join('/')}` : null, g.validatorErrors.length ? 'validator errors' : null, g.unmoved.length ? `${g.unmoved.length} unmoved event(s)` : null].filter(Boolean).join(', '));
+  const mark = (g) => (!g.ran ? 'not run' : !g.delivered ? g.outcome : [g.usable ? 'usable' : 'not usable', g.airable === false ? 'not airable' : null, g.defects.length ? `${g.defects.length} basic mistake(s)` : null, g.missing.length ? `missing ${g.missing.join('/')}` : null, g.readAsOffered?.length ? `${g.readAsOffered.join('/')} offered under other names` : null, g.validatorErrors.length ? 'validator errors' : null, g.unmoved.length ? `${g.unmoved.length} unmoved event(s)` : null].filter(Boolean).join(', '));
   const out = [
     `**Verdict: ${t.verdict}**${t.incomplete.length ? ` (${t.incomplete.join('; ')})` : ''}`,
     '',

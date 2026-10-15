@@ -98,6 +98,29 @@ tests) computes all of it from the cells and the judge's answers:
 A miss is a finished phase: the report lands either way, the run stops (5.5), and H9 does not
 start.
 
+### Two rulings made during the run, before the tally
+
+Written while the sessions ran, after 9 of the 20 briefs were captured and before any figure was
+added up. Each applies to both arms alike.
+
+- **A missing-action flag the judge did not confirm is read against the operator surface** (3.5,
+  binding on every phase: an instrument that fires on a graphic the judge called clean never
+  rules over the picture; AC-17). On a typeless or free-named brief the mechanical gate's word
+  rule can miss an action offered under another name: Claude Code's volleyball board offers
+  `undoA`/`undoB` and `setA`/`setB` where the brief says `undoPoint` and `endSet`, and its
+  bilingual notice offers `holdFi`/`holdSv` ("Suomi", "Svenska") for `lang1`/`lang2`, and the
+  judge's single judgement named no missing action on either. So a flag stands when the judge's
+  single also names the action missing, or when no button's event and label do what the action
+  says; otherwise it is an instrument disagreement, logged in `instruments.md` with the buttons,
+  and the action counts as offered. Each reading is listed in `exam/action-readings.json`, which
+  `--tally` applies; the report gives both figures, as counted by the gate alone and with the
+  readings. DECIDED, revert: drop the file and tally again.
+- **A stress value with no field of its own is shown nowhere.** Where the label rule put a value
+  on a field written for something else (Claude Code's quiz: the audience results on its question
+  number), it is moved to the right field or, when the package has none, dropped
+  (`exam/rekey.json`), and both arms of that brief are captured again before the judge reads
+  them (`--recapture`).
+
 Checks before the first session, on this branch: `NOACG_URL=https://noacg.studio node
 scripts/harness-bench.mjs --control`, run directly after building `cli/`: CONTROL PASSED at $0.
 `node --test scripts/harness-bench.test.mjs` 48 of 48. `--build H8 --dry --arms

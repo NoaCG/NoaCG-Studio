@@ -52,7 +52,7 @@ import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySeale
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
-import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, runCells, tuningBriefs } from './harness-bench.mjs';
+import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, packagesProofRefusal, pendingCells, recaptureCells, recordReserve, refuseBuild, runCells, tuningBriefs } from './harness-bench.mjs';
 import { examBriefs, labelStress, tallyExam, tallyMarkdown, typelessLabels } from '../benchmarks/harness/lib/exam.mjs';
 import { agentReadBack, applySync, readDefinitions, syncPlan, workspacePlan } from './harness-agent-sync.mjs';
 
@@ -1100,7 +1100,7 @@ test('an exam brief\'s positional stress is named by its field\'s label, and lan
 });
 
 /** Cells and judge answers for an exam tally: `rows` [{ h, r, pair }] per brief. */
-function examRun(rows, { budget = 194 } = {}) {
+function examRun(rows, { budget = 194, readings = {} } = {}) {
   const cells = [];
   const judgements = [];
   rows.forEach((row, i) => {
@@ -1117,7 +1117,7 @@ function examRun(rows, { budget = 194 } = {}) {
       judgements.push({ task: 'pairwise', id: `${h}|${r}`, brief, combined, orders: [{ a: h, b: r, answer: { better: row.pair === 'r' ? 'B' : 'A' } }, { a: r, b: h, answer: { better: row.pair === 'r' || row.pair === 'tie' ? 'A' : 'B' } }] });
     }
   });
-  return tallyExam({ briefIds: rows.map((_, i) => `b${String(i).padStart(2, '0')}`), cells, judgements, budgetCents: budget });
+  return tallyExam({ briefIds: rows.map((_, i) => `b${String(i).padStart(2, '0')}`), cells, judgements, budgetCents: budget, readings });
 }
 const fine = { h: {}, r: {}, pair: 'h' };
 const many = (n, row) => Array.from({ length: n }, () => row);
@@ -1136,6 +1136,10 @@ test('the exam\'s verdict is 4.5 as written: every line, the flip rule, and noth
   // One basic visual defect, or one missing action, in a delivered harness graphic misses.
   assert.equal(examRun([...many(19, fine), { h: { defect: true }, r: {}, pair: 'h' }]).lines[1].holds, false);
   assert.equal(examRun([...many(19, fine), { h: { missing: ['final'] }, r: {}, pair: 'h' }]).verdict, 'MISSED');
+  // A flag read against the operator surface as offered under another name (3.5) counts as offered.
+  const flagged = [...many(19, fine), { h: { missing: ['endSet'] }, r: {}, pair: 'h' }];
+  assert.equal(examRun(flagged, { readings: { 'b19.managed-agents': { endSet: 'setA, setB' } } }).verdict, 'PASSED');
+  assert.deepEqual(examRun(flagged, { readings: { 'b19.managed-agents': { endSet: 'setA, setB' } } }).rows[19].harness.readAsOffered, ['endSet']);
   assert.equal(examRun([...many(19, fine), { h: {}, r: { defect: true }, pair: 'h' }]).verdict, 'PASSED', "the reference's defects are reported, not held against the harness");
   // The median wall, and an accepted graphic over the session budget.
   assert.equal(examRun(many(20, { ...fine, h: { wall: 601 } })).lines[3].holds, false);
@@ -1176,6 +1180,30 @@ test('a build runs each arm in its own lane, side by side, and a paused referenc
   assert.deepEqual(waited, [15 * 60_000], 'after waiting out the limit');
   assert.deepEqual(done.map((d) => d.id).sort(), ['a.claude-code', 'a.managed-agents', 'b.claude-code', 'b.managed-agents']);
   assert.ok(done.every((d) => d.cell.outcome === 'delivered'));
+});
+
+test('a misplaced stress value is moved by hand, and both arms of its brief are captured again', async () => {
+  const runDir = tmp();
+  for (const [arm, zipAt] of [['managed-agents', ['outputs']], ['claude-code', ['reference', 'work', 'outputs']]]) {
+    const dir = path.join(runDir, 'cells', `x.${arm}`);
+    mkdirSync(path.join(dir, ...zipAt), { recursive: true });
+    mkdirSync(path.join(dir, 'frames'), { recursive: true });
+    writeFileSync(path.join(dir, 'frames', 'coverage.json'), '{"frames":[]}');
+    writeFileSync(path.join(dir, ...zipAt, 'record.zip'), 'PK');
+    writeFileSync(path.join(dir, 'cell.json'), JSON.stringify({ brief: 'x', arm, outcome: 'delivered', capture: { frames: 0 } }));
+    writeFileSync(path.join(dir, 'stress.json'), JSON.stringify({ id: 'x', stress: { f0: 'Long name', f4: 'Map 2' }, stressMap: { Name: { to: 'f0', by: 'label' }, 'Stage / map': { to: 'f4', by: 'position' } } }));
+  }
+  const cli = fakeCli();
+  const done = await recaptureCells({ runDir, rekey: { x: { 'managed-agents': { 'Stage / map': 'f12' }, 'claude-code': { 'Stage / map': null } } }, cli, log: () => undefined });
+  assert.deepEqual(done.map((d) => [d.cell, d.rekeyed]).sort(), [['x.claude-code', ['Stage / map']], ['x.managed-agents', ['Stage / map']]]);
+  const moved = JSON.parse(readFileSync(path.join(runDir, 'cells', 'x.managed-agents', 'stress.json'), 'utf8'));
+  assert.deepEqual(moved.stress, { f0: 'Long name', f12: 'Map 2' });
+  assert.equal(moved.stressMap['Stage / map'].by, 'rekeyed');
+  const dropped = JSON.parse(readFileSync(path.join(runDir, 'cells', 'x.claude-code', 'stress.json'), 'utf8'));
+  assert.deepEqual([dropped.stress, dropped.stressMap['Stage / map'].by], [{ f0: 'Long name' }, 'dropped'], 'a value with no field of its own is shown nowhere');
+  assert.equal(cli.calls.filter((c) => c[0] === 'coverage').length, 2, 'the other arm is captured again too');
+  assert.ok(existsSync(path.join(runDir, 'cells', 'x.managed-agents', 'frames.before-rekey', 'coverage.json')), 'the first frames are kept');
+  await assert.rejects(() => recaptureCells({ runDir, rekey: { y: {} }, cli, log: () => undefined }), /no cell of y/);
 });
 
 test('the exam judges only what was handed in, a few judgements at a time', async () => {

@@ -46,9 +46,12 @@
 //                                                    R recorded in the ledger for the wall to hold.
 //   node scripts/harness-bench.mjs --close <H#> [--note "..."]
 //                                                    Record a phase as completed in the ledger.
-//   node scripts/harness-bench.mjs --judge <runDir> [--phase <H#>] [--delivered-only] [--concurrency <1-4>]
+//   node scripts/harness-bench.mjs --judge <runDir> [--phase <H#>] [--delivered-only] [--concurrency <1-4>] [--briefs id,..]
 //                                                    SUBSCRIPTION. The frozen judge on a run's cells.
 //   node scripts/harness-bench.mjs --tally <runDir>  FREE. 4.4's numbers and 4.5's verdict for an exam run.
+//   node scripts/harness-bench.mjs --recapture <runDir> --rekey <file>
+//                                                    FREE. Move a misplaced stress value to its field
+//                                                    and capture both arms of that brief again.
 //   node scripts/harness-bench.mjs --review <runDir> [--briefs id,..] [--into <dir>]
 //                                                    FREE. Rebuild a run's blind gallery.
 //
@@ -61,7 +64,7 @@
 // CLI. Coverage runs against this checkout's dev server, or the deployment NOACG_URL names.
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, existsSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, readdirSync, existsSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -579,14 +582,14 @@ async function build(phase) {
  * exam: a graphic not handed in as ready is not one a pair weighs, phase-8.md); `concurrency`
  * judgements run at once.
  */
-export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), phase = null, claude, env, run, log = console.log, deliveredOnly = false, concurrency = 1 }) {
+export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'), phase = null, claude, env, run, log = console.log, deliveredOnly = false, concurrency = 1, briefs = null }) {
   const judge = loadJudge(judgeDir);
   if (!judge.frozen) throw new Error(`the exam judges only with a frozen judge: ${judge.reason}`);
   const cellsDir = path.join(runDir, 'cells');
   const cells = readdirSync(cellsDir)
     .filter((d) => existsSync(path.join(cellsDir, d, 'cell.json')) && existsSync(path.join(cellsDir, d, 'frames', 'coverage.json')))
     .map((d) => ({ id: d, dir: path.join(cellsDir, d), cell: JSON.parse(readFileSync(path.join(cellsDir, d, 'cell.json'), 'utf8')), brief: JSON.parse(readFileSync(path.join(cellsDir, d, 'brief.json'), 'utf8')) }))
-    .filter((c) => !deliveredOnly || c.cell.outcome === 'delivered');
+    .filter((c) => (!deliveredOnly || c.cell.outcome === 'delivered') && (!briefs || briefs.includes(c.cell.brief)));
   const out = path.join(runDir, 'judgements.jsonl');
   const seen = new Set((existsSync(out) ? readFileSync(out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []).filter((r) => r.judge === judge.fingerprint && !r.error).map((r) => `${r.task}:${r.id}`));
   const record = (r) => writeFileSync(out, `${JSON.stringify({ judge: judge.fingerprint, at: new Date().toISOString(), ...r })}\n`, { flag: 'a' });
@@ -643,6 +646,50 @@ export async function judgeRun({ runDir, judgeDir = path.join(HARNESS, 'judge'),
   return { judge: { model: judge.lock.model, fingerprint: judge.fingerprint }, file: out };
 }
 
+// ── --recapture ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Before the judge (instruments.md entry 6): a stress value the label rule put on the wrong field
+ * is moved by hand to the field it was written for, named in `rekey` as `{ brief: { arm: {
+ * stressKey: fieldKey or null for none } } }`, and BOTH arms of that brief are captured again from their delivered
+ * zips, so the pair is judged on one capture rule. The first frames stay as `frames.before-rekey`.
+ */
+export async function recaptureCells({ runDir, rekey, cli, log = console.log }) {
+  const out = [];
+  for (const [brief, byArm] of Object.entries(rekey)) {
+    const dirs = readdirSync(path.join(runDir, 'cells')).filter((d) => d.startsWith(`${brief}.`) && existsSync(path.join(runDir, 'cells', d, 'cell.json')));
+    if (!dirs.length) throw new Error(`--recapture: no cell of ${brief} in ${runDir}`);
+    for (const d of dirs) {
+      const dir = path.join(runDir, 'cells', d);
+      const cell = JSON.parse(readFileSync(path.join(dir, 'cell.json'), 'utf8'));
+      const zip = [path.join(dir, 'outputs', 'record.zip'), path.join(dir, 'reference', 'work', 'outputs', 'record.zip')].find((f) => existsSync(f));
+      if (!zip || !cell.capture) continue;
+      const stressPath = path.join(dir, 'stress.json');
+      const file = JSON.parse(readFileSync(stressPath, 'utf8'));
+      for (const [key, to] of Object.entries(byArm[cell.arm] ?? {})) {
+        const was = file.stressMap?.[key];
+        if (!was) throw new Error(`--recapture: ${d} has no stress key "${key}"`);
+        const valueOf = file.stress[was.to];
+        delete file.stress[was.to];
+        // `null`: the package has no field this value was written for, so it is shown nowhere.
+        if (to !== null) file.stress[to] = valueOf;
+        file.stressMap[key] = { to, by: to === null ? 'dropped' : 'rekeyed', from: was.to, label: null };
+      }
+      writeFileSync(stressPath, `${JSON.stringify(file, null, 2)}\n`);
+      const frames = path.join(dir, 'frames');
+      const before = path.join(dir, 'frames.before-rekey');
+      if (!existsSync(before)) cpSync(frames, before, { recursive: true });
+      rmSync(frames, { recursive: true, force: true });
+      const coverage = await cli(['coverage', zip, '--out', frames, '--stress', stressPath, '--json'], { cwd: dir });
+      cell.capture = { ...cell.capture, exit: coverage.code, frames: coverage.json?.frames ?? 0, crops: coverage.json?.crops ?? 0, findings: coverage.json?.findings ?? [], failures: coverage.json?.failures ?? [coverage.stderr.slice(-300)], digest: coverage.json?.digest ?? null, rekeyed: Object.keys(byArm[cell.arm] ?? {}) };
+      writeFileSync(path.join(dir, 'cell.json'), `${JSON.stringify(cell, null, 2)}\n`);
+      log(`  ${d.padEnd(48)} re-captured: ${cell.capture.frames} frame(s)${cell.capture.rekeyed.length ? `, re-keyed ${cell.capture.rekeyed.join(', ')}` : ''}`);
+      out.push({ cell: d, rekeyed: cell.capture.rekeyed, frames: cell.capture.frames });
+    }
+  }
+  return out;
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────────────────────
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -676,7 +723,7 @@ if (isMain) {
     const phase = value('phase', null);
     const concurrency = Number(value('concurrency', '1'));
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) fail('--concurrency takes 1 to 4 judgements at once');
-    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, claude, env, deliveredOnly: has('delivered-only'), concurrency }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
+    const r = await judgeRun({ runDir, phase: PHASE.test(phase ?? '') ? phase : null, claude, env, deliveredOnly: has('delivered-only'), concurrency, briefs: list('briefs').length ? list('briefs') : null }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
     console.log(`Judged with ${r.judge.model} (${r.judge.fingerprint.slice(0, 12)}): ${r.file}`);
   } else if (has('tally')) {
     // 4.4's numbers and 4.5's verdict for an exam run, as phase-8.md fixed the counting.
@@ -687,10 +734,24 @@ if (isMain) {
     const file = path.join(runDir, 'judgements.jsonl');
     const judgements = existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
     const ledger = readLedger(LEDGER_FILE);
-    const tally = tallyExam({ briefIds: [...new Set(cells.map((c) => c.brief))].sort(), cells, judgements, budgetCents: ledger.reserve?.sessionBudgetCents ?? null, fingerprint: loadJudge(path.join(HARNESS, 'judge')).fingerprint });
-    writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify(tally, null, 2)}\n`);
+    // The gate's flags read against the operator surface (3.5, phase-8.md), when the run has them.
+    const readingsFile = path.resolve(value('readings', path.join(HARNESS, 'exam', 'action-readings.json')));
+    const readings = existsSync(readingsFile) ? JSON.parse(readFileSync(readingsFile, 'utf8')).readings : {};
+    const args = { briefIds: [...new Set(cells.map((c) => c.brief))].sort(), cells, judgements, budgetCents: ledger.reserve?.sessionBudgetCents ?? null, fingerprint: loadJudge(path.join(HARNESS, 'judge')).fingerprint };
+    const tally = tallyExam({ ...args, readings });
+    const gateOnly = tallyExam(args);
+    writeFileSync(path.join(runDir, 'tally.json'), `${JSON.stringify({ ...tally, gateOnly: { verdict: gateOnly.verdict, lines: gateOnly.lines, harnessUsable: gateOnly.harness.usable, referenceUsable: gateOnly.reference.usable } }, null, 2)}\n`);
     console.log(tallyMarkdown(tally));
+    console.log(`\nBy the missing-action gate alone (no readings): ${gateOnly.verdict}; ${gateOnly.lines.map((l) => `${l.holds ? 'holds' : 'FAILS'}: ${l.figure}`).join('; ')}`);
     console.log(`\n${path.join(runDir, 'tally.json')}`);
+  } else if (has('recapture')) {
+    // FREE. Re-key a stress value the label rule misplaced, and capture both arms of its brief again.
+    const runDir = path.resolve(value('recapture', ''));
+    if (!existsSync(path.join(runDir, 'cells')) || !value('rekey')) fail('--recapture <runDir> --rekey <file>: { brief: { arm: { stressKey: fieldKey } } }');
+    ensureCli();
+    const cli = makeCli({ url: process.env.NOACG_URL || 'https://noacg.studio' });
+    await ensureBridge(cli);
+    await recaptureCells({ runDir, rekey: JSON.parse(readFileSync(path.resolve(value('rekey')), 'utf8')).rekey, cli }).catch((e) => fail(e instanceof Error ? e.message : String(e)));
   } else if (has('review')) {
     const runDir = path.resolve(value('review', ''));
     const cellsDir = path.join(runDir, 'cells');
