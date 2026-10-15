@@ -16,7 +16,9 @@
 //   4. readJson 4 MB      - our own 413 under the platform's cap;
 //   5. packageSaveShape   - PURE shape + size guard; the code inside is never run here;
 //   6. waiting cap        - a user holds at most MAX_WAITING packages not yet installed;
-//   7. INSERT             - the database mints the id; 201 { id, url }.
+//   7. INSERT             - the database mints the id; 201 { id, url, receipt }, where `url` opens
+//                           Home → Productions with THIS package selected and the receipt says it
+//                           is pending Install (deliveries.ts).
 
 import { apiError, json, methodGuard, readJson } from '../http.js';
 import { checkAgentSaveIpRateLimit, checkAgentSavePrincipalRateLimit } from '../rateLimit.js';
@@ -24,6 +26,8 @@ import { agentAccessConfigured, supabaseAgentAccessStore, type AgentAccessStore 
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { packageSaveShape } from './packageShape.js';
 import { MAX_SAVE_BODY_BYTES } from './graphics.js';
+import { writeReceipt } from './deliveries.js';
+import { operationIdOf, packageLink, type DeliveryReceipt } from './deliveryReceipt.js';
 import { permits } from '../../../src/entitlements/permissions.js';
 
 /** How many packages may wait on one account at once. Installing or dismissing one frees a
@@ -33,17 +37,21 @@ export const MAX_WAITING_PACKAGES = 25;
 export interface PackagesDeps extends PrincipalDeps {
   store?: AgentAccessStore;
   configured?: () => boolean;
+  now?: () => Date;
 }
 
 export interface PackageSaveResponse {
   id: string;
-  /** Where the package waits: the Productions page of the user's Home. */
+  /** Where the package waits: Home → Productions, with this package selected. */
   url: string;
+  /** Additive (receipt v1): older clients read `id` and `url` and ignore it. */
+  receipt: DeliveryReceipt;
 }
 
 export function createPackagesHandler(deps: PackagesDeps = {}): { fetch(req: Request): Promise<Response> } {
   const configured = deps.configured ?? agentAccessConfigured;
   const storeOf = (): AgentAccessStore => deps.store ?? supabaseAgentAccessStore();
+  const now = deps.now ?? (() => new Date());
 
   return {
     async fetch(req: Request): Promise<Response> {
@@ -97,7 +105,13 @@ export function createPackagesHandler(deps: PackagesDeps = {}): { fetch(req: Req
         });
 
         const origin = new URL(req.url).origin;
-        const response: PackageSaveResponse = { id, url: `${origin}/app#/home/productions` };
+        const receipt = await writeReceipt(
+          store,
+          { operationId: operationIdOf(req), userId: principal.userId, keyId: principal.keyId ?? null, kind: 'package', resourceId: id, state: 'pending_install' },
+          origin,
+          now(),
+        );
+        const response: PackageSaveResponse = { id, url: packageLink(origin, id), receipt };
         return json(response, 201);
       } catch (e) {
         console.error('[agent-package]', e instanceof Error ? e.message : e);

@@ -136,7 +136,7 @@ test('three recipes, a copy, a brand and cues become ONE waiting package with th
   const who = principal();
   const { result, store } = await send(GOOD, undefined, who);
   assert.equal(result.isError, undefined, result.content[0].text);
-  assert.deepEqual(result.structuredContent, { id: 'pkg-1', url: `${ORIGIN}/app#/home/productions`, graphics: 4, cues: 3 });
+  assert.deepEqual(result.structuredContent, { id: 'pkg-1', url: `${ORIGIN}/app#/home/productions/pkg-1`, graphics: 4, cues: 3 });
   assert.equal(store.packages.length, 1);
   const row = store.packages[0];
   assert.equal(row.userId, who.userId);

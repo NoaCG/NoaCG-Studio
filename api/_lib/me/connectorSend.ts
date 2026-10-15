@@ -28,6 +28,7 @@ import { serviceRoleDb, supabaseAgentAccessStore, type NewWaitingPackage } from 
 import { checkConnectorSendRateLimit } from '../rateLimit.js';
 import { MAX_WAITING_PACKAGES } from './packages.js';
 import { PACKAGE_LIMITS, packageSaveShape } from './packageShape.js';
+import { packageLink } from './deliveryReceipt.js';
 import { readCatalogIndex } from './connectorTools.js';
 import type { McpTool, McpToolResult } from './mcp.js';
 import type { CatalogIndex, CatalogType } from '../../../src/templates/catalogIndex.js';
@@ -428,7 +429,7 @@ export function createSendTool(deps: SendToolDeps = {}): McpTool {
           origin: { tool: 'noacg-connector', ...(principal.clientId ? { client: principal.clientId } : {}), ...(principal.grantId ? { grant: principal.grantId } : {}) },
           body: shaped.pack,
         });
-        const url = `${ctx.origin}/app#/home/productions`;
+        const url = packageLink(ctx.origin, id);
         const data = { id, url, graphics: shaped.pack.graphics.length, cues: rundown.length };
         return {
           content: [{ type: 'text', text: `Sent "${shaped.pack.name}" to the user's Home: ${url}. It waits there until they press Install.` }],

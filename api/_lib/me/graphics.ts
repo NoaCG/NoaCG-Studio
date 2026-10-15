@@ -15,7 +15,9 @@
 //                           client id on a service-role write could overwrite another user's
 //                           row), the server clock (LWW reads body.updatedAt - never a client
 //                           clock), the origin;
-//   7. INSERT             - never upsert; 201 { id, url }.
+//   7. INSERT             - never upsert; 201 { id, url, receipt } - the receipt (deliveries.ts)
+//                           names the deployment, the account and the operation, and records the
+//                           delivery so the key can read its state back later.
 //
 // The function never executes the graphic and stores no "validated" claim: the app re-gates
 // with publishGate when the graphic is opened, published or exported (docs/AGENT_SAVE.md).
@@ -25,6 +27,8 @@ import { checkAgentSaveIpRateLimit, checkAgentSavePrincipalRateLimit } from '../
 import { agentAccessConfigured, supabaseAgentAccessStore, type AgentAccessStore } from '../agentAccessStore.js';
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { graphicSaveShape } from './graphicShape.js';
+import { writeReceipt } from './deliveries.js';
+import { graphicLink, operationIdOf, type DeliveryReceipt } from './deliveryReceipt.js';
 import { newGraphicDoc } from '../../../src/model/graphicDoc.js';
 import { permits } from '../../../src/entitlements/permissions.js';
 
@@ -43,6 +47,8 @@ export interface GraphicsDeps extends PrincipalDeps {
 export interface SaveResponse {
   id: string;
   url: string;
+  /** Additive (receipt v1): older clients read `id` and `url` and ignore it. */
+  receipt: DeliveryReceipt;
 }
 
 export function createGraphicsHandler(deps: GraphicsDeps = {}): { fetch(req: Request): Promise<Response> } {
@@ -98,10 +104,17 @@ export function createGraphicsHandler(deps: GraphicsDeps = {}): { fetch(req: Req
           folder: sent.folder,
           origin: { tool: sent.origin?.tool ?? 'noacg-cli', ...(sent.origin?.version ? { version: sent.origin.version } : {}) },
         });
-        await storeOf().insertGraphic(principal.userId, doc);
+        const store = storeOf();
+        await store.insertGraphic(principal.userId, doc);
 
         const origin = new URL(req.url).origin;
-        const response: SaveResponse = { id: doc.id, url: `${origin}/app#/graphic/${encodeURIComponent(doc.id)}` };
+        const receipt = await writeReceipt(
+          store,
+          { operationId: operationIdOf(req), userId: principal.userId, keyId: principal.keyId ?? null, kind: 'graphic', resourceId: doc.id, state: 'saved' },
+          origin,
+          now(),
+        );
+        const response: SaveResponse = { id: doc.id, url: graphicLink(origin, doc.id), receipt };
         return json(response, 201);
       } catch (e) {
         console.error('[agent-save]', e instanceof Error ? e.message : e);
