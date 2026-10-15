@@ -153,13 +153,25 @@
       "PowerShell(node scripts/wave-plan-check.mjs)",
       "PowerShell(node scripts/wave-plan-check.mjs *)",
       "Bash(node scripts/run-wake.mjs check)",
-      "PowerShell(node scripts/run-wake.mjs check)"
+      "PowerShell(node scripts/run-wake.mjs check)",
+      "mcp__ccd_session_mgmt__send_message",
+      "mcp__scheduled-tasks__update_scheduled_task"
     ]
   },
   "pluginConfigs": {
     "agents-md@builtin": { "options": { "instructionFiles": "claude-md" } }
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/run-wake-gate.mjs\""
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

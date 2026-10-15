@@ -45,6 +45,8 @@ import {
   pruneJobs,
   readJobs,
   readPresence,
+  presenceAt,
+  launchFloorFor,
   reapDead,
   writePresence,
   refusalForWorktree,
@@ -740,6 +742,31 @@ test('a declaration of absence expires back to the safe answer', () => {
   assert.equal(readPresence(dir, monday).state, 'present');
   assert.equal(readPresence(null, monday).state, 'present');
   assert.throws(() => writePresence(dir, 'maybe'), /present, away/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('with nothing declared, the owner\'s schedule says who is at the machine and sets the launch floor', () => {
+  const dir = tempQueue();
+  // Helsinki is UTC+3 in October: Thursday 2026-10-15.
+  const at = (hourUtc, day = 15) => Date.UTC(2026, 9, day, hourUtc, 30, 0);
+  assert.equal(presenceAt(dir, at(4)).state, 'present', 'Thu 07:30, the working day has begun');
+  assert.equal(presenceAt(dir, at(13)).state, 'present', 'Thu 16:30');
+  assert.equal(presenceAt(dir, at(14)).state, 'away', 'Thu 17:30, evening');
+  assert.equal(presenceAt(dir, at(3)).state, 'away', 'Thu 06:30, still night');
+  assert.equal(presenceAt(dir, at(9, 17)).state, 'away', 'Sat 12:30, weekend');
+  assert.equal(presenceAt(dir, at(9)).source, 'schedule');
+  assert.equal(launchFloorFor('present'), 4096);
+  assert.equal(launchFloorFor('away'), 1536);
+  assert.equal(launchFloorFor(undefined), 4096, 'an unknown state leaves the owner his room');
+
+  // A live declaration overrides the schedule both ways; an expired one hands back to it.
+  writePresence(dir, 'present', { now: at(14), by: 'owner at the desk' });
+  assert.deepEqual([presenceAt(dir, at(14)).state, presenceAt(dir, at(14)).source], ['present', 'declared']);
+  writePresence(dir, 'away', { now: at(9), ttlMs: 30 * 60_000 });
+  assert.equal(presenceAt(dir, at(9)).state, 'away');
+  assert.equal(presenceAt(dir, at(10)).state, 'present', 'the half hour is over, and it is a working day');
+  writeFileSync(join(dir, 'presence.json'), '{ torn');
+  assert.equal(presenceAt(dir, at(14)).state, 'away', 'junk is no declaration: the schedule decides');
   rmSync(dir, { recursive: true, force: true });
 });
 

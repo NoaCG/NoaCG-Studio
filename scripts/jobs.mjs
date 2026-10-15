@@ -75,7 +75,8 @@ import {
   pruneJobs,
   freeMemFloorFor,
   readJobs,
-  readPresence,
+  presenceAt,
+  launchFloorFor,
   writePresence,
   readReviewStamp,
   stampGap,
@@ -690,8 +691,8 @@ async function cmdList() {
   // design is against. An empty queue is when a stale one is likeliest and cheapest to notice.
   // Nothing auto-resets it: this listing is read by agents far more often than by him, and a read
   // that changed scheduling would be a worse surprise than a stale floor.
-  const machine = readPresence(dir);
-  if (machine.state === 'away') {
+  const machine = presenceAt(dir);
+  if (machine.state === 'away' && machine.source === 'declared') {
     console.log(`Machine marked AWAY until ${new Date(machine.until).toISOString()}${machine.setBy ? ` (set by ${machine.setBy})` : ''}`
       + ` - the RAM floor is ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB. \`npm run jobs -- presence present\` if you are at it.`);
   }
@@ -702,7 +703,8 @@ async function cmdList() {
   const sessionNote = !sessions || budget.mode === 'full' ? ''
     : sessions.known ? `, ${sessions.why}` : `, agent sessions unknown (${sessions.why})`;
   console.log(`Schedule: ${budget.mode} budget, ${budget.slots} suite-equivalent${budget.slots === 1 ? '' : 's'} - ${budget.why}${sessionNote}`
-    + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state})`);
+    + `; RAM floor ${(freeMemFloorFor(machine.state) / 1024).toFixed(1)} GB (${machine.state}, ${machine.source === 'schedule' ? 'by the schedule' : 'declared'})`
+    + `; launch no more sessions or rows under ${(launchFloorFor(machine.state) / 1024).toFixed(1)} GB free`);
 
   if (pending(jobs).length === 0) {
     console.log('Job queue empty.');
@@ -966,8 +968,9 @@ function cmdCancel() {
 /**
  * Say who is at this machine, or read back what was last said.
  *
- * `npm run jobs -- presence away` before a night wave or a walk away from the desk, `presence
- * present` on sitting back down, `presence` alone to see what the scheduler currently believes.
+ * With nothing declared, the owner's schedule decides (`presenceAt`). `npm run jobs -- presence
+ * away` for a walk away during working hours, `presence present` for a sit-down out of them,
+ * `presence` alone to see what the scheduler currently believes.
  *
  * WHY THIS IS A COMMAND AND NOT A FLAG ON THE RUNNER. The floor used to move only by restarting
  * the runner with `NOACG_JOBS_FREE_MB`, which meant the person who wanted more memory had to stop
@@ -977,23 +980,24 @@ function cmdCancel() {
 function cmdPresence() {
   const asked = args[1];
   if (asked === undefined) {
-    const now = readPresence(dir);
+    const now = presenceAt(dir);
     const floor = freeMemFloorFor(now.state);
     console.log(`Machine is ${now.state === 'away' ? 'AWAY - nobody at the keyboard' : 'IN USE - somebody may be at the keyboard'}.`);
     console.log(`  free-RAM floor for one suite-equivalent: ${(floor / 1024).toFixed(1)} GB (a walk ${(floor * COST.walk / 1024).toFixed(1)}, a landing ${(floor * COST.merge / 1024).toFixed(1)})`);
-    // `readPresence` normalises every field to a number or null, so nothing here can be handed a
+    // `presenceAt` (through `readPresence`) normalises every field to a number or null, so nothing here can be handed a
     // date it cannot format - which matters because this command is the one somebody runs to find
     // out why a hand-edited file is not doing what they meant.
     if (now.setAt || now.until) {
       if (now.setAt) console.log(`  declared ${new Date(now.setAt).toISOString()}${now.setBy ? ` by ${now.setBy}` : ''}`);
-      if (now.expired && now.until) console.log(`  that declaration EXPIRED ${new Date(now.until).toISOString()} - back to the safe answer until somebody says otherwise`);
+      if (now.expired && now.until) console.log(`  that declaration EXPIRED ${new Date(now.until).toISOString()} - back to the schedule, which says ${now.state}`);
       else if (now.expired) console.log('  that declaration carried no deadline, so it counts as expired - write it with `presence away` rather than by hand');
       else console.log(`  holds until ${new Date(now.until).toISOString()}, then back to in-use`);
     } else if (now.expired) {
       console.log('  something is in presence.json that carries no deadline - it counts as expired');
     } else {
-      console.log('  nobody has said - "in use" is what an unknown means here');
+      console.log(`  nobody has said - the owner's schedule says ${now.state} (in use weekdays ${POLICY.presentFrom}:00-${POLICY.presentTo}:00)`);
     }
+    console.log(`  launch no more sessions or rows under ${(launchFloorFor(now.state) / 1024).toFixed(1)} GB free`);
     console.log(`  free right now: ${(freeMb() / 1024).toFixed(1)} GB`);
     return;
   }
@@ -1143,7 +1147,7 @@ async function runner() {
       // Re-read every pass, deliberately. Presence is the one input that changes while the runner
       // is alive - somebody sits down - and a value cached at runner start would be exactly the
       // stale environment variable this replaced.
-      presence: readPresence(dir, now).state,
+      presence: presenceAt(dir, now).state,
       outsideRuns: outsideRuns(jobs),
       aheadOfMain,
       now,
@@ -1584,7 +1588,7 @@ function snapshot({ readSessions = true } = {}) {
     ...schedule(jobs, {
       freeMemMb: freeMb(),
       alone: sessions?.alone ?? false,
-      presence: readPresence(dir).state,
+      presence: presenceAt(dir).state,
       outsideRuns: outsideRuns(jobs),
       aheadOfMain,
     }),

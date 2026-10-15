@@ -27,7 +27,7 @@ export function runHook(hookUrl, event, env = {}, { cwd = process.cwd() } = {}) 
     cwd,
     windowsHide: true,
   });
-  return { status: result.status, message: result.stderr ?? '' };
+  return { status: result.status, message: result.stderr ?? '', output: result.stdout ?? '' };
 }
 
 /**

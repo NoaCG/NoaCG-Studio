@@ -4,14 +4,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { holdable, holdAwake, holderScript, readWake, WAKE_CRON, WAKE_TASK_ID, wakeRepo, wakeReport, wakeTask, wakeVerdict, writeWake } from './run-wake.mjs';
+import { holdable, holdAwake, holderScript, QUIET_VERDICTS, readWake, usageStopIn, WAKE_CRON, WAKE_TASK_ID, WAKE_TITLE, wakeRepo, wakeReport, wakeTask, wakeVerdict, writeWake } from './run-wake.mjs';
 
 const NOW = Date.parse('2026-10-12T20:00:00Z');
 const OPENED = '# Plan run editor 2026-10-12\n\nWindow starts: 2026-10-12T15:00:00Z\nWindow ends: 2026-10-13T06:30:00+03:00\nSession: aaa\n\nPrompt: x\n';
 const WAKE = { host: 'local_1', session: 'bbb', resume: '/plan-run editor until 2026-10-13T06:30:00+03:00' };
 const WAVE = writeWake(OPENED, WAKE);
 const inventory = (...ids) => ({ available: true, rows: ids.map((sessionId, pid) => ({ sessionId, pid: pid + 100 })) });
-const verdict = (overrides) => wakeVerdict({ text: WAVE, inventory: inventory('wake'), now: NOW, ...overrides });
+const verdict = (overrides) => wakeVerdict({ text: WAVE, inventory: inventory('wake'), now: NOW, stopped: () => null, ...overrides });
 
 test('arming writes one Wake line under the session lines, and re-arming replaces it', () => {
   assert.match(WAVE, /^Session: aaa\nWake: local_1 bbb \/plan-run editor until 2026-10-13T06:30:00\+03:00\n\nPrompt: x/m);
@@ -45,6 +45,42 @@ test('no recorded session running, with the inventory answering, restarts the co
   assert.equal(lines[1], 'session_id: local_1');
   assert.match(lines[2], /^message: .*C:\/store\/run\.md .*\/plan-run editor until/);
   assert.equal(lines[3], `command: ${WAKE.resume}`);
+});
+
+test('a transcript that ends on the usage-limit error reports when the limit resets', () => {
+  const line = (entry) => JSON.stringify(entry);
+  const limited = line({ type: 'assistant', error: 'rate_limit', isApiErrorMessage: true, quotaLimits: { resetsAt: 1791000000 } });
+  const tail = [
+    '{"cut by the tail read',
+    line({ type: 'user', message: { content: 'go on' } }),
+    limited,
+    line({ type: 'assistant', isSidechain: true, message: {} }),
+    line({ type: 'bridge-session', sessionId: 'x' }),
+  ].join('\n');
+  assert.deepEqual(usageStopIn(tail), { resetsAt: 1791000000000 });
+  assert.deepEqual(usageStopIn(line({ type: 'assistant', error: 'rate_limit' })), { resetsAt: null });
+  // Anything after the error on the main chain means the conversation went on.
+  assert.equal(usageStopIn(`${limited}\n${line({ type: 'user', message: { content: 'retry' } })}`), null);
+  assert.equal(usageStopIn(line({ type: 'assistant', message: {} })), null);
+  assert.equal(usageStopIn(''), null);
+});
+
+test('a running coordinator stopped on the usage limit waits for the reset, then is resumed', () => {
+  const resetsAt = NOW + 3_600_000;
+  const stopped = (id) => (id === 'aaa' ? { resetsAt } : null);
+  const waiting = verdict({ inventory: inventory('aaa'), stopped });
+  assert.equal(waiting.verdict, 'waiting');
+  assert.match(waiting.why, /aaa stopped on the usage limit, which resets at 2026-10-12T21:00:00.000Z/);
+  const resumed = verdict({ inventory: inventory('aaa'), stopped, now: resetsAt + 1 });
+  assert.equal(resumed.verdict, 'resume');
+  assert.equal(resumed.usage, true);
+  assert.equal(resumed.host, 'local_1');
+  assert.match(wakeReport([{ file: 'run.md', ...resumed }])[2], /^message: Wake-up: you stopped on the usage limit, which has now reset/);
+  // A limit with no recorded reset is resumed at once; another recorded session still working keeps it alive.
+  assert.equal(verdict({ inventory: inventory('aaa'), stopped: () => ({ resetsAt: null }) }).verdict, 'resume');
+  assert.equal(verdict({ inventory: inventory('aaa', 'bbb'), stopped }).verdict, 'alive');
+  assert.match(wakeReport([{ file: 'a', verdict: 'alive', why: 'up' }, { file: 'b', ...waiting }])[0], /^waiting: /);
+  assert.deepEqual([...QUIET_VERDICTS].sort(), ['alive', 'unknown', 'waiting']);
 });
 
 test('an inventory that did not answer, or answered empty, is unknown and does nothing', () => {
@@ -82,10 +118,17 @@ test('the one task fires every 30 minutes in the primary checkout, tells nobody,
   assert.equal(task.taskId, WAKE_TASK_ID);
   assert.equal(task.cronExpression, WAKE_CRON);
   assert.equal(task.notifyOnCompletion, false);
-  assert.ok(task.prompt.includes('In C:\\repo, run exactly: node scripts/run-wake.mjs check'));
+  assert.equal(task.title, WAKE_TITLE);
+  assert.ok(task.prompt.includes('run exactly, in C:\\repo: node scripts/run-wake.mjs check'));
   assert.ok(task.prompt.includes('mcp__ccd_session_mgmt__send_message'));
+  assert.ok(task.prompt.includes(`archive_session every other session titled "${WAKE_TITLE}"`));
+  // A firing runs unattended in the default mode, so every tool it calls is allowed without a prompt
+  // (archive_session by the primary checkout's own local settings).
   const settings = JSON.parse(readFileSync(new URL('../.claude/settings.json', import.meta.url), 'utf8'));
   for (const tool of ['Bash', 'PowerShell']) assert.ok(settings.permissions.allow.includes(`${tool}(node scripts/run-wake.mjs check)`), tool);
+  for (const tool of ['mcp__ccd_session_mgmt__send_message', 'mcp__ccd_session_mgmt__list_sessions', 'mcp__scheduled-tasks__update_scheduled_task']) {
+    assert.ok(settings.permissions.allow.includes(tool), tool);
+  }
 });
 
 test('the keep-awake holder runs to the window end, and is released by the report or an ended window', () => {
