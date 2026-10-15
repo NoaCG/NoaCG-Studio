@@ -956,6 +956,52 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H7 check (2026-10-15, on `dd31ec76d`)
+
+- **Verdict: FAIL product.** The round holds; H8 cannot start as carried. Checked on `main`
+  `dd31ec76d` (H7 merged from PR #1257); no product code changed, no session, no credit, no
+  re-judging.
+- **Blocker: the skill on `main` is not the skill agent v7 pins.** PR #1258 ("Lead Downloads with
+  one short coding-agent prompt", `37329aa4f`) changed `cli/skill/noacg-graphic/SKILL.md` and
+  `references/setup.md` and landed just before H7's merge. On `main` the dry
+  `harness-agent-sync --workspace bench` plans `skill version, agent update`, not "everything
+  keep"; with `cli/skill` and the plugin copy restored to `1d3aade23` it plans all `keep`, so the
+  skill change is the whole drift. `--build` refuses on any non-`keep` step, so `--build H8` stops
+  before a session. Re-syncing would put the exam on a v8 whose skill was never tuned (AC-16) and
+  now says "Connect before the brief ... run `noacg login`", against the plumbing prompt's "Never
+  run `noacg save` or `noacg login`". Fix before H8 spends: decide and record whether the exam runs
+  v7 as tuned (the run checks the lock's skill, not the checkout's) or a re-synced v8, with that
+  conflict resolved and measured.
+- **Agent v7 on the server**, my own free read of `agent_0183yBA1miijGFNvm5bkMv6B`: v7 is the
+  latest; system prompt 15 lines, equal to `agent.md`, and differing from v6 only by ` </dev/null`
+  on the certificate line; model Opus 5.5 effort high; metadata `session_budget_cents` 194;
+  `multiagent` null; `mcp_servers` empty; skill `skver_01KXt4Xf4msx422tocc44dmh` (the lock's);
+  tools, name and description equal to v6's; the sync's own read-back drift for v7 is empty.
+- **Order (AC-6):** `cd4904409` committed 13:36:09Z, PR #1257 opened on it 13:36:21Z, its first
+  check 13:36:26Z; the first session's `createdAt` 13:36:41.29Z. Timeline: three commits, no force
+  push.
+- **Spend:** the ledger sums to 2,134 cents (H3 266, H5 624, H6 1,008, H7 236: 35, 53, 53, 60, 35);
+  reserve 20 x (194 + 39) = 4,660 set by H7; `T` = 10,000 - 2,134 - 4,660 = 3,206. From each trace's
+  usage and running time at $0.08/h, Sonnet's cache read at $0.10 gives 35.03, 53.12, 53.37, 59.73,
+  34.62 cents against list 35, 53, 53, 60, 35; at $0.20 it gives 7 to 15 cents over, so the price fix
+  holds. All five sessions 404; the bench file list is empty.
+- **Verdict figures:** 15 judgement lines, 20 calls, $68.76 notional; judge files hash to the lock
+  (LF). Re-tallied: Sonnet airable on the news lower third and countdown only, three with basic
+  mistakes; pairs harness 3, August 2, no order flip. I looked at the three frames: the debate
+  clock's right numeral cut at its foot and on "SECONDS LEFT" with an empty box under the title,
+  the live vote's label on its bar after the Update, GOAL beside both sides at 120 ms after clear.
+  Even with the scoreboard accepted, Sonnet is 3 of 5 with defects, so Opus wins either way.
+- **The stop rule (5.5):** the builder's reading is the one the text and intent support. 5.5
+  measures progress "as cost per accepted graphic or the judge's verdict on the tuning set", which
+  is the configuration's result, not the variable's; H6 moved both ($1.56 to $1.20, August 2 to 1).
+  3.8 says the matching model "wins and runs the exam", and 5.1 lets H7 be "recorded as not needed
+  and spends nothing", a round that by construction makes no progress before H8; the rule exists
+  so "a third idea is not tried on hope", and the exam is not an idea. H8 need not wait for the
+  owner on this.
+- **Tests and scope:** `harness-bench.test.mjs` 38 of 38; `--control` run directly after `cli/` was
+  built, against `https://noacg.studio`: CONTROL PASSED at $0. H7's own diff touches no `cli/`,
+  `src/` or `api/` file. Issue #1259 is open; `instruments.md` entries 13 to 16 are present.
+
 ### H7. Tuning round 3: Sonnet 5.5 (built 2026-10-15)
 
 - **Check's findings (H6 second check, on `a8aa62e38`):** AC-6, AC-16, AC-17 and the round ceiling
