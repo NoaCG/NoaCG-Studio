@@ -6,6 +6,31 @@ against the brief and against the bar a paying broadcaster sets. It is not NoaCG
 that is the separate guidelines switch (`design-notes.md`), and this check never imports it.
 The result is an improved package and the frames that show why.
 
+## The fresh-eyes review
+
+When you are asked to review a graphic you did not make (as a second agent, or a second session
+with its folder), you change nothing: you look and answer, and the author repairs. Read the brief,
+`noacg inspect --json <folder>`, and every frame the coverage folder's `coverage.json` lists, one
+file at a time (a contact sheet makes small text illegible). A state the frames do not show (a
+long value in a field the long frames left short, an event after another) is yours to shoot with
+`noacg screenshot <folder> --data <field>=<value> --event <op> --at 1500ms --out <png>`.
+
+For each question answer pass or fail. A fail names the frame file, the element and what is
+wrong; a pass the frames do not show is a fail ("not shown").
+
+1. Does every line of text sit clear of every other text and mark, in every frame: long values,
+   the Update strip and every event's strip included?
+2. Does every text read against what is behind it, on the dark ground and the light one?
+3. Is every text whole: no cut letters, no ellipsis the operator did not type, nothing past its
+   panel or the frame, a long value wrapping or shrinking inside a box that grows with it?
+4. Can the operator do every live action the brief needs with a press (`inspect`'s buttons), and
+   does each press visibly change the picture in its strip?
+5. Does the Take, every event, the Update and Out each end in a frame you would air: no empty
+   panel, nothing left over from the state before?
+6. Anything else a broadcast designer would refuse to air.
+
+End with one line: `PASS`, or `FAIL: <n>`. Where you and the picture disagree, the picture wins.
+
 ## 1. Look at it where it airs
 
 - Render it: `noacg validate <dir> --screenshots ./critique-before`. Keep these frames; they are
@@ -43,16 +68,10 @@ The result is an improved package and the frames that show why.
    change must be instant)? Does the exit leave faster than the entrance came? Does anything move
    for no reason?
 
-**Auto-fit**
+**Basic mistakes**
 
-8. In `stress.png` (every text doubled): do long values wrap or shrink inside the design, does
-   the box follow the text (no empty half after a wrap), and does nothing clip?
-
-**Operability**
-
-9. Read `noacg inspect` against SKILL.md's "Fields and behaviour": can the operator do every
-   live action with a press, without typing a label, and is anything set once still sitting on
-   the operator page?
+8. The fresh-eyes review's questions 1 to 5 above, on your own frames (`stress.png` doubles every
+   text), and: is anything set once still sitting on the operator page?
 
 ## 3. Improve
 

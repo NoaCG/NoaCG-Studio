@@ -98,9 +98,9 @@ export function fakeArm() {
  * `downloadAll` keeps every output file (the frames too), not only the record. The session's events
  * are kept beside the cell (`events.jsonl`) with what they measure (`trace.json`, lib/trace.mjs).
  */
-export function managedAgentsArm({ api, client, agent, environmentId, budgetCents, model, modelOverride = null, funding = 'credit', files = [], upload = null, downloadAll = false, pollMs = 5000, hardCapMinutes = 15, listRetries = 3 }) {
+export function managedAgentsArm({ id = 'managed-agents', api, client, agent, environmentId, budgetCents, model, modelOverride = null, funding = 'credit', files = [], upload = null, downloadAll = false, pollMs = 5000, hardCapMinutes = 15, listRetries = 3 }) {
   return {
-    id: 'managed-agents',
+    id,
     funding,
     model: modelOverride?.id ?? model,
     async run({ brief, cellDir, runId }) {
@@ -182,6 +182,10 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
         for await (const e of api.beta.sessions.events.list(sessionId, { limit: 1000 })) events.push(e);
         writeFileSync(path.join(cellDir, 'events.jsonl'), events.map((e) => `${JSON.stringify(e)}\n`).join(''));
         metrics = traceMetrics({ events, createdAt: session.created_at, model: modelOverride?.id ?? model, usage: session.usage });
+        // A subagent (the critic, D4) works in its own thread, whose requests the session's stream
+        // does not carry: each child thread's events and usage are kept and measured beside it.
+        const threads = await sessionThreads(api, sessionId, { cellDir, model: modelOverride?.id ?? model });
+        if (threads.length) metrics.threads = threads;
         writeFileSync(path.join(cellDir, 'trace.json'), `${JSON.stringify({ sessionId, createdAt: session.created_at, usage: session.usage, ...metrics }, null, 2)}\n`);
       } catch (e) {
         metrics = { error: e instanceof Error ? e.message : String(e) };
@@ -218,6 +222,26 @@ export function managedAgentsArm({ api, client, agent, environmentId, budgetCent
       };
     },
   };
+}
+
+/**
+ * The session's child threads (a subagent's work), each with its usage, its own list cost and what
+ * its events measure (lib/trace.mjs), its raw events kept as `threads/<thread id>.events.jsonl`.
+ * Empty for a session with no subagent, or an api without threads (the stub).
+ */
+export async function sessionThreads(api, sessionId, { cellDir, model }) {
+  if (!api.beta.sessions.threads?.list) return [];
+  const out = [];
+  for await (const thread of api.beta.sessions.threads.list(sessionId)) {
+    if (!thread.parent_thread_id) continue;
+    const events = [];
+    for await (const e of api.beta.sessions.threads.events.list(thread.id, { session_id: sessionId, limit: 1000 })) events.push(e);
+    mkdirSync(path.join(cellDir, 'threads'), { recursive: true });
+    writeFileSync(path.join(cellDir, 'threads', `${thread.id}.events.jsonl`), events.map((e) => `${JSON.stringify(e)}\n`).join(''));
+    const { steps: _steps, ...measured } = traceMetrics({ events, createdAt: thread.created_at, model, usage: thread.usage });
+    out.push({ id: thread.id, agent: thread.agent?.name ?? thread.agent?.type ?? null, status: thread.status, usage: thread.usage, stats: thread.stats, ...measured });
+  }
+  return out;
 }
 
 // ── the archived reference arm ────────────────────────────────────────────────────────────

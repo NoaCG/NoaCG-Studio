@@ -37,8 +37,8 @@ import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
-import { readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
-import { archivedArm, claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs } from '../benchmarks/harness/lib/arms.mjs';
+import { agentCreateBody, readAgentDefinition, readEnvironmentDefinition, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
+import { archivedArm, claudeCodeArm, fakeArm, lastReviewed, managedAgentsArm, scaffoldArgs, sessionThreads } from '../benchmarks/harness/lib/arms.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
@@ -48,8 +48,8 @@ import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySeale
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
-import { agentSessionBudgetCents, CONTROL_BRIEFS, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
-import { syncPlan } from './harness-agent-sync.mjs';
+import { agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
+import { readDefinitions, syncPlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -721,16 +721,80 @@ test('the container\'s system prompt is plumbing within 25 lines, on an agent wi
   assert.deepEqual(toolset.configs.filter((c) => c.enabled === false).map((c) => c.name).sort(), ['web_fetch', 'web_search']);
   assert.equal(toolset.default_config.permission_policy.type, 'always_allow');
   assert.deepEqual(agent.config.model, { id: 'claude-opus-5-5', effort: 'high' }, 'D6: quality is established on Opus 5.5 at high');
-  assert.equal(agent.config.multiagent, undefined, 'the critic is off until a measurement turns it on (3.8)');
   const env = readEnvironmentDefinition(path.join(ROOT, 'agents', 'noacg-harness'));
   assert.equal(env.config.networking.type, 'limited');
   assert.deepEqual(env.config.networking.allowed_hosts, ['noacg.studio']);
-  const steps = syncPlan({ lock: null, environment: env, agent, bundle: { sha256: 'x' } });
+  const bare = { ...agent, config: { ...agent.config, multiagent: undefined } };
+  const steps = syncPlan({ lock: null, environment: env, agent: bare, bundle: { sha256: 'x' } });
   assert.deepEqual(steps.map((s) => s.action), ['create', 'create', 'create']);
   const lock = { environment: { sha256: steps[0].sha256 }, skill: { bundleSha256: 'x' }, agent: { sha256: steps[2].sha256 } };
-  assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep'], 'a second sync changes nothing');
-  assert.deepEqual(syncPlan({ lock, environment: env, agent, bundle: { sha256: 'y' } }).map((s) => s.action), ['keep', 'version', 'update'], 'a skill change is a new skill version and a new agent version');
+  assert.deepEqual(syncPlan({ lock, environment: env, agent: bare, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep'], 'a second sync changes nothing');
+  assert.deepEqual(syncPlan({ lock, environment: env, agent: bare, bundle: { sha256: 'y' } }).map((s) => s.action), ['keep', 'version', 'update'], 'a skill change is a new skill version and a new agent version');
   assert.throws(() => syncPlan({ lock, environment: env, agent: { ...agent, systemLines: 26 }, bundle: { sha256: 'x' } }), /25/);
+});
+
+test('the critic is the one subagent (D4): no workflows, no inline agents, no advisor, and it cannot edit', () => {
+  const dir = path.join(ROOT, 'agents', 'noacg-harness');
+  const { environment, agent, subagents } = readDefinitions(dir);
+  assert.deepEqual(Object.keys(subagents), ['critic.md']);
+  const m = agent.config.multiagent;
+  assert.equal(m.type, 'multiagent_20261001');
+  assert.deepEqual(m.workflows, { type: 'disabled' }, 'workflows are on by default with this type, so off explicitly (D4, 7.3)');
+  assert.deepEqual(m.advisor, { type: 'disabled' });
+  assert.deepEqual(m.subagents, { type: 'enabled', inline_agents: { type: 'disabled' }, predefined_agents: ['critic.md'] });
+  assert.match(agent.system, /`critic` agent/, 'the author is told the critic exists and when to ask it');
+  const critic = subagents['critic.md'];
+  assert.ok(critic.systemLines <= SYSTEM_PROMPT_MAX_LINES, `${critic.systemLines} lines`);
+  assert.equal(critic.config.name, 'critic');
+  assert.equal(critic.config.multiagent, undefined, 'a listed agent may not list agents of its own');
+  assert.match(critic.system, /references\/critique\.md/, 'what it checks lives in the skill (AC-16)');
+  assert.match(critic.system, /noacg save/, 'it never saves');
+  const toolset = critic.config.tools.find((t) => t.type === 'agent_toolset_20260401');
+  assert.deepEqual(toolset.configs.filter((c) => c.enabled === false).map((c) => c.name).sort(), ['edit', 'web_fetch', 'web_search', 'write']);
+  assert.deepEqual(critic.config.model, agent.config.model, '3.4: the same model as the author in H6');
+  // The sync makes the critic first and pins its version on the agent.
+  const steps = syncPlan({ lock: null, environment, agent, subagents, bundle: { sha256: 'x' } });
+  assert.deepEqual(steps.map((s) => `${s.resource} ${s.action}`), ['environment create', 'skill create', 'critic.md create', 'agent create']);
+  const lock = { environment: { sha256: steps[0].sha256 }, skill: { bundleSha256: 'x' }, subagents: { 'critic.md': { id: 'agent_c', version: 1, sha256: steps[2].sha256 } }, agent: { sha256: steps[3].sha256 } };
+  assert.deepEqual(syncPlan({ lock, environment, agent, subagents, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'keep', 'keep']);
+  const edited = { ...critic, system: `${critic.system}\nOne more line.` };
+  assert.deepEqual(syncPlan({ lock, environment, agent, subagents: { 'critic.md': edited }, bundle: { sha256: 'x' } }).map((s) => s.action), ['keep', 'keep', 'update', 'update'], 'a new critic version is a new agent version');
+  const body = agentCreateBody(agent, { id: 'skill_1', version: 'skver_1' }, lock.subagents);
+  assert.deepEqual(body.multiagent.subagents.predefined_agents, [{ type: 'agent', id: 'agent_c', version: 1 }]);
+  assert.equal(agent.config.multiagent.subagents.predefined_agents[0], 'critic.md', 'the definition itself is left as written');
+  assert.throws(() => agentCreateBody(agent, { id: 'skill_1', version: 'skver_1' }), /not been synced/);
+});
+
+test('a critic thread is measured apart: its events kept, its usage and largest request beside the session', async () => {
+  const dir = tmp();
+  const pages = (items) => ({ async *[Symbol.asyncIterator]() { yield* items; } });
+  const usage = { input_tokens: 10, output_tokens: 1000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, list_cost: { amount: '3', currency: 'USD' } };
+  const listed = [];
+  const api = { beta: { sessions: { threads: {
+    list: () => pages([{ id: 'sthr_primary', parent_thread_id: null }, { id: 'sthr_critic', parent_thread_id: 'sthr_primary', agent: { name: 'critic' }, status: 'idle', created_at: '2026-10-15T10:00:00Z', usage, stats: { active_seconds: 40 } }]),
+    events: { list: (threadId, params) => {
+      listed.push([threadId, params.session_id]);
+      return pages([{ type: 'span.model_request_start', processed_at: '2026-10-15T10:00:02Z' }, { type: 'span.model_request_end', processed_at: '2026-10-15T10:00:09Z', model_usage: { input_tokens: 10, output_tokens: 1000 } }]);
+    } },
+  } } } };
+  const threads = await sessionThreads(api, 'sesn_1', { cellDir: dir, model: 'claude-opus-5-5' });
+  assert.deepEqual(listed, [['sthr_critic', 'sesn_1']], 'only the child thread, read by its session');
+  assert.equal(threads.length, 1);
+  assert.equal(threads[0].agent, 'critic');
+  assert.equal(threads[0].usage.list_cost.amount, '3');
+  assert.equal(threads[0].turns.modelRequests, 1);
+  assert.equal(threads[0].largestRequest.usd, 0.02);
+  assert.equal(threads[0].steps, undefined, 'the compact trace stays in the events file');
+  assert.ok(existsSync(path.join(dir, 'threads', 'sthr_critic.events.jsonl')));
+  assert.deepEqual(await sessionThreads({ beta: { sessions: {} } }, 'sesn_1', { cellDir: dir, model: 'claude-opus-5-5' }), [], 'the stub has no threads');
+});
+
+test('--agent-version names an earlier synced version, as the round\'s control', () => {
+  assert.equal(controlVersion(undefined, 4), null);
+  assert.equal(controlVersion('3', 4), 3);
+  assert.throws(() => controlVersion('4', 4), /earlier/);
+  assert.throws(() => controlVersion('0', 4), /earlier/);
+  assert.throws(() => controlVersion('v3', 4), /earlier/);
 });
 
 test('the Skills API bundle is the skill\'s own bytes under one top folder', () => {
