@@ -165,11 +165,6 @@ test.describe('agent access (configured)', () => {
       expect(minted.scopes).toEqual(['graphics:create']);
       expect(minted.account.email?.toLowerCase()).toBe(E2E_EMAIL.toLowerCase());
       expect(minted.deployment).toBe(origin);
-      const sessionUser = await page.evaluate(async () => {
-        const { getSupabase } = await import('/src/backend/supabase.ts');
-        return (await (await getSupabase())!.auth.getUser()).data.user?.id ?? null;
-      });
-      expect(minted.account.id, 'the key is minted for the account that consented').toBe(sessionUser);
       // whoami: the key describes itself with the same account and deployment.
       const whoami = (await (await fetch(`${origin}/api/me/agent-keys`, { headers: { authorization: `Bearer ${minted.key}` } })).json()) as { account: unknown; deployment: string };
       expect(whoami.account).toEqual(minted.account);
@@ -185,6 +180,13 @@ test.describe('agent access (configured)', () => {
       // (a returning reader lands on Home; close the wizard if a first visit shows it).
       await page.goto('/app');
       await page.locator('.wz-modal .gallery-close').click({ timeout: 3_000 }).catch(() => undefined);
+      // Back on the studio's origin (the consent ended on the loopback page): the key belongs to the
+      // account that consented.
+      const sessionUser = await page.evaluate(async () => {
+        const { getSupabase } = await import('/src/backend/supabase.ts');
+        return (await (await getSupabase())!.auth.getUser()).data.user?.id ?? null;
+      });
+      expect(minted.account.id, 'the key is minted for the account that consented').toBe(sessionUser);
       const doc = await page.evaluate(async () => {
         const { variantsFor } = await import('/src/templates/catalog.ts');
         const { graphicDoc } = await import('/src/bridge/bridgeApi.ts');
