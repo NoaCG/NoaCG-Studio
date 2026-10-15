@@ -1,4 +1,4 @@
-// guards: benchmarks/harness/**, agents/noacg-harness/**, api/_lib/harness/**, cli/scripts/build-skill.mjs, scripts/harness-agent-sync.mjs
+// guards: benchmarks/harness/**, agents/noacg-harness/**, api/_lib/harness/**, cli/scripts/build-skill.mjs, cli/scripts/plugin-skill.mjs, cli/skill/**, cli/plugin/**, scripts/harness-agent-sync.mjs
 //
 // THE HARNESS BENCH WORKS BEFORE A MODEL IS PAID (docs/work-specs/noacg-harness/spec.md AC-1,
 // with AC-2's seal and AC-16's cap). Everything here runs at zero tokens and without a browser:
@@ -22,7 +22,10 @@
 //     seed draws, scored against the fixed thresholds;
 //   - the exam briefs are sealed (format and refusal everywhere, the hash where the private
 //     passphrase is on this machine) and the container's system prompt is plumbing in 25 lines;
-//   - the Skills API bundle is the skill's own bytes.
+//   - the Skills API bundle is the skill's own bytes;
+//   - from the close of tuning to the close of the exam the bench is frozen: a cli/skill another
+//     plan changed is named and never synced, the exam runs the lock's skill (found in git) on
+//     both arms, and it is refused where a session would still meet the checkout's text.
 //
 // The CLI and the bridge are stood in for by a fake `cli` that writes what the real verbs write:
 // `node scripts/harness-bench.mjs --control` is the same pipeline on the real CLI and bridge.
@@ -42,14 +45,15 @@ import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeArm, lastReviewed
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
-import { admit, appendEntry, emptyLedger, heldCents, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, spentCents, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, emptyLedger, examPending, heldCents, openTuning, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, spentCents, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
+import { bundleSha256, examSkill, findSkill, pinnedPlugin, readSkill, skillAt } from '../benchmarks/harness/lib/skill-pin.mjs';
 import { digestCheck, missingActions, runCell, stressFile } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
 import { LIST_PRICES, requestUsd, traceMetrics } from '../benchmarks/harness/lib/trace.mjs';
 import { packagesEnvironment, PROOFS, PUBLISHED_CLI } from '../benchmarks/harness/lib/feasibility.mjs';
 import { adoptions, agentSessionBudgetCents, CONTROL_BRIEFS, controlVersion, judgeRun, LEDGER_FILE, packagesProofRefusal, pendingCells, recordReserve, refuseBuild, tuningBriefs } from './harness-bench.mjs';
-import { agentReadBack, applySync, readDefinitions, syncPlan } from './harness-agent-sync.mjs';
+import { agentReadBack, applySync, readDefinitions, syncPlan, workspacePlan } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
@@ -899,4 +903,127 @@ test('the Skills API bundle is the skill\'s own bytes under one top folder', () 
     assert.equal(createHash('sha256').update(bytes).digest('hex'), f.sha256);
     assert.equal(bytes.toString('utf8').replace(/\r\n/g, '\n'), readFileSync(path.join(source, ...f.path.split('/').slice(1)), 'utf8').replace(/\r\n/g, '\n'), `${f.path} is the source's bytes`);
   }
+  assert.equal(bundleSha256(readSkill(source)), bundle.sha256, 'skill-pin hashes a skill as the bundle does, so a lock\'s hash finds its commit');
+});
+
+// ── the exam's skill (AC-7, AC-16, the H7 repair) ──────────────────────────────────────────
+
+/** A ledger whose tuning is closed (H5 to H7) with the exam reserved for H8 and not yet run. */
+const examLedger = () => {
+  const ledger = emptyLedger();
+  ledger.reserve = reservation(ledger, { sessionBudgetCents: 194, overshootCents: 39, setBy: 'H7' }).reserve;
+  for (const phase of ['H5', 'H6', 'H7']) appendEntry(ledger, { kind: 'phase', phase, funding: 'none', outcome: 'completed' });
+  return ledger;
+};
+const fileOf = (p, text) => ({ path: p, bytes: Buffer.from(text) });
+const asBundle = (files, cliVersion = '0.11.0') => ({ sha256: bundleSha256(files), cliVersion, files: files.map((f) => ({ path: `noacg-graphic/${f.path}`, sha256: createHash('sha256').update(f.bytes).digest('hex') })) });
+
+test('the bench is frozen from the close of tuning to the close of the exam', () => {
+  const ledger = examLedger();
+  assert.equal(examPending(ledger), 'H8');
+  assert.deepEqual(openTuning(ledger, 'H8'), []);
+  const h7Open = { ...ledger, entries: ledger.entries.filter((e) => e.phase !== 'H7') };
+  assert.equal(examPending(h7Open), null, 'a tuning round still open is not the exam');
+  assert.deepEqual(openTuning(h7Open, 'H8'), ['H7']);
+  assert.equal(examPending({ ...ledger, reserve: undefined }), null, 'no reserve, no exam');
+  const closed = structuredClone(ledger);
+  appendEntry(closed, { kind: 'phase', phase: 'H8', funding: 'none', outcome: 'completed' });
+  assert.equal(examPending(closed), null, 'a closed exam frees the bench for H9');
+});
+
+test('a cli/skill another plan changed after tuning: the exam runs the lock\'s skill and names what changed it', () => {
+  // As on main after PR #1258: SKILL.md and references/setup.md moved, the references `noacg docs` prints did not.
+  const tunedFiles = [fileOf('SKILL.md', 'tuned skill\n'), fileOf('references/contract.md', 'contract\n'), fileOf('references/setup.md', 'setup\n')];
+  const tuned = { commit: '2128d984d0000000000000000000000000000000', files: tunedFiles, since: ['37329aa4f Lead Downloads with one short coding-agent prompt'] };
+  const lock = { agent: { version: 7 }, skill: { bundleSha256: bundleSha256(tunedFiles), cliVersion: '0.11.0' } };
+  const moved = asBundle([fileOf('SKILL.md', 'connect before the brief\n'), tunedFiles[1], fileOf('references/setup.md', 'log in first\n')]);
+  const topics = ['contract', 'package'];
+  const exam = examSkill({ ledger: examLedger(), phase: 'H8', lock, bundle: moved, tuned, topics });
+  assert.equal(exam.pinned, true, 'the exam is not refused for a skill change it does not measure');
+  assert.equal(exam.files, tunedFiles, 'and runs the bytes the lock pins');
+  assert.match(exam.note, /cli\/skill\/noacg-graphic is bundle \w{12}, not the \w{12} that agent v7 pins \(changed by 37329aa4f Lead Downloads/);
+  assert.match(exam.note, /H8 runs the lock's skill as tuned, from 2128d984d/);
+  assert.deepEqual(examSkill({ ledger: examLedger(), phase: 'H8', lock, bundle: asBundle(tunedFiles), tuned: null, topics }), { pinned: false }, 'the same bytes: nothing to pin');
+  // Before the exam, a round measures what it syncs: the same change is refused, by name.
+  const tuning = { ...examLedger(), entries: [] };
+  assert.match(examSkill({ ledger: tuning, phase: 'H7', lock, bundle: moved, tuned, topics }).refusal, /changed by 37329aa4f.*a tuning round measures the skill it syncs/);
+  // Where a session would still meet the checkout's text, the exam is refused and says where.
+  const docsMoved = asBundle([fileOf('SKILL.md', 'connect before the brief\n'), fileOf('references/contract.md', 'a new contract\n'), tunedFiles[2]]);
+  assert.match(examSkill({ ledger: examLedger(), phase: 'H8', lock, bundle: docsMoved, tuned, topics }).refusal, /`noacg docs contract` would print text tuning never saw/);
+  const cliMoved = asBundle([fileOf('SKILL.md', 'npx -y @noacg/cli@0.12.0\n'), tunedFiles[1], tunedFiles[2]], '0.12.0');
+  assert.match(examSkill({ ledger: examLedger(), phase: 'H8', lock, bundle: cliMoved, tuned, topics }).refusal, /the CLI is v0\.12\.0 where that skill's commands pin v0\.11\.0/);
+  assert.match(examSkill({ ledger: examLedger(), phase: 'H8', lock, bundle: moved, tuned: null, topics }).refusal, /no commit on this branch holds those bytes/);
+  // --build makes these checks, and the agent's, before it uploads anything or creates a session.
+  const source = readFileSync(path.join(ROOT, 'scripts', 'harness-bench.mjs'), 'utf8');
+  const upload = source.indexOf('uploaded = { id: await upload(');
+  for (const step of ['examSkill({', 'agentReadBack(sdk', 'pinnedPlugin(', 'if (dry) {']) assert.ok(source.indexOf(step) > 0 && source.indexOf(step) < upload, `${step} before the upload`);
+});
+
+test('the lock\'s skill is found in git: the newest commit holding its bytes, and the commits since that changed them', () => {
+  const repo = tmp();
+  const git = (...args) => {
+    const r = spawnSync('git', ['-c', 'user.name=bench', '-c', 'user.email=bench@example.invalid', '-c', 'core.autocrlf=false', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8', windowsHide: true });
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  const skill = path.join(repo, 'cli', 'skill', 'noacg-graphic');
+  const write = (file, text) => {
+    mkdirSync(path.dirname(path.join(skill, file)), { recursive: true });
+    writeFileSync(path.join(skill, file), text);
+  };
+  git('init', '-q');
+  write('SKILL.md', 'tuned\n');
+  write('references/contract.md', 'contract\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Release 0.11.0');
+  const tunedCommit = git('rev-parse', 'HEAD');
+  const tunedSha = bundleSha256(readSkill(skill));
+  write('SKILL.md', 'connect first\n');
+  git('commit', '-q', '-am', 'Lead with one short prompt');
+  const changed = git('rev-parse', '--short', 'HEAD');
+  writeFileSync(path.join(repo, 'other.txt'), 'not the skill');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'Something else');
+  const found = findSkill(repo, tunedSha);
+  assert.equal(found.commit, tunedCommit);
+  assert.deepEqual(found.since, [`${changed} Lead with one short prompt`], 'only the commits that changed the skill');
+  assert.deepEqual(found.files.map((f) => [f.path, f.bytes.toString()]), [['SKILL.md', 'tuned\n'], ['references/contract.md', 'contract\n']]);
+  assert.deepEqual(skillAt(repo, tunedCommit), found.files);
+  assert.deepEqual(findSkill(repo, bundleSha256(readSkill(skill))).since, [], 'the current skill is its own newest commit');
+  assert.equal(findSkill(repo, 'f'.repeat(64)), null);
+});
+
+test('the reference arm\'s plugin is the checkout\'s with the pinned skill, copied as build-skill copies it', () => {
+  const plugin = path.join(ROOT, 'cli', 'plugin');
+  const source = readSkill(path.join(ROOT, 'cli', 'skill', 'noacg-graphic'));
+  // Given the checkout's own skill, the pinned plugin is cli/plugin, file for file.
+  const same = pinnedPlugin(path.join(tmp(), 'plugin'), source);
+  const walk = (d, base = d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name), base) : [path.relative(base, path.join(d, e.name)).split(path.sep).join('/')]));
+  assert.deepEqual(walk(same).sort(), walk(plugin).sort());
+  const text = (dir, f) => readFileSync(path.join(dir, ...f.split('/'))).toString('latin1').replace(/\r\n/g, '\n');
+  for (const f of walk(plugin)) assert.equal(text(same, f), text(plugin, f), f);
+  // Given another skill, its bytes, under the plugin's own skill name.
+  const other = source.map((f) => (f.path === 'SKILL.md' ? { ...f, bytes: Buffer.from(`${f.bytes.toString('utf8')}\nA line tuning never saw.\n`) } : f));
+  const skillText = readFileSync(path.join(pinnedPlugin(path.join(tmp(), 'plugin'), other), 'skills', 'noacg-graphic', 'SKILL.md'), 'utf8');
+  assert.match(skillText, /^---\nname: graphic\n/);
+  assert.match(skillText, /A line tuning never saw\.\n$/);
+});
+
+test('while the exam is pending the sync plans the lock\'s skill and refuses to change the bench', () => {
+  const { environment, agent, subagents } = readDefinitions();
+  const lock = { environment: { id: 'env_1', sha256: definitionHash(environment) }, skill: { id: 'skill_1', version: 'skver_1', bundleSha256: 'tuned' }, agent: { id: 'agent_1', version: 7 } };
+  lock.agent.sha256 = syncPlan({ lock: null, environment, agent, bundle: { sha256: 'tuned' } }).at(-1).sha256;
+  const moved = { sha256: 'moved by another plan' };
+  const plan = (over) => workspacePlan({ workspace: 'bench', ledger: examLedger(), lock, environment, agent, subagents, bundle: moved, ...over });
+  const frozen = plan();
+  assert.equal(frozen.frozen, 'H8');
+  assert.deepEqual(frozen.steps.map((s) => s.action), ['keep', 'keep', 'keep'], 'the skill as the lock pins it: nothing to sync');
+  assert.equal(frozen.skillMoved, true);
+  assert.equal(frozen.refusal, null);
+  assert.match(plan({ agent: { ...agent, system: `${agent.system}\nOne more line.` } }).refusal, /frozen for H8's exam, which runs v7 as tuned, and this plan would update agent/);
+  assert.match(plan({ drift: ['skills'] }).refusal, /would update agent/, 'nor repair the server behind the exam\'s back');
+  // Outside the window, and on the production workspace, the sync plans what the checkout holds.
+  const tuning = plan({ ledger: { ...examLedger(), entries: [] } });
+  assert.deepEqual([tuning.frozen, tuning.refusal, tuning.steps.map((s) => s.action)], [null, null, ['keep', 'version', 'update']]);
+  assert.deepEqual(plan({ workspace: 'production' }).steps.map((s) => s.action), ['keep', 'version', 'update']);
 });

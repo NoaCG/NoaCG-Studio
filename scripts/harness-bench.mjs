@@ -30,6 +30,14 @@
 //                                                    control (H6: v3, no critic), as its own arm.
 //                                                    --adopt takes over a session a stopped run
 //                                                    created, instead of creating that brief's again.
+//                                                    Once tuning is closed the exam runs the skill
+//                                                    the lock pins, whatever cli/skill now holds,
+//                                                    and says so (benchmarks/harness/lib/skill-pin.mjs).
+//   node scripts/harness-bench.mjs --build <H#> --dry --arms ... [--model <id>]
+//                                                    FREE. Every check before the first session (the
+//                                                    ledger, the agent and the skill against the lock,
+//                                                    the server's copy of the agent, the reference
+//                                                    plugin), then stops: no briefs, no upload, $0.
 //   node scripts/harness-bench.mjs --reserve --by <H#> --budget-cents <n> --overshoot-cents <n>
 //                                  [--critic-cents <n>] [--note "..."]
 //                                                    FREE. 5.2's arithmetic: the exam reserve R, what
@@ -49,7 +57,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, existsSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { devPort } from './dev-port.mjs';
 import { mainEnv } from './lite-eval-paths.mjs';
 import { loadHarnessApi } from '../benchmarks/harness/lib/api-runtime.mjs';
@@ -57,16 +65,17 @@ import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeAgentWork, fakeAr
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, PHASE, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, reserveTerms, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, reserveTerms, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
+import { examSkill, findSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
 import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
 import { readAgentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
 import { AGENT_DIR, agentReadBack, lockPath, readDefinitions, skillBundle, syncPlan, workspaceClient } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
-export const LEDGER_FILE = path.join(HARNESS, 'ledger.json');
+export { LEDGER_FILE };
 const TUNING = path.join(HARNESS, 'tuning', 'briefs.json');
 /** What `--control` runs by default: a two-sided board with operator actions, and a typeless brief. */
 export const CONTROL_BRIEFS = ['school-scoreboard', 'debate-clock'];
@@ -107,8 +116,7 @@ export function refuseBuild(ledger, phase) {
   if (phaseCompleted(ledger, phase)) return `the ledger already holds ${phase} as completed; a completed phase never spends again`;
   if (phaseNumber(phase) > phaseNumber('H4') && !ledger.reserve) return 'the ledger holds no exam reserve: H4 reserves the exam before any tuning spends (5.2)';
   if (phase === ledger.reserve?.phase) {
-    const open = [];
-    for (let n = phaseNumber('H4') + 1; n < phaseNumber(phase); n++) if (!phaseCompleted(ledger, `H${n}`)) open.push(`H${n}`);
+    const open = openTuning(ledger, phase);
     if (open.length) return `${phase} spends its reserve only on the exam, after tuning: ${open.join(', ')} not closed`;
   }
   return null;
@@ -346,12 +354,15 @@ async function build(phase) {
   const model = value('model', '');
   const effort = value('effort', '');
   const ceilingCents = value('ceiling-cents') === undefined ? null : Number(value('ceiling-cents'));
-  if (!arms.length || !(ids.length || proofIds.length)) fail('--build needs --arms and --briefs (or --proof): a paid run names exactly what it spends on');
+  // --dry makes every check that comes before the first session, then stops: nothing uploaded, no
+  // session, $0. It needs no briefs, so the exam can be checked before its briefs are opened.
+  const dry = has('dry');
+  if (!arms.length || !(dry || ids.length || proofIds.length)) fail('--build needs --arms and --briefs (or --proof): a paid run names exactly what it spends on');
   if (ids.length && arms.includes('managed-agents') && !(Number.isInteger(budgetCents) && budgetCents > 0)) fail('--build with managed-agents needs --budget-cents <n>, the per-session cap');
   if (arms.includes('claude-code') && !model) fail('--build with claude-code needs --model, the exact model id the reference session runs');
   // Every paid phase has its own ceiling (5.1): a run that does not name it is refused, never
   // admitted against the whole run budget.
-  if (arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
+  if (!dry && arms.includes('managed-agents') && !(Number.isInteger(ceilingCents) && ceilingCents > 0)) fail("--build with managed-agents needs --ceiling-cents <n>, the phase's ceiling (5.1: H3 $10, a tuning round $15 or $9)");
   if (effort && !['low', 'medium', 'high', 'xhigh', 'max'].includes(effort)) fail(`--effort ${effort}: low, medium, high, xhigh or max`);
   for (const a of arms) if (!['managed-agents', 'claude-code', 'august'].includes(a)) fail(`unknown arm ${a}`);
   if (proofIds.length && (phase !== 'H3' || arms.join() !== 'managed-agents')) fail('--proof is H3\'s, on the managed-agents arm alone');
@@ -372,17 +383,33 @@ async function build(phase) {
   let sdk = null;
   let packagesEnv = null;
   try {
-    if (arms.includes('managed-agents')) {
+    // What the sessions run (AC-7, AC-16): the agent as the lock synced it, and the skill the lock
+    // pins, which the checkout's cli/skill, the product's, may have moved past (examSkill).
+    let lock = null;
+    let pin = { pinned: false };
+    if (arms.includes('managed-agents') || arms.includes('claude-code')) {
       const lockFile = lockPath('bench');
       if (!existsSync(lockFile)) fail(`no ${path.relative(ROOT, lockFile)}: sync the agent first (node scripts/harness-agent-sync.mjs --workspace bench --apply)`);
-      const lock = JSON.parse(readFileSync(lockFile, 'utf8'));
+      lock = JSON.parse(readFileSync(lockFile, 'utf8'));
+      const bundle = skillBundle(path.join(runDir, 'skill'));
+      const tuned = bundle.sha256 === lock.skill.bundleSha256 ? null : findSkill(ROOT, lock.skill.bundleSha256);
+      const { docTopics } = await import(pathToFileURL(path.join(ROOT, 'cli', 'dist', 'commands', 'docs.js')).href);
+      pin = examSkill({ ledger, phase, lock, bundle, tuned, topics: docTopics() });
+      if (pin.refusal) fail(pin.refusal);
+      console.log(`  skill: ${pin.note ?? `cli/skill/noacg-graphic is the bundle agent v${lock.agent.version} pins (${lock.skill.bundleSha256.slice(0, 12)})`}`);
+    }
+    // In the exam the bench is frozen (harness-agent-sync refuses to change it), so a difference
+    // found here is repaired by restoring what changed, never by a sync.
+    const repair = examPending(ledger) === phase ? `the exam runs agent v${lock?.agent.version} as tuned and the bench is frozen until it closes: find what changed and restore it` : 'run node scripts/harness-agent-sync.mjs --workspace bench --apply first';
+    let managed = null;
+    if (arms.includes('managed-agents')) {
       // The sessions run the agent as it was synced: a definition changed since the sync would be
       // measured as something it is not. Another model runs as a per-session override of the
-      // synced version (`agent_with_overrides`), never as a silent edit of the agent.
+      // synced version (`agent_with_overrides`), never as a silent edit of the agent. Planned with
+      // the lock's skill, so a skill difference is examSkill's to name, above.
       const { environment: environmentDef, agent: agentDef, subagents } = readDefinitions(AGENT_DIR);
-      const bundleDir = path.join(runDir, 'skill');
-      const drift = syncPlan({ lock, environment: environmentDef, agent: agentDef, subagents, bundle: skillBundle(bundleDir) }).filter((step) => step.action !== 'keep');
-      if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);
+      const drift = syncPlan({ lock, environment: environmentDef, agent: agentDef, subagents, bundle: { sha256: lock.skill.bundleSha256 } }).filter((step) => step.action !== 'keep');
+      if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): ${repair}`);
       // A round's control runs an earlier version the sync made (immutable on the server), as its
       // own arm so the ledger and the judge keep it apart from the version under test.
       const agentVersion = orFail(() => controlVersion(value('agent-version'), lock.agent.version));
@@ -392,10 +419,22 @@ async function build(phase) {
       const override = (id) => ((id && id !== agentModel) || effort ? { id: id || agentModel, ...(effort ? { effort } : {}) } : null);
       sdk = await workspaceClient('bench');
       if (!sdk) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
-      const { toFile } = await import('@anthropic-ai/sdk');
       // The lock says what the sync sent; a session runs what the server kept (H6's v5 kept v4's critic).
       const { drift: serverDrift } = await agentReadBack(sdk, lock, agentDef);
-      if (serverDrift.length) fail(`the server's agent v${lock.agent.version} differs from agents/noacg-harness in ${serverDrift.join(', ')}: run node scripts/harness-agent-sync.mjs --workspace bench --apply first`);
+      if (serverDrift.length) fail(`the server's agent v${lock.agent.version} differs from agents/noacg-harness in ${serverDrift.join(', ')}: ${repair}`);
+      console.log(`  agent: ${lock.agent.id} v${lock.agent.version} read back from the server as agents/noacg-harness defines it, skill ${lock.skill.version}${agentVersion ? `; this run's arm is v${agentVersion}, not checked` : ''}${override(model) ? `; sessions override the model with ${JSON.stringify(override(model))}` : ''}`);
+      managed = { environmentDef, agentVersion, adopt, agentModel, override };
+    }
+    // The reference arm loads the published plugin with the skill the run measures.
+    const referencePlugin = arms.includes('claude-code') && pin.pinned ? pinnedPlugin(path.join(runDir, 'plugin'), pin.files) : undefined;
+    if (referencePlugin) console.log(`  reference plugin: cli/plugin with the lock's skill, in ${referencePlugin}`);
+    if (dry) {
+      console.log(`DRY ${phase}: every check before the first session passed. Nothing uploaded, no session created, $0.`);
+      return;
+    }
+    if (managed) {
+      const { environmentDef, agentVersion, adopt, agentModel, override } = managed;
+      const { toFile } = await import('@anthropic-ai/sdk');
       await deleteLeftCliUploads(sdk);
       const upload = async (file) => (await sdk.files.upload({ file: await toFile(readFileSync(file), path.basename(file), { type: 'application/gzip' }) })).id;
       const tarball = packCli(path.join(runDir, 'cli'));
@@ -420,7 +459,7 @@ async function build(phase) {
     }
     if (arms.includes('claude-code')) {
       const token = mainEnv().CLAUDE_CODE_OAUTH_TOKEN;
-      const reference = claudeCodeArm({ claude: claudeExecutable(), token, model, url });
+      const reference = claudeCodeArm({ claude: claudeExecutable(), token, model, url, pluginDir: referencePlugin });
       for (const brief of briefs) all.push({ id: `${brief.id}.claude-code`, brief, arm: reference });
     }
     if (arms.includes('august')) {
