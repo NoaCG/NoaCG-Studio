@@ -596,3 +596,32 @@ install, whose zod is a major version ahead of the CLI's. Configured suite run 3
 passed 101 with the 8 allowed skips; the CLI walk passed first time in 26 s, its killed save
 confirmed killed by SIGKILL before the rerun. A lost answer inside one running process stays
 covered by the CLI unit tests only; on the configured stack it would need a fault-injecting proxy.
+
+### Phase 3 (check 2), 2026-10-15
+
+Checked on `origin/main` `b5c559e2b` (the landing of #1272). Verdict: PASS.
+
+- Rollout: Post-landing run 38800728112 is green. Production and staging hold all 91 migrations,
+  and the advisor step really asked (176 findings, 176 in the baseline, no change), so the red
+  from the first check is gone.
+- Backend journey: configured suite run 38800728080 on `b5c559e2b` (local Supabase stack) ran 101
+  tests: 101 passed, 0 failed, 0 flaky, 8 allowed skips. Both agent-access tests passed first
+  time: the step 4e journey (three graphics, readback in order, replay with the same ids, 409 on
+  a changed set, invalid set writing nothing, a fresh signed-in browser opening every link) and
+  the CLI walk (36.5 s). Read its code: it builds `cli/dist` fresh, spawns `node cli/dist/index.js
+  save` (no `fetch` for the save), kills the process group with SIGKILL and asserts the signal,
+  and asserts operation ids, exact graphic ids, the readback and the library's id list after the
+  rerun, the repeat, the two concurrent runs and the refused changed set.
+- The CLI as a user, built from `main` with its own install (`tsc` clean, `unit` and `mcp` tests
+  79 pass, 4 skipped), against a local stand-in deployment: noacg.studio's `/bridge` served on
+  127.0.0.1, with `/api` either dropping every connection or answering 503 `unavailable`. Three
+  scaffolded lower thirds. An invalid graphic in the set: exit 1, `invalid`, no API request, no
+  journal entry. Ten graphics with 420 KB of CSS each: `too-large` at 5.8 MB, no request. Every answer lost:
+  three sends under one operation, one readback, then `unverified` with "Run the same command
+  again"; the same command said "Resuming 3 graphics under operation" with the same id. A save
+  killed once it named its operation left the journal entry and no lock, and the rerun resumed
+  that operation. Two concurrent saves of the same new set sent one operation and kept one journal
+  entry (a first try timed out loading `/bridge` through the stand-in before it cached the app). The offline 503 was sent once and reported "Not saved". No browser was left running.
+- Not done here: Docker was not started and no hosted key was read, so the backend side of the
+  user walk is the CI run above. Minor wording follow-up, not a blocker: a lost answer reads
+  "Unconfirmed: fetch failed Run the same command again" (no full stop after the cause).
