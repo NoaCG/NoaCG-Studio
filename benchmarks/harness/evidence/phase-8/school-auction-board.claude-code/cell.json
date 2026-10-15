@@ -1,0 +1,236 @@
+{
+  "costUnread": false,
+  "brief": "school-auction-board",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "ae37c77d-f877-4c21-b73d-06898ac26720",
+  "costCents": 0,
+  "notionalUsd": 3.9624018000000003,
+  "wallSeconds": 792,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type scoreboard --design neutral --out ./tmp-sb",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-bug --design neutral --out ./tmp-bug",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:53eed4bca0af5c25d271836cbdb49c1eb12b4fcf74ad8ddda17eb77e49bd5ac3"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:53eed4bca0af5c25d271836cbdb49c1eb12b4fcf74ad8ddda17eb77e49bd5ac3"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7d8ae7d5915e1ec7c73b7cfb906c811964205425e48430dda90e638fb88593f5"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f2=1250 --out ./shots/t-bid.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --json",
+      "code": 0,
+      "digest": "sha256:7d8ae7d5915e1ec7c73b7cfb906c811964205425e48430dda90e638fb88593f5"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:3083f71bccc0dbca119b5b1fcf517732772b9965e9d8baec82bb13dd3a3e0d53"
+    },
+    {
+      "command": "noacg validate C:/Users/ahonemi/AppData/Local/Temp/g2",
+      "code": 0,
+      "digest": "sha256:b8c24b63206bf05b0b97f816bfe2b7ee7e7367be810de4f1b074cda89e6eabfc"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:640adc7a8fd59ebdbf4318a00fe7ca251cbc3291b546658e040ee6a177d54db1"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Signed jersey and a family pizza night at the Main Street bistro with the head teacher --data f2=1250 --data f3=47 --data f0=14 --event goingOnce --event goingTwice --event sold --at 2 --background video --out ./shots/x-sold.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Signed jersey and a family pizza night at the Main Street bistro with the head teacher --data f2=1250 --data f3=47 --data f0=14 --event goingOnce --event goingTwice --background video --out ./shots/x-twice.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Hand-knitted class quilt --data f2=320 --data f3=8 --data f0=3 --event goingOnce --event goingTwice --event sold --event reopen --at 2 --background video --out ./shots/x-reopen.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Signed jersey and a family pizza night at the Main Street bistro with the head teacher --data f2=1250 --data f3=47 --data f0=14 --event goingOnce --at 6 --background video --out ./shots/x-once.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Signed jersey and a family pizza night at the Main Street bistro with the head teacher --data f2=1250 --data f3=47 --data f0=14 --event goingOnce --event goingTwice --event sold --at 6 --background video --out ./shots/x-sold.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Signed jersey and a family pizza night at the Main Street bistro with the head teacher --data f2=1250 --data f3=47 --data f0=14 --event goingOnce --event goingTwice --event sold --event reopen --at 6 --background video --out ./shots/x-reopen.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:7a556809a5a6a3531366b6823e4b362301bef733c3c87bd3ffb6d8b32a55a39b"
+    },
+    {
+      "command": "noacg docs validator",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Hand-knitted class quilt --data f2=320 --data f3=8 --data f0=3 --event goingOnce --event goingTwice --event sold --event reopen --at 0.3 --background video --out ./shots/y-reopen-0.3.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Hand-knitted class quilt --data f2=320 --data f3=8 --data f0=3 --event goingOnce --event goingTwice --event sold --event reopen --at 1 --background video --out ./shots/y-reopen-1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Hand-knitted class quilt --data f2=320 --data f3=8 --data f0=3 --event goingOnce --event goingTwice --event sold --event reopen --at 20 --background video --out ./shots/y-reopen-20.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 1,
+      "digest": "sha256:9b30a6beb5d211a528ff27bdddab2ba19b9e2abb24e60e75240e4563defda083"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Hand-knitted class quilt --data f2=320 --data f3=8 --data f0=3 --event goingOnce --event goingTwice --event sold --event reopen --background video --out ./shots/y-reopen.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Hand-knitted class quilt --data f2=340 --data f3=12 --data f0=3 --event goingOnce --event goingTwice --event sold --event reopen --event goingOnce --event goingTwice --event sold --background video --out ./shots/y-resold.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic",
+      "code": 1,
+      "digest": "sha256:9b30a6beb5d211a528ff27bdddab2ba19b9e2abb24e60e75240e4563defda083"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:365b2a22b6f080792453deca4665983c5402555aef612e45e0188bcbefadfa13"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Weekend for four at the lakeside cabin, with canoe hire and a picnic hamper from the bakery --data f2=1250 --data f3=47 --data f0=14 --event goingOnce --event goingTwice --event sold --background video --out ./shots/z-sold.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Weekend for four at the lakeside cabin, with canoe hire and a picnic hamper from the bakery --data f2=1300 --data f3=112 --data f0=14 --event goingOnce --event goingTwice --event sold --event reopen --background video --out ./shots/z-reopen.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Weekend for four at the lakeside cabin, with canoe hire and a picnic hamper from the bakery --data f2=1300 --data f3=112 --data f0=14 --event goingOnce --event goingTwice --event sold --event reopen --event goingOnce --event goingTwice --event sold --background video --out ./shots/z-resold.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:365b2a22b6f080792453deca4665983c5402555aef612e45e0188bcbefadfa13"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:365b2a22b6f080792453deca4665983c5402555aef612e45e0188bcbefadfa13"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\school-auction-board.claude-code\\frames",
+    "frames": 74,
+    "crops": 2,
+    "findings": [
+      "event-sold: sold did not move the machine (still main=open). If it should have, the machine does not answer sold from there. It did not move it after any other event either."
+    ],
+    "failures": [],
+    "digest": "sha256:365b2a22b6f080792453deca4665983c5402555aef612e45e0188bcbefadfa13",
+    "rekeyed": [
+      "Stage"
+    ]
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "goingOnce",
+      "goingTwice",
+      "sold",
+      "reopen"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:365b2a22b6f080792453deca4665983c5402555aef612e45e0188bcbefadfa13",
+    "benchValidated": "sha256:365b2a22b6f080792453deca4665983c5402555aef612e45e0188bcbefadfa13",
+    "reviewed": "sha256:365b2a22b6f080792453deca4665983c5402555aef612e45e0188bcbefadfa13",
+    "problems": []
+  },
+  "functional": true
+}

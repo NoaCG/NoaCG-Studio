@@ -49,18 +49,43 @@ export function missingActions(brief, buttons) {
  * value `f0`, `f1`... by position, which holds only for a package that keeps its type's field
  * order; an authored package orders its fields its own way. So a brief may key a value by what the
  * field is instead (`question`, `speaker a`), and that key goes to the first field whose label
- * holds its words whole and in order, as `noacg inspect` lists it. A key no label holds is passed
- * on, and coverage names it unmapped.
+ * holds its words whole and in order, as `noacg inspect` lists it: a label that is exactly those
+ * words first, and no field takes two values. A key no label holds keeps the position the brief
+ * gave it (`stressPositions`, the exam's, lib/exam.mjs), or else is passed on, and coverage names it
+ * unmapped. `stressMap` says where each value went and by what, for the check before the judge.
  */
 export function stressFile({ brief, descriptors, cellDir }) {
   const stress = {};
-  for (const [key, value] of Object.entries(brief.stress ?? {})) {
-    const positional = /^f\d+$/.test(key) || key === 'logo' || key === 'background';
-    const field = positional ? null : (descriptors ?? []).find((d) => containsWords(words(d.label ?? ''), words(key)));
-    stress[field ? field.key : key] = value;
+  const stressMap = {};
+  const fields = descriptors ?? [];
+  const entries = Object.entries(brief.stress ?? {});
+  const isKey = (key) => /^f\d+$/.test(key) || key === 'logo' || key === 'background';
+  const taken = new Set(entries.map(([key]) => key).filter(isKey));
+  // Labels first, for every key: exactly the words, then a label that holds them; no field twice.
+  const placed = new Map();
+  for (const exact of [true, false]) {
+    for (const [key] of entries) {
+      if (isKey(key) || placed.has(key)) continue;
+      const want = words(key);
+      const field = fields.find((d) => !taken.has(d.key) && (exact ? words(d.label ?? '').join(' ') === want.join(' ') : containsWords(words(d.label ?? ''), want)));
+      if (field) {
+        placed.set(key, field);
+        taken.add(field.key);
+      }
+    }
+  }
+  // Then the positions the brief gave, where no labelled value already sits.
+  for (const [key, value] of entries) {
+    const field = placed.get(key);
+    const position = brief.stressPositions?.[key];
+    const byPosition = !field && !isKey(key) && position && !taken.has(position);
+    if (byPosition) taken.add(position);
+    const target = field ? field.key : byPosition ? position : key;
+    stress[target] = value;
+    stressMap[key] = { to: target, by: field ? 'label' : isKey(key) ? 'key' : byPosition ? 'position' : 'unmapped', label: (field ?? fields.find((d) => d.key === target))?.label ?? null };
   }
   const file = path.join(cellDir, 'stress.json');
-  writeFileSync(file, `${JSON.stringify({ ...brief, stress }, null, 2)}\n`);
+  writeFileSync(file, `${JSON.stringify({ ...brief, stress, stressMap }, null, 2)}\n`);
   return file;
 }
 
@@ -97,7 +122,7 @@ export async function runCell({ arm, brief, cellDir, cli, ledger, entry, shape, 
     result = { outcome: 'failed', reason: e instanceof Error ? e.message : String(e), costCents: 0, notionalUsd: 0, wallSeconds: 0, sessionId: null, trace: [] };
   }
 
-  const cell = { costUnread: Boolean(result.costUnread), brief: brief.id, arm: arm.id, model: arm.model, outcome: result.outcome, reason: result.reason ?? null, sessionId: result.sessionId, costCents: result.costCents, notionalUsd: result.notionalUsd, wallSeconds: result.wallSeconds, cleanup: result.cleanup ?? null, progress: result.progress ?? null, trace: result.trace, ...(result.metrics ? { metrics: { ...result.metrics, steps: undefined } } : {}), ...(result.outputsListed ? { outputsListed: result.outputsListed.length, undownloadable: result.undownloadable ?? [] } : {}) };
+  const cell = { costUnread: Boolean(result.costUnread), brief: brief.id, arm: arm.id, model: arm.model, outcome: result.outcome, reason: result.reason ?? null, ...(result.resetsAt ? { resetsAt: result.resetsAt } : {}), sessionId: result.sessionId, costCents: result.costCents, notionalUsd: result.notionalUsd, wallSeconds: result.wallSeconds, cleanup: result.cleanup ?? null, progress: result.progress ?? null, trace: result.trace, ...(result.metrics ? { metrics: { ...result.metrics, steps: undefined } } : {}), ...(result.outputsListed ? { outputsListed: result.outputsListed.length, undownloadable: result.undownloadable ?? [] } : {}) };
   if (result.recordFile && result.zipFile) {
     const record = JSON.parse(readFileSync(result.recordFile, 'utf8'));
     const shaped = shape.graphicSaveShape(record.doc);

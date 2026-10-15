@@ -1,0 +1,117 @@
+{
+  "costUnread": false,
+  "brief": "library-conference-now-next",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "add30b4c-6b53-41d4-8f5c-1f90d5bf48cf",
+  "costCents": 0,
+  "notionalUsd": 1.5763094000000002,
+  "wallSeconds": 217,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type now-next --design neutral --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:c739aefd48af1627d464607acd9f766d80a65ff238c1a90c61244d62af0eb089"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Zwischen Lesesaal und Datenraum: Wie öffentliche Bibliotheken ihre Rolle als dritter Ort in der digitalen Stadtgesellschaft neu bestimmen – ein Werkstattbericht aus drei Großstädten mit Ausblick auf künftige Förderprogramme und Kooperationen --background video --out ./shots/long.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Mittagspause --data f1= --data f2=Foyer --data f3= --data f4= --background video --out ./shots/empty.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f3=13:45 --data f4=Lesung: Anne Müller liest aus „Über Bücher“ --data f6=Im Anschluss --background video --out ./shots/short.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:c48d1640a715de65bbcdc0086df741392cf2754d6765f24773dcf4c2d115c55a"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state onair --at 0.4s --background video --out ./shots/entrance.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --name Jetzt / Danach – Bibliothekstagung",
+      "code": 0,
+      "digest": "sha256:c48d1640a715de65bbcdc0086df741392cf2754d6765f24773dcf4c2d115c55a"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\library-conference-now-next.claude-code\\frames",
+    "frames": 23,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c48d1640a715de65bbcdc0086df741392cf2754d6765f24773dcf4c2d115c55a",
+    "rekeyed": [
+      "Now label",
+      "Now",
+      "Now detail",
+      "Next label"
+    ]
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 2
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:c48d1640a715de65bbcdc0086df741392cf2754d6765f24773dcf4c2d115c55a",
+    "benchValidated": "sha256:c48d1640a715de65bbcdc0086df741392cf2754d6765f24773dcf4c2d115c55a",
+    "reviewed": "sha256:c48d1640a715de65bbcdc0086df741392cf2754d6765f24773dcf4c2d115c55a",
+    "problems": []
+  },
+  "functional": true
+}

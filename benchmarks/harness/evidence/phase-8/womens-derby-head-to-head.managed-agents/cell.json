@@ -1,0 +1,144 @@
+{
+  "costUnread": false,
+  "brief": "womens-derby-head-to-head",
+  "arm": "managed-agents",
+  "model": "claude-opus-5-5",
+  "outcome": "not-ready",
+  "reason": "budget_reached",
+  "sessionId": "sesn_011dYKfG7dSe9fF5rHNxRAHb",
+  "costCents": 201,
+  "notionalUsd": 0,
+  "wallSeconds": 449,
+  "cleanup": {
+    "filesDeleted": 51,
+    "sessionDeleted": true,
+    "sessionGone": true,
+    "filesLeft": 0
+  },
+  "progress": [
+    "Getting ready",
+    "Choosing a starting point",
+    "Designing",
+    "Checking the graphic",
+    "Handing it in",
+    "Checking the graphic",
+    "Handing it in",
+    "Checking every state",
+    "Checking the graphic"
+  ],
+  "trace": [
+    {
+      "command": "cat /workspace/skills/noacg-graphic/references/setup.md; ls /workspace/skills/noacg-graphic/references/; noacg --version",
+      "digest": null
+    },
+    {
+      "command": "cd /tmp && npm install -g /mnt/session/uploads/noacg-cli.tgz 2>&1 | tail -2; export NOACG_URL=https://noacg.studio; which certutil || apt-get install -y libnss3-tools >/dev/null 2>&1; mkdir -p ~/.pki/nssdb && (certutil -d sql:$HOME/.pki/nssdb -N --empty-password 2>/dev/null; for c in /usr/local/share/ca-certificates/*.crt; do certutil -d sql:$HOME/.pki/nssdb -A -t C,, -n \"$(basename \"$c\")\" -i \"$c\"; done) </dev/null; noacg --version; noacg doctor 2>&1 | tail -15",
+      "digest": null
+    },
+    {
+      "command": "export NOACG_URL=https://noacg.studio; noacg types 2>&1 | head -60",
+      "digest": null
+    },
+    {
+      "command": "export NOACG_URL=https://noacg.studio; mkdir -p /workspace && cd /workspace && rm -rf graphic && noacg scaffold --type head-to-head --design h201 --out /workspace/graphic 2>&1 | tail -20; find /workspace/graphic -type f | grep -v gsap; wc -c /workspace/graphic/*.html /workspace/graphic/css/* /workspace/graphic/js/template.js",
+      "digest": null
+    },
+    {
+      "command": "export NOACG_URL=https://noacg.studio; cd /workspace && noacg validate /workspace/graphic --screenshots /workspace/shots 2>&1 | tail -30; ls /workspace/shots",
+      "digest": "sha256:4c783c03a4712e866fd17441c80271cf1ef447c56d377736f1996b742577ac32"
+    },
+    {
+      "command": "export NOACG_URL=https://noacg.studio; cd /workspace && rm -rf shots && noacg validate /workspace/graphic --screenshots /workspace/shots 2>&1 | tail -25",
+      "digest": "sha256:47f732b3516102a7cd0b10d45a5d22f63db0144b2f4fa44fac4e003a1052189b"
+    },
+    {
+      "command": "export NOACG_URL=https://noacg.studio; mkdir -p /mnt/session/outputs; noacg record /workspace/graphic --out /mnt/session/outputs/record.json 2>&1 | tail -3",
+      "digest": "sha256:881aafa8a3821609f78aba30364bd2e76c27b796d302cca45f822d5ac41ee82c"
+    },
+    {
+      "command": "cd /workspace/graphic/css && python3 - <<'EOF'\np='template.css'; s=open(p).read()\ns=s.replace(\"  inset: 0;\\n\",\"  top: 0; right: 0; bottom: 0; left: 0;\\n\")\ns=s.replace(\"  inset: calc(6px * var(--scale));\\n\",\"  top: calc(6px * var(--scale)); right: calc(6px * var(--scale)); bottom: calc(6px * var(--scale)); left: calc(6px * var(--scale));\\n\")\ns=s.replace(\"var(--side-b) 0%, var(--side-b) 62%, var(--side-b-2) 62%, var(--side-b-2) 100%\",\"var(--side-b) 0%, var(--side-b) 84%, var(--side-b-2) 84%, var(--side-b-2) 100%\")\nopen(p,'w').write(s)\nEOF\ngrep -n \"inset\" template.css; export NOACG_URL=https://noacg.studio; cd /workspace && rm -rf shots && noacg validate /workspace/graphic --screenshots /workspace/shots 2>&1 | grep -v \"^  \" | head -8; noacg screenshot --help 2>&1 | head -20",
+      "digest": "sha256:ce6a1e264cc841f57f46014138cab27ca50854f582381f562b923a5f91397032"
+    },
+    {
+      "command": "export NOACG_URL=https://noacg.studio; noacg record /workspace/graphic --out /mnt/session/outputs/record.json 2>&1 | tail -2; noacg screenshot /workspace/graphic --event leadB --background video --out /workspace/shots/leadB.png 2>&1 | tail -2; noacg inspect /workspace/graphic 2>&1 | tail -30",
+      "digest": "sha256:ce6a1e264cc841f57f46014138cab27ca50854f582381f562b923a5f91397032"
+    },
+    {
+      "command": "export NOACG_URL=https://noacg.studio; noacg coverage /workspace/graphic --out /mnt/session/outputs/coverage 2>&1 | tail -15; python3 -c \"\nimport json;d=json.load(open('/mnt/session/outputs/coverage/coverage.json'));print(json.dumps(d,indent=1)[:4000])\"",
+      "digest": "sha256:ce6a1e264cc841f57f46014138cab27ca50854f582381f562b923a5f91397032"
+    },
+    {
+      "command": "cd /workspace/graphic && python3 - <<'EOF'\np='css/template.css'; s=open(p).read()\ns=s.replace('''  text-align: center;\n  overflow-wrap: anywhere;\n  max-width: 100%;\n}''','''  display: block;\n  width: 100%;                     /* the label owns the row's middle, so it never reads as overflowing */\n  text-align: center;\n  overflow-wrap: anywhere;\n}''')\nopen(p,'w').write(s)\nEOF\nexport NOACG_URL=https://noacg.studio; cd /workspace && rm -rf shots && noacg validate /workspace/graphic --screenshots /workspace/shots 2>&1 | grep -v \"^  \" | head -6 && noacg record /workspace/graphic --out /mnt/session/outputs/record.json 2>&1 | tail -1 && rm -rf /mnt/session/outputs/coverage && noacg coverage /workspace/graphic --out /mnt/session/outputs/coverage 2>&1 | tail -2",
+      "digest": "sha256:14f94145b36738a875065af4f63e89a7d34f6e61c64d9464f9b59ce6d49f3cb5"
+    },
+    {
+      "command": "cd /workspace/graphic && python3 - <<'EOF'\np='css/template.css'; s=open(p).read()\ns=s.replace('''  display: block;\n  width: 100%;                     /* the label owns the row's middle, so it never reads as overflowing */''','''  display: -webkit-box;            /* the label states its own room: two rows at most, never resized */\n  -webkit-box-orient: vertical;\n  -webkit-line-clamp: 2;\n  overflow: hidden;\n  width: 100%;''')\nopen(p,'w').write(s)\nEOF\nexport NOACG_URL=https://noacg.studio; cd /workspace && rm -rf shots && noacg validate /workspace/graphic --screenshots /workspace/shots 2>&1 | grep -v \"^  \" | head -4 && noacg record /workspace/graphic --out /mnt/session/outputs/record.json 2>&1 | tail -1 && rm -rf /mnt/session/outputs/coverage && noacg coverage /workspace/graphic --out /mnt/session/outputs/coverage 2>&1 | tail -1",
+      "digest": "sha256:e7b74a7f8e2e557d14eff2243e1b966f1cc6bcac86a74b0cdd64f86bb0109156"
+    }
+  ],
+  "metrics": {
+    "model": "claude-opus-5-5",
+    "coldStart": {
+      "firstModelRequest": 1.1,
+      "firstToolCall": 3.6,
+      "firstNoacgCommand": 6.8,
+      "bridgeReady": 33.1
+    },
+    "turns": {
+      "modelRequests": 32,
+      "toolCalls": 75
+    },
+    "images": 48,
+    "largestRequest": {
+      "at": "2026-10-15T20:12:19.209125Z",
+      "usd": 0.136,
+      "usage": {
+        "cache_creation_input_tokens": 8264,
+        "cache_read_input_tokens": 48398,
+        "input_tokens": 2,
+        "output_tokens": 4251,
+        "speed": "standard"
+      }
+    },
+    "pricedCents": 201,
+    "activeSeconds": 423.68
+  },
+  "outputsListed": 20,
+  "undownloadable": [],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\womens-derby-head-to-head.managed-agents\\frames",
+    "frames": 45,
+    "crops": 5,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:e7b74a7f8e2e557d14eff2243e1b966f1cc6bcac86a74b0cdd64f86bb0109156"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 6,
+    "buttons": [
+      "leadA",
+      "leadB",
+      "clear"
+    ],
+    "missing": [
+      "highlight"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:e7b74a7f8e2e557d14eff2243e1b966f1cc6bcac86a74b0cdd64f86bb0109156",
+    "benchValidated": "sha256:e7b74a7f8e2e557d14eff2243e1b966f1cc6bcac86a74b0cdd64f86bb0109156",
+    "reviewed": "sha256:e7b74a7f8e2e557d14eff2243e1b966f1cc6bcac86a74b0cdd64f86bb0109156",
+    "problems": []
+  },
+  "functional": false
+}

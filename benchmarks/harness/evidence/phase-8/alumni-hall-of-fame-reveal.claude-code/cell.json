@@ -1,0 +1,152 @@
+{
+  "costUnread": false,
+  "brief": "alumni-hall-of-fame-reveal",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "9f6c75af-e375-4340-b65b-959bdba8b36f",
+  "costCents": 0,
+  "notionalUsd": 2.4604626,
+  "wallSeconds": 425,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type award-reveal --design aw01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 1,
+      "digest": "sha256:2085c07e1e0c1fbd5964498fc4821d37ef2133299c6692277562e92bdf1a47b7"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:2c1af5a5d7f48629960a97c3ba2dda7f004372a84599891ccf3ec8afb15a3b6c"
+    },
+    {
+      "command": "noacg screenshot ./graphic --state stress --event open --at 3 --out ./shots/x-stress-open.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event open --event celebrate --at 1.2 --out ./shots/x-celeb-1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f4= --data f3= --event open --at 3 --out ./shots/x-nocrest.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Distinguished Alumni Athlete in Men's and Women's Cross Country and Track and Field, Swimming and Diving, and Rowing --data f2=Professor Sir Maximilian Alexander Okonkwo-Vanderhoeven-Fitzgerald III --event open --at 3s --out ./shots/x-long-open.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event open --event celebrate --at 1.5s --out ./shots/x-celeb-1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event open --event celebrate --at 2.6s --out ./shots/x-celeb-2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f4= --data f3= --event open --at 3s --out ./shots/x-nocrest.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event open --at 0.35s --out ./shots/x-opening.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:0feaee40ec14027055a4b8a0212da25ec963124c63b1d2ee35148252a3da16ad"
+    },
+    {
+      "command": "noacg screenshot ./graphic --event open --event celebrate --at 2.2s --out ./shots/x-celeb-2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json --name Hall of Fame Reveal",
+      "code": 0,
+      "digest": "sha256:0feaee40ec14027055a4b8a0212da25ec963124c63b1d2ee35148252a3da16ad"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 1,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\alumni-hall-of-fame-reveal.claude-code\\frames",
+    "frames": 52,
+    "crops": 5,
+    "findings": [
+      "event-settle: settle did not move the machine (still main=enter). If it should have, the machine does not answer settle from there. It did not move it after any other event either."
+    ],
+    "failures": [],
+    "digest": "sha256:0feaee40ec14027055a4b8a0212da25ec963124c63b1d2ee35148252a3da16ad"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 5,
+    "buttons": [
+      "open",
+      "celebrate",
+      "settle"
+    ],
+    "missing": []
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:0feaee40ec14027055a4b8a0212da25ec963124c63b1d2ee35148252a3da16ad",
+    "benchValidated": "sha256:0feaee40ec14027055a4b8a0212da25ec963124c63b1d2ee35148252a3da16ad",
+    "reviewed": "sha256:0feaee40ec14027055a4b8a0212da25ec963124c63b1d2ee35148252a3da16ad",
+    "problems": []
+  },
+  "functional": true
+}
