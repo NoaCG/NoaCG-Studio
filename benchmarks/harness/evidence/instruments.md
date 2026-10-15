@@ -53,6 +53,15 @@ named.
    (`outputs/all/update-01500ms.jpg`, seen), never a long option. One graphic: not evidence that
    sheets miss what single frames show, nor that they do not. It is evidence that the agent's
    matrix (and so a critic reading it) does not exercise a long value in a lines field.
+9. **The Update strip drives each package's first text field, so the two arms are updated on
+   different fields** (the H5 check). `noacg coverage` updates `textKeys[0]` to its long value
+   (`cli/src/coverage.ts`). On `live-vote` that is the harness's options field and August A's
+   kicker (each cell's `coverage.json`), so entry 6's defect is in a state the reference was never
+   put in. Resolution: re-shot by hand. With `noacg screenshot <August A record.zip> --event
+   "f2=<the long options>" --at 1500ms --background video`, August A's rows grow and nothing
+   overlaps. The same Update on the harness zip reproduces the overlap, so the verdict stands.
+   **For H6 and H8:** before judging a pair, read both cells' Update op; if they updated different
+   kinds of field, re-shoot each arm with the other's Update and log it here. Related to #1246.
 
 Entries 1 to 4 below, re-measured at H5's sha:
 
