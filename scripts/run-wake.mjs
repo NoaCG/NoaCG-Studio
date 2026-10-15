@@ -210,8 +210,8 @@ export function wakeTask(repo) {
       '     that restarts the run\'s own coordinator session. Only if the send fails, invoke the printed',
       '     command with the Skill tool (its name without the slash, the rest as arguments), follow it and',
       '     end without step 3.',
-      `3. Clean up: list_sessions (limit 100), then in one parallel batch archive_session every other session titled "${WAKE_TITLE}"`,
-      '   (finished firings), then archive_session "self". Write no report.',
+      `3. Clean up: list_task_runs (taskId ${WAKE_TASK_ID}, limit 50), then in one parallel batch archive_session every`,
+      '   other run not yet archived (finished firings), then archive_session "self". Write no report.',
     ].join('\n'),
   };
 }

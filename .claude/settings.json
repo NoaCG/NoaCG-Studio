@@ -147,6 +147,7 @@
       "mcp__ccd_session_mgmt__get_session",
       "mcp__ccd_session_mgmt__list_sessions",
       "mcp__ccd_session_mgmt__list_events",
+      "mcp__scheduled-tasks__list_task_runs",
       "mcp__ccd_session_mgmt__search_session_transcripts",
       "Bash(node scripts/wave-plan-check.mjs)",
       "Bash(node scripts/wave-plan-check.mjs *)",
