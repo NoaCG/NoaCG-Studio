@@ -245,6 +245,9 @@ export function archivedArm({ cellsDir = AUGUST_CELLS, configuration = 'A' } = {
       const outputs = path.join(cellDir, 'outputs');
       mkdirSync(outputs, { recursive: true });
       cpSync(source, graphic, { recursive: true });
+      // The first validate regenerates an August package's generated half in place (digest.ts), so
+      // the version recorded and captured is the one the second validate reviews.
+      await cli(['validate', graphic, '--json'], { cwd: cellDir });
       const validate = await cli(['validate', graphic, '--json'], { cwd: cellDir });
       const recordFile = path.join(outputs, 'record.json');
       const record = await cli(['record', graphic, '--out', recordFile, '--json'], { cwd: cellDir });
@@ -253,7 +256,7 @@ export function archivedArm({ cellsDir = AUGUST_CELLS, configuration = 'A' } = {
         outcome: 'delivered',
         recordFile,
         zipFile: record.json?.zip ?? path.join(outputs, 'record.zip'),
-        trace: [{ command: 'noacg validate', code: validate.code, digest: validate.json?.digest ?? null }, { command: 'noacg record', code: record.code, digest: record.json?.digest ?? null }],
+        trace: [{ command: 'noacg validate (after the regenerating one)', code: validate.code, digest: validate.json?.digest ?? null }, { command: 'noacg record', code: record.code, digest: record.json?.digest ?? null }],
         reviewedDigest: validate.json?.digest ?? null,
         costCents: 0,
         notionalUsd: 0,
