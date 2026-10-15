@@ -20,9 +20,10 @@ on air.
 
 - **Shape.** `noacg_ak_` + 64 hex. Stored only as `sha256` in `agent_keys.key_hash` (migration
   `0050`); the plaintext is returned exactly once by `redeem` and lives on the CLI's disk.
-- **Scope.** A key carries a list of permissions (`src/entitlements/permissions.ts`). In this
-  release every key carries exactly `graphics:create` - it can put a graphic in the library
-  and nothing else: not read the library, not touch a production, not use AI, not delete.
+- **Scope.** A key carries a list of permissions (`src/entitlements/permissions.ts`). Every key
+  carries `graphics:create` - it can put a graphic in the library - and, when its consent listed
+  it, `productions:create`, which lets a set delivery make a new production of its graphics (§11).
+  Nothing else: not read the library, not change or publish a production, not use AI, not delete.
   `playout:operate` is named now and is NEVER granted to an agent key (`NEVER_ON_AGENT_KEYS`).
 - **`permits(principal, key)`** asks two questions, both required: the credential carries the
   permission (a session carries all, a key its list), AND the account's entitlement allows the
@@ -412,3 +413,60 @@ record, receipt and claim in place; nothing user-made is removed.
 | 500 | `internal` | the call failed: all of it was saved or none, and sending the same request again settles which |
 
 The other codes are the save door's (§3).
+
+## 11. A production in the same delivery
+
+`noacg save ./a ./b ./c --production "Evening news" [--rundown cues.json] [--layer 20,21,22]`
+(MCP `save` with `production` and `rundown`) makes the set door also create a NEW production of the
+set, ready to open, with no Install step. Without `--production` the delivery is library-only and
+makes no production, whatever the key may do.
+
+```
+ -> POST /api/me/graphic-sets { graphics: [...], production: { name, layers?, cues?: [{ graphic, label, values?, note? }] } }
+    201 { ..., production: { id, name, url: <origin>/app#/production/<id> }, receipt }
+    receipt.destination 'production'; resources: the graphics, then { kind: 'production', state: 'saved' }; link: the production
+```
+
+**The record** (`src/model/productionDelivery.ts`) is the one the studio's own Install builds: a
+pool entry per graphic, a copy of its template linked by `graphicId`, on the layer the request
+names or the next free one from 20; the rundown in the order sent, each row's values over the
+graphic's field defaults, then a default row for any graphic the rundown never names. It is a new
+personal production of the key's account, unpublished: no slug, nothing on air.
+
+**One transaction.** `agent_deliver_production` (migration 0094) runs `agent_deliver_graphics`
+and, in the same call, inserts the production's `show` document and names it on every graphic's
+receipt (`agent_deliveries.production_id`). The production joins the payload hash: the same
+request again replays the same graphics AND the same production; the same graphics with another
+production, or without one, under that operation are a conflict. The readback (§9) finds the
+delivery by its operation, a graphic, or the production's id, and says `missing` for a production
+deleted since.
+
+**Consent.** A production needs `productions:create` on the credential as well as
+`graphics:create`. It is a separate permission (`AGENT_KEY_OPTIONAL_PERMISSIONS`): `noacg login`
+asks for it with `scopes=productions:create` on the consent URL, and the consent card lists it as
+its own line ("Make new productions with rundowns from the graphics it saves (never publishes or
+plays them)"). A key minted without it, every key from before it existed included, keeps exactly
+`graphics:create`; its production request is refused with 403 before anything is written, saying
+to log in again or save library-only. A connector grant does not carry it. It makes new
+productions only: it cannot add to, change, publish or play an existing one.
+
+**The same delivery, installed again.** Every record `noacg save` delivers carries its ITEM
+IDENTITY (`origin.item`, the graphic's source digest), and `noacg pack` writes the same identity on
+the graphic's package entry. Installing a package (§7) pools a library record with the graphic's
+identity instead of saving a second copy, and new records keep the identity. Before a waiting
+package is installed, Home says when Install would repeat a delivery: every graphic already
+delivered and pooled by a production ("Already delivered as …", with Open it), or a graphic the
+identity cannot speak for (no identity on the package or on a same-named record made outside the
+studio: "may already be in your library"). The user chooses Install anyway or Cancel. A name alone
+never merges two graphics.
+
+**Rollback.** Revert the code: the destination is gone, `save` is library-only again, and delivered
+productions stay ordinary productions. 0094 is one function; left in place it costs nothing. Keys
+that carry `productions:create` keep it harmlessly. The library door and pending-package Install
+are unchanged apart from the identity reuse.
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid` | `production` without a name, two graphics with one name, a layer outside 1-100, or a cue naming no graphic of the set |
+| 403 | `forbidden` | the key lacks `productions:create` |
+| 404 | `not_found` | the deployment's database has no 0094 yet: nothing was saved |

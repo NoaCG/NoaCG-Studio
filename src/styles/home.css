@@ -225,8 +225,14 @@ h2 + .lib-row,
   border-radius: 10px;
 }
 /* One package: name and details on the left, Install and Dismiss on the right. */
-.pack-waiting-row { display: flex; align-items: center; gap: 8px; }
-.pack-waiting-row .lib-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* On a phone the details take the whole line and the buttons wrap under them, kept to the right:
+   squeezed beside two buttons, a repeat warning ran a word per line. */
+.pack-waiting-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pack-waiting-row .lib-info { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; }
+.pack-waiting-row .lib-info + button { margin-left: auto; }
+@media (max-width: 600px) {
+  .pack-waiting-row .lib-info { flex-basis: 100%; }
+}
 .pack-waiting-row .primary { min-height: 40px; }
 /* The package a link named (#/home/productions/<id>): the library's selected-row look. It takes
    focus on arrival, and the highlight is what shows it, so no second ring. */

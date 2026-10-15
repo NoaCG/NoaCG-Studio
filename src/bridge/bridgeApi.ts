@@ -25,7 +25,7 @@ import { ografContract } from '../control/ografContract';
 import { buildGraphicPackage } from '../export/noacgPackage';
 import { readOgrafPackage, type OgrafPackageRead, type PackageFiles } from '../export/targets/ografImport';
 import type { FieldDescriptor } from '../model/fieldModel';
-import { newGraphicDoc, type GraphicDocBase } from '../model/graphicDoc';
+import { newGraphicDoc, type GraphicDocBase, type GraphicOrigin } from '../model/graphicDoc';
 import { importZipTemplate, type ImportedTemplateResult } from '../model/importTemplate';
 import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import type { SpxTemplate } from '../model/types';
@@ -561,7 +561,7 @@ export function packEntry(template: SpxTemplate, opts: { name?: string; layer?: 
 /** The library record for a template (model/graphicDoc.ts - the same shape the studio saves). */
 export function graphicDoc(
   template: SpxTemplate,
-  opts: { name: string; folder?: string; origin?: { tool: string; version?: string } },
+  opts: { name: string; folder?: string; origin?: GraphicOrigin },
 ): GraphicDocBase {
   return newGraphicDoc(template, {
     name: opts.name,

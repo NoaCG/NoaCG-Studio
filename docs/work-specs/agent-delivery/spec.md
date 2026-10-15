@@ -625,3 +625,103 @@ Checked on `origin/main` `b5c559e2b` (the landing of #1272). Verdict: PASS.
 - Not done here: Docker was not started and no hosted key was read, so the backend side of the
   user walk is the CI run above. Minor wording follow-up, not a blocker: a lost answer reads
   "Unconfirmed: fetch failed Run the same command again" (no full stop after the cause).
+
+### Phase 4 (build), 2026-10-16
+
+Last check's findings (Phase 3 check 2, PASS): Post-landing green on `b5c559e2b` with the advisors
+at 176/176 in the baseline; configured run 38800728080 passed 101 including the CLI walk that drives
+`node cli/dist/index.js save` with SIGKILL; locally the CLI refused an invalid set and a 5.8 MB set
+before any send, resumed one operation after lost answers and kills, and two concurrent saves shared
+one operation. Minor: "Unconfirmed: fetch failed Run the same command again" lacked a full stop
+after the cause; fixed here (`cli/src/receipt.ts`, both lost-answer paths).
+
+Landed:
+- **A production in the same delivery** (docs/AGENT_SAVE.md §11). `POST /api/me/graphic-sets` takes
+  `production: { name, layers?, cues? }`; migration 0094's `agent_deliver_production` runs 0093's
+  `agent_deliver_graphics` and, in the same transaction, inserts the production's `show` document
+  and sets `agent_deliveries.production_id` on every graphic's receipt. The record
+  (`src/model/productionDelivery.ts`) is the studio's own Install result: pool entries linked by
+  `graphicId`, named layers or the next free from 20, the rundown in the order sent over each
+  graphic's field defaults, a default row for a graphic the rundown never names, no slugs. The
+  production joins the payload hash (a library-only hash is unchanged, so journaled Phase 3
+  operations still replay). Receipt: destination `production`, the graphics then
+  `{ kind: 'production', state: 'saved' }`, link to the production; readback by operation, graphic
+  or production id; a production deleted since reads `missing`. Without `production` nothing changes.
+- **Consent.** New permission `productions:create` (`AGENT_KEY_OPTIONAL_PERMISSIONS`), minted only
+  when the consent URL asks for it (`scopes=`) and listed on the card as its own line. Existing
+  keys and connector grants are unchanged; a graphics-only key gets a 403 before any write that says
+  to log in again or save library-only.
+- **Item identity and Install.** `noacg save` writes `origin.item` (the graphic's source digest) on
+  every library record and `noacg pack` writes the same on every package entry (not on a Community
+  share). Install pools a library record with the same identity instead of copying it, and new
+  records keep the identity. Before a waiting package's Install, Home says "Already delivered as
+  “<production>”. Open it, or install a second production." when every graphic was delivered and a
+  production pools them, or "“<names>” may already be in your library" when the identity cannot
+  speak for a same-named graphic made outside the studio; Install anyway or Cancel. Names never merge.
+- **CLI/MCP.** `noacg save a b c --production <name> [--rundown cues.json] [--layer 20,21,22]` (bare
+  `--production`/`--rundown` refused, after a review finding); a deployment too old for a production
+  is reported as `no-production`, never as done, and never falls back to the single door. MCP `save`
+  takes `production` and `rundown`; the schema stays under its 3,400-character ceiling (two
+  descriptions tightened). `noacg login` asks for the production line.
+
+Evidence: pure mapping tests `scripts/production-delivery.test.mjs` (4); API tests (agentKeys,
+graphics, packages, deliveries, graphicSets: 43 pass, with six new production tests: created whole
+and verified by operation and production id, replay with the same production, 409 for another or no
+production, library-only stays library-only, graphics-only key 403 with nothing written, a failing
+production insert leaving nothing then made once, no 0094 = 404, malformed requests refused before
+any write); CLI `unit` and `mcp` 82 pass, 4 skipped (production in one request with item identities,
+the 403 sentence unchanged, an old deployment's `no-production`, fingerprints, the full stop, bare
+flags). 0092-0094 applied to an embedded Postgres (PGlite) with an account: 0094's self-check ran
+(created, replayed with the same production, conflict, a failing production insert leaving no claim,
+record, receipt or production) and left nothing; two mutations (no `production_id` update; no replay
+branch) each failed it. `tsc` (app, API), eslint, depcruise and the changed gates pass locally except
+`test:ai-gateway`, which cannot compile `api/_lib/harness` here for a missing local dependency (CI
+runs it). The configured suite on this branch, run 38810308659 (local Supabase stack, 0094 applied),
+passed 101 with 8 allowed skips, 0 flaky; both agent-access tests passed first time. Step 4f: the
+graphics-only key's production request is a 403 and its operation reads back 404. Step 4g: a package
+of the set's graphics without identity warns "may already be in your library" naming all three,
+Cancel leaves it, nothing installed. The CLI walk, with a key consented to the production line (the
+card shows it): three graphics with an interleaved four-cue rundown saved killed-then-resumed under
+one operation, repeated as a replay with the same production; readback by the production id verified;
+the cloud `documents` rows hold one unpublished `show` whose pool is the three delivered ids on three
+layers and whose rundown is in the order sent, and the three graphics once; a fresh signed-in browser
+opens the link with the four cues in order; `noacg pack --save` of the same graphics then Install
+warns "Already delivered as", and Install anyway makes a second production pooling the same three
+ids with no library copy. Screenshots of the consent card and both warnings at 1440 and 390px were
+looked at, not committed; the 390px row squeezed the warning beside its buttons, so on a phone the
+details now take the whole line and the buttons sit under them, to the right.
+
+The pre-merge review then tightened Install's identity: a library record is pooled only when its
+identity AND its code still match the package's (an edited copy is the user's work, and Install asks
+instead); a waiting package's graphics record the tool that sent them when the package carries no
+origin, so installing the same identity-less package twice warns; `noacg pack` takes the identity
+over normalized sources even without `--save`; `save --layer N` counts up like `pack --layer N`; a
+save an older deployment answered without a production forgets its operation; and the production
+readback can no longer reject unhandled. One origin shaper (`shapeOrigin`, `src/model/graphicDoc.ts`)
+serves the doors and the studio. The configured suite on the reviewed code, run 38814821355, again
+passed 101 with 8 allowed skips and 0 flaky, both agent-access tests first time.
+
+Decisions:
+- `noacg login` requests the production line by default: it is a separate, visible line on the card
+  the user approves, and it saves a second login when a brief later wants a production. Existing keys
+  gain nothing.
+- Personal productions only (the key's account); no team destination in this phase.
+- No dedupe across separate deliveries on the server (Phase 3's rule: a new operation is a new
+  delivery); identity reuse happens at Install, the case the spec names.
+- The server-built production has no `look`: the studio derives it from the browser's brand store.
+- `productionDelivery.ts` writes the record's shapes out rather than importing `Show`, because the
+  API typecheck has no DOM; the configured journey opening the record in the studio is the agreement.
+
+Rollback: revert the pull request. `save` is library-only again; delivered productions stay
+ordinary productions; 0094 is one function, harmless left in place; keys holding
+`productions:create` keep it harmlessly. Library save and pending-package Install remain.
+
+Next phase must allow for:
+- The published CLI (0.11.0) has none of this. Phase 5 publishes it, switches the skill's ending to
+  one `noacg save a b c [--production ...]`, documents the consent line and `no-production`, and
+  writes the CHANGELOG (including the full-stop fix, the bare-flag refusal and comma `--layer`).
+- Keys minted by the published 0.11.0 `login` are graphics-only; the skill must handle the 403 by
+  offering `noacg login` again or the library-only save.
+- The MCP schema is 3 characters under its ceiling; another argument needs a measurement or a cut.
+- Install's identity check reads the browser's synced library; a package installed before the
+  delivered graphics sync down gets no reuse and no warning (it names nothing it cannot see).

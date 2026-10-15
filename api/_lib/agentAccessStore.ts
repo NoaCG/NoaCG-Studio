@@ -18,6 +18,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { GraphicDocBase } from '../../src/model/graphicDoc.js';
+import type { DeliveredShow } from '../../src/model/productionDelivery.js';
 
 export interface AgentKeyRow {
   id: string;
@@ -95,9 +96,9 @@ export interface AgentAccessStore {
   /** The receipts of one operation or one resource, as `id` names either - the user's own, and
    *  only those `keyId` wrote when it is given (an agent key reads back nothing else). */
   findDeliveries(userId: string, id: string, keyId: string | null): Promise<DeliveryRow[]>;
-  /** Whether a delivered resource is still there: the library record not deleted, or the package
-   *  still waiting. */
-  resourcePresent(userId: string, kind: DeliveryKind, id: string): Promise<boolean>;
+  /** Whether a delivered resource is still there: the library record or the production a set
+   *  delivered not deleted, or the package still waiting. */
+  resourcePresent(userId: string, kind: DeliveryKind | 'production', id: string): Promise<boolean>;
   /** Whether the production Install made has been deleted since: its synced record is a tombstone.
    *  A production not yet synced (local-first) is not deleted - it is simply not up yet. */
   productionDeleted(userId: string, productionId: string): Promise<boolean>;
@@ -108,7 +109,9 @@ export interface AgentAccessStore {
   /** Deliver a set of library records as ONE operation (migration 0093, `agent_deliver_graphics`):
    *  the claim, every record and every receipt commit together or not at all. The same operation
    *  with the same payload hash and writer replays the first call's ids; anything else under that
-   *  operation is a conflict and writes nothing. */
+   *  operation is a conflict and writes nothing. With a `production` (migration 0094,
+   *  `agent_deliver_production`) the production record joins the same transaction, and every
+   *  graphic's receipt names it. */
   deliverGraphicSet(set: NewGraphicSet): Promise<GraphicSetOutcome>;
 }
 
@@ -120,12 +123,16 @@ export interface NewGraphicSet {
   /** sha256 hex of the payload minus server-minted ids and timestamps (graphicSets.ts). */
   payloadHash: string;
   docs: GraphicDocBase[];
+  /** The production the same delivery makes of them, id minted by the API (productionDelivery.ts). */
+  production?: { id: string; name: string; body: DeliveredShow };
 }
 
 export interface GraphicSetOutcome {
   outcome: 'created' | 'replayed' | 'conflict';
   /** The library ids in the order the set was sent; empty on a conflict. */
   ids: string[];
+  /** The production the delivery made, when it asked for one (a replay answers the first one's). */
+  productionId?: string | null;
 }
 
 /** Which account a credential acts for. */
@@ -412,7 +419,7 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
         .from('agent_deliveries')
         .select(DELIVERY_COLUMNS)
         .eq('user_id', userId)
-        .or(`operation_id.eq.${id},resource_id.eq.${id}`);
+        .or(`operation_id.eq.${id},resource_id.eq.${id},production_id.eq.${id}`);
       if (keyId !== null) query = query.eq('key_id', keyId);
       const { data, error } = await query.order('created_at', { ascending: true }).limit(100);
       if (error) throw new Error(error.message);
@@ -421,9 +428,9 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
     async resourcePresent(userId, kind, id) {
       const db = await serviceRoleDb();
       const { data, error } =
-        kind === 'graphic'
-          ? await db.from('documents').select('id').eq('id', id).eq('user_id', userId).eq('kind', 'graphic').eq('deleted', false).maybeSingle()
-          : await db.from('agent_packages').select('id').eq('id', id).eq('user_id', userId).maybeSingle();
+        kind === 'package'
+          ? await db.from('agent_packages').select('id').eq('id', id).eq('user_id', userId).maybeSingle()
+          : await db.from('documents').select('id').eq('id', id).eq('user_id', userId).eq('kind', kind === 'graphic' ? 'graphic' : 'show').eq('deleted', false).maybeSingle();
       if (error) throw new Error(error.message);
       return Boolean(data);
     },
@@ -449,21 +456,29 @@ export function supabaseAgentAccessStore(): AgentAccessStore {
       return data === true;
     },
     async deliverGraphicSet(set) {
-      // One RPC is one transaction: the claim, the records and the receipts commit together.
-      const { data, error } = await (await serviceRoleDb()).rpc('agent_deliver_graphics', {
+      // One RPC is one transaction: the claim, the records, the production and the receipts commit
+      // together. A library-only set keeps the function it always had (0093).
+      const args = {
         p_user_id: set.userId,
         p_key_id: set.keyId,
         p_operation_id: set.operationId,
         p_payload_hash: set.payloadHash,
         p_graphics: set.docs.map((doc) => ({ id: doc.id, name: doc.name, body: doc })),
-      });
-      // PGRST202: no such function - a database 0093 has not reached yet. Nothing was written.
+      };
+      const fn = set.production ? 'agent_deliver_production' : 'agent_deliver_graphics';
+      const { data, error } = await (await serviceRoleDb()).rpc(fn, set.production ? { ...args, p_production: set.production } : args);
+      // PGRST202: no such function - a database 0093 (or, for a production, 0094) has not reached
+      // yet. Nothing was written.
       if (error) throw error.code === 'PGRST202' ? new SetDoorUnavailable(error.message) : new Error(error.message);
-      const answer = (data ?? {}) as { outcome?: string; ids?: unknown };
+      const answer = (data ?? {}) as { outcome?: string; ids?: unknown; production?: unknown };
       if (answer.outcome !== 'created' && answer.outcome !== 'replayed' && answer.outcome !== 'conflict') {
-        throw new Error(`agent_deliver_graphics answered ${JSON.stringify(data)}`);
+        throw new Error(`${fn} answered ${JSON.stringify(data)}`);
       }
-      return { outcome: answer.outcome, ids: Array.isArray(answer.ids) ? answer.ids.map(String) : [] };
+      return {
+        outcome: answer.outcome,
+        ids: Array.isArray(answer.ids) ? answer.ids.map(String) : [],
+        ...(set.production ? { productionId: typeof answer.production === 'string' ? answer.production : null } : {}),
+      };
     },
     async insertPackage(userId, row) {
       // INSERT, never upsert, and the id is the database's own - the same rule as insertGraphic.
@@ -510,6 +525,10 @@ export interface MemoryAgentAccessStore extends AgentAccessStore {
   failSetAt: number | null;
   /** When set, the database has no set function yet (0093 not applied). */
   noSetFunction: boolean;
+  /** Productions a set delivered (0094), as their `show` documents. */
+  productions: Array<{ userId: string; id: string; name: string; body: DeliveredShow }>;
+  /** When set, the database has no production function yet (0094 not applied). */
+  noProductionFunction: boolean;
   /** When set, the next community submit is refused with this sentence, as the gate would. */
   refuseCommunityPack: string | null;
   /** The clock the store compares expiries against - a test advances it. */
@@ -539,6 +558,8 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     operations: new Map(),
     failSetAt: null,
     noSetFunction: false,
+    productions: [],
+    noProductionFunction: false,
     refuseCommunityPack: null,
     now,
     async createCode(row) {
@@ -608,10 +629,11 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     },
     async findDeliveries(userId, id, keyId) {
       return store.deliveries
-        .filter((d) => d.userId === userId && (d.operationId === id || d.resourceId === id) && (keyId === null || d.keyId === keyId))
+        .filter((d) => d.userId === userId && (d.operationId === id || d.resourceId === id || d.productionId === id) && (keyId === null || d.keyId === keyId))
         .sort(byDeliveryOrder);
     },
     async resourcePresent(userId, kind, id) {
+      if (kind === 'production') return store.productions.some((p) => p.userId === userId && p.id === id && !store.deletedProductions.has(id));
       return kind === 'graphic'
         ? store.graphics.some((g) => g.userId === userId && g.doc.id === id && !store.deletedGraphics.has(id))
         : store.packages.some((p) => p.userId === userId && p.id === id);
@@ -636,6 +658,8 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
     },
     async deliverGraphicSet(set) {
       if (store.noSetFunction) throw new SetDoorUnavailable('Could not find the function public.agent_deliver_graphics');
+      if (set.production && store.noProductionFunction) throw new SetDoorUnavailable('Could not find the function public.agent_deliver_production');
+      const madeFor = (rows: DeliveryRow[]): string | null => rows.find((d) => d.productionId)?.productionId ?? null;
       const claim = `${set.userId}:${set.operationId}`;
       const known = store.operations.get(claim);
       const ownRows = (): DeliveryRow[] =>
@@ -646,7 +670,10 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
       if (!known && store.deliveries.some((d) => d.userId === set.userId && d.operationId === set.operationId)) return { outcome: 'conflict', ids: [] };
       if (known) {
         if (known.payloadHash !== set.payloadHash || known.keyId !== set.keyId) return { outcome: 'conflict', ids: [] };
-        return { outcome: 'replayed', ids: ownRows().map((d) => d.resourceId) };
+        const rows = ownRows();
+        // The same hash names the same request, so a production delivery's replay has its production.
+        if (set.production && !madeFor(rows)) return { outcome: 'conflict', ids: [] };
+        return { outcome: 'replayed', ids: rows.map((d) => d.resourceId), ...(set.production ? { productionId: madeFor(rows) } : {}) };
       }
       // Stage everything, then commit at once: a failure part way leaves the store untouched.
       const graphics: MemoryAgentAccessStore['graphics'] = [];
@@ -657,13 +684,16 @@ export function memoryAgentAccessStore(now: () => string = () => new Date().toIS
         graphics.push({ userId: set.userId, doc });
         rows.push({
           operationId: set.operationId, userId: set.userId, keyId: set.keyId, kind: 'graphic', resourceId: doc.id, state: 'saved',
-          productionId: null, position, createdAt: store.now(), updatedAt: store.now(),
+          productionId: set.production?.id ?? null, position, createdAt: store.now(), updatedAt: store.now(),
         });
       });
+      // The production's insert comes after the records', and fails the same way: nothing stays.
+      if (set.production && store.failSetAt === set.docs.length) throw new Error('injected: the insert of the production failed');
       store.operations.set(claim, { keyId: set.keyId, payloadHash: set.payloadHash });
       store.graphics.push(...graphics);
       store.deliveries.push(...rows);
-      return { outcome: 'created', ids: set.docs.map((d) => d.id) };
+      if (set.production) store.productions.push({ userId: set.userId, ...set.production });
+      return { outcome: 'created', ids: set.docs.map((d) => d.id), ...(set.production ? { productionId: set.production.id } : {}) };
     },
     async submitCommunityPack(userId, row) {
       if (store.refuseCommunityPack) throw new CommunityPackRefusal(store.refuseCommunityPack);

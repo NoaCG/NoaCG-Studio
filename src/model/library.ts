@@ -238,6 +238,8 @@ export function createGraphic(
     aiThread?: AiThread | null;
     legibility?: ProjectLegibility | null;
     fromPack?: GraphicDoc['fromPack'];
+    /** Provenance: an agent package's graphic keeps its tool and delivered item identity. */
+    origin?: GraphicDoc['origin'];
   },
 ): { doc: GraphicDoc; error: string | null } {
   // ONE shape, minted by the pure builder every other writer uses (the bridge, the save API).

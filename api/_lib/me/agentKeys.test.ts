@@ -12,8 +12,10 @@ import { memoryAgentAccessStore } from '../agentAccessStore.js';
 import { resolvePrincipal } from '../principal.js';
 import { sha256 } from '../http.js';
 import {
+  AGENT_KEY_OPTIONAL_PERMISSIONS,
   AGENT_KEY_PERMISSIONS,
   AGENT_KEY_PREFIX,
+  agentKeyPermissions,
   ENFORCED_PERMISSION_KEYS,
   NEVER_ON_AGENT_KEYS,
   PERMISSION_KEYS,
@@ -82,10 +84,14 @@ async function plantCode(store: ReturnType<typeof memoryAgentAccessStore>, at: s
 
 test('the permission vocabulary is labelled, enforced honestly, and never hands playout to a key', () => {
   for (const key of PERMISSION_KEYS) assert.ok(PERMISSION_LABELS[key].length > 0, `${key} unlabelled`);
-  assert.deepEqual([...ENFORCED_PERMISSION_KEYS], ['graphics:create', 'graphics:read']);
+  assert.deepEqual([...ENFORCED_PERMISSION_KEYS], ['graphics:create', 'graphics:read', 'productions:create']);
   assert.deepEqual([...AGENT_KEY_PERMISSIONS], ['graphics:create']);
-  for (const key of AGENT_KEY_PERMISSIONS) assert.ok(!NEVER_ON_AGENT_KEYS.has(key), `${key} is both minted and forbidden`);
+  for (const key of [...AGENT_KEY_PERMISSIONS, ...AGENT_KEY_OPTIONAL_PERMISSIONS]) assert.ok(!NEVER_ON_AGENT_KEYS.has(key), `${key} is both minted and forbidden`);
   assert.ok(NEVER_ON_AGENT_KEYS.has('playout:operate'));
+  // What a consent request may add: only the optional list, and only what it asks for.
+  assert.deepEqual(agentKeyPermissions(), ['graphics:create'], 'asking nothing is the authoring key it always was');
+  assert.deepEqual(agentKeyPermissions(['productions:create']), ['graphics:create', 'productions:create']);
+  assert.deepEqual(agentKeyPermissions(['playout:operate', 'graphics:read', 'graphics:update', 'nonsense']), ['graphics:create'], 'nothing outside the offer');
 });
 
 test('permits() asks both questions: the credential carries it AND the account allows it', () => {

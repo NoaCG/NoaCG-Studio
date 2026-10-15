@@ -1,7 +1,7 @@
 // /api/me/agent-keys - mint, list and revoke the SCOPED AGENT KEYS a coding agent's CLI holds
 // (docs/AGENT_SAVE.md, migration 0050).
 //
-//   POST { action: 'begin',  name, challenge }   JWT required   -> { code, expiresIn }
+//   POST { action: 'begin', name, challenge, scopes? } JWT -> { code, expiresIn, scopes }
 //   POST { action: 'redeem', code, verifier }    no auth        -> 201 { key, id, name, prefix, scopes, createdAt,
 //                                                                       account, deployment }
 //   GET                                          JWT or key     -> a session: { keys: [...] };
@@ -19,9 +19,12 @@
 // exactly once. A wrong verifier still burns the code (an intercepted code must not remain
 // redeemable), and a second redeem of the same code finds nothing.
 //
-// WHAT A KEY CARRIES: exactly AGENT_KEY_PERMISSIONS (`graphics:create` in v1). The list is
-// minted here, never taken from the request - a consent page cannot ask for more than the
-// release offers, and `playout:operate` is refused structurally (NEVER_ON_AGENT_KEYS).
+// WHAT A KEY CARRIES: AGENT_KEY_PERMISSIONS (`graphics:create`), plus any of
+// AGENT_KEY_OPTIONAL_PERMISSIONS (`productions:create`) the consent request asked for - the CLI
+// names it in the consent URL, and the consent card lists it as its own line before Allow. The
+// list is minted here from those two constants, never taken from the request as given: a consent
+// page cannot ask for more than the release offers, and `playout:operate` is refused structurally
+// (NEVER_ON_AGENT_KEYS). A key minted without the optional line keeps exactly what it had.
 //
 // WHICH ACCOUNT. Redeem and a key describing itself (`noacg whoami`) also answer `account` - the
 // account's id and sign-in email - and `deployment`, the origin that answered: the identity the
@@ -40,9 +43,9 @@ import { agentAccessConfigured, supabaseAgentAccessStore, type AgentAccessStore,
 import { resolvePrincipal, type PrincipalDeps } from '../principal.js';
 import { accountFor } from './deliveries.js';
 import {
-  AGENT_KEY_PERMISSIONS,
   AGENT_KEY_PREFIX,
   NEVER_ON_AGENT_KEYS,
+  agentKeyPermissions,
   isAgentKeyToken,
 } from '../../../src/entitlements/permissions.js';
 
@@ -102,9 +105,10 @@ export function createAgentKeysHandler(deps: AgentKeysDeps = {}): { fetch(req: R
   const secret = deps.secret ?? newSecret;
   const storeOf = (): AgentAccessStore => deps.store ?? supabaseAgentAccessStore();
 
-  // The authoring permission list, checked once at module use rather than trusted by name: a
-  // later edit that put a playout verb into AGENT_KEY_PERMISSIONS must fail loudly here.
-  const scopes = AGENT_KEY_PERMISSIONS.filter((key) => !NEVER_ON_AGENT_KEYS.has(key)) as string[];
+  // The permission list for a request, never trusted by name: a later edit that put a playout verb
+  // into either constant must still never reach a key.
+  const scopesFor = (requested: unknown): string[] =>
+    agentKeyPermissions(Array.isArray(requested) ? requested.filter((s): s is string => typeof s === 'string') : []).filter((key) => !NEVER_ON_AGENT_KEYS.has(key));
 
   async function begin(req: Request, body: Record<string, unknown>): Promise<Response> {
     const token = bearerToken(req);
@@ -118,6 +122,7 @@ export function createAgentKeysHandler(deps: AgentKeysDeps = {}): { fetch(req: R
     const challenge = typeof body.challenge === 'string' ? body.challenge.toLowerCase() : '';
     if (!HEX_SHA256.test(challenge)) return apiError('invalid', '`challenge` must be the hex sha256 of the verifier.', 400);
 
+    const scopes = scopesFor(body.scopes);
     const store = storeOf();
     const code = secret();
     const at = now();

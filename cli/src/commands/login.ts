@@ -11,6 +11,10 @@
 // fallback for a machine with no browser (a key minted elsewhere); `--no-browser` prints the
 // URL instead of opening it.
 //
+// The key it asks for may also MAKE PRODUCTIONS of the graphics it saves (`scopes=productions:create`,
+// `noacg save a b c --production`): the consent card lists that as its own line, so the person
+// allowing it sees it. A deployment that does not offer it mints the graphics-only key it always did.
+//
 // "Don't allow" ends the login at once: the consent URL carries `deny=1`, which tells the page
 // this listener takes a refusal, and the page then sends `error=access_denied` to the same
 // /callback instead of a code. (A consent URL without it - an older CLI - only says on the page
@@ -181,8 +185,9 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
   consent.searchParams.set('name', name);
   consent.searchParams.set('challenge', challengeFor(verifier));
   consent.searchParams.set('deny', '1');
+  consent.searchParams.set('scopes', 'productions:create');
 
-  out.log(`Open this page in your browser to allow "${name}" to save graphics to your NoaCG library:\n\n  ${consent.href}\n`);
+  out.log(`Open this page in your browser to allow "${name}" to save graphics and productions to your NoaCG account:\n\n  ${consent.href}\n`);
   if (flagBool(args, 'browser', true)) {
     const opened = await openInBrowser(consent.href);
     out.log(opened ? 'Opened your browser. Waiting for you to allow access…' : 'Could not open a browser here - paste the URL into one. Waiting…');
@@ -201,11 +206,14 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
   }
 
   try {
-    const { stored, account } = await redeemCode(origin, code, verifier);
+    const { stored, account, scopes } = await redeemCode(origin, code, verifier);
     await storeKey(origin, stored);
-    out.result({ ok: true, url: origin, id: stored.id, name: stored.name, prefix: stored.prefix, createdAt: stored.createdAt, account });
+    out.result({ ok: true, url: origin, id: stored.id, name: stored.name, prefix: stored.prefix, createdAt: stored.createdAt, account, scopes });
     const who = account ? ` as ${accountLabel(account)}` : '';
-    out.say(`Logged in to ${origin}${who} - key "${stored.name}" (${stored.prefix}). The key can only save graphics to that account's library; revoke it any time in Settings → Account → Agent access, or with \`noacg logout\`.`);
+    const can = scopes.includes('productions:create')
+      ? "save graphics to that account's library and make productions of them; it cannot publish or play anything"
+      : "only save graphics to that account's library";
+    out.say(`Logged in to ${origin}${who} - key "${stored.name}" (${stored.prefix}). The key can ${can}; revoke it any time in Settings → Account → Agent access, or with \`noacg logout\`.`);
     return EXIT_OK;
   } catch (e) {
     const message = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);

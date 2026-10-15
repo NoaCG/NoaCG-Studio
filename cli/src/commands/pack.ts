@@ -16,16 +16,20 @@
 // A package that is SENT is validated first, graphic by graphic, exactly as `noacg save` does
 // (the static gate + the runtime bench): one graphic with an error refuses the whole package
 // before a byte leaves the machine. The studio validates again when Install is pressed.
+//
+// Each graphic's entry carries its ITEM IDENTITY (`origin.item`, the one `noacg save` writes on the
+// library record), so Install pools a graphic a save already delivered instead of saving it twice,
+// and warns before installing a production the same delivery already made (docs/AGENT_SAVE.md §11).
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { ApiError, explainFailure, resolveKey, savePackageToHome, shareCommunityPack } from '../auth.js';
 import { deliverAndConfirm, describeReceipt, type DeliveryReceipt } from '../receipt.js';
 import { BridgeClient, type BridgeValidation, type SpxTemplate } from '../bridgeClient.js';
-import { noacgUrl } from '../config.js';
+import { cliVersion, noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagList, flagString, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { readPackageInput } from '../workspace.js';
-import { notLoggedIn } from './save.js';
+import { itemIdentity, notLoggedIn } from './save.js';
 import { describeValidation } from './validate.js';
 
 /** One row of the prepared rundown: which graphic, the cue's label, its field values. */
@@ -163,7 +167,10 @@ export async function makePack(inputs: string[], opts: PackOptions, bridge: Brid
       if (!validation.ok) failures.push({ input, validation });
     }
     const layer = layers.length === 1 ? layers[0] + i : layers[i];
-    graphics.push(await bridge.packEntry(template, Number.isFinite(layer) ? { layer } : {}));
+    const entry = await bridge.packEntry(template, Number.isFinite(layer) ? { layer } : {});
+    // The identity `save` gives the same graphic: over its normalized sources, sent or not.
+    const item = itemIdentity(opts.save ? template : (await bridge.normalize(template)).template);
+    graphics.push({ ...entry, origin: { tool: 'noacg-cli', version: cliVersion(), item } });
     templates.push(template);
   }
   if (failures.length) {
@@ -253,8 +260,10 @@ async function shareToCommunity(
   if (findings.length) {
     return { reason: 'checks', findings, error: 'Not sent: Community packs refuses what is listed above. Fix it and try again.' };
   }
-  // A community pack is graphics only (spec D2): the server refuses cues, so none are sent.
-  const pack = { format: 'noacg-pack', version: 1, name: opts.name, description, graphics };
+  // A community pack is graphics only (spec D2): the server refuses cues, so none are sent - and
+  // its graphics are nobody's delivered items, so they go without the identity.
+  const shared = graphics.map(({ origin: _origin, ...g }) => g);
+  const pack = { format: 'noacg-pack', version: 1, name: opts.name, description, graphics: shared };
   try {
     const sent = await shareCommunityPack(origin, key, { name: opts.name, description, author, license: SHARE_LICENSE, pack });
     return { id: sent.id, state: sent.state, shownAs: author, withoutCues: Boolean(opts.rundown?.length) };
@@ -355,7 +364,7 @@ export async function runPack(args: ParsedArgs, out: Out): Promise<number> {
       {
         name,
         description: flagString(args, 'description'),
-        layers: flagList(args, 'layer').map((n) => Number(n)),
+        layers: flagList(args, 'layer').flatMap((v) => v.split(',')).map((n) => Number(n)),
         rundown,
         save,
         outFile,

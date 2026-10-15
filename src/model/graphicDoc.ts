@@ -77,13 +77,44 @@ export interface GraphicDocBase<TSpec = unknown, TThread = unknown, TLegibility 
    * admin usage count and a library badge read it, nothing gates on it. Additive optional
    * (rule 6), absent on every record the app itself creates.
    */
-  origin?: { tool: string; version?: string } | null;
+  origin?: GraphicOrigin | null;
   /**
    * The COMMUNITY PACK this graphic was installed from (docs/work-specs/community-packs/spec.md
    * D7). Install writes it; the submit picker leaves a stamped graphic out, and the design lock
    * (AC-5) reads it. Additive optional (rule 6), absent on everything else.
    */
   fromPack?: PackStamp | null;
+}
+
+/** Where a record came from (`GraphicDocBase.origin`). `item` is the DELIVERED ITEM's identity: a
+ *  digest the CLI takes of the graphic it built (name, type, code, assets, format), written on the
+ *  library record a save delivers and on the same graphic's entry in a package it sends. Installing
+ *  that package later finds the record by it and pools it instead of saving a second copy
+ *  (packs/graphicsPack.ts). Provenance, never authority: it is only ever compared within one
+ *  account's own library. */
+export interface GraphicOrigin {
+  tool: string;
+  version?: string;
+  item?: string;
+}
+
+/** A delivered item's identity: a hex sha256, as the CLI writes it. */
+export const ITEM_IDENTITY = /^[0-9a-f]{64}$/;
+
+/** An `origin` as a record or a pack entry carries it, narrowed to tool, version and item; null
+ *  when there is none, or the reason it is not one. The save and package doors refuse on the
+ *  reason; a pack file read in the studio drops an unreadable origin. */
+export function shapeOrigin(raw: unknown): GraphicOrigin | null | string {
+  if (raw === undefined || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof raw !== 'object' || Array.isArray(raw) || typeof o.tool !== 'string' || !o.tool || o.tool.length > 40) return '`origin.tool` must be a short string.';
+  if (o.version !== undefined && (typeof o.version !== 'string' || o.version.length > 40)) return '`origin.version` must be a short string.';
+  if (o.item !== undefined && (typeof o.item !== 'string' || !ITEM_IDENTITY.test(o.item))) return '`origin.item` must be a hex sha256.';
+  return {
+    tool: o.tool,
+    ...(typeof o.version === 'string' ? { version: o.version } : {}),
+    ...(typeof o.item === 'string' ? { item: o.item } : {}),
+  };
 }
 
 /** Where a community pack's graphic came from: the shelf's pack id (a seed's slug, or
@@ -132,7 +163,7 @@ export interface NewGraphicDocOptions<TSpec = unknown, TThread = unknown, TLegib
   aiThread?: TThread | null;
   legibility?: TLegibility | null;
   folder?: string;
-  origin?: { tool: string; version?: string } | null;
+  origin?: GraphicOrigin | null;
   fromPack?: PackStamp | null;
 }
 

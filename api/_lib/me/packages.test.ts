@@ -88,6 +88,11 @@ test('the shape guard admits a pack file and refuses what is not one', () => {
   assert.equal(packageSaveShape(pack({ graphics: [entry('A', { layer: 101 })], cues: [] })).ok, false, 'layer range');
   assert.equal(packageSaveShape(pack({ graphics: [entry('A', { assets: [{ path: '../x', data: 'data:,' }] })], cues: [] })).ok, false, 'asset path escape');
   assert.equal(packageSaveShape(pack({ graphics: [entry('A', { assets: [{ path: 'x.png', data: 'https://cdn/x.png' }] })], cues: [] })).ok, false, 'assets inlined');
+  // The delivered item's identity travels with a graphic (an Install finds the copy a save made by it).
+  const item = 'ab'.repeat(32);
+  const kept = packageSaveShape(pack({ graphics: [entry('A', { origin: { tool: 'noacg-cli', version: '0.12.0', item, extra: 'dropped' } })], cues: [] }));
+  assert.deepEqual(kept.ok && (kept.pack.graphics[0] as { origin?: unknown }).origin, { tool: 'noacg-cli', version: '0.12.0', item });
+  assert.equal(packageSaveShape(pack({ graphics: [entry('A', { origin: { tool: 'noacg-cli', item: 'not-a-digest' } })], cues: [] })).ok, false, 'an identity is a hex sha256');
   assert.equal(packageSaveShape(pack({ cues: [{ graphic: 'Nobody', label: 'x' }] })).ok, false, 'a rundown row must name a graphic in the package');
   assert.equal(packageSaveShape(pack({ cues: [{ graphic: 'Round card', label: 'x', values: { f0: 1 } }] })).ok, false, 'cue values are strings');
   assert.equal(

@@ -15,8 +15,10 @@
 // covers: api/_lib/{principal,agentAccessStore}.ts, api/me/?...path?.ts, scripts/meDevPlugin.mjs
 // covers: api/_lib/me/{deliveries,deliveryReceipt,packages}.ts, supabase/migrations/0092_agent_deliveries.sql
 // covers: api/_lib/me/graphicSets.ts, supabase/migrations/0093_agent_graphic_sets.sql
-// covers: cli/src/commands/save.ts, cli/src/receipt.ts, cli/src/operations.ts, cli/src/auth.ts
+// covers: supabase/migrations/0094_agent_production_delivery.sql, src/model/productionDelivery.ts
+// covers: cli/src/commands/save.ts, cli/src/commands/pack.ts, cli/src/commands/login.ts, cli/src/receipt.ts, cli/src/operations.ts, cli/src/auth.ts
 // covers: src/backend/agentPackages.ts, src/components/home/sections/ProductionsSection.tsx, src/app/router.ts
+// covers: src/packs/graphicsPack.ts, src/model/templateSet.ts
 
 import { test, expect, chromium, type Page } from '@playwright/test';
 import http from 'node:http';
@@ -45,6 +47,9 @@ import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, 
 //   4e. A SET (docs/AGENT_SAVE.md §10): three graphics in one operation arrive whole with every
 //      link; sent again they answer the same ids; a changed set is refused, an invalid one writes
 //      nothing; a fresh signed-in browser finds all three and opens each link;
+//   4f. A PRODUCTION (§11) asked for with this graphics-only key is refused, nothing written;
+//   4g. a package of those graphics with no item identity warns before Install that they may
+//      already be in the library; Cancel leaves it waiting;
 //   4d. IDENTITY AND RECEIPTS (docs/AGENT_SAVE.md §9): consent, redeem, whoami and every receipt
 //      name the same account and deployment; the readback finds only this key's deliveries;
 //   4c. POST /api/me/community-packs with the key -> refused without the licence; with it, the
@@ -54,7 +59,11 @@ import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, 
 // THE CLI ITSELF (docs/AGENT_SAVE.md §10), the second test: the built `noacg` drives the real
 // bridge and the real set door. A save killed mid-write and run again, the same command repeated
 // and two runs at once each leave ONE set; an invalid graphic writes nothing; a changed set sent
-// under the journaled operation is refused.
+// under the journaled operation is refused. Its key is consented with the production line (§11),
+// so it then saves three graphics AS A PRODUCTION with an ordered rundown - killed and run again,
+// repeated - reads the production back from the cloud, opens it in a fresh browser, and installs
+// the same graphics' package after that recovery: Install warns it was already delivered, and
+// installing anyway pools the delivered graphics instead of copying them.
 
 /** The delivery receipt the doors and the readback answer (docs/AGENT_SAVE.md §9). */
 interface Receipt {
@@ -323,6 +332,49 @@ test.describe('agent access (configured)', () => {
         await fresh.close();
       }
 
+      // 4f. A PRODUCTION needs its own consent (docs/AGENT_SAVE.md §11): this key was minted without
+      // `productions:create`, so asking for one is refused before anything is written.
+      const productionOperation = randomUUID();
+      const asked = await fetch(`${origin}/api/me/graphic-sets`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.key}`, 'x-noacg-operation': productionOperation },
+        body: JSON.stringify({ graphics: rebuilt(), production: { name: `Agent E2E production ${setTag}` } }),
+      });
+      expect(asked.status).toBe(403);
+      expect(((await asked.json()) as { error: { message: string } }).error.message).toMatch(/not make productions\. Nothing was saved\..*noacg login.*library only/);
+      expect((await readBack(productionOperation)).status).toBe(404);
+
+      // 4g. A package of those same graphics that carries no item identity: Install cannot tell
+      // whether they are the delivered ones, so it says they may already be in the library before
+      // it adds copies. Cancel leaves it waiting; it is dismissed here.
+      const unidentified = await page.evaluate(async (records) => {
+        const { packGraphicEntry } = await import('/src/packs/graphicsPack.ts');
+        return Promise.all(records.map((r) => packGraphicEntry(r.template as never, { name: r.name as string })));
+      }, setRecords as Array<{ name: string; template: unknown }>);
+      const unidentifiedSent = await fetch(`${origin}/api/me/packages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${minted.key}` },
+        body: JSON.stringify({ format: 'noacg-pack', version: 1, name: `Agent E2E package ${setTag} again`, description: '', graphics: unidentified }),
+      });
+      expect(unidentifiedSent.status, await unidentifiedSent.clone().text()).toBe(201);
+      const unidentifiedId = ((await unidentifiedSent.json()) as { id: string }).id;
+      await libraryIdsSettled(page, `Agent E2E set ${setTag}`, 3);
+      await page.goto(`/app#/home/productions/${unidentifiedId}`);
+      const unidentifiedRow = page.getByTestId(`waiting-package-${unidentifiedId}`);
+      await expect(unidentifiedRow).toBeVisible({ timeout: 20_000 });
+      await unidentifiedRow.getByTestId('install-waiting-package').click();
+      const repeat = unidentifiedRow.getByTestId('waiting-package-repeat');
+      await expect(repeat).toContainText('may already be in your library');
+      for (const n of setNames) await expect(repeat).toContainText(n);
+      await shot(page, unidentifiedRow, 'install-may-repeat');
+      await unidentifiedRow.getByTestId('install-waiting-package-cancel').click();
+      await expect(repeat).toHaveCount(0);
+      await expect(unidentifiedRow.getByTestId('install-waiting-package')).toBeVisible();
+      await unidentifiedRow.getByTestId('dismiss-waiting-package').click();
+      await unidentifiedRow.getByTestId('dismiss-waiting-package-confirm').click();
+      await expect(unidentifiedRow).toHaveCount(0);
+      expect(await libraryIds(page, `Agent E2E set ${setTag}`), 'nothing was installed').toEqual(set.graphics.map((g) => g.id).sort());
+
       // 4b. A whole PACKAGE (docs/AGENT_SAVE.md §7): `noacg pack --save` posts the pack file with
       // the same key; it waits on Home → Productions; Install makes the production and opens its
       // rundown, and the waiting row goes. A second one is dismissed without installing.
@@ -472,8 +524,8 @@ test.describe('agent access (configured)', () => {
     }
   });
 
-  test('the CLI delivers a set once, however its save is interrupted, repeated or doubled', async ({ page, baseURL }) => {
-    test.setTimeout(480_000);
+  test('the CLI delivers a set once, however its save is interrupted, repeated or doubled', async ({ page, baseURL, browser }) => {
+    test.setTimeout(720_000);
     const origin = baseURL!.replace(/\/+$/, '');
     buildCli();
     await signIn(page);
@@ -483,7 +535,8 @@ test.describe('agent access (configured)', () => {
     await wipeE2EKeys(page, name);
     const work = await mkdtemp(path.join(os.tmpdir(), 'noacg-cli-e2e-'));
     try {
-      const key = await mintKey(page, origin, name);
+      // Consented with the production line, as `noacg login` asks for it.
+      const key = await mintKey(page, origin, name, 'productions:create');
       const env = { NOACG_URL: origin, NOACG_AGENT_KEY: key, NOACG_CREDENTIALS_DIR: path.join(work, 'config'), NOACG_BROWSER: chromium.executablePath() };
       // The first CLI run must not be the dev server's first /bridge (the CLI gives it 30 s).
       await page.goto('/bridge');
@@ -560,12 +613,133 @@ test.describe('agent access (configured)', () => {
       expect(await tiedTo(operation!), 'the changed set is no longer tied to it; the first set still is').toBe(1);
       await expect.poll(inLibrary, { timeout: 30_000 }).toEqual(afterChanged);
       expect((await readBack(operation!))?.resources.map((r) => r.id)).toEqual(ids);
+      // That was a library-only set from a key that may make productions: it made none.
+      expect((await readBack(operation!))?.destination).toBe('library');
+
+      // A PRODUCTION IN THE SAME DELIVERY (docs/AGENT_SAVE.md §11): three graphics and an ordered,
+      // interleaved rundown. Killed once it has named its operation and run again, it resumes that
+      // operation; the same command again answers the same production. Nothing is published.
+      const prodName = `CLI production ${tag}`;
+      for (const n of ['A', 'B', 'C']) {
+        const made = await noacg(['scaffold', '--type', 'lower-third', '--name', `CLI prod ${tag} ${n}`, '--out', pkg(`P${n}`), '--json'], env);
+        expect(made.code, made.stderr).toBe(0);
+      }
+      const prodSet = [pkg('PA'), pkg('PB'), pkg('PC')];
+      const g = (n: string) => `CLI prod ${tag} ${n}`;
+      const cues = [
+        { graphic: g('B'), label: 'Score 0-0' },
+        { graphic: g('A'), label: 'Anna Andersson' },
+        { graphic: g('B'), label: 'Score 1-0' },
+        { graphic: g('C'), label: 'Clock' },
+      ];
+      const cuesFile = path.join(work, 'cues.json');
+      await writeFile(cuesFile, JSON.stringify(cues));
+      const prodArgs = ['save', ...prodSet, '--production', prodName, '--rundown', cuesFile, '--no-bench', '--json'];
+      const prodKilled = await noacg(prodArgs, env, { killWhen: /under operation [0-9a-f-]{36}/ });
+      expect(prodKilled.signal, `the save was killed, not finished: ${prodKilled.stderr}`).toBe('SIGKILL');
+      const prodOperation = /under operation ([0-9a-f-]{36})/.exec(prodKilled.stderr)?.[1];
+      expect(prodKilled.stderr).toContain(`and the production "${prodName}"`);
+      const prodResumed = await noacg(prodArgs, env);
+      expect(prodResumed.code, prodResumed.stderr).toBe(0);
+      expect(prodResumed.stderr).toContain(`Resuming 3 graphics and the production "${prodName}" under operation ${prodOperation}`);
+      type ProdOutcome = { ok: boolean; replayed: boolean; operationId: string; graphics: Array<{ id: string; name: string }>; production: { id: string; name: string; url: string }; receipt: Receipt };
+      const prod = JSON.parse(prodResumed.stdout) as ProdOutcome;
+      expect(prod.operationId).toBe(prodOperation);
+      expect(prod.production.url).toBe(`${origin}/app#/production/${prod.production.id}`);
+      expect(prod.receipt).toMatchObject({ destination: 'production', state: 'saved', verified: true, link: prod.production.url });
+      const prodIds = prod.graphics.map((x) => x.id);
+      const prodRepeated = JSON.parse((await noacg(prodArgs, env)).stdout) as ProdOutcome;
+      expect(prodRepeated.replayed).toBe(true);
+      expect(prodRepeated.production).toEqual(prod.production);
+      expect(prodRepeated.graphics.map((x) => x.id)).toEqual(prodIds);
+      // The readback by the production's own id is the same delivery, verified.
+      const byProduction = await readBack(prod.production.id);
+      expect(byProduction).toMatchObject({ operationId: prodOperation, destination: 'production', verified: true });
+      expect(byProduction?.resources.map((r) => [r.kind, r.state])).toEqual([['graphic', 'saved'], ['graphic', 'saved'], ['graphic', 'saved'], ['production', 'saved']]);
+
+      // The cloud holds the final records: one production, its pool the three delivered graphics on
+      // their own layers, its rundown in the order sent, unpublished; three library graphics, once.
+      const cloud = await page.evaluate(async ({ id, tagged }) => {
+        const { getSupabase } = await import('/src/backend/supabase.ts');
+        const sb = (await getSupabase())!;
+        const show = await sb.from('documents').select('kind, deleted, body').eq('id', id).maybeSingle();
+        const graphics = await sb.from('documents').select('id').eq('kind', 'graphic').eq('deleted', false).ilike('name', `${tagged}%`);
+        const productions = await sb.from('documents').select('id').eq('kind', 'show').eq('deleted', false).eq('name', (show.data?.body as { name?: string } | undefined)?.name ?? '');
+        return { show: show.data, graphics: (graphics.data ?? []).map((r) => r.id).sort(), productions: (productions.data ?? []).length };
+      }, { id: prod.production.id, tagged: `CLI prod ${tag}` });
+      expect(cloud.show?.kind).toBe('show');
+      expect(cloud.show?.deleted).toBe(false);
+      const body = cloud.show!.body as { name: string; graphics: Array<{ id: string; name: string; graphicId: string; layer: number }>; cues: Array<{ sourceId: string; label: string }>; hostedSlug?: string; outputSlug?: string };
+      expect(body.name).toBe(prodName);
+      expect(body.graphics.map((x) => x.graphicId)).toEqual(prodIds);
+      expect(new Set(body.graphics.map((x) => x.layer)).size).toBe(3);
+      const poolName = new Map(body.graphics.map((x) => [x.id, x.name]));
+      expect(body.cues.map((c) => [poolName.get(c.sourceId), c.label])).toEqual(cues.map((c) => [c.graphic, c.label]));
+      expect(body.hostedSlug ?? body.outputSlug ?? null).toBeNull();
+      expect(cloud.graphics).toEqual([...prodIds].sort());
+      expect(cloud.productions).toBe(1);
+
+      // The link opens the production, rundown in order, in a fresh signed-in browser.
+      const fresh = await browser.newContext();
+      try {
+        const reader = await fresh.newPage();
+        await signInOnHome(reader, E2E_EMAIL, E2E_PASSWORD);
+        await reader.goto(`/app#/production/${prod.production.id}`);
+        await expect(reader.getByTestId('production-page')).toContainText(prodName, { timeout: 30_000 });
+        const rows = reader.getByTestId('cue-list').locator('.pd-cue');
+        await expect(rows).toHaveCount(4);
+        for (const [i, c] of cues.entries()) await expect(rows.nth(i)).toContainText(c.label);
+      } finally {
+        await fresh.close();
+      }
+
+      // INSTALLED AFTER RECOVERY: the same three graphics' package, sent the old way, waits on Home.
+      // Every entry carries the item identity its library record carries, so Install says the
+      // delivery already became a production; installed anyway, it pools the delivered graphics
+      // rather than saving copies.
+      const packed = await noacg(['pack', ...prodSet, '--save', '--name', `${prodName} package`, '--rundown', cuesFile, '--no-bench', '--json'], env);
+      expect(packed.code, packed.stderr).toBe(0);
+      const packageId = (JSON.parse(packed.stdout) as { id: string }).id;
+      await expect.poll(() => libraryIds(page, `CLI prod ${tag}`), { timeout: 30_000 }).toEqual([...prodIds].sort());
+      await expect
+        .poll(() => page.evaluate(async (id) => {
+          const { loadShows } = await import('/src/model/shows.ts');
+          return loadShows().some((s) => s.id === id);
+        }, prod.production.id), { timeout: 30_000 })
+        .toBe(true);
+      await page.goto(`/app#/home/productions/${packageId}`);
+      const packRow = page.getByTestId(`waiting-package-${packageId}`);
+      await expect(packRow).toBeVisible({ timeout: 20_000 });
+      await packRow.getByTestId('install-waiting-package').click();
+      await expect(packRow.getByTestId('waiting-package-repeat')).toContainText(`Already delivered as “${prodName}”`);
+      await shot(page, packRow, 'install-already-delivered');
+      await packRow.getByTestId('install-waiting-package-anyway').click();
+      await expect(page.getByTestId('production-page')).toContainText(`${prodName} package`, { timeout: 30_000 });
+      await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(4);
+      const second = await page.evaluate(async (n) => {
+        const { loadShows } = await import('/src/model/shows.ts');
+        return loadShows().find((s) => s.name === n)?.graphics.map((x) => x.graphicId) ?? null;
+      }, `${prodName} package`);
+      expect(second, 'the second production pools the delivered graphics').toEqual(prodIds);
+      expect(await libraryIds(page, `CLI prod ${tag}`), 'and no copy of them was saved').toEqual([...prodIds].sort());
     } finally {
       killAll();
       await rm(work, { recursive: true, force: true }).catch(() => undefined);
       await page.goto('/app').catch(() => undefined);
       await wipeE2EKeys(page, name).catch(() => undefined);
       await wipeMyGraphics(page).catch(() => undefined);
+      // The productions this walk made, pushed as tombstones, and any package it left waiting.
+      await page.evaluate(async () => {
+        const { listWaitingPackages, removeWaitingPackage } = await import('/src/backend/agentPackages.ts');
+        for (const p of await listWaitingPackages()) if (p.name.startsWith('CLI production')) await removeWaitingPackage(p.id);
+        const { hydrateDurableStore } = await import('/src/model/durableStore.ts');
+        await hydrateDurableStore();
+        const { syncNow } = await import('/src/backend/syncController.ts');
+        await syncNow();
+        const { deleteShow, loadShows } = await import('/src/model/shows.ts');
+        for (const s of loadShows()) if (s.name.startsWith('CLI production')) deleteShow(s.id);
+        await syncNow();
+      }).catch(() => undefined);
     }
   });
 });
@@ -651,14 +825,30 @@ async function libraryIdsSettled(page: Page, tag: string, count: number): Promis
   return libraryIds(page, tag);
 }
 
-/** Consent and redeem, as `noacg login` does, for a key the CLI is then handed. */
-async function mintKey(page: Page, origin: string, name: string): Promise<string> {
+/** A picture of `what` at 1440 and 390 px wide, kept with the run's results (never committed) for a
+ *  person to look at: the consent card and the Install warnings have no other render check. */
+async function shot(page: Page, what: import('@playwright/test').Locator, name: string): Promise<void> {
+  const size = page.viewportSize();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await what.screenshot({ path: test.info().outputPath(`${name}-${width}.png`) });
+  }
+  if (size) await page.setViewportSize(size);
+}
+
+/** Consent and redeem, as `noacg login` does, for a key the CLI is then handed. `scopes` is what the
+ *  consent URL asks for beyond saving graphics; the card must list it before Allow. */
+async function mintKey(page: Page, origin: string, name: string, scopes?: string): Promise<string> {
   const verifier = randomBytes(32).toString('base64url');
   const challenge = createHash('sha256').update(verifier).digest('hex');
   const state = randomBytes(16).toString('base64url');
   const listener = await loopback(state);
   try {
-    await page.goto(`/app?agent=${state}&port=${listener.port}&name=${encodeURIComponent(name)}&challenge=${challenge}`);
+    await page.goto(`/app?agent=${state}&port=${listener.port}&name=${encodeURIComponent(name)}&challenge=${challenge}${scopes ? `&scopes=${scopes}` : ''}`);
+    if (scopes) {
+      await expect(page.getByTestId('agent-consent-permissions')).toContainText('Make new productions with rundowns from the graphics it saves (never publishes or plays them)');
+      await shot(page, page.getByTestId('agent-consent'), 'consent-with-productions');
+    }
     await page.getByTestId('agent-consent-allow').click();
     await page.waitForURL((u) => u.hostname === '127.0.0.1' && u.pathname === '/callback', { timeout: 20_000 });
     const code = await listener.code;
@@ -668,7 +858,9 @@ async function mintKey(page: Page, origin: string, name: string): Promise<string
       body: JSON.stringify({ action: 'redeem', code, verifier }),
     });
     expect(redeem.status, await redeem.clone().text()).toBe(201);
-    return ((await redeem.json()) as { key: string }).key;
+    const minted = (await redeem.json()) as { key: string; scopes: string[] };
+    expect(minted.scopes).toEqual(scopes ? ['graphics:create', scopes] : ['graphics:create']);
+    return minted.key;
   } finally {
     listener.close();
     await page.goto('/app');

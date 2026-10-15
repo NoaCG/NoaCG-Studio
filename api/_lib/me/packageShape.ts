@@ -11,7 +11,9 @@
 // narrows it to the keys the format names; anything else is dropped, never stored.
 
 import { TEMPLATE_TYPE_LABELS, type TemplateType } from '../../../src/model/types.js';
-import { SHAPE_LIMITS } from './graphicShape.js';
+import { SHAPE_LIMITS, shapeOrigin } from './graphicShape.js';
+import type { GraphicOrigin } from '../../../src/model/graphicDoc.js';
+import type { ProductionRequest } from '../../../src/model/productionDelivery.js';
 
 /** Caps a whole package adds on top of the per-graphic ones in SHAPE_LIMITS. The body itself is
  *  read at most 4 MB (packages.ts), so the per-graphic caps still bound the total. */
@@ -39,7 +41,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const isTemplateType = (v: unknown): v is TemplateType => typeof v === 'string' && v in TEMPLATE_TYPE_LABELS;
 
 /** One cue as the format carries it. `graphic` is only present on a top-level rundown row. */
-interface ShapedCue {
+export interface ShapedCue {
   graphic?: string;
   label: string;
   values: Record<string, string>;
@@ -58,6 +60,9 @@ interface ShapedGraphic {
   resolution?: { width: number; height: number };
   fps?: number;
   cues?: ShapedCue[];
+  /** The tool that built it and the delivered item's identity (graphicDoc.ts GraphicOrigin), so an
+   *  Install can find a copy of this graphic a save already delivered. */
+  origin?: GraphicOrigin;
 }
 
 /** A RECIPE entry (src/packs/graphicsPack.ts PackRecipeFile): a catalog design named by ids,
@@ -90,7 +95,7 @@ export interface ShapedPackage {
 export type PackageShapeResult = { ok: true; pack: ShapedPackage } | { ok: false; reason: string };
 
 /** A cue row, or the reason it is not one. `withGraphic` is set for the top-level rundown. */
-function shapeCue(raw: unknown, where: string, withGraphic: boolean): ShapedCue | string {
+export function shapeCue(raw: unknown, where: string, withGraphic: boolean): ShapedCue | string {
   if (!isRecord(raw)) return `${where} is not an object.`;
   const label = typeof raw.label === 'string' ? raw.label.trim() : '';
   if (!label || label.length > PACKAGE_LIMITS.cueLabel) return `${where} needs a label of 1-${PACKAGE_LIMITS.cueLabel} characters.`;
@@ -171,7 +176,9 @@ export function packageSaveShape(body: unknown): PackageShapeResult {
       return { ok: false, reason: `"${gName}" exceeds the template size limits.` };
     }
 
-    const shaped: ShapedGraphic = { name: gName, type: g.type, html, css, js, ...playout };
+    const origin = shapeOrigin(g.origin);
+    if (typeof origin === 'string') return { ok: false, reason: `"${gName}": ${origin}` };
+    const shaped: ShapedGraphic = { name: gName, type: g.type, html, css, js, ...playout, ...(origin ? { origin } : {}) };
     if (g.assets !== undefined) {
       if (!Array.isArray(g.assets) || g.assets.length > SHAPE_LIMITS.assetCount) return { ok: false, reason: `"${gName}": at most ${SHAPE_LIMITS.assetCount} assets.` };
       let bytes = 0;
@@ -326,4 +333,38 @@ function shapeBrand(raw: unknown): ShapedBrand | string {
 
 function isSize(v: unknown): v is number {
   return typeof v === 'number' && Number.isInteger(v) && v >= 16 && v <= 8192;
+}
+
+export type ProductionShapeResult = { ok: true; request: ProductionRequest } | { ok: false; reason: string };
+
+/**
+ * A set delivery's PRODUCTION destination (graphicSets.ts, docs/AGENT_SAVE.md §11): a name, each
+ * graphic's layer in the set's order, and an ordered rundown naming the set's graphics - the same
+ * limits as a package's, since it is the same production a package would install. `names` are the
+ * set's graphic names in order; a production tells its graphics apart by name, so they must differ.
+ */
+export function productionRequestShape(raw: unknown, names: string[]): ProductionShapeResult {
+  if (!isRecord(raw)) return { ok: false, reason: '`production` must be an object with the production\'s `name`.' };
+  const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+  if (!name || name.length > SHAPE_LIMITS.name) return { ok: false, reason: `\`production.name\` must be 1-${SHAPE_LIMITS.name} characters.` };
+  const twice = names.find((n, i) => names.indexOf(n) !== i);
+  if (twice !== undefined) return { ok: false, reason: `Two graphics are both named "${twice}" - a production tells its graphics apart by name.` };
+  let layers: number[] | undefined;
+  if (raw.layers !== undefined) {
+    if (!Array.isArray(raw.layers) || raw.layers.length > names.length || raw.layers.some((l) => typeof l !== 'number' || !Number.isInteger(l) || l < 1 || l > 100)) {
+      return { ok: false, reason: '`production.layers` must list at most one whole number from 1 to 100 per graphic, in the set\'s order.' };
+    }
+    layers = raw.layers as number[];
+  }
+  const cues: ProductionRequest['cues'] = [];
+  if (raw.cues !== undefined) {
+    if (!Array.isArray(raw.cues) || raw.cues.length > PACKAGE_LIMITS.cues) return { ok: false, reason: `\`production.cues\` must be a list of at most ${PACKAGE_LIMITS.cues} cues.` };
+    for (const [i, c] of raw.cues.entries()) {
+      const cue = shapeCue(c, `Production cue ${i + 1}`, true);
+      if (typeof cue === 'string') return { ok: false, reason: cue };
+      if (!names.includes(cue.graphic!)) return { ok: false, reason: `Production cue ${i + 1} points at "${cue.graphic}", which is not a graphic in this set.` };
+      cues.push({ graphic: cue.graphic!, label: cue.label, values: cue.values, ...(cue.note ? { note: cue.note } : {}) });
+    }
+  }
+  return { ok: true, request: { name, ...(layers?.length ? { layers } : {}), ...(cues.length ? { cues } : {}) } };
 }

@@ -1267,6 +1267,133 @@ test('one graphic on a deployment without the set door asks about its operation 
   assert.equal(saved.operationId, OP_A);
 });
 
+// ── A production as well (docs/AGENT_SAVE.md §11) ────────────────────────────────────────────
+
+/** A deployment's set door that answers a production too - or, with `old`, one from before the
+ *  production destination, which reads the graphics and ignores the rest. `refuse` answers 403. */
+function productionDeployment({ old = false, refuse = null } = {}) {
+  const seen = { bodies: [], reads: [] };
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', (c) => { body += c; });
+      req.on('end', () => {
+        const op = req.headers['x-noacg-operation'];
+        const answer = (status, payload) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(payload)); };
+        const graphics = SET_IDS.map((id, i) => ({ id, name: `N${i}`, url: `https://noacg.test/app#/graphic/${id}` }));
+        const made = !old;
+        const resources = [
+          ...graphics.map((g) => ({ kind: 'graphic', id: g.id, state: 'saved', link: g.url })),
+          ...(made ? [{ kind: 'production', id: 'p1', state: 'saved', link: 'https://noacg.test/app#/production/p1' }] : []),
+        ];
+        const receipt = (verified) => ({
+          version: 1, operationId: op ?? OP_A, deployment: 'https://noacg.test', account: { id: 'u1', email: 'maker@example.test' },
+          destination: made ? 'production' : 'library', state: 'saved', resources, link: resources[resources.length - 1].link, nextAction: null, verified, checkedAt: '2026-10-16T00:00:00.000Z',
+        });
+        if (req.method === 'POST') {
+          seen.bodies.push(JSON.parse(body));
+          if (refuse) return answer(403, { error: { code: 'forbidden', message: refuse } });
+          return answer(201, { operationId: op, replayed: false, graphics, ...(made ? { production: { id: 'p1', name: 'News', url: 'https://noacg.test/app#/production/p1' } } : {}), receipt: receipt(false) });
+        }
+        seen.reads.push(new URL(req.url, 'http://x').searchParams.get('id'));
+        return answer(200, { receipt: receipt(true) });
+      });
+    });
+    server.listen(0, '127.0.0.1', () => resolve({ server, seen, origin: `http://127.0.0.1:${server.address().port}` }));
+  });
+}
+
+/** What `save` needs of the bridge, without a browser: every package reads as a lower third named
+ *  after its folder, validates clean, and becomes a record carrying the origin it was given. */
+const fakeBridge = {
+  readPackage: async (_bytes, fileName) => ({ imported: { template: { name: fileName.replace(/\.zip$/, ''), type: 'lower-third', resolution: { width: 1920, height: 1080 }, fps: 50, html: `<p>${fileName}</p>`, css: '', js: '', fields: [], settings: {}, assets: [], layers: [] } } }),
+  normalize: async (template) => ({ template }),
+  validate: async () => ({ ok: true, merged: { errors: [], warnings: [] } }),
+  graphicDoc: async (template, opts) => ({ version: 1, id: crypto.randomUUID(), name: opts.name, template, origin: opts.origin, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }),
+};
+
+/** Three package folders N0..N2, the deployment as NOACG_URL, a key, and a journal of their own. */
+async function productionWorld(t, origin) {
+  const dir = await tmpdir();
+  const inputs = [];
+  for (const n of ['N0', 'N1', 'N2']) {
+    await fs.mkdir(path.join(dir, n), { recursive: true });
+    await fs.writeFile(path.join(dir, n, 'graphic.html'), `<p>${n}</p>`);
+    inputs.push(path.join(dir, n));
+  }
+  const env = { NOACG_URL: origin, NOACG_AGENT_KEY: `${AGENT_KEY_PREFIX}${'ab'.repeat(16)}`, NOACG_CREDENTIALS_DIR: path.join(dir, 'config') };
+  const before = Object.fromEntries(Object.keys(env).map((k) => [k, process.env[k]]));
+  Object.assign(process.env, env);
+  t.after(() => { for (const [k, v] of Object.entries(before)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });
+  return inputs;
+}
+
+const NEWS = { name: 'News', cues: [{ graphic: 'N1', label: 'Score' }, { graphic: 'N0', label: 'Anna', values: { f0: 'Anna' } }] };
+
+test('save with a production sends it in the same delivery, stamped with item identities, and names the production', async (t) => {
+  const { savePackages, describeSave, itemIdentity } = await import('../dist/commands/save.js');
+  const d = await productionDeployment();
+  t.after(() => d.server.close());
+  const inputs = await productionWorld(t, d.origin);
+  const outcome = await savePackages(inputs, { bench: false, production: NEWS }, fakeBridge, () => undefined);
+  assert.equal(outcome.ok, true, outcome.error);
+  assert.deepEqual(outcome.production, { id: 'p1', name: 'News', url: 'https://noacg.test/app#/production/p1' });
+  assert.equal(d.seen.bodies.length, 1, 'one request: the graphics and the production together');
+  assert.deepEqual(d.seen.bodies[0].production, NEWS);
+  // Every record carries the identity `noacg pack` writes on the same graphic's package entry.
+  for (const doc of d.seen.bodies[0].graphics) {
+    assert.match(doc.origin.item, /^[0-9a-f]{64}$/);
+    assert.equal(doc.origin.item, itemIdentity(doc.template));
+  }
+  const text = describeSave(outcome).join('\n');
+  assert.match(text, /Saved 3 graphics and the production "News" in one delivery:/);
+  assert.match(text, /- production "News" -> https:\/\/noacg\.test\/app#\/production\/p1/);
+  assert.match(text, /In the account of maker@example\.test/);
+
+  // A rundown that names a graphic not in the set is refused before anything is sent.
+  const stray = await savePackages(inputs, { bench: false, production: { name: 'News', cues: [{ graphic: 'Nope', label: 'x' }] } }, fakeBridge, () => undefined);
+  assert.equal(stray.ok, false);
+  assert.match(stray.error, /cues "Nope", which is not one of/);
+  assert.equal(d.seen.bodies.length, 1);
+});
+
+test('a graphics-only key is told how to get a production; an older deployment that made none is not reported done', async (t) => {
+  const { savePackages } = await import('../dist/commands/save.js');
+  const message = 'This key may save graphics to the library but not make productions. Nothing was saved. Run `noacg login` again and allow productions, or save without a production to put the graphics in the library only.';
+  const refusing = await productionDeployment({ refuse: message });
+  t.after(() => refusing.server.close());
+  let inputs = await productionWorld(t, refusing.origin);
+  const refused = await savePackages(inputs, { bench: false, production: NEWS }, fakeBridge, () => undefined);
+  assert.equal(refused.ok, false);
+  assert.equal(refused.error, `Not saved: ${message}`, 'the deployment\'s own sentence, with no hint that contradicts it');
+
+  const old = await productionDeployment({ old: true });
+  t.after(() => old.server.close());
+  inputs = await productionWorld(t, old.origin);
+  const partial = await savePackages(inputs, { bench: false, production: NEWS }, fakeBridge, () => undefined);
+  assert.equal(partial.ok, false);
+  assert.equal(partial.reason, 'no-production');
+  assert.equal(partial.graphics.length, 3, 'the graphics it did save are named');
+  assert.match(partial.error, /made no production/);
+});
+
+test('the same graphics for the library and as a production are two deliveries; a cause reads as its own sentence', async (t) => {
+  const { setFingerprint } = await import('../dist/operations.js');
+  const docs = setDocs();
+  const library = setFingerprint('https://noacg.test', 'k', docs);
+  assert.notEqual(setFingerprint('https://noacg.test', 'k', docs, NEWS), library);
+  assert.equal(setFingerprint('https://noacg.test', 'k', setDocs(), NEWS), setFingerprint('https://noacg.test', 'k', docs, NEWS), 'rebuilt, the same delivery');
+  assert.notEqual(setFingerprint('https://noacg.test', 'k', docs, { ...NEWS, name: 'Late' }), setFingerprint('https://noacg.test', 'k', docs, NEWS));
+
+  // Nothing listening: the cause ("fetch failed") ends with its full stop before what to do next.
+  const { deliverSetAndConfirm } = await import('../dist/receipt.js');
+  const { saveGraphicSet } = await import('../dist/auth.js');
+  const closed = 'http://127.0.0.1:1';
+  const lost = await deliverSetAndConfirm(closed, 'k', OP_A, [], () => saveGraphicSet(closed, 'k', setDocs(), OP_A), [0, 0]);
+  assert.equal(lost.reason, 'unverified');
+  assert.match(lost.error, /^Unconfirmed: fetch failed\. Run the same command again/);
+});
+
 test('save refuses --name with several packages before any browser', async () => {
   const dir = await tmpdir();
   for (const g of ['a', 'b']) {
@@ -1277,6 +1404,16 @@ test('save refuses --name with several packages before any browser', async () =>
   const named = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--name', 'Both', '--json'], closed);
   assert.equal(named.code, 2);
   assert.match(JSON.parse(named.stdout).error, /--name names one graphic/);
+  // A bare --production would read as absent and save library-only: refused instead, as is a bare
+  // --rundown, and a rundown without a production.
+  for (const flag of ['--production', '--rundown']) {
+    const bare = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--json', flag], closed);
+    assert.equal(bare.code, 2, flag);
+    assert.match(JSON.parse(bare.stdout).error, new RegExp(`${flag} needs a value`));
+  }
+  const stray = await run(['save', path.join(dir, 'a'), '--layer', '20,21', '--json'], closed);
+  assert.equal(stray.code, 2);
+  assert.match(JSON.parse(stray.stdout).error, /add --production/);
   // Several packages are a set, not stray words: with no key it is the ordinary no-login refusal.
   const set = await run(['save', path.join(dir, 'a'), path.join(dir, 'b'), '--json'], closed);
   assert.equal(set.code, 1);
