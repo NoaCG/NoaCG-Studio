@@ -264,7 +264,8 @@ test('the CLI card leads with one short prompt that copies whole and reads at ev
     expect(fit, `nothing scrolls sideways at ${width}px`).toEqual({ block: 0, page: 0 });
   }
 
-  const copy = cli.locator('.cmd', { has: prompt }).locator('.cmd-copy');
+  // src/docs/docs.ts wraps the block in `.cmd` and puts its Copy button beside it.
+  const copy = prompt.locator('xpath=..').locator('.cmd-copy');
   await copy.click();
   await expect(copy).toHaveText('Copied');
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());
