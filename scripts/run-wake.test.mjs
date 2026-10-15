@@ -121,12 +121,12 @@ test('the one task fires every 30 minutes in the primary checkout, tells nobody,
   assert.equal(task.title, WAKE_TITLE);
   assert.ok(task.prompt.includes('run exactly, in C:\\repo: node scripts/run-wake.mjs check'));
   assert.ok(task.prompt.includes('mcp__ccd_session_mgmt__send_message'));
-  assert.ok(task.prompt.includes(`archive_session every other session titled "${WAKE_TITLE}"`));
+  assert.ok(task.prompt.includes(`list_task_runs (taskId ${WAKE_TASK_ID}, limit 50)`));
   // A firing runs unattended in the default mode, so every tool it calls is allowed without a prompt
   // (archive_session by the primary checkout's own local settings).
   const settings = JSON.parse(readFileSync(new URL('../.claude/settings.json', import.meta.url), 'utf8'));
   for (const tool of ['Bash', 'PowerShell']) assert.ok(settings.permissions.allow.includes(`${tool}(node scripts/run-wake.mjs check)`), tool);
-  for (const tool of ['mcp__ccd_session_mgmt__send_message', 'mcp__ccd_session_mgmt__list_sessions', 'mcp__scheduled-tasks__update_scheduled_task']) {
+  for (const tool of ['mcp__ccd_session_mgmt__send_message', 'mcp__scheduled-tasks__list_task_runs', 'mcp__scheduled-tasks__update_scheduled_task']) {
     assert.ok(settings.permissions.allow.includes(tool), tool);
   }
 });

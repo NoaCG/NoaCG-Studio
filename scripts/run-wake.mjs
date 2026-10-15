@@ -114,19 +114,22 @@ export function usageStopIn(text) {
   return null;
 }
 
-/** `usageStopIn` for session `id`'s transcript, read from its tail. */
+/** `usageStopIn` for session `id`'s transcript, read from its tail; null (working) when it cannot be read. */
 function usageStop(id) {
   const file = transcriptOf(id);
   if (!file) return null;
-  const fd = openSync(file, 'r');
+  let fd;
   try {
+    fd = openSync(file, 'r');
     const { size } = fstatSync(fd);
     const length = Math.min(size, TAIL_BYTES);
     const buffer = Buffer.alloc(length);
     readSync(fd, buffer, 0, length, size - length);
     return usageStopIn(buffer.toString('utf8'));
+  } catch {
+    return null; // gone or locked between the lookup and the read: treated as working, as before
   } finally {
-    closeSync(fd);
+    if (fd !== undefined) closeSync(fd);
   }
 }
 
@@ -210,8 +213,8 @@ export function wakeTask(repo) {
       '     that restarts the run\'s own coordinator session. Only if the send fails, invoke the printed',
       '     command with the Skill tool (its name without the slash, the rest as arguments), follow it and',
       '     end without step 3.',
-      `3. Clean up: list_sessions (limit 100), then in one parallel batch archive_session every other session titled "${WAKE_TITLE}"`,
-      '   (finished firings), then archive_session "self". Write no report.',
+      `3. Clean up: list_task_runs (taskId ${WAKE_TASK_ID}, limit 50), then in one parallel batch archive_session every`,
+      '   other run not yet archived (finished firings), then archive_session "self". Write no report.',
     ].join('\n'),
   };
 }
