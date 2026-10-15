@@ -66,17 +66,16 @@ import { archivedArm, claudeCodeArm, deleteLeftCliUploads, fakeAgentWork, fakeAr
 import { makeCli, CLI_ENTRY } from '../benchmarks/harness/lib/cli.mjs';
 import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { coverageFrames, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
-import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
+import { admit, appendEntry, DEFAULT_OVERSHOOT_CENTS, dollars, examPending, LEDGER_FILE, openTuning, PHASE, phaseCompleted, phaseNumber, phaseSpentCents, readLedger, remainingCents, RESERVING_PHASE, reservation, reserveTerms, summary, writeLedger, ZERO_CREDIT_PHASES } from '../benchmarks/harness/lib/ledger.mjs';
 import { packagesEnvironment, PROOFS } from '../benchmarks/harness/lib/feasibility.mjs';
 import { runCell } from '../benchmarks/harness/lib/pipeline.mjs';
-import { docTopics, examSkill, findSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
+import { examSkill, pinnedPlugin } from '../benchmarks/harness/lib/skill-pin.mjs';
 import { checkSubscriptionAuth, claudeExecutable, pauseMs, subscriptionEnv } from '../benchmarks/harness/lib/subscription.mjs';
 import { readAgentDefinition } from '../benchmarks/harness/lib/agent-def.mjs';
 import { AGENT_DIR, agentReadBack, lockPath, readDefinitions, skillBundle, syncPlan, workspaceClient } from './harness-agent-sync.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HARNESS = path.join(ROOT, 'benchmarks', 'harness');
-export { LEDGER_FILE };
 const TUNING = path.join(HARNESS, 'tuning', 'briefs.json');
 /** What `--control` runs by default: a two-sided board with operator actions, and a typeless brief. */
 export const CONTROL_BRIEFS = ['school-scoreboard', 'debate-clock'];
@@ -106,8 +105,6 @@ export function tuningBriefs(ids) {
   return chosen;
 }
 
-const phaseNumber = (phase) => Number(phase.slice(1));
-
 /** `--build` may create sessions only for a paid phase the ledger does not already hold as
  *  completed; after H4 only once the exam is reserved (5.2), so tuning never spends the exam; the
  *  exam itself only once every tuning phase before it is closed; and from then until the exam
@@ -116,7 +113,7 @@ export function refuseBuild(ledger, phase) {
   if (!PHASE.test(phase ?? '')) return `--build needs a phase like H3, got "${phase}"`;
   if (ZERO_CREDIT_PHASES.includes(phase)) return `${phase} spends nothing (5.1): it creates no session`;
   if (phaseCompleted(ledger, phase)) return `the ledger already holds ${phase} as completed; a completed phase never spends again`;
-  if (phaseNumber(phase) > phaseNumber(RESERVING_PHASE) && !ledger.reserve) return 'the ledger holds no exam reserve: H4 reserves the exam before any tuning spends (5.2)';
+  if (phaseNumber(phase) > phaseNumber(RESERVING_PHASE) && !ledger.reserve) return `the ledger holds no exam reserve: ${RESERVING_PHASE} reserves the exam before any tuning spends (5.2)`;
   if (phase === ledger.reserve?.phase) {
     const open = openTuning(ledger, phase);
     if (open.length) return `${phase} spends its reserve only on the exam, after tuning: ${open.join(', ')} not closed`;
@@ -382,8 +379,8 @@ async function build(phase) {
   const runDir = path.resolve(value('out', path.join(os.tmpdir(), 'noacg-harness', `${phase}-${stamp()}`)));
   if (runDir.startsWith(ROOT + path.sep)) fail(`--out must be outside the repository (${ROOT}): a reference session there would load this repo's instructions`);
   mkdirSync(runDir, { recursive: true });
-  const api = await loadHarnessApi();
   const all = [];
+  let api = null;
   let uploaded = null;
   let sdk = null;
   let packagesEnv = null;
@@ -396,16 +393,16 @@ async function build(phase) {
       const lockFile = lockPath('bench');
       if (!existsSync(lockFile)) fail(`no ${path.relative(ROOT, lockFile)}: sync the agent first (node scripts/harness-agent-sync.mjs --workspace bench --apply)`);
       lock = JSON.parse(readFileSync(lockFile, 'utf8'));
-      const bundle = skillBundle(path.join(runDir, 'skill'));
-      const tuned = bundle.sha256 === lock.skill.bundleSha256 ? null : findSkill(ROOT, lock.skill.bundleSha256);
-      pin = examSkill({ ledger, phase, lock, bundle, tuned, topics: orFail(() => docTopics()) });
+      pin = orFail(() => examSkill({ ledger, phase, lock, bundle: skillBundle(path.join(runDir, 'skill')) }));
       if (pin.refusal) fail(pin.refusal);
-      console.log(`  skill: ${pin.note ?? `cli/skill/noacg-graphic is the bundle agent v${lock.agent.version} pins (${lock.skill.bundleSha256.slice(0, 12)})`}`);
+      console.log(`  skill: ${pin.note}`);
     }
     // In the exam the bench is frozen (harness-agent-sync refuses to change it), so a difference
     // found here is never repaired by a sync.
     const exam = examPending(ledger) === phase;
     const resync = 'run node scripts/harness-agent-sync.mjs --workspace bench --apply first';
+    const restoreFiles = exam ? `the exam runs agent v${lock?.agent.version} as tuned and the bench is frozen until it closes, so restore the files to what the lock synced` : resync;
+    const decideServer = exam ? "the exam cannot run what tuning chose, and nothing in this checkout restores it. Decide in the spec's phase notes: re-syncing means reverting the freeze and measuring the new version first" : resync;
     let managed = null;
     if (arms.includes('managed-agents')) {
       // The sessions run the agent as it was synced: a definition changed since the sync would be
@@ -414,7 +411,7 @@ async function build(phase) {
       // the lock's skill, so a skill difference is examSkill's to name, above.
       const { environment: environmentDef, agent: agentDef, subagents } = readDefinitions(AGENT_DIR);
       const drift = syncPlan({ lock, environment: environmentDef, agent: agentDef, subagents, bundle: { sha256: lock.skill.bundleSha256 } }).filter((step) => step.action !== 'keep');
-      if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): ${exam ? `the exam runs agent v${lock.agent.version} as tuned and the bench is frozen until it closes, so restore the files to what the lock synced` : resync}`);
+      if (drift.length) fail(`agents/noacg-harness changed since the last sync (${drift.map((d) => `${d.resource} ${d.action}`).join(', ')}): ${restoreFiles}`);
       // A round's control runs an earlier version the sync made (immutable on the server), as its
       // own arm so the ledger and the judge keep it apart from the version under test.
       const agentVersion = orFail(() => controlVersion(value('agent-version'), lock.agent.version));
@@ -426,7 +423,7 @@ async function build(phase) {
       if (!sdk) fail('no ANTHROPIC_BENCH_API_KEY in .env.bench.local: run `node scripts/bench-env.mjs --profile=harness`');
       // The lock says what the sync sent; a session runs what the server kept (H6's v5 kept v4's critic).
       const { drift: serverDrift } = await agentReadBack(sdk, lock, agentDef);
-      if (serverDrift.length) fail(`the server's agent v${lock.agent.version} differs from agents/noacg-harness in ${serverDrift.join(', ')}: ${exam ? 'the exam cannot run what tuning chose, and nothing in this checkout restores it. Decide in the spec\'s phase notes: re-syncing means reverting the freeze and measuring the new version first' : resync}`);
+      if (serverDrift.length) fail(`the server's agent v${lock.agent.version} differs from agents/noacg-harness in ${serverDrift.join(', ')}: ${decideServer}`);
       console.log(`  agent: ${lock.agent.id} v${lock.agent.version} read back from the server as agents/noacg-harness defines it, skill ${lock.skill.version}${agentVersion ? `; this run's arm is v${agentVersion}, not checked` : ''}${override(model) ? `; sessions override the model with ${JSON.stringify(override(model))}` : ''}`);
       managed = { environmentDef, agentVersion, adopt, agentModel, override };
     }
@@ -443,6 +440,7 @@ async function build(phase) {
       console.log(`DRY ${phase}: every check before the first session passed. Nothing uploaded, no session created, $0.`);
       return;
     }
+    api = await loadHarnessApi();
     if (managed) {
       const { environmentDef, agentVersion, adopt, agentModel, override } = managed;
       const { toFile } = await import('@anthropic-ai/sdk');
@@ -504,7 +502,7 @@ async function build(phase) {
   } finally {
     if (uploaded && sdk) await sdk.files.delete(uploaded.id).catch((e) => console.error(`  CLI upload ${uploaded.id} NOT deleted (the next run deletes it): ${e instanceof Error ? e.message : String(e)}`));
     if (packagesEnv && sdk) await sdk.beta.environments.delete(packagesEnv.id).then(() => console.log(`  environment ${packagesEnv.id} deleted`), (e) => console.error(`  environment ${packagesEnv.id} NOT deleted: ${e instanceof Error ? e.message : String(e)}`));
-    await api.cleanup();
+    await api?.cleanup();
   }
 }
 

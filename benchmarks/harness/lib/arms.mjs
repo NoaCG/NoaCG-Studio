@@ -362,7 +362,7 @@ export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join
     /** The subscription's check, made before a build's first session of any arm: a reference arm
      *  that cannot start must not be found out after the credit arm has spent. */
     preflight(dir) {
-      return checkSubscriptionAuth({ claude, env: envFor(path.join(dir, 'home'), null), ...(run ? { run } : {}) });
+      return checkSubscriptionAuth({ claude, env: envFor(path.join(dir, 'home'), null), run });
     },
     async run({ brief, cellDir }) {
       const sessionDir = path.join(cellDir, 'reference');

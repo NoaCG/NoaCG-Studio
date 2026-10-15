@@ -35,6 +35,7 @@ export const ZERO_CREDIT_PHASES = ['H0', 'H1', 'H2', 'H4'];
 export const RESERVING_PHASE = 'H4';
 /** A phase id in its one spelling: `H4`, never `H04`, so no alias slips past a refusal. */
 export const PHASE = /^H(?:0|[1-9]\d*)$/;
+export const phaseNumber = (phase) => Number(phase.slice(1));
 
 export const FUNDING = ['credit', 'subscription', 'none'];
 export const OUTCOMES = ['delivered', 'not-ready', 'failed', 'paused', 'refused', 'completed'];
@@ -160,7 +161,9 @@ export function phaseCompleted(ledger, phase) {
 /** The tuning phases (after RESERVING_PHASE, before `phase`) the ledger does not hold as completed. */
 export function openTuning(ledger, phase) {
   const open = [];
-  for (let n = Number(RESERVING_PHASE.slice(1)) + 1; n < Number(phase.slice(1)); n++) if (!phaseCompleted(ledger, `H${n}`)) open.push(`H${n}`);
+  for (let n = phaseNumber(RESERVING_PHASE) + 1; n < phaseNumber(phase); n++) {
+    if (!phaseCompleted(ledger, `H${n}`)) open.push(`H${n}`);
+  }
   return open;
 }
 
