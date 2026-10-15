@@ -194,33 +194,40 @@
           npm package <code>@noacg/cli</code> &middot; version
           <span data-version="cli" data-testid="cli-version">latest</span>
         </p>
-        <p class="dl-meta">Needs Node.js 20 or newer, and Chrome or Edge for the check.</p>
-        <p class="dl-note">To use it, install the NoaCG plugin for your agent once.</p>
+        <p class="dl-meta" data-testid="cli-needs">Needs Node.js 20 or newer, and Chrome or Edge for the check.</p>
 
-        <h3>Claude Code</h3>
-        <p class="dl-note">Type this in a Claude Code session (version 2.1.275 or newer):</p>
+        <!-- THE PROMPT LEADS (owner, 2026-10-15): one paste starts the current session with
+             nothing installed. Its text is scripts/agent-prompt.mjs, rendered into the marker at
+             build, so this page and the docs (#agent-install) show the same one. -->
+        <h3 id="cli-prompt">Paste this into your agent</h3>
+        <p class="dl-note">
+          It works in the session you have open, with nothing to install first. To save to your
+          library, approve the sign-in it opens in your browser.
+        </p>
+        <!--agent:prompt-->
+
+        <h3>Optional: install the plugin</h3>
+        <p class="dl-note">
+          The plugin adds the NoaCG skill to your agent from its next session on. In Claude Code,
+          it also gives you <code>/noacg:graphic</code>.
+        </p>
+        <p class="dl-note"><strong>Claude Code.</strong> Type this in a session (version 2.1.275 or newer):</p>
         <pre><code>/plugin install noacg --marketplace NoaCG/NoaCG-Studio</code></pre>
-
-        <h3>Codex</h3>
-        <p class="dl-note">Run these in a terminal:</p>
+        <p class="dl-note"><strong>Codex.</strong> Run these in a terminal:</p>
         <pre><code>codex plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
         <pre><code>codex plugin add noacg@noacg-studio</code></pre>
-
-        <h3>Another agent that supports MCP</h3>
         <p class="dl-note">
-          Add a local (stdio) MCP server with the command <code>npx</code> and the arguments
-          <code>-y @noacg/cli mcp</code>:
+          <strong>Another agent that supports MCP.</strong> Add a local (stdio) MCP server with the
+          command <code>npx</code> and the arguments <code>-y @noacg/cli mcp</code>:
         </p>
         <pre><code>npx -y @noacg/cli mcp</code></pre>
 
-        <h3>Saving to your library</h3>
+        <h3>From a terminal</h3>
         <p class="dl-note">
           Saving a graphic needs a free NoaCG account. Sign in once on each computer and approve
           it in the browser:
         </p>
         <pre><code>npx @noacg/cli login</code></pre>
-
-        <h3>From a terminal</h3>
         <p class="dl-note">Every command runs through npx with nothing installed. To install it once instead:</p>
         <pre><code>npm i -g @noacg/cli</code></pre>
         <p class="dl-more">

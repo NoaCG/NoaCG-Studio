@@ -22,12 +22,13 @@ import { copyLink } from '../../home/copyLink';
  *
  * WHAT IT PROMISES IS ONLY WHAT EXISTS. Every command is the Distribution table of
  * docs/AGENT_CLI.md, verbatim; `/noacg:graphic` is the plugin's command; the link is the docs
- * page's own "paste this to your agent" prompt, which does the install for any agent, and for
- * people who would rather not type commands. What the user needs is said plainly - their own
+ * page's own "paste this to your agent" prompt, which runs the CLI through npx in the session
+ * already open, for any agent and for people who would rather not install anything. What the user needs is said plainly - their own
  * subscription and a terminal - rather than sold around.
  */
 
-/** The docs page's "paste this to your agent" prompt, which does the whole setup. */
+/** The docs page's "paste this to your agent" prompt (scripts/agent-prompt.mjs, the same one
+ *  Downloads shows), which works in the open session with nothing installed. */
 const AGENT_ROUTE_DOCS_HREF = '/docs#agent-install';
 
 /** docs/AGENT_CLI.md, Distribution: the Claude Code plugin in ONE command, typed in a Claude Code
@@ -109,11 +110,11 @@ const AgentRouteCard = forwardRef<HTMLElement>(function AgentRouteCard(_props, r
             <CopyableCommand label="Codex, in a terminal" text={CODEX_INSTALL} testId="ai-agent-cmd-codex" />
           </div>
           <span className="hint">
-            Another agent, or rather not type commands?{' '}
+            Another agent, or rather not install anything?{' '}
             <a href={AGENT_ROUTE_DOCS_HREF} target="_blank" rel="noreferrer">
               Paste one prompt to your agent
             </a>{' '}
-            and it does the setup itself.
+            and start in the session you have open.
           </span>
         </li>
         <li>

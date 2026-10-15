@@ -13,6 +13,7 @@ import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
 import { renderLatestHtml, renderUpdatesHtml } from './scripts/whats-new.mjs';
 import { renderNowHtml, renderRoadmapHtml } from './scripts/roadmap.mjs';
 import { renderSiteChrome } from './scripts/site-nav.mjs';
+import { AGENT_PROMPT_MARKER, renderAgentPrompt } from './scripts/agent-prompt.mjs';
 
 // NoaCG Studio — dev/build config.
 // Thirteen pages: index.html is the static public landing at "/", docs.html is the public docs
@@ -90,6 +91,8 @@ const GENERATED: Record<string, () => string> = {
   // The landing's What's new section: the newest update and the roadmap's Now items.
   '<!--whats-new:latest-->': () => renderLatestHtml(),
   '<!--roadmap:now-->': () => renderNowHtml(),
+  // The coding-agent prompt, on Downloads and in the docs (scripts/agent-prompt.mjs).
+  [AGENT_PROMPT_MARKER]: () => renderAgentPrompt(),
 };
 
 function generatedPages(): Plugin {

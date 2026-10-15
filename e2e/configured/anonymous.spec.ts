@@ -22,7 +22,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, mintAccount, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { deleteAccountByEmail, dismissWizard, E2E_EMAIL, mintAccount, SERVICE_ROLE_KEY, signInOnHome, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 import { chooseNoacgAgent } from '../_ai-step';
@@ -322,10 +322,11 @@ test.describe('anonymous visitor (open editor)', () => {
 // is signed in and told nothing about email; only a reply without one says to check the inbox.
 // Every sign-up used to be told to confirm an email, though this project sends none.
 
-/** Open the dialog's create-account half from Home, and log every note the dialog ever puts in
- *  the DOM - however briefly, and across the reload a sign-in makes onto the account's library -
- *  so a note that flashes before the dialog closes is caught, not only one that stays. */
-async function openSignUp(page: Page): Promise<string[]> {
+/** Open the dialog's create-account half from Home, or from the wizard's header where a first
+ *  visit lands, and log every note the dialog ever puts in the DOM - however briefly, and across
+ *  the reload a sign-in makes onto the account's library - so a note that flashes before the
+ *  dialog closes is caught, not only one that stays. */
+async function openSignUp(page: Page, from: 'home' | 'wizard' = 'home'): Promise<string[]> {
   const notes: string[] = [];
   page.on('console', (message) => {
     const text = message.text();
@@ -341,20 +342,47 @@ async function openSignUp(page: Page): Promise<string[]> {
       }
     }).observe(document, { subtree: true, childList: true, characterData: true });
   });
-  await page.goto('/app#/home');
-  await expect(page.getByTestId('home-page')).toBeVisible();
-  await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
-  await page.locator('.auth-signin').click();
+  // The wizard covers Home, so its own header is where the account control is pressed.
+  const bar = from === 'home' ? page.locator('body') : page.locator('.wz-wizard .wz-header');
+  if (from === 'home') {
+    await page.goto('/app#/home');
+    await expect(page.getByTestId('home-page')).toBeVisible();
+  } else {
+    await page.goto('/app#/new');
+    await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  }
+  await expect(bar.getByTestId('auth-state')).toHaveText('Not signed in');
+  await bar.locator('.auth-signin').click();
   await page.locator('.auth-card').getByRole('button', { name: 'New here? Create a free account' }).click();
   await expect(page.locator('.auth-submit')).toHaveText('Create account');
   return notes;
 }
 
+/** HOME SURVIVES SIGN-UP AND LOGIN (docs/work-specs/agent-delivery/spec.md AC-1). The wizard's
+ *  Home door sits inside the window and opens Home at each width the criterion names, on a full
+ *  load of the wizard, so the answer is the boot's and not a state left over from the last press.
+ *  The review that asked for this found it already true (evidence/review-baseline.md); this is
+ *  the regression that keeps it so. */
+async function homeOpensFromTheWizard(page: Page, when: string): Promise<void> {
+  for (const width of [1440, 768, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('about:blank');
+    await page.goto('/app#/new');
+    const home = page.locator('.wz-wizard .wz-header').getByTestId('wz-home');
+    await expect(home, `Home in the wizard ${when}, ${width}px`).toBeInViewport();
+    await home.click();
+    await expect(page.getByTestId('home-page'), `Home opens ${when}, ${width}px`).toBeVisible();
+    await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
+  }
+}
+
 test.describe('signing up (configured)', () => {
   test.skip(!SUPABASE_URL, 'set VITE_SUPABASE_URL to run the configured-mode suite');
 
-  test('a new account that works at once is signed in, and never told to check an email', async ({ page }) => {
+  test('a new account that works at once is signed in, never told to check an email, and keeps Home', async ({ page, browser }) => {
     test.skip(!SERVICE_ROLE_KEY, 'needs SUPABASE_SERVICE_ROLE_KEY to delete the account it makes');
+    // Nine full loads of the wizard, three at each width, and a second browser's sign-in.
+    test.setTimeout(150_000);
     const settings = (await (
       await fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SERVICE_ROLE_KEY } })
     ).json()) as { mailer_autoconfirm?: boolean };
@@ -365,7 +393,9 @@ test.describe('signing up (configured)', () => {
     await deleteAccountByEmail(admin, email); // a leftover from a run that died before its cleanup
 
     try {
-      const notes = await openSignUp(page);
+      await homeOpensFromTheWizard(page, 'before sign-up');
+      await page.setViewportSize({ width: 1440, height: 900 });
+      const notes = await openSignUp(page, 'wizard');
       // The reply itself, so the walk below is known to be the session case it claims to be.
       let repliedWithSession = false;
       if (settings.mailer_autoconfirm === true) {
@@ -393,13 +423,26 @@ test.describe('signing up (configured)', () => {
       await page.locator('#auth-pass').fill(password);
       await page.locator('.auth-card').getByRole('button', { name: 'Create account', exact: true }).click();
 
-      // Signed in: the topbar names the new account and the dialog is gone.
-      await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByTestId('auth-state')).toHaveText('e2e-sign-up');
+      // Signed in: the wizard's header names the new account and the dialog is gone.
+      const bar = page.locator('.wz-wizard .wz-header');
+      await expect(bar.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
+      await expect(bar.getByTestId('auth-state')).toHaveText('e2e-sign-up');
       await expect(page.locator('.auth-card')).toHaveCount(0);
       expect(repliedWithSession, 'the server answered the sign-up with a session').toBe(true);
       // And at no point did it say to go and confirm an email.
       expect(notes, 'notes the dialog showed').toEqual([]);
+      // Immediately after, Home is still in the wizard the account was made in, and then on
+      // every width; and again after a later login in a browser that never saw the account.
+      await expect(bar.getByTestId('wz-home')).toBeInViewport();
+      await homeOpensFromTheWizard(page, 'after sign-up');
+      const later = await browser.newContext();
+      try {
+        const again = await later.newPage();
+        await signInOnHome(again, email, password);
+        await homeOpensFromTheWizard(again, 'after login');
+      } finally {
+        await later.close();
+      }
     } finally {
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await deleteAccountByEmail(admin, email);

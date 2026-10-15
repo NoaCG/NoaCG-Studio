@@ -2120,8 +2120,9 @@ CG 1-20 STOP</code></pre>
                finds them here unchanged. The commands themselves stay below, in one place. -->
           <ol>
             <li>Use Claude Code, Codex or another compatible coding agent.</li>
-            <li>Install the NoaCG CLI for your agent. <a href="#agent-install">One prompt</a>
-              does the setup, or run the commands under <a href="#agent-setup">Reference</a>.</li>
+            <li>Install the NoaCG CLI for your agent, or start without installing:
+              <a href="#agent-install">one prompt</a> runs it in the session you have open. The
+              install commands are under <a href="#agent-setup">Reference</a>.</li>
             <li>Prompt the graphic you want. In Claude Code you can also type
               <code>/noacg:graphic</code>.</li>
             <li>It appears in your NoaCG library, ready for a rundown.</li>
@@ -2143,33 +2144,14 @@ CG 1-20 STOP</code></pre>
 
           <h3 id="agent-install">Paste this to your agent and start building</h3>
           <p>
-            Your agent picks the install it needs, runs it, checks that it worked and asks you
-            what to make. It runs a couple of install commands that you have to approve.
+            It works in the session you have open, with nothing to install first. The agent checks
+            its setup and, if this computer is not connected yet, asks you to connect your NoaCG
+            account in the browser. Then it asks what to make. Each graphic it finishes goes into
+            your library, and it gives you the links. If you do not connect, it works locally and
+            says that nothing was saved.
           </p>
-          <pre class="prompt"><code>Set up NoaCG Studio so you can build broadcast graphics for me, then ask me what to make.
-
-1. Install whichever of these matches you. Claude Code:
-     claude plugin marketplace add NoaCG/NoaCG-Studio
-     claude plugin install noacg@noacg-studio
-   Codex:
-     codex plugin marketplace add NoaCG/NoaCG-Studio
-     codex plugin add noacg@noacg-studio
-   Any other agent that speaks MCP: register a stdio server, command "npx", arguments
-   "-y @noacg/cli mcp". I will approve these commands as you run them.
-
-2. Do not wait for the install. A plugin only loads in your next session, so use
-   "npx -y @noacg/cli &lt;command&gt;" for everything today, starting with
-   "npx -y @noacg/cli docs contract" to read what a NoaCG graphic must expose.
-
-3. Verify: "npx -y @noacg/cli doctor" prints the deployment, the browser it will drive and
-   the bridge version it found. If it does not, tell me what failed and stop.
-
-4. Then tell me in one or two lines that NoaCG is ready, and ask me to describe the graphic
-   I want.
-
-The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt; --screenshots
-./shots", fix what it reports, then "npx -y @noacg/cli save &lt;dir&gt;". Saving needs
-"npx -y @noacg/cli login" once, which opens a browser for me to approve.</code></pre>
+          <!-- The same prompt Downloads shows: scripts/agent-prompt.mjs, rendered at build. -->
+          <!--agent:prompt-->
           <p>You need:</p>
           <ul>
             <li>Node.js 20 or newer.</li>
@@ -2178,7 +2160,8 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             <li>An account, but only when you save a graphic into a library.</li>
           </ul>
           <p>
-            To run the install commands by hand instead, see <a href="#agent-setup">Reference</a>.
+            To install the plugin as well, see <a href="#agent-setup">Reference</a>. It brings the
+            NoaCG skill from your next session on.
           </p>
 
           <h3 id="agent-loop">Then describe the graphic you want</h3>
@@ -2224,16 +2207,18 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             round card."
           </p>
           <p>
-            The agent builds each graphic, then sends them together with
-            <code>noacg pack --save</code>. The package appears on your Home under
-            <strong>Waiting to install</strong>. Press <strong>Install</strong>. The production
-            opens with its layers and running order, ready to operate.
+            The agent builds each graphic and saves each one to your library, with its link. If
+            you also ask for a production with a running order, it can send the set with
+            <code>noacg pack --save</code>. That package waits on your Home under
+            <strong>Waiting to install</strong> until you press <strong>Install</strong>, which
+            opens the production with its layers and running order. Install adds its own copy of
+            each graphic, so the library then holds the set twice.
           </p>
 
           <h3 id="agent-setup">Reference</h3>
           <p>
-            <strong>The install commands, one by one.</strong> These are the commands the prompt
-            above runs. All three routes install the same package.
+            <strong>The install commands, one by one.</strong> The plugin is optional: the prompt
+            above works without it. All three routes install the same package.
           </p>
           <p>
             <strong>Claude Code.</strong> The plugin brings the <code>/noacg:graphic</code> skill
