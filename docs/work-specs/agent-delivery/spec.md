@@ -616,12 +616,12 @@ Checked on `origin/main` `b5c559e2b` (the landing of #1272). Verdict: PASS.
   79 pass, 4 skipped), against a local stand-in deployment: noacg.studio's `/bridge` served on
   127.0.0.1, with `/api` either dropping every connection or answering 503 `unavailable`. Three
   scaffolded lower thirds. An invalid graphic in the set: exit 1, `invalid`, no API request, no
-  journal entry. Ten graphics of ~450 KB: `too-large` at 5.8 MB, no request. Every answer lost:
+  journal entry. Ten graphics with 420 KB of CSS each: `too-large` at 5.8 MB, no request. Every answer lost:
   three sends under one operation, one readback, then `unverified` with "Run the same command
   again"; the same command said "Resuming 3 graphics under operation" with the same id. A save
   killed once it named its operation left the journal entry and no lock, and the rerun resumed
   that operation. Two concurrent saves of the same new set sent one operation and kept one journal
-  entry. The offline 503 was sent once and reported "Not saved". No browser was left running.
+  entry (a first try timed out loading `/bridge` through the stand-in before it cached the app). The offline 503 was sent once and reported "Not saved". No browser was left running.
 - Not done here: Docker was not started and no hosted key was read, so the backend side of the
   user walk is the CI run above. Minor wording follow-up, not a blocker: a lost answer reads
   "Unconfirmed: fetch failed Run the same command again" (no full stop after the cause).
