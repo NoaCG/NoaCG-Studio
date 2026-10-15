@@ -1,0 +1,163 @@
+{
+  "costUnread": false,
+  "brief": "borga-bilingual-notice",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "fca9b20b-69ed-4d2d-aa88-dddb3a4dab7f",
+  "costCents": 0,
+  "notionalUsd": 1.7064312000000004,
+  "wallSeconds": 385,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type sponsor-rotator --design bug21 --out ../scratch/rot",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --fields Heading FI:text,Notice FI:text,Heading SV:text,Notice SV:text --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:ee9bc5463254052eb34d04dda1071ae877b0103e781023f8e33c2b9886015ea3"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:713a170881cc5a501e16fddd6443a6215b426ea0f4b7868c2eb4806fccf37404"
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 12s --background video --out ./shots/timer-12s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 9.5s --background video --out ./shots/timer-9_5s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 23s --background video --out ./shots/timer-23s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --state stress --at 5s --background video --out ./shots/stress-5s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f1=Kokous on käynnissä. Esityslista ja liitteet ovat luettavissa kaupungin verkkosivuilla. Kokous on käynnissä. Esityslista ja liitteet ovat luettavissa kaupungin verkkosivuilla. --at 3s --background video --out ./shots/long-fi.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 10.5s --background video --out ./shots/mid-xfade.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event holdSv --event resume --at 14s --background video --out ./shots/resume-14s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event holdSv --at 30s --background video --out ./shots/held-30s.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots --background video",
+      "code": 0,
+      "digest": "sha256:5d4a653d1df1c5db017293483f69593aed7a45d933b4218cc77503004de9db34"
+    },
+    {
+      "command": "noacg screenshot ./graphic --at 10.45s --background video --out ./shots/mid-xfade.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:5d4a653d1df1c5db017293483f69593aed7a45d933b4218cc77503004de9db34"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:5d4a653d1df1c5db017293483f69593aed7a45d933b4218cc77503004de9db34"
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:6a0f35c40cbbdcaba1caab8b17df4dd4e8cbc752654c26e80b304e89b590b916"
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:6a0f35c40cbbdcaba1caab8b17df4dd4e8cbc752654c26e80b304e89b590b916"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\borga-bilingual-notice.claude-code\\frames",
+    "frames": 47,
+    "crops": 4,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:6a0f35c40cbbdcaba1caab8b17df4dd4e8cbc752654c26e80b304e89b590b916"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 4,
+    "buttons": [
+      "holdFi",
+      "holdSv",
+      "resume"
+    ],
+    "missing": [
+      "lang1",
+      "lang2"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:6a0f35c40cbbdcaba1caab8b17df4dd4e8cbc752654c26e80b304e89b590b916",
+    "benchValidated": "sha256:6a0f35c40cbbdcaba1caab8b17df4dd4e8cbc752654c26e80b304e89b590b916",
+    "reviewed": "sha256:6a0f35c40cbbdcaba1caab8b17df4dd4e8cbc752654c26e80b304e89b590b916",
+    "problems": []
+  },
+  "functional": false
+}

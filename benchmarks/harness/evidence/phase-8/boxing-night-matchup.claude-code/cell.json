@@ -1,0 +1,168 @@
+{
+  "costUnread": false,
+  "brief": "boxing-night-matchup",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "d1715ab4-e335-40c0-a271-3942d044bb5a",
+  "costCents": 0,
+  "notionalUsd": 3.002020400000001,
+  "wallSeconds": 573,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types --json",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type matchup --design mu01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:e859ffdbb4f8403c8d63ce6692fa668ced8d3384cbcf16348d14d02f2b025b2c"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius --data f8=The Connemara Cyclone --data f9=Lietuvos Lokys – The Bear from Šiauliai --data f10=St. Brigid's Boxing Club, Galway --data f11=Vilniaus Bokso Akademija --data f3=7-2-0 --data f4=11-1-1 --data f2=Light Middleweight · 71 kg --data f12=4 --data f6=images/sample-white-logo.png --data f7=images/sample-green-logo.png --data f13=dark --data f14=light --out ./shots/real-onair.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius --data f8=The Connemara Cyclone --data f9=Lietuvos Lokys – The Bear from Šiauliai --data f10=St. Brigid's Boxing Club, Galway --data f11=Vilniaus Bokso Akademija --data f3=7-2-0 --data f4=11-1-1 --data f2=Light Middleweight · 71 kg --data f12=4 --data f6=images/sample-white-logo.png --data f7=images/sample-green-logo.png --data f13=dark --data f14=light --event winBlue --at 2 --out ./shots/real-selected.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius --data f8=The Connemara Cyclone --data f9=Lietuvos Lokys – The Bear from Šiauliai --data f10=St. Brigid's Boxing Club, Galway --data f11=Vilniaus Bokso Akademija --data f3=7-2-0 --data f4=11-1-1 --data f2=Light Middleweight · 71 kg --data f12=4 --data f6=images/sample-white-logo.png --data f7=images/sample-green-logo.png --data f13=dark --data f14=light --event winBlue --event lock --at 2 --out ./shots/real-locked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:50edab9f267c814359b1acf9c71cc0ebb161df9464f39e8180953d6e71f8dc50"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius-Šimkūnas --data f8=The Connemara Cyclone, Pride of the Claddagh --data f9=Lietuvos Lokys – The Bear from Šiauliai --data f10=St. Brigid's Boxing Club, Galway --data f11=Vilniaus Bokso Akademija --data f3=7-2-0 --data f4=11-1-1 --data f2=Light Middleweight · 71 kg --data f12=4 --data f6=images/sample-white-logo.png --data f7=images/sample-green-logo.png --data f13=dark --data f14=light --event winRed --at 2 --out ./shots/real-selected.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius-Šimkūnas --data f8=The Connemara Cyclone, Pride of the Claddagh --data f9=Lietuvos Lokys – The Bear from Šiauliai --data f10=St. Brigid's Boxing Club, Galway --data f11=Vilniaus Bokso Akademija --data f3=7-2-0 --data f4=11-1-1 --data f2=Light Middleweight · 71 kg --data f12=4 --data f6=images/sample-white-logo.png --data f7=images/sample-green-logo.png --data f13=dark --data f14=light --event winRed --event lock --event clear --at 2 --out ./shots/real-cleared.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --event winRed --at 2 --out ./shots/dbg1.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f3=7-2-0 --event winRed --at 2 --out ./shots/dbg2.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:aeacf3bcf0294f3396e3b9b90cd491c24c66f1029a0a39462f11a68c532d089a"
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius-Šimkūnas --data f8=The Connemara Cyclone, Pride of the Claddagh --data f9=Lietuvos Lokys – The Bear from Šiauliai --data f10=St. Brigid's Boxing Club, Galway --data f11=Vilniaus Bokso Akademija --data f3=7-2-0 --data f4=11-1-1 --data f2=Light Middleweight · 71 kg --data f12=4 --data f6=images/sample-white-logo.png --data f7=images/sample-green-logo.png --data f13=dark --data f14=light --event winRed --at 2 --out ./shots/real-selected.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius-Šimkūnas --data f8=The Connemara Cyclone, Pride of the Claddagh --data f9=Lietuvos Lokys – The Bear from Šiauliai --data f10=St. Brigid's Boxing Club, Galway --data f11=Vilniaus Bokso Akademija --data f3=7-2-0 --data f4=11-1-1 --data f2=Light Middleweight · 71 kg --data f12=4 --data f6=images/sample-white-logo.png --data f7=images/sample-green-logo.png --data f13=dark --data f14=light --event winRed --event winBlue --event lock --at 2 --out ./shots/real-locked.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f0=Seán Ó Súilleabháin --data f1=Žygimantas Jurgelevičius --event winRed --at 2s --out ./shots/real-selected-settled.png",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:c9883468da313c9974eeb7d3207898ee16f2ffa90e59c107470649b076961579"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:c9883468da313c9974eeb7d3207898ee16f2ffa90e59c107470649b076961579"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\boxing-night-matchup.claude-code\\frames",
+    "frames": 57,
+    "crops": 11,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:c9883468da313c9974eeb7d3207898ee16f2ffa90e59c107470649b076961579"
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 14,
+    "buttons": [
+      "winRed",
+      "winBlue",
+      "lock",
+      "clear"
+    ],
+    "missing": [
+      "select"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:c9883468da313c9974eeb7d3207898ee16f2ffa90e59c107470649b076961579",
+    "benchValidated": "sha256:c9883468da313c9974eeb7d3207898ee16f2ffa90e59c107470649b076961579",
+    "reviewed": "sha256:c9883468da313c9974eeb7d3207898ee16f2ffa90e59c107470649b076961579",
+    "problems": []
+  },
+  "functional": false
+}

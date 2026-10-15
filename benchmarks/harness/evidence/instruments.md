@@ -6,6 +6,48 @@ disagreement is logged here with its frame and its resolution. Newest first. Fra
 the repository (named by their calibration id; `benchmarks/harness/judge/calibration.mjs render`
 rebuilds them at zero cost).
 
+## H8 (2026-10-15): the held-out exam (judging paused, see `phase-8.md`)
+
+Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`
+on the 40 exam cells (`C:\claude\noacg-bench-archive\harness-exam-2026-10-15\cells\`), and the
+missing-action gate. Pictures: the frozen judge where it has answered, and my own look at the
+re-shot frames named.
+
+17. **The stress label rule put values on fields written for something else** (both arms, before
+    the judge). The sealed briefs key stress by position; the run named each position by its
+    registry label and matched labels. Where a package's labels share no words with the registry's,
+    the value fell back to its position and could land on an unrelated field. Read cell by cell
+    from `stress.json`'s `stressMap` against `noacg inspect`: Claude Code's quiz put the audience
+    results on its question number; its chapel reading put the English text on its English
+    reference and the attribution on its English reading; its prayer request put the family on the
+    place; its now-next put the "JETZT" label on its title; its bracket put the result lines on its
+    kicker; the harness's esports bug put the map name on its map number; and both school-auction
+    boards put "Open" on their crest image, which kept the brief's logo off. Resolution: moved by
+    hand (`exam/rekey.json`) and both arms of each of the seven briefs captured again
+    (`--recapture`) before any of them was judged. The pipeline now places every labelled value
+    before any position and never gives a position to a field a labelled value holds (the prayer
+    request's collision). Update ops differed on two pairs (the chapel reading: Claude Code's
+    reference, the harness's reading; the prayer request: Claude Code's request, the harness's
+    label); each arm re-shot with the other's Update at 1,500 ms over video
+    (`harness-exam-2026-10-15\reshoot\`): all three frames whole, nothing overlapping.
+18. **The missing-action gate against the operator surface** (3.6's word rule on free-named
+    events). Claude Code's bilingual notice offers `holdFi` ("Suomi") and `holdSv` ("Svenska"),
+    which show a language and hold it, where the brief names `lang1` and `lang2`; the gate counts
+    both missing, and the judge's single named no missing action ("the brief's described workflow
+    is still fully achievable"). Resolution: read as offered (`exam/action-readings.json`), per the
+    ruling in `phase-8.md`; the report gives the gate-only figure too. Waiting for the judge's
+    singles, the same reading is open on Claude Code's volleyball board (`undoA`/`undoB`,
+    `setA`/`setB` for `undoPoint`, `endSet`), its matchup (`winRed`/`winBlue` for `select`), its
+    head-to-head (`highlight`), its podiums (`spotlight`) and its bracket (`advance`). The same flags
+    on the harness's matchup, head-to-head, podiums and bracket do not count: those sessions were
+    not ready.
+19. **Events that did not move the machine** (coverage findings, 4.4's functional failures):
+    `settle` on both award reveals, `sold` on both auction boards, `resume` on Claude Code's
+    podiums, `undo` on the harness's volleyball board. An event can change values without changing
+    a state group (a point, a settle of a celebration), so each is to be read against its frames
+    with the judge's single before it is called a failure; counted in the report's functional
+    failures, not in "usable", as tuning counted.
+
 ## H7 (2026-10-15): tuning round 3
 
 Instruments run: the bench's `noacg coverage --stress` capture, `noacg validate` and `noacg inspect`

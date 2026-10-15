@@ -666,14 +666,18 @@ export async function recaptureCells({ runDir, rekey, cli, log = console.log }) 
       if (!zip || !cell.capture) continue;
       const stressPath = path.join(dir, 'stress.json');
       const file = JSON.parse(readFileSync(stressPath, 'utf8'));
-      for (const [key, to] of Object.entries(byArm[cell.arm] ?? {})) {
+      // Every move reads the values as they were, so two values may trade fields.
+      const original = { ...file.stress };
+      const moves = Object.entries(byArm[cell.arm] ?? {}).map(([key, to]) => {
         const was = file.stressMap?.[key];
         if (!was) throw new Error(`--recapture: ${d} has no stress key "${key}"`);
-        const valueOf = file.stress[was.to];
-        delete file.stress[was.to];
+        return { key, to, from: was.to };
+      });
+      for (const m of moves) delete file.stress[m.from];
+      for (const m of moves) {
         // `null`: the package has no field this value was written for, so it is shown nowhere.
-        if (to !== null) file.stress[to] = valueOf;
-        file.stressMap[key] = { to, by: to === null ? 'dropped' : 'rekeyed', from: was.to, label: null };
+        if (m.to !== null && m.from !== null) file.stress[m.to] = original[m.from];
+        file.stressMap[m.key] = { to: m.to, by: m.to === null ? 'dropped' : 'rekeyed', from: m.from, label: null };
       }
       writeFileSync(stressPath, `${JSON.stringify(file, null, 2)}\n`);
       const frames = path.join(dir, 'frames');

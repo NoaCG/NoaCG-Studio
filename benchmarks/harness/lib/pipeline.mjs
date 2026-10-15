@@ -57,17 +57,32 @@ export function missingActions(brief, buttons) {
 export function stressFile({ brief, descriptors, cellDir }) {
   const stress = {};
   const stressMap = {};
-  const taken = new Set();
   const fields = descriptors ?? [];
-  for (const [key, value] of Object.entries(brief.stress ?? {})) {
-    const positional = /^f\d+$/.test(key) || key === 'logo' || key === 'background';
-    const free = fields.filter((d) => !taken.has(d.key));
-    const want = words(key);
-    const field = positional ? null : free.find((d) => words(d.label ?? '').join(' ') === want.join(' ')) ?? free.find((d) => containsWords(words(d.label ?? ''), want));
-    const target = field ? field.key : brief.stressPositions?.[key] ?? key;
-    if (field) taken.add(field.key);
+  const entries = Object.entries(brief.stress ?? {});
+  const isKey = (key) => /^f\d+$/.test(key) || key === 'logo' || key === 'background';
+  const taken = new Set(entries.map(([key]) => key).filter(isKey));
+  // Labels first, for every key: exactly the words, then a label that holds them; no field twice.
+  const placed = new Map();
+  for (const exact of [true, false]) {
+    for (const [key] of entries) {
+      if (isKey(key) || placed.has(key)) continue;
+      const want = words(key);
+      const field = fields.find((d) => !taken.has(d.key) && (exact ? words(d.label ?? '').join(' ') === want.join(' ') : containsWords(words(d.label ?? ''), want)));
+      if (field) {
+        placed.set(key, field);
+        taken.add(field.key);
+      }
+    }
+  }
+  // Then the positions the brief gave, where no labelled value already sits.
+  for (const [key, value] of entries) {
+    const field = placed.get(key);
+    const position = brief.stressPositions?.[key];
+    const byPosition = !field && !isKey(key) && position && !taken.has(position);
+    if (byPosition) taken.add(position);
+    const target = field ? field.key : byPosition ? position : key;
     stress[target] = value;
-    stressMap[key] = { to: target, by: field ? 'label' : positional ? 'key' : brief.stressPositions?.[key] ? 'position' : 'unmapped', label: (field ?? fields.find((d) => d.key === target))?.label ?? null };
+    stressMap[key] = { to: target, by: field ? 'label' : isKey(key) ? 'key' : byPosition ? 'position' : 'unmapped', label: (field ?? fields.find((d) => d.key === target))?.label ?? null };
   }
   const file = path.join(cellDir, 'stress.json');
   writeFileSync(file, `${JSON.stringify({ ...brief, stress, stressMap }, null, 2)}\n`);

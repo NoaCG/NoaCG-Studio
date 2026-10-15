@@ -243,7 +243,7 @@ const usd = (cents) => `$${(cents / 100).toFixed(2)}`;
 /** A tally as the report's tables: the verdict's lines, the arms side by side, one row per brief. */
 export function tallyMarkdown(t) {
   const { harness: H, reference: R, preference: P } = t;
-  const mark = (g) => (!g.ran ? 'not run' : !g.delivered ? g.outcome : [g.usable ? 'usable' : 'not usable', g.airable === false ? 'not airable' : null, g.defects.length ? `${g.defects.length} basic mistake(s)` : null, g.missing.length ? `missing ${g.missing.join('/')}` : null, g.readAsOffered?.length ? `${g.readAsOffered.join('/')} offered under other names` : null, g.validatorErrors.length ? 'validator errors' : null, g.unmoved.length ? `${g.unmoved.length} unmoved event(s)` : null].filter(Boolean).join(', '));
+  const mark = (g) => (!g.ran ? 'not run' : !g.delivered ? g.outcome : [g.usable ? 'usable' : g.judged ? 'not usable' : 'not yet judged', g.airable === false ? 'not airable' : null, g.defects.length ? `${g.defects.length} basic mistake(s)` : null, g.missing.length ? `missing ${g.missing.join('/')}` : null, g.readAsOffered?.length ? `${g.readAsOffered.join('/')} offered under other names` : null, g.validatorErrors.length ? 'validator errors' : null, g.unmoved.length ? `${g.unmoved.length} unmoved event(s)` : null].filter(Boolean).join(', '));
   const out = [
     `**Verdict: ${t.verdict}**${t.incomplete.length ? ` (${t.incomplete.join('; ')})` : ''}`,
     '',

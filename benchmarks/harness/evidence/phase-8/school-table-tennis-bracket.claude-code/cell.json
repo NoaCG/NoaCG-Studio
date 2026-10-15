@@ -1,0 +1,159 @@
+{
+  "costUnread": false,
+  "brief": "school-table-tennis-bracket",
+  "arm": "claude-code",
+  "model": "claude-opus-5-5",
+  "outcome": "delivered",
+  "reason": null,
+  "sessionId": "d2914188-57dc-4c0c-be2e-1575c440be23",
+  "costCents": 0,
+  "notionalUsd": 3.0397795999999992,
+  "wallSeconds": 595,
+  "cleanup": null,
+  "progress": null,
+  "trace": [
+    {
+      "command": "noacg --version",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg doctor",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg types",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg scaffold --type bracket --design br01 --out ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg docs contract",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:1091aaad811cd3012f91c6688bef992b745d5f948f59170166b123bb95a55489"
+    },
+    {
+      "command": "noacg screenshot --help",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:630ffa4448d3054c7c583247c123791340dd56352b689b0b6aee06f062f1e389"
+    },
+    {
+      "command": "noacg screenshot ./graphic --event qf1Top --event qf2Bot --event qf3Top --event qf4Bot --event sf1Bot --out ./shots/mid.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --event qf1Top --event qf2Bot --event qf3Top --event qf4Bot --event sf1Bot --event sf2Top --event finalBot --event crown --at 3s --out ./shots/crowned.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f2=Anna-Kaisa Väänänen-Pöyhönen\nEetu Kärkkäinen\nVenla Höglund\nOnni Väisänen\nSiiri Lähteenmäki\nVäinö Törmänen-Äijälä\nElsa Pöllänen\nLeevi Järvelä --event qf1Top --event qf3Bot --out ./shots/long.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f2=Anna-Kaisa Väänänen-Pöyhönen\nEetu Kärkkäinen\nVenla Höglund\nOnni Väisänen\nSiiri Lähteenmäki\nVäinö Törmänen-Äijälä\nElsa Pöllänen\nLeevi Järvelä --event qf1Top --event qf2Top --event qf3Top --event qf4Top --event sf1Top --event sf2Top --event finalTop --event crown --at 3s --out ./shots/long-crown.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f2=Anna-Kaisa Väänänen-Pöyhönen\nEetu Kärkkäinen\nVenla Höglund\nOnni Väisänen\nSiiri Lähteenmäki\nVäinö Törmänen-Äijälä\nElsa Pöllänen\nLeevi Järvelä --event qf1Top --event qf2Top --event qf3Bot --out ./shots/long.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg screenshot ./graphic --data f2=Anna-Kaisa Väänänen-Pöyhönen\nEetu Kärkkäinen\nVenla Höglund\nOnni Väisänen\nSiiri Lähteenmäki\nVäinö Törmänen-Äijälä\nElsa Pöllänen\nLeevi Järvelä --event qf1Top --event qf2Top --event qf3Top --event qf4Top --event sf1Top --event sf2Top --event finalTop --event crown --at 3s --out ./shots/long-crown.png --background video",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg validate ./graphic --screenshots ./shots",
+      "code": 0,
+      "digest": "sha256:8fef1b9eff5f26f8318e7230b80f079bc1dd7a4ad9b3bcd9b74892c175235ca0"
+    },
+    {
+      "command": "noacg inspect ./graphic",
+      "code": 0,
+      "digest": null
+    },
+    {
+      "command": "noacg record ./graphic --out ./outputs/record.json",
+      "code": 0,
+      "digest": "sha256:8fef1b9eff5f26f8318e7230b80f079bc1dd7a4ad9b3bcd9b74892c175235ca0"
+    }
+  ],
+  "shape": {
+    "ok": true
+  },
+  "capture": {
+    "exit": 0,
+    "dir": "C:\\Users\\ahonemi\\AppData\\Local\\Temp\\noacg-harness\\H8-exam\\cells\\school-table-tennis-bracket.claude-code\\frames",
+    "frames": 124,
+    "crops": 2,
+    "findings": [],
+    "failures": [],
+    "digest": "sha256:8fef1b9eff5f26f8318e7230b80f079bc1dd7a4ad9b3bcd9b74892c175235ca0",
+    "rekeyed": [
+      "Ties (one per line: \"Round | Side A score | Side B score\")",
+      "Round being played"
+    ]
+  },
+  "validation": {
+    "ok": true,
+    "errors": [],
+    "warnings": 0
+  },
+  "operator": {
+    "inputs": 3,
+    "buttons": [
+      "qf1Top",
+      "qf1Bot",
+      "qf2Top",
+      "qf2Bot",
+      "qf3Top",
+      "qf3Bot",
+      "qf4Top",
+      "qf4Bot",
+      "sf1Top",
+      "sf1Bot",
+      "sf2Top",
+      "sf2Bot",
+      "finalTop",
+      "finalBot",
+      "crown",
+      "resetDraw"
+    ],
+    "missing": [
+      "advance"
+    ]
+  },
+  "digest": {
+    "ok": true,
+    "delivered": "sha256:8fef1b9eff5f26f8318e7230b80f079bc1dd7a4ad9b3bcd9b74892c175235ca0",
+    "benchValidated": "sha256:8fef1b9eff5f26f8318e7230b80f079bc1dd7a4ad9b3bcd9b74892c175235ca0",
+    "reviewed": "sha256:8fef1b9eff5f26f8318e7230b80f079bc1dd7a4ad9b3bcd9b74892c175235ca0",
+    "problems": []
+  },
+  "functional": false
+}

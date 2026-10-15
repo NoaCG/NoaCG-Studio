@@ -536,6 +536,7 @@ test('nothing starts unless claude auth status in that environment reports the O
   assert.equal(checkSubscriptionAuth({ claude: 'claude', env: {}, run: answering({ loggedIn: true, authMethod: 'oauth_token' }) }).authMethod, 'oauth_token');
   assert.deepEqual(usageLimit({ result: 'Claude AI usage limit reached|1792000000' }), { resetsAt: new Date(1792000000 * 1000).toISOString() });
   assert.equal(usageLimit({ result: 'done' }), null);
+  assert.deepEqual(usageLimit({ result: "You've reached your Fable limit. Switch to another model to continue." }), { resetsAt: null }, "one model's own cap pauses too, with no reset named");
   // Claude Code 2.1.296's wording, a wall-clock reset in a named zone (Kyiv is UTC+3 in October).
   assert.deepEqual(usageLimit({ result: "You've hit your session limit · resets 12:20am (Europe/Kyiv)" }, Date.parse('2026-10-14T20:57:00Z')), { resetsAt: '2026-10-14T21:20:00.000Z' });
   assert.deepEqual(usageLimit({ result: "You've hit your session limit · resets 3pm (Europe/Kyiv)" }, Date.parse('2026-10-14T20:57:00Z')), { resetsAt: '2026-10-15T12:00:00.000Z' });
@@ -1097,6 +1098,9 @@ test('an exam brief\'s positional stress is named by its field\'s label, and lan
   const fallback = read(typed, [{ key: 'f0', label: 'Headline' }, { key: 'f1', label: 'Strap' }]);
   assert.deepEqual(fallback.stress, { f0: 'A long name', f1: 'A long title' });
   assert.equal(fallback.stressMap.Title.by, 'position');
+  // A position a labelled value already holds is not taken again (H8's prayer request: no Label field).
+  const held = read({ stress: { Label: 'L', Request: 'R' }, stressPositions: { Label: 'f0', Request: 'f1' } }, [{ key: 'f0', label: 'Request' }, { key: 'f1', label: 'Sent by' }]);
+  assert.deepEqual([held.stress, held.stressMap.Label.by], [{ f0: 'R', Label: 'L' }, 'unmapped']);
 });
 
 /** Cells and judge answers for an exam tally: `rows` [{ h, r, pair }] per brief. */
@@ -1204,6 +1208,10 @@ test('a misplaced stress value is moved by hand, and both arms of its brief are 
   assert.equal(cli.calls.filter((c) => c[0] === 'coverage').length, 2, 'the other arm is captured again too');
   assert.ok(existsSync(path.join(runDir, 'cells', 'x.managed-agents', 'frames.before-rekey', 'coverage.json')), 'the first frames are kept');
   await assert.rejects(() => recaptureCells({ runDir, rekey: { y: {} }, cli, log: () => undefined }), /no cell of y/);
+  // Two values may trade fields: each move reads the values as they were.
+  const swapped = await recaptureCells({ runDir, rekey: { x: { 'managed-agents': { Name: 'f12', 'Stage / map': 'f0' } } }, cli, log: () => undefined });
+  assert.ok(swapped.length === 2);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(runDir, 'cells', 'x.managed-agents', 'stress.json'), 'utf8')).stress, { f12: 'Long name', f0: 'Map 2' });
 });
 
 test('the exam judges only what was handed in, a few judgements at a time', async () => {
