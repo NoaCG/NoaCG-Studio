@@ -31,6 +31,8 @@ const EXAM_BRIEFS = 20;
 const ROUND_CEILINGS_CENTS = [1_500, 900];
 /** 5.1's $0 stages: no `--build` session is ever created for them. */
 export const ZERO_CREDIT_PHASES = ['H0', 'H1', 'H2', 'H4'];
+/** 5.2: the phase that reserves the exam; every phase after it up to the exam is tuning. */
+export const RESERVING_PHASE = 'H4';
 /** A phase id in its one spelling: `H4`, never `H04`, so no alias slips past a refusal. */
 export const PHASE = /^H(?:0|[1-9]\d*)$/;
 
@@ -155,10 +157,10 @@ export function phaseCompleted(ledger, phase) {
   return ledger.entries.some((e) => e.phase === phase && e.kind === 'phase' && e.outcome === 'completed');
 }
 
-/** The tuning phases (after H4's reservation, before `phase`) the ledger does not hold as completed. */
+/** The tuning phases (after RESERVING_PHASE, before `phase`) the ledger does not hold as completed. */
 export function openTuning(ledger, phase) {
   const open = [];
-  for (let n = 5; n < Number(phase.slice(1)); n++) if (!phaseCompleted(ledger, `H${n}`)) open.push(`H${n}`);
+  for (let n = Number(RESERVING_PHASE.slice(1)) + 1; n < Number(phase.slice(1)); n++) if (!phaseCompleted(ledger, `H${n}`)) open.push(`H${n}`);
   return open;
 }
 

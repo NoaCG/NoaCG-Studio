@@ -46,7 +46,7 @@ import { buildGallery } from '../benchmarks/harness/lib/gallery.mjs';
 import { combinePair, judgeInvocation, judgePair, judgeSingle, loadJudge } from '../benchmarks/harness/lib/judge.mjs';
 import { makeSplit, membershipSha, pairsOf, score, THRESHOLDS } from '../benchmarks/harness/judge/calibration.mjs';
 import { admit, appendEntry, emptyLedger, examPending, heldCents, openTuning, phaseCompleted, phaseSpentCents, readLedger, remainingCents, reservation, spentCents, writeLedger } from '../benchmarks/harness/lib/ledger.mjs';
-import { bundleSha256, examSkill, findSkill, pinnedPlugin, readSkill, skillAt } from '../benchmarks/harness/lib/skill-pin.mjs';
+import { bundleSha256, docTopics, examSkill, findSkill, pinnedPlugin, readSkill, skillAt } from '../benchmarks/harness/lib/skill-pin.mjs';
 import { digestCheck, missingActions, runCell, stressFile } from '../benchmarks/harness/lib/pipeline.mjs';
 import { openSealed, privatePassphraseFile, readSealed, sealedShape, verifySealed } from '../benchmarks/harness/lib/sealed.mjs';
 import { assertNoKeys, checkSubscriptionAuth, subscriptionEnv, usageLimit } from '../benchmarks/harness/lib/subscription.mjs';
@@ -551,6 +551,10 @@ test('the reference arm runs claude -p outside the repository, on the subscripti
     return { status: 0, stdout: JSON.stringify({ session_id: 'cc-1', num_turns: 12, total_cost_usd: 4.2, is_error: false, result: 'done' }), stderr: '' };
   };
   const arm = claudeCodeArm({ claude: 'claude', token: 'oauth-token', model: 'claude-opus-5-5', url: 'https://noacg.studio', run });
+  // A build checks the subscription before any arm's first session, in an environment built as a session's.
+  assert.equal(arm.preflight(tmp()).authMethod, 'oauth_token');
+  const early = seen.shift();
+  assert.ok(early.args.includes('status') && early.env.CLAUDE_CODE_OAUTH_TOKEN === 'oauth-token' && !Object.keys(early.env).some((k) => /API_KEY|BENCH/.test(k)));
   const result = await arm.run({ brief: BRIEF, cellDir: tmp() });
   assert.equal(result.outcome, 'delivered');
   assert.equal(result.costCents, 0, 'the subscription spends no credit');
@@ -956,7 +960,14 @@ test('a cli/skill another plan changed after tuning: the exam runs the lock\'s s
   // --build makes these checks, and the agent's, before it uploads anything or creates a session.
   const source = readFileSync(path.join(ROOT, 'scripts', 'harness-bench.mjs'), 'utf8');
   const upload = source.indexOf('uploaded = { id: await upload(');
-  for (const step of ['examSkill({', 'agentReadBack(sdk', 'pinnedPlugin(', 'if (dry) {']) assert.ok(source.indexOf(step) > 0 && source.indexOf(step) < upload, `${step} before the upload`);
+  for (const step of ['examSkill({', 'agentReadBack(sdk', 'pinnedPlugin(', 'reference.preflight(', 'if (dry) {']) assert.ok(source.indexOf(step) > 0 && source.indexOf(step) < upload, `${step} before the upload`);
+  // While the exam is pending, nothing but the exam builds: a sync it would need is refused.
+  assert.match(refuseBuild(examLedger(), 'H9'), /H8's exam is pending: the bench is frozen for it/);
+  assert.equal(refuseBuild(examLedger(), 'H8'), null);
+  // The topics are read from the CLI's source, which every build a session runs is compiled from.
+  const printed = docTopics();
+  assert.ok(printed.includes('contract'));
+  for (const t of printed) assert.ok(existsSync(path.join(ROOT, 'cli', 'skill', 'noacg-graphic', 'references', `${t}.md`)), `noacg docs ${t} reads a reference the skill has`);
 });
 
 test('the lock\'s skill is found in git: the newest commit holding its bytes, and the commits since that changed them', () => {

@@ -353,10 +353,17 @@ export function lastReviewed(calls) {
 
 export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join(ROOT, 'cli', 'plugin'), timeoutMinutes = 25, run } = {}) {
   let authChecked = false;
+  const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
+  const envFor = (home, binDir) => subscriptionEnv({ token, home, noacgUrl: url, pathDirs: [binDir, path.dirname(process.execPath), path.dirname(claude), system] });
   return {
     id: 'claude-code',
     funding: 'subscription',
     model,
+    /** The subscription's check, made before a build's first session of any arm: a reference arm
+     *  that cannot start must not be found out after the credit arm has spent. */
+    preflight(dir) {
+      return checkSubscriptionAuth({ claude, env: envFor(path.join(dir, 'home'), null), ...(run ? { run } : {}) });
+    },
     async run({ brief, cellDir }) {
       const sessionDir = path.join(cellDir, 'reference');
       if (path.resolve(sessionDir).startsWith(ROOT + path.sep)) throw new Error(`the reference session must run outside the repository (${ROOT}), or it loads this repo's instructions`);
@@ -365,8 +372,7 @@ export function claudeCodeArm({ claude, token, model, url, pluginDir = path.join
       const ledgerFile = path.join(sessionDir, 'calls.jsonl');
       mkdirSync(path.join(work, 'outputs'), { recursive: true });
       writeShim(binDir, ledgerFile);
-      const system = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32') : '/usr/bin';
-      const env = subscriptionEnv({ token, home: path.join(sessionDir, 'home'), noacgUrl: url, pathDirs: [binDir, path.dirname(process.execPath), path.dirname(claude), system] });
+      const env = envFor(path.join(sessionDir, 'home'), binDir);
       if (!authChecked) {
         checkSubscriptionAuth({ claude, env, ...(run ? { run } : {}) });
         authChecked = true;

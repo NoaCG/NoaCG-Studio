@@ -35,7 +35,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agentCreateBody, agentUpdateBody, definitionHash, readAgentDefinition, readEnvironmentDefinition, serverDrift, subagentFiles, SYSTEM_PROMPT_MAX_LINES } from '../benchmarks/harness/lib/agent-def.mjs';
 import { examPending, LEDGER_FILE, readLedger } from '../benchmarks/harness/lib/ledger.mjs';
-import { findSkill } from '../benchmarks/harness/lib/skill-pin.mjs';
+import { docTopics, examSkill, findSkill } from '../benchmarks/harness/lib/skill-pin.mjs';
 import { benchEnv, mainEnv } from './lite-eval-paths.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,7 +85,7 @@ export function workspacePlan({ workspace, ledger, lock, environment, agent, sub
   const frozen = workspace === 'bench' && lock?.skill ? examPending(ledger) : null;
   const steps = syncPlan({ lock, environment, agent, subagents, drift, bundle: frozen ? { ...bundle, sha256: lock.skill.bundleSha256 } : bundle });
   const changes = steps.filter((s) => s.action !== 'keep');
-  const refusal = frozen && changes.length ? `the bench agent is frozen for ${frozen}'s exam, which runs v${lock.agent.version} as tuned, and this plan would ${changes.map((s) => `${s.action} ${s.resource}`).join(', ')}: that would be measured untuned (AC-7, AC-16). Restore what changed; re-syncing before the exam is a decision for the spec's phase notes` : null;
+  const refusal = frozen && changes.length ? `the bench agent is frozen for ${frozen}'s exam, which runs v${lock.agent.version} as tuned, and this plan would ${changes.map((s) => `${s.action} ${s.resource}`).join(', ')}: that would be measured untuned (AC-7, AC-16). Restore what changed; a re-sync before the exam is a decision for the spec's phase notes, made by reverting the freeze` : null;
   return { steps, frozen, skillMoved: Boolean(frozen) && bundle.sha256 !== lock.skill.bundleSha256, refusal };
 }
 
@@ -197,23 +197,25 @@ if (isMain) {
         unread = e instanceof Error ? e.message : String(e);
       }
     }
-    const { steps, frozen, skillMoved, refusal } = workspacePlan({ workspace, ledger: readLedger(LEDGER_FILE), lock, environment, agent, subagents, bundle, drift: readBack?.drift });
+    const ledger = readLedger(LEDGER_FILE);
+    const { steps, frozen, skillMoved, refusal } = workspacePlan({ workspace, ledger, lock, environment, agent, subagents, bundle, drift: readBack?.drift });
     console.log(`Plan for the ${workspace} workspace (${path.relative(ROOT, lockFile)}${lock ? '' : ', none yet'}):`);
     for (const s of steps) console.log(`  ${s.resource.padEnd(12)} ${s.action}${s.drift ? ` (the server's v${lock.agent.version} differs in ${s.drift.join(', ')})` : ''}`);
     if (lock?.agent && !readBack) console.log(`  the server's v${lock.agent.version} not read back (${unread}): this plan is from the lock alone`);
     if (frozen) {
-      const tuned = skillMoved ? findSkill(ROOT, lock.skill.bundleSha256) : null;
-      const cause = !skillMoved ? '' : !tuned ? ' (no commit on this branch holds the lock\'s bytes)' : tuned.since.length ? ` (changed by ${tuned.since.join('; ')})` : ' (changed in the working tree)';
-      console.log(`  frozen for ${frozen}'s exam: agent v${lock.agent.version} keeps skill ${lock.skill.version} (bundle ${lock.skill.bundleSha256.slice(0, 12)}) as tuned${skillMoved ? `; cli/skill/noacg-graphic is now ${bundle.sha256.slice(0, 12)}${cause}, which H9 reconciles` : ''}`);
+      // What the exam's own --build will say of this checkout's skill, in its words.
+      const exam = skillMoved ? examSkill({ ledger, phase: frozen, lock, bundle, tuned: findSkill(ROOT, lock.skill.bundleSha256), topics: docTopics(ROOT) }) : null;
+      console.log(`  frozen for ${frozen}'s exam: agent v${lock.agent.version} keeps skill ${lock.skill.version} as tuned${exam ? `. ${exam.note ?? `${frozen}'s --build refuses: ${exam.refusal}`}` : ''}`);
     }
     for (const [file, def] of Object.entries(subagents)) console.log(`  ${file} system prompt ${def.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines`);
-    console.log(`  system prompt ${agent.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines; skill ${bundle.files.length} file(s) of noacg v${bundle.cliVersion}`);
-    if (!argv.includes('--apply')) {
+    console.log(`  system prompt ${agent.systemLines} of ${SYSTEM_PROMPT_MAX_LINES} lines; cli/skill ${bundle.files.length} file(s) of noacg v${bundle.cliVersion}`);
+    if (refusal) {
+      console.log(`Nothing to apply: ${refusal}.`);
+      if (argv.includes('--apply')) process.exitCode = 1;
+    } else if (!argv.includes('--apply')) {
       console.log('Nothing changed: add --apply to carry it out.');
     } else if (steps.every((s) => s.action === 'keep')) {
       console.log('Everything matches the lock; nothing to do.');
-    } else if (refusal) {
-      throw new Error(refusal);
     } else {
       if (!client) throw new Error(`no key for the ${workspace} workspace in .env (${workspace === 'bench' ? 'ANTHROPIC_BENCH_API_KEY' : 'ANTHROPIC_API_KEY'})`);
       const save = (state) => writeFileSync(lockFile, `${JSON.stringify(state, null, 2)}\n`);
