@@ -2193,8 +2193,9 @@ CG 1-20 STOP</code></pre>
           </p>
           <pre><code>npx @noacg/cli login</code></pre>
           <p>
-            The key it stores can only save graphics to your library and send packages to your
-            Home. To revoke it, go to Settings, then Account, then Agent access.
+            The key it stores can save graphics to your library, make productions of the graphics
+            it saves, and send packages to your Home. It cannot publish or play anything. To
+            revoke it, go to Settings, then Account, then Agent access.
           </p>
           <p>
             <code>save</code> refuses a graphic that does not pass validation. A saved graphic is
@@ -2207,12 +2208,16 @@ CG 1-20 STOP</code></pre>
             round card."
           </p>
           <p>
-            The agent builds each graphic and saves each one to your library, with its link. If
-            you also ask for a production with a running order, it can send the set with
-            <code>noacg pack --save</code>. That package waits on your Home under
-            <strong>Waiting to install</strong> until you press <strong>Install</strong>, which
-            opens the production with its layers and running order. Install adds its own copy of
-            each graphic, so the library then holds the set twice.
+            The agent builds each graphic and saves the whole set to your library in one save,
+            with a link for each graphic. If you also ask for a production with a running order,
+            the same save makes it, with its layers and running order, and the agent gives you
+            its link. There is nothing to install. If the agent says a save is unconfirmed, it
+            runs the same command again, which never saves a second copy.
+          </p>
+          <p>
+            A package sent with <code>noacg pack --save</code> is the older route. It waits on
+            your Home under <strong>Waiting to install</strong> until you press
+            <strong>Install</strong>, and Home tells you when its graphics were already delivered.
           </p>
 
           <h3 id="agent-setup">Reference</h3>
