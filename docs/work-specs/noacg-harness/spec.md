@@ -974,7 +974,7 @@ the spend added to the ledger, and the check's findings.
   The ledger sums to 5,468 cents (H8 3,334 over 20 credit sessions, at most 201 each, under the
   233 the wall books). The H8 ceiling has $13.26 left, $32.06 remains for everything else, and
   `admit` refuses a session once less than $2.33 is under the ceiling. A re-run `--build H8`
-  skips the 40 ledgered cells, and every other phase is refused while H8 is pending. All 20
+  on the same model skips the 40 ledgered cells, and every other phase is refused while H8 is pending. All 20
   sessions return 404 on free reads with the bench key, and the workspace and session file lists
   are empty. The committed `prompt.md` and `rubric.json` hash to `judge.lock.json`, unchanged
   since `851f23255`, and every answer carries fingerprint `60bfb08e18a4`. A re-tally from the
