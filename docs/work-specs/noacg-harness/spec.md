@@ -956,6 +956,51 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H5 check (2026-10-15, on `384f0eff2`)
+
+- **Verdict: PASS.** Checked on `main` `384f0eff2` (H5 merged as `4a089f9bb`, PR #1247); no product
+  code changed, no credit spent, no session created. One `claude -p` re-judgement on the
+  subscription (below, $1.48 notional, not in the ledger: no phase was passed).
+- **Order (AC-6):** `1b6f5db84` (hypothesis, ceiling, signal, the alias rule in code and in
+  `tuning/briefs.json`) was on GitHub by 06:05:27Z (its first check run started then); the first
+  session's first event is 06:05:35Z. The PR timeline shows the three build commits and no force
+  push.
+- **Spend:** the ledger sums to 890 cents (H3 266, H5 624); five H5 sessions 99, 133, 88, 115,
+  189; `m` = 128.8, `B` = 194, `R` = 20 x 233 = 4,660, `T` = 4,450: two $15 rounds. Median wall
+  337 s. From a copy of the raw events: 129 requests, 124 follow-ons, none reading under 99.927%
+  of the previous context, the largest $0.3899 (the scoreboard; the token total $6.20 plus running
+  time matches the $6.24). All five sessions 404 and their scoped file lists empty on free reads.
+- **Verdict figures:** the 15 counted answers and 4 void ones re-tallied: pairs 2 harness, 2
+  August, 1 tie (the news lower third, each order preferring the second shown); singles as
+  `phase-5.md` says; 24 calls, $79.04 notional. The judge files hash to the lock as committed (LF)
+  and the fingerprint is `60bfb08e18a4`. Re-judging `live-vote.managed-agents` alone gave the same
+  answer: not airable, high, text over text at the 1,500 ms Update frame. I looked at that frame
+  and re-shot it from the delivered zip: the first option's wrapped lines lie on the second row.
+- **The alias rule was fixed before counting.** It was committed and pushed before any session
+  existed. Without it the harness scoreboard would count `flag` missing (accepted 3 of 5, not 4).
+  It is the brief's own word: the brief asks for "a visible 'goal' flag moment for either side",
+  the judge independently found no missing action, and `event-goala-01500ms.jpg` shows a GOAL
+  HOME flag. Re-run through `missingActions` on all ten cells, the counts are as committed.
+- **The stress fix leaves the verdict sound.** The re-keying came after the first live-vote answer
+  was seen, but it applies to both arms. I checked every re-keyed value against `noacg inspect`'s
+  labels in all four packages, and the long values are the v1 brief's own words. No counted figure
+  moved: the harness live vote failed before and after, August A's passed before and after, and
+  both debate clocks were airable before and after. Every pair was judged on the corrected frames
+  only.
+- **New, not verdict-changing: the Update strip drives each package's first text field**
+  (`cli/src/coverage.ts`, `textKeys[0]`), so the two arms are updated on different fields. On
+  `live-vote` the harness's Update set its options; August A's set only its kicker, so the one
+  counted defect sits in a state the reference never entered. Re-shot with the harness's Update
+  (`noacg screenshot --event "f2=<long options>" --at 1500ms`), August A's rows grow and nothing
+  overlaps, so the live-vote verdict stands. Logged as `instruments.md` entry 9.
+- **Code and tests:** `harness-bench.test.mjs` 32 of 32 (the 25-line prompt cap included; the
+  prompt is 15 lines); `--control` run directly: CONTROL PASSED at $0; PR #1247 touched no `cli/`,
+  `cli/skill/`, `agents/`, `src/` or `api/`; #1244 and #1246 open.
+- **For H6:** the carry above stands (the critic, `--critic-cents 22` until measured, margin `o`
+  39, decide #1246 in `phase-6.md` before spending). Also read each cell's `coverage.json` Update
+  op before judging pairs: if the arms were updated on different kinds of field, re-shoot the
+  other arm with the same Update and log it, as here. The same applies to H8.
+
 ### H5. Tuning round 1: the August reproduction (built 2026-10-15)
 
 - **Check's findings (H4, on `fc0237bc8`):** AC-5 holds: `--control` run directly passed at $0
