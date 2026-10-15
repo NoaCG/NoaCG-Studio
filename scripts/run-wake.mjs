@@ -188,7 +188,7 @@ export function wakeReport(runs) {
 /** The first words of a check that leave nothing for a firing to do: its prompt gate blocks them. */
 export const QUIET_VERDICTS = Object.freeze(['alive', 'unknown', 'waiting']);
 
-/** The wake-up sessions' title, which the firing that acts archives. */
+/** The wake-up task's title in the task list. */
 export const WAKE_TITLE = 'NoaCG run wake-up';
 
 /** The create_scheduled_task arguments; `repo` is the primary checkout, where its runs start. */
