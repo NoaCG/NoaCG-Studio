@@ -14,7 +14,8 @@ import path from 'node:path';
 import { BridgeClient, type BridgeValidation } from '../bridgeClient.js';
 import { cliVersion, noacgUrl } from '../config.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { ApiError, explainFailure, resolveKey, saveGraphic } from '../auth.js';
+import { resolveKey, saveGraphic } from '../auth.js';
+import { deliverAndConfirm, describeReceipt, type DeliveryReceipt } from '../receipt.js';
 import { readPackageInput } from '../workspace.js';
 import { describeValidation } from './validate.js';
 
@@ -25,8 +26,12 @@ export interface SaveOutcome {
   name?: string;
   validation?: BridgeValidation;
   error?: string;
-  /** For an agent reading `--json`: which of the documented refusals this was. */
-  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package';
+  /** For an agent reading `--json`: which of the documented refusals this was. `unverified`: the
+   *  answer was lost and a readback did not find it - check with `noacg status` before saving again. */
+  reason?: 'not-logged-in' | 'invalid' | 'refused' | 'not-a-noacg-package' | 'unverified';
+  /** The delivery receipt (docs/AGENT_SAVE.md §9): account, deployment, state, and whether a
+   *  readback confirmed it. */
+  receipt?: DeliveryReceipt;
 }
 
 /** The refusal every entrance gives before it starts a browser. */
@@ -60,13 +65,19 @@ export async function savePackage(
   }
   const name = opts.name?.trim() || template.name || path.basename(input).replace(/\.zip$/i, '');
   const doc = await bridge.graphicDoc(template, { name, ...(opts.folder ? { folder: opts.folder } : {}), origin: { tool: 'noacg-cli', version: cliVersion() } });
-  try {
-    const saved = await saveGraphic(origin, found.key, doc);
-    return { ok: true, id: saved.id, url: saved.url, name, validation };
-  } catch (e) {
-    const message = e instanceof ApiError ? explainFailure(e.failure) : e instanceof Error ? e.message : String(e);
-    return { ok: false, reason: 'refused', validation, error: `Not saved: ${message}` };
+  const sent = await deliverAndConfirm(origin, found.key, 'graphic', (operationId) => saveGraphic(origin, found.key, doc, operationId));
+  if (sent.ok) return { ok: true, id: sent.id, url: sent.url, name, validation, receipt: sent.receipt };
+  if (sent.receipt.state === 'delivery_unverified') {
+    return { ok: false, reason: 'unverified', validation, receipt: sent.receipt, error: `${sent.error ?? 'Unconfirmed.'} ${sent.receipt.nextAction ?? ''}`.trim() };
   }
+  return { ok: false, reason: 'refused', validation, receipt: sent.receipt, error: `Not saved: ${sent.error ?? 'Refused.'}` };
+}
+
+/** What a finished save says to a person, in the terminal and in the MCP tool. */
+export function describeSave(outcome: SaveOutcome): string[] {
+  if (!outcome.ok) return [outcome.error ?? 'Not saved.'];
+  if (!outcome.receipt) return [`Saved "${outcome.name}" to your NoaCG library -> ${outcome.url}`];
+  return [`Saved "${outcome.name}".`, ...describeReceipt(outcome.receipt)];
 }
 
 export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
@@ -90,12 +101,11 @@ export async function runSave(args: ParsedArgs, out: Out): Promise<number> {
     );
     out.result(outcome);
     if (outcome.validation) out.say(describeValidation(outcome.validation));
+    for (const line of describeSave(outcome)) out.say(line);
     if (outcome.ok) {
-      out.say(`Saved "${outcome.name}" to your NoaCG library -> ${outcome.url}`);
       out.say('It is in Home → Graphics the next time the studio opens (or at once on that link); add it to a production from there.');
       return EXIT_OK;
     }
-    out.say(outcome.error ?? 'Not saved.');
     return EXIT_FINDINGS;
   } finally {
     await bridge.close();

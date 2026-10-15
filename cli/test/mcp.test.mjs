@@ -153,6 +153,7 @@ const TERMINAL_ONLY = {
   login: 'stores a key: a person does that once, in a terminal',
   logout: 'removes that key',
   whoami: 'reports that key',
+  status: 'reads back a delivery later; the save and pack answers already carry the confirmed receipt',
   caspar: 'drives live playout hardware',
   bridge: 'drives a playout server',
   coverage: 'writes a folder of frames for a host to collect; an answer cannot carry them',
