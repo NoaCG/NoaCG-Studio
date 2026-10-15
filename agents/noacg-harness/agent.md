@@ -5,6 +5,10 @@
 # goes into cli/skill/noacg-graphic or the CLI, never here. `skills` names the skill folder;
 # scripts/harness-agent-sync.mjs uploads it and pins the version it got. No multiagent block:
 # the critic (D4) is off until a tuning round's measurement turns it on.
+# `metadata.session_budget_cents` is the per-graphic session budget default, 5.2's B =
+# round-up(1.5 m): set in H4 from H3's one Opus graphic (m = $1.49, so 224), revised in H7 for
+# the winner (evidence/phase-4.md). Metadata is bookkeeping the model never sees; the bench's
+# --build reads it as the default budget, and a change is a new agent version to sync.
 {
   "name": "NoaCG harness",
   "description": "Makes one NoaCG broadcast graphic from a brief, checks every state, and hands in a library record.",
@@ -20,7 +24,7 @@
     }
   ],
   "skills": ["../../cli/skill/noacg-graphic"],
-  "metadata": { "plan": "noacg-harness" }
+  "metadata": { "plan": "noacg-harness", "session_budget_cents": "224" }
 }
 ---
 

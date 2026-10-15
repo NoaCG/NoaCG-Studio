@@ -956,6 +956,87 @@ Each phase's pull request adds here what the next phase must allow for, newest f
 previous verified `main` sha, the merge sha, the revert command, decisions taken, traps found,
 the spend added to the ledger, and the check's findings.
 
+### H4. The exam reservation (built 2026-10-15)
+
+- **Check's findings (H3, on `55369d924`):** AC-4 holds: the hypothesis committed 22:44Z before the
+  first session at 22:50Z; Opus list costs reproduced from trace usage ($1.0852 against 109 cents,
+  $1.4943 against 149); the real graphic 36 requests, 40 tool calls, 11 images, 471 s; the largest
+  request $0.2162 and the largest context 149,012 tokens, which supports the $0.76 lapsed-cache
+  bound; proof 1's traces show the tarball install and the `certutil` loop, the bridge reached in
+  18.2 to 32.1 s; proof 2's planted `scaleY(-1)` passes the validator clean, the image read
+  precedes the edit, and the delivered digest equals the last validate or coverage; proof 4
+  re-fetched by the checker: six sessions 404, file lists 200 with 0 files (accepted on intent);
+  the ledger's six entries sum to 266 of 1,000 cents, the run $2.66 of $100, H0 to H3 completed;
+  re-capture digests match; `--control` passes; agent-sync keep x3; cli 276 pass, bench 27 of 27,
+  gates clean. Carried for H4: every 5.2 number present (`m` $1.49 from one sample, `B` $2.24, `o`
+  $0.22 measured, $0.50 default, $0.76 lapsed-cache bound, spent $2.66, 471 s plus cold start
+  under 600 s); `o` decides 3 or 2 rounds at $15 (`T` about $48, $43 or $37) and H4 must say which;
+  the critic's share is unknown until H6; the graphic agent read the 69 coverage frames as six
+  contact sheets (open for H5); H3's merge sha is the one the queue recorded, `55369d924`. Not
+  checked: Console usage against $2.66 (the owner's glance, asked in PR #1234).
+- **Shas:** previous verified `main` `55369d924`; built on `claude/plan-noacg-harness-p5-build`;
+  the merge sha is the one the queue records. **Revert:** `git revert -m 1` the merge commit, then
+  `node scripts/harness-agent-sync.mjs --workspace bench --apply`, which makes a v4 equal to v2
+  (metadata only differs). The ledger then has no reserve and `--build` refuses tuning again.
+- **What landed** (`benchmarks/harness/evidence/phase-4.md`): at $0, `B` = round-up(1.5 x $1.49) =
+  **$2.24**, `o` = **$0.22**, `R` = 20 x ($2.24 + $0.22) = **$49.20**, `T` = $100 - $2.66 - $49.20 =
+  **$48.14**: **3 rounds at $15** (5 at $9). Time 471 s + 32 s cold start = 503 s, under 600 s.
+  The run continues. The ledger carries `reserve` (H8, 4,920 cents, its own arithmetic checked on
+  every read) and H4 `completed` with no session; the wall leaves the reserve out of `remaining`
+  for every phase but H8's; `--build` refuses the $0 phases (H4: "spends nothing (5.1)"), any
+  tuning without a reserve, and H8 until H5 to H7 are closed, defaults `--budget-cents` to
+  `agent.md` and the margin to the reserve's `o` and critic share (`--critic-cents` names another);
+  `--reserve` does 5.2's arithmetic with every term named and records it. `agent.md` carries
+  `metadata.session_budget_cents: "224"`; synced to agent v3 on the bench key (free; v2 and v3 read
+  back identical but for metadata). Tests 30 of 30.
+- **Decisions** (each with its reasons in `evidence/phase-4.md`):
+  - DECIDED: `o` = $0.22, the largest of H3's 52 Opus requests, for the reserve and the wall. No
+    cache lapse in 50 follow-on requests (longest gap 23 s of the 300 s lifetime); a request at
+    the largest context cost $0.04 to $0.11. A too-small `o` costs money only if most exam sessions
+    reach their budget, an exam that has failed 4.5 anyway, at most $10.80 and covered first by
+    unspent tuning money; $0.50 or $0.76 would cost the third $15 round for certain, the round that
+    measures Sonnet after a critic round. Revert: `--reserve --by <H#> --overshoot-cents 50`.
+  - DECIDED: the round ceiling is $15 with 5 briefs for each of H5, H6 and H7 (worst case 5 x
+    $2.46 = $12.30 a round). Revert: run the rounds at $9 with 3 briefs.
+  - DECIDED: the session budget default is 224 cents, in `agent.md`'s metadata (never shown to the
+    model; the system prompt still names no amount, which stays tuning's to measure). Revert: drop
+    the key and re-sync.
+- **H5 must allow for:**
+  - `m` was one sample. When H5 closes, `m` is the mean of H3's and H5's Opus graphic sessions (a
+    session that reached its budget counts at its list cost and is named as a floor), and
+    `--reserve --by H5 --budget-cents <round-up(1.5 m)> --overshoot-cents <o>` records the exam's
+    forecast before H6 spends. `agent.md`'s 224 stays until H7, so H5 and H6 compare at one budget.
+    Two $15 rounds survive an Opus mean up to $1.79; then one $15 and one $9 up to $1.96, two $9 up
+    to $2.14; past about $2.39 the run stops with `needs: decision`.
+  - Report each session's largest request and any request whose cache read falls short of the
+    previous context: a request over $0.22 or a lapse raises `o` in the same `--reserve`.
+  - Run with `--ceiling-cents 1500` and five briefs; `--budget-cents` may be left out (224 from
+    `agent.md`), and the margin is the reserve's. The agent is v3: same prompt, model and skill as
+    H3's v2. The committed-ledger test pins H4's numbers only while H4's reserve stands.
+  - Carried from H3, not acted on here: the real graphic's agent read the 69 coverage frames as six
+    Pillow contact sheets; measure whether that misses what the single frames show. The `flag`
+    alias gap on `school-scoreboard`; `packages` once the CLI release is out.
+- **H6 and H7 must allow for:** critic sessions run with `--critic-cents 22` on `--build` (a margin
+  for the second thread before its own is measured). If the critic stays, re-measure `m` with both
+  threads and run `--reserve --by H6 --budget-cents <B> --overshoot-cents <o> --critic-cents <the
+  critic's largest request>`; a second thread adds time too, so re-check 503 s against 600 s. H7
+  sets `B` and `o` for the winner in `agent.md` (re-synced) and the reserve alike. `--build H8` is
+  refused until H5 to H7 are closed; H8 runs with `--ceiling-cents` equal to the reserve and first
+  confirms `agent.md`'s budget is the reserve's `B`.
+- **Left as they are, from the review:** the round ceiling is the builder's `--ceiling-cents`, as
+  in H3, not a stored limit; the "no round fits" stop is printed by `--reserve` and applied by the
+  plan, not by `--build`. Either way the wall keeps tuning out of the reserve, so a mistake there
+  spends `T`, never the exam.
+- **Traps:**
+  - `phase-3.md` says the $0.22 request wrote "new frames" to the cache; it was the planted
+    package's printed sources (a 79k-character script with its HTML and CSS). A large file read is
+    what makes a request large, as much as a batch of images.
+  - The 471 s wall is the bench's (create to downloads and cleanup); the session went idle at
+    408.6 s. The exam's median is read from the same bench figure, so it is the cautious one.
+  - The raw events behind `o` live only in `%TEMP%\noacg-harness\H3-*` on this machine; the
+    committed traces keep only the largest request.
+- **Spend:** $0; the ledger stays at $2.66 of $100, $49.20 held for H8, $48.14 for everything else.
+
 ### H3. Feasibility (built 2026-10-14)
 
 - **Check's findings (H2 repair, on `f430c0b97`):** AC-3 holds: lock hashes match (LF-normalised),
