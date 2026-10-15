@@ -978,11 +978,11 @@ the spend added to the ledger, and the check's findings.
   `noacg-cli-0.11.0.tgz`, created 08:31:08Z, the first H6 run's), against "the CLI upload deleted".
   It costs nothing; delete it with the fix. The likely cause is the stopped run, which never reached
   its cleanup.
-- **Order (AC-6):** `fc693944f` and `c9f1a27f7` committed 08:27:33Z, `ed28a2320` 08:29:11Z, and its
-  first check run started 08:29:23Z, so it was on GitHub before the first session's first event
-  (08:31:09Z). `108c85147` (the cut) had checks at 08:45:51Z, before the next new session
-  (live vote, 08:58:38Z). The scoreboard session began at 08:42:32Z, before the cut, as recorded. The
-  PR timeline shows nine commits and no force push.
+- **Order (AC-6):** `fc693944f` and `c9f1a27f7` committed 08:27:33Z and 08:27:34Z, `ed28a2320`
+  08:29:11Z, and its first check run started 08:29:23Z, so it was on GitHub before the first
+  session's first event (08:31:09Z). `108c85147` (the cut) had checks at 08:45:51Z, before the next
+  new session (live vote, 08:58:38Z). The scoreboard session began at 08:42:32Z, before the cut, as
+  recorded. The PR timeline shows nine commits and no force push.
 - **Spend:** the ledger sums to 1,898 cents (H3 266, H5 624, H6 1,008: 304, 301, 312, 91);
   `T` = 10,000 - 1,898 - 4,660 = 3,442. From a copy of the raw events: per thread, requests,
   images, largest request and minimum cache read are as `phase-6.md` says (author + critic: 25 + 35,
@@ -1022,8 +1022,8 @@ the spend added to the ledger, and the check's findings.
     was 24 s.
 - **Carry for H7:** fix and verify the agent's roster on the server first (above). Then run as
   carried: Sonnet 5.5 on the five briefs, 224 cents, `--ceiling-cents 1500`, no `--critic-cents`.
-  Name the stop-rule reading, and compare Update ops before judging pairs. The live vote's five-option
-  state is outside every frame until #1251 lands.
+  Name the stop-rule reading, and compare Update ops before judging pairs. The live vote's
+  five-option state is outside every frame until #1251 lands.
 
 ### H6. Tuning round 2: the fresh-eyes critic (built 2026-10-15)
 
