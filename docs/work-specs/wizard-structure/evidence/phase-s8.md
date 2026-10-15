@@ -32,6 +32,7 @@ checkout's `node_modules`; the browser plan runs on the pull request's CI.
 | `npm run contracts:compile` | 562 rules; 4 `.claude/rules` files renamed with their scopes, the `template/` contract written |
 | `npm run check:contracts` | OK, 562 rules, 263 generated files current |
 | `node scripts/check-shared-instructions.mjs`, `check-contract-freshness.mjs` | OK |
+| `node scripts/instruction-load-probe.mjs run src/components/wizard/template/kitPlan.ts` | every instruction file loaded once; the read pulled in the two `.claude/rules` files carrying `build-whole-kit-moment-kit-step` and `make-apply-style-all-deterministic-transform`, plus `src`, `components` and `wizard` |
 | `npm run audit:instructions` | ran; of the wizard rules it lists only `order-entry-step-four-equal-start`, as at S7 |
 | `npm run gates -- run --changed origin/main` | every gate ok (14), 54 Node tests in 4 files |
 | `node scripts/e2e-affected.mjs --list --files <path>` before and after | `kitPlan.ts` 40 and `KitTray.tsx` 40 at both paths, identical lists |
