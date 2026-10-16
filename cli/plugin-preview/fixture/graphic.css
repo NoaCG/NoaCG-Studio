@@ -1,0 +1,7 @@
+:root { --accent: #f6a623; --panel: #111a2a; --text: #fff; }
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: transparent; font-family: Arial, sans-serif; }
+#lower-third { position: absolute; left: 120px; bottom: 120px; display: flex; align-items: center; gap: 28px; padding: 28px 40px 30px 28px; border-left: 8px solid var(--accent); background: var(--panel); color: var(--text); }
+#badge { width: 68px; height: 68px; }
+#f0 { font-size: 52px; font-weight: 700; line-height: 1.15; }
+#f1 { margin-top: 9px; font-size: 29px; color: #bfcadb; }
