@@ -5,5 +5,70 @@
     "status": "agreed",
     "source": "Owner request in the 2026-10-16 durable-orchestration session: research, recommend and implement a minimal local recovery slice; no hosted deployment authorized by this record"
   },
-  "review": null
+  "review": {
+    "revision": "7efd3991e829556d069c11227da9c59ce0dd6e8f",
+    "specSha256": "4c66260096d5d4cf2f3290784f7ede883b9c651bdcad1d693fcb47799da1aaba",
+    "evidence": [
+      {
+        "path": "docs/work-specs/durable-runs/evidence/review.md",
+        "sha256": "3613d07790c1bde5c48ffc4466d656bb9f8002889b19987179e1c3d5203baaad"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/durable-runs/evidence/verification.md",
+            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/durable-runs/evidence/verification.md",
+            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/durable-runs/evidence/verification.md",
+            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/durable-runs/evidence/verification.md",
+            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/durable-runs/evidence/verification.md",
+            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+          },
+          {
+            "path": "docs/work-specs/durable-runs/evidence/measurements.json",
+            "sha256": "f36ba2d23aba8ece7b0bffc3a6f22d3e1dd09412461567db015b85c3d7085f3e"
+          }
+        ]
+      }
+    ]
+  }
 }
