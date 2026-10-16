@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { effectiveLimits, parseRun, processTreeSample } from './cloud-measure.mjs';
+import { effectiveLimits, parseRun, processTreeSample, measure } from './cloud-measure.mjs';
 
 test('effective limits use quota and container memory rather than host totals', () => {
   const limits = effectiveLimits({ affinity: 5, hostMemoryBytes: 64 * 2 ** 30, cpuMax: '400000 100000', memoryMax: String(16 * 2 ** 30) });
@@ -40,5 +40,18 @@ test('memory includes detached server/browser descendants, excluding unrelated p
     assert.deepEqual(processTreeSample(11, root, known), expected, 'reparented children stay attributed');
     writeFileSync(detached, readFileSync(detached, 'utf8').replace('1200', '99999'));
     assert.equal(processTreeSample(11, root, known).rssBytes, 400 * 1024, 'a reused PID is not the old child');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('the time bound ends a child that ignores termination and records failure', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'cloud-measure-timeout-'));
+  try {
+    const output = join(root, 'receipt.json');
+    const code = await measure({ seconds: 1, output, command: [process.execPath, '-e', 'process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'] });
+    const receipt = JSON.parse(readFileSync(output, 'utf8'));
+    assert.equal(code, 1);
+    assert.equal(receipt.timedOut, true);
+    assert.equal(receipt.signal, 'SIGKILL');
+    assert.ok(receipt.wallSeconds < 10);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

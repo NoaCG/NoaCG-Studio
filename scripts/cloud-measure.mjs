@@ -102,7 +102,7 @@ export async function measure({ command, seconds, output }) {
   const receipt = {
     version: 1, startedAt: new Date().toISOString(), revision: git('rev-parse', 'HEAD'),
     branch, dirtyPaths: git('status', '--porcelain'), cwd: process.cwd(), machine: machine(),
-    command, boundSeconds: seconds, sampleIntervalMs: 250,
+    command, boundSeconds: seconds, sampleIntervalMs: 250, memoryMethod: 'descendant-tree-rss-pss',
     workers: command.find((arg) => arg.startsWith('--workers='))?.split('=')[1] ?? null,
     cgroupMemoryBeforeBytes: Number(read('/sys/fs/cgroup/memory.current')) || null,
     samples: 0, peakProcesses: 0, aggregatePeakRssBytes: 0, aggregatePeakPssBytes: 0,
