@@ -35,15 +35,29 @@ existing "changed while discarding" message, then re-persists the newer draft.
 
 Decision: an edit made during the drain does not stop the replacement write. It refuses at the
 final comparison instead. The carried `:106` assertion requires the second held write to be the
-clean replacement. Stopping early would change that assertion, and refusal would still restore
-the slot. Removing the final comparison makes all four newer-edit cases fail locally, including
-the replacement-wait case.
+clean replacement. Stopping early would change that assertion. Removing the final comparison
+makes all four newer-edit cases fail locally, including the replacement-wait case.
+
+Review on #1333 found a gap: the refusal re-persisted the newer draft without waiting. Until that
+write landed, the slot still held the clean replacement. A reload in that window, or a refused
+write, could reopen the discarded copy while the dialog said the changes were still open. The
+refusal now waits for that restoring write's durable receipt. A refused restore reports the storage
+failure instead. Two cases cover this: one holds the restoring confirmation, checks that no refusal
+shows while it is pending, then reloads straight after the refusal and gets the newer source. The
+other refuses the restoring write and expects the storage message, with the editor and newer source
+kept. Both failed on the previous commit `c157d61e` and pass after the change.
 
 ## Passing verification
 
-- Local: the whole `e2e/new-graphic-guard.spec.ts` passes, 15/15 (4 workers, 0 retries). That
-  covers maintained leave cases, both refused-discard sessions, delayed confirmation, refused
-  pending autosave, saved-copy restore, clean default, Back/hash and the four newer-edit cases.
+- Local: the whole `e2e/new-graphic-guard.spec.ts` passes, 17/17 on `fba526f1` (4 workers,
+  0 retries). That covers maintained leave cases, both refused-discard sessions, delayed
+  confirmation, refused pending autosave, saved-copy restore, clean default, Back/hash, the four
+  newer-edit cases and the two restoring-write cases.
+- [CI 38964718798](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38964718798) covers the final
+  source `fba526f1` with probe files (`ab918e45`, branch `claude/probe-editor-p1-repair-complete-2`).
+  All six newer-edit and restoring-write cases pass, and references pass 2/2. The 87-case lifecycle
+  selection gives 79 passed and 8 unchanged legacy skips in 11.6 minutes. Two-graphic export
+  passes 1/1 and cumulative/native 4/4 in 1.9 minutes. One worker, zero retries.
 - [CI 38958180195](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38958180195), fixed commit
   `c0ba7619` plus probe files: four newer-edit cases pass. References pass 2/2, export 1/1 and
   cumulative/native 4/4. The lifecycle selection gives 76 passed, 1 failed and 8 skipped. The
@@ -64,15 +78,16 @@ unidentified, and this repair claims nothing about it.
 
 ## Rendering and references
 
-Run 38958180195 captures were opened and inspected:
+Captures from the final-source run 38964718798 were opened and inspected, plus the same set
+from 38958180195:
 
 | Capture | SHA-256 |
 | --- | --- |
-| desktop 1920 cumulative | `93c6ce9cda534696b38ec4a7a0db96853f6dd231a9f5520fdab66d72423a7c3e` |
-| laptop 1366 leave dialog | `78c0cb37bb2d9d570aa22b0e482464f1723bab0f512eb237016bfd7f2f97f827` |
+| desktop 1920 cumulative | `7ef81458a4df51f66e514d1127622385a0e0f58d721a89e0018b5cab6fb32472` |
+| laptop 1366 leave dialog | `aefae24a2feff9763f8da8992d1a356e75b41162f7756486976cbf992aea62f1` |
 | native 125% full content | `fce24ce319b714da82e5b19e6d8cdd471aecee0320854a27d8b868a01986cf4c` |
-| native 125% leave dialog | `15e952596f2aba9583c06845c66a11cd53209d5d619a7fdf310a066bbda2463f` |
-| nested copy | `6387791ab05542058018706620103526a821c4d5ff6e30b83f1fc8b18962fc4f` |
+| native 125% leave dialog | `7e23f52b1ec0d2e8beda88eefb3ca17f006c2d2637483ed3e586eae98112cd72` |
+| nested copy | `6eaae7f00b3dac26ed5bc64f356a01ffcf2a0f8e4ffda8006237c8471e42e70c` |
 | newer edit refused over the editor | `399d29d6d8e021087416b8a589208c86ffc6bcd839b976ba3f4fd3940d6636da` |
 | Studio reopened | `d9501c35300d2043864d97b1b7c90c9d9facb9ce38a5aba69424e9cf5170baa6` |
 | Eyevinn kept | `05ec2e4f1c473a9a465bf24c805ba4b1a8e650bf3455d5f3c7b7390522d61e7f` |
