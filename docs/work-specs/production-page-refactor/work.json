@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "396836921e372d7e0c617af96af4966e3c771f89ebdb79b8c050c23fb898bfd1",
+  "specSha256": "a653a36bd4e50ef3f8dc0d0bb3de6ddead25a1e246e34406cca8fe2205bda1b7",
   "authority": {
     "status": "agreed",
-    "source": "owner, 2026-10-11: the research prompt (\"Research and plan the refactor of the production page ... This session produces a plan, not code\"), the two in-session answers (HostedControlPage: design the core for both pages and migrate the hosted page later in its own spec; liveCue: supersede docs/CLIP_PLAYBACK_PLAN.md section 10 and 17.2 for liveCue only, selectedCueId stays in the page, no general framework), and the three revision messages of the same day (scope kept to maintenance and safe change, sequential phases, environments, contracts, recovery, performance, execution handoff). Approved in direction for documentation; the owner starts execution later with /plan-run production-page and supplies the window then."
+    "source": "owner, 2026-10-11: the research prompt (\"Research and plan the refactor of the production page ... This session produces a plan, not code\"), the two in-session answers (HostedControlPage: design the core for both pages and migrate the hosted page later in its own spec; liveCue: supersede docs/CLIP_PLAYBACK_PLAN.md section 10 and 17.2 for liveCue only, selectedCueId stays in the page, no general framework), and the three revision messages of the same day (scope kept to maintenance and safe change, sequential phases, environments, contracts, recovery, performance, execution handoff). Approved in direction for documentation; the owner starts execution later with /plan-run production-page and supplies the window then. 2026-10-16, owner: \"Yes: production page cleanup first, then Sheet data, then audience, all in the one run. Update the plans and goals for that.\" Phases 15-20 are the Sheet data flow's; D8 awaits the owner before phase 1."
   },
   "review": null
 }

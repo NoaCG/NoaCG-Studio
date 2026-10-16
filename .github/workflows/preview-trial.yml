@@ -1,0 +1,38 @@
+name: Local preview trial
+
+on:
+  pull_request:
+    paths:
+      - 'cli/plugin-preview/**'
+      - 'scripts/codex-preview-trial.test.mjs'
+      - 'cli/src/browser.ts'
+      - 'cli/src/config.ts'
+      - '.github/workflows/preview-trial.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cli/plugin-preview/package-lock.json
+      - run: npm ci --prefix cli/plugin-preview --no-audit --no-fund
+      - run: npm run build --prefix cli/plugin-preview
+      - run: npm test --prefix cli/plugin-preview
+      - run: node cli/plugin-preview/node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: npm run test:browser --prefix cli/plugin-preview
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preview-trial-browser-stub
+          path: cli/plugin-preview/dist/browser-stub.png
+          if-no-files-found: warn
+          retention-days: 7

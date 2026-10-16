@@ -178,13 +178,13 @@ test('the landing shows the roadmap\'s Now items alone, each with its first bull
 
 test('changing a priority in GOALS moves the item on the roadmap, with nothing copied', () => {
   const before = buildRoadmap(GOALS, WORDING);
-  assert.ok(titlesIn(before, 'later').includes('Live data'));
-  const promoted = GOALS.replace(/^### 7\. Data and automation \(later\)$/m, '### 7. Data and automation (now)');
-  assert.notEqual(promoted, GOALS, 'outcome 7 heading not found; update this test with GOALS');
-  const after = buildRoadmap(promoted, WORDING);
+  assert.ok(titlesIn(before, 'now').includes('Live data'));
+  const demoted = GOALS.replace(/^### 7\. Data and automation \(now[^)]*\)$/m, '### 7. Data and automation (later)');
+  assert.notEqual(demoted, GOALS, 'outcome 7 heading not found; update this test with GOALS');
+  const after = buildRoadmap(demoted, WORDING);
   assert.deepEqual(after.problems, []);
-  assert.ok(titlesIn(after, 'now').includes('Live data'));
-  assert.ok(!titlesIn(after, 'later').includes('Live data'));
+  assert.ok(titlesIn(after, 'later').includes('Live data'));
+  assert.ok(!titlesIn(after, 'now').includes('Live data'));
 });
 
 test('the build fails when GOALS drops a priority the wording still places an item in', () => {
