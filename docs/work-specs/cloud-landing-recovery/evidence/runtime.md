@@ -75,8 +75,8 @@ acknowledgement was not counted until actual delivery and tool execution.
 
 The immediate-run scheduling endpoint returned 404 even though eventual scheduled
 delivery worked. The first one-time qualification was paused; one-time repair is
-not a recurring-monitor proof. We did not test restart after cloud-environment
-expiry or a wake after this chat's final answer; do not infer those guarantees.
+not a recurring-monitor proof. Restart after cloud-environment expiry and indefinitely recurring monitoring
+were not qualified; the later post-response delivery is recorded below.
 The active chat retained ownership through live landing and post-land results.
 
 ## Focused checks and browser evidence
@@ -168,7 +168,47 @@ not the pre-merge worker SHA. Its queue and landing receipts belong on that PR.
 
 The focused browser trace also contained two debug console messages, zero console
 errors and 21 network entries with zero HTTP responses >=400. Fresh native
-root/nested Codex instruction-loading probes could not initialize the read-only
-CLI app-server; compiler freshness, rule selection and shared instruction gates
+root/nested Codex instruction-loading probes were not run; the review CLI failed
+to initialize its app-server in this read-only runtime; compiler freshness, rule selection and shared instruction gates
 passed. The 40-minute Reviewed timeout was checked through the existing bounded
 clock test and CLI failure propagation review, not a 40-minute live wait.
+
+## Delivery after a completed response
+
+A final disposable reinjection, SHA
+`61da7d6e579b25833ad8412f81d78e9247f19444`, failed in
+[38861790204](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38861790204).
+The worker ended its response with the hosted wake armed. The wake subsequently
+delivered into this same chat, read the full 201-line failed log (job 116845499460),
+reproduced 10/12, changed only the helper, reran 12/12 and pushed
+`8b745c17c42077ea17f8751a8acce8af7de5cd37`.
+[38862392437](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38862392437)
+completed success; the test-file SHA-256 stayed identical. This was the third
+and final deliberate reinjection, not a sequence of failed repair attempts.
+The probe was closed unmerged again, with no land/auto-merge/queue entry, and
+its one-time wake paused. No further reinjection is planned.
+
+Limit: the human reopened the chat before this final scheduled delivery arrived.
+Delivery after a completed response is observed; autonomous revival of an idle
+or archived chat is not isolated by this experiment. Earlier wakes repaired both
+CI and conflicts without a human repair prompt. Do not infer archival survival
+or restart recovery from successful scheduling/delivery in this live workspace.
+The canonical fallback remains an active owner through merge and post-land when
+a durable resume boundary is unproven.
+
+Vercel's status on the implementation merge was success with description
+`Canceled by Ignored Build Step`; deploy-verify runs were skipped. This workflow
+and documentation change did not require a product deployment; none is claimed.
+
+## Post-landing observation boundary
+
+At this receipt's pre-queue snapshot, implementation main
+[CI 38861074022](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38861074022)
+and [configured-suite 38861075239](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38861075239)
+were still running. Build/Factory had passed and full E2E shards were executing;
+no pending run is counted as a pass. Post-landing and Quarantine had completed
+success as recorded above. The active owner continues through final conclusions.
+Final conclusions for both implementation and evidence merge SHAs are recorded
+in the completion comments on PRs #1284 and #1286, so the final observation can
+include workflows that necessarily finish after this receipt's publication.
+Claude qualification and unisolated archive/restart wake behaviour remain open.
