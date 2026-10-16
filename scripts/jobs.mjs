@@ -86,6 +86,7 @@ import {
   rememberBrowserCommand,
   repricedAsBrowser,
   requeueDecision,
+  restoreQueueEntry,
   schedule,
   timedOutRecord,
   waitVerdict,
@@ -628,6 +629,14 @@ async function cmdRequeue() {
     console.error(decision.message);
     process.exit(1);
   }
+  const { viewPr } = await import('./land-watch.mjs');
+  const ghRunner = spawnRunner('gh');
+  const restored = restoreQueueEntry(decision.job.command, { view: viewPr, gh: (a) => ghRunner(a, { allowFailure: true }) });
+  if (restored.action === 'refuse') {
+    console.error(restored.message);
+    process.exit(1);
+  }
+  if (restored.action === 'restored') console.log(`auto-merge is on again for #${restored.pr}: GitHub's merge queue takes it back in turn.`);
   const job = addJob(dir, { ...decision.job, now: Date.now() });
   await ensureRunner();
   console.log(`${job.id} queued: land ${target} again (re-running ${decision.job.retryOf}, same declared commit)`);

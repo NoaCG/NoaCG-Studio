@@ -208,7 +208,7 @@ function gh(args) {
  * The pull request as the queue sees it. `gh pr view --json` does not expose the queue entry, so
  * this is one GraphQL query; the repository is whatever `gh` resolves for this checkout.
  */
-function viewPr(number) {
+export function viewPr(number) {
   const slug = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], { encoding: 'utf8', windowsHide: true, timeout: 20_000 }).stdout?.trim();
   if (!slug) return null;
   const [owner, name] = slug.split('/');
