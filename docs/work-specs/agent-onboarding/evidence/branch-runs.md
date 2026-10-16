@@ -27,7 +27,9 @@ read is the text this branch lands.
   tool call was the Skill tool loading the NoaCG skill. It read `setup.md`, ran doctor and login
   (no whoami first), then said what NoaCG makes, gave the three briefs and the brand line, and
   asked what to make. 62 s, USD 0.21. In the baseline (B) the same question was answered from the
-  description alone, with no connection. Pass.
+  description alone, with no connection. It ran with the plugin's skill folder renamed to
+  `graphic` and the earlier, longer description, so it shows the behaviour, not the released
+  layout. Pass for the behaviour; the released layout is checked after release.
 - H (Codex, skill installed), whose first message was already a brief ("graphics for our football
   club's fan livestream ... https://www.hjk.fi"), got no examples: it proposed a starter set for a
   fan stream and asked two questions, as the spec says for a user who gave a brief.
@@ -50,7 +52,7 @@ read is the text this branch lands.
   bundled with its OFL text. It does not say what it could not use (the site's stylesheet also
   names other faces), so this is short of the criterion. Partial.
 - G (Codex, local logo): the roller-derby brief with `kallio-rollers-logo.png` in the folder. It
-  used the logo and its teal and hot pink, bundled Bebas Neue from Google Fonts with its OFL text,
+  used the logo and "its" teal and hot pink (colours the user had named, credited to the logo), bundled Bebas Neue from Google Fonts with its OFL text,
   showed the scoreboard's buttons and waited for confirmation before saving, then saved both. Its
   final report did not repeat the sources and gave no rights line; for the user's own logo that
   line matters less, but the report is thinner than the skill asks. Partial.

@@ -13,8 +13,8 @@ from this branch (version 0.12.2, `npx -y --package=<noacg-cli-0.12.2.tgz> noacg
 
 ## L: Codex, Downloads prompt, local logo and a commercial font (09:55 to 10:01 UTC)
 
-- First reply after login: the three briefs, the third now "in purple and coral with Space
-  Grotesk", and the brand line. AC-1 holds.
+- First reply after login: the three briefs, the third then "in purple and coral with Space
+  Grotesk" (since changed to DM Serif Display), and the brand line. AC-1 holds.
 - Brief: the roller-derby logo file in the folder, "teal and hot pink", Bebas Neue, and the
   sponsor's font "Helsinki Grotesk Pro"; a halftime card with the score and a sponsor line, and a
   penalty-box lower third.
@@ -23,7 +23,9 @@ from this branch (version 0.12.2, `npx -y --package=<noacg-cli-0.12.2.tgz> noacg
   substitutes for the sponsor line. That substitution remains unconfirmed." Both packages carry
   `BebasNeue-OFL.txt`. Sources are the user's own (logo, named colours), the commercial font is
   named as not used with the reason and the stand-in, and the logo is plainly the user's, so no
-  rights line is owed. Pass.
+  rights line is owed. Pass. Mid-run, an earlier message called the colours the logo's; the final
+  report names them without crediting the logo. The log shows `validate --screenshots` runs but
+  no event of the agent opening the frames, although its report says they were visually checked.
 - Frame: a dark teal full-screen card, the badge on a white ring top left, "HALFTIME" in hot-pink
   Bebas Neue, the two team names and big white scores split by a pink rule, the sponsor line in
   Inter under a teal rule. Its default away name "VISITING TEAM" reads as a placeholder.

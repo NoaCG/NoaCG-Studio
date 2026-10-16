@@ -39,7 +39,7 @@ these three example briefs, then the line under them, in the user's language:
 
 - "A name strap and an opening title for our panel debate, in our brand from https://our-site.org"
 - "A basketball scoreboard with +1/+2/+3 buttons and a game clock; our logo is logo.png in this folder"
-- "A podcast set: guest strap, topic bar and a LIVE bug in purple and coral with Space Grotesk, as a production in show order"
+- "A podcast set: guest strap, topic bar and a LIVE bug in purple and coral with DM Serif Display, as a production in show order"
 
 "You can paste your website, put a logo or pictures in this folder, or name your colours and
 fonts, and I will use them." A user who already gave a brief gets no examples.

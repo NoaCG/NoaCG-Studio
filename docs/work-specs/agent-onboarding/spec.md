@@ -27,11 +27,12 @@ stands: no house look and no taste rules by default. Taking in the USER'S brand 
    their website, put a logo or pictures in the folder, or name colours and fonts. A person who
    already gave a brief gets no examples. The three, chosen by the owner on 2026-10-16 (the
    third first said "navy and amber", NoaCG's own palette, which the D1 guard keeps out of the
-   default skill; the owner chose purple and coral instead):
+   default skill; the owner chose purple and coral instead, and DM Serif Display in place of
+   Space Grotesk, NoaCG's own wordmark face):
    - "A name strap and an opening title for our panel debate, in our brand from https://our-site.org"
    - "A basketball scoreboard with +1/+2/+3 buttons and a game clock; our logo is logo.png in this
      folder"
-   - "A podcast set: guest strap, topic bar and a LIVE bug in purple and coral with Space Grotesk,
+   - "A podcast set: guest strap, topic bar and a LIVE bug in purple and coral with DM Serif Display,
      as a production in show order"
 
    It names the connected account once, as `login` and `whoami` print it, and does not compare
@@ -60,6 +61,12 @@ stands: no house look and no taste rules by default. Taking in the USER'S brand 
 
 Preserved: connect before the brief, one `save`, the delivery report, D1 (the look stays the
 agent's), the Downloads prompt (77 words, unchanged), the three opt-in tools.
+
+## Derived choices
+
+- The rights line is owed for a logo or crest that is not plainly the user's own (a club crest
+  for a fan stream, a festival's mark). For the user's own team or organisation logo it is noise,
+  and the first review read its absence there as a gap; the spec was narrowed after that review.
 
 ## Non-goals
 
