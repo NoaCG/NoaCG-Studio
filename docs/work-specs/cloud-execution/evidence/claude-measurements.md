@@ -4,7 +4,8 @@ The Claude half of AC-1 (measurements) and Claude evidence for AC-3 (revision-bo
 cloud worker result), run from an existing Claude Code cloud session as the owner
 directed in [provider-runbook.md](provider-runbook.md). Existing environment and
 subscription only; no API model calls. Compact receipts, job records and every failing
-test identity are in [claude-measurements.json](claude-measurements.json). The full
+test identity, plus the launch, identity and local-probe records and the memory samples,
+are in [claude-measurements.json](claude-measurements.json). The full
 Playwright reports and logs are on branch `scratch/claude-measure-82880f`, commit
 `836785a137340ea96d41fe100bf5b958c0863987`, which is never queued.
 
@@ -61,6 +62,10 @@ that launched it, so closing the laptop tests nothing beyond a successful launch
 The question that remains is whether an agent can launch, and the probe above answers
 that for Claude.
 
+**Limitation.** The local probe carried no nonce and no pinned SHA, so it shows a working
+launch from the laptop CLI, in the intended environment, at the then-current `main`. It
+does not repeat the coordinator probe's revision binding.
+
 ## Measurements (AC-1, Claude)
 
 **Machine.** Ubuntu 24.04.5, 4 vCPU Xeon 2.80 GHz with no CPU quota, 16093 MiB host memory,
@@ -73,38 +78,49 @@ Node v22.22.0, Playwright 1.61.1, Chromium build 1228 preinstalled.
   v1 scope once a second instead (the "cgroup peak" column).
 - **Setup:** `npm ci` took 15 s, kept outside the timings.
 
-Exact runbook commands, one queued browser job at a time (`--kind sweep --cap 21`, 1200 s
+The runbook's commands, one queued browser job at a time (`--kind sweep --cap 21`, 1200 s
 outer bound, 1100 s Playwright bound). Zero retries, `CI` unset, nothing re-run.
-Window 12:48Z–14:18Z; the last job ended 13:50:06Z and every planned run executed.
+Window 12:48Z–14:18Z; the last job ended 13:50:05Z and every planned run executed.
+One departure: the runbook says to start shard 1 at 2 workers, but the worker ran shard 1
+at 4 workers first (13:18Z), then shard 2 (13:25Z), 2 workers (13:34Z) and 6 workers
+(13:42Z). Caches were warm for every shard run, so the order should not favour 4 workers,
+but the comparison is one run per count.
 
 | Run | Exit | Wall | Peak RSS | cgroup peak | Planned | Pass | Fail | Skip | Unrun |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Production build | 0 | 6m24s | 3.19 GiB | — | 2965 + 419 gateway | all | 0 | 23 | 0 |
-| Changed-path gates, PR 1278/1287/1292/1293 gate replays | 0 | 0.2–16.4s | ≤ 0.84 GiB | — | | pass | | | |
+| Production build | 0 | 6m24s | 3.19 GiB | — | 2965 + 419 gateway | 2942 + 419 | 0 | 23 | 0 |
+| Changed-path gates on the clean tree (nothing to run) | 0 | 0.2s | 16 MiB | — | | pass | | | |
+| PR 1278/1287/1292/1293 gate replays | 0 | 6.5–16.4s | ≤ 0.82 GiB | — | | pass | | | |
 | v2-pr1278-w4, 4 workers | 1 | 61s | 3.84 GiB | — | 78 | 59 | 18 | 1 | 0 |
 | v2-pr1287-w4, 4 workers | 0 | 11s | 3.10 GiB | — | 8 | 8 | 0 | 0 | 0 |
-| v2-pr1292-w4, 4 workers | 1 | 18m21s | 5.28 GiB | 4.56 GiB | 542 | 328 | 6 | 23 | 185 |
-| v2-pr1299-w4, 4 workers | 0 | 10s | 3.11 GiB | — | 8 | 8 | 0 | 0 | 0 |
+| v2-pr1292-w4, 4 workers | 1 | 18m21s | 5.28 GiB | 4.56 GiB† | 542 | 328 | 6 | 23 | 185 |
+| v2-pr1299-w4, 4 workers | 0 | 10s | 3.11 GiB | 2.78 GiB | 8 | 8 | 0 | 0 | 0 |
 | PR 1293 browser | — | — | — | — | none selected, so none run | | | | |
 | Shard 1, 2 workers | 0 | 8m22s | 3.22 GiB | 3.33 GiB | 204 | 153 | 0 | 51 | 0 |
 | Shard 1, 4 workers | 0 | 6m57s | 5.41 GiB | 4.55 GiB | 204 | 153 | 0 | 51 | 0 |
 | Shard 1, 6 workers | 1 | 7m18s | 7.29 GiB | 5.62 GiB | 204 | 120 | 36 | 48 | 0 |
 | Shard 2, 4 workers | 1 | 8m29s | 5.81 GiB | 4.98 GiB | 205 | 160 | 1 | 44 | 0 |
 
-The coordinator recounted every Playwright report from the worker's raw JSON, and the
-counts match. Monitor CPU was 1.7–8.0% of the 4 vCPUs.
+Build case counts come from the node test summaries in the worker's build log. The cgroup
+peak is the side sampler's highest `memory.usage_in_bytes` (page cache included) within each
+run's window. The side sampler started at 12:59:36Z, so earlier runs have none, and †
+misses the first 29 s of that run. `failcnt` stayed 0 for all 2,936 samples. The coordinator
+recounted every Playwright report from the worker's raw JSON, and the counts match. Monitor
+CPU was 1.7–8.0% of the 4 vCPUs.
 
 **Failures, kept as observed:**
 - **v2-pr1278-w4:** 18 `public-chrome-baseline.spec.ts` screenshot mismatches, 501–2409 px.
   Codex saw 17 of 9–10 px on the same source, so rasterization differs much more here,
-  even on Ubuntu 24.04.
+  even on Ubuntu 24.04. The extra failure is `ograf chrome at desktop`, which passed on Codex.
 - **v2-pr1292-w4:** hit the 1100 s bound and is **incomplete**. It finished 334 of 542 cases,
   where Codex finished 465. Both global-timeout errors are kept. The 6 failures are the same
   `playout-baseline.spec.ts` snapshots Codex saw.
 - **Shard 2:** one failure Codex did not have, `wizard-finish.spec.ts:659` (`.wz-dot.active`
   not found after 7 s). It ran once and was not re-run, so it is not classified as flaky.
-- **Shard 1 at 6 workers:** 36 failures where Codex's 6-worker run was clean. 33 are 7 s
-  `toBeVisible()` timeouts across eight specs. Memory was not the cause: the peak was 5.62 of
+- **Shard 1 at 6 workers:** 36 failures where Codex's 6-worker run was clean. 33 are
+  `toBeVisible()` timeouts across seven specs; the other three are a `toHaveAttribute`
+  (editor-transforms), a `toHaveCount` (production-data) and a `toBeGreaterThan`
+  (output-first-paint). Memory was not the cause: the peak was 5.62 of
   13.36 GiB and `failcnt` was 0. CPU oversubscription on 4 uncapped vCPUs is the likely
   cause, but that is unverified.
 
@@ -118,7 +134,9 @@ counts match. Monitor CPU was 1.7–8.0% of the 4 vCPUs.
 | Large affected selection (PR 1292) | bound hit, 47 unrun | bound hit, 185 unrun |
 
 Inputs for the AC-2 depth proposal, not a policy change:
-- **Speed:** this Claude VM runs build and browser work at roughly 0.7× the Codex VM's speed.
+- **Speed:** relative to the Codex VM, this Claude VM ran the build at about 0.53× (383 s
+  against 203 s) and the browser shards at about 0.73–0.78×. Budget a cloud build at
+  roughly twice the Codex time.
 - **Browser workers:** **4** is the fastest clean count on both providers. 6 is slower and
   unreliable on the Claude environment, so a cloud profile should cap it at 4.
 - **Large selections:** a large affected selection does not finish inside the existing

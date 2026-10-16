@@ -8,7 +8,149 @@
   "branch": "scratch/claude-measure-82880f",
   "commit": "836785a137340ea96d41fe100bf5b958c0863987"
  },
+ "launch": {
+  "tool": "claude-code-remote create_session",
+  "launchedAt": "2026-10-16T12:48:09Z",
+  "arguments": {
+   "source_url": "https://github.com/NoaCG/NoaCG-Studio",
+   "source_revision": "4d55cf52585bb220d8d12d12f42140c76b315cc4",
+   "environment_id": "env_017nuiDZBW9smUNLdWVQK8cf",
+   "outcome_branch": "scratch/claude-measure-82880f"
+  },
+  "nonce": "3e13c596ff20b62e",
+  "providerRecord": {
+   "session": "session_016cz59FTGY7bf8s7n7v3PvX",
+   "parent_session_id": "session_01UXXD4v5EXZAvPUVYAtsL5e",
+   "environment_id": "env_017nuiDZBW9smUNLdWVQK8cf",
+   "origin": "claude_code_mcp_seed"
+  },
+  "identity": {
+   "checkedInWorkerAt": "2026-10-16T12:49:10Z",
+   "printedWithoutFollowUp": false,
+   "followUpSentAt": "2026-10-16T13:00Z",
+   "followUpTool": "claude-code-remote send_message",
+   "reply": {
+    "receivedAt": "2026-10-16T13:00:38Z",
+    "transport": "cross-session message",
+    "session": "session_016cz59FTGY7bf8s7n7v3PvX",
+    "environment_id": "env_017nuiDZBW9smUNLdWVQK8cf",
+    "head": "4d55cf52585bb220d8d12d12f42140c76b315cc4",
+    "statusShortLines": 0,
+    "nonce": "3e13c596ff20b62e"
+   }
+  },
+  "resultTransport": {
+   "progress": "list_events transcript and get_session turn summary",
+   "receipts": "git push to the outcome branch, fetched by the coordinator"
+  }
+ },
+ "localProbe": {
+  "launchedFrom": "local Claude Code CLI on the owner Windows laptop (claude --cloud)",
+  "session": "session_01VFZtobiuJn6zpcu5Dz7Wi3",
+  "createdAt": "2026-10-16T13:15:50Z",
+  "finishedAt": "2026-10-16T13:16:33Z",
+  "providerRecord": {
+   "origin": "claude_code_cli",
+   "environment_id": "env_017nuiDZBW9smUNLdWVQK8cf",
+   "sourceRevision": "main"
+  },
+  "reportedHead": "4d55cf52585bb220d8d12d12f42140c76b315cc4",
+  "changes": "none",
+  "nonce": null,
+  "limitation": "no nonce or pinned SHA; the session reported the then-current main",
+  "earlierFailures": "HTTP 403 listing environments while CLAUDE_CODE_OAUTH_TOKEN was set; no session created"
+ },
  "cgroup": "UTC 2026-10-16T12:50:06Z\ntmpfs on /sys/fs/cgroup type tmpfs (rw,relatime,mode=755)\ncgroup on /sys/fs/cgroup/cpu type cgroup (rw,relatime,cpu)\ncgroup on /sys/fs/cgroup/cpuacct type cgroup (rw,relatime,cpuacct)\ncgroup on /sys/fs/cgroup/cpuset type cgroup (rw,relatime,cpuset)\ncgroup on /sys/fs/cgroup/memory type cgroup (rw,relatime,memory)\ncgroup on /sys/fs/cgroup/devices type cgroup (rw,relatime,devices)\ncgroup on /sys/fs/cgroup/freezer type cgroup (rw,relatime,freezer)\ncgroup on /sys/fs/cgroup/blkio type cgroup (rw,relatime,blkio)\ncgroup on /sys/fs/cgroup/pids type cgroup (rw,relatime,pids)\ncgroup on /sys/fs/cgroup/systemd type cgroup (rw,relatime,name=systemd)\ncgroup2 on /sys/fs/cgroup/unified type cgroup2 (rw,relatime)\n/sys/fs/cgroup/memory limit=9223372036854771712 usage=2477936640 max_usage=3507191808\n/sys/fs/cgroup/memory/process_api limit=9223372036854771712 usage=2637508608 max_usage=3506245632\n/sys/fs/cgroup/memory/process_api/01a144c0-be23-76f5-9c15-20e71437bb13 limit=9223372036854771712 usage=1464733696 max_usage=2331791360\n/sys/fs/cgroup/memory/process_api/01a144c0-be23-76f5-9c15-20e71437bb13/claude-code-bash limit=14343688192 usage=1003130880 max_usage=1871925248\ncpu.cfs_quota_us=-1 cpuset=0-3\nnpx playwright: Version 1.61.1\nPRETTY_NAME=\"Ubuntu 24.04.5 LTS\"\nNAME=\"Ubuntu\"\n",
+ "cgroupV1Usage": {
+  "method": "1 s side sampler of memory.usage_in_bytes and memory.failcnt for /process_api/<id>/claude-code-bash (includes page cache); limit 14343688192 B",
+  "first": "2026-10-16T12:59:36.000Z",
+  "last": "2026-10-16T13:50:28.000Z",
+  "samples": 2936,
+  "overallPeakUsageBytes": 6036365312,
+  "overallMaxFailcnt": 0,
+  "scopeLifetimeMaxUsageBytes": 4488962048,
+  "perRun": {
+   "claude-build.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-gates.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-pr1278-gates.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-pr1287-gates.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-pr1292-gates.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-pr1293-gates.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-v2-full-shard1-w4-workers2.json": {
+    "samples": 491,
+    "peakUsageBytes": 3575889920,
+    "maxFailcnt": 0
+   },
+   "claude-v2-full-shard1-w4-workers4.json": {
+    "samples": 401,
+    "peakUsageBytes": 4886679552,
+    "maxFailcnt": 0
+   },
+   "claude-v2-full-shard1-w4-workers6.json": {
+    "samples": 417,
+    "peakUsageBytes": 6036365312,
+    "maxFailcnt": 0
+   },
+   "claude-v2-full-shard2-w4-workers4.json": {
+    "samples": 487,
+    "peakUsageBytes": 5350207488,
+    "maxFailcnt": 0
+   },
+   "claude-v2-pr1278-w4-workers4.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-v2-pr1287-w4-workers4.json": {
+    "samples": 0,
+    "note": "window predates the side sampler (started 2026-10-16T12:59:36Z)"
+   },
+   "claude-v2-pr1292-w4-workers4.json": {
+    "samples": 1026,
+    "peakUsageBytes": 4896956416,
+    "maxFailcnt": 0
+   },
+   "claude-v2-pr1299-w4-workers4.json": {
+    "samples": 10,
+    "peakUsageBytes": 2984914944,
+    "maxFailcnt": 0
+   }
+  }
+ },
+ "buildCases": {
+  "source": "node test summaries in claude-build.log",
+  "runs": [
+   {
+    "tests": 419,
+    "pass": 419,
+    "fail": 0,
+    "skipped": 0
+   },
+   {
+    "tests": 2965,
+    "pass": 2942,
+    "fail": 0,
+    "skipped": 23
+   }
+  ]
+ },
  "receipts": {
   "claude-build.json": {
    "version": 1,
@@ -928,340 +1070,6 @@
    "giveUpReason": "auto-merge refused it (exit 1) - read the log for which check said no"
   }
  },
- "runSummaries": [
-  {
-   "label": "claude-v2-pr1278-w4-workers4",
-   "code": 1,
-   "signal": null,
-   "timedOut": false,
-   "wall": 61.2,
-   "rssGiB": 3.84,
-   "pssGiB": 2.32,
-   "cgroupPeakGiB": 0,
-   "monCpu": 11.6,
-   "procs": 34,
-   "tests": {
-    "planned": 78,
-    "passed": 59,
-    "failed": 18,
-    "skipped": 1,
-    "unrun": 0,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T12:57:32.404Z",
-    "duration": 60012.78,
-    "expected": 59,
-    "skipped": 1,
-    "unexpected": 18,
-    "flaky": 0
-   },
-   "errors": [],
-   "failures": [
-    "public-chrome-baseline.spec.ts > index chrome at desktop",
-    "public-chrome-baseline.spec.ts > ograf chrome at desktop",
-    "public-chrome-baseline.spec.ts > privacy chrome at desktop",
-    "public-chrome-baseline.spec.ts > terms chrome at desktop",
-    "public-chrome-baseline.spec.ts > docs chrome at desktop",
-    "public-chrome-baseline.spec.ts > downloads chrome at desktop",
-    "public-chrome-baseline.spec.ts > whats-new chrome at desktop",
-    "public-chrome-baseline.spec.ts > roadmap chrome at desktop",
-    "public-chrome-baseline.spec.ts > ograf page at desktop",
-    "public-chrome-baseline.spec.ts > index chrome at phone",
-    "public-chrome-baseline.spec.ts > ograf chrome at phone",
-    "public-chrome-baseline.spec.ts > privacy chrome at phone",
-    "public-chrome-baseline.spec.ts > terms chrome at phone",
-    "public-chrome-baseline.spec.ts > docs chrome at phone",
-    "public-chrome-baseline.spec.ts > downloads chrome at phone",
-    "public-chrome-baseline.spec.ts > whats-new chrome at phone",
-    "public-chrome-baseline.spec.ts > roadmap chrome at phone",
-    "public-chrome-baseline.spec.ts > ograf page at phone"
-   ]
-  },
-  {
-   "label": "claude-v2-pr1287-w4-workers4",
-   "code": 0,
-   "signal": null,
-   "timedOut": false,
-   "wall": 10.6,
-   "rssGiB": 3.1,
-   "pssGiB": 1.63,
-   "cgroupPeakGiB": 0,
-   "monCpu": 1.14,
-   "procs": 33,
-   "tests": {
-    "planned": 8,
-    "passed": 8,
-    "failed": 0,
-    "skipped": 0,
-    "unrun": 0,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T12:58:47.787Z",
-    "duration": 9737.786,
-    "expected": 8,
-    "skipped": 0,
-    "unexpected": 0,
-    "flaky": 0
-   },
-   "errors": [],
-   "failures": []
-  },
-  {
-   "label": "claude-v2-pr1292-w4-workers4",
-   "code": 1,
-   "signal": null,
-   "timedOut": false,
-   "wall": 1101.4,
-   "rssGiB": 5.28,
-   "pssGiB": 3.39,
-   "cgroupPeakGiB": 0,
-   "monCpu": 336.66,
-   "procs": 37,
-   "tests": {
-    "planned": 542,
-    "passed": 328,
-    "failed": 6,
-    "skipped": 23,
-    "unrun": 185,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T12:59:07.948Z",
-    "duration": 1100001.2889999999,
-    "expected": 328,
-    "skipped": 208,
-    "unexpected": 6,
-    "flaky": 0
-   },
-   "errors": [
-    "\u001b[31mTimed out waiting 1100s for the test suite to run\u001b[39m",
-    "\u001b[31mTimed out waiting 1100s for the teardown for test suite to run\u001b[39m"
-   ],
-   "failures": [
-    "playout-baseline.spec.ts > graphics only, at 1920x1080",
-    "playout-baseline.spec.ts > graphics and server cues, at 1920x1080",
-    "playout-baseline.spec.ts > folders, at 1920x1080",
-    "playout-baseline.spec.ts > graphics only, at 1366x768",
-    "playout-baseline.spec.ts > graphics and server cues, at 1366x768",
-    "playout-baseline.spec.ts > folders, at 1366x768"
-   ]
-  },
-  {
-   "label": "claude-v2-pr1299-w4-workers4",
-   "code": 0,
-   "signal": null,
-   "timedOut": false,
-   "wall": 10.3,
-   "rssGiB": 3.11,
-   "pssGiB": 1.66,
-   "cgroupPeakGiB": 0,
-   "monCpu": 1.07,
-   "procs": 33,
-   "tests": {
-    "planned": 8,
-    "passed": 8,
-    "failed": 0,
-    "skipped": 0,
-    "unrun": 0,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T13:17:47.089Z",
-    "duration": 9412.609999999999,
-    "expected": 8,
-    "skipped": 0,
-    "unexpected": 0,
-    "flaky": 0
-   },
-   "errors": [],
-   "failures": []
-  },
-  {
-   "label": "claude-v2-full-shard1-w4-workers4",
-   "code": 0,
-   "signal": null,
-   "timedOut": false,
-   "wall": 417,
-   "rssGiB": 5.41,
-   "pssGiB": 3.38,
-   "cgroupPeakGiB": 0,
-   "monCpu": 112.82,
-   "procs": 37,
-   "tests": {
-    "planned": 204,
-    "passed": 153,
-    "failed": 0,
-    "skipped": 51,
-    "unrun": 0,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T13:18:12.255Z",
-    "duration": 415974.181,
-    "expected": 153,
-    "skipped": 51,
-    "unexpected": 0,
-    "flaky": 0
-   },
-   "errors": [],
-   "failures": []
-  },
-  {
-   "label": "claude-v2-full-shard2-w4-workers4",
-   "code": 1,
-   "signal": null,
-   "timedOut": false,
-   "wall": 508.7,
-   "rssGiB": 5.81,
-   "pssGiB": 3.8,
-   "cgroupPeakGiB": 0,
-   "monCpu": 163.03,
-   "procs": 39,
-   "tests": {
-    "planned": 205,
-    "passed": 160,
-    "failed": 1,
-    "skipped": 44,
-    "unrun": 0,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T13:25:25.647Z",
-    "duration": 507786.156,
-    "expected": 160,
-    "skipped": 44,
-    "unexpected": 1,
-    "flaky": 0
-   },
-   "errors": [],
-   "failures": [
-    "wizard-finish.spec.ts > back onto a deep-linked walk restores it, and the link does not start it over (#1220)"
-   ]
-  },
-  {
-   "label": "claude-v2-full-shard1-w4-workers2",
-   "code": 0,
-   "signal": null,
-   "timedOut": false,
-   "wall": 501.8,
-   "rssGiB": 3.22,
-   "pssGiB": 2.19,
-   "cgroupPeakGiB": 0,
-   "monCpu": 96.95,
-   "procs": 21,
-   "tests": {
-    "planned": 204,
-    "passed": 153,
-    "failed": 0,
-    "skipped": 51,
-    "unrun": 0,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T13:34:10.840Z",
-    "duration": 500834.017,
-    "expected": 153,
-    "skipped": 51,
-    "unexpected": 0,
-    "flaky": 0
-   },
-   "errors": [],
-   "failures": []
-  },
-  {
-   "label": "claude-v2-full-shard1-w4-workers6",
-   "code": 1,
-   "signal": null,
-   "timedOut": false,
-   "wall": 437.7,
-   "rssGiB": 7.29,
-   "pssGiB": 4.36,
-   "cgroupPeakGiB": 0,
-   "monCpu": 129.37,
-   "procs": 52,
-   "tests": {
-    "planned": 204,
-    "passed": 120,
-    "failed": 36,
-    "skipped": 48,
-    "unrun": 0,
-    "flaky": 0,
-    "timedOut": 0,
-    "interrupted": 0,
-    "retries": 0
-   },
-   "stats": {
-    "startTime": "2026-10-16T13:42:48.069Z",
-    "duration": 436833.597,
-    "expected": 120,
-    "skipped": 48,
-    "unexpected": 36,
-    "flaky": 0
-   },
-   "errors": [],
-   "failures": [
-    "editor-model-proposals.spec.ts > refuses uninspected target atomically",
-    "editor-model-proposals.spec.ts > refuses late invalid operation atomically",
-    "editor-model-proposals.spec.ts > Apply preserves human playhead interleaving",
-    "editor-model-proposals.spec.ts > Apply preserves human gesture interleaving",
-    "editor-model-proposals.spec.ts > Apply preserves human assets interleaving",
-    "editor-model-proposals.spec.ts > provider_rejected retains manual editing",
-    "editor-model-proposals.spec.ts > unavailable retains manual editing",
-    "editor-model-proposals.spec.ts > network retains manual editing",
-    "editor-model-proposals.spec.ts > cancelled reply stays quiet while a newer request is still loading",
-    "editor-model-proposals.spec.ts > empty explanation has no Apply action and cannot write",
-    "editor-model-proposals.spec.ts > unconfigured assistant leaves offline authoring available",
-    "editor-model-proposals.spec.ts > review describes the dimensions actually used by point text and shapes",
-    "editor-transforms.spec.ts > Clean Steps: Position Y reads a row's yPercent, and the field and a canvas drag key it at the playhead",
-    "editor-transforms.spec.ts > Frosted Panel: Scale handles key the box's scale track, linked Scale agrees, and one axis refuses",
-    "editor-transforms.spec.ts > House Question: #f1 shows and moves the motion stored under .audience-question",
-    "editor-transforms.spec.ts > refusals: a raw transform, a selector naming several layers or two naming one, autoAlpha bars; autoAlpha keys",
-    "editor-transforms.spec.ts > Clean Steps: a row's bar across a Step flag, trim, key move, key ease, Add Step and Set Out are one undo each and reopen",
-    "editor-transforms.spec.ts > the edited Clean Steps plays in the simulator and SPX as the editor samples it",
-    "import-canvas.spec.ts > import graphic: left-set baked text seeds a LEFT-anchored field on its left edge",
-    "import-canvas.spec.ts > import graphic: a JPEG or WebP design imports exactly like a PNG",
-    "import-canvas.spec.ts > import graphic: a scaled design still previews, validates, and exports",
-    "import-stretch.spec.ts > stretch: the SPX folder package carries the 9-slice with subfolder-correct refs",
-    "import-stretch.spec.ts > stretch: a long value grows the design at full type size, and a short one springs back",
-    "output-first-paint.spec.ts > paints nothing at all from navigation until a cue is taken",
-    "production-data.spec.ts > a quiz bank authored on the Data tab loads into the cue, airs only on Take, and survives a reload",
-    "production-data.spec.ts > the downloaded template is a file the importer accepts, with the columns a cue can bind",
-    "production-data.spec.ts > an unpublished production offers no data key, because it has none",
-    "production-data.spec.ts > one value moves every graphic bound to it, and only the graphics bound to it",
-    "production-data.spec.ts > a refresh arriving mid-word never overwrites the box under the cursor",
-    "project.spec.ts > the wizard mounts the same door: a guarded start-over mid-walk, the inert current page on Entry",
-    "rundown-history-storage.spec.ts > operation receipts keep a failed put distinct from a newer successful put",
-    "rundown-history-storage.spec.ts > a captured authoring operation retains every receipt including a reentrant write",
-    "rundown-history-storage.spec.ts > conditional inverse reads the actual database and refuses a stale mirror",
-    "rundown-history-storage.spec.ts > inverse preserves another production and unrelated latest metadata",
-    "rundown-history-storage.spec.ts > newer pending write cancels an inverse during its database read",
-    "rundown-history-storage.spec.ts > inverse refuses changed session and localStorage fallback"
-   ]
-  }
- ],
  "playwright": {
   "claude-v2-full-shard1-w4-workers2-tests.json": {
    "stats": {
