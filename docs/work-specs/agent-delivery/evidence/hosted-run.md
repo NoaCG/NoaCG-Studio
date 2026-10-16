@@ -1,6 +1,6 @@
 # Agent delivery hosted run (AC-10, AC-11)
 
-Date: 2026-10-16, 06:04 to 07:25 UTC. The run that `final-check.md` names as missing: a coding-agent
+Date: 2026-10-16, 06:04 to 07:30 UTC. The run that `final-check.md` names as missing: a coding-agent
 session given only the Downloads prompt, with no plugin and a clean configuration, against hosted
 noacg.studio, with a new account, a novel brief and a person opening the results. No credential,
 key, account address or customer material is recorded here. The account was new and disposable,
@@ -41,9 +41,10 @@ made for this run by the owner in a private browser window.
    missing ... its loopback port, its challenge"). This had been present since login was added
    (fcfba3557). Fixed in 0.12.1 (#1287, merged 06:56 UTC): Windows now opens the link through
    `rundll32 url.dll,FileProtocolHandler` with the arguments passed unparsed.
-3. **Consent through the printed link.** On a retry the agent ran `login` in the background,
-   read its output and printed the link at once. Its first link expired unused, and the second
-   was approved by the owner in the private window where the new account was signed in. `login`
+3. **Consent through the printed link.** Asked to retry, the agent ran `login` once more in the
+   foreground, which timed out the same way. It then ran `login` in the background, read its
+   output and printed the link at once. That link expired before it reached the owner (the
+   operator relayed it too late), so it did the same again, and this link was approved by the owner in the private window where the new account was signed in. `login`
    then answered "Logged in to https://noacg.studio as <the new account> ... can save graphics to
    that account's library and make productions of them; it cannot publish or play anything". The
    tab said "Done", but its text still claimed the key "can only save graphics", which was wrong
