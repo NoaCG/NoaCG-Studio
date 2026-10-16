@@ -1654,7 +1654,11 @@ test('docs skill prints the procedure without its front matter, for a session wi
   const { readDoc, docTopics } = await import('../dist/commands/docs.js');
   assert.ok(docTopics().includes('skill'));
   const text = await readDoc('skill');
-  assert.match(text, /^# Make a NoaCG graphic/);
+  assert.match(text, /^Each `references\/<name>\.md` this text names prints with `noacg docs <name>`.*\n\n# Make a NoaCG graphic\r?\n/);
+  // The references it names print too, though only the main ones are listed; nothing else does.
+  assert.match(await readDoc('setup'), /^# Local toolkit setup/);
+  await assert.rejects(readDoc('../SKILL'), /Unknown topic/);
+  await assert.rejects(readDoc('nonexistent'), /Unknown topic/);
   // The delivery rules the Downloads prompt relies on: one save, the same command again, pending Install.
   assert.match(text, /save them ALL in ONE\s+command/);
   assert.match(text, /Run the SAME\s+command again/);

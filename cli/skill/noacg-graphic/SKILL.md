@@ -124,6 +124,8 @@ noacg save ./opener ./name-strap ./scorebug ./endboard --production "Friday Figh
   Report the operation id, name the graphics as unconfirmed, and ask the user to look in Home →
   Graphics. `noacg status <operation or graphic id>` reads back what a delivery made and
   whether it is there now.
+- **Not logged in, or the key was revoked** (401): nothing was saved. Run `noacg login` again,
+  which the user approves in the browser, then the same save.
 - **Any other error** saved nothing: name the graphics and the error.
 
 **Pending packages** are the older route, only when the user asks for a file or an Install:

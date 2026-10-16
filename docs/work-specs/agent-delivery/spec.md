@@ -804,11 +804,12 @@ Landed:
   a production, and how to report each answer: confirmed by readback (the only "delivered"), the 403
   of a key made without the production line (ask: log in again, or library-only), `no-production`
   (report what was saved), unconfirmed (run the same command again, then report the operation id;
-  `noacg status` reads it back), any other error. `pack --save` is the older route, reported as
-  pending Install. The final report keeps saved, pending and warnings apart and says "saved", not
-  "opened".
+  `noacg status` reads it back), a 401 (log in again), any other error. `pack --save` is the older
+  route, reported as pending Install. The final report keeps saved, pending and warnings apart and
+  says "saved", not "opened".
 - **One prompt carries it without the plugin.** `noacg docs skill` prints SKILL.md without its front
-  matter, and the Downloads and docs prompt (77 words) says "read docs skill and follow it" and
+  matter, under one line saying each `references/<name>.md` it names prints as `noacg docs <name>`
+  (setup, critique and share included, unlisted), and the Downloads and docs prompt (77 words) says "read docs skill and follow it" and
   "anything still pending or unconfirmed". A plugin-less session now reads the skill's own text, so
   the ambiguous-write and pending-package rules are no longer the plugin's alone.
 - **The three Phase 4 follow-ups.** `noacg --help` shows `--production N [--rundown <cues.json>]
@@ -825,7 +826,7 @@ Landed:
 The final journey, `e2e/configured/agent-access.spec.ts`'s third test, runs in both configured
 workflows (`minTests` 98): a HOME, config dir and npm cache with nothing NoaCG in them, no inherited
 `NOACG_*` variable, and the CLI reached only through `npx -y @noacg/cli@<pin>`; before npm has the
-pin, the same walk runs this checkout packed exactly as `npm publish` packs it, through `npx
+pin, the same walk runs this checkout packed as a tarball (`npm pack` of a fresh `dist`), through `npx
 --package`. The run's annotation names which. A new account is made for the run and deleted after
 it with everything it owns. It walks `--version` = the pin, `doctor`, `docs skill`, `whoami` not
 logged in; `login --no-browser` answered "Don't allow" (exit 1, nothing stored) and then Allow on a

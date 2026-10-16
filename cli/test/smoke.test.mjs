@@ -41,7 +41,8 @@ test('help prints usage', async () => {
   const r = await run(['--help']);
   assert.match(r.stdout, /Usage: noacg <command>/);
   // Every flag `save` reads is in the usage, the production ones included.
-  for (const flag of ['--production N', '--rundown <cues.json>', '--layer n', '--folder F']) assert.ok(r.stdout.includes(flag), `help names ${flag}`);
+  const save = r.stdout.slice(r.stdout.indexOf('  save <dir|zip>'), r.stdout.indexOf('  status <id>'));
+  for (const flag of ['--production N', '--rundown <cues.json>', '--layer n', '--folder F']) assert.ok(save.includes(flag), `save's usage names ${flag}`);
 });
 
 test('types lists the registry', { skip }, async () => {

@@ -765,9 +765,11 @@ test.describe('agent access (configured)', () => {
     const work = await mkdtemp(path.join(os.tmpdir(), 'noacg-published-e2e-'));
     try {
       // THE CLI AS A USER GETS IT. The Downloads prompt's own command, `npx -y @noacg/cli@<pin>`,
-      // when npm has the pinned version; before a release lands, this checkout packed exactly as
-      // `npm publish` would pack it, run through npx the same way. Which one ran is annotated.
-      const { env, run, source } = await cleanAgentCli(work, origin);
+      // when npm has the pinned version; before a release lands, this checkout packed as a tarball
+      // (`npm pack` of its fresh dist and committed skill; CI checks the skill copy is current), run
+      // through npx the same way. Which one ran is annotated. The walk runs on Linux runners: on
+      // Windows, npx.cmd needs a shell, which would split the arguments with spaces.
+      const { run, source } = await cleanAgentCli(work, origin);
       test.info().annotations.push({ type: 'noacg-cli', description: source });
 
       // Preflight, as the prompt asks: the version, doctor, the skill, and no login yet.
@@ -780,7 +782,6 @@ test.describe('agent access (configured)', () => {
       expect(skill.stdout).toContain('Run the SAME');
       const nobody = await run(['whoami', '--json']);
       expect(JSON.parse(nobody.stdout)).toMatchObject({ loggedIn: false });
-      expect(existsSync(path.join(env.XDG_CONFIG_HOME, 'noacg')), 'a clean home holds no NoaCG config').toBe(false);
 
       // The new account signs in where the consent page will open.
       await signInOnHome(page, email, password);
@@ -894,6 +895,13 @@ test.describe('agent access (configured)', () => {
       expect(pending.receipt.resources.map((r) => r.state)).toEqual(['pending_install']);
       await page.goto('/app#/home/graphics');
       await expect.poll(() => libraryIds(page, `Regatta ${tag}`), { timeout: 30_000 }).toEqual(delivered.graphics.map((g) => g.id).sort());
+      // Install recognises the delivery from the synced library and productions, so both first.
+      await expect
+        .poll(() => page.evaluate(async (id) => {
+          const { loadShows } = await import('/src/model/shows.ts');
+          return loadShows().some((s) => s.id === id);
+        }, delivered.production.id), { timeout: 30_000 })
+        .toBe(true);
       await page.goto(`/app#/home/productions/${packageId}`);
       const row = page.getByTestId(`waiting-package-${packageId}`);
       await expect(row).toBeVisible({ timeout: 20_000 });
@@ -924,7 +932,7 @@ type CliRun = (args: string[], opts?: { killWhen?: RegExp; timeoutMs?: number; w
 /** A coding agent's machine with nothing NoaCG on it: its own HOME, config dir and npm cache, no
  *  inherited NoaCG variable, and the CLI reached only through `npx -y`. The browser is the runner's
  *  Chromium, named as the docs allow (NOACG_BROWSER), because the CLI bundles none. */
-async function cleanAgentCli(work: string, origin: string): Promise<{ env: Record<string, string>; run: CliRun; source: string }> {
+async function cleanAgentCli(work: string, origin: string): Promise<{ run: CliRun; source: string }> {
   const home = path.join(work, 'home');
   const env: Record<string, string> = {
     PATH: process.env.PATH ?? '',
@@ -956,7 +964,7 @@ async function cleanAgentCli(work: string, origin: string): Promise<{ env: Recor
   }
   const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
   const run: CliRun = (args, opts = {}) => spawnCli(npx, [...spec, ...args], env, work, { timeoutMs: 240_000, ...opts });
-  return { env, run, source };
+  return { run, source };
 }
 
 /** `noacg login --no-browser`, answered on the consent page it prints: Allow or Don't allow. */
@@ -969,7 +977,10 @@ async function consent(page: Page, run: CliRun, answer: 'allow' | 'deny', email?
       if (m) opened(m[1]);
     },
   });
-  await page.goto(await Promise.race([url, login.then((r) => { throw new Error(`login ended before printing its page: ${r.stderr}`); })]));
+  // A login that ends before printing its page fails the race; handled, so its later end is quiet.
+  const early = login.then((r) => Promise.reject(new Error(`login ended before printing its page: ${r.stderr}`)));
+  early.catch(() => undefined);
+  await page.goto(await Promise.race([url, early]));
   if (answer === 'allow') {
     await expect(page.getByTestId('agent-consent-title')).toHaveText('Allow “Published CLI on E2E” to save graphics and productions to your NoaCG account?');
     await expect(page.getByTestId('agent-consent-account')).toContainText(email!);

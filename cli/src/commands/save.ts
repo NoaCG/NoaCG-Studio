@@ -276,10 +276,14 @@ export function describeSave(outcome: SaveOutcome): string[] {
     // What did land is named with its link even when the delivery is not what was asked (an older
     // deployment that made no production, graphics deleted since): the person needs every link.
     const states = new Map((outcome.receipt?.resources ?? []).map((r) => [r.id, r.state]));
-    const landed = (outcome.graphics ?? []).map((g) => {
-      const state = states.get(g.id);
-      return `- "${g.name}" -> ${g.url}${state && state !== 'saved' ? ` (${state})` : ''}`;
-    });
+    const line = (name: string, id: string, url: string) => {
+      const state = states.get(id);
+      return `- ${name} -> ${url}${state && state !== 'saved' ? ` (${state})` : ''}`;
+    };
+    const landed = [
+      ...(outcome.production ? [line(`production "${outcome.production.name}"`, outcome.production.id, outcome.production.url)] : []),
+      ...(outcome.graphics ?? []).map((g) => line(`"${g.name}"`, g.id, g.url)),
+    ];
     return [...lines, outcome.error ?? 'Not saved.', ...landed];
   }
   const graphics = outcome.graphics ?? [];
