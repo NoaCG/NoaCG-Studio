@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "4c66260096d5d4cf2f3290784f7ede883b9c651bdcad1d693fcb47799da1aaba",
+  "authority": {
+    "status": "agreed",
+    "source": "Owner request in the 2026-10-16 durable-orchestration session: research, recommend and implement a minimal local recovery slice; no hosted deployment authorized by this record"
+  },
+  "review": null
+}
