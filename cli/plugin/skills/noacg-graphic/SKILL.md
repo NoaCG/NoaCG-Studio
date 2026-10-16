@@ -151,7 +151,9 @@ user imports on Home → Productions → **Import a package**.
 **The final report** names every requested graphic once: its library link, or that it was not
 saved and why, or that it is unconfirmed. The production's link follows when one was made; a
 package is listed apart as pending Install. Validator warnings stay apart from the delivery
-state. A saved link is saved, not opened: say "saved", not "checked in the browser".
+state. A saved link is saved, not opened: say "saved", not "checked in the browser". When the
+user gave a brand, the report ends with its lines ("The user's brand" below): what you used
+from where, what you could not use or that you used all of it, and the logo's rights.
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
 (`npx -y @noacg/cli@0.12.2 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.2` once makes every
