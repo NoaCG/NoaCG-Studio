@@ -115,7 +115,7 @@ what it checked. Left over: fix a follow-up yourself only when it is small and i
 already changing; anything else becomes a GitHub issue (`gh issue create`, with a priority, an area
 label and why it matters). Nothing speculative. No handoff file, no new doc unless it is the goal.
 Then /check and /queue-merge. End your report with the link to its next-session comment, not the
-comment's text. Do not wait for the landing.
+comment's text. Do not wait for the landing after the coordinator acknowledges repair ownership (queue-merge.md).
 Never merge or push main, never touch another worktree, and leave nothing running.
 ```
 
@@ -127,17 +127,17 @@ Act when a row finishes or the timer fires, and at no other time:
 - Read the machine again (step 3). If the window still fits another row (the median row time so
   far, or 60 minutes before there is one, plus 30 minutes to land), launch the next item. Never rush
   or cut a row short to fit one more: one finished, well-verified row beats two hurried ones.
-- Read `npm run jobs -- failed`: each queued pull request whose landing failed, with its CI log.
+- Read `npm run jobs -- failed` (cloud: each row PR's GitHub checks and mergeability directly):
+  each failed landing with its CI log. Acknowledge repair ownership before the worker ends.
   That row, or one that ended without a PR, is sent the failure (Claude Code: SendMessage to the
   row; Codex: `send_message`) and resumes in its own worktree. After two failed repairs, report it.
   Another session's failed PR is that session's to repair; if no live session holds it, give it a row.
 - A row past twice the median with no result is reported, never killed; launch beside it only if
   the machine has room.
 
-Do not poll or watch CI: the merge queue, quarantine and alarms keep `main` green. A timer covers a
+Use queue-merge.md's proven cloud wake for late CI and base conflicts; jobs are not a cloud ledger. A timer covers a
 row that never reports: a background `sleep 1800` in Claude Code, re-armed while rows run; a
 30-minute heartbeat in Codex. End each turn with one line on what runs, never a promise to wait.
-
 ## 5. End
 
 Stop launching when the next row would not land inside the window. When no row is running, wait
