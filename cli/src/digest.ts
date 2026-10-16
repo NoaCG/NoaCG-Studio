@@ -28,8 +28,10 @@ export function canonicalJson(value: unknown): string {
 }
 
 /** The frame `validate --screenshots` writes into a package. It is an output of a validate, never
- *  a source: a folder is read without it (workspace.ts `zipDirectory`), but a zip carries it as an
- *  asset, so counting it made a handed-in `record.zip` read as another version than its folder. */
+ *  a source: a folder is read without it (workspace.ts `zipDirectory`), and the importer leaves it
+ *  out of a zip whose manifest names it (src/model/importTemplate.ts). The digest still skips it
+ *  because the bridge it reads through can be a deployment from before that, where a zip carried
+ *  it as an asset and a handed-in `record.zip` read as another version than its folder. */
 export const THUMBNAIL_ASSET = 'thumbnail.png';
 
 export function sourceDigest(template: SpxTemplate): SourceDigest {
