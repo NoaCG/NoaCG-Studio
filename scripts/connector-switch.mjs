@@ -28,6 +28,7 @@ import { isDeepStrictEqual } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { isConnectorDiscovery } from '../api/_lib/connectorDiscovery.ts';
 import { envRoot, loadEnvFile } from './read-dotenv.mjs';
 import { productionRef, stagingRef } from './supabase-projects.mjs';
 
@@ -177,17 +178,14 @@ async function signingKey(ctx) {
 }
 
 /**
- * What a deployment reads, by the site's own rule (api/_lib/connectorAuth.ts): on when Auth's
- * discovery is JSON with a string `issuer` and a `registration_endpoint`; off when it answers 404
- * or a document without them. Anything else is unreadable, never off.
+ * What a deployment reads, by the site's own rule (api/_lib/connectorDiscovery.ts): on when Auth's
+ * discovery is a document that rule accepts; off when it answers 404 or a document it refuses.
+ * Anything else is unreadable, never off.
  */
 async function discovery(ctx) {
   const res = await request(ctx.io, 'GET', `https://${ctx.ref}.supabase.co/auth/v1/.well-known/oauth-authorization-server`);
   if (res.status === 404) return 'off';
-  if (res.status === 200 && res.json) {
-    const on = typeof res.json.registration_endpoint === 'string' && res.json.registration_endpoint && typeof res.json.issuer === 'string';
-    return on ? 'on' : 'off';
-  }
+  if (res.status === 200 && res.json) return isConnectorDiscovery(res.json) ? 'on' : 'off';
   return `unreadable (${res.status ? `HTTP ${res.status}` : res.text})`;
 }
 
