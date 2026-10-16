@@ -33,6 +33,9 @@ the plugin. Installation alone does not establish MCP App support. Open the thre
 panel entry, or ask the native task to call `noacg_preview`. If the tool is absent,
 reload before trying again. If the host lacks the `openai/message` capability,
 the panel leaves sending disabled and reports that limitation.
+The UI resource advertises inline and fullscreen display modes and prefers
+fullscreen through the documented OpenAI resource metadata. This lets a supporting
+desktop host open its inspectable app panel instead of defaulting to an inline card.
 
 ## Try the native round trip
 

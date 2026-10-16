@@ -29,6 +29,10 @@ called `noacg_preview` and received/inspected a real, legible PNG, package ID
 and the correct absolute fixture path in the phase-1 worktree. The actual MCP Apps
 surface still reported no tab. Opening the panel, native selected request/image
 receipt and native before/after source-edit refresh are not yet observed.
+The owner subsequently reported the inline textbox and Send control visible.
+The resource now advertises inline/fullscreen and prefers fullscreen with the
+documented `openai/ui` metadata so the host can open an inspectable panel; that
+metadata change still needs its own actual host observation.
 
 The actual cached launcher also served both tools and the MCP App resource over
 stdio in a separate protocol probe. This proves cached startup, not panel support.

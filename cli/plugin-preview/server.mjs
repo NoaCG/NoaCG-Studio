@@ -24,7 +24,10 @@ export async function createServer({ fixtureRoot } = {}) {
   };
   registerAppResource(server, 'NoaCG preview trial', UI_URI, {}, async () => ({ contents: [{
     uri: UI_URI, mimeType: RESOURCE_MIME_TYPE, text: html.replace('<!-- APP_SCRIPT -->', () => `<script>${js.replace(/<\/script/gi, '<\\/script')}</script>`),
-    _meta: { ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] } } },
+    _meta: {
+      ui: { csp: { connectDomains: [], resourceDomains: [], frameDomains: [] } },
+      'openai/ui': { availableDisplayModes: ['inline', 'fullscreen'], preferredDisplayMode: 'fullscreen' },
+    },
   }] }));
   registerAppTool(server, 'noacg_preview', {
     title: 'Open or refresh local graphic preview',
