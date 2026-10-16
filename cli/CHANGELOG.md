@@ -23,8 +23,8 @@ If you already said what you want, it gets straight to work.
 used to differ: some reported where each colour came from and what they could not use, others
 used a club crest without a word. The skill now says where to take your colours, fonts and logo
 from, copies the logo into the graphic, bundles a font only when its licence allows it, and ends
-with what was used, where it came from, what could not be used, and that a logo belongs to its
-owner, so you need the right to show it on air.
+with what was used, where it came from and what could not be used. For a logo or crest that is
+not your own, it says you need the right to show it on air.
 
 The starter prompt on Downloads uses this version. With the plugin, update it the usual way.
 
