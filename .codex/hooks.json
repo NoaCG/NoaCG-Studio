@@ -8,7 +8,7 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/codex-guard-command.mjs\"",
             "timeout": 30,
-            "statusMessage": "Checking the command has a time limit"
+            "statusMessage": "Checking the command for a time limit and .env reads"
           }
         ]
       }

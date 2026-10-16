@@ -33,6 +33,14 @@ test('a polling loop with no time limit is denied, and the reason says how to ad
   assert.equal(decide(codexShell("timeout 7200 bash -c 'until docker info; do sleep 5; done'")).decision?.permissionDecision, 'deny');
 });
 
+test('a command that prints a .env file is denied, and the reason points at the configured test accounts', () => {
+  for (const command of ['cat .env', 'Get-Content .env.local']) {
+    const { decision } = decide(codexShell(command));
+    assert.equal(decision?.permissionDecision, 'deny', `${command} was allowed`);
+    assert.match(decision.permissionDecisionReason, /configured-suite\.yml/);
+  }
+});
+
 test('a bounded wait, an ordinary command and an unreadable event pass', () => {
   for (const event of [codexShell("timeout 600 bash -c 'until docker info; do sleep 5; done'"), codexShell('git status'), 'not json', { tool_name: 'apply_patch', tool_input: {} }]) {
     assert.deepEqual(decide(event), { status: 0, decision: null });

@@ -1,6 +1,7 @@
 // PreToolUse guard for shell commands (the Bash and PowerShell tools). Enforces, cheapest
 // check first:
 //
+//  0. No command reads or prints a .env file's values (env-secrets.mjs).
 //  1. Dev servers go through the Claude preview tools, never a raw shell command - a stray
 //     server on this checkout's port is exactly the "reuseExistingServer picks up the wrong
 //     env" e2e trap documented in e2e/AGENTS.md ("Gotchas when writing a spec").
@@ -25,6 +26,7 @@
 import { isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readHookInput, deny, gitOutput, checkoutKind } from './lib.mjs';
+import { envSecretsRefusal, showsEnvSecrets } from './env-secrets.mjs';
 import * as rules from '../rules.mjs';
 import { portsFor } from '../dev-port.mjs';
 import { sameRoot } from '../port-registry.mjs';
@@ -70,6 +72,13 @@ function targetRoot() {
   if (resolvedTarget === null) resolvedTarget = commandCheckout(command, sessionDir) ?? sessionDir;
   return resolvedTarget;
 }
+
+// --- 0. No .env value reaches the transcript (#1281) ----------------------------------------
+//
+// Codex runs the same rule through codex-guard-command.mjs, and the Read and Grep tools through
+// guard-read.mjs; env-secrets.mjs decides for all three.
+const secretRead = showsEnvSecrets(command, sessionDir);
+if (secretRead) deny(envSecretsRefusal(secretRead));
 
 // --- 1. Dev-server policy -----------------------------------------------------------------
 
