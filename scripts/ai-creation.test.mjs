@@ -452,6 +452,11 @@ test('only a convert is screened against the import: a fresh result is not (issu
   const fixed = await fixing;
   assert.equal(fixed.convertedFrom, imported);
   assert.equal(screenChange(fixed), PASS);
+  const freshFix = harness();
+  const freshFixing = refineResult(refineInput({ level: 'code', instruction: 'fix it' }), freshFix.io);
+  await settle();
+  freshFix.stub.calls[0].resolve(leakyAnswer('Fixed fresh'));
+  assert.equal(screenChange(await freshFixing).ok, false, "a fresh result's fix is screened with no source");
 
   // A fresh result came from no file, so an import dropped beside it later suppresses nothing.
   for (const route of ['raw', 'lite', 'directions']) {

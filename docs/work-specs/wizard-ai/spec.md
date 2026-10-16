@@ -421,11 +421,11 @@ The plan's last entry: every phase is built and checked.
   - *Records keep their evidence.* A dated note is appended, the 2026-09-07 quotations are not
     rewritten, as the records' own "Quotation correction" entries do.
 - **For the shell's S7 (this plan has no next phase):** S7 deletes the `steps/AiStep.tsx` shim
-  and retargets `CreationWizard.tsx`'s lazy import; it should also fix the four comments naming
+  and retargets `CreationWizard.tsx`'s lazy import; the four comments naming
   old paths (`src/ai/creation.ts:5`, `src/model/aiThread.ts:2`, `src/model/cssVars.ts:21`,
-  `src/styles/wizard-describe.css:200`) and decide whether `ai/UploadCard.tsx`, shared with
-  `steps/VideoStep.tsx`, belongs in `wizard/`. Still open beyond this plan: `keepChassisZone`
-  is not pinned by a test (A3 check's surviving mutant); the rebuild has no live e2e while
+  `src/styles/wizard-describe.css:200`) are fixed (#1227); it should decide whether `ai/UploadCard.tsx`, shared with
+  `steps/VideoStep.tsx`, belongs in `wizard/`. `keepChassisZone` is pinned in the
+  rebuild test (#1204). Still open beyond this plan: the rebuild has no live e2e while
   `adapt-first` is skipped (#800); the AI step's chain is 3,705 bytes over the 40,960 target.
 - **Traps:** rewording a rule renames it (the id comes from its words); the retired file stays so
   citations of the old id still resolve. `learn` with an existing rule's exact text and
