@@ -1,0 +1,1882 @@
+{
+  "measuredAt": "2026-10-16T15:49:31.168Z",
+  "since": "2026-10-12T00:00:00.000Z",
+  "scope": "top-level transcripts in the primary project only; deduplicated message/request IDs; archived/missing files excluded",
+  "scanned": 146,
+  "malformed": 0,
+  "wakeSessions": 88,
+  "zeroUsageSessions": 1,
+  "firstRequestContext": {
+    "min": 77838,
+    "median": 87106,
+    "max": 90091
+  },
+  "requestsPerSession": {
+    "min": 1,
+    "median": 2,
+    "max": 4
+  },
+  "toolCounts": {
+    "checkCommandCalls": 87,
+    "otherToolCalls": 17
+  },
+  "totals": {
+    "input": 592,
+    "cacheWrite": 3443805,
+    "cacheRead": 12979008,
+    "output": 16453,
+    "total": 16439858
+  },
+  "sessions": [
+    {
+      "at": "2026-10-12T21:10:17.544Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 44798,
+        "cacheRead": 42448,
+        "output": 88,
+        "total": 87336
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 44990,
+        "cacheRead": 129694,
+        "output": 157,
+        "total": 174845
+      }
+    },
+    {
+      "at": "2026-10-12T21:40:16.418Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 40997,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87345
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41189,
+        "cacheRead": 133513,
+        "output": 176,
+        "total": 174882
+      }
+    },
+    {
+      "at": "2026-10-12T22:10:17.833Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 36909,
+        "cacheRead": 50321,
+        "output": 91,
+        "total": 87323
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 37104,
+        "cacheRead": 137551,
+        "output": 161,
+        "total": 174820
+      }
+    },
+    {
+      "at": "2026-10-12T22:40:16.576Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 41141,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87489
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41333,
+        "cacheRead": 133657,
+        "output": 162,
+        "total": 175156
+      }
+    },
+    {
+      "at": "2026-10-12T23:10:17.748Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 37146,
+        "cacheRead": 50295,
+        "output": 88,
+        "total": 87531
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 37338,
+        "cacheRead": 137736,
+        "output": 155,
+        "total": 175233
+      }
+    },
+    {
+      "at": "2026-10-12T23:40:15.971Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 41208,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87556
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41400,
+        "cacheRead": 133724,
+        "output": 166,
+        "total": 175294
+      }
+    },
+    {
+      "at": "2026-10-13T00:10:17.878Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 37251,
+        "cacheRead": 50321,
+        "output": 88,
+        "total": 87662
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 37443,
+        "cacheRead": 137893,
+        "output": 148,
+        "total": 175488
+      }
+    },
+    {
+      "at": "2026-10-13T00:40:16.414Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 36783,
+        "cacheRead": 50321,
+        "output": 88,
+        "total": 87194
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 36975,
+        "cacheRead": 137425,
+        "output": 136,
+        "total": 174540
+      }
+    },
+    {
+      "at": "2026-10-13T01:10:17.789Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 37168,
+        "cacheRead": 50321,
+        "output": 88,
+        "total": 87579
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 37360,
+        "cacheRead": 137810,
+        "output": 143,
+        "total": 175317
+      }
+    },
+    {
+      "at": "2026-10-13T01:40:16.130Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 41142,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87490
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41334,
+        "cacheRead": 133658,
+        "output": 139,
+        "total": 175135
+      }
+    },
+    {
+      "at": "2026-10-13T02:10:17.001Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 40832,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87180
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41024,
+        "cacheRead": 133348,
+        "output": 137,
+        "total": 174513
+      }
+    },
+    {
+      "at": "2026-10-13T06:10:22.129Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 44940,
+        "cacheRead": 42448,
+        "output": 90,
+        "total": 87480
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 45128,
+        "cacheRead": 129836,
+        "output": 170,
+        "total": 175138
+      }
+    },
+    {
+      "at": "2026-10-13T06:40:23.328Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 37077,
+        "cacheRead": 50306,
+        "output": 90,
+        "total": 87475
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 37265,
+        "cacheRead": 137689,
+        "output": 149,
+        "total": 175107
+      }
+    },
+    {
+      "at": "2026-10-13T07:10:22.883Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 37064,
+        "cacheRead": 50306,
+        "output": 88,
+        "total": 87460
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 37250,
+        "cacheRead": 137676,
+        "output": 138,
+        "total": 175068
+      }
+    },
+    {
+      "at": "2026-10-13T07:40:24.769Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 36701,
+        "cacheRead": 50306,
+        "output": 88,
+        "total": 87097
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 36887,
+        "cacheRead": 137313,
+        "output": 191,
+        "total": 174395
+      }
+    },
+    {
+      "at": "2026-10-13T08:10:23.752Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 40958,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87306
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41144,
+        "cacheRead": 133474,
+        "output": 161,
+        "total": 174783
+      }
+    },
+    {
+      "at": "2026-10-13T08:40:24.285Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 41103,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87451
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41289,
+        "cacheRead": 133619,
+        "output": 153,
+        "total": 175065
+      }
+    },
+    {
+      "at": "2026-10-13T09:10:23.316Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 40903,
+        "cacheRead": 46258,
+        "output": 90,
+        "total": 87253
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41091,
+        "cacheRead": 133419,
+        "output": 168,
+        "total": 174682
+      }
+    },
+    {
+      "at": "2026-10-13T09:40:22.298Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 40767,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 87115
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 40953,
+        "cacheRead": 133283,
+        "output": 168,
+        "total": 174408
+      }
+    },
+    {
+      "at": "2026-10-13T10:10:25.328Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 36850,
+        "cacheRead": 50328,
+        "output": 88,
+        "total": 87268
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 37036,
+        "cacheRead": 137506,
+        "output": 195,
+        "total": 174741
+      }
+    },
+    {
+      "at": "2026-10-13T10:40:22.779Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 40786,
+        "cacheRead": 46258,
+        "output": 104,
+        "total": 87150
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 40988,
+        "cacheRead": 133302,
+        "output": 163,
+        "total": 174457
+      }
+    },
+    {
+      "at": "2026-10-13T17:10:29.731Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 45548,
+        "cacheRead": 42448,
+        "output": 88,
+        "total": 88086
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 45739,
+        "cacheRead": 130444,
+        "output": 131,
+        "total": 176318
+      }
+    },
+    {
+      "at": "2026-10-13T17:40:21.918Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 41413,
+        "cacheRead": 46258,
+        "output": 90,
+        "total": 87763
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 41606,
+        "cacheRead": 133929,
+        "output": 146,
+        "total": 175685
+      }
+    },
+    {
+      "at": "2026-10-13T18:10:21.923Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 41768,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 88116
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42031,
+        "cacheRead": 134284,
+        "output": 174,
+        "total": 176493
+      }
+    },
+    {
+      "at": "2026-10-13T18:40:23.687Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38093,
+        "cacheRead": 50329,
+        "output": 90,
+        "total": 88514
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 38358,
+        "cacheRead": 138751,
+        "output": 156,
+        "total": 177269
+      }
+    },
+    {
+      "at": "2026-10-13T19:10:21.742Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 41984,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 88332
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42247,
+        "cacheRead": 134500,
+        "output": 183,
+        "total": 176934
+      }
+    },
+    {
+      "at": "2026-10-13T19:40:23.247Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38597,
+        "cacheRead": 50326,
+        "output": 88,
+        "total": 89013
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 38860,
+        "cacheRead": 139249,
+        "output": 142,
+        "total": 178255
+      }
+    },
+    {
+      "at": "2026-10-13T20:10:35.807Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42272,
+        "cacheRead": 46258,
+        "output": 104,
+        "total": 88636
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42551,
+        "cacheRead": 134788,
+        "output": 199,
+        "total": 177542
+      }
+    },
+    {
+      "at": "2026-10-13T20:40:25.482Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 89202,
+        "cacheRead": 0,
+        "output": 78,
+        "total": 89282
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 89455,
+        "cacheRead": 89202,
+        "output": 124,
+        "total": 178785
+      }
+    },
+    {
+      "at": "2026-10-13T21:10:25.815Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 43085,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89816
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 43338,
+        "cacheRead": 136387,
+        "output": 124,
+        "total": 179853
+      }
+    },
+    {
+      "at": "2026-10-13T21:40:24.112Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42424,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89155
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42677,
+        "cacheRead": 135726,
+        "output": 103,
+        "total": 178510
+      }
+    },
+    {
+      "at": "2026-10-13T22:10:26.949Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38794,
+        "cacheRead": 50702,
+        "output": 78,
+        "total": 89576
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 39047,
+        "cacheRead": 140198,
+        "output": 109,
+        "total": 179358
+      }
+    },
+    {
+      "at": "2026-10-13T22:40:22.836Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 43438,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 90169
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 43691,
+        "cacheRead": 136740,
+        "output": 126,
+        "total": 180561
+      }
+    },
+    {
+      "at": "2026-10-13T23:10:32.549Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42351,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89082
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42604,
+        "cacheRead": 135653,
+        "output": 124,
+        "total": 178385
+      }
+    },
+    {
+      "at": "2026-10-13T23:40:24.347Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38416,
+        "cacheRead": 50702,
+        "output": 78,
+        "total": 89198
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 38669,
+        "cacheRead": 139820,
+        "output": 111,
+        "total": 178604
+      }
+    },
+    {
+      "at": "2026-10-14T00:10:23.195Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 43145,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89876
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 43398,
+        "cacheRead": 136447,
+        "output": 124,
+        "total": 179973
+      }
+    },
+    {
+      "at": "2026-10-14T00:40:23.766Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42689,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89420
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42942,
+        "cacheRead": 135991,
+        "output": 127,
+        "total": 179064
+      }
+    },
+    {
+      "at": "2026-10-14T01:10:23.766Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42895,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89626
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 43148,
+        "cacheRead": 136197,
+        "output": 105,
+        "total": 179454
+      }
+    },
+    {
+      "at": "2026-10-14T01:40:23.491Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42655,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89386
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42836,
+        "cacheRead": 135957,
+        "output": 121,
+        "total": 178918
+      }
+    },
+    {
+      "at": "2026-10-14T02:10:24.733Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38618,
+        "cacheRead": 50719,
+        "output": 78,
+        "total": 89417
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 38799,
+        "cacheRead": 140056,
+        "output": 126,
+        "total": 178985
+      }
+    },
+    {
+      "at": "2026-10-14T02:40:22.409Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42354,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89085
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 42535,
+        "cacheRead": 135656,
+        "output": 119,
+        "total": 178314
+      }
+    },
+    {
+      "at": "2026-10-14T03:10:03.081Z",
+      "requests": 3,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42306,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89037
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 1
+      },
+      "tokens": {
+        "input": 6,
+        "cacheWrite": 42618,
+        "cacheRead": 224684,
+        "output": 309,
+        "total": 267617
+      }
+    },
+    {
+      "at": "2026-10-14T03:40:04.126Z",
+      "requests": 3,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38294,
+        "cacheRead": 50663,
+        "output": 78,
+        "total": 89037
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 1
+      },
+      "tokens": {
+        "input": 6,
+        "cacheWrite": 38609,
+        "cacheRead": 228696,
+        "output": 277,
+        "total": 267588
+      }
+    },
+    {
+      "at": "2026-10-14T04:10:02.399Z",
+      "requests": 4,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38293,
+        "cacheRead": 50663,
+        "output": 78,
+        "total": 89036
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 2
+      },
+      "tokens": {
+        "input": 8,
+        "cacheWrite": 39683,
+        "cacheRead": 318858,
+        "output": 415,
+        "total": 358964
+      }
+    },
+    {
+      "at": "2026-10-14T05:41:27.021Z",
+      "requests": 3,
+      "first": {
+        "input": 2,
+        "cacheWrite": 88957,
+        "cacheRead": 0,
+        "output": 78,
+        "total": 89037
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 1
+      },
+      "tokens": {
+        "input": 6,
+        "cacheWrite": 89269,
+        "cacheRead": 178033,
+        "output": 284,
+        "total": 267592
+      }
+    },
+    {
+      "at": "2026-10-14T06:10:05.069Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 42822,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89553
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 43069,
+        "cacheRead": 136124,
+        "output": 102,
+        "total": 179299
+      }
+    },
+    {
+      "at": "2026-10-14T06:40:03.664Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 43007,
+        "cacheRead": 46651,
+        "output": 78,
+        "total": 89738
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 43254,
+        "cacheRead": 136309,
+        "output": 176,
+        "total": 179743
+      }
+    },
+    {
+      "at": "2026-10-14T07:10:03.722Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 46070,
+        "cacheRead": 42448,
+        "output": 90,
+        "total": 88610
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 46329,
+        "cacheRead": 130966,
+        "output": 172,
+        "total": 177471
+      }
+    },
+    {
+      "at": "2026-10-14T07:40:09.735Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31682,
+        "cacheRead": 46258,
+        "output": 104,
+        "total": 78046
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 31955,
+        "cacheRead": 124198,
+        "output": 156,
+        "total": 156313
+      }
+    },
+    {
+      "at": "2026-10-14T08:10:13.955Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 78491,
+        "cacheRead": 0,
+        "output": 78,
+        "total": 78571
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 78738,
+        "cacheRead": 78491,
+        "output": 123,
+        "total": 157356
+      }
+    },
+    {
+      "at": "2026-10-14T08:40:04.669Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32069,
+        "cacheRead": 46651,
+        "output": 103,
+        "total": 78825
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32341,
+        "cacheRead": 125371,
+        "output": 149,
+        "total": 157865
+      }
+    },
+    {
+      "at": "2026-10-14T09:10:04.821Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 36050,
+        "cacheRead": 42448,
+        "output": 88,
+        "total": 78588
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 36307,
+        "cacheRead": 120946,
+        "output": 167,
+        "total": 157424
+      }
+    },
+    {
+      "at": "2026-10-14T09:40:09.546Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 28358,
+        "cacheRead": 50331,
+        "output": 104,
+        "total": 78795
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28631,
+        "cacheRead": 129020,
+        "output": 229,
+        "total": 157884
+      }
+    },
+    {
+      "at": "2026-10-14T10:10:06.536Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31945,
+        "cacheRead": 46258,
+        "output": 106,
+        "total": 78311
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32220,
+        "cacheRead": 124461,
+        "output": 221,
+        "total": 156906
+      }
+    },
+    {
+      "at": "2026-10-14T10:40:30.381Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32353,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 78701
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32610,
+        "cacheRead": 124869,
+        "output": 178,
+        "total": 157661
+      }
+    },
+    {
+      "at": "2026-10-14T11:10:05.085Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31578,
+        "cacheRead": 46258,
+        "output": 88,
+        "total": 77926
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 31835,
+        "cacheRead": 124094,
+        "output": 187,
+        "total": 156120
+      }
+    },
+    {
+      "at": "2026-10-14T11:40:07.738Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 38005,
+        "cacheRead": 42841,
+        "output": 124,
+        "total": 80972
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 34,
+        "cacheWrite": 38230,
+        "cacheRead": 123687,
+        "output": 169,
+        "total": 162120
+      }
+    },
+    {
+      "at": "2026-10-14T12:10:11.021Z",
+      "requests": 4,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27697,
+        "cacheRead": 52571,
+        "output": 149,
+        "total": 80419
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 2
+      },
+      "tokens": {
+        "input": 98,
+        "cacheWrite": 29168,
+        "cacheRead": 294854,
+        "output": 559,
+        "total": 324679
+      }
+    },
+    {
+      "at": "2026-10-14T12:40:05.692Z",
+      "requests": 4,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31537,
+        "cacheRead": 48510,
+        "output": 171,
+        "total": 80220
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 2
+      },
+      "tokens": {
+        "input": 98,
+        "cacheWrite": 33247,
+        "cacheRead": 290391,
+        "output": 614,
+        "total": 324350
+      }
+    },
+    {
+      "at": "2026-10-14T15:51:33.409Z",
+      "requests": 4,
+      "first": {
+        "input": 2,
+        "cacheWrite": 84107,
+        "cacheRead": 0,
+        "output": 104,
+        "total": 84213
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 2
+      },
+      "tokens": {
+        "input": 8,
+        "cacheWrite": 85511,
+        "cacheRead": 253688,
+        "output": 463,
+        "total": 339670
+      }
+    },
+    {
+      "at": "2026-10-14T16:10:00.964Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31708,
+        "cacheRead": 52517,
+        "output": 90,
+        "total": 84317
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 31968,
+        "cacheRead": 136742,
+        "output": 179,
+        "total": 168893
+      }
+    },
+    {
+      "at": "2026-10-14T16:40:01.337Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31977,
+        "cacheRead": 52517,
+        "output": 88,
+        "total": 84584
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32235,
+        "cacheRead": 137011,
+        "output": 200,
+        "total": 169450
+      }
+    },
+    {
+      "at": "2026-10-14T17:10:01.441Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32576,
+        "cacheRead": 52517,
+        "output": 88,
+        "total": 85183
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32834,
+        "cacheRead": 137610,
+        "output": 192,
+        "total": 170640
+      }
+    },
+    {
+      "at": "2026-10-14T17:40:01.557Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32159,
+        "cacheRead": 52517,
+        "output": 90,
+        "total": 84768
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32621,
+        "cacheRead": 137193,
+        "output": 165,
+        "total": 169983
+      }
+    },
+    {
+      "at": "2026-10-14T18:10:02.870Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27729,
+        "cacheRead": 56606,
+        "output": 104,
+        "total": 84441
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28205,
+        "cacheRead": 140941,
+        "output": 181,
+        "total": 169331
+      }
+    },
+    {
+      "at": "2026-10-14T18:40:01.297Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32010,
+        "cacheRead": 52517,
+        "output": 88,
+        "total": 84617
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32268,
+        "cacheRead": 137044,
+        "output": 144,
+        "total": 169460
+      }
+    },
+    {
+      "at": "2026-10-14T19:10:00.824Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31842,
+        "cacheRead": 52517,
+        "output": 90,
+        "total": 84451
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32102,
+        "cacheRead": 136876,
+        "output": 164,
+        "total": 169146
+      }
+    },
+    {
+      "at": "2026-10-14T19:40:03.133Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 28178,
+        "cacheRead": 56628,
+        "output": 90,
+        "total": 84898
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28640,
+        "cacheRead": 141434,
+        "output": 149,
+        "total": 170227
+      }
+    },
+    {
+      "at": "2026-10-14T20:10:01.059Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32313,
+        "cacheRead": 52517,
+        "output": 106,
+        "total": 84938
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32589,
+        "cacheRead": 137347,
+        "output": 156,
+        "total": 170096
+      }
+    },
+    {
+      "at": "2026-10-14T20:40:03.056Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32685,
+        "cacheRead": 52517,
+        "output": 91,
+        "total": 85295
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 33148,
+        "cacheRead": 137719,
+        "output": 161,
+        "total": 171032
+      }
+    },
+    {
+      "at": "2026-10-14T21:10:00.128Z",
+      "requests": 1,
+      "first": null,
+      "tools": {},
+      "tokens": {
+        "input": 0,
+        "cacheWrite": 0,
+        "cacheRead": 0,
+        "output": 0,
+        "total": 0
+      }
+    },
+    {
+      "at": "2026-10-14T21:39:59.681Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31712,
+        "cacheRead": 52517,
+        "output": 90,
+        "total": 84321
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 31972,
+        "cacheRead": 136746,
+        "output": 188,
+        "total": 168910
+      }
+    },
+    {
+      "at": "2026-10-14T22:10:02.157Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 28002,
+        "cacheRead": 56607,
+        "output": 110,
+        "total": 84721
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28282,
+        "cacheRead": 141216,
+        "output": 191,
+        "total": 169693
+      }
+    },
+    {
+      "at": "2026-10-14T22:40:02.662Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27852,
+        "cacheRead": 56607,
+        "output": 88,
+        "total": 84549
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28110,
+        "cacheRead": 141066,
+        "output": 153,
+        "total": 169333
+      }
+    },
+    {
+      "at": "2026-10-14T23:09:58.013Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32235,
+        "cacheRead": 52517,
+        "output": 104,
+        "total": 84858
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32718,
+        "cacheRead": 137269,
+        "output": 189,
+        "total": 170180
+      }
+    },
+    {
+      "at": "2026-10-14T23:40:02.195Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 28234,
+        "cacheRead": 56590,
+        "output": 88,
+        "total": 84914
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28492,
+        "cacheRead": 141414,
+        "output": 156,
+        "total": 170066
+      }
+    },
+    {
+      "at": "2026-10-15T00:10:00.099Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27623,
+        "cacheRead": 56590,
+        "output": 90,
+        "total": 84305
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28085,
+        "cacheRead": 140803,
+        "output": 202,
+        "total": 169094
+      }
+    },
+    {
+      "at": "2026-10-15T00:40:02.755Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27932,
+        "cacheRead": 56590,
+        "output": 88,
+        "total": 84612
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 28190,
+        "cacheRead": 141112,
+        "output": 137,
+        "total": 169443
+      }
+    },
+    {
+      "at": "2026-10-15T01:10:00.952Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32091,
+        "cacheRead": 52517,
+        "output": 90,
+        "total": 84700
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32351,
+        "cacheRead": 137125,
+        "output": 203,
+        "total": 169683
+      }
+    },
+    {
+      "at": "2026-10-15T01:39:59.647Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31714,
+        "cacheRead": 52517,
+        "output": 88,
+        "total": 84321
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 31972,
+        "cacheRead": 136748,
+        "output": 139,
+        "total": 168863
+      }
+    },
+    {
+      "at": "2026-10-15T02:09:59.828Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 31693,
+        "cacheRead": 52517,
+        "output": 106,
+        "total": 84318
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 31900,
+        "cacheRead": 136727,
+        "output": 161,
+        "total": 168792
+      }
+    },
+    {
+      "at": "2026-10-15T02:40:00.860Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27621,
+        "cacheRead": 56587,
+        "output": 88,
+        "total": 84298
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 27810,
+        "cacheRead": 140795,
+        "output": 147,
+        "total": 168756
+      }
+    },
+    {
+      "at": "2026-10-15T03:10:01.518Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27618,
+        "cacheRead": 56587,
+        "output": 88,
+        "total": 84295
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 27807,
+        "cacheRead": 140792,
+        "output": 140,
+        "total": 168743
+      }
+    },
+    {
+      "at": "2026-10-15T03:40:01.148Z",
+      "requests": 4,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27623,
+        "cacheRead": 56587,
+        "output": 104,
+        "total": 84316
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 2
+      },
+      "tokens": {
+        "input": 8,
+        "cacheWrite": 29229,
+        "cacheRead": 310786,
+        "output": 447,
+        "total": 340470
+      }
+    },
+    {
+      "at": "2026-10-15T04:09:59.771Z",
+      "requests": 4,
+      "first": {
+        "input": 2,
+        "cacheWrite": 27619,
+        "cacheRead": 56587,
+        "output": 90,
+        "total": 84298
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 2
+      },
+      "tokens": {
+        "input": 8,
+        "cacheWrite": 29211,
+        "cacheRead": 310544,
+        "output": 493,
+        "total": 340256
+      }
+    },
+    {
+      "at": "2026-10-15T05:42:30.498Z",
+      "requests": 4,
+      "first": {
+        "input": 2,
+        "cacheWrite": 36281,
+        "cacheRead": 47981,
+        "output": 90,
+        "total": 84354
+      },
+      "tools": {
+        "checkCommandCalls": 1,
+        "otherToolCalls": 2
+      },
+      "tokens": {
+        "input": 8,
+        "cacheWrite": 37671,
+        "cacheRead": 302106,
+        "output": 441,
+        "total": 340226
+      }
+    },
+    {
+      "at": "2026-10-15T06:09:55.735Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 32004,
+        "cacheRead": 52517,
+        "output": 91,
+        "total": 84614
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 32476,
+        "cacheRead": 137038,
+        "output": 191,
+        "total": 169709
+      }
+    },
+    {
+      "at": "2026-10-15T06:39:58.837Z",
+      "requests": 2,
+      "first": {
+        "input": 2,
+        "cacheWrite": 85963,
+        "cacheRead": 0,
+        "output": 108,
+        "total": 86073
+      },
+      "tools": {
+        "checkCommandCalls": 1
+      },
+      "tokens": {
+        "input": 4,
+        "cacheWrite": 86243,
+        "cacheRead": 85963,
+        "output": 224,
+        "total": 172434
+      }
+    }
+  ]
+}
