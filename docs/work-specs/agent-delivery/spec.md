@@ -840,6 +840,20 @@ another account opening a graphic link told "Graphic not found ... You are signe
 with the graphic's name nowhere on the page; the same graphics' `pack --save` reading back
 `pending_install` and Install warning "Already delivered as"; `logout` leaving `whoami` logged out.
 
+Evidence: configured suite run 38826294861 on this branch (`bd2de3576`, local Supabase stack) ran
+102: 102 passed, 0 failed, 0 flaky, 8 allowed skips. The third test passed first time in 1.3 min,
+running this checkout's tarball (0.12.0 is not on npm before this lands); the first two agent-access
+tests passed too. The kept frames were looked at: the name strap's stress frame doubles both lines
+inside its plate; the countdown and ticker frames are the scaffolds' own sample content, light on a
+transparent ground. The brief is novel in its names and running order only; the graphics are the
+types' scaffolds, because the walk proves the delivery path, not a design. The consent card at 1440
+and 390px reads "Allow "Claude Code CLI on E2E" to save graphics and productions to your NoaCG
+account?" above both permission lines, wrapping cleanly. Run 38829085180 on the reviewed tip
+(`9b8b4aa7f`) again ran 102 of 102, 0 flaky, all three agent-access tests first time.
+Locally: CLI `tsc`, `unit`, `mcp` and smoke 84 pass; `agent-prompt.test.mjs`; `build-skill
+--check` (30 files); `src` typecheck; eslint on the changed files; `npm run gates -- run --changed
+origin/main`, `harness-bench.test.mjs` included.
+
 Decisions:
 - One pull request carries code, docs and the version bump, because the repository's release is the
   bump landing; the pins derive from `cli/package.json` and move with it.
