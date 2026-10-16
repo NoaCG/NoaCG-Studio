@@ -6,7 +6,7 @@
     "source": "Owner request in this Codex chat, 2026-10-16: dependable cloud landing and recovery using existing environments; Claude qualification remains open."
   },
   "review": {
-    "revision": "bf3990cb9e189a7072d758c3d544e710ea06d091",
+    "revision": "459fc028c0273b4462cbbcde0e540467d7093cc7",
     "specSha256": "bbf09cb2e52e54f127fb13723d886f1fc00a633c86d7fabaa46045989779facf",
     "evidence": [
       {
@@ -16,6 +16,10 @@
       {
         "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-handoff.md",
         "sha256": "a595e565e5a14873d83a4229802f93ef032102b916c916c923289b84b4af8305"
+      },
+      {
+        "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-runtime.md",
+        "sha256": "a4504f4a183aeecfbd040743386f59f9dedc8b6bc4e0b4f2ed8484990a2d5d85"
       }
     ],
     "criteria": [
@@ -26,6 +30,10 @@
           {
             "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
             "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          },
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-runtime.md",
+            "sha256": "a4504f4a183aeecfbd040743386f59f9dedc8b6bc4e0b4f2ed8484990a2d5d85"
           }
         ]
       },
@@ -36,6 +44,10 @@
           {
             "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
             "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          },
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-runtime.md",
+            "sha256": "a4504f4a183aeecfbd040743386f59f9dedc8b6bc4e0b4f2ed8484990a2d5d85"
           }
         ]
       },
@@ -46,6 +58,10 @@
           {
             "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
             "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          },
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-runtime.md",
+            "sha256": "a4504f4a183aeecfbd040743386f59f9dedc8b6bc4e0b4f2ed8484990a2d5d85"
           }
         ]
       },
@@ -56,6 +72,10 @@
           {
             "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
             "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          },
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-runtime.md",
+            "sha256": "a4504f4a183aeecfbd040743386f59f9dedc8b6bc4e0b4f2ed8484990a2d5d85"
           }
         ]
       },
@@ -70,6 +90,10 @@
           {
             "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-handoff.md",
             "sha256": "a595e565e5a14873d83a4229802f93ef032102b916c916c923289b84b4af8305"
+          },
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-runtime.md",
+            "sha256": "a4504f4a183aeecfbd040743386f59f9dedc8b6bc4e0b4f2ed8484990a2d5d85"
           }
         ]
       }
