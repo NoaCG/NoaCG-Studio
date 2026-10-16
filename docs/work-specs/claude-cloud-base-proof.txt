@@ -1,1 +1,2 @@
 repair owner: the worker records its owner comment before ending
+repair owner: a scheduled wake checks mergeability with no webhook
