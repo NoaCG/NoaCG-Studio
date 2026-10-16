@@ -20,9 +20,10 @@ const isCi = Boolean(process.env.CI);
 const blobReporter: ReporterDescription = process.env.NOACG_BLOB_NAME
   ? ['blob', { fileName: process.env.NOACG_BLOB_NAME }]
   : ['blob'];
-validateCloudWorkerRequest();
+const cloudLimits = validateCloudWorkerRequest();
 
 export default defineConfig({
+  ...cloudLimits,
   testDir: './e2e',
   // The authed community flows live in e2e/configured and run under playwright.live.config.ts (a
   // configured, signed-in backend). The exhaustive catalog calibration tripwire lives in

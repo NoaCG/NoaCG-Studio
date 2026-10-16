@@ -1,6 +1,7 @@
 // Execution-site resources and the owner-approved cloud verification policy (#1301).
 // Read this worker's kernel/runtime, never a coordinator-supplied profile or host RAM alone.
 import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { availableParallelism, freemem, totalmem } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,15 +14,18 @@ const number = (s) => s !== null && s !== '' && Number.isFinite(Number(s)) ? Num
 // A mount can expose a subtree. Translate membership relative to its mount root, then
 // walk to the visible mount boundary, not filesystem / or a sibling controller mount.
 export function cgroupDirectories(mount, membership) {
-  const root = path.posix.normalize(mount.root), member = path.posix.normalize(membership);
+  const root = path.posix.resolve('/', mount.root), member = path.posix.resolve('/', membership);
   if (member !== '/' && member !== root && !member.startsWith(root === '/' ? '/' : `${root}/`)) return [];
   const relative = member === '/' ? '' : path.posix.relative(root, member);
-  let current = path.posix.join(mount.point, relative);
+  const point = path.posix.resolve('/', mount.point);
+  let current = path.posix.join(point, relative);
   const dirs = [];
   while (true) {
     dirs.push(current);
-    if (current === mount.point) break;
-    current = path.posix.dirname(current);
+    if (current === point) break;
+    const parent = path.posix.dirname(current);
+    if (parent === current) return []; // malformed mount boundary must not loop at /
+    current = parent;
   }
   return dirs;
 }
@@ -99,7 +103,7 @@ export function executionProfile({ env = process.env, platform = process.platfor
 }
 
 export function buildRisk(files) {
-  return files.some((file) => /^(?:src\/(?:main\.tsx|(?:admin|output|join|ograf|bridge)\/main\.tsx?|docs\/docs\.ts|downloads\/downloads\.ts|landing\/motion\.ts)|package(?:-lock)?\.json|(?:vite|tsconfig|eslint)[^/]*\.[^/]+|(?:app|admin|output|join|ograf|bridge|index|docs|downloads)\.html|(?:cli|render-worker|player-host)\/(?:package(?:-lock)?\.json|index\.html|src\/(?:main|index|worker)\.[cm]?[jt]sx?)|scripts\/(?:build[^/]*|gates|compile-contracts)\.mjs)$/.test(file));
+  return files.some((file) => /^(?:src\/(?:main\.tsx|(?:admin|output|join|ograf|bridge)\/main\.tsx?|docs\/docs\.ts|downloads\/downloads\.ts|landing\/motion\.ts)|package(?:-lock)?\.json|(?:vite|tsconfig|eslint)[^/]*\.[^/]+|(?:app|admin|output|join|ograf|bridge|index|docs|downloads)\.html|(?:cli|render-worker|player-host)\/(?:package(?:-lock)?\.json|(?:vite|tsconfig|eslint)[^/]*\.[^/]+|index\.html|src\/(?:main|index|worker)\.[cm]?[jt]sx?)|scripts\/(?:build[^/]*|gates|compile-contracts)\.mjs)$/.test(file));
 }
 
 export function queuedVerificationProblem(job, admission, { head, dirty = false } = {}) {
@@ -115,6 +119,32 @@ export function cloudPlanAdmission({ profile, boundMinutes, job, source }) {
   if (job.capMinutes < boundMinutes) return `Queue this selection with --cap ${boundMinutes}; the current job cap is too small`;
   if (boundMinutes > 5 && (job.verification?.kind !== 'broader' || job.verification.source !== source)) return 'Broader selection needs reviewed source admission in the existing queue';
   return null;
+}
+
+export function cloudBuildAdmission({ profile, job, source, dirty = false }) {
+  if (profile.kind !== 'cloud') return;
+  if (!job || job.state !== 'running') throw Error('Cloud production build must use the existing job queue');
+  const admission = cloudJobPolicy({ profile, build: true, requestedCap: job.capMinutes });
+  const problem = queuedVerificationProblem(job, admission, { head: source, dirty });
+  if (problem) throw Error(problem);
+}
+
+export function cloudBrowserAdmission({ profile, args = [], job, source, dirty = false }) {
+  if (profile.kind !== 'cloud' || args.some((a) => ['--list', '--help', '--version'].includes(a))) return {};
+  if (!args.includes('test') && !job) return {}; // inspection/import, not a Playwright execution
+  const problem = cloudPlanAdmission({ profile, boundMinutes: job?.capMinutes ?? 5, job, source });
+  if (problem) throw Error(problem);
+  if (!profile.known) throw Error('Unknown execution-site headroom: browser execution stays in GitHub Actions');
+  const admission = cloudJobPolicy({ profile, browser: true, requestedCap: job.capMinutes });
+  const stateProblem = queuedVerificationProblem(job, admission, { head: source, dirty });
+  if (stateProblem) throw Error(stateProblem);
+  const maximum = admission.capMinutes * 60_000;
+  for (let i = 0; i < args.length; i++) {
+    const raw = args[i].startsWith('--global-timeout=') ? args[i].slice('--global-timeout='.length)
+      : args[i] === '--global-timeout' ? args[++i] : null;
+    if (raw !== null && (!Number.isFinite(Number(raw)) || Number(raw) <= 0 || Number(raw) > maximum)) throw Error(`Cloud global timeout must be positive and at most ${maximum} milliseconds`);
+  }
+  return { globalTimeout: maximum };
 }
 
 export function workerRequestsInCommand(command) {
@@ -141,6 +171,15 @@ export function cloudJobPolicy({ command, browser = false, build = false, reques
   const capMinutes = requestedCap ?? (browser ? 5 : maximum ?? 45);
   if (!Number.isFinite(capMinutes) || capMinutes <= 0 || (maximum && capMinutes > maximum)) throw Error(`Cloud ${build ? 'build' : 'browser'} cap exceeds ${maximum} minutes`);
   return { capMinutes, verification: build ? 'build' : browser && capMinutes > 5 ? 'broader' : null, command };
+}
+
+export async function enforceCloudBuildAdmission() {
+  const profile = executionProfile();
+  if (profile.kind !== 'cloud') return;
+  const { jobsDir, readJobs } = await import('./jobs-store.mjs');
+  const job = readJobs(jobsDir()).find((j) => j.id === process.env.NOACG_QUEUED_JOB_ID && path.resolve(j.checkout) === path.resolve(process.cwd()));
+  const git = (...args) => execFileSync('git', args, { encoding: 'utf8', windowsHide: true }).trim();
+  cloudBuildAdmission({ profile, job, source: job ? git('rev-parse', 'HEAD') : null, dirty: job ? Boolean(git('status', '--porcelain')) : false });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) console.log(JSON.stringify(executionProfile(), null, 2));

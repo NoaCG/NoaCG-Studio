@@ -53,6 +53,7 @@
 // factory tier), so a guard that names a path that no longer exists fails the build the way a
 // stale exemption did.
 import { spawnSync } from 'node:child_process';
+import { enforceCloudBuildAdmission } from './execution-profile.mjs';
 import { existsSync, globSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -829,5 +830,10 @@ function main(argv) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.exit(main(process.argv.slice(2)));
+  const args = process.argv.slice(2);
+  // Preserve discovery as the build's first entry. Targeted gates and Actions keep
+  // their existing path; a native cloud production build needs reviewed queue admission.
+  const admission = process.env.npm_lifecycle_event === 'build' && args.join(' ') === 'run'
+    ? enforceCloudBuildAdmission() : Promise.resolve();
+  admission.then(() => { process.exitCode = main(args); }).catch((error) => { console.error(error.message); process.exitCode = 2; });
 }

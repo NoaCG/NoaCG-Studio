@@ -12,9 +12,10 @@ import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.
 // no AI provider) - the tripwire only exercises src/validation/runtimeBench.ts against
 // src/templates/catalog.ts, so it needs nothing else from the app.
 const base = `http://127.0.0.1:${devPort()}`;
-validateCloudWorkerRequest();
+const cloudLimits = validateCloudWorkerRequest();
 
 export default defineConfig({
+  ...cloudLimits,
   testDir: './e2e/catalog',
   timeout: 30_000,
   expect: { timeout: 7_000 },
@@ -23,7 +24,7 @@ export default defineConfig({
   // it benches every catalog variant, so it runs longest and holds the machine for the whole of
   // it. CI keeps a fixed 4 - a hosted runner's free memory says nothing useful about how much
   // work it can take, and its load is not shared with anyone trying to use the machine.
-  workers: process.env.CI ? 4 : localWorkers(),
+  workers: Math.min(process.env.CI ? 4 : localWorkers(), cloudLimits.workers ?? Infinity),
   retries: 0,
   reporter: [['list'], ['./scripts/e2e-run-integrity.mjs']],
   // Also the cross-checkout queue: two suites on one 16 GB laptop exhaust it rather than

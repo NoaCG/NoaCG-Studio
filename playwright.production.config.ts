@@ -21,9 +21,10 @@ import { defineConfig, devices } from '@playwright/test';
 //
 // .github/workflows/deploy-verify.yml runs it on every production deployment and on the same
 // four-times-a-day schedule as the version check beside it.
-validateCloudWorkerRequest();
+const cloudLimits = validateCloudWorkerRequest();
 
 export default defineConfig({
+  ...cloudLimits,
   // The same directory the configured suite uses, filtered by tag: a deep link is one behaviour
   // and deserves ONE spec file, whichever server it is pointed at. `grep` is what keeps the rest
   // of that suite - which signs in, writes records and deletes them - away from production.

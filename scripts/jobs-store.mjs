@@ -473,7 +473,7 @@ export function addJob(dir, input) {
   try { mkdirSync(lock); }
   catch (error) {
     if (error.code !== 'EEXIST') throw error;
-    throw Error('Verification admission is busy or interrupted; inspect existing queue records before retrying');
+    throw Error('Verification admission is busy or interrupted; inspect existing queue records before retrying', { cause: error });
   }
   try {
     const { source, kind } = input.verification;

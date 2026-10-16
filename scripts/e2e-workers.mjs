@@ -30,7 +30,10 @@
 // costs the whole session.
 
 import { freemem } from 'node:os';
-import { cloudJobPolicy, requestedWorkerCounts, executionProfile } from './execution-profile.mjs';
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { jobsDir, readJobs } from './jobs-store.mjs';
+import { cloudBrowserAdmission, cloudJobPolicy, requestedWorkerCounts, executionProfile } from './execution-profile.mjs';
 
 /**
  * A STEP TABLE, not a formula, because the cost of a worker is not linear and pretending it is
@@ -137,4 +140,11 @@ export function localWorkers() {
 // Called even by CI-shaped local invocations: --workers/-j must not bypass the cloud ceiling.
 export function validateCloudWorkerRequest({ profile = executionProfile(), args = process.argv, override = process.env.E2E_WORKERS } = {}) {
   cloudJobPolicy({ profile, browser: true, requestedWorkers: [...requestedWorkerCounts(args), ...(override ? [override] : [])] });
+  if (profile.kind !== 'cloud') return {};
+  if (!args.includes('test') || args.includes('--list') || args.includes('--help')) return { workers: profile.workers };
+  const job = readJobs(jobsDir()).find((j) => j.id === process.env.NOACG_QUEUED_JOB_ID && resolve(j.checkout) === resolve(process.cwd()));
+  const git = (...args) => execFileSync('git', args, { encoding: 'utf8', windowsHide: true }).trim();
+  const source = job?.capMinutes > 5 ? git('rev-parse', 'HEAD') : null;
+  const dirty = job?.capMinutes > 5 ? Boolean(git('status', '--porcelain')) : false;
+  return { workers: profile.workers, ...cloudBrowserAdmission({ profile, args, job, source, dirty }) };
 }

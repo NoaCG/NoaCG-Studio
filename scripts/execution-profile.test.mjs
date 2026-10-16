@@ -47,6 +47,7 @@ test('mount roots map membership without escaping and hidden ancestors stay unkn
   assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg' }, '/team/job'), ['/cg/job', '/cg']);
   assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg' }, '/other/job'), []);
   assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg' }, '/'), ['/cg']);
+  assert.deepEqual(cgroupDirectories({ root: '/team', point: '/cg/' }, '/team/job'), ['/cg/job', '/cg']);
   const f = fixture(); f.files.set('/proc/self/mountinfo', '1 0 0:1 /team /cg rw - cgroup2 cgroup rw');
   assert.equal(readResources(f).limitsObserved, false);
 });
@@ -157,7 +158,7 @@ test('command worker parsing covers normal overrides without misreading --json',
 });
 
 test('source entrypoints trigger builds while documentation remains targeted', () => {
-  for (const file of ['src/main.tsx', 'src/admin/main.tsx', 'src/output/main.ts', 'src/docs/docs.ts', 'downloads.html', 'player-host/index.html', 'player-host/src/main.tsx', 'cli/src/index.ts']) assert.equal(buildRisk([file]), true, file);
+  for (const file of ['src/main.tsx', 'src/admin/main.tsx', 'src/output/main.ts', 'src/docs/docs.ts', 'downloads.html', 'player-host/index.html', 'player-host/src/main.tsx', 'cli/src/index.ts', 'player-host/vite.config.ts', 'player-host/tsconfig.json']) assert.equal(buildRisk([file]), true, file);
   assert.equal(buildRisk(['docs/ARCHITECTURE.md']), false);
 });
 test('runtime refuses legacy/moved build and broader records without reviewed admission', async () => {
@@ -171,4 +172,32 @@ test('runtime refuses legacy/moved build and broader records without reviewed ad
   assert.match(cloudPlanAdmission({ profile: cloud(), boundMinutes: 12, source }), /queue/);
   assert.match(cloudPlanAdmission({ profile: cloud(), boundMinutes: 12, source, job: { state: 'running', capMinutes: 12 } }), /reviewed source/);
   assert.equal(cloudPlanAdmission({ profile: cloud(), boundMinutes: 12, source, job: { state: 'running', capMinutes: 12, verification: { source, kind: 'broader' } } }), null);
+});
+
+test('direct Playwright execution needs running queue admission and a bounded global timeout', async () => {
+  const { cloudBrowserAdmission } = await import('./execution-profile.mjs');
+  const args = ['node', 'playwright/cli.js', 'test', 'e2e/downloads.spec.ts'];
+  const source = 'a'.repeat(40), job = { state: 'running', capMinutes: 5 };
+  assert.throws(() => cloudBrowserAdmission({ profile: cloud(), args }), /queue/);
+  assert.deepEqual(cloudBrowserAdmission({ profile: cloud(), args, job }), { globalTimeout: 300000 });
+  for (const more of [['--global-timeout=0'], ['--global-timeout', '720000'], ['--global-timeout=bad']]) assert.throws(() => cloudBrowserAdmission({ profile: cloud(), args: [...args, ...more], job }), /global timeout/);
+  assert.throws(() => cloudBrowserAdmission({ profile: cloud(), args, job: { state: 'done', capMinutes: 5 } }), /queue/);
+  assert.throws(() => cloudBrowserAdmission({ profile: cloud({ limitsObserved: false }), args, job }), /Unknown/);
+  assert.throws(() => cloudBrowserAdmission({ profile: cloud(), args, source, job: { state: 'running', capMinutes: 12 } }), /reviewed source/);
+  assert.deepEqual(cloudBrowserAdmission({ profile: cloud(), args, source, job: { state: 'running', capMinutes: 12, verification: { kind: 'broader', source } } }), { globalTimeout: 720000 });
+  assert.deepEqual(cloudBrowserAdmission({ profile: cloud(), args: [...args, '--list'] }), {});
+  assert.deepEqual(cloudBrowserAdmission({ profile: { kind: 'local' }, args }), {});
+  assert.deepEqual(cloudBrowserAdmission({ profile: { kind: 'ci' }, args }), {});
+});
+
+test('normal production build entry requires running reviewed queue admission in cloud only', async () => {
+  const { cloudBuildAdmission } = await import('./execution-profile.mjs');
+  const source = 'a'.repeat(40), job = { state: 'running', capMinutes: 5, verification: { kind: 'build', source } };
+  assert.throws(() => cloudBuildAdmission({ profile: cloud() }), /job queue/);
+  assert.throws(() => cloudBuildAdmission({ profile: cloud(), job: { ...job, verification: null }, source }), /lacks/);
+  assert.throws(() => cloudBuildAdmission({ profile: cloud(), job, source, dirty: true }), /moved/);
+  assert.throws(() => cloudBuildAdmission({ profile: cloud(), job: { ...job, capMinutes: 6 }, source }), /exceeds/);
+  assert.doesNotThrow(() => cloudBuildAdmission({ profile: cloud(), job, source }));
+  assert.doesNotThrow(() => cloudBuildAdmission({ profile: { kind: 'local' } }));
+  assert.doesNotThrow(() => cloudBuildAdmission({ profile: { kind: 'ci' } }));
 });
