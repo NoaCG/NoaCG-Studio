@@ -10,23 +10,31 @@
 // had its say? It lives beside the sync controller rather than in the store because answering it
 // means driving a sync pass, and the store layer does not reach into `backend/`.
 //
+// A PRODUCTION LINK IS THE SAME QUESTION. `#/production/<id>` is printed by `noacg save
+// --production` and opened cold just as often, and productions travel in the same sync pass
+// (`show` is a sync kind, backend/sync.ts), so `productionWhenSynced` asks it through the same
+// wait rather than a second mechanism.
+//
 // WHAT IT DOES NOT DO: decide what happens next. A miss can mean "deleted", "someone else's" or
 // "nobody is signed in here", and those want different answers on screen - a redirect, a prompt,
-// nothing at all. The caller (App.tsx's graphic-route effect, GraphicControlPage) holds that
+// nothing at all. The caller (App.tsx's graphic-route effect, GraphicControlPage, ProductionPage) holds that
 // decision, which is why this returns a reason rather than performing one.
 
 import { isBackendConfigured } from './config';
 import { getAccessToken } from './auth';
 import { getSyncState, syncNow } from './syncController';
 import { graphicById, type GraphicDoc } from '../model/library';
+import { loadShows, type Show } from '../model/shows';
 
-export type GraphicLookup =
-  | { status: 'found'; doc: GraphicDoc }
+export type RecordLookup<T> =
+  | { status: 'found'; doc: T }
   /** Looked everywhere this reader has: the id is deleted, or it belongs to another account. */
   | { status: 'unknown' }
   /** A configured build with no session. The record may exist perfectly well in the account
    *  nobody has signed into here, so the LINK is still good and must not be thrown away. */
   | { status: 'needs-sign-in' };
+
+export type GraphicLookup = RecordLookup<GraphicDoc>;
 
 /**
  * The backstop, and ONLY the backstop: it is reached when a sync pass neither finishes nor fails,
@@ -48,13 +56,22 @@ const CLOUD_ANSWER_MS = 60_000;
  * Resolves as soon as the answer is known - the local hit is synchronous in all but name, and a
  * record that arrives mid-pass resolves on the library write rather than at the end of the pass.
  */
-export async function graphicWhenSynced(id: string, timeoutMs = CLOUD_ANSWER_MS): Promise<GraphicLookup> {
-  const local = graphicById(id);
+export function graphicWhenSynced(id: string, timeoutMs = CLOUD_ANSWER_MS): Promise<GraphicLookup> {
+  return recordWhenSynced(() => graphicById(id), timeoutMs);
+}
+
+/** The production for `id`, personal or team, asked the same way as a graphic. */
+export function productionWhenSynced(id: string, timeoutMs = CLOUD_ANSWER_MS): Promise<RecordLookup<Show>> {
+  return recordWhenSynced(() => loadShows().find((s) => s.id === id) ?? null, timeoutMs);
+}
+
+async function recordWhenSynced<T>(find: () => T | null, timeoutMs: number): Promise<RecordLookup<T>> {
+  const local = find();
   if (local) return { status: 'found', doc: local };
   // An offline build has no second place to look: its library IS this browser.
   if (!isBackendConfigured()) return { status: 'unknown' };
   if (!(await getAccessToken().catch(() => null))) return { status: 'needs-sign-in' };
-  const pulled = await cloudAnswer(id, timeoutMs);
+  const pulled = await cloudAnswer(find, timeoutMs);
   return pulled ? { status: 'found', doc: pulled } : { status: 'unknown' };
 }
 
@@ -71,10 +88,10 @@ export async function graphicWhenSynced(id: string, timeoutMs = CLOUD_ANSWER_MS)
  * The timeout is the backstop for neither of those happening (a pass wedged on a request that
  * never settles), so the caller is never left with a surface that waits forever.
  */
-function cloudAnswer(id: string, timeoutMs: number): Promise<GraphicDoc | null> {
+function cloudAnswer<T>(find: () => T | null, timeoutMs: number): Promise<T | null> {
   return new Promise((resolve) => {
     let settled = false;
-    const settle = (doc: GraphicDoc | null): void => {
+    const settle = (doc: T | null): void => {
       if (settled) return;
       settled = true;
       window.removeEventListener('spx-data-changed', onData);
@@ -82,17 +99,17 @@ function cloudAnswer(id: string, timeoutMs: number): Promise<GraphicDoc | null> 
       resolve(doc);
     };
     const onData = (): void => {
-      const doc = graphicById(id);
+      const doc = find();
       if (doc) settle(doc);
     };
     window.addEventListener('spx-data-changed', onData);
-    const timer = setTimeout(() => settle(graphicById(id)), timeoutMs);
+    const timer = setTimeout(() => settle(find()), timeoutMs);
     // syncNow resolves when a pass that could SEE this record has completed - see the `waiting`
     // list in syncController.ts, which is the half of this fix that lives over there.
     void syncNow()
       .catch(() => undefined)
       .then(() => {
-        const doc = graphicById(id);
+        const doc = find();
         if (doc) {
           settle(doc);
           return;

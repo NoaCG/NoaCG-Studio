@@ -1,5 +1,8 @@
+// A graphic or production link opened cold asks the cloud through this one lookup.
+// covers: src/backend/graphicWhenSynced.ts
+
 import { test, expect } from '@playwright/test';
-import { dismissWizard, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
+import { dismissWizard, E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
 
 // THE DEEP LINK, AT BOOT (docs/AGENT_SAVE.md). `noacg save` prints
 // `<origin>/app#/graphic/<id>` and promises it opens the graphic at once. The link is a boot
@@ -62,6 +65,68 @@ test.describe('deep-link boot', () => {
     // arrived late (846 ms on production), so an assertion that only looks early would miss it.
     await page.waitForTimeout(3_000);
     expect(await page.evaluate(() => location.hash)).toBe(`#/control/${ABSENT_ID}`);
+  });
+
+  test('a signed-out production link asks for a sign-in rather than calling it gone @production', async ({ page }) => {
+    // `noacg save --production` prints `#/production/<id>`, reached cold exactly like a graphic
+    // link. Signed out, the honest answer is the account's door, never "no longer exists".
+    await page.goto(`/app#/production/${ABSENT_ID}`);
+    const prompt = page.getByTestId('production-page').getByTestId('signin-prompt');
+    await expect(prompt).toContainText('Sign in to open this production', { timeout: 30_000 });
+    await expect(page.getByTestId('production-missing')).toHaveCount(0);
+    expect(await page.evaluate(() => location.hash)).toBe(`#/production/${ABSENT_ID}`);
+  });
+
+  test('a production link opens once signed in from it, and an absent one names only the account', async ({ browser, page }) => {
+    test.skip(!haveCreds, 'needs E2E_EMAIL/E2E_PASSWORD');
+    test.setTimeout(180_000);
+    const name = `Production link E2E ${Date.now()}`;
+
+    // Made somewhere else - the CLI, another machine - so the reader's browser has never held it.
+    const elsewhere = await browser.newContext();
+    const other = await elsewhere.newPage();
+    try {
+      await signIn(other);
+      await dismissWizard(other);
+      await settleSync(other);
+      const id = await other.evaluate(async (n) => {
+        const { createShowNamed } = await import('/src/model/shows.ts');
+        const { syncNow } = await import('/src/backend/syncController.ts');
+        const show = createShowNamed(n);
+        await syncNow();
+        return show.id;
+      }, name);
+
+      // Signed out on the link: the prompt, and its own Sign in opens the production.
+      await page.goto(`/app#/production/${id}`);
+      const prompt = page.getByTestId('production-page').getByTestId('signin-prompt');
+      await expect(prompt).toBeVisible({ timeout: 30_000 });
+      await prompt.getByRole('button', { name: 'Sign in', exact: true }).click();
+      await page.locator('#auth-email').fill(E2E_EMAIL);
+      await page.locator('#auth-pass').fill(E2E_PASSWORD);
+      await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
+      await expect(page.locator('.pd-name')).toHaveText(name, { timeout: 60_000 });
+      expect(await page.evaluate(() => location.hash)).toBe(`#/production/${id}`);
+
+      // Signed in, and the id is in no account this reader has: not found, saying which account
+      // is signed in and nothing about any production.
+      await page.goto(`/app#/production/${ABSENT_ID}`);
+      await expect(page.getByTestId('production-missing')).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
+      const account = page.getByTestId('production-missing-account');
+      expect(await account.evaluate((el, email) => el.textContent === `You are signed in as ${email}.`, E2E_EMAIL)).toBe(true);
+    } finally {
+      await other
+        .evaluate(async (n) => {
+          const { deleteShow, loadShows } = await import('/src/model/shows.ts');
+          const { syncNow } = await import('/src/backend/syncController.ts');
+          await syncNow();
+          for (const s of loadShows()) if (s.name === n) deleteShow(s.id);
+          await syncNow();
+        }, name)
+        .catch(() => undefined);
+      await elsewhere.close();
+    }
   });
 
   test('a graphic saved elsewhere opens on its link, however slow the pull', async ({ browser, page }) => {
