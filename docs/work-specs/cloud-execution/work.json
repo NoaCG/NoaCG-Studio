@@ -1,0 +1,88 @@
+{
+  "version": 2,
+  "specSha256": "575d857709c25ceb41b19b839b7b6e111f08caf744f0fef650822a3b4f4a65c8",
+  "authority": {
+    "status": "agreed",
+    "source": "Owner request in this Codex chat, 2026-10-16; precise verification depth remains reserved for approval."
+  },
+  "review": {
+    "revision": "4abc5e07f27ab24fa45efda428ec9c112510e9a5",
+    "specSha256": "575d857709c25ceb41b19b839b7b6e111f08caf744f0fef650822a3b4f4a65c8",
+    "evidence": [
+      {
+        "path": "docs/work-specs/cloud-execution/evidence/check.md",
+        "sha256": "8b3f501121136550f57ad8b72e057076cf5333ac2c7dd82a6638dc943c559e90"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/measurements.md",
+            "sha256": "caa54f0a5a417d4f366abad1161aaa2b39c39264522ceadc0caf480447c46db0"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/measurements.md",
+            "sha256": "caa54f0a5a417d4f366abad1161aaa2b39c39264522ceadc0caf480447c46db0"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
+            "sha256": "945cd943ac13dddef9a74863c02770a646f8a95ce80cace9c9ecccfd08220a34"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
+            "sha256": "945cd943ac13dddef9a74863c02770a646f8a95ce80cace9c9ecccfd08220a34"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
+            "sha256": "945cd943ac13dddef9a74863c02770a646f8a95ce80cace9c9ecccfd08220a34"
+          }
+        ]
+      },
+      {
+        "id": "AC-6",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/check.md",
+            "sha256": "8b3f501121136550f57ad8b72e057076cf5333ac2c7dd82a6638dc943c559e90"
+          },
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/measurements.md",
+            "sha256": "caa54f0a5a417d4f366abad1161aaa2b39c39264522ceadc0caf480447c46db0"
+          },
+          {
+            "path": "docs/work-specs/cloud-execution/evidence/codex-measurements.json",
+            "sha256": "5f7c92114314f03b388d395129bc245190364d87ff99fb05f903aacb5c293381"
+          }
+        ]
+      }
+    ]
+  }
+}
