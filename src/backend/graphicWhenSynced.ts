@@ -11,9 +11,10 @@
 // means driving a sync pass, and the store layer does not reach into `backend/`.
 //
 // A PRODUCTION LINK IS THE SAME QUESTION. `#/production/<id>` is printed by `noacg save
-// --production` and opened cold just as often, and productions travel in the same sync pass
-// (`show` is a sync kind, backend/sync.ts), so `productionWhenSynced` asks it through the same
-// wait rather than a second mechanism.
+// --production` and opened cold just as often, and a personal production travels in the same
+// sync pass (`show` is a sync kind, backend/sync.ts), so `productionWhenSynced` asks it through
+// the same wait rather than a second mechanism. A TEAM production is not in that pass: it arrives
+// with the team fetch (model/teamShows.ts), whose own `loading` status the production page reads.
 //
 // WHAT IT DOES NOT DO: decide what happens next. A miss can mean "deleted", "someone else's" or
 // "nobody is signed in here", and those want different answers on screen - a redirect, a prompt,
@@ -60,7 +61,8 @@ export function graphicWhenSynced(id: string, timeoutMs = CLOUD_ANSWER_MS): Prom
   return recordWhenSynced(() => graphicById(id), timeoutMs);
 }
 
-/** The production for `id`, personal or team, asked the same way as a graphic. */
+/** The production for `id`, asked the same way as a graphic. It finds a team production that is
+ *  already held or lands mid-wait, but the "no" comes from the personal sync pass alone. */
 export function productionWhenSynced(id: string, timeoutMs = CLOUD_ANSWER_MS): Promise<RecordLookup<Show>> {
   return recordWhenSynced(() => loadShows().find((s) => s.id === id) ?? null, timeoutMs);
 }

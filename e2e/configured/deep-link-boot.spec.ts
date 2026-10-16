@@ -90,9 +90,10 @@ test.describe('deep-link boot', () => {
       await dismissWizard(other);
       await settleSync(other);
       const id = await other.evaluate(async (n) => {
-        const { createShowNamed } = await import('/src/model/shows.ts');
+        const { createShowNamedChecked } = await import('/src/model/shows.ts');
         const { syncNow } = await import('/src/backend/syncController.ts');
-        const show = createShowNamed(n);
+        const { show, error } = createShowNamedChecked(n);
+        if (error) throw new Error(error);
         await syncNow();
         return show.id;
       }, name);
@@ -113,8 +114,7 @@ test.describe('deep-link boot', () => {
       await page.goto(`/app#/production/${ABSENT_ID}`);
       await expect(page.getByTestId('production-missing')).toBeVisible({ timeout: 60_000 });
       await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
-      const account = page.getByTestId('production-missing-account');
-      expect(await account.evaluate((el, email) => el.textContent === `You are signed in as ${email}.`, E2E_EMAIL)).toBe(true);
+      await expect(page.getByTestId('production-missing-account')).toHaveText(`You are signed in as ${E2E_EMAIL}.`);
     } finally {
       await other
         .evaluate(async (n) => {

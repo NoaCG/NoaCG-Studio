@@ -2395,8 +2395,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // A TEAM production opened cold - a teammate's link, a reload - arrives with the first team
     // fetch, a moment after this page. Saying "no longer exists" for that moment, or while the
     // cloud is still being asked, tells somebody their work is gone.
-    const opening = lookup === 'looking' || teamShowsStatus() === 'loading';
-    const signIn = !opening && lookup === 'needs-sign-in' && needsSignIn;
+    // No session token while the auth state is still resolving is not yet an answer either.
+    const opening =
+      lookup === 'looking' || teamShowsStatus() === 'loading' || (lookup === 'needs-sign-in' && authStatus === 'loading');
+    const signIn = !opening && lookup === 'needs-sign-in';
     return (
       <div className="app home-page" data-testid="production-page">
         <header className="topbar">
