@@ -44,24 +44,35 @@ It pushes the branch, opens or reuses its pull request, posts the review verdict
 sit and watch: `node scripts/jobs.mjs wait <id>` is bounded if the verdict is needed now. A
 migration on the branch is applied by the landing itself (`post-land.yml`).
 
-**Auto-fix is on for every pull request, without asking** (the owner's standing instruction).
-Right after queueing, turn on the one fixer your tool has; never two on one pull request:
+**Exactly one repair owner is required for every pull request, before the worker ends.**
+Record the owner, PR/branch, provider/session, wake or monitor receipt, and repair-attempt count in
+one PR comment. Reuse that comment on transfer; disable the old wake before the new owner writes.
+An armed notification is not a fixer: prove that its wake can resume a coding session with the
+repository, failed-log access and push/check/queue capabilities. Environment variables, tool
+presence, or a successful scheduling call do not prove this.
 
-- **Claude Code session with the app's pull request tools** (`ccd_pr`): bind the pull request if the
-  app has not (`bind_pr`), then `set_monitor` with `auto_fix` and `address_comments` true. The app
-  wakes this session on a CI failure, a conflict or a review comment; landing stays the queue's.
-- **Codex app chat**: schedule a task in this chat with `automation_update`: `mode: "create"`,
-  `kind: "heartbeat"`, `destination: "thread"`, `targetThreadId` from `$env:CODEX_THREAD_ID`,
-  `rrule: "FREQ=MINUTELY;INTERVAL=10"`, `status: "ACTIVE"`, `name: "Repair PR <n>"`, and this
-  prompt with its blanks filled: "Check pull request #<n> (branch <branch>, worktree <path>) with
-  `gh pr view <n> --json state,mergeStateStatus,statusCheckRollup` and `node scripts/jobs.mjs`.
-  Merged or closed: pause this task (`automation_update`, `mode: "update"`, its id, `status:
-  "PAUSED"`) and report the outcome in one line. A red check, a failed landing or a conflict with
-  main: repair it here by .agent-workflows/queue-merge.md (the repair paragraph and section 4),
-  then queue again; after three attempts on one failure, pause and report. Otherwise say nothing."
-- **A wave row, or a tool with neither** (a subagent, the Codex CLI, a cloud session): turn nothing
-  on. A row's orchestrator owns the repair (`npm run jobs -- failed`); anyone else says in the
-  report that nothing watches the pull request.
+- **Claude app tools**: bind the PR (`bind_pr` when needed), then `set_monitor` with `auto_fix` and
+  `address_comments` true. In Claude Code Cloud, use its available PR subscription/Auto-fix tools.
+  Auto-fix does not wake when advancing main creates a conflict. Arm a bounded scheduled wake to
+  the **same owner**, using the cloud scheduler actually exposed (for example `send_later`), to
+  inspect mergeability and queue progress even when no webhook arrives. Record the next wake.
+- **Codex chat**: use `automation_update` if exposed, with a thread heartbeat targeting the owning
+  chat (`CODEX_THREAD_ID`), at the cadence its schema supports. Other hosted scheduling tools are
+  usable only after a real wake proves they resume this cloud coding session and its workspace.
+  A ChatGPT reminder or a local Codex CLI process is not evidence of a cloud repair owner.
+- **Wave/plan row**: the coordinator is the owner, and acknowledges the PR before the row ends.
+  It needs a working cloud wake and reads GitHub directly when cloud landings have no local jobs.
+- **No proven durable wake**: the current cloud session remains the owner through merge and
+  post-landing results. Do not end at “queued” or claim that anything watches after the session
+  ends. A restart or unavailable scheduler is an explicit qualification gap, never a silent handoff.
+
+The wake prompt names the PR, branch, worktree (or reconstruction from origin), and this procedure.
+It reads current head/checks, failed job logs, mergeability, auto-merge and queue entry, plus the
+merge SHA's CI and post-land runs. Red checks or conflicts follow the repair paragraph and section
+4, at most three attempts per failure; record each attempt and its SHA. Keep the same assertions
+and gates. Stay quiet while unchanged. Stop/pause the wake after closed, or after merged **and**
+post-landing results are recorded; report a post-land failure rather than calling the PR green.
+A second monitor may wake the same owner, but must never launch a competing fixer.
 
 **Then leave the next session its prompt**, because the chat is archived when the pull request
 closes: one comment on the pull request (`gh pr comment <n>`), repeated at the end of your final
@@ -95,20 +106,43 @@ fix needs a product decision or a change well outside the pull request's scope.
   retried once automatically; a verdict the queue reached is never retried behind anyone's back.
 - `npm run jobs` shows each branch's state (`QUEUED`, `LANDED`, `LANDING FAILED` with the refusal).
 
-## From a cloud session (no `gh`)
+## From Codex Cloud or Claude Code Cloud
 
-1. Section 1 still holds. Push the branch and open its pull request against `main`, with the
-   description from `scripts/pr-description.mjs` and a `Closes #<n>` line for each issue it finishes.
-2. Right after opening it, dispatch `.github/workflows/cloud-queue-merge.yml` on `main` with
-   `branch`, `sha` (the reviewed tip) and `review` (one line: what was checked). It refuses a branch
-   that moved past `sha`, posts `noacg/reviewed` and labels the pull request `land`; its log says if
-   the `Reviewed` job needs a re-run.
-3. Once that run is green, turn auto-merge on from the session itself (set by a workflow token, it
-   never reaches the queue), then leave the next session its prompt (section 3) with
-   `mcp__github__add_issue_comment`.
-4. Confirm `added_to_merge_queue` then `merged` on the timeline. Green checks without a queue entry:
-   toggle auto-merge off and on from the session, or re-run a red or cancelled `CI gate` or
-   `Reviewed`.
+Use the existing prepared environment and subscription. Keep the procedure above; select each
+operation by evidence, not the provider name. No laptop daemon is needed.
+
+1. Probe a repository/PR read, exact git fetch/push, Actions run/jobs read, a **whole failed job
+   log**, dispatch/rerun, commit-status write and session-owned auto-merge separately as needed.
+   Use `gh` where it actually works and provider GitHub tools where an operation is rejected.
+   Never print credentials or signed log-download URLs. A redirected CLI log can fail while a
+   provider log tool succeeds; that does not mean GitHub itself is unavailable. Record errors
+   without secrets. Current references: [Codex Cloud](https://developers.openai.com/codex/cloud/),
+   [Claude cloud](https://code.claude.com/docs/en/claude-code-on-the-web), and
+   [GitHub queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue).
+2. Fetch and reconcile current `origin/main` (section 2/4), regenerate compiled files, then run
+   `/check` and `npm run stamp` on the resulting tip. Push only task files and open/reuse its PR
+   with `scripts/pr-description.mjs`. Retain the full reviewed SHA. Disposable failure probes
+   stay draft with no `land` label, auto-merge or queue entry.
+3. If status writes work, post `noacg/reviewed` on that SHA from the actual passing check and add
+   `land`. Otherwise dispatch `.github/workflows/cloud-queue-merge.yml` **on main** with `branch`,
+   `sha` and the actual review verdict. With gh: `gh workflow run cloud-queue-merge.yml --ref main
+   -f branch=<branch> -f sha=<sha> -f review="<verdict>"`. Observe the dispatched run and its jobs;
+   a dispatch acknowledgement is not a verdict. Main's helper refuses a moved tip and recovers
+   the PR's own stale `Reviewed`; a denied read or timeout requires the repair owner's action.
+4. Inspect the PR's own CI run on the reviewed head. After a late stamp, re-run its failed or
+   cancelled `Reviewed` once that run finishes (the existing `reviveReviewed` helper does this).
+   A separate green dispatch does not clear a red job in that PR run. No PR run: check conflicts
+   and held-run approval first; dispatch `ci.yml` with `require_review=true` only on confirmed
+   absence. Never treat an API error as absence or a green stamp workflow as finished CI.
+5. Turn auto-merge on with the session's working GitHub tool (`gh pr merge <n> --auto
+   --match-head-commit <sha>` when supported); never bypass the queue. The workflow-token path
+   previously stranded auto-merge (#393). Confirm a real `mergeQueueEntry` or
+   `added_to_merge_queue` timeline event. If green but absent, inspect required checks and
+   mergeability, then toggle session-owned auto-merge off/on once. Still absent: record a failed
+   landing for the repair owner, not success. A moved head needs a fresh `/check` and stamp.
+6. Before ending, satisfy the repair-owner paragraph and leave the next-session prompt. Record
+   `merged`, the actual merge SHA and the results of that SHA's CI, post-land, configured-suite
+   and deployment verification when applicable. Pending or failed is explicit, not “landed green”.
 
 ## Landing someone else's branch
 

@@ -1,12 +1,12 @@
-# Queue a cloud session's branch for landing: `/queue-merge` for a session that has no `gh`.
+# Stamp a cloud session's reviewed tip when its own tools cannot write commit statuses.
 #
-# `npm run queue:merge` needs a machine with a signed-in `gh`. A cloud session (Claude Code on the
-# web) pushes its branch and opens its pull request with the GitHub tools it has, then dispatches
+# A cloud session probes git, gh and provider tools per operation, then pushes and opens its PR.
+# When commit-status writes need the workflow token, it dispatches
 # THIS workflow with the tip it reviewed and its verdict in one line. The workflow's token posts the
 # `noacg/reviewed` status on that exact tip and labels the pull request `land`. Then it waits for the
 # pull request's own CI run and re-runs its `Reviewed` job if that had already given up on the
 # stamp, because GitHub holds the pull request out of the queue while that red job stands. The
-# session turns auto-merge on itself: a workflow token's auto-merge never reaches the merge queue.
+# session turns auto-merge on itself and observes queue entry (see queue-merge.md).
 # From there the queue lands it on CI like any other branch. scripts/cloud-queue.mjs is the prose
 # and the refusals.
 #

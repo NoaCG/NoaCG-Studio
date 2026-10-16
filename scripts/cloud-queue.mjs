@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// QUEUE A CLOUD SESSION'S BRANCH FOR LANDING - `/queue-merge` for a session that has no `gh`.
+// STAMP A CLOUD SESSION'S REVIEWED TIP - `/queue-merge` when status writes need Actions.
 //
 //   node scripts/cloud-queue.mjs     # in .github/workflows/cloud-queue-merge.yml; inputs are env vars
 //
 // `npm run queue:merge` (scripts/jobs.mjs `queueOnGitHub`) is the declaration that a branch is
 // finished, and it runs on a machine with a signed-in `gh`: it posts the review verdict as the
 // `noacg/reviewed` status, labels the pull request `land` and turns auto-merge on. A cloud session
-// (Claude Code on the web) has no `gh` and no token that can post a status, so until 2026-09-23 its
+// may have git, gh and provider tools with different permissions. Until 2026-09-23 its
 // finished work waited for somebody's laptop - the one thing a cloud session exists not to need.
 //
 // This is the same declaration made from the GitHub side. The session pushes its branch, opens its
@@ -53,14 +53,14 @@ function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-/** Parse `gh` JSON output, or null when it did not answer. */
+/** An unreadable API response is not evidence that a run is absent. Fail before any dispatch. */
 function ghJson(gh, args) {
   const res = gh(args, { allowFailure: true });
-  if (res.status !== 0) return null;
+  if (res.status !== 0) throw new Error(`gh ${args.slice(0, 2).join(' ')} failed: ${res.err || `exit ${res.status}`}`);
   try {
     return JSON.parse(res.out);
   } catch {
-    return null;
+    throw new Error(`gh ${args.slice(0, 2).join(' ')} returned invalid JSON; no CI run was dispatched.`);
   }
 }
 
@@ -129,12 +129,16 @@ export function reviveReviewed({ branch, sha, gh, sleep = sleepSync, now = Date.
   const until = now() + waitMs;
   for (;;) {
     // Newest first, so a re-run's newer attempt of the same run is the one read.
-    const run = ghJson(gh, ['run', 'list', '--workflow', 'ci.yml', '--commit', sha, '--event', 'pull_request', '--json', 'databaseId,status', '--limit', '1'])?.[0];
+    const runs = ghJson(gh, ['run', 'list', '--workflow', 'ci.yml', '--commit', sha, '--event', 'pull_request', '--json', 'databaseId,status', '--limit', '1']);
+    if (!Array.isArray(runs)) throw new Error('Actions run list is not an array; no CI run was dispatched.');
+    const run = runs[0];
     if (!run) {
       gh(['workflow', 'run', 'ci.yml', '--ref', branch, '-f', 'require_review=true']);
       return { outcome: 'dispatched' };
     }
-    const job = ghJson(gh, ['run', 'view', String(run.databaseId), '--json', 'jobs'])?.jobs?.find((j) => j.name === 'Reviewed');
+    const view = ghJson(gh, ['run', 'view', String(run.databaseId), '--json', 'jobs']);
+    if (!Array.isArray(view?.jobs)) throw new Error(`Actions jobs for run ${run.databaseId} are unreadable; inspect that run before retrying.`);
+    const job = view.jobs.find((j) => j.name === 'Reviewed');
     // Not reported yet, still waiting for the stamp, or already green: it reads the stamp itself.
     const red = job?.status === 'completed' && !['success', 'skipped'].includes(job.conclusion);
     if (job && !red) return { outcome: 'passing', run: run.databaseId };
@@ -157,7 +161,8 @@ if (path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
       dispatched: 'No pull-request run on this tip, so ci.yml was dispatched with require_review.',
       timeout: `Run ${reviewed.run} was still going at the bound with Reviewed red - re-run that job once it finishes.`,
     }[reviewed.outcome];
-    console.log(reviewed.outcome === 'timeout' ? `::warning title=Reviewed not re-run::${said}` : said);
+    if (reviewed.outcome === 'timeout') throw new Error(said);
+    console.log(said);
   } catch (e) {
     console.error(`::error title=Not queued::${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);
