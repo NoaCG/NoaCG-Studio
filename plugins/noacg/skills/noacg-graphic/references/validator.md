@@ -16,8 +16,8 @@ playout will).
 | `field-mapping` | warn | a DataField `fN` has no element `id="fN"` in the html | add the element (a hidden holder for input-only values) - the operator's value goes nowhere otherwise |
 | `fields` | warn | the definition declares no DataFields | declare what the operator will change |
 | `absolute-path` | error | a `/`-rooted `src`/`href`/`url()` | make it relative |
-| `external-dependency` | warn (error for sharing) | an `http(s)://` or `//` reference | bundle it (fonts under `fonts/`, images under `images/`) |
-| `missing-asset` | warn (error for sharing) | a relative `images/…`/`lottie/…` reference the package does not carry | put the file in the package |
+| `external-dependency` | error (in `noacg validate` and `save`) | an `http(s)://` or `//` reference | bundle it (fonts under `fonts/`, images under `images/`) |
+| `missing-asset` | error (in `noacg validate` and `save`) | a relative `assets/…`/`lottie/…` reference the package does not carry. It does NOT check `images/` or `fonts/`: a missing logo or font file passes, so look for it in the frames | put the file in the package |
 | `syntax` | error | `template.js` does not compile | fix the JS (and keep it ES5) |
 | `step-target` | warn | a `stepGroups` selector matches nothing | the selector, or drop the step |
 | `machine` | error | the NOACG_ANIM machine is off-shape, or machine data sits under an interpreter that predates it | take the machine from a type scaffold; never hand-edit the interpreter |

@@ -1,7 +1,7 @@
 # NoaCG Agent Toolkit distribution
 
-Generated from 03befde3fdcd28d8e90473086a2db94d7218c19e in [NoaCG-Studio](https://github.com/NoaCG/NoaCG-Studio/tree/03befde3fdcd28d8e90473086a2db94d7218c19e).
-CLI dependency: @noacg/cli@0.12.1. Apache-2.0; see LICENSE and NOTICE.
+Generated from 55d01c993188d66e61f3ab9ccbe64e7d41cf06bd in [NoaCG-Studio](https://github.com/NoaCG/NoaCG-Studio/tree/55d01c993188d66e61f3ab9ccbe64e7d41cf06bd).
+CLI dependency: @noacg/cli@0.12.2. Apache-2.0; see LICENSE and NOTICE.
 
 Install from this marketplace with Claude Code or local Codex. The main noacg plugin is lazy;
 noacg-mcp is the optional local server. Ordinary Claude Chat cannot run the local CLI.
