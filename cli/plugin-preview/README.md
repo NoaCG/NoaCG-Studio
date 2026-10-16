@@ -36,6 +36,11 @@ the panel leaves sending disabled and reports that limitation.
 The UI resource advertises inline and fullscreen display modes and prefers
 fullscreen through the documented OpenAI resource metadata. This lets a supporting
 desktop host open its inspectable app panel instead of defaulting to an inline card.
+If an installed tool returns `Transport closed`, restart the desktop app, reopen
+this task, then call `noacg_preview` again. Supported removal/reinstallation and a
+new trial version did not replace the closed connection in the existing session.
+Until the reopened task completes the real selection/image/edit/refresh journey,
+phase 1 remains open in [#1314](https://github.com/NoaCG/NoaCG-Studio/issues/1314).
 
 ## Try the native round trip
 
