@@ -48,8 +48,8 @@ export function resetConnectorEnabledCache(): void {
   jwksCache = null;
 }
 
-/** The OAuth server's discovery document, or null while Auth runs none (dynamic registration is
- *  what a chat client needs, so a server without it counts as off). */
+/** The OAuth server's discovery document, or null while Auth runs none the connector can use
+ *  (the rule is `isConnectorDiscovery`). */
 async function authServerMetadata(fetchFn: typeof fetch, nowMs: number): Promise<AuthServerMetadata | null> {
   if (metadataCache && nowMs - metadataCache.at < METADATA_TTL_MS) return metadataCache.meta;
   const base = authServerUrl();

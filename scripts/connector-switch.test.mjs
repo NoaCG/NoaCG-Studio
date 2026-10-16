@@ -67,7 +67,7 @@ function fakeWorld({ refuse = null, hold = {}, site = null, discovery = null, al
     if (m) {
       const c = configs[m[1]];
       const on = discovery ? discovery(clock) : c.oauth_server_enabled && c.oauth_server_allow_dynamic_registration;
-      if (typeof on === 'object') return reply(200, on); // a given document, served as is
+      if (on !== null && typeof on === 'object') return reply(200, on); // a given document, served as is
       return on ? reply(200, { issuer: 'x', registration_endpoint: 'x/register' }) : reply(404, { message: 'not found' });
     }
     if (url === `${PRODUCTION_SITE}/mcp`) return siteReply(site ? site(clock) : configs[PROD].oauth_server_enabled ? 'on' : 'off');
@@ -234,7 +234,9 @@ test("status says NOT settled, not off, while Auth's discovery and its config di
   }
 });
 
-// The answers the site's and the switch's separate copies of the rule gave before #1115 made them one.
+// The answers the site's and the switch's separate copies of the document check gave before #1115
+// made them one. Which HTTP answers reach the check stays each caller's own: the site reads any
+// failure as off, the switch only a 404, and everything else as unreadable.
 const DISCOVERY_CASES = [
   [{ issuer: 'x', registration_endpoint: 'x/register' }, true],
   [{ issuer: 'x', registration_endpoint: 'x/register', jwks_uri: 'x/jwks' }, true],
