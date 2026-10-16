@@ -14,6 +14,7 @@ import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { poolPlacement } from './poolIdentity.ts';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
 import {
@@ -559,18 +560,28 @@ export function upsertShows(shows: Show[]): string | null {
 /**
  * Add the current graphic to a show. Same rule as packets: a graphic with the same NAME is
  * replaced in place (adding twice = updating it, keeping its rundown position); a new name
- * appends at the end of the rundown.
+ * appends at the end of the rundown. The production's own picture graphic never shares a name with
+ * a library graphic (./poolIdentity.ts).
  */
 export function addGraphicToShow(
   showId: string,
-  template: SpxTemplate,
+  added: SpxTemplate,
   opts?: { graphicId?: string | null },
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
   if (!canAuthorAccount()) return { shows: all.filter(s => !s.deleted), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: all.filter((s) => !s.deleted), error: 'That show no longer exists.' };
-  const existing = show.graphics.findIndex((g) => g.name === template.name);
+  // Never the production's own picture graphic for a same-named library graphic, or the reverse
+  // (./poolIdentity.ts): those are two graphics, and replacing one with the other loses pictures.
+  // The production's own one takes a free name instead, so pool names stay unique.
+  const place = poolPlacement(show.graphics, { name: added.name, type: added.type, graphicId: opts?.graphicId });
+  if (place.rename) {
+    const moved = show.graphics[place.rename.index];
+    show.graphics[place.rename.index] = { ...moved, name: place.rename.name, template: { ...moved.template, name: place.rename.name } };
+  }
+  const template = place.name === added.name ? added : { ...added, name: place.name };
+  const existing = place.replace;
   const graphic: SavedGraphic = {
     // Replacing by name KEEPS the pool entry's id — cues reference it (ShowCue.sourceId), so
     // updating a graphic must never orphan the cues prepared against it.

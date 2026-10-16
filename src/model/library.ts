@@ -19,6 +19,7 @@ import type { ProjectLegibility } from './designRules';
 import { firstIndexById, loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
 import { durable } from './durableStore';
 import { uuid } from './id';
+import { isOwnPictureGraphic } from './poolIdentity.ts';
 import { designLocked, newGraphicDoc, type GraphicDocBase, type PackStamp } from './graphicDoc';
 
 // The record SHAPE and its pure builder live in model/graphicDoc.ts (DOM-free, storage-free,
@@ -417,6 +418,8 @@ export function newEntry(label: string, values: Record<string, string>): Control
  */
 export function resolveSavedGraphicDoc(graphic: SavedGraphic, library: GraphicDoc[]): GraphicDoc | undefined {
   if (graphic.graphicId) return library.find((d) => d.id === graphic.graphicId);
+  // The production's own picture graphic was never a library copy: no name stands for it.
+  if (isOwnPictureGraphic(graphic)) return undefined;
   const byName = library.filter((d) => d.name === graphic.name);
   return byName.length === 1 ? byName[0] : undefined;
 }
