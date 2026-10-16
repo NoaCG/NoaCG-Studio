@@ -46,8 +46,9 @@ export function parseRun(args) {
   // This is a measurement entry, not an alternate arbitrary job runner or a whole-suite bypass.
   const build = command.join(' ') === 'npm run build';
   const changedGates = command.length === 5 && command.slice(0, 4).join(' ') === 'node scripts/gates.mjs run --changed' && /^[\w/.-]+$/.test(command[4]);
+  const replayGates = command.length === 3 && command[0] === 'node' && command[1] === 'scripts/cloud-measure-gates.mjs' && command[2].endsWith('.json');
   const e2e = command[0] === 'node' && command[1] === 'node_modules/@playwright/test/cli.js' && command[2] === 'test';
-  if (!build && !changedGates && !e2e) throw new Error('Only production build, changed gates or an explicit E2E selection may be measured');
+  if (!build && !changedGates && !replayGates && !e2e) throw new Error('Only production build, changed gates or an explicit E2E selection may be measured');
   if (e2e) {
     const rest = command.slice(3);
     const specs = rest.filter((arg) => /^e2e\/[\w/.-]+\.spec\.ts$/.test(arg));
