@@ -4,7 +4,8 @@ argument-hint: "[--guidelines | --critique <folder>] [what the graphic is]"
 description: >-
   Make, critique or improve a broadcast graphic or show package (lower third, scoreboard,
   ticker, countdown, any on-air graphic) and save it to NoaCG. Use when the user names NoaCG,
-  SPX, CasparCG or OGraf, or wants graphics operated live (Take/Update/Out).
+  SPX, CasparCG or OGraf, or wants graphics operated live (Take/Update/Out). Also use when they
+  ask what NoaCG or its plugin can do, or are starting out with it.
 ---
 
 # Make a NoaCG graphic
@@ -31,6 +32,18 @@ A valid key is reused as it is. Otherwise tell the user a NoaCG page will open i
 run `noacg login` and give it up to five minutes; the user approves it there, never you. If they
 decline, the login times out or fails, carry on locally and say plainly that nothing will be
 saved to their account; finish with the validated package folders (step 5's no-account route).
+The account `login` and `whoami` name is the one the user approved in their browser; say it
+once, and do not compare it with any other address you know for them.
+
+**Offer a start.** When the user has not said what to make (or asks what NoaCG can do), ask with
+these three example briefs, then the line under them, in the user's language:
+
+- "A name strap and an opening title for our panel debate, in our brand from https://our-site.org"
+- "A basketball scoreboard with +1/+2/+3 buttons and a game clock; our logo is logo.png in this folder"
+- "A podcast set: guest strap, topic bar and a LIVE bug in navy and amber with Space Grotesk, as a production in show order"
+
+"You can paste your website, put a logo or pictures in this folder, or name your colours and
+fonts, and I will use them." A user who already gave a brief gets no examples.
 
 1. **Start a package.** Either author from scratch against the contract below, or take a
    scaffold when it saves work or brings behaviour you need:
@@ -160,6 +173,25 @@ FIELD: names, scores, headlines, times, labels in a language ("BEGINS IN", "LIVE
 genuinely fixed semantic labels may stay static. Never bake event-specific or user-specific content
 into the design. A repeated list (rows, credits, items) is ONE multi-line field the runtime
 renders, never f7…f26.
+
+## The user's brand
+
+When the user gives a website, a logo, pictures, colours or fonts, the graphics carry THAT brand;
+never invent one they did not give.
+
+- **Where to take it from**: the files they gave first, then their website: the colours and
+  `font-family` in its stylesheet and its logo file (often an SVG in the header). Fetch them; a
+  page you cannot read is a gap to report, not a guess to make.
+- **The logo** is copied into `images/` (an SVG over a PNG), referenced relatively, and placed
+  where the design gives it room, on a surface it reads on. When the operator may need another
+  logo (a sponsor, an opponent), it is a `filelist` field. The validator does not check that an
+  `images/` file exists, so see the logo in the frames.
+- **A font** is bundled into `fonts/` with `@font-face` only when its licence allows that (an OFL
+  font, such as any Google Font, with its licence text copied beside it). A commercial font: ask
+  the user for its files and their licence, or use a close free font and say so.
+- **Report it**: in the final report, say which colours, fonts and logo you used and where each
+  came from, what you could not use and why, and that a logo or crest belongs to its owner, so
+  the user needs the right to show it on air.
 
 ## Fields and behaviour: build for the operator's show
 
