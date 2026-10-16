@@ -72,7 +72,7 @@
 //     fully contained in local main and origin/main, and even then let `git branch -d` refuse as
 //     a final backstop.
 
-import { existsSync, mkdirSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closeAbandonedProcesses, worktreeCloser } from './agent-processes.mjs';
@@ -164,7 +164,7 @@ function regenerable(entry) {
 
 const MAIN = 'main';
 const REMOTE_MAIN = 'origin/main';
-/** Where a worktree is parked while it is removed: `<git-common-dir>/noacg-cleanup/<this>/<pid>/<name>`. */
+/** Where a worktree is parked while it is removed: `<git-common-dir>/noacg-cleanup/<this>/<pid>/<slot>/<name>`. */
 const REMOVING_DIR = 'removing';
 
 /**
@@ -1072,7 +1072,7 @@ export function assess(cwd, { liveness = {} } = {}) {
 
 /**
  * Move a worktree to a path nothing knows and no scanner walks - the sweep's own state directory,
- * `<git-common-dir>/noacg-cleanup/removing/<pid>/<same name>`, so the archive still labels it by
+ * `<git-common-dir>/noacg-cleanup/removing/<pid>/<slot>/<same name>`, so the archive still labels it by
  * its own name - through git, so its metadata follows. Returns `{ ok, path, tidy }` (`tidy`
  * removes the parking folders once they are empty); `{ ok: false, held: true, why }` when Windows
  * refused because a process is in it; or `{ ok: false, why }` for any other refusal, which needs a
@@ -1080,9 +1080,13 @@ export function assess(cwd, { liveness = {} } = {}) {
  */
 function moveAside(path, primaryRoot) {
   const parent = join(cleanupStateDir(primaryRoot), REMOVING_DIR, String(process.pid));
-  const aside = join(parent, basename(path));
-  const tidy = () => removeEmptyDirs([parent, dirname(parent)]);
   mkdirSync(parent, { recursive: true });
+  // Each worktree gets a slot of its own, never reused. Codex worktrees all share one folder name,
+  // and an earlier one's emptied folder can stay on disk while a process holds it; given an
+  // existing directory, `git worktree move` nests the worktree inside it instead of failing.
+  const slot = mkdtempSync(join(parent, 'w-'));
+  const aside = join(slot, basename(path));
+  const tidy = () => removeEmptyDirs([slot, parent, dirname(parent)]);
   const moved = git(['worktree', 'move', path, aside], primaryRoot);
   if (moved.ok && worktreeBranches(primaryRoot).has(normalize(aside))) return { ok: true, path: normalize(aside), tidy };
   tidy();
@@ -1235,6 +1239,8 @@ export function applyPlan(
       continue;
     }
     const putBack = () => {
+      // A folder made at the old path meanwhile would swallow the worktree one level down.
+      if (existsSync(w.path)) return ` - and it could not be moved back from ${moved.path}: ${w.path} exists again`;
       const back = git(['worktree', 'move', moved.path, w.path], plan.primaryRoot);
       moved.tidy();
       return back.ok ? '' : ` - and it could not be moved back from ${moved.path}: ${back.stderr || back.stdout}`;
