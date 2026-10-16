@@ -109,3 +109,30 @@ The active chat retained ownership through live landing and post-land results.
   not evidence that repository main advanced during #1284.
 
 Live merge, post-land and newer-main evidence will be appended before this receipt lands.
+
+## Late repair and live queue receipts
+
+The actual delayed-repair Actions run
+[38860508595](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38860508595)
+on `48bb2b5a672c904111244f5d084b108accb8039a` completed success (12/12).
+The one-time scheduler used hosted `automations.create/update` with relative
+`dtstart_offset_json`; its delivered prompt executed in this same chat. Immediate
+`run_now` was unavailable (404), so only real scheduled delivery counted.
+
+For #1284, GraphQL confirmed the session actor `miwco`, exact head
+`110d0a5e1acee2162e9e4e413ee692ecc77d5e7e`, and `AddedToMergeQueueEvent` at
+2026-10-16T06:19:27Z. Queue entry was position 1, AWAITING_CHECKS.
+[PR CI 38860189762](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38860189762)
+passed. [Merge-group CI 38860581439](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38860581439)
+tests merge SHA `6e05d78ea46ffc23e2eb83c29e1b8bfbc3b816bd`.
+Both ran Build, Factory gates, Reviewed and E2E plan; the planner selected no E2E
+specs for these instruction/script changes. Skipped E2E/catalog jobs are not being
+represented as executed browser suites.
+
+`gh pr edit` 2.46.0 also rejected a disposable PR base edit through the retired
+`projectCards` field. Connected GitHub `update_pull_request` performed the edit.
+The disposable #1283 base `scratch/cloud-base-proof` is a simulation, not repository
+main. GitHub observed `mergeable=CONFLICTING`, `mergeStateStatus=DIRTY` at worker
+`f2db37c7ef992debe1401350fea9e6867b726917` versus base
+`d1d864612` (full base SHA available in the branch history). Its scheduled repair
+will be recorded below; the draft has no land label, auto-merge or queue entry.
