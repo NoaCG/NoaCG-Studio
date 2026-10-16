@@ -17,8 +17,9 @@ Both providers' measurements are committed at the same historical application ba
 codex-measurements.json, claude-measurements.md and claude-measurements.json.
 Failed/incomplete cohorts remain failed/incomplete. No repeated benchmarks are needed.
 
-The owner-supplied canonical Codex saved binding remains
-`ccarenv_b64_Y2NhcmVudl8xNmNlODA4YjUyMzQ4MTkxYWE1ZmI1ZDQ0OGU1NGIzNA`.
+The owner-supplied canonical Codex binding is preserved in
+`contracts/rules/root/work-feature-branch-own-worktree-made.md`, compiled into
+the root adapters loaded by every agent; it is not replaced by runtime metadata.
 The current runtime binding differs. The coordinator UI receipt establishes the
 same saved source_config_id across revisions 2 and 3; the exact historical runtime
 ID to CLI mapping remains unproven. Matching repository or labels alone cannot
