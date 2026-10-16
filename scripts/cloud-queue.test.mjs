@@ -122,3 +122,23 @@ test('a run still going at the bound is reported, never re-run half-way', () => 
   assert.deepEqual(result, { outcome: 'timeout', run: 42 });
   assert.ok(!calls.some((c) => c[1] === 'run' && c[2] === 'rerun'));
 });
+
+test('a denied Actions read refuses instead of pretending the PR has no run and dispatching', () => {
+  const calls = [];
+  const gh = (args) => {
+    calls.push(args);
+    return { status: 1, out: '', err: 'HTTP 403: Resource not accessible by integration' };
+  };
+  assert.throws(() => reviveReviewed({ branch: 'feature', sha: SHA, gh, ...clock() }), /403/);
+  assert.equal(calls.length, 1);
+});
+
+test('malformed Actions output refuses instead of dispatching a duplicate CI run', () => {
+  const calls = [];
+  const gh = (args) => {
+    calls.push(args);
+    return { status: 0, out: '<not JSON>', err: '' };
+  };
+  assert.throws(() => reviveReviewed({ branch: 'feature', sha: SHA, gh, ...clock() }), /JSON/);
+  assert.equal(calls.length, 1);
+});

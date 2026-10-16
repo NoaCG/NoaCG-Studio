@@ -156,7 +156,7 @@ and forbids deleting or rewriting the branch; the repository admin is the only b
 with their generators (the contracts and `package.json` have merge drivers), `/check` with
 targeted checks, and queue again; CI plans the e2e run from the fork point. A landing that reached no verdict is
 retried once automatically; one that reached a verdict never is. Another session, usually the
-orchestrator, may queue a branch only when no live session holds it. A cloud session without `gh`
+orchestrator, may queue a branch only when no live session holds it. A cloud session probes permissions per operation and, when status writes need Actions,
 queues through `.github/workflows/cloud-queue-merge.yml`, as `queue-merge.md` describes.
 
 `docs/BRANCHING_AND_LANDING.md` carries the worktree, landing, migration and cleanup rules with

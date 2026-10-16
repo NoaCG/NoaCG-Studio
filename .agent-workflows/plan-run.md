@@ -64,9 +64,9 @@ The ledger refuses a step out of order or launched twice: then launch nothing an
 Sessions get their own worktrees on `<tool>/plan-<plan>-p<phase>-<build|check|repair>` (`-2` on a
 second check). Claude Code: `run_in_background` `wave-row` agents (they wake you), background
 `jobs.mjs wait` per landing and `sleep 1800`, the step 1 wake-up; in the cloud, harness worktrees
-(`orchestrator.md` step 3), `subscribe_pr_activity` per pull request and `send_later`. Codex:
+(`orchestrator.md` step 3); use queue-merge.md's single repair owner and proven cloud wake,
+including a scheduled mergeability check for conflicts with no webhook. Codex:
 `spawn_agent` without context, `wait_agent` with a timeout, the 30-minute heartbeat; ask him here.
-
 **The builder brief**: the row brief from `orchestrator.md` step 3, after these lines:
 ```
 PHASE    <n> of <plan document>: <phase name>. Build it against its acceptance criteria and nothing
