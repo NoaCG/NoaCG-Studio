@@ -1,10 +1,9 @@
 # Sheet data flow: a Google Sheet drives the graphics, with nothing to wire by hand
 
-Authority: owner, 2026-10-16 (see `work.json`). Draft for owner review: the decisions under
-"Owner decisions" are open, each with a recommendation, and nothing is built until they are
-answered. Parent direction: `docs/GOALS.md` outcome 7 (one data model, a connector design), which
-this spec pulls forward from "later". Architecture it builds on: `docs/PRODUCTION_DATA_PLAN.md`
-and `docs/CLOUD_PLAYOUT.md` §7.
+Authority: owner, 2026-10-16 (see `work.json`), who answered every decision under "Owner
+decisions" the same day. Parent direction: `docs/GOALS.md` outcome 7 (one data model, a connector
+design), which this spec pulls forward from "later". Architecture it builds on:
+`docs/PRODUCTION_DATA_PLAN.md` and `docs/CLOUD_PLAYOUT.md` §7.
 
 ## Problem
 
@@ -112,10 +111,13 @@ mark, until a read succeeds. Pause
 and Resume sit on that line. Published, the status and the pause live on the server, so a reload
 shows the true state and a pause holds with the page closed.
 
-**The operator wins.** Pause stops writes from that source. Typing a value or pressing ± on a
-connected value changes it until the Sheet's cell changes again, because only changed cells are
-written; this is the existing rule that later writes win. Disconnect makes the field the cue's own
-again.
+**The operator wins (D4).** A connected value is one shared production value, whatever button
+moves it. Live numbers ±, a Goal or other graphic action that adjusts it, and typing it on the
+data surface all change that shared value, and every graphic connected to it follows. NoaCG never
+writes back to the Sheet. A manual value holds until that cell changes in the Sheet, because a
+reader writes only cells that changed since its last good read. Pause stops writes from the
+source and keeps the override; on Resume only cells that changed while paused are written.
+Disconnect makes the field the cue's own again.
 
 ## Data sources, apart from the graphics
 
@@ -149,7 +151,7 @@ working there. Setup keeps one stable item for the data view whether or not a va
 **The old graphic-level Sheet panel** is no longer offered for new graphics; its place says that
 Sheets connect on the production. A graphic that already carries the block keeps running it.
 
-## Owner decisions
+## Owner decisions (all answered 2026-10-16)
 
 - **D1. Who reads the sheet (decided, owner 2026-10-16).** The server for published productions,
   so a connected Sheet keeps updating the output when the operator closes or reloads the playout
@@ -168,13 +170,14 @@ Sheets connect on the production. A graphic that already carries the block keeps
   measurements miss it, the plan stops and asks rather than promising less in the UI. Data that
   is stale shows as stale, and a failed read keeps the last good values. A scoreboard needing
   faster updates uses the ± controls.
+- **D4. One number, several buttons (decided, owner 2026-10-16, in this plan).** The ± and Goal
+  buttons change the shared production value, updating every graphic connected to it. No write
+  back to Google Sheets. The manual value holds until that cell changes in the Sheet; pausing the
+  source keeps the override in place. Derived: the press already moves the shared value on a
+  bound field (`model/productionData.ts`, the press boundary; `e2e/hosted-control.spec.ts` on the
+  hosted page). This plan proves it for every press on the in-app Playout tab, fills any gap it
+  finds, and makes the shared value visible on the buttons.
 
-Open, recommendation first:
-
-- **D4. The four score controls.** Recommendation: once a field is connected, its Live numbers ±
-  and Goal buttons change the connected value rather than the cue field (`PRODUCTION_DATA_PLAN.md`
-  §2.9, still open), so there is one number with several buttons. Can be split out if it widens
-  this plan too much.
 
 ## Sequencing
 
@@ -187,8 +190,8 @@ has landed, or, if this runs first, the refactor plan is updated to account for 
 
 ### AC-1: A shared Sheet connects from its ordinary link
 A production with no data accepts a Google Sheets share link ("Anyone with the link can view") and
-lists the sheet's names and values within 10 seconds, with no "Publish to web" step, no account,
-and no code. Layer: Node test for link parsing and CSV-to-values; a journey in
+lists the sheet's names and values within 10 seconds, with no "Publish to web" step, no account, and
+no code. Layer: Node test for link parsing and CSV-to-values; a journey in
 `e2e/production-data.spec.ts` against a stub sheet; one scenario run against a real Sheet.
 
 ### AC-2: Fields connect themselves
@@ -199,39 +202,42 @@ name. Layer: Node test on the matching; the journey above.
 
 ### AC-3: A cell edit reaches the output without a Take
 With a connected graphic on air, editing its cell changes the output within 10 seconds (D3),
-measured over at least 20 real edits of a real Sheet with the slowest reported, not the average; nothing
-is taken, advanced or removed by the sheet. Unpublished it changes the local program; published it
-changes the published output exactly once. Layer: Node test with a fake clock and fetch for the
-change diff; configured suite for the published path; the timed real-Sheet run in `evidence/`.
+measured over at least 20 real edits of a real Sheet with the slowest reported, not the average;
+nothing is taken, advanced or removed by the sheet. Unpublished it changes the local program;
+published it changes the published output exactly once. Layer: Node test with a fake clock and fetch
+for the change diff; configured suite for the published path; the timed real-Sheet run in
+`evidence/`.
 
 ### AC-4: Published, the output keeps following with no operator page open
 With a published production on air, every operator page closed, an edited cell still reaches the
-published output within the D3 target, and a reloaded page shows the server's true status and
-pause. Layer: configured suite with the tick driven directly; scenario run on a real Sheet with the
-browser closed.
+published output within the D3 target, and a reloaded page shows the server's true status and pause.
+Layer: configured suite with the tick driven directly; scenario run on a real Sheet with the browser
+closed.
 
 ### AC-5: One active reader per source
-At no time do two readers write one source: a second tab of an unpublished production reads
-nothing, publishing moves reading to the server and unpublishing moves it back, and a value changed
-once in the Sheet is written once. Layer: Node test on the handover rules; configured suite for
-publish and unpublish.
+At no time do two readers write one source: a second tab of an unpublished production reads nothing,
+publishing moves reading to the server and unpublishing moves it back, and a value changed once in
+the Sheet is written once. Layer: Node test on the handover rules; configured suite for publish and
+unpublish.
 
 ### AC-6: Failure and staleness are visible and safe
 An unshared, deleted or unreachable sheet shows the status line with a plain fix and the time it
 started; the values on air stay as they were. With no good read for 15 seconds the line and the
-connected fields show the data as stale, and the mark clears on the next good read. Reading resumes on its own once the sheet answers.
-Layer: Node test on the reader's states; journey for the message.
+connected fields show the data as stale, and the mark clears on the next good read. Reading resumes
+on its own once the sheet answers. Layer: Node test on the reader's states; journey for the message.
 
-### AC-7: The operator wins
-Pause on the Playout tab stops all writes from the source, and published it holds with the page
-closed. A typed or ± change to a connected value holds until that cell changes in the Sheet.
-Disconnect returns the field to the cue. Layer: Node test; journey; configured suite for the
+### AC-7: The operator wins with one shared value
+Live numbers ±, a Goal action and a typed value on a connected field change the shared production
+value, and every graphic connected to it shows the change; nothing is written to the Sheet. The
+change holds until that cell changes in the Sheet. Pause stops all writes from the source and keeps
+the override, published also with the page closed; Resume writes only cells that changed while
+paused. Disconnect returns the field to the cue. Layer: Node test; journey; configured suite for the
 published pause.
 
 ### AC-8: Sources are separate from graphics
-A connected source changes no graphic's template or export. The browser and server readers run
-one shared core, and a second, test-only source kind runs through it by adding only its fetch and
-parse. Layer: Node tests.
+A connected source changes no graphic's template or export. The browser and server readers run one
+shared core, and a second, test-only source kind runs through it by adding only its fetch and parse.
+Layer: Node tests.
 
 ### AC-9: One vocabulary
 The default data surface shows no "path", "seed", "Raw JSON" or "binding"; those tools sit behind
@@ -243,8 +249,8 @@ update. `/docs` describes the production-level flow. Layer: journey; Node test o
 block's template output.
 
 ### AC-11: A list sheet stays in sync as a table
-A list sheet connected as a table updates its rows within the D3 target; loading a row into
-preview works as today. Layer: Node test; journey.
+A list sheet connected as a table updates its rows within the D3 target; loading a row into preview
+works as today. Layer: Node test; journey.
 
 ### AC-12: A newcomer does it unaided
 Someone who has not used the Data tab connects a Sheet to a scoreboard and puts a changed score on
@@ -268,7 +274,9 @@ air in under five minutes without reading documentation. Layer: scenario run, re
    the publish and unpublish handover. First measures the server cost of one active source for
    an hour (invocations, run time, database load) against the hosting plan's allowances and
    records it in `evidence/`; then repeats the timed real-Sheet run against the published output.
-4. **One vocabulary** (AC-9), plus the stable Setup item, and D4 if the owner keeps it here.
+4. **One vocabulary and one shared value** (AC-7 presses, AC-9): the default surface's words,
+   the stable Setup item, and every press on a connected field proven to move the shared value,
+   with the buttons showing which value they move.
 5. **List sheets as live tables** (AC-11), on both readers.
 6. **Retire the graphic-level panel and update `/docs`** (AC-10), then the newcomer run (AC-12).
 
