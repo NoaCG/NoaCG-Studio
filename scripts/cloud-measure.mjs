@@ -80,7 +80,7 @@ export function processGroupSample(group, procRoot = '/proc') {
 
 export async function measure({ command, seconds, output }) {
   if (process.platform !== 'linux') throw new Error('This explicit measurement path requires Linux /proc');
-  const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync('git', args, { encoding: 'utf8', windowsHide: true }).trim();
   const branch = git('branch', '--show-current');
   if (!branch || branch === 'main' || branch === 'master') throw new Error('Measure on an owned feature branch');
   const receipt = {
@@ -93,7 +93,7 @@ export async function measure({ command, seconds, output }) {
     cgroupSampledPeakBytes: 0, timedOut: false,
   };
   const start = performance.now();
-  const child = spawn(command[0], command.slice(1), { stdio: 'inherit', detached: true });
+  const child = spawn(command[0], command.slice(1), { stdio: 'inherit', detached: true, windowsHide: true });
   const signalGroup = (signal) => { try { process.kill(-child.pid, signal); } catch (error) { if (error.code !== 'ESRCH') throw error; } };
   let killTimer;
   const stop = () => { signalGroup('SIGTERM'); killTimer ??= setTimeout(() => signalGroup('SIGKILL'), 2000); };
