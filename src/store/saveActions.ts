@@ -186,8 +186,13 @@ export async function discardCurrentGraphic(): Promise<string | null> {
   if (current.template !== before.template || current.baseline !== before.baseline ||
       current.saved.graphicId !== before.saved.graphicId || current.aiSpec !== before.aiSpec ||
       current.aiThread !== before.aiThread || current.legibility !== before.legibility) {
-    persistLink();
-    return 'The graphic changed while discarding. Your changes are still open. Try again.';
+    // The slot now holds the replacement. Refuse only once the newer draft is durable again,
+    // so a reload straight after the refusal cannot reopen the discarded copy.
+    const { receipts: restored } = captureDurableWrites('spx-gfx-project', persistLink);
+    const restoreFailure = restored.length
+      ? (await Promise.all(restored.map(commitDurableReceipt))).find(Boolean)
+      : 'Could not save your changes to this browser. They are still open. Save them before leaving.';
+    return restoreFailure ?? 'The graphic changed while discarding. Your changes are still open. Try again.';
   }
   // The pending continuation owns navigation. Keep a wizard open until it runs.
   if (doc) applyGraphicDoc(doc, { keepGalleryOpen: true });

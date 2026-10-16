@@ -501,3 +501,56 @@ for (const wait of ['autosave', 'replacement'] as const) {
     expect(await source(page)).toEqual(newer);
   });
 }
+
+// The refused discard has already written its replacement, so the refusal may only be shown
+// once the newer draft is durable again: a reload straight after it must reopen the newer edit,
+// and a refused restoring write is reported as such instead of "your changes are still open".
+// The newer edit and the replacement's release share one turn, so its own 800 ms autosave
+// cannot be the write this holds.
+for (const restore of ['confirmed', 'refused'] as const) {
+  test(`a newer edit's restoring write is ${restore} before Discard reports its refusal`, async ({ page }) => {
+    await open(page); await draw(page, .2); await settleDurableWrites(page);
+    await page.evaluate(async () => (await import('/src/store/templateStore.ts')).flushPendingProject());
+    await settleDurableWrites(page);
+    await page.getByTestId('open-home').click(); await holdWrites(page, restore === 'confirmed' ? 2 : 1);
+    await page.getByTestId('switch-discard').click();
+    await expect.poll(async () => (await probe(page)).released).toEqual([true]);
+    expect((await probe(page)).writes[0].dirty).toBe(false);
+    const requested = await source(page);
+    if (restore === 'refused') await page.evaluate(() => {
+      const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(value, key) {
+        if (key === 'spx-gfx-project') {
+          IDBObjectStore.prototype.put = put;
+          throw new DOMException('Restoring write refused', 'QuotaExceededError');
+        }
+        return put.call(this, value, key);
+      };
+    });
+    await page.evaluate(async () => {
+      const { activeEditorCommands } = await import('/src/components/editorFoundation/commandAdapter.ts');
+      const c = activeEditorCommands(), i = c.inspect(); if (!i.ok) throw Error(i.refusal.message);
+      const result = c.apply({ expected: i.expected, transactionId: crypto.randomUUID(), commands: [{ id: 'layer.create', args: { geometry: { shape: 'rectangle', x: 1100, y: 300, width: 100, height: 100 } } }] });
+      if (!result.ok) throw Error(result.refusal.message);
+      (window as unknown as HeldWrites).secondCheck.releases[0]();
+      await new Promise(r => setTimeout(r));
+    });
+    const newer = await source(page); expect(newer).not.toEqual(requested);
+    const refusal = page.getByTestId('confirm-switch').locator('.status-bad');
+    if (restore === 'confirmed') {
+      await expect.poll(async () => (await probe(page)).released).toEqual([true, true]);
+      const restoring = (await probe(page)).writes[1];
+      expect(restoring.template).toEqual(newer); expect(restoring.dirty).toBe(true);
+      await expect(refusal).toHaveCount(0); await expect(page.getByTestId('switch-discard')).toBeDisabled();
+      await release(page, 1);
+      await expect(refusal).toContainText('changed while discarding');
+      await page.reload(); await ready(page);
+      expect(await source(page)).toEqual(newer);
+    } else {
+      await expect(refusal).toContainText('storage is full');
+      await expect(refusal).not.toContainText('changed while discarding');
+      await expect(page.getByTestId('home-page')).toHaveCount(0);
+      expect(await source(page)).toEqual(newer);
+    }
+  });
+}
