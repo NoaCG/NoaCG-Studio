@@ -14,6 +14,7 @@ import { readShowProfile, serializeShowProfile } from './profile';
 import { canAuthorAccount, conditionalDurableWrite, durable, type ConditionalWriteResult } from './durableStore';
 import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
+import { poolGraphicToReplace } from './poolIdentity.ts';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
 import {
@@ -559,7 +560,8 @@ export function upsertShows(shows: Show[]): string | null {
 /**
  * Add the current graphic to a show. Same rule as packets: a graphic with the same NAME is
  * replaced in place (adding twice = updating it, keeping its rundown position); a new name
- * appends at the end of the rundown.
+ * appends at the end of the rundown. The production's own picture graphic is the one exception
+ * (./poolIdentity.ts).
  */
 export function addGraphicToShow(
   showId: string,
@@ -570,7 +572,9 @@ export function addGraphicToShow(
   if (!canAuthorAccount()) return { shows: all.filter(s => !s.deleted), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: all.filter((s) => !s.deleted), error: 'That show no longer exists.' };
-  const existing = show.graphics.findIndex((g) => g.name === template.name);
+  // Never the production's own picture graphic for a same-named library graphic, or the reverse
+  // (./poolIdentity.ts): those are two graphics, and replacing one with the other loses pictures.
+  const existing = poolGraphicToReplace(show.graphics, { name: template.name, type: template.type, graphicId: opts?.graphicId });
   const graphic: SavedGraphic = {
     // Replacing by name KEEPS the pool entry's id — cues reference it (ShowCue.sourceId), so
     // updating a graphic must never orphan the cues prepared against it.
