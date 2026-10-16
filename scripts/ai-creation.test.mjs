@@ -189,6 +189,8 @@ const ROWS = [
 /** What the provider answers for a row: one change, or the directions' list. */
 const answerFor = (row, name) => (row.route === 'directions' ? [change(`${name} A`), change(`${name} B`)] : change(name));
 const asList = (answer) => (Array.isArray(answer) ? answer : [answer]);
+/** What a run returns for that answer: a convert's result also records the template it came from. */
+const resultsFor = (row, answer) => (row.route === 'convert' ? [{ ...answer, convertedFrom: IMPORTED }] : asList(answer));
 
 // ── Which route runs ─────────────────────────────────────────────────────────────────────
 
@@ -243,8 +245,9 @@ for (const row of ROWS) {
     const answer = answerFor(row, 'Late');
     call.resolve(answer);
     const outcome = await run;
-    assert.deepEqual(outcome, { changes: asList(answer), selected: 0 });
-    assert.equal(outcome.changes[0], asList(answer)[0], 'the answer itself, not a copy');
+    assert.deepEqual(outcome, { changes: resultsFor(row, answer), selected: 0 });
+    if (row.route === 'convert') assert.equal(outcome.changes[0].template, answer.template, "the answer's own template");
+    else assert.equal(outcome.changes[0], asList(answer)[0], 'the answer itself, not a copy');
   });
 
   test(`${row.route}: a thrown answer reaches the caller and says what failed`, async () => {
@@ -275,13 +278,13 @@ for (const row of ROWS) {
     await settle();
     const freshAnswer = answerFor(row, 'Fresh');
     second.stub.calls[0].resolve(freshAnswer);
-    assert.deepEqual((await fresh).changes, asList(freshAnswer));
+    assert.deepEqual((await fresh).changes, resultsFor(row, freshAnswer));
 
     // The late stage and answer belong to the abandoned run and touch nothing of the fresh one.
     first.stub.calls[0].args.at(-1).onProgress('Testing it live…');
     const lateAnswer = answerFor(row, 'Late');
     first.stub.calls[0].resolve(lateAnswer);
-    assert.deepEqual((await abandoned).changes, asList(lateAnswer));
+    assert.deepEqual((await abandoned).changes, resultsFor(row, lateAnswer));
     assert.equal(first.progress.at(-1), 'Testing it live…');
     assert.deepEqual(second.progress, [row.label]);
   });
@@ -337,8 +340,8 @@ test('the screen validates a result that carries no verdict and adds the safety 
   assert.deepEqual(carried.errors, [...FAIL.errors, ...added]);
   assert.equal(screenChange({ ...clean, validation: PASS }), PASS);
 
-  // A construct the imported source already had is not reported as the AI's.
-  assert.equal(screenChange({ ...leaky, validation: PASS }, leaky.template), PASS);
+  // A construct the template a convert came from already had is not reported as the AI's.
+  assert.equal(screenChange({ ...leaky, validation: PASS, convertedFrom: leaky.template }), PASS);
 });
 
 // ── Refine and fix: one modify call on the standing result ───────────────────────────────
@@ -424,10 +427,52 @@ test('fix: the instruction is the failing findings, word for word', () => {
   );
 });
 
+// ── Which results the screen holds against the import ─────────────────────────────────
+
+test('only a convert is screened against the import: a fresh result is not (issue #1179)', async () => {
+  // The user's file calls fetch() and sits in the step; every result below calls it too.
+  const imported = template('Imported with fetch');
+  imported.js += "\nfetch('https://example.com/feed');";
+  const leakyAnswer = (name) => change(name, { template: { ...template(name), js: imported.js }, validation: PASS });
+
+  // A convert's result records its source, so the construct the file already had stays the user's.
+  const convert = harness();
+  const converting = runCreation(input('convert', { imported }), convert.io);
+  await settle();
+  convert.stub.calls[0].resolve(leakyAnswer('Converted'));
+  const [converted] = (await converting).changes;
+  assert.equal(converted.convertedFrom, imported);
+  assert.equal(screenChange(converted), PASS);
+
+  // A fix of that convert keeps the source; a fix of anything else has none to keep.
+  const fix = harness();
+  const fixing = refineResult(refineInput({ level: 'code', instruction: 'fix it', convertedFrom: imported }), fix.io);
+  await settle();
+  fix.stub.calls[0].resolve(leakyAnswer('Fixed'));
+  const fixed = await fixing;
+  assert.equal(fixed.convertedFrom, imported);
+  assert.equal(screenChange(fixed), PASS);
+
+  // A fresh result came from no file, so an import dropped beside it later suppresses nothing.
+  for (const route of ['raw', 'lite', 'directions']) {
+    const fresh = harness();
+    const running = runCreation(input(route), fresh.io);
+    await settle();
+    const answer = leakyAnswer(`Fresh ${route}`);
+    fresh.stub.calls[0].resolve(route === 'directions' ? [answer] : answer);
+    const [result] = (await running).changes;
+    assert.equal('convertedFrom' in result, false, route);
+    const screened = screenChange(result);
+    assert.equal(screened.ok, false, route);
+    assert.ok(screened.errors.some((e) => /fetch|network/i.test(`${e.rule} ${e.message}`)), JSON.stringify(screened.errors));
+  }
+});
+
 // ── Rebuild on another design: no model call ────────────────────────────────────────────
 
-/** A direction that stands on `lt02`, as a grounded result carries it. */
-const DIRECTION = { ...change('Direction'), path: 'grounded+polish', spec: SPEC, generationId: 'gen-1', shortlist: ['lt02', 'lt25'] };
+/** A direction that stands on `lt02`, as a grounded result carries it. Its spec names a zone
+ *  neither design was drawn for, which the rebuild must not follow (`keepChassisZone`). */
+const DIRECTION = { ...change('Direction'), path: 'grounded+polish', spec: { ...SPEC, zone: 'top-right' }, generationId: 'gen-1', shortlist: ['lt02', 'lt25'] };
 
 test('rebuild: nothing to rebuild without a spec or onto the same design, and nothing runs', async () => {
   const { progress, io } = harness();
@@ -491,6 +536,9 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
         progress,
         pendingWhileHeld,
         validatedIsResult: validated.length === 1 && validated[0] === rebuilt.template,
+        // The position block `zoneCssText` writes names each edge it anchors to.
+        anchors: ['left', 'right', 'top', 'bottom'].filter((edge) =>
+          new RegExp(`inset from the ${edge}\\b`).test(rebuilt.template.css)),
         hasHtml: rebuilt.template.html.length > 0,
         spec: rebuilt.spec,
         path: rebuilt.path,
@@ -507,7 +555,9 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
     assert.equal(seen.pendingWhileHeld, true, 'the run waits on the late verdict');
     assert.equal(seen.validatedIsResult, true, "the step's validator ran on the rebuilt template");
     assert.equal(seen.hasHtml, true);
-    assert.deepEqual(seen.spec, { ...SPEC, variantId: 'lt25' });
+    assert.deepEqual(seen.spec, { ...DIRECTION.spec, variantId: 'lt25' });
+    // lt25 is drawn bottom-left; the spec's top-right would move the graphic (issue #1204).
+    assert.deepEqual(seen.anchors, ['left', 'bottom'], 'the rebuild keeps the zone the design was drawn for');
     assert.equal(seen.path, 'grounded', 'a plain assembly is what it now is');
     assert.deepEqual(seen.validation, { ok: true, errors: [], warnings: [{ rule: 'spec-fields', message: 'A requested field is missing.' }] });
     assert.equal(seen.generationId, 'gen-1');

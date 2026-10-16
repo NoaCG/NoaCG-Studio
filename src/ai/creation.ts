@@ -2,7 +2,7 @@
 //
 // Which provider call runs for which tier, with which checks, and what the result carries back;
 // how a result is refined, fixed or rebuilt on another design; and the talk turn. The step
-// (`components/wizard/steps/AiStep.tsx`) owns the screen: the composer, the thread, the busy
+// (`components/wizard/ai/AiStep.tsx`) owns the screen: the composer, the thread, the busy
 // line, the result card. Everything the browser has to supply comes in through `io` - the
 // provider, the validator the step builds, the structural check and the mark probe (both need a
 // live DOM) and the busy line - so `scripts/ai-creation.test.mjs` runs every route in Node with a
@@ -138,7 +138,10 @@ export async function runCreation(input: CreationInput, io: CreationIO): Promise
     case 'convert':
       io.onProgress('Converting your template…');
       if (!input.imported) throw new Error('Nothing imported to convert.');
-      return one(await io.provider().convertImport(brief, input.imported, context, options));
+      return one({
+        ...(await io.provider().convertImport(brief, input.imported, context, options)),
+        convertedFrom: input.imported,
+      });
     case 'lite':
       io.onProgress('Creating your graphic…');
       return one(await io.provider('lite').generate(brief, context, { ...options, profile: 'lite' }));
@@ -170,11 +173,13 @@ export function creationError(error: unknown, route: CreationRoute): string {
 /**
  * The verdict a result is shown with. Screened here as well as inside the injected validator,
  * because `generateRaw` (the harness OFF path) validates itself and never runs ours - this is the
- * one place every path passes through on its way to the user. `source` is the imported template
- * of a convert, so a construct it already carried is not reported as the AI's.
+ * one place every path passes through on its way to the user. Only a convert's result is
+ * screened against the template it was converted from (`convertedFrom`), so a construct the
+ * user's file already carried is not reported as the AI's; a fresh result never is, even while
+ * an unrelated import sits in the step (issue #1179).
  */
-export function screenChange(change: AiTemplateChange, source?: SpxTemplate | null): ValidationResult {
-  return mergeSafety(change.validation ?? validateTemplate(change.template), change.template, source);
+export function screenChange(change: AiTemplateChange): ValidationResult {
+  return mergeSafety(change.validation ?? validateTemplate(change.template), change.template, change.convertedFrom);
 }
 
 // ── Once a result stands: refine, fix, rebuild; and the talk ─────────────────────────────
@@ -196,6 +201,8 @@ export interface RefineInput {
   context: GenerateContext;
   /** Lite is active: the refinement runs on the Lite profile. */
   lite: boolean;
+  /** The standing result's `convertedFrom`: a fix of a convert still carries the user's file. */
+  convertedFrom?: SpxTemplate;
 }
 
 /**
@@ -205,14 +212,15 @@ export interface RefineInput {
  * their plain message, without the "Try:" suffix of a whole-result route.
  */
 export async function refineResult(input: RefineInput, io: CreationIO): Promise<AiTemplateChange> {
-  const { result, instruction, level, spec, context, lite } = input;
+  const { result, instruction, level, spec, context, lite, convertedFrom } = input;
   io.onProgress(level === 'spec' ? 'Refining…' : 'Fixing the findings…');
-  return io.provider(lite ? 'lite' : undefined).modify(instruction, result, context, {
+  const change = await io.provider(lite ? 'lite' : undefined).modify(instruction, result, context, {
     validate: io.validate,
     onProgress: io.onProgress,
     ...(lite ? { profile: 'lite' as const } : {}),
     ...(level === 'spec' && spec ? { spec } : {}),
   });
+  return convertedFrom ? { ...change, convertedFrom } : change;
 }
 
 /**

@@ -591,7 +591,7 @@ export default function AiStep({
   const showChange = (change: AiTemplateChange) => {
     // The one place every path passes through on its way to the user (`generateRaw` never runs
     // the injected validator), so the safety screen runs here too.
-    const v = screenChange(change, imported?.template);
+    const v = screenChange(change);
     setSummary(change.summary);
     setValidation(v);
     setLastPath(change.path ?? null);
@@ -802,7 +802,7 @@ export default function AiStep({
       setError(null);
       try {
         const change = await refineResult(
-          { result, instruction, level, spec: lastSpec, context: contextFor(), lite: liteActive },
+          { result, instruction, level, spec: lastSpec, context: contextFor(), lite: liteActive, convertedFrom: alternatives[selected]?.convertedFrom },
           creationIo,
         );
         setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));

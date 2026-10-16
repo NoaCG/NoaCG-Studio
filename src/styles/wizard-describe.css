@@ -197,7 +197,7 @@
 }
 .ai-settings-head h2 { font-size: 14px; }
 
-/* THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the RECOMMENDED
+/* THE AGENT ROUTE (wizard/ai/AgentRouteCard.tsx): the user's own coding agent is the RECOMMENDED
    way to make graphics with NoaCG, so it is the step's first block and, until the reader chooses
    the NoaCG agent, the whole step. A raised panel with a sentence-case title (the only one on the
    step - every other head is the small uppercase label), four numbered steps, and the two
