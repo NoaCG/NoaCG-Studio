@@ -26,3 +26,8 @@ acceptance of the local slice and researched proposal, not approval to provision
 The CI repair was reproduced with targeted ESLint and reviewed as behavior-preserving cleanup
 documentation. No gate or assertion changed. All three new scripts pass targeted ESLint and
 the fourteen recovery tests pass. The acceptance ledger is refreshed against the repair commit.
+
+Final review also covers the research correction crediting existing cloud runtime and launch
+receipts and #1301's newer owner observations. The scope is the same nine feature files against
+current main `a69ce1692`; main's newly landed evidence is reused, not claimed as this worker's
+experiment. Deployment and changed permissions remain outside this slice.

@@ -1,6 +1,7 @@
 # Durable orchestration for NoaCG
 
-Assessed 2026-10-16 against NoaCG `720cf2abf`, Claude Code 2.1.296, Codex CLI
+Assessed 2026-10-16 against NoaCG `720cf2abf`, reconciled with `a69ce1692` and the current
+cloud-execution follow-up, Claude Code 2.1.296, Codex CLI
 0.163.0-alpha.5, Node 24.13.0, and the primary sources linked below. This is a development
 workflow design, not a product feature. **Code**, **observed**, **documented** and **proposed**
 are different evidence levels throughout this report.
@@ -11,7 +12,9 @@ Keep NoaCG's plan/wave semantics and native Claude Code/Codex workers. Put a det
 supervisor outside the workers' execution environments. For the eventual hosted control plane,
 use **Temporal for durable timers, messages and recovery**, with small NoaCG host adapters.
 Do not replace the agent loop or move phase planning into a new framework. Retain the working
-Claude desktop task for locally owned runs while hosted adapters are qualified.
+Claude desktop task for locally owned runs while hosted adapters are qualified. Credit the
+existing provider-native cloud wake receipts below; do not repeat those probes or provision
+Temporal before the remaining adapter/state gaps and the owner's hosting choice are settled.
 
 The first implementation is an opt-in local supervisor and adapter protocol. It uses built-in
 SQLite to prove ownership, delivery reconciliation and waits without deploying infrastructure.
@@ -35,7 +38,7 @@ Its recoverability comes from persisted event history and deterministic replay.
 | Execution recovery | `run-wake.mjs`, `claude-agents.mjs`, `run-wake-gate.mjs`: process inventory, quiet verdicts, quota-stop tail parsing, desktop dispatch prompt | Desktop/machine dependent; no transactional wake delivery or coordinator lease |
 | Workflow state | `wave-plan-store.mjs`, `plan-run.mjs`, wave launch/progress ledgers, jobs/landings, work-spec acceptance | `.git/noacg-jobs` survives local worktree removal, not loss of its repository/volume |
 | Context recovery | `wave-recover.mjs` joins row, owner, refs, verification, landing and acceptance facts without transcripts; phase findings travel in `carry` | Local authorities; cloud must read GitHub directly and restore checkpointed evidence |
-| Hosting | Desktop task, detached awake holder, active session timers; Codex heartbeat guidance | No independently hosted run supervisor or external run-state store is established by this checkout |
+| Hosting | Desktop task/holder, Codex heartbeat guidance, and separately qualified hosted one-shot cloud wakes | No uniform independently hosted run supervisor or external run-state store; recurring/expiry boundaries remain qualified separately |
 
 **Code findings:**
 
@@ -87,6 +90,31 @@ the last transcript is unnecessary and could miss that distinction. No live wave
 Earlier [cross-harness evidence](../metrics/2026-09-11-cross-harness-orchestrator.md) and
 [recovery work](../metrics/2026-09-13-orchestrator-durable-recovery.md) already reject treating
 a missing PID, worker-ready claim or successful scheduling call as proof of safe adoption.
+
+**Prior cloud qualifications, read and reused here:**
+
+- Claude's [runtime receipt](../work-specs/cloud-landing-recovery/evidence/claude-runtime.md)
+  records a PR subscription repairing a delayed failure and a one-shot `send_later` wake finding
+  a conflict with no webhook. The scheduled wake revived an idle reclaimed container; the same
+  worktree/commits were present. Archived revival and indefinite recurrence were not tested.
+- Codex's [runtime receipt](../work-specs/cloud-landing-recovery/evidence/runtime.md) records
+  hosted `automations.create/update` one-shot wakes executing real repairs in the same cloud
+  coding chat, including a base conflict. The final post-response wake arrived after a human
+  reopened the chat; it does not independently prove idle/archived revival or environment expiry.
+  This hosted surface is distinct from this task's local `automation_update` heartbeat tool.
+- Merged [Claude measurements](../work-specs/cloud-execution/evidence/claude-measurements.md)
+  and [#1301](https://github.com/NoaCG/NoaCG-Studio/issues/1301) establish Claude cloud-to-cloud
+  launch, native identity, pinned source/nonce, one follow-up and receipts returned through Git.
+  The local-to-cloud probe is owner-confirmed and provider-observed; it did not carry a pinned
+  source or nonce. The issue also records fresh click-free exact-head queue landing. Reuse it.
+- #1301 contains newer owner-confirmed corrections than the original cloud runbook: laptop
+  closure is removed as a launch acceptance item; native providers launch their own workers;
+  Codex local launch awaits the environment ID and cloud-to-cloud launch awaits supported access.
+  Those are retrieved historical observations/directions, not fresh tests performed by this task.
+
+These are stronger than tool-presence claims and narrow the next work. They still do not prove
+uncertain-submission deduplication, repeated bounded re-arming, complete filesystem replacement,
+global coordinator fencing or minimal recovery context across the whole planned-run protocol.
 
 ## Shortlist
 
@@ -214,11 +242,11 @@ These indicate community size and recency, not tested NoaCG compatibility.
 | Environment | Supported/documented control | This session's evidence and qualification boundary |
 | --- | --- | --- |
 | Local Claude desktop | Existing scheduled task + hook + original-conversation send; CLI resume for local history | Code/tests and local auth status verified. Task registration is printed, not confirmed. No real desktop send/restart was performed here |
-| Local Claude Code CLI | Noninteractive CLI and saved local sessions; our `claude-run` adapter | Installed 2.1.296 and authenticated. Native session permissions must be preserved; foreground bridge is not a surviving scheduler |
+| Local Claude Code CLI | Noninteractive/local resume and `--cloud`; our `claude-run` bridge | Installed 2.1.296 and authenticated here. Prior local-to-cloud launch is qualified in #1301; do not repeat it. Foreground bridge is not a scheduler |
 | Local Codex app | Thread heartbeat via exposed `automation_update`; tools name `kind: heartbeat`, `targetThreadId`, prompt, recurrence, status | Existing paused five-minute heartbeat TOML found; view call succeeded. No new heartbeat armed or future firing demonstrated. Local tasks need machine/app availability |
 | Local/controlled-host Codex CLI | `codex exec`, Codex SDK local start/resume, app-server thread/turn events and approvals | CLI 0.163.0-alpha.5 inspected. SDK/app-server integration documented, not run. Keep provider rollout state if resuming locally |
-| Claude Code cloud | Provider sessions/GitHub tools; cloud routines can start fresh sessions via schedule/API/GitHub | Repo's cloud setup/merge path exists. No cloud routine/token or replacement environment available to this task; no wake qualification claimed |
-| Codex Cloud | Published environments and saved task state; installed experimental `cloud exec/status/list` CLI surface | CLI advertises submission to an environment ID and branch, but no environment ID/authenticated dispatch or killed-environment recovery was exercised |
+| Claude Code cloud | Qualified native create/get/events/send/follow-up tools, subscription and scheduled self-wake; documented routine API | Prior launch, idle reclaimed-container wake and repair/landing receipts exist. A fully new filesystem, uncertain launch and repeated re-arming remain gaps; this task performs no new cloud probe |
+| Codex Cloud | Published environments/saved task state, qualified hosted one-shot repair wakes; experimental cloud CLI | Prior same-cloud-chat repair wakes exist. Local launch needs the supplied environment ID; current cloud-to-cloud endpoint access and expiry/replacement remain unqualified |
 | GitHub Actions | Existing cloud queue/stamp/CI workflows | Durable CI/merge evidence and dispatch host, not a preserved coding conversation or run-state database. No new schedule installed |
 
 The **Codex SDK** controls local Codex threads. The **OpenAI Agents SDK/API** would introduce a
@@ -234,6 +262,14 @@ that chat's context, and require an available computer/app for local files. Sche
 settings can differ from an interactive chat; verify them instead of assuming inheritance.
 [Scheduled tasks](https://learn.chatgpt.com/docs/scheduled-tasks).
 
+Do not conflate that local fallback with the separate hosted `automations.create/update` used
+successfully by the prior Codex cloud qualification. Its receipt establishes the tested one-shot
+behavior only, and this local task does not expose that hosted scheduler interface.
+
+Runtime qualification is separate too: the prior Claude cloud receipt used Node 22.22.0,
+whereas this repository declares Node 24 and the prototype was tested on 24.13.0. Qualify its
+SQLite/runtime behavior in the intended prepared environment before enabling it there.
+
 Current Claude routines are a materially useful hosting/dispatch component: they run off the
 laptop, use subscription usage and expose an experimental bearer-authenticated API returning a
 new session ID/URL. They start fresh sessions, not the original desktop conversation. No
@@ -243,6 +279,13 @@ permissions and quota behavior in a real trial. Never enable overage or export a
 credential as a recovery shortcut.
 [Routines](https://code.claude.com/docs/en/routines),
 [fire API](https://platform.claude.com/docs/en/api/claude-code/routines-fire).
+
+For the already-qualified Claude native path, reuse `create_session`, `get_session`,
+`list_events`, `send_message` and `send_later` in a Claude coordinator. The measured Windows
+launch failed when its long-lived `CLAUDE_CODE_OAUTH_TOKEN` overrode normal login; the normal
+signed-in launch succeeded. A future adapter must preserve the parent credential configuration
+and use the supported child launch context, never print or replace credential values. That
+owner-confirmed diagnosis is scoped to the recorded account/runtime, not a universal auth rule.
 
 Codex Cloud documents per-task saved files, while new tasks start from a published environment.
 That makes same-task continuation useful but does not prove reconstruction after environment
@@ -428,28 +471,32 @@ waits; quota wait and reset including a live quota-stopped coordinator; bounded 
 stale owner fencing; terminal report/finish/cancel/expiry; immutable scope/policy; bounded packet
 including a large ledger carry. See [verification](../work-specs/durable-runs/evidence/verification.md).
 
-Not demonstrated: host reboot, power-loss durability, real native-session restart, actual cloud
+Not demonstrated by this slice: host reboot, power-loss durability, real native-session restart, actual cloud
 workspace deletion/replacement, remote fencing, real scheduler outage/catch-up, native approval
 continuation, and comparative provider recovery token usage. No cloud environment was provisioned
 and no wake-up was armed during this implementation.
+
+The prior Claude reclaimed-container observation is credited above. It differs from destroying
+the filesystem and reconstructing a new coordinator from an external packet.
 
 ## Migration and the next qualification
 
 1. Preserve the current desktop task/hook. Exercise this supervisor only on a separate test run;
    register no production run under two independent recovery owners. Run the existing wake,
    phase and wave tests alongside its process tests.
-2. Qualify a local native adapter: capture exact session identity and permissions, demonstrate
+2. Reuse #1301 and cloud-landing-recovery first. Qualify the missing local native adapter: capture exact session identity and permissions, demonstrate
    healthy inspection without a model, kill/restart, reconcile duplicate delivery and a permission
    wait. If the desktop send cannot be deduplicated, keep it conservative/unknown rather than
    claiming exactly once. Preserve the default hook's quiet behavior.
 3. Create one private Temporal namespace/control workflow and activity executor, plus private
    durable wave/checkpoint artifacts. This is the first infrastructure/account/spend boundary;
    obtain the owner's choice before provisioning. Pin versions and add replay/versioning tests.
-4. Trial Claude cloud routines as the first provider-hosted dispatcher because its documented API
-   returns a session receipt under subscription usage. Obtain the per-routine token through the
-   provider's supported account flow. Prove read/push/log/check/queue and PR repair ownership,
-   test quota and permission behavior, then destroy the worker environment and recover from the
-   external checkpoint. Keep ambiguous fires parked until proven resolved.
+4. In the existing Claude environment, reuse its qualified native dispatch and wake interfaces.
+   Qualify only missing run integration: uncertain dispatch, bounded re-arming, quota/permission
+   waits, fencing and full filesystem reconstruction from external evidence. Do not repeat its
+   successful launch/measurement/landing probes. Evaluate the documented routine API only where
+   a supported non-model dispatch client is needed; obtain access through the normal account
+   flow. Keep ambiguous fires parked until proven resolved.
 5. Trial Codex separately. Use a controlled host with Codex CLI/SDK/app-server for the most
    controllable adapter; qualify provider Cloud only with a real environment ID and supported
    lifecycle/status interfaces. A local thread heartbeat is not proof of cloud replacement.
@@ -457,7 +504,9 @@ and no wake-up was armed during this implementation.
    owner's dispatch, reconcile workers/PRs and record the new owner/qualification receipt. Add
    explicit renewed windows later without erasing progress. Keep the GitHub merge flow unchanged.
 
-The genuinely missing prerequisites are an independently hosted control executor and durable
-state/artifact location, owner-approved service access/cost, provider cloud account/environment
-access, and a demonstrated idempotent or conservatively reconcilable native dispatch. More
+The genuinely missing prerequisites are a shared durable state/artifact boundary and fencing,
+a supported deterministic dispatch client, owner-approved hosted-control access/cost if Temporal
+is adopted, the existing Codex environment binding/access recorded in #1301, and a demonstrated
+idempotent or conservatively reconcilable native dispatch. Existing Claude access is credited,
+not treated as a missing account. More
 prompt text or a framework install cannot supply them.

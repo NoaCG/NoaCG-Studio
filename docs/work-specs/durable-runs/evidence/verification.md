@@ -84,3 +84,15 @@ Targeted local ESLint reproduced `run-supervisor.test.mjs:71 no-empty`. The catc
 the expected already-gone/no-worker cleanup case; behavior and assertions are unchanged.
 Targeted ESLint over all three new scripts and the recovery tests passed after the fix.
 This is repair attempt 1 on a new commit, not a same-commit retry or a weakened gate.
+
+## Prior cloud evidence reconciliation
+
+The final research pass reused the already committed cloud-landing-recovery runtime/landing
+receipts and fetched current main `a69ce1692`, including #1305's Claude measurements. The branch
+was reconciled with that main. Existing issue #1301 carries newer owner-confirmed corrections
+than the original cloud runbook; the report credits qualified Claude native launches, the
+scheduled reclaimed-container wake, Codex hosted one-shot repairs, and the fresh Claude landing.
+It distinguishes those historical observations from this task's inert-process tests. It removes
+any implication that all provider cloud wakes/access must be qualified from scratch. Uncertain
+submission, repeated re-arming, cross-host fencing and completely new filesystem reconstruction
+remain open. No new cloud experiment, rented host or infrastructure was created.
