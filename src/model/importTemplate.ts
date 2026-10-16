@@ -303,20 +303,28 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
   const isEsModule = (text: string) => /^[ \t]*(?:import|export)[\s{*]/m.test(text);
   const js = (await Promise.all(jsFiles.map(read))).filter((text) => !isEsModule(text)).join('\n\n');
 
-  // Binary assets keep their relative paths (images/…, fonts/…, assets/…).
+  // The OGraf manifest a NoaCG package ships beside the sources (export/noacgPackage.ts).
+  const manifest = await readManifest((n) => entryOf(n)?.async('string') ?? null, files, base);
+
+  // Binary assets keep their relative paths (images/…, fonts/…, assets/…). A preview image the
+  // manifest names as a thumbnail is not one of them: `noacg validate --screenshots` writes it,
+  // and kept as an asset, the frame of an old validate travelled on with the graphic and was
+  // written back over the fresh one. Reading the package as a folder skips it the same way
+  // (cli/src/workspace.ts zipDirectory).
+  const thumbnails = manifestThumbnails(manifest);
   const assets: AssetFile[] = [];
   for (const n of files) {
     const ext = n.split('.').pop()?.toLowerCase() ?? '';
-    if (inBase(n) && ASSET_MIME[ext]) {
+    if (inBase(n) && ASSET_MIME[ext] && !thumbnails.has(n)) {
       assets.push({ path: rel(n), data: toDataUrl(ASSET_MIME[ext], await entryOf(n)!.async('uint8array')) });
     }
   }
 
-  // A NoaCG dual package (export/noacgPackage.ts) ships an OGraf manifest beside the sources,
-  // and its `v_noacg` block is the ONE place the graphic's TYPE travels - the SPX files have no
-  // slot for it. Read it when present; everything else above stays exactly as it was, so a
-  // foreign zip (no manifest, or somebody else's manifest with no `v_noacg`) imports as before.
-  const noacg = await readNoacgBlock((n) => entryOf(n)?.async('string') ?? null, files, base);
+  // A NoaCG dual package's `v_noacg` block is the ONE place the graphic's TYPE travels - the SPX
+  // files have no slot for it. Read it when present; everything else above stays exactly as it
+  // was, so a foreign zip (no manifest, or somebody else's manifest with no `v_noacg`) imports
+  // as before.
+  const noacg = await readNoacgBlock((n) => entryOf(n)?.async('string') ?? null, manifest, base);
 
   return {
     ...importHtmlTemplate(fileName.replace(/\.zip$/i, '') || rel(entry), html, {
@@ -326,23 +334,48 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
   };
 }
 
-/** The `v_noacg` block of the shallowest `*.ograf.json` beside the entry page, or null. */
-async function readNoacgBlock(
+interface ZipManifest {
+  json: Record<string, unknown>;
+  /** Its folder in the zip ('' or ending in '/'), which its `thumbnails` paths resolve against. */
+  dir: string;
+}
+
+/** The shallowest `*.ograf.json` beside the entry page, parsed, or null. */
+async function readManifest(
   readText: (name: string) => Promise<string> | null,
   files: string[],
   base: string,
-): Promise<NoacgPackageInfo | null> {
-  const manifests = files
+): Promise<ZipManifest | null> {
+  const [name] = files
     .filter((n) => n.startsWith(base) && n.toLowerCase().endsWith('.ograf.json'))
     .sort((a, b) => a.split('/').length - b.split('/').length);
-  if (!manifests.length) return null;
-  let manifest: unknown;
+  if (!name) return null;
   try {
-    manifest = JSON.parse((await readText(manifests[0])) ?? '');
+    const json: unknown = JSON.parse((await readText(name)) ?? '');
+    return isRecord(json) ? { json, dir: name.slice(0, name.lastIndexOf('/') + 1) } : null;
   } catch {
     return null;
   }
-  if (!isRecord(manifest) || !isRecord(manifest.v_noacg)) return null;
+}
+
+/** The zip entries the manifest's `thumbnails` name (OGraf: `[{ file, resolution }]`). */
+function manifestThumbnails(manifest: ZipManifest | null): Set<string> {
+  const names = new Set<string>();
+  if (!manifest || !Array.isArray(manifest.json.thumbnails)) return names;
+  for (const t of manifest.json.thumbnails as unknown[]) {
+    if (isRecord(t) && typeof t.file === 'string') names.add(manifest.dir + t.file.replace(/^\.\//, ''));
+  }
+  return names;
+}
+
+/** The manifest's `v_noacg` block, or null. */
+async function readNoacgBlock(
+  readText: (name: string) => Promise<string> | null,
+  found: ZipManifest | null,
+  base: string,
+): Promise<NoacgPackageInfo | null> {
+  const manifest = found?.json;
+  if (!manifest || !isRecord(manifest.v_noacg)) return null;
   const block = manifest.v_noacg;
   const type = typeof block.type === 'string' && block.type in TEMPLATE_TYPE_LABELS ? (block.type as TemplateType) : null;
   const declared = typeof block.sourceHash === 'string' ? block.sourceHash : null;
