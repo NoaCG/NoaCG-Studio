@@ -233,11 +233,11 @@ const LATE = [ciCheck('Build', 'SUCCESS'), ciCheck('CI gate', 'SUCCESS'), ciChec
 const unstamped = (checks) => checks.filter((c) => c.context !== 'noacg/reviewed');
 
 /** A `gh` in spawnRunner's shape that answers the run list and run view and records every call. */
-function ghStub({ reviewed = { status: 'completed', conclusion: 'failure' }, run = { status: 'completed' } } = {}) {
+function ghStub({ reviewed = { status: 'completed', conclusion: 'failure' }, run = { status: 'completed' }, runs = [{ databaseId: 42, ...run }] } = {}) {
   const calls = [];
   const gh = (args) => {
     calls.push(args);
-    if (args[0] === 'run' && args[1] === 'list') return { status: 0, out: JSON.stringify([{ databaseId: 42, ...run }]), err: '' };
+    if (args[0] === 'run' && args[1] === 'list') return { status: 0, out: JSON.stringify(typeof runs === 'function' ? runs() : runs), err: '' };
     if (args[0] === 'run' && args[1] === 'view') return { status: 0, out: JSON.stringify({ jobs: [{ name: 'Reviewed', databaseId: 7, ...reviewed }] }), err: '' };
     return { status: 0, out: '', err: '' };
   };
@@ -284,14 +284,14 @@ test('#1159: a Reviewed that failed before the stamp existed on the same head is
   assert.deepEqual(stub.calls[0].slice(0, 6), ['run', 'list', '--workflow', 'ci.yml', '--commit', HEAD], 'the run asked about is the one on the stamped head');
   assert.deepEqual(stub.reruns(), [['run', 'rerun', '42', '--job', '7']]);
   assert.match(out, /re-ran it/);
-  assert.equal(lateStampedReviewed(LATE), true);
+  assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), LATE), true);
 });
 
 test('#1159: a passing or pending Reviewed is never re-run', async () => {
   const pr = open({ headRefOid: HEAD });
   for (const reviewed of [ciCheck('Reviewed', 'SUCCESS'), ciCheck('Reviewed', null, 'IN_PROGRESS'), ciCheck('Reviewed', null, 'QUEUED')]) {
     const checks = [ciCheck('CI gate', 'SUCCESS'), reviewed, stamp()];
-    assert.equal(lateStampedReviewed(checks), false);
+    assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), checks), false);
     const stub = ghStub();
     const { code } = await replay([[pr, checks], [merged(pr), []]], stub.gh);
     assert.equal(code, 0);
@@ -321,7 +321,7 @@ test('#1159: a stamp on a different sha re-runs nothing', async () => {
 
 test('#1159: no passing stamp changes nothing - Reviewed red is still a refusal', async () => {
   for (const checks of [unstamped(LATE), [...unstamped(LATE), stamp('FAILURE')]]) {
-    assert.equal(lateStampedReviewed(checks), false);
+    assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), checks), false);
     const stub = ghStub();
     const { code, out } = await replay([[open({ headRefOid: HEAD }), checks]], stub.gh);
     assert.equal(code, 1);
@@ -329,13 +329,51 @@ test('#1159: no passing stamp changes nothing - Reviewed red is still a refusal'
     assert.deepEqual(stub.calls, []);
   }
   // With CI gate red as well, re-running Reviewed would land nothing.
-  assert.equal(lateStampedReviewed([ciCheck('CI gate', 'FAILURE'), ciCheck('Reviewed', 'FAILURE'), stamp()]), false);
+  assert.equal(lateStampedReviewed(open({ headRefOid: HEAD }), [ciCheck('CI gate', 'FAILURE'), ciCheck('Reviewed', 'FAILURE'), stamp()]), false);
 });
 
-test('#1159: Reviewed is re-run once; red again after that is a refusal', async () => {
+test('#1159: a conflict, auto-merge off or a run that is not the pull request\'s re-runs nothing', async () => {
+  for (const pr of [open({ headRefOid: HEAD, mergeable: 'CONFLICTING' }), open({ headRefOid: HEAD, autoMergeRequest: null })]) {
+    assert.equal(lateStampedReviewed(pr, LATE), false);
+    const stub = ghStub();
+    assert.equal((await replay([[pr, LATE]], stub.gh)).code, 1);
+    assert.deepEqual(stub.calls, []);
+  }
+  // No pull_request run on the head: the watcher never dispatches a second whole CI run.
+  const none = ghStub({ runs: [] });
+  const { code, out } = await replay([[open({ headRefOid: HEAD }), LATE]], none.gh);
+  assert.equal(code, 1);
+  assert.deepEqual(none.calls.filter((a) => a[0] === 'workflow' || a[1] === 'rerun'), []);
+  assert.match(out, /refused: Reviewed failed on the pull request/);
+});
+
+test('#1159: Reviewed is re-run once; red again past the grace is a refusal', async () => {
   const stub = ghStub();
   const { code, out } = await replay([[open({ headRefOid: HEAD }), LATE]], stub.gh);
   assert.equal(code, 1);
   assert.equal(stub.reruns().length, 1);
   assert.match(out, /refused: Reviewed failed on the pull request/);
+});
+
+test('#1159: a rollup that lags the re-run is not a refusal, and one that never catches up ends as one', async () => {
+  const pr = open({ headRefOid: HEAD });
+  // Re-run asked for, then two ticks where the rollup still shows the old red, then the new attempt.
+  const stub = ghStub();
+  const rerunning = [ciCheck('CI gate', 'SUCCESS'), ciCheck('Reviewed', null, 'QUEUED'), stamp()];
+  const { code } = await replay([[pr, LATE], [pr, LATE], [pr, LATE], [pr, rerunning], [merged(pr), []]], stub.gh);
+  assert.equal(code, 0, 'the re-run that went on to pass is not reported as refused');
+  assert.equal(stub.reruns().length, 1);
+  // GitHub's pull_request run keeps saying Reviewed is fine while the rollup keeps saying red: the
+  // watcher stops waiting after the grace rather than holding the landing slot for an hour.
+  const passing = ghStub({ reviewed: { status: 'completed', conclusion: 'success' } });
+  const ended = await replay([[pr, LATE]], passing.gh);
+  assert.equal(ended.code, 1);
+  assert.deepEqual(passing.reruns(), []);
+  assert.equal(passing.calls.filter((a) => a[1] === 'list').length, 1, 'an answer that will not change is asked for once');
+  // A run still going is asked about again, and re-run once it has settled.
+  const answers = [[{ databaseId: 42, status: 'in_progress' }]];
+  const settling = ghStub({ runs: () => answers.shift() ?? [{ databaseId: 42, status: 'completed' }] });
+  assert.equal((await replay([[pr, LATE], [pr, LATE], [pr, rerunning], [merged(pr), []]], settling.gh)).code, 0);
+  assert.equal(settling.calls.filter((a) => a[1] === 'list').length, 2);
+  assert.equal(settling.reruns().length, 1);
 });
