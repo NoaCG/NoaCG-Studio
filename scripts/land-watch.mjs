@@ -20,7 +20,9 @@ import { appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
+import { reviveReviewed } from './cloud-queue.mjs';
 import { finishedSince, jobsDir, landingStateFor, NO_VERDICT_EXIT } from './jobs-store.mjs';
+import { REVIEW_CONTEXT, spawnRunner } from './queue-pr.mjs';
 import { pullRequestNumberFromGroupRef } from './reviewed-status.mjs';
 import { REQUIRED_CHECKS } from './landing-ruleset-reader.mjs';
 import { primaryCheckout } from './primary-checkout.mjs';
@@ -123,6 +125,22 @@ function requiredRefusal(checks) {
     const lastRed = newest(true);
     return lastRed !== undefined && !(newest(false) > lastRed);
   });
+}
+
+/**
+ * Pure: is this a `Reviewed` that went red only because the `/check` stamp came late (#1159)?
+ * `Reviewed` waits 150 s for `noacg/reviewed` and fails without it; a session that pushes, then
+ * reviews for four minutes, then queues, has a red `Reviewed` on a head that DOES carry the stamp.
+ * `queue:merge` re-runs that job itself, but GitHub refuses a job re-run while its run is still
+ * going, and the gate takes six to nine minutes. So the watcher, which is waiting for that run
+ * anyway, re-runs it once the run has settled. Only when `Reviewed` is the one required check
+ * refusing the pull request and the rollup (which is the head commit's) holds a passing stamp:
+ * with no stamp the red is true, and with `CI gate` red too a re-run lands nothing.
+ */
+export function lateStampedReviewed(checks) {
+  const refusedOn = requiredRefusal(checks);
+  const stamped = (checks ?? []).some((c) => nameOf(c) === REVIEW_CONTEXT && /^SUCCESS$/i.test(c.state || c.conclusion || ''));
+  return stamped && refusedOn.length === 1 && refusedOn[0] === 'Reviewed';
 }
 
 /**
@@ -258,10 +276,12 @@ export async function watch({ pr, branch, expectSha }, io = {}) {
     now = Date.now,
     record = recordLanding,
     afterLanding = () => {},
+    ghRun = spawnRunner('gh'),
   } = io;
   const started = now();
   let lastSaid = '';
   let refusedOnce = false;
+  let reranReviewed = false;
   while (now() - started < CAP_MS) {
     const view = readView(pr);
     // The checks are only read while they can decide something: an open pull request the queue
@@ -279,6 +299,28 @@ export async function watch({ pr, branch, expectSha }, io = {}) {
         // Housekeeping never turns a landing into a failure.
       }
       return 0;
+    }
+    // A late stamp is not a refusal: re-run the stale `Reviewed` on the head it stamps, once. A
+    // run GitHub says is still going, or whose `Reviewed` is already re-running or green, means the
+    // rollup is behind - look again next tick. A `gh` that fails falls through to the refusal. A
+    // head that moved off the declared tip is never re-run: its stamp, if any, is not this review.
+    const declared = !expectSha || view?.headRefOid === expectSha;
+    if (verdict === 'refused' && undecided && declared && !reranReviewed && lateStampedReviewed(checks)) {
+      let outcome = null;
+      try {
+        outcome = reviveReviewed({ branch, sha: view.headRefOid, gh: ghRun, waitMs: 0 }).outcome;
+      } catch (error) {
+        console.error(`land-watch: could not re-run Reviewed: ${String(error?.message ?? error).split('\n')[0]}`);
+      }
+      if (outcome) {
+        if (outcome === 'rerun' || outcome === 'dispatched') {
+          reranReviewed = true;
+          console.log(`land-watch: Reviewed failed before the /check stamp existed on ${String(view.headRefOid).slice(0, 8)}; re-ran it.`);
+        }
+        refusedOnce = false;
+        await wait(POLL_MS);
+        continue;
+      }
     }
     // A REFUSAL IS READ TWICE BEFORE IT IS BELIEVED. In the moment the queue merges a pull
     // request GitHub has already cleared the auto-merge request and the queue entry while the
