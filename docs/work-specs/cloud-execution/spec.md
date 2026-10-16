@@ -49,9 +49,21 @@ Prove narrowly permitted Claude auto-merge with a fresh live exact-SHA landing
 through the merge queue. Demonstrate the complete delegation flow with /check,
 /queue-merge and post-land receipts, preserving assertions and gate standards.
 
+### AC-6: Bounded measurement tools produce reviewable evidence
+
+Derived delivery slice of AC-1: an owned Linux worktree can measure an explicitly
+bounded build, canonical changed-path gates and named queued browser selections.
+Node tests cover CPU/memory limit arithmetic, detached descendants, reparenting,
+PID reuse, explicit command scope and termination of an unresponsive child.
+Live receipts identify the revision, actual tests, failures and sampling method.
+Shipping this slice leaves AC-1 open until both providers are measured and leaves
+the shared policy and delegation acceptance unchanged.
+
 ## Phases
 
-1. Measure and propose verification depth; approval precedes shared policy edits.
+1. Ship the bounded measurement tools and reviewed Codex evidence (AC-6), then
+   finish both providers' measurements and propose depth (AC-1/AC-2); approval
+   precedes shared policy edits.
 2. Qualify launch, result and recovery capability in each existing environment.
 3. Implement the smallest shared delegation skill and approved policy; run the
    meaningful end-to-end task and land verified phases.
