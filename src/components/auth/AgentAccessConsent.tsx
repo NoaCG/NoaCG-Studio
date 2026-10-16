@@ -63,7 +63,7 @@ export default function AgentAccessConsent({ params }: { params: URLSearchParams
     return (
       <Frame>
         <SignInPrompt
-          feature={`Allow “${request.name}” to save graphics to your NoaCG library?`}
+          feature={`Allow “${request.name}” ${consentAsk(request)}?`}
           reason="Your library lives in your account. Sign in, or create one, and this page will ask again."
           offerSignUp
         />
@@ -78,6 +78,13 @@ export default function AgentAccessConsent({ params }: { params: URLSearchParams
       <SignInDialog />
     </Frame>
   );
+}
+
+/** What the title asks for: the library alone, or productions too when the tool asked for that line. */
+function consentAsk(request: AgentAccessRequest): string {
+  return request.permissions.includes('productions:create')
+    ? 'to save graphics and productions to your NoaCG account'
+    : 'to save graphics to your NoaCG library';
 }
 
 function Frame({ children }: { children: React.ReactNode }) {
@@ -151,7 +158,7 @@ function ConsentCard({ request }: { request: AgentAccessRequest }) {
 
   return (
     <>
-      <h1>Allow “{request.name}” to save to your library?</h1>
+      <h1 data-testid="agent-consent-title">Allow “{request.name}” {consentAsk(request)}?</h1>
       <p className="hint">
         A tool on your computer is asking for a key that can only do this:
       </p>

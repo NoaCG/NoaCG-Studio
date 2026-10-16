@@ -774,3 +774,120 @@ Checked on `origin/main` `5b6f8734a` (the landing of #1274). Verdict: PASS.
 - Minor, for Phase 5: `noacg --help` does not list `--production`, `--rundown` or `--layer` on
   `save`; the human `no-production` message names no graphic links (only `--json` has them); the
   consent card's title still reads "to save to your library?" when it also offers productions.
+
+### Phase 5 (build), 2026-10-16
+
+Last check's findings (Phase 4 check, PASS): Post-landing green on `5b6f8734a` (0094's self-check
+ran on production and staging; advisors 176/176 in the baseline); configured run 38821495103 ran
+101 of 101, including the CLI production save with kill, resume and replay, cloud readback, a fresh
+browser and install-after-recovery reuse. Small follow-ups for this phase, all taken here: `noacg
+--help` did not list the production flags on `save`; the human-readable `no-production` message gave
+no graphic links (only `--json` did), which a review of #1277 flagged against AC-6's "returns all
+exact links"; the consent card's title said "to save to your library?" when it also offered
+productions. Left by earlier phases: the Downloads prompt alone lacked the ambiguous-write and
+pending-package wording, the published 0.11.0 had no docs topic for the skill, the skill, MCP
+descriptions and CHANGELOG did not mention receipts, `noacg status`, set delivery or
+`--production`, and the skill's default ending was to switch to one `noacg save a b c
+[--production ...]` once the reviewed CLI is published.
+
+Landed:
+- **The release, @noacg/cli 0.12.0.** `cli/package.json` 0.12.0 with its CHANGELOG section (set
+  delivery and resume, a production in the same save, receipts, account identity and `noacg
+  status`, "Don't allow" ending login, item identity at Install, `docs skill`, the help and
+  `no-production` fixes, and the `coverage` and `record` verbs that landed since 0.11.0);
+  `build-skill.mjs` stamped both plugins' manifests, the marketplace, `server.json` and the skill's
+  pins. Landing this pull request is the release request: `release-cli.yml` publishes on the push to
+  `main` (owner, 2026-10-08), so no pin moves in a second pull request. The Downloads and docs prompt
+  reads its pin from `cli/package.json`, so it says 0.12.0 from the same landing.
+- **The skill's ending** (`cli/skill/noacg-graphic/SKILL.md`, step 5 and two new sections): one
+  `noacg save a b c`, with `--production "<name>" [--rundown] [--layer]` only when the user asks for
+  a production, and how to report each answer: confirmed by readback (the only "delivered"), the 403
+  of a key made without the production line (ask: log in again, or library-only), `no-production`
+  (report what was saved), unconfirmed (run the same command again, then report the operation id;
+  `noacg status` reads it back), a 401 (log in again), any other error. `pack --save` is the older
+  route, reported as pending Install. The final report keeps saved, pending and warnings apart and
+  says "saved", not "opened".
+- **One prompt carries it without the plugin.** `noacg docs skill` prints SKILL.md without its front
+  matter, under one line saying each `references/<name>.md` it names prints as `noacg docs <name>`
+  (setup, critique and share included, unlisted), and the Downloads and docs prompt (77 words) says "read docs skill and follow it" and
+  "anything still pending or unconfirmed". A plugin-less session now reads the skill's own text, so
+  the ambiguous-write and pending-package rules are no longer the plugin's alone.
+- **The three Phase 4 follow-ups.** `noacg --help` shows `--production N [--rundown <cues.json>]
+  [--layer n[,n...]]` on `save` (smoke test). A not-done outcome that saved graphics (an old
+  deployment's `no-production`, a replay with deletions) prints every saved graphic's link after the
+  honest sentence (unit test). The consent title asks to "save graphics and productions to your
+  NoaCG account" when the card offers `productions:create`, and "save graphics to your NoaCG
+  library" otherwise (asserted in the configured journey).
+- **Docs and MCP agree with 0.12.0.** docs/AGENT_CLI.md (`docs`, `login`, `status`, `save` rows),
+  `docs.html` (the key's reach; one save, a production in it, the same command again; the package as
+  the older route), `references/package.md`; the MCP tool says "deliver to the library
+  (+production)" and names `docs "skill"` as the procedure, within its 3,400-character ceiling.
+
+The final journey, `e2e/configured/agent-access.spec.ts`'s third test, runs in both configured
+workflows (`minTests` 98): a HOME, config dir and npm cache with nothing NoaCG in them, no inherited
+`NOACG_*` variable, and the CLI reached only through `npx -y @noacg/cli@<pin>`; before npm has the
+pin, the same walk runs this checkout packed as a tarball (`npm pack` of a fresh `dist`), through `npx
+--package`. The run's annotation names which. A new account is made for the run and deleted after
+it with everything it owns. It walks `--version` = the pin, `doctor`, `docs skill`, `whoami` not
+logged in; `login --no-browser` answered "Don't allow" (exit 1, nothing stored) and then Allow on a
+card naming both lines and the new account; a novel, sanitized brief (a harbour regatta: name strap,
+start countdown, results ticker) scaffolded and validated with screenshots, the onair and stress
+frames kept with the run's results; one `save --production --rundown --layer 10` killed once it
+named its operation, resumed under it and replayed (same ids, same production); `status <operation>`
+verified, with three graphics and the production `saved` in the new account; a fresh browser signed
+in as the new account opening every graphic link and the production with its three cues in order;
+another account opening a graphic link told "Graphic not found ... You are signed in as <other>"
+with the graphic's name nowhere on the page; the same graphics' `pack --save` reading back
+`pending_install` and Install warning "Already delivered as"; `logout` leaving `whoami` logged out.
+
+Evidence: configured suite run 38826294861 on this branch (`bd2de3576`, local Supabase stack) ran
+102: 102 passed, 0 failed, 0 flaky, 8 allowed skips. The third test passed first time in 1.3 min,
+running this checkout's tarball (0.12.0 is not on npm before this lands); the first two agent-access
+tests passed too. The kept frames were looked at: the name strap's stress frame doubles both lines
+inside its plate; the countdown and ticker frames are the scaffolds' own sample content, light on a
+transparent ground. The brief is novel in its names and running order only; the graphics are the
+types' scaffolds, because the walk proves the delivery path, not a design. The consent card at 1440
+and 390px reads "Allow "Claude Code CLI on E2E" to save graphics and productions to your NoaCG
+account?" above both permission lines, wrapping cleanly. Run 38829085180 on the reviewed tip
+(`9b8b4aa7f`) again ran 102 of 102, 0 flaky, all three agent-access tests first time.
+Locally: CLI `tsc`, `unit`, `mcp` and smoke 84 pass; `agent-prompt.test.mjs`; `build-skill
+--check` (30 files); `src` typecheck; eslint on the changed files; `npm run gates -- run --changed
+origin/main`, `harness-bench.test.mjs` included.
+
+Decisions:
+- One pull request carries code, docs and the version bump, because the repository's release is the
+  bump landing; the pins derive from `cli/package.json` and move with it.
+- `docs skill` rather than a longer prompt: the prompt stays under 80 words and the rules live in
+  one place. The reference list `TOPICS` in `cli/src/commands/docs.ts` is unchanged, because the
+  harness bench (`benchmarks/harness/lib/skill-pin.mjs`) reads it as a list of reference files;
+  `skill` sits beside it.
+- No `status` verb in the MCP tool: its `save` answer already carries the receipt read back, the
+  same call resumes, and the schema is at its ceiling.
+- The checkout's tarball stands in only for an unreleased pin (newer than npm's `latest`); npm must
+  answer, and a run dispatched on `main` fails unless it ran the package from npm, so that run is
+  the published-path evidence and a tarball can never pass for it (a review finding on #1278).
+- The journey's account comes from the admin API, as the sign-up test's does; the sign-up form
+  itself stays covered by `anonymous.spec.ts`. The browser is the runner's Chromium named through
+  `NOACG_BROWSER`, which the setup notes allow, because the CLI bundles none.
+- Failed loading is not repeated in the third test: the first test's step 4b injects a failed
+  waiting-list load and recovers with Retry on every run.
+
+Open, not closed by this build:
+- AC-6 to AC-11 stay open in work.json (no review recorded) until the Phase 5 check confirms them on
+  the published version. AC-10's end-to-end evidence is a configured run on `main` after npm serves
+  0.12.0, whose annotation must say `npm @noacg/cli@0.12.0`.
+- No run against hosted noacg.studio with a real new account was made: none was available in this
+  window. It is open, not passed. The hosted-latency workflow runs the same third test against
+  staging on its schedule.
+- A person has not looked at the walk's kept frames; they are in the run's test results.
+
+Rollback: revert the pull request. If 0.12.0 is published and its path fails, deprecate it on npm
+and release the last verified behaviour as a new version (npm never reuses a version), so the
+prompt's pin moves with it. The release changes no user data.
+
+Next phase must allow for (the Phase 5 check):
+- Confirm npm serves `@noacg/cli@0.12.0` as `latest` with provenance, and the MCP Registry record,
+  then dispatch the configured suite on `main` so the third test runs the published package.
+- The harness bench's exam (another plan) pins the skill and CLI version it tuned on; 0.12.0 and the
+  new SKILL.md are refused there by name ("the CLI is v0.12.0 where that skill's commands pin
+  v0.11.0"), which is that plan's designed answer, not a defect here.

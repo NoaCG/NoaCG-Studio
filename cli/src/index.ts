@@ -57,14 +57,16 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
                                  package zip beside it, without saving anything.
   pack <dir|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...
                                  Several graphics as one package: --save sends it to your NoaCG Home to Install.
-  docs [contract|package|validator|control|design-notes]
+  docs [skill|contract|package|validator|control|design-notes]
   login [--name N] [--no-browser] [--key <noacg_ak_...>]
                                  Get a scoped agent key for this machine (opens the consent page).
   logout [--local]               Revoke and forget this machine's key.
   whoami                         Which key this machine holds, and whether it is still valid.
   save <dir|zip>... [--name N] [--folder F] [--no-bench]
+       [--production N [--rundown <cues.json>] [--layer n[,n...]]]
                                  Validate, then put the graphics in your NoaCG library in one
                                  delivery; the same command again resumes it, never a second copy.
+                                 --production also makes a production of them, ready to open.
   status <id>                    What a save or pack --save delivered, and whether it is there now.
   bridge [--port 8899] [--origin URL]... [--vmix-port 8099] [--no-open] [--quiet]
                                  Run NoaCG Bridge: the local process that lets the NoaCG page

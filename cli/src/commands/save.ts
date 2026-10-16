@@ -273,7 +273,18 @@ export function describeReports(outcome: SaveOutcome): string[] {
 export function describeSave(outcome: SaveOutcome): string[] {
   if (!outcome.ok || !outcome.receipt) {
     const lines = (outcome.failures ?? []).map((f) => `${f.input}:\n${describeValidation(f.validation)}`);
-    return [...lines, outcome.error ?? 'Not saved.'];
+    // What did land is named with its link even when the delivery is not what was asked (an older
+    // deployment that made no production, graphics deleted since): the person needs every link.
+    const states = new Map((outcome.receipt?.resources ?? []).map((r) => [r.id, r.state]));
+    const line = (name: string, id: string, url: string) => {
+      const state = states.get(id);
+      return `- ${name} -> ${url}${state && state !== 'saved' ? ` (${state})` : ''}`;
+    };
+    const landed = [
+      ...(outcome.production ? [line(`production "${outcome.production.name}"`, outcome.production.id, outcome.production.url)] : []),
+      ...(outcome.graphics ?? []).map((g) => line(`"${g.name}"`, g.id, g.url)),
+    ];
+    return [...lines, outcome.error ?? 'Not saved.', ...landed];
   }
   const graphics = outcome.graphics ?? [];
   const lines: string[] = [];
