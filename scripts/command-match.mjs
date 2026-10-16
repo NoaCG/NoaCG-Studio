@@ -155,7 +155,7 @@ export const SWEEP_SCRIPTS =
  * Handles the three spellings that appear here - `<<TAG`, `<<'TAG'`/`<<"TAG"` and `<<-TAG` - and
  * an unterminated body (the rest of the text) rather than falling back to scanning it.
  */
-function stripHeredocBodies(text) {
+export function stripHeredocBodies(text) {
   const lines = text.split('\n');
   const out = [];
   let terminator = null;

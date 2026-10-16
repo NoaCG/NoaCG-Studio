@@ -44,6 +44,12 @@ test('reading or printing a .env file is refused, in both shells and through a w
     `python -c "print(open('.env').read())"`,
     '[IO.File]::ReadAllText(".env")',
     'diff .env .env.example',
+    'rg -g .env KEY',
+    'rg -L KEY .env',
+    'powershell -ExecutionPolicy Bypass -Command "Get-Content .env"',
+    "bash -euc 'cat .env'",
+    'node --env-file=.env -e "console.log(process.env)"',
+    "python3 - <<'EOF'\nprint(open('.env').read())\nEOF",
   ]) {
     assert.ok(showsEnvSecrets(command, dir), `${command} was allowed`);
   }
@@ -66,6 +72,12 @@ test('dumping the environment, or printing a secret-named variable, is refused',
     'set -a; . ./.env; set +a; printenv',
     '$env:SUPABASE_ACCESS_TOKEN',
     'Write-Output $env:GITHUB_TOKEN',
+    '"$env:SUPABASE_ACCESS_TOKEN"',
+    'Get-ChildItem env:SUPABASE*',
+    'Get-Item env:SUPABASE_ACCESS_TOKEN',
+    "[Environment]::GetEnvironmentVariable('SUPABASE_ACCESS_TOKEN')",
+    'dotenv -e .env -- printenv',
+    'echo $DATABASE_URL',
   ]) {
     assert.ok(showsEnvSecrets(command, dir), `${command} was allowed`);
   }
@@ -99,6 +111,11 @@ test('loading, copying, listing, editing and testing a .env file, and ordinary c
     'git status',
     "git commit -m 'Refuse `cat .env` in agent sessions'",
     'grep -rn "process.env" api/',
+    // Searching FOR the text ".env" is not reading the file.
+    'grep -n "\\.env" scripts/bench-env.mjs',
+    'rg "\\.env" scripts',
+    "grep -n '.env.local' docs/VERIFICATION.md",
+    "sed -n '/\\.env/p' scripts/bench-env.mjs",
   ]) {
     assert.equal(showsEnvSecrets(command, dir), null, command);
   }
@@ -129,6 +146,8 @@ test('Read and Grep are refused on a .env file, and a committed one or a file li
   assert.match(readsEnvSecrets('Read', { file_path: '/repo/.env.bench.local' }), /Read would show/);
   assert.match(readsEnvSecrets('Grep', { pattern: 'KEY', path: '/repo/.env', output_mode: 'content' }), /Grep would print/);
   assert.match(readsEnvSecrets('Grep', { pattern: 'KEY', glob: '.env*', output_mode: 'content' }), /Grep would print/);
+  assert.match(readsEnvSecrets('Grep', { pattern: 'KEY', glob: '*.env*', output_mode: 'content' }), /Grep would print/);
+  assert.equal(readsEnvSecrets('Grep', { pattern: 'KEY', glob: '*.{ts,mjs}', output_mode: 'content' }), null);
   assert.equal(readsEnvSecrets('Read', { file_path: '/repo/.env.example' }), null);
   assert.equal(readsEnvSecrets('Read', { file_path: '/repo/scripts/bench-env.mjs' }), null);
   assert.equal(readsEnvSecrets('Grep', { pattern: 'KEY', path: '/repo/.env' }), null, 'the default mode lists files only');

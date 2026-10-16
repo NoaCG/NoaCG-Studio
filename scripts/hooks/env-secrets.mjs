@@ -7,8 +7,8 @@
 // refusal points there.
 //
 // What it refuses: a file reader or a searcher given a .env file (`cat .env`, `type .env.local`,
-// `grep KEY .env`, `Get-Content .env`), input redirected from one, inline code that names one
-// (`node -e "...readFileSync('.env')..."`), a recursive grep over a folder that holds one, a
+// `grep KEY .env`, `Get-Content .env`), input redirected from one, inline or heredoc code that
+// names one or prints what `--env-file` loaded, a recursive grep over a folder that holds one, a
 // wholesale dump of the environment (`printenv`, `env`, `Get-ChildItem env:`), and printing a
 // variable whose name says it is a secret (`echo $SUPABASE_ACCESS_TOKEN`).
 //
@@ -19,7 +19,7 @@
 
 import { readdirSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
-import { commandSegments } from '../command-match.mjs';
+import { stripHeredocBodies } from '../command-match.mjs';
 import { targetDir } from '../command-target.mjs';
 
 /** The .env files this repository commits. Both say they hold no secrets; the test pins the list to git. */
@@ -49,23 +49,40 @@ const READERS = new Set([
   'iconv', 'jq', 'yq', 'get-content', 'gc', 'select-string', 'sls', 'format-hex',
 ]);
 const GREPS = new Set(['grep', 'egrep', 'fgrep', 'rg']);
+/** Readers whose first operand is a pattern or a script rather than a file. */
+const PATTERN_FIRST = new Set(['grep', 'egrep', 'fgrep', 'rg', 'ag', 'ack', 'sed', 'awk', 'gawk', 'mawk', 'findstr', 'jq', 'yq']);
+/** Search flags whose value is the next word, so that word is neither the pattern nor a file. */
+const TAKES_VALUE = /^(?:-[gtTABCmM]|--(?:i?glob|type|type-not|include|exclude|exclude-dir|max-count|context|after-context|before-context))$/;
 
-/** Interpreters, with the flag that hands them inline code. */
-const INLINE_CODE = /^(?:node|bun|deno|python3?|py|perl|ruby|php)(?:\.exe)?\s(?:.*\s)?(?:-e|-p|-c|-r|-ne|-pe|--eval|--print|eval)(?:\s|=|$)/i;
+/** Interpreters: given inline code by a flag, or a script on a heredoc. */
+const INTERPRETER = String.raw`(?:node|bun|deno|python3?|py|perl|ruby|php)(?:\.exe)?`;
+const INLINE_CODE = new RegExp(String.raw`^${INTERPRETER}\s(?:.*\s)?(?:-e|-p|-c|-r|-ne|-pe|--eval|--print|eval)(?:\s|=|$)`, 'i');
+const HEREDOC_CODE = new RegExp(String.raw`^\s*${INTERPRETER}\b[^\n]*<<`, 'im');
+/** Loading a file for a program, which is not reading it. */
+const ENV_FILE_FLAG = /--env-file[=\s]+(\S+)/g;
+/** Inline code that writes output. */
+const PRINTS = /console\.|process\.stdout|\bprint\s*\(|\bputs\b|\becho\b|\bprintf\b/;
 
 /** A variable name that says its value is a secret. */
-const SECRET_NAME = /(?:^|_)(?:API_?KEY|KEY|TOKEN|SECRET|PASSWORD|PASSWD|PAT)$/i;
+const SECRET_NAME = /(?:^|_)(?:API_?KEY|KEY|TOKEN|SECRET|PASSWORD|PASSWD|PAT|DATABASE_URL|DB_URL|DSN)$/i;
 
 /**
  * Why this shell command would show a .env value, or null when it would not. `baseDir` is the
  * directory the session runs in; a recursive grep is judged by the folder it searches.
  */
 export function showsEnvSecrets(command, baseDir = process.cwd()) {
-  for (const segment of commandSegments(command)) {
+  // A script fed to an interpreter on a heredoc: the segmenter below drops heredoc bodies.
+  if (HEREDOC_CODE.test(command)) {
+    const named = secretEnvMention(command.replace(ENV_FILE_FLAG, ''));
+    if (named) return `a script on stdin reads ${named}`;
+  }
+  for (const segment of segments(stripHeredocBodies(command))) {
     // Inline code is judged whole, before `parts` takes its quotes and brackets apart. Loading the
-    // file for that code (`--env-file=.env`) is not reading it.
+    // file for that code (`--env-file=.env`) is not reading it, but printing what it loaded is.
     if (INLINE_CODE.test(segment)) {
-      const named = secretEnvMention(segment.replace(/--env-file[=\s]+\S+/g, ''));
+      const loaded = [...segment.matchAll(ENV_FILE_FLAG)].map((match) => match[1]).find(isSecretEnvFile);
+      if (loaded && PRINTS.test(segment)) return `inline code prints values loaded from ${loaded}`;
+      const named = secretEnvMention(segment.replace(ENV_FILE_FLAG, ''));
       if (named) return `inline code reads ${named}`;
     }
     const redirected = /(?<![<\d])<\s*(["']?)([^\s"'<>|;&()]+)\1/.exec(segment);
@@ -73,10 +90,12 @@ export function showsEnvSecrets(command, baseDir = process.cwd()) {
     const file = /\[(?:System\.)?IO\.File\]::Read/i.test(segment) && secretEnvMention(segment);
     if (file) return `${file} is read`;
     if (/\[(?:System\.)?Environment\]::GetEnvironmentVariables\(/i.test(segment)) return 'it would list every environment variable';
+    const one = /\[(?:System\.)?Environment\]::GetEnvironmentVariable\(\s*["'](\w+)/i.exec(segment)?.[1];
+    if (one && SECRET_NAME.test(one)) return `it would print ${one}`;
 
     for (const part of parts(segment)) {
-      const words = part.split(/\s+/);
-      const program = words[0].replace(/^.*[\\/]/, '').replace(/\.exe$/i, '').toLowerCase();
+      const words = part.match(/(?:"(?:[^"\\]|\\.)*"?|'[^']*'?|[^\s"']+)+/g) ?? [''];
+      const program = words[0].replace(/["']/g, '').replace(/^.*[\\/]/, '').replace(/\.exe$/i, '').toLowerCase();
       const args = words.slice(1);
       const why = READERS.has(program) ? readerShows(program, args, command, baseDir) : environmentDump(program, args, part);
       if (why) return why;
@@ -93,7 +112,22 @@ export function showsEnvSecrets(command, baseDir = process.cwd()) {
  * `grep "a (b|c)" --include=*.md .` each stay one command.
  */
 function parts(segment) {
-  const text = unwrap(segment);
+  return split(unwrap(segment), (c, text, i, double) => {
+    const runs = c === '`' || (c === '$' && text[i + 1] === '(');
+    const groups = (c === '(' || c === ')' || c === '{' || c === '}') && text[i - 1] !== '$';
+    return runs || (!double && groups);
+  }).map(unwrap).filter(Boolean);
+}
+
+/** A command line's segments: split at `;`, `|`, `&` and newlines outside quotes (not `2>&1`). */
+function segments(text) {
+  return split(text, (c, all, i, double) => !double && (c === ';' || c === '|' || c === '\n' || (c === '&' && all[i - 1] !== '>' && all[i + 1] !== '>')))
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+/** Split `text` where `at` says, never inside single quotes; `at` is told whether it is inside double quotes. */
+function split(text, at) {
   const pieces = [''];
   let single = false;
   let double = false;
@@ -101,24 +135,27 @@ function parts(segment) {
     const c = text[i];
     if (c === "'" && !double) single = !single;
     else if (c === '"' && !single && text[i - 1] !== '\\') double = !double;
-    const runs = c === '`' || (c === '$' && text[i + 1] === '(');
-    const groups = (c === '(' || c === ')' || c === '{' || c === '}') && text[i - 1] !== '$';
-    if (!single && (runs || (!double && groups))) {
+    if (!single && at(c, text, i, double)) {
       pieces.push('');
-      if (c === '$') i += 1;
+      if (c === '$') i += 1; // the `(` of `$(`
       continue;
     }
     pieces[pieces.length - 1] += c;
   }
-  return pieces.map(unwrap).filter(Boolean);
+  return pieces;
 }
 
 /** Take off what stands in front of a command: `VAR=x`, `sudo`, `bash -c '...'` and the like. */
 function unwrap(piece) {
   let at = piece.trim();
   for (let i = 0; i < 3; i += 1) {
-    let next = at.replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, '').replace(/^(?:sudo|nohup|time|exec|command|builtin|&)\s+/i, '');
-    const payload = /^(?:bash|sh|zsh|cmd|powershell|pwsh)(?:\.exe)?\s+(?:-NoProfile\s+|-NonInteractive\s+|-l\s+)*(?:-c|-lc|-Command|\/c)\s+(.*)$/is.exec(next);
+    let next = at
+      .replace(/^(?:[A-Za-z_]\w*=\S*\s+)+/, '')
+      .replace(/^(?:sudo|nohup|time|exec|command|builtin|&)\s+/i, '')
+      // `env FOO=1 cmd` and `dotenv -e .env -- cmd` run the command after them.
+      .replace(/^env\s+(?:(?:-\S+|[A-Za-z_]\w*=\S*)\s+)+(?=\S)/, '')
+      .replace(/^(?:npx\s+)?dotenv(?:-cli)?\s+(?:\S+\s+)*?--\s+/, '');
+    const payload = /^(?:bash|sh|zsh|cmd|powershell|pwsh)(?:\.exe)?\s+(?:\S+\s+)*?(?:-\w*c|-Command|\/c)\s+(.*)$/is.exec(next);
     if (payload) next = payload[1].trim().replace(/^(["'])(.*?)\1?$/s, '$2');
     next = next.trim();
     if (next === at) break;
@@ -129,16 +166,36 @@ function unwrap(piece) {
 
 /** Why a reader given these arguments would print a .env value, or null. */
 function readerShows(program, args, command, baseDir) {
-  // A search that prints only names or counts, and an in-place edit, show no value.
-  if (GREPS.has(program) && args.some((arg) => /^-[a-zA-Z]*[qlLc]|^--(?:quiet|silent|count|files-with(?:out)?-match)/.test(arg))) return null;
+  // A search that prints only names or counts, and an in-place edit, show no value (rg's -L follows
+  // links, grep's lists files).
+  const quiet = program === 'rg' ? /^-[a-zA-Z]*[qlc]/ : /^-[a-zA-Z]*[qlLc]/;
+  if (GREPS.has(program) && args.some((arg) => quiet.test(arg) || /^--(?:quiet|silent|count|files-with(?:out)?-match)/.test(arg))) return null;
   if (program === 'sed' && args.some((arg) => /^-[a-zA-Z]*i|^--in-place/.test(arg))) return null;
-  // Writing INTO a .env file (`cat .env.example > .env`) is not reading one, nor is excluding one.
+  // Writing INTO a .env file (`cat .env.example > .env`) is not reading one, excluding one is not
+  // either, and nor is a search FOR the text ".env": a pattern or a script is not a file.
   const named = secretEnvMention(
-    args.join(' ').replace(/\d*>>?\s*(?:&\d|\S+)/g, '').replace(/(?:^|\s)(?:--(?:exclude|glob|iglob)\S*|-g)(?:=|\s+)\S+/g, ' '),
+    files(program, args)
+      .join(' ')
+      .replace(/\d*>>?\s*(?:&\d|\S+)/g, '')
+      .replace(/(?:^|\s)(?:--exclude(?:-dir)?(?:=|\s+)\S+|(?:--i?glob|-g)(?:=|\s+)["']?!\S*)/g, ' '),
   );
   if (named) return `${program} would print ${named}`;
   const searched = GREPS.has(program) && recursiveSearchOver(program, args, command, baseDir);
   return searched ? `${program} would search ${searched}` : null;
+}
+
+/** The arguments that can name files: all but the pattern or script a search or an editor takes first. */
+function files(program, args) {
+  if (!PATTERN_FIRST.has(program)) return args;
+  const explicit = /^(?:-e|-f|--regexp|--file|--expression)$/;
+  // With `-e PATTERN` the pattern is that flag's value, and every operand is a file.
+  if (args.some((arg) => explicit.test(arg) || /^--(?:regexp|expression)=/.test(arg))) {
+    return args.filter((_, i) => !explicit.test(args[i - 1] ?? ''));
+  }
+  const first = args.findIndex(
+    (arg, i) => !arg.startsWith('-') && !(program === 'findstr' && arg.startsWith('/')) && !TAKES_VALUE.test(args[i - 1] ?? ''),
+  );
+  return args.filter((_, i) => i !== first);
 }
 
 /**
@@ -184,8 +241,10 @@ function environmentDump(program, args, part) {
   if (['export', 'declare', 'typeset', 'set'].includes(program) && listsAll) {
     return `${program} would print every variable`;
   }
-  if (/^(?:get-childitem|gci|ls|dir|get-item|gi)\s+(?:-path\s+)?env:[\\/]?\*?\s*$/i.test(part)) return 'it would list every environment variable';
-  if (/^(?:echo|printf|write-output|write-host|write-information)$/.test(program) || /^\$env:\w+\b(?!\s*=)/i.test(part)) {
+  // PowerShell's env: drive: every variable, a wildcard over them, or one secret-named one.
+  const drive = /^(?:get-childitem|gci|ls|dir|get-item|gi)\s+(?:-path\s+)?["']?env:[\\/]?([\w*?]*)/i.exec(part)?.[1];
+  if (drive !== undefined && (drive === '' || /[*?]/.test(drive) || SECRET_NAME.test(drive))) return `it would print env:${drive}`;
+  if (/^(?:echo|printf|write-output|write-host|write-information)$/.test(program) || /^["']?\$env:\w+\b(?!\s*=)/i.test(part)) {
     // `${NAME:+set}` says whether it is set without printing it.
     const secret = [...part.matchAll(/\$(?:env:)?\{?(\w+)(:?\+)?/gi)].find((match) => !match[2] && SECRET_NAME.test(match[1]));
     if (secret) return `it would print ${secret[1]}`;
@@ -199,9 +258,19 @@ export function readsEnvSecrets(toolName, input) {
   if (toolName === 'Grep' && input?.output_mode === 'content') {
     if (isSecretEnvFile(input.path ?? '')) return `Grep would print lines of ${input.path}`;
     const glob = String(input.glob ?? '');
-    if (glob.split(/[,{}\s]+/).some(isSecretEnvFile)) return `Grep would print lines of ${glob}`;
+    if (glob && globMatchesSecretEnv(glob)) return `Grep would print lines of ${glob}`;
   }
   return null;
+}
+
+/** Would this ripgrep glob pick a secret .env file? A glob overrides .gitignore, so it can. */
+function globMatchesSecretEnv(glob) {
+  const source = glob
+    .replace(/[.+^$()|\\]/g, '\\$&')
+    .replace(/\{([^}]*)\}/g, (_, alternatives) => `(?:${alternatives.split(',').join('|')})`)
+    .replace(/\*\*\/?|\*|\?/g, (token) => (token.startsWith('**') ? '(?:.*/)?' : token === '*' ? '[^/]*' : '[^/]'));
+  const pattern = new RegExp(`(?:^|/)${source}$`, 'i');
+  return ['.env', '.env.local', '.env.production', 'app/.env'].some((name) => pattern.test(name));
 }
 
 /** The refusal, the same for every guard: what happened, and where the test accounts are. */
