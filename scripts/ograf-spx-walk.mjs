@@ -226,7 +226,8 @@ async function pressAction(controller, index, id) {
  * Records, on each Graphic element SPX's renderer makes, every Web Component call SPX sends it
  * and its argument (`__walkCalls`), so a beat replays exactly those calls on the bare page rather
  * than a model of SPX. The class's own methods run unchanged; SPX's `rundownData`, its whole
- * rundown item, is left out of the record.
+ * rundown item, is recorded as an empty object, because its presence is what tells the package
+ * that SPX escaped the values (issue #1047).
  */
 const RECORD_CALLS_SCRIPT = `(() => {
   const define = CustomElementRegistry.prototype.define;
@@ -235,7 +236,7 @@ const RECORD_CALLS_SCRIPT = `(() => {
       const own = cls.prototype[method];
       if (typeof own !== 'function') continue;
       cls.prototype[method] = function (arg) {
-        const kept = arg && typeof arg === 'object' ? JSON.parse(JSON.stringify({ ...arg, rundownData: undefined })) : arg;
+        const kept = arg && typeof arg === 'object' ? JSON.parse(JSON.stringify({ ...arg, rundownData: arg.rundownData ? {} : undefined })) : arg;
         (this.__walkCalls ??= []).push({ method, arg: kept });
         return own.call(this, arg);
       };

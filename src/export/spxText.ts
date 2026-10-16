@@ -42,24 +42,26 @@ import type { SpxTemplate } from '../model/types';
 
 export const SPX_TEXT_SCRIPT_ID = 'noacg-spx-text';
 
-/** The rule, as two ES5 function declarations: `spxTyped(fields, asText, files)` returns a copy
- *  of `fields` with SPX's escaping undone once in every string value when `asText` (the template
- *  writes values as text), and in the `files` (filelist field ids) always. */
-export const SPX_TYPED_JS = `function spxAsTyped(value) {
-  if (typeof value !== 'string') return value;
-  var chars = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&#92;': '\\\\' };
-  return value
-    .replace(/&(?:amp|lt|gt|quot|#039|#92);/g, function (entity) { return chars[entity]; })
-    .replace(/<br>/g, '\\n');
-}
-function spxTyped(fields, asText, files) {
-  var typed = {};
-  for (var key in fields) {
-    if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
-    typed[key] = asText || files.indexOf(key) !== -1 ? spxAsTyped(fields[key]) : fields[key];
+/** The rule, as one ES5 declaration of the only name it adds: `spxTyped(fields, asText, files)`
+ *  returns a copy of `fields` with SPX's escaping undone once in every string value when `asText`
+ *  (the template writes values as text), and in the `files` (filelist field ids) always. */
+export const SPX_TYPED_JS = `var spxTyped = (function () {
+  var CHARS = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'", '&#92;': '\\\\' };
+  function asTyped(value) {
+    if (typeof value !== 'string') return value;
+    return value
+      .replace(/&(?:amp|lt|gt|quot|#039|#92);/g, function (entity) { return CHARS[entity]; })
+      .replace(/<br>/g, '\\n');
   }
-  return typed;
-}`;
+  return function (fields, asText, files) {
+    var typed = {};
+    for (var key in fields) {
+      if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
+      typed[key] = asText || files.indexOf(key) !== -1 ? asTyped(fields[key]) : fields[key];
+    }
+    return typed;
+  };
+})();`;
 
 /** The runtime, as the body of a classic script. `fileFields` are the ids of the template's
  *  filelist fields, whose paths are decoded whatever writer the template has. */

@@ -570,7 +570,7 @@ values in the exported `rundown.json`, the ticker's as `First story & more`, a l
   [#1047](https://github.com/NoaCG/NoaCG-Studio/issues/1047) (P2).** SPX escapes every value it
   plays, OGraf items included, and hands the result to `load`, `updateAction` and `playAction`.
   The OGraf package carries no decoding. §11 did not catch it because the §10 walk typed only
-  plain names.
+  plain names. Since fixed in the package (see the summary at the top); not yet rewalked.
 - **Update on SPX 1.4.1 is unchanged.** It fails in SPX's renderer for both routes (an SPX defect,
   §2 and §10). The packages' README says Save, then Stop and Play.
 - **The dual NoaCG package keeps the template's own layer** (Hairline: 7), so on 1.4 every dual

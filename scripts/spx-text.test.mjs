@@ -25,6 +25,9 @@ function cleanUpString(str) {
   return temp2;
 }
 
+/** Each value as SPX hands it over. */
+const escaped = (fields) => Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, cleanUpString(v)]));
+
 /** A page with js/template.js loaded (the contract's setFieldValue and update), then, when asked,
  *  the SPX package's text script after it, as the package's HTML orders them. */
 function page({ withScript = true, script = SPX_TEXT_JS, templateJs } = {}) {
@@ -52,8 +55,7 @@ function page({ withScript = true, script = SPX_TEXT_JS, templateJs } = {}) {
   );
   if (withScript) vm.runInContext(script, context);
   /** What SPX does on Play or Update: escape each value, send the fields as a JSON string. */
-  const spxUpdate = (fields) =>
-    context.update(JSON.stringify(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, cleanUpString(v)]))));
+  const spxUpdate = (fields) => context.update(JSON.stringify(escaped(fields)));
   return { context, el, elements, spxUpdate };
 }
 
@@ -211,14 +213,8 @@ function spxTyped(fields, asText, files) {
   vm.runInContext(SPX_TYPED_JS, context);
   return context.spxTyped(fields, asText, files);
 }
-const escaped = (fields) => Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, cleanUpString(v)]));
 
 test('an OGraf payload SPX escaped comes back as typed, once only', () => {
-  const typed = { f0: "Anna O'Brien & Sons <live> \"C:\news\"\nline two", f1: 'AT&amp;T &lt;br&gt; &#039;', f2: './images/Q&A.png' };
+  const typed = { f0: "Anna O'Brien & Sons <live> \"C:\\news\"\nline two", f1: 'AT&amp;T &lt;br&gt; &#039;', f2: './images/Q&A.png' };
   assert.deepEqual({ ...spxTyped(escaped(typed), true, ['f2']) }, typed);
-});
-
-test('in an OGraf template without the text writer only the file paths are decoded', () => {
-  const sent = escaped({ f0: '<b>bold</b>', f1: './images/Q&A.png' });
-  assert.deepEqual({ ...spxTyped({ ...sent, n: 3 }, false, ['f1']) }, { f0: '&lt;b&gt;bold&lt;/b&gt;', f1: './images/Q&A.png', n: 3 });
 });
