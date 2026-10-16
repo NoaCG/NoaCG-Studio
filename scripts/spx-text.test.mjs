@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 
-const { SPX_TEXT_JS, spxTextJs, spxTextScript, SPX_TEXT_SCRIPT_ID } = await import('../src/export/spxText.ts');
+const { SPX_TEXT_JS, SPX_TYPED_JS, spxTextJs, spxTextScript, SPX_TEXT_SCRIPT_ID } = await import('../src/export/spxText.ts');
 
 /** SPX 1.4.1's cleanUpString (utils/spx_server_functions.js), verbatim, minus its log line. */
 function cleanUpString(str) {
@@ -203,3 +203,22 @@ test('the script tag carries the id the import door strips it by', () => {
   assert.doesNotMatch(spxTextJs(['f0']), /=>|\blet\b|\bconst\b|`|\?\./);
 });
 
+/** The rule as the OGraf wrapper runs it (issue #1047): spxTyped(fields, asText, files) on the
+ *  data SPX 1.4 hands load() and updateAction(), already parsed. */
+function spxTyped(fields, asText, files) {
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(SPX_TYPED_JS, context);
+  return context.spxTyped(fields, asText, files);
+}
+const escaped = (fields) => Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, cleanUpString(v)]));
+
+test('an OGraf payload SPX escaped comes back as typed, once only', () => {
+  const typed = { f0: "Anna O'Brien & Sons <live> \"C:\news\"\nline two", f1: 'AT&amp;T &lt;br&gt; &#039;', f2: './images/Q&A.png' };
+  assert.deepEqual({ ...spxTyped(escaped(typed), true, ['f2']) }, typed);
+});
+
+test('in an OGraf template without the text writer only the file paths are decoded', () => {
+  const sent = escaped({ f0: '<b>bold</b>', f1: './images/Q&A.png' });
+  assert.deepEqual({ ...spxTyped({ ...sent, n: 3 }, false, ['f1']) }, { f0: '&lt;b&gt;bold&lt;/b&gt;', f1: './images/Q&A.png', n: 3 });
+});
