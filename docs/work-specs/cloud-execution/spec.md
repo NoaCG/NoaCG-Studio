@@ -36,7 +36,7 @@ operations before designing around them. API model calls are not subscription wo
 
 Reuse existing wave/plan/job state and shared skill layout. Exercise uncertain
 submission, coordinator restart/reconnect, reclaimed-container recovery and cloud
-phase continuation with the laptop closed. Exactly one acknowledged repair owner
+phase continuation. Laptop-closure probes were dropped by the owner as unnecessary. Exactly one acknowledged repair owner
 handles CI failures and no-webhook conflicts. Scheduled recovery stops at an
 owner-authorized window and is re-armed and observed where necessary. Claim archived
 revival or indefinite monitoring only after separate demonstrations.
@@ -77,8 +77,8 @@ and relaxing tests or gates.
 ## Phase notes
 
 - Baseline `55d01c993`: #1293 and #1298 supply Claude runtime/landing receipts.
-  The landing still required one-time owner permission, so click-free readiness
-  is open. No open cloud-verification measurement PR was found at intake.
+  That historical landing required one-time owner permission; #1305 later
+  supplies the fresh click-free Claude landing receipt. No open cloud-verification measurement PR was found at intake.
 - PR #1300 delivers AC-6: bounded tools and Codex measurements. The measured VM
   has a four-CPU quota and 16 GiB container limit; the healthy shard comparison
   favors four browser workers. The large affected selection reached its explicit
@@ -87,8 +87,14 @@ and relaxing tests or gates.
   mapping, owner approval, shared policy/skill implementation and live delegation
   recovery are not completed by this slice. See `evidence/measurements.md` and
   `evidence/capabilities.md` before continuing.
-- Owner continuation direction: Claude cloud launches and measures Claude workers;
-  Codex finishes its own measurements. One lightweight laptop launch per provider
-  must continue after the laptop session closes. Neither provider launches the
-  other. `evidence/provider-runbook.md` supplies exact cohorts, receipt requirements
-  and the pending laptop checks; it is not a completed capability proof.
+- Owner correction, 2026-10-16: laptop-closure probes are dropped. Each provider
+  launches its own workers; no cross-provider launcher. #1305 supplies Claude
+  measurements and revision-bound cloud launch/follow-up/git transport, plus
+  fresh click-free exact-head queue landing. Its main workflow was cancelled
+  after a shard cap; recovery and CI gate passed. See the dated continuation receipt.
+- The measured 5-minute small selection, 12-minute broader selection, four-worker
+  cap and conditional 5/10-minute Codex/Claude build budgets remain a proposal.
+  Explicit approval in #1301 precedes any shared numerical rule change.
+- Codex current-UI coordinator runs at the pinned #1307 source. Native CLI child
+  qualification remains blocked by cloud authentication and unproven saved/runtime
+  binding relationship. #1307 inert-process tests are not native recovery evidence.
