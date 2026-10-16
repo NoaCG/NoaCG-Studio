@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "a31fc3bbd3f27167117ac52f0395e512621a93fbd7828c6caf734bd958ba16c3",
+  "authority": {
+    "status": "agreed",
+    "source": "Owner conversation 2026-10-16: Yes, write and land the codex-graphic-preview plan and run phase 1 locally. Then give me the prompt to run the remaining phases in the cloud overnight. Earlier owner correction requires native Codex harness and no dependency on the unfinished NoaCG editor."
+  },
+  "review": null
+}
