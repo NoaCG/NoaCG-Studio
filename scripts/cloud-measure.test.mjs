@@ -47,6 +47,10 @@ test('the time bound ends a child that ignores termination and records failure',
   const root = mkdtempSync(join(tmpdir(), 'cloud-measure-timeout-'));
   try {
     const output = join(root, 'receipt.json');
+    if (process.platform !== 'linux') {
+      await assert.rejects(measure({ seconds: 1, output, command: [process.execPath, '-e', ''] }), /requires Linux/);
+      return;
+    }
     const code = await measure({ seconds: 1, output, command: [process.execPath, '-e', 'process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'] });
     const receipt = JSON.parse(readFileSync(output, 'utf8'));
     assert.equal(code, 1);
