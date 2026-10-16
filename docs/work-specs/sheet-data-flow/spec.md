@@ -184,10 +184,11 @@ Sheets connect on the production. A graphic that already carries the block keeps
 
 ## Sequencing
 
-`ProductionPage.tsx` is the one file both this work and the production-page refactor would change.
-The reader and its rules live in `src/control/` and are Node-tested; the page change is wiring
-only. Build after the refactor's data phase (production-page phase 7, `productionDataSession.ts`)
-has landed, or, if this runs first, the refactor plan is updated to account for it before its run.
+Not a run of its own (owner, 2026-10-16): these six phases run as phases 15-20 of
+`/plan-run production-page`, after the page cleanup's fourteen phases and before audience
+(`docs/work-specs/production-page-refactor/spec.md`, "After the refactor, in the same run"). The
+cleanup moves the cue editor and the press verbs this work changes, so it goes first. The readers
+and their rules live in `src/control/` and are Node-tested; the page change is wiring only.
 
 ## Acceptance criteria
 

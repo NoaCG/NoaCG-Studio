@@ -156,11 +156,13 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   and browser sources are proven; in a real vMix 29 a NoaCG output ran a three-layer production
   (take, live update, replace, out). Real SPX 1.2.1 and 1.4.1 play the SPX exports with fields, Continue and Stop,
   and open a production export's rundown copied in by hand; 1.4.1 also plays the OGraf package.
-  ' & < > and line breaks show as typed in SPX exports, as entities in the OGraf package (#1047);
-  1.4's Update is SPX's defect; output-embed cueing is unproven (`SPX_ON_A_REAL_SERVER.md` §13).
+  Open SPX details (escaping #1047, Update, output-embed cueing): `SPX_ON_A_REAL_SERVER.md` §13.
   A three-member walk on a local backend proves a team's production playing with its creator
   signed out; saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
+  - **The playout dashboard comes first, with its Data and Audience tabs** (owner, 2026-10-16): one
+    `/plan-run production-page`, in order: the page cleanup, then the Sheet data flow (outcome 7),
+    then audience once its spec is agreed.
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
     loop and the other attributes a production genuinely needs; more than that is optional.
   - **Shared productions,** proved by verification before anything is rebuilt: members join the
@@ -186,13 +188,11 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   playout, safely isolated. Then the OGraf Server API on the output.
 - **Plans:** `OGRAF.md`, `OGRAF_FULL_STACK_PLAN.md`, `OGRAF_ECOSYSTEM.md`.
 
-### 7. Data and automation (later)
+### 7. Data and automation (now, inside outcome 5's playout run)
 
-- **Why:** many graphics are only as good as their live data.
-- **Desired state:** graphics bind to external data, APIs, feeds and automation, not only typed
-  fields. Data changes values and never operates the show: taking to air and advancing stay
-  operator presses, and the operator wins over a feed.
-- **Done for this phase:** one data model instead of the two that coexist today; a connector design.
+- **Desired state:** graphics bind to external data, not only typed fields. Data changes values and
+  never operates the show; the operator wins over a feed. **Done for this phase:** a shared Google
+  Sheet drives production values with nothing to wire by hand (`work-specs/sheet-data-flow`).
 
 ### 8. Later
 

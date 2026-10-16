@@ -2,7 +2,9 @@
 
 Baseline: main `70fad3a94`, 2026-10-11; every line number below is of that revision. Authority:
 owner, 2026-10-11 (see `work.json`). Plan for `/plan-run production-page`: fourteen sequential
-phases, each built by one session and checked by another on `main`. Replaces the phase map of
+phases, each built by one session and checked by another on `main`, then (owner, 2026-10-16) the
+Sheet data flow's six phases as phases 15-20 and audience after them; see "After the refactor, in
+the same run". Replaces the phase map of
 [issue #766](https://github.com/NoaCG/NoaCG-Studio/issues/766) (its phases 0-2 are done; its old
 phase 3 is phase 4 here, phase 4 is phase 3, phase 5 is phase 13).
 
@@ -652,6 +654,22 @@ state; each is removed in the phase that moves that state.
     `src/components/home/AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/CLIP_PLAYBACK_PLAN.md`,
     `e2e/*` covers headers, evidence. `Closes #766`.
 
+### After the refactor, in the same run (owner, 2026-10-16)
+
+The owner made the playout dashboard the top priority, with its Data and Audience tabs, and ruled
+one run in this order: "production page cleanup first, then Sheet data, then audience, all in the
+one run." The Sheet work changes the cue editor and the press verbs that phases 12 and 13 move, so
+it follows phase 14 rather than interleaving.
+
+15-20. **Sheet data flow, its phases 1-6**, in order, as written in
+    `docs/work-specs/sheet-data-flow/spec.md` `## Phases`. Each phase's scope, files and
+    acceptance criteria are that spec's, not this spec's file lists; its findings go under that
+    spec's `## Phase notes`. Built and checked by the same rules (§8, §9). That spec's own stop
+    rule holds: a miss on its D3 freshness target stops the run for the owner.
+
+Audience phases are added here as 21 onward once an audience spec is agreed; until then the run
+ends after phase 20.
+
 ## What the plan can demonstrate, and what stays uncertain
 
 Demonstrable: behaviour identical on every pinned scenario (the offline suite, the configured
@@ -670,6 +688,16 @@ configured-suite run and deploy-verify green; the local Supabase stack or the di
 confirmed, `gh auth status` ok, the browser queue idle, `wave-row` and `wave-row-deciding`
 available; no open wave or plan run and the runner revalidated as it stands then; the owner's
 window supplied.
+
+Added 2026-10-16, before phase 1: the owner's answer on D8 is recorded here. His codebase-health
+ruling ("No new hard ceiling or blocking size policy; an arbitrary number must not block a valuable
+change", `docs/work-specs/codebase-health/spec.md`) reserves this size policy for him, and as
+written D8 would install 5,676 on a page that is now 5,744 lines. The phase 1 builder reads
+`evidence/reconcile-2026-10-16.md` first: line numbers here are of `70fad3a94`, the budget script
+already exists for the wizard, and code that landed since (#1057's boot replay) is reused.
+
+Before starting phase 15: phase 14 checked PASS on `main`, and `node scripts/work-spec.mjs status
+docs/work-specs/sheet-data-flow/work.json` shows the spec agreed.
 
 Before starting phase 2 (from phase 1's evidence and notes): phase 1's tests green on main (the
 offline spec, the four configured specs, the Node files, the gate); S1 and S3 decided with
