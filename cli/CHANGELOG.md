@@ -10,6 +10,24 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.12.2 - 2026-10-16
+
+**A first reply that shows what you can make.** After connecting your account, the agent asked
+"what should I make?" and left you to guess what NoaCG can do. It now suggests three example
+requests (a set in your brand from your website, a scoreboard with buttons and your logo, a
+podcast set as a production) and says you can paste your website, put a logo or pictures in the
+folder, or name your colours and fonts. Asking "what can I do with NoaCG?" gets the same start.
+If you already said what you want, it gets straight to work.
+
+**Your brand, handled the same way by every agent.** Given a website, a logo or fonts, agents
+used to differ: some reported where each colour came from and what they could not use, others
+used a club crest without a word. The skill now says where to take your colours, fonts and logo
+from, copies the logo into the graphic, bundles a font only when its licence allows it, and ends
+with what was used, where it came from, what could not be used, and that a logo belongs to its
+owner, so you need the right to show it on air.
+
+The starter prompt on Downloads uses this version. With the plugin, update it the usual way.
+
 ## 0.12.1 - 2026-10-16
 
 **`noacg login` opens the right page on Windows.** On Windows, login opened a page cut off after

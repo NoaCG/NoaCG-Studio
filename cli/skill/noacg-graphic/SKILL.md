@@ -154,7 +154,7 @@ package is listed apart as pending Install. Validator warnings stay apart from t
 state. A saved link is saved, not opened: say "saved", not "checked in the browser".
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli@0.12.1 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.1` once makes every
+(`npx -y @noacg/cli@0.12.2 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.2` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the
