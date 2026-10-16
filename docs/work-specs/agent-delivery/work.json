@@ -6,12 +6,16 @@
     "source": "Owner in this chat, 2026-10-15: requested review of agentic-tool feedback, Home after signup/login, automatic account delivery, early connection and a short Downloads starter prompt. Selected \"Review and concrete plan first\", then asked \"can the plan made to a plan-run, so I can start it at some point I have time?\" Authorizes preparing and landing the plan and its registration only. No implementation phase, run window, worker, heartbeat or schedule starts now. A future /plan-run agent-delivery invocation with an explicit stop time authorizes the bounded phases; credential changes still require explicit scoped consent."
   },
   "review": {
-    "revision": "5e44e51193899dd40b91febb1344365ab716efc3",
+    "revision": "cc622a9b11770e4ad0cea2312512ce671971e2af",
     "specSha256": "87eca2e475f767600cc92adb995fb9cf5968ca5eff3a4caac734a1ea3f92a0a7",
     "evidence": [
       {
         "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
         "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+      },
+      {
+        "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+        "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
       }
     ],
     "criteria": [
@@ -22,6 +26,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -32,6 +40,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -42,6 +54,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -52,6 +68,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -62,6 +82,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -72,6 +96,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -82,6 +110,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -92,6 +124,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -102,16 +138,24 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
       {
         "id": "AC-10",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -122,6 +166,10 @@
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
             "sha256": "2e5b03e9153a50f230d341013cf5e9d56c318f98d39d247e5a93e1c26af091cc"
+          },
+          {
+            "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       }
