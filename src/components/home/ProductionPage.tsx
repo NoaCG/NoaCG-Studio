@@ -227,6 +227,8 @@ import PlayoutMonitors from './PlayoutMonitors';
 import { composeDocument } from '../../preview/composeDocument';
 import { isBackendConfigured } from '../../backend/config';
 import { useAuthState } from '../auth/useAuthState';
+import SignInPrompt from '../auth/SignInPrompt';
+import { productionWhenSynced } from '../../backend/graphicWhenSynced';
 import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
 import CueOverflowNote, { cueOverflowKeys } from './CueOverflowNote';
@@ -404,6 +406,30 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   const backendConfigured = isBackendConfigured();
   const { needsSignIn, status: authStatus, user } = useAuthState();
+  /**
+   * A PRODUCTION LINK OPENED COLD. `noacg save --production` prints `#/production/<id>`, so the
+   * reader is very often a browser that has not pulled the record yet, or one nobody has signed
+   * into. "Not in this browser" is then not "no such production": ask the cloud first, as the
+   * graphic link does (backend/graphicWhenSynced.ts). Offline there is nowhere else to look.
+   */
+  const hasShow = !!show;
+  const [lookup, setLookup] = useState<'looking' | 'unknown' | 'needs-sign-in'>(() =>
+    backendConfigured ? 'looking' : 'unknown',
+  );
+  useEffect(() => {
+    if (hasShow || !backendConfigured) return;
+    setLookup('looking');
+    let live = true;
+    void productionWhenSynced(id).then((found) => {
+      if (!live) return;
+      if (found.status === 'found') setShows(loadShows());
+      else setLookup(found.status);
+    });
+    return () => {
+      live = false;
+    };
+    // authStatus re-asks once the session resolves, and after a sign-in from the prompt below.
+  }, [id, hasShow, backendConfigured, authStatus]);
   const publishOwner = useRef({ id, userId: user?.id });
   publishOwner.current = { id, userId: user?.id };
   const [serverFiles, setServerFiles] = useState<{ key: string; check: StatusCheck | null } | null>(null);
@@ -2366,25 +2392,44 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [timedCues, setCueArms]);
 
   if (!show) {
+    // A TEAM production opened cold - a teammate's link, a reload - arrives with the first team
+    // fetch, a moment after this page. Saying "no longer exists" for that moment, or while the
+    // cloud is still being asked, tells somebody their work is gone.
+    // No session token while the auth state is still resolving is not yet an answer either.
+    const opening =
+      lookup === 'looking' || teamShowsStatus() === 'loading' || (lookup === 'needs-sign-in' && authStatus === 'loading');
+    const signIn = !opening && lookup === 'needs-sign-in';
     return (
       <div className="app home-page" data-testid="production-page">
         <header className="topbar">
           <a className="brand brand-home" href="/" title="NoaCG Studio front page">
             <BrandLogo size={24} />
           </a>
-          <span className="tpl-name">{teamShowsStatus() === 'loading' ? 'Opening production…' : 'Production not found'}</span>
+          <span className="tpl-name">{opening ? 'Opening production…' : signIn ? 'Production' : 'Production not found'}</span>
         </header>
         <main className="home-content" style={{ padding: 24 }}>
-          {/* A TEAM production opened cold - a teammate's link, a reload - arrives with the
-              first team fetch, a moment after this page. Saying "no longer exists" for that
-              moment tells somebody their team's work is gone. */}
-          <p className="hint" data-testid={teamShowsStatus() === 'loading' ? 'production-loading' : 'production-missing'}>
-            {teamShowsStatus() === 'loading'
-              ? 'Loading your team productions…'
-              : teamsOn
-                ? 'This production no longer exists, or it belongs to a team you are not in.'
-                : 'This production no longer exists.'}
-          </p>
+          {opening ? (
+            <p className="hint" data-testid="production-loading">Looking for this production in your account…</p>
+          ) : signIn ? (
+            <SignInPrompt
+              feature="Sign in to open this production"
+              reason="This production is saved in an account. Sign in and it opens here."
+            />
+          ) : (
+            <>
+              <p className="hint" data-testid="production-missing">
+                {teamsOn
+                  ? 'This production no longer exists, or it belongs to a team you are not in.'
+                  : backendConfigured
+                    ? 'This production no longer exists, or it lives in another account.'
+                    : 'This production no longer exists.'}
+              </p>
+              {/* Which account this is, never anything about the production. */}
+              {backendConfigured && user?.email && (
+                <p className="hint" data-testid="production-missing-account">You are signed in as {user.email}.</p>
+              )}
+            </>
+          )}
           <div className="row">
             <button onClick={() => goBack({ view: 'home', section: 'productions' })} data-testid="production-back">
               ← Back
