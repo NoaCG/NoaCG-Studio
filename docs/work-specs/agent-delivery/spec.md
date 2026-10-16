@@ -849,6 +849,9 @@ Decisions:
   `skill` sits beside it.
 - No `status` verb in the MCP tool: its `save` answer already carries the receipt read back, the
   same call resumes, and the schema is at its ceiling.
+- The checkout's tarball stands in only for an unreleased pin (newer than npm's `latest`); npm must
+  answer, and a run dispatched on `main` fails unless it ran the package from npm, so that run is
+  the published-path evidence and a tarball can never pass for it (a review finding on #1278).
 - The journey's account comes from the admin API, as the sign-up test's does; the sign-up form
   itself stays covered by `anonymous.spec.ts`. The browser is the runner's Chromium named through
   `NOACG_BROWSER`, which the setup notes allow, because the CLI bundles none.

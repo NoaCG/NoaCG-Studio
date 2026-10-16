@@ -948,7 +948,17 @@ async function cleanAgentCli(work: string, origin: string): Promise<{ run: CliRu
     ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
   };
   const npm = (args: string[], cwd: string) => spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, { cwd, env, encoding: 'utf8', shell: process.platform === 'win32' });
+  // npm must ANSWER: an unreachable registry fails here rather than falling back to the checkout.
+  const latestView = npm(['view', '@noacg/cli', 'version'], work);
+  expect(latestView.status, `npm answered for @noacg/cli: ${latestView.stderr}`).toBe(0);
+  const latest = latestView.stdout.trim();
   const onNpm = npm(['view', `@noacg/cli@${CLI_PIN}`, 'version'], work).stdout.trim() === CLI_PIN;
+  // The checkout stands in ONLY for an unreleased version: a pin newer than npm's latest, which is
+  // a release pull request or a landing whose publish has not finished. A run dispatched on main
+  // is the published-path evidence (AC-10), so there the pin must come from npm.
+  const unreleased = !onNpm && newerThan(CLI_PIN, latest);
+  const evidenceRun = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch' && process.env.GITHUB_REF === 'refs/heads/main';
+  expect(onNpm || (unreleased && !evidenceRun), `@noacg/cli@${CLI_PIN} is not on npm (latest ${latest})${evidenceRun ? '; a run dispatched on main must run the published package' : ''}`).toBe(true);
   let spec: string[];
   let source: string;
   if (onNpm) {
@@ -965,6 +975,13 @@ async function cleanAgentCli(work: string, origin: string): Promise<{ run: CliRu
   const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
   const run: CliRun = (args, opts = {}) => spawnCli(npx, [...spec, ...args], env, work, { timeoutMs: 240_000, ...opts });
   return { run, source };
+}
+
+/** Whether version `a` (x.y.z) is newer than `b`. */
+function newerThan(a: string, b: string): boolean {
+  const [x, y] = [a, b].map((v) => v.split('.').map(Number));
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
+  return false;
 }
 
 /** `noacg login --no-browser`, answered on the consent page it prints: Allow or Don't allow. */
