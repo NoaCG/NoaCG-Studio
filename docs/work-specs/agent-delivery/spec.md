@@ -891,3 +891,61 @@ Next phase must allow for (the Phase 5 check):
 - The harness bench's exam (another plan) pins the skill and CLI version it tuned on; 0.12.0 and the
   new SKILL.md are refused there by name ("the CLI is v0.12.0 where that skill's commands pin
   v0.11.0"), which is that plan's designed answer, not a defect here.
+
+### Phase 5 (check), 2026-10-16
+
+Checked on `origin/main` `36380004a` (the landing of #1278), which noacg.studio was serving
+(`doctor`: bridge `main@36380004a8`). Verdict: PASS for the phase's deliverables. AC-10 and
+AC-11 stay open in `work.json` for the one run this window could not make: a real coding-agent
+session given the Downloads prompt, against hosted noacg.studio, with a new account.
+
+- Release: Post-landing 38833029343, Release CLI to npm 38833029356 and the landing's configured
+  run 38833029133 are green. npm serves `@noacg/cli@0.12.0` as `latest` with SLSA provenance; the
+  MCP Registry lists `io.github.NoaCG/noacg` 0.12.0 as its latest. The published package's
+  `skill/` and CHANGELOG are byte-identical to `main` (line endings aside).
+- Published path: configured suite dispatched on `main`, run 38833457342 (`workflow_dispatch`,
+  `36380004a`, local Supabase stack), ran 102: 102 passed, 0 failed, 0 flaky, 8 allowed skips.
+  The third agent-access test's annotation reads `npm @noacg/cli@0.12.0`, and it passed first
+  time in 84 s; the first two passed first time too. Read its assertions: a clean HOME, config
+  dir and npm cache; `--version` = the pin; `docs skill` carries "Run the SAME"; Don't allow
+  exits 1 with nothing stored; Allow on a card titled "save graphics and productions to your NoaCG
+  account" naming the new account, scopes exactly graphics and productions; three graphics
+  scaffolded and validated with frames; one `save --production --rundown --layer 10` killed by
+  SIGKILL once it named its operation, resumed under it, replayed with the same ids and
+  production; `status` verified with three graphics and the production `saved` in the new
+  account; a fresh browser as that account opens every graphic link and the production with its
+  three cues in order; another account gets "Graphic not found" naming itself, without the
+  graphic's name; `pack --save` reads back `pending_install` and Install says "Already delivered
+  as"; `logout` leaves `whoami` logged out; the account and all it owns are deleted after.
+- The kept frames, looked at as a user: the name strap's on-air and stress frames read cleanly,
+  the doubled stress lines stay inside the plate. The ticker's stress frame widens its NEWS tab
+  and keeps the headline and clock on one line. The countdown is light type on a transparent
+  ground, so in a plain image viewer it shows as a thin rule only; over a dark ground it reads
+  "ROUND 1 / 3:00", and the stress frame "14:48:00" with the doubled label, whose accent rule
+  stays short. All three show the types' sample content (a news anchor, a budget headline,
+  ROUND 1), not the regatta: the brief is novel in names and running order only, so this walk
+  proves delivery, not that an agent builds what a brief asks.
+- As a user without the plugin, `npx -y @noacg/cli@0.12.0` from an empty HOME, APPDATA, npm
+  cache and Claude/Codex config, no `NOACG_*` variable: `--version` 0.12.0; `doctor` names
+  noacg.studio, Edge and a fresh config dir, not logged in; `whoami` exit 1 with the login hint;
+  `docs skill` prints the procedure under its one-line pointer, and `docs setup`, `critique` and
+  `share` each print their reference; `--help` lists `--production N [--rundown <cues.json>]
+  [--layer n[,n...]]` on `save` (bare `noacg` and `noacg --help` exit 2, `noacg save --help`
+  exits 0; unchanged from before). The live Downloads and docs pages show the same 77-word
+  prompt pinned to 0.12.0, with the plugin below it as optional. The prompt, `docs skill`, setup
+  reference, CHANGELOG 0.12.0, MCP tool description, docs page and every manifest (both plugins,
+  marketplace, `server.json`) agree on 0.12.0 and on one save, a production only when asked,
+  "the same command again", and a package as pending Install.
+- The partial outcome as a person reads it: the published CLI against a local stand-in of an
+  older deployment (noacg.studio's `/bridge` proxied on 127.0.0.1, `/api/me` answering a set
+  door that ignores `production`). Three scaffolds, one `save --production --rundown --layer 10`:
+  exit 1, "Saved the graphics to the library, but the NoaCG at ... made no production: it is too
+  old for one", then every saved graphic's link on its own line. One save request and one
+  readback per run; the operation was forgotten, so a second run started a new one.
+- Not done: no hosted run (no test account on noacg.studio or staging in this window; no hosted
+  key read), no real agent following the prompt end to end with an account, Docker not started.
+  The configured run is the backend evidence.
+
+Ledger: `work.json` now records this review (`evidence/final-check.md`). AC-1 to AC-9 pass on
+the reviewed evidence of the phase checks and this run. AC-10 and AC-11 are `unverified`; what
+closes them is in the receipt.
