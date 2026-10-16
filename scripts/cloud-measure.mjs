@@ -5,6 +5,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { availableParallelism, totalmem } from 'node:os';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { descendantsOf } from './e2e-runs.mjs';
 
 const read = (path) => { try { return readFileSync(path, 'utf8').trim(); } catch { return null; } };
 
@@ -57,15 +58,30 @@ export function parseRun(args) {
   return { seconds, output: args[3], command };
 }
 
-// Sum simultaneously resident processes in the new process group, including server and browsers.
-// RSS includes shared pages more than once. PSS apportions them; null means it was unavailable.
-export function processGroupSample(group, procRoot = '/proc') {
-  let rssBytes = 0, pssBytes = 0, count = 0, pssComplete = true;
-  for (const pid of readdirSync(procRoot).filter((name) => /^\d+$/.test(name))) {
+function processTable(procRoot) {
+  return readdirSync(procRoot).filter((name) => /^\d+$/.test(name)).flatMap((pid) => {
     const stat = read(`${procRoot}/${pid}/stat`);
-    if (!stat) continue;
+    if (!stat) return [];
     const fields = stat.slice(stat.lastIndexOf(')') + 2).split(/\s+/);
-    if (Number(fields[2]) !== group || fields[0] === 'Z') continue;
+    return [{ pid: Number(pid), ppid: Number(fields[1]), group: Number(fields[2]), createdMs: Number(fields[19]), state: fields[0] }];
+  });
+}
+
+function ownedProcesses(root, procRoot, known) {
+  const table = processTable(procRoot);
+  // Playwright detaches the dev server and Chromium into separate process groups. Follow parent
+  // links, using the queue's existing tree walk, and retain observed identities after reparenting.
+  const roots = table.filter((p) => (p.pid === root && (!known.has(root) || known.get(root) === p.createdMs)) || known.get(p.pid) === p.createdMs);
+  const owned = [...new Map([...roots, ...descendantsOf(roots.map((p) => p.pid), table)].map((p) => [p.pid, p])).values()];
+  for (const p of owned) known.set(p.pid, p.createdMs);
+  return owned.filter((p) => p.state !== 'Z');
+}
+
+// Sum simultaneously resident descendants, including detached server and browser processes.
+// RSS includes shared pages more than once. PSS apportions them; null means it was unavailable.
+export function processTreeSample(root, procRoot = '/proc', known = new Map()) {
+  let rssBytes = 0, pssBytes = 0, count = 0, pssComplete = true;
+  for (const { pid } of ownedProcesses(root, procRoot, known)) {
     const status = read(`${procRoot}/${pid}/status`);
     const rss = /^VmRSS:\s+(\d+)/m.exec(status ?? '');
     if (!rss) continue;
@@ -94,15 +110,21 @@ export async function measure({ command, seconds, output }) {
   };
   const start = performance.now();
   const child = spawn(command[0], command.slice(1), { stdio: 'inherit', detached: true, windowsHide: true });
-  const signalGroup = (signal) => { try { process.kill(-child.pid, signal); } catch (error) { if (error.code !== 'ESRCH') throw error; } };
+  const known = new Map();
+  const signalTree = (signal) => {
+    if (!child.pid) return;
+    for (const p of ownedProcesses(child.pid, '/proc', known).reverse()) {
+      try { process.kill(p.pid, signal); } catch (error) { if (error.code !== 'ESRCH') throw error; }
+    }
+  };
   let killTimer;
-  const stop = () => { signalGroup('SIGTERM'); killTimer ??= setTimeout(() => signalGroup('SIGKILL'), 2000); };
+  const stop = () => { signalTree('SIGTERM'); killTimer ??= setTimeout(() => signalTree('SIGKILL'), 2000); };
   const interrupted = () => { receipt.interrupted = true; stop(); };
   process.on('SIGINT', interrupted);
   process.on('SIGTERM', interrupted);
   const sample = () => {
     if (!child.pid) return;
-    const row = processGroupSample(child.pid);
+    const row = processTreeSample(child.pid, '/proc', known);
     receipt.samples++;
     receipt.peakProcesses = Math.max(receipt.peakProcesses, row.count);
     receipt.aggregatePeakRssBytes = Math.max(receipt.aggregatePeakRssBytes, row.rssBytes);
@@ -110,6 +132,7 @@ export async function measure({ command, seconds, output }) {
     else receipt.pssIncomplete = true;
     receipt.cgroupSampledPeakBytes = Math.max(receipt.cgroupSampledPeakBytes, Number(read('/sys/fs/cgroup/memory.current')) || 0);
   };
+  sample();
   const interval = setInterval(sample, receipt.sampleIntervalMs);
   const timeout = setTimeout(() => { receipt.timedOut = true; stop(); }, seconds * 1000);
   const result = await new Promise((done) => {
@@ -118,7 +141,7 @@ export async function measure({ command, seconds, output }) {
   });
   sample();
   // A successful runner must not leave servers/browsers beyond the measurement's bound.
-  signalGroup('SIGKILL');
+  signalTree('SIGKILL');
   clearInterval(interval);
   clearTimeout(timeout);
   clearTimeout(killTimer);

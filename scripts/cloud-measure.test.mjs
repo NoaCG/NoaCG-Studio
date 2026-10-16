@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { effectiveLimits, parseRun, processGroupSample } from './cloud-measure.mjs';
+import { effectiveLimits, parseRun, processTreeSample } from './cloud-measure.mjs';
 
 test('effective limits use quota and container memory rather than host totals', () => {
   const limits = effectiveLimits({ affinity: 5, hostMemoryBytes: 64 * 2 ** 30, cpuMax: '400000 100000', memoryMax: String(16 * 2 ** 30) });
@@ -21,15 +21,24 @@ test('measurement requires a time bound and explicit browser files without chang
   assert.deepEqual(parseRun([...prefix, 'npm', 'run', 'build']).command, ['npm', 'run', 'build']);
 });
 
-test('memory aggregates simultaneous server and browser processes, excluding other groups', () => {
+test('memory includes detached server/browser descendants, excluding unrelated processes', () => {
   const root = mkdtempSync(join(tmpdir(), 'cloud-measure-'));
   try {
-    for (const [pid, group, rss] of [[11, 11, 100], [12, 11, 200], [13, 99, 900]]) {
+    for (const [pid, ppid, group, rss] of [[11, 1, 11, 100], [12, 11, 99, 200], [13, 1, 99, 900], [14, 12, 100, 300]]) {
       const dir = join(root, String(pid)); mkdirSync(dir);
-      writeFileSync(join(dir, 'stat'), `${pid} (name with ) spaces) S 1 ${group} 0`);
+      const fields = Array(20).fill('0');
+      fields[0] = 'S'; fields[1] = ppid; fields[2] = group; fields[19] = pid * 100;
+      writeFileSync(join(dir, 'stat'), `${pid} (name with ) spaces) ${fields.join(' ')}`);
       writeFileSync(join(dir, 'status'), `VmRSS: ${rss} kB\n`);
       writeFileSync(join(dir, 'smaps_rollup'), `Pss: ${rss / 2} kB\n`);
     }
-    assert.deepEqual(processGroupSample(11, root), { count: 2, rssBytes: 300 * 1024, pssBytes: 150 * 1024 });
+    const known = new Map();
+    const expected = { count: 3, rssBytes: 600 * 1024, pssBytes: 300 * 1024 };
+    assert.deepEqual(processTreeSample(11, root, known), expected);
+    const detached = join(root, '12/stat');
+    writeFileSync(detached, readFileSync(detached, 'utf8').replace(' S 11 ', ' S 1 '));
+    assert.deepEqual(processTreeSample(11, root, known), expected, 'reparented children stay attributed');
+    writeFileSync(detached, readFileSync(detached, 'utf8').replace('1200', '99999'));
+    assert.equal(processTreeSample(11, root, known).rssBytes, 400 * 1024, 'a reused PID is not the old child');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
