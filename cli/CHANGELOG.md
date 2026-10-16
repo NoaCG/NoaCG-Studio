@@ -10,6 +10,16 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.12.1 - 2026-10-16
+
+**`noacg login` opens the right page on Windows.** On Windows, login opened a page cut off after
+its first part, which said the agent request was not valid, and then reported that it could not
+open a browser. The link it printed was complete, and pasting it into a browser always worked.
+Login now hands the whole link to Windows, so the consent page opens as it does on macOS and
+Linux. When login cannot open a browser, or runs with `--no-browser`, it says that the link works
+in any browser on this computer that is signed in to the NoaCG account you want to connect,
+private windows included. You do not need to do anything; a key you already have keeps working.
+
 ## 0.12.0 - 2026-10-16
 
 **A set of graphics arrives in your library in one save.** `noacg save ./a ./b ./c` now validates

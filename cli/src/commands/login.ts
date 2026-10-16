@@ -20,11 +20,11 @@
 // /callback instead of a code. (A consent URL without it - an older CLI - only says on the page
 // that nothing was granted, and that CLI waits out its timeout as it always did.)
 
-import { execFile } from 'node:child_process';
 import http from 'node:http';
 import os from 'node:os';
 import type { AddressInfo } from 'node:net';
 import { noacgUrl } from '../config.js';
+import { openUrl } from '../openUrl.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagNumber, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { accountLabel, ApiError, challengeFor, displayPrefix, explainFailure, isAgentKey, newState, newVerifier, redeemCode, storeKey } from '../auth.js';
 
@@ -49,25 +49,6 @@ const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>noacg login</
   }).catch(function(){h.textContent='The noacg command is no longer waiting';p.textContent='Run noacg login again.';});
 })();
 </script>`;
-
-function openInBrowser(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const done = (ok: boolean) => resolve(ok);
-    try {
-      if (process.platform === 'win32') {
-        // `start` is a cmd builtin; the empty first argument is the window title it would
-        // otherwise mistake the URL for.
-        execFile('cmd', ['/c', 'start', '', url], { windowsHide: true }, (e) => done(!e));
-      } else if (process.platform === 'darwin') {
-        execFile('open', [url], (e) => done(!e));
-      } else {
-        execFile('xdg-open', [url], (e) => done(!e));
-      }
-    } catch {
-      done(false);
-    }
-  });
-}
 
 interface Handoff {
   code: string;
@@ -188,11 +169,14 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
   consent.searchParams.set('scopes', 'productions:create');
 
   out.log(`Open this page in your browser to allow "${name}" to save graphics and productions to your NoaCG account:\n\n  ${consent.href}\n`);
+  // The consent page hands its code to 127.0.0.1 on THIS computer, so any browser here will do,
+  // which is what somebody whose default browser is not the signed-in one needs to know.
+  const paste = 'Paste the link into any browser on this computer that is signed in to the NoaCG account you want to connect.';
   if (flagBool(args, 'browser', true)) {
-    const opened = await openInBrowser(consent.href);
-    out.log(opened ? 'Opened your browser. Waiting for you to allow access…' : 'Could not open a browser here - paste the URL into one. Waiting…');
+    const opened = await openUrl(consent.href);
+    out.log(opened ? 'Opened your browser. Waiting for you to allow access…' : `Could not open a browser here. ${paste} Waiting…`);
   } else {
-    out.log('Waiting for you to allow access…');
+    out.log(`${paste} Waiting for you to allow access…`);
   }
 
   let code: string;

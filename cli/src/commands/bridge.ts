@@ -16,6 +16,7 @@
 
 import { spawn } from 'node:child_process';
 import { cliVersion, noacgUrl } from '../config.js';
+import { openUrlCommand, openUrlOptions } from '../openUrl.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
 import { ografAdapter } from '../playout/adapters/ograf.js';
@@ -30,20 +31,18 @@ export function pairingUrl(port: number, code: string): string {
   return `${noacgUrl()}/app?bridge=${port}&code=${encodeURIComponent(code)}`;
 }
 
-/** Open a URL in the default browser, per OS, without waiting on it. On Windows this goes
- *  through the shell's own URL handler rather than `cmd /c start`: cmd re-parses its command
- *  line, and the `&` before `code=` would have split the pairing link in two. */
+/** Open the pairing link without waiting on it. Detached, so stopping the Bridge never takes a
+ *  browser it started down with it; printing the link is the fallback, and it is printed regardless. */
 function openInBrowser(url: string): void {
-  const [cmd, args] =
-    process.platform === 'win32'
-      ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
-      : process.platform === 'darwin'
-        ? ['open', [url]]
-        : ['xdg-open', [url]];
+  const { file, args } = openUrlCommand(url);
   try {
-    spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref();
+    // A missing opener (no xdg-open on a bare Linux box) arrives as an 'error' event, which
+    // unheard would stop the Bridge.
+    const child = spawn(file, args, { ...openUrlOptions(), detached: true, stdio: 'ignore' });
+    child.on('error', () => undefined);
+    child.unref();
   } catch {
-    // Printing the URL is the fallback, and it is printed regardless.
+    // The link is on screen already.
   }
 }
 

@@ -36,6 +36,7 @@ import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPack
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
 import { cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
 import { parseFieldList } from '../dist/commands/scaffold.js';
+import { openUrl, openUrlCommand, openUrlOptions } from '../dist/openUrl.js';
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -972,15 +973,49 @@ test('"Don\'t allow" in the browser ends the login at once, and says nothing was
   }
 });
 
-test('the consent URL tells the page this login takes a refusal', async () => {
+test('the consent URL tells the page this login takes a refusal, and the link names where it works', async () => {
   const session = await drivenLogin({ waitSec: 6 });
   try {
     const { stderr } = session.out();
     assert.match(/http:\/\/\S+\/app\?\S+/.exec(stderr)?.[0] ?? '', /[?&]deny=1(&|$)/);
+    // The consent page redirects to 127.0.0.1 here, so any local browser signed in to the account works.
+    assert.match(stderr, /any browser on this computer that is signed in to the NoaCG account you want to connect/);
     await session.waitForExit(20_000);
   } finally {
     session.release();
   }
+});
+
+// Through 0.12.0 Windows opened the consent URL with `cmd /c start "" <url>`. cmd splits a command
+// line at `&`, so the browser got `/app?agent=<state>` alone, the page called it an invalid agent
+// request, and cmd's failure on the rest made the CLI say it could not open a browser. The URL
+// must reach the opener as one argument, with nothing in between that parses it.
+test('on Windows the consent URL goes whole to the URL handler, never through cmd', async () => {
+  const url = 'https://noacg.studio/app?agent=s&port=51234&name=noacg+CLI+on+PC&challenge=c&deny=1&scopes=productions%3Acreate';
+  const calls = [];
+  const run = (exitCode) => (file, args, options, done) => {
+    calls.push({ file, args, options });
+    done(exitCode === 0 ? null : Object.assign(new Error('failed'), { code: exitCode }));
+  };
+
+  assert.equal(await openUrl(url, 'win32', run(0)), true);
+  assert.deepEqual(calls[0], {
+    file: 'rundll32',
+    args: ['url.dll,FileProtocolHandler', url],
+    options: { windowsHide: true, windowsVerbatimArguments: true },
+  });
+  assert.equal(await openUrl(url, 'win32', run(1)), false, 'an opener that fails is reported as not opened');
+
+  assert.deepEqual(openUrlCommand(url, 'darwin'), { file: 'open', args: [url] });
+  assert.deepEqual(openUrlCommand(url, 'linux'), { file: 'xdg-open', args: [url] });
+  assert.equal(openUrlOptions('linux').windowsVerbatimArguments, false);
+  assert.equal(
+    await openUrl(url, 'win32', () => {
+      throw new Error('spawn failed');
+    }),
+    false,
+    'an opener that cannot start is reported as not opened',
+  );
 });
 
 // ---------------------------------------------------------------- delivery receipts
