@@ -191,6 +191,10 @@
         "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/guard-edit.mjs\"" }]
       },
       {
+        "matcher": "Read|Grep",
+        "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/guard-read.mjs\"" }]
+      },
+      {
         "matcher": "mcp__ccd_session__spawn_task",
         "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/scripts/hooks/spawn-task-guard.mjs\"" }]
       },

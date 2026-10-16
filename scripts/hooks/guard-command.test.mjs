@@ -55,6 +55,16 @@ test('naming specs or enqueueing is not refused as a whole-suite run', () => {
   }
 });
 
+test('a command that prints a .env file is refused, and points at the configured test accounts (#1281)', () => {
+  for (const command of ['cat .env', 'Get-Content .env.local', 'printenv']) {
+    const run = runHook(GUARD, bash(command));
+    assert.equal(run.status, 2, `${command} was allowed`);
+    assert.match(run.message, /\.github\/workflows\/configured-suite\.yml/);
+  }
+  const loads = runHook(GUARD, bash('node --env-file=.env -e "process.exit(process.env.SUPABASE_URL ? 0 : 1)"'));
+  assert.equal(loads.status, 0, loads.message);
+});
+
 test('the browser memory the guard reads (#920) never stops an ordinary command, even torn', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'noacg-jobs-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
