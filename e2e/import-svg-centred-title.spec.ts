@@ -1,5 +1,5 @@
-// covers: none - no source path selected this spec when coverage moved into spec headers
-// (2026-09-27); it runs when edited, on a full escalation and at night
+// The importer and, through its `?raw` imports, the runtime that writes the anchor (svgFit.js).
+// covers: src/templates/importedDesign/svg.ts
 
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';

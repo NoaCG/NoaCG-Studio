@@ -2,7 +2,7 @@
 // parser it shares with the catalog rolls, the fields list that turns the sample into one box,
 // and its fixture. The examples walk rides along: its credits are the list the default pace was
 // set by (about thirty seconds), rolled from Illustrator's own output.
-// covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,artworkFields}.ts,endCredits/shared.ts}
+// covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,artworkFields,svg}.ts,endCredits/shared.ts}
 // covers: e2e/fixtures/credits-roll.svg
 //
 // The SVG examples are the other road through real Illustrator output, and the only files
