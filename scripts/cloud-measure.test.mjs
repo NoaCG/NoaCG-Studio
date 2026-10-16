@@ -57,6 +57,8 @@ test('the time bound preserves branch isolation and ends an unresponsive child',
     execFileSync('git', ['-c', 'user.name=Measurement test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'fixture'], { cwd: root, stdio: 'ignore', windowsHide: true });
     process.chdir(root);
     await assert.rejects(measure({ seconds: 1, output, command: [process.execPath, '-e', ''] }), /owned feature branch/);
+    execFileSync('git', ['switch', '--detach'], { cwd: root, stdio: 'ignore', windowsHide: true });
+    await assert.rejects(measure({ seconds: 1, output, command: [process.execPath, '-e', ''] }), /owned feature branch/);
     execFileSync('git', ['switch', '-c', 'measurement-fixture'], { cwd: root, stdio: 'ignore', windowsHide: true });
     const code = await measure({ seconds: 1, output, command: [process.execPath, '-e', 'process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'] });
     const receipt = JSON.parse(readFileSync(output, 'utf8'));
