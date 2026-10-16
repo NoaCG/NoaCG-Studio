@@ -68,7 +68,11 @@
   "samples": 2936,
   "overallPeakUsageBytes": 6036365312,
   "overallMaxFailcnt": 0,
-  "scopeLifetimeMaxUsageBytes": 4488962048,
+  "scopeMaxUsageReading": {
+   "bytes": 4488962048,
+   "readAt": "about 2026-10-16T12:59Z, when the side sampler started",
+   "note": "a one-off high-water reading taken after the build and before most browser runs; the sampled peaks after that time are higher, as expected"
+  },
   "perRun": {
    "claude-build.json": {
     "samples": 0,
