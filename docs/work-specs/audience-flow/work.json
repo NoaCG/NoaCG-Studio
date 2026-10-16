@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "988c112d2716a483c30408c62d18e9baac47a1cc9ee92a10a2d1878e20626203",
+  "authority": {
+    "status": "draft",
+    "source": "owner, 2026-10-16: \"The playout dashboard, our playout system, is top priority right now, and I think everything that has to do with the playout system is important. That means also the data and the audience tabs.\" Then: \"production page cleanup first, then Sheet data, then audience, all in the one run.\" Drafted overnight from the 2026-10-16 walk; decisions A1 to A5 await the owner."
+  },
+  "review": null
+}
