@@ -133,9 +133,15 @@ function harness() {
   const stub = stubProvider();
   const progress = [];
   const probed = [];
+  /** The step's validator, and the source each run asked it for. */
+  const validate = async () => PASS;
+  const sources = [];
   const io = {
     provider: stub.provider,
-    validate: async () => PASS,
+    validatorFor: (source) => {
+      sources.push(source);
+      return validate;
+    },
     structuralCheck: async () => [],
     probeMark: async (asset) => {
       probed.push(asset);
@@ -143,7 +149,7 @@ function harness() {
     },
     onProgress: (stage) => progress.push(stage),
   };
-  return { stub, progress, probed, io };
+  return { stub, progress, probed, io, validate, sources };
 }
 
 /** A template as a provider returns one. The routes never read it; the screen does. */
@@ -189,6 +195,8 @@ const ROWS = [
 /** What the provider answers for a row: one change, or the directions' list. */
 const answerFor = (row, name) => (row.route === 'directions' ? [change(`${name} A`), change(`${name} B`)] : change(name));
 const asList = (answer) => (Array.isArray(answer) ? answer : [answer]);
+/** What a run returns for that answer: a convert's result also records the template it came from. */
+const resultsFor = (row, answer) => (row.route === 'convert' ? [{ ...answer, convertedFrom: IMPORTED }] : asList(answer));
 
 // ── Which route runs ─────────────────────────────────────────────────────────────────────
 
@@ -209,7 +217,7 @@ test('a Generate press takes the route section 4 selects, in its order of preced
 
 for (const row of ROWS) {
   test(`${row.route}: one ${row.method} call with the options section 4 names, answered late`, async () => {
-    const { stub, progress, io } = harness();
+    const { stub, progress, io, validate, sources } = harness();
     const run = runCreation(input(row.route), io);
     const state = watch(run);
     await settle();
@@ -229,7 +237,9 @@ for (const row of ROWS) {
       // The step's own validator and structural check, not copies, ride with the call.
       const keys = ['onProgress', 'structuralCheck', 'validate', ...(row.profile ? ['profile'] : [])].sort();
       assert.deepEqual(Object.keys(options).sort(), keys);
-      assert.equal(options.validate, io.validate);
+      assert.equal(options.validate, validate);
+      // Only a convert is checked against the import (issue #1179).
+      assert.deepEqual(sources, [row.route === 'convert' ? IMPORTED : null]);
       assert.equal(options.structuralCheck, io.structuralCheck);
       if (row.profile) assert.equal(options.profile, 'lite');
     } else {
@@ -243,8 +253,9 @@ for (const row of ROWS) {
     const answer = answerFor(row, 'Late');
     call.resolve(answer);
     const outcome = await run;
-    assert.deepEqual(outcome, { changes: asList(answer), selected: 0 });
-    assert.equal(outcome.changes[0], asList(answer)[0], 'the answer itself, not a copy');
+    assert.deepEqual(outcome, { changes: resultsFor(row, answer), selected: 0 });
+    if (row.route === 'convert') assert.equal(outcome.changes[0].template, answer.template, "the answer's own template");
+    else assert.equal(outcome.changes[0], asList(answer)[0], 'the answer itself, not a copy');
   });
 
   test(`${row.route}: a thrown answer reaches the caller and says what failed`, async () => {
@@ -275,13 +286,13 @@ for (const row of ROWS) {
     await settle();
     const freshAnswer = answerFor(row, 'Fresh');
     second.stub.calls[0].resolve(freshAnswer);
-    assert.deepEqual((await fresh).changes, asList(freshAnswer));
+    assert.deepEqual((await fresh).changes, resultsFor(row, freshAnswer));
 
     // The late stage and answer belong to the abandoned run and touch nothing of the fresh one.
     first.stub.calls[0].args.at(-1).onProgress('Testing it live…');
     const lateAnswer = answerFor(row, 'Late');
     first.stub.calls[0].resolve(lateAnswer);
-    assert.deepEqual((await abandoned).changes, asList(lateAnswer));
+    assert.deepEqual((await abandoned).changes, resultsFor(row, lateAnswer));
     assert.equal(first.progress.at(-1), 'Testing it live…');
     assert.deepEqual(second.progress, [row.label]);
   });
@@ -337,8 +348,8 @@ test('the screen validates a result that carries no verdict and adds the safety 
   assert.deepEqual(carried.errors, [...FAIL.errors, ...added]);
   assert.equal(screenChange({ ...clean, validation: PASS }), PASS);
 
-  // A construct the imported source already had is not reported as the AI's.
-  assert.equal(screenChange({ ...leaky, validation: PASS }, leaky.template), PASS);
+  // A construct the template a convert came from already had is not reported as the AI's.
+  assert.equal(screenChange({ ...leaky, validation: PASS, convertedFrom: leaky.template }), PASS);
 });
 
 // ── Refine and fix: one modify call on the standing result ───────────────────────────────
@@ -361,7 +372,7 @@ const REFINE_ROWS = [
 
 for (const row of REFINE_ROWS) {
   test(`${row.name}: one modify call with the step's validator, answered late`, async () => {
-    const { stub, progress, io } = harness();
+    const { stub, progress, io, validate, sources } = harness();
     const given = refineInput(row.over);
     const run = refineResult(given, io);
     const state = watch(run);
@@ -378,7 +389,8 @@ for (const row of REFINE_ROWS) {
     // the code, so the spec stays home even when the result has one.
     const keys = ['onProgress', 'validate', ...(row.profile ? ['profile'] : []), ...(row.spec ? ['spec'] : [])].sort();
     assert.deepEqual(Object.keys(options).sort(), keys);
-    assert.equal(options.validate, io.validate);
+    assert.equal(options.validate, validate);
+    assert.deepEqual(sources, [undefined], 'a result converted from nothing is checked against nothing');
     assert.equal(options.onProgress, io.onProgress);
     if (row.profile) assert.equal(options.profile, 'lite');
     if (row.spec) assert.equal(options.spec, SPEC);
@@ -424,14 +436,54 @@ test('fix: the instruction is the failing findings, word for word', () => {
   );
 });
 
+// ── Which results the screen holds against the import ─────────────────────────────────
+
+test('only a convert is screened against the import: a fresh result is not (issue #1179)', async () => {
+  // The user's file calls fetch() and sits in the step; every result below calls it too.
+  const imported = template('Imported with fetch');
+  imported.js += "\nfetch('https://example.com/feed');";
+  const leakyAnswer = (name) => change(name, { template: { ...template(name), js: imported.js }, validation: PASS });
+
+  // A convert's result records its source, so the construct the file already had stays the user's.
+  const convert = harness();
+  const converting = runCreation(input('convert', { imported }), convert.io);
+  await settle();
+  convert.stub.calls[0].resolve(leakyAnswer('Converted'));
+  const [converted] = (await converting).changes;
+  assert.equal(converted.convertedFrom, imported);
+  assert.equal(screenChange(converted), PASS);
+
+  // A fresh result came from no file, so the import dropped beside it suppresses nothing.
+  const fresh = harness();
+  const running = runCreation(input('directions'), fresh.io);
+  await settle();
+  fresh.stub.calls[0].resolve([leakyAnswer('Fresh')]);
+  const screened = screenChange((await running).changes[0]);
+  assert.equal(screened.ok, false);
+  assert.ok(screened.errors.some((e) => /fetch|network/i.test(`${e.rule} ${e.message}`)), JSON.stringify(screened.errors));
+
+  // A fix is checked against, and keeps, the source of the result it fixes, and only that.
+  for (const convertedFrom of [imported, undefined]) {
+    const fix = harness();
+    const fixing = refineResult(refineInput({ level: 'code', instruction: 'fix it', convertedFrom }), fix.io);
+    await settle();
+    fix.stub.calls[0].resolve(leakyAnswer('Fixed'));
+    const fixed = await fixing;
+    assert.deepEqual(fix.sources, [convertedFrom]);
+    assert.equal(fixed.convertedFrom, convertedFrom);
+    assert.equal(screenChange(fixed).ok, Boolean(convertedFrom));
+  }
+});
+
 // ── Rebuild on another design: no model call ────────────────────────────────────────────
 
-/** A direction that stands on `lt02`, as a grounded result carries it. */
-const DIRECTION = { ...change('Direction'), path: 'grounded+polish', spec: SPEC, generationId: 'gen-1', shortlist: ['lt02', 'lt25'] };
+/** A direction that stands on `lt02`, as a grounded result carries it. Its spec names a zone
+ *  neither design was drawn for, which the rebuild must not follow (`keepChassisZone`). */
+const DIRECTION = { ...change('Direction'), path: 'grounded+polish', spec: { ...SPEC, zone: 'top-right' }, generationId: 'gen-1', shortlist: ['lt02', 'lt25'] };
 
 test('rebuild: nothing to rebuild without a spec or onto the same design, and nothing runs', async () => {
   const { progress, io } = harness();
-  io.validate = () => assert.fail('nothing to validate');
+  io.validatorFor = () => assert.fail('nothing to validate');
   assert.equal(await rebuildOnChassis(DIRECTION, 'lt02', input('raw').context, io), null);
   assert.equal(await rebuildOnChassis(change('No spec'), 'lt25', input('raw').context, io), null);
   assert.equal(await rebuildOnChassis(undefined, 'lt25', input('raw').context, io), null);
@@ -456,7 +508,7 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
       let release;
       const late = rebuildOnChassis(direction, 'lt25', context, {
         provider: noProvider,
-        validate: (t) => {
+        validatorFor: () => (t) => {
           validated.push(t);
           return new Promise((resolve) => { release = resolve; });
         },
@@ -472,13 +524,13 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
       // Thrown: the verdict's failure reaches the caller.
       const thrown = await rebuildOnChassis(direction, 'lt25', context, {
         provider: noProvider,
-        validate: async () => { throw new Error('The live bench crashed.'); },
+        validatorFor: () => async () => { throw new Error('The live bench crashed.'); },
         onProgress: () => {},
       }).then(() => null, (e) => e.message);
 
       // Abandoned: the first rebuild's verdict lands after a second one finished.
       const held = [];
-      const io = { provider: noProvider, validate: () => new Promise((resolve) => held.push(resolve)), onProgress: () => {} };
+      const io = { provider: noProvider, validatorFor: () => () => new Promise((resolve) => held.push(resolve)), onProgress: () => {} };
       const abandoned = rebuildOnChassis(direction, 'lt25', context, io);
       const fresh = rebuildOnChassis({ ...direction, spec: { ...direction.spec, variantId: 'lt25' } }, 'lt02', context, io);
       await tick();
@@ -491,6 +543,9 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
         progress,
         pendingWhileHeld,
         validatedIsResult: validated.length === 1 && validated[0] === rebuilt.template,
+        // The position block `zoneCssText` writes names each edge it anchors to.
+        anchors: ['left', 'right', 'top', 'bottom'].filter((edge) =>
+          new RegExp(`inset from the ${edge}\\b`).test(rebuilt.template.css)),
         hasHtml: rebuilt.template.html.length > 0,
         spec: rebuilt.spec,
         path: rebuilt.path,
@@ -507,7 +562,9 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
     assert.equal(seen.pendingWhileHeld, true, 'the run waits on the late verdict');
     assert.equal(seen.validatedIsResult, true, "the step's validator ran on the rebuilt template");
     assert.equal(seen.hasHtml, true);
-    assert.deepEqual(seen.spec, { ...SPEC, variantId: 'lt25' });
+    assert.deepEqual(seen.spec, { ...DIRECTION.spec, variantId: 'lt25' });
+    // lt25 is drawn bottom-left; the spec's top-right would move the graphic (issue #1204).
+    assert.deepEqual(seen.anchors, ['left', 'bottom'], 'the rebuild keeps the zone the design was drawn for');
     assert.equal(seen.path, 'grounded', 'a plain assembly is what it now is');
     assert.deepEqual(seen.validation, { ok: true, errors: [], warnings: [{ rule: 'spec-fields', message: 'A requested field is missing.' }] });
     assert.equal(seen.generationId, 'gen-1');
@@ -684,7 +741,7 @@ test('pro: a finished run carries its package, ran the step validator, and repor
       const validated = [];
       const io = {
         provider: () => { throw new Error('the Pro tier asks no provider'); },
-        validate: async (t) => {
+        validatorFor: () => async (t) => {
           validated.push(t);
           return { ok: true, errors: [], warnings: [] };
         },

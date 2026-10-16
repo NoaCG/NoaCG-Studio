@@ -1,5 +1,5 @@
 // The AI CONVERSATION a graphic was created from — the talk turns of the Create-with-AI
-// wizard step (components/wizard/steps/AiStep.tsx), captured at create so the graphic carries
+// wizard step (components/wizard/ai/AiStep.tsx), captured at create so the graphic carries
 // the reasoning that produced it. Persisted BESIDE `aiSpec` (the structured "More control"
 // setup): SavedProject.aiThread and GraphicDoc.aiThread, both ADDITIVE OPTIONAL — rule 6 says
 // additive fields never bump the version, so this rides the same sync record exactly as aiSpec

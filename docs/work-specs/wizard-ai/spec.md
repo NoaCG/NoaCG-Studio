@@ -139,7 +139,7 @@ coding-agent route, consent; the `MoreControlPanel` beyond lifting one import.
 
 | Module | Responsibility | Owns | Runtime imports / injected IO | Interface | Benefit |
 |---|---|---|---|---|---|
-| `src/ai/creation.ts` | the tier dispatch, refinement and chassis rebuild | nothing | `ai/provider` (types), `ai/lite/pipeline` (`assembleGroundedTemplate`), `ai/pro/*` (the quarantined tier), `ai/spec/*`, `ai/brainstorm`, `model/*` types / `provider`, `validate`, `structuralCheck`, `probeMark`, `onProgress` | `creationRoute(state)`, `runCreation(input, io)`, `screenChange(change, source)`, `creationError(error, route)`, `refineResult({ result, instruction, level, spec, context, lite }, io)`, `fixInstruction(validation)`, `rebuildOnChassis(current, variantId, context, io)` (`io` narrowed to `validate` and `onProgress`), `conversationOf(talk)`, `chat(conversation, text)` (past the provider, no `io`); results are `AiTemplateChange` values with their metadata (section 4) | about 600 React-free lines leave the component; Node tests with a stub provider and deferred answers; the benches reuse the dispatch |
+| `src/ai/creation.ts` | the tier dispatch, refinement and chassis rebuild | nothing | `ai/provider` (types), `ai/lite/pipeline` (`assembleGroundedTemplate`), `ai/pro/*` (the quarantined tier), `ai/spec/*`, `ai/brainstorm`, `model/*` types / `provider`, `validatorFor(source)`, `structuralCheck`, `probeMark`, `onProgress` | `creationRoute(state)`, `runCreation(input, io)`, `screenChange(change)` (a convert's result carries `convertedFrom`, issue #1179), `creationError(error, route)`, `refineResult({ result, instruction, level, spec, context, lite, convertedFrom }, io)`, `fixInstruction(validation)`, `rebuildOnChassis(current, variantId, context, io)` (`io` narrowed to `validatorFor` and `onProgress`), `conversationOf(talk)`, `chat(conversation, text)` (past the provider, no `io`); results are `AiTemplateChange` values with their metadata (section 4) | about 600 React-free lines leave the component; Node tests with a stub provider and deferred answers; the benches reuse the dispatch |
 | `src/components/wizard/ai/AiStep.tsx` (A4; before that `steps/AiStep.tsx`) | the step's screen state and markup | prompt, thread, uploads, settings, result card state, busy, error | react; `creation.ts`; `validation/*` for the validator it constructs | today's ten props, unchanged | the component holds screen state and rendering only |
 | `src/components/wizard/ai/ProPanel.tsx` | the Pro markup, quarantined | nothing | react | today's values as props | the live file loses the markup that cannot render; nothing is deleted |
 | `scripts/ai-creation.test.mjs` | the Node guard | nothing | rolldown `load()` as `scripts/field-auto-map.test.mjs:30-40` | `// guards: src/ai/creation.ts` | the first test of the run chain outside Playwright |
@@ -421,11 +421,11 @@ The plan's last entry: every phase is built and checked.
   - *Records keep their evidence.* A dated note is appended, the 2026-09-07 quotations are not
     rewritten, as the records' own "Quotation correction" entries do.
 - **For the shell's S7 (this plan has no next phase):** S7 deletes the `steps/AiStep.tsx` shim
-  and retargets `CreationWizard.tsx`'s lazy import; it should also fix the four comments naming
+  and retargets `CreationWizard.tsx`'s lazy import; the four comments naming
   old paths (`src/ai/creation.ts:5`, `src/model/aiThread.ts:2`, `src/model/cssVars.ts:21`,
-  `src/styles/wizard-describe.css:200`) and decide whether `ai/UploadCard.tsx`, shared with
-  `steps/VideoStep.tsx`, belongs in `wizard/`. Still open beyond this plan: `keepChassisZone`
-  is not pinned by a test (A3 check's surviving mutant); the rebuild has no live e2e while
+  `src/styles/wizard-describe.css:200`) are fixed (#1227); it should decide whether `ai/UploadCard.tsx`, shared with
+  `steps/VideoStep.tsx`, belongs in `wizard/`. `keepChassisZone` is pinned in the
+  rebuild test (#1204). Still open beyond this plan: the rebuild has no live e2e while
   `adapt-first` is skipped (#800); the AI step's chain is 3,705 bytes over the 40,960 target.
 - **Traps:** rewording a rule renames it (the id comes from its words); the retired file stays so
   citations of the old id still resolve. `learn` with an existing rule's exact text and

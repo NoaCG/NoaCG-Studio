@@ -121,6 +121,10 @@ export interface AiTemplateChange extends TemplateChange {
   spec?: DesignSpec;
   /** Server ledger id for a managed generation. It is transient and never enters SpxTemplate. */
   generationId?: string;
+  /** On a convert's result and its fixes: the imported template it was converted from, so a
+   *  construct the user's own file already had is not reported as the AI's (`screenChange`).
+   *  Absent on a freshly generated result, which has no source. */
+  convertedFrom?: SpxTemplate;
   /** The structural analysis that routed this generation (the CREATE-boundary contract,
    *  docs/CREATIVE_MODE_PLAN.md §6) - recorded for rigs and future pipeline stages. */
   intent?: StructuralIntent;
