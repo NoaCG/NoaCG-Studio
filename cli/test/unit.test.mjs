@@ -893,6 +893,7 @@ async function drivenLogin({ waitSec }) {
       origin,
       home,
       state,
+      page: page.text,
       out: () => ({ stdout, stderr }),
       complete: (params) => request({ method: 'POST', path: '/complete', headers: { 'content-type': 'text/plain' } }, params),
       waitForExit: async (withinMs) => {
@@ -933,6 +934,11 @@ test('a successful login exits 0 promptly, with the browser tab still open', asy
 
     const stored = JSON.parse(await fs.readFile(path.join(session.home, 'credentials.json'), 'utf8'));
     assert.equal(stored.deployments[session.origin].key, session.key, 'the key it printed about is the key it stored');
+
+    // The tab says what the key may do before the CLI knows which scopes were granted, so its
+    // words hold for a graphics-only key and for one that may also make productions.
+    assert.match(session.page, /can save graphics to your library and, if you allowed it, make productions of them/);
+    assert.doesNotMatch(session.page, /can only save graphics/, 'since 0.12.0 a key may also make productions');
   } finally {
     session.release();
   }

@@ -43,7 +43,7 @@ const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>noacg login</
   if(!frag){h.textContent='Nothing to finish';p.textContent='This page expects a code from NoaCG. Run noacg login again.';return;}
   fetch('/complete',{method:'POST',headers:{'content-type':'text/plain'},body:frag}).then(function(r){return r.text().then(function(t){return {ok:r.ok,text:t};});}).then(function(r){
     if(r.ok&&r.text==='denied'){h.textContent='Nothing was granted';p.textContent='noacg login has stopped. You can close this tab.';}
-    else if(r.ok){h.textContent='Done - you can close this tab';p.textContent='noacg is logged in on this computer. The key is stored locally and can only save graphics to your library.';}
+    else if(r.ok){h.textContent='Done - you can close this tab';p.textContent='noacg is logged in on this computer. The key is stored locally and can save graphics to your library and, if you allowed it, make productions of them. It cannot publish or play anything.';}
     else{h.textContent='That did not work';p.textContent=r.text||'Run noacg login again.';}
     history.replaceState(null,'',location.pathname);
   }).catch(function(){h.textContent='The noacg command is no longer waiting';p.textContent='Run noacg login again.';});

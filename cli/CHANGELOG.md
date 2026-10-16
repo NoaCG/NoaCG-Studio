@@ -18,7 +18,9 @@ open a browser. The link it printed was complete, and pasting it into a browser 
 Login now hands the whole link to Windows, so the consent page opens as it does on macOS and
 Linux. Login also says that the link works in any browser on this computer that is signed in to
 the NoaCG account you want to connect, private windows included, which helps when your default
-browser is not the one you use for NoaCG. You do not need to do anything; a key you already have
+browser is not the one you use for NoaCG. The page you see after allowing access no longer says
+the key can only save graphics: it can also make productions of them if you allowed that, and it
+still cannot publish or play anything. You do not need to do anything; a key you already have
 keeps working.
 
 ## 0.12.0 - 2026-10-16
