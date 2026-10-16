@@ -79,3 +79,16 @@ and relaxing tests or gates.
 - Baseline `55d01c993`: #1293 and #1298 supply Claude runtime/landing receipts.
   The landing still required one-time owner permission, so click-free readiness
   is open. No open cloud-verification measurement PR was found at intake.
+- PR #1300 delivers AC-6: bounded tools and Codex measurements. The measured VM
+  has a four-CPU quota and 16 GiB container limit; the healthy shard comparison
+  favors four browser workers. The large affected selection reached its explicit
+  time bound; screenshot results differ from the same source on Ubuntu CI.
+  AC-1..AC-5 remain open: Claude measurement/account access, current Codex launch
+  mapping, owner approval, shared policy/skill implementation and live delegation
+  recovery are not completed by this slice. See `evidence/measurements.md` and
+  `evidence/capabilities.md` before continuing.
+- Owner continuation direction: Claude cloud launches and measures Claude workers;
+  Codex finishes its own measurements. One lightweight laptop launch per provider
+  must continue after the laptop session closes. Neither provider launches the
+  other. `evidence/provider-runbook.md` supplies exact cohorts, receipt requirements
+  and the pending laptop checks; it is not a completed capability proof.

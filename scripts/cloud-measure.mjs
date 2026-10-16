@@ -69,7 +69,8 @@ function processTable(procRoot) {
     const stat = read(`${procRoot}/${pid}/stat`);
     if (!stat) return [];
     const fields = stat.slice(stat.lastIndexOf(')') + 2).split(/\s+/);
-    return [{ pid: Number(pid), ppid: Number(fields[1]), group: Number(fields[2]), createdMs: Number(fields[19]), state: fields[0] }];
+    // The shared walker needs creation ordering; Linux start ticks also provide a stable identity.
+    return [{ pid: Number(pid), ppid: Number(fields[1]), createdMs: Number(fields[19]), state: fields[0] }];
   });
 }
 
