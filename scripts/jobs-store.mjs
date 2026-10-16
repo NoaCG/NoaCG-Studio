@@ -466,10 +466,29 @@ export function costProblem(cost) {
   return null;
 }
 
-export function addJob(dir, {
+export function addJob(dir, input) {
+  if (!input.verification) return createJob(dir, input);
+  ensureJobsDir(dir);
+  const lock = join(dir, 'verification-admission');
+  try { mkdirSync(lock); }
+  catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    throw Error('Verification admission is busy or interrupted; inspect existing queue records before retrying');
+  }
+  try {
+    const { source, kind } = input.verification;
+    if (!/^[a-f0-9]{40}$/.test(source) || !['build', 'broader'].includes(kind)) throw Error('Invalid reviewed verification source state');
+    const prior = readJobs(dir).find((job) => job.verification?.source === source && job.verification.kind === kind);
+    if (prior) throw Error(`This source state already has ${kind} job ${prior.id} (${prior.state}); inspect it instead of repeating`);
+    writeFileSync(join(lock, 'owner-pid'), String(process.pid));
+    return createJob(dir, input);
+  } finally { rmSync(lock, { recursive: true }); }
+}
+
+function createJob(dir, {
   command, checkout, branch = null, kind: declaredKind, after = [], capMinutes = POLICY.capMinutes,
   retryOf = null, retryCount = 0, orderHold = null, blockedSince = null,
-  retryReason = null, ciDispatched = false, review = null, cost = null, now,
+  retryReason = null, ciDispatched = false, review = null, cost = null, verification = null, now,
 }) {
   if (!KINDS.includes(declaredKind ?? 'gate')) throw new Error(`unknown job kind: ${declaredKind}`);
   if (typeof command !== 'string' || command.trim() === '') throw new Error('a job needs a command');
@@ -505,6 +524,7 @@ export function addJob(dir, {
       branch,
       after,
       capMinutes,
+      ...(verification ? { verification } : {}),
       retryOf,
       retryCount,
       // WHAT THIS JOB COSTS, when its session knew better than the classifier. Written only when
@@ -933,17 +953,19 @@ export function dependencyDecision(job, byId) {
  */
 export function schedule(jobs, {
   freeMemMb, outsideRuns = 0, policy = POLICY, aheadOfMain = () => true, now = Date.now(),
-  presence = 'present', alone = false,
+  presence = 'present', alone = false, execution = null,
 }) {
   // Presence moves the RAM floor and NOTHING ELSE. It is not part of `capacity` below: the budget
   // is about how much of this machine agent work may occupy at once, which the owner set by the
   // clock and by whether other agent sessions are live, and the floor is about whether ONE job
   // physically fits right now. Merging them would make an away working day start two suites
   // where the schedule says one.
-  const freeMemFloorMb = freeMemFloorFor(presence, policy);
+  const cloud = execution?.kind === 'cloud';
+  if (cloud) freeMemMb = Math.min(freeMemMb, execution.freeMb);
+  const freeMemFloorMb = cloud ? 2560 : freeMemFloorFor(presence, policy);
   const byId = new Map(jobs.map((j) => [j.id, j]));
   const running = jobs.filter((j) => j.state === 'running');
-  const budget = budgetMode({ now, alone, policy });
+  const budget = cloud ? { mode: 'cloud', slots: 1, why: `${execution.provider} worker resources; laptop schedule does not apply` } : budgetMode({ now, alone, policy });
   const slots = capacity({ outsideRuns, budget });
 
   /**
@@ -971,6 +993,10 @@ export function schedule(jobs, {
   const mergeLive = () => [...running, ...start].some((j) => j.kind === 'merge');
 
   for (const job of jobs.filter((j) => j.state === 'waiting')) {
+    if (cloud && !execution.known && drivesBrowser(job)) {
+      dead.push({ job, reason: 'Unknown execution-site headroom: browser work stays in GitHub Actions; run cheap targeted gates here' });
+      continue;
+    }
     const deps = dependencyDecision(job, byId);
     if (deps.action === 'wait') {
       waiting.push({ job, reason: deps.reason });

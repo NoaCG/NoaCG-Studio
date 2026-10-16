@@ -27,6 +27,8 @@
 // suite, because those files feed every flow. An e2e helper runs the specs that import it
 // (`helperReach`), and escalates like core only when a config loads it or nothing imports it.
 import { execFileSync, spawnSync } from 'node:child_process';
+import { cloudPlanAdmission, executionProfile } from './execution-profile.mjs';
+import { jobsDir, readJobs } from './jobs-store.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -171,7 +173,7 @@ const CORE = [
   // leaving them to the unmapped fallback records WHY they escalate - they are foundations, not
   // files nobody got round to mapping. Their exception in IGNORE above is what lets them reach
   // this list at all.
-  /^scripts\/(dev-port|port-registry|e2e-runs|e2e-workers)\.mjs$/,
+  /^scripts\/(dev-port|port-registry|e2e-runs|e2e-workers|execution-profile)\.mjs$/,
   /^playwright\.config\.ts$/,
   /^(package|package-lock)\.json$/,
   /^vite\.config/,
@@ -230,7 +232,7 @@ const CORE = [
 // shared chrome, the coding-agent prompt they render, and the pack builders. The test "every docs or scripts file a spec header names
 // plans that spec" fails when a header names a script this list leaves ignored.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists|e2e-trace|' +
+  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|execution-profile|e2e-affected|e2e-lists|e2e-trace|' +
   'adminDevPlugin|meDevPlugin|whats-new|roadmap|site-nav|agent-prompt|build-news-pack|build-production-pack|packs/';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
@@ -841,9 +843,15 @@ export function runPlan(plan, runOne) {
  * @returns {{ refusal: string|null, catalog: boolean }} the refusal to print, or null, and whether
  *   the catalog gate runs here
  */
-export function localRunPolicy({ mode, focusApplied = false, catalog = false }, { ci = false } = {}) {
+export function localRunPolicy({ mode, focusApplied = false, catalog = false, specs = [] }, { ci = false, profile = { kind: 'local' }, minutes } = {}) {
   if (ci) return { refusal: null, catalog };
-  return { refusal: mode === 'full' || focusApplied ? WHOLE_SUITE_ON_GITHUB : null, catalog: false };
+  if (mode === 'full' || focusApplied) return { refusal: WHOLE_SUITE_ON_GITHUB, catalog: false };
+  if (profile.kind !== 'cloud' || mode === 'none') return { refusal: null, catalog: false };
+  const estimated = minutes ?? minutesFor(specs, readTable());
+  const limit = estimated <= 5 ? 5 : profile.broaderMinutes;
+  const refusal = !Number.isFinite(estimated) || estimated > limit
+    ? `Affected selection exceeds the ${limit}-minute execution-site budget; use a smaller named selection and leave the larger set to GitHub Actions.` : null;
+  return { refusal, catalog: false, boundMinutes: limit, workers: profile.workers };
 }
 
 /** True on GitHub Actions, the one place the whole suite runs. Not `CI`: local tools set that too. */
@@ -1526,7 +1534,8 @@ function main() {
     emitJson({ mode: 'none', specs: [], catalog: false, base, changedFiles: changed });
     return 0;
   }
-  const here = localRunPolicy(planResult, { ci: onCi() });
+  const here = localRunPolicy(planResult, { ci: onCi(), profile: executionProfile() });
+  if (here.boundMinutes) log(`e2e-affected: executing-worker profile: ${here.workers} workers, ${here.boundMinutes}-minute bound (queue with --cap ${here.boundMinutes}).`);
   narratePlan(log, planResult, { count: changed.length, noun: 'changed files', hypothetical: false, catalogHere: here.catalog });
   if (mode === 'none') return 0;
 
@@ -1555,9 +1564,13 @@ function main() {
     return 2;
   }
 
+  const profile = executionProfile();
+  const job = profile.kind === 'cloud' ? readJobs(jobsDir()).find((j) => j.id === process.env.NOACG_QUEUED_JOB_ID && resolve(j.checkout) === resolve(process.cwd())) : null;
+  const admissionProblem = cloudPlanAdmission({ profile, boundMinutes: here.boundMinutes, job, source: profile.kind === 'cloud' ? gitIn(process.cwd(), 'rev-parse', 'HEAD') : null });
+  if (admissionProblem) { console.error(admissionProblem); return 2; }
   const { status, runs } = runPlan(
     { ...local, catalog: here.catalog },
-    ({ args }) => spawnSync('npx', args, { stdio: 'inherit', shell: true, windowsHide: true }).status,
+    ({ args }) => spawnSync('npx', here.boundMinutes ? [...args, `--workers=${here.workers}`, `--global-timeout=${here.boundMinutes * 60_000}`] : args, { stdio: 'inherit', shell: true, windowsHide: true }).status,
   );
   if (runs.length > 1 || status !== 0) log(summariseRuns(runs, status));
   return status;

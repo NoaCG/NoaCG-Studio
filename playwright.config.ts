@@ -1,6 +1,6 @@
 import { defineConfig, devices, type ReporterDescription } from '@playwright/test';
 import { devPort } from './scripts/dev-port.mjs';
-import { localWorkers } from './scripts/e2e-workers.mjs';
+import { localWorkers, validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 
 // End-to-end UI-flow tests. These drive the real dev server, so they verify the app the way a
 // user experiences it. Run with `npm run test:e2e`.
@@ -20,6 +20,8 @@ const isCi = Boolean(process.env.CI);
 const blobReporter: ReporterDescription = process.env.NOACG_BLOB_NAME
   ? ['blob', { fileName: process.env.NOACG_BLOB_NAME }]
   : ['blob'];
+validateCloudWorkerRequest();
+
 export default defineConfig({
   testDir: './e2e',
   // The authed community flows live in e2e/configured and run under playwright.live.config.ts (a

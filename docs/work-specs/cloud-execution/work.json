@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "7a4aab32b964e1432174cdd72ad0268631c0b4c2577f94dcbdb01adc20093c2e",
+  "specSha256": "f44b8144f9e80a2d8da4e72820dbf3476e45307e3d4d91bc7715e5cf26a11361",
   "authority": {
     "status": "agreed",
-    "source": "Owner request in this Codex chat, 2026-10-16; precise verification depth remains reserved for approval."
+    "source": "Owner numerical approval, 2026-10-16: https://github.com/NoaCG/NoaCG-Studio/issues/1301#issuecomment-6223002051; native launch/authentication and recovery boundaries remain explicit."
   },
   "review": {
     "revision": "57523b2cb9f0143b613ed5631074be2c93324c8d",

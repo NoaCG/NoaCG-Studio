@@ -1,3 +1,4 @@
+import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
 import { loadEnv } from 'vite';
 import { livePort } from './scripts/dev-port.mjs';
@@ -30,6 +31,8 @@ for (const key of [
 // E2E_PASSWORD are unset, so a public clone or a creds-less CI never runs them (and never needs the
 // secrets). They write real rows to the configured project and clean up after — point .env at a
 // test/staging Supabase project or a throwaway account, never a production tenant with real users.
+validateCloudWorkerRequest();
+
 export default defineConfig({
   testDir: './e2e/configured',
   timeout: 60_000,

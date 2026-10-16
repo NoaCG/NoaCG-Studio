@@ -15,10 +15,40 @@ cannot observe is not a criterion yet.
 
 ## 2. Pick the checks the change needs, no more
 
-Locally the checks are targeted. The full build, every gate and the browser suites run on GitHub
-Actions, on the pull request and again on the merge group, and nothing reaches `main` without
-them; local runs only catch mistakes early, and the machine has to stay responsive for the agents
-sharing it. The job queue and the affected planner refuse a whole-suite run.
+Ordinary implementation and verification run in cloud; device/private local work stays local.
+Select resources on the executing worker with `node scripts/execution-profile.mjs`, never from
+the coordinator's profile. GitHub Actions retains authoritative full PR/merge-group checks.
+Local checks and all existing local guards remain targeted; whole suites are refused off Actions.
+
+The owner approved these cloud defaults in issue #1301 comment 6223002051:
+
+- Small affected browser selection: at most five minutes. One relevant broader selection or
+  maintained shard: at most twelve minutes, with complete known resource readings.
+- At most four browser workers, reduced for lower CPU/affinity and available memory. Unknown
+  or hidden ancestor limits mean a conservative one-worker ceiling; queued browser/build work
+  is refused until headroom is observed, leaving cheap targeted gates here and browser work in CI. Never use host RAM
+  as a container allowance. The worker selector also checks CLI and environment overrides.
+- Run a production build only for build/bundle/dependency/entrypoint/packaging risk, once per
+  committed reviewed source state, capped at five minutes on measured Codex or ten on measured
+  Claude. Unknown limits leave the build to Actions. Docs/copy need no build unless build inputs.
+  Decide build need first; a completed production build includes lint/type/dependency and build
+  gates, so reuse those results instead of running them twice. Run any separate affected factory
+  or browser checks the build does not include. No repeated build on an unchanged source state.
+- Larger affected selections/whole suites remain in Actions. Failed/incomplete runs stay so;
+  no assertion, baseline, CI limit or retry policy changes.
+
+Browser work uses the existing queue. List the affected plan first; it reports the executing
+worker's five/twelve-minute choice. Queue a named small selection with `--cap 5`, or one relevant
+broader selection with `--cap 12`; the queue refuses caps/worker overrides above current limits.
+For example `node scripts/jobs.mjs add "npm run test:e2e -- e2e/downloads.spec.ts" --cap 5`.
+Use the same queue for a risk-triggered `npm run build`, with the applicable cap. Commit first:
+queue records pin build/broader admissions to HEAD and reject duplicate admissions, including
+failed/incomplete attempts. Inspect that job; fix the cause in a new reviewed source state.
+An interrupted admission lock stops reconciliation; inspect its owner-pid and existing jobs,
+and remove only a proven abandoned lock before retrying. It is not a second execution ledger.
+
+Use `cloud-delegate` for native launch/result/recovery routing. The table below names targeted
+checks; apply it only to work not already covered by the required production build.
 
 | The change touches | Run on this machine |
 |---|---|
@@ -29,8 +59,8 @@ sharing it. The job queue and the affected planner refuse a whole-suite run.
 | catalog designs or shared template machinery | the battery `node scripts/catalog-affected.mjs` prints |
 | how instructions load | `node scripts/instruction-load-probe.mjs run <files>` for Claude, a fresh root and nested Codex run for Codex |
 
-A risky change, or a CI failure to reproduce, may run a larger named set of specs, never the
-whole suite. Browser-driving work goes through `npm run queue`: one browser job runs per machine.
+A risky change or CI reproduction may use the one bounded broader named selection in cloud;
+larger selections and whole suites stay in Actions. Browser-driving work goes through `npm run queue`: one browser job runs per machine.
 
 ## 3. Loop until it holds
 

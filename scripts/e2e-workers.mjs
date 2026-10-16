@@ -30,6 +30,7 @@
 // costs the whole session.
 
 import { freemem } from 'node:os';
+import { cloudJobPolicy, requestedWorkerCounts, executionProfile } from './execution-profile.mjs';
 
 /**
  * A STEP TABLE, not a formula, because the cost of a worker is not linear and pretending it is
@@ -90,8 +91,12 @@ const MAX_WORKERS = LADDER[0].workers;
  * @param {string} [opts.override] an explicit E2E_WORKERS value, which always wins
  * @returns {{ workers: number, reason: string }} the count and a one-line explanation to print
  */
-export function chooseWorkers({ freeMb = Math.round(freemem() / (1024 * 1024)), override } = {}) {
+export function chooseWorkers({ freeMb = Math.round(freemem() / (1024 * 1024)), override, profile = { kind: 'local' } } = {}) {
   const pinned = Number(override);
+  if (profile.kind === 'cloud') {
+    const workers = Math.min(profile.workers, Number.isInteger(pinned) && pinned > 0 ? pinned : profile.workers);
+    return { workers, reason: `${profile.provider} execution-site limits${profile.known ? '' : ' unknown; targeted only'}` };
+  }
   if (Number.isInteger(pinned) && pinned > 0) {
     return { workers: pinned, reason: `E2E_WORKERS=${pinned} (pinned)` };
   }
@@ -122,9 +127,14 @@ export function chooseWorkers({ freeMb = Math.round(freemem() / (1024 * 1024)), 
  * a worker, which is how we tell them apart.
  */
 export function localWorkers() {
-  const { workers, reason } = chooseWorkers({ override: process.env.E2E_WORKERS });
+  const { workers, reason } = chooseWorkers({ override: process.env.E2E_WORKERS, profile: executionProfile() });
   if (process.env.TEST_WORKER_INDEX === undefined) {
     console.log(`[e2e] ${workers} worker${workers === 1 ? '' : 's'} - ${reason}`);
   }
   return workers;
+}
+
+// Called even by CI-shaped local invocations: --workers/-j must not bypass the cloud ceiling.
+export function validateCloudWorkerRequest({ profile = executionProfile(), args = process.argv, override = process.env.E2E_WORKERS } = {}) {
+  cloudJobPolicy({ profile, browser: true, requestedWorkers: [...requestedWorkerCounts(args), ...(override ? [override] : [])] });
 }

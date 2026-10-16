@@ -1,7 +1,7 @@
 # plan-run - run a long plan phase by phase
 
 `/plan-run <plan> until <time>` (Codex: `$plan-run`). Each phase is built by one fresh session and
-checked by another, the next only after the check passed. Output: phases on `main`, a report.
+checked by another, the next only after the check passed. Use `.agent-workflows/cloud-delegate.md` for cloud routing and executing-worker resources.
 
 **Runnable plans** (a name here and nothing else):
 

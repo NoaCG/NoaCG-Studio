@@ -25,7 +25,9 @@ same saved source_config_id across revisions 2 and 3; the exact historical runti
 ID to CLI mapping remains unproven. Matching repository or labels alone cannot
 qualify the exact binding. See continuation-20261016.md for actual metadata and blockers.
 
-AC-2 approval and implementation, Codex's part of AC-3, uncertain native submission,
+AC-2 numerical approval was recorded in #1301 comment 6223002051; policy and
+shared-skill implementation are covered by policy-20261016.md. Codex's part of AC-3,
+uncertain native submission,
 coordinator reconnect/restart, full filesystem reconstruction, observed bounded wake
 and re-arming, and remote repair-owner fencing remain open. PR #1307's inert Node
 control tests do not close them. Preserve exactly one acknowledged repair owner,

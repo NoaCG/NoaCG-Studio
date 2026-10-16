@@ -2,8 +2,8 @@
 
 Shared procedure: `/orchestrator` (alias `/o`) in Claude Code, `$orchestrator` (alias `$o`) in
 Codex; translate `/check` and `/queue-merge` the same way. It drives day and night waves alike.
-Input: the owner's prompt and a time window. Output: verified work merged through the merge queue,
-and a short report. The boundaries hold whatever the prompt says; the rest guides your judgement.
+Input: the owner's prompt/window. Route ordinary rows through `.agent-workflows/cloud-delegate.md`;
+keep device/private local tasks local. Each executing worker selects its own resources via verify.md.
 
 ## Boundaries
 
@@ -106,9 +106,9 @@ verify, land. Decide design defaults yourself and say what and why in the PR. As
 owner decision blocks part of it, finish the rest and say so.
 If your branch is worktree-agent-*, run `git fetch origin main && git reset --hard origin/main &&
 git branch -m <BRANCH>` before your first commit.
-Verify with targeted checks only; CI runs the full build and suites. Locally: `npm run gates -- run
---changed origin/main`, lint and type checks on what changed, and for a visible change the one or
-two specs covering it, through the job queue. Look at before and after screenshots yourself; never
+Follow verify.md: executing cloud workers use approved bounded checks; local work stays targeted.
+CI remains authoritative. Run changed gates and affected lint/types unless included in the
+risk-triggered build; queue the named browser selection covering a visible change. Look at before and after screenshots yourself; never
 commit them.
 A row that fixes an issue puts `Closes #<n>` on its own line in a commit message and says in the PR
 what it checked. Left over: fix a follow-up yourself only when it is small and in the area you are

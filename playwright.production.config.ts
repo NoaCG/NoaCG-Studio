@@ -1,3 +1,4 @@
+import { validateCloudWorkerRequest } from './scripts/e2e-workers.mjs';
 import { defineConfig, devices } from '@playwright/test';
 
 // THE DEPLOYED SITE'S OWN SUITE - the tier nothing else in this repository covers.
@@ -20,6 +21,8 @@ import { defineConfig, devices } from '@playwright/test';
 //
 // .github/workflows/deploy-verify.yml runs it on every production deployment and on the same
 // four-times-a-day schedule as the version check beside it.
+validateCloudWorkerRequest();
+
 export default defineConfig({
   // The same directory the configured suite uses, filtered by tag: a deep link is one behaviour
   // and deserves ONE spec file, whichever server it is pointed at. `grep` is what keeps the rest

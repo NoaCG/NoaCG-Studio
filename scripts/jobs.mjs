@@ -24,13 +24,14 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, createWriteStream, existsSync, fstatSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs';
 import { freemem, homedir } from 'node:os';
+import { buildRisk, cloudJobPolicy, executionProfile, workerRequestsInCommand, queuedVerificationProblem } from './execution-profile.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { activeRuns, allProcesses, browserWorkBelow, descendantsOf, nodeProcesses, orphanProcesses, holderSample, diagnoseHolders, sampleHolderDiagnostics, describeHolderDiagnostics } from './e2e-runs.mjs';
 import { delegationRecords } from './codex-rescue.mjs';
 import { readInventory } from './claude-agents.mjs';
 import { sessionLastActiveMs } from './session-liveness.mjs';
-import { requiresRunningDevServer, runsWholeSuite, WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
+import { requiresRunningDevServer, runsWholeSuite, invokesE2e, invokesSweep, WHOLE_SUITE_ON_GITHUB } from './command-match.mjs';
 import { isPortBusy } from './port-probe.mjs';
 import { mainRef } from './main-ref.mjs';
 import { closedIssues, isGeneratedBody, pullRequestBody, pullRequestTitle, riskFromBody } from './pr-description.mjs';
@@ -243,13 +244,32 @@ async function cmdAdd() {
     console.error(`--kind is one of ${KINDS.join(', ')}: got ${declaredKind ? `"${declaredKind}"` : 'nothing'}.`);
     process.exit(1);
   }
+  const profile = executionProfile();
+  const build = /\bnpm\s+run\s+build\b/.test(command);
+  const browser = invokesE2e(command) || invokesSweep(command);
+  const requestedWorkers = workerRequestsInCommand(command);
+  const admission = cloudJobPolicy({ command, browser, build, requestedCap: flag('--cap') ? Number(valueOf('--cap')) : undefined, profile, requestedWorkers });
+  let verification = null;
+  if (profile.kind === 'cloud' && admission.verification) {
+    const git = (...args) => spawnSync('git', args, { encoding: 'utf8', windowsHide: true });
+    const head = git('rev-parse', 'HEAD');
+    const dirty = git('status', '--porcelain');
+    if (head.status !== 0 || dirty.status !== 0 || dirty.stdout.trim()) throw Error('Commit the reviewed source state before a cloud build or broader selection');
+    const source = head.stdout.trim();
+    if (build) {
+      const changed = git('diff', '--name-only', 'origin/main...HEAD');
+      if (changed.status !== 0 || !buildRisk(changed.stdout.trim().split('\n'))) throw Error('No build/bundle/dependency/entrypoint/packaging risk: use targeted gates; CI builds');
+    }
+    verification = { source, kind: admission.verification };
+  }
   const job = addJob(dir, {
     command,
     checkout: process.cwd(),
     branch: valueOf('--branch') ?? currentBranch(),
     kind: valueOf('--kind'),
     after: (valueOf('--after') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
-    capMinutes: Number(valueOf('--cap') ?? POLICY.capMinutes),
+    capMinutes: admission.capMinutes,
+    verification,
     cost: declaredCost === undefined ? null : Number(declaredCost),
     now: Date.now(),
   });
@@ -1141,6 +1161,7 @@ async function runner() {
     jobs = readJobs(dir);
     const { start, dead, released, waiting, running } = schedule(jobs, {
       freeMemMb: freeMb(),
+      execution: executionProfile(),
       // Asked only when something the budget governs is waiting; a landing is exempt from it.
       alone: jobs.some((j) => j.state === 'waiting' && j.kind !== 'merge')
         && (machineSessions(jobs, now)?.alone ?? false),
@@ -1201,10 +1222,30 @@ async function runner() {
 
 /** Start one job, wire its output to its log, and record the outcome when it finishes. */
 function spawnJob(job) {
+  // Recheck on the executing runner, not only when its caller queued the job. Limits
+  // and checkout state can change while waiting; an old coordinator record is no waiver.
+  try {
+    const profile = executionProfile();
+    const admission = cloudJobPolicy({ command: job.command, profile,
+      browser: invokesE2e(job.command) || invokesSweep(job.command), build: /\bnpm\s+run\s+build\b/.test(job.command),
+      requestedCap: job.capMinutes,
+      requestedWorkers: workerRequestsInCommand(job.command) });
+    if (profile.kind === 'cloud' && admission.verification) {
+      const git = (...args) => spawnSync('git', args, { cwd: job.checkout, encoding: 'utf8', windowsHide: true });
+      const head = git('rev-parse', 'HEAD'), dirty = git('status', '--porcelain');
+      const problem = queuedVerificationProblem(job, admission, { head: head.stdout.trim(), dirty: head.status !== 0 || dirty.status !== 0 || Boolean(dirty.stdout.trim()) });
+      if (problem) throw Error(problem);
+    }
+  } catch (error) {
+    appendFileSync(job.logPath, `Execution-site admission refused: ${error.message}\n`);
+    writeJob(dir, { ...job, state: 'failed', exitCode: 2, finishedAt: Date.now() });
+    return;
+  }
   const out = createWriteStream(job.logPath, { flags: 'a' });
   out.write(`${LOG_ATTEMPT_MARK} ${job.id} ${job.command}\n=== cwd ${job.checkout}\n`);
   const child = spawn(job.command, {
     cwd: existsSync(job.checkout) ? job.checkout : process.cwd(),
+    env: { ...process.env, NOACG_QUEUED_JOB_ID: job.id },
     shell: true,
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -1587,6 +1628,7 @@ function snapshot({ readSessions = true } = {}) {
     sessions,
     ...schedule(jobs, {
       freeMemMb: freeMb(),
+      execution: executionProfile(),
       alone: sessions?.alone ?? false,
       presence: presenceAt(dir).state,
       outsideRuns: outsideRuns(jobs),
