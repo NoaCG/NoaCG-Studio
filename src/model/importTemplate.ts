@@ -306,8 +306,8 @@ export async function importZipTemplate(fileName: string, data: ArrayBuffer): Pr
   // The OGraf manifest a NoaCG package ships beside the sources (export/noacgPackage.ts).
   const manifest = await readManifest((n) => entryOf(n)?.async('string') ?? null, files, base);
 
-  // Binary assets keep their relative paths (images/…, fonts/…, assets/…). A preview image the
-  // manifest names as a thumbnail is not one of them: `noacg validate --screenshots` writes it,
+  // Binary assets keep their relative paths (images/…, fonts/…, assets/…). A preview image a
+  // NoaCG manifest names as a thumbnail is not one of them: `noacg validate --screenshots` writes it,
   // and kept as an asset, the frame of an old validate travelled on with the graphic and was
   // written back over the fresh one. Reading the package as a folder skips it the same way
   // (cli/src/workspace.ts zipDirectory).
@@ -358,10 +358,11 @@ async function readManifest(
   }
 }
 
-/** The zip entries the manifest's `thumbnails` name (OGraf: `[{ file, resolution }]`). */
+/** The zip entries a NoaCG manifest's `thumbnails` name (OGraf: `[{ file, resolution }]`). Only
+ *  ours: somebody else's package may name an image its page also shows. */
 function manifestThumbnails(manifest: ZipManifest | null): Set<string> {
   const names = new Set<string>();
-  if (!manifest || !Array.isArray(manifest.json.thumbnails)) return names;
+  if (!manifest || !isRecord(manifest.json.v_noacg) || !Array.isArray(manifest.json.thumbnails)) return names;
   for (const t of manifest.json.thumbnails as unknown[]) {
     if (isRecord(t) && typeof t.file === 'string') names.add(manifest.dir + t.file.replace(/^\.\//, ''));
   }

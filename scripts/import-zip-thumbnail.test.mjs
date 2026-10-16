@@ -6,8 +6,9 @@
 // OGraf manifest's `thumbnails`. Reading the package as a folder skips it (cli/src/workspace.ts
 // `zipDirectory`); reading the same package as a zip imported it as an asset, so the frame of an
 // old validate travelled on as part of the graphic and was written back over the fresh one. The
-// zip importer now leaves out what the manifest names as a thumbnail, and nothing else: a real
-// image that happens to be a png still imports, and so does a `thumbnail.png` no manifest names.
+// zip importer now leaves out what a NoaCG manifest names as a thumbnail, and nothing else: a real
+// image that happens to be a png still imports, and so does a `thumbnail.png` no manifest names or
+// somebody else's manifest names (their page may show it).
 //
 // No browser: the importer is zip in, template out. Rolldown bundles the real module.
 import test from 'node:test';
@@ -43,13 +44,26 @@ async function packageZip(extra = {}) {
   return zip.generateAsync({ type: 'arraybuffer' });
 }
 
-const manifest = (thumbnails) => JSON.stringify({ name: 'Lower', main: 'graphic.mjs', thumbnails });
+/** A NoaCG manifest (it carries `v_noacg`, as export/noacgPackage.ts writes it), or a foreign one. */
+const manifest = (thumbnails, { foreign = false } = {}) => JSON.stringify({
+  name: 'Lower', main: 'graphic.mjs', thumbnails,
+  ...(foreign ? {} : { v_noacg: { format: 'noacg-graphic', version: 1, type: 'lower-third' } }),
+});
 const assetPaths = (template) => template.assets.map((a) => a.path).sort();
 
 test('the thumbnail the manifest names is not imported, a sibling png is', async () => {
-  const { template } = await importZipTemplate('lower.zip', await packageZip({
+  const { template, noacg } = await importZipTemplate('lower.zip', await packageZip({
     'lower/lower.ograf.json': manifest([{ file: 'thumbnail.png', resolution: { width: 1920, height: 1080 } }]),
     'lower/thumbnail.png': PNG,
+  }));
+  assert.deepEqual(assetPaths(template), ['images/logo.png']);
+  assert.equal(noacg?.type, 'lower-third', 'the same manifest still gives the graphic its type');
+  assert.equal(template.type, 'lower-third');
+});
+
+test('a thumbnail somebody else\'s manifest names stays an asset', async () => {
+  const { template } = await importZipTemplate('lower.zip', await packageZip({
+    'lower/lower.ograf.json': manifest([{ file: 'images/logo.png' }], { foreign: true }),
   }));
   assert.deepEqual(assetPaths(template), ['images/logo.png']);
 });
