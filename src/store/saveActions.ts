@@ -162,12 +162,14 @@ export function openGraphicById(id: string): boolean {
 /** Discard the working draft, never its library or production copies. A navigation does
  * not replace the document, so clearing only `dirty` would retain the discarded artwork. */
 export async function discardCurrentGraphic(): Promise<string | null> {
+  // The editing context the user chose to discard, taken before the first wait: an edit
+  // accepted during either wait below must refuse the discard rather than be erased (#1147).
+  const before = useTemplateStore.getState();
   // Drain a pending autosave before staging the replacement, otherwise its timer can
   // overwrite the discard while its durable confirmation is still pending.
   flushPendingProject();
   const pendingFailure = await commitDurableWrites();
   if (pendingFailure) return pendingFailure;
-  const before = useTemplateStore.getState();
   const doc = before.saved.graphicId ? graphicById(before.saved.graphicId) : null;
   const template = doc?.template ?? createDefaultTemplate();
   // Changing source or baseline clears the editor's private command history. Persist
