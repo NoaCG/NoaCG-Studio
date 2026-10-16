@@ -108,7 +108,7 @@ The active chat retained ownership through live landing and post-land results.
   main was an ancestor and the reviewed SHA changed. This synthetic conflict is
   not evidence that repository main advanced during #1284.
 
-Live merge, post-land and newer-main evidence will be appended before this receipt lands.
+Live merge, post-land and newer-main observations are recorded below.
 
 ## Late repair and live queue receipts
 
@@ -136,3 +136,39 @@ main. GitHub observed `mergeable=CONFLICTING`, `mergeStateStatus=DIRTY` at worke
 `f2db37c7ef992debe1401350fea9e6867b726917` versus base
 `d1d864612` (full base SHA available in the branch history). Its scheduled repair
 will be recorded below; the draft has no land label, auto-merge or queue entry.
+
+## Conflict wake and newer repository main
+
+The scheduled conflict wake read #1283 as CONFLICTING/DIRTY and performed a real
+add/add merge conflict. A fetch naming only the branch updated FETCH_HEAD but not
+this environment's restricted remote-tracking ref; an explicit
+`refs/heads/scratch/cloud-base-proof:refs/remotes/origin/scratch/cloud-base-proof`
+refspec supplied it. This is a fetch-shape issue, not failed GitHub authorization.
+The owner preserved both stated intents in the probe-only file and committed
+`10cfb6bcd8197429c71a386ba4c0c690d25a5068`, with simulated base
+`d1d864612a07c4f27a7936fc3eab7f60fd55575e` as an ancestor. Test-file hash stayed
+identical, all 12 assertions passed, and [Actions 38861221236](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38861221236)
+passed. GitHub then reported MERGEABLE. One owner handled both scheduled wakes;
+no competing fixer was enabled. The probe was closed unmerged and its wake paused.
+This simulates the conflict safely; Claude native Auto-fix's behaviour still needs
+independent qualification, not inference from this Codex scheduler.
+
+#1284 actually merged at 2026-10-16T06:24:59Z as
+`6e05d78ea46ffc23e2eb83c29e1b8bfbc3b816bd`, the same SHA tested by its successful
+merge group. [Post-landing 38861074347](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38861074347)
+and [Quarantine 38861074116](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38861074116)
+completed success.
+
+The evidence branch had already committed its work at old main `687c6b52...`.
+After #1284 landed, `git fetch origin main && git merge origin/main` produced
+`53e9863091a3645484bd6b40b5a61d44d24e7f2c`, with the newer main as its second
+parent. `npm run contracts:compile` regenerated 264 outputs and left no diff.
+The evidence PR's /check and full-SHA stamp will cover its final reconciled tip,
+not the pre-merge worker SHA. Its queue and landing receipts belong on that PR.
+
+The focused browser trace also contained two debug console messages, zero console
+errors and 21 network entries with zero HTTP responses >=400. Fresh native
+root/nested Codex instruction-loading probes could not initialize the read-only
+CLI app-server; compiler freshness, rule selection and shared instruction gates
+passed. The 40-minute Reviewed timeout was checked through the existing bounded
+clock test and CLI failure propagation review, not a 40-minute live wait.
