@@ -21,15 +21,14 @@
 // (blocks/animMigration.ts), so a few designs also run with the guard taken back out of their code,
 // the way a saved one reads, and must still exit cleanly.
 //
-// THE CLOCK. GSAP reads `Date.now` and `requestAnimationFrame` when it loads, and a hidden
-// iframe's frames are throttled, so real time would be both slow and flaky. A small script ahead
-// of GSAP in each document replaces the clock, the frame callback and the timers, and the test
-// advances them in fixed steps. Text is not compared: a time-of-day readout reads `new Date()`,
-// which stays real, and a frozen exit shows in opacity, visibility and transforms anyway.
+// THE CLOCK is the driven one the other catalog sweeps share (scripts/driven-clock.mjs). Text is
+// not compared: a time-of-day readout reads `new Date()`, which stays real, and a frozen exit shows
+// in opacity, visibility and transforms anyway.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { withBundledPage } from './catalog-emit.mjs';
+import { installDrivenPage } from './driven-clock.mjs';
 import { parseOnly } from './catalog-scope.mjs';
 import { measured } from './measured.mjs';
 
@@ -48,44 +47,6 @@ const SAVED_BEFORE_FIX = ['ig01', 'es01'];
 /** The guard line the fix added (templates/shared/animRuntime.ts STOP_AGAIN_GUARD_JS). */
 const GUARD_LINE = /^ {2}if \(typeof noacgOutActive === 'function'[^\n]*\n/m;
 
-/** Installed ahead of GSAP in each document: a clock, frames and timers the test advances. */
-const CLOCK = `<script id="test-clock">
-(function () {
-  var origin = 1700000000000, now = origin, seq = 0, timers = [], frames = [];
-  Date.now = function () { return now; };
-  performance.now = function () { return now - origin; };
-  window.requestAnimationFrame = function (cb) { frames.push({ id: ++seq, cb: cb }); return seq; };
-  window.cancelAnimationFrame = function (id) { frames = frames.filter(function (f) { return f.id !== id; }); };
-  function add(cb, ms, args, repeat) {
-    if (typeof cb !== 'function') return 0;
-    var wait = Math.max(0, Number(ms) || 0);
-    timers.push({ id: ++seq, cb: cb, at: now + wait, every: Math.max(1, wait), args: args, repeat: repeat });
-    return seq;
-  }
-  window.setTimeout = function (cb, ms) { return add(cb, ms, [].slice.call(arguments, 2), false); };
-  window.setInterval = function (cb, ms) { return add(cb, ms, [].slice.call(arguments, 2), true); };
-  window.clearTimeout = window.clearInterval = function (id) { timers = timers.filter(function (t) { return t.id !== id; }); };
-  // A callback that throws must not stop the others, as in a real frame.
-  function run(fn, args) { try { fn.apply(window, args); } catch (e) { /* the template's own error */ } }
-  window.__advance = function (ms) {
-    var end = now + ms;
-    while (now < end) {
-      now = Math.min(end, now + 40);
-      // Capped, so a zero-delay timer that re-arms itself cannot hold one step for ever.
-      for (var fired = 0; fired < 1000; fired++) {
-        var due = null;
-        for (var i = 0; i < timers.length; i++) if (timers[i].at <= now && (!due || timers[i].at < due.at)) due = timers[i];
-        if (!due) break;
-        if (due.repeat) due.at += due.every; else timers.splice(timers.indexOf(due), 1);
-        run(due.cb, due.args);
-      }
-      var batch = frames; frames = [];
-      for (var j = 0; j < batch.length; j++) run(batch[j].cb, [now - origin]);
-    }
-  };
-})();
-</script>`;
-
 /** Play one design, Stop it once or twice, and report what is left. Runs in the browser. */
 const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix }) => {
   const variant = window.NOACG_CATALOG.variantById(id);
@@ -98,19 +59,7 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
   }
   const data = {};
   for (const f of template.fields || []) if (f.field && f.value !== undefined) data[f.field] = String(f.value);
-  const html = window.NOACG_COMPOSE.composeDocument(template);
-  const clock = window.__TEST_CLOCK;
-  const srcdoc = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + clock) : clock + html;
   const { width, height } = template.resolution;
-
-  const mount = async () => {
-    document.getElementById('fx')?.remove();
-    const frame = document.createElement('iframe');
-    frame.id = 'fx';
-    frame.style.cssText = `position:fixed;left:0;top:0;width:${width}px;height:${height}px;border:0;`;
-    await new Promise((resolve) => { frame.onload = resolve; frame.srcdoc = srcdoc; document.body.appendChild(frame); });
-    return frame.contentWindow;
-  };
   const elements = (w) => [...w.document.body.querySelectorAll('*')].filter((el) => el.tagName !== 'SCRIPT' && el.tagName !== 'STYLE');
   const label = (el) => el.id || el.className?.baseVal || el.className || el.tagName;
   // Every element's paint-relevant state. Opacity, visibility and the transform are where a
@@ -154,7 +103,7 @@ const PLAY_AND_STOP = async ({ id, repeatsMs, onAirMs, exitMs, savedBeforeFix })
     return el ? w.getComputedStyle(el).opacity : null;
   };
   const session = async (repeatMs) => {
-    const w = await mount();
+    const w = await window.__mountDesign(template);
     if (typeof w.update === 'function') w.update(JSON.stringify(data));
     w.play();
     w.__advance(onAirMs);
@@ -178,8 +127,7 @@ const { ids: only } = parseOnly(process.argv.slice(2));
 
 const started = Date.now();
 const runs = await withBundledPage(SPECS, async (page) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.evaluate((clock) => { window.__TEST_CLOCK = clock; }, CLOCK);
+  await installDrivenPage(page);
   const shipped = await page.evaluate(() =>
     Object.values(window.NOACG_CATALOG.CATALOG).flatMap((variants) => (variants ?? []).map((v) => v.id)).sort());
   // A mistyped id must not read as "swept, nothing wrong" (scripts/catalog-scope.mjs).
