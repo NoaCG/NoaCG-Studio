@@ -36,7 +36,7 @@ import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPack
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
 import { cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
 import { parseFieldList } from '../dist/commands/scaffold.js';
-import { openUrl, openUrlCommand, openUrlOptions } from '../dist/openUrl.js';
+import { openUrl, openUrlCommand } from '../dist/openUrl.js';
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -999,22 +999,22 @@ test('the consent URL tells the page this login takes a refusal, and the link na
 test('on Windows the consent URL goes whole to the URL handler, never through cmd', async () => {
   const url = 'https://noacg.studio/app?agent=s&port=51234&name=noacg+CLI+on+PC&challenge=c&deny=1&scopes=productions%3Acreate';
   const calls = [];
-  const run = (exitCode) => (file, args, options, done) => {
+  const run = (ok) => (file, args, options, done) => {
     calls.push({ file, args, options });
-    done(exitCode === 0 ? null : Object.assign(new Error('failed'), { code: exitCode }));
+    done(ok ? null : new Error('failed'));
   };
 
-  assert.equal(await openUrl(url, 'win32', run(0)), true);
+  assert.equal(await openUrl(url, 'win32', run(true)), true);
   assert.deepEqual(calls[0], {
     file: 'rundll32',
     args: ['url.dll,FileProtocolHandler', url],
     options: { windowsHide: true, windowsVerbatimArguments: true },
   });
-  assert.equal(await openUrl(url, 'win32', run(1)), false, 'an opener that fails is reported as not opened');
+  assert.equal(await openUrl(url, 'win32', run(false)), false, 'an opener that fails is reported as not opened');
 
-  assert.deepEqual(openUrlCommand(url, 'darwin'), { file: 'open', args: [url] });
-  assert.deepEqual(openUrlCommand(url, 'linux'), { file: 'xdg-open', args: [url] });
-  assert.equal(openUrlOptions('linux').windowsVerbatimArguments, false);
+  assert.deepEqual(openUrlCommand(url, 'darwin').args, [url]);
+  assert.equal(openUrlCommand(url, 'darwin').file, 'open');
+  assert.equal(openUrlCommand(url, 'linux').file, 'xdg-open');
   assert.equal(
     await openUrl(url, 'win32', () => {
       throw new Error('spawn failed');

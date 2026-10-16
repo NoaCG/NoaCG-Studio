@@ -14,9 +14,8 @@
 // 0.0.0.0 would turn any web page the operator visits into a remote for the playout box, so
 // the command refuses to.
 
-import { spawn } from 'node:child_process';
 import { cliVersion, noacgUrl } from '../config.js';
-import { openUrlCommand, openUrlOptions } from '../openUrl.js';
+import { launchUrl } from '../openUrl.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
 import { ografAdapter } from '../playout/adapters/ograf.js';
@@ -29,21 +28,6 @@ import { PairingCodes, resolveToken } from '../playout/token.js';
  *  itself. The code is one-time and short-lived; the token never travels in a URL. */
 export function pairingUrl(port: number, code: string): string {
   return `${noacgUrl()}/app?bridge=${port}&code=${encodeURIComponent(code)}`;
-}
-
-/** Open the pairing link without waiting on it. Detached, so stopping the Bridge never takes a
- *  browser it started down with it; printing the link is the fallback, and it is printed regardless. */
-function openInBrowser(url: string): void {
-  const { file, args } = openUrlCommand(url);
-  try {
-    // A missing opener (no xdg-open on a bare Linux box) arrives as an 'error' event, which
-    // unheard would stop the Bridge.
-    const child = spawn(file, args, { ...openUrlOptions(), detached: true, stdio: 'ignore' });
-    child.on('error', () => undefined);
-    child.unref();
-  } catch {
-    // The link is on screen already.
-  }
 }
 
 export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
@@ -98,7 +82,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
 
   // The browser opens by default: the exe is double-clicked by somebody who should not have to
   // copy a link. `--no-open` for terminals and for a Bridge that starts with the machine.
-  if (flagBool(args, 'open', true)) openInBrowser(pairUrl);
+  if (flagBool(args, 'open', true)) launchUrl(pairUrl);
 
   // ENTER: a new one-time link for another browser (D19). Read line by line in the terminal's own
   // mode, never raw, so Ctrl+C still reaches the process as the signal that stops it below.
