@@ -1,4 +1,4 @@
-// gate: none - explicit owner-authorized, bounded Linux measurement, not a shared verification policy
+// Explicit owner-authorized, bounded Linux measurement, not a shared verification policy.
 // Browser measurements must be queued with --kind sweep. Never set CI to evade local guards.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
