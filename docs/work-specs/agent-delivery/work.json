@@ -15,7 +15,7 @@
       },
       {
         "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-        "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+        "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
       }
     ],
     "criteria": [
@@ -29,7 +29,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -43,7 +43,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -57,7 +57,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -71,7 +71,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -85,7 +85,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -99,7 +99,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -113,7 +113,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -127,7 +127,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -141,7 +141,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
@@ -155,13 +155,13 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       },
       {
         "id": "AC-11",
-        "status": "pass",
+        "status": "unverified",
         "evidence": [
           {
             "path": "docs/work-specs/agent-delivery/evidence/final-check.md",
@@ -169,7 +169,7 @@
           },
           {
             "path": "docs/work-specs/agent-delivery/evidence/hosted-run.md",
-            "sha256": "c39f0eeb8855d2dae1f2bf4a3dfedee85577253dc30a2470a59abdd1fedab640"
+            "sha256": "7ab52f2b79e72f8b5debbb12c6d0af79d8d98307712fec55f0013aefd7c6bf79"
           }
         ]
       }

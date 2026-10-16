@@ -1,4 +1,4 @@
-# Agent delivery hosted run (AC-10, AC-11)
+# Agent delivery hosted run (AC-10; AC-11 stays open)
 
 Date: 2026-10-16, 06:04 to 07:30 UTC. The run that `final-check.md` names as missing: a coding-agent
 session given only the Downloads prompt, with no plugin and a clean configuration, against hosted
@@ -117,11 +117,14 @@ The agent's session cost USD 1.43 over the whole run (40 tool rounds in the buil
   --check` and the release-notes check, and `/downloads` now shows the same 77-word prompt pinned
   to 0.12.1). The Windows browser-open defect this run found is fixed in 0.12.1 and was verified
   live in step 10. The run itself used 0.12.0 through the printed link.
-- AC-11: pass. The agent's receipts tell saved (read back) apart from browser-opened. Pending
-  install did not arise, because no package was used. The person-opened results, the
-  wrong-account open, cancelled consent and the uncertain-response repeat ran here against the
-  hosted backend. Failed loading and legacy pending-package recovery rest on the configured run
-  38833457342 with the published package (`final-check.md`), not on this run.
+- AC-11: unverified. Holds: the agent's receipts tell saved (read back) apart from
+  browser-opened, and no package was used, so pending install did not arise. Cancelled consent,
+  the wrong-account open and the uncertain-response repeat ran here against the hosted backend.
+  Missing: failed loading and legacy pending-package recovery in this final hosted scenario.
+  They ran only in the configured run 38833457342 on a local stack (`final-check.md`). Also
+  missing: an independent check of this run by a session that did not make it. Closing these
+  needs the new account logged in again for one `pack --save` and Install on Home, an injected
+  waiting-list failure in the fresh browser, and a separate reviewer.
 - AC-1 to AC-9: pass, on the evidence in `final-check.md`. The code that changed between that
   review and this revision is the 0.12.1 browser opener and texts (#1287), a session hook guard
   (#1285), landing and queue tooling (#1284, #1286), an editor spec's quarantine entry (#1288) and
