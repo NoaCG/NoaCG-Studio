@@ -68,7 +68,7 @@ function fixture(t) {
   const db = openStore(database);
   registerRun(db, manifest, now);
   t.after(() => {
-    try { const owner = JSON.parse(readFileSync(path.join(dir, 'worker.json'))); process.kill(owner.pid, 'SIGKILL'); } catch {}
+    try { const owner = JSON.parse(readFileSync(path.join(dir, 'worker.json'))); process.kill(owner.pid, 'SIGKILL'); } catch { /* Already gone, or no test worker was launched. */ }
     db.close();
     // dir comes only from mkdtemp under the platform temp directory.
     assert.equal(path.dirname(path.resolve(dir)), path.resolve(tmpdir()));

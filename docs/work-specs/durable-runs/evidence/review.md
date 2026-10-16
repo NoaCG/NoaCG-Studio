@@ -1,6 +1,7 @@
 # Acceptance review of the local recovery slice
 
-Reviewed implementation revision: 7efd3991e, 2026-10-16. Mode: inline.
+Reviewed 2026-10-16, including the CI lint repair. Exact implementation revision is recorded in
+the acceptance ledger's review. Mode: inline.
 
 The reviewed tree contains the specification, primary-source research and comparison,
 supervisor, inert-process tests, usage-only measurement helper and receipts. It preserves the
@@ -21,3 +22,7 @@ Those are stated qualification limits, not outcomes silently counted as demonstr
 
 Evidence: `verification.md` and `measurements.json` in this directory. This receipt records
 acceptance of the local slice and researched proposal, not approval to provision paid hosting.
+
+The CI repair was reproduced with targeted ESLint and reviewed as behavior-preserving cleanup
+documentation. No gate or assertion changed. All three new scripts pass targeted ESLint and
+the fourteen recovery tests pass. The acceptance ledger is refreshed against the repair commit.

@@ -75,3 +75,12 @@ recovery/cache/planning comparisons. Local Claude auth status succeeded. Codex c
 advertised submission/status/list; no target environment or lifecycle was qualified. App project
 inventory exposed NoaCG as a local project. Viewing an existing paused heartbeat succeeded,
 but no new heartbeat was armed and no wake firing was claimed.
+
+## CI repair
+
+[CI run 38929923054](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38929923054) passed its
+Node tests and Factory gates but failed ESLint on an empty cleanup catch in the new test file.
+Targeted local ESLint reproduced `run-supervisor.test.mjs:71 no-empty`. The catch now explains
+the expected already-gone/no-worker cleanup case; behavior and assertions are unchanged.
+Targeted ESLint over all three new scripts and the recovery tests passed after the fix.
+This is repair attempt 1 on a new commit, not a same-commit retry or a weakened gate.
