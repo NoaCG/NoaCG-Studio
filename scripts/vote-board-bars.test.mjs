@@ -79,8 +79,8 @@ const PROPOSE = ({ markup }) => {
  *  every bar against the length it was drawn at. */
 const VOTE = async ({ markup, shares }) => {
   const svg = window.NOACG_SVG.importSvgMarkup(markup);
-  const behaviour = window.NOACG_DRAFT.proposeSvgBehaviour(svg);
-  const draft = window.__importDraft(svg, behaviour);
+  const draft = window.__importDraft(svg);
+  const behaviour = draft.svgBehaviour;
   const template = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(draft) });
   const options = template.fields.find((f) => f.title === 'Options');
   if (!options) return { error: `no Options field (behaviour ${JSON.stringify(behaviour?.kind)})` };

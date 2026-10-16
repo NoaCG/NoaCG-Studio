@@ -33,8 +33,9 @@ const BOARD = readFileSync(new URL('../e2e/fixtures/svg-shows/bingo-board.svg', 
 /** Runs in the browser: build the board as the wizard would, then call numbers and read inks. */
 const CALLS = async ({ markup, calls }) => {
   const svg = window.NOACG_SVG.importSvgMarkup(markup);
-  const behaviour = window.NOACG_DRAFT.proposeSvgBehaviour(svg);
-  const template = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(window.__importDraft(svg, behaviour)) });
+  const draft = window.__importDraft(svg);
+  const behaviour = draft.svgBehaviour;
+  const template = window.NOACG_IMPORTED.IMPORTED_SVG.create({ designSvg: window.NOACG_DRAFT.svgDesignOptions(draft) });
   const called = template.fields.find((f) => f.title === 'Called numbers');
   if (!called) return { error: `no Called numbers field (behaviour ${JSON.stringify(behaviour?.recipe ?? behaviour?.kind)})` };
 
