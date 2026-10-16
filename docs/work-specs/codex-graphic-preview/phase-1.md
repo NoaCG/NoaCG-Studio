@@ -18,6 +18,9 @@ CLI version: `codex-cli 0.163.0-alpha.5`.
 Desktop app package version: `26.1007.9446.0` (read by the coordinator from the
 actual `ChatGPT.exe` package path).
 Cache: `C:/Users/ahonemi/.codex/plugins/cache/noacg-preview-local/noacg-preview-trial/0.1.0`.
+This initial receipt is for 0.1.0. The current private trial is 0.1.1, giving a
+fresh cache path for supported local reinstallation after the ongoing task kept
+a closed 0.1.0 transport. It is not a public release and has no new host receipt yet.
 The cached launcher imports the explicitly prepared source worktree's runtime.
 SDKs: MCP 1.30.0, MCP Apps 1.7.5, OpenAI MCP extensions 0.2.0.
 
