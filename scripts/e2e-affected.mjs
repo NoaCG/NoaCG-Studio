@@ -159,7 +159,8 @@ const CORE = [
   // says its safety comes from.
   /^src\/assets\/gsap\.min\.js$/,
   // The flex-gap shim and its carrier are inlined into every composed document and every
-  // export the same way GSAP is, so an edit there has the same fan-out.
+  // export the same way GSAP is, so an edit there has the same fan-out. (`rawImportEdges` now
+  // reaches both `?raw` files through their CORE importers too; these lines name the reason.)
   /^src\/assets\/flexGapShim\.js$/,
   /^src\/assets\/flexGapSupport\.ts$/,
   // With a `helpers` map, only the helpers `helperReach` cannot attribute to their importers reach
@@ -229,11 +230,8 @@ const CORE = [
 // the player host and pack builders. The test "every docs or scripts file a spec header names
 // plans that spec" fails when a header names a script this list leaves ignored.
 //
-// What the DEV SERVER loads is not listed here: every module vite.config.ts imports, and what
-// those import, is read off the imports (`importClosure`, #957) and passes IGNORE the same way -
-// the API plugins, the public page builders and their chrome, the agent prompt, and their helpers.
-// It used to be names in this list, and the plugins nobody added (eventsDevPlugin,
-// panelBackendPlugin) planned `mode: none` although every spec boots a server that loads them.
+// What the DEV SERVER loads is not listed here: it is read off vite.config.ts's imports
+// (`devServerModules`, #957) and passes IGNORE the same way.
 const SUITE_CRITICAL_SCRIPTS =
   'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists|e2e-trace|build-news-pack|build-production-pack|packs/';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
@@ -414,13 +412,21 @@ const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
  * @returns {Set<string>} repo-relative paths, the entry included
  */
 export function importClosure(entry, read) {
+  const texts = new Map();
+  const text = (f) => {
+    if (!texts.has(f)) texts.set(f, read(f));
+    return texts.get(f);
+  };
   const found = new Set([entry]);
   const queue = [entry];
   while (queue.length) {
     const file = queue.pop();
-    for (const spec of importSpecifiers(read(file) ?? '')) {
+    for (const spec of importSpecifiers(text(file) ?? '')) {
       const base = joinPath(dirOf(file), spec.replace(/\?.*$/, ''));
-      const target = ['', '.mjs', '.js', '.ts'].map((ext) => base + ext).find((f) => read(f) !== null);
+      // As the bundler resolves it: the name as written, an added extension, a `.js` that is
+      // TypeScript on disk, or a directory's index.
+      const candidates = [base, ...(base.endsWith('.js') ? [`${base.slice(0, -3)}.ts`] : []), ...['.mjs', '.js', '.ts', '/index.mjs', '/index.js', '/index.ts'].map((ext) => base + ext)];
+      const target = candidates.find((f) => text(f) !== null);
       if (target && !found.has(target)) { found.add(target); queue.push(target); }
     }
   }
@@ -449,27 +455,35 @@ export function rawImportEdges(sources) {
   return edges;
 }
 
-/**
- * The two import graphs above, over this checkout, read once per process. `?raw` is a Vite
- * suffix, so only Vite-built source under `src/` can carry one.
- */
-let checkoutGraphs = null;
-function checkoutGraph() {
-  if (checkoutGraphs) return checkoutGraphs;
-  const read = (file) => {
-    try {
-      return readFileSync(join(REPO_ROOT, file), 'utf8');
-    } catch {
-      return null; // absent, or a directory
-    }
-  };
-  const sources = new Map();
-  for (const rel of readdirSync(join(REPO_ROOT, 'src'), { recursive: true })) {
-    const file = `src/${String(rel).replaceAll('\\', '/')}`;
-    if (/\.(m?[jt]sx?)$/.test(file)) sources.set(file, read(file) ?? '');
+/** A repo-relative path's text, or null when it is absent or a directory. */
+function readCheckout(file, root = REPO_ROOT) {
+  try {
+    return readFileSync(join(root, file), 'utf8');
+  } catch {
+    return null;
   }
-  checkoutGraphs = { devServer: importClosure('vite.config.ts', read), rawImporters: rawImportEdges(sources) };
-  return checkoutGraphs;
+}
+
+/** `importClosure` from vite.config.ts over this checkout, read once per process. */
+let devServerCache = null;
+export function devServerModules() {
+  devServerCache ??= importClosure('vite.config.ts', readCheckout);
+  return devServerCache;
+}
+
+/**
+ * `rawImportEdges` over this checkout, read once per process. `?raw` is a Vite suffix, so only
+ * Vite-built source under `src/` can carry one.
+ */
+let rawCache = null;
+export function checkoutRawImporters() {
+  rawCache ??= rawImportEdges(new Map(
+    readdirSync(join(REPO_ROOT, 'src'), { recursive: true })
+      .map((rel) => `src/${String(rel).replaceAll('\\', '/')}`)
+      .filter((file) => /\.(m?[jt]sx?)$/.test(file))
+      .map((file) => [file, readCheckout(file) ?? '']),
+  ));
+  return rawCache;
 }
 
 /** `helperReach` over this checkout: every `.ts` under e2e/, and the configs that load helpers. */
@@ -518,9 +532,10 @@ const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helper
  * helper the map has no specs for, or one a config loads, falls through to CORE as before, and
  * with no map at all nothing changes.
  *
- * Two import graphs default to this checkout's (`checkoutGraph`): `devServer`, the modules the dev
- * server loads at startup, which IGNORE never swallows; and `rawImporters`, which adds each changed
- * `?raw` file's importers to the plan (listed in `rawPlanned`).
+ * Two import graphs default to this checkout's: `devServer` (`devServerModules`), the modules the
+ * dev server loads at startup, which IGNORE never swallows; and `rawImporters`
+ * (`checkoutRawImporters`, read only when the change touches src/), which adds each changed `?raw` file's importers to the plan (listed in
+ * `rawPlanned`). A caller that loads a planner from elsewhere passes both.
  *
  * @param {string[]} changed        repo-relative paths, forward slashes
  * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
@@ -535,8 +550,10 @@ const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helper
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = checkoutGraph().devServer, rawImporters = checkoutGraph().rawImporters } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = devServerModules(), rawImporters = null } = {},
 ) {
+  // Every `?raw` file lives under src/, so a change with nothing there skips reading the tree.
+  const rawEdges = rawImporters ?? (changed.some((f) => f.startsWith('src/')) ? checkoutRawImporters() : new Map());
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
   let full = false;
@@ -550,8 +567,8 @@ export function planFor(
   const tracedBroad = [];
   // A changed `?raw` file plans the module that inlines it as well as itself, with that module's
   // whole coverage: the copy path never narrows an importer brought in this way.
-  const rawPlanned = changed.filter((f) => rawImporters.has(f));
-  const viaRaw = new Set(rawPlanned.flatMap((f) => rawImporters.get(f)));
+  const rawPlanned = changed.filter((f) => rawEdges.has(f));
+  const viaRaw = new Set(rawPlanned.flatMap((f) => rawEdges.get(f)));
 
   for (const file of new Set([...changed, ...viaRaw])) {
     // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` is ignored for the
@@ -615,7 +632,7 @@ export function planFor(
     }
     // A `?raw` file's importer is planned beside it, so that is its mapping even when no header
     // names the file itself; an unmapped importer still escalates on its own turn.
-    if (covering.length === 0 && central.length === 0 && !rawImporters.has(file)) {
+    if (covering.length === 0 && central.length === 0 && !rawEdges.has(file)) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
       full = true;
     } else {
@@ -1036,13 +1053,7 @@ export function changedFilesSince(base, cwd = undefined) {
 export function copyContext(base, changed, cwd = undefined) {
   const root = cwd ?? gitIn(cwd, 'rev-parse', '--show-toplevel');
   const old = gitIn(cwd, 'merge-base', base, 'HEAD');
-  const read = (f) => {
-    try {
-      return readFileSync(join(root, f), 'utf8');
-    } catch {
-      return null;
-    }
-  };
+  const read = (f) => readCheckout(f, root);
   const copyEdits = new Map();
   for (const file of changed) {
     if (!COPY_PATH_FILE.test(file)) continue;
