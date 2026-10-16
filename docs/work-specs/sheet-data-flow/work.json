@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "ac1703d27c61a6af5868fa6deacafb7466a415ae827d08ab772024dfbb9feebf",
+  "authority": {
+    "status": "draft",
+    "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" Earlier that day the owner asked for the data bindings and audience parts of the production page to be more straightforward, and for a walk of the current flow as a non-technical user to design from. Decisions D1 to D4 await the owner."
+  },
+  "review": null
+}
