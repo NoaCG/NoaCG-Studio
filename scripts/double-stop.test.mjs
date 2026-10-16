@@ -11,19 +11,19 @@
 // for the exit again, which handed back that same killed timeline. The graphic stopped half-way
 // out, at full opacity, and stayed on air.
 //
-// So this sweeps every catalog design through the real composer, on a clock this file drives, and
-// holds a repeated Stop to the only answer that is right: the graphic ends exactly where a single
-// Stop leaves it. Two repeats are tried, one in the same instant as the first Stop (a double
-// click) and one while the exit is moving. The single Stop is also held to actually changing a
-// design that is on air, so one whose exit never ran cannot pass by staying put in both runs.
+// So this sweeps every catalog design through the real composer, on the shared driven clock
+// (scripts/driven-clock.mjs), and holds a repeated Stop to the only answer that is right: the
+// graphic ends exactly where a single Stop leaves it. Two repeats are tried, one in the same
+// instant as the first Stop (a double click) and one while the exit is moving. The single Stop is
+// also held to actually changing a design that is on air, so one whose exit never ran cannot pass
+// by staying put in both runs.
 //
 // A design SAVED before the fix carries the old `stop()` in its own code. The composer upgrades it
 // (blocks/animMigration.ts), so a few designs also run with the guard taken back out of their code,
 // the way a saved one reads, and must still exit cleanly.
 //
-// THE CLOCK is the driven one the other catalog sweeps share (scripts/driven-clock.mjs). Text is
-// not compared: a time-of-day readout reads `new Date()`, which stays real, and a frozen exit shows
-// in opacity, visibility and transforms anyway.
+// Text is not compared: a time-of-day readout reads `new Date()`, which the driven clock leaves
+// real, and a frozen exit shows in opacity, visibility and transforms anyway.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
