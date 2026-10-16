@@ -5,5 +5,72 @@
     "status": "agreed",
     "source": "Owner in this session, 2026-10-16: after the four-run onboarding report chose \"Skill: first contact + brand\" as the first improvement to spec and build, and chose the \"Mixed set\" of three example briefs. Task from the parent session: the first-run experience needs no remembered commands, and people's own brand look is used well."
   },
-  "review": null
+  "review": {
+    "revision": "673592b8bf0d5b5ae1e98bcf08cad3175dd4a634",
+    "specSha256": "f9d806d1e355d343352eb09ddf0e2d4bc9027e775e45ea271f12a213b5e8cdef",
+    "evidence": [
+      {
+        "path": "docs/work-specs/agent-onboarding/evidence/review.md",
+        "sha256": "afc9baf81490b13024abdce6ab74c07e5b5a0917a91a6dec8a7a5307d47dc69f"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/branch-runs.md",
+            "sha256": "a9312bc26cdd96be790bc79ab7f9ebc52fff58087f2e77f183af52535a85ea51"
+          },
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/review.md",
+            "sha256": "afc9baf81490b13024abdce6ab74c07e5b5a0917a91a6dec8a7a5307d47dc69f"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/branch-runs.md",
+            "sha256": "a9312bc26cdd96be790bc79ab7f9ebc52fff58087f2e77f183af52535a85ea51"
+          },
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/baseline-runs.md",
+            "sha256": "c05208ca63a4ce528c7cb45dce79d9a50b22a9b61151f020f89cdcceae42a6bb"
+          },
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/review.md",
+            "sha256": "afc9baf81490b13024abdce6ab74c07e5b5a0917a91a6dec8a7a5307d47dc69f"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "fail",
+        "evidence": [
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/branch-runs.md",
+            "sha256": "a9312bc26cdd96be790bc79ab7f9ebc52fff58087f2e77f183af52535a85ea51"
+          },
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/review.md",
+            "sha256": "afc9baf81490b13024abdce6ab74c07e5b5a0917a91a6dec8a7a5307d47dc69f"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/agent-onboarding/evidence/review.md",
+            "sha256": "afc9baf81490b13024abdce6ab74c07e5b5a0917a91a6dec8a7a5307d47dc69f"
+          }
+        ]
+      }
+    ]
+  }
 }
