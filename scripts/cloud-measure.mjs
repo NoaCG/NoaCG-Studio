@@ -25,11 +25,16 @@ export function effectiveLimits({ affinity, hostMemoryBytes, cpuMax, memoryMax }
 export function machine() {
   const cpuMax = read('/sys/fs/cgroup/cpu.max');
   const memoryMax = read('/sys/fs/cgroup/memory.max');
+  const cgroup = read('/proc/self/cgroup');
+  const observed = cgroup === '0::/' && cpuMax !== null && memoryMax !== null;
+  const limits = effectiveLimits({ affinity: availableParallelism(), hostMemoryBytes: totalmem(), cpuMax, memoryMax });
   return {
-    ...effectiveLimits({ affinity: availableParallelism(), hostMemoryBytes: totalmem(), cpuMax, memoryMax }),
-    cpuMax, memoryMax, cgroup: read('/proc/self/cgroup'),
-    // A missing v2 root is not proof of an unlimited container. Do not infer cloud profiles here.
-    containerLimitsObserved: cpuMax !== null && memoryMax !== null,
+    ...limits,
+    effectiveCpus: observed ? limits.effectiveCpus : null,
+    memoryLimitBytes: observed ? limits.memoryLimitBytes : null,
+    cpuMax, memoryMax, cgroup,
+    // Nested/v1 hierarchies need their own ancestor inspection; mount-root values are not enough.
+    containerLimitsObserved: observed,
     node: process.version, platform: process.platform,
   };
 }
