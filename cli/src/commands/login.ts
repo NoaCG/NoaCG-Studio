@@ -168,15 +168,18 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
   consent.searchParams.set('deny', '1');
   consent.searchParams.set('scopes', 'productions:create');
 
-  out.log(`Open this page in your browser to allow "${name}" to save graphics and productions to your NoaCG account:\n\n  ${consent.href}\n`);
-  // The consent page hands its code to 127.0.0.1 on THIS computer, so any browser here will do,
-  // which is what somebody whose default browser is not the signed-in one needs to know.
-  const paste = 'Paste the link into any browser on this computer that is signed in to the NoaCG account you want to connect.';
+  // The consent page hands its code to 127.0.0.1 on THIS computer, so any browser here will do.
+  // Said every time: the default browser opening is no help to somebody signed in to NoaCG in
+  // another one, and on Windows "opened" only means the shell took the link.
+  out.log(
+    `Open this page in your browser to allow "${name}" to save graphics and productions to your NoaCG account:\n\n  ${consent.href}\n\n` +
+      'The link works in any browser on this computer that is signed in to the NoaCG account you want to connect.',
+  );
   if (flagBool(args, 'browser', true)) {
     const opened = await openUrl(consent.href);
-    out.log(opened ? 'Opened your browser. Waiting for you to allow access…' : `Could not open a browser here. ${paste} Waiting…`);
+    out.log(opened ? 'Opened your browser. Waiting for you to allow access…' : 'Could not open a browser here, so paste the link into one. Waiting…');
   } else {
-    out.log(`${paste} Waiting for you to allow access…`);
+    out.log('Waiting for you to allow access…');
   }
 
   let code: string;

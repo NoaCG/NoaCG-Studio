@@ -16,9 +16,10 @@ internal names.
 its first part, which said the agent request was not valid, and then reported that it could not
 open a browser. The link it printed was complete, and pasting it into a browser always worked.
 Login now hands the whole link to Windows, so the consent page opens as it does on macOS and
-Linux. When login cannot open a browser, or runs with `--no-browser`, it says that the link works
-in any browser on this computer that is signed in to the NoaCG account you want to connect,
-private windows included. You do not need to do anything; a key you already have keeps working.
+Linux. Login also says that the link works in any browser on this computer that is signed in to
+the NoaCG account you want to connect, private windows included, which helps when your default
+browser is not the one you use for NoaCG. You do not need to do anything; a key you already have
+keeps working.
 
 ## 0.12.0 - 2026-10-16
 
