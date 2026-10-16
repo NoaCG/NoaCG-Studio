@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { effectiveLimits, parseRun, processTreeSample, measure } from './cloud-measure.mjs';
 
 test('effective limits use quota and container memory rather than host totals', () => {
@@ -43,19 +44,25 @@ test('memory includes detached server/browser descendants, excluding unrelated p
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('the time bound ends a child that ignores termination and records failure', async () => {
+test('the time bound preserves branch isolation and ends an unresponsive child', async () => {
   const root = mkdtempSync(join(tmpdir(), 'cloud-measure-timeout-'));
+  const previous = process.cwd();
   try {
     const output = join(root, 'receipt.json');
     if (process.platform !== 'linux') {
       await assert.rejects(measure({ seconds: 1, output, command: [process.execPath, '-e', ''] }), /requires Linux/);
       return;
     }
+    execFileSync('git', ['init', '-b', 'main'], { cwd: root, stdio: 'ignore', windowsHide: true });
+    execFileSync('git', ['-c', 'user.name=Measurement test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-m', 'fixture'], { cwd: root, stdio: 'ignore', windowsHide: true });
+    process.chdir(root);
+    await assert.rejects(measure({ seconds: 1, output, command: [process.execPath, '-e', ''] }), /owned feature branch/);
+    execFileSync('git', ['switch', '-c', 'measurement-fixture'], { cwd: root, stdio: 'ignore', windowsHide: true });
     const code = await measure({ seconds: 1, output, command: [process.execPath, '-e', 'process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'] });
     const receipt = JSON.parse(readFileSync(output, 'utf8'));
     assert.equal(code, 1);
     assert.equal(receipt.timedOut, true);
     assert.equal(receipt.signal, 'SIGKILL');
     assert.ok(receipt.wallSeconds < 10);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  } finally { process.chdir(previous); rmSync(root, { recursive: true, force: true }); }
 });
