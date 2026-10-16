@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer, UI_URI } from '../server.mjs';
-import { FIXTURE_ROOT } from '../source.mjs';
+import { FIXTURE_ROOT, SOURCE_FILES } from '../source.mjs';
 import { launchBrowser, closeBrowser, newBenchContext } from '../dist/browser.mjs';
 
 test('actual PNG, isolated live fixture, selection, stale refusal and refreshed source in browser host stub', { timeout: 30000 }, async () => {
@@ -21,6 +21,25 @@ test('actual PNG, isolated live fixture, selection, stale refusal and refreshed 
   try {
     await server.connect(a);
     await client.connect(b);
+    // Exercise the unmodified package before the preview's automatic Take. This catches
+    // lifecycle failures that a screenshot of an always-visible fixture would conceal.
+    const lifecycle = await bench.newPage();
+    await lifecycle.route('https://preview.invalid/fixture/*', async (route) => {
+      const name = new URL(route.request().url()).pathname.split('/').pop();
+      if (!SOURCE_FILES.includes(name)) return route.abort();
+      const contentType = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' }[path.extname(name)];
+      await route.fulfill({ contentType, body: await readFile(path.join(temporary, name)) });
+    });
+    await lifecycle.goto('https://preview.invalid/fixture/graphic.html');
+    assert.equal(await lifecycle.locator('#lower-third').evaluate((node) => getComputedStyle(node).opacity), '0');
+    const offImage = await lifecycle.screenshot({ omitBackground: true });
+    await lifecycle.evaluate(() => window.play());
+    assert.equal(await lifecycle.locator('#lower-third').evaluate((node) => getComputedStyle(node).opacity), '1');
+    assert.notDeepEqual(await lifecycle.screenshot({ omitBackground: true }), offImage);
+    await lifecycle.evaluate(() => { window.update({ f0: 'Native fixture update' }); window.stop(); });
+    assert.equal(await lifecycle.locator('#f0').textContent(), 'Native fixture update');
+    assert.equal(await lifecycle.locator('#lower-third').evaluate((node) => getComputedStyle(node).opacity), '0');
+    await lifecycle.close();
     const initial = await client.callTool({ name: 'noacg_preview', arguments: {} });
     assert.ok(!initial.isError, JSON.stringify(initial.content));
     assert.equal(Buffer.from(initial.content[1].data, 'base64').subarray(0, 8).toString('hex'), '89504e470d0a1a0a');

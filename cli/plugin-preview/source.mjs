@@ -26,5 +26,6 @@ export async function readSource(root = FIXTURE_ROOT) {
     .replace(/<script\s+src="graphic\.js"\s*>\s*<\/script>/i, () => `<script>${files['graphic.js'].replace(/<\/script/gi, '<\\/script')}</script>`)
     .replaceAll('src="badge.svg"', `src="data:image/svg+xml;base64,${Buffer.from(files['badge.svg']).toString('base64')}"`);
   document = document.replace(/<head\s*>/i, (head) => `${head}<meta http-equiv="Content-Security-Policy" content="${csp}">`);
+  document = document.replace(/<\/body>/i, '<script>window.play?.();</script></body>');
   return { packageId: 'noacg-preview-lower-third', revision: `files-sha256:${hash.digest('hex')}`, sourceRoot: root, sourceFiles: SOURCE_FILES, size: SIZE, document };
 }

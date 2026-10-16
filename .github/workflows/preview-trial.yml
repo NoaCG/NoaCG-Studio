@@ -5,6 +5,8 @@ on:
     paths:
       - 'cli/plugin-preview/**'
       - 'scripts/codex-preview-trial.test.mjs'
+      - 'cli/src/browser.ts'
+      - 'cli/src/config.ts'
       - '.github/workflows/preview-trial.yml'
   workflow_dispatch:
 

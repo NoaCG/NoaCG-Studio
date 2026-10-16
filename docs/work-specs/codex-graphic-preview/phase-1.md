@@ -21,10 +21,20 @@ Cache: `C:/Users/ahonemi/.codex/plugins/cache/noacg-preview-local/noacg-preview-
 The cached launcher imports the explicitly prepared source worktree's runtime.
 SDKs: MCP 1.30.0, MCP Apps 1.7.5, OpenAI MCP extensions 0.2.0.
 
-No preview tool appeared dynamically in that ongoing turn, and the native MCP Apps
-surface had no tab. App reload/fresh turn remains necessary before the actual host
-check. Received native message/image, displayed panel and
-native before/after source-edit receipts are not yet recorded.
+The tool subsequently became available dynamically in the same native task.
+Against source commit `0fb9ebae72a4fdb7cbee8212227651087563602c`, the coordinator
+called `noacg_preview` and received/inspected a real, legible PNG, package ID
+`noacg-preview-lower-third`, exact revision
+`files-sha256:48496423f8fb86a74273ae42e8a12e8a01b4940f06f4a83dff6dbd73ab7d4032`
+and the correct absolute fixture path in the phase-1 worktree. The actual MCP Apps
+surface still reported no tab. Opening the panel, native selected request/image
+receipt and native before/after source-edit refresh are not yet observed.
+
+The actual cached launcher also served both tools and the MCP App resource over
+stdio in a separate protocol probe. This proves cached startup, not panel support.
+The runtime worktree is locked with reason "Installed noacg-preview-trial runtime;
+unlock after uninstall" to preserve its ignored dependencies and build outputs
+through automatic post-landing cleanup.
 
 ## Evidence
 
@@ -40,13 +50,19 @@ native before/after source-edit receipts are not yet recorded.
 - Local browser journey: queue job `j-4535` ran the complete assertion path and
   printed the PNG/before-after verification line, then was stopped and requeued
   when admission detected Chromium in a command priced as light work. There is
-  no terminal passing job verdict. The browser-priced retry remains queued for
-  enough free memory. The final test adds host-style CSP enforcement and a
-  retained screenshot, so it still needs that retry or the focused CI job.
+  no terminal passing job verdict. Its browser-priced retry was cancelled once
+  focused CI started; no unowned local retry remains.
 - Focused CI: `.github/workflows/preview-trial.yml` installs the pinned trial,
   builds it, runs its unit/MCP tests, then only its browser protocol journey.
-  Artifact `preview-trial-browser-stub` contains `dist/browser-stub.png` on success.
-  CI has not run at the time of this local receipt.
+  [Run 38955385716](https://github.com/NoaCG/NoaCG-Studio/actions/runs/38955385716)
+  passed all of those steps on `0fb9ebae72a4fdb7cbee8212227651087563602c`: seven
+  unit/MCP tests and one actual Chromium journey under host-style CSP, including
+  `frame-src 'none'`. Artifact `preview-trial-browser-stub` contains
+  `dist/browser-stub.png`. Builder and coordinator inspected it: narrow panel
+  controls are legible and unclipped; region stays aligned. This is explicitly a
+  browser host stub, not actual desktop proof. A later fixture lifecycle fix
+  starts it hidden until Take; the preview explicitly Takes its isolated copy.
+- CLI npm dry run checked 13 included files with zero `plugin-preview` files.
 - Actual Codex desktop AC-1/AC-2: **not checked**. Installation is not host proof.
 - Later AC-3/AC-4/AC-5 and owner visual judgment: **not checked**; outside phase 1.
 

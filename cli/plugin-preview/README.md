@@ -16,12 +16,14 @@ npm run build --prefix cli/plugin-preview
 npm test --prefix cli/plugin-preview
 codex plugin marketplace add "$PWD/cli/plugin-preview"
 codex plugin add noacg-preview-trial@noacg-preview-local
+git worktree lock --reason "Installed noacg-preview-trial runtime; unlock after uninstall" "$PWD"
 ```
 
 Build prepares an ignored local marketplace and `runtime.local.json`. Codex copies
 the plugin into its cache. The cached `launch.mjs` deliberately starts the pinned
 runtime in this original worktree, including its `node_modules` and built UI.
-Keep this worktree and those files until uninstalling the trial. This is an explicit
+Keep this worktree locked and those files until uninstalling the trial so automatic
+post-landing cleanup cannot remove the installed runtime. This is an explicit
 local development dependency, not a portable distribution. The build never
 modifies the installed `noacg` skill or the public marketplace. The trial is excluded
 from the CLI npm `files` list and toolkit generator.
@@ -41,8 +43,10 @@ the panel leaves sending disabled and reports that limitation.
    request, selected `f0`, absolute source root, exact `files-sha256` revision and
    a PNG image. Record what the task actually receives.
 3. Have that same native task edit `cli/plugin-preview/fixture/graphic.css` with
-   its normal file tools, run available NoaCG validation/screenshots and inspect
-   the result. Call `noacg_preview`, or use **Refresh source**. Confirm the panel
+   its normal file tools, run NoaCG validation/screenshots on a ZIP snapshot and
+   inspect the result. A directory validation rewrites the CLI package layout,
+   so use the ZIP below to preserve the fixed fixture paths. Call `noacg_preview`,
+   or use **Refresh source**. Confirm the panel
    displays the larger name and new revision. Refresh clears selection.
 4. Choose **Region**, drag a rectangle, and submit another explicit request.
    The rectangle uses 1920 × 1080 graphic coordinates and should stay aligned
@@ -76,6 +80,8 @@ loading, fonts, field controls and rehearsal belong to later phases.
 node --test scripts/codex-preview-trial.test.mjs
 npm test --prefix cli/plugin-preview
 npm run queue -- "npm run test:browser --prefix cli/plugin-preview"
+Compress-Archive -Path cli/plugin-preview/fixture/* -DestinationPath cli/plugin-preview/dist/fixture-after.zip -Force
+npm run queue -- "npx --yes @noacg/cli@0.12.2 validate cli/plugin-preview/dist/fixture-after.zip --screenshots cli/plugin-preview/dist/validation-after --json"
 ```
 
 The browser test uses real source, PNG capture and MCP tools with a simulated
@@ -88,7 +94,10 @@ Use `codex plugin remove noacg-preview-trial@noacg-preview-local`, then
 disabled, set `[plugins."noacg-preview-trial@noacg-preview-local"] enabled = false`
 in the applicable Codex configuration. Restart the app if the current session
 retains the tools. Rebuild UI changes in the original worktree; reinstall if the
-manifest, launcher or local runtime location changes.
+manifest, launcher or local runtime location changes. Restart its MCP connection
+after server-code changes; rebuilding does not reload code in a running Node process.
+After uninstalling, unlock this worktree with `git worktree unlock <worktree-path>`
+before normal cleanup. Preserve any wanted fixture edits first.
 
 ## Contracts checked
 
