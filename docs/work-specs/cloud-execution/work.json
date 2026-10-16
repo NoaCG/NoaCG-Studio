@@ -6,12 +6,12 @@
     "source": "Owner request in this Codex chat, 2026-10-16; precise verification depth remains reserved for approval."
   },
   "review": {
-    "revision": "0a2faa607e8e2602f705c5fbce655d9604c54903",
+    "revision": "57523b2cb9f0143b613ed5631074be2c93324c8d",
     "specSha256": "7a4aab32b964e1432174cdd72ad0268631c0b4c2577f94dcbdb01adc20093c2e",
     "evidence": [
       {
         "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-        "sha256": "ef6fad087ec2498e9cfe593248710d7742924e4c77a9760e08f3a26c39e5cdc2"
+        "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
       }
     ],
     "criteria": [
@@ -37,7 +37,7 @@
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-            "sha256": "ef6fad087ec2498e9cfe593248710d7742924e4c77a9760e08f3a26c39e5cdc2"
+            "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           }
         ]
       },
@@ -47,11 +47,11 @@
         "evidence": [
           {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-            "sha256": "ef6fad087ec2498e9cfe593248710d7742924e4c77a9760e08f3a26c39e5cdc2"
+            "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "600316706f9c970e4a3086b42e3adf5a9bcd256b9874ebcbe58dbd016f3430b7"
+            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
           }
         ]
       },
@@ -61,11 +61,11 @@
         "evidence": [
           {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-            "sha256": "ef6fad087ec2498e9cfe593248710d7742924e4c77a9760e08f3a26c39e5cdc2"
+            "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "600316706f9c970e4a3086b42e3adf5a9bcd256b9874ebcbe58dbd016f3430b7"
+            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
           }
         ]
       },
@@ -75,11 +75,11 @@
         "evidence": [
           {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-            "sha256": "ef6fad087ec2498e9cfe593248710d7742924e4c77a9760e08f3a26c39e5cdc2"
+            "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "600316706f9c970e4a3086b42e3adf5a9bcd256b9874ebcbe58dbd016f3430b7"
+            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
           }
         ]
       },
@@ -89,11 +89,11 @@
         "evidence": [
           {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-            "sha256": "ef6fad087ec2498e9cfe593248710d7742924e4c77a9760e08f3a26c39e5cdc2"
+            "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "600316706f9c970e4a3086b42e3adf5a9bcd256b9874ebcbe58dbd016f3430b7"
+            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
           }
         ]
       },
