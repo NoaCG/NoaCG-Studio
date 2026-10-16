@@ -31,6 +31,10 @@ stands: no house look and no taste rules by default. Taking in the USER'S brand 
      folder"
    - "A podcast set: guest strap, topic bar and a LIVE bug in navy and amber with Space Grotesk,
      as a production in show order"
+
+   It names the connected account once, as `login` and `whoami` print it, and does not compare
+   it with other addresses it may know for the user (in the baseline both runs on one agent did,
+   and one held its save for a turn).
 2. **"What can I do?" is answered by the skill**, not from its description: the description names
    first-time and capability questions about NoaCG, so the agent loads the skill, connects, and
    answers with the same start.
@@ -40,8 +44,9 @@ stands: no house look and no taste rules by default. Taking in the USER'S brand 
      fonts, its logo file). Never invent a brand the user did not give.
    - The logo is copied into `images/` (SVG preferred), placed where the design has room for it,
      and is a field when the operator may need to swap it.
-   - A font is bundled into `fonts/` only when its licence allows it (an OFL font such as a
-     Google Font, with its licence text); otherwise ask for the files or name a close free font.
+   - A font is bundled into `fonts/` only when its licence allows it (an open licence such as the
+     OFL most Google Fonts carry, with its licence text); otherwise ask for the files or name a
+     close free font.
    - The final report says what was used, where it came from, what could not be used, and that a
      logo or crest is someone's trademark the user needs the right to use.
 4. **`validator.md` says what `missing-asset` checks today**: `assets/` and `lottie/` only, as an

@@ -186,9 +186,9 @@ never invent one they did not give.
   where the design gives it room, on a surface it reads on. When the operator may need another
   logo (a sponsor, an opponent), it is a `filelist` field. The validator does not check that an
   `images/` file exists, so see the logo in the frames.
-- **A font** is bundled into `fonts/` with `@font-face` only when its licence allows that (an OFL
-  font, such as any Google Font, with its licence text copied beside it). A commercial font: ask
-  the user for its files and their licence, or use a close free font and say so.
+- **A font** is bundled into `fonts/` with `@font-face` only when its licence allows that (an open
+  licence such as the OFL most Google Fonts carry, with the licence text copied beside it). A
+  commercial font: ask the user for its files and their licence, or use a close free font and say so.
 - **Report it**: in the final report, say which colours, fonts and logo you used and where each
   came from, what you could not use and why, and that a logo or crest belongs to its owner, so
   the user needs the right to show it on air.
