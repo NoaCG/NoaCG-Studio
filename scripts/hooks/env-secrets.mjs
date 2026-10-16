@@ -41,6 +41,11 @@ function secretEnvMention(text) {
     .find(isSecretEnvFile);
 }
 
+/** The secret .env file code names, other than one an `--env-file` flag loads for it. */
+function readByCode(text) {
+  return secretEnvMention(text.replace(ENV_FILE_FLAG, ''));
+}
+
 /** Programs that print what is in the files they are given. */
 const READERS = new Set([
   'cat', 'type', 'more', 'less', 'most', 'head', 'tail', 'bat', 'batcat', 'nl', 'tac', 'od', 'xxd',
@@ -70,10 +75,10 @@ const SECRET_NAME = /(?:^|_)(?:API_?KEY|KEY|TOKEN|SECRET|PASSWORD|PASSWD|PAT|DAT
  * Why this shell command would show a .env value, or null when it would not. `baseDir` is the
  * directory the session runs in; a recursive grep is judged by the folder it searches.
  */
-export function showsEnvSecrets(command, baseDir = process.cwd()) {
+export function showsEnvSecrets(command, baseDir) {
   // A script fed to an interpreter on a heredoc: the segmenter below drops heredoc bodies.
   if (HEREDOC_CODE.test(command)) {
-    const named = secretEnvMention(command.replace(ENV_FILE_FLAG, ''));
+    const named = readByCode(command);
     if (named) return `a script on stdin reads ${named}`;
   }
   for (const segment of segments(stripHeredocBodies(command))) {
@@ -82,7 +87,7 @@ export function showsEnvSecrets(command, baseDir = process.cwd()) {
     if (INLINE_CODE.test(segment)) {
       const loaded = [...segment.matchAll(ENV_FILE_FLAG)].map((match) => match[1]).find(isSecretEnvFile);
       if (loaded && PRINTS.test(segment)) return `inline code prints values loaded from ${loaded}`;
-      const named = secretEnvMention(segment.replace(ENV_FILE_FLAG, ''));
+      const named = readByCode(segment);
       if (named) return `inline code reads ${named}`;
     }
     const redirected = /(?<![<\d])<\s*(["']?)([^\s"'<>|;&()]+)\1/.exec(segment);
@@ -213,9 +218,10 @@ function recursiveSearchOver(program, args, command, baseDir) {
   // A search that excludes .env files, or only looks in files of a named kind, never opens one.
   if (flags.some((flag) => /^--(?:exclude|glob|iglob)\b.*\.env/.test(flag)) || /\s-g\s+\S*!\S*\.env/.test(command)) return null;
   if (flags.some((flag) => /^--(?:include|type)=(?!.*\.env)/.test(flag)) || /\s(?:-t|--type|-g)\s+(?!["']?!)(?!\S*\.env)\S/.test(command)) return null;
-  const operands = args.filter((arg) => !arg.startsWith('-')).map((arg) => arg.replace(/^["']|["']$/g, ''));
-  // The first operand is the pattern unless it came with -e; with no folder named, the search is `.`.
-  const folders = flags.some((flag) => flag === '-e' || flag.startsWith('--regexp')) ? operands : operands.slice(1);
+  // What is left without the pattern, the flags and their values; with no folder named, the search is `.`.
+  const folders = files(program, args)
+    .filter((arg, i, rest) => !arg.startsWith('-') && !TAKES_VALUE.test(rest[i - 1] ?? ''))
+    .map((arg) => arg.replace(/^["']|["']$/g, ''));
   const cwd = targetDir(command, baseDir);
   for (const folder of folders.length > 0 ? folders : ['.']) {
     const dir = isAbsolute(folder) ? folder : join(cwd, folder);

@@ -20,10 +20,12 @@ import { endlessWait, endlessWaitRefusal } from '../command-match.mjs';
 
 const input = await readHookInput();
 const command = input?.tool_input?.command;
-const cwd = typeof input?.cwd === 'string' && input.cwd ? input.cwd : process.cwd();
-const secretRead = typeof command === 'string' ? showsEnvSecrets(command, cwd) : null;
-const wait = typeof command === 'string' ? endlessWait(command) : null;
-const refusal = secretRead ? envSecretsRefusal(secretRead) : wait ? endlessWaitRefusal(wait) : null;
+let refusal = null;
+if (typeof command === 'string') {
+  const secretRead = showsEnvSecrets(command, typeof input.cwd === 'string' && input.cwd ? input.cwd : process.cwd());
+  const wait = !secretRead && endlessWait(command);
+  refusal = secretRead ? envSecretsRefusal(secretRead) : wait ? endlessWaitRefusal(wait) : null;
+}
 if (refusal) {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: refusal },
