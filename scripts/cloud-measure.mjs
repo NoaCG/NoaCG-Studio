@@ -109,7 +109,7 @@ export async function measure({ command, seconds, output }) {
     cgroupSampledPeakBytes: 0, timedOut: false,
   };
   const start = performance.now();
-  const child = spawn(command[0], command.slice(1), { stdio: 'inherit', detached: true, windowsHide: true });
+  const child = spawn(command[0], command.slice(1), { stdio: 'inherit', windowsHide: true });
   const known = new Map();
   const signalTree = (signal) => {
     if (!child.pid) return;
