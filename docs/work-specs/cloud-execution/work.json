@@ -11,7 +11,7 @@
     "evidence": [
       {
         "path": "docs/work-specs/cloud-execution/evidence/check.md",
-        "sha256": "8f2d3f3f958c32847ee7d729a68b2337d8267d8e94c536f112e39fb7124ddcca"
+        "sha256": "8b3f501121136550f57ad8b72e057076cf5333ac2c7dd82a6638dc943c559e90"
       }
     ],
     "criteria": [
@@ -71,7 +71,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cloud-execution/evidence/check.md",
-            "sha256": "8f2d3f3f958c32847ee7d729a68b2337d8267d8e94c536f112e39fb7124ddcca"
+            "sha256": "8b3f501121136550f57ad8b72e057076cf5333ac2c7dd82a6638dc943c559e90"
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/measurements.md",

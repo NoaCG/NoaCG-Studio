@@ -43,7 +43,7 @@ Verification, inline:
   the unused field and is covered by the final targeted gates.
 - node scripts/jobs.mjs add 'npm run test:e2e': refused with exit 1; unchanged
   whole-suite guard retained. No browser job was enqueued by this negative check.
-- node scripts/e2e-affected.mjs --plan --base origin/main: mode none for this
+- node scripts/e2e-affected.mjs origin/main --json: mode none for this
   measurement-tool/docs change. No product browser flow was added.
 - git diff --check: passed. Fresh merge-tree and merge-order checks: clear.
 - Production build and live bounded browser measurements are recorded separately
