@@ -14,8 +14,8 @@
 // 0.0.0.0 would turn any web page the operator visits into a remote for the playout box, so
 // the command refuses to.
 
-import { spawn } from 'node:child_process';
 import { cliVersion, noacgUrl } from '../config.js';
+import { launchUrl } from '../openUrl.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
 import { ografAdapter } from '../playout/adapters/ograf.js';
@@ -28,23 +28,6 @@ import { PairingCodes, resolveToken } from '../playout/token.js';
  *  itself. The code is one-time and short-lived; the token never travels in a URL. */
 export function pairingUrl(port: number, code: string): string {
   return `${noacgUrl()}/app?bridge=${port}&code=${encodeURIComponent(code)}`;
-}
-
-/** Open a URL in the default browser, per OS, without waiting on it. On Windows this goes
- *  through the shell's own URL handler rather than `cmd /c start`: cmd re-parses its command
- *  line, and the `&` before `code=` would have split the pairing link in two. */
-function openInBrowser(url: string): void {
-  const [cmd, args] =
-    process.platform === 'win32'
-      ? ['rundll32', ['url.dll,FileProtocolHandler', url]]
-      : process.platform === 'darwin'
-        ? ['open', [url]]
-        : ['xdg-open', [url]];
-  try {
-    spawn(cmd, args, { detached: true, stdio: 'ignore' }).unref();
-  } catch {
-    // Printing the URL is the fallback, and it is printed regardless.
-  }
 }
 
 export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
@@ -99,7 +82,7 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
 
   // The browser opens by default: the exe is double-clicked by somebody who should not have to
   // copy a link. `--no-open` for terminals and for a Bridge that starts with the machine.
-  if (flagBool(args, 'open', true)) openInBrowser(pairUrl);
+  if (flagBool(args, 'open', true)) launchUrl(pairUrl);
 
   // ENTER: a new one-time link for another browser (D19). Read line by line in the terminal's own
   // mode, never raw, so Ctrl+C still reaches the process as the signal that stops it below.

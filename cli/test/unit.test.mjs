@@ -36,6 +36,7 @@ import { FRAMES_MARKER, isGeneratedFile, markFramesDir, packageEntries, readPack
 import { AGENT_KEY_PREFIX, credentialsPath, displayPrefix, forgetKey, isAgentKey, resolveKey, storeKey } from '../dist/auth.js';
 import { cliVersion, configDir, credentialsDir, noacgUrl } from '../dist/config.js';
 import { parseFieldList } from '../dist/commands/scaffold.js';
+import { openUrl, openUrlCommand } from '../dist/openUrl.js';
 
 const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -892,6 +893,7 @@ async function drivenLogin({ waitSec }) {
       origin,
       home,
       state,
+      page: page.text,
       out: () => ({ stdout, stderr }),
       complete: (params) => request({ method: 'POST', path: '/complete', headers: { 'content-type': 'text/plain' } }, params),
       waitForExit: async (withinMs) => {
@@ -932,6 +934,11 @@ test('a successful login exits 0 promptly, with the browser tab still open', asy
 
     const stored = JSON.parse(await fs.readFile(path.join(session.home, 'credentials.json'), 'utf8'));
     assert.equal(stored.deployments[session.origin].key, session.key, 'the key it printed about is the key it stored');
+
+    // The tab says what the key may do before the CLI knows which scopes were granted, so its
+    // words hold for a graphics-only key and for one that may also make productions.
+    assert.match(session.page, /can save graphics to your library and, if you allowed it, make productions of them/);
+    assert.doesNotMatch(session.page, /can only save graphics/, 'since 0.12.0 a key may also make productions');
   } finally {
     session.release();
   }
@@ -972,15 +979,49 @@ test('"Don\'t allow" in the browser ends the login at once, and says nothing was
   }
 });
 
-test('the consent URL tells the page this login takes a refusal', async () => {
+test('the consent URL tells the page this login takes a refusal, and the link names where it works', async () => {
   const session = await drivenLogin({ waitSec: 6 });
   try {
     const { stderr } = session.out();
     assert.match(/http:\/\/\S+\/app\?\S+/.exec(stderr)?.[0] ?? '', /[?&]deny=1(&|$)/);
+    // The consent page redirects to 127.0.0.1 here, so any local browser signed in to the account works.
+    assert.match(stderr, /any browser on this computer that is signed in to the NoaCG account you want to connect/);
     await session.waitForExit(20_000);
   } finally {
     session.release();
   }
+});
+
+// Through 0.12.0 Windows opened the consent URL with `cmd /c start "" <url>`. cmd splits a command
+// line at `&`, so the browser got `/app?agent=<state>` alone, the page called it an invalid agent
+// request, and cmd's failure on the rest made the CLI say it could not open a browser. The URL
+// must reach the opener as one argument, with nothing in between that parses it.
+test('on Windows the consent URL goes whole to the URL handler, never through cmd', async () => {
+  const url = 'https://noacg.studio/app?agent=s&port=51234&name=noacg+CLI+on+PC&challenge=c&deny=1&scopes=productions%3Acreate';
+  const calls = [];
+  const run = (ok) => (file, args, options, done) => {
+    calls.push({ file, args, options });
+    done(ok ? null : new Error('failed'));
+  };
+
+  assert.equal(await openUrl(url, 'win32', run(true)), true);
+  assert.deepEqual(calls[0], {
+    file: 'rundll32',
+    args: ['url.dll,FileProtocolHandler', url],
+    options: { windowsHide: true, windowsVerbatimArguments: true },
+  });
+  assert.equal(await openUrl(url, 'win32', run(false)), false, 'an opener that fails is reported as not opened');
+
+  assert.deepEqual(openUrlCommand(url, 'darwin').args, [url]);
+  assert.equal(openUrlCommand(url, 'darwin').file, 'open');
+  assert.equal(openUrlCommand(url, 'linux').file, 'xdg-open');
+  assert.equal(
+    await openUrl(url, 'win32', () => {
+      throw new Error('spawn failed');
+    }),
+    false,
+    'an opener that cannot start is reported as not opened',
+  );
 });
 
 // ---------------------------------------------------------------- delivery receipts

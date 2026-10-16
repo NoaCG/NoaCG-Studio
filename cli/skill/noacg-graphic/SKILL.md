@@ -25,7 +25,8 @@ cannot execute the CLI.
 
 **Connect before the brief.** Once per session, before you collect the brief or start building:
 run `noacg doctor` once, then `noacg whoami` (both in the terminal; the MCP tool has no login).
-A valid key is reused as it is. Otherwise tell the user a NoaCG page will open in their browser,
+A valid key is reused as it is. Otherwise tell the user a NoaCG page will open in their browser
+(the link it prints works in any browser on this computer signed in to the account they want),
 run `noacg login` and give it up to five minutes; the user approves it there, never you. If they
 decline, the login times out or fails, carry on locally and say plainly that nothing will be
 saved to their account; finish with the validated package folders (step 5's no-account route).
@@ -140,7 +141,7 @@ package is listed apart as pending Install. Validator warnings stay apart from t
 state. A saved link is saved, not opened: say "saved", not "checked in the browser".
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli@0.12.0 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.0` once makes every
+(`npx -y @noacg/cli@0.12.1 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.1` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the

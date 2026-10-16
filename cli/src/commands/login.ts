@@ -20,11 +20,11 @@
 // /callback instead of a code. (A consent URL without it - an older CLI - only says on the page
 // that nothing was granted, and that CLI waits out its timeout as it always did.)
 
-import { execFile } from 'node:child_process';
 import http from 'node:http';
 import os from 'node:os';
 import type { AddressInfo } from 'node:net';
 import { noacgUrl } from '../config.js';
+import { openUrl } from '../openUrl.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagNumber, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { accountLabel, ApiError, challengeFor, displayPrefix, explainFailure, isAgentKey, newState, newVerifier, redeemCode, storeKey } from '../auth.js';
 
@@ -43,31 +43,12 @@ const CALLBACK_PAGE = `<!doctype html><meta charset="utf-8"><title>noacg login</
   if(!frag){h.textContent='Nothing to finish';p.textContent='This page expects a code from NoaCG. Run noacg login again.';return;}
   fetch('/complete',{method:'POST',headers:{'content-type':'text/plain'},body:frag}).then(function(r){return r.text().then(function(t){return {ok:r.ok,text:t};});}).then(function(r){
     if(r.ok&&r.text==='denied'){h.textContent='Nothing was granted';p.textContent='noacg login has stopped. You can close this tab.';}
-    else if(r.ok){h.textContent='Done - you can close this tab';p.textContent='noacg is logged in on this computer. The key is stored locally and can only save graphics to your library.';}
+    else if(r.ok){h.textContent='Done - you can close this tab';p.textContent='noacg is logged in on this computer. The key is stored locally and can save graphics to your library and, if you allowed it, make productions of them. It cannot publish or play anything.';}
     else{h.textContent='That did not work';p.textContent=r.text||'Run noacg login again.';}
     history.replaceState(null,'',location.pathname);
   }).catch(function(){h.textContent='The noacg command is no longer waiting';p.textContent='Run noacg login again.';});
 })();
 </script>`;
-
-function openInBrowser(url: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const done = (ok: boolean) => resolve(ok);
-    try {
-      if (process.platform === 'win32') {
-        // `start` is a cmd builtin; the empty first argument is the window title it would
-        // otherwise mistake the URL for.
-        execFile('cmd', ['/c', 'start', '', url], { windowsHide: true }, (e) => done(!e));
-      } else if (process.platform === 'darwin') {
-        execFile('open', [url], (e) => done(!e));
-      } else {
-        execFile('xdg-open', [url], (e) => done(!e));
-      }
-    } catch {
-      done(false);
-    }
-  });
-}
 
 interface Handoff {
   code: string;
@@ -187,10 +168,16 @@ export async function runLogin(args: ParsedArgs, out: Out): Promise<number> {
   consent.searchParams.set('deny', '1');
   consent.searchParams.set('scopes', 'productions:create');
 
-  out.log(`Open this page in your browser to allow "${name}" to save graphics and productions to your NoaCG account:\n\n  ${consent.href}\n`);
+  // The consent page hands its code to 127.0.0.1 on THIS computer, so any browser here will do.
+  // Said every time: the default browser opening is no help to somebody signed in to NoaCG in
+  // another one, and on Windows "opened" only means the shell took the link.
+  out.log(
+    `Open this page in your browser to allow "${name}" to save graphics and productions to your NoaCG account:\n\n  ${consent.href}\n\n` +
+      'The link works in any browser on this computer that is signed in to the NoaCG account you want to connect.',
+  );
   if (flagBool(args, 'browser', true)) {
-    const opened = await openInBrowser(consent.href);
-    out.log(opened ? 'Opened your browser. Waiting for you to allow access…' : 'Could not open a browser here - paste the URL into one. Waiting…');
+    const opened = await openUrl(consent.href);
+    out.log(opened ? 'Opened your browser. Waiting for you to allow access…' : 'Could not open a browser here, so paste the link into one. Waiting…');
   } else {
     out.log('Waiting for you to allow access…');
   }
