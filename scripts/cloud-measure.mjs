@@ -96,6 +96,7 @@ export function processTreeSample(root, procRoot = '/proc', known = new Map()) {
 }
 
 export async function measure({ command, seconds, output }) {
+  const monitorCpuStart = process.cpuUsage();
   if (process.platform !== 'linux') throw new Error('This explicit measurement path requires Linux /proc');
   const git = (...args) => execFileSync('git', args, { encoding: 'utf8', windowsHide: true }).trim();
   const branch = git('branch', '--show-current');
@@ -149,6 +150,8 @@ export async function measure({ command, seconds, output }) {
   process.off('SIGINT', interrupted);
   process.off('SIGTERM', interrupted);
   Object.assign(receipt, result, { wallSeconds: (performance.now() - start) / 1000, finishedAt: new Date().toISOString() });
+  const monitorCpu = process.cpuUsage(monitorCpuStart);
+  receipt.monitorCpuSeconds = (monitorCpu.user + monitorCpu.system) / 1_000_000;
   writeFileSync(output, JSON.stringify(receipt, null, 2) + '\n');
   process.stderr.write(`[cloud-measure] ${receipt.wallSeconds.toFixed(2)}s; aggregate sampled RSS ${(receipt.aggregatePeakRssBytes / 2 ** 20).toFixed(1)} MiB; ${output}\n`);
   return receipt.code === 0 && !receipt.timedOut && !receipt.interrupted ? 0 : 1;
