@@ -48,6 +48,11 @@ export const MARK_INK_CONTRAST_FLOOR = 3;
  * A gate whose false positives are the designs that carry a crest BEST would teach authors to
  * ignore it, which costs more than the case it catches. The transparent-ink case below has no
  * such ambiguity: composited ink at 1.1:1 is not there at all, at any hue.
+ *
+ * "Its own field" is any PLATE the mark brings (`MarkProbe.plate`), not only a full rectangle:
+ * a round badge with transparent corners was judged as bare ink, and in the coding-agent runs
+ * of 2026-10-16 this fired on both real logos tried while both read clearly, and every agent
+ * overrode it. `scripts/mark-legibility.test.mjs` pins both directions.
  */
 
 export interface MarkLegibilityFinding {
@@ -128,7 +133,7 @@ export function markLegibilityFindings(doc: Document, win: Window): MarkLegibili
   for (const img of Array.from(doc.querySelectorAll('img'))) {
     if (!isMarkImage(img, win)) continue;
     const probe = probeMarkElement(img);
-    if (!probe || probe.backing === 'own-field') continue;
+    if (!probe || probe.plate) continue;
     const ink = greyOfLuminance(probe.inkLuminance);
     // The WORST surface it could be sitting on. A mark that survives every candidate is safe
     // whichever one it is actually over; one that fails the worst is the case worth naming.

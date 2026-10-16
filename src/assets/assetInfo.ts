@@ -192,6 +192,14 @@ const INK_ALPHA = 128;
 /** Below this share of fully-opaque pixels the mark is treated as transparent-backed. A logo
  *  flattened onto a white tile (every JPEG mark) is opaque and DOES bring its own field. */
 const OWN_FIELD_OPACITY = 0.98;
+/** A PLATE in any shape - a round badge, a shield - fills at least this share of the box around
+ *  its opaque pixels. A disc fills 0.785 of its square and a shield more; a wordmark's letters,
+ *  gaps and all, fill well under it. */
+const PLATE_FILL = 0.7;
+/** How far a plate's luminance must spread to count as something drawn ON it: a plate in one ink
+ *  is just a big glyph, and vanishes on its own tone. The floor Pro's mark knock uses for "one
+ *  ink" (`MARK_SINGLE_INK_SPREAD`, pro/language/paint.ts). */
+const PLATE_INK_SPREAD = 0.05;
 
 export interface MarkProbe {
   /** naturalWidth / naturalHeight. */
@@ -216,6 +224,15 @@ export interface MarkProbe {
    * an ink, and counting it whole would give every mark a spread it does not have.
    */
   inkSpread?: number;
+  /**
+   * Does the ink stand on a plate the mark brings itself, in ANY shape? True for every
+   * `own-field` mark, and also for a round badge or a shield whose corners are transparent -
+   * which `backing` calls transparent, because that is what the AI tiers were calibrated on
+   * (the Pro brand round's `sunbeam` roundel is a transparent-backed mark by design). Additive
+   * and optional, like `inkSpread`, so nothing that already builds or reads a probe moves; the
+   * legibility gate (`validation/markLegibility.ts`) is what reads it.
+   */
+  plate?: boolean;
 }
 
 /**
@@ -273,12 +290,77 @@ function readMark(img: HTMLImageElement): MarkProbe | null {
   // E[x²] - E[x]², clamped at zero: the two terms are near-equal for a single-ink mark, where
   // float error can push the difference a hair below it.
   const variance = inkWeight > 0 ? Math.max(0, inkSquareSum / inkWeight - mean * mean) : 0;
+  const inkSpread = Math.sqrt(variance);
+  const backing = opaque / total >= OWN_FIELD_OPACITY ? 'own-field' : 'transparent';
   return {
     aspect,
-    backing: opaque / total >= OWN_FIELD_OPACITY ? 'own-field' : 'transparent',
+    backing,
     inkLuminance: mean,
-    inkSpread: Math.sqrt(variance),
+    inkSpread,
+    plate: backing === 'own-field' || (inkSpread > PLATE_INK_SPREAD && isPlate(px, w, h)),
   };
+}
+
+/**
+ * Does the ink stand on a plate of its own, whatever the plate's shape?
+ *
+ * A round badge on a square canvas leaves its corners transparent, so the box-opacity test above
+ * calls it transparent ink - and the legibility gate used to average a dark disc, its ring and the
+ * name on it into one grey and hold that against the tile (2.08:1 on a badge that reads
+ * perfectly; agent runs of 2026-10-16). A plate is ONE opaque piece, with no hole the surface
+ * shows through, whose outline fills most of the box around it. A ring or a knocked-out name
+ * has such a hole; a wordmark's separate letters are not one piece and do not fill their box.
+ */
+function isPlate(px: Uint8ClampedArray, w: number, h: number): boolean {
+  const n = w * h;
+  const solid = new Uint8Array(n);
+  let solidCount = 0;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let i = 0; i < n; i += 1) {
+    if (px[i * 4 + 3] < INK_ALPHA) continue;
+    solid[i] = 1;
+    solidCount += 1;
+    const x = i % w, y = (i - x) / w;
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+  }
+  if (!solidCount) return false;
+
+  /** Flood the 4-connected pixels of one kind from `seeds`, inside the opaque bounding box. */
+  const flood = (seeds: number[], kind: 0 | 1): number => {
+    const seen = new Uint8Array(n);
+    for (const i of seeds) seen[i] = 1;
+    let count = seeds.length;
+    while (seeds.length) {
+      const i = seeds.pop() as number;
+      const x = i % w, y = (i - x) / w;
+      for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+        if (nx < minX || nx > maxX || ny < minY || ny > maxY) continue;
+        const j = ny * w + nx;
+        if (solid[j] !== kind || seen[j]) continue;
+        seen[j] = 1;
+        count += 1;
+        seeds.push(j);
+      }
+    }
+    return count;
+  };
+
+  // One piece: the solid pixels reachable from any one of them are all of them.
+  if (flood([solid.indexOf(1)], 1) < solidCount) return false;
+  // Clear pixels reachable from the box's edge are OUTSIDE the plate; the rest is its outline.
+  const edge: number[] = [];
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const i = y * w + x;
+      if (!solid[i] && (x === minX || x === maxX || y === minY || y === maxY)) edge.push(i);
+    }
+  }
+  const area = (maxX - minX + 1) * (maxY - minY + 1);
+  const outline = area - flood(edge, 0);
+  return outline >= PLATE_FILL * area && outline === solidCount;
 }
 
 const markCache = new Map<string, Promise<MarkProbe | null>>();
