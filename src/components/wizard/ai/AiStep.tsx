@@ -568,25 +568,25 @@ export default function AiStep({
   // composition, shared with the Lite benchmark runners. The safety screen sits INSIDE the
   // injected validator on purpose: the bench executes the result the moment it lands, so a
   // finding has to reach the provider's repair loop rather than a review step the code has
-  // already run past. Its source is the template being converted (the import on a Generate
-  // press, the standing result's `convertedFrom` on a turn), so a fetch() the user's file had
-  // is not the AI's and an unrelated import hides nothing (#1179). The setup adds its checks.
+  // already run past. `source` is the template a result was converted from (creation.ts picks
+  // it per route), so a template that already called fetch() before the AI touched it is not
+  // reported as something the AI introduced.
+  // The structured setup adds its own checks on top (requested fields present, fonts used).
   // Every "use it as it is" upload is protected: the as-is screen rides inside the injected
   // validator so a tinted or cropped mark reaches the repair loop, not just the result card.
-  const validateFrom = (source: SpxTemplate | undefined): SpxValidator => {
+  const validatorFor = (source?: SpxTemplate | null): SpxValidator => {
     const safe = productionSpxValidator(source, images.map((a) => a.path));
     return withSpecChecks(safe, activeSpec) ?? safe;
   };
   // What a run takes from the browser (src/ai/creation.ts); the structural check and the mark
-  // probe need a live DOM. A refine, fix or rebuild acts on the standing result (`standingIo`).
+  // probe need a live DOM.
   const creationIo: CreationIO = {
     provider: getAiProvider,
-    validate: validateFrom(imported?.template),
+    validatorFor,
     structuralCheck: benchStructuralIntent,
     probeMark,
     onProgress: setBusy,
   };
-  const standingIo = (): CreationIO => ({ ...creationIo, validate: validateFrom(alternatives[selected]?.convertedFrom) });
 
   const showChange = (change: AiTemplateChange) => {
     // The one place every path passes through on its way to the user (`generateRaw` never runs
@@ -656,7 +656,7 @@ export default function AiStep({
    */
   const swapChassis = async (variantId: string) => {
     try {
-      const change = await rebuildOnChassis(alternatives[selected], variantId, contextFor(), standingIo());
+      const change = await rebuildOnChassis(alternatives[selected], variantId, contextFor(), creationIo);
       if (!change) return;
       setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));
       showChange(change);
@@ -803,7 +803,7 @@ export default function AiStep({
       try {
         const change = await refineResult(
           { result, instruction, level, spec: lastSpec, context: contextFor(), lite: liteActive, convertedFrom: alternatives[selected]?.convertedFrom },
-          standingIo(),
+          creationIo,
         );
         setAlternatives(alternatives.map((alt, i) => (i === selected ? change : alt)));
         showChange(change);

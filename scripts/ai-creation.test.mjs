@@ -133,9 +133,15 @@ function harness() {
   const stub = stubProvider();
   const progress = [];
   const probed = [];
+  /** The step's validator, and the source each run asked it for. */
+  const validate = async () => PASS;
+  const sources = [];
   const io = {
     provider: stub.provider,
-    validate: async () => PASS,
+    validatorFor: (source) => {
+      sources.push(source);
+      return validate;
+    },
     structuralCheck: async () => [],
     probeMark: async (asset) => {
       probed.push(asset);
@@ -143,7 +149,7 @@ function harness() {
     },
     onProgress: (stage) => progress.push(stage),
   };
-  return { stub, progress, probed, io };
+  return { stub, progress, probed, io, validate, sources };
 }
 
 /** A template as a provider returns one. The routes never read it; the screen does. */
@@ -211,7 +217,7 @@ test('a Generate press takes the route section 4 selects, in its order of preced
 
 for (const row of ROWS) {
   test(`${row.route}: one ${row.method} call with the options section 4 names, answered late`, async () => {
-    const { stub, progress, io } = harness();
+    const { stub, progress, io, validate, sources } = harness();
     const run = runCreation(input(row.route), io);
     const state = watch(run);
     await settle();
@@ -231,7 +237,9 @@ for (const row of ROWS) {
       // The step's own validator and structural check, not copies, ride with the call.
       const keys = ['onProgress', 'structuralCheck', 'validate', ...(row.profile ? ['profile'] : [])].sort();
       assert.deepEqual(Object.keys(options).sort(), keys);
-      assert.equal(options.validate, io.validate);
+      assert.equal(options.validate, validate);
+      // Only a convert is checked against the import (issue #1179).
+      assert.deepEqual(sources, [row.route === 'convert' ? IMPORTED : null]);
       assert.equal(options.structuralCheck, io.structuralCheck);
       if (row.profile) assert.equal(options.profile, 'lite');
     } else {
@@ -364,7 +372,7 @@ const REFINE_ROWS = [
 
 for (const row of REFINE_ROWS) {
   test(`${row.name}: one modify call with the step's validator, answered late`, async () => {
-    const { stub, progress, io } = harness();
+    const { stub, progress, io, validate, sources } = harness();
     const given = refineInput(row.over);
     const run = refineResult(given, io);
     const state = watch(run);
@@ -381,7 +389,8 @@ for (const row of REFINE_ROWS) {
     // the code, so the spec stays home even when the result has one.
     const keys = ['onProgress', 'validate', ...(row.profile ? ['profile'] : []), ...(row.spec ? ['spec'] : [])].sort();
     assert.deepEqual(Object.keys(options).sort(), keys);
-    assert.equal(options.validate, io.validate);
+    assert.equal(options.validate, validate);
+    assert.deepEqual(sources, [undefined], 'a result converted from nothing is checked against nothing');
     assert.equal(options.onProgress, io.onProgress);
     if (row.profile) assert.equal(options.profile, 'lite');
     if (row.spec) assert.equal(options.spec, SPEC);
@@ -444,32 +453,25 @@ test('only a convert is screened against the import: a fresh result is not (issu
   assert.equal(converted.convertedFrom, imported);
   assert.equal(screenChange(converted), PASS);
 
-  // A fix of that convert keeps the source; a fix of anything else has none to keep.
-  const fix = harness();
-  const fixing = refineResult(refineInput({ level: 'code', instruction: 'fix it', convertedFrom: imported }), fix.io);
+  // A fresh result came from no file, so the import dropped beside it suppresses nothing.
+  const fresh = harness();
+  const running = runCreation(input('directions'), fresh.io);
   await settle();
-  fix.stub.calls[0].resolve(leakyAnswer('Fixed'));
-  const fixed = await fixing;
-  assert.equal(fixed.convertedFrom, imported);
-  assert.equal(screenChange(fixed), PASS);
-  const freshFix = harness();
-  const freshFixing = refineResult(refineInput({ level: 'code', instruction: 'fix it' }), freshFix.io);
-  await settle();
-  freshFix.stub.calls[0].resolve(leakyAnswer('Fixed fresh'));
-  assert.equal(screenChange(await freshFixing).ok, false, "a fresh result's fix is screened with no source");
+  fresh.stub.calls[0].resolve([leakyAnswer('Fresh')]);
+  const screened = screenChange((await running).changes[0]);
+  assert.equal(screened.ok, false);
+  assert.ok(screened.errors.some((e) => /fetch|network/i.test(`${e.rule} ${e.message}`)), JSON.stringify(screened.errors));
 
-  // A fresh result came from no file, so an import dropped beside it later suppresses nothing.
-  for (const route of ['raw', 'lite', 'directions']) {
-    const fresh = harness();
-    const running = runCreation(input(route), fresh.io);
+  // A fix is checked against, and keeps, the source of the result it fixes, and only that.
+  for (const convertedFrom of [imported, undefined]) {
+    const fix = harness();
+    const fixing = refineResult(refineInput({ level: 'code', instruction: 'fix it', convertedFrom }), fix.io);
     await settle();
-    const answer = leakyAnswer(`Fresh ${route}`);
-    fresh.stub.calls[0].resolve(route === 'directions' ? [answer] : answer);
-    const [result] = (await running).changes;
-    assert.equal('convertedFrom' in result, false, route);
-    const screened = screenChange(result);
-    assert.equal(screened.ok, false, route);
-    assert.ok(screened.errors.some((e) => /fetch|network/i.test(`${e.rule} ${e.message}`)), JSON.stringify(screened.errors));
+    fix.stub.calls[0].resolve(leakyAnswer('Fixed'));
+    const fixed = await fixing;
+    assert.deepEqual(fix.sources, [convertedFrom]);
+    assert.equal(fixed.convertedFrom, convertedFrom);
+    assert.equal(screenChange(fixed).ok, Boolean(convertedFrom));
   }
 });
 
@@ -481,7 +483,7 @@ const DIRECTION = { ...change('Direction'), path: 'grounded+polish', spec: { ...
 
 test('rebuild: nothing to rebuild without a spec or onto the same design, and nothing runs', async () => {
   const { progress, io } = harness();
-  io.validate = () => assert.fail('nothing to validate');
+  io.validatorFor = () => assert.fail('nothing to validate');
   assert.equal(await rebuildOnChassis(DIRECTION, 'lt02', input('raw').context, io), null);
   assert.equal(await rebuildOnChassis(change('No spec'), 'lt25', input('raw').context, io), null);
   assert.equal(await rebuildOnChassis(undefined, 'lt25', input('raw').context, io), null);
@@ -506,7 +508,7 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
       let release;
       const late = rebuildOnChassis(direction, 'lt25', context, {
         provider: noProvider,
-        validate: (t) => {
+        validatorFor: () => (t) => {
           validated.push(t);
           return new Promise((resolve) => { release = resolve; });
         },
@@ -522,13 +524,13 @@ test('rebuild: on a page, a late verdict, a thrown one and an abandoned rebuild,
       // Thrown: the verdict's failure reaches the caller.
       const thrown = await rebuildOnChassis(direction, 'lt25', context, {
         provider: noProvider,
-        validate: async () => { throw new Error('The live bench crashed.'); },
+        validatorFor: () => async () => { throw new Error('The live bench crashed.'); },
         onProgress: () => {},
       }).then(() => null, (e) => e.message);
 
       // Abandoned: the first rebuild's verdict lands after a second one finished.
       const held = [];
-      const io = { provider: noProvider, validate: () => new Promise((resolve) => held.push(resolve)), onProgress: () => {} };
+      const io = { provider: noProvider, validatorFor: () => () => new Promise((resolve) => held.push(resolve)), onProgress: () => {} };
       const abandoned = rebuildOnChassis(direction, 'lt25', context, io);
       const fresh = rebuildOnChassis({ ...direction, spec: { ...direction.spec, variantId: 'lt25' } }, 'lt02', context, io);
       await tick();
@@ -739,7 +741,7 @@ test('pro: a finished run carries its package, ran the step validator, and repor
       const validated = [];
       const io = {
         provider: () => { throw new Error('the Pro tier asks no provider'); },
-        validate: async (t) => {
+        validatorFor: () => async (t) => {
           validated.push(t);
           return { ok: true, errors: [], warnings: [] };
         },

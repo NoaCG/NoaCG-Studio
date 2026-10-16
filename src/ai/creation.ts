@@ -52,8 +52,13 @@ export type CreationRoute = 'convert' | 'lite' | 'raw' | 'directions' | 'pro';
 /** What the browser supplies. */
 export interface CreationIO {
   provider: (profile?: CreativeAiProfileId) => AIProvider;
-  /** The step's production validator (static rules, the live bench, the safety screen). */
-  validate: SpxValidator;
+  /**
+   * The step's production validator (static rules, the live bench, the safety screen) for a
+   * result converted from `source`: a construct that template already had is the user's, not
+   * the AI's. Every route here passes the result's own source, so an unrelated import sitting
+   * in the step never hides a fresh result's finding (issue #1179).
+   */
+  validatorFor: (source?: SpxTemplate | null) => SpxValidator;
   structuralCheck: StructuralIntentChecker;
   probeMark: (asset: AssetFile) => Promise<MarkProbe | null>;
   /** The busy line: the route's own label first, then every stage the provider announces. */
@@ -132,7 +137,8 @@ export function creationRoute(state: {
  */
 export async function runCreation(input: CreationInput, io: CreationIO): Promise<CreationResult> {
   const { route, brief, context } = input;
-  const options = { validate: io.validate, structuralCheck: io.structuralCheck, onProgress: io.onProgress };
+  const source = route === 'convert' ? input.imported : null;
+  const options = { validate: io.validatorFor(source), structuralCheck: io.structuralCheck, onProgress: io.onProgress };
   // Each route opens the busy line with its own label before the provider is reached.
   switch (route) {
     case 'convert':
@@ -201,7 +207,8 @@ export interface RefineInput {
   context: GenerateContext;
   /** Lite is active: the refinement runs on the Lite profile. */
   lite: boolean;
-  /** The standing result's `convertedFrom`: a fix of a convert still carries the user's file. */
+  /** The standing result's `convertedFrom`: a fix of a convert is still checked against, and
+   *  carries, the user's file. */
   convertedFrom?: SpxTemplate;
 }
 
@@ -215,7 +222,7 @@ export async function refineResult(input: RefineInput, io: CreationIO): Promise<
   const { result, instruction, level, spec, context, lite, convertedFrom } = input;
   io.onProgress(level === 'spec' ? 'Refining…' : 'Fixing the findings…');
   const change = await io.provider(lite ? 'lite' : undefined).modify(instruction, result, context, {
-    validate: io.validate,
+    validate: io.validatorFor(convertedFrom),
     onProgress: io.onProgress,
     ...(lite ? { profile: 'lite' as const } : {}),
     ...(level === 'spec' && spec ? { spec } : {}),
@@ -250,7 +257,7 @@ export async function rebuildOnChassis(
   current: AiTemplateChange | undefined,
   variantId: string,
   context: GenerateContext,
-  io: Pick<CreationIO, 'validate' | 'onProgress'>,
+  io: Pick<CreationIO, 'validatorFor' | 'onProgress'>,
 ): Promise<AiTemplateChange | null> {
   if (!current?.spec || current.spec.variantId === variantId) return null;
   io.onProgress('Rebuilding on that design…');
@@ -264,7 +271,7 @@ export async function rebuildOnChassis(
     // 'grounded+polish' path onto a template the polish pass never touched, so the card
     // would keep promising "plus a bounded custom flourish" for a flourish that is gone.
     path: 'grounded',
-    validation: demoteSpecFields(await io.validate(template)),
+    validation: demoteSpecFields(await io.validatorFor(current.convertedFrom)(template)),
   };
 }
 
@@ -302,7 +309,8 @@ async function runPro(brief: string, input: ProCreationInput, io: CreationIO): P
   const primaryGraphic = proPackage[0] ?? 'lower-third';
   // Spec-field findings demote to warnings: Pro is a fixed lower-third contract with no
   // repair loop, the grounded-assembly rule (src/ai/spec/specValidate.ts).
-  const proValidate: SpxValidator = async (t) => demoteSpecFields(await io.validate(t));
+  const validate = io.validatorFor();
+  const proValidate: SpxValidator = async (t) => demoteSpecFields(await validate(t));
   // THE USER'S OWN MARK, measured before anything is sent. Two unrelated things read the
   // probe and both need it before the model answers: the brief describes the ink in
   // content-free words, and the composer decides afterwards whether that ink can read on
