@@ -6,12 +6,12 @@
     "source": "Owner numerical approval, 2026-10-16: https://github.com/NoaCG/NoaCG-Studio/issues/1301#issuecomment-6223002051; native launch/authentication and recovery boundaries remain explicit."
   },
   "review": {
-    "revision": "fc7351f72d917bf1cc04a1f36fc94af2cc8a1246",
+    "revision": "95702adddb7b1ba8603be51070cca9a5e7de4724",
     "specSha256": "f44b8144f9e80a2d8da4e72820dbf3476e45307e3d4d91bc7715e5cf26a11361",
     "evidence": [
       {
         "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
-        "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
+        "sha256": "cc375940b4a9abc87ca0949bbad543ad797c4783a514ec6b991870483d8152f4"
       }
     ],
     "criteria": [
@@ -47,7 +47,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
-            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
+            "sha256": "cc375940b4a9abc87ca0949bbad543ad797c4783a514ec6b991870483d8152f4"
           }
         ]
       },
@@ -65,7 +65,7 @@
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
-            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
+            "sha256": "cc375940b4a9abc87ca0949bbad543ad797c4783a514ec6b991870483d8152f4"
           }
         ]
       },
@@ -83,7 +83,7 @@
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
-            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
+            "sha256": "cc375940b4a9abc87ca0949bbad543ad797c4783a514ec6b991870483d8152f4"
           }
         ]
       },
@@ -101,7 +101,7 @@
           },
           {
             "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
-            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
+            "sha256": "cc375940b4a9abc87ca0949bbad543ad797c4783a514ec6b991870483d8152f4"
           }
         ]
       },
