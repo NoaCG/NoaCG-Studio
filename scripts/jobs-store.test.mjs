@@ -1895,7 +1895,7 @@ test('requeue refuses every branch it has no declaration to re-run', () => {
 
 test('requeue puts a pull request the merge queue dropped back in it, at the declared commit (#1119)', () => {
   const sha = 'a878b17c0ffee0000000000000000000000000ab';
-  const command = `node scripts/land-watch.mjs --pr 1118 --branch claude/f --expect-sha ${sha}`;
+  const landing = merge('j-4376', { branch: 'claude/f', command: `node scripts/land-watch.mjs --pr 1118 --branch claude/f --expect-sha ${sha}` });
   const stub = (pr, answer = { status: 0, out: '', err: '' }) => {
     const calls = [];
     return { calls, view: () => pr, gh: (args) => (calls.push(args), answer) };
@@ -1904,7 +1904,7 @@ test('requeue puts a pull request the merge queue dropped back in it, at the dec
   // Dropped by a flaky merge_group check: open, no auto-merge request, no queue entry. Re-running
   // the watcher alone failed at once on this; the request is turned back on, held to the pin.
   const dropped = stub({ state: 'OPEN', autoMergeRequest: null, mergeQueueEntry: null });
-  assert.deepEqual(restoreQueueEntry(command, dropped), { action: 'restored', pr: '1118' });
+  assert.deepEqual(restoreQueueEntry(landing, dropped), { action: 'restored', pr: '1118' });
   assert.deepEqual(dropped.calls, [['pr', 'merge', '1118', '--auto', '--match-head-commit', sha]]);
 
   // Still queued, already merged, or unreadable: the watcher answers it as before, and gh is not asked.
@@ -1915,20 +1915,20 @@ test('requeue puts a pull request the merge queue dropped back in it, at the dec
     null,
   ]) {
     const s = stub(pr);
-    assert.deepEqual(restoreQueueEntry(command, s), { action: 'watch' });
+    assert.deepEqual(restoreQueueEntry(landing, s), { action: 'watch' });
     assert.deepEqual(s.calls, []);
   }
 
   // A command that is not a pinned watcher has no declared commit to hold GitHub to.
   const unpinned = stub({ state: 'OPEN' });
-  assert.equal(restoreQueueEntry('node scripts/land-watch.mjs --pr 1118 --branch claude/f', unpinned).action, 'watch');
-  assert.equal(restoreQueueEntry('npm run test:unit', unpinned).action, 'watch');
+  assert.equal(restoreQueueEntry(merge('j-1', { command: 'node scripts/land-watch.mjs --pr 1118 --branch claude/f' }), unpinned).action, 'watch');
+  assert.equal(restoreQueueEntry(job('j-2', { command: 'npm run test:unit' }), unpinned).action, 'watch');
   assert.deepEqual(unpinned.calls, []);
 
   // GitHub refusing (the head moved off the pin, say) refuses the requeue with its words, rather
   // than queueing a watcher that would fail on its first tick.
   const moved = stub({ state: 'OPEN' }, { status: 1, out: '', err: 'Head branch was modified' });
-  const answer = restoreQueueEntry(command, moved);
+  const answer = restoreQueueEntry(landing, moved);
   assert.equal(answer.action, 'refuse');
   assert.match(answer.message, /#1118/);
   assert.match(answer.message, /Head branch was modified/);

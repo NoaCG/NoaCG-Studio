@@ -1977,13 +1977,13 @@ export function requeueDecision(branch, jobs, git = {}) {
  * Turning the request back on is part of re-running the declaration, and it stays one:
  * `--match-head-commit` holds GitHub to the declared commit, so a pull request that moved is
  * refused by GitHub rather than merged. Anything already queued, merged or unreadable is left to
- * the watcher, which answers it as before. `view(pr)` reads the pull request as land-watch does;
- * `gh(args)` returns `{ status, out, err }`.
+ * the watcher, which answers it as before. `job` is the landing `requeueDecision` returns,
+ * `view(pr)` reads the pull request as land-watch does, and `gh(args)` returns `{ status, out, err }`.
  */
-export function restoreQueueEntry(command, { view, gh }) {
-  if (!/\bland-watch\.mjs\b/.test(command ?? '')) return { action: 'watch' };
-  const pr = /--pr\s+(\d+)/.exec(command)?.[1];
-  const sha = /--expect-sha\s+([0-9a-f]{7,40})/.exec(command)?.[1];
+export function restoreQueueEntry(job, { view, gh }) {
+  if (!/\bland-watch\.mjs\b/.test(job?.command ?? '')) return { action: 'watch' };
+  const pr = /--pr\s+(\d+)/.exec(job.command)?.[1];
+  const sha = declaredCommitOf(job);
   if (!pr || !sha) return { action: 'watch' };
   const now = view(pr);
   if (now?.state !== 'OPEN' || now.autoMergeRequest || now.mergeQueueEntry) return { action: 'watch' };

@@ -631,7 +631,7 @@ async function cmdRequeue() {
   }
   const { viewPr } = await import('./land-watch.mjs');
   const ghRunner = spawnRunner('gh');
-  const restored = restoreQueueEntry(decision.job.command, { view: viewPr, gh: (a) => ghRunner(a, { allowFailure: true }) });
+  const restored = restoreQueueEntry(decision.job, { view: viewPr, gh: (a) => ghRunner(a, { allowFailure: true }) });
   if (restored.action === 'refuse') {
     console.error(restored.message);
     process.exit(1);
