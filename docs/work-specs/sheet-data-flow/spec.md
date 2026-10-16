@@ -71,10 +71,11 @@ Sheet keeps feeding its output with every operator page closed.
 
 ## Behaviour
 
-**Connecting.** The production's data surface leads with one action, "Connect a Google Sheet".
-The operator pastes the link they would send a colleague. NoaCG reads it at once and shows what it
-found, or says exactly what to change ("This sheet is not shared. In Google Sheets: Share, General
-access, Anyone with the link, Viewer.").
+**Connecting.** The production's data surface leads with one action, "Connect a Google Sheet". The
+operator pastes the link they would send a colleague and picks what the sheet is: values (one name
+and value per row) or, from phase 5, a list (one row per entry). NoaCG reads it at once and shows
+what it found, or says exactly what to change ("This sheet is not shared. In Google Sheets: Share,
+General access, Anyone with the link, Viewer.").
 
 **A values sheet** (the first shape, D2): column A is a name, column B its value, one
 row per value, a header row optional. `Home score | 3`. Each row becomes a production value with
@@ -88,7 +89,9 @@ preview, then Take).
 field whose title matches exactly one value name connects itself (today's "Bind all by title",
 done for the operator). The cue editor shows a connected field as its value with the source, for
 example "3, from Sheet: Home score", and one control to change or disconnect it. Every field also
-offers "Connect to…" with the list of names, so connecting never needs the Data tab.
+offers "Connect to…" with the list of names, so connecting never needs the Data tab. Matching keeps
+letters of every language: today's rule (`normalize` in `model/productionData.ts`) drops everything
+outside a-z and 0-9, so "Määrä" collides with "Mr" and a title written in Cyrillic never matches.
 
 **While the show runs.** Each connected source has exactly one active reader (D1):
 
@@ -198,7 +201,8 @@ no code. Layer: Node test for link parsing and CSV-to-values; a journey in
 After connecting, each empty field whose title matches exactly one name is connected, in every
 graphic in the production and in any graphic added later; a field matching two names stays
 unconnected and the reason is shown. The cue editor shows each connected field's value and source
-name. Layer: Node test on the matching; the journey above.
+name. Titles and names with letters outside a-z ("Määrä", Cyrillic) match like any other. Layer:
+Node test on the matching; the journey above.
 
 ### AC-3: A cell edit reaches the output without a Take
 With a connected graphic on air, editing its cell changes the output within 10 seconds (D3),
@@ -265,9 +269,9 @@ air in under five minutes without reading documentation. Layer: scenario run, re
    Node tests. With a real Sheet, measures edit-to-read time over at least 20 edits and whether
    Google keeps answering one reader every 5 seconds for an hour; records both in `evidence/` and
    Phase notes. A miss on D3 stops the plan for the owner. No UI.
-2. **Local productions** (AC-1, AC-2, AC-3 unpublished, AC-5 tabs, AC-7): connect, the browser
-   reader under a lock, the status line with Pause, auto-connect by title, the cue editor's source
-   and "Connect to…".
+2. **Local productions** (AC-1, AC-2, AC-3 unpublished, AC-5 tabs, AC-7 unpublished): connect, the
+   browser reader under a lock, the status line with Pause, auto-connect by title, the cue editor's
+   source and "Connect to…".
 3. **Published productions** (AC-3 published, AC-4, AC-5 handover, AC-6, AC-7 published): the
    server copy of a source and its read state (migration with row security), the scheduled tick
    that runs only while a published source is active, writes through the existing data patch, and

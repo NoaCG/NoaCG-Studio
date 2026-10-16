@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "a7bb5bbc678cb4fc298cc398438399cadcb5c677a2a1d961f6d0f929f7ddf0cb",
+  "specSha256": "32a6a79a068572ca943045bc1dc3e3c10692510dc7d74d5740832754bfe3d2df",
   "authority": {
     "status": "agreed",
     "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" D1, same day: \"Server instead for published productions. A connected Sheet should keep updating the output when the operator closes or reloads the playout page. Browser reading is fine for local, unpublished productions. Feed changes through the existing production data path, with one active reader per source. Show connection status and Pause in playout, and retain the last good values if reading fails. Keep the connector separate from the graphics so other data sources can use the same approach.\" D2, same day: \"Values sheets first, list sheets later, and the operator picks the shape when connecting.\" D3, same day: \"Yes, target updates appearing within 10 seconds, reading every 5 seconds. Verify this with real Sheet edits before promising it, and measure the server cost. Show when data is stale and keep the last good values if reading fails.\" D4, same day: \"Yes, in this plan. The ± and Goal buttons should change the shared production value, updating every graphic connected to it. Do not write back to Google Sheets. The manual value holds until that cell changes in the Sheet; pausing the source keeps the override in place.\""
