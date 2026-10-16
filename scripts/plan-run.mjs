@@ -43,7 +43,11 @@ const BLOCKED = /^blocked:/i;
 /** `next` says closing this long before the window ends. */
 const CLOSING_MS = 45 * 60_000;
 
-const STEP_LINE = /^- (\S+) phase (\d+) (\w+)\b ?(.*)$/;
+/**
+ * A line `recordStep` wrote. Anchored on its ISO time so a note elsewhere in the wave file, such as
+ * a retro bullet "- Pace: phase 1 build+check took ~2h", is never read as a step (#1280).
+ */
+const STEP_LINE = /^- (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z) phase (\d+) (\w+)(?: (.*))?$/;
 
 /** The phases the coordinator copied from the plan: the numbered list under `## Phases`. */
 export function readPhases(text) {
@@ -54,7 +58,7 @@ export function readPhases(text) {
 /** Every recorded step, in the order written. */
 export function readSteps(text) {
   return text.replace(/\r\n/g, '\n').split('\n').map((line) => STEP_LINE.exec(line)).filter(Boolean)
-    .map(([, at, phase, event, detail]) => ({ at, phase: Number(phase), event, detail: detail.trim() }))
+    .map(([, at, phase, event, detail = '']) => ({ at, phase: Number(phase), event, detail: detail.trim() }))
     .filter((step) => EVENTS.includes(step.event));
 }
 

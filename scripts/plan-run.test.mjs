@@ -214,7 +214,9 @@ test('a four-phase plan asks for one midpoint retro, a three-phase plan never', 
   assert.deepEqual(next(four), retro);
   assert.deepEqual(next(four), retro);
   assert.equal(printed(four), `retro phase 2: ${retro.why}\n`);
-  appendFileSync(four, '\n## Midpoint retro\n\n- the checks took longer than the builds\n', 'utf8');
+  // A retro bullet naming a phase and an event is a note, not a step: only a line the record
+  // command wrote, which starts with its ISO time, is read as one (#1280).
+  appendFileSync(four, '\n## Midpoint retro\n\n- the checks took longer than the builds\n- Pace: phase 1 build+check took ~2h\n', 'utf8');
   assert.deepEqual(next(four), { action: 'launch', phase: 3, step: 'build', carry: 'fine 2' });
   for (const phase of [3, 4]) {
     checked(four, phase);
