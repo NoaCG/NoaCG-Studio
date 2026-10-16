@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "2ca7b4b3633ce6734a89c339d76d3661504d5c6b2525f699cb611c7597de16a6",
+  "specSha256": "d27c864f554af6241155d9d0de7d53f5bdb803fb2ec17070fabb714cc06b526f",
   "authority": {
     "status": "draft",
-    "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" D1, same day: \"Server instead for published productions. A connected Sheet should keep updating the output when the operator closes or reloads the playout page. Browser reading is fine for local, unpublished productions. Feed changes through the existing production data path, with one active reader per source. Show connection status and Pause in playout, and retain the last good values if reading fails. Keep the connector separate from the graphics so other data sources can use the same approach.\" D2 to D4 await the owner."
+    "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" D1, same day: \"Server instead for published productions. A connected Sheet should keep updating the output when the operator closes or reloads the playout page. Browser reading is fine for local, unpublished productions. Feed changes through the existing production data path, with one active reader per source. Show connection status and Pause in playout, and retain the last good values if reading fails. Keep the connector separate from the graphics so other data sources can use the same approach.\" D2, same day: \"Values sheets first, list sheets later, and the operator picks the shape when connecting.\" D3 and D4 await the owner."
   },
   "review": null
 }

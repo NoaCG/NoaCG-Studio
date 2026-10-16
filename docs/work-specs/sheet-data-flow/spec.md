@@ -77,7 +77,7 @@ The operator pastes the link they would send a colleague. NoaCG reads it at once
 found, or says exactly what to change ("This sheet is not shared. In Google Sheets: Share, General
 access, Anyone with the link, Viewer.").
 
-**A values sheet** (recommended first shape, see D2): column A is a name, column B its value, one
+**A values sheet** (the first shape, D2): column A is a name, column B its value, one
 row per value, a header row optional. `Home score | 3`. Each row becomes a production value with
 that name. A name containing dots nests as today (`match.home.score`) for people who want that.
 
@@ -157,11 +157,11 @@ Sheets connect on the production. A graphic that already carries the block keeps
   `PRODUCTION_DATA_PLAN.md` §2.8 and §10 item 5 ("no in-app pollers"), whose reason was
   `liveData.ts` living inside template code, outside the log and invisible; this reader is
   visible, pausable, writes through the one data path, and only runs where no server can.
+- **D2. Sheet shapes (decided, owner 2026-10-16).** Values sheets first, list sheets later (phase
+  5), and the operator picks the shape when connecting; it is never detected silently.
 
 Open, recommendation first:
 
-- **D2. Sheet shapes.** Recommendation: values sheets first, list sheets as phase 5, the operator
-  choosing the shape when connecting (two choices with a picture), never detected silently.
 - **D3. How fresh.** Recommendation: a change in the Sheet is on screen within 10 seconds, read
   every 5 seconds unless phase 1's measurement forces slower. A scoreboard needing faster updates
   uses the ± controls.
