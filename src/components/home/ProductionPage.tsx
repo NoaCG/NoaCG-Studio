@@ -281,7 +281,6 @@ import {
   pictureLabel,
 } from '../../templates/picture';
 import { pictureUploadTarget } from '../../templates/pictureTarget';
-import { isOwnPictureGraphic } from '../../model/poolIdentity';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import { copyLink } from './copyLink';
@@ -2583,7 +2582,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     const poolId = afterPool
       .find((s) => s.id === show.id)
-      ?.graphics.find((g) => g.name === template.name && isOwnPictureGraphic(g))?.id;
+      ?.graphics.find((g) => g.name === template.name)?.id;
     if (poolId) {
       // A NEW graphic arrives with one cue already seeded from its field defaults, and the first
       // picture IS that default — so only the pictures after it need cues of their own.

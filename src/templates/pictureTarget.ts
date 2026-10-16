@@ -15,7 +15,7 @@
 // Pure, importing only the pure ../model/poolIdentity.ts, so scripts/picture-target.test.mjs runs it
 // in Node.
 
-import { isOwnPictureGraphic } from '../model/poolIdentity.ts';
+import { freeName, isOwnPictureGraphic } from '../model/poolIdentity.ts';
 
 /** The production's own picture graphic to add to (`existing`, keeping its name), or null and the
  *  name for a new one. */
@@ -26,8 +26,5 @@ export function pictureUploadTarget<G extends { name: string; type: string; grap
 ): { existing: G | null; name: string } {
   const existing = pool.find(isOwnPictureGraphic);
   if (existing) return { existing, name: existing.name };
-  const taken = new Set([...libraryNames, ...pool.map((g) => g.name)]);
-  let name = baseName;
-  for (let n = 2; taken.has(name); n += 1) name = `${baseName} ${n}`;
-  return { existing: null, name };
+  return { existing: null, name: freeName([...libraryNames, ...pool.map((g) => g.name)], baseName) };
 }
