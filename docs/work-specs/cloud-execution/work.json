@@ -6,12 +6,12 @@
     "source": "Owner numerical approval, 2026-10-16: https://github.com/NoaCG/NoaCG-Studio/issues/1301#issuecomment-6223002051; native launch/authentication and recovery boundaries remain explicit."
   },
   "review": {
-    "revision": "57523b2cb9f0143b613ed5631074be2c93324c8d",
-    "specSha256": "7a4aab32b964e1432174cdd72ad0268631c0b4c2577f94dcbdb01adc20093c2e",
+    "revision": "fc7351f72d917bf1cc04a1f36fc94af2cc8a1246",
+    "specSha256": "f44b8144f9e80a2d8da4e72820dbf3476e45307e3d4d91bc7715e5cf26a11361",
     "evidence": [
       {
-        "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-        "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
+        "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
+        "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
       }
     ],
     "criteria": [
@@ -43,15 +43,11 @@
       },
       {
         "id": "AC-2",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
-            "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
-          },
-          {
-            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
+            "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
+            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
           }
         ]
       },
@@ -60,12 +56,16 @@
         "status": "unverified",
         "evidence": [
           {
+            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
+            "sha256": "b3c6ada6c73d057cff9b8f1582ce875ea116fdaad691c0f40ab2722b512ef2cb"
+          },
+          {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
             "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           },
           {
-            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
+            "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
+            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
           }
         ]
       },
@@ -74,12 +74,16 @@
         "status": "unverified",
         "evidence": [
           {
+            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
+            "sha256": "b3c6ada6c73d057cff9b8f1582ce875ea116fdaad691c0f40ab2722b512ef2cb"
+          },
+          {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
             "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           },
           {
-            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
+            "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
+            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
           }
         ]
       },
@@ -88,12 +92,16 @@
         "status": "unverified",
         "evidence": [
           {
+            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
+            "sha256": "b3c6ada6c73d057cff9b8f1582ce875ea116fdaad691c0f40ab2722b512ef2cb"
+          },
+          {
             "path": "docs/work-specs/cloud-execution/evidence/continuation-20261016.md",
             "sha256": "6fee612ad7c717e52a2357645fa8b6051c14ffa52e3b7cbb75b6ab684d1d3081"
           },
           {
-            "path": "docs/work-specs/cloud-execution/evidence/capabilities.md",
-            "sha256": "407bb462fce78f8ae397947c91ae402405c2d68d8d3b69af5fc0cb0af1e2ceb6"
+            "path": "docs/work-specs/cloud-execution/evidence/policy-20261016.md",
+            "sha256": "3c7bb1b43262f1c2284721358fd31c0866ee9e308767fe3c9cca9bcc7a4fa13f"
           }
         ]
       },
