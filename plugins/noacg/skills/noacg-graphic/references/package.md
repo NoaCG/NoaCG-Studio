@@ -34,7 +34,9 @@ the workspace you edit:
   with `@font-face` in `template.css`; nothing is linked from the network.
 
 `noacg scaffold --out <dir>` writes a complete package; `noacg validate <dir>` regenerates the
-generated half after checking the sources; `noacg pack <dirs…> --name N --save` sends several
-graphics as ONE package (layers + an optional `--rundown` of cues) to the user's Home →
-Productions, where Install makes it a production; `--out <file.noacgpack.json>` writes the same
-package as a file for the studio's Import a package card.
+generated half after checking the sources; `noacg save <dirs…>` delivers several graphics to the
+library in one go (`--production N` makes their production too, ready to open); `noacg pack
+<dirs…> --name N --save` sends several graphics as ONE package (layers + an optional `--rundown`
+of cues) to the user's Home → Productions, where it waits until Install makes it a production;
+`--out <file.noacgpack.json>` writes the same package as a file for the studio's Import a
+package card.

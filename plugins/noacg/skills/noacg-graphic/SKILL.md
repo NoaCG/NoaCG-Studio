@@ -24,6 +24,13 @@ the installed CLI version against this package's reviewed pin. Use the pinned np
 when the existing installation differs. This is a local workflow; ordinary Claude Chat
 cannot execute the CLI.
 
+**Connect before the brief.** Once per session, before you collect the brief or start building:
+run `noacg doctor` once, then `noacg whoami` (both in the terminal; the MCP tool has no login).
+A valid key is reused as it is. Otherwise tell the user a NoaCG page will open in their browser,
+run `noacg login` and give it up to five minutes; the user approves it there, never you. If they
+decline, the login times out or fails, carry on locally and say plainly that nothing will be
+saved to their account; finish with the validated package folders (step 5's no-account route).
+
 1. **Start a package.** Either author from scratch against the contract below, or take a
    scaffold when it saves work or brings behaviour you need:
    - `noacg types` lists the graphic TYPES NoaCG knows (fields, operator events, designs). A type
@@ -67,48 +74,74 @@ cannot execute the CLI.
    operator steps through is a number. **With an authored machine this is the remaining gate,
    and it is the one with a human in it**: SHOW the user the buttons - "these
    are your buttons" - so a person confirms the operator surface before it is saved.
-5. **Save.** `noacg save ./my-graphic --name "…"` validates once more and puts it in the user's
-   NoaCG library, printing the `#/graphic/<id>` link (it opens at once; it is in Home → Graphics).
-   It needs the user's scoped agent key on this machine: if `noacg whoami` says not logged in,
-   ask the user to run `noacg login` (it opens a consent page in THEIR browser - you cannot and
-   must not do that step for them), or set `NOACG_AGENT_KEY` in CI. The key can only create
-   graphics in the library - save never publishes, adds to a production or airs anything. (No
-   account? Zip the package folder: `zip -r my-graphic.zip my-graphic` on macOS or Linux;
+5. **Deliver.** When every requested graphic is validated and inspected, save them ALL in ONE
+   command: `noacg save ./opener ./name-strap ./scorebug`. It validates each once more, refuses
+   the whole set on one error, and puts every graphic in the user's NoaCG library in one
+   delivery, printing each `#/graphic/<id>` link (it opens at once; it is in Home → Graphics),
+   the account and deployment it went to, and an operation id. It needs the key from "Connect
+   before the brief" (or `NOACG_AGENT_KEY` in CI). It never publishes, plays or airs anything.
+   (No account? Zip each package folder: `zip -r my-graphic.zip my-graphic` on macOS or Linux;
    on Windows `Compress-Archive my-graphic my-graphic.zip` in PowerShell, or
    `C:/Windows/System32/tar.exe -a -cf my-graphic.zip my-graphic` from any shell (Git Bash's own
    `tar` writes a tar file, not a zip). `noacg validate my-graphic.zip` confirms it, and it
    imports through the studio's Import door. It is also a complete OGraf package any OGraf
    renderer plays.)
 
-## A whole package: several graphics for one show
+## Several graphics for one show
 
-When the user asks for a PACKAGE - "graphics for my esports night", "a news package", "everything a
+When the user asks for a SET - "graphics for my esports night", "a news package", "everything a
 fight show needs" - make each graphic with the loop above (steps 1-4, one package folder each,
-one shared look), then send them together instead of saving them one by one:
+one shared look), then deliver them all with ONE `noacg save` (step 5).
+
+**A production, only when the user asks for one** (a show, a running order, "set it up to
+run"): add it to the same save. The graphics, the production, its layers and its rundown arrive
+together, ready to open, with no Install step:
 
 ```
-noacg pack ./opener ./name-strap ./scorebug ./endboard --name "Friday Fight Night" \
-  --rundown ./rundown.json --layer 10 --save
+noacg save ./opener ./name-strap ./scorebug ./endboard --production "Friday Fight Night" \
+  --rundown ./rundown.json --layer 10
 ```
 
-- `--save` sends the package to the user's NoaCG **Home → Productions**, where it waits with an
-  **Install** button. Install creates the production - every graphic pooled on its layer, the
-  rundown ready to Take - and opens it. Tell the user exactly that: "it is waiting on Home →
-  Productions; press Install". It uses the same agent key as `save` and works from any machine.
-- `--rundown` (optional) is a JSON list of cues in show order, each naming a graphic by its name:
-  `[{ "graphic": "Name strap", "label": "Anna - host", "values": { "f0": "Anna Virtanen" } }]`.
+- `--rundown` (optional) is a JSON list of cues in show order, each naming a graphic by the name
+  it is saved under: `[{ "graphic": "Name strap", "label": "Anna - host", "values": { "f0": "Anna Virtanen" } }]`.
   Write one when the brief describes a running order; the values are sample content the
   operator edits on air.
 - `--layer 10` puts the first graphic on playout layer 10 and counts up (back to front, so list
-  full-frame backgrounds first and bugs and tickers last), or give one `--layer` per graphic.
-- Every graphic is validated again before anything is sent; one error refuses the whole package.
-- Without an account, `--out ./show.noacgpack.json` writes the same package as a file the user
-  imports on Home → Productions → **Import a package**.
-- As the MCP tool: `{ "command": "pack", "paths": ["./opener", "./scorebug"], "name": "…",
-  "rundown": [ … ] }` - sent to Home when this machine holds a key; `out` also writes the file.
+  full-frame backgrounds first and bugs and tickers last), or give each one: `--layer 10,12,20`.
+- As the MCP tool: `{ "command": "save", "paths": [ … ], "production": "…", "rundown": [ … ] }`.
+
+## What the save answered, and what you report
+
+- **Saved, confirmed by reading it back**: report each graphic's link, and the production's
+  link when one was made. Only this is delivered.
+- **Refused (403): the key may save graphics but not make productions.** It was made without the
+  production line (an older login). Nothing was saved. Ask the user: run `noacg login` again
+  and allow productions in the browser, or save library-only without `--production`.
+- **`no-production`** (the `reason` in `--json`): the deployment is too old to make a production.
+  When it says the graphics were saved, report their links and say no production was made;
+  when it says nothing was saved, offer the library-only save or the package below.
+- **Unconfirmed** (`unverified`): no answer came and a readback did not find it. Run the SAME
+  command again: it resumes the same operation and never saves a second copy. Still unconfirmed?
+  Report the operation id, name the graphics as unconfirmed, and ask the user to look in Home →
+  Graphics. `noacg status <operation or graphic id>` reads back what a delivery made and
+  whether it is there now.
+- **Not logged in, or the key was revoked** (401): nothing was saved. Run `noacg login` again,
+  which the user approves in the browser, then the same save.
+- **Any other error** saved nothing: name the graphics and the error.
+
+**Pending packages** are the older route, only when the user asks for a file or an Install:
+`noacg pack ./a ./b --name "…" [--rundown …] --save` sends a package that WAITS on Home →
+Productions until the user presses **Install**. Report it as pending Install, never as installed
+or as a production. Without an account, `--out ./show.noacgpack.json` writes it as a file the
+user imports on Home → Productions → **Import a package**.
+
+**The final report** names every requested graphic once: its library link, or that it was not
+saved and why, or that it is unconfirmed. The production's link follows when one was made; a
+package is listed apart as pending Install. Validator warnings stay apart from the delivery
+state. A saved link is saved, not opened: say "saved", not "checked in the browser".
 
 The commands above are the NoaCG CLI, reached two ways. In a terminal: `noacg <command>`
-(`npx -y @noacg/cli@0.11.0 <command>` when nothing is installed; `npm i -g @noacg/cli@0.11.0` once makes every
+(`npx -y @noacg/cli@0.12.0 <command>` when nothing is installed; `npm i -g @noacg/cli@0.12.0` once makes every
 call faster). As an MCP tool, when your client has one named `noacg` (the `noacg-mcp` plugin, or
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the
