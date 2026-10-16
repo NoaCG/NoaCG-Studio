@@ -29,11 +29,13 @@ import {
   headIsMainMerge,
   helperImporters,
   helperReach,
+  importClosure,
   integrationBase,
   localRunPolicy,
   packShards,
   parseArgs,
   planFor,
+  rawImportEdges,
   runPlan,
   runsFor,
   shardsFor,
@@ -383,6 +385,93 @@ test('a script test plans nothing, while the script it tests still escalates', (
   const focused = planFor(['scripts/e2e-affected.mjs'], { sprintFocus: true });
   assert.equal(focused.mode, 'subset');
   assert.ok(focused.focusApplied);
+});
+
+// THE DEV SERVER'S OWN MODULES ARE NEVER IGNORED (#957). `scripts/` is ignored wholesale, and a
+// plugin vite.config.ts loads but no list named planned `mode: none`, although every spec boots a
+// dev server that loads it. The set is read off the imports, so these are checked both ways: the
+// derivation finds every module the issue named, and none of them plans nothing.
+test('every module vite.config.ts loads at startup plans specs, and the set is derived from its imports', () => {
+  const read = (f) => {
+    try {
+      return readFileSync(join(REPO_ROOT, f), 'utf8');
+    } catch {
+      return null;
+    }
+  };
+  const startup = importClosure('vite.config.ts', read);
+  const named = ['eventsDevPlugin', 'adminDevPlugin', 'meDevPlugin', 'panelBackendPlugin', 'site-nav', 'whats-new', 'roadmap'];
+  for (const name of named) assert.ok(startup.has(`scripts/${name}.mjs`), `${name} is found from vite.config.ts`);
+  assert.ok(startup.has('scripts/measured.mjs'), 'and what those modules import, two levels down');
+  for (const file of [...startup].filter((f) => f.startsWith('scripts/'))) {
+    for (const sprintFocus of [false, true]) {
+      assert.notEqual(planFor([file], { sprintFocus, specsOnDisk: specFilesOnDisk() }).mode, 'none', `${file}, sprintFocus ${sprintFocus}`);
+    }
+  }
+  // A startup module the headers name keeps that subset; one they do not name escalates.
+  assert.deepEqual(planFor(['scripts/adminDevPlugin.mjs']).unmapped, []);
+  assert.equal(planFor(['scripts/eventsDevPlugin.mjs']).mode, 'full');
+  // A script the dev server never loads is still ignored.
+  assert.equal(planFor(['scripts/check-workflows.mjs']).mode, 'none');
+});
+
+test('the startup closure follows every import form, across extensions, and skips comments and packages', () => {
+  const files = new Map([
+    ['vite.config.ts', "import x from 'vite';\nimport { a } from './scripts/a.mjs';\n// import { gone } from './scripts/gone.mjs';\n"],
+    ['scripts/a.mjs', "import {\n  b,\n} from './b';\nconst c = await import('./lib/c.mjs');\nimport './missing.mjs';\n"],
+    ['scripts/b.mjs', "export * from '../scripts/a.mjs';\n"],
+    ['scripts/lib/c.mjs', 'export const c = 1;\n'],
+    ['scripts/gone.mjs', 'export const g = 1;\n'],
+  ]);
+  const closure = importClosure('vite.config.ts', (f) => files.get(f) ?? null);
+  assert.deepEqual([...closure].sort(), ['scripts/a.mjs', 'scripts/b.mjs', 'scripts/lib/c.mjs', 'vite.config.ts']);
+  // A plugin added to the config plans like any unmapped source, with no edit to the planner.
+  const plan = planFor(['scripts/a.mjs'], { devServer: closure });
+  assert.equal(plan.mode, 'full');
+  assert.deepEqual(plan.unmapped, ['scripts/a.mjs']);
+  assert.equal(planFor(['scripts/gone.mjs'], { devServer: closure }).mode, 'none');
+});
+
+// A `?raw` FILE PLANS ITS IMPORTER (#1138). The SVG runtime is ES5 that svg.ts reads `?raw` and
+// inlines into every imported graphic, so a change to it alone must reach every spec svg.ts
+// reaches; the traced map never sees a `?raw` module run, and a header cannot name a file not yet
+// written. Every runtime file on disk is checked, so a new one is covered with no edit here.
+test('a ?raw runtime file plans at least what its importer svg.ts plans', () => {
+  const onDisk = specFilesOnDisk();
+  const importer = planFor(['src/templates/importedDesign/svg.ts'], { specsOnDisk: onDisk });
+  assert.equal(importer.mode, 'subset');
+  const runtimeDir = join(REPO_ROOT, 'src/templates/importedDesign/runtime');
+  const runtime = readdirSync(runtimeDir).filter((n) => n.endsWith('.js'));
+  assert.ok(runtime.length >= 4);
+  for (const name of runtime) {
+    const file = `src/templates/importedDesign/runtime/${name}`;
+    const plan = planFor([file], { specsOnDisk: onDisk });
+    assert.equal(plan.mode, 'subset', file);
+    assert.deepEqual(plan.rawPlanned, [file]);
+    for (const spec of importer.specs) assert.ok(plan.specs.includes(spec), `${file} misses ${spec}`);
+    for (const spec of ['editor-fidelity-trim.spec.ts', 'import-svg-centred-title.spec.ts', 'import-svg-credits.spec.ts', 'svg-examples.spec.ts']) {
+      assert.ok(plan.specs.includes(spec), `${file} plans ${spec}`);
+    }
+    assert.equal(plan.catalog, true);
+  }
+});
+
+test('?raw edges resolve each importer, and a raw file no header names is mapped by them', () => {
+  const edges = rawImportEdges(new Map([
+    ['src/a/use.ts', "import src from './runtime/r.js?raw';\nimport other from '../shared/s.txt?raw';\nimport { x } from './x';\n// import old from './old.js?raw';\n"],
+    ['src/b/also.ts', "import s from '../shared/s.txt?raw';\n"],
+  ]));
+  assert.deepEqual([...edges].sort(), [['src/a/runtime/r.js', ['src/a/use.ts']], ['src/shared/s.txt', ['src/a/use.ts', 'src/b/also.ts']]]);
+  const coverage = [{ spec: 'use.spec.ts', test: (f) => f === 'src/a/use.ts' }, { spec: 'also.spec.ts', test: (f) => f === 'src/b/also.ts' }];
+  const plan = planFor(['src/shared/s.txt'], { coverage, rawImporters: edges });
+  assert.equal(plan.mode, 'subset');
+  assert.deepEqual(plan.specs, ['also.spec.ts', 'use.spec.ts']);
+  assert.deepEqual(plan.unmapped, []);
+  assert.deepEqual(plan.rawPlanned, ['src/shared/s.txt']);
+  // An importer that is itself a copy-only edit still runs its whole coverage for the raw change.
+  const copyEdits = new Map([['src/a/use.ts', { kind: 'text', terms: ['nothing names this'] }]]);
+  assert.deepEqual(planFor(['src/a/use.ts', 'src/a/runtime/r.js'], { coverage, rawImporters: edges, copyEdits }).specs, ['use.spec.ts']);
+  assert.deepEqual(planFor(['src/a/use.ts'], { coverage, rawImporters: edges, copyEdits }).specs, [], 'without the raw change, the copy path stands');
 });
 
 // AN E2E HELPER RUNS THE SPECS THAT IMPORT IT (#994). #988 changed e2e/_ografParity.ts, the plan

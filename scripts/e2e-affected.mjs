@@ -226,12 +226,16 @@ const CORE = [
 // 2026-08-07: `nightly.yml` was the unmapped file that turned a two-line gate addition into a
 // 759-spec run.
 // The last group are scripts a spec header names, so IGNORE must let them through to that header:
-// the dev-server API plugins vite.config.ts mounts, the builders of the public pages and their
-// shared chrome, the coding-agent prompt they render, and the pack builders. The test "every docs or scripts file a spec header names
+// the player host and pack builders. The test "every docs or scripts file a spec header names
 // plans that spec" fails when a header names a script this list leaves ignored.
+//
+// What the DEV SERVER loads is not listed here: every module vite.config.ts imports, and what
+// those import, is read off the imports (`importClosure`, #957) and passes IGNORE the same way -
+// the API plugins, the public page builders and their chrome, the agent prompt, and their helpers.
+// It used to be names in this list, and the plugins nobody added (eventsDevPlugin,
+// panelBackendPlugin) planned `mode: none` although every spec boots a server that loads them.
 const SUITE_CRITICAL_SCRIPTS =
-  'renderDevPlugin|aiDevPlugin|dataDevPlugin|apiRouteTable|build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists|e2e-trace|' +
-  'adminDevPlugin|meDevPlugin|whats-new|roadmap|site-nav|agent-prompt|build-news-pack|build-production-pack|packs/';
+  'build-player-host|dev-port|port-registry|e2e-runs|e2e-workers|e2e-affected|e2e-lists|e2e-trace|build-news-pack|build-production-pack|packs/';
 // `.env.example` is a template a human copies; nothing loads it. Vite and the dev-server middleware
 // read `.env`, and a spec drives a dev server that has never opened the example - so escalating on
 // it ran 53 specs to prove nothing. It already has a real gate in `npm run build`:
@@ -342,18 +346,8 @@ const CATALOG_TRIGGERS = [
 export function helperReach(sources, configs = []) {
   const importers = new Map();
   for (const [file, text] of sources) {
-    const dir = file.slice(0, file.lastIndexOf('/'));
-    // A comment line that quotes an import is not one, and counting it would narrow a helper
-    // nothing imports instead of escalating it.
-    const code = text.split('\n').filter((l) => !/^\s*(\/\/|\/?\*)/.test(l)).join('\n');
-    for (const [, spec] of code.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]((?:\.{1,2}\/|\/e2e\/)[^'"]+)['"]/g)) {
-      const parts = (spec.startsWith('/') ? spec.slice(1) : `${dir}/${spec}`).split('/');
-      const stack = [];
-      for (const part of parts) {
-        if (part === '..') stack.pop();
-        else if (part !== '.' && part !== '') stack.push(part);
-      }
-      const target = stack.join('/').replace(/\.(ts|js)$/, '') + '.ts';
+    for (const spec of importSpecifiers(text, String.raw`(?:\.{1,2}\/|\/e2e\/)`)) {
+      const target = joinPath(spec.startsWith('/') ? '' : dirOf(file), spec).replace(/\.(ts|js)$/, '') + '.ts';
       if (target !== file && sources.has(target)) importers.set(target, [...(importers.get(target) ?? []), file]);
     }
   }
@@ -381,8 +375,105 @@ export function helperReach(sources, configs = []) {
   return reach;
 }
 
+/**
+ * The relative specifiers a module imports (`from '…'`, `import('…')`, a bare `import '…'`) that
+ * start with `prefix`, a regex source. A comment line that quotes an import is not one: counting
+ * it would narrow a helper nothing imports instead of escalating it.
+ */
+function importSpecifiers(text, prefix = String.raw`\.{1,2}\/`) {
+  const code = text.split('\n').filter((l) => !/^\s*(\/\/|\/?\*)/.test(l)).join('\n');
+  const pattern = new RegExp(String.raw`(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"](${prefix}[^'"]+)['"]`, 'g');
+  return [...code.matchAll(pattern)].map((m) => m[1]);
+}
+
+/** The directory part of a repo-relative path (`''` at the root). */
+const dirOf = (file) => file.slice(0, Math.max(0, file.lastIndexOf('/')));
+
+/** `spec` resolved against the repo-relative directory `dir`, `.` and `..` folded. */
+function joinPath(dir, spec) {
+  const stack = [];
+  for (const part of `${dir}/${spec}`.split('/')) {
+    if (part === '..') stack.pop();
+    else if (part !== '.' && part !== '') stack.push(part);
+  }
+  return stack.join('/');
+}
+
+const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+/**
+ * EVERY MODULE THE DEV SERVER LOADS AT STARTUP: `vite.config.ts` and what it imports, followed
+ * through each module's own relative imports (#957). Every spec drives a dev server built from these
+ * files, so IGNORE's wholesale `scripts/` rule must not swallow one: a member the spec headers name
+ * keeps that honest subset (any spec boots the server, so a startup fault still fails it), and one
+ * they do not name escalates as unmapped. Read off the imports, so a plugin added to the config is
+ * covered with no edit here.
+ *
+ * @param {string} entry repo-relative path of the root module
+ * @param {(file: string) => string | null} read a repo-relative path's text, or null when absent
+ * @returns {Set<string>} repo-relative paths, the entry included
+ */
+export function importClosure(entry, read) {
+  const found = new Set([entry]);
+  const queue = [entry];
+  while (queue.length) {
+    const file = queue.pop();
+    for (const spec of importSpecifiers(read(file) ?? '')) {
+      const base = joinPath(dirOf(file), spec.replace(/\?.*$/, ''));
+      const target = ['', '.mjs', '.js', '.ts'].map((ext) => base + ext).find((f) => read(f) !== null);
+      if (target && !found.has(target)) { found.add(target); queue.push(target); }
+    }
+  }
+  return found;
+}
+
+/**
+ * WHO IMPORTS EACH `?raw` FILE (#1138). A `?raw` import inlines a file's text into its importer -
+ * the SVG runtime into every imported graphic, GSAP into every document - so the file reaches every
+ * spec its importer reaches, while no header can say so for a new one and the traced map never sees
+ * it run (the module is only a string). `planFor` plans each importer beside the file.
+ *
+ * @param {Map<string, string>} sources repo-relative path -> text
+ * @returns {Map<string, string[]>} raw file -> its importers, repo-relative
+ */
+export function rawImportEdges(sources) {
+  const edges = new Map();
+  for (const [file, text] of sources) {
+    if (!text.includes('?raw')) continue;
+    for (const spec of importSpecifiers(text)) {
+      if (!spec.endsWith('?raw')) continue;
+      const target = joinPath(dirOf(file), spec.slice(0, -'?raw'.length));
+      edges.set(target, [...(edges.get(target) ?? []), file]);
+    }
+  }
+  return edges;
+}
+
+/**
+ * The two import graphs above, over this checkout, read once per process. `?raw` is a Vite
+ * suffix, so only Vite-built source under `src/` can carry one.
+ */
+let checkoutGraphs = null;
+function checkoutGraph() {
+  if (checkoutGraphs) return checkoutGraphs;
+  const read = (file) => {
+    try {
+      return readFileSync(join(REPO_ROOT, file), 'utf8');
+    } catch {
+      return null; // absent, or a directory
+    }
+  };
+  const sources = new Map();
+  for (const rel of readdirSync(join(REPO_ROOT, 'src'), { recursive: true })) {
+    const file = `src/${String(rel).replaceAll('\\', '/')}`;
+    if (/\.(m?[jt]sx?)$/.test(file)) sources.set(file, read(file) ?? '');
+  }
+  checkoutGraphs = { devServer: importClosure('vite.config.ts', read), rawImporters: rawImportEdges(sources) };
+  return checkoutGraphs;
+}
+
 /** `helperReach` over this checkout: every `.ts` under e2e/, and the configs that load helpers. */
-export function helperImporters(root = fileURLToPath(new URL('..', import.meta.url))) {
+export function helperImporters(root = REPO_ROOT) {
   const sources = new Map();
   for (const rel of readdirSync(join(root, 'e2e'), { recursive: true })) {
     const file = `e2e/${String(rel).replaceAll('\\', '/')}`;
@@ -427,19 +518,24 @@ const helpersFor = (changed) => (changed.some((f) => /^e2e\/_/.test(f)) ? helper
  * helper the map has no specs for, or one a config loads, falls through to CORE as before, and
  * with no map at all nothing changes.
  *
+ * Two import graphs default to this checkout's (`checkoutGraph`): `devServer`, the modules the dev
+ * server loads at startup, which IGNORE never swallows; and `rawImporters`, which adds each changed
+ * `?raw` file's importers to the plan (listed in `rawPlanned`).
+ *
  * @param {string[]} changed        repo-relative paths, forward slashes
  * @param {{ sprintFocus?: boolean, specsOnDisk?: string[] | null,
  *           copyEdits?: Map<string, { kind: 'text'|'class', terms: string[], grew?: boolean }>,
  *           specTexts?: Map<string, string>, baselined?: string[], measuring?: string[],
  *           traced?: { files: Map<string, string[]>, broad: Set<string>, problem: string | null } | null,
- *           helpers?: ReturnType<typeof helperReach> | null }} [opts]
+ *           helpers?: ReturnType<typeof helperReach> | null,
+ *           devServer?: Set<string>, rawImporters?: Map<string, string[]> }} [opts]
  *   `traced` is the nightly's map (`readTracedMap`); null leaves it out, which only tests do.
- * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
- *             unmapped: string[], focusApplied: boolean, copyOnly: string[], helperPlanned: string[] }}
+ * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean, unmapped: string[],
+ *             focusApplied: boolean, copyOnly: string[], helperPlanned: string[], rawPlanned: string[] }}
  */
 export function planFor(
   changed,
-  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null } = {},
+  { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE, copyEdits = new Map(), specTexts = new Map(), baselined = [], measuring = [], traced = null, helpers = null, devServer = checkoutGraph().devServer, rawImporters = checkoutGraph().rawImporters } = {},
 ) {
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
@@ -452,13 +548,17 @@ export function planFor(
   const fromTrace = new Set();
   const tracedEscalated = [];
   const tracedBroad = [];
+  // A changed `?raw` file plans the module that inlines it as well as itself, with that module's
+  // whole coverage: the copy path never narrows an importer brought in this way.
+  const rawPlanned = changed.filter((f) => rawImporters.has(f));
+  const viaRaw = new Set(rawPlanned.flatMap((f) => rawImporters.get(f)));
 
-  for (const file of changed) {
+  for (const file of new Set([...changed, ...viaRaw])) {
     // Asked BEFORE the ignore list, deliberately: `e2e/configured/**` is ignored for the
     // offline plan (those specs cannot run here), and that is precisely the file set whose
     // change most needs the configured suite named.
     if (CONFIGURED_TRIGGERS.some((r) => r.test(file))) configured = true;
-    if (IGNORE.some((r) => r.test(file))) continue;
+    if (IGNORE.some((r) => r.test(file)) && !devServer.has(file)) continue;
     if (CATALOG_TRIGGERS.some((r) => r.test(file))) catalog = true;
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
       const name = file.replace(/^e2e\//, '');
@@ -472,7 +572,7 @@ export function planFor(
       if (!onDisk || onDisk.has(baselineOf)) specs.add(baselineOf);
       continue;
     }
-    const copy = copyEdits.get(file);
+    const copy = viaRaw.has(file) ? null : copyEdits.get(file);
     if (copy) {
       copyOnly.push(file);
       for (const s of specsNaming(copy, specTexts)) specs.add(s);
@@ -513,7 +613,9 @@ export function planFor(
         for (const s of traced.files.get(file) ?? []) if (!onDisk || onDisk.has(s)) fromTrace.add(s);
       }
     }
-    if (covering.length === 0 && central.length === 0) {
+    // A `?raw` file's importer is planned beside it, so that is its mapping even when no header
+    // names the file itself; an unmapped importer still escalates on its own turn.
+    if (covering.length === 0 && central.length === 0 && !rawImporters.has(file)) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
       full = true;
     } else {
@@ -547,7 +649,7 @@ export function planFor(
   // still reports 'none' for this gate, and the printed line is what says otherwise.
   const mode = full ? 'full' : list.length === 0 && !catalog ? 'none' : 'subset';
   return {
-    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly, helperPlanned,
+    mode, specs: list, catalog, configured, unmapped, focusApplied, copyOnly, helperPlanned, rawPlanned,
     traced: full ? [] : traceOnly,
     tracedProblem: tracedEscalated.length > 0 ? traced.problem : null,
     tracedEscalated,
@@ -1322,7 +1424,7 @@ export function parseArgs(args) {
  * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
  *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
  */
-function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], helperPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }, { count, noun, hypothetical, catalogHere = true }) {
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied, copyOnly = [], helperPlanned = [], rawPlanned = [], traced = [], tracedProblem = null, tracedEscalated = [], tracedBroad = [] }, { count, noun, hypothetical, catalogHere = true }) {
   // What made the plan escalate, so the line that says so names the cause the reader has to fix.
   const why = tracedProblem ? 'core/unmapped/untraced' : 'core/unmapped';
   if (tracedProblem) {
@@ -1345,6 +1447,10 @@ function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configu
   if (helperPlanned.length > 0) {
     log(`e2e-affected: ${helperPlanned.length} e2e helper(s) planned by the specs that import them, directly or through another helper:`);
     for (const f of helperPlanned) log('  -', f);
+  }
+  if (rawPlanned.length > 0) {
+    log(`e2e-affected: ${rawPlanned.length} file(s) imported \`?raw\` also plan the module that inlines them:`);
+    for (const f of rawPlanned) log('  -', f);
   }
   // Printed before mode 'none' returns: a change confined to hosted Pro's wire contract or to
   // e2e/configured/ leaves this gate with nothing to run, and that verdict on its own reads as
