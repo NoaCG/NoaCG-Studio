@@ -6,12 +6,12 @@
     "source": "Owner request in the 2026-10-16 durable-orchestration session: research, recommend and implement a minimal local recovery slice; no hosted deployment authorized by this record"
   },
   "review": {
-    "revision": "7efd3991e829556d069c11227da9c59ce0dd6e8f",
+    "revision": "dde04d36b7d8c99523b4fbd58875a3cf92028a9d",
     "specSha256": "4c66260096d5d4cf2f3290784f7ede883b9c651bdcad1d693fcb47799da1aaba",
     "evidence": [
       {
         "path": "docs/work-specs/durable-runs/evidence/review.md",
-        "sha256": "3613d07790c1bde5c48ffc4466d656bb9f8002889b19987179e1c3d5203baaad"
+        "sha256": "d8eb83bcff862a7f41cbb81144d96bc2b3a41593b3f007b4c92a2ab334a87646"
       }
     ],
     "criteria": [
@@ -21,7 +21,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/durable-runs/evidence/verification.md",
-            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+            "sha256": "3a884c76c80c8e9c26b037b2216e93f3b0643dfe0c5e45851353ef7b3579fd0a"
           }
         ]
       },
@@ -31,7 +31,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/durable-runs/evidence/verification.md",
-            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+            "sha256": "3a884c76c80c8e9c26b037b2216e93f3b0643dfe0c5e45851353ef7b3579fd0a"
           }
         ]
       },
@@ -41,7 +41,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/durable-runs/evidence/verification.md",
-            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+            "sha256": "3a884c76c80c8e9c26b037b2216e93f3b0643dfe0c5e45851353ef7b3579fd0a"
           }
         ]
       },
@@ -51,7 +51,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/durable-runs/evidence/verification.md",
-            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+            "sha256": "3a884c76c80c8e9c26b037b2216e93f3b0643dfe0c5e45851353ef7b3579fd0a"
           }
         ]
       },
@@ -61,7 +61,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/durable-runs/evidence/verification.md",
-            "sha256": "19f21ebb9c1da9663ad73450a8f325647c7e4cdeb6e05de99346857cb6b02e55"
+            "sha256": "3a884c76c80c8e9c26b037b2216e93f3b0643dfe0c5e45851353ef7b3579fd0a"
           },
           {
             "path": "docs/work-specs/durable-runs/evidence/measurements.json",
