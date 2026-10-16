@@ -5,5 +5,74 @@
     "status": "agreed",
     "source": "Owner request in this Codex chat, 2026-10-16: dependable cloud landing and recovery using existing environments; Claude qualification remains open."
   },
-  "review": null
+  "review": {
+    "revision": "bf3990cb9e189a7072d758c3d544e710ea06d091",
+    "specSha256": "bbf09cb2e52e54f127fb13723d886f1fc00a633c86d7fabaa46045989779facf",
+    "evidence": [
+      {
+        "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
+        "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+      },
+      {
+        "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-handoff.md",
+        "sha256": "a595e565e5a14873d83a4229802f93ef032102b916c916c923289b84b4af8305"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
+            "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
+            "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
+            "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
+            "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/runtime.md",
+            "sha256": "62de30244ee70dd31f57bed616eb8f4d655b3f340c9ac40fce73f602d44aa239"
+          },
+          {
+            "path": "docs/work-specs/cloud-landing-recovery/evidence/claude-handoff.md",
+            "sha256": "a595e565e5a14873d83a4229802f93ef032102b916c916c923289b84b4af8305"
+          }
+        ]
+      }
+    ]
+  }
 }
