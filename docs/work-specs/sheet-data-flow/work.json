@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "ac1703d27c61a6af5868fa6deacafb7466a415ae827d08ab772024dfbb9feebf",
+  "specSha256": "2ca7b4b3633ce6734a89c339d76d3661504d5c6b2525f699cb611c7597de16a6",
   "authority": {
     "status": "draft",
-    "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" Earlier that day the owner asked for the data bindings and audience parts of the production page to be more straightforward, and for a walk of the current flow as a non-technical user to design from. Decisions D1 to D4 await the owner."
+    "source": "owner, 2026-10-16: \"Start with data bindings. Draft the design spec for a simpler data flow, starting from a Google Sheet.\" D1, same day: \"Server instead for published productions. A connected Sheet should keep updating the output when the operator closes or reloads the playout page. Browser reading is fine for local, unpublished productions. Feed changes through the existing production data path, with one active reader per source. Show connection status and Pause in playout, and retain the last good values if reading fails. Keep the connector separate from the graphics so other data sources can use the same approach.\" D2 to D4 await the owner."
   },
   "review": null
 }
