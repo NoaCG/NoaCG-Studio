@@ -40,13 +40,14 @@ import { ensureFontFace, fontByStack, type CustomFont } from '../../../model/fon
 import type { ProjectLegibility } from '../../../model/designRules';
 import { draftFormatSelection } from './format';
 import { brandMarkFor, withUniversalMotion } from './template';
-// TWO FUNCTIONS AND A SHAPE, which is the whole of what this file knows about the SVG road.
+// THREE FUNCTIONS AND A SHAPE, which is the whole of what this file knows about the SVG road:
+// its empty slice for a fresh draft, the option block it builds and the passes it runs.
 // It used to be nine: five option builders read by an inline `designSvg: {...}` literal here,
 // and four template passes applied in sequence. Every one of them was public only because it
 // was called from this side of the boundary, and the literal meant the field NUMBERING, the
 // poll-driven filter and the outline rule were spelled here rather than where they are
 // decided. Both halves now live in the capability that owns them (../import/draft.ts).
-import { svgDesignOptions, withSvgImportPasses, type SvgImportDraft } from '../import';
+import { emptySvgSlice, svgDesignOptions, withSvgImportPasses, type SvgImportDraft } from '../import';
 
 export interface WizardDraft extends SvgImportDraft {
   /** What the finished graphic is CALLED (the Finish step). Empty = fall back to the design's
@@ -204,14 +205,7 @@ export function initialDraft(): WizardDraft {
     designErases: [],
     designKeepBakedText: false,
     designFields: [],
-    designSvg: null,
-    svgFields: [],
-    svgImages: [],
-    svgOutlines: [],
-    svgBehaviour: null,
-    svgExtras: [],
-    svgStretch: { on: false, shapeId: null },
-    svgFonts: [],
+    ...emptySvgSlice(),
     legibility: {},
   };
 }

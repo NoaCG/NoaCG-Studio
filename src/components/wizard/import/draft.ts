@@ -1426,10 +1426,20 @@ type SvgDropPrevious = Pick<WizardDraft, 'name' | 'designSvg'>;
 type SvgDropPatch = Omit<SvgImportDraft, 'designKeepBakedText'> &
   Required<Pick<DraftPatch, 'importedImages' | 'name' | 'category' | 'variantId' | 'lines' | 'zone' | 'animation'>>;
 
-/** Every key a clear resets: each `svg*` key of the slice, so a new one does not compile until
- *  the clear takes it back too, and the keys that made the draft an imported design. */
-type SvgClearPatch = Pick<SvgImportDraft, 'designSvg' | Extract<keyof SvgImportDraft, `svg${string}`>> &
-  Required<Pick<DraftPatch, 'name' | 'category' | 'variantId'>>;
+/** The SVG road's own keys: the artwork and each `svg*` answer the mapping step gives. */
+type SvgSlice = Pick<SvgImportDraft, 'designSvg' | Extract<keyof SvgImportDraft, `svg${string}`>>;
+
+/** Every key a clear resets: the whole SVG slice and the keys that made the draft an imported
+ *  design. */
+type SvgClearPatch = SvgSlice & Required<Pick<DraftPatch, 'name' | 'category' | 'variantId'>>;
+
+/** THE EMPTY SVG SLICE: no artwork and no answers. A fresh draft, a clear and a raster drop all
+ *  start from it, so a new `svg*` key does not compile until it has an empty value here, and
+ *  none of the three can keep a stale one. Fresh arrays on every call, so no two drafts share
+ *  one. */
+export function emptySvgSlice(): SvgSlice {
+  return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [] };
+}
 
 /**
  * THE DRAFT A DROPPED SVG STARTS FROM: every answer the mapping step then opens on. The brand
@@ -1559,12 +1569,12 @@ export function svgDraftFromImport(
  *  gave goes with the file; a name the reader typed stays. */
 export function svgDraftCleared(previous: SvgDropPrevious): SvgClearPatch {
   const fromFile = graphicNameFromFile(previous.designSvg?.fileName ?? '');
-  return { designSvg: null, svgFields: [], svgImages: [], svgOutlines: [], svgBehaviour: null, svgExtras: [], svgStretch: { on: false, shapeId: null }, svgFonts: [], variantId: null, category: null, name: previous.name === fromFile ? '' : previous.name };
+  return { ...emptySvgSlice(), variantId: null, category: null, name: previous.name === fromFile ? '' : previous.name };
 }
 
 // ── THE TWO DOORS THE SHARED DRAFT TAKES ────────────────────────────────────────────────────
-// The drop and the clear above are what the shell calls; these two are what `../draft/core.ts`
-// calls, and they are deliberately the whole of it. Nine functions used to cross here, and the cost was
+// The drop and the clear above are what the shell calls; these two, with the empty slice a
+// fresh draft starts from, are what `../draft/core.ts` calls, and deliberately the whole of it. Nine functions used to cross here, and the cost was
 // not the count - it was that the CALLER held the knowledge joining them: which layers become
 // numbered fields, and which order the template passes run in. Both facts now sit with the
 // code that decides them, and adding a tenth answer to the mapping step changes one file.

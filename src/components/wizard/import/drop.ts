@@ -10,7 +10,7 @@ import type { DesignArt } from '../../../model/wizard';
 import type { SvgImportResult } from '../../../assets/svgImport';
 import type { ImportedTemplateResult } from '../../../model/importTemplate';
 import type { DraftPatch } from '../draft/core';
-import { svgDraftCleared, svgDraftFromImport } from './draft';
+import { emptySvgSlice, svgDraftCleared, svgDraftFromImport } from './draft';
 
 /** A dropped SVG: the draft the mapping step opens on. The SVG road's own function decides it
  *  (fit to the frame, furniture last, the `f:` and `static:` prefixes, the name from the file),
@@ -31,14 +31,7 @@ export function clearSvgPatch(draft: Parameters<typeof svgDraftCleared>[0]): Dra
 export function artDropPatch(designArt: DesignArt, importedImages: AssetFile[]): DraftPatch {
   return {
     // A raster drop replaces any SVG from this walk (and an SVG drop replaces the raster state).
-    designSvg: null,
-    svgFields: [],
-    svgImages: [],
-    svgOutlines: [],
-    svgBehaviour: null,
-    svgExtras: [],
-    svgStretch: { on: false, shapeId: null },
-    svgFonts: [],
+    ...emptySvgSlice(),
     designArt,
     importedImages,
     // A fresh drop resets the Prepare step: the pristine pixels become the erase's source, and
