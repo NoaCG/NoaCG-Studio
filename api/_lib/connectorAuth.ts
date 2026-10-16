@@ -19,6 +19,7 @@
 
 import { webcrypto } from 'node:crypto';
 import { oauthClientOf, supabaseEnv } from './auth.js';
+import { isConnectorDiscovery } from './connectorDiscovery.js';
 
 /** Supabase Auth's issuer, which the protected resource metadata names. Null without a backend. */
 export function authServerUrl(): string | null {
@@ -47,8 +48,8 @@ export function resetConnectorEnabledCache(): void {
   jwksCache = null;
 }
 
-/** The OAuth server's discovery document, or null while Auth runs none (dynamic registration is
- *  what a chat client needs, so a server without it counts as off). */
+/** The OAuth server's discovery document, or null while Auth runs none the connector can use
+ *  (the rule is `isConnectorDiscovery`). */
 async function authServerMetadata(fetchFn: typeof fetch, nowMs: number): Promise<AuthServerMetadata | null> {
   if (metadataCache && nowMs - metadataCache.at < METADATA_TTL_MS) return metadataCache.meta;
   const base = authServerUrl();
@@ -56,8 +57,8 @@ async function authServerMetadata(fetchFn: typeof fetch, nowMs: number): Promise
   if (base) {
     try {
       const res = await fetchFn(`${base}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(5000) });
-      const doc = res.ok ? ((await res.json()) as { issuer?: unknown; jwks_uri?: unknown; registration_endpoint?: unknown }) : null;
-      if (typeof doc?.registration_endpoint === 'string' && doc.registration_endpoint && typeof doc.issuer === 'string') {
+      const doc: unknown = res.ok ? await res.json() : null;
+      if (isConnectorDiscovery(doc)) {
         meta = { issuer: doc.issuer, jwksUri: typeof doc.jwks_uri === 'string' ? doc.jwks_uri : `${base}/.well-known/jwks.json` };
       }
     } catch {

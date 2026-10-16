@@ -1305,8 +1305,8 @@ repo command, because all three failed checks came from pasted shell state.
   order; *`off`* sends the paired off body; *`--hook-off`* (off only) sends the hook off after
   Auth's config and discovery read the OAuth server off. Each body is checked by value in the
   PATCH's answer and then in a fresh read of the config (a failed or stale read is retried for a
-  minute). Each run ends on Auth's discovery, read by the site's own rule in
-  `api/_lib/connectorAuth.ts` (up to 3 minutes), and on production on `https://noacg.studio/mcp`:
+  minute). Each run ends on Auth's discovery, read by the site's own rule, imported from
+  `api/_lib/connectorDiscovery.ts` (up to 3 minutes), and on production on `https://noacg.studio/mcp`:
   401 with `resource_metadata` for on, 503 `connector_disabled` for off (a platform 503 does not
   count), polled once 65 s have passed since Auth flipped, for a minute more. `status` only reads,
   and says `NOT safe` if the OAuth server runs without the connector's hook (enabled and pointing
